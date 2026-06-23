@@ -179,41 +179,55 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use super::*;
 
-    // The wasm-exposed functions are ordinary Rust fns; verify the decapsulate
-    // logic reproduces the shared cross-platform vector on the host. (Actual WASM
-    // execution is checked by `wasm-pack test` — see README.)
-    #[test]
-    fn decapsulate_matches_shared_vector() {
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../bindings/shared-test-vectors.json"
-        );
-        let json = std::fs::read_to_string(path).unwrap();
-        let field = |k: &str| -> Vec<u8> {
-            let pat = format!("\"{k}\"");
-            let i = json.find(&pat).unwrap();
-            let rest = &json[i + pat.len()..];
-            let q1 = rest.find('"').unwrap();
-            let q2 = rest[q1 + 1..].find('"').unwrap();
-            let hex = &rest[q1 + 1..q1 + 1 + q2];
-            (0..hex.len())
-                .step_by(2)
-                .map(|j| u8::from_str_radix(&hex[j..j + 2], 16).unwrap())
-                .collect()
-        };
+    // Embedded at compile time so the SAME check runs on the host AND on real
+    // wasm (no filesystem in wasm32).
+    const SHARED_VECTOR: &str = include_str!("../../../bindings/shared-test-vectors.json");
+
+    fn field(json: &str, k: &str) -> Vec<u8> {
+        let pat = format!("\"{k}\"");
+        let i = json.find(&pat).unwrap();
+        let rest = &json[i + pat.len()..];
+        let q1 = rest.find('"').unwrap();
+        let q2 = rest[q1 + 1..].find('"').unwrap();
+        let hex = &rest[q1 + 1..q1 + 1 + q2];
+        (0..hex.len())
+            .step_by(2)
+            .map(|j| u8::from_str_radix(&hex[j..j + 2], 16).unwrap())
+            .collect()
+    }
+
+    fn check_shared_vector() {
+        let j = SHARED_VECTOR;
         let secret = decapsulate(
             2,
-            &field("suite_id"),
+            &field(j, "suite_id"),
             1,
-            &field("sk_pq"),
-            &field("ct_pq"),
-            &field("pk_pq"),
-            &field("sk_trad"),
-            &field("ct_trad"),
-            &field("pk_trad"),
-            &field("context"),
+            &field(j, "sk_pq"),
+            &field(j, "ct_pq"),
+            &field(j, "pk_pq"),
+            &field(j, "sk_trad"),
+            &field(j, "ct_trad"),
+            &field(j, "pk_trad"),
+            &field(j, "context"),
         )
         .unwrap_or_default();
-        assert_eq!(secret, field("secret"), "WASM API must match the Rust core");
+        assert_eq!(
+            secret,
+            field(j, "secret"),
+            "WASM API must match the Rust core"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn decapsulate_matches_shared_vector() {
+        check_shared_vector();
+    }
+
+    // Runs on actual wasm via `wasm-pack test --node crates/pqt-wasm`.
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn decapsulate_matches_shared_vector_wasm() {
+        check_shared_vector();
     }
 }

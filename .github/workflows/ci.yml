@@ -97,8 +97,22 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - run: cargo build -p pqt-wasm --target wasm32-unknown-unknown
-      # WASM-API logic is also checked on host in `check` (decapsulate_matches_shared_vector).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: cargo install wasm-pack
+      # Runs the shared-vector consistency test on a real wasm runtime (Node).
+      - run: wasm-pack test --node crates/pqt-wasm
+
+  # Robustness fuzzing (nightly + libFuzzer). The fuzz crate is detached from the
+  # workspace; this compiles every target. (Time-boxed runs are done locally.)
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz
+      - run: cargo +nightly fuzz build --fuzz-dir fuzz
 
   bindings-swift:
     runs-on: macos-latest

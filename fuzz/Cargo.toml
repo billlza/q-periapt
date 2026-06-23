@@ -1,0 +1,32 @@
+[package]
+name = "pqt-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+pqt-core = { path = "../crates/pqt-core" }
+pqt-backends = { path = "../crates/pqt-backends" }
+
+[[bin]]
+name = "combine"
+path = "fuzz_targets/combine.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mlkem_decapsulate"
+path = "fuzz_targets/mlkem_decapsulate.rs"
+test = false
+doc = false
+bench = false
+
+# Detached from the main workspace so the nightly/libFuzzer-only fuzz crate does
+# not affect the stable `cargo build/clippy --workspace` gate.
+[workspace]

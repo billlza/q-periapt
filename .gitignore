@@ -10,6 +10,12 @@ bindings/swift/Package.resolved
 bindings/kotlin/.gradle/
 bindings/kotlin/build/
 
+# Fuzzing artifacts (targets + manifest are committed; run data is not)
+fuzz/corpus/
+fuzz/artifacts/
+fuzz/coverage/
+fuzz/Cargo.lock
+
 # Generated SBOM/CBOM artifacts (the *generator* is committed; outputs are not)
 /sbom/*.json
 /sbom/*.cdx.json
