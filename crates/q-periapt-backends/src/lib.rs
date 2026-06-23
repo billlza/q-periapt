@@ -27,6 +27,10 @@ mod xwing_kat;
 #[cfg(test)]
 mod differential;
 
+// NIST ACVP (FIPS 203) ground-truth conformance vectors for ML-KEM-768.
+#[cfg(test)]
+mod acvp;
+
 // Optional, off-by-default backends (see Cargo.toml [features]).
 #[cfg(feature = "slh-dsa")]
 mod slhdsa;

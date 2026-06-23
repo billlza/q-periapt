@@ -56,6 +56,9 @@ orion = "0.17.10"
 # Independent ML-DSA (RustCrypto) for the signature-layer differential; FIPS 204
 # deterministic keygen/sign give byte-exact comparison + cross-verification.
 ml-dsa = "0.1.0-pre.2"
+# Parse the vendored NIST ACVP conformance vectors (vectors/acvp-*.json).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [[bench]]
 name = "combiner"

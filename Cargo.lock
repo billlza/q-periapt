@@ -1066,6 +1066,8 @@ dependencies = [
  "q-periapt-core",
  "q-periapt-kem",
  "q-periapt-sig",
+ "serde",
+ "serde_json",
  "sha3",
  "x25519-dalek",
 ]

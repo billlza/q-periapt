@@ -203,6 +203,21 @@ vectors would miss:
 Extending the differential to SLH-DSA is pending (its keygen is randomized, so the
 check would be signature interoperability rather than byte-identity).
 
+### 12. NIST ACVP ground-truth conformance
+[`crates/q-periapt-backends/src/acvp.rs`](../crates/q-periapt-backends/src/acvp.rs)
+validates the libcrux backends against the **authoritative** NIST ACVP vectors
+(vendored under `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`):
+- **ML-KEM-768 (FIPS 203)** — the full set: 25 keyGen `(d,z)→(dk,ek)`, 25 encaps
+  `(ek,m)→(c,k)`, 10 decaps `(dk,c)→k` including modified-ciphertext cases that
+  exercise FO implicit rejection. All byte-identical to NIST.
+- **ML-DSA-65 (FIPS 204)** — 25 keyGen `ξ→(sk,pk)`, plus the sigGen/sigVer cases
+  matching our backend's mode (external interface, pure, deterministic, empty
+  context). Broader sign/verify conformance is covered by the §11 differential.
+
+This is *direct* NIST ground truth, orthogonal to the differential (which compares
+against another implementation). Other parameter sets + broader signature modes
+are pending (§PENDING).
+
 ---
 
 ## PENDING
@@ -210,12 +225,14 @@ check would be signature interoperability rather than byte-identity).
 Stated honestly. None of these are blockers for the research claims above; they
 are the gap between research-grade and audited/production.
 
-1. **Full FIPS 203 ACVP breadth + `ContextBound` cross-platform reference
-   vectors.** The X-Wing KAT covers core correctness on three happy-path
-   vectors; the complete NIST ACVP ML-KEM-768 case set (edge cases, many
-   vectors) is not yet wired. Fixed `(suite_id, policy_version, components,
-   context) → K` reference vectors for `ContextBound` — so it is reproducible
-   across the C / WASM / Swift / Kotlin faces — are also pending. See
+1. **Broader ACVP coverage + `ContextBound` cross-platform reference vectors.**
+   The NIST ACVP ML-KEM-768 set (keyGen/encaps/decaps incl. implicit-rejection)
+   and ML-DSA-65 (keyGen + the deterministic/external/empty-context sigGen/sigVer
+   cases) are now wired and passing (see §12). Remaining: the other parameter sets
+   (ML-KEM-512/1024, ML-DSA-44/87) and the broader ACVP signature modes (contexts,
+   pre-hash, internal interface, hedged). Fixed `(suite_id, policy_version,
+   components, context) → K` reference vectors for `ContextBound` — so it is
+   reproducible across the C / WASM / Swift / Kotlin faces — are also pending. See
    [`tests/kat/README.md`](../tests/kat/README.md).
 
 2. **Binary-level constant-time + making timing a hard gate.** Today,
@@ -260,7 +277,8 @@ are the gap between research-grade and audited/production.
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Combiner micro-benchmark | **Done** |
-| Full FIPS 203 ACVP breadth + `ContextBound` reference vectors | Pending |
+| NIST ACVP conformance (ML-KEM-768 + ML-DSA-65) | **Done** |
+| Broader ACVP (other param sets / sig modes) + `ContextBound` reference vectors | Pending |
 | Binary-level CT (ctgrind/TIMECOP) + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
 | Independent third-party audit | Pending |

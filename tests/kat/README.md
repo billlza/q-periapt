@@ -10,7 +10,14 @@ Status of M0 KAT coverage.
   decaps. This proves `CompatXWing` ≡ X-Wing, and — since `pk`/`ct`/`ss` are
   asserted against published reference values — **reproduces the FIPS 203
   reference output on these 3 happy-path vectors** (keygen/encaps/decaps). It is
-  **not** a full ACVP / FIPS 203 validation — that breadth is pending (below).
+  **not** itself a full ACVP / FIPS 203 validation — that breadth is provided by the
+  NIST ACVP test above.
+- **NIST ACVP ground-truth conformance** ✅ — `q-periapt-backends/src/acvp.rs` validates
+  the libcrux backends against the authoritative NIST vectors (vendored under
+  `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the full
+  **ML-KEM-768** set (25 keyGen, 25 encaps, 10 decaps incl. implicit-rejection) and
+  **ML-DSA-65** (25 keyGen + the deterministic/external/empty-context sigGen/sigVer
+  cases) — byte-identical to NIST. Direct ground truth, orthogonal to the differential.
 - **Multi-backend differential (full KEM chain)** ✅ — `q-periapt-backends/src/differential.rs`
   cross-checks every component against an **independent** implementation on random
   inputs: ML-KEM-768 vs RustCrypto `ml-kem`, X25519 vs `orion` (+ the RFC 7748 §6.1

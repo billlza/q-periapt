@@ -127,7 +127,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four fields are exactly 32 bytes; `HybridKem::new` rejects a non-C2PRI KEM under `CompatXWing` with `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade floor, profile select | ✅ `q-periapt-policy`: real TOML loading (`Policy::from_toml`) + **signed-policy verification** (`Policy::load_signed`, fail-closed, plus `load_signed_or_failsafe`); downgrade floor + `negotiate_kem` + `select_profile` enforced |
-| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** over the whole KEM chain (`src/differential.rs`) — ML-KEM-768 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed from independent ML-KEM + X25519 + SHA3; and **ML-DSA-65 vs RustCrypto `ml-dsa`** (byte-identical keygen + signatures, cross-verification) — all byte-identical on random inputs; full FIPS 203 ACVP breadth + an SLH-DSA interop differential still pending |
+| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** over the whole KEM chain (`src/differential.rs`) — ML-KEM-768 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed from independent ML-KEM + X25519 + SHA3; and **ML-DSA-65 vs RustCrypto `ml-dsa`** (byte-identical keygen + signatures, cross-verification) — all byte-identical on random inputs; **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) — the full ML-KEM-768 set (60 cases incl. implicit-rejection) + ML-DSA-65 keygen/sig; broader ACVP signature-mode + other param-set coverage and an SLH-DSA interop differential still pending |
 | Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); dudect timing runs **report-only** (`|| true`); ctgrind/TIMECOP binary-CT is TODO |
 | Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI `cross` job builds `q-periapt-core`+`q-periapt-kem` on x86_64/aarch64/riscv64gc/wasm32; the `no_std` job builds `q-periapt-core` alone on embedded `thumbv7em-none-eabihf` |
 | FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | 🟡 `q-periapt-ffi` / `q-periapt-wasm` workspace members with a shared-vector consistency CI job; `bindings/{swift,kotlin}` wired in CI |
@@ -238,9 +238,10 @@ This is a **research artifact for an undergraduate thesis**, not a product.
   `zeroize` technique, inlined to keep the core dependency-free) and is **not**
   `Clone`/`Copy`, so no copy can outlive the wipe. The core is `#![deny(unsafe_code)]`
   with that single, documented wipe block as the only `unsafe`.
-- **Still scaffolded / pending** (do not assume these are finished): full ACVP
-  breadth and an SLH-DSA interop differential (the KEM chain — ML-KEM, X25519, full
-  hybrid — and ML-DSA-65 differentials are done); binary-level constant-time
+- **Still scaffolded / pending** (do not assume these are finished): broader ACVP
+  coverage (other param sets + signature modes) and an SLH-DSA interop differential
+  (the NIST ACVP ML-KEM-768 + ML-DSA-65 conformance, the KEM-chain + ML-DSA-65
+  differentials are done); binary-level constant-time
   re-verification (ctgrind / Valgrind-TIMECOP); fuzz targets; the Tamarin handshake
   model; and the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI
   exercises.
