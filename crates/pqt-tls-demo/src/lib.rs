@@ -3,34 +3,34 @@
 
 //! # pqt-tls-demo
 //!
-//! A minimal **PQ/T hybrid KEM handshake over TCP**, plus an end-to-end **P99
-//! latency harness**. It exercises the real suite (ML-KEM-768 + X25519 + SHA3
-//! via `pqt-kem`/`pqt-backends`) over real sockets, to make the project's actual
-//! differentiator measurable: *handshake P99 is dominated by bytes/packets on the
-//! wire, not by encap/decap CPU time*.
+//! A minimal **server-authenticated PQ/T hybrid KEM handshake over TCP**, plus an
+//! end-to-end **P99 latency harness**. It exercises the real suite (ML-KEM-768 +
+//! X25519 + SHA3 for the KEM, ML-DSA-65 for server auth, via
+//! `pqt-kem`/`pqt-sig`/`pqt-backends`) over real sockets, to make the project's
+//! actual differentiator measurable: *handshake P99 is dominated by bytes/packets
+//! on the wire (now including the ~3.3 KB ML-DSA signature), not by CPU time.*
 //!
 //! ## What this is (and isn't)
-//! - It is an **HPKE-base-shaped** KEM handshake: the server has a static hybrid
-//!   key; the client encapsulates to it; both derive a session secret bound to
-//!   the handshake transcript via the [`Profile::ContextBound`] combiner; the
-//!   server sends a key-confirmation.
+//! - It is an **HPKE-base-shaped, server-authenticated** handshake: the server
+//!   has a static hybrid KEM key and an ML-DSA-65 identity key (its verifying key
+//!   is *pinned* by the client out-of-band). The client encapsulates; both derive
+//!   a session secret bound to the transcript via [`Profile::ContextBound`]; the
+//!   server signs the transcript and sends a key-confirmation.
 //! - It is **not** the TLS 1.3 wire format. Real TLS 1.3 hybrid key exchange uses
-//!   the `X25519MLKEM768` named group (codepoint `0x11EC`) with the **TLS
-//!   key-schedule** combiner — a different object from our standalone combiner.
-//!   See `README.md` for the mapping to TLS 1.3 / QUIC / HPKE and the production
-//!   integration path (a rustls `CryptoProvider` over `pqt-ffi`).
-//! - Server identity here is trust-on-first-use; production auth needs signatures
-//!   (`pqt-sig`, ML-DSA/SLH-DSA) — tracked in `docs/ROADMAP.md`.
+//!   the `X25519MLKEM768` named group (`0x11EC`) with the TLS key-schedule
+//!   combiner. See `README.md` for the mapping and the production path (a rustls
+//!   `CryptoProvider` over `pqt-ffi`).
 
 use core::fmt;
 use std::io::{self, Read, Write};
 
 use pqt_backends::{
-    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519,
-    X25519_LEN,
+    MlDsa65, MlKem768, Sha3_256Xof, ML_DSA_65_SIG_LEN, ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN,
+    ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519, X25519_LEN,
 };
 use pqt_core::{ct_eq, Profile, Secret, Xof256};
 use pqt_kem::HybridKem;
+use pqt_sig::{Signer, Verifier};
 
 /// Canonical suite identifier bound into the combiner.
 pub const SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
@@ -49,6 +49,8 @@ pub enum DemoError {
     Protocol,
     /// A core crypto operation failed (e.g. policy/length).
     Crypto,
+    /// The server's signature did not verify against the pinned key.
+    AuthFailed,
     /// The server key-confirmation did not verify.
     ConfirmFailed,
 }
@@ -59,6 +61,7 @@ impl fmt::Display for DemoError {
             DemoError::Io(e) => write!(f, "io: {e}"),
             DemoError::Protocol => f.write_str("protocol error"),
             DemoError::Crypto => f.write_str("crypto error"),
+            DemoError::AuthFailed => f.write_str("server authentication failed"),
             DemoError::ConfirmFailed => f.write_str("server confirmation failed"),
         }
     }
@@ -86,25 +89,30 @@ pub struct HandshakeStats {
     pub messages: usize,
 }
 
-/// A server's static hybrid key material.
+/// A server's static key material: a hybrid KEM key and an ML-DSA-65 identity key.
 pub struct ServerKeys {
     dk_pq: [u8; ML_KEM_768_SK_LEN],
     ek_pq: [u8; ML_KEM_768_PK_LEN],
     sk_x: [u8; X25519_LEN],
     pk_x: [u8; X25519_LEN],
+    sign_sk: [u8; ML_DSA_65_SK_LEN],
+    verify_vk: [u8; ML_DSA_65_VK_LEN],
 }
 
 impl ServerKeys {
     /// Generate from fixed seeds (deterministic — for tests/benches).
     #[must_use]
-    pub fn from_seeds(seed_pq: [u8; 64], seed_x: [u8; 32]) -> Self {
+    pub fn from_seeds(seed_pq: [u8; 64], seed_x: [u8; 32], seed_sig: [u8; 32]) -> Self {
         let (dk_pq, ek_pq) = MlKem768::generate(seed_pq);
         let (sk_x, pk_x) = X25519::generate(seed_x);
+        let (sign_sk, verify_vk) = MlDsa65::generate(seed_sig);
         Self {
             dk_pq,
             ek_pq,
             sk_x,
             pk_x,
+            sign_sk,
+            verify_vk,
         }
     }
 
@@ -112,17 +120,30 @@ impl ServerKeys {
     pub fn generate() -> Result<Self, DemoError> {
         let mut seed_pq = [0u8; 64];
         let mut seed_x = [0u8; 32];
+        let mut seed_sig = [0u8; 32];
         getrandom::fill(&mut seed_pq).map_err(|_| DemoError::Crypto)?;
         getrandom::fill(&mut seed_x).map_err(|_| DemoError::Crypto)?;
-        Ok(Self::from_seeds(seed_pq, seed_x))
+        getrandom::fill(&mut seed_sig).map_err(|_| DemoError::Crypto)?;
+        Ok(Self::from_seeds(seed_pq, seed_x, seed_sig))
+    }
+
+    /// The server's ML-DSA-65 verifying key — the client pins this as the server
+    /// identity (distributed out-of-band, not sent on the wire each handshake).
+    #[must_use]
+    pub fn verifying_key(&self) -> [u8; ML_DSA_65_VK_LEN] {
+        self.verify_vk
     }
 }
 
 fn write_msg<W: Write>(w: &mut W, m: &[u8]) -> Result<usize, DemoError> {
     let len = u32::try_from(m.len()).map_err(|_| DemoError::Protocol)?;
-    w.write_all(&len.to_be_bytes())?;
-    w.write_all(m)?;
-    Ok(4 + m.len())
+    // One framed write per message (length prefix + payload) — one syscall, and
+    // one "flight" for latency modeling in the P99 harness.
+    let mut framed = Vec::with_capacity(4 + m.len());
+    framed.extend_from_slice(&len.to_be_bytes());
+    framed.extend_from_slice(m);
+    w.write_all(&framed)?;
+    Ok(framed.len())
 }
 
 fn read_msg<R: Read>(r: &mut R) -> Result<Vec<u8>, DemoError> {
@@ -184,12 +205,12 @@ fn server_finished(secret: &Secret, context: &[u8]) -> [u8; 32] {
     sha3(&[secret.as_bytes(), SERVER_FINISHED_LABEL, context])
 }
 
-/// Run the **client** side of the handshake over `stream`. Returns the session
-/// secret and the wire stats. The client offers `profile`; the server must accept
-/// the same one (it is bound into the transcript).
+/// Run the **client** side of the handshake over `stream`, verifying the server's
+/// signature against the pinned `server_vk` (its ML-DSA-65 verifying key).
 pub fn client_handshake<S: Read + Write>(
     stream: &mut S,
     profile: Profile,
+    server_vk: &[u8],
 ) -> Result<(Secret, HandshakeStats), DemoError> {
     let mut stats = HandshakeStats::default();
 
@@ -210,7 +231,7 @@ pub fn client_handshake<S: Read + Write>(
     let pk_x = cur.take(X25519_LEN)?;
     let _server_nonce = cur.take(NONCE_LEN)?;
 
-    // 3. Transcript context (binds nonces, offered profile, server static keys).
+    // 3. Transcript context for the combiner (binds nonces, profile, server keys).
     let context = sha3(&[&ch, &sh]);
 
     // 4. Encapsulate to the server's static hybrid key.
@@ -242,11 +263,22 @@ pub fn client_handshake<S: Read + Write>(
     stats.bytes_sent += write_msg(stream, &kem_msg)?;
     stats.messages += 1;
 
-    // 6. ServerFinished — verify key confirmation in constant time.
+    // 6. ServerFinished = ml_dsa_signature(3309) || key_confirmation(32)
     let sf = read_msg(stream)?;
     stats.bytes_recv += 4 + sf.len();
+    let mut cur = Cursor::new(&sf);
+    let signature = cur.take(ML_DSA_65_SIG_LEN)?;
+    let confirm = cur.take(32)?;
+
+    // Server authentication: signature over the full transcript, pinned vk.
+    let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
+    MlDsa65
+        .verify(server_vk, &auth_transcript, signature)
+        .map_err(|_| DemoError::AuthFailed)?;
+
+    // Key confirmation (constant-time).
     let expected = server_finished(&secret, &context);
-    if sf.len() != expected.len() || ct_eq(&sf, &expected) != 0xFF {
+    if ct_eq(confirm, &expected) != 0xFF {
         return Err(DemoError::ConfirmFailed);
     }
 
@@ -264,9 +296,8 @@ pub fn server_handshake<S: Read + Write>(
     let ch = read_msg(stream)?;
     stats.bytes_recv += 4 + ch.len();
     let mut cur = Cursor::new(&ch);
-    let client_nonce = cur.take(NONCE_LEN)?;
+    let _client_nonce = cur.take(NONCE_LEN)?;
     let profile = profile_from(cur.byte()?)?;
-    let _ = client_nonce;
 
     // 2. ServerHello
     let mut server_nonce = [0u8; NONCE_LEN];
@@ -304,8 +335,19 @@ pub fn server_handshake<S: Read + Write>(
         &mut ss_trad,
     )?;
 
-    // 5. ServerFinished
-    let sf = server_finished(&secret, &context);
+    // 5. ServerFinished = sign(transcript) || key_confirmation
+    let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
+    let mut sig_rand = [0u8; 32];
+    getrandom::fill(&mut sig_rand).map_err(|_| DemoError::Crypto)?;
+    let mut sig = [0u8; ML_DSA_65_SIG_LEN];
+    MlDsa65
+        .sign(&keys.sign_sk, &auth_transcript, &sig_rand, &mut sig)
+        .map_err(|_| DemoError::Crypto)?;
+    let confirm = server_finished(&secret, &context);
+
+    let mut sf = Vec::with_capacity(ML_DSA_65_SIG_LEN + 32);
+    sf.extend_from_slice(&sig);
+    sf.extend_from_slice(&confirm);
     stats.bytes_sent += write_msg(stream, &sf)?;
     stats.messages += 1;
 

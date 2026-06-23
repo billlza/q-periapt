@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 pqt-core = { path = "../pqt-core" }
 pqt-kem = { path = "../pqt-kem" }
+pqt-sig = { path = "../pqt-sig" }
 pqt-backends = { path = "../pqt-backends" }
 # OS CSPRNG for the client's encapsulation coins / nonces (demo uses real entropy).
 getrandom = "0.3"

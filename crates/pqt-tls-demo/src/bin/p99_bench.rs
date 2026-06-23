@@ -1,11 +1,15 @@
-//! End-to-end P99 harness for the PQ/T hybrid handshake over loopback TCP.
+//! End-to-end P99 harness for the server-authenticated PQ/T hybrid handshake.
 //!
-//! Measures *time-to-established-session* (TCP connect + full KEM handshake) and
-//! reports latency percentiles plus the on-wire byte budget — the quantity that
-//! actually drives tail latency on real links (extra bytes -> extra packets ->
-//! TCP slow-start / QUIC flow-control effects), as opposed to encap/decap CPU.
+//! Measures *time-to-established-session* (TCP connect + full authenticated KEM
+//! handshake) and reports latency percentiles plus the on-wire byte budget — the
+//! quantity that actually drives tail latency on real links.
 //!
-//! Usage: `cargo run --release -p pqt-tls-demo --bin p99_bench [-- compat|bound] [iters]`
+//! Usage: `cargo run --release -p pqt-tls-demo --bin p99_bench [-- PROFILE ITERS DELAY_US]`
+//!   PROFILE  = `bound` (default) | `compat`
+//!   ITERS    = measured handshakes (default 2000)
+//!   DELAY_US = emulated one-way latency injected per flight (default 0). This
+//!              models flight-count sensitivity to RTT; it does NOT model TCP
+//!              slow-start or loss (those need a netem/tc test on real interfaces).
 
 #![allow(
     clippy::unwrap_used,
@@ -17,10 +21,34 @@
 
 use pqt_core::Profile;
 use pqt_tls_demo::{client_handshake, server_handshake, ServerKeys};
+use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+/// Wraps a stream and sleeps `delay` before each write, modeling one-way
+/// per-flight network latency.
+struct DelayStream {
+    inner: TcpStream,
+    delay: Duration,
+}
+impl Read for DelayStream {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(buf)
+    }
+}
+impl Write for DelayStream {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if !self.delay.is_zero() {
+            thread::sleep(self.delay);
+        }
+        self.inner.write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
 
 fn pct(sorted: &[u128], p: f64) -> u128 {
     if sorted.is_empty() {
@@ -37,18 +65,21 @@ fn main() {
         _ => Profile::ContextBound,
     };
     let iters: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(2000);
+    let delay = Duration::from_micros(args.get(3).and_then(|s| s.parse().ok()).unwrap_or(0));
     let warmup = 200usize;
     let total = iters + warmup;
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = Arc::new(ServerKeys::from_seeds([7u8; 64], [9u8; 32]));
+    let keys = Arc::new(ServerKeys::from_seeds([7u8; 64], [9u8; 32], [5u8; 32]));
+    let server_vk = keys.verifying_key();
     let server_keys = Arc::clone(&keys);
 
     let server = thread::spawn(move || {
         for _ in 0..total {
-            let (mut s, _) = listener.accept().unwrap();
-            s.set_nodelay(true).ok();
+            let (inner, _) = listener.accept().unwrap();
+            inner.set_nodelay(true).ok();
+            let mut s = DelayStream { inner, delay };
             let _ = server_handshake(&mut s, &server_keys);
         }
     });
@@ -57,9 +88,10 @@ fn main() {
     let mut sample = None;
     for i in 0..total {
         let t0 = Instant::now();
-        let mut s = TcpStream::connect(addr).unwrap();
-        s.set_nodelay(true).ok();
-        let (_secret, stats) = client_handshake(&mut s, profile).unwrap();
+        let inner = TcpStream::connect(addr).unwrap();
+        inner.set_nodelay(true).ok();
+        let mut s = DelayStream { inner, delay };
+        let (_secret, stats) = client_handshake(&mut s, profile, &server_vk).unwrap();
         let dt = t0.elapsed().as_nanos();
         if i >= warmup {
             times.push(dt);
@@ -72,8 +104,9 @@ fn main() {
     let us = |ns: u128| ns as f64 / 1000.0;
     let s = sample.unwrap();
     println!(
-        "PQ/T hybrid handshake — profile={profile:?}, samples={}",
-        times.len()
+        "server-auth PQ/T hybrid handshake — profile={profile:?}, samples={}, per-flight delay={}µs",
+        times.len(),
+        delay.as_micros()
     );
     println!("  time-to-session (TCP connect + handshake), microseconds:");
     println!("    p50  = {:.1}", us(pct(&times, 50.0)));
@@ -91,10 +124,10 @@ fn main() {
         s.bytes_sent, s.bytes_recv
     );
     println!(
-        "    total = {} B over {} flights each way",
+        "    total = {} B over {} flights each way (server->client carries the ~3.3 KB ML-DSA sig)",
         s.bytes_sent + s.bytes_recv,
         s.messages
     );
-    println!("  note: loopback isolates CPU/syscall/copy cost; on a lossy/high-RTT");
-    println!("        link the ~2.2KB ML-KEM material dominates via extra packets.");
+    println!("  note: loopback isolates CPU/syscall/copy; DELAY_US models per-flight RTT");
+    println!("        (flight-count sensitivity), not slow-start/loss (needs netem/tc).");
 }

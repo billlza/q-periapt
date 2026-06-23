@@ -63,7 +63,17 @@ pub trait Signer {
     /// Algorithm this signer implements.
     fn algorithm(&self) -> SigAlg;
     /// Sign `msg` with `sk`, writing into `out_sig`; returns the signature length.
-    fn sign(&self, sk: &[u8], msg: &[u8], out_sig: &mut [u8]) -> Result<usize, Error>;
+    ///
+    /// `randomness` is the signing nonce (caller-provided so the operation is
+    /// deterministic — KAT-able — and `no_std`, with no internal RNG): 32 bytes
+    /// for ML-DSA hedged signing; pass all-zero for deterministic signing.
+    fn sign(
+        &self,
+        sk: &[u8],
+        msg: &[u8],
+        randomness: &[u8],
+        out_sig: &mut [u8],
+    ) -> Result<usize, Error>;
 }
 
 /// Verifies signatures.

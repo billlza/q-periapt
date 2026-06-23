@@ -1,5 +1,6 @@
-//! Integration test: a real PQ/T hybrid handshake over a loopback TCP socket,
-//! for both profiles. Both peers must derive the same session secret.
+//! Integration test: a real server-authenticated PQ/T hybrid handshake over a
+//! loopback TCP socket, for both profiles. Both peers must derive the same session
+//! secret, and the client must verify the server's ML-DSA-65 signature.
 
 #![allow(clippy::unwrap_used)]
 
@@ -12,7 +13,8 @@ use std::thread;
 fn run(profile: Profile) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = ServerKeys::from_seeds([1u8; 64], [2u8; 32]);
+    let keys = ServerKeys::from_seeds([1u8; 64], [2u8; 32], [3u8; 32]);
+    let server_vk = keys.verifying_key();
 
     let (tx, rx) = mpsc::channel();
     let server = thread::spawn(move || {
@@ -22,7 +24,7 @@ fn run(profile: Profile) {
     });
 
     let mut s = TcpStream::connect(addr).unwrap();
-    let (client_secret, stats) = client_handshake(&mut s, profile).unwrap();
+    let (client_secret, stats) = client_handshake(&mut s, profile, &server_vk).unwrap();
     let server_secret = rx.recv().unwrap();
     server.join().unwrap();
 
@@ -31,8 +33,8 @@ fn run(profile: Profile) {
         &server_secret,
         "{profile:?}: client and server must derive the same session secret"
     );
-    // Sanity on the wire budget: the PQ material dominates (~2.2 KB of ct+pk).
-    assert!(stats.bytes_sent + stats.bytes_recv > 2000);
+    // The PQ material dominates: ~2.2 KB KEM + ~3.3 KB ML-DSA signature.
+    assert!(stats.bytes_sent + stats.bytes_recv > 5000);
 }
 
 #[test]
@@ -43,4 +45,27 @@ fn handshake_context_bound() {
 #[test]
 fn handshake_compat_xwing() {
     run(Profile::CompatXWing);
+}
+
+#[test]
+fn handshake_rejects_wrong_server_identity() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let keys = ServerKeys::from_seeds([4u8; 64], [5u8; 32], [6u8; 32]);
+    // A different identity key than the server actually holds.
+    let wrong_vk = ServerKeys::from_seeds([0u8; 64], [0u8; 32], [9u8; 32]).verifying_key();
+
+    let server = thread::spawn(move || {
+        if let Ok((mut s, _)) = listener.accept() {
+            let _ = server_handshake(&mut s, &keys);
+        }
+    });
+
+    let mut s = TcpStream::connect(addr).unwrap();
+    let res = client_handshake(&mut s, Profile::ContextBound, &wrong_vk);
+    assert!(
+        res.is_err(),
+        "client must reject a mismatched server identity"
+    );
+    let _ = server.join();
 }
