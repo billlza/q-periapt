@@ -10,20 +10,25 @@
 //!   the authoritative RFC 7748 §6.1 ground-truth Diffie–Hellman vector.
 //! - **Hybrid CompatXWing** — our [`HybridKem`] reconstructed from RustCrypto ML-KEM
 //!   + orion X25519 + a RustCrypto SHA3 X-Wing combiner, for encaps **and** decaps.
+//! - **ML-DSA-65** — our libcrux signature backend vs RustCrypto `ml-dsa`
+//!   (byte-identical keygen + deterministic signatures, plus cross-verification).
 //!
 //! Fully deterministic: per-iteration inputs are `SHAKE-256(counter)`, no RNG.
 
-#![allow(clippy::unwrap_used, clippy::indexing_slicing)]
+#![allow(clippy::unwrap_used, clippy::indexing_slicing, deprecated)]
 
 use crate::{
-    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN,
-    X25519, X25519_LEN,
+    MlDsa65, MlKem768, Sha3_256Xof, ML_DSA_65_KEYGEN_SEED_LEN, ML_DSA_65_SIGN_RAND_LEN,
+    ML_DSA_65_SIG_LEN, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN, X25519,
+    X25519_LEN,
 };
+use ml_dsa::{EncodedSignature, ExpandedSigningKey, MlDsa65 as RcMlDsa65, Seed, Signature};
 use ml_kem::kem::Decapsulate;
 use ml_kem::{EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem768 as RcMlKem768, B32};
 use orion::hazardous::ecc::x25519 as ox;
 use q_periapt_core::{Kem, Profile, XWING_LABEL};
 use q_periapt_kem::HybridKem;
+use q_periapt_sig::{Signer, Verifier};
 use sha3::{Digest, Sha3_256};
 
 fn b32(s: &[u8]) -> B32 {
@@ -255,4 +260,60 @@ fn xwing_combine(ss_pq: &[u8], ss_trad: &[u8], ct_trad: &[u8], pk_trad: &[u8]) -
     h.update(pk_trad);
     h.update(XWING_LABEL);
     h.finalize().into()
+}
+
+/// Signature layer: our libcrux ML-DSA-65 backend vs the independent RustCrypto
+/// `ml-dsa`. FIPS 204 deterministic keygen (from ξ) and deterministic signing
+/// (rnd = 0, external `ML-DSA.Sign` with empty context — what our backend does) are
+/// fully specified, so conformant implementations agree byte-for-byte. Cross-
+/// verification additionally proves signature interoperability, and a tampered
+/// signature must be rejected.
+#[test]
+fn ml_dsa_65_byte_identical_to_independent_rustcrypto() {
+    for ctr in 0u32..16 {
+        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0x33CC).to_le_bytes());
+        let seed: [u8; ML_DSA_65_KEYGEN_SEED_LEN] =
+            exp[..ML_DSA_65_KEYGEN_SEED_LEN].try_into().unwrap();
+        let msg = &exp[ML_DSA_65_KEYGEN_SEED_LEN..];
+
+        // --- keygen: byte-identical signing + verifying keys ---
+        let (sk, vk) = MlDsa65::generate(seed);
+        let esk_rc =
+            ExpandedSigningKey::<RcMlDsa65>::from_seed(&Seed::try_from(&seed[..]).unwrap());
+        let sk_rc = esk_rc.to_expanded();
+        let vk_rc = esk_rc.verifying_key().encode();
+        assert_eq!(&sk_rc[..], &sk[..], "ml-dsa signing key diverged @ {ctr}");
+        assert_eq!(&vk_rc[..], &vk[..], "ml-dsa verifying key diverged @ {ctr}");
+
+        // --- deterministic signing: byte-identical signatures ---
+        let mut sig = [0u8; ML_DSA_65_SIG_LEN];
+        MlDsa65
+            .sign(&sk, msg, &[0u8; ML_DSA_65_SIGN_RAND_LEN], &mut sig)
+            .unwrap();
+        let sig_rc = esk_rc.sign_deterministic(msg, b"").unwrap().encode();
+        assert_eq!(&sig_rc[..], &sig[..], "ml-dsa signature diverged @ {ctr}");
+
+        // --- cross-verification (interoperability), both directions ---
+        let our_sig = Signature::<RcMlDsa65>::decode(
+            &EncodedSignature::<RcMlDsa65>::try_from(&sig[..]).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            esk_rc
+                .verifying_key()
+                .verify_with_context(msg, b"", &our_sig),
+            "rustcrypto rejected our signature @ {ctr}"
+        );
+        MlDsa65
+            .verify(&vk, msg, &sig_rc)
+            .expect("our verifier rejected the rustcrypto signature");
+
+        // --- tampering is rejected ---
+        let mut bad = sig;
+        bad[100] ^= 1;
+        assert!(
+            MlDsa65.verify(&vk, msg, &bad).is_err(),
+            "tampered sig accepted @ {ctr}"
+        );
+    }
 }

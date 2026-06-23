@@ -14,8 +14,9 @@ Status of M0 KAT coverage.
 - **Multi-backend differential (full KEM chain)** ✅ — `q-periapt-backends/src/differential.rs`
   cross-checks every component against an **independent** implementation on random
   inputs: ML-KEM-768 vs RustCrypto `ml-kem`, X25519 vs `orion` (+ the RFC 7748 §6.1
-  ground-truth vector), and the full `HybridKem` reconstructed from independent
-  ML-KEM + X25519 + SHA3 — byte-identical keygen/encaps/decaps. Orthogonal to fixed KATs.
+  ground-truth vector), the full `HybridKem` reconstructed from independent ML-KEM +
+  X25519 + SHA3, and **ML-DSA-65** vs RustCrypto `ml-dsa` (byte-identical keygen +
+  signatures + cross-verification) — all byte-identical. Orthogonal to fixed KATs.
 - **SHA3-256 KAT** ✅ — `SHA3-256("")` matches the FIPS 202 digest.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.

@@ -53,6 +53,9 @@ ml-kem = { version = "0.2.3", features = ["deterministic"] }
 # Independent X25519 (orion, pure-Rust, separate lineage from x25519-dalek) for the
 # X25519 + full-hybrid differential tests.
 orion = "0.17.10"
+# Independent ML-DSA (RustCrypto) for the signature-layer differential; FIPS 204
+# deterministic keygen/sign give byte-exact comparison + cross-verification.
+ml-dsa = "0.1.0-pre.2"
 
 [[bench]]
 name = "combiner"

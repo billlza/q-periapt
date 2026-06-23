@@ -196,8 +196,12 @@ vectors would miss:
   + orion X25519 + a RustCrypto SHA3 X-Wing combiner, byte-identical for encaps and
   decaps. Validates the orchestration + combiner end-to-end against three independent
   components.
+- **ML-DSA-65** — our libcrux signature backend vs RustCrypto `ml-dsa`: byte-identical
+  keygen + deterministic signatures (FIPS 204 external mode, rnd = 0), plus cross-
+  verification (each implementation verifies the other's signature) and tamper rejection.
 
-Extending differential coverage to the signature layer (ML-DSA / SLH-DSA) is pending.
+Extending the differential to SLH-DSA is pending (its keygen is randomized, so the
+check would be signature interoperability rather than byte-identity).
 
 ---
 
