@@ -1,0 +1,11 @@
+/target
+**/target
+**/*.rs.bk
+*.profraw
+.DS_Store
+
+# Generated SBOM/CBOM artifacts (the *generator* is committed; outputs are not)
+/sbom/*.json
+/sbom/*.cdx.json
+
+# NOTE: Cargo.lock is intentionally committed (auditable / reproducible builds).

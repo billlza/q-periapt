@@ -1,0 +1,21 @@
+[package]
+name = "pqt-core"
+description = "Dependency-free no_std core (hybrid KEM combiner + transcript binding + primitive traits) for the PQ/T hybrid suite"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Enables std-only conveniences (none required by the core itself).
+std = []
+
+# No cryptographic primitive dependencies by design: primitives are injected
+# via the traits in this crate. This keeps the security-critical composition
+# logic small and auditable in isolation.
+[dependencies]

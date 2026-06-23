@@ -1,0 +1,69 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # Format + lint + unit tests on the host.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets
+      - run: cargo test --workspace
+
+  # no_std build of the auditable core for an embedded target (must not pull std).
+  no_std:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+      - run: cargo build -p pqt-core --target thumbv7em-none-eabihf
+
+  # Cross-platform behavioural consistency: build the same code everywhere.
+  cross:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu      # ARM64
+          - riscv64gc-unknown-linux-gnu    # RISC-V
+          - wasm32-unknown-unknown         # WASM
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build -p pqt-core -p pqt-kem --target ${{ matrix.target }}
+
+  # Cross-compiler differential: the constant-time / behaviour must not depend on
+  # the compiler. (Placeholder: extend with gcc/clang FFI builds + differential KATs.)
+  cross-compiler:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: [stable, beta, nightly]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo test --workspace
+
+  # Side-channel CI gates (placeholders wired as the harnesses land — see ctstats/).
+  #   - dudect / ctgrind / TVLA timing-leakage tests on the real backends
+  #   - cargo-fuzz targets (fuzz/)
+  #   - KAT verification (tests/kat/) and differential tests (tests/differential/)

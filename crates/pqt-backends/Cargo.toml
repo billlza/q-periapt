@@ -1,0 +1,25 @@
+[package]
+name = "pqt-backends"
+description = "Vetted primitive backends (libcrux ML-KEM-768, x25519-dalek, sha3) wired into the pqt-core traits"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pqt-core = { path = "../pqt-core" }
+# ML-KEM-768: libcrux (HACL*-derived, constant-time; takes randomness as explicit
+# bytes — ideal for deterministic/KAT/no_std use).
+libcrux-ml-kem = "0.0.9"
+# X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+# SHA3-256 / SHAKE-256 (libcrux, same verified family as the ML-KEM backend).
+libcrux-sha3 = "0.0.9"
+
+[dev-dependencies]
+# End-to-end hybrid KEM tests exercise the real backends through pqt-kem.
+pqt-kem = { path = "../pqt-kem" }

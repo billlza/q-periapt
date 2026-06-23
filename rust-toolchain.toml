@@ -1,0 +1,9 @@
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+# Cross targets are installed per-job in CI (.github/workflows/ci.yml):
+#   x86_64-unknown-linux-gnu
+#   aarch64-unknown-linux-gnu        (ARM64)
+#   riscv64gc-unknown-linux-gnu      (RISC-V)
+#   wasm32-unknown-unknown           (WASM)
+#   thumbv7em-none-eabihf            (embedded, no_std)

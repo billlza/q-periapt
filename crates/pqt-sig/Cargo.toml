@@ -1,0 +1,19 @@
+[package]
+name = "pqt-sig"
+description = "Signature layer: ML-DSA-65/87 (general) and SLH-DSA (roots / firmware / long-term), over vetted backends"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Backends added as integrated: rustcrypto-mldsa, rustcrypto-slhdsa.
+std = ["pqt-core/std"]
+
+[dependencies]
+pqt-core = { path = "../pqt-core" }
