@@ -22,6 +22,17 @@ use x25519_dalek::{PublicKey, StaticSecret};
 #[cfg(test)]
 mod xwing_kat;
 
+// Optional, off-by-default backends (see Cargo.toml [features]).
+#[cfg(feature = "slh-dsa")]
+mod slhdsa;
+#[cfg(feature = "slh-dsa")]
+pub use slhdsa::{SlhDsaSha2_128s, SlhDsaSha2_256s};
+
+#[cfg(feature = "hqc")]
+mod hqc;
+#[cfg(feature = "hqc")]
+pub use hqc::{Hqc128, Hqc256};
+
 /// ML-KEM-768 encapsulation-key (public key) length, bytes.
 pub const ML_KEM_768_PK_LEN: usize = 1184;
 /// ML-KEM-768 decapsulation-key (secret key) length, bytes.

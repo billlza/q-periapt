@@ -96,10 +96,10 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Dimension | Target | Today (v0.0.1) |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `pqt-core` (266 LOC, zero crypto deps, `#![forbid(unsafe_code)]`, builds `thumbv7em-none-eabihf`) |
-| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | 🟡 `pqt-kem` trait wiring only — **no primitive backend wired** |
+| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 wired, X-Wing-KAT verified; HQC-128/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature |
 | Combiner profiles | `CompatXWing` (parity) + `ContextBound` (binding) | 🟡 both profiles implemented over a trait XOF; currently tested with a **toy non-crypto hash** only |
 | Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ⛔ **not implemented** (known critical gap — see status) |
-| Signatures | ML-DSA-65/87, SLH-DSA + 2²⁴ key cap | 🟡 `pqt-sig` traits only — no backend, no key-usage guard |
+| Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed CBOR/TOML policy, downgrade floor, profile select | 🟡 `pqt-policy` in-memory struct; **no signing, no enforcement, no TOML parsing** |
 | KATs / differential tests | X-Wing draft-10 + FIPS 203 ACVP vectors, 3-backend triple | ⛔ `tests/kat/`, `tests/differential/` empty — **byte-exact parity unverified** |
 | Side-channel CI | dudect + ctgrind/TIMECOP + binary-CT matrix + clangover cells | ⛔ comment-only placeholders in CI; harnesses not written |

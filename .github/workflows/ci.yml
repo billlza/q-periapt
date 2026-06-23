@@ -151,6 +151,35 @@ jobs:
           name: cyclonedx-boms
           path: "*.cdx.json"
 
+  # Optional PQ backends (SLH-DSA via fips205, HQC via PQClean C): the ONLY job
+  # that compiles them. Default/wasm/no_std jobs above prove they stay unpulled.
+  pq-optional-backends:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy -p pqt-backends --features slh-dsa,hqc --all-targets -- -D warnings
+      - run: cargo test -p pqt-backends --features slh-dsa,hqc
+      - run: cargo install cargo-audit
+      # RUSTSEC-2026-0163 (pqcrypto-internals unmaintained) is acknowledged in
+      # .cargo/audit.toml — surfaced, not hidden.
+      - run: cargo audit
+
+  # Fence: the C-based hqc feature must NEVER build on wasm32 (compile_error guard).
+  feature-fence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
+      - run: cargo build -p pqt-wasm --target wasm32-unknown-unknown
+      - run: cargo build -p pqt-core --target thumbv7em-none-eabihf
+      - name: hqc feature must fail to build on wasm32 (fence holds)
+        run: "! cargo build -p pqt-backends --features hqc --target wasm32-unknown-unknown 2>/dev/null"
+
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)
