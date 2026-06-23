@@ -38,8 +38,13 @@ cross-platform guarantee, made executable.
 | **C ABI** (`pqt-ffi`) | ✅ verified | `cargo test -p pqt-ffi` (`ffi_matches_shared_vector`) |
 | **Swift** (`swift/`) | ✅ verified | `swift test` (CI: `bindings-swift` on macOS) |
 | **WASM** (`pqt-wasm`) | ✅ logic verified + builds wasm32 | `cargo test -p pqt-wasm`; CI builds `wasm32` |
-| **Kotlin** (`kotlin/`) | 🟡 wrapper + test written | CI: `bindings-kotlin` (JDK 22 FFM); not run locally |
+| **Kotlin** (`kotlin/`) | ✅ verified | `gradle test` (Panama FFM, JDK ≥22); CI: `bindings-kotlin` |
 
-All passing faces decapsulate `shared-test-vectors.json` to the **same** 32-byte
-secret, byte-for-byte. Kotlin needs JDK 22+ (stable FFM) and Gradle — wired in CI,
-not exercised on the dev host (JDK 21 here).
+**All five faces decapsulate `shared-test-vectors.json` to the same 32-byte secret,
+byte-for-byte** — verified locally (Rust/C/Swift/WASM-on-Node/Kotlin) and gated in
+CI. Kotlin needs a JDK ≥22 (stable FFM):
+
+```sh
+cargo build -p pqt-ffi --release
+JAVA_HOME=/path/to/jdk22+ gradle -p bindings/kotlin test
+```

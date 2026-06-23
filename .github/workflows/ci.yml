@@ -133,6 +133,8 @@ jobs:
           distribution: temurin
           java-version: "22" # java.lang.foreign (FFM) is stable in JDK 22+
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.2.1"
       - run: cargo build -p pqt-ffi --release
       - run: gradle test --project-dir bindings/kotlin
 

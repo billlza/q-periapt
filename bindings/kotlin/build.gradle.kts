@@ -1,5 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    kotlin("jvm") version "2.0.0"
+    kotlin("jvm") version "2.2.20"
 }
 
 repositories { mavenCentral() }
@@ -8,8 +10,16 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+// Requires a JDK >= 22 (stable java.lang.foreign / FFM); compiles/runs on the
+// Gradle daemon JVM (set JAVA_HOME). Bytecode target pinned to 22 (FFM's floor)
+// with Java aligned, so it runs on any JDK >= 22 (CI uses 22; dev here uses 26).
 kotlin {
-    jvmToolchain(22) // java.lang.foreign (FFM / Project Panama) is stable in JDK 22+
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_22)
+    }
+}
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(22)
 }
 
 tasks.test {
