@@ -1,0 +1,7 @@
+module CPQT {
+    // Symlink or copy crates/pqt-ffi/include/pqt.h next to this file, or adjust
+    // the header path. Kept relative so the package is self-contained once the
+    // header is vendored here.
+    header "pqt.h"
+    export *
+}

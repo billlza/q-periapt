@@ -1,0 +1,493 @@
+#![warn(missing_docs)]
+#![allow(clippy::missing_safety_doc)] // safety contract documented per-function below
+
+//! # pqt-ffi
+//!
+//! C ABI for the PQ/T hybrid suite, fixed to the default suite
+//! **ML-KEM-768 + X25519** with SHA3-256 combining. One Rust core, callable from
+//! C, Swift (via the static lib), Kotlin (via JNI/FFM), and anything with a C FFI.
+//!
+//! ## ABI conventions
+//! - Every function returns an `int32` status ([`PQT_OK`] or a negative error).
+//!   Errors encode **only public conditions** (null pointer, wrong length, policy)
+//!   — never secret-dependent information.
+//! - Buffers are passed as `(ptr, len)` pairs; lengths are validated.
+//! - `decapsulate` always returns [`PQT_OK`] for a syntactically valid (correct
+//!   length) ciphertext, even if cryptographically invalid: implicit rejection
+//!   yields a pseudorandom secret, so there is **no decapsulation oracle**.
+//! - Every entry point is wrapped in `catch_unwind`; a panic becomes
+//!   [`PQT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
+
+use core::slice;
+use pqt_backends::{
+    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519,
+    X25519_LEN,
+};
+use pqt_core::{Error, Profile};
+use pqt_kem::HybridKem;
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
+/// Success.
+pub const PQT_OK: i32 = 0;
+/// A required pointer was null.
+pub const PQT_ERR_NULL: i32 = -1;
+/// A buffer had the wrong length.
+pub const PQT_ERR_LENGTH: i32 = -2;
+/// The requested algorithm/profile combination is forbidden by policy.
+pub const PQT_ERR_POLICY: i32 = -3;
+/// A panic was caught at the ABI boundary.
+pub const PQT_ERR_PANIC: i32 = -4;
+/// An internal/backend error.
+pub const PQT_ERR_INTERNAL: i32 = -5;
+
+/// `profile = 1`: fast X-Wing-compatible combiner.
+pub const PQT_PROFILE_COMPAT_XWING: u8 = 1;
+/// `profile = 2`: context-bound combiner.
+pub const PQT_PROFILE_CONTEXT_BOUND: u8 = 2;
+
+// Literal values (so cbindgen emits numeric #defines for C), with compile-time
+// assertions that they match the backend — they cannot silently drift.
+/// ML-KEM-768 secret-key length, bytes.
+pub const PQT_MLKEM768_SK_LEN: usize = 2400;
+/// ML-KEM-768 public-key length, bytes.
+pub const PQT_MLKEM768_PK_LEN: usize = 1184;
+/// ML-KEM-768 ciphertext length, bytes.
+pub const PQT_MLKEM768_CT_LEN: usize = 1088;
+/// X25519 key / ciphertext length, bytes.
+pub const PQT_X25519_LEN: usize = 32;
+/// Combined shared-secret length, bytes.
+pub const PQT_SECRET_LEN: usize = 32;
+
+const _: () = {
+    assert!(PQT_MLKEM768_SK_LEN == ML_KEM_768_SK_LEN);
+    assert!(PQT_MLKEM768_PK_LEN == ML_KEM_768_PK_LEN);
+    assert!(PQT_MLKEM768_CT_LEN == ML_KEM_768_CT_LEN);
+    assert!(PQT_X25519_LEN == X25519_LEN);
+};
+
+unsafe fn in_slice<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
+    if len == 0 {
+        Some(&[])
+    } else if ptr.is_null() {
+        None
+    } else {
+        Some(slice::from_raw_parts(ptr, len))
+    }
+}
+
+unsafe fn out_slice<'a>(ptr: *mut u8, len: usize) -> Option<&'a mut [u8]> {
+    if ptr.is_null() {
+        None
+    } else {
+        Some(slice::from_raw_parts_mut(ptr, len))
+    }
+}
+
+fn err_code(e: Error) -> i32 {
+    match e {
+        Error::InvalidLength => PQT_ERR_LENGTH,
+        Error::PolicyDenied => PQT_ERR_POLICY,
+        _ => PQT_ERR_INTERNAL,
+    }
+}
+
+fn profile_from(p: u8) -> Option<Profile> {
+    match p {
+        PQT_PROFILE_COMPAT_XWING => Some(Profile::CompatXWing),
+        PQT_PROFILE_CONTEXT_BOUND => Some(Profile::ContextBound),
+        _ => None,
+    }
+}
+
+/// Deterministically derive an ML-KEM-768 key pair from a 64-byte `seed`.
+///
+/// # Safety
+/// `seed`/`out_sk`/`out_pk` must point to readable/writable regions of the given
+/// lengths (`64` / [`PQT_MLKEM768_SK_LEN`] / [`PQT_MLKEM768_PK_LEN`]).
+#[no_mangle]
+pub unsafe extern "C" fn pqt_mlkem768_keypair(
+    seed: *const u8,
+    seed_len: usize,
+    out_sk: *mut u8,
+    out_sk_len: usize,
+    out_pk: *mut u8,
+    out_pk_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let (Some(seed), Some(sk_o), Some(pk_o)) = (
+            in_slice(seed, seed_len),
+            out_slice(out_sk, out_sk_len),
+            out_slice(out_pk, out_pk_len),
+        ) else {
+            return PQT_ERR_NULL;
+        };
+        let Ok(seed) = <[u8; 64]>::try_from(seed) else {
+            return PQT_ERR_LENGTH;
+        };
+        if sk_o.len() != ML_KEM_768_SK_LEN || pk_o.len() != ML_KEM_768_PK_LEN {
+            return PQT_ERR_LENGTH;
+        }
+        let (sk, pk) = MlKem768::generate(seed);
+        sk_o.copy_from_slice(&sk);
+        pk_o.copy_from_slice(&pk);
+        PQT_OK
+    }))
+    .unwrap_or(PQT_ERR_PANIC)
+}
+
+/// Deterministically derive an X25519 key pair from a 32-byte scalar.
+///
+/// # Safety
+/// All pointers must be valid for the given lengths (`32` each).
+#[no_mangle]
+pub unsafe extern "C" fn pqt_x25519_keypair(
+    secret: *const u8,
+    secret_len: usize,
+    out_sk: *mut u8,
+    out_sk_len: usize,
+    out_pk: *mut u8,
+    out_pk_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let (Some(secret), Some(sk_o), Some(pk_o)) = (
+            in_slice(secret, secret_len),
+            out_slice(out_sk, out_sk_len),
+            out_slice(out_pk, out_pk_len),
+        ) else {
+            return PQT_ERR_NULL;
+        };
+        let Ok(secret) = <[u8; 32]>::try_from(secret) else {
+            return PQT_ERR_LENGTH;
+        };
+        if sk_o.len() != X25519_LEN || pk_o.len() != X25519_LEN {
+            return PQT_ERR_LENGTH;
+        }
+        let (sk, pk) = X25519::generate(secret);
+        sk_o.copy_from_slice(&sk);
+        pk_o.copy_from_slice(&pk);
+        PQT_OK
+    }))
+    .unwrap_or(PQT_ERR_PANIC)
+}
+
+/// Hybrid encapsulation to `(pk_pq, pk_trad)`.
+///
+/// Writes `out_ct_pq` ([`PQT_MLKEM768_CT_LEN`]), `out_ct_trad` ([`PQT_X25519_LEN`])
+/// and `out_secret` ([`PQT_SECRET_LEN`]). `context` is bound only under
+/// [`PQT_PROFILE_CONTEXT_BOUND`] and must then be non-empty.
+///
+/// # Safety
+/// Every `(ptr, len)` pair must describe a valid region; output buffers must be
+/// writable for their lengths.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn pqt_hybrid_encapsulate(
+    profile: u8,
+    suite_id: *const u8,
+    suite_id_len: usize,
+    policy_version: u32,
+    pk_pq: *const u8,
+    pk_pq_len: usize,
+    pk_trad: *const u8,
+    pk_trad_len: usize,
+    context: *const u8,
+    context_len: usize,
+    rand_pq: *const u8,
+    rand_pq_len: usize,
+    rand_trad: *const u8,
+    rand_trad_len: usize,
+    out_ct_pq: *mut u8,
+    out_ct_pq_len: usize,
+    out_ct_trad: *mut u8,
+    out_ct_trad_len: usize,
+    out_secret: *mut u8,
+    out_secret_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let Some(profile) = profile_from(profile) else {
+            return PQT_ERR_POLICY;
+        };
+        let (
+            Some(suite),
+            Some(pk_pq),
+            Some(pk_trad),
+            Some(context),
+            Some(rand_pq),
+            Some(rand_trad),
+        ) = (
+            in_slice(suite_id, suite_id_len),
+            in_slice(pk_pq, pk_pq_len),
+            in_slice(pk_trad, pk_trad_len),
+            in_slice(context, context_len),
+            in_slice(rand_pq, rand_pq_len),
+            in_slice(rand_trad, rand_trad_len),
+        )
+        else {
+            return PQT_ERR_NULL;
+        };
+        let (Some(ct_pq_o), Some(ct_trad_o), Some(secret_o)) = (
+            out_slice(out_ct_pq, out_ct_pq_len),
+            out_slice(out_ct_trad, out_ct_trad_len),
+            out_slice(out_secret, out_secret_len),
+        ) else {
+            return PQT_ERR_NULL;
+        };
+        if secret_o.len() != PQT_SECRET_LEN {
+            return PQT_ERR_LENGTH;
+        }
+        let (pq, trad) = (MlKem768, X25519);
+        let kem =
+            match HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version) {
+                Ok(k) => k,
+                Err(e) => return err_code(e),
+            };
+        let mut ss_pq = [0u8; 32];
+        let mut ss_trad = [0u8; 32];
+        match kem.encapsulate(
+            pk_pq,
+            pk_trad,
+            context,
+            rand_pq,
+            rand_trad,
+            ct_pq_o,
+            &mut ss_pq,
+            ct_trad_o,
+            &mut ss_trad,
+        ) {
+            Ok(secret) => {
+                secret_o.copy_from_slice(secret.as_bytes());
+                PQT_OK
+            }
+            Err(e) => err_code(e),
+        }
+    }))
+    .unwrap_or(PQT_ERR_PANIC)
+}
+
+/// Hybrid decapsulation. Returns [`PQT_OK`] and writes `out_secret`
+/// ([`PQT_SECRET_LEN`]) for any correctly-sized ciphertext; an invalid ciphertext
+/// yields a pseudorandom secret (implicit rejection — no oracle).
+///
+/// # Safety
+/// Every `(ptr, len)` pair must describe a valid region; `out_secret` must be
+/// writable for [`PQT_SECRET_LEN`].
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn pqt_hybrid_decapsulate(
+    profile: u8,
+    suite_id: *const u8,
+    suite_id_len: usize,
+    policy_version: u32,
+    sk_pq: *const u8,
+    sk_pq_len: usize,
+    ct_pq: *const u8,
+    ct_pq_len: usize,
+    pk_pq: *const u8,
+    pk_pq_len: usize,
+    sk_trad: *const u8,
+    sk_trad_len: usize,
+    ct_trad: *const u8,
+    ct_trad_len: usize,
+    pk_trad: *const u8,
+    pk_trad_len: usize,
+    context: *const u8,
+    context_len: usize,
+    out_secret: *mut u8,
+    out_secret_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let Some(profile) = profile_from(profile) else {
+            return PQT_ERR_POLICY;
+        };
+        let (
+            Some(suite),
+            Some(sk_pq),
+            Some(ct_pq),
+            Some(pk_pq),
+            Some(sk_trad),
+            Some(ct_trad),
+            Some(pk_trad),
+            Some(context),
+        ) = (
+            in_slice(suite_id, suite_id_len),
+            in_slice(sk_pq, sk_pq_len),
+            in_slice(ct_pq, ct_pq_len),
+            in_slice(pk_pq, pk_pq_len),
+            in_slice(sk_trad, sk_trad_len),
+            in_slice(ct_trad, ct_trad_len),
+            in_slice(pk_trad, pk_trad_len),
+            in_slice(context, context_len),
+        )
+        else {
+            return PQT_ERR_NULL;
+        };
+        let Some(secret_o) = out_slice(out_secret, out_secret_len) else {
+            return PQT_ERR_NULL;
+        };
+        if secret_o.len() != PQT_SECRET_LEN {
+            return PQT_ERR_LENGTH;
+        }
+        let (pq, trad) = (MlKem768, X25519);
+        let kem =
+            match HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version) {
+                Ok(k) => k,
+                Err(e) => return err_code(e),
+            };
+        let mut ss_pq = [0u8; 32];
+        let mut ss_trad = [0u8; 32];
+        match kem.decapsulate(
+            sk_pq,
+            ct_pq,
+            pk_pq,
+            sk_trad,
+            ct_trad,
+            pk_trad,
+            context,
+            &mut ss_pq,
+            &mut ss_trad,
+        ) {
+            Ok(secret) => {
+                secret_o.copy_from_slice(secret.as_bytes());
+                PQT_OK
+            }
+            Err(e) => err_code(e),
+        }
+    }))
+    .unwrap_or(PQT_ERR_PANIC)
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
+    use super::*;
+
+    #[test]
+    fn ffi_hybrid_roundtrip_context_bound() {
+        let mut sk_pq = [0u8; PQT_MLKEM768_SK_LEN];
+        let mut pk_pq = [0u8; PQT_MLKEM768_PK_LEN];
+        let seed = [3u8; 64];
+        unsafe {
+            assert_eq!(
+                pqt_mlkem768_keypair(
+                    seed.as_ptr(),
+                    64,
+                    sk_pq.as_mut_ptr(),
+                    sk_pq.len(),
+                    pk_pq.as_mut_ptr(),
+                    pk_pq.len()
+                ),
+                PQT_OK
+            );
+        }
+        let (mut sk_t, mut pk_t) = ([0u8; 32], [0u8; 32]);
+        let xs = [4u8; 32];
+        unsafe {
+            assert_eq!(
+                pqt_x25519_keypair(
+                    xs.as_ptr(),
+                    32,
+                    sk_t.as_mut_ptr(),
+                    32,
+                    pk_t.as_mut_ptr(),
+                    32
+                ),
+                PQT_OK
+            );
+        }
+
+        let suite = b"ML-KEM-768+X25519";
+        let ctx = b"ffi-ctx";
+        let (r_pq, r_t) = ([1u8; 32], [2u8; 32]);
+        let mut ct_pq = [0u8; PQT_MLKEM768_CT_LEN];
+        let mut ct_t = [0u8; PQT_X25519_LEN];
+        let mut sec = [0u8; PQT_SECRET_LEN];
+        unsafe {
+            assert_eq!(
+                pqt_hybrid_encapsulate(
+                    PQT_PROFILE_CONTEXT_BOUND,
+                    suite.as_ptr(),
+                    suite.len(),
+                    1,
+                    pk_pq.as_ptr(),
+                    pk_pq.len(),
+                    pk_t.as_ptr(),
+                    32,
+                    ctx.as_ptr(),
+                    ctx.len(),
+                    r_pq.as_ptr(),
+                    32,
+                    r_t.as_ptr(),
+                    32,
+                    ct_pq.as_mut_ptr(),
+                    ct_pq.len(),
+                    ct_t.as_mut_ptr(),
+                    32,
+                    sec.as_mut_ptr(),
+                    32
+                ),
+                PQT_OK
+            );
+        }
+
+        let mut sec2 = [0u8; PQT_SECRET_LEN];
+        unsafe {
+            assert_eq!(
+                pqt_hybrid_decapsulate(
+                    PQT_PROFILE_CONTEXT_BOUND,
+                    suite.as_ptr(),
+                    suite.len(),
+                    1,
+                    sk_pq.as_ptr(),
+                    sk_pq.len(),
+                    ct_pq.as_ptr(),
+                    ct_pq.len(),
+                    pk_pq.as_ptr(),
+                    pk_pq.len(),
+                    sk_t.as_ptr(),
+                    32,
+                    ct_t.as_ptr(),
+                    32,
+                    pk_t.as_ptr(),
+                    32,
+                    ctx.as_ptr(),
+                    ctx.len(),
+                    sec2.as_mut_ptr(),
+                    32
+                ),
+                PQT_OK
+            );
+        }
+        assert_eq!(sec, sec2, "FFI encap/decap must agree");
+    }
+
+    #[test]
+    fn ffi_rejects_bad_profile_and_null() {
+        let mut sec = [0u8; 32];
+        // profile 0 is invalid
+        let rc = unsafe {
+            pqt_hybrid_decapsulate(
+                0,
+                core::ptr::null(),
+                0,
+                0,
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                sec.as_mut_ptr(),
+                32,
+            )
+        };
+        assert_eq!(rc, PQT_ERR_POLICY);
+    }
+}

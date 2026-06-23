@@ -321,6 +321,24 @@ name = "pqt-core"
 version = "0.0.1"
 
 [[package]]
+name = "pqt-ctstats"
+version = "0.0.1"
+dependencies = [
+ "pqt-backends",
+ "pqt-core",
+ "pqt-kem",
+]
+
+[[package]]
+name = "pqt-ffi"
+version = "0.0.1"
+dependencies = [
+ "pqt-backends",
+ "pqt-core",
+ "pqt-kem",
+]
+
+[[package]]
 name = "pqt-kem"
 version = "0.0.1"
 dependencies = [

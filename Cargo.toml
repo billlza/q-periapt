@@ -12,6 +12,8 @@ members = [
     "crates/pqt-sig",
     "crates/pqt-policy",
     "crates/pqt-backends",
+    "crates/pqt-ffi",
+    "ctstats",
 ]
 # Crates scaffolded but not yet implemented (added to `members` as they land):
 #   crates/pqt-ffi      — C ABI (cdylib + staticlib, cbindgen header)

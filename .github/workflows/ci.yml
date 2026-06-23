@@ -63,7 +63,19 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - run: cargo test --workspace
 
-  # Side-channel CI gates (placeholders wired as the harnesses land — see ctstats/).
-  #   - dudect / ctgrind / TVLA timing-leakage tests on the real backends
+  # Side-channel gates: failure-path indistinguishability (hard gate) + dudect
+  # timing report (informational). See ctstats/README.md for the honest scope.
+  sidechannel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Failure-path indistinguishability (hard gate)
+        run: cargo test -p pqt-ctstats
+      - name: dudect timing report (informational, never fails)
+        run: cargo run --release -p pqt-ctstats --bin dudect_decaps || true
+
+  # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
+  #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)
-  #   - KAT verification (tests/kat/) and differential tests (tests/differential/)
+  #   - X-Wing KAT lives in pqt-backends; ACVP breadth + ContextBound vectors pending
