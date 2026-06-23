@@ -1,23 +1,27 @@
-# Periapt — PQ/T Hybrid Cryptographic Suite
+# Q-Periapt — PQ/T Hybrid Cryptographic Suite
 
 > [!WARNING]
 > **Status: pre-1.0 research / undergraduate-thesis project (v0.0.1). NOT audited,
 > NOT FIPS-validated — do not use in production yet.** Real vetted backends are
-> wired (ML-KEM-768/ML-DSA-65 via libcrux, X25519, SHA3; SLH-DSA and HQC behind
-> features) and the X-Wing interop KAT passes, but the suite has had no third-party
-> audit. See [Status & disclaimer](#status--disclaimer).
+> wired (ML-KEM-768 / ML-DSA-65 / SHA3 via libcrux, X25519 via x25519-dalek;
+> SLH-DSA via fips205 and HQC via pqcrypto-hqc behind features), the X-Wing interop
+> KAT passes byte-for-byte against the official draft vectors, and the combiner
+> binding theorem is machine-checked in EasyCrypt — but the suite has had no
+> third-party audit. See [Status & disclaimer](#status--disclaimer).
 
-**Periapt** — *an amulet worn to ward off danger* — is a portable, `no_std`,
-**side-channel-resistant-first** post-quantum / traditional (PQ/T) hybrid
-cryptographic suite. The name is the design: a periapt shields its bearer from a
-fatal blow (in the spirit of the Chinese 玉佩, a jade pendant said to shatter to
-protect its wearer) — likewise this suite stays secure even if **one** of its two
-independent assumptions (a lattice KEM, and a traditional or — in enhanced mode —
-code-based one) is broken, because a combiner **provably binds** the two into a
-single shared key (machine-checked in EasyCrypt). It is built around one
-dependency-free Rust core (crate namespace `q-periapt-*`) that vetted primitive backends
-are injected into through traits, and that is reused unchanged across C, WASM,
-Swift and Kotlin. The
+**Q-Periapt** — *Q for Quantum; a periapt is an amulet worn to ward off danger* —
+is a portable, `no_std` post-quantum / traditional (PQ/T) hybrid cryptographic
+suite, **built side-channel-aware from the start** (with the caveats below: the
+failure-path indistinguishability check is a hard CI gate; empirical timing is
+report-only today, not yet a merge gate). The name is the design: a periapt
+shields its bearer from a fatal blow (in the spirit of the Chinese 玉佩, a jade
+pendant said to shatter to protect its wearer) — likewise this suite stays secure
+even if **one** of its two independent assumptions (a lattice KEM, and a
+traditional or — in enhanced mode — code-based one) is broken, because a combiner
+**provably binds** the two into a single shared key (the binding theorem is
+machine-checked in EasyCrypt). It is built around one dependency-free Rust core
+(crate namespace `q-periapt-*`) that vetted primitive backends are injected into
+through traits, and that is reused unchanged across C, WASM, Swift and Kotlin. The
 honest pitch is narrow and deliberate: this project does **not** try to beat
 ML-KEM/ML-DSA on speed, and it does **not** beat X-Wing's combiner on cycles —
 adding more transcript binding than X-Wing means strictly *more* hashing, i.e. a
@@ -47,8 +51,14 @@ explicit rejection). That property is load-bearing; a non-C2PRI component (HQC, 
 X25519-as-KEM) **must** use `ContextBound`, which hashes all ciphertexts. The
 hashing delta between the two profiles is real and directional but is a *small*
 fraction of total encap/decap — encap/decap is dominated by ML-KEM arithmetic and
-SHAKE, not the combiner hash. Concrete cycle counts will be **measured** in the M4
-benchmark harness per backend/arch and are not asserted here.
+SHAKE, not the combiner hash. This is **measured**, not asserted:
+[`crates/q-periapt-backends/benches/combiner.rs`](crates/q-periapt-backends/benches/combiner.rs)
+benchmarks our `CompatXWing` combiner (allocation-free, single 134-byte Keccak
+block via libcrux) against a streaming X-Wing reference, asserting byte-identical
+output first so the comparison is fair. The result is parity — our generic
+abstraction costs on the order of tens of nanoseconds versus a hand-rolled
+streaming X-Wing combiner, negligible against a full handshake — and `ContextBound`
+is deliberately ~19× more combiner hashing. We never claim a combiner speed win.
 
 ### Where this can plausibly win
 
@@ -63,12 +73,20 @@ benchmark harness per backend/arch and are not asserted here.
   X25519 are deterministic standardized primitives, so *any* conformant
   implementation interops across platforms — the win here is reduced audit
   surface, **not** a unique cross-platform interop capability.)
-- **Side-channel CI as a product feature** — empirical timing tests (dudect-style
-  Welch t-test) plus static / binary-level constant-time re-verification, because
-  source-level CT does not survive the compiler (clangover, KyberSlash). This is
-  *planned and partially scoped*, not yet built (see status below).
-- **Audit transparency** — CBOM (CycloneDX crypto-bill-of-materials) + SBOM +
-  migration-inventory tooling + a machine-checked combiner model (all planned).
+- **Side-channel CI as a product feature** — the failure-path indistinguishability
+  / implicit-rejection check **is a hard merge gate today**
+  ([`ctstats/`](ctstats/README.md): an invalid ML-KEM-768 ciphertext decapsulates
+  to a deterministic, success-shaped secret, with no error-code oracle). The
+  empirical dudect-style Welch t-test runs in CI but is **report-only** (it never
+  fails the build — shared runners are too noisy for a stable threshold), and
+  binary-level constant-time re-verification (ctgrind / Valgrind-TIMECOP), needed
+  because source-level CT does not survive the compiler (clangover, KyberSlash),
+  is still **TODO**. See [`ctstats/README.md`](ctstats/README.md) for the honest
+  per-cell scope.
+- **Audit transparency** — a machine-checked combiner binding model is **done**
+  ([`formal/easycrypt/BindingViaCR.ec`](formal/easycrypt/BindingViaCR.ec),
+  CI-gated against admits). CBOM (CycloneDX crypto-bill-of-materials) + SBOM +
+  migration-inventory tooling are scaffolded (see status).
 - **P99 transport measured on the right constraint** — the differentiator is the
   *methodology* (P99 handshake completion on emulated lossy / high-RTT links,
   where pure encap/decap microbenchmarks mis-rank designs), not the transport
@@ -79,12 +97,14 @@ benchmark harness per backend/arch and are not asserted here.
 
 - **Combiner CPU speed** — more binding is strictly more hashing. `CompatXWing`
   targets *parity* with X-Wing; `ContextBound` is intentionally slower.
-- **Primitive performance** — it wires libcrux / RustCrypto / aws-lc-rs; it will
-  not out-perform AVX2 ML-KEM or FIPS-validated AWS-LC. This is a composition /
-  safety layer, not a faster primitive.
+- **Primitive performance** — it wires libcrux (ML-KEM / ML-DSA / SHA3),
+  x25519-dalek, fips205 (SLH-DSA) and pqcrypto-hqc; it will not out-perform AVX2
+  ML-KEM or FIPS-validated AWS-LC. This is a composition / safety layer, not a
+  faster primitive.
 - **FIPS 140-3 validation out of the box** — the pure-Rust `no_std` core is **not**
-  FIPS-validated. aws-lc-rs (AWS-LC FIPS) is offered as a backend for that
-  requirement; the project makes no validation claim of its own.
+  FIPS-validated. The trait-injected backend design leaves room for a FIPS path
+  (e.g. an aws-lc-rs / AWS-LC backend) later, but no such backend is wired today
+  and the project makes no validation claim of its own.
 - **Wire-format / standards novelty** — it implements X-Wing (an Independent
   Submission draft, `draft-connolly-cfrg-xwing-kem`, *not* a CFRG WG item),
   `draft-ietf-tls-ecdhe-mlkem` (X25519MLKEM768, codepoint `0x11EC`, RFC number
@@ -101,38 +121,42 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 
 | Dimension | Target | Today (v0.0.1) |
 |---|---|---|
-| Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (266 LOC, zero crypto deps, `#![forbid(unsafe_code)]`, builds `thumbv7em-none-eabihf`) |
-| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 wired, X-Wing-KAT verified; HQC-128/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature |
-| Combiner profiles | `CompatXWing` (parity) + `ContextBound` (binding) | 🟡 both profiles implemented over a trait XOF; currently tested with a **toy non-crypto hash** only |
-| Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ⛔ **not implemented** (known critical gap — see status) |
+| Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented `Secret` wipe block; builds `thumbv7em-none-eabihf`) |
+| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 (x25519-dalek) wired; real hybrid encap/decap round-trips under both profiles; HQC-128/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature |
+| Combiner profiles | `CompatXWing` (parity) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to a **real SHA3-256** (libcrux) backend |
+| Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four fields are exactly 32 bytes; `HybridKem::new` rejects a non-C2PRI KEM under `CompatXWing` with `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |
-| Crypto-agility / policy | signed CBOR/TOML policy, downgrade floor, profile select | 🟡 `q-periapt-policy` in-memory struct; **no signing, no enforcement, no TOML parsing** |
-| KATs / differential tests | X-Wing draft-10 + FIPS 203 ACVP vectors, 3-backend triple | ⛔ `tests/kat/`, `tests/differential/` empty — **byte-exact parity unverified** |
-| Side-channel CI | dudect + ctgrind/TIMECOP + binary-CT matrix + clangover cells | ⛔ comment-only placeholders in CI; harnesses not written |
-| Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI builds `q-periapt-core`(+`q-periapt-kem`) green across all five targets |
-| FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | ⛔ `q-periapt-ffi`/`q-periapt-wasm`/`bindings/*` scaffolded (no `src/`, not workspace members) |
-| Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | ⛔ `q-periapt-tls-demo` scaffolded only |
-| Auditability tooling | CBOM / SBOM / migration scanner | ⛔ `q-periapt-cli` scaffolded only |
-| Formal models | EasyCrypt combiner PQ-case + Tamarin handshake | ⛔ `formal/{easycrypt,tamarin,proverif}` empty |
+| Crypto-agility / policy | signed policy, downgrade floor, profile select | ✅ `q-periapt-policy`: real TOML loading (`Policy::from_toml`) + **signed-policy verification** (`Policy::load_signed`, fail-closed, plus `load_signed_or_failsafe`); downgrade floor + `negotiate_kem` + `select_profile` enforced |
+| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** vs 3 official `draft-connolly-cfrg-xwing-kem` vectors (`crates/q-periapt-backends/src/xwing_kat.rs`); full ACVP breadth + a multi-backend differential triple still pending |
+| Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); dudect timing runs **report-only** (`|| true`); ctgrind/TIMECOP binary-CT is TODO |
+| Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI `cross` job builds `q-periapt-core`+`q-periapt-kem` on x86_64/aarch64/riscv64gc/wasm32; the `no_std` job builds `q-periapt-core` alone on embedded `thumbv7em-none-eabihf` |
+| FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | 🟡 `q-periapt-ffi` / `q-periapt-wasm` workspace members with a shared-vector consistency CI job; `bindings/{swift,kotlin}` wired in CI |
+| Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | 🟡 `q-periapt-tls-demo` workspace member: loopback hybrid handshake + a report-only P99 bench in CI |
+| Auditability tooling | CBOM / SBOM / migration scanner | 🟡 `q-periapt-cli` workspace member emitting CycloneDX CBOM/SBOM in CI |
+| Formal models | EasyCrypt combiner binding + handshake model | ✅ EasyCrypt: `bind_le_cr` **machine-checked** (`Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`), `encode_inj` now a **proved lemma**, **0 admits**, CI-gated (`formal/easycrypt/BindingViaCR.ec`); a Tamarin symbolic handshake model is still planned |
 
-> The MVP formal scope, when it lands, is intentionally partial: a standard-model
-> PQ IND-CCA reduction for the context-bound combiner (`H`-as-PRF, PQ-KEM
-> black-box, C2PRI as a declared axiom) plus a Tamarin symbolic handshake model.
-> The classical ROM+SDH case and a full computational handshake proof are **out of
-> MVP scope**. Until proofs exist, "machine-checked proof" is a roadmap item, not
-> a current property.
+> The mechanized formal scope is deliberately bounded and stated honestly. The
+> machine-checked theorem establishes that the `ContextBound` combiner's binding
+> (`MAL-BIND-K-CT`/`K-PK`/`K-CTX`) reduces **only** to collision-resistance of the
+> hash, with no binding assumption on the component KEMs — the canonical encoding is
+> modeled concretely and its injectivity is proved. Honest residuals (see
+> [`docs/BINDING_SECURITY.md`](docs/BINDING_SECURITY.md)): `H`'s collision-resistance
+> is a modeling assumption; IND-CCA2 robustness is argued on paper, not mechanized;
+> there is no spec↔implementation linkage proof; `X-BIND-CT-*` is structurally
+> impossible for an implicitly-rejecting ML-KEM and is **not** claimed; and
+> `ContextBound` is **not** "stronger binding than X-Wing" (same malicious ceiling)
+> — its edge is assumption-minimality and proof coverage, not a stronger guarantee.
 
 ## Quickstart
 
-Requires a stable Rust toolchain (`rustup` recommended). Only the four core crates
-are workspace members today; the rest are scaffolded.
+Requires a stable Rust toolchain (`rustup` recommended).
 
 ```sh
 git clone <repo-url> q-periapt
 cd q-periapt
 
 cargo build --workspace          # build the implemented crates
-cargo test  --workspace          # unit tests (toy-hash combiner wiring, no KATs yet)
+cargo test  --workspace          # unit tests + real-backend round-trips + X-Wing KAT
 cargo clippy --workspace --all-targets
 
 # Prove the security-critical core is dependency-free and builds bare-metal no_std:
@@ -150,22 +174,23 @@ cargo build -p q-periapt-core -p q-periapt-kem --target wasm32-unknown-unknown
 q-periapt/
 ├── crates/
 │   ├── q-periapt-core      # ✅ dependency-free no_std core: combiner + transcript binding + primitive traits
-│   ├── q-periapt-kem       # 🟡 hybrid KEM (ML-KEM-768 + X25519) + pluggable HQC, generic over backends
-│   ├── q-periapt-sig       # 🟡 signature surface: ML-DSA-65/87, SLH-DSA (roots/firmware/long-term)
-│   ├── q-periapt-policy    # 🟡 crypto-agility policy engine (no hardcoded algorithms)
-│   ├── q-periapt-ffi       # ⛔ stable C ABI (cdylib + staticlib + cbindgen header)        [scaffold]
-│   ├── q-periapt-wasm      # ⛔ wasm-bindgen surface (pure-Rust backends only)             [scaffold]
-│   ├── q-periapt-tls-demo  # ⛔ rustls TLS 1.3 / QUIC / HPKE integration + P99 harness     [scaffold]
-│   └── q-periapt-cli       # ⛔ migration inventory + CBOM/SBOM generator                  [scaffold]
-├── docs/             # policy/default.policy.toml (further docs are roadmap items)
-├── formal/           # easycrypt / tamarin / proverif (empty placeholders)
-├── tests/            # kat/ + differential/ (empty placeholders)
-├── bench/  ctstats/  fuzz/  sbom/   # harness placeholders
-└── bindings/         # swift/ + kotlin/ (placeholders)
+│   ├── q-periapt-kem       # ✅ hybrid KEM (ML-KEM-768 + X25519) + pluggable HQC, generic over backends; C2PRI guard
+│   ├── q-periapt-sig       # ✅ signature trait surface: ML-DSA-65/87, SLH-DSA (roots/firmware/long-term)
+│   ├── q-periapt-backends  # ✅ vetted backends: libcrux ML-KEM/ML-DSA/SHA3, x25519-dalek, fips205, pqcrypto-hqc
+│   ├── q-periapt-policy    # ✅ crypto-agility policy engine: TOML + signed-policy verification, no hardcoded algorithms
+│   ├── q-periapt-ffi       # 🟡 stable C ABI (cdylib + staticlib + cbindgen header)
+│   ├── q-periapt-wasm      # 🟡 wasm-bindgen surface (pure-Rust backends only)
+│   ├── q-periapt-tls-demo  # 🟡 loopback PQ/T hybrid handshake + P99 harness
+│   └── q-periapt-cli       # 🟡 migration inventory + CBOM/SBOM generator
+├── ctstats/          # ✅ side-channel CI: indistinguishability hard gate + dudect report
+├── docs/             # BINDING_SECURITY.md, COMBINER_SPEC.md, ARCHITECTURE.md, ...; policy/default.policy.toml
+├── formal/easycrypt/ # ✅ machine-checked binding proof (BindingViaCR.ec); tamarin/ planned
+├── tests/            # kat/ + differential/ (X-Wing KAT currently lives in q-periapt-backends)
+├── bench/  fuzz/  sbom/   # harness scaffolds (combiner bench lives in q-periapt-backends/benches/)
+└── bindings/         # swift/ + kotlin/ (exercised in CI against a shared test vector)
 ```
 
-Only `q-periapt-core`, `q-periapt-kem`, `q-periapt-sig`, and `q-periapt-policy` are in the Cargo workspace
-`members`; the four scaffolded crates are added as they are implemented.
+All crates above plus `ctstats` are Cargo workspace `members` (see `Cargo.toml`).
 
 ### Architecture in one line
 
@@ -184,45 +209,61 @@ CT equality.
 This is a **research artifact for an undergraduate thesis**, not a product.
 
 - **Not audited. Not FIPS-validated. Not production-ready.**
-- **No cryptographic backend is wired.** The combiner is currently exercised with
-  a non-cryptographic FNV-style toy hash to verify wiring/determinism only. The
-  byte-exact X-Wing parity claim is therefore **unverified**: there are no
-  committed KAT vectors yet.
-- **Known critical gaps tracked for the next milestones** (do not rely on the
-  current code for any security property):
-  - No `Kem::C2PRI` guard — nothing yet prevents misusing `CompatXWing` with a
-    non-C2PRI KEM, which would break the IND-CCA argument.
-  - No `CompatXWing` field-length validation (each X-Wing field must be exactly
-    32 bytes; missing checks allow a length-ambiguity / canonicalization break).
-  - No implicit-rejection / constant-time `cmov` decapsulation path yet.
-  - `q-periapt-policy` does no signing, no downgrade-floor enforcement, and no TOML
-    parsing; the policy file is not yet consumed by code.
-  - Side-channel CI cells, fuzz targets, CBOM/SBOM, FFI, transport, and formal
-    proofs are placeholders.
-- **`Secret`** uses a best-effort `black_box` wipe (not the audited `zeroize`
-  crate) and still derives `Clone`; treat zeroization as incomplete.
-- **HQC is excluded from the side-channel-resistant claim**: its decoder has
-  documented data-dependent timing and `pqcrypto-hqc` wraps C (breaks `no_std`).
-  It is a strictly feature-gated, experimental *hedge*, never a default.
-- Backends to be wired are pre-release / unaudited to varying degrees (libcrux is
-  `<0.1` / contact-maintainers-before-production; RustCrypto is unaudited;
-  aws-lc-rs is the FIPS path). Versions will be pinned and kept swappable for
-  differential testing and CVE mitigation.
+- **What is real now** (each grounded in committed code — read it before relying on
+  any of it):
+  - Real vetted backends are wired in `q-periapt-backends`: ML-KEM-768 / ML-DSA-65 /
+    SHA3-256 via libcrux, X25519 via x25519-dalek, with SLH-DSA (fips205) and HQC
+    (pqcrypto-hqc) behind off-by-default features. The hybrid KEM round-trips under
+    both combiner profiles with these real backends.
+  - The byte-exact X-Wing draft KAT **passes** against the 3 official
+    `draft-connolly-cfrg-xwing-kem` vectors (`q-periapt-backends/src/xwing_kat.rs`).
+    This reproduces FIPS 203 reference output on those 3 happy-path vectors; full
+    ACVP coverage is **pending** — it is not yet a complete FIPS 203 validation.
+  - Combiner safety guards are implemented: `CompatXWing` hard-checks all four
+    fields are exactly 32 bytes (`q-periapt-core` `combine`); `HybridKem::new`
+    forbids a non-C2PRI KEM under `CompatXWing` (`Error::PolicyDenied`), confining
+    X25519/HQC to `ContextBound`; and `ct_eq`/`ct_select32` give the branch-free
+    implicit-rejection primitive with a side-channel-safe, secret-free `Error`.
+  - `q-periapt-policy` does real TOML loading **and** signed-policy verification
+    (`Policy::load_signed` authenticates the exact policy bytes via an injected
+    SLH-DSA-intended `Verifier` before trusting them, fail-closed;
+    `load_signed_or_failsafe` falls back to the L5/`ContextBound` posture), with the
+    downgrade floor and negotiation enforced.
+  - The EasyCrypt binding theorem is **machine-checked** with 0 admits, and
+    `encode_inj` is now a proved lemma rather than an axiom
+    (`formal/easycrypt/BindingViaCR.ec`); CI hard-gates against any reintroduced
+    `admit`/`sorry`.
+- **`Secret`** is securely zeroized on drop (volatile write + compiler fence — the
+  `zeroize` technique, inlined to keep the core dependency-free) and is **not**
+  `Clone`/`Copy`, so no copy can outlive the wipe. The core is `#![deny(unsafe_code)]`
+  with that single, documented wipe block as the only `unsafe`.
+- **Still scaffolded / pending** (do not assume these are finished): full ACVP
+  breadth and a multi-backend differential triple; binary-level constant-time
+  re-verification (ctgrind / Valgrind-TIMECOP); fuzz targets; the Tamarin handshake
+  model; and the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI
+  exercises.
+- **HQC is excluded from the side-channel claim**: its decoder has documented
+  data-dependent timing and `pqcrypto-hqc` wraps C (breaks `no_std`). It is a
+  strictly feature-gated, experimental *hedge*, never a default.
+- The wired backends are pre-release / unaudited to varying degrees (libcrux is
+  `0.0.9` / contact-maintainers-before-production; the others are likewise
+  unaudited). Versions are pinned and kept swappable for differential testing and
+  CVE mitigation.
 
 Use it to read, learn from, and critique the *composition and CI methodology*. Do
 not deploy it.
 
 ## Docs
 
-Authoritative documents (first drafts present; refined as the code lands):
+Authoritative documents (refined as the code lands):
 
-- [`docs/BINDING_SECURITY.md`](docs/BINDING_SECURITY.md) — **binding/committing security**: target notion (`MAL-BIND-K-CT`/`K-PK`), construction, EasyCrypt proof plan, honest claim vs X-Wing ✅
+- [`docs/BINDING_SECURITY.md`](docs/BINDING_SECURITY.md) — **binding/committing security** (authoritative): target notion (`MAL-BIND-K-CT`/`K-PK`), construction, the machine-checked EasyCrypt reduction, honest claim vs X-Wing ✅
 - [`docs/COMBINER_SPEC.md`](docs/COMBINER_SPEC.md) — combiner definition + test-vector plan ✅
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — core/backend split, trait surface ✅
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — assets, adversary, mitigations ✅
 - [`docs/COMPETITIVE_ANALYSIS.md`](docs/COMPETITIVE_ANALYSIS.md) — honest win / cannot-win table vs X-Wing / PQ3 ✅
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — milestones M0–M5 and exit criteria ✅
-- [`formal/easycrypt/README.md`](formal/easycrypt/README.md) — mechanized-proof plan (the formal half) ✅
+- [`formal/easycrypt/README.md`](formal/easycrypt/README.md) — the mechanized binding proof: `BindingViaCR.ec`, scope, and how to reproduce `make check` ✅
 - [`docs/policy/default.policy.toml`](docs/policy/default.policy.toml) — example agility policy ✅
 
 ## License

@@ -8,8 +8,9 @@ Status of M0 KAT coverage.
   3 official `draft-connolly-cfrg-xwing-kem` vectors (`spec/test-vectors.json`)
   **byte-for-byte**: public key, ciphertext, and shared secret, for encaps **and**
   decaps. This proves `CompatXWing` ≡ X-Wing, and — since `pk`/`ct`/`ss` are
-  asserted against published reference values — **transitively validates the
-  libcrux ML-KEM-768 backend (keygen/encaps/decaps) against FIPS 203**.
+  asserted against published reference values — **reproduces the FIPS 203
+  reference output on these 3 happy-path vectors** (keygen/encaps/decaps). It is
+  **not** a full ACVP / FIPS 203 validation — that breadth is pending (below).
 - **SHA3-256 KAT** ✅ — `SHA3-256("")` matches the FIPS 202 digest.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.

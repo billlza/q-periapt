@@ -13,15 +13,18 @@ ContextBound combiner — reducing **only** to collision-resistance of the hash,
 with no binding assumption on ML-KEM / X25519. It is generic over the observable
 projection `proj`, so it instantiates to **MAL-BIND-K-CT** (ciphertext),
 **MAL-BIND-K-PK** (public key), and **MAL-BIND-K-CTX** (context). The load-bearing
-step is `encode_inj` (injectivity of the fixed-width length-prefixed encoding),
-mirrored by the Rust negative-KAT in `q-periapt-core`.
+step, `encode_inj` (injectivity of the fixed-width length-prefixed encoding), is
+**proved** (the encoding is modeled concretely and its injectivity machine-checked),
+not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
 
 > **STATUS: MACHINE-CHECKED.** ✅ `make check` (`easycrypt BindingViaCR.ec`) passes
 > with EasyCrypt dev (OCaml 5.4.1) + Z3 4.16.0. `bind_le_cr` is verified. Honest
-> scope still applies (`BINDING_SECURITY.md` §5/§6): `encode_inj` is an axiom
-> (provable separately; mirrored by the q-periapt-core negative KAT), H's
-> collision-resistance is an assumption, IND-CCA2 robustness is argued on paper
-> (not mechanized), and there is no spec↔implementation linkage proof.
+> scope still applies (`BINDING_SECURITY.md` §5/§6): `encode_inj` is now a **proved
+> lemma** (the encoding is modeled concretely and its injectivity machine-checked,
+> reducing to two elementary facts about an 8-byte length field; mirrored by the
+> q-periapt-core negative KAT), H's collision-resistance is an assumption, IND-CCA2
+> robustness is argued on paper (not mechanized), and there is no spec↔implementation
+> linkage proof.
 
 ```sh
 make check   # runs `easycrypt BindingViaCR.ec`  (install EasyCrypt via opam first)

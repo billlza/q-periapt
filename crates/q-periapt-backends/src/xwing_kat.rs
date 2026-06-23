@@ -5,7 +5,8 @@
 //! X-Wing's key-expansion (`SHAKE-256(seed, 96)`) and encapsulation-coin split
 //! (`m = eseed[0..32]`, `ekX = eseed[32..64]`). Because the assertions cover the
 //! ML-KEM-768 public key, ciphertext, and shared secret against the published
-//! vectors, this also validates the libcrux ML-KEM-768 backend against FIPS 203.
+//! vectors, this reproduces the FIPS 203 reference output on these 3 X-Wing
+//! happy-path vectors — it is NOT a full ACVP / FIPS 203 validation.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
