@@ -122,6 +122,19 @@ jobs:
       - run: cargo build -p pqt-ffi --release
       - run: gradle test --project-dir bindings/kotlin
 
+  # Auditability artifacts: emit the CycloneDX CBOM + SBOM (and prove the CLI runs).
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run -p pqt-cli --bin pqt -- cbom --out cbom.cdx.json
+      - run: cargo run -p pqt-cli --bin pqt -- sbom --lock Cargo.lock --out sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-boms
+          path: "*.cdx.json"
+
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)

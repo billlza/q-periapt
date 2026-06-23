@@ -15,6 +15,7 @@ members = [
     "crates/pqt-ffi",
     "crates/pqt-wasm",
     "crates/pqt-tls-demo",
+    "crates/pqt-cli",
     "ctstats",
 ]
 # Crates scaffolded but not yet implemented (added to `members` as they land):
