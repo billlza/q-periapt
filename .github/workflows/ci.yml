@@ -75,6 +75,17 @@ jobs:
       - name: dudect timing report (informational, never fails)
         run: cargo run --release -p pqt-ctstats --bin dudect_decaps || true
 
+  # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
+  transport:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Loopback handshake (both profiles)
+        run: cargo test -p pqt-tls-demo
+      - name: P99 harness (informational)
+        run: cargo run --release -p pqt-tls-demo --bin p99_bench -- bound 2000 || true
+
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)
