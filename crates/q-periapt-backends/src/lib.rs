@@ -35,6 +35,10 @@ mod acvp;
 #[cfg(test)]
 mod proptests;
 
+// ContextBound combiner reference vectors (positive KAT, independently cross-checked).
+#[cfg(test)]
+mod contextbound_kat;
+
 // Optional, off-by-default backends (see Cargo.toml [features]).
 #[cfg(feature = "slh-dsa")]
 mod slhdsa;

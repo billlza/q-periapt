@@ -360,6 +360,17 @@ best-effort in safe Rust; do not read this as "timing is gated." See
 
 ---
 
+## 5b. Reference vectors
+
+`ContextBound` is pinned by a positive KAT,
+[`crates/q-periapt-backends/src/contextbound_kat.rs`](../crates/q-periapt-backends/src/contextbound_kat.rs):
+fixed `(suite_id, policy_version, components, context) → K` vectors, each verified
+against `combine()` **and** an independent recomputation (RustCrypto SHA3-256 over a
+from-scratch encoder of this §3 layout), plus a length-prefix **collision pair** —
+two transcripts with byte-identical naive concatenation but distinct keys — that makes
+the injectivity property load-bearing. `CompatXWing`'s reference vectors are the
+official `draft-connolly-cfrg-xwing-kem` set (`xwing_kat.rs`).
+
 ## 6. Security cross-reference
 
 The binding security argument is **not** restated here; it is owned by

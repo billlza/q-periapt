@@ -29,6 +29,12 @@ Status of M0 KAT coverage.
   CompatXWing length guard + ContextBound non-empty-context guard, encoding
   injectivity under a field-boundary shift (the binding property), profile domain
   separation, context bit-sensitivity, and hybrid KEM round-trip.
+- **ContextBound reference vectors** ✅ — `q-periapt-backends/src/contextbound_kat.rs`
+  pins fixed `(suite_id, policy_version, components, context) → K` vectors for the
+  `ContextBound` combiner, each verified against `combine()` **and** an independent
+  recompute (RustCrypto SHA3-256 over a from-scratch canonical encoder), plus a
+  length-prefix **collision pair** (identical naive concatenation, distinct keys) that
+  makes the injectivity property load-bearing. The positive companion to the X-Wing KAT.
 - **SHA3-256 KAT** ✅ — `SHA3-256("")` matches the FIPS 202 digest.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.

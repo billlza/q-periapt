@@ -241,8 +241,11 @@ are the gap between research-grade and audited/production.
    cases) are now wired and passing (see §12). Remaining: the other parameter sets
    (ML-KEM-512/1024, ML-DSA-44/87) and the broader ACVP signature modes (contexts,
    pre-hash, internal interface, hedged). Fixed `(suite_id, policy_version,
-   components, context) → K` reference vectors for `ContextBound` — so it is
-   reproducible across the C / WASM / Swift / Kotlin faces — are also pending. See
+   components, context) → K` reference vectors for `ContextBound` now exist as an
+   in-repo KAT (`crates/q-periapt-backends/src/contextbound_kat.rs`, independently
+   cross-checked by a second SHA3 + a from-scratch encoder, and including a
+   load-bearing length-prefix collision pair); reproducing them across the C / WASM /
+   Swift / Kotlin faces (via a raw-`combine` FFI export) is still pending. See
    [`tests/kat/README.md`](../tests/kat/README.md).
 
 2. **Binary-level constant-time + making timing a hard gate.** Today,
@@ -290,7 +293,8 @@ are the gap between research-grade and audited/production.
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Combiner micro-benchmark | **Done** |
 | NIST ACVP conformance (ML-KEM-768 + ML-DSA-65) | **Done** |
-| Broader ACVP (other param sets / sig modes) + `ContextBound` reference vectors | Pending |
+| `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
+| Broader ACVP (other param sets / sig modes) + cross-platform `ContextBound` vectors | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
