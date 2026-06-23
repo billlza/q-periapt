@@ -24,6 +24,11 @@ Status of M0 KAT coverage.
   ground-truth vector), the full `HybridKem` reconstructed from independent ML-KEM +
   X25519 + SHA3, and **ML-DSA-65** vs RustCrypto `ml-dsa` (byte-identical keygen +
   signatures + cross-verification) — all byte-identical. Orthogonal to fixed KATs.
+- **Generative property tests** ✅ — `q-periapt-backends/src/proptests.rs` (proptest)
+  holds the combiner/hybrid invariants over random inputs: determinism, the
+  CompatXWing length guard + ContextBound non-empty-context guard, encoding
+  injectivity under a field-boundary shift (the binding property), profile domain
+  separation, context bit-sensitivity, and hybrid KEM round-trip.
 - **SHA3-256 KAT** ✅ — `SHA3-256("")` matches the FIPS 202 digest.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.

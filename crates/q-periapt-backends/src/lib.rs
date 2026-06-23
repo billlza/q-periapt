@@ -31,6 +31,10 @@ mod differential;
 #[cfg(test)]
 mod acvp;
 
+// Generative property-based tests of combiner / hybrid-KEM invariants.
+#[cfg(test)]
+mod proptests;
+
 // Optional, off-by-default backends (see Cargo.toml [features]).
 #[cfg(feature = "slh-dsa")]
 mod slhdsa;

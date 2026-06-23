@@ -218,6 +218,16 @@ This is *direct* NIST ground truth, orthogonal to the differential (which compar
 against another implementation). Other parameter sets + broader signature modes
 are pending (§PENDING).
 
+### 13. Generative property-based tests
+[`crates/q-periapt-backends/src/proptests.rs`](../crates/q-periapt-backends/src/proptests.rs)
+(proptest) generates random inputs — and shrinks any failure to a minimal case —
+to hold the load-bearing combiner / hybrid invariants over the real backends:
+determinism; the CompatXWing 32-byte length guard; the ContextBound non-empty-context
+guard; **encoding injectivity under a field-boundary shift** (the binding property,
+where naive concatenation would collide); profile domain separation; context binding
+(K-CTX bit-sensitivity); and hybrid CompatXWing KEM round-trip. A sixth assurance
+method orthogonal to fixed KATs, ACVP, the differential, the proof, and cross-platform.
+
 ---
 
 ## PENDING

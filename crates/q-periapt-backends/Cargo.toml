@@ -59,6 +59,8 @@ ml-dsa = "0.1.0-pre.2"
 # Parse the vendored NIST ACVP conformance vectors (vectors/acvp-*.json).
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Generative property-based testing of combiner/hybrid invariants.
+proptest = "1"
 
 [[bench]]
 name = "combiner"
