@@ -47,6 +47,9 @@ q-periapt-kem = { path = "../q-periapt-kem" }
 # *streaming* X-Wing combiner baseline to compare our one-shot path against.
 criterion = "0.5"
 sha3 = "0.10"
+# Independent ML-KEM-768 (RustCrypto) for the multi-backend differential test; the
+# `deterministic` feature gives byte-exact keygen/encaps from explicit (d‖z, m).
+ml-kem = { version = "0.2.3", features = ["deterministic"] }
 
 [[bench]]
 name = "combiner"

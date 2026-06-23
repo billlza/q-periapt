@@ -127,7 +127,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four fields are exactly 32 bytes; `HybridKem::new` rejects a non-C2PRI KEM under `CompatXWing` with `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade floor, profile select | ✅ `q-periapt-policy`: real TOML loading (`Policy::from_toml`) + **signed-policy verification** (`Policy::load_signed`, fail-closed, plus `load_signed_or_failsafe`); downgrade floor + `negotiate_kem` + `select_profile` enforced |
-| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** vs 3 official `draft-connolly-cfrg-xwing-kem` vectors (`crates/q-periapt-backends/src/xwing_kat.rs`); full ACVP breadth + a multi-backend differential triple still pending |
+| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors, `crates/q-periapt-backends/src/xwing_kat.rs`); **multi-backend ML-KEM-768 differential PASSES** — libcrux vs the independent RustCrypto `ml-kem`, byte-identical keygen/encaps/decaps over 64 random inputs (`src/differential.rs`); full ACVP breadth + extending the differential to the whole hybrid still pending |
 | Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); dudect timing runs **report-only** (`|| true`); ctgrind/TIMECOP binary-CT is TODO |
 | Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI `cross` job builds `q-periapt-core`+`q-periapt-kem` on x86_64/aarch64/riscv64gc/wasm32; the `no_std` job builds `q-periapt-core` alone on embedded `thumbv7em-none-eabihf` |
 | FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | 🟡 `q-periapt-ffi` / `q-periapt-wasm` workspace members with a shared-vector consistency CI job; `bindings/{swift,kotlin}` wired in CI |
@@ -201,8 +201,8 @@ Primitives (ML-KEM, X25519, HQC, SHA3/SHAKE) are injected through the `Kem`,
 stays tiny and reviewable in isolation. Because primitives live in swappable
 backends, the constant-time guarantee is **per-(backend, arch)**: backend
 selection changes the CT posture, and each backend must carry its own independent
-CT attestation. The (planned) differential triple proves *output equality*, never
-CT equality.
+CT attestation. The differential testing (ML-KEM-768 done vs RustCrypto `ml-kem`;
+extension to the whole hybrid planned) proves *output equality*, never CT equality.
 
 ## Status & disclaimer
 
@@ -238,7 +238,8 @@ This is a **research artifact for an undergraduate thesis**, not a product.
   `Clone`/`Copy`, so no copy can outlive the wipe. The core is `#![deny(unsafe_code)]`
   with that single, documented wipe block as the only `unsafe`.
 - **Still scaffolded / pending** (do not assume these are finished): full ACVP
-  breadth and a multi-backend differential triple; binary-level constant-time
+  breadth and extending the multi-backend differential beyond ML-KEM-768 (the
+  ML-KEM-768 differential is done); binary-level constant-time
   re-verification (ctgrind / Valgrind-TIMECOP); fuzz targets; the Tamarin handshake
   model; and the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI
   exercises.

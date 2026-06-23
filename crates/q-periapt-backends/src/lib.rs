@@ -22,6 +22,11 @@ use x25519_dalek::{PublicKey, StaticSecret};
 #[cfg(test)]
 mod xwing_kat;
 
+// Multi-backend differential: libcrux ML-KEM-768 vs the independent RustCrypto
+// `ml-kem` implementation (byte-identical keygen/encaps/decaps under FIPS 203).
+#[cfg(test)]
+mod differential;
+
 // Optional, off-by-default backends (see Cargo.toml [features]).
 #[cfg(feature = "slh-dsa")]
 mod slhdsa;

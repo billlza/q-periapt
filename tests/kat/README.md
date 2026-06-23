@@ -11,6 +11,10 @@ Status of M0 KAT coverage.
   asserted against published reference values — **reproduces the FIPS 203
   reference output on these 3 happy-path vectors** (keygen/encaps/decaps). It is
   **not** a full ACVP / FIPS 203 validation — that breadth is pending (below).
+- **Multi-backend ML-KEM-768 differential** ✅ — `q-periapt-backends/src/differential.rs`
+  cross-checks our libcrux ML-KEM-768 against the **independent** RustCrypto `ml-kem`:
+  byte-identical keygen, encapsulation, and decapsulation over 64 deterministic
+  `(d‖z, m)` inputs. An assurance method orthogonal to fixed KATs.
 - **SHA3-256 KAT** ✅ — `SHA3-256("")` matches the FIPS 202 digest.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.

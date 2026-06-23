@@ -182,6 +182,16 @@ reference, a single-block RustCrypto one-shot, and the heap-`Vec` path we replac
 asserting byte-identical output
 at startup. This is the measurement behind the "parity, not faster" positioning.
 
+### 11. Multi-backend differential test (ML-KEM-768)
+[`crates/q-periapt-backends/src/differential.rs`](../crates/q-periapt-backends/src/differential.rs)
+cross-validates our libcrux ML-KEM-768 backend against the **independent** RustCrypto
+`ml-kem` implementation. FIPS 203 fixes every byte encoding, so two conformant
+implementations must agree byte-for-byte; the test asserts identical **keygen,
+encapsulation, and decapsulation** outputs over 64 deterministic `(d‖z, m)` inputs
+(`SHAKE-256(counter)`, no RNG). This is an assurance method orthogonal to KATs and
+the proof — it catches integration/encoding bugs that 3 fixed vectors would miss.
+Extending the differential to X25519 and the full hybrid is pending.
+
 ---
 
 ## PENDING
