@@ -16,14 +16,15 @@ projection `proj`, so it instantiates to **MAL-BIND-K-CT** (ciphertext),
 step is `encode_inj` (injectivity of the fixed-width length-prefixed encoding),
 mirrored by the Rust negative-KAT in `pqt-core`.
 
-> **STATUS: proof development, NOT machine-checked here.** No EasyCrypt toolchain
-> is installed in this environment, so the script has not been run through the
-> checker; minor tactic adjustments may be required. Until `make check` passes,
-> this is a *formalization*, not a verified proof — do not claim otherwise (see
-> `BINDING_SECURITY.md` §5/§6 and the honest effort estimate below).
+> **STATUS: MACHINE-CHECKED.** ✅ `make check` (`easycrypt BindingViaCR.ec`) passes
+> with EasyCrypt dev (OCaml 5.4.1) + Z3 4.16.0. `bind_le_cr` is verified. Honest
+> scope still applies (`BINDING_SECURITY.md` §5/§6): `encode_inj` is an axiom
+> (provable separately; mirrored by the pqt-core negative KAT), H's
+> collision-resistance is an assumption, IND-CCA2 robustness is argued on paper
+> (not mechanized), and there is no spec↔implementation linkage proof.
 
 ```sh
-make check   # runs `easycrypt BindingViaCR.ec` (install EasyCrypt via opam first)
+make check   # runs `easycrypt BindingViaCR.ec`  (install EasyCrypt via opam first)
 ```
 
 ## Tool

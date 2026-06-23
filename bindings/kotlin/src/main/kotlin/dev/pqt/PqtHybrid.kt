@@ -27,7 +27,17 @@ object PqtHybrid {
     const val X25519_LEN = 32
 
     private val linker = Linker.nativeLinker()
-    private val lookup = SymbolLookup.libraryLookup(System.mapLibraryName("pqt_ffi"), Arena.global())
+    // Prefer an explicit absolute path (`-Dpqt.lib=...`); else resolve by name via
+    // the OS loader. The absolute path is the robust choice on macOS, where the
+    // dynamic loader does not consult java.library.path.
+    private val lookup: SymbolLookup = run {
+        val explicit = System.getProperty("pqt.lib")
+        if (explicit != null) {
+            SymbolLookup.libraryLookup(java.nio.file.Path.of(explicit), Arena.global())
+        } else {
+            SymbolLookup.libraryLookup(System.mapLibraryName("pqt_ffi"), Arena.global())
+        }
+    }
 
     private fun handle(name: String, desc: FunctionDescriptor) =
         linker.downcallHandle(lookup.find(name).orElseThrow { RuntimeException("missing symbol $name") }, desc)

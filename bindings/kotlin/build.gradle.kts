@@ -14,8 +14,10 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
-    // The native lib must be on the library path: build it first with
-    //   cargo build -p pqt-ffi --release
-    systemProperty("java.library.path", "${rootDir}/../../target/release")
+    // The native lib must be built first: cargo build -p pqt-ffi --release
+    val libDir = file("${rootDir}/../../target/release")
+    val lib = file("$libDir/${System.mapLibraryName("pqt_ffi")}")
+    systemProperty("pqt.lib", lib.absolutePath)
+    systemProperty("java.library.path", libDir.absolutePath)
     jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
