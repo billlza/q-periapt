@@ -1,7 +1,7 @@
 {
   "version": 4,
   "echash": "r2026.06-6-g50ae51d",
-  "root": { "kind": "ec", "digest": "38128f88aa19f425f174c2e5f853d798" },
+  "root": { "kind": "ec", "digest": "89b16222a0b97dcfb0db09a7cd13f805" },
   "trace": null,
   "depends": {
     "AlgTactic": {
@@ -33,6 +33,11 @@
       "direct": false,
       "kind": "ec",
       "digest": "9e1878ac5a993a111a8528a9d7507c72"
+    },
+    "List": {
+      "direct": true,
+      "kind": "ec",
+      "digest": "f0b86c356ee03b5d86a509a9247f2bc3"
     },
     "Logic": {
       "direct": true,
