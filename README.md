@@ -1,4 +1,4 @@
-# Yupei (玉佩) — PQ/T Hybrid Cryptographic Suite
+# Periapt — PQ/T Hybrid Cryptographic Suite
 
 > [!WARNING]
 > **Status: pre-1.0 research / undergraduate-thesis project (v0.0.1). NOT audited,
@@ -7,16 +7,17 @@
 > features) and the X-Wing interop KAT passes, but the suite has had no third-party
 > audit. See [Status & disclaimer](#status--disclaimer).
 
-**Yupei** (玉佩, "jade pendant") is a portable, `no_std`,
+**Periapt** — *an amulet worn to ward off danger* — is a portable, `no_std`,
 **side-channel-resistant-first** post-quantum / traditional (PQ/T) hybrid
-cryptographic suite. The name is the design: in Chinese lore a jade pendant
-shatters to take a fatal blow for its wearer (玉碎人安) — likewise this suite stays
-secure even if **one** of its two independent assumptions (a lattice KEM, and a
-traditional or — in enhanced mode — code-based one) is broken, because a combiner
-**provably binds** the two into a single shared key (machine-checked in EasyCrypt).
-It is built around one dependency-free Rust core (crate namespace `pqt-*`) that
-vetted primitive backends are injected into through traits, and that is reused
-unchanged across C, WASM, Swift and Kotlin. The
+cryptographic suite. The name is the design: a periapt shields its bearer from a
+fatal blow (in the spirit of the Chinese 玉佩, a jade pendant said to shatter to
+protect its wearer) — likewise this suite stays secure even if **one** of its two
+independent assumptions (a lattice KEM, and a traditional or — in enhanced mode —
+code-based one) is broken, because a combiner **provably binds** the two into a
+single shared key (machine-checked in EasyCrypt). It is built around one
+dependency-free Rust core (crate namespace `pqt-*`) that vetted primitive backends
+are injected into through traits, and that is reused unchanged across C, WASM,
+Swift and Kotlin. The
 honest pitch is narrow and deliberate: this project does **not** try to beat
 ML-KEM/ML-DSA on speed, and it does **not** beat X-Wing's combiner on cycles —
 adding more transcript binding than X-Wing means strictly *more* hashing, i.e. a
