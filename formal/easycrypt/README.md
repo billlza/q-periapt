@@ -1,10 +1,30 @@
 # Formal proof plan — ContextBound binding (EasyCrypt)
 
-This directory will hold the machine-checked proof that is the project's actual
-**mathematical** contribution. Per `docs/BINDING_SECURITY.md`, the defensible
-delta vs X-Wing is **stronger proof coverage / minimal assumptions** (and the
-*mechanization itself*), **not** a stronger primitive. Read `BINDING_SECURITY.md`
-first; this file is the engineering plan for §4.
+This directory holds the proof that is the project's actual **mathematical**
+contribution. Per `docs/BINDING_SECURITY.md`, the defensible delta vs X-Wing is
+**stronger proof coverage / minimal assumptions** (and the *mechanization
+itself*), **not** a stronger primitive. Read `BINDING_SECURITY.md` first; this
+file is the engineering plan for §4.
+
+## File: [`BindingViaCR.ec`](BindingViaCR.ec)
+
+Formalizes `bind_le_cr`: `Adv^{X-BIND-K-*}(A) <= Adv^{CR}(B(A))` for the
+ContextBound combiner — reducing **only** to collision-resistance of the hash,
+with no binding assumption on ML-KEM / X25519. It is generic over the observable
+projection `proj`, so it instantiates to **MAL-BIND-K-CT** (ciphertext),
+**MAL-BIND-K-PK** (public key), and **MAL-BIND-K-CTX** (context). The load-bearing
+step is `encode_inj` (injectivity of the fixed-width length-prefixed encoding),
+mirrored by the Rust negative-KAT in `pqt-core`.
+
+> **STATUS: proof development, NOT machine-checked here.** No EasyCrypt toolchain
+> is installed in this environment, so the script has not been run through the
+> checker; minor tactic adjustments may be required. Until `make check` passes,
+> this is a *formalization*, not a verified proof — do not claim otherwise (see
+> `BINDING_SECURITY.md` §5/§6 and the honest effort estimate below).
+
+```sh
+make check   # runs `easycrypt BindingViaCR.ec` (install EasyCrypt via opam first)
+```
 
 ## Tool
 
