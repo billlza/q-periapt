@@ -50,6 +50,9 @@ sha3 = "0.10"
 # Independent ML-KEM-768 (RustCrypto) for the multi-backend differential test; the
 # `deterministic` feature gives byte-exact keygen/encaps from explicit (d‖z, m).
 ml-kem = { version = "0.2.3", features = ["deterministic"] }
+# Independent X25519 (orion, pure-Rust, separate lineage from x25519-dalek) for the
+# X25519 + full-hybrid differential tests.
+orion = "0.17.10"
 
 [[bench]]
 name = "combiner"

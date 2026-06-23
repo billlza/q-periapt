@@ -182,15 +182,22 @@ reference, a single-block RustCrypto one-shot, and the heap-`Vec` path we replac
 asserting byte-identical output
 at startup. This is the measurement behind the "parity, not faster" positioning.
 
-### 11. Multi-backend differential test (ML-KEM-768)
+### 11. Multi-backend differential tests
 [`crates/q-periapt-backends/src/differential.rs`](../crates/q-periapt-backends/src/differential.rs)
-cross-validates our libcrux ML-KEM-768 backend against the **independent** RustCrypto
-`ml-kem` implementation. FIPS 203 fixes every byte encoding, so two conformant
-implementations must agree byte-for-byte; the test asserts identical **keygen,
-encapsulation, and decapsulation** outputs over 64 deterministic `(d‖z, m)` inputs
-(`SHAKE-256(counter)`, no RNG). This is an assurance method orthogonal to KATs and
-the proof — it catches integration/encoding bugs that 3 fixed vectors would miss.
-Extending the differential to X25519 and the full hybrid is pending.
+cross-validates the primitives **and the full hybrid** against independent
+implementations on random `SHAKE-256(counter)` inputs (no RNG) — an assurance method
+orthogonal to KATs and the proof, catching integration/encoding bugs that 3 fixed
+vectors would miss:
+- **ML-KEM-768** — our libcrux backend vs RustCrypto `ml-kem` (byte-identical keygen,
+  encapsulation, decapsulation over 64 inputs).
+- **X25519** — our `x25519-dalek` backend vs the independent `orion` implementation,
+  plus the authoritative **RFC 7748 §6.1** ground-truth Diffie–Hellman vector.
+- **Hybrid CompatXWing** — our `HybridKem` output reconstructed from RustCrypto ML-KEM
+  + orion X25519 + a RustCrypto SHA3 X-Wing combiner, byte-identical for encaps and
+  decaps. Validates the orchestration + combiner end-to-end against three independent
+  components.
+
+Extending differential coverage to the signature layer (ML-DSA / SLH-DSA) is pending.
 
 ---
 
