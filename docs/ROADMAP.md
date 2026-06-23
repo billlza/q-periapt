@@ -244,9 +244,11 @@ are the gap between research-grade and audited/production.
    components, context) → K` reference vectors for `ContextBound` now exist as an
    in-repo KAT (`crates/q-periapt-backends/src/contextbound_kat.rs`, independently
    cross-checked by a second SHA3 + a from-scratch encoder, and including a
-   load-bearing length-prefix collision pair); reproducing them across the C / WASM /
-   Swift / Kotlin faces (via a raw-`combine` FFI export) is still pending. See
-   [`tests/kat/README.md`](../tests/kat/README.md).
+   load-bearing length-prefix collision pair). These are now also **reproduced across
+   all five faces**: a raw-`combine` C ABI export (`q_periapt_combine`) is wired
+   through C / WASM / Swift / Kotlin, and `bindings/contextbound-vectors.txt` is
+   reproduced byte-for-byte on each (Rust core, C ABI, WASM on wasm32, Swift, Kotlin).
+   See [`tests/kat/README.md`](../tests/kat/README.md).
 
 2. **Binary-level constant-time + making timing a hard gate.** Today,
    failure-path indistinguishability / implicit rejection **is** a hard CI gate
@@ -294,7 +296,8 @@ are the gap between research-grade and audited/production.
 | Combiner micro-benchmark | **Done** |
 | NIST ACVP conformance (ML-KEM-768 + ML-DSA-65) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
-| Broader ACVP (other param sets / sig modes) + cross-platform `ContextBound` vectors | Pending |
+| Cross-platform `ContextBound`/`CompatXWing` combiner vectors (all 5 faces) | **Done** |
+| Broader ACVP (other parameter sets / signature modes) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |

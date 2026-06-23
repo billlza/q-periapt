@@ -40,4 +40,25 @@ final class QPeriaptHybridTests: XCTestCase {
         XCTAssertEqual(secret, hex(v["secret"] as! String),
                        "Swift decapsulation must match the Rust core byte-for-byte")
     }
+
+    /// Cross-platform combiner reference vectors: feed each `input` blob to the C ABI
+    /// `combine` and assert the 32-byte key matches (bindings/contextbound-vectors.txt).
+    func testCombineReferenceVectors() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("contextbound-vectors.txt")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        var n = 0
+        for line in text.split(separator: "\n") {
+            let p = line.split(separator: " ")
+            if p.count != 3 { continue }
+            let profile = QPeriaptProfile(rawValue: UInt8(p[0])!)!
+            let got = try QPeriaptHybrid.combine(profile: profile, input: hex(String(p[1])))
+            XCTAssertEqual(got, hex(String(p[2])),
+                           "Swift combine must match the Rust core byte-for-byte")
+            n += 1
+        }
+        XCTAssertEqual(n, 6, "expected 6 reference vectors")
+    }
 }

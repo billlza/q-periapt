@@ -12,7 +12,7 @@
 use q_periapt_backends::{
     MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, X25519, X25519_LEN,
 };
-use q_periapt_core::Profile;
+use q_periapt_core::{combine as core_combine, CombineInput, Profile};
 use q_periapt_kem::HybridKem;
 use wasm_bindgen::prelude::*;
 
@@ -22,6 +22,53 @@ fn profile(code: u8) -> Result<Profile, JsError> {
         2 => Ok(Profile::ContextBound),
         _ => Err(JsError::new("invalid profile code")),
     }
+}
+
+/// Parse exactly nine 8-byte big-endian length-prefixed fields (the combiner transport).
+fn parse_lp9(mut buf: &[u8]) -> Option<[&[u8]; 9]> {
+    let mut out: [&[u8]; 9] = [&[]; 9];
+    for slot in &mut out {
+        if buf.len() < 8 {
+            return None;
+        }
+        let (len_bytes, rest) = buf.split_at(8);
+        let len = u64::from_be_bytes(len_bytes.try_into().ok()?) as usize;
+        if rest.len() < len {
+            return None;
+        }
+        let (field, tail) = rest.split_at(len);
+        *slot = field;
+        buf = tail;
+    }
+    buf.is_empty().then_some(out)
+}
+
+/// Derive a combined secret directly from the serialized combiner inputs — the
+/// cross-platform reference-vector entry point. `input` is the nine fields, each
+/// 8-byte big-endian length-prefixed (suite_id, policy_version as 4-byte BE, ss_pq,
+/// ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context); `profile_code` is 1 or 2.
+#[wasm_bindgen]
+pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
+    let profile = profile(profile_code)?;
+    let [suite, ver, ss_pq, ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context] =
+        parse_lp9(input).ok_or_else(|| JsError::new("malformed combine input"))?;
+    let ver: [u8; 4] = ver
+        .try_into()
+        .map_err(|_| JsError::new("policy_version must be 4 bytes"))?;
+    let ci = CombineInput {
+        suite_id: suite,
+        policy_version: u32::from_be_bytes(ver),
+        ss_pq,
+        ss_trad,
+        ct_pq,
+        pk_pq,
+        ct_trad,
+        pk_trad,
+        context,
+    };
+    let secret =
+        core_combine::<Sha3_256Xof>(profile, &ci).map_err(|_| JsError::new("combine failed"))?;
+    Ok(secret.as_bytes().to_vec())
 }
 
 /// A generated key pair (`sk`, `pk`) exposed to JS.
@@ -229,5 +276,35 @@ mod tests {
     #[wasm_bindgen_test::wasm_bindgen_test]
     fn decapsulate_matches_shared_vector_wasm() {
         check_shared_vector();
+    }
+
+    const COMBINE_VECTORS: &str = include_str!("../../../bindings/contextbound-vectors.txt");
+
+    fn check_combine_vectors() {
+        let hex = |s: &str| {
+            (0..s.len() / 2)
+                .map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
+                .collect::<Vec<u8>>()
+        };
+        let mut n = 0;
+        for line in COMBINE_VECTORS.lines().filter(|l| !l.trim().is_empty()) {
+            let p: Vec<&str> = line.split_whitespace().collect();
+            let got = combine(p[0].parse::<u8>().unwrap(), &hex(p[1])).unwrap();
+            assert_eq!(got, hex(p[2]), "WASM combine K mismatch for: {line}");
+            n += 1;
+        }
+        assert_eq!(n, 6);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn combine_matches_reference_vectors() {
+        check_combine_vectors();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn combine_matches_reference_vectors_wasm() {
+        check_combine_vectors();
     }
 }

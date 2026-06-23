@@ -3,6 +3,7 @@ package dev.qperiapt
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 
 /**
  * Cross-platform consistency: decapsulate the shared Rust-generated vector and
@@ -34,5 +35,22 @@ class QPeriaptHybridTest {
         )
         assertContentEquals(hex(field(json, "secret")), secret,
             "Kotlin decapsulation must match the Rust core byte-for-byte")
+    }
+
+    /** Cross-platform combiner reference vectors: feed each `input` blob to the C ABI
+     * `combine` and assert the 32-byte key (bindings/contextbound-vectors.txt). */
+    @Test
+    fun combineReferenceVectors() {
+        val text = File("../contextbound-vectors.txt").readText()
+        var n = 0
+        for (line in text.lines()) {
+            val p = line.trim().split(" ")
+            if (p.size != 3) continue
+            val got = QPeriaptHybrid.combine(p[0].toByte(), hex(p[1]))
+            assertContentEquals(hex(p[2]), got,
+                "Kotlin combine must match the Rust core byte-for-byte")
+            n++
+        }
+        assertEquals(6, n, "expected 6 reference vectors")
     }
 }

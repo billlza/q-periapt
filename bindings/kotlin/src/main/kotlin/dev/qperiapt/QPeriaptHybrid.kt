@@ -58,6 +58,11 @@ object QPeriaptHybrid {
     )
     private val decap = handle("q_periapt_hybrid_decapsulate", decapDesc)
 
+    private val combineDesc = FunctionDescriptor.of(
+        JAVA_INT, JAVA_BYTE, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
+    )
+    private val combineFn = handle("q_periapt_combine", combineDesc)
+
     private fun Arena.seg(bytes: ByteArray): MemorySegment =
         allocate(bytes.size.toLong().coerceAtLeast(1)).also {
             MemorySegment.copy(bytes, 0, it, JAVA_BYTE, 0, bytes.size)
@@ -101,6 +106,18 @@ object QPeriaptHybrid {
             a.seg(context), context.size.toLong(), out, SECRET_LEN.toLong()
         ) as Int
         require(rc == 0) { "q_periapt_hybrid_decapsulate rc=$rc" }
+        out.toBytes(SECRET_LEN)
+    }
+
+    /** Derive a combined secret directly from the serialized combiner inputs (the
+     * cross-platform reference-vector entry point): `input` is the nine 8-byte
+     * big-endian length-prefixed fields consumed by `q_periapt_combine`. */
+    fun combine(profile: Byte, input: ByteArray): ByteArray = Arena.ofConfined().use { a ->
+        val out = a.allocate(SECRET_LEN.toLong())
+        val rc = combineFn.invokeExact(
+            profile, a.seg(input), input.size.toLong(), out, SECRET_LEN.toLong()
+        ) as Int
+        require(rc == 0) { "q_periapt_combine rc=$rc" }
         out.toBytes(SECRET_LEN)
     }
 }

@@ -23,7 +23,7 @@ use q_periapt_backends::{
     MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519,
     X25519_LEN,
 };
-use q_periapt_core::{Error, Profile};
+use q_periapt_core::{combine, CombineInput, Error, Profile};
 use q_periapt_kem::HybridKem;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -356,6 +356,88 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
 }
 
+/// Parse exactly nine fields, each prefixed by an 8-byte big-endian length. Returns
+/// `None` on truncation or trailing bytes (an injective, unambiguous transport).
+fn parse_lp9(mut buf: &[u8]) -> Option<[&[u8]; 9]> {
+    let mut out: [&[u8]; 9] = [&[]; 9];
+    for slot in &mut out {
+        if buf.len() < 8 {
+            return None;
+        }
+        let (len_bytes, rest) = buf.split_at(8);
+        let len = u64::from_be_bytes(len_bytes.try_into().ok()?) as usize;
+        if rest.len() < len {
+            return None;
+        }
+        let (field, tail) = rest.split_at(len);
+        *slot = field;
+        buf = tail;
+    }
+    buf.is_empty().then_some(out)
+}
+
+/// Derive a combined secret directly from the combiner inputs — exposes the
+/// `combine()` core (not the full hybrid) so the `ContextBound` / `CompatXWing`
+/// reference vectors are reproducible byte-for-byte across every binding face.
+///
+/// `input` is the nine combiner fields, each 8-byte big-endian length-prefixed, in
+/// the canonical order: `suite_id`, `policy_version` (a 4-byte big-endian `u32`),
+/// `ss_pq`, `ss_trad`, `ct_pq`, `pk_pq`, `ct_trad`, `pk_trad`, `context`. `profile`
+/// is [`Q_PERIAPT_PROFILE_COMPAT_XWING`] or [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`].
+///
+/// # Safety
+/// `input`/`out_secret` must be valid for `input_len` / [`Q_PERIAPT_SECRET_LEN`].
+#[no_mangle]
+pub unsafe extern "C" fn q_periapt_combine(
+    profile: u8,
+    input: *const u8,
+    input_len: usize,
+    out_secret: *mut u8,
+    out_secret_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let (Some(input), Some(out)) = (
+            in_slice(input, input_len),
+            out_slice(out_secret, out_secret_len),
+        ) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if out.len() != Q_PERIAPT_SECRET_LEN {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        let Some(profile) = profile_from(profile) else {
+            return Q_PERIAPT_ERR_POLICY;
+        };
+        let Some([suite, ver, ss_pq, ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context]) =
+            parse_lp9(input)
+        else {
+            return Q_PERIAPT_ERR_LENGTH;
+        };
+        let Ok(ver) = <[u8; 4]>::try_from(ver) else {
+            return Q_PERIAPT_ERR_LENGTH;
+        };
+        let combine_input = CombineInput {
+            suite_id: suite,
+            policy_version: u32::from_be_bytes(ver),
+            ss_pq,
+            ss_trad,
+            ct_pq,
+            pk_pq,
+            ct_trad,
+            pk_trad,
+            context,
+        };
+        match combine::<Sha3_256Xof>(profile, &combine_input) {
+            Ok(secret) => {
+                out.copy_from_slice(secret.as_bytes());
+                Q_PERIAPT_OK
+            }
+            Err(e) => err_code(e),
+        }
+    }))
+    .unwrap_or(Q_PERIAPT_ERR_PANIC)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
@@ -553,5 +635,36 @@ mod tests {
             &expected[..],
             "C ABI must reproduce the shared reference secret"
         );
+    }
+
+    /// The C ABI `q_periapt_combine` reproduces every combiner reference vector — the
+    /// Rust face of the cross-platform `ContextBound`/`CompatXWing` vector check.
+    #[test]
+    fn combine_matches_reference_vectors() {
+        const VECTORS: &str = include_str!("../../../bindings/contextbound-vectors.txt");
+        let hex = |s: &str| {
+            (0..s.len() / 2)
+                .map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
+                .collect::<Vec<u8>>()
+        };
+        let mut n = 0;
+        for line in VECTORS.lines().filter(|l| !l.trim().is_empty()) {
+            let p: Vec<&str> = line.split_whitespace().collect();
+            let (profile, input, k) = (p[0].parse::<u8>().unwrap(), hex(p[1]), hex(p[2]));
+            let mut out = [0u8; 32];
+            let rc = unsafe {
+                q_periapt_combine(
+                    profile,
+                    input.as_ptr(),
+                    input.len(),
+                    out.as_mut_ptr(),
+                    out.len(),
+                )
+            };
+            assert_eq!(rc, Q_PERIAPT_OK, "rc for: {line}");
+            assert_eq!(&out[..], k.as_slice(), "combine K mismatch for: {line}");
+            n += 1;
+        }
+        assert_eq!(n, 6, "expected 6 reference vectors");
     }
 }

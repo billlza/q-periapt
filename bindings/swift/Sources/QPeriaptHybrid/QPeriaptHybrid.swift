@@ -51,4 +51,15 @@ public enum QPeriaptHybrid {
         guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
         return secret
     }
+
+    /// Derive a combined secret directly from the serialized combiner inputs (the
+    /// cross-platform reference-vector entry point). `input` is the nine 8-byte
+    /// big-endian length-prefixed fields consumed by `q_periapt_combine`.
+    public static func combine(profile: QPeriaptProfile, input: [UInt8]) throws -> [UInt8] {
+        var secret = [UInt8](repeating: 0, count: secretLen)
+        let rc = q_periapt_combine(
+            profile.rawValue, input, UInt(input.count), &secret, UInt(secret.count))
+        guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
+        return secret
+    }
 }

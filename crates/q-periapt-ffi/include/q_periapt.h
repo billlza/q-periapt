@@ -166,4 +166,23 @@ int32_t q_periapt_hybrid_decapsulate(uint8_t profile,
                                      uint8_t *out_secret,
                                      uintptr_t out_secret_len);
 
+/**
+ * Derive a combined secret directly from the combiner inputs — exposes the
+ * `combine()` core (not the full hybrid) so the `ContextBound` / `CompatXWing`
+ * reference vectors are reproducible byte-for-byte across every binding face.
+ *
+ * `input` is the nine combiner fields, each 8-byte big-endian length-prefixed, in
+ * the canonical order: `suite_id`, `policy_version` (a 4-byte big-endian `u32`),
+ * `ss_pq`, `ss_trad`, `ct_pq`, `pk_pq`, `ct_trad`, `pk_trad`, `context`. `profile`
+ * is [`Q_PERIAPT_PROFILE_COMPAT_XWING`] or [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`].
+ *
+ * # Safety
+ * `input`/`out_secret` must be valid for `input_len` / [`Q_PERIAPT_SECRET_LEN`].
+ */
+int32_t q_periapt_combine(uint8_t profile,
+                          const uint8_t *input,
+                          uintptr_t input_len,
+                          uint8_t *out_secret,
+                          uintptr_t out_secret_len);
+
 #endif  /* Q_PERIAPT_H */
