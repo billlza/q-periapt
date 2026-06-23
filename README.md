@@ -1,17 +1,20 @@
-# PQ/T Hybrid Cryptographic Suite
+# Helix — PQ/T Hybrid Cryptographic Suite
 
 > [!WARNING]
-> **Status: pre-alpha scaffold (v0.0.1). Research / undergraduate-thesis project.
-> NOT audited. NOT FIPS-validated. Do not use in production, and do not use it to
-> protect anything you care about.** No cryptographic backend is wired yet — the
-> combiner is currently exercised only with a non-cryptographic toy hash. See
-> [Status & disclaimer](#status--disclaimer) for exactly what does and does not
-> exist today.
+> **Status: pre-1.0 research / undergraduate-thesis project (v0.0.1). NOT audited,
+> NOT FIPS-validated — do not use in production yet.** Real vetted backends are
+> wired (ML-KEM-768/ML-DSA-65 via libcrux, X25519, SHA3; SLH-DSA and HQC behind
+> features) and the X-Wing interop KAT passes, but the suite has had no third-party
+> audit. See [Status & disclaimer](#status--disclaimer).
 
-A portable, `no_std`, **side-channel-resistant-first** post-quantum / traditional
-(PQ/T) hybrid cryptographic suite, built around a single dependency-free Rust core
-(`pqt-core`) that vetted primitive backends are injected into through traits, and
-that is intended to be reused unchanged across C, WASM, Swift and Kotlin. The
+**Helix** is a portable, `no_std`, **side-channel-resistant-first** post-quantum /
+traditional (PQ/T) hybrid cryptographic suite. The name is the construction: two
+independent strands — a lattice KEM and a traditional (or, in enhanced mode,
+code-based) one — are intertwined by a combiner that **provably binds** them into a
+single shared key (machine-checked in EasyCrypt). It is built around one
+dependency-free Rust core (crate namespace `pqt-*`) that vetted primitive backends
+are injected into through traits, and that is reused unchanged across C, WASM,
+Swift and Kotlin. The
 honest pitch is narrow and deliberate: this project does **not** try to beat
 ML-KEM/ML-DSA on speed, and it does **not** beat X-Wing's combiner on cycles —
 adding more transcript binding than X-Wing means strictly *more* hashing, i.e. a
