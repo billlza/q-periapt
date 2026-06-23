@@ -160,24 +160,73 @@ impl Kem for X25519 {
     }
 }
 
+/// Inline staging capacity for [`Sha3_256Xof`]. The CompatXWing / X-Wing combiner
+/// input is a single 134-byte SHA3-256 block, so this keeps that path — the only
+/// performance-sensitive one — entirely on the stack (no heap allocation).
+const SHA3_XOF_INLINE_CAP: usize = 200;
+
 /// SHA3-256-based [`Xof256`] for the combiner (fixed 32-byte output), via libcrux.
 ///
-/// libcrux exposes a one-shot `sha256`, so absorbed chunks are buffered and
-/// hashed at finalize. SHA3-256 over the concatenation equals the incremental
-/// hash, so this is faithful. (A no_std backend would use the incremental
-/// `libcrux_sha3::portable` API instead of a heap buffer.)
-#[derive(Clone, Default)]
-pub struct Sha3_256Xof(Vec<u8>);
+/// libcrux exposes a one-shot SHA3-256 (`sha256`), so absorbed chunks are staged
+/// contiguously and hashed at finalize; SHA3-256 over the concatenation equals the
+/// incremental hash, so the digest is byte-identical to X-Wing. The hot path — the
+/// 134-byte single-block CompatXWing combiner — stages into a fixed inline buffer
+/// and **never allocates**; only the larger multi-KB ContextBound transcript spills
+/// to the heap. This makes the X-Wing-compatible combiner allocation-free: it does
+/// the minimal single-block Keccak work with no per-`update` sponge bookkeeping and
+/// no heap traffic, while producing identical bytes.
+#[derive(Clone)]
+pub struct Sha3_256Xof {
+    inline: [u8; SHA3_XOF_INLINE_CAP],
+    len: usize,
+    spill: Vec<u8>,
+}
+
+impl Default for Sha3_256Xof {
+    fn default() -> Self {
+        <Self as Xof256>::new()
+    }
+}
 
 impl Xof256 for Sha3_256Xof {
     fn new() -> Self {
-        Self(Vec::new())
+        Self {
+            inline: [0u8; SHA3_XOF_INLINE_CAP],
+            len: 0,
+            spill: Vec::new(),
+        }
     }
+
     fn absorb(&mut self, data: &[u8]) {
-        self.0.extend_from_slice(data);
+        // Once the input has outgrown the inline buffer, everything goes to heap.
+        if !self.spill.is_empty() {
+            self.spill.extend_from_slice(data);
+            return;
+        }
+        let end = self.len + data.len();
+        match self.inline.get_mut(self.len..end) {
+            Some(dst) => {
+                dst.copy_from_slice(data);
+                self.len = end;
+            }
+            None => {
+                // Inline capacity exceeded (ContextBound): migrate staged bytes.
+                self.spill.reserve(end);
+                if let Some(staged) = self.inline.get(..self.len) {
+                    self.spill.extend_from_slice(staged);
+                }
+                self.spill.extend_from_slice(data);
+                self.len = 0;
+            }
+        }
     }
+
     fn squeeze32(self) -> [u8; SHARED_SECRET_LEN] {
-        libcrux_sha3::sha256(&self.0)
+        if self.spill.is_empty() {
+            libcrux_sha3::sha256(self.inline.get(..self.len).unwrap_or(&[]))
+        } else {
+            libcrux_sha3::sha256(&self.spill)
+        }
     }
 }
 
