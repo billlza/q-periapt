@@ -250,10 +250,12 @@ are the gap between research-grade and audited/production.
    ([`ctstats/README.md`](../ctstats/README.md), CI `sidechannel` job). The
    **dudect timing test is report-only** (runs with `|| true`, never a merge
    gate) because shared CI runners are too noisy for a stable threshold.
-   Binary-level constant-time (no secret-dependent branch/index/division in
-   emitted assembly) via **ctgrind / Valgrind-TIMECOP** on x86_64-linux over the
-   libcrux paths — and promoting a quiesced-hardware timing check to a hard gate
-   — is **TODO**. **Timing is not currently gated.**
+   Binary-level **dataflow** constant-time is now a **hard gate** (the
+   `constant-time` CI job runs `ct_verify` under Valgrind/Memcheck-TIMECOP) over the
+   suite's own CT composition code — `ct_eq`, `ct_select32`, and the combiner. Still
+   TODO: extending Memcheck over the component-primitive paths and to non-x86
+   targets, and promoting a quiesced-hardware **timing** check to a gate (the
+   statistical dudect test is still report-only, so *timing* is not yet gated).
 
 3. **Broader `cargo-fuzz` corpora.** Two targets exist and have been run locally
    (`combine`, `mlkem_decapsulate`; CI `fuzz` job *compiles* all targets); see
@@ -289,7 +291,8 @@ are the gap between research-grade and audited/production.
 | Combiner micro-benchmark | **Done** |
 | NIST ACVP conformance (ML-KEM-768 + ML-DSA-65) | **Done** |
 | Broader ACVP (other param sets / sig modes) + `ContextBound` reference vectors | Pending |
-| Binary-level CT (ctgrind/TIMECOP) + timing as a hard gate | Pending |
+| Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
+| Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
 | Independent third-party audit | Pending |
 | Production hardening | Pending |

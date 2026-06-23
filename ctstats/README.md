@@ -44,8 +44,18 @@ hardware.
   documented carve-out (gate the per-iteration ops, not the loop count) — added
   when `q-periapt-sig` gets a real backend.
 
+## Present (passing)
+
+- **Dataflow constant-time hard gate** — the `ct_verify` bin (`--features valgrind`,
+  `src/bin/ct_verify.rs`) marks secrets "undefined" and is run under
+  `valgrind --error-exitcode=1` (CI `constant-time` job). Memcheck/TIMECOP flags any
+  branch or index depending on a secret, over the suite's own CT composition code
+  (`ct_eq`, `ct_select32`, the combiner). A no-op without the Valgrind header, so it
+  builds/runs on any host; the real check is the Linux CI job.
+
 ## TODO (later milestones)
 
-- ctgrind / Valgrind-TIMECOP job on x86_64-linux over the libcrux/RustCrypto paths.
+- Extend the Memcheck/TIMECOP gate over the libcrux/RustCrypto **primitive** paths
+  and to non-x86 targets (it covers our composition code today).
 - Per-(backend, target) CT-coverage matrix published as an artifact.
 - KyberSlash-class site audit hooks once a non-libcrux backend is added.

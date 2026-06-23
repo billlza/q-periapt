@@ -75,6 +75,22 @@ jobs:
       - name: dudect timing report (informational, never fails)
         run: cargo run --release -p q-periapt-ctstats --bin dudect_decaps || true
 
+  # Dataflow constant-time HARD GATE (Valgrind/Memcheck TIMECOP). Secrets are marked
+  # "undefined"; Memcheck flags any branch/index that depends on them, so a non-CT
+  # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code
+  # (ct_eq / ct_select32 / the combiner over secret shared secrets).
+  constant-time:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Valgrind (provides valgrind/memcheck.h for the shim)
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Build the ct_verify harness (real Memcheck client requests)
+        run: cargo build --release -p q-periapt-ctstats --bin ct_verify --features valgrind
+      - name: Memcheck — no secret-dependent control flow (hard gate)
+        run: valgrind --error-exitcode=1 --leak-check=no --track-origins=yes ./target/release/ct_verify
+
   # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
   transport:
     runs-on: ubuntu-latest
@@ -204,6 +220,7 @@ jobs:
         run: opam exec -- make -C formal/easycrypt check
 
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
-  #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
+  #   - extend the `constant-time` Memcheck/TIMECOP gate over the libcrux primitive
+  #     paths and to non-x86 targets (it covers our composition code today)
   #   - cargo-fuzz targets (fuzz/)
   #   - X-Wing KAT lives in q-periapt-backends; ACVP breadth + ContextBound vectors pending

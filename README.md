@@ -79,10 +79,12 @@ is deliberately ~19× more combiner hashing. We never claim a combiner speed win
   to a deterministic, success-shaped secret, with no error-code oracle). The
   empirical dudect-style Welch t-test runs in CI but is **report-only** (it never
   fails the build — shared runners are too noisy for a stable threshold), and
-  binary-level constant-time re-verification (ctgrind / Valgrind-TIMECOP), needed
-  because source-level CT does not survive the compiler (clangover, KyberSlash),
-  is still **TODO**. See [`ctstats/README.md`](ctstats/README.md) for the honest
-  per-cell scope.
+  binary-level constant-time re-verification (Valgrind/Memcheck-TIMECOP) — needed
+  because source-level CT does not survive the compiler (clangover, KyberSlash) — is
+  now a **hard CI gate** (`constant-time` job) over the suite's own CT composition
+  code (`ct_eq`/`ct_select32`/the combiner); extending it over the primitive paths
+  and to non-x86 targets is still **TODO**. See
+  [`ctstats/README.md`](ctstats/README.md) for the honest per-cell scope.
 - **Audit transparency** — a machine-checked combiner binding model is **done**
   ([`formal/easycrypt/BindingViaCR.ec`](formal/easycrypt/BindingViaCR.ec),
   CI-gated against admits). CBOM (CycloneDX crypto-bill-of-materials) + SBOM +
@@ -128,7 +130,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade floor, profile select | ✅ `q-periapt-policy`: real TOML loading (`Policy::from_toml`) + **signed-policy verification** (`Policy::load_signed`, fail-closed, plus `load_signed_or_failsafe`); downgrade floor + `negotiate_kem` + `select_profile` enforced |
 | KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** over the whole KEM chain (`src/differential.rs`) — ML-KEM-768 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed from independent ML-KEM + X25519 + SHA3; and **ML-DSA-65 vs RustCrypto `ml-dsa`** (byte-identical keygen + signatures, cross-verification) — all byte-identical on random inputs; **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) — the full ML-KEM-768 set (60 cases incl. implicit-rejection) + ML-DSA-65 keygen/sig; broader ACVP signature-mode + other param-set coverage and an SLH-DSA interop differential still pending; **property-based tests** (proptest, `src/proptests.rs`) hold the combiner + hybrid invariants — binding injectivity, determinism, domain separation, the guards, and KEM round-trip — over random inputs |
-| Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); dudect timing runs **report-only** (`|| true`); ctgrind/TIMECOP binary-CT is TODO |
+| Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); **dataflow constant-time** is a **hard gate** (`constant-time` job: `ct_verify` under Valgrind/Memcheck-TIMECOP over `ct_eq`/`ct_select32`/the combiner); dudect timing stays **report-only** (`\|\| true`); extending binary-CT to the primitive paths + non-x86 targets pending |
 | Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI `cross` job builds `q-periapt-core`+`q-periapt-kem` on x86_64/aarch64/riscv64gc/wasm32; the `no_std` job builds `q-periapt-core` alone on embedded `thumbv7em-none-eabihf` |
 | FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | 🟡 `q-periapt-ffi` / `q-periapt-wasm` workspace members with a shared-vector consistency CI job; `bindings/{swift,kotlin}` wired in CI |
 | Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | 🟡 `q-periapt-tls-demo` workspace member: loopback hybrid handshake + a report-only P99 bench in CI |
@@ -241,8 +243,8 @@ This is a **research artifact for an undergraduate thesis**, not a product.
 - **Still scaffolded / pending** (do not assume these are finished): broader ACVP
   coverage (other param sets + signature modes) and an SLH-DSA interop differential
   (the NIST ACVP ML-KEM-768 + ML-DSA-65 conformance, the KEM-chain + ML-DSA-65
-  differentials are done); binary-level constant-time
-  re-verification (ctgrind / Valgrind-TIMECOP); fuzz targets; the Tamarin handshake
+  differentials are done); extending binary-level constant-time over the primitive
+  paths + non-x86 (the dataflow CT gate over our composition is done); fuzz targets; the Tamarin handshake
   model; and the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI
   exercises.
 - **HQC is excluded from the side-channel claim**: its decoder has documented

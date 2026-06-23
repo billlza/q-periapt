@@ -258,13 +258,19 @@ gate needs dedicated, quiesced hardware
 "timing is gated."** What *is* gated is failure-path *indistinguishability* (§4.2),
 not wall-clock *equality*.
 
-### 5.2 Binary-level constant-time is TODO
+### 5.2 Binary-level constant-time: gated for our composition code; broader coverage TODO
 
-No ctgrind / Valgrind-TIMECOP / Binsec check runs over the emitted assembly today.
-The portable-Rust `ct_eq`/`ct_select32` helpers and the trait-level constant-time
-*contract* are **best-effort source-level** assurances; a compiler is free to
-introduce a secret-dependent branch the source did not have. Credible binary-CT
-tooling exists today only on **x86_64-linux**; aarch64 / riscv64 / wasm32 are
+A **dataflow constant-time hard gate** now runs in CI (`constant-time` job): the
+`ct_verify` harness marks secrets "undefined" and Valgrind/Memcheck (TIMECOP) flags
+any branch or index that depends on them, over the suite's **own** constant-time
+composition code — `ct_eq`, `ct_select32`, and the combiner over secret shared
+secrets. A compiler-introduced secret-dependent branch *there* now fails the build,
+catching exactly the source→assembly gap that best-effort source-level CT cannot.
+Still **TODO**: extending Memcheck over the component-primitive paths (libcrux ML-KEM
+is formally verified constant-time but not re-checked here); promoting a
+quiesced-hardware **timing** check to a gate (the statistical dudect test stays
+report-only). Credible binary-CT tooling exists today only on **x86_64-linux**;
+aarch64 / riscv64 / wasm32 are
 **source-CT + upstream-attestation only** ([`ctstats/README.md`](../ctstats/README.md)).
 CT posture is **per-backend**, not universal — swapping a backend changes the
 guarantee. Known carve-out: **ML-DSA signing uses rejection sampling, so its
@@ -334,6 +340,7 @@ consistency, and the machine-checked binding proof** — never speed.
 | 4.4 | Secure zeroization of the combined key | post-use exposure | volatile wipe + fence; not `Clone` | **ENFORCED** (Drop + type-level) |
 | 4.5 | Cross-platform byte-identical output | binding divergence | shared-vector consistency tests | **ENFORCED** (CI) |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **REPORT-ONLY** (not gated) |
-| 5.2 | Binary-level constant-time | ADV-TIME | ctgrind / TIMECOP | **TODO** |
+| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | **CI gate** |
+| 5.2 | Binary-level CT — primitive paths + non-x86 + timing-as-gate | ADV-TIME | — | TODO |
 | 5.5 | FIPS 203 conformance | — | X-Wing KAT (3 vectors) | **PARTIAL** (ACVP pending) |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |
