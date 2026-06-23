@@ -21,7 +21,8 @@ public enum PQTHybrid {
     public static func mlkem768Keypair(seed: [UInt8]) throws -> (sk: [UInt8], pk: [UInt8]) {
         var sk = [UInt8](repeating: 0, count: mlkemSkLen)
         var pk = [UInt8](repeating: 0, count: mlkemPkLen)
-        let rc = pqt_mlkem768_keypair(seed, seed.count, &sk, sk.count, &pk, pk.count)
+        let rc = pqt_mlkem768_keypair(
+            seed, UInt(seed.count), &sk, UInt(sk.count), &pk, UInt(pk.count))
         guard rc == PQT_OK else { throw PQTError(code: rc) }
         return (sk, pk)
     }
@@ -29,7 +30,8 @@ public enum PQTHybrid {
     public static func x25519Keypair(secret: [UInt8]) throws -> (sk: [UInt8], pk: [UInt8]) {
         var sk = [UInt8](repeating: 0, count: x25519Len)
         var pk = [UInt8](repeating: 0, count: x25519Len)
-        let rc = pqt_x25519_keypair(secret, secret.count, &sk, sk.count, &pk, pk.count)
+        let rc = pqt_x25519_keypair(
+            secret, UInt(secret.count), &sk, UInt(sk.count), &pk, UInt(pk.count))
         guard rc == PQT_OK else { throw PQTError(code: rc) }
         return (sk, pk)
     }
@@ -42,10 +44,10 @@ public enum PQTHybrid {
     ) throws -> [UInt8] {
         var secret = [UInt8](repeating: 0, count: secretLen)
         let rc = pqt_hybrid_decapsulate(
-            profile.rawValue, suiteId, suiteId.count, policyVersion,
-            skPq, skPq.count, ctPq, ctPq.count, pkPq, pkPq.count,
-            skTrad, skTrad.count, ctTrad, ctTrad.count, pkTrad, pkTrad.count,
-            context, context.count, &secret, secret.count)
+            profile.rawValue, suiteId, UInt(suiteId.count), policyVersion,
+            skPq, UInt(skPq.count), ctPq, UInt(ctPq.count), pkPq, UInt(pkPq.count),
+            skTrad, UInt(skTrad.count), ctTrad, UInt(ctTrad.count), pkTrad, UInt(pkTrad.count),
+            context, UInt(context.count), &secret, UInt(secret.count))
         guard rc == PQT_OK else { throw PQTError(code: rc) }
         return secret
     }

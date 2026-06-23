@@ -13,6 +13,7 @@ members = [
     "crates/pqt-policy",
     "crates/pqt-backends",
     "crates/pqt-ffi",
+    "crates/pqt-wasm",
     "crates/pqt-tls-demo",
     "ctstats",
 ]

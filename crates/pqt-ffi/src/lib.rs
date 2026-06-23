@@ -490,4 +490,68 @@ mod tests {
         };
         assert_eq!(rc, PQT_ERR_POLICY);
     }
+
+    // Cross-platform consistency: the C ABI must reproduce the shared reference
+    // vector (the same oracle the Swift/Kotlin/WASM bindings check against).
+    #[test]
+    fn ffi_matches_shared_vector() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../bindings/shared-test-vectors.json"
+        );
+        let json = std::fs::read_to_string(path).unwrap();
+        let field = |k: &str| -> Vec<u8> {
+            let pat = format!("\"{k}\"");
+            let i = json.find(&pat).unwrap();
+            let rest = &json[i + pat.len()..];
+            let q1 = rest.find('"').unwrap();
+            let q2 = rest[q1 + 1..].find('"').unwrap();
+            let hex = &rest[q1 + 1..q1 + 1 + q2];
+            (0..hex.len())
+                .step_by(2)
+                .map(|j| u8::from_str_radix(&hex[j..j + 2], 16).unwrap())
+                .collect()
+        };
+        let suite = field("suite_id");
+        let ctx = field("context");
+        let sk_pq = field("sk_pq");
+        let ct_pq = field("ct_pq");
+        let pk_pq = field("pk_pq");
+        let sk_t = field("sk_trad");
+        let ct_t = field("ct_trad");
+        let pk_t = field("pk_trad");
+        let expected = field("secret");
+
+        let mut sec = [0u8; PQT_SECRET_LEN];
+        let rc = unsafe {
+            pqt_hybrid_decapsulate(
+                PQT_PROFILE_CONTEXT_BOUND,
+                suite.as_ptr(),
+                suite.len(),
+                1, // policy_version in the vector
+                sk_pq.as_ptr(),
+                sk_pq.len(),
+                ct_pq.as_ptr(),
+                ct_pq.len(),
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                sk_t.as_ptr(),
+                sk_t.len(),
+                ct_t.as_ptr(),
+                ct_t.len(),
+                pk_t.as_ptr(),
+                pk_t.len(),
+                ctx.as_ptr(),
+                ctx.len(),
+                sec.as_mut_ptr(),
+                32,
+            )
+        };
+        assert_eq!(rc, PQT_OK);
+        assert_eq!(
+            &sec[..],
+            &expected[..],
+            "C ABI must reproduce the shared reference secret"
+        );
+    }
 }

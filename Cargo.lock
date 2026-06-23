@@ -409,6 +409,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pqt-wasm"
+version = "0.0.1"
+dependencies = [
+ "pqt-backends",
+ "pqt-core",
+ "pqt-kem",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "proc-macro-error-attr2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

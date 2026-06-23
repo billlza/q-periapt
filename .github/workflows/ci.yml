@@ -86,6 +86,42 @@ jobs:
       - name: P99 harness (informational)
         run: cargo run --release -p pqt-tls-demo --bin p99_bench -- bound 2000 || true
 
+  # Cross-platform bindings: each binding decapsulates the shared reference vector
+  # (bindings/shared-test-vectors.json) and must reproduce the secret byte-for-byte.
+  # The Rust core + C ABI path is checked in `check` (ffi_matches_shared_vector).
+
+  bindings-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cargo build -p pqt-wasm --target wasm32-unknown-unknown
+      # WASM-API logic is also checked on host in `check` (decapsulate_matches_shared_vector).
+
+  bindings-swift:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p pqt-ffi --release
+      - run: cp crates/pqt-ffi/include/pqt.h bindings/swift/Sources/CPQT/pqt.h
+      - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
+
+  bindings-kotlin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "22" # java.lang.foreign (FFM) is stable in JDK 22+
+      - uses: gradle/actions/setup-gradle@v4
+      - run: cargo build -p pqt-ffi --release
+      - run: gradle test --project-dir bindings/kotlin
+
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)

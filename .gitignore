@@ -4,6 +4,12 @@
 *.profraw
 .DS_Store
 
+# Binding build artifacts
+bindings/swift/.build/
+bindings/swift/Package.resolved
+bindings/kotlin/.gradle/
+bindings/kotlin/build/
+
 # Generated SBOM/CBOM artifacts (the *generator* is committed; outputs are not)
 /sbom/*.json
 /sbom/*.cdx.json

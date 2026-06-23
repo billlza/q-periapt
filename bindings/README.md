@@ -32,8 +32,14 @@ cross-platform guarantee, made executable.
 
 ## Status
 
-- **C ABI (`pqt-ffi`)**: implemented + tested in Rust (`cargo test -p pqt-ffi`). ✅
-- **Swift** (`swift/`) and **Kotlin** (`kotlin/`): wrappers + vector tests are
-  **scaffolded**; they are not yet built in CI here (need an Xcode / JDK 22+
-  toolchain and the linked static lib). Build steps are in each subdirectory's
-  README. ⛔ (CI wiring tracked in `docs/ROADMAP.md` M3.)
+| Face | Consistency vs shared vector | How |
+|---|---|---|
+| **Rust core** | ✅ source of truth | `cargo test` (combiner KATs, X-Wing KAT) |
+| **C ABI** (`pqt-ffi`) | ✅ verified | `cargo test -p pqt-ffi` (`ffi_matches_shared_vector`) |
+| **Swift** (`swift/`) | ✅ verified | `swift test` (CI: `bindings-swift` on macOS) |
+| **WASM** (`pqt-wasm`) | ✅ logic verified + builds wasm32 | `cargo test -p pqt-wasm`; CI builds `wasm32` |
+| **Kotlin** (`kotlin/`) | 🟡 wrapper + test written | CI: `bindings-kotlin` (JDK 22 FFM); not run locally |
+
+All passing faces decapsulate `shared-test-vectors.json` to the **same** 32-byte
+secret, byte-for-byte. Kotlin needs JDK 22+ (stable FFM) and Gradle — wired in CI,
+not exercised on the dev host (JDK 21 here).

@@ -2,9 +2,9 @@
 
 Swift face of the PQ/T hybrid suite over the `pqt-ffi` C ABI.
 
-> **Scaffold** — not built in this repo's CI yet (needs an Xcode/Swift toolchain
-> and the linked static lib). The wrapper and vector test are complete; wiring it
-> into CI is tracked in `docs/ROADMAP.md` (M3).
+> **Verified** ✅ — `swift test` passes against the shared reference vector
+> (Swift → C ABI → Rust core, byte-for-byte). Gated in CI (`bindings-swift`,
+> macOS). Requires the static lib to be built first (below).
 
 ## Build
 
