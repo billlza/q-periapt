@@ -1,7 +1,7 @@
 {
   "version": 4,
   "echash": "r2026.06-6-g50ae51d",
-  "root": { "kind": "ec", "digest": "9a143be60955026b6a0ded345d370fd4" },
+  "root": { "kind": "ec", "digest": "38128f88aa19f425f174c2e5f853d798" },
   "trace": null,
   "depends": {
     "AlgTactic": {

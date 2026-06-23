@@ -1,4 +1,4 @@
-Wrote `/Users/bill/Desktop/Desktop/pqt_hybrid_suite/docs/THREAT_MODEL.md` (the path the README already links). It is grounded in the actual tree state I verified (`Cargo.lock` has zero crypto backends; `crates/pqt-core/src/lib.rs` confirms no `C2PRI` const, no length validation on `CompatXWing` at line 168, `u64` length prefix at line 154, opaque `context` blob, `ToyXof` tests, no `implicit_reject`/`ct_select`).
+Wrote `/Users/bill/Desktop/Desktop/q-periapt/docs/THREAT_MODEL.md` (the path the README already links). It is grounded in the actual tree state I verified (`Cargo.lock` has zero crypto backends; `crates/q-periapt-core/src/lib.rs` confirms no `C2PRI` const, no length validation on `CompatXWing` at line 168, `u64` length prefix at line 154, opaque `context` blob, `ToyXof` tests, no `implicit_reject`/`ct_select`).
 
 Key honesty decisions, reflecting the blueprint positioning and the adversarial review:
 

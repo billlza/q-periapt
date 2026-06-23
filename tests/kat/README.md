@@ -4,7 +4,7 @@ Status of M0 KAT coverage.
 
 ## Present (passing)
 
-- **X-Wing draft byte-exact KAT** ✅ — `pqt-backends/src/xwing_kat.rs` reproduces all
+- **X-Wing draft byte-exact KAT** ✅ — `q-periapt-backends/src/xwing_kat.rs` reproduces all
   3 official `draft-connolly-cfrg-xwing-kem` vectors (`spec/test-vectors.json`)
   **byte-for-byte**: public key, ciphertext, and shared secret, for encaps **and**
   decaps. This proves `CompatXWing` ≡ X-Wing, and — since `pk`/`ct`/`ss` are
@@ -14,8 +14,8 @@ Status of M0 KAT coverage.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.
 - **Hybrid round-trip, both profiles** ✅ — real ML-KEM-768 + X25519 + SHA3-256
-  through `pqt-kem::HybridKem`.
-- **Negative injectivity KAT** ✅ — `pqt-core`: boundary-shift tuples that would
+  through `q-periapt-kem::HybridKem`.
+- **Negative injectivity KAT** ✅ — `q-periapt-core`: boundary-shift tuples that would
   collide under naive concatenation stay distinct under fixed-width length
   prefixing (`docs/BINDING_SECURITY.md` §3.2).
 

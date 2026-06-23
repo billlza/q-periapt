@@ -4,8 +4,8 @@
 //! (no error oracle), for any attacker-chosen ciphertext.
 
 use libfuzzer_sys::fuzz_target;
-use pqt_backends::{MlKem768, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN};
-use pqt_core::Kem;
+use q_periapt_backends::{MlKem768, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN};
+use q_periapt_core::Kem;
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < ML_KEM_768_KEYGEN_SEED_LEN + ML_KEM_768_CT_LEN {

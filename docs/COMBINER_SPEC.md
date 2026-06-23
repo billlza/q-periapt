@@ -1,6 +1,6 @@
-Wrote `/Users/bill/Desktop/Desktop/pqt_hybrid_suite/docs/COMBINER_SPEC.md`.
+Wrote `/Users/bill/Desktop/Desktop/q-periapt/docs/COMBINER_SPEC.md`.
 
-It is the authoritative byte-exact spec of both combiner profiles, written against the actual code I read in `pqt-core/src/lib.rs`, `pqt-kem/src/lib.rs`, `pqt-policy/src/lib.rs`, and `docs/policy/default.policy.toml`.
+It is the authoritative byte-exact spec of both combiner profiles, written against the actual code I read in `q-periapt-core/src/lib.rs`, `q-periapt-kem/src/lib.rs`, `q-periapt-policy/src/lib.rs`, and `docs/policy/default.policy.toml`.
 
 Key contents:
 - **Profile A (CompatXWing):** exact `SHA3-256(ss_M ‖ ss_X ‖ ct_X ‖ pk_X ‖ XWingLabel)`, 32+32+32+32+6 = **134 bytes**, one Keccak block (rate 136), label `5c 2e 2f 2f 5e 5c` = `\.//^\`. Includes the mandatory 32-byte length-validation fix and the C2PRI guard requirement.

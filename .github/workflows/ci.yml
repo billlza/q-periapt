@@ -29,7 +29,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: thumbv7em-none-eabihf
-      - run: cargo build -p pqt-core --target thumbv7em-none-eabihf
+      - run: cargo build -p q-periapt-core --target thumbv7em-none-eabihf
 
   # Cross-platform behavioural consistency: build the same code everywhere.
   cross:
@@ -47,7 +47,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - run: cargo build -p pqt-core -p pqt-kem --target ${{ matrix.target }}
+      - run: cargo build -p q-periapt-core -p q-periapt-kem --target ${{ matrix.target }}
 
   # Cross-compiler differential: the constant-time / behaviour must not depend on
   # the compiler. (Placeholder: extend with gcc/clang FFI builds + differential KATs.)
@@ -71,9 +71,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Failure-path indistinguishability (hard gate)
-        run: cargo test -p pqt-ctstats
+        run: cargo test -p q-periapt-ctstats
       - name: dudect timing report (informational, never fails)
-        run: cargo run --release -p pqt-ctstats --bin dudect_decaps || true
+        run: cargo run --release -p q-periapt-ctstats --bin dudect_decaps || true
 
   # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
   transport:
@@ -82,9 +82,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Loopback handshake (both profiles)
-        run: cargo test -p pqt-tls-demo
+        run: cargo test -p q-periapt-tls-demo
       - name: P99 harness (informational)
-        run: cargo run --release -p pqt-tls-demo --bin p99_bench -- bound 2000 || true
+        run: cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000 || true
 
   # Cross-platform bindings: each binding decapsulates the shared reference vector
   # (bindings/shared-test-vectors.json) and must reproduce the secret byte-for-byte.
@@ -102,7 +102,7 @@ jobs:
           node-version: "20"
       - run: cargo install wasm-pack
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
-      - run: wasm-pack test --node crates/pqt-wasm
+      - run: wasm-pack test --node crates/q-periapt-wasm
 
   # Robustness fuzzing (nightly + libFuzzer). The fuzz crate is detached from the
   # workspace; this compiles every target. (Time-boxed runs are done locally.)
@@ -119,8 +119,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build -p pqt-ffi --release
-      - run: cp crates/pqt-ffi/include/pqt.h bindings/swift/Sources/CPQT/pqt.h
+      - run: cargo build -p q-periapt-ffi --release
+      - run: cp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
       - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
 
   bindings-kotlin:
@@ -135,7 +135,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.2.1"
-      - run: cargo build -p pqt-ffi --release
+      - run: cargo build -p q-periapt-ffi --release
       - run: gradle test --project-dir bindings/kotlin
 
   # Auditability artifacts: emit the CycloneDX CBOM + SBOM (and prove the CLI runs).
@@ -144,8 +144,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run -p pqt-cli --bin pqt -- cbom --out cbom.cdx.json
-      - run: cargo run -p pqt-cli --bin pqt -- sbom --lock Cargo.lock --out sbom.cdx.json
+      - run: cargo run -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
+      - run: cargo run -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
       - uses: actions/upload-artifact@v4
         with:
           name: cyclonedx-boms
@@ -160,8 +160,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo clippy -p pqt-backends --features slh-dsa,hqc --all-targets -- -D warnings
-      - run: cargo test -p pqt-backends --features slh-dsa,hqc
+      - run: cargo clippy -p q-periapt-backends --features slh-dsa,hqc --all-targets -- -D warnings
+      - run: cargo test -p q-periapt-backends --features slh-dsa,hqc
       - run: cargo install cargo-audit
       # RUSTSEC-2026-0163 (pqcrypto-internals unmaintained) is acknowledged in
       # .cargo/audit.toml — surfaced, not hidden.
@@ -175,12 +175,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
-      - run: cargo build -p pqt-wasm --target wasm32-unknown-unknown
-      - run: cargo build -p pqt-core --target thumbv7em-none-eabihf
+      - run: cargo build -p q-periapt-wasm --target wasm32-unknown-unknown
+      - run: cargo build -p q-periapt-core --target thumbv7em-none-eabihf
       - name: hqc feature must fail to build on wasm32 (fence holds)
-        run: "! cargo build -p pqt-backends --features hqc --target wasm32-unknown-unknown 2>/dev/null"
+        run: "! cargo build -p q-periapt-backends --features hqc --target wasm32-unknown-unknown 2>/dev/null"
 
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)
-  #   - X-Wing KAT lives in pqt-backends; ACVP breadth + ContextBound vectors pending
+  #   - X-Wing KAT lives in q-periapt-backends; ACVP breadth + ContextBound vectors pending

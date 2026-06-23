@@ -1,0 +1,19 @@
+[package]
+name = "q-periapt-tls-demo"
+description = "Transport demo: a PQ/T hybrid KEM handshake over TCP (HPKE-base shaped) + an end-to-end P99 latency harness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+q-periapt-core = { path = "../q-periapt-core" }
+q-periapt-kem = { path = "../q-periapt-kem" }
+q-periapt-sig = { path = "../q-periapt-sig" }
+q-periapt-backends = { path = "../q-periapt-backends" }
+# OS CSPRNG for the client's encapsulation coins / nonces (demo uses real entropy).
+getrandom = "0.3"

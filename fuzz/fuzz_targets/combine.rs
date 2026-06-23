@@ -4,8 +4,8 @@
 
 use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
-use pqt_backends::Sha3_256Xof;
-use pqt_core::{combine, CombineInput, Profile};
+use q_periapt_backends::Sha3_256Xof;
+use q_periapt_core::{combine, CombineInput, Profile};
 
 #[derive(Arbitrary, Debug)]
 struct In {

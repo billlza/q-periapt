@@ -1,0 +1,19 @@
+[package]
+name = "q-periapt-cli"
+description = "Auditability & migration tooling: CycloneDX CBOM/SBOM emission + legacy-crypto migration scanner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "qperiapt"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"

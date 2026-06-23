@@ -11,9 +11,9 @@
     clippy::cast_precision_loss
 )]
 
-use pqt_backends::{MlKem768, ML_KEM_768_CT_LEN};
-use pqt_core::Kem;
-use pqt_ctstats::welch_t;
+use q_periapt_backends::{MlKem768, ML_KEM_768_CT_LEN};
+use q_periapt_core::Kem;
+use q_periapt_ctstats::welch_t;
 use std::time::Instant;
 
 fn main() {

@@ -1,4 +1,4 @@
-Wrote `/Users/bill/Desktop/Desktop/pqt_hybrid_suite/docs/COMPETITIVE_ANALYSIS.md` (polished GFM, ~270 lines).
+Wrote `/Users/bill/Desktop/Desktop/q-periapt/docs/COMPETITIVE_ANALYSIS.md` (polished GFM, ~270 lines).
 
 Key honesty decisions, grounded in both the blueprint and the adversarial review (and verified against actual repo state — no wired backend, empty `formal/`, stub FFI):
 

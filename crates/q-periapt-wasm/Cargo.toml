@@ -1,0 +1,24 @@
+[package]
+name = "q-periapt-wasm"
+description = "WASM bindings for the PQ/T hybrid suite (ML-KEM-768 + X25519 + SHA3) via wasm-bindgen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+q-periapt-core = { path = "../q-periapt-core" }
+q-periapt-kem = { path = "../q-periapt-kem" }
+q-periapt-backends = { path = "../q-periapt-backends" }
+# Randomness is passed in by the JS caller (no getrandom/wasm entropy feature needed).
+wasm-bindgen = "0.2"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

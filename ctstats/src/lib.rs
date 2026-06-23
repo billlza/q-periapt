@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-//! # pqt-ctstats
+//! # q-periapt-ctstats
 //!
 //! Side-channel CI for the PQ/T hybrid suite. Two layers:
 //!
@@ -37,9 +37,9 @@ pub fn welch_t(a: &[f64], b: &[f64]) -> f64 {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
-    use pqt_backends::{MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, X25519, X25519_LEN};
-    use pqt_core::{Kem, Profile};
-    use pqt_kem::HybridKem;
+    use q_periapt_backends::{MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, X25519, X25519_LEN};
+    use q_periapt_core::{Kem, Profile};
+    use q_periapt_kem::HybridKem;
 
     #[test]
     fn welch_t_zero_for_identical() {

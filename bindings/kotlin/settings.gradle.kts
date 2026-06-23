@@ -1,1 +1,1 @@
-rootProject.name = "pqt-hybrid"
+rootProject.name = "q-periapt-hybrid"

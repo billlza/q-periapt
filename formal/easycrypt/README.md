@@ -14,12 +14,12 @@ with no binding assumption on ML-KEM / X25519. It is generic over the observable
 projection `proj`, so it instantiates to **MAL-BIND-K-CT** (ciphertext),
 **MAL-BIND-K-PK** (public key), and **MAL-BIND-K-CTX** (context). The load-bearing
 step is `encode_inj` (injectivity of the fixed-width length-prefixed encoding),
-mirrored by the Rust negative-KAT in `pqt-core`.
+mirrored by the Rust negative-KAT in `q-periapt-core`.
 
 > **STATUS: MACHINE-CHECKED.** ✅ `make check` (`easycrypt BindingViaCR.ec`) passes
 > with EasyCrypt dev (OCaml 5.4.1) + Z3 4.16.0. `bind_le_cr` is verified. Honest
 > scope still applies (`BINDING_SECURITY.md` §5/§6): `encode_inj` is an axiom
-> (provable separately; mirrored by the pqt-core negative KAT), H's
+> (provable separately; mirrored by the q-periapt-core negative KAT), H's
 > collision-resistance is an assumption, IND-CCA2 robustness is argued on paper
 > (not mechanized), and there is no spec↔implementation linkage proof.
 
@@ -51,7 +51,7 @@ Structure (the load-bearing, novel half):
    over the canonical field order (`docs/BINDING_SECURITY.md` §3.2) is injective
    on the field tuple. Finite/combinatorial; low risk. This is the step the whole
    reduction hinges on, and it matches the implementation in
-   [`pqt_core::combine`](../../crates/pqt-core/src/lib.rs) (`Profile::ContextBound`).
+   [`q_periapt_core::combine`](../../crates/q-periapt-core/src/lib.rs) (`Profile::ContextBound`).
 3. **Reduction**: two transcripts with `K0 = K1`, agreeing CT-set, differing in
    some element ⇒ either equal hash inputs (contradicting injectivity) or a SHA3
    collision. Bound: `Adv_MAL-BIND-K-CT ≤ Adv_CR`.

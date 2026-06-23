@@ -1,0 +1,45 @@
+[package]
+name = "q-periapt-backends"
+description = "Vetted primitive backends (libcrux ML-KEM-768, x25519-dalek, sha3) wired into the q-periapt-core traits"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+std = ["q-periapt-core/std"]
+# Optional, OFF-BY-DEFAULT backends. `dep:` gating keeps them out of the default,
+# wasm32, and no_std builds entirely (so the verified-green builds stay green).
+#   slh-dsa : SLH-DSA (FIPS 205) signatures via the pure-Rust `fips205` crate.
+#   hqc     : HQC code-based KEM via pqcrypto-hqc (PQClean C) — std/native only,
+#             unaudited + non-deterministic. Fenced off wasm32/no_std (compile_error).
+slh-dsa = ["dep:fips205"]
+hqc = ["dep:pqcrypto-hqc", "dep:pqcrypto-traits"]
+
+[dependencies]
+q-periapt-core = { path = "../q-periapt-core" }
+q-periapt-sig = { path = "../q-periapt-sig" }
+# ML-KEM-768: libcrux (HACL*-derived, constant-time; takes randomness as explicit
+# bytes — ideal for deterministic/KAT/no_std use).
+libcrux-ml-kem = "0.0.9"
+# ML-DSA-65 signatures (same verified family).
+libcrux-ml-dsa = "0.0.9"
+# X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+# SHA3-256 / SHAKE-256 (libcrux, same verified family as the ML-KEM backend).
+libcrux-sha3 = "0.0.9"
+# --- optional backends (see [features]) ---
+# SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged) signing, KAT-able.
+fips205 = { version = "0.4.1", optional = true }
+# HQC (PQClean C via cc). std/native only; unaudited; non-deterministic encaps.
+pqcrypto-hqc = { version = "0.2.2", optional = true }
+pqcrypto-traits = { version = "0.3.5", optional = true }
+
+[dev-dependencies]
+# End-to-end hybrid KEM tests exercise the real backends through q-periapt-kem.
+q-periapt-kem = { path = "../q-periapt-kem" }

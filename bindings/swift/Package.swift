@@ -1,23 +1,23 @@
 // swift-tools-version:5.9
 import PackageDescription
 
-// Build the static lib first: `cargo build -p pqt-ffi --release`
-// (produces ../../target/release/libpqt_ffi.a). See README.md.
+// Build the static lib first: `cargo build -p q-periapt-ffi --release`
+// (produces ../../target/release/libq_periapt_ffi.a). See README.md.
 let package = Package(
-    name: "PQTHybrid",
+    name: "QPeriaptHybrid",
     products: [
-        .library(name: "PQTHybrid", targets: ["PQTHybrid"])
+        .library(name: "QPeriaptHybrid", targets: ["QPeriaptHybrid"])
     ],
     targets: [
         // C module exposing the cbindgen-generated header.
-        .systemLibrary(name: "CPQT", path: "Sources/CPQT"),
+        .systemLibrary(name: "CQPeriapt", path: "Sources/CQPeriapt"),
         .target(
-            name: "PQTHybrid",
-            dependencies: ["CPQT"],
+            name: "QPeriaptHybrid",
+            dependencies: ["CQPeriapt"],
             linkerSettings: [
-                .unsafeFlags(["-L../../target/release", "-lpqt_ffi"])
+                .unsafeFlags(["-L../../target/release", "-lq_periapt_ffi"])
             ]
         ),
-        .testTarget(name: "PQTHybridTests", dependencies: ["PQTHybrid"]),
+        .testTarget(name: "QPeriaptHybridTests", dependencies: ["QPeriaptHybrid"]),
     ]
 )

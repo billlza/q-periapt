@@ -1,5 +1,5 @@
 [package]
-name = "pqt-fuzz"
+name = "q-periapt-fuzz"
 version = "0.0.0"
 edition = "2021"
 publish = false
@@ -10,8 +10,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 arbitrary = { version = "1", features = ["derive"] }
-pqt-core = { path = "../crates/pqt-core" }
-pqt-backends = { path = "../crates/pqt-backends" }
+q-periapt-core = { path = "../crates/q-periapt-core" }
+q-periapt-backends = { path = "../crates/q-periapt-backends" }
 
 [[bin]]
 name = "combine"

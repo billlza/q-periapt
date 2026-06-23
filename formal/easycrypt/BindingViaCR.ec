@@ -10,7 +10,7 @@
  *   below is verified, reducing ONLY to collision-resistance of H plus the
  *   `encode_inj` axiom. Honest scope still applies (docs/BINDING_SECURITY.md §5/§6):
  *   `encode_inj` is taken as an axiom (provable separately; mirrored by the
- *   pqt-core negative KAT), H's CR is an assumption, IND-CCA2 robustness is argued
+ *   q-periapt-core negative KAT), H's CR is an assumption, IND-CCA2 robustness is argued
  *   on paper (not mechanized), and there is no spec↔implementation linkage proof.
  * =========================================================================== *)
 
@@ -28,7 +28,7 @@ type transcript.   (* the full absorbed field tuple of ContextBound:
 (* ---- Operators ----------------------------------------------------------- *)
 
 (* The canonical, fixed-width big-endian length-prefixed encoding implemented by
-   `pqt_core::combine` (Profile::ContextBound), docs/BINDING_SECURITY.md §3.2. *)
+   `q_periapt_core::combine` (Profile::ContextBound), docs/BINDING_SECURITY.md §3.2. *)
 op encode : transcript -> bytes.
 
 (* The observable the adversary must make DIFFER while keeping K equal.
@@ -46,7 +46,7 @@ op combine (t : transcript) : key = H (encode t).
 (* INJECTIVITY of the canonical encoding. Combinatorial obligation discharged by
    fixed-width length prefixing + mandatory non-empty context (§3.2/§3.3); it is
    exactly the property exercised by the Rust negative-KAT
-   `injective_encoding_prevents_boundary_collision` in pqt-core. Taken as an
+   `injective_encoding_prevents_boundary_collision` in q-periapt-core. Taken as an
    axiom here; provable separately by structural reasoning on the byte layout. *)
 axiom encode_inj (t1 t2 : transcript) :
   encode t1 = encode t2 => t1 = t2.

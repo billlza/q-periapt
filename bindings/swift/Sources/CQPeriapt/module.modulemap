@@ -1,0 +1,7 @@
+module CQPeriapt {
+    // Symlink or copy crates/q-periapt-ffi/include/q_periapt.h next to this file, or adjust
+    // the header path. Kept relative so the package is self-contained once the
+    // header is vendored here.
+    header "q_periapt.h"
+    export *
+}

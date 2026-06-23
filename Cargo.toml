@@ -1,28 +1,28 @@
 # PQ/T Hybrid Cryptographic Suite — Cargo workspace.
 #
-# Design rule: the security-critical *composition* logic lives in `pqt-core`,
+# Design rule: the security-critical *composition* logic lives in `q-periapt-core`,
 # which is dependency-free and `no_std`. Vetted/verified primitive backends
 # (libcrux, RustCrypto, x25519-dalek, sha3, pqcrypto/PQClean) are wired in
 # behind traits in the higher crates so the core stays auditable in isolation.
 [workspace]
 resolver = "2"
 members = [
-    "crates/pqt-core",
-    "crates/pqt-kem",
-    "crates/pqt-sig",
-    "crates/pqt-policy",
-    "crates/pqt-backends",
-    "crates/pqt-ffi",
-    "crates/pqt-wasm",
-    "crates/pqt-tls-demo",
-    "crates/pqt-cli",
+    "crates/q-periapt-core",
+    "crates/q-periapt-kem",
+    "crates/q-periapt-sig",
+    "crates/q-periapt-policy",
+    "crates/q-periapt-backends",
+    "crates/q-periapt-ffi",
+    "crates/q-periapt-wasm",
+    "crates/q-periapt-tls-demo",
+    "crates/q-periapt-cli",
     "ctstats",
 ]
 # Crates scaffolded but not yet implemented (added to `members` as they land):
-#   crates/pqt-ffi      — C ABI (cdylib + staticlib, cbindgen header)
-#   crates/pqt-wasm     — wasm-bindgen surface
-#   crates/pqt-tls-demo — rustls TLS1.3 / QUIC / HPKE integration demo
-#   crates/pqt-cli      — migration inventory + CBOM/SBOM generator
+#   crates/q-periapt-ffi      — C ABI (cdylib + staticlib, cbindgen header)
+#   crates/q-periapt-wasm     — wasm-bindgen surface
+#   crates/q-periapt-tls-demo — rustls TLS1.3 / QUIC / HPKE integration demo
+#   crates/q-periapt-cli      — migration inventory + CBOM/SBOM generator
 
 [workspace.package]
 version = "0.0.1"

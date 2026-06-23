@@ -1,8 +1,8 @@
-Wrote `/Users/bill/Desktop/Desktop/pqt_hybrid_suite/docs/ARCHITECTURE.md` (the repo already existed locally, so the doc is grounded in the actual code, not just the blueprint).
+Wrote `/Users/bill/Desktop/Desktop/q-periapt/docs/ARCHITECTURE.md` (the repo already existed locally, so the doc is grounded in the actual code, not just the blueprint).
 
 Key honesty/accuracy decisions reflected in the document:
 
-- **Implemented vs scaffold labeling.** The real tree has only 4 compiling crates (`pqt-core` implemented; `pqt-kem`/`sig`/`policy` partial with toy primitives) and `pqt-ffi`/`pqt-wasm`/`pqt-tls-demo`/`pqt-cli` as empty `src`-less scaffolds. `pqt-backends` from the blueprint does not exist yet — marked PLANNED. `Cargo.lock` has zero external deps, so I stated X-Wing parity is asserted but unverified.
+- **Implemented vs scaffold labeling.** The real tree has only 4 compiling crates (`q-periapt-core` implemented; `q-periapt-kem`/`sig`/`policy` partial with toy primitives) and `q-periapt-ffi`/`q-periapt-wasm`/`q-periapt-tls-demo`/`q-periapt-cli` as empty `src`-less scaffolds. `q-periapt-backends` from the blueprint does not exist yet — marked PLANNED. `Cargo.lock` has zero external deps, so I stated X-Wing parity is asserted but unverified.
 
 - **Real numbers, corrected.** CompatXWing absorbs exactly 134 B → 1 Keccak block (rate 136 B). ContextBound absorbs ≈2.5 KB for ML-KEM-768+X25519 → ≈19 blocks (not the blueprint's ~10; I computed it from the actual `u64`-LE prefixes and field sizes). ML-KEM-768 pk 1184 / ct 1088; X-Wing pk 1216 / ct 1120.
 

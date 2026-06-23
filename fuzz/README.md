@@ -5,7 +5,7 @@ not affect the stable `cargo build/clippy --workspace` gate.
 
 ## Targets
 
-- **`combine`** — feeds arbitrary-length fields to `pqt_core::combine` (both
+- **`combine`** — feeds arbitrary-length fields to `q_periapt_core::combine` (both
   profiles); asserts the combiner never panics and the length/encoding guards
   hold.
 - **`mlkem_decapsulate`** — generates a valid ML-KEM-768 key, then decapsulates an

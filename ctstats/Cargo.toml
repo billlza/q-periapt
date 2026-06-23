@@ -1,5 +1,5 @@
 [package]
-name = "pqt-ctstats"
+name = "q-periapt-ctstats"
 description = "Side-channel CI: failure-path indistinguishability gates + dudect-style timing report"
 version.workspace = true
 edition.workspace = true
@@ -11,6 +11,6 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
-pqt-core = { path = "../crates/pqt-core" }
-pqt-kem = { path = "../crates/pqt-kem" }
-pqt-backends = { path = "../crates/pqt-backends" }
+q-periapt-core = { path = "../crates/q-periapt-core" }
+q-periapt-kem = { path = "../crates/q-periapt-kem" }
+q-periapt-backends = { path = "../crates/q-periapt-backends" }

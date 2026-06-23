@@ -5,7 +5,7 @@ Constant-time assurance for the suite, split into a **hard gate** and an honest
 
 ## Hard gates (fail the build)
 
-`cargo test -p pqt-ctstats` enforces **failure-path indistinguishability**:
+`cargo test -p q-periapt-ctstats` enforces **failure-path indistinguishability**:
 
 - ML-KEM-768 decapsulation of an *invalid* ciphertext returns success (no error
   return-code oracle) and a *deterministic* secret different from the valid one
@@ -17,7 +17,7 @@ verifiable deterministically and so gates every merge.
 
 ## Best-effort timing report (NOT a gate)
 
-`cargo run -p pqt-ctstats --bin dudect_decaps` prints a dudect-style Welch
+`cargo run -p q-periapt-ctstats --bin dudect_decaps` prints a dudect-style Welch
 t-statistic comparing decaps timing for fixed-valid vs random-invalid
 ciphertexts. It runs in **report mode** and never fails CI.
 
@@ -42,7 +42,7 @@ hardware.
 - **Known-benign carve-out**: ML-DSA signing uses rejection sampling, so its
   *iteration count* is secret-dependent **by design**. That is an auditable,
   documented carve-out (gate the per-iteration ops, not the loop count) — added
-  when `pqt-sig` gets a real backend.
+  when `q-periapt-sig` gets a real backend.
 
 ## TODO (later milestones)
 

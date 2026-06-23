@@ -15,7 +15,7 @@ protect its wearer) — likewise this suite stays secure even if **one** of its 
 independent assumptions (a lattice KEM, and a traditional or — in enhanced mode —
 code-based one) is broken, because a combiner **provably binds** the two into a
 single shared key (machine-checked in EasyCrypt). It is built around one
-dependency-free Rust core (crate namespace `pqt-*`) that vetted primitive backends
+dependency-free Rust core (crate namespace `q-periapt-*`) that vetted primitive backends
 are injected into through traits, and that is reused unchanged across C, WASM,
 Swift and Kotlin. The
 honest pitch is narrow and deliberate: this project does **not** try to beat
@@ -101,18 +101,18 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 
 | Dimension | Target | Today (v0.0.1) |
 |---|---|---|
-| Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `pqt-core` (266 LOC, zero crypto deps, `#![forbid(unsafe_code)]`, builds `thumbv7em-none-eabihf`) |
+| Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (266 LOC, zero crypto deps, `#![forbid(unsafe_code)]`, builds `thumbv7em-none-eabihf`) |
 | Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 wired, X-Wing-KAT verified; HQC-128/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature |
 | Combiner profiles | `CompatXWing` (parity) + `ContextBound` (binding) | 🟡 both profiles implemented over a trait XOF; currently tested with a **toy non-crypto hash** only |
 | Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ⛔ **not implemented** (known critical gap — see status) |
 | Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |
-| Crypto-agility / policy | signed CBOR/TOML policy, downgrade floor, profile select | 🟡 `pqt-policy` in-memory struct; **no signing, no enforcement, no TOML parsing** |
+| Crypto-agility / policy | signed CBOR/TOML policy, downgrade floor, profile select | 🟡 `q-periapt-policy` in-memory struct; **no signing, no enforcement, no TOML parsing** |
 | KATs / differential tests | X-Wing draft-10 + FIPS 203 ACVP vectors, 3-backend triple | ⛔ `tests/kat/`, `tests/differential/` empty — **byte-exact parity unverified** |
 | Side-channel CI | dudect + ctgrind/TIMECOP + binary-CT matrix + clangover cells | ⛔ comment-only placeholders in CI; harnesses not written |
-| Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI builds `pqt-core`(+`pqt-kem`) green across all five targets |
-| FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | ⛔ `pqt-ffi`/`pqt-wasm`/`bindings/*` scaffolded (no `src/`, not workspace members) |
-| Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | ⛔ `pqt-tls-demo` scaffolded only |
-| Auditability tooling | CBOM / SBOM / migration scanner | ⛔ `pqt-cli` scaffolded only |
+| Cross-platform build | x86_64 / aarch64 / riscv64gc / wasm32 / embedded | ✅ CI builds `q-periapt-core`(+`q-periapt-kem`) green across all five targets |
+| FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | ⛔ `q-periapt-ffi`/`q-periapt-wasm`/`bindings/*` scaffolded (no `src/`, not workspace members) |
+| Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | ⛔ `q-periapt-tls-demo` scaffolded only |
+| Auditability tooling | CBOM / SBOM / migration scanner | ⛔ `q-periapt-cli` scaffolded only |
 | Formal models | EasyCrypt combiner PQ-case + Tamarin handshake | ⛔ `formal/{easycrypt,tamarin,proverif}` empty |
 
 > The MVP formal scope, when it lands, is intentionally partial: a standard-model
@@ -128,8 +128,8 @@ Requires a stable Rust toolchain (`rustup` recommended). Only the four core crat
 are workspace members today; the rest are scaffolded.
 
 ```sh
-git clone <repo-url> pqt_hybrid_suite
-cd pqt_hybrid_suite
+git clone <repo-url> q-periapt
+cd q-periapt
 
 cargo build --workspace          # build the implemented crates
 cargo test  --workspace          # unit tests (toy-hash combiner wiring, no KATs yet)
@@ -137,26 +137,26 @@ cargo clippy --workspace --all-targets
 
 # Prove the security-critical core is dependency-free and builds bare-metal no_std:
 rustup target add thumbv7em-none-eabihf
-cargo build -p pqt-core --target thumbv7em-none-eabihf
+cargo build -p q-periapt-core --target thumbv7em-none-eabihf
 
 # Cross-platform behavioural consistency (same code, every ISA):
 rustup target add aarch64-unknown-linux-gnu riscv64gc-unknown-linux-gnu wasm32-unknown-unknown
-cargo build -p pqt-core -p pqt-kem --target wasm32-unknown-unknown
+cargo build -p q-periapt-core -p q-periapt-kem --target wasm32-unknown-unknown
 ```
 
 ### Crate tree
 
 ```
-pqt_hybrid_suite/
+q-periapt/
 ├── crates/
-│   ├── pqt-core      # ✅ dependency-free no_std core: combiner + transcript binding + primitive traits
-│   ├── pqt-kem       # 🟡 hybrid KEM (ML-KEM-768 + X25519) + pluggable HQC, generic over backends
-│   ├── pqt-sig       # 🟡 signature surface: ML-DSA-65/87, SLH-DSA (roots/firmware/long-term)
-│   ├── pqt-policy    # 🟡 crypto-agility policy engine (no hardcoded algorithms)
-│   ├── pqt-ffi       # ⛔ stable C ABI (cdylib + staticlib + cbindgen header)        [scaffold]
-│   ├── pqt-wasm      # ⛔ wasm-bindgen surface (pure-Rust backends only)             [scaffold]
-│   ├── pqt-tls-demo  # ⛔ rustls TLS 1.3 / QUIC / HPKE integration + P99 harness     [scaffold]
-│   └── pqt-cli       # ⛔ migration inventory + CBOM/SBOM generator                  [scaffold]
+│   ├── q-periapt-core      # ✅ dependency-free no_std core: combiner + transcript binding + primitive traits
+│   ├── q-periapt-kem       # 🟡 hybrid KEM (ML-KEM-768 + X25519) + pluggable HQC, generic over backends
+│   ├── q-periapt-sig       # 🟡 signature surface: ML-DSA-65/87, SLH-DSA (roots/firmware/long-term)
+│   ├── q-periapt-policy    # 🟡 crypto-agility policy engine (no hardcoded algorithms)
+│   ├── q-periapt-ffi       # ⛔ stable C ABI (cdylib + staticlib + cbindgen header)        [scaffold]
+│   ├── q-periapt-wasm      # ⛔ wasm-bindgen surface (pure-Rust backends only)             [scaffold]
+│   ├── q-periapt-tls-demo  # ⛔ rustls TLS 1.3 / QUIC / HPKE integration + P99 harness     [scaffold]
+│   └── q-periapt-cli       # ⛔ migration inventory + CBOM/SBOM generator                  [scaffold]
 ├── docs/             # policy/default.policy.toml (further docs are roadmap items)
 ├── formal/           # easycrypt / tamarin / proverif (empty placeholders)
 ├── tests/            # kat/ + differential/ (empty placeholders)
@@ -164,12 +164,12 @@ pqt_hybrid_suite/
 └── bindings/         # swift/ + kotlin/ (placeholders)
 ```
 
-Only `pqt-core`, `pqt-kem`, `pqt-sig`, and `pqt-policy` are in the Cargo workspace
+Only `q-periapt-core`, `q-periapt-kem`, `q-periapt-sig`, and `q-periapt-policy` are in the Cargo workspace
 `members`; the four scaffolded crates are added as they are implemented.
 
 ### Architecture in one line
 
-`pqt-core` is **dependency-free and `no_std`** (zero crypto crates) and contains
+`q-periapt-core` is **dependency-free and `no_std`** (zero crypto crates) and contains
 only the security-critical *composition* logic — the combiner and its binding.
 Primitives (ML-KEM, X25519, HQC, SHA3/SHAKE) are injected through the `Kem`,
 `Xof256` (and forthcoming `Dh` / `Hash` / `Sig`) traits, so the audited surface
@@ -195,7 +195,7 @@ This is a **research artifact for an undergraduate thesis**, not a product.
   - No `CompatXWing` field-length validation (each X-Wing field must be exactly
     32 bytes; missing checks allow a length-ambiguity / canonicalization break).
   - No implicit-rejection / constant-time `cmov` decapsulation path yet.
-  - `pqt-policy` does no signing, no downgrade-floor enforcement, and no TOML
+  - `q-periapt-policy` does no signing, no downgrade-floor enforcement, and no TOML
     parsing; the policy file is not yet consumed by code.
   - Side-channel CI cells, fuzz targets, CBOM/SBOM, FFI, transport, and formal
     proofs are placeholders.
