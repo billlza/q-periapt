@@ -14,7 +14,7 @@
 //! security-critical composition stays in the dependency-free `q-periapt-core`.
 
 use libcrux_ml_dsa::ml_dsa_65;
-use libcrux_ml_kem::mlkem768;
+use libcrux_ml_kem::{mlkem1024, mlkem768};
 use q_periapt_core::{Error, Kem, Xof256, SHARED_SECRET_LEN};
 use q_periapt_sig::{SigAlg, Signer, Verifier};
 use x25519_dalek::{PublicKey, StaticSecret};
@@ -125,6 +125,69 @@ impl Kem for MlKem768 {
         let private = mlkem768::MlKem768PrivateKey::from(sk_arr);
         let ciphertext = mlkem768::MlKem768Ciphertext::from(ct_arr);
         let shared = mlkem768::decapsulate(&private, &ciphertext);
+        write_exact(ss, shared.as_slice())
+    }
+}
+
+/// ML-KEM-1024 encapsulation-key (public key) length, bytes.
+pub const ML_KEM_1024_PK_LEN: usize = 1568;
+/// ML-KEM-1024 decapsulation-key (secret key) length, bytes.
+pub const ML_KEM_1024_SK_LEN: usize = 3168;
+/// ML-KEM-1024 ciphertext length, bytes.
+pub const ML_KEM_1024_CT_LEN: usize = 1568;
+/// ML-KEM-1024 key-generation seed length, bytes (FIPS 203 d‖z).
+pub const ML_KEM_1024_KEYGEN_SEED_LEN: usize = 64;
+/// ML-KEM-1024 encapsulation randomness length, bytes.
+pub const ML_KEM_1024_ENCAPS_RAND_LEN: usize = 32;
+
+/// ML-KEM-1024 backend (FIPS 203, NIST level 5) via libcrux — the enhanced-mode KEM.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MlKem1024;
+
+impl MlKem1024 {
+    /// Deterministically generate a key pair from a 64-byte seed.
+    /// Returns `(decapsulation_key, encapsulation_key)`.
+    #[must_use]
+    pub fn generate(
+        seed: [u8; ML_KEM_1024_KEYGEN_SEED_LEN],
+    ) -> ([u8; ML_KEM_1024_SK_LEN], [u8; ML_KEM_1024_PK_LEN]) {
+        let kp = mlkem1024::generate_key_pair(seed);
+        let mut sk = [0u8; ML_KEM_1024_SK_LEN];
+        let mut pk = [0u8; ML_KEM_1024_PK_LEN];
+        sk.copy_from_slice(kp.private_key().as_slice());
+        pk.copy_from_slice(kp.public_key().as_slice());
+        (sk, pk)
+    }
+}
+
+impl Kem for MlKem1024 {
+    const C2PRI: bool = true; // ML-KEM-1024 binds its ciphertext (FO transform).
+
+    fn algorithm(&self) -> &'static str {
+        "ML-KEM-1024"
+    }
+
+    fn encapsulate(
+        &self,
+        pk: &[u8],
+        randomness: &[u8],
+        ct: &mut [u8],
+        ss: &mut [u8],
+    ) -> Result<(), Error> {
+        let pk_arr = to_arr::<ML_KEM_1024_PK_LEN>(pk)?;
+        let rand = to_arr::<ML_KEM_1024_ENCAPS_RAND_LEN>(randomness)?;
+        let public = mlkem1024::MlKem1024PublicKey::from(pk_arr);
+        let (ciphertext, shared) = mlkem1024::encapsulate(&public, rand);
+        write_exact(ct, ciphertext.as_slice())?;
+        write_exact(ss, shared.as_slice())
+    }
+
+    fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+        let sk_arr = to_arr::<ML_KEM_1024_SK_LEN>(sk)?;
+        let ct_arr = to_arr::<ML_KEM_1024_CT_LEN>(ct)?;
+        let private = mlkem1024::MlKem1024PrivateKey::from(sk_arr);
+        let ciphertext = mlkem1024::MlKem1024Ciphertext::from(ct_arr);
+        let shared = mlkem1024::decapsulate(&private, &ciphertext);
         write_exact(ss, shared.as_slice())
     }
 }

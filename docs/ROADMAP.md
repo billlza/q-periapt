@@ -236,11 +236,13 @@ Stated honestly. None of these are blockers for the research claims above; they
 are the gap between research-grade and audited/production.
 
 1. **Broader ACVP coverage + `ContextBound` cross-platform reference vectors.**
-   The NIST ACVP ML-KEM-768 set (keyGen/encaps/decaps incl. implicit-rejection)
-   and ML-DSA-65 (keyGen + the deterministic/external/empty-context sigGen/sigVer
-   cases) are now wired and passing (see §12). Remaining: the other parameter sets
-   (ML-KEM-512/1024, ML-DSA-44/87) and the broader ACVP signature modes (contexts,
-   pre-hash, internal interface, hedged). Fixed `(suite_id, policy_version,
+   The NIST ACVP ML-KEM-768 **and ML-KEM-1024** sets (keyGen/encaps/decaps incl.
+   implicit-rejection) and ML-DSA-65 (keyGen + the deterministic/external/empty-context
+   sigGen/sigVer cases) are now wired and passing (see §12). ML-KEM-1024 — the
+   enhanced-mode KEM the policy references — now has a real backend (`MlKem1024`),
+   covered by both NIST ACVP and the RustCrypto differential. Remaining: the lower
+   parameter sets (ML-KEM-512, ML-DSA-44/87) and the broader ACVP signature modes
+   (contexts, pre-hash, internal interface, hedged). Fixed `(suite_id, policy_version,
    components, context) → K` reference vectors for `ContextBound` now exist as an
    in-repo KAT (`crates/q-periapt-backends/src/contextbound_kat.rs`, independently
    cross-checked by a second SHA3 + a from-scratch encoder, and including a
@@ -297,7 +299,8 @@ are the gap between research-grade and audited/production.
 | NIST ACVP conformance (ML-KEM-768 + ML-DSA-65) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Cross-platform `ContextBound`/`CompatXWing` combiner vectors (all 5 faces) | **Done** |
-| Broader ACVP (other parameter sets / signature modes) | Pending |
+| ML-KEM-1024 backend (enhanced-mode KEM) + NIST ACVP + differential | **Done** |
+| Broader ACVP (ML-KEM-512 / ML-DSA-44/87, signature modes) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |

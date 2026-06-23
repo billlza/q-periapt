@@ -1,13 +1,14 @@
-//! NIST ACVP ground-truth conformance: ML-KEM-768 (FIPS 203) + ML-DSA-65 (FIPS 204).
+//! NIST ACVP ground-truth conformance: ML-KEM-768 + ML-KEM-1024 (FIPS 203) and
+//! ML-DSA-65 (FIPS 204).
 //!
 //! Validates our libcrux backends against the **authoritative** vectors published by
-//! NIST (ACVP-Server `gen-val/json-files`). For ML-KEM-768: deterministic keygen from
-//! `(d, z)`, encapsulation from `(ek, m)`, and decapsulation — including the VAL cases
-//! with modified ciphertexts that exercise the FO implicit-rejection path (NIST's
-//! expected `k` is the pseudo-random reject value). For ML-DSA-65: deterministic keygen
-//! from ξ, plus the sigGen/sigVer cases matching our backend's mode (see below). This is
-//! ground-truth conformance complementing the multi-backend differential. Vectors are
-//! vendored under `vectors/acvp-ml-{kem-768,dsa-65}.json` (the NIST sets).
+//! NIST (ACVP-Server `gen-val/json-files`). For each ML-KEM parameter set: deterministic
+//! keygen from `(d, z)`, encapsulation from `(ek, m)`, and decapsulation — including the
+//! VAL cases with modified ciphertexts that exercise the FO implicit-rejection path
+//! (NIST's expected `k` is the pseudo-random reject value). For ML-DSA-65: deterministic
+//! keygen from ξ, plus the sigGen/sigVer cases matching our backend's mode (see below).
+//! This is ground-truth conformance complementing the multi-backend differential.
+//! Vectors are vendored under `vectors/acvp-ml-{kem-768,kem-1024,dsa-65}.json`.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
@@ -191,5 +192,55 @@ fn acvp_ml_dsa_65_conformance() {
             accepted, t.test_passed,
             "ACVP ML-DSA sigVer verdict mismatch"
         );
+    }
+}
+
+const ML_KEM_1024_VECTORS: &str = include_str!("../vectors/acvp-ml-kem-1024.json");
+
+/// NIST ACVP (FIPS 203) conformance for ML-KEM-1024 (the enhanced-mode KEM): the full
+/// set — 25 keyGen, 25 encaps, 10 decaps (incl. implicit-rejection VAL cases).
+#[test]
+fn acvp_ml_kem_1024_conformance() {
+    use crate::{MlKem1024, ML_KEM_1024_CT_LEN, ML_KEM_1024_KEYGEN_SEED_LEN};
+
+    let v: Vectors = serde_json::from_str(ML_KEM_1024_VECTORS).unwrap();
+    assert_eq!(
+        (v.key_gen.len(), v.encap.len(), v.decap.len()),
+        (25, 25, 10),
+        "vendored ACVP ML-KEM-1024 set incomplete"
+    );
+    const HALF: usize = ML_KEM_1024_KEYGEN_SEED_LEN / 2;
+
+    for t in &v.key_gen {
+        let mut seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
+        seed[..HALF].copy_from_slice(&hex(&t.d));
+        seed[HALF..].copy_from_slice(&hex(&t.z));
+        let (sk, pk) = MlKem1024::generate(seed);
+        assert_eq!(
+            &sk[..],
+            hex(&t.dk).as_slice(),
+            "ACVP-1024 keyGen dk mismatch"
+        );
+        assert_eq!(
+            &pk[..],
+            hex(&t.ek).as_slice(),
+            "ACVP-1024 keyGen ek mismatch"
+        );
+    }
+    for t in &v.encap {
+        let mut c = [0u8; ML_KEM_1024_CT_LEN];
+        let mut k = [0u8; SHARED_SECRET_LEN];
+        MlKem1024
+            .encapsulate(&hex(&t.ek), &hex(&t.m), &mut c, &mut k)
+            .unwrap();
+        assert_eq!(&c[..], hex(&t.c).as_slice(), "ACVP-1024 encaps c mismatch");
+        assert_eq!(&k[..], hex(&t.k).as_slice(), "ACVP-1024 encaps k mismatch");
+    }
+    for t in &v.decap {
+        let mut k = [0u8; SHARED_SECRET_LEN];
+        MlKem1024
+            .decapsulate(&hex(&t.dk), &hex(&t.c), &mut k)
+            .unwrap();
+        assert_eq!(&k[..], hex(&t.k).as_slice(), "ACVP-1024 decaps k mismatch");
     }
 }

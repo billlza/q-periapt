@@ -5,7 +5,8 @@
 //! and the EasyCrypt proof. FIPS 203 / RFC 7748 fix every byte encoding, so any
 //! divergence is a conformance or integration bug that 3 fixed X-Wing vectors miss:
 //!
-//! - **ML-KEM-768** — our libcrux backend vs RustCrypto `ml-kem` (keygen/encaps/decaps).
+//! - **ML-KEM-768** / **ML-KEM-1024** — our libcrux backends vs RustCrypto `ml-kem`
+//!   (byte-identical keygen/encaps/decaps; 1024 is the enhanced-mode KEM).
 //! - **X25519** — our `x25519-dalek` backend vs the independent `orion` impl, plus
 //!   the authoritative RFC 7748 §6.1 ground-truth Diffie–Hellman vector.
 //! - **Hybrid CompatXWing** — our [`HybridKem`] reconstructed from RustCrypto ML-KEM
@@ -18,13 +19,16 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, deprecated)]
 
 use crate::{
-    MlDsa65, MlKem768, Sha3_256Xof, ML_DSA_65_KEYGEN_SEED_LEN, ML_DSA_65_SIGN_RAND_LEN,
-    ML_DSA_65_SIG_LEN, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN, X25519,
-    X25519_LEN,
+    MlDsa65, MlKem1024, MlKem768, Sha3_256Xof, ML_DSA_65_KEYGEN_SEED_LEN, ML_DSA_65_SIGN_RAND_LEN,
+    ML_DSA_65_SIG_LEN, ML_KEM_1024_CT_LEN, ML_KEM_1024_KEYGEN_SEED_LEN, ML_KEM_768_CT_LEN,
+    ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN, X25519, X25519_LEN,
 };
 use ml_dsa::{EncodedSignature, ExpandedSigningKey, MlDsa65 as RcMlDsa65, Seed, Signature};
 use ml_kem::kem::Decapsulate;
-use ml_kem::{EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem768 as RcMlKem768, B32};
+use ml_kem::{
+    EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem1024 as RcMlKem1024,
+    MlKem768 as RcMlKem768, B32,
+};
 use orion::hazardous::ecc::x25519 as ox;
 use q_periapt_core::{Kem, Profile, XWING_LABEL};
 use q_periapt_kem::HybridKem;
@@ -106,6 +110,42 @@ fn ml_kem_768_byte_identical_to_independent_rustcrypto() {
             &ss_rc_dec[..],
             &ss_dec[..],
             "rustcrypto decaps diverged @ {ctr}"
+        );
+    }
+}
+
+/// ML-KEM-1024 (the enhanced-mode KEM): our libcrux backend vs the independent
+/// RustCrypto `ml-kem`, byte-identical keygen + encaps + decaps over random `(d‖z, m)`.
+#[test]
+fn ml_kem_1024_byte_identical_to_independent_rustcrypto() {
+    const HALF: usize = ML_KEM_1024_KEYGEN_SEED_LEN / 2;
+    for ctr in 0u32..64 {
+        let expand = libcrux_sha3::shake256::<96>(&(ctr ^ 0x0401).to_le_bytes());
+        let mut seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
+        seed.copy_from_slice(&expand[..ML_KEM_1024_KEYGEN_SEED_LEN]);
+        let m = &expand[ML_KEM_1024_KEYGEN_SEED_LEN..];
+
+        let (sk, pk) = MlKem1024::generate(seed);
+        let (dk_rc, ek_rc) =
+            RcMlKem1024::generate_deterministic(&b32(&seed[..HALF]), &b32(&seed[HALF..]));
+        assert_eq!(&ek_rc.as_bytes()[..], &pk[..], "1024 ek diverged @ {ctr}");
+        assert_eq!(&dk_rc.as_bytes()[..], &sk[..], "1024 dk diverged @ {ctr}");
+
+        let mut ct = [0u8; ML_KEM_1024_CT_LEN];
+        let mut ss = [0u8; SHARED_SECRET_LEN];
+        MlKem1024.encapsulate(&pk, m, &mut ct, &mut ss).unwrap();
+        let (ct_rc, ss_rc) = ek_rc.encapsulate_deterministic(&b32(m)).unwrap();
+        assert_eq!(&ct_rc[..], &ct[..], "1024 ct diverged @ {ctr}");
+        assert_eq!(&ss_rc[..], &ss[..], "1024 encaps ss diverged @ {ctr}");
+
+        let mut ss_dec = [0u8; SHARED_SECRET_LEN];
+        MlKem1024.decapsulate(&sk, &ct, &mut ss_dec).unwrap();
+        let ss_rc_dec = dk_rc.decapsulate(&ct_rc).unwrap();
+        assert_eq!(&ss_dec[..], &ss[..], "1024 our decaps != encaps @ {ctr}");
+        assert_eq!(
+            &ss_rc_dec[..],
+            &ss_dec[..],
+            "1024 rustcrypto decaps diverged @ {ctr}"
         );
     }
 }
