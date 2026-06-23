@@ -180,6 +180,29 @@ jobs:
       - name: hqc feature must fail to build on wasm32 (fence holds)
         run: "! cargo build -p q-periapt-backends --features hqc --target wasm32-unknown-unknown 2>/dev/null"
 
+  # Formal proofs. The no-admits check is a reliable HARD GATE (catches a proof
+  # being stubbed out); the full EasyCrypt machine-check runs when the toolchain
+  # installs (best-effort — a hermetic EasyCrypt install is heavy). The binding
+  # theorem reduces only to be8 fixed-width/injectivity + CR(H); see formal/.
+  formal-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No admits/sorry in the mechanized proofs (hard gate)
+        run: "! grep -rnE 'admit|sorry' formal/easycrypt/"
+      - name: Install Z3 + EasyCrypt (best-effort)
+        id: ec
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y opam z3 libgmp-dev libpcre2-dev
+          opam init -y --disable-sandboxing --compiler=5.4.1
+          opam install -y easycrypt
+          opam exec -- easycrypt why3config
+      - name: Machine-check the binding proof (make check)
+        if: steps.ec.outcome == 'success'
+        run: opam exec -- make -C formal/easycrypt check
+
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - ctgrind / Valgrind-TIMECOP on x86_64-linux over the libcrux paths
   #   - cargo-fuzz targets (fuzz/)
