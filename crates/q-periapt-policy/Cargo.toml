@@ -10,7 +10,15 @@ authors.workspace = true
 [lints]
 workspace = true
 
-# Host-side crate (loads/evaluates policy); std is fine here. TOML/serde parsing
-# is added in a follow-up — see docs/ROADMAP.md.
+# Host-side crate (loads/evaluates/authenticates policy); std is fine here.
 [dependencies]
 q-periapt-core = { path = "../q-periapt-core" }
+# Verifier trait — signed-policy authentication is backend-agnostic (inject SLH-DSA).
+q-periapt-sig = { path = "../q-periapt-sig" }
+# TOML policy-file loading.
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+[dev-dependencies]
+# A concrete signer/verifier (ML-DSA-65) to exercise signed-policy load round-trips.
+q-periapt-backends = { path = "../q-periapt-backends" }

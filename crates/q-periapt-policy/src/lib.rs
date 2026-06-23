@@ -10,12 +10,15 @@
 //! HQC backup, deprecating an algorithm) becomes a config change, and a minimum
 //! NIST level gives **downgrade protection**.
 //!
-//! Signed-policy verification (SLH-DSA over a canonical encoding, fail-closed to a
-//! conservative compiled-in default) is tracked in `docs/ROADMAP.md` and depends
-//! on a real `q-periapt-sig` backend; this module implements the in-memory model and
-//! the *enforcement* logic, which are the security-relevant parts.
+//! **Signed-policy verification** ([`Policy::load_signed`]) authenticates a policy
+//! file against a trusted key before trusting it — so a tampered policy cannot
+//! silently weaken the suite — using an injected [`q_periapt_sig::Verifier`]
+//! (SLH-DSA for a long-term root) with fail-closed semantics. Plain TOML loading is
+//! [`Policy::from_toml`]. The signature covers the exact policy bytes, so there is
+//! no canonical-encoding ambiguity.
 
 use q_periapt_core::Profile;
+use q_periapt_sig::Verifier;
 
 /// NIST claimed security level (1/2/3/5) for a known algorithm id, or `None` if
 /// the id is not a leveled post-quantum algorithm (e.g. a traditional partner
@@ -162,6 +165,116 @@ impl Policy {
     }
 }
 
+/// The only policy `schema_version` this build understands.
+pub const POLICY_SCHEMA_VERSION: u32 = 1;
+
+/// Errors from loading or authenticating an algorithm policy. These are host-side
+/// configuration faults (not side-channel-sensitive), so — unlike the deliberately
+/// coarse [`q_periapt_core::Error`] — they are descriptive.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[non_exhaustive]
+pub enum PolicyError {
+    /// Not valid UTF-8 / TOML, or a field had the wrong type or was missing.
+    Malformed,
+    /// `schema_version` is not one this build understands.
+    UnsupportedSchema,
+    /// `default_profile` was not a recognized combiner profile.
+    UnknownProfile,
+    /// The detached signature did not verify under the trusted key. **Fail-closed:**
+    /// the policy is rejected; callers must not trust attacker-influenced data.
+    SignatureInvalid,
+}
+
+impl core::fmt::Display for PolicyError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            PolicyError::Malformed => "malformed policy file",
+            PolicyError::UnsupportedSchema => "unsupported policy schema_version",
+            PolicyError::UnknownProfile => "unknown default_profile",
+            PolicyError::SignatureInvalid => "policy signature did not verify",
+        })
+    }
+}
+
+/// Wire schema of a `*.policy.toml` file (`docs/policy/default.policy.toml`).
+#[derive(serde::Deserialize)]
+struct PolicyFile {
+    schema_version: u32,
+    min_nist_level: u8,
+    default_profile: String,
+    allowed_kems: Vec<String>,
+    allowed_sigs: Vec<String>,
+    #[serde(default)]
+    deprecated: Vec<String>,
+}
+
+impl Policy {
+    /// Parse and validate a policy from TOML text (see
+    /// `docs/policy/default.policy.toml`). This does **not** authenticate the
+    /// source — use [`Policy::load_signed`] whenever the policy may have crossed a
+    /// trust boundary.
+    pub fn from_toml(text: &str) -> Result<Self, PolicyError> {
+        let f: PolicyFile = toml::from_str(text).map_err(|_| PolicyError::Malformed)?;
+        if f.schema_version != POLICY_SCHEMA_VERSION {
+            return Err(PolicyError::UnsupportedSchema);
+        }
+        let default_profile = match f.default_profile.as_str() {
+            "CompatXWing" => Profile::CompatXWing,
+            "ContextBound" => Profile::ContextBound,
+            _ => return Err(PolicyError::UnknownProfile),
+        };
+        Ok(Self {
+            min_nist_level: f.min_nist_level,
+            default_profile,
+            allowed_kems: f.allowed_kems,
+            allowed_sigs: f.allowed_sigs,
+            deprecated: f.deprecated,
+        })
+    }
+
+    /// Load a policy **only if** a detached signature over the exact policy bytes
+    /// verifies under a trusted verification key — downgrade protection applied to
+    /// the policy *itself*, so a tampered policy cannot silently weaken the suite.
+    ///
+    /// The `verifier` is injected (typically SLH-DSA for a long-term root, per the
+    /// suite's trust-anchor design), keeping this crate backend-agnostic. The
+    /// signature covers the raw `toml` bytes — no canonical-encoding ambiguity.
+    /// **Fail-closed:** any signature or parse failure is an `Err`; the caller
+    /// decides whether to abort (recommended) or fall back via
+    /// [`Policy::load_signed_or_failsafe`].
+    pub fn load_signed<V: Verifier>(
+        verifier: &V,
+        verification_key: &[u8],
+        toml: &[u8],
+        signature: &[u8],
+    ) -> Result<Self, PolicyError> {
+        verifier
+            .verify(verification_key, toml, signature)
+            .map_err(|_| PolicyError::SignatureInvalid)?;
+        let text = core::str::from_utf8(toml).map_err(|_| PolicyError::Malformed)?;
+        Self::from_toml(text)
+    }
+
+    /// Like [`Policy::load_signed`] but **fail-closed to the conservative compiled-in
+    /// default** ([`Policy::enhanced`]: L5 + `ContextBound`) on any failure, returning
+    /// the offending [`PolicyError`] alongside it. For availability-critical callers
+    /// that must keep running under the *strongest* posture rather than abort — a
+    /// genuine deployment must log the error: an unauthenticated or malformed policy
+    /// is a security event, not a routine fallback.
+    #[must_use]
+    pub fn load_signed_or_failsafe<V: Verifier>(
+        verifier: &V,
+        verification_key: &[u8],
+        toml: &[u8],
+        signature: &[u8],
+    ) -> (Self, Option<PolicyError>) {
+        match Self::load_signed(verifier, verification_key, toml, signature) {
+            Ok(p) => (p, None),
+            Err(e) => (Self::enhanced(), Some(e)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -211,5 +324,87 @@ mod tests {
         assert_eq!(chosen, "ML-KEM-1024");
         // Peer offers only below-floor / disallowed options: must abort.
         assert!(p.negotiate_kem(&["ML-KEM-512", "ML-KEM-768"]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod load_tests {
+    #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
+    use super::*;
+    use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN};
+    use q_periapt_sig::Signer;
+
+    const POLICY: &str = "schema_version = 1\n\
+        min_nist_level = 3\n\
+        default_profile = \"CompatXWing\"\n\
+        allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+        allowed_sigs = [\"ML-DSA-65\", \"SLH-DSA-SHA2-256s\"]\n\
+        deprecated = []\n";
+
+    #[test]
+    fn from_toml_parses_and_enforces() {
+        let p = Policy::from_toml(POLICY).unwrap();
+        assert_eq!(p.min_nist_level, 3);
+        assert_eq!(p.default_profile, Profile::CompatXWing);
+        assert!(p.kem_allowed("ML-KEM-768"));
+        assert!(p.sig_allowed("ML-DSA-65"));
+        assert!(!p.kem_allowed("ML-KEM-512")); // below floor
+    }
+
+    #[test]
+    fn from_toml_rejects_bad_schema_and_profile() {
+        let bad_schema = POLICY.replace("schema_version = 1", "schema_version = 2");
+        assert_eq!(
+            Policy::from_toml(&bad_schema).unwrap_err(),
+            PolicyError::UnsupportedSchema
+        );
+        let bad_profile = POLICY.replace("CompatXWing", "Nonsense");
+        assert_eq!(
+            Policy::from_toml(&bad_profile).unwrap_err(),
+            PolicyError::UnknownProfile
+        );
+        assert_eq!(
+            Policy::from_toml("not = valid = toml").unwrap_err(),
+            PolicyError::Malformed
+        );
+    }
+
+    #[test]
+    fn signed_load_accepts_valid_and_fails_closed() {
+        // Sign the exact policy bytes with a root key. The mechanism is
+        // verifier-agnostic (ML-DSA-65 here for fast tests; SLH-DSA is the intended
+        // production root) — load_signed only trusts an authenticated policy.
+        let (sk, vk) = MlDsa65::generate([9u8; 32]);
+        let mut sig = [0u8; ML_DSA_65_SIG_LEN];
+        let n = MlDsa65
+            .sign(&sk, POLICY.as_bytes(), &[0u8; 32], &mut sig)
+            .unwrap();
+        let sig = &sig[..n];
+
+        // Authentic policy loads.
+        let p = Policy::load_signed(&MlDsa65, &vk, POLICY.as_bytes(), sig).unwrap();
+        assert_eq!(p.default_profile, Profile::CompatXWing);
+
+        // One flipped byte in the body → rejected.
+        let mut tampered = POLICY.as_bytes().to_vec();
+        tampered[20] ^= 1;
+        assert_eq!(
+            Policy::load_signed(&MlDsa65, &vk, &tampered, sig).unwrap_err(),
+            PolicyError::SignatureInvalid
+        );
+
+        // Wrong trust key → rejected.
+        let (_, other_vk) = MlDsa65::generate([1u8; 32]);
+        assert_eq!(
+            Policy::load_signed(&MlDsa65, &other_vk, POLICY.as_bytes(), sig).unwrap_err(),
+            PolicyError::SignatureInvalid
+        );
+
+        // Fail-closed fallback yields the strongest posture + reports the fault.
+        let (fp, err) =
+            Policy::load_signed_or_failsafe(&MlDsa65, &other_vk, POLICY.as_bytes(), sig);
+        assert_eq!(fp.select_profile(), Profile::ContextBound);
+        assert_eq!(fp.min_nist_level, 5);
+        assert_eq!(err, Some(PolicyError::SignatureInvalid));
     }
 }

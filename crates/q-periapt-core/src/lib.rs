@@ -1,5 +1,8 @@
 #![cfg_attr(not(test), no_std)]
-#![forbid(unsafe_code)]
+// `deny` (not `forbid`) so the single, audited secure-zeroization block in
+// `Secret::drop` can opt in with a local `#[allow(unsafe_code)]`. That is the
+// ONLY `unsafe` in the crate; everything else is forbidden by the deny.
+#![deny(unsafe_code)]
 #![warn(missing_docs)]
 
 //! # q-periapt-core
@@ -62,12 +65,13 @@ impl core::fmt::Display for Error {
     }
 }
 
-/// A 32-byte secret that is best-effort zeroized on drop.
+/// A 32-byte combined shared secret, securely zeroized on drop.
 ///
-/// NOTE: this is a dependency-free, best-effort wipe using [`core::hint::black_box`]
-/// to discourage dead-store elimination. Production backends should prefer the
-/// audited `zeroize` crate; tracked in `docs/ROADMAP.md`.
-#[derive(Clone)]
+/// The wipe uses volatile byte writes (which the optimizer may not elide) followed
+/// by a compiler fence — the same technique the audited `zeroize` crate uses,
+/// inlined here to keep `q-periapt-core` dependency-free. `Secret` is intentionally
+/// **not** `Clone`/`Copy`: a combined key has a single owner, so no copy can
+/// survive past the wipe. Read it once via [`as_bytes`](Secret::as_bytes).
 pub struct Secret([u8; SHARED_SECRET_LEN]);
 
 impl Secret {
@@ -85,12 +89,18 @@ impl Secret {
 }
 
 impl Drop for Secret {
+    #[allow(unsafe_code)]
     fn drop(&mut self) {
+        // Secure wipe: volatile zero writes the compiler is not free to elide,
+        // then a compiler fence so the zeroing is ordered before the storage is
+        // released. This is exactly the `zeroize` crate's technique, inlined to
+        // keep the core dependency-free; it is the only `unsafe` in the crate.
         for b in self.0.iter_mut() {
-            *b = 0;
+            // SAFETY: `b` points to one initialized, aligned byte that this
+            // `Secret` owns and is about to drop; a volatile write of 0 is sound.
+            unsafe { core::ptr::write_volatile(b, 0) };
         }
-        // Prevent the compiler from eliding the wipe above.
-        let _ = core::hint::black_box(&self.0);
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
     }
 }
 
