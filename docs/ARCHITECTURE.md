@@ -227,8 +227,8 @@ cryptographic primitives. Each is a zero-sized type implementing a core trait:
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 2 | `Kem`, non-C2PRI; deterministic from a 32-byte scalar. |
 | `Sha3_256Xof` | SHA3-256 | `libcrux-sha3` 0.0.9 | `Xof256`; the combiner XOF. |
 | `MlDsa65` | ML-DSA-65 (FIPS 204) | `libcrux-ml-dsa` 0.0.9 | `Signer` + `Verifier`. |
-| `SlhDsaSha2_128s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.4.1 | **feature `slh-dsa`** (off by default). |
-| `Hqc128/256` | HQC | `pqcrypto-hqc` 0.2.2 (PQClean C) | **feature `hqc`** (off by default); std/native only, unaudited, non-deterministic encaps. |
+| `SlhDsaSha2_128s/192s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.4.1 | **feature `slh-dsa`** (off by default). |
+| `Hqc128/192/256` | HQC | `pqcrypto-hqc` 0.2.2 (PQClean C) | **feature `hqc`** (off by default); std/native only, unaudited, non-deterministic encaps. |
 
 These backends are reused by `q-periapt-ffi`, `q-periapt-wasm`, the binding
 test-vector generator (`examples/refvec.rs`), and the X-Wing KAT.

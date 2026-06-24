@@ -247,9 +247,10 @@ are the gap between research-grade and audited/production.
    covered by both NIST ACVP and the RustCrypto differential, **and the enhanced suite
    ML-KEM-1024 + X25519 is instantiated end-to-end** as a real `HybridKem<MlKem1024,
    X25519, Sha3_256Xof>` with a pinned, independently-cross-checked KAT
-   (`enhanced_kat.rs`) — no longer just a policy allow-list string. Remaining: the lower
-   parameter sets (ML-KEM-512, ML-DSA-44/87) and the broader ACVP signature modes
-   (contexts, pre-hash, internal interface, hedged). Fixed `(suite_id, policy_version,
+   (`enhanced_kat.rs`) — no longer just a policy allow-list string. Remaining: only the
+   libcrux-gated `externalMu=true` and non-SHAKE128 pre-hash ACVP modes — everything else
+   (ML-KEM-512/768/1024, ML-DSA-44/65/87 incl. contexts/hedged/SHAKE-128 pre-hash/internal
+   interface, and SLH-DSA) is now done (§12). Fixed `(suite_id, policy_version,
    components, context) → K` reference vectors for `ContextBound` now exist as an
    in-repo KAT (`crates/q-periapt-backends/src/contextbound_kat.rs`, independently
    cross-checked by a second SHA3 + a from-scratch encoder, and including a

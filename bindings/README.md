@@ -1,7 +1,7 @@
 # Language bindings
 
-One Rust core (`q-periapt-ffi`, the C ABI), three faces: **C**, **Swift**, **Kotlin**.
-The headline property is *byte-identical results across platforms* — so all
+One Rust core (`q-periapt-ffi`, the C ABI), four faces: **C**, **WASM**, **Swift**,
+**Kotlin**. The headline property is *byte-identical results across platforms* — so all
 bindings are validated against one shared oracle.
 
 ## Cross-platform consistency oracle
@@ -14,14 +14,15 @@ cargo run -p q-periapt-backends --example refvec > bindings/shared-test-vectors.
 ```
 
 It contains a full ContextBound vector (keys, randomness, ciphertexts, and the
-resulting 32-byte `secret`). Every binding's test suite must:
+resulting 32-byte `secret`). Every binding's test suite **`decapsulate(...)`s** the
+vector's inputs and asserts the result equals `secret`; if any platform disagrees by a
+single byte, the suites fail — that is the cross-platform guarantee, made executable.
 
-1. `decapsulate(...)` the vector's inputs and assert the result equals `secret`;
-2. `encapsulate(...)` with the vector's randomness and assert it reproduces
-   `ct_pq`, `ct_trad`, and `secret`.
-
-If any platform disagrees by a single byte, the suites fail — that is the
-cross-platform guarantee, made executable.
+The *encapsulate* direction (reproducing `ct_pq`/`ct_trad`/`secret` from the vector's
+randomness) is asserted by the **Rust core's** own tests; it is not yet exercised on every
+face (Swift/Kotlin don't expose `encapsulate`, and `smoke.c`'s roundtrip uses its own
+randomness rather than the vector's). Extending the vector-driven encapsulate check to each
+face is tracked as a follow-up.
 
 ## Artifacts
 

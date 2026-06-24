@@ -355,9 +355,11 @@ primitives for implicit rejection (run both the real and rejection derivations,
 then select with a mask).
 
 **Side-channel CI posture (honest):** failure-path indistinguishability / implicit
-rejection **is** a hard CI gate (ctstats). The dudect **timing** test is
-**report-only** (runs with `|| true`, not a merge gate). Binary-level constant-time
-checking (ctgrind / Valgrind-TIMECOP) is **TODO**. The portable `ct_*` helpers are
+rejection **is** a hard CI gate (ctstats). Binary-level **dataflow** constant-time over this
+composition code (`ct_eq`/`ct_select32`/the combiner) **is** also a hard CI gate today
+(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64); extending it over the
+libcrux **primitive** paths and to riscv64/wasm32 is **TODO**. The dudect **timing** test is
+**report-only** (runs with `|| true`, not a merge gate). The portable `ct_*` helpers are
 best-effort in safe Rust; do not read this as "timing is gated." See
 [`docs/ROADMAP.md`](./ROADMAP.md) and [`docs/THREAT_MODEL.md`](./THREAT_MODEL.md).
 
