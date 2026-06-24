@@ -16,7 +16,6 @@ default = []
 #   libcrux-mlkem  -> ML-KEM-768 via libcrux (formally verified, constant-time)
 #   dalek-x25519   -> X25519 via x25519-dalek
 #   pqclean-hqc    -> HQC backup via pqcrypto/PQClean
-std = ["q-periapt-core/std"]
 
 [dependencies]
 q-periapt-core = { path = "../q-periapt-core" }

@@ -79,7 +79,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: cargo test --workspace
+      # `+${{ matrix.toolchain }}` is REQUIRED: the root rust-toolchain.toml pins stable and
+      # would otherwise shadow the action's default, silently running beta/nightly on stable.
+      - run: cargo +${{ matrix.toolchain }} test --workspace
+
+  # Enforce the declared MSRV against the committed lock. `+1.85` selects it explicitly so the
+  # root rust-toolchain.toml (stable) can't shadow it.
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85
+      - run: cargo +1.85 build --workspace --locked
 
   # Side-channel gates: failure-path indistinguishability (hard gate) + dudect
   # timing report (informational). See ctstats/README.md for the honest scope.

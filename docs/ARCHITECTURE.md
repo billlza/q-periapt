@@ -434,7 +434,9 @@ CI has a formal-proof job: a no-admits hard gate plus best-effort `make check`.
 ## 11. Build & supply-chain hygiene
 
 From [`Cargo.toml`](../Cargo.toml): workspace `resolver = "2"`, edition 2021,
-`rust-version` 1.81. Release profile keeps `overflow-checks = true` even in release
+`rust-version` 1.85 (the true floor: the committed lock pulls clap 4.6 + hashbrown 0.17,
+which require 1.85; enforced by the `msrv` CI job). Release profile keeps
+`overflow-checks = true` even in release
 (cheap insurance for crypto code), with `lto = "thin"` and `codegen-units = 1` for
 reproducible/auditable builds; `Cargo.lock` is committed for supply-chain audit.
 Workspace lints warn on `missing_docs`, `unreachable_pub`, and the security-relevant

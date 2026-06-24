@@ -12,7 +12,6 @@ workspace = true
 
 [features]
 default = []
-std = ["q-periapt-core/std"]
 # Optional, OFF-BY-DEFAULT backends. `dep:` gating keeps them out of the default,
 # wasm32, and no_std builds entirely (so the verified-green builds stay green).
 #   slh-dsa : SLH-DSA (FIPS 205) signatures via the pure-Rust `fips205` crate.
