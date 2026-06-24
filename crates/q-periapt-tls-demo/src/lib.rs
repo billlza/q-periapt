@@ -181,6 +181,17 @@ pub struct ServerKeys {
     verify_vk: Vec<u8>,
 }
 
+impl Drop for ServerKeys {
+    fn drop(&mut self) {
+        // Zeroize the long-term PRIVATE keys on drop (decapsulation key, X25519 scalar,
+        // signing key); the public ek_pq/pk_x/verify_vk need no wiping. Each Vec is built
+        // once at the right size, so wiping the live allocation suffices.
+        q_periapt_core::secure_wipe(&mut self.dk_pq);
+        q_periapt_core::secure_wipe(&mut self.sk_x);
+        q_periapt_core::secure_wipe(&mut self.sign_sk);
+    }
+}
+
 impl ServerKeys {
     fn from_seeds_for<Su: HandshakeSuite>(
         seed_pq: [u8; PQ_KEYGEN_SEED_LEN],

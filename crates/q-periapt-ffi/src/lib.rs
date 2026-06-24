@@ -23,7 +23,7 @@ use q_periapt_backends::{
     MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519,
     X25519_LEN,
 };
-use q_periapt_core::{combine, CombineInput, Error, Profile};
+use q_periapt_core::{combine, secure_wipe, CombineInput, Error, Profile};
 use q_periapt_kem::HybridKem;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -121,15 +121,20 @@ pub unsafe extern "C" fn q_periapt_mlkem768_keypair(
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        let Ok(seed) = <[u8; 64]>::try_from(seed) else {
+        let Ok(mut seed) = <[u8; 64]>::try_from(seed) else {
             return Q_PERIAPT_ERR_LENGTH;
         };
         if sk_o.len() != ML_KEM_768_SK_LEN || pk_o.len() != ML_KEM_768_PK_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        let (sk, pk) = MlKem768::generate(seed);
+        let (mut sk, pk) = MlKem768::generate(seed);
         sk_o.copy_from_slice(&sk);
         pk_o.copy_from_slice(&pk);
+        // Wipe our local copies of the long-term secret material (the caller keeps its own
+        // copy in out_sk); the seed (d‖z) and sk are non-`Drop` arrays that would otherwise
+        // linger in the freed stack frame.
+        secure_wipe(&mut sk);
+        secure_wipe(&mut seed);
         Q_PERIAPT_OK
     }))
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
@@ -156,15 +161,18 @@ pub unsafe extern "C" fn q_periapt_x25519_keypair(
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        let Ok(secret) = <[u8; 32]>::try_from(secret) else {
+        let Ok(mut secret) = <[u8; 32]>::try_from(secret) else {
             return Q_PERIAPT_ERR_LENGTH;
         };
         if sk_o.len() != X25519_LEN || pk_o.len() != X25519_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        let (sk, pk) = X25519::generate(secret);
+        let (mut sk, pk) = X25519::generate(secret);
         sk_o.copy_from_slice(&sk);
         pk_o.copy_from_slice(&pk);
+        // Wipe local copies of the long-term secret scalar + derived sk (see mlkem keypair).
+        secure_wipe(&mut sk);
+        secure_wipe(&mut secret);
         Q_PERIAPT_OK
     }))
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
