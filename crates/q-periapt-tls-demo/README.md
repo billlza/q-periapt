@@ -16,31 +16,37 @@ actual differentiator *measurable*:
 ## Run it
 
 ```sh
-cargo test  -p q-periapt-tls-demo                                      # loopback handshake, both profiles
+cargo test  -p q-periapt-tls-demo                                      # loopback handshake, both suites
 cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound  3000      # profile, iters
 cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound  500 500   # + 500µs/flight emulated RTT
+SUITE=enhanced cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound 3000  # NIST-L5 suite
 ```
 
 ## What the numbers show
 
 Illustrative loopback run (one dev host; absolute numbers are machine-specific):
 
-| profile        | p50    | p99     | wire / handshake |
-|----------------|--------|---------|------------------|
-| `ContextBound` | 826 µs | 1879 µs | **5758 B** (4 flights) |
-| `CompatXWing`  | 893 µs | 2099 µs | **5758 B** (4 flights) |
+| suite / profile           | p50     | p99     | wire / handshake |
+|---------------------------|---------|---------|------------------|
+| L3 `ContextBound`         | 826 µs  | 1879 µs | **5758 B** (4 flights) |
+| L3 `CompatXWing`          | 893 µs  | 2099 µs | **5758 B** (4 flights) |
+| L5 `ContextBound` (`SUITE=enhanced`) | ~1017 µs | ~1955 µs | **7940 B** (4 flights) |
 
-Two observations, both supporting the thesis:
+Three observations, all supporting the thesis:
 
-1. **Combiner CPU is invisible.** The two profiles move *identical* bytes and their
+1. **Combiner CPU is invisible.** The two L3 profiles move *identical* bytes and their
    P99 differs only at noise level — even though `ContextBound` hashes ~2.5 KB more
    in the combiner. The combiner-CPU choice does not move the tail.
-2. **Bytes drive the tail.** Of the 5758 B, the server→client flight is **4597 B**
-   — dominated by the **~3.3 KB ML-DSA-65 signature** (plus the 1184 B `ek`); the
-   client→server flight is 1161 B (1088 B `ct` + 32 B `ct_X`). The PQ *signature*,
-   not the KEM math, is the single largest line item. On a lossy / high-RTT link
-   these bytes cost extra packets and interact with TCP slow-start / QUIC Initial
-   flow control — which is where the P99 engineering actually lives.
+2. **Bytes drive the tail.** Of the L3 suite's 5758 B, the server→client flight is
+   **4597 B** — dominated by the **~3.3 KB ML-DSA-65 signature** (plus the 1184 B
+   `ek`); the client→server flight is 1161 B (1088 B `ct` + 32 B `ct_X`). The PQ
+   *signature*, not the KEM math, is the single largest line item. On a lossy /
+   high-RTT link these bytes cost extra packets and interact with TCP slow-start /
+   QUIC Initial flow control — which is where the P99 engineering actually lives.
+3. **The L5 suite makes the byte cost concrete.** ML-KEM-1024 + ML-DSA-87 moves
+   **7940 B** (+38%), the server→client flight dominated by the **4627 B ML-DSA-87
+   signature** (plus the 1568 B `ek`). Same flight count, more bytes per flight — the
+   exact axis the harness is built to surface, now at the NIST level-5 parameter set.
 
 Injecting `DELAY_US=500` per flight pushes p50 from ~0.8 ms to ~3.6 ms: with four
 flights, **flight count × RTT** dominates — another reason micro encap/decap

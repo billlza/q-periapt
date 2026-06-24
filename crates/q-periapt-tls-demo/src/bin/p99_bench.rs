@@ -10,6 +10,10 @@
 //!   DELAY_US = emulated one-way latency injected per flight (default 0). This
 //!              models flight-count sensitivity to RTT; it does NOT model TCP
 //!              slow-start or loss (those need a netem/tc test on real interfaces).
+//!   SUITE    = env var `SUITE=enhanced` selects the NIST-L5 suite (ML-KEM-1024 +
+//!              X25519, ML-DSA-87); default is ML-KEM-768 + X25519 + ML-DSA-65. The
+//!              L5 suite's larger ct (1568 B) and signature (4627 B) directly show
+//!              the bytes-on-wire effect the harness is built to surface.
 
 #![allow(
     clippy::unwrap_used,
@@ -20,7 +24,10 @@
 )]
 
 use q_periapt_core::Profile;
-use q_periapt_tls_demo::{client_handshake, server_handshake, ServerKeys};
+use q_periapt_tls_demo::{
+    client_handshake, client_handshake_enhanced, server_handshake, server_handshake_enhanced,
+    ServerKeys,
+};
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
@@ -69,9 +76,34 @@ fn main() {
     let warmup = 200usize;
     let total = iters + warmup;
 
+    // SUITE=enhanced selects the NIST-L5 suite (ML-KEM-1024 + X25519, ML-DSA-87).
+    let enhanced = std::env::var("SUITE")
+        .map(|s| s.eq_ignore_ascii_case("enhanced"))
+        .unwrap_or(false);
+    let suite_name = if enhanced {
+        "ML-KEM-1024 + X25519 / ML-DSA-87 (NIST L5)"
+    } else {
+        "ML-KEM-768 + X25519 / ML-DSA-65 (NIST L3)"
+    };
+    // Select the matching handshake pair once (fn-item -> fn-pointer coercion).
+    let server_fn = if enhanced {
+        server_handshake_enhanced::<DelayStream>
+    } else {
+        server_handshake::<DelayStream>
+    };
+    let client_fn = if enhanced {
+        client_handshake_enhanced::<DelayStream>
+    } else {
+        client_handshake::<DelayStream>
+    };
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = Arc::new(ServerKeys::from_seeds([7u8; 64], [9u8; 32], [5u8; 32]));
+    let keys = Arc::new(if enhanced {
+        ServerKeys::from_seeds_enhanced([7u8; 64], [9u8; 32], [5u8; 32])
+    } else {
+        ServerKeys::from_seeds([7u8; 64], [9u8; 32], [5u8; 32])
+    });
     let server_vk = keys.verifying_key();
     let server_keys = Arc::clone(&keys);
 
@@ -80,7 +112,7 @@ fn main() {
             let (inner, _) = listener.accept().unwrap();
             inner.set_nodelay(true).ok();
             let mut s = DelayStream { inner, delay };
-            let _ = server_handshake(&mut s, &server_keys);
+            let _ = server_fn(&mut s, &server_keys);
         }
     });
 
@@ -91,7 +123,7 @@ fn main() {
         let inner = TcpStream::connect(addr).unwrap();
         inner.set_nodelay(true).ok();
         let mut s = DelayStream { inner, delay };
-        let (_secret, stats) = client_handshake(&mut s, profile, &server_vk).unwrap();
+        let (_secret, stats) = client_fn(&mut s, profile, &server_vk).unwrap();
         let dt = t0.elapsed().as_nanos();
         if i >= warmup {
             times.push(dt);
@@ -104,7 +136,7 @@ fn main() {
     let us = |ns: u128| ns as f64 / 1000.0;
     let s = sample.unwrap();
     println!(
-        "server-auth PQ/T hybrid handshake — profile={profile:?}, samples={}, per-flight delay={}µs",
+        "server-auth PQ/T hybrid handshake — suite={suite_name}, profile={profile:?}, samples={}, per-flight delay={}µs",
         times.len(),
         delay.as_micros()
     );
@@ -123,8 +155,13 @@ fn main() {
         "    client->server = {} B, server->client = {} B",
         s.bytes_sent, s.bytes_recv
     );
+    let sig_note = if enhanced {
+        "the ~4.6 KB ML-DSA-87 sig"
+    } else {
+        "the ~3.3 KB ML-DSA-65 sig"
+    };
     println!(
-        "    total = {} B over {} flights each way (server->client carries the ~3.3 KB ML-DSA sig)",
+        "    total = {} B over {} flights each way (server->client carries {sig_note})",
         s.bytes_sent + s.bytes_recv,
         s.messages
     );
