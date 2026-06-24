@@ -356,26 +356,6 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
 }
 
-/// Parse exactly nine fields, each prefixed by an 8-byte big-endian length. Returns
-/// `None` on truncation or trailing bytes (an injective, unambiguous transport).
-fn parse_lp9(mut buf: &[u8]) -> Option<[&[u8]; 9]> {
-    let mut out: [&[u8]; 9] = [&[]; 9];
-    for slot in &mut out {
-        if buf.len() < 8 {
-            return None;
-        }
-        let (len_bytes, rest) = buf.split_at(8);
-        let len = u64::from_be_bytes(len_bytes.try_into().ok()?) as usize;
-        if rest.len() < len {
-            return None;
-        }
-        let (field, tail) = rest.split_at(len);
-        *slot = field;
-        buf = tail;
-    }
-    buf.is_empty().then_some(out)
-}
-
 /// Derive a combined secret directly from the combiner inputs — exposes the
 /// `combine()` core (not the full hybrid) so the `ContextBound` / `CompatXWing`
 /// reference vectors are reproducible byte-for-byte across every binding face.
@@ -408,24 +388,8 @@ pub unsafe extern "C" fn q_periapt_combine(
         let Some(profile) = profile_from(profile) else {
             return Q_PERIAPT_ERR_POLICY;
         };
-        let Some([suite, ver, ss_pq, ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context]) =
-            parse_lp9(input)
-        else {
+        let Some(combine_input) = CombineInput::from_transport(input) else {
             return Q_PERIAPT_ERR_LENGTH;
-        };
-        let Ok(ver) = <[u8; 4]>::try_from(ver) else {
-            return Q_PERIAPT_ERR_LENGTH;
-        };
-        let combine_input = CombineInput {
-            suite_id: suite,
-            policy_version: u32::from_be_bytes(ver),
-            ss_pq,
-            ss_trad,
-            ct_pq,
-            pk_pq,
-            ct_trad,
-            pk_trad,
-            context,
         };
         match combine::<Sha3_256Xof>(profile, &combine_input) {
             Ok(secret) => {

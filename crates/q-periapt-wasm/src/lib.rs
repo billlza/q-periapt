@@ -24,48 +24,16 @@ fn profile(code: u8) -> Result<Profile, JsError> {
     }
 }
 
-/// Parse exactly nine 8-byte big-endian length-prefixed fields (the combiner transport).
-fn parse_lp9(mut buf: &[u8]) -> Option<[&[u8]; 9]> {
-    let mut out: [&[u8]; 9] = [&[]; 9];
-    for slot in &mut out {
-        if buf.len() < 8 {
-            return None;
-        }
-        let (len_bytes, rest) = buf.split_at(8);
-        let len = u64::from_be_bytes(len_bytes.try_into().ok()?) as usize;
-        if rest.len() < len {
-            return None;
-        }
-        let (field, tail) = rest.split_at(len);
-        *slot = field;
-        buf = tail;
-    }
-    buf.is_empty().then_some(out)
-}
-
 /// Derive a combined secret directly from the serialized combiner inputs — the
 /// cross-platform reference-vector entry point. `input` is the nine fields, each
 /// 8-byte big-endian length-prefixed (suite_id, policy_version as 4-byte BE, ss_pq,
-/// ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context); `profile_code` is 1 or 2.
+/// ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context); `profile_code` is 1 or 2. Uses
+/// the single `CombineInput::from_transport` decoder shared with the C ABI face.
 #[wasm_bindgen]
 pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
     let profile = profile(profile_code)?;
-    let [suite, ver, ss_pq, ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context] =
-        parse_lp9(input).ok_or_else(|| JsError::new("malformed combine input"))?;
-    let ver: [u8; 4] = ver
-        .try_into()
-        .map_err(|_| JsError::new("policy_version must be 4 bytes"))?;
-    let ci = CombineInput {
-        suite_id: suite,
-        policy_version: u32::from_be_bytes(ver),
-        ss_pq,
-        ss_trad,
-        ct_pq,
-        pk_pq,
-        ct_trad,
-        pk_trad,
-        context,
-    };
+    let ci = CombineInput::from_transport(input)
+        .ok_or_else(|| JsError::new("malformed combine input"))?;
     let secret =
         core_combine::<Sha3_256Xof>(profile, &ci).map_err(|_| JsError::new("combine failed"))?;
     Ok(secret.as_bytes().to_vec())
@@ -306,5 +274,41 @@ mod tests {
     #[wasm_bindgen_test::wasm_bindgen_test]
     fn combine_matches_reference_vectors_wasm() {
         check_combine_vectors();
+    }
+
+    /// Regression for the 32-bit length-prefix truncation: corrupt a valid vector's
+    /// first 8-byte length prefix by +2^32. A checked `usize::try_from` rejects it on
+    /// every target; the old truncating `as usize` would silently mask it back to the
+    /// original length on wasm32 (32-bit `usize`) and *accept* — a cross-platform
+    /// accept/reject divergence. This must reject.
+    fn check_overlong_prefix_rejected() {
+        let hex = |s: &str| {
+            (0..s.len() / 2)
+                .map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
+                .collect::<Vec<u8>>()
+        };
+        let first = COMBINE_VECTORS
+            .lines()
+            .find(|l| !l.trim().is_empty())
+            .unwrap();
+        let p: Vec<&str> = first.split_whitespace().collect();
+        let mut input = hex(p[1]);
+        input[3] = input[3].wrapping_add(1); // +2^32 in the big-endian u64 prefix
+        assert!(
+            combine(p[0].parse::<u8>().unwrap(), &input).is_err(),
+            "an over-long length prefix must be rejected, not truncated"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn overlong_prefix_rejected() {
+        check_overlong_prefix_rejected();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn overlong_prefix_rejected_wasm() {
+        check_overlong_prefix_rejected();
     }
 }

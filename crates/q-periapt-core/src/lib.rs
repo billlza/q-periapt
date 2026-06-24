@@ -89,19 +89,24 @@ impl Secret {
 }
 
 impl Drop for Secret {
-    #[allow(unsafe_code)]
     fn drop(&mut self) {
-        // Secure wipe: volatile zero writes the compiler is not free to elide,
-        // then a compiler fence so the zeroing is ordered before the storage is
-        // released. This is exactly the `zeroize` crate's technique, inlined to
-        // keep the core dependency-free; it is the only `unsafe` in the crate.
-        for b in self.0.iter_mut() {
-            // SAFETY: `b` points to one initialized, aligned byte that this
-            // `Secret` owns and is about to drop; a volatile write of 0 is sound.
-            unsafe { core::ptr::write_volatile(b, 0) };
-        }
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        secure_wipe(&mut self.0);
     }
+}
+
+/// Volatile-zero a buffer so the compiler may not elide the wipe, with a fence so the
+/// zeroing is ordered before the storage is reused. This is exactly the `zeroize`
+/// crate's technique, inlined to keep the crate dependency-free. Use it to clear
+/// transient secret material that lives in borrowed scratch (component shared secrets,
+/// sponge staging buffers) and so is not protected by [`Secret`]'s own `Drop`.
+#[allow(unsafe_code)]
+pub fn secure_wipe(buf: &mut [u8]) {
+    for b in buf.iter_mut() {
+        // SAFETY: `b` points to one initialized, aligned, writable byte; a volatile
+        // write of 0 is sound and the only `unsafe` operation in the crate.
+        unsafe { core::ptr::write_volatile(b, 0) };
+    }
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
 
 /// An incremental XOF / hash used to derive the combined secret (e.g. SHAKE-256
@@ -195,6 +200,55 @@ pub struct CombineInput<'a> {
     /// [`Profile::ContextBound`]. Downgrade resistance does NOT rely on this
     /// field — it is bound *in addition to* the structured agility block.
     pub context: &'a [u8],
+}
+
+/// Parse exactly nine 8-byte big-endian length-prefixed fields from `buf` and reject
+/// any trailing bytes — the canonical combiner transport decoder shared by the FFI and
+/// WASM faces (so they cannot drift). The length is range-checked with `usize::try_from`
+/// (not a truncating `as usize`), so an over-long prefix is rejected identically on
+/// 32-bit (wasm32) and 64-bit targets.
+fn parse_lp9(mut buf: &[u8]) -> Option<[&[u8]; 9]> {
+    let mut out: [&[u8]; 9] = [&[]; 9];
+    for slot in &mut out {
+        if buf.len() < 8 {
+            return None;
+        }
+        let (len_bytes, rest) = buf.split_at(8);
+        let len_u64 = u64::from_be_bytes(len_bytes.try_into().ok()?);
+        let len = usize::try_from(len_u64).ok()?;
+        if rest.len() < len {
+            return None;
+        }
+        let (field, tail) = rest.split_at(len);
+        *slot = field;
+        buf = tail;
+    }
+    buf.is_empty().then_some(out)
+}
+
+impl<'a> CombineInput<'a> {
+    /// Decode the canonical length-prefixed combiner transport into a [`CombineInput`]:
+    /// nine fields, each an 8-byte big-endian length followed by its bytes, in the order
+    /// `suite_id`, `policy_version` (4-byte big-endian), `ss_pq`, `ss_trad`, `ct_pq`,
+    /// `pk_pq`, `ct_trad`, `pk_trad`, `context`. Returns `None` on any malformed or
+    /// over-long prefix, a `policy_version` field that is not 4 bytes, or trailing bytes.
+    /// This is the single decoder both the C ABI and WASM faces use.
+    #[must_use]
+    pub fn from_transport(buf: &'a [u8]) -> Option<Self> {
+        let [suite, ver, ss_pq, ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context] = parse_lp9(buf)?;
+        let ver: [u8; 4] = ver.try_into().ok()?;
+        Some(CombineInput {
+            suite_id: suite,
+            policy_version: u32::from_be_bytes(ver),
+            ss_pq,
+            ss_trad,
+            ct_pq,
+            pk_pq,
+            ct_trad,
+            pk_trad,
+            context,
+        })
+    }
 }
 
 fn absorb_lp<X: Xof256>(x: &mut X, data: &[u8]) {
@@ -435,5 +489,49 @@ mod tests {
         let b = [0x55u8; 32];
         assert_eq!(ct_select32(0xFF, &a, &b), a);
         assert_eq!(ct_select32(0x00, &a, &b), b);
+    }
+
+    fn lp(out: &mut Vec<u8>, field: &[u8]) {
+        out.extend_from_slice(&(field.len() as u64).to_be_bytes());
+        out.extend_from_slice(field);
+    }
+
+    #[test]
+    fn from_transport_round_trips_and_rejects_malformed() {
+        let mut buf = Vec::new();
+        for f in [
+            &b"ML-KEM-768+X25519"[..],
+            &7u32.to_be_bytes()[..],
+            &[1u8; 32],
+            &[2u8; 32],
+            &[3u8; 4],
+            &[4u8; 5],
+            &[5u8; 6],
+            &[6u8; 7],
+            b"ctx",
+        ] {
+            lp(&mut buf, f);
+        }
+        let ci = CombineInput::from_transport(&buf).expect("valid transport");
+        assert_eq!(ci.suite_id, b"ML-KEM-768+X25519");
+        assert_eq!(ci.policy_version, 7);
+        assert_eq!(ci.context, b"ctx");
+
+        // Trailing bytes, a truncated buffer, and a too-short prefix are all rejected.
+        let mut trailing = buf.clone();
+        trailing.push(0);
+        assert!(CombineInput::from_transport(&trailing).is_none());
+        assert!(CombineInput::from_transport(&buf[..buf.len() - 1]).is_none());
+        assert!(CombineInput::from_transport(&[0u8; 4]).is_none());
+    }
+
+    #[test]
+    fn from_transport_rejects_overlong_length_prefix() {
+        // An 8-byte prefix with the high 32 bits set must be rejected as out-of-range
+        // (a checked `usize::try_from`), NOT truncated to a small length — this keeps
+        // accept/reject identical on 32-bit (wasm32) and 64-bit targets.
+        let mut buf = (1u64 << 40).to_be_bytes().to_vec(); // length far past any buffer
+        buf.extend_from_slice(&[0u8; 8]);
+        assert!(CombineInput::from_transport(&buf).is_none());
     }
 }
