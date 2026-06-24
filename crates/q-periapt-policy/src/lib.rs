@@ -152,15 +152,34 @@ impl Policy {
     /// this policy and offered by the peer, or [`q_periapt_core::Error::PolicyDenied`]
     /// if the peer offers nothing acceptable — i.e. a downgrade attempt aborts
     /// rather than silently selecting a weak suite.
+    ///
+    /// Among equal-NIST-level candidates the choice is broken **deterministically by
+    /// this policy's own preference** — the position in [`allowed_kems`](Self::allowed_kems),
+    /// earlier = more preferred — so the selection cannot be steered by the order in
+    /// which the peer lists its offers.
     pub fn negotiate_kem<'p>(
         &self,
         peer_offered: &[&'p str],
     ) -> Result<&'p str, q_periapt_core::Error> {
+        let preference = |id: &str| {
+            self.allowed_kems
+                .iter()
+                .position(|k| k.as_str() == id)
+                .unwrap_or(usize::MAX)
+        };
         peer_offered
             .iter()
             .copied()
             .filter(|id| self.kem_allowed(id) && nist_level(id).is_some())
-            .max_by_key(|id| nist_level(id).unwrap_or(0))
+            // Maximize (NIST level, then policy preference). `Reverse(rank)` turns the
+            // earliest allow-list entry into the maximum, and the key is unique per id,
+            // so the result does not depend on `peer_offered`'s ordering.
+            .max_by_key(|id| {
+                (
+                    nist_level(id).unwrap_or(0),
+                    core::cmp::Reverse(preference(id)),
+                )
+            })
             .ok_or(q_periapt_core::Error::PolicyDenied)
     }
 }
@@ -330,6 +349,22 @@ mod tests {
         assert_eq!(chosen, "ML-KEM-1024");
         // Peer offers only below-floor / disallowed options: must abort.
         assert!(p.negotiate_kem(&["ML-KEM-512", "ML-KEM-768"]).is_err());
+    }
+
+    #[test]
+    fn negotiate_tie_break_is_deterministic_not_peer_steerable() {
+        // enhanced() lists both ML-KEM-1024 and HQC-256 at NIST L5, with ML-KEM-1024
+        // first in allowed_kems. The choice must follow OUR preference regardless of the
+        // order the peer offers them in.
+        let p = Policy::enhanced();
+        assert_eq!(
+            p.negotiate_kem(&["HQC-256", "ML-KEM-1024"]).unwrap(),
+            "ML-KEM-1024"
+        );
+        assert_eq!(
+            p.negotiate_kem(&["ML-KEM-1024", "HQC-256"]).unwrap(),
+            "ML-KEM-1024"
+        );
     }
 }
 

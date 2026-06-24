@@ -290,6 +290,15 @@ impl<'a> Cursor<'a> {
     fn byte(&mut self) -> Result<u8, DemoError> {
         self.take(1)?.first().copied().ok_or(DemoError::Protocol)
     }
+    /// Assert the whole buffer was consumed — reject any trailing bytes, so each
+    /// message has a single canonical framing.
+    fn finish(self) -> Result<(), DemoError> {
+        if self.off == self.buf.len() {
+            Ok(())
+        } else {
+            Err(DemoError::Protocol)
+        }
+    }
 }
 
 fn sha3(parts: &[&[u8]]) -> [u8; 32] {
@@ -342,6 +351,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     let ek_pq = cur.take(Su::PQ_PK_LEN)?;
     let pk_x = cur.take(X25519_LEN)?;
     let _server_nonce = cur.take(NONCE_LEN)?;
+    cur.finish()?;
 
     // 3. Transcript context for the combiner (binds nonces, profile, server keys).
     let context = sha3(&[&ch, &sh]);
@@ -379,6 +389,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     let mut cur = Cursor::new(&sf);
     let signature = cur.take(Su::SIG_LEN)?;
     let confirm = cur.take(32)?;
+    cur.finish()?;
 
     // Server authentication: signature over the full transcript, pinned vk.
     let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
@@ -408,6 +419,7 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     let mut cur = Cursor::new(&ch);
     let _client_nonce = cur.take(NONCE_LEN)?;
     let profile = profile_from(cur.byte()?)?;
+    cur.finish()?;
 
     // 2. ServerHello
     let mut server_nonce = [0u8; NONCE_LEN];
@@ -427,6 +439,7 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     let mut cur = Cursor::new(&kem_msg);
     let ct_pq = cur.take(Su::PQ_CT_LEN)?;
     let ct_trad = cur.take(X25519_LEN)?;
+    cur.finish()?;
 
     // 4. Decapsulate.
     let pq = Su::Pq::default();
