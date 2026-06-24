@@ -63,16 +63,6 @@ mod hqc;
 #[cfg(feature = "hqc")]
 pub use hqc::{Hqc128, Hqc192, Hqc256};
 
-/// ML-KEM-768 encapsulation-key (public key) length, bytes.
-pub const ML_KEM_768_PK_LEN: usize = 1184;
-/// ML-KEM-768 decapsulation-key (secret key) length, bytes.
-pub const ML_KEM_768_SK_LEN: usize = 2400;
-/// ML-KEM-768 ciphertext length, bytes.
-pub const ML_KEM_768_CT_LEN: usize = 1088;
-/// ML-KEM-768 key-generation seed length, bytes (FIPS 203 d‖z).
-pub const ML_KEM_768_KEYGEN_SEED_LEN: usize = 64;
-/// ML-KEM-768 encapsulation randomness length, bytes.
-pub const ML_KEM_768_ENCAPS_RAND_LEN: usize = 32;
 /// X25519 public-key / secret-key / ciphertext length, bytes.
 pub const X25519_LEN: usize = 32;
 
@@ -90,183 +80,130 @@ fn write_exact(dst: &mut [u8], src: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-/// ML-KEM-768 backend (FIPS 203) via libcrux.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MlKem768;
+/// Declares an ML-KEM (FIPS 203) backend over a libcrux `mlkem{512,768,1024}`
+/// module: the public length constants, the unit struct, its seed-deterministic
+/// `generate` associated fn, and the [`Kem`] impl. All parameter sets share this
+/// boilerplate (constant-time HACL*-derived primitive, C2PRI ⇒ ciphertext-binding),
+/// differing only in module, key/ciphertext types, and byte lengths — so they are
+/// generated from one definition rather than hand-copied.
+macro_rules! mlkem_backend {
+    (
+        $name:ident, $m:ident, $alg:literal,
+        $pk_len:ident = $pk:literal,
+        $sk_len:ident = $sk:literal,
+        $ct_len:ident = $ct:literal,
+        $seed_len:ident = $seed:literal,
+        $rand_len:ident = $rand:literal,
+        $PkT:ident, $SkT:ident, $CtT:ident,
+        $struct_doc:literal
+    ) => {
+        #[doc = concat!($alg, " encapsulation-key (public key) length, bytes.")]
+        pub const $pk_len: usize = $pk;
+        #[doc = concat!($alg, " decapsulation-key (secret key) length, bytes.")]
+        pub const $sk_len: usize = $sk;
+        #[doc = concat!($alg, " ciphertext length, bytes.")]
+        pub const $ct_len: usize = $ct;
+        #[doc = concat!($alg, " key-generation seed length, bytes (FIPS 203 d‖z).")]
+        pub const $seed_len: usize = $seed;
+        #[doc = concat!($alg, " encapsulation randomness length, bytes.")]
+        pub const $rand_len: usize = $rand;
 
-impl MlKem768 {
-    /// Deterministically generate a key pair from a 64-byte seed.
-    /// Returns `(decapsulation_key, encapsulation_key)` as fixed-size arrays.
-    #[must_use]
-    pub fn generate(
-        seed: [u8; ML_KEM_768_KEYGEN_SEED_LEN],
-    ) -> ([u8; ML_KEM_768_SK_LEN], [u8; ML_KEM_768_PK_LEN]) {
-        let kp = mlkem768::generate_key_pair(seed);
-        let mut sk = [0u8; ML_KEM_768_SK_LEN];
-        let mut pk = [0u8; ML_KEM_768_PK_LEN];
-        sk.copy_from_slice(kp.private_key().as_slice());
-        pk.copy_from_slice(kp.public_key().as_slice());
-        (sk, pk)
-    }
+        #[doc = $struct_doc]
+        #[derive(Clone, Copy, Debug, Default)]
+        pub struct $name;
+
+        impl $name {
+            /// Deterministically generate a key pair from a 64-byte seed.
+            /// Returns `(decapsulation_key, encapsulation_key)`.
+            #[must_use]
+            pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $pk_len]) {
+                let kp = $m::generate_key_pair(seed);
+                let mut sk = [0u8; $sk_len];
+                let mut pk = [0u8; $pk_len];
+                sk.copy_from_slice(kp.private_key().as_slice());
+                pk.copy_from_slice(kp.public_key().as_slice());
+                (sk, pk)
+            }
+        }
+
+        impl Kem for $name {
+            const C2PRI: bool = true; // ML-KEM binds its ciphertext (FO transform).
+
+            fn algorithm(&self) -> &'static str {
+                $alg
+            }
+
+            fn encapsulate(
+                &self,
+                pk: &[u8],
+                randomness: &[u8],
+                ct: &mut [u8],
+                ss: &mut [u8],
+            ) -> Result<(), Error> {
+                let pk_arr = to_arr::<$pk_len>(pk)?;
+                let rand = to_arr::<$rand_len>(randomness)?;
+                let public = $m::$PkT::from(pk_arr);
+                let (ciphertext, shared) = $m::encapsulate(&public, rand);
+                write_exact(ct, ciphertext.as_slice())?;
+                write_exact(ss, shared.as_slice())
+            }
+
+            fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+                let sk_arr = to_arr::<$sk_len>(sk)?;
+                let ct_arr = to_arr::<$ct_len>(ct)?;
+                let private = $m::$SkT::from(sk_arr);
+                let ciphertext = $m::$CtT::from(ct_arr);
+                let shared = $m::decapsulate(&private, &ciphertext);
+                write_exact(ss, shared.as_slice())
+            }
+        }
+    };
 }
 
-impl Kem for MlKem768 {
-    const C2PRI: bool = true; // ML-KEM-768 binds its ciphertext (FO transform).
+mlkem_backend!(
+    MlKem768,
+    mlkem768,
+    "ML-KEM-768",
+    ML_KEM_768_PK_LEN = 1184,
+    ML_KEM_768_SK_LEN = 2400,
+    ML_KEM_768_CT_LEN = 1088,
+    ML_KEM_768_KEYGEN_SEED_LEN = 64,
+    ML_KEM_768_ENCAPS_RAND_LEN = 32,
+    MlKem768PublicKey,
+    MlKem768PrivateKey,
+    MlKem768Ciphertext,
+    "ML-KEM-768 backend (FIPS 203) via libcrux."
+);
 
-    fn algorithm(&self) -> &'static str {
-        "ML-KEM-768"
-    }
+mlkem_backend!(
+    MlKem1024,
+    mlkem1024,
+    "ML-KEM-1024",
+    ML_KEM_1024_PK_LEN = 1568,
+    ML_KEM_1024_SK_LEN = 3168,
+    ML_KEM_1024_CT_LEN = 1568,
+    ML_KEM_1024_KEYGEN_SEED_LEN = 64,
+    ML_KEM_1024_ENCAPS_RAND_LEN = 32,
+    MlKem1024PublicKey,
+    MlKem1024PrivateKey,
+    MlKem1024Ciphertext,
+    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via libcrux — the enhanced-mode KEM."
+);
 
-    fn encapsulate(
-        &self,
-        pk: &[u8],
-        randomness: &[u8],
-        ct: &mut [u8],
-        ss: &mut [u8],
-    ) -> Result<(), Error> {
-        let pk_arr = to_arr::<ML_KEM_768_PK_LEN>(pk)?;
-        let rand = to_arr::<ML_KEM_768_ENCAPS_RAND_LEN>(randomness)?;
-        let public = mlkem768::MlKem768PublicKey::from(pk_arr);
-        let (ciphertext, shared) = mlkem768::encapsulate(&public, rand);
-        write_exact(ct, ciphertext.as_slice())?;
-        write_exact(ss, shared.as_slice())
-    }
-
-    fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-        let sk_arr = to_arr::<ML_KEM_768_SK_LEN>(sk)?;
-        let ct_arr = to_arr::<ML_KEM_768_CT_LEN>(ct)?;
-        let private = mlkem768::MlKem768PrivateKey::from(sk_arr);
-        let ciphertext = mlkem768::MlKem768Ciphertext::from(ct_arr);
-        let shared = mlkem768::decapsulate(&private, &ciphertext);
-        write_exact(ss, shared.as_slice())
-    }
-}
-
-/// ML-KEM-1024 encapsulation-key (public key) length, bytes.
-pub const ML_KEM_1024_PK_LEN: usize = 1568;
-/// ML-KEM-1024 decapsulation-key (secret key) length, bytes.
-pub const ML_KEM_1024_SK_LEN: usize = 3168;
-/// ML-KEM-1024 ciphertext length, bytes.
-pub const ML_KEM_1024_CT_LEN: usize = 1568;
-/// ML-KEM-1024 key-generation seed length, bytes (FIPS 203 d‖z).
-pub const ML_KEM_1024_KEYGEN_SEED_LEN: usize = 64;
-/// ML-KEM-1024 encapsulation randomness length, bytes.
-pub const ML_KEM_1024_ENCAPS_RAND_LEN: usize = 32;
-
-/// ML-KEM-1024 backend (FIPS 203, NIST level 5) via libcrux — the enhanced-mode KEM.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MlKem1024;
-
-impl MlKem1024 {
-    /// Deterministically generate a key pair from a 64-byte seed.
-    /// Returns `(decapsulation_key, encapsulation_key)`.
-    #[must_use]
-    pub fn generate(
-        seed: [u8; ML_KEM_1024_KEYGEN_SEED_LEN],
-    ) -> ([u8; ML_KEM_1024_SK_LEN], [u8; ML_KEM_1024_PK_LEN]) {
-        let kp = mlkem1024::generate_key_pair(seed);
-        let mut sk = [0u8; ML_KEM_1024_SK_LEN];
-        let mut pk = [0u8; ML_KEM_1024_PK_LEN];
-        sk.copy_from_slice(kp.private_key().as_slice());
-        pk.copy_from_slice(kp.public_key().as_slice());
-        (sk, pk)
-    }
-}
-
-impl Kem for MlKem1024 {
-    const C2PRI: bool = true; // ML-KEM-1024 binds its ciphertext (FO transform).
-
-    fn algorithm(&self) -> &'static str {
-        "ML-KEM-1024"
-    }
-
-    fn encapsulate(
-        &self,
-        pk: &[u8],
-        randomness: &[u8],
-        ct: &mut [u8],
-        ss: &mut [u8],
-    ) -> Result<(), Error> {
-        let pk_arr = to_arr::<ML_KEM_1024_PK_LEN>(pk)?;
-        let rand = to_arr::<ML_KEM_1024_ENCAPS_RAND_LEN>(randomness)?;
-        let public = mlkem1024::MlKem1024PublicKey::from(pk_arr);
-        let (ciphertext, shared) = mlkem1024::encapsulate(&public, rand);
-        write_exact(ct, ciphertext.as_slice())?;
-        write_exact(ss, shared.as_slice())
-    }
-
-    fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-        let sk_arr = to_arr::<ML_KEM_1024_SK_LEN>(sk)?;
-        let ct_arr = to_arr::<ML_KEM_1024_CT_LEN>(ct)?;
-        let private = mlkem1024::MlKem1024PrivateKey::from(sk_arr);
-        let ciphertext = mlkem1024::MlKem1024Ciphertext::from(ct_arr);
-        let shared = mlkem1024::decapsulate(&private, &ciphertext);
-        write_exact(ss, shared.as_slice())
-    }
-}
-
-/// ML-KEM-512 encapsulation-key (public key) length, bytes.
-pub const ML_KEM_512_PK_LEN: usize = 800;
-/// ML-KEM-512 decapsulation-key (secret key) length, bytes.
-pub const ML_KEM_512_SK_LEN: usize = 1632;
-/// ML-KEM-512 ciphertext length, bytes.
-pub const ML_KEM_512_CT_LEN: usize = 768;
-/// ML-KEM-512 key-generation seed length, bytes (FIPS 203 d‖z).
-pub const ML_KEM_512_KEYGEN_SEED_LEN: usize = 64;
-/// ML-KEM-512 encapsulation randomness length, bytes.
-pub const ML_KEM_512_ENCAPS_RAND_LEN: usize = 32;
-
-/// ML-KEM-512 backend (FIPS 203, NIST level 1) via libcrux — the smallest parameter set.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MlKem512;
-
-impl MlKem512 {
-    /// Deterministically generate a key pair from a 64-byte seed.
-    /// Returns `(decapsulation_key, encapsulation_key)`.
-    #[must_use]
-    pub fn generate(
-        seed: [u8; ML_KEM_512_KEYGEN_SEED_LEN],
-    ) -> ([u8; ML_KEM_512_SK_LEN], [u8; ML_KEM_512_PK_LEN]) {
-        let kp = mlkem512::generate_key_pair(seed);
-        let mut sk = [0u8; ML_KEM_512_SK_LEN];
-        let mut pk = [0u8; ML_KEM_512_PK_LEN];
-        sk.copy_from_slice(kp.private_key().as_slice());
-        pk.copy_from_slice(kp.public_key().as_slice());
-        (sk, pk)
-    }
-}
-
-impl Kem for MlKem512 {
-    const C2PRI: bool = true; // ML-KEM-512 binds its ciphertext (FO transform).
-
-    fn algorithm(&self) -> &'static str {
-        "ML-KEM-512"
-    }
-
-    fn encapsulate(
-        &self,
-        pk: &[u8],
-        randomness: &[u8],
-        ct: &mut [u8],
-        ss: &mut [u8],
-    ) -> Result<(), Error> {
-        let pk_arr = to_arr::<ML_KEM_512_PK_LEN>(pk)?;
-        let rand = to_arr::<ML_KEM_512_ENCAPS_RAND_LEN>(randomness)?;
-        let public = mlkem512::MlKem512PublicKey::from(pk_arr);
-        let (ciphertext, shared) = mlkem512::encapsulate(&public, rand);
-        write_exact(ct, ciphertext.as_slice())?;
-        write_exact(ss, shared.as_slice())
-    }
-
-    fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-        let sk_arr = to_arr::<ML_KEM_512_SK_LEN>(sk)?;
-        let ct_arr = to_arr::<ML_KEM_512_CT_LEN>(ct)?;
-        let private = mlkem512::MlKem512PrivateKey::from(sk_arr);
-        let ciphertext = mlkem512::MlKem512Ciphertext::from(ct_arr);
-        let shared = mlkem512::decapsulate(&private, &ciphertext);
-        write_exact(ss, shared.as_slice())
-    }
-}
+mlkem_backend!(
+    MlKem512,
+    mlkem512,
+    "ML-KEM-512",
+    ML_KEM_512_PK_LEN = 800,
+    ML_KEM_512_SK_LEN = 1632,
+    ML_KEM_512_CT_LEN = 768,
+    ML_KEM_512_KEYGEN_SEED_LEN = 64,
+    ML_KEM_512_ENCAPS_RAND_LEN = 32,
+    MlKem512PublicKey,
+    MlKem512PrivateKey,
+    MlKem512Ciphertext,
+    "ML-KEM-512 backend (FIPS 203, NIST level 1) via libcrux — the smallest parameter set."
+);
 
 /// X25519 ECDH-as-KEM backend (deterministic from a 32-byte scalar).
 #[derive(Clone, Copy, Debug, Default)]
@@ -398,203 +335,140 @@ impl Xof256 for Sha3_256Xof {
     }
 }
 
-/// ML-DSA-65 signing-key length, bytes (FIPS 204).
-pub const ML_DSA_65_SK_LEN: usize = 4032;
-/// ML-DSA-65 verification-key length, bytes.
-pub const ML_DSA_65_VK_LEN: usize = 1952;
-/// ML-DSA-65 signature length, bytes.
-pub const ML_DSA_65_SIG_LEN: usize = 3309;
-/// ML-DSA-65 key-generation seed length, bytes.
-pub const ML_DSA_65_KEYGEN_SEED_LEN: usize = 32;
-/// ML-DSA-65 signing-randomness length, bytes.
-pub const ML_DSA_65_SIGN_RAND_LEN: usize = 32;
+/// Declares an ML-DSA (FIPS 204) backend over a libcrux `ml_dsa_{44,65,87}`
+/// module: the public length constants, the unit struct, its seed-deterministic
+/// `generate` associated fn, and the suite-default [`Signer`]/[`Verifier`] impls
+/// (external interface, pure, empty context). All parameter sets share this
+/// boilerplate, differing only in module, key/signature types, byte lengths, and
+/// [`SigAlg`] tag — so they are generated from one definition rather than
+/// hand-copied. The extended multi-mode conformance surface (context/hedged +
+/// SHAKE-128 pre-hash + internal interface) is layered on separately via
+/// [`impl_mldsa_modes!`].
+macro_rules! mldsa_backend {
+    (
+        $name:ident, $m:ident, $alg:expr,
+        $sk_len:ident = $sk:literal,
+        $vk_len:ident = $vk:literal,
+        $sig_len:ident = $sig:literal,
+        $seed_len:ident = $seed:literal,
+        $rand_len:ident = $rand:literal,
+        $alg_str:literal,
+        $SkT:ident, $VkT:ident, $SigT:ident,
+        $struct_doc:literal
+    ) => {
+        #[doc = concat!($alg_str, " signing-key length, bytes (FIPS 204).")]
+        pub const $sk_len: usize = $sk;
+        #[doc = concat!($alg_str, " verification-key length, bytes.")]
+        pub const $vk_len: usize = $vk;
+        #[doc = concat!($alg_str, " signature length, bytes.")]
+        pub const $sig_len: usize = $sig;
+        #[doc = concat!($alg_str, " key-generation seed length, bytes.")]
+        pub const $seed_len: usize = $seed;
+        #[doc = concat!($alg_str, " signing-randomness length, bytes.")]
+        pub const $rand_len: usize = $rand;
 
-/// ML-DSA-65 backend (FIPS 204) via libcrux.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MlDsa65;
+        #[doc = $struct_doc]
+        #[derive(Clone, Copy, Debug, Default)]
+        pub struct $name;
 
-impl MlDsa65 {
-    /// Deterministically generate a key pair from a 32-byte seed.
-    /// Returns `(signing_key, verification_key)`.
-    #[must_use]
-    pub fn generate(
-        seed: [u8; ML_DSA_65_KEYGEN_SEED_LEN],
-    ) -> ([u8; ML_DSA_65_SK_LEN], [u8; ML_DSA_65_VK_LEN]) {
-        let kp = ml_dsa_65::generate_key_pair(seed);
-        let mut sk = [0u8; ML_DSA_65_SK_LEN];
-        let mut vk = [0u8; ML_DSA_65_VK_LEN];
-        sk.copy_from_slice(kp.signing_key.as_slice());
-        vk.copy_from_slice(kp.verification_key.as_slice());
-        (sk, vk)
-    }
+        impl $name {
+            /// Deterministically generate a key pair from a 32-byte seed.
+            /// Returns `(signing_key, verification_key)`.
+            #[must_use]
+            pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $vk_len]) {
+                let kp = $m::generate_key_pair(seed);
+                let mut sk = [0u8; $sk_len];
+                let mut vk = [0u8; $vk_len];
+                sk.copy_from_slice(kp.signing_key.as_slice());
+                vk.copy_from_slice(kp.verification_key.as_slice());
+                (sk, vk)
+            }
+        }
+
+        impl Signer for $name {
+            fn algorithm(&self) -> SigAlg {
+                $alg
+            }
+
+            fn sign(
+                &self,
+                sk: &[u8],
+                msg: &[u8],
+                randomness: &[u8],
+                out_sig: &mut [u8],
+            ) -> Result<usize, Error> {
+                let sk_arr = to_arr::<$sk_len>(sk)?;
+                let rnd = to_arr::<$rand_len>(randomness)?;
+                let signing_key = $m::$SkT::new(sk_arr);
+                let sig = $m::sign(&signing_key, msg, b"", rnd).map_err(|_| Error::Backend)?;
+                write_exact(out_sig, sig.as_slice())?;
+                Ok(out_sig.len())
+            }
+        }
+
+        impl Verifier for $name {
+            fn algorithm(&self) -> SigAlg {
+                $alg
+            }
+
+            fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+                let vk_arr = to_arr::<$vk_len>(pk)?;
+                let sig_arr = to_arr::<$sig_len>(sig)?;
+                let vk = $m::$VkT::new(vk_arr);
+                let signature = $m::$SigT::new(sig_arr);
+                $m::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
+            }
+        }
+    };
 }
 
-impl Signer for MlDsa65 {
-    fn algorithm(&self) -> SigAlg {
-        SigAlg::MlDsa65
-    }
+mldsa_backend!(
+    MlDsa65,
+    ml_dsa_65,
+    SigAlg::MlDsa65,
+    ML_DSA_65_SK_LEN = 4032,
+    ML_DSA_65_VK_LEN = 1952,
+    ML_DSA_65_SIG_LEN = 3309,
+    ML_DSA_65_KEYGEN_SEED_LEN = 32,
+    ML_DSA_65_SIGN_RAND_LEN = 32,
+    "ML-DSA-65",
+    MLDSA65SigningKey,
+    MLDSA65VerificationKey,
+    MLDSA65Signature,
+    "ML-DSA-65 backend (FIPS 204) via libcrux."
+);
 
-    fn sign(
-        &self,
-        sk: &[u8],
-        msg: &[u8],
-        randomness: &[u8],
-        out_sig: &mut [u8],
-    ) -> Result<usize, Error> {
-        let sk_arr = to_arr::<ML_DSA_65_SK_LEN>(sk)?;
-        let rnd = to_arr::<ML_DSA_65_SIGN_RAND_LEN>(randomness)?;
-        let signing_key = ml_dsa_65::MLDSA65SigningKey::new(sk_arr);
-        let sig = ml_dsa_65::sign(&signing_key, msg, b"", rnd).map_err(|_| Error::Backend)?;
-        write_exact(out_sig, sig.as_slice())?;
-        Ok(out_sig.len())
-    }
-}
+mldsa_backend!(
+    MlDsa87,
+    ml_dsa_87,
+    SigAlg::MlDsa87,
+    ML_DSA_87_SK_LEN = 4896,
+    ML_DSA_87_VK_LEN = 2592,
+    ML_DSA_87_SIG_LEN = 4627,
+    ML_DSA_87_KEYGEN_SEED_LEN = 32,
+    ML_DSA_87_SIGN_RAND_LEN = 32,
+    "ML-DSA-87",
+    MLDSA87SigningKey,
+    MLDSA87VerificationKey,
+    MLDSA87Signature,
+    "ML-DSA-87 backend (FIPS 204, NIST level 5) via libcrux — the enhanced-mode signature."
+);
 
-impl Verifier for MlDsa65 {
-    fn algorithm(&self) -> SigAlg {
-        SigAlg::MlDsa65
-    }
-
-    fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-        let vk_arr = to_arr::<ML_DSA_65_VK_LEN>(pk)?;
-        let sig_arr = to_arr::<ML_DSA_65_SIG_LEN>(sig)?;
-        let vk = ml_dsa_65::MLDSA65VerificationKey::new(vk_arr);
-        let signature = ml_dsa_65::MLDSA65Signature::new(sig_arr);
-        ml_dsa_65::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
-    }
-}
-
-/// ML-DSA-87 signing-key length, bytes (FIPS 204).
-pub const ML_DSA_87_SK_LEN: usize = 4896;
-/// ML-DSA-87 verification-key length, bytes.
-pub const ML_DSA_87_VK_LEN: usize = 2592;
-/// ML-DSA-87 signature length, bytes.
-pub const ML_DSA_87_SIG_LEN: usize = 4627;
-/// ML-DSA-87 key-generation seed length, bytes.
-pub const ML_DSA_87_KEYGEN_SEED_LEN: usize = 32;
-/// ML-DSA-87 signing-randomness length, bytes.
-pub const ML_DSA_87_SIGN_RAND_LEN: usize = 32;
-
-/// ML-DSA-87 backend (FIPS 204, NIST level 5) via libcrux — the enhanced-mode signature.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MlDsa87;
-
-impl MlDsa87 {
-    /// Deterministically generate a key pair from a 32-byte seed.
-    /// Returns `(signing_key, verification_key)`.
-    #[must_use]
-    pub fn generate(
-        seed: [u8; ML_DSA_87_KEYGEN_SEED_LEN],
-    ) -> ([u8; ML_DSA_87_SK_LEN], [u8; ML_DSA_87_VK_LEN]) {
-        let kp = ml_dsa_87::generate_key_pair(seed);
-        let mut sk = [0u8; ML_DSA_87_SK_LEN];
-        let mut vk = [0u8; ML_DSA_87_VK_LEN];
-        sk.copy_from_slice(kp.signing_key.as_slice());
-        vk.copy_from_slice(kp.verification_key.as_slice());
-        (sk, vk)
-    }
-}
-
-impl Signer for MlDsa87 {
-    fn algorithm(&self) -> SigAlg {
-        SigAlg::MlDsa87
-    }
-
-    fn sign(
-        &self,
-        sk: &[u8],
-        msg: &[u8],
-        randomness: &[u8],
-        out_sig: &mut [u8],
-    ) -> Result<usize, Error> {
-        let sk_arr = to_arr::<ML_DSA_87_SK_LEN>(sk)?;
-        let rnd = to_arr::<ML_DSA_87_SIGN_RAND_LEN>(randomness)?;
-        let signing_key = ml_dsa_87::MLDSA87SigningKey::new(sk_arr);
-        let sig = ml_dsa_87::sign(&signing_key, msg, b"", rnd).map_err(|_| Error::Backend)?;
-        write_exact(out_sig, sig.as_slice())?;
-        Ok(out_sig.len())
-    }
-}
-
-impl Verifier for MlDsa87 {
-    fn algorithm(&self) -> SigAlg {
-        SigAlg::MlDsa87
-    }
-
-    fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-        let vk_arr = to_arr::<ML_DSA_87_VK_LEN>(pk)?;
-        let sig_arr = to_arr::<ML_DSA_87_SIG_LEN>(sig)?;
-        let vk = ml_dsa_87::MLDSA87VerificationKey::new(vk_arr);
-        let signature = ml_dsa_87::MLDSA87Signature::new(sig_arr);
-        ml_dsa_87::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
-    }
-}
-
-/// ML-DSA-44 signing-key length, bytes (FIPS 204).
-pub const ML_DSA_44_SK_LEN: usize = 2560;
-/// ML-DSA-44 verification-key length, bytes.
-pub const ML_DSA_44_VK_LEN: usize = 1312;
-/// ML-DSA-44 signature length, bytes.
-pub const ML_DSA_44_SIG_LEN: usize = 2420;
-/// ML-DSA-44 key-generation seed length, bytes.
-pub const ML_DSA_44_KEYGEN_SEED_LEN: usize = 32;
-/// ML-DSA-44 signing-randomness length, bytes.
-pub const ML_DSA_44_SIGN_RAND_LEN: usize = 32;
-
-/// ML-DSA-44 backend (FIPS 204, NIST level 2) via libcrux — the smallest ML-DSA.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MlDsa44;
-
-impl MlDsa44 {
-    /// Deterministically generate a key pair from a 32-byte seed.
-    /// Returns `(signing_key, verification_key)`.
-    #[must_use]
-    pub fn generate(
-        seed: [u8; ML_DSA_44_KEYGEN_SEED_LEN],
-    ) -> ([u8; ML_DSA_44_SK_LEN], [u8; ML_DSA_44_VK_LEN]) {
-        let kp = ml_dsa_44::generate_key_pair(seed);
-        let mut sk = [0u8; ML_DSA_44_SK_LEN];
-        let mut vk = [0u8; ML_DSA_44_VK_LEN];
-        sk.copy_from_slice(kp.signing_key.as_slice());
-        vk.copy_from_slice(kp.verification_key.as_slice());
-        (sk, vk)
-    }
-}
-
-impl Signer for MlDsa44 {
-    fn algorithm(&self) -> SigAlg {
-        SigAlg::MlDsa44
-    }
-
-    fn sign(
-        &self,
-        sk: &[u8],
-        msg: &[u8],
-        randomness: &[u8],
-        out_sig: &mut [u8],
-    ) -> Result<usize, Error> {
-        let sk_arr = to_arr::<ML_DSA_44_SK_LEN>(sk)?;
-        let rnd = to_arr::<ML_DSA_44_SIGN_RAND_LEN>(randomness)?;
-        let signing_key = ml_dsa_44::MLDSA44SigningKey::new(sk_arr);
-        let sig = ml_dsa_44::sign(&signing_key, msg, b"", rnd).map_err(|_| Error::Backend)?;
-        write_exact(out_sig, sig.as_slice())?;
-        Ok(out_sig.len())
-    }
-}
-
-impl Verifier for MlDsa44 {
-    fn algorithm(&self) -> SigAlg {
-        SigAlg::MlDsa44
-    }
-
-    fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-        let vk_arr = to_arr::<ML_DSA_44_VK_LEN>(pk)?;
-        let sig_arr = to_arr::<ML_DSA_44_SIG_LEN>(sig)?;
-        let vk = ml_dsa_44::MLDSA44VerificationKey::new(vk_arr);
-        let signature = ml_dsa_44::MLDSA44Signature::new(sig_arr);
-        ml_dsa_44::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
-    }
-}
+mldsa_backend!(
+    MlDsa44,
+    ml_dsa_44,
+    SigAlg::MlDsa44,
+    ML_DSA_44_SK_LEN = 2560,
+    ML_DSA_44_VK_LEN = 1312,
+    ML_DSA_44_SIG_LEN = 2420,
+    ML_DSA_44_KEYGEN_SEED_LEN = 32,
+    ML_DSA_44_SIGN_RAND_LEN = 32,
+    "ML-DSA-44",
+    MLDSA44SigningKey,
+    MLDSA44VerificationKey,
+    MLDSA44Signature,
+    "ML-DSA-44 backend (FIPS 204, NIST level 2) via libcrux — the smallest ML-DSA."
+);
 
 /// Extended FIPS 204 conformance surface for an ML-DSA backend, beyond the suite's
 /// default mode (the [`Signer`]/[`Verifier`] impls fix external interface, pure,
@@ -768,6 +642,15 @@ mod tests {
         kem.decapsulate(&sk, &ct, &mut ss_d).unwrap();
         assert_eq!(ss_e, ss_d, "ML-KEM-768 encaps/decaps must agree");
         assert_ne!(ss_e, [0u8; 32], "shared secret must be non-trivial");
+    }
+
+    #[test]
+    fn mlkem_algorithm_strings() {
+        // `algorithm()` is generated from the `mlkem_backend!` `$alg` literal — pin the
+        // three strings so a future macro edit can't silently relabel a backend.
+        assert_eq!(MlKem512.algorithm(), "ML-KEM-512");
+        assert_eq!(MlKem768.algorithm(), "ML-KEM-768");
+        assert_eq!(MlKem1024.algorithm(), "ML-KEM-1024");
     }
 
     #[test]
