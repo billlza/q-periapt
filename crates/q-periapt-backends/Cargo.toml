@@ -27,8 +27,11 @@ q-periapt-sig = { path = "../q-periapt-sig" }
 # ML-KEM-768: libcrux (HACL*-derived, constant-time; takes randomness as explicit
 # bytes — ideal for deterministic/KAT/no_std use).
 libcrux-ml-kem = "0.0.9"
-# ML-DSA-65 signatures (same verified family).
-libcrux-ml-dsa = "0.0.9"
+# ML-DSA-65 signatures (same verified family). The `acvp` feature exposes the FIPS 204
+# internal interface (ML-DSA.Sign_internal / Verify_internal, Algorithms 7/8) — additive
+# (no extra deps, no change to the external/pure path), so the backend can cover the NIST
+# ACVP internal-interface conformance vectors.
+libcrux-ml-dsa = { version = "0.0.9", features = ["acvp"] }
 # X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
 x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
 # SHA3-256 / SHAKE-256 (libcrux, same verified family as the ML-KEM backend).

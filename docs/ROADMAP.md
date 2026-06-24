@@ -312,7 +312,8 @@ are the gap between research-grade and audited/production.
 | ACVP ML-DSA signature modes: hedged + non-empty context + SHAKE-128 pre-hash (65 & 87) | **Done** |
 | Full FIPS family backends + ACVP + differential (ML-KEM-512/768/1024, ML-DSA-44/65/87) | **Done** |
 | SLH-DSA-SHA2-{128,192,256}s NIST ACVP conformance (FIPS 205, `slh-dsa` feature) | **Done** |
-| Remaining ACVP modes: internal interface / externalMu / non-SHAKE128 pre-hash (libcrux-gated) | Pending |
+| ACVP ML-DSA internal interface (FIPS 204 Alg. 7/8, `acvp` feature, ext-μ=false) | **Done** |
+| Remaining ACVP modes: `externalMu=true` (no libcrux μ-entry) / non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |

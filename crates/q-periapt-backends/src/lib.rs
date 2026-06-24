@@ -670,6 +670,33 @@ macro_rules! impl_mldsa_modes {
                 $m::verify_pre_hashed_shake128(&vk, msg, context, &signature)
                     .map_err(|_| Error::Backend)
             }
+
+            /// Internal-interface `ML-DSA.Sign_internal` (FIPS 204 Alg. 7): signs the
+            /// already-domain-separated `msg` directly (no context prefix), with caller
+            /// `randomness` (zero ⇒ deterministic). Exposed by the libcrux `acvp` feature.
+            pub fn sign_internal(
+                &self,
+                sk: &[u8],
+                msg: &[u8],
+                randomness: &[u8],
+                out_sig: &mut [u8],
+            ) -> Result<usize, Error> {
+                let sk_arr = to_arr::<$sk_len>(sk)?;
+                let rnd = to_arr::<$rnd_len>(randomness)?;
+                let signing_key = $m::$SkT::new(sk_arr);
+                let sig = $m::sign_internal(&signing_key, msg, rnd).map_err(|_| Error::Backend)?;
+                write_exact(out_sig, sig.as_slice())?;
+                Ok(out_sig.len())
+            }
+
+            /// Internal-interface `ML-DSA.Verify_internal` (FIPS 204 Alg. 8).
+            pub fn verify_internal(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+                let vk_arr = to_arr::<$vk_len>(pk)?;
+                let sig_arr = to_arr::<$sig_len>(sig)?;
+                let vk = $m::$VkT::new(vk_arr);
+                let signature = $m::$SigT::new(sig_arr);
+                $m::verify_internal(&vk, msg, &signature).map_err(|_| Error::Backend)
+            }
         }
     };
 }
