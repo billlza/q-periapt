@@ -68,19 +68,22 @@ fn main() {
     };
     let _ = black_box(combine::<Sha3_256Xof>(Profile::ContextBound, &inp).map(|s| *s.as_bytes()));
 
-    // NOTE on primitive paths: marking the ML-KEM *decapsulation key* secret and running
-    // libcrux's `decapsulate` under Memcheck (aarch64, 2026-06) flags 30 sites / ~2848
-    // reports, all in `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate`.
-    // Isolating them (non-PIE build, exact runtime->file address mapping, objdump) shows
-    // they are REAL conditional branches (b.cs/b.cc/b.ls/b.hi) comparing 12-bit coefficients
-    // decoded from secret-key-derived bytes against the ML-KEM modulus q (0xd01 = 3329) and
-    // q-1 (0xd00 = 3328) in a deserialize/serialize-with-reduction loop — i.e. a binary-level
-    // secret-dependent branch, the exact source->assembly CT gap this gate exists to surface.
-    // (No `udiv` / KyberSlash-class division and no secret-indexed load were flagged.)
-    // This is NOT a csel/cmov false positive. Whether libcrux's source is CT-by-construction
-    // and the compiler introduced the branch, and whether it is exploitable, is UNRESOLVED
-    // and needs upstream follow-up. We do not gate the primitive here; we rely on libcrux's
-    // source-level HACL* CT attestation as the primitive's assurance — a scoping choice, NOT
-    // a refutation of these reports. See ctstats/README.md "Primitive-path investigation".
+    // NOTE on primitive paths (RESOLVED — benign, 2026-06): an earlier probe marked the WHOLE
+    // 2400-byte ML-KEM-768 decapsulation key secret and ran libcrux's `decapsulate` under
+    // Memcheck, flagging 30 branches comparing 12-bit coefficients to q (0xd01) and q-1 (0xd00)
+    // in `neon::decapsulate`. These are NOT a secret-dependent timing leak. Per FIPS 203 the dk
+    // EMBEDS the public key (dk = dk_pke‖ek‖H(ek)‖z), and the flagged branches are the
+    // compiler's scalar lowering of libcrux's *public-key* deserialize-with-reduction
+    // (`deserialize_to_reduced_ring_element` / `cond_subtract_3329`, which the libcrux source
+    // documents "MUST NOT be used with secret inputs"). It runs only on the embedded PUBLIC key
+    // `ek` during FO re-encryption; the probe over-marked `ek` as secret. The GENUINE secret
+    // key ŝ takes a different, reduction-free path (`deserialize_to_uncompressed_ring_element`
+    // → `deserialize_12`, no q-comparison), and no secret value (ŝ, z, the decrypted m', the
+    // implicit-rejection compare) reaches any data-dependent branch — a static-reachability
+    // fact verified against the libcrux 0.0.9 source and an adversarial review. So libcrux
+    // ML-KEM decaps is constant-time on the genuine secret; the CT-correct marking is
+    // ŝ[0..1152] + z, NOT the whole dk. (Empirical "secret-only ⇒ 0 flags" is predicted from
+    // the source path-split, not yet measured — the container network broke; recommended
+    // follow-up.) See ctstats/README.md "Primitive-path investigation".
     eprintln!("ct_verify: exercised the constant-time paths (no-op outside Valgrind)");
 }

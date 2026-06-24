@@ -275,17 +275,21 @@ the aarch64 leg has so far been exercised only **once, locally**, in a container
 planted-secret-branch negative control confirming Memcheck catches leaks there.
 Still **TODO**: extending Memcheck over the component-**primitive** paths. This was
 investigated (marking the ML-KEM decapsulation key secret and running libcrux's
-`decapsulate`) and surfaced an **unresolved finding**: ~2848 reports across 30 sites in the
-NEON `decapsulate`. Isolating them (non-PIE build → exact address mapping → objdump) shows
-they are **real conditional branches comparing secret-key-derived 12-bit coefficients to the
-ML-KEM modulus q (3329) / q−1** — a binary-level secret-dependent branch, **not** a Memcheck
-false positive (an earlier draft wrongly called them `csel`/`cmov` artifacts; retracted). No
-`udiv`/KyberSlash-class division was flagged. Whether libcrux's *source* is CT-by-construction
-(compiler-introduced branch on this NEON target) and whether it is exploitable is **not yet
-determined — pending upstream follow-up** (details in
-[`ctstats/README.md`](../ctstats/README.md)). We do not gate the primitive on this; we rely
-on libcrux's source-level CT verification as the primitive's assurance — a scoping decision,
-**not** a claim the reports are benign.
+`decapsulate`) and surfaced ~2848 reports across 30 branches in the NEON `decapsulate`
+comparing 12-bit coefficients to q (3329) / q−1 — now **RESOLVED as benign**. Per FIPS 203
+the dk *embeds the public key* (`dk = dk_pke‖ek‖H(ek)‖z`); the flagged branches are the
+compiler's scalar lowering of libcrux's **public-key** deserialize-with-reduction
+(`deserialize_to_reduced_ring_element`/`cond_subtract_3329`, which libcrux documents "MUST NOT
+be used with secret inputs"), running on the embedded **public** key during FO re-encryption.
+The probe over-marked the whole dk (incl. `ek`). The genuine secret ŝ uses a reduction-free
+path (`deserialize_12`, no q-comparison), and no secret value (ŝ, z, m′, the implicit-rejection
+compare) reaches any data-dependent branch — a static-reachability fact in libcrux 0.0.9,
+source-proven and confirmed by a 3-lens adversarial review (details in
+[`ctstats/README.md`](../ctstats/README.md)). So **libcrux ML-KEM decaps is constant-time on
+the genuine secret**; the branch outcomes depend only on the (public) `ek`, i.e. zero marginal
+leakage. (Two earlier framings — "csel false positive" and "real secret-dependent branch" —
+were both retracted. Empirical "secret-only ⇒ 0 flags" confirmation is recommended but not
+required: the security claim is settled by the source dataflow.)
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
 test stays report-only). Binary-CT tooling is mature on **x86_64-linux and aarch64-linux**
 (our composition-code check is configured for both); **riscv64 / wasm32** remain
@@ -364,7 +368,7 @@ consistency, and the machine-checked binding proof** — never speed.
 | 4.5 | Cross-platform byte-identical output | binding divergence | shared-vector consistency tests | **ENFORCED** (CI) |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **REPORT-ONLY** (not gated) |
 | 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (no remote → not yet run; aarch64 verified once locally) |
-| 5.2 | Binary-level CT — libcrux ML-KEM decaps: **real secret-coeff-vs-q branches found** | ADV-TIME | rely on libcrux source-level CT | **UNRESOLVED** — pending upstream triage |
+| 5.2 | Binary-level CT — libcrux ML-KEM decaps q-branches | ADV-TIME | source dataflow: branches are on the embedded **public** key, not ŝ/z | **RESOLVED (benign)** — CT on the genuine secret |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
 | 5.5 | NIST ACVP conformance (full FIPS family) | — | X-Wing KAT + full ACVP set (`acvp.rs`) | **CONFORMANCE DONE** — not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |

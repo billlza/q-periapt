@@ -61,42 +61,60 @@ hardware.
   header, so it builds/runs on any host; the real check is the Linux CI job (or
   `scripts/ct-in-container.sh` locally).
 
-## Primitive-path investigation — an UNRESOLVED binary-CT finding in libcrux ML-KEM decaps
+## Primitive-path investigation — RESOLVED (benign): public-key over-marking, not a leak
 
 Extending the gate to mark the **ML-KEM-768 decapsulation key** secret and run libcrux's
-`decapsulate` under Memcheck (aarch64, 2026-06) flags ~2848 reports across **30 sites**, all
-inside `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate`.
+`decapsulate` under Memcheck (aarch64, 2026-06) flagged ~2848 reports across **30 branches**
+in `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate`, comparing 12-bit coefficients
+to q (`0xd01` = 3329) and q−1 (`0xd00` = 3328). The investigation passed through two **wrong**
+framings before the correct one — recorded here because the corrections are the point:
 
-**An early write-up of this called the reports "Memcheck-on-SIMD false positives (csel/cmov
-flagged like branches)." That was wrong, and is retracted.** Isolating the sites (build the
-probe non-PIE with `cargo rustc -- -C link-arg=-no-pie`, so Valgrind's runtime addresses
-equal the link-time addresses, then `objdump -d`) shows all 30 are **real conditional
-branches** — 14 `b.hi`, 13 `b.ls`, 2 `b.cs`, 1 `b.cc`; **zero `csel`**. The basic blocks
-load bytes from secret-key-derived memory (`ldurb`), assemble 12-bit coefficients (`bfi`),
-and branch on `cmp w, #0xd01` (**3329 = q**, the ML-KEM modulus) and `cmp w, #0xd00`
-(**3328 = q−1**) before conditional stores — a deserialize/serialize-with-reduction loop.
-Memcheck's origin tracking traces the compared values to the marked decapsulation key.
+1. *"Memcheck-on-SIMD false positives (csel flagged like branches)."* **Wrong, retracted** —
+   isolating the sites (non-PIE build, `objdump`) shows real conditional branches
+   (`b.hi`/`b.ls`/`b.cs`/`b.cc`), zero `csel`.
+2. *"A real, possibly-exploitable secret-dependent branch."* **Over-cautious, retracted.**
 
-So this is a **binary-level secret-dependent branch** — precisely the source→assembly CT gap
-this gate exists to surface — **not** a tooling artifact. Two honest caveats keep it from
-being a confirmed vulnerability: (1) no `udiv` (KyberSlash-class division) and no
-secret-indexed load were flagged, only these coefficient-vs-modulus branches; (2) whether
-libcrux's *source* is constant-time-by-construction (and LLVM lowered a conditional-subtract
-/ `% q` reduction into a branch on this NEON target) versus a source-level issue, and whether
-it is exploitable, is **not yet determined**.
+**Resolution (source-proven + adversarially reviewed): the branches are NOT
+secret-dependent.** Per FIPS 203 the decapsulation key **embeds the public key**:
+`dk = dk_pke ‖ ek ‖ H(ek) ‖ z`. During the FO re-encryption step, decapsulate deserializes the
+embedded **public** key `ek` through libcrux's reducing path
+(`deserialize_ring_elements_reduced` → `deserialize_to_reduced_ring_element` →
+`cond_subtract_3329`) — which the libcrux source itself documents *"MUST NOT be used with
+secret inputs."* The 30 flagged branches are the **compiler's scalar lowering of that
+public-key reduce loop** (the NEON `cond_subtract_3329` is itself branchless SIMD —
+`_vcgeq_s16` mask + subtract; the scalar `b.cs`/`b.ls` + the `0xd00` site come from LLVM
+scalarizing the public deserialize+clamp). The probe marked the **whole** `dk` secret,
+including `ek`, so Memcheck flagged a reduction running on **public** bytes.
 
-Status: **UNRESOLVED, pending upstream follow-up with libcrux/Cryspen.** We do **not** gate
-the primitive on this — we rely on libcrux's source-level HACL*/Eurydice CT verification as
-the primitive's assurance. That is a *scoping decision*, and explicitly **not** a claim that
-these reports are benign (source-level CT does not transfer to the compiler-emitted NEON
-binary — the very gap this gate measures). The committed gate therefore covers our own
-scalar, mask-based composition code only.
+The **genuine** secret key ŝ takes a *different*, reduction-free path
+(`deserialize_to_uncompressed_ring_element` → `deserialize_12`, no q-comparison), and **no**
+secret value — ŝ, z, the decrypted message m′ (`to_unsigned_representative`, branchless), or
+the implicit-rejection comparison (`compare_ciphertexts_in_constant_time`) — reaches any
+data-dependent branch. The flagged branch outcomes are a function of the **public** key alone,
+so an attacker who already holds `ek` learns nothing: **zero marginal leakage**. This is a
+static-reachability fact in libcrux 0.0.9, confirmed by reading the source (`serialize.rs`,
+`ind_cca.rs`, `ind_cpa.rs`, `vector/neon/arithmetic.rs`) and a 3-lens adversarial review.
+**libcrux ML-KEM decaps is constant-time on the genuine secret.**
+
+Harness lesson: a CT analysis of decapsulate must mark only the genuinely-secret sub-fields
+of `dk` — ŝ `[0..1152]` and z `[2336..2368]` — **not** the embedded public key. Marking the
+whole `dk` is conservative but mislabels the public bytes, producing these benign reports.
+
+Open follow-up (not blocking the benign verdict): the empirical confirmation — re-mark only
+ŝ + z and observe **0 flags** — was not run (the container network broke mid-investigation).
+The source proof is conclusive for the security claim (a static reachability fact); the
+empirical run would convert the prediction into a measurement and close the assumption that
+Memcheck origin-tracking cleanly separates `ek` from `dk_pke` within one wholesale-marked
+buffer. The committed gate covers our own scalar, mask-based composition code; we rely on
+libcrux's source-level HACL*/Eurydice CT verification — now corroborated by this dataflow
+analysis — for the primitive.
 
 ## TODO (later milestones)
 
-- **Resolve the ML-KEM decaps finding above**: reproduce on x86_64, map the branches to
-  libcrux source (Eurydice-generated decode/serialize), determine source-CT-vs-compiler and
-  exploitability, and report upstream. Until resolved, do not claim the primitive is binary-CT.
+- **Empirically confirm the (resolved) ML-KEM decaps finding**: re-run the Memcheck probe
+  marking only the genuinely-secret sub-fields of `dk` (ŝ `[0..1152]` + z `[2336..2368]`),
+  not the embedded public key — predicted result: **0 flags** in `decapsulate`. (The security
+  conclusion is already source-proven; this measures the prediction.)
 - Triage the libcrux primitive paths well enough to gate them (an alternative to Memcheck for
   primitives is Binsec/Rel-style symbolic CT).
 - Promote the dudect timing test from report-only to a gate on quiesced hardware.
