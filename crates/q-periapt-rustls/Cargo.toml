@@ -1,0 +1,21 @@
+[package]
+name = "q-periapt-rustls"
+description = "Production path: Q-Periapt's PQ/T hybrid KEM as a rustls TLS 1.3 key-exchange group + CryptoProvider"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# ring base provider (lighter build than aws-lc-rs); the custom hybrid KX group is ours.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+q-periapt-core = { path = "../q-periapt-core" }
+q-periapt-kem = { path = "../q-periapt-kem" }
+q-periapt-backends = { path = "../q-periapt-backends" }
+
+[dev-dependencies]
+rcgen = "0.13"
