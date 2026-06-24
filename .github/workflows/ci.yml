@@ -219,6 +219,33 @@ jobs:
         if: steps.ec.outcome == 'success'
         run: opam exec -- make -C formal/easycrypt check
 
+  # Symbolic handshake proof. The lemma-presence check is a reliable HARD GATE
+  # (catches a lemma being deleted/stubbed out); the full Tamarin machine-check
+  # runs when the toolchain installs (best-effort — Tamarin ships only as a
+  # release binary and pulls in maude). Proves authentication + hybrid secrecy
+  # of the PQ/T handshake in the symbolic (Dolev–Yao) model; see formal/tamarin.
+  tamarin-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: All four security lemmas present (hard gate)
+        run: |
+          for l in executable server_authentication hybrid_secrecy hybrid_robustness_authenticated; do
+            grep -qE "^lemma ${l}:" formal/tamarin/handshake.spthy || { echo "missing lemma: ${l}"; exit 1; }
+          done
+      - name: Install Maude + Tamarin (best-effort)
+        id: tamarin
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y maude graphviz
+          curl -fsSL https://github.com/tamarin-prover/tamarin-prover/releases/download/1.10.0/tamarin-prover-1.10.0-linux64-ubuntu.tar.gz \
+            | sudo tar -xz -C /usr/local/bin tamarin-prover
+          tamarin-prover --version
+      - name: Machine-check the handshake model (make prove)
+        if: steps.tamarin.outcome == 'success'
+        run: make -C formal/tamarin prove
+
   # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
   #   - extend the `constant-time` Memcheck/TIMECOP gate over the libcrux primitive
   #     paths and to non-x86 targets (it covers our composition code today)

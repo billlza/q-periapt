@@ -300,6 +300,7 @@ are the gap between research-grade and audited/production.
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Tamarin symbolic handshake model (server auth + hybrid robustness, 4 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (5 queries) | **Done** |
+| CI gate for the Tamarin proof (hard lemma-presence gate + best-effort `make prove`) | **Done** |
 | Combiner micro-benchmark | **Done** |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
