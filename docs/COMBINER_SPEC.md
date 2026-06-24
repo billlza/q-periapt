@@ -371,6 +371,14 @@ two transcripts with byte-identical naive concatenation but distinct keys — th
 the injectivity property load-bearing. `CompatXWing`'s reference vectors are the
 official `draft-connolly-cfrg-xwing-kem` set (`xwing_kat.rs`).
 
+The **enhanced suite** (ML-KEM-1024 + X25519, NIST level 5) is pinned end-to-end by
+[`crates/q-periapt-backends/src/enhanced_kat.rs`](../crates/q-periapt-backends/src/enhanced_kat.rs):
+a real `HybridKem<MlKem1024, X25519>` `ContextBound` round-trip whose 32-byte secret is
+fixed three ways — round-trip recovery, an independent length-prefixed SHA3-256
+recompute over the actual ML-KEM-1024 / X25519 components (this §3 layout), and a golden
+hex. Because ML-KEM-1024 + X25519 is not an external standard (X-Wing is ML-KEM-768-only),
+a self-pinned, independently-cross-checked vector is the strongest available KAT for it.
+
 ## 6. Security cross-reference
 
 The binding security argument is **not** restated here; it is owned by

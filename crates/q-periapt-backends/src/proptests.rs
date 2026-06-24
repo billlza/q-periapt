@@ -9,7 +9,9 @@
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
-use crate::{MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, X25519, X25519_LEN};
+use crate::{
+    MlKem1024, MlKem768, Sha3_256Xof, ML_KEM_1024_CT_LEN, ML_KEM_768_CT_LEN, X25519, X25519_LEN,
+};
 use proptest::prelude::*;
 use q_periapt_core::{combine, CombineInput, Error, Profile, SHARED_SECRET_LEN};
 use q_periapt_kem::HybridKem;
@@ -164,6 +166,37 @@ proptest! {
         let (mut sp2, mut st2) = ([0u8; 32], [0u8; 32]);
         let dec = hk
             .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"", &mut sp2, &mut st2)
+            .unwrap();
+
+        prop_assert_eq!(enc.as_bytes(), dec.as_bytes());
+    }
+
+    /// Enhanced suite (ML-KEM-1024 + X25519) round-trip over random keys under the
+    /// policy-correct `ContextBound` profile: decapsulation recovers the encapsulated
+    /// secret. Gives the enhanced suite the same generative assurance as the default.
+    #[test]
+    fn hybrid_enhanced_round_trip(
+        seed_pq in any::<[u8; 64]>(), seed_x in any::<[u8; 32]>(),
+        m in any::<[u8; 32]>(), eph in any::<[u8; 32]>(),
+        ctx in proptest::collection::vec(any::<u8>(), 1..40),
+    ) {
+        let (sk_pq, pk_pq) = MlKem1024::generate(seed_pq);
+        let (sk_x, pk_x) = X25519::generate(seed_x);
+        let (pq, trad) = (MlKem1024, X25519);
+        let hk = HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(
+            &pq, &trad, Profile::ContextBound, b"ML-KEM-1024+X25519", 1,
+        ).unwrap();
+
+        let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
+        let mut ct_x = [0u8; X25519_LEN];
+        let (mut sp, mut st) = ([0u8; 32], [0u8; 32]);
+        let enc = hk
+            .encapsulate(&pk_pq, &pk_x, &ctx, &m, &eph, &mut ct_pq, &mut sp, &mut ct_x, &mut st)
+            .unwrap();
+
+        let (mut sp2, mut st2) = ([0u8; 32], [0u8; 32]);
+        let dec = hk
+            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, &ctx, &mut sp2, &mut st2)
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());

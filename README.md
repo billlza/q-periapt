@@ -124,7 +124,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Dimension | Target | Today (v0.0.1) |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented `Secret` wipe block; builds `thumbv7em-none-eabihf`) |
-| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 (x25519-dalek) wired; real hybrid encap/decap round-trips under both profiles; **ML-KEM-1024** backend (the enhanced-mode KEM the policy references) wired + ACVP/differential-tested; HQC-128/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature |
+| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 (x25519-dalek) wired; real hybrid encap/decap round-trips under both profiles; the **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently-cross-checked end-to-end KAT), not just a policy string; HQC-128/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature |
 | Combiner profiles | `CompatXWing` (parity) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to a **real SHA3-256** (libcrux) backend |
 | Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four fields are exactly 32 bytes; `HybridKem::new` rejects a non-C2PRI KEM under `CompatXWing` with `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-65/87, SLH-DSA | ✅ ML-DSA-65 (libcrux) wired & tested; SLH-DSA-SHA2-128s/256s (fips205) behind the off-by-default `slh-dsa` feature |

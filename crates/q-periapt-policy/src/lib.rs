@@ -297,7 +297,13 @@ mod tests {
             !p.kem_allowed("ML-KEM-768"),
             "L3 KEM must not pass an L5 floor"
         );
+        // The full enhanced KEM pair (ML-KEM-1024 + X25519) that the enhanced
+        // HybridKem<MlKem1024, X25519> relies on must both pass the L5 posture.
         assert!(p.kem_allowed("ML-KEM-1024"));
+        assert!(
+            p.kem_allowed("X25519"),
+            "enhanced suite's traditional partner must pass the floor"
+        );
     }
 
     #[test]

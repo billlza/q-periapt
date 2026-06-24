@@ -39,6 +39,10 @@ mod proptests;
 #[cfg(test)]
 mod contextbound_kat;
 
+// Enhanced-mode suite (ML-KEM-1024 + X25519) end-to-end pinned KAT.
+#[cfg(test)]
+mod enhanced_kat;
+
 // Optional, off-by-default backends (see Cargo.toml [features]).
 #[cfg(feature = "slh-dsa")]
 mod slhdsa;
@@ -472,6 +476,66 @@ mod tests {
                 enc.as_bytes(),
                 dec.as_bytes(),
                 "{profile:?}: real hybrid encap/decap must agree"
+            );
+        }
+    }
+
+    #[test]
+    fn enhanced_hybrid_real_roundtrip_both_profiles() {
+        // The enhanced suite: ML-KEM-1024 + X25519. ML-KEM-1024 is C2PRI, so both
+        // profiles are legal; the buffers are sized to the 1024 ciphertext (1568, NOT
+        // the 768 length). Proves the enhanced HybridKem actually round-trips.
+        use q_periapt_core::Profile;
+        use q_periapt_kem::HybridKem;
+
+        let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]);
+        let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
+        let ctx = b"q-periapt/v1/enhanced-transcript";
+
+        for profile in [Profile::CompatXWing, Profile::ContextBound] {
+            let (pq, trad) = (MlKem1024, X25519);
+            let kem =
+                HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, b"ML-KEM-1024+X25519", 1)
+                    .unwrap();
+
+            let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
+            let mut ss_pq = [0u8; 32];
+            let mut ct_trad = [0u8; X25519_LEN];
+            let mut ss_trad = [0u8; 32];
+            let enc = kem
+                .encapsulate(
+                    &pk_pq,
+                    &pk_trad,
+                    ctx,
+                    &[11u8; 32],
+                    &[22u8; 32],
+                    &mut ct_pq,
+                    &mut ss_pq,
+                    &mut ct_trad,
+                    &mut ss_trad,
+                )
+                .unwrap();
+
+            let mut d_ss_pq = [0u8; 32];
+            let mut d_ss_trad = [0u8; 32];
+            let dec = kem
+                .decapsulate(
+                    &sk_pq,
+                    &ct_pq,
+                    &pk_pq,
+                    &sk_trad,
+                    &ct_trad,
+                    &pk_trad,
+                    ctx,
+                    &mut d_ss_pq,
+                    &mut d_ss_trad,
+                )
+                .unwrap();
+
+            assert_eq!(
+                enc.as_bytes(),
+                dec.as_bytes(),
+                "{profile:?}: enhanced hybrid encap/decap must agree"
             );
         }
     }

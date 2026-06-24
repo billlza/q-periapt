@@ -240,7 +240,10 @@ are the gap between research-grade and audited/production.
    implicit-rejection) and ML-DSA-65 (keyGen + the deterministic/external/empty-context
    sigGen/sigVer cases) are now wired and passing (see §12). ML-KEM-1024 — the
    enhanced-mode KEM the policy references — now has a real backend (`MlKem1024`),
-   covered by both NIST ACVP and the RustCrypto differential. Remaining: the lower
+   covered by both NIST ACVP and the RustCrypto differential, **and the enhanced suite
+   ML-KEM-1024 + X25519 is instantiated end-to-end** as a real `HybridKem<MlKem1024,
+   X25519, Sha3_256Xof>` with a pinned, independently-cross-checked KAT
+   (`enhanced_kat.rs`) — no longer just a policy allow-list string. Remaining: the lower
    parameter sets (ML-KEM-512, ML-DSA-44/87) and the broader ACVP signature modes
    (contexts, pre-hash, internal interface, hedged). Fixed `(suite_id, policy_version,
    components, context) → K` reference vectors for `ContextBound` now exist as an
@@ -296,10 +299,11 @@ are the gap between research-grade and audited/production.
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Combiner micro-benchmark | **Done** |
-| NIST ACVP conformance (ML-KEM-768 + ML-DSA-65) | **Done** |
+| NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Cross-platform `ContextBound`/`CompatXWing` combiner vectors (all 5 faces) | **Done** |
 | ML-KEM-1024 backend (enhanced-mode KEM) + NIST ACVP + differential | **Done** |
+| Enhanced suite `HybridKem<MlKem1024,X25519>` end-to-end + pinned KAT | **Done** |
 | Broader ACVP (ML-KEM-512 / ML-DSA-44/87, signature modes) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |

@@ -250,7 +250,12 @@ out of the default, `wasm32`, and `no_std` builds entirely — so the
 verified-green build matrix stays green. HQC in particular pulls PQClean C through
 `cc` (std/native only) and is fenced off `wasm32`/`no_std` with a `compile_error!`.
 The default suite — and the C ABI / WASM faces — is exactly **ML-KEM-768 + X25519**
-with SHA3-256.
+with SHA3-256. The **enhanced** posture (NIST level 5) suite **ML-KEM-1024 + X25519**
+is also instantiated at the Rust-core layer as a real `HybridKem<MlKem1024, X25519,
+Sha3_256Xof>` under `ContextBound`, pinned by an end-to-end, independently-cross-checked
+KAT (`q-periapt-backends/src/enhanced_kat.rs`, `suite_id = "ML-KEM-1024+X25519"`). It is
+**not** exposed through the deliberately fixed-suite C ABI / WASM faces — those remain
+ML-KEM-768 + X25519 only.
 
 ---
 
