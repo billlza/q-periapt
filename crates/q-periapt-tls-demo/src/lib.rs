@@ -4,41 +4,120 @@
 //! # q-periapt-tls-demo
 //!
 //! A minimal **server-authenticated PQ/T hybrid KEM handshake over TCP**, plus an
-//! end-to-end **P99 latency harness**. It exercises the real suite (ML-KEM-768 +
-//! X25519 + SHA3 for the KEM, ML-DSA-65 for server auth, via
+//! end-to-end **P99 latency harness**. It exercises the real suite (ML-KEM + X25519 +
+//! SHA3 for the KEM, ML-DSA for server auth, via
 //! `q-periapt-kem`/`q-periapt-sig`/`q-periapt-backends`) over real sockets, to make the project's
 //! actual differentiator measurable: *handshake P99 is dominated by bytes/packets
-//! on the wire (now including the ~3.3 KB ML-DSA signature), not by CPU time.*
+//! on the wire (now including the multi-KB ML-DSA signature), not by CPU time.*
+//!
+//! ## Suites
+//! The handshake is generic over a [`HandshakeSuite`]. Two are provided:
+//! - [`DefaultSuite`] — ML-KEM-768 + X25519, ML-DSA-65 auth (NIST level 3); the
+//!   default used by [`client_handshake`] / [`server_handshake`].
+//! - [`EnhancedSuite`] — ML-KEM-1024 + X25519, ML-DSA-87 auth (NIST level 5); driven
+//!   by [`client_handshake_enhanced`] / [`server_handshake_enhanced`]. Its messages
+//!   are markedly larger (1568-byte KEM ct, 4627-byte signature), which is exactly the
+//!   bytes-on-wire cost the P99 thesis is about.
 //!
 //! ## What this is (and isn't)
-//! - It is an **HPKE-base-shaped, server-authenticated** handshake: the server
-//!   has a static hybrid KEM key and an ML-DSA-65 identity key (its verifying key
-//!   is *pinned* by the client out-of-band). The client encapsulates; both derive
-//!   a session secret bound to the transcript via [`Profile::ContextBound`]; the
-//!   server signs the transcript and sends a key-confirmation.
-//! - It is **not** the TLS 1.3 wire format. Real TLS 1.3 hybrid key exchange uses
-//!   the `X25519MLKEM768` named group (`0x11EC`) with the TLS key-schedule
-//!   combiner. See `README.md` for the mapping and the production path (a rustls
-//!   `CryptoProvider` over `q-periapt-ffi`).
+//! - It is an **HPKE-base-shaped, server-authenticated** handshake: the server has a
+//!   static hybrid KEM key and an ML-DSA identity key (its verifying key is *pinned*
+//!   by the client out-of-band). The client encapsulates; both derive a session secret
+//!   bound to the transcript via [`Profile::ContextBound`]; the server signs the
+//!   transcript and sends a key-confirmation.
+//! - It is **not** the TLS 1.3 wire format. Real TLS 1.3 hybrid key exchange uses the
+//!   `X25519MLKEM768` named group (`0x11EC`) with the TLS key-schedule combiner. See
+//!   `README.md` for the mapping and the production path (a rustls `CryptoProvider`
+//!   over `q-periapt-ffi`).
 
 use core::fmt;
 use std::io::{self, Read, Write};
 
 use q_periapt_backends::{
-    MlDsa65, MlKem768, Sha3_256Xof, ML_DSA_65_SIG_LEN, ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN,
-    ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519, X25519_LEN,
+    MlDsa65, MlDsa87, MlKem1024, MlKem768, Sha3_256Xof, ML_DSA_65_SIG_LEN, ML_DSA_87_SIG_LEN,
+    ML_KEM_1024_CT_LEN, ML_KEM_1024_PK_LEN, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, X25519,
+    X25519_LEN,
 };
-use q_periapt_core::{ct_eq, Profile, Secret, Xof256};
+use q_periapt_core::{ct_eq, Kem, Profile, Secret, Xof256};
 use q_periapt_kem::HybridKem;
 use q_periapt_sig::{Signer, Verifier};
 
-/// Canonical suite identifier bound into the combiner.
-pub const SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
-/// Algorithm-policy version bound into the combiner.
+/// Canonical suite identifier for the default suite, bound into the combiner.
+pub const SUITE_ID: &[u8] = DefaultSuite::SUITE_ID;
+/// Canonical suite identifier for the enhanced (L5) suite.
+pub const SUITE_ID_ENHANCED: &[u8] = EnhancedSuite::SUITE_ID;
+/// Algorithm-policy version bound into the combiner (shared by both suites — the
+/// suite_id, not the policy version, distinguishes them).
 pub const POLICY_VERSION: u32 = 1;
 const NONCE_LEN: usize = 32;
 const SERVER_FINISHED_LABEL: &[u8] = b"q-periapt/v1/server-finished";
 const MAX_MSG: usize = 1 << 20;
+const PQ_KEYGEN_SEED_LEN: usize = 64;
+const SEED32_LEN: usize = 32;
+
+/// A concrete handshake suite: a post-quantum KEM partner (always paired with X25519)
+/// and a server-authentication signature algorithm, plus the wire sizes the framing
+/// needs. One generic handshake implementation serves every suite.
+pub trait HandshakeSuite {
+    /// The post-quantum KEM backend (paired with X25519 to form the hybrid KEM).
+    type Pq: Kem + Default;
+    /// The server-authentication signature backend.
+    type Sig: Signer + Verifier + Default;
+    /// Suite identifier bound into the combiner agility block.
+    const SUITE_ID: &'static [u8];
+    /// PQ encapsulation-key (public key) length, bytes.
+    const PQ_PK_LEN: usize;
+    /// PQ ciphertext length, bytes.
+    const PQ_CT_LEN: usize;
+    /// Signature length, bytes.
+    const SIG_LEN: usize;
+    /// Derive the PQ KEM key pair `(sk, pk)` from a 64-byte seed.
+    fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>);
+    /// Derive the signature key pair `(sk, vk)` from a 32-byte seed.
+    fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>);
+}
+
+/// The default suite: ML-KEM-768 + X25519, ML-DSA-65 auth (NIST level 3).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DefaultSuite;
+
+impl HandshakeSuite for DefaultSuite {
+    type Pq = MlKem768;
+    type Sig = MlDsa65;
+    const SUITE_ID: &'static [u8] = b"ML-KEM-768+X25519";
+    const PQ_PK_LEN: usize = ML_KEM_768_PK_LEN;
+    const PQ_CT_LEN: usize = ML_KEM_768_CT_LEN;
+    const SIG_LEN: usize = ML_DSA_65_SIG_LEN;
+    fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>) {
+        let (sk, pk) = MlKem768::generate(*seed);
+        (sk.to_vec(), pk.to_vec())
+    }
+    fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>) {
+        let (sk, vk) = MlDsa65::generate(*seed);
+        (sk.to_vec(), vk.to_vec())
+    }
+}
+
+/// The enhanced suite: ML-KEM-1024 + X25519, ML-DSA-87 auth (NIST level 5).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct EnhancedSuite;
+
+impl HandshakeSuite for EnhancedSuite {
+    type Pq = MlKem1024;
+    type Sig = MlDsa87;
+    const SUITE_ID: &'static [u8] = b"ML-KEM-1024+X25519";
+    const PQ_PK_LEN: usize = ML_KEM_1024_PK_LEN;
+    const PQ_CT_LEN: usize = ML_KEM_1024_CT_LEN;
+    const SIG_LEN: usize = ML_DSA_87_SIG_LEN;
+    fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>) {
+        let (sk, pk) = MlKem1024::generate(*seed);
+        (sk.to_vec(), pk.to_vec())
+    }
+    fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>) {
+        let (sk, vk) = MlDsa87::generate(*seed);
+        (sk.to_vec(), vk.to_vec())
+    }
+}
 
 /// Errors surfaced by the handshake.
 #[derive(Debug)]
@@ -89,49 +168,83 @@ pub struct HandshakeStats {
     pub messages: usize,
 }
 
-/// A server's static key material: a hybrid KEM key and an ML-DSA-65 identity key.
+/// A server's static key material: a hybrid KEM key and an ML-DSA identity key, stored
+/// as bytes so one struct serves every [`HandshakeSuite`]. Build it with the
+/// constructor matching the handshake you will run ([`ServerKeys::from_seeds`] for the
+/// default suite, [`ServerKeys::from_seeds_enhanced`] for the enhanced L5 suite).
 pub struct ServerKeys {
-    dk_pq: [u8; ML_KEM_768_SK_LEN],
-    ek_pq: [u8; ML_KEM_768_PK_LEN],
-    sk_x: [u8; X25519_LEN],
-    pk_x: [u8; X25519_LEN],
-    sign_sk: [u8; ML_DSA_65_SK_LEN],
-    verify_vk: [u8; ML_DSA_65_VK_LEN],
+    dk_pq: Vec<u8>,
+    ek_pq: Vec<u8>,
+    sk_x: Vec<u8>,
+    pk_x: Vec<u8>,
+    sign_sk: Vec<u8>,
+    verify_vk: Vec<u8>,
 }
 
 impl ServerKeys {
-    /// Generate from fixed seeds (deterministic — for tests/benches).
-    #[must_use]
-    pub fn from_seeds(seed_pq: [u8; 64], seed_x: [u8; 32], seed_sig: [u8; 32]) -> Self {
-        let (dk_pq, ek_pq) = MlKem768::generate(seed_pq);
+    fn from_seeds_for<Su: HandshakeSuite>(
+        seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
+        seed_x: [u8; SEED32_LEN],
+        seed_sig: [u8; SEED32_LEN],
+    ) -> Self {
+        let (dk_pq, ek_pq) = Su::pq_keypair(&seed_pq);
         let (sk_x, pk_x) = X25519::generate(seed_x);
-        let (sign_sk, verify_vk) = MlDsa65::generate(seed_sig);
+        let (sign_sk, verify_vk) = Su::sig_keypair(&seed_sig);
         Self {
             dk_pq,
             ek_pq,
-            sk_x,
-            pk_x,
+            sk_x: sk_x.to_vec(),
+            pk_x: pk_x.to_vec(),
             sign_sk,
             verify_vk,
         }
     }
 
-    /// Generate from the OS CSPRNG.
-    pub fn generate() -> Result<Self, DemoError> {
-        let mut seed_pq = [0u8; 64];
-        let mut seed_x = [0u8; 32];
-        let mut seed_sig = [0u8; 32];
+    /// Generate **default-suite** keys from fixed seeds (deterministic — tests/benches).
+    #[must_use]
+    pub fn from_seeds(
+        seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
+        seed_x: [u8; SEED32_LEN],
+        seed_sig: [u8; SEED32_LEN],
+    ) -> Self {
+        Self::from_seeds_for::<DefaultSuite>(seed_pq, seed_x, seed_sig)
+    }
+
+    /// Generate **enhanced-suite** (ML-KEM-1024 + ML-DSA-87) keys from fixed seeds.
+    #[must_use]
+    pub fn from_seeds_enhanced(
+        seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
+        seed_x: [u8; SEED32_LEN],
+        seed_sig: [u8; SEED32_LEN],
+    ) -> Self {
+        Self::from_seeds_for::<EnhancedSuite>(seed_pq, seed_x, seed_sig)
+    }
+
+    fn generate_for<Su: HandshakeSuite>() -> Result<Self, DemoError> {
+        let mut seed_pq = [0u8; PQ_KEYGEN_SEED_LEN];
+        let mut seed_x = [0u8; SEED32_LEN];
+        let mut seed_sig = [0u8; SEED32_LEN];
         getrandom::fill(&mut seed_pq).map_err(|_| DemoError::Crypto)?;
         getrandom::fill(&mut seed_x).map_err(|_| DemoError::Crypto)?;
         getrandom::fill(&mut seed_sig).map_err(|_| DemoError::Crypto)?;
-        Ok(Self::from_seeds(seed_pq, seed_x, seed_sig))
+        Ok(Self::from_seeds_for::<Su>(seed_pq, seed_x, seed_sig))
     }
 
-    /// The server's ML-DSA-65 verifying key — the client pins this as the server
-    /// identity (distributed out-of-band, not sent on the wire each handshake).
+    /// Generate **default-suite** keys from the OS CSPRNG.
+    pub fn generate() -> Result<Self, DemoError> {
+        Self::generate_for::<DefaultSuite>()
+    }
+
+    /// Generate **enhanced-suite** keys from the OS CSPRNG.
+    pub fn generate_enhanced() -> Result<Self, DemoError> {
+        Self::generate_for::<EnhancedSuite>()
+    }
+
+    /// The server's ML-DSA verifying key — the client pins this as the server identity
+    /// (distributed out-of-band, not sent on the wire each handshake).
     #[must_use]
-    pub fn verifying_key(&self) -> [u8; ML_DSA_65_VK_LEN] {
-        self.verify_vk
+    pub fn verifying_key(&self) -> Vec<u8> {
+        self.verify_vk.clone()
     }
 }
 
@@ -205,9 +318,8 @@ fn server_finished(secret: &Secret, context: &[u8]) -> [u8; 32] {
     sha3(&[secret.as_bytes(), SERVER_FINISHED_LABEL, context])
 }
 
-/// Run the **client** side of the handshake over `stream`, verifying the server's
-/// signature against the pinned `server_vk` (its ML-DSA-65 verifying key).
-pub fn client_handshake<S: Read + Write>(
+/// Generic **client** side, parameterized by the [`HandshakeSuite`].
+fn client_core<Su: HandshakeSuite, S: Read + Write>(
     stream: &mut S,
     profile: Profile,
     server_vk: &[u8],
@@ -223,11 +335,11 @@ pub fn client_handshake<S: Read + Write>(
     stats.bytes_sent += write_msg(stream, &ch)?;
     stats.messages += 1;
 
-    // 2. ServerHello = ek_pq(1184) || pk_x(32) || server_nonce(32)
+    // 2. ServerHello = ek_pq(PQ_PK_LEN) || pk_x(32) || server_nonce(32)
     let sh = read_msg(stream)?;
     stats.bytes_recv += 4 + sh.len();
     let mut cur = Cursor::new(&sh);
-    let ek_pq = cur.take(ML_KEM_768_PK_LEN)?;
+    let ek_pq = cur.take(Su::PQ_PK_LEN)?;
     let pk_x = cur.take(X25519_LEN)?;
     let _server_nonce = cur.take(NONCE_LEN)?;
 
@@ -235,12 +347,14 @@ pub fn client_handshake<S: Read + Write>(
     let context = sha3(&[&ch, &sh]);
 
     // 4. Encapsulate to the server's static hybrid key.
-    let (pq, trad) = (MlKem768, X25519);
-    let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, SUITE_ID, POLICY_VERSION)?;
+    let pq = Su::Pq::default();
+    let trad = X25519;
+    let kem =
+        HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
     let mut coins = [0u8; 64];
     getrandom::fill(&mut coins).map_err(|_| DemoError::Crypto)?;
     let (rand_pq, rand_trad) = coins.split_at(32);
-    let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
+    let mut ct_pq = vec![0u8; Su::PQ_CT_LEN];
     let mut ss_pq = [0u8; 32];
     let mut ct_trad = [0u8; X25519_LEN];
     let mut ss_trad = [0u8; 32];
@@ -256,23 +370,23 @@ pub fn client_handshake<S: Read + Write>(
         &mut ss_trad,
     )?;
 
-    // 5. ClientKem = ct_pq(1088) || ct_trad(32)
-    let mut kem_msg = Vec::with_capacity(ML_KEM_768_CT_LEN + X25519_LEN);
+    // 5. ClientKem = ct_pq(PQ_CT_LEN) || ct_trad(32)
+    let mut kem_msg = Vec::with_capacity(Su::PQ_CT_LEN + X25519_LEN);
     kem_msg.extend_from_slice(&ct_pq);
     kem_msg.extend_from_slice(&ct_trad);
     stats.bytes_sent += write_msg(stream, &kem_msg)?;
     stats.messages += 1;
 
-    // 6. ServerFinished = ml_dsa_signature(3309) || key_confirmation(32)
+    // 6. ServerFinished = signature(SIG_LEN) || key_confirmation(32)
     let sf = read_msg(stream)?;
     stats.bytes_recv += 4 + sf.len();
     let mut cur = Cursor::new(&sf);
-    let signature = cur.take(ML_DSA_65_SIG_LEN)?;
+    let signature = cur.take(Su::SIG_LEN)?;
     let confirm = cur.take(32)?;
 
     // Server authentication: signature over the full transcript, pinned vk.
     let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
-    MlDsa65
+    Su::Sig::default()
         .verify(server_vk, &auth_transcript, signature)
         .map_err(|_| DemoError::AuthFailed)?;
 
@@ -285,8 +399,8 @@ pub fn client_handshake<S: Read + Write>(
     Ok((secret, stats))
 }
 
-/// Run the **server** side of the handshake over `stream` using its static keys.
-pub fn server_handshake<S: Read + Write>(
+/// Generic **server** side, parameterized by the [`HandshakeSuite`].
+fn server_core<Su: HandshakeSuite, S: Read + Write>(
     stream: &mut S,
     keys: &ServerKeys,
 ) -> Result<(Secret, HandshakeStats), DemoError> {
@@ -302,7 +416,7 @@ pub fn server_handshake<S: Read + Write>(
     // 2. ServerHello
     let mut server_nonce = [0u8; NONCE_LEN];
     getrandom::fill(&mut server_nonce).map_err(|_| DemoError::Crypto)?;
-    let mut sh = Vec::with_capacity(ML_KEM_768_PK_LEN + X25519_LEN + NONCE_LEN);
+    let mut sh = Vec::with_capacity(Su::PQ_PK_LEN + X25519_LEN + NONCE_LEN);
     sh.extend_from_slice(&keys.ek_pq);
     sh.extend_from_slice(&keys.pk_x);
     sh.extend_from_slice(&server_nonce);
@@ -315,12 +429,14 @@ pub fn server_handshake<S: Read + Write>(
     let kem_msg = read_msg(stream)?;
     stats.bytes_recv += 4 + kem_msg.len();
     let mut cur = Cursor::new(&kem_msg);
-    let ct_pq = cur.take(ML_KEM_768_CT_LEN)?;
+    let ct_pq = cur.take(Su::PQ_CT_LEN)?;
     let ct_trad = cur.take(X25519_LEN)?;
 
     // 4. Decapsulate.
-    let (pq, trad) = (MlKem768, X25519);
-    let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, SUITE_ID, POLICY_VERSION)?;
+    let pq = Su::Pq::default();
+    let trad = X25519;
+    let kem =
+        HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
     let mut ss_pq = [0u8; 32];
     let mut ss_trad = [0u8; 32];
     let secret = kem.decapsulate(
@@ -339,17 +455,55 @@ pub fn server_handshake<S: Read + Write>(
     let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
     let mut sig_rand = [0u8; 32];
     getrandom::fill(&mut sig_rand).map_err(|_| DemoError::Crypto)?;
-    let mut sig = [0u8; ML_DSA_65_SIG_LEN];
-    MlDsa65
+    let mut sig = vec![0u8; Su::SIG_LEN];
+    Su::Sig::default()
         .sign(&keys.sign_sk, &auth_transcript, &sig_rand, &mut sig)
         .map_err(|_| DemoError::Crypto)?;
     let confirm = server_finished(&secret, &context);
 
-    let mut sf = Vec::with_capacity(ML_DSA_65_SIG_LEN + 32);
+    let mut sf = Vec::with_capacity(Su::SIG_LEN + 32);
     sf.extend_from_slice(&sig);
     sf.extend_from_slice(&confirm);
     stats.bytes_sent += write_msg(stream, &sf)?;
     stats.messages += 1;
 
     Ok((secret, stats))
+}
+
+/// Run the **default-suite** client handshake (ML-KEM-768 + X25519, ML-DSA-65 auth),
+/// verifying the server's signature against the pinned `server_vk`.
+pub fn client_handshake<S: Read + Write>(
+    stream: &mut S,
+    profile: Profile,
+    server_vk: &[u8],
+) -> Result<(Secret, HandshakeStats), DemoError> {
+    client_core::<DefaultSuite, S>(stream, profile, server_vk)
+}
+
+/// Run the **enhanced-suite** (NIST L5) client handshake: ML-KEM-1024 + X25519 with
+/// ML-DSA-87 server auth. `server_vk` is the server's pinned ML-DSA-87 verifying key.
+pub fn client_handshake_enhanced<S: Read + Write>(
+    stream: &mut S,
+    profile: Profile,
+    server_vk: &[u8],
+) -> Result<(Secret, HandshakeStats), DemoError> {
+    client_core::<EnhancedSuite, S>(stream, profile, server_vk)
+}
+
+/// Run the **default-suite** server handshake using its static keys (built with
+/// [`ServerKeys::from_seeds`] / [`ServerKeys::generate`]).
+pub fn server_handshake<S: Read + Write>(
+    stream: &mut S,
+    keys: &ServerKeys,
+) -> Result<(Secret, HandshakeStats), DemoError> {
+    server_core::<DefaultSuite, S>(stream, keys)
+}
+
+/// Run the **enhanced-suite** (NIST L5) server handshake using its static keys (built
+/// with [`ServerKeys::from_seeds_enhanced`] / [`ServerKeys::generate_enhanced`]).
+pub fn server_handshake_enhanced<S: Read + Write>(
+    stream: &mut S,
+    keys: &ServerKeys,
+) -> Result<(Secret, HandshakeStats), DemoError> {
+    server_core::<EnhancedSuite, S>(stream, keys)
 }

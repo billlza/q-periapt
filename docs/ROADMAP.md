@@ -305,6 +305,7 @@ are the gap between research-grade and audited/production.
 | ML-KEM-1024 backend (enhanced-mode KEM) + NIST ACVP + differential | **Done** |
 | ML-DSA-87 backend (enhanced-mode L5 signature) + NIST ACVP + differential | **Done** |
 | Enhanced suite `HybridKem<MlKem1024,X25519>` end-to-end + pinned KAT | **Done** |
+| Enhanced L5 handshake (ML-KEM-1024 + X25519 + ML-DSA-87) in `tls-demo`, generic core | **Done** |
 | Broader ACVP (ML-KEM-512 / ML-DSA-44, signature modes: pre-hash/internal/hedged) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |

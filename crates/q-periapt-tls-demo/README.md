@@ -1,9 +1,14 @@
 # q-periapt-tls-demo — transport demo + P99
 
-A real **server-authenticated PQ/T hybrid KEM handshake over TCP** using the suite
-(ML-KEM-768 + X25519 + SHA3 for the KEM, **ML-DSA-65** for server identity, via
-`q-periapt-kem`/`q-periapt-sig`/`q-periapt-backends`), plus an end-to-end **P99 latency harness**. It
-exists to make the project's actual differentiator *measurable*:
+A real **server-authenticated PQ/T hybrid KEM handshake over TCP**, plus an end-to-end
+**P99 latency harness**. The handshake is generic over a `HandshakeSuite` and ships in
+two suites over one implementation: the **default** (ML-KEM-768 + X25519 + SHA3 for the
+KEM, **ML-DSA-65** for server identity — `client_handshake` / `server_handshake`) and
+the **enhanced L5** (ML-KEM-1024 + X25519, **ML-DSA-87** —
+`client_handshake_enhanced` / `server_handshake_enhanced`, whose 1568-byte KEM
+ciphertext and 4627-byte signature make the bytes-on-wire cost concrete). Built on
+`q-periapt-kem`/`q-periapt-sig`/`q-periapt-backends`. It exists to make the project's
+actual differentiator *measurable*:
 
 > Handshake tail latency is dominated by **bytes/packets on the wire**, not by
 > encap/decap (or combiner) CPU time.
