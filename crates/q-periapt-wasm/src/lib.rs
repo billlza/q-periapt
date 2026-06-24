@@ -256,6 +256,55 @@ mod tests {
         check_combine_vectors();
     }
 
+    fn check_keypair_encap_decap_roundtrip() {
+        // Cover the WASM surface the vector tests skip — mlkem768_keypair, x25519_keypair,
+        // and encapsulate — via a self-consistency roundtrip (encap then decap must agree),
+        // independent of the shared vector's keygen seeds. Catches a marshalling regression
+        // in the KeyPair/EncapResult getters or the &[u8] -> [u8;N] try_from paths.
+        let kp_pq = mlkem768_keypair(&[7u8; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
+        let kp_x = x25519_keypair(&[9u8; X25519_LEN]).unwrap();
+        let suite = b"ML-KEM-768+X25519";
+        let ctx = b"wasm-roundtrip-ctx";
+        let enc = encapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            ctx,
+            &[3u8; 32],
+            &[5u8; 32],
+        )
+        .unwrap();
+        let dec = decapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.sk(),
+            &enc.ct_pq(),
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            ctx,
+        )
+        .unwrap();
+        assert_eq!(enc.secret(), dec, "WASM keypair/encap/decap must agree");
+        assert_ne!(dec, vec![0u8; 32], "secret must be non-trivial");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn keypair_encap_decap_roundtrip() {
+        check_keypair_encap_decap_roundtrip();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn keypair_encap_decap_roundtrip_wasm() {
+        check_keypair_encap_decap_roundtrip();
+    }
+
     /// Regression for the 32-bit length-prefix truncation: corrupt a valid vector's
     /// first 8-byte length prefix by +2^32. A checked `usize::try_from` rejects it on
     /// every target; the old truncating `as usize` would silently mask it back to the
