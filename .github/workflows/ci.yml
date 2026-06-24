@@ -246,8 +246,38 @@ jobs:
         if: steps.tamarin.outcome == 'success'
         run: make -C formal/tamarin prove
 
-  # Still TODO as harnesses land (see ctstats/README.md, fuzz/, tests/):
+  # Second, independent symbolic prover (ProVerif) for the same handshake — assurance
+  # diversity. Hard gate = the security events + queries are present (catches a query being
+  # deleted/stubbed); the machine-check (best-effort install) additionally FAILS unless all
+  # four security queries are proved (`make prove` asserts the RESULT lines). See
+  # formal/proverif.
+  proverif-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Handshake events + queries present (hard gate)
+        run: |
+          for e in ServerDone ClientFinish RevealSig RevealPQ RevealTrad; do
+            grep -qE "^event ${e}\(" formal/proverif/handshake.pv || { echo "missing event: ${e}"; exit 1; }
+          done
+          n=$(grep -cE '^query ' formal/proverif/handshake.pv)
+          test "$n" -ge 5 || { echo "expected >= 5 queries, found $n"; exit 1; }
+      - name: Install ProVerif (best-effort)
+        id: proverif
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y opam
+          opam init -y --disable-sandboxing
+          opam install -y proverif
+      - name: Machine-check the handshake model (queries must hold)
+        if: steps.proverif.outcome == 'success'
+        run: opam exec -- make -C formal/proverif prove
+
+  # Still TODO as harnesses land (see ctstats/README.md):
   #   - extend the `constant-time` Memcheck/TIMECOP gate over the libcrux primitive
   #     paths and to non-x86 targets (it covers our composition code today)
-  #   - cargo-fuzz targets (fuzz/)
-  #   - X-Wing KAT lives in q-periapt-backends; ACVP breadth + ContextBound vectors pending
+  #   - promote the dudect timing test from report-only to a gate on quiesced hardware
+  # Done since this note was written: full NIST ACVP (ML-KEM-512/768/1024 +
+  # ML-DSA-44/65/87 + SLH-DSA) and ContextBound reference vectors in q-periapt-backends;
+  # cargo-fuzz targets under fuzz/ (combine + ML-KEM decapsulate) with a seed corpus.

@@ -11,8 +11,17 @@ PROVERIF ?= proverif
 SRC      := handshake.pv
 
 .PHONY: prove check
+# `prove` is a real gate: it fails unless the four security queries (injective server
+# authentication, hybrid secrecy, and the two single-break robustness corners) are each
+# proved. ProVerif exits 0 regardless, so we assert on its RESULT lines. The one expected
+# "is false" is the executability query (`RESULT not event(...) is false` means the
+# ClientFinish event IS reachable).
 prove:
-	$(PROVERIF) $(SRC)
+	@OUT=`$(PROVERIF) $(SRC)`; \
+	echo "$$OUT"; \
+	N=`echo "$$OUT" | grep -c 'RESULT.* is true'`; \
+	[ "$$N" -ge 4 ] || { echo "FAIL: only $$N/4 security queries proved true"; exit 1; }; \
+	echo "OK: $$N security queries proved true (+ executability reachable)"
 
 check:
 	$(PROVERIF) -test $(SRC)

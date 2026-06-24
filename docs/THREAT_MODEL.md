@@ -236,8 +236,10 @@ decapsulates a shared reference vector on each binding and requires byte-for-byt
 reproduction (`bindings-wasm` on a real Node wasm runtime; `bindings-swift`;
 `bindings-kotlin`; the Rust+C-ABI path in `check`). The X-Wing byte-exact KAT
 (`q-periapt-backends`) **reproduces the `draft-connolly-cfrg-xwing-kem` reference
-output on its 3 happy-path vectors** — full ACVP breadth and `ContextBound` vectors
-are pending (see [§5.5](#55-no-fips-validation-acvp-pending)).
+output on its 3 happy-path vectors**, and the **full NIST ACVP set** (ML-KEM-512/768/1024
++ ML-DSA-44/65/87 + SLH-DSA) plus the `ContextBound` reference vectors now pass too —
+this is conformance to the published vectors, not certification (see
+[§5.5](#55-acvp-conformance-not-cmvp-certification)).
 
 ---
 
@@ -291,11 +293,16 @@ known-unmaintained transitive dependency (RUSTSEC-2026-0163, pqcrypto-internals)
 **acknowledged in `.cargo/audit.toml` and surfaced by `cargo audit` in CI**, not
 hidden — but it is a real residual risk.
 
-### 5.5 No FIPS validation (ACVP pending)
+### 5.5 ACVP conformance, not CMVP certification
 
-The X-Wing KAT **reproduces FIPS 203 reference output on 3 happy-path vectors only**.
-This is **not** a FIPS validation and **not** full ACVP coverage. Do not read
-"reproduces the reference output on 3 vectors" as "validated against FIPS 203."
+The backends pass the **full NIST ACVP conformance set** — ML-KEM-512/768/1024 and
+ML-DSA-44/65/87 (keyGen + the external/pure, hedged-context, SHAKE-128 pre-hash, and
+internal-interface signature modes), plus SLH-DSA-SHA2-{128,192,256}s — reproducing the
+authoritative vectors byte-for-byte (`q-periapt-backends/src/acvp.rs`,
+`acvp_slhdsa.rs`). **But passing ACVP vectors is conformance evidence, not a FIPS
+validation.** There is no CMVP/CAVP certification, no validated cryptographic-module
+boundary, and no operational-environment accreditation. Do not read "passes the ACVP
+vectors" as "FIPS-validated."
 
 ### 5.6 No spec↔implementation linkage proof
 
@@ -342,5 +349,5 @@ consistency, and the machine-checked binding proof** — never speed.
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **REPORT-ONLY** (not gated) |
 | 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | **CI gate** |
 | 5.2 | Binary-level CT — primitive paths + non-x86 + timing-as-gate | ADV-TIME | — | TODO |
-| 5.5 | FIPS 203 conformance | — | X-Wing KAT (3 vectors) | **PARTIAL** (ACVP pending) |
+| 5.5 | NIST ACVP conformance (full FIPS family) | — | X-Wing KAT + full ACVP set (`acvp.rs`) | **CONFORMANCE DONE** — not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |

@@ -339,8 +339,9 @@ under `CompatXWing` with X-Wing's key expansion (`SHAKE-256(seed, 96)`) and
 encapsulation-coin split, and asserts the ML-KEM-768 public key, ciphertext, and
 shared secret against **3 official `draft-connolly-cfrg-xwing-kem` vectors**. This
 proves the combiner **reproduces the FIPS 203 reference output on those 3 happy-path
-vectors** byte-for-byte. (Full ACVP coverage is pending — this is conformance on 3
-happy-path vectors, not a complete validation.)
+vectors** byte-for-byte. (Beyond these, the full NIST ACVP set for ML-KEM-512/768/1024
++ ML-DSA-44/65/87 also passes in `acvp.rs` — broad conformance to the published
+vectors, though not CMVP/CAVP certification.)
 
 ---
 

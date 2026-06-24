@@ -220,8 +220,10 @@ This is a **research artifact for an undergraduate thesis**, not a product.
     both combiner profiles with these real backends.
   - The byte-exact X-Wing draft KAT **passes** against the 3 official
     `draft-connolly-cfrg-xwing-kem` vectors (`q-periapt-backends/src/xwing_kat.rs`).
-    This reproduces FIPS 203 reference output on those 3 happy-path vectors; full
-    ACVP coverage is **pending** — it is not yet a complete FIPS 203 validation.
+    Beyond that, the **full NIST ACVP conformance set passes** (`src/acvp.rs`):
+    ML-KEM-512/768/1024 + ML-DSA-44/65/87 (incl. the broader signature modes) and
+    SLH-DSA-SHA2-{128,192,256}s. That is conformance to the published vectors — **not**
+    CMVP/CAVP certification (no formal FIPS validation is claimed).
   - Combiner safety guards are implemented: `CompatXWing` hard-checks all four
     fields are exactly 32 bytes (`q-periapt-core` `combine`); `HybridKem::new`
     forbids a non-C2PRI KEM under `CompatXWing` (`Error::PolicyDenied`), confining
@@ -240,13 +242,15 @@ This is a **research artifact for an undergraduate thesis**, not a product.
   `zeroize` technique, inlined to keep the core dependency-free) and is **not**
   `Clone`/`Copy`, so no copy can outlive the wipe. The core is `#![deny(unsafe_code)]`
   with that single, documented wipe block as the only `unsafe`.
-- **Still scaffolded / pending** (do not assume these are finished): broader ACVP
-  coverage (other param sets + signature modes) and an SLH-DSA interop differential
-  (the NIST ACVP ML-KEM-768 + ML-DSA-65 conformance, the KEM-chain + ML-DSA-65
-  differentials are done); extending binary-level constant-time over the primitive
-  paths + non-x86 (the dataflow CT gate over our composition is done); fuzz targets; and
-  the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI exercises (the
-  Tamarin symbolic handshake model is now machine-checked — `formal/tamarin`).
+- **Still scaffolded / pending** (do not assume these are finished): extending
+  binary-level constant-time over the libcrux *primitive* paths + non-x86 (the dataflow
+  CT gate over our **composition** code is done); a production rustls `CryptoProvider`
+  over the FFI; and the libcrux-gated `externalMu=true` / non-SHAKE128 pre-hash ACVP
+  modes. **Done since earlier drafts** (no longer pending): the full NIST ACVP set
+  (ML-KEM-512/768/1024 + ML-DSA-44/65/87 incl. the hedged/context, SHAKE-128 pre-hash and
+  internal-interface signature modes + SLH-DSA), the multi-backend differentials, the
+  `ContextBound` reference vectors, the cargo-fuzz targets, and **both** the Tamarin and
+  ProVerif machine-checked handshake proofs (`formal/`).
 - **HQC is excluded from the side-channel claim**: its decoder has documented
   data-dependent timing and `pqcrypto-hqc` wraps C (breaks `no_std`). It is a
   strictly feature-gated, experimental *hedge*, never a default.
