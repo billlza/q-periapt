@@ -88,6 +88,12 @@ slhdsa_backend!(
     "SLH-DSA-SHA2-128s backend (FIPS 205), via `fips205`."
 );
 slhdsa_backend!(
+    SlhDsaSha2_192s,
+    slh_dsa_sha2_192s,
+    SigAlg::SlhDsaSha2_192s,
+    "SLH-DSA-SHA2-192s backend (FIPS 205, NIST level 3), via `fips205`."
+);
+slhdsa_backend!(
     SlhDsaSha2_256s,
     slh_dsa_sha2_256s,
     SigAlg::SlhDsaSha2_256s,
@@ -109,6 +115,20 @@ mod tests {
         assert_eq!(n, SlhDsaSha2_128s::SIG_LEN);
         s.verify(&vk, msg, &sig).unwrap();
         assert!(s.verify(&vk, b"tampered", &sig).is_err());
+        let mut bad = sig;
+        bad[0] ^= 0xFF;
+        assert!(s.verify(&vk, msg, &bad).is_err());
+    }
+
+    #[test]
+    fn slhdsa_192s_sign_verify_and_reject() {
+        let (sk, vk) = SlhDsaSha2_192s::generate().unwrap();
+        let s = SlhDsaSha2_192s;
+        let msg = b"L3 hash-based statement";
+        let mut sig = [0u8; SlhDsaSha2_192s::SIG_LEN];
+        let n = s.sign(&sk, msg, &[0u8; 32], &mut sig).unwrap();
+        assert_eq!(n, SlhDsaSha2_192s::SIG_LEN);
+        s.verify(&vk, msg, &sig).unwrap();
         let mut bad = sig;
         bad[0] ^= 0xFF;
         assert!(s.verify(&vk, msg, &bad).is_err());

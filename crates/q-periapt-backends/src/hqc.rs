@@ -96,6 +96,7 @@ macro_rules! hqc_backend {
 }
 
 hqc_backend!(Hqc128, hqc128, "HQC-128", 2249, 2305, 4433, 64);
+hqc_backend!(Hqc192, hqc192, "HQC-192", 4522, 4586, 8978, 64);
 hqc_backend!(Hqc256, hqc256, "HQC-256", 7245, 7317, 14421, 64);
 
 #[cfg(test)]
@@ -118,6 +119,20 @@ mod tests {
     }
 
     #[test]
+    fn hqc192_roundtrip() {
+        let (sk, pk) = Hqc192::generate();
+        let mut ct = [0u8; Hqc192::CT_LEN];
+        let mut ss_e = [0u8; Hqc192::SS_LEN];
+        Hqc192
+            .encapsulate(&pk, &[0u8; 32], &mut ct, &mut ss_e)
+            .unwrap();
+        let mut ss_d = [0u8; Hqc192::SS_LEN];
+        Hqc192.decapsulate(&sk, &ct, &mut ss_d).unwrap();
+        assert_eq!(ss_e, ss_d, "HQC-192 encaps/decaps must agree");
+        assert_ne!(ss_e, [0u8; Hqc192::SS_LEN]);
+    }
+
+    #[test]
     fn hqc128_ignores_injected_randomness() {
         // Documents the contract: HQC self-seeds, so the SAME injected randomness
         // yields DIFFERENT ciphertexts (the inverse of the ML-KEM determinism test).
@@ -135,11 +150,15 @@ mod tests {
 
     #[test]
     fn hqc_sizes_match_runtime() {
-        use pqcrypto_hqc::{hqc128, hqc256};
+        use pqcrypto_hqc::{hqc128, hqc192, hqc256};
         assert_eq!(hqc128::public_key_bytes(), Hqc128::PK_LEN);
         assert_eq!(hqc128::secret_key_bytes(), Hqc128::SK_LEN);
         assert_eq!(hqc128::ciphertext_bytes(), Hqc128::CT_LEN);
         assert_eq!(hqc128::shared_secret_bytes(), Hqc128::SS_LEN);
+        assert_eq!(hqc192::public_key_bytes(), Hqc192::PK_LEN);
+        assert_eq!(hqc192::secret_key_bytes(), Hqc192::SK_LEN);
+        assert_eq!(hqc192::ciphertext_bytes(), Hqc192::CT_LEN);
+        assert_eq!(hqc192::shared_secret_bytes(), Hqc192::SS_LEN);
         assert_eq!(hqc256::public_key_bytes(), Hqc256::PK_LEN);
         assert_eq!(hqc256::secret_key_bytes(), Hqc256::SK_LEN);
         assert_eq!(hqc256::ciphertext_bytes(), Hqc256::CT_LEN);
