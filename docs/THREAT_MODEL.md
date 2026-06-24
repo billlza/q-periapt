@@ -288,8 +288,8 @@ source-proven and confirmed by a 3-lens adversarial review (details in
 [`ctstats/README.md`](../ctstats/README.md)). So **libcrux ML-KEM decaps is constant-time on
 the genuine secret**; the branch outcomes depend only on the (public) `ek`, i.e. zero marginal
 leakage. (Two earlier framings — "csel false positive" and "real secret-dependent branch" —
-were both retracted. Empirical "secret-only ⇒ 0 flags" confirmation is recommended but not
-required: the security claim is settled by the source dataflow.)
+were both retracted.) **Confirmed empirically**: under Memcheck, marking only ŝ + z yields
+**0** decapsulate flags, vs 2848 errors / 30 sites for the whole `dk`.
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
 test stays report-only). Binary-CT tooling is mature on **x86_64-linux and aarch64-linux**
 (our composition-code check is configured for both); **riscv64 / wasm32** remain

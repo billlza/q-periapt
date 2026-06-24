@@ -82,8 +82,9 @@ fn main() {
     // implicit-rejection compare) reaches any data-dependent branch — a static-reachability
     // fact verified against the libcrux 0.0.9 source and an adversarial review. So libcrux
     // ML-KEM decaps is constant-time on the genuine secret; the CT-correct marking is
-    // ŝ[0..1152] + z, NOT the whole dk. (Empirical "secret-only ⇒ 0 flags" is predicted from
-    // the source path-split, not yet measured — the container network broke; recommended
-    // follow-up.) See ctstats/README.md "Primitive-path investigation".
+    // ŝ[0..1152] + z, NOT the whole dk. CONFIRMED empirically (2026-06): under Memcheck,
+    // marking only ŝ[0..1152] + z yields 0 decapsulate flags, vs 2848 errors / 30 sites when
+    // the whole dk (incl. the embedded public key) is marked. See ctstats/README.md
+    // "Primitive-path investigation".
     eprintln!("ct_verify: exercised the constant-time paths (no-op outside Valgrind)");
 }

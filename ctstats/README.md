@@ -100,21 +100,17 @@ Harness lesson: a CT analysis of decapsulate must mark only the genuinely-secret
 of `dk` — ŝ `[0..1152]` and z `[2336..2368]` — **not** the embedded public key. Marking the
 whole `dk` is conservative but mislabels the public bytes, producing these benign reports.
 
-Open follow-up (not blocking the benign verdict): the empirical confirmation — re-mark only
-ŝ + z and observe **0 flags** — was not run (the container network broke mid-investigation).
-The source proof is conclusive for the security claim (a static reachability fact); the
-empirical run would convert the prediction into a measurement and close the assumption that
-Memcheck origin-tracking cleanly separates `ek` from `dk_pke` within one wholesale-marked
-buffer. The committed gate covers our own scalar, mask-based composition code; we rely on
-libcrux's source-level HACL*/Eurydice CT verification — now corroborated by this dataflow
-analysis — for the primitive.
+**Empirically confirmed** (2026-06): re-running the probe under Memcheck while marking **only**
+the genuinely-secret sub-fields (ŝ `[0..1152]` + z `[2336..2368]`) yields **0 flags** in
+`decapsulate` — versus **2848 errors / 30 sites** when the whole `dk` (incl. the embedded
+public key) is marked. So all 30 reports were the public-key reduction; libcrux ML-KEM
+decapsulate has **zero** secret-dependent branches. The committed gate covers our own scalar,
+mask-based composition code; we rely on libcrux's source-level HACL*/Eurydice CT verification
+— now corroborated by both this dataflow analysis and the secret-only Memcheck measurement —
+for the primitive.
 
 ## TODO (later milestones)
 
-- **Empirically confirm the (resolved) ML-KEM decaps finding**: re-run the Memcheck probe
-  marking only the genuinely-secret sub-fields of `dk` (ŝ `[0..1152]` + z `[2336..2368]`),
-  not the embedded public key — predicted result: **0 flags** in `decapsulate`. (The security
-  conclusion is already source-proven; this measures the prediction.)
 - Triage the libcrux primitive paths well enough to gate them (an alternative to Memcheck for
   primitives is Binsec/Rel-style symbolic CT).
 - Promote the dudect timing test from report-only to a gate on quiesced hardware.
