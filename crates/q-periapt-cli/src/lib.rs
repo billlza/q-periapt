@@ -284,6 +284,36 @@ fn contains_token(haystack_lower: &str, token: &str) -> bool {
     false
 }
 
+/// True if the line uses **legacy DSA** — a `dsa` token that is NOT the trailing
+/// component of a post-quantum `ml-dsa` / `slh-dsa` identifier. Because `is_boundary`
+/// treats `-`/`_` as word boundaries, a plain `contains_token(.., "dsa")` matches
+/// inside `ml-dsa` / `slh-dsa` / `ml_dsa`, which would make the migration scanner flag
+/// the very PQ signatures it recommends (and trip the exit-2 CI gate on this repo's own
+/// Cargo.toml). `ecdsa` is matched by its own pattern, not this one.
+fn contains_legacy_dsa(lower: &str) -> bool {
+    let bytes = lower.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = lower[from..].find("dsa") {
+        let start = from + rel;
+        let end = start + 3;
+        let before = lower[..start].chars().next_back();
+        let after = bytes.get(end).map(|&b| b as char);
+        if is_boundary(before) && is_boundary(after) {
+            // `lower[..start]` ends with the boundary char; reject ml-/ml_/slh-/slh_.
+            let prefix = &lower[..start];
+            let is_pq = prefix.ends_with("ml-")
+                || prefix.ends_with("ml_")
+                || prefix.ends_with("slh-")
+                || prefix.ends_with("slh_");
+            if !is_pq {
+                return true;
+            }
+        }
+        from = start + 1;
+    }
+    false
+}
+
 /// Recursively scan `root` for legacy / quantum-vulnerable crypto.
 #[must_use]
 pub fn scan(root: &Path) -> Vec<Finding> {
@@ -328,7 +358,14 @@ fn scan_text(file: &str, text: &str, out: &mut Vec<Finding>) {
     for (idx, line) in text.lines().enumerate() {
         let lower = line.to_ascii_lowercase();
         for p in PATTERNS {
-            if contains_token(&lower, p.token) {
+            // The bare `dsa` token needs PQ-aware matching so `ml-dsa` / `slh-dsa`
+            // (recommended, not legacy) are not flagged; every other token is plain.
+            let hit = if p.token == "dsa" {
+                contains_legacy_dsa(&lower)
+            } else {
+                contains_token(&lower, p.token)
+            };
+            if hit {
                 out.push(Finding {
                     file: file.to_string(),
                     line: idx + 1,
@@ -408,5 +445,29 @@ mod tests {
             .any(|f| f.token == "x25519" && f.severity == "advisory"));
         // "coarse" must NOT match "rsa".
         assert!(!out.iter().any(|f| f.line == 3 && f.token == "rsa"));
+    }
+
+    #[test]
+    fn scan_does_not_flag_pq_ml_dsa_slh_dsa_as_legacy_dsa() {
+        let mut out = Vec::new();
+        scan_text(
+            "x.toml",
+            "ml-dsa-65 signing\nslh-dsa-sha2-256s\nlet k = ml_dsa::sign();\nlibcrux-ml-dsa = \"0.0.9\"",
+            &mut out,
+        );
+        assert!(
+            !out.iter().any(|f| f.token == "dsa"),
+            "ml-dsa / slh-dsa are recommended PQ algorithms, not legacy DSA: {out:?}"
+        );
+
+        // But real legacy DSA usage IS still flagged.
+        let mut legacy = Vec::new();
+        scan_text(
+            "y.rs",
+            "use dsa::Signature;\nlet s = dsa_sign(k);",
+            &mut legacy,
+        );
+        assert!(legacy.iter().any(|f| f.token == "dsa" && f.line == 1));
+        assert!(legacy.iter().any(|f| f.token == "dsa" && f.line == 2));
     }
 }
