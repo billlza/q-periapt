@@ -22,3 +22,21 @@ cargo +nightly fuzz build --fuzz-dir fuzz      # compile all targets (CI does th
 
 Both targets have been run locally (~350k execs each, no crashes). CI compiles
 all targets in the `fuzz` job.
+
+## Seed corpus
+
+`corpus/<target>/` holds the seed inputs libFuzzer starts mutation from. The
+structured seeds are generated deterministically (and self-checked) by:
+
+```sh
+cargo run -p q-periapt-backends --example gen_fuzz_corpus   # from the workspace root
+```
+
+- **`mlkem_decapsulate`** (8 seeds, each `seed(64) ‖ ct(1088)`): valid ciphertexts
+  under three keys (happy path), the boundary ciphertexts (all-zero, all-`0xff`,
+  ascending), and — the security-critical case — *valid* ciphertexts with a single
+  perturbed byte, which must still decapsulate to a pseudorandom secret (implicit
+  rejection, no oracle). The generator asserts that invariant on every seed it writes.
+- **`combine`** keeps its fuzzer-discovered corpus; the generator adds a few raw blobs
+  (empty, zeros, `0xff`, ascending) that decode via `arbitrary` into edge-case field
+  shapes (e.g. empty fields hit the `CompatXWing`/`ContextBound` guard paths).
