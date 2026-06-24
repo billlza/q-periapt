@@ -68,5 +68,17 @@ fn main() {
     };
     let _ = black_box(combine::<Sha3_256Xof>(Profile::ContextBound, &inp).map(|s| *s.as_bytes()));
 
+    // NOTE on primitive paths: extending this harness to mark the ML-KEM *decapsulation
+    // key* secret and run libcrux's decapsulate under Memcheck was investigated (aarch64,
+    // 2026-06) and is deliberately NOT included here. It produces thousands of reports in
+    // `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate` that are Memcheck
+    // limitations rather than leaks: Memcheck reports a constant-time `csel`/`cmov` select
+    // identically to a real branch ("conditional jump OR MOVE"), and its bit-level shadow
+    // tracking over-approximates through NEON-vectorized compare/reduce code. No
+    // secret-dependent branch was isolated, and libcrux ML-KEM is HACL*-verified
+    // constant-time at the source level. Gating the primitive would therefore require deep
+    // per-site triage/suppression — out of scope. We gate our own scalar, mask-based
+    // composition code (above) and rely on the backend's source-level CT attestation for
+    // the primitive. See ctstats/README.md "Honest coverage scope".
     eprintln!("ct_verify: exercised the constant-time paths (no-op outside Valgrind)");
 }

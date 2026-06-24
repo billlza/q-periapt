@@ -80,7 +80,16 @@ jobs:
   # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code
   # (ct_eq / ct_select32 / the combiner over secret shared secrets).
   constant-time:
-    runs-on: ubuntu-latest
+    # Dataflow CT gate on BOTH architectures: Memcheck/TIMECOP marks secrets undefined and
+    # flags any secret-dependent branch/index in our composition code. x86_64 + aarch64 —
+    # the emitted assembly differs per target, so each is an independent check. (Verified
+    # locally in an aarch64 Linux container too; a planted secret-branch negative control
+    # confirms Memcheck catches leaks there.)
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
