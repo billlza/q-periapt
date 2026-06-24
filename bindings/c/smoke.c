@@ -109,7 +109,41 @@ static int test_hybrid_roundtrip(void) {
     if (!eq(secret_enc, secret_dec, Q_PERIAPT_SECRET_LEN)) {
         printf("B: encap/decap secret mismatch\n"); return 1;
     }
-    printf("B: hybrid keypair/encap/decap ..... PASS\n");
+
+    /* Negative controls: a deliberately-wrong call MUST NOT reproduce the secret. This is
+       what makes the round-trip non-vacuous — if the ABI silently dropped/mis-marshalled an
+       argument, these would still match and the test would (correctly) fail. */
+    uint8_t secret_bad[Q_PERIAPT_SECRET_LEN];
+
+    /* (i) corrupt the PQ ciphertext: implicit rejection returns OK with a *pseudorandom*
+       secret (no oracle), which must differ from the real one. */
+    uint8_t ct_pq_bad[Q_PERIAPT_MLKEM768_CT_LEN];
+    memcpy(ct_pq_bad, ct_pq, sizeof ct_pq_bad);
+    ct_pq_bad[0] ^= 0x01;
+    rc = q_periapt_hybrid_decapsulate(
+        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id, policy_version,
+        sk_pq, sizeof sk_pq, ct_pq_bad, sizeof ct_pq_bad, pk_pq, sizeof pk_pq,
+        sk_trad, sizeof sk_trad, ct_trad, sizeof ct_trad, pk_trad, sizeof pk_trad,
+        context, sizeof context, secret_bad, sizeof secret_bad);
+    if (rc != Q_PERIAPT_OK) { printf("B: neg(corrupt ct) rc=%d (want OK)\n", rc); return 1; }
+    if (eq(secret_bad, secret_enc, Q_PERIAPT_SECRET_LEN)) {
+        printf("B: NEGATIVE CONTROL FAILED — corrupt ciphertext still reproduced the secret\n"); return 1;
+    }
+
+    /* (ii) swap two same-length parameters (sk_trad <-> ct_trad): the X25519 leg now mixes
+       the wrong scalar/point, so the secret must differ. Proves the C ABI is positionally
+       sensitive (a transposed (ptr,len) pair does not pass by luck). */
+    rc = q_periapt_hybrid_decapsulate(
+        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id, policy_version,
+        sk_pq, sizeof sk_pq, ct_pq, sizeof ct_pq, pk_pq, sizeof pk_pq,
+        ct_trad, sizeof ct_trad, sk_trad, sizeof sk_trad, pk_trad, sizeof pk_trad,
+        context, sizeof context, secret_bad, sizeof secret_bad);
+    if (rc != Q_PERIAPT_OK) { printf("B: neg(swap) rc=%d (want OK)\n", rc); return 1; }
+    if (eq(secret_bad, secret_enc, Q_PERIAPT_SECRET_LEN)) {
+        printf("B: NEGATIVE CONTROL FAILED — swapped sk_trad/ct_trad still reproduced the secret\n"); return 1;
+    }
+
+    printf("B: hybrid roundtrip + 2 negative controls .. PASS\n");
     return 0;
 }
 
