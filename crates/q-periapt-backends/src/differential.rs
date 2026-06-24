@@ -11,19 +11,24 @@
 //!   the authoritative RFC 7748 §6.1 ground-truth Diffie–Hellman vector.
 //! - **Hybrid CompatXWing** — our [`HybridKem`] reconstructed from RustCrypto ML-KEM
 //!   + orion X25519 + a RustCrypto SHA3 X-Wing combiner, for encaps **and** decaps.
-//! - **ML-DSA-65** — our libcrux signature backend vs RustCrypto `ml-dsa`
-//!   (byte-identical keygen + deterministic signatures, plus cross-verification).
+//! - **ML-DSA-65** / **ML-DSA-87** — our libcrux signature backends vs RustCrypto
+//!   `ml-dsa` (byte-identical keygen + deterministic signatures, plus cross-
+//!   verification; ML-DSA-87 is the enhanced-mode L5 signature).
 //!
 //! Fully deterministic: per-iteration inputs are `SHAKE-256(counter)`, no RNG.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, deprecated)]
 
 use crate::{
-    MlDsa65, MlKem1024, MlKem768, Sha3_256Xof, ML_DSA_65_KEYGEN_SEED_LEN, ML_DSA_65_SIGN_RAND_LEN,
-    ML_DSA_65_SIG_LEN, ML_KEM_1024_CT_LEN, ML_KEM_1024_KEYGEN_SEED_LEN, ML_KEM_768_CT_LEN,
+    MlDsa65, MlDsa87, MlKem1024, MlKem768, Sha3_256Xof, ML_DSA_65_KEYGEN_SEED_LEN,
+    ML_DSA_65_SIGN_RAND_LEN, ML_DSA_65_SIG_LEN, ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN,
+    ML_DSA_87_SIG_LEN, ML_KEM_1024_CT_LEN, ML_KEM_1024_KEYGEN_SEED_LEN, ML_KEM_768_CT_LEN,
     ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN, X25519, X25519_LEN,
 };
-use ml_dsa::{EncodedSignature, ExpandedSigningKey, MlDsa65 as RcMlDsa65, Seed, Signature};
+use ml_dsa::{
+    EncodedSignature, ExpandedSigningKey, MlDsa65 as RcMlDsa65, MlDsa87 as RcMlDsa87, Seed,
+    Signature,
+};
 use ml_kem::kem::Decapsulate;
 use ml_kem::{
     EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem1024 as RcMlKem1024,
@@ -437,6 +442,72 @@ fn ml_dsa_65_byte_identical_to_independent_rustcrypto() {
         assert!(
             MlDsa65.verify(&vk, msg, &bad).is_err(),
             "tampered sig accepted @ {ctr}"
+        );
+    }
+}
+
+/// ML-DSA-87 (the enhanced-mode signature, NIST level 5): our libcrux backend vs the
+/// independent RustCrypto `ml-dsa`. Byte-identical deterministic keygen (from ξ) and
+/// deterministic signing (rnd = 0, external, empty context), plus cross-verification
+/// both directions and tamper rejection.
+#[test]
+fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
+    for ctr in 0u32..16 {
+        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0x57AC).to_le_bytes());
+        let seed: [u8; ML_DSA_87_KEYGEN_SEED_LEN] =
+            exp[..ML_DSA_87_KEYGEN_SEED_LEN].try_into().unwrap();
+        let msg = &exp[ML_DSA_87_KEYGEN_SEED_LEN..];
+
+        // --- keygen: byte-identical signing + verifying keys ---
+        let (sk, vk) = MlDsa87::generate(seed);
+        let esk_rc =
+            ExpandedSigningKey::<RcMlDsa87>::from_seed(&Seed::try_from(&seed[..]).unwrap());
+        let sk_rc = esk_rc.to_expanded();
+        let vk_rc = esk_rc.verifying_key().encode();
+        assert_eq!(
+            &sk_rc[..],
+            &sk[..],
+            "ml-dsa-87 signing key diverged @ {ctr}"
+        );
+        assert_eq!(
+            &vk_rc[..],
+            &vk[..],
+            "ml-dsa-87 verifying key diverged @ {ctr}"
+        );
+
+        // --- deterministic signing: byte-identical signatures ---
+        let mut sig = [0u8; ML_DSA_87_SIG_LEN];
+        MlDsa87
+            .sign(&sk, msg, &[0u8; ML_DSA_87_SIGN_RAND_LEN], &mut sig)
+            .unwrap();
+        let sig_rc = esk_rc.sign_deterministic(msg, b"").unwrap().encode();
+        assert_eq!(
+            &sig_rc[..],
+            &sig[..],
+            "ml-dsa-87 signature diverged @ {ctr}"
+        );
+
+        // --- cross-verification (interoperability), both directions ---
+        let our_sig = Signature::<RcMlDsa87>::decode(
+            &EncodedSignature::<RcMlDsa87>::try_from(&sig[..]).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            esk_rc
+                .verifying_key()
+                .verify_with_context(msg, b"", &our_sig),
+            "rustcrypto rejected our ml-dsa-87 signature @ {ctr}"
+        );
+        MlDsa87
+            .verify(&vk, msg, &sig_rc)
+            .expect("our verifier rejected the rustcrypto ml-dsa-87 signature");
+
+        // --- tampering is rejected ---
+        let mut bad = sig;
+        bad[100] ^= 1;
+        assert!(
+            MlDsa87.verify(&vk, msg, &bad).is_err(),
+            "tampered ml-dsa-87 sig accepted @ {ctr}"
         );
     }
 }

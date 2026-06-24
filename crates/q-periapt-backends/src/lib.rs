@@ -13,7 +13,7 @@
 //! These are the only crates that touch real cryptographic primitives; the
 //! security-critical composition stays in the dependency-free `q-periapt-core`.
 
-use libcrux_ml_dsa::ml_dsa_65;
+use libcrux_ml_dsa::{ml_dsa_65, ml_dsa_87};
 use libcrux_ml_kem::{mlkem1024, mlkem768};
 use q_periapt_core::{Error, Kem, Xof256, SHARED_SECRET_LEN};
 use q_periapt_sig::{SigAlg, Signer, Verifier};
@@ -377,6 +377,72 @@ impl Verifier for MlDsa65 {
         let vk = ml_dsa_65::MLDSA65VerificationKey::new(vk_arr);
         let signature = ml_dsa_65::MLDSA65Signature::new(sig_arr);
         ml_dsa_65::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
+    }
+}
+
+/// ML-DSA-87 signing-key length, bytes (FIPS 204).
+pub const ML_DSA_87_SK_LEN: usize = 4896;
+/// ML-DSA-87 verification-key length, bytes.
+pub const ML_DSA_87_VK_LEN: usize = 2592;
+/// ML-DSA-87 signature length, bytes.
+pub const ML_DSA_87_SIG_LEN: usize = 4627;
+/// ML-DSA-87 key-generation seed length, bytes.
+pub const ML_DSA_87_KEYGEN_SEED_LEN: usize = 32;
+/// ML-DSA-87 signing-randomness length, bytes.
+pub const ML_DSA_87_SIGN_RAND_LEN: usize = 32;
+
+/// ML-DSA-87 backend (FIPS 204, NIST level 5) via libcrux — the enhanced-mode signature.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MlDsa87;
+
+impl MlDsa87 {
+    /// Deterministically generate a key pair from a 32-byte seed.
+    /// Returns `(signing_key, verification_key)`.
+    #[must_use]
+    pub fn generate(
+        seed: [u8; ML_DSA_87_KEYGEN_SEED_LEN],
+    ) -> ([u8; ML_DSA_87_SK_LEN], [u8; ML_DSA_87_VK_LEN]) {
+        let kp = ml_dsa_87::generate_key_pair(seed);
+        let mut sk = [0u8; ML_DSA_87_SK_LEN];
+        let mut vk = [0u8; ML_DSA_87_VK_LEN];
+        sk.copy_from_slice(kp.signing_key.as_slice());
+        vk.copy_from_slice(kp.verification_key.as_slice());
+        (sk, vk)
+    }
+}
+
+impl Signer for MlDsa87 {
+    fn algorithm(&self) -> SigAlg {
+        SigAlg::MlDsa87
+    }
+
+    fn sign(
+        &self,
+        sk: &[u8],
+        msg: &[u8],
+        randomness: &[u8],
+        out_sig: &mut [u8],
+    ) -> Result<usize, Error> {
+        let sk_arr = to_arr::<ML_DSA_87_SK_LEN>(sk)?;
+        let rnd = to_arr::<ML_DSA_87_SIGN_RAND_LEN>(randomness)?;
+        let signing_key = ml_dsa_87::MLDSA87SigningKey::new(sk_arr);
+        let sig = ml_dsa_87::sign(&signing_key, msg, b"", rnd).map_err(|_| Error::Backend)?;
+        write_exact(out_sig, sig.as_slice())?;
+        Ok(out_sig.len())
+    }
+}
+
+impl Verifier for MlDsa87 {
+    fn algorithm(&self) -> SigAlg {
+        SigAlg::MlDsa87
+    }
+
+    fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+        let vk_arr = to_arr::<ML_DSA_87_VK_LEN>(pk)?;
+        let sig_arr = to_arr::<ML_DSA_87_SIG_LEN>(sig)?;
+        let vk = ml_dsa_87::MLDSA87VerificationKey::new(vk_arr);
+        let signature = ml_dsa_87::MLDSA87Signature::new(sig_arr);
+        ml_dsa_87::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
     }
 }
 

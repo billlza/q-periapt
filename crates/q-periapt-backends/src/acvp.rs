@@ -1,14 +1,15 @@
 //! NIST ACVP ground-truth conformance: ML-KEM-768 + ML-KEM-1024 (FIPS 203) and
-//! ML-DSA-65 (FIPS 204).
+//! ML-DSA-65 + ML-DSA-87 (FIPS 204).
 //!
 //! Validates our libcrux backends against the **authoritative** vectors published by
 //! NIST (ACVP-Server `gen-val/json-files`). For each ML-KEM parameter set: deterministic
 //! keygen from `(d, z)`, encapsulation from `(ek, m)`, and decapsulation — including the
 //! VAL cases with modified ciphertexts that exercise the FO implicit-rejection path
-//! (NIST's expected `k` is the pseudo-random reject value). For ML-DSA-65: deterministic
-//! keygen from ξ, plus the sigGen/sigVer cases matching our backend's mode (see below).
+//! (NIST's expected `k` is the pseudo-random reject value). For each ML-DSA parameter
+//! set: deterministic keygen from ξ, plus the sigGen/sigVer cases matching our backend's
+//! mode (external interface, pure, deterministic, empty context — see below).
 //! This is ground-truth conformance complementing the multi-backend differential.
-//! Vectors are vendored under `vectors/acvp-ml-{kem-768,kem-1024,dsa-65}.json`.
+//! Vectors are vendored under `vectors/acvp-ml-{kem-768,kem-1024,dsa-65,dsa-87}.json`.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
@@ -242,5 +243,67 @@ fn acvp_ml_kem_1024_conformance() {
             .decapsulate(&hex(&t.dk), &hex(&t.c), &mut k)
             .unwrap();
         assert_eq!(&k[..], hex(&t.k).as_slice(), "ACVP-1024 decaps k mismatch");
+    }
+}
+
+const ML_DSA_87_VECTORS: &str = include_str!("../vectors/acvp-ml-dsa-87.json");
+
+/// NIST ACVP (FIPS 204) conformance for ML-DSA-87 (the enhanced-mode signature).
+/// keyGen is the full NIST set (deterministic from ξ); the sigGen/sigVer cases are
+/// the NIST vectors matching our backend's mode (external interface, pure,
+/// deterministic, empty context) — broader modes are covered by the differential.
+#[test]
+fn acvp_ml_dsa_87_conformance() {
+    use crate::{MlDsa87, ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN, ML_DSA_87_SIG_LEN};
+    use q_periapt_sig::{Signer, Verifier};
+
+    let v: DsaVectors = serde_json::from_str(ML_DSA_87_VECTORS).unwrap();
+    assert_eq!(
+        v.key_gen.len(),
+        25,
+        "vendored ACVP ML-DSA-87 keyGen incomplete"
+    );
+    assert!(!v.sig_gen.is_empty() && !v.sig_ver.is_empty());
+
+    for t in &v.key_gen {
+        let seed: [u8; ML_DSA_87_KEYGEN_SEED_LEN] = hex(&t.seed).try_into().unwrap();
+        let (sk, pk) = MlDsa87::generate(seed);
+        assert_eq!(
+            &sk[..],
+            hex(&t.sk).as_slice(),
+            "ACVP ML-DSA-87 keyGen sk mismatch"
+        );
+        assert_eq!(
+            &pk[..],
+            hex(&t.pk).as_slice(),
+            "ACVP ML-DSA-87 keyGen pk mismatch"
+        );
+    }
+
+    for t in &v.sig_gen {
+        let mut sig = [0u8; ML_DSA_87_SIG_LEN];
+        MlDsa87
+            .sign(
+                &hex(&t.sk),
+                &hex(&t.message),
+                &[0u8; ML_DSA_87_SIGN_RAND_LEN],
+                &mut sig,
+            )
+            .unwrap();
+        assert_eq!(
+            &sig[..],
+            hex(&t.signature).as_slice(),
+            "ACVP ML-DSA-87 sigGen mismatch"
+        );
+    }
+
+    for t in &v.sig_ver {
+        let accepted = MlDsa87
+            .verify(&hex(&t.pk), &hex(&t.message), &hex(&t.signature))
+            .is_ok();
+        assert_eq!(
+            accepted, t.test_passed,
+            "ACVP ML-DSA-87 sigVer verdict mismatch"
+        );
     }
 }

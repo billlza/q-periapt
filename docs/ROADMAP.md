@@ -299,12 +299,13 @@ are the gap between research-grade and audited/production.
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Combiner micro-benchmark | **Done** |
-| NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65) | **Done** |
+| NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Cross-platform `ContextBound`/`CompatXWing` combiner vectors (all 5 faces) | **Done** |
 | ML-KEM-1024 backend (enhanced-mode KEM) + NIST ACVP + differential | **Done** |
+| ML-DSA-87 backend (enhanced-mode L5 signature) + NIST ACVP + differential | **Done** |
 | Enhanced suite `HybridKem<MlKem1024,X25519>` end-to-end + pinned KAT | **Done** |
-| Broader ACVP (ML-KEM-512 / ML-DSA-44/87, signature modes) | Pending |
+| Broader ACVP (ML-KEM-512 / ML-DSA-44, signature modes: pre-hash/internal/hedged) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
