@@ -49,6 +49,10 @@ mod slhdsa;
 #[cfg(feature = "slh-dsa")]
 pub use slhdsa::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s};
 
+// NIST ACVP (FIPS 205) ground-truth conformance vectors for SLH-DSA-SHA2-{128,192,256}s.
+#[cfg(all(test, feature = "slh-dsa"))]
+mod acvp_slhdsa;
+
 #[cfg(feature = "hqc")]
 mod hqc;
 #[cfg(feature = "hqc")]
