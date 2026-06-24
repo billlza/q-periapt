@@ -32,7 +32,8 @@ backends are pre-1.0 / unaudited (libcrux 0.0.9 asks you to contact maintainers
 before production use). Do not deploy.
 
 The combiner produces a `SHARED_SECRET_LEN = 32`-byte secret
-([`q-periapt-core/src/lib.rs:33`](../crates/q-periapt-core/src/lib.rs)) wrapped in
+(the `SHARED_SECRET_LEN` const,
+[`q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) wrapped in
 `Secret`, which is securely zeroized on drop (volatile zero writes + a `SeqCst`
 compiler fence — the `zeroize` technique inlined to keep the core dependency-free)
 and is intentionally **not** `Clone`/`Copy`.
@@ -69,10 +70,11 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>)
   information; every variant is a publicly observable condition (§5).
 
 The two profiles are domain-separated: `CompatXWing` is keyed by `XWING_LABEL`
-(`5c 2e 2f 2f 5e 5c` = ASCII `\.//^\`, 6 bytes,
-[`lib.rs:41`](../crates/q-periapt-core/src/lib.rs)), and `ContextBound` is keyed
+(`5c 2e 2f 2f 5e 5c` = ASCII `\.//^\`, 6 bytes; the `XWING_LABEL` const,
+[`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)), and `ContextBound` is keyed
 by `DOMAIN = b"Q-PERIAPT-HYBRID-KEM/v1"`
-([`lib.rs:37`](../crates/q-periapt-core/src/lib.rs)) absorbed as field 0. The two
+(the `DOMAIN` const,
+[`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) absorbed as field 0. The two
 tags are distinct in both content and length, so an honest transcript of one
 profile can never alias the other.
 
@@ -94,8 +96,8 @@ where in X-Wing terms `ss_pq = ss_M` (ML-KEM-768 shared secret), `ss_trad = ss_X
 `pk_trad = pk_X` (the X25519 recipient public key), and
 `XWingLabel = 5c 2e 2f 2f 5e 5c`.
 
-The implementation
-([`lib.rs:226-239`](../crates/q-periapt-core/src/lib.rs)) absorbs, in order:
+The implementation (the `Profile::CompatXWing` arm of `combine`,
+[`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) absorbs, in order:
 
 1. `ss_pq` (32 B)
 2. `ss_trad` (32 B)
@@ -111,7 +113,8 @@ There are **no length prefixes**: the five fields are concatenated raw, exactly 
 X-Wing specifies. Raw concatenation is only injective when every field has a fixed,
 known width. Therefore `combine` **hard-checks** that all four absorbed fields are
 exactly `SHARED_SECRET_LEN = 32` bytes before absorbing anything
-([`lib.rs:227-233`](../crates/q-periapt-core/src/lib.rs)):
+(the length guard in the `Profile::CompatXWing` arm of `combine`,
+[`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)):
 
 ```rust
 if input.ss_pq.len()   != SHARED_SECRET_LEN
@@ -126,7 +129,7 @@ Without this guard, arbitrary-length slices could collide across field boundarie
 collapsing domain separation. `ct_pq` and `pk_pq` are **not** length-checked here
 because they are not absorbed by this profile (§4). The negative unit test
 `compat_rejects_wrong_length`
-([`lib.rs:368-377`](../crates/q-periapt-core/src/lib.rs)) pins a 33-byte `ss_pq`
+([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) pins a 33-byte `ss_pq`
 to `Error::InvalidLength`.
 
 ### 2.3 Single 134-byte Keccak block, allocation-free
@@ -146,14 +149,13 @@ For each vector it reconstructs X-Wing's own key expansion
 (`SHAKE256(seed, 96) = ML-KEM(d‖z) ‖ skX`) and encapsulation-coin split
 (`m = eseed[0..32]`, `ekX = eseed[32..64]`), then asserts **byte equality** on:
 
-- the concatenated public key `pk_M ‖ pk_X` vs the vector's `pk`
-  ([`xwing_kat.rs:50`](../crates/q-periapt-backends/src/xwing_kat.rs)),
-- the concatenated ciphertext `ct_M ‖ ct_X` vs the vector's `ct`
-  ([`xwing_kat.rs:76`](../crates/q-periapt-backends/src/xwing_kat.rs)),
-- the encapsulated shared secret vs the vector's `ss`
-  ([`xwing_kat.rs:77-81`](../crates/q-periapt-backends/src/xwing_kat.rs)), and
+- the concatenated public key `pk_M ‖ pk_X` vs the vector's `pk`,
+- the concatenated ciphertext `ct_M ‖ ct_X` vs the vector's `ct`,
+- the encapsulated shared secret vs the vector's `ss`, and
 - the decapsulated shared secret vs the same `ss`
-  ([`xwing_kat.rs:99-103`](../crates/q-periapt-backends/src/xwing_kat.rs)).
+
+(all four byte-equality assertions are in `fn xwing_draft_kat_byte_exact`,
+[`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs)).
 
 Because the public-key, ciphertext and shared-secret assertions all pass against
 the published vectors, the test also exercises the libcrux ML-KEM-768 backend.
@@ -183,8 +185,8 @@ K = SHA3-256( Encode( DOMAIN,                          // field 0 (= LABEL)
                       context ) )                      // field 9 (mandatory)
 ```
 
-The implementation
-([`lib.rs:250-267`](../crates/q-periapt-core/src/lib.rs)) absorbs the fields in
+The implementation (the `Profile::ContextBound` arm of `combine`,
+[`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) absorbs the fields in
 exactly this order, each via `absorb_lp`.
 
 ### 3.2 Canonical field order
@@ -207,13 +209,13 @@ exactly this order, each via `absorb_lp`.
 suite/profile/policy downgrade or substitution changes the derived key at the KEM
 layer, not only via the opaque `context`. The unit test
 `context_bound_binds_suite_and_version_and_context`
-([`lib.rs:380-396`](../crates/q-periapt-core/src/lib.rs)) confirms that changing
+([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) confirms that changing
 `suite_id`, `policy_version`, or `context` each changes `K`.
 
 ### 3.3 Injective encoding — fixed-width 8-byte big-endian length prefix
 
 Every field is absorbed via `absorb_lp`
-([`lib.rs:200-208`](../crates/q-periapt-core/src/lib.rs)):
+([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)):
 
 ```rust
 fn absorb_lp<X: Xof256>(x: &mut X, data: &[u8]) {
@@ -234,7 +236,7 @@ re-introducing ambiguity. Because the width is fixed at 8 bytes, no two distinct
 field tuples — **including tuples that differ only in where a field boundary
 falls** — can map to the same byte string. The negative test
 `injective_encoding_prevents_boundary_collision`
-([`lib.rs:407-417`](../crates/q-periapt-core/src/lib.rs)) pins this: the tuples
+([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) pins this: the tuples
 `(suite_id="AB", context="C")` and `(suite_id="A", context="BC")`, which would
 collide under naive `‖` concatenation, derive distinct keys.
 
@@ -248,7 +250,8 @@ width + injectivity of `to_be_bytes`) plus collision-resistance of SHA3. See
 ### 3.4 Mandatory non-empty context
 
 `ContextBound` rejects an empty `context` with `Error::InvalidLength`
-**before absorbing anything** ([`lib.rs:254-256`](../crates/q-periapt-core/src/lib.rs)):
+**before absorbing anything** (the non-empty-context guard in the `Profile::ContextBound` arm of
+`combine`, [`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)):
 
 ```rust
 if input.context.is_empty() { return Err(Error::InvalidLength); }
@@ -258,7 +261,7 @@ If `context` could be empty, the `MAL-BIND-K-CTX` guarantee degenerates. Callers
 with no application context **must** pass a fixed protocol/role/version label (e.g.
 `"ContextBound/v1/initiator"`). The test
 `context_bound_requires_nonempty_context`
-([`lib.rs:398-405`](../crates/q-periapt-core/src/lib.rs)) pins the empty-context
+([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) pins the empty-context
 rejection. See [`docs/BINDING_SECURITY.md`](./BINDING_SECURITY.md) §3.3.
 
 ### 3.5 Cost vs `CompatXWing` (honest)
@@ -285,8 +288,8 @@ i.e. it provably binds its own ciphertext, so the combiner does not need to. Thi
 is the load-bearing property that lets X-Wing's lean absorb stay binding.
 
 This is encoded in the `Kem` trait
-([`q-periapt-core/src/lib.rs:125-152`](../crates/q-periapt-core/src/lib.rs)) as an
-associated const, defaulting to the **safe** value:
+([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) as the
+associated const `Kem::C2PRI`, defaulting to the **safe** value:
 
 ```rust
 const C2PRI: bool = false; // a KEM that does not prove C2PRI is forced to ContextBound
@@ -294,18 +297,18 @@ const C2PRI: bool = false; // a KEM that does not prove C2PRI is forced to Conte
 
 Backends declare it explicitly:
 
-- `MlKem768`: `const C2PRI: bool = true;`
-  ([`backends/src/lib.rs:84`](../crates/q-periapt-backends/src/lib.rs)) — ML-KEM-768
+- `MlKem768`: `const C2PRI: bool = true;` (in `impl Kem for MlKem768`,
+  [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)) — ML-KEM-768
   binds its ciphertext via the FO transform.
-- `X25519`: inherits the `false` default
-  ([`backends/src/lib.rs:131`](../crates/q-periapt-backends/src/lib.rs)) — raw ECDH
+- `X25519`: inherits the `false` default (`impl Kem for X25519`,
+  [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)) — raw ECDH
   does not bind its "ciphertext."
-- `Hqc`: `const C2PRI: bool = false;`
-  ([`backends/src/hqc.rs:65`](../crates/q-periapt-backends/src/hqc.rs)) — confined
+- `Hqc`: `const C2PRI: bool = false;` (in the `impl Kem` of the HQC backend macro,
+  [`crates/q-periapt-backends/src/hqc.rs`](../crates/q-periapt-backends/src/hqc.rs)) — confined
   to `ContextBound`.
 
 The guard is enforced once, at construction, in
-`HybridKem::new` ([`q-periapt-kem/src/lib.rs:50-53`](../crates/q-periapt-kem/src/lib.rs)):
+`HybridKem::new` ([`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)):
 
 ```rust
 if matches!(profile, Profile::CompatXWing) && !P::C2PRI {
@@ -319,9 +322,9 @@ override the default) with `CompatXWing` is rejected at build time with
 `Error::PolicyDenied`, confining non-C2PRI components to `ContextBound`, which
 binds every ciphertext and public key directly and therefore needs **no** binding
 assumption on the components. The guard is decided at the type level (`P::C2PRI`)
-and exercised by the KEM-crate test that pairs a non-C2PRI toy KEM with
-`CompatXWing` and asserts `Some(Error::PolicyDenied)`
-([`q-periapt-kem/src/lib.rs:273-275`](../crates/q-periapt-kem/src/lib.rs)).
+and exercised by the KEM-crate test `c2pri_guard_rejects_weak_kem_in_fast_profile`, which pairs a
+non-C2PRI toy KEM with `CompatXWing` and asserts `Some(Error::PolicyDenied)`
+([`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)).
 
 > **Why a guard and not a silent fallback:** failing closed (an explicit
 > `PolicyDenied`) makes a profile/KEM mismatch a loud, testable construction-time
@@ -332,7 +335,7 @@ and exercised by the KEM-crate test that pairs a non-C2PRI toy KEM with
 
 ## 5. Error and failure-path discipline
 
-`Error` ([`q-periapt-core/src/lib.rs:45-66`](../crates/q-periapt-core/src/lib.rs))
+The `Error` enum ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs))
 has exactly three variants, each a **public** condition:
 
 - `InvalidLength` — a `CompatXWing` field was not 32 bytes (§2.2), or a
@@ -347,7 +350,7 @@ ciphertext yields a pseudorandom shared secret, not an error
 [`q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)), so the failure
 path is value- and control-flow-indistinguishable from success at the combiner
 boundary. The core provides branch-free helpers `ct_eq` / `ct_select32` /
-`ct_is_zero` ([`lib.rs:272-304`](../crates/q-periapt-core/src/lib.rs)) as the
+`ct_is_zero` ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) as the
 primitives for implicit rejection (run both the real and rejection derivations,
 then select with a mask).
 
