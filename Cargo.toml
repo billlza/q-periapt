@@ -31,7 +31,7 @@ edition = "2021"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
 authors = ["李子昂 <lza020719@gmail.com>"]
-repository = ""
+repository = "https://github.com/billlza/q-periapt"
 
 [workspace.lints.rust]
 missing_docs = "warn"
