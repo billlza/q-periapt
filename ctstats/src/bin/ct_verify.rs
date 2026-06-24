@@ -68,17 +68,19 @@ fn main() {
     };
     let _ = black_box(combine::<Sha3_256Xof>(Profile::ContextBound, &inp).map(|s| *s.as_bytes()));
 
-    // NOTE on primitive paths: extending this harness to mark the ML-KEM *decapsulation
-    // key* secret and run libcrux's decapsulate under Memcheck was investigated (aarch64,
-    // 2026-06) and is deliberately NOT included here. It produces thousands of reports in
-    // `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate` that are Memcheck
-    // limitations rather than leaks: Memcheck reports a constant-time `csel`/`cmov` select
-    // identically to a real branch ("conditional jump OR MOVE"), and its bit-level shadow
-    // tracking over-approximates through NEON-vectorized compare/reduce code. No
-    // secret-dependent branch was isolated, and libcrux ML-KEM is HACL*-verified
-    // constant-time at the source level. Gating the primitive would therefore require deep
-    // per-site triage/suppression — out of scope. We gate our own scalar, mask-based
-    // composition code (above) and rely on the backend's source-level CT attestation for
-    // the primitive. See ctstats/README.md "Honest coverage scope".
+    // NOTE on primitive paths: marking the ML-KEM *decapsulation key* secret and running
+    // libcrux's `decapsulate` under Memcheck (aarch64, 2026-06) flags 30 sites / ~2848
+    // reports, all in `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate`.
+    // Isolating them (non-PIE build, exact runtime->file address mapping, objdump) shows
+    // they are REAL conditional branches (b.cs/b.cc/b.ls/b.hi) comparing 12-bit coefficients
+    // decoded from secret-key-derived bytes against the ML-KEM modulus q (0xd01 = 3329) and
+    // q-1 (0xd00 = 3328) in a deserialize/serialize-with-reduction loop — i.e. a binary-level
+    // secret-dependent branch, the exact source->assembly CT gap this gate exists to surface.
+    // (No `udiv` / KyberSlash-class division and no secret-indexed load were flagged.)
+    // This is NOT a csel/cmov false positive. Whether libcrux's source is CT-by-construction
+    // and the compiler introduced the branch, and whether it is exploitable, is UNRESOLVED
+    // and needs upstream follow-up. We do not gate the primitive here; we rely on libcrux's
+    // source-level HACL* CT attestation as the primitive's assurance — a scoping choice, NOT
+    // a refutation of these reports. See ctstats/README.md "Primitive-path investigation".
     eprintln!("ct_verify: exercised the constant-time paths (no-op outside Valgrind)");
 }

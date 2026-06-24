@@ -262,26 +262,34 @@ not wall-clock *equality*.
 
 ### 5.2 Binary-level constant-time: gated for our composition code; broader coverage TODO
 
-A **dataflow constant-time hard gate** now runs in CI (`constant-time` job) on **both
-x86_64 and aarch64** (matrix): the `ct_verify` harness marks secrets "undefined" and
+A **dataflow constant-time check** is configured in CI (`constant-time` job) as an
+**x86_64 + aarch64 matrix**: the `ct_verify` harness marks secrets "undefined" and
 Valgrind/Memcheck (TIMECOP) flags any branch or index that depends on them, over the
 suite's **own** constant-time composition code — `ct_eq`, `ct_select32`, and the combiner
-over secret shared secrets. A compiler-introduced secret-dependent branch *there* now fails
+over secret shared secrets. A compiler-introduced secret-dependent branch *there* would fail
 the build on either arch (the emitted assembly differs per target, so each is an independent
 check), catching exactly the source→assembly gap that best-effort source-level CT cannot.
-The aarch64 leg was also reproduced locally in a container
+**Caveat: this repo has no git remote, so CI has not run** — x86_64 gates once it does, and
+the aarch64 leg has so far been exercised only **once, locally**, in a container
 ([`ctstats/scripts/ct-in-container.sh`](../ctstats/scripts/ct-in-container.sh)), with a
 planted-secret-branch negative control confirming Memcheck catches leaks there.
 Still **TODO**: extending Memcheck over the component-**primitive** paths. This was
 investigated (marking the ML-KEM decapsulation key secret and running libcrux's
-`decapsulate`): it yields thousands of reports that are **Memcheck limitations on a
-verified-CT SIMD primitive, not demonstrated leaks** — Memcheck reports constant-time
-`csel`/`cmov` selects identically to branches, and over-approximates shadow through
-NEON-vectorized code; no secret-dependent branch was isolated, and libcrux ML-KEM is
-HACL*-verified CT at source level (details in [`ctstats/README.md`](../ctstats/README.md)).
+`decapsulate`) and surfaced an **unresolved finding**: ~2848 reports across 30 sites in the
+NEON `decapsulate`. Isolating them (non-PIE build → exact address mapping → objdump) shows
+they are **real conditional branches comparing secret-key-derived 12-bit coefficients to the
+ML-KEM modulus q (3329) / q−1** — a binary-level secret-dependent branch, **not** a Memcheck
+false positive (an earlier draft wrongly called them `csel`/`cmov` artifacts; retracted). No
+`udiv`/KyberSlash-class division was flagged. Whether libcrux's *source* is CT-by-construction
+(compiler-introduced branch on this NEON target) and whether it is exploitable is **not yet
+determined — pending upstream follow-up** (details in
+[`ctstats/README.md`](../ctstats/README.md)). We do not gate the primitive on this; we rely
+on libcrux's source-level CT verification as the primitive's assurance — a scoping decision,
+**not** a claim the reports are benign.
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
 test stays report-only). Binary-CT tooling is mature on **x86_64-linux and aarch64-linux**
-(both now gated); **riscv64 / wasm32** remain **source-CT + upstream-attestation only**.
+(our composition-code check is configured for both); **riscv64 / wasm32** remain
+**source-CT + upstream-attestation only**.
 CT posture is **per-backend**, not universal — swapping a backend changes the
 guarantee. Known carve-out: **ML-DSA signing uses rejection sampling, so its
 iteration count is secret-dependent by design** — an auditable, documented exception,
@@ -355,8 +363,8 @@ consistency, and the machine-checked binding proof** — never speed.
 | 4.4 | Secure zeroization of the combined key | post-use exposure | volatile wipe + fence; not `Clone` | **ENFORCED** (Drop + type-level) |
 | 4.5 | Cross-platform byte-identical output | binding divergence | shared-vector consistency tests | **ENFORCED** (CI) |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **REPORT-ONLY** (not gated) |
-| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | **CI gate (x86_64 + aarch64)** |
-| 5.2 | Binary-level CT — libcrux primitive paths (Memcheck-on-SIMD false positives) | ADV-TIME | source-level HACL* attestation | TODO (investigated) |
+| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (no remote → not yet run; aarch64 verified once locally) |
+| 5.2 | Binary-level CT — libcrux ML-KEM decaps: **real secret-coeff-vs-q branches found** | ADV-TIME | rely on libcrux source-level CT | **UNRESOLVED** — pending upstream triage |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
 | 5.5 | NIST ACVP conformance (full FIPS family) | — | X-Wing KAT + full ACVP set (`acvp.rs`) | **CONFORMANCE DONE** — not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |
