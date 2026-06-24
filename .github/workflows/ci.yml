@@ -21,6 +21,20 @@ jobs:
       - run: cargo clippy --workspace --all-targets
       - run: cargo test --workspace
 
+  # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs —
+  # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
+  # (compiled via cc/cl.exe) and the C HQC reference (`pqcrypto-hqc`). Verified locally on
+  # Windows 11 (build 26200, Rust 1.96, 2026-06): `cargo test --workspace` + the C-heavy
+  # `slh-dsa,hqc` features all pass, vectors byte-identical. (`.gitattributes` pins LF so the
+  # checkout is byte-identical here too.)
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace
+      - run: cargo test -p q-periapt-backends --features slh-dsa,hqc
+
   # no_std build of the auditable core for an embedded target (must not pull std).
   no_std:
     runs-on: ubuntu-latest
