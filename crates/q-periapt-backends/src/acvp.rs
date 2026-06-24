@@ -6,10 +6,15 @@
 //! keygen from `(d, z)`, encapsulation from `(ek, m)`, and decapsulation — including the
 //! VAL cases with modified ciphertexts that exercise the FO implicit-rejection path
 //! (NIST's expected `k` is the pseudo-random reject value). For each ML-DSA parameter
-//! set: deterministic keygen from ξ, plus the sigGen/sigVer cases matching our backend's
-//! mode (external interface, pure, deterministic, empty context — see below).
-//! This is ground-truth conformance complementing the multi-backend differential.
-//! Vectors are vendored under `vectors/acvp-ml-{kem-768,kem-1024,dsa-65,dsa-87}.json`.
+//! set: deterministic keygen from ξ, plus the default external/pure/deterministic/
+//! empty-context sigGen/sigVer cases; the **broader signature modes** the backend's
+//! extended surface can reproduce — external/pure with **non-empty contexts** and
+//! **hedged** randomness, and **HashML-DSA** with a SHAKE-128 pre-hash — are pinned
+//! separately (`acvp_ml_dsa_{65,87}_signature_modes`). The internal interface,
+//! `externalMu`, and non-SHAKE128 pre-hash are not publicly exposed by libcrux and are
+//! out of scope. This is ground-truth conformance complementing the multi-backend
+//! differential. Vectors are vendored under `vectors/acvp-ml-{kem-768,kem-1024,dsa-65,
+//! dsa-87,dsa-65-modes,dsa-87-modes}.json`.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
@@ -306,4 +311,145 @@ fn acvp_ml_dsa_87_conformance() {
             "ACVP ML-DSA-87 sigVer verdict mismatch"
         );
     }
+}
+
+// --- Broader ML-DSA signature modes (FIPS 204) -------------------------------------
+//
+// Beyond the default external/pure/deterministic/empty-context mode above, these pin
+// the modes the backend's extended surface (sign_ctx/verify_ctx +
+// sign_pre_hashed_shake128/verify_pre_hashed_shake128) can reproduce against NIST:
+//   * external / pure — deterministic AND **hedged** (caller rnd), across **contexts**;
+//   * **HashML-DSA** with a SHAKE-128 pre-hash.
+// The internal interface, `externalMu`, and non-SHAKE128 pre-hash are NOT publicly
+// exposed by libcrux, so those ACVP modes are out of scope (documented, not silently
+// skipped).
+
+#[derive(Deserialize)]
+struct ModeVectors {
+    #[serde(rename = "ext_sigGen")]
+    ext_sig_gen: Vec<ExtSigGen>,
+    #[serde(rename = "ext_sigVer")]
+    ext_sig_ver: Vec<ExtSigVer>,
+    #[serde(rename = "prehash_shake128_sigGen")]
+    ph_sig_gen: Vec<ExtSigGen>,
+    #[serde(rename = "prehash_shake128_sigVer")]
+    ph_sig_ver: Vec<ExtSigVer>,
+}
+#[derive(Deserialize)]
+struct ExtSigGen {
+    sk: String,
+    message: String,
+    context: String,
+    rnd: String,
+    signature: String,
+}
+#[derive(Deserialize)]
+struct ExtSigVer {
+    pk: String,
+    message: String,
+    context: String,
+    signature: String,
+    #[serde(rename = "testPassed")]
+    test_passed: bool,
+}
+
+/// Run the broader-mode ACVP checks against `$backend` (an ML-DSA backend exposing the
+/// extended surface). Returns the per-mode case counts.
+macro_rules! check_dsa_modes {
+    ($backend:expr, $sig_len:expr, $vectors:expr) => {{
+        let v: ModeVectors = serde_json::from_str($vectors).unwrap();
+        for t in &v.ext_sig_gen {
+            let mut sig = vec![0u8; $sig_len];
+            $backend
+                .sign_ctx(
+                    &hex(&t.sk),
+                    &hex(&t.message),
+                    &hex(&t.context),
+                    &hex(&t.rnd),
+                    &mut sig,
+                )
+                .unwrap();
+            assert_eq!(
+                sig,
+                hex(&t.signature),
+                "external sigGen (ctx/hedged) mismatch"
+            );
+        }
+        for t in &v.ext_sig_ver {
+            let ok = $backend
+                .verify_ctx(
+                    &hex(&t.pk),
+                    &hex(&t.message),
+                    &hex(&t.context),
+                    &hex(&t.signature),
+                )
+                .is_ok();
+            assert_eq!(ok, t.test_passed, "external sigVer (ctx) verdict mismatch");
+        }
+        for t in &v.ph_sig_gen {
+            let mut sig = vec![0u8; $sig_len];
+            $backend
+                .sign_pre_hashed_shake128(
+                    &hex(&t.sk),
+                    &hex(&t.message),
+                    &hex(&t.context),
+                    &hex(&t.rnd),
+                    &mut sig,
+                )
+                .unwrap();
+            assert_eq!(sig, hex(&t.signature), "pre-hash SHAKE128 sigGen mismatch");
+        }
+        for t in &v.ph_sig_ver {
+            let ok = $backend
+                .verify_pre_hashed_shake128(
+                    &hex(&t.pk),
+                    &hex(&t.message),
+                    &hex(&t.context),
+                    &hex(&t.signature),
+                )
+                .is_ok();
+            assert_eq!(
+                ok, t.test_passed,
+                "pre-hash SHAKE128 sigVer verdict mismatch"
+            );
+        }
+        (
+            v.ext_sig_gen.len(),
+            v.ext_sig_ver.len(),
+            v.ph_sig_gen.len(),
+            v.ph_sig_ver.len(),
+        )
+    }};
+}
+
+#[test]
+fn acvp_ml_dsa_65_signature_modes() {
+    use crate::{MlDsa65, ML_DSA_65_SIG_LEN};
+    let (eg, ev, pg, pv) = check_dsa_modes!(
+        MlDsa65,
+        ML_DSA_65_SIG_LEN,
+        include_str!("../vectors/acvp-ml-dsa-65-modes.json")
+    );
+    assert_eq!(
+        (eg, ev),
+        (30, 15),
+        "external/pure det+hedged set incomplete"
+    );
+    assert!(pg >= 1 && pv >= 1, "expected SHAKE-128 pre-hash cases");
+}
+
+#[test]
+fn acvp_ml_dsa_87_signature_modes() {
+    use crate::{MlDsa87, ML_DSA_87_SIG_LEN};
+    let (eg, ev, pg, pv) = check_dsa_modes!(
+        MlDsa87,
+        ML_DSA_87_SIG_LEN,
+        include_str!("../vectors/acvp-ml-dsa-87-modes.json")
+    );
+    assert_eq!(
+        (eg, ev),
+        (30, 15),
+        "external/pure det+hedged set incomplete"
+    );
+    assert!(pg >= 1 && pv >= 1, "expected SHAKE-128 pre-hash cases");
 }

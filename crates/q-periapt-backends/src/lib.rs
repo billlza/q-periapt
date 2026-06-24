@@ -446,6 +446,112 @@ impl Verifier for MlDsa87 {
     }
 }
 
+/// Extended FIPS 204 conformance surface for an ML-DSA backend, beyond the suite's
+/// default mode (the [`Signer`]/[`Verifier`] impls fix external interface, pure,
+/// empty context). These wrap libcrux's fuller public API — external `ML-DSA.Sign`
+/// with explicit `context` and caller `randomness` (deterministic when zero, hedged
+/// otherwise), and `HashML-DSA` with a SHAKE128 pre-hash — so the multi-mode ACVP
+/// conformance vectors can be exercised. The hybrid suite itself does not use these
+/// methods. (libcrux does not publicly expose the internal interface or `externalMu`,
+/// nor `HashML-DSA` with hashes other than SHAKE128, so those ACVP modes are not
+/// covered here — see `acvp.rs`.)
+macro_rules! impl_mldsa_modes {
+    ($ty:ty, $m:ident, $sk_len:ident, $vk_len:ident, $sig_len:ident, $rnd_len:ident,
+     $SkT:ident, $VkT:ident, $SigT:ident) => {
+        impl $ty {
+            /// External `ML-DSA.Sign` with explicit `context` and caller `randomness`
+            /// (all-zero ⇒ deterministic, random ⇒ hedged).
+            pub fn sign_ctx(
+                &self,
+                sk: &[u8],
+                msg: &[u8],
+                context: &[u8],
+                randomness: &[u8],
+                out_sig: &mut [u8],
+            ) -> Result<usize, Error> {
+                let sk_arr = to_arr::<$sk_len>(sk)?;
+                let rnd = to_arr::<$rnd_len>(randomness)?;
+                let signing_key = $m::$SkT::new(sk_arr);
+                let sig = $m::sign(&signing_key, msg, context, rnd).map_err(|_| Error::Backend)?;
+                write_exact(out_sig, sig.as_slice())?;
+                Ok(out_sig.len())
+            }
+
+            /// External `ML-DSA.Verify` with explicit `context`.
+            pub fn verify_ctx(
+                &self,
+                pk: &[u8],
+                msg: &[u8],
+                context: &[u8],
+                sig: &[u8],
+            ) -> Result<(), Error> {
+                let vk_arr = to_arr::<$vk_len>(pk)?;
+                let sig_arr = to_arr::<$sig_len>(sig)?;
+                let vk = $m::$VkT::new(vk_arr);
+                let signature = $m::$SigT::new(sig_arr);
+                $m::verify(&vk, msg, context, &signature).map_err(|_| Error::Backend)
+            }
+
+            /// `HashML-DSA` sign with a SHAKE128 pre-hash and explicit `context`.
+            pub fn sign_pre_hashed_shake128(
+                &self,
+                sk: &[u8],
+                msg: &[u8],
+                context: &[u8],
+                randomness: &[u8],
+                out_sig: &mut [u8],
+            ) -> Result<usize, Error> {
+                let sk_arr = to_arr::<$sk_len>(sk)?;
+                let rnd = to_arr::<$rnd_len>(randomness)?;
+                let signing_key = $m::$SkT::new(sk_arr);
+                let sig = $m::sign_pre_hashed_shake128(&signing_key, msg, context, rnd)
+                    .map_err(|_| Error::Backend)?;
+                write_exact(out_sig, sig.as_slice())?;
+                Ok(out_sig.len())
+            }
+
+            /// `HashML-DSA` verify with a SHAKE128 pre-hash and explicit `context`.
+            pub fn verify_pre_hashed_shake128(
+                &self,
+                pk: &[u8],
+                msg: &[u8],
+                context: &[u8],
+                sig: &[u8],
+            ) -> Result<(), Error> {
+                let vk_arr = to_arr::<$vk_len>(pk)?;
+                let sig_arr = to_arr::<$sig_len>(sig)?;
+                let vk = $m::$VkT::new(vk_arr);
+                let signature = $m::$SigT::new(sig_arr);
+                $m::verify_pre_hashed_shake128(&vk, msg, context, &signature)
+                    .map_err(|_| Error::Backend)
+            }
+        }
+    };
+}
+
+impl_mldsa_modes!(
+    MlDsa65,
+    ml_dsa_65,
+    ML_DSA_65_SK_LEN,
+    ML_DSA_65_VK_LEN,
+    ML_DSA_65_SIG_LEN,
+    ML_DSA_65_SIGN_RAND_LEN,
+    MLDSA65SigningKey,
+    MLDSA65VerificationKey,
+    MLDSA65Signature
+);
+impl_mldsa_modes!(
+    MlDsa87,
+    ml_dsa_87,
+    ML_DSA_87_SK_LEN,
+    ML_DSA_87_VK_LEN,
+    ML_DSA_87_SIG_LEN,
+    ML_DSA_87_SIGN_RAND_LEN,
+    MLDSA87SigningKey,
+    MLDSA87VerificationKey,
+    MLDSA87Signature
+);
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]

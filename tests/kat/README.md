@@ -17,7 +17,9 @@ Status of M0 KAT coverage.
   `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the full
   **ML-KEM-768** and **ML-KEM-1024** sets (25 keyGen, 25 encaps, 10 decaps incl.
   implicit-rejection, each) and **ML-DSA-65** and **ML-DSA-87** (25 keyGen each + the
-  deterministic/external/empty-context sigGen/sigVer cases) — byte-identical to NIST.
+  deterministic/external/empty-context sigGen/sigVer cases, plus the **broader signature
+  modes** the backend can reproduce — external/pure **hedged** + **non-empty context**
+  and **HashML-DSA SHAKE-128 pre-hash**) — byte-identical to NIST.
   Direct ground truth, orthogonal to the differential.
 - **Multi-backend differential (full KEM chain)** ✅ — `q-periapt-backends/src/differential.rs`
   cross-checks every component against an **independent** implementation on random
