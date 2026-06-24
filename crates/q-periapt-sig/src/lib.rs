@@ -11,9 +11,10 @@
 //!   roots, firmware, and long-term signatures, where large/slow signatures are
 //!   an acceptable trade for minimal assumptions.
 //!
-//! Backends (RustCrypto `ml-dsa` / `slh-dsa`) are wired in behind cargo
-//! features; this crate defines the algorithm-agnostic trait surface that the
-//! policy layer and FFI build on.
+//! Backends (libcrux `ml-dsa` for ML-DSA, `fips205` for SLH-DSA) are wired into
+//! `q-periapt-backends` behind cargo features; this crate defines the algorithm-agnostic
+//! trait surface that the policy layer and FFI build on. (RustCrypto `ml-dsa` appears only
+//! as a `[dev-dependencies]` differential cross-check, not as a shipped backend.)
 
 use q_periapt_core::Error;
 

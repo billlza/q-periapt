@@ -186,10 +186,10 @@ q-periapt/
 │   └── q-periapt-cli       # 🟡 migration inventory + CBOM/SBOM generator
 ├── ctstats/          # ✅ side-channel CI: indistinguishability hard gate + dudect report
 ├── docs/             # BINDING_SECURITY.md, COMBINER_SPEC.md, ARCHITECTURE.md, ...; policy/default.policy.toml
-├── formal/easycrypt/ # ✅ machine-checked binding proof (BindingViaCR.ec); tamarin/ planned
+├── formal/           # ✅ EasyCrypt binding proof (easycrypt/BindingViaCR.ec) + Tamarin & ProVerif handshake models — all CI-gated
 ├── tests/            # kat/ + differential/ (X-Wing KAT currently lives in q-periapt-backends)
 ├── bench/  fuzz/  sbom/   # harness scaffolds (combiner bench lives in q-periapt-backends/benches/)
-└── bindings/         # swift/ + kotlin/ (exercised in CI against a shared test vector)
+└── bindings/         # c/ + swift/ + kotlin/ (exercised in CI against a shared test vector)
 ```
 
 All crates above plus `ctstats` are Cargo workspace `members` (see `Cargo.toml`).

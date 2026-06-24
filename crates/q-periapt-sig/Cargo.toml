@@ -12,7 +12,8 @@ workspace = true
 
 [features]
 default = []
-# Backends added as integrated: rustcrypto-mldsa, rustcrypto-slhdsa.
+# Concrete backends live in q-periapt-backends (libcrux ml-dsa, fips205 SLH-DSA), gated by
+# its `slh-dsa` feature; this crate is backend-agnostic and only defines the trait surface.
 std = ["q-periapt-core/std"]
 
 [dependencies]

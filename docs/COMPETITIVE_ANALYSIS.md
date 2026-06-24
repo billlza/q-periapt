@@ -144,8 +144,9 @@ selection so a deployment can negotiate without forking the spec
 - **Hard gate:** failure-path indistinguishability / implicit rejection is a merge gate
   (`cargo test -p q-periapt-ctstats` in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
 - **Report-only (NOT a gate):** the dudect-style Welch t-test **timing** test runs with
-  `|| true` and never blocks a merge. Binary-level constant-time verification
-  (ctgrind / Valgrind-TIMECOP over the libcrux paths) is **TODO**.
+  `|| true` and never blocks a merge. Binary-level **dataflow** CT over our own composition
+  code (`ct_eq`/`ct_select32`/the combiner) *is* a hard gate (Valgrind/Memcheck-TIMECOP,
+  x86_64 + aarch64); extending it over the libcrux **primitive** paths is **TODO**.
 
 So the accurate phrasing is "side-channel CI exists and gates the *failure-path
 indistinguishability* property; the *timing* leg is informational today." We do **not**
@@ -212,7 +213,7 @@ Legend: ✅ present · 🟡 partial / report-only · ⛔ absent · — not appli
 | Assumption diversity (code-based hedge) | ⛔ | ⛔ | 🟡 HQC, feature-gated, off by default |
 | Side-channel CI — failure-path indistinguishability | n/a (impl-specific) | (audited) | ✅ **hard gate** |
 | Side-channel CI — timing (dudect) | n/a | (audited) | 🟡 **report-only**, not a merge gate |
-| Binary-level CT (ctgrind/TIMECOP) | — | (audited) | ⛔ TODO |
+| Binary-level CT (ctgrind/TIMECOP) | — | (audited) | 🟡 composition-code gate landed (x86_64+aarch64); libcrux primitive paths TODO |
 | Cross-platform byte-identical core | (per-impl) | — | ✅ one `no_std` core across 4 non-Rust faces (audit-surface win) |
 | Third-party audit | 🟡 peer-reviewed proof; impls vary | ✅ deployed + reviewed | ⛔ **none** |
 | FIPS validation | via validated backends | via validated backends | ⛔ (not the pure-Rust core; aws-lc-rs offered as a path) |

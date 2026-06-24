@@ -383,6 +383,28 @@ mod tests {
             .negotiate_kem(&["BOGUS-KEM", "totally-made-up"])
             .is_err());
     }
+
+    #[test]
+    fn nist_level_table_agrees_with_sigalg() {
+        // The policy `nist_level` id->level table and `q-periapt-sig`'s `SigAlg::nist_level`
+        // are hand-maintained in separate crates; this guard fails CI if they ever diverge.
+        use q_periapt_sig::SigAlg;
+        for a in [
+            SigAlg::MlDsa44,
+            SigAlg::MlDsa65,
+            SigAlg::MlDsa87,
+            SigAlg::SlhDsaSha2_128s,
+            SigAlg::SlhDsaSha2_192s,
+            SigAlg::SlhDsaSha2_256s,
+        ] {
+            assert_eq!(
+                nist_level(a.id()),
+                Some(a.nist_level()),
+                "policy/SigAlg NIST-level drift for {}",
+                a.id()
+            );
+        }
+    }
 }
 
 #[cfg(test)]

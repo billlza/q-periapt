@@ -196,9 +196,10 @@ vectors would miss:
   + orion X25519 + a RustCrypto SHA3 X-Wing combiner, byte-identical for encaps and
   decaps. Validates the orchestration + combiner end-to-end against three independent
   components.
-- **ML-DSA-65** — our libcrux signature backend vs RustCrypto `ml-dsa`: byte-identical
-  keygen + deterministic signatures (FIPS 204 external mode, rnd = 0), plus cross-
-  verification (each implementation verifies the other's signature) and tamper rejection.
+- **ML-DSA-44/65/87** — our libcrux signature backends vs RustCrypto `ml-dsa`:
+  byte-identical keygen + deterministic signatures (FIPS 204 external mode, rnd = 0), plus
+  cross-verification (each implementation verifies the other's signature) and tamper
+  rejection, for all three parameter sets (`differential.rs`).
 
 Extending the differential to SLH-DSA is pending (its keygen is randomized, so the
 check would be signature interoperability rather than byte-identity).
@@ -207,16 +208,19 @@ check would be signature interoperability rather than byte-identity).
 [`crates/q-periapt-backends/src/acvp.rs`](../crates/q-periapt-backends/src/acvp.rs)
 validates the libcrux backends against the **authoritative** NIST ACVP vectors
 (vendored under `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`):
-- **ML-KEM-768 (FIPS 203)** — the full set: 25 keyGen `(d,z)→(dk,ek)`, 25 encaps
-  `(ek,m)→(c,k)`, 10 decaps `(dk,c)→k` including modified-ciphertext cases that
+- **ML-KEM-512/768/1024 (FIPS 203)** — the full set each: keyGen `(d,z)→(dk,ek)`,
+  encaps `(ek,m)→(c,k)`, and decaps `(dk,c)→k` including modified-ciphertext cases that
   exercise FO implicit rejection. All byte-identical to NIST.
-- **ML-DSA-65 (FIPS 204)** — 25 keyGen `ξ→(sk,pk)`, plus the sigGen/sigVer cases
-  matching our backend's mode (external interface, pure, deterministic, empty
-  context). Broader sign/verify conformance is covered by the §11 differential.
+- **ML-DSA-44/65/87 (FIPS 204)** — keyGen `ξ→(sk,pk)`, plus sigGen/sigVer across the
+  signature modes our backend exposes: external/pure (deterministic **and** hedged, with
+  non-empty contexts), HashML-DSA **SHAKE-128 pre-hash**, and the **internal interface**
+  (Alg. 7/8, `externalMu=false`) (`acvp_ml_dsa_*_signature_modes`).
+- **SLH-DSA-SHA2-{128,192,256}s (FIPS 205)** — keyGen/sigGen/sigVer under the `slh-dsa`
+  feature (`acvp_slhdsa.rs`), deterministic keyGen via a seed-replay RNG.
 
 This is *direct* NIST ground truth, orthogonal to the differential (which compares
-against another implementation). Other parameter sets + broader signature modes
-are pending (§PENDING).
+against another implementation). Only `externalMu=true` and non-SHAKE128 pre-hash modes
+remain out of scope (not wired by libcrux 0.0.9).
 
 ### 13. Generative property-based tests
 [`crates/q-periapt-backends/src/proptests.rs`](../crates/q-periapt-backends/src/proptests.rs)

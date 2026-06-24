@@ -353,12 +353,16 @@ vectors, though not CMVP/CAVP certification.)
   gated.
 - **The `dudect` timing test is REPORT-ONLY.** It runs (with `|| true`) and reports,
   but is **not** a merge gate.
-- **Binary-level constant-time** (ctgrind / Valgrind-TIMECOP) is **TODO**.
+- **Binary-level (dataflow) constant-time** over our own composition code (`ct_eq`,
+  `ct_select32`, the combiner) is a **HARD CI gate** (`constant-time` job: `ct_verify`
+  under Valgrind/Memcheck-TIMECOP, x86_64 + aarch64). Extending it over the libcrux
+  *primitive* paths and to riscv64/wasm32 is **TODO** (see `docs/THREAT_MODEL.md` §5.2).
 
 So: do **not** read "side-channel-first" as "timing is gated." Structural failure-path
-indistinguishability is gated; statistical/binary timing assurance is report-only or
-pending. The core's `ct_eq` / `ct_select32` are best-effort portable Rust; real
-constant-time assurance is per-backend and tracked in `docs/ROADMAP.md`.
+indistinguishability **and** binary-level dataflow CT over our composition code are gated;
+the statistical `dudect` *timing* test and binary-CT over the primitive paths are
+report-only / pending. Real constant-time assurance is per-backend and tracked in
+`docs/ROADMAP.md`.
 
 ---
 

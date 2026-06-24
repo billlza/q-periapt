@@ -4,13 +4,18 @@
 //! # q-periapt-backends
 //!
 //! Vetted primitive backends wired into the `q-periapt-core` traits:
-//! - [`MlKem768`] — ML-KEM-768 (FIPS 203) via `libcrux-ml-kem` (HACL*-derived,
-//!   constant-time). C2PRI ⇒ usable with the fast `CompatXWing` profile.
-//! - [`X25519`] — X25519 ECDH-as-KEM via `x25519-dalek`, deterministic from a
-//!   32-byte scalar (non-C2PRI ⇒ `ContextBound` only, enforced by `q-periapt-kem`).
+//! - **ML-KEM** (FIPS 203) via `libcrux-ml-kem` (HACL*-derived, constant-time), C2PRI ⇒
+//!   usable with the fast `CompatXWing` profile: [`MlKem512`], [`MlKem768`], [`MlKem1024`].
+//! - **ML-DSA** (FIPS 204) via `libcrux-ml-dsa`: [`MlDsa44`], [`MlDsa65`], [`MlDsa87`]
+//!   (the `impl_mldsa_modes!` surface also adds context/hedged + SHAKE-128 pre-hash +
+//!   internal-interface signing, for ACVP conformance).
+//! - [`X25519`] — X25519 ECDH-as-KEM via `x25519-dalek`, deterministic from a 32-byte
+//!   scalar (non-C2PRI ⇒ `ContextBound` only, enforced by `q-periapt-kem`).
 //! - [`Sha3_256Xof`] — the combiner XOF (SHA3-256).
+//! - Off by default (cargo features): `slh-dsa` ⇒ `SlhDsaSha2_128s`/`_192s`/`_256s`
+//!   (FIPS 205, via `fips205`); `hqc` ⇒ `Hqc128`/`Hqc192`/`Hqc256` (via `pqcrypto-hqc`).
 //!
-//! These are the only crates that touch real cryptographic primitives; the
+//! This is the only crate that touches real cryptographic primitives; the
 //! security-critical composition stays in the dependency-free `q-periapt-core`.
 
 use libcrux_ml_dsa::{ml_dsa_44, ml_dsa_65, ml_dsa_87};
