@@ -94,23 +94,30 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     ) -> Result<Secret, Error> {
         let mut ss_pq = [0u8; SHARED_SECRET_LEN];
         let mut ss_trad = [0u8; SHARED_SECRET_LEN];
-        self.pq.encapsulate(pk_pq, rand_pq, ct_pq, &mut ss_pq)?;
-        self.trad
-            .encapsulate(pk_trad, rand_trad, ct_trad, &mut ss_trad)?;
-        let out = combine::<X>(
-            self.profile,
-            &CombineInput {
-                suite_id: self.suite_id,
-                policy_version: self.policy_version,
-                ss_pq: &ss_pq,
-                ss_trad: &ss_trad,
-                ct_pq,
-                pk_pq,
-                ct_trad,
-                pk_trad,
-                context,
-            },
-        );
+        // Run the fallible body, then wipe BOTH component secrets on every exit path. The
+        // second backend's `?` (or a combiner error) early-returns *after* `ss_pq` already
+        // holds a live ML-KEM secret; that error is a public length condition reachable from
+        // the FFI/WASM faces with caller-controlled buffer lengths, so the wipe must not be
+        // skipped. (Wiping the unconditional way also covers the first-backend error path.)
+        let out = (|| -> Result<Secret, Error> {
+            self.pq.encapsulate(pk_pq, rand_pq, ct_pq, &mut ss_pq)?;
+            self.trad
+                .encapsulate(pk_trad, rand_trad, ct_trad, &mut ss_trad)?;
+            combine::<X>(
+                self.profile,
+                &CombineInput {
+                    suite_id: self.suite_id,
+                    policy_version: self.policy_version,
+                    ss_pq: &ss_pq,
+                    ss_trad: &ss_trad,
+                    ct_pq,
+                    pk_pq,
+                    ct_trad,
+                    pk_trad,
+                    context,
+                },
+            )
+        })();
         secure_wipe(&mut ss_pq);
         secure_wipe(&mut ss_trad);
         out
@@ -135,23 +142,26 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     ) -> Result<Secret, Error> {
         let mut ss_pq = [0u8; SHARED_SECRET_LEN];
         let mut ss_trad = [0u8; SHARED_SECRET_LEN];
-        self.pq.decapsulate(sk_pq, ct_pq, &mut ss_pq)?;
-        self.trad.decapsulate(sk_trad, ct_trad, &mut ss_trad)?;
-        let out = combine::<X>(
-            self.profile,
-            &CombineInput {
-                suite_id: self.suite_id,
-                policy_version: self.policy_version,
-                ss_pq: &ss_pq,
-                ss_trad: &ss_trad,
-                ct_pq,
-                pk_pq,
-                ct_trad,
-                pk_trad,
-                context,
-            },
-        );
-        // Wipe the internal component secrets before return (see `encapsulate`).
+        // Wipe both component secrets on every exit path (see `encapsulate`): a public
+        // length error from the second backend must not leave a live ML-KEM secret behind.
+        let out = (|| -> Result<Secret, Error> {
+            self.pq.decapsulate(sk_pq, ct_pq, &mut ss_pq)?;
+            self.trad.decapsulate(sk_trad, ct_trad, &mut ss_trad)?;
+            combine::<X>(
+                self.profile,
+                &CombineInput {
+                    suite_id: self.suite_id,
+                    policy_version: self.policy_version,
+                    ss_pq: &ss_pq,
+                    ss_trad: &ss_trad,
+                    ct_pq,
+                    pk_pq,
+                    ct_trad,
+                    pk_trad,
+                    context,
+                },
+            )
+        })();
         secure_wipe(&mut ss_pq);
         secure_wipe(&mut ss_trad);
         out
@@ -268,6 +278,56 @@ mod tests {
             .unwrap();
 
         assert_eq!(enc.as_bytes(), dec.as_bytes(), "encap/decap must agree");
+    }
+
+    /// A backend that always fails — used to drive the path where the FIRST component
+    /// already produced a live shared secret and the SECOND component errors.
+    struct ToyKemErr;
+    impl Kem for ToyKemErr {
+        const C2PRI: bool = true;
+        fn algorithm(&self) -> &'static str {
+            "TOY-ERR"
+        }
+        fn encapsulate(
+            &self,
+            _pk: &[u8],
+            _r: &[u8],
+            _ct: &mut [u8],
+            _ss: &mut [u8],
+        ) -> Result<(), Error> {
+            Err(Error::Backend)
+        }
+        fn decapsulate(&self, _sk: &[u8], _ct: &[u8], _ss: &mut [u8]) -> Result<(), Error> {
+            Err(Error::Backend)
+        }
+    }
+
+    /// Regression for the wipe-on-error contract: when the PQ backend succeeds (leaving a
+    /// live `ss_pq`) and the trad backend then errors, the error must propagate — and the
+    /// fix makes the `secure_wipe` of both component secrets unconditional, so no live
+    /// secret survives this path (which is reachable from the FFI/WASM faces via a valid
+    /// PQ input plus a wrong-length trad input).
+    #[test]
+    fn second_backend_error_propagates_on_both_directions() {
+        let pq = ToyKem("TOY-PQ");
+        let trad = ToyKemErr;
+        let kem =
+            HybridKem::<_, _, ToyXof>::new(&pq, &trad, Profile::ContextBound, b"S", 1).unwrap();
+        let (mut ct_pq, mut ct_trad) = ([0u8; 32], [0u8; 32]);
+        let enc = kem.encapsulate(
+            &[9u8; 32],
+            &[7u8; 32],
+            b"ctx",
+            &[0xEEu8; 32],
+            &[0xDDu8; 32],
+            &mut ct_pq,
+            &mut ct_trad,
+        );
+        assert!(enc.is_err(), "second-backend error must propagate (encap)");
+        let dec = kem.decapsulate(
+            &[0u8; 32], &ct_pq, &[9u8; 32], &[0u8; 32], &ct_trad, &[7u8; 32], b"ctx",
+        );
+        assert!(dec.is_err(), "second-backend error must propagate (decap)");
     }
 
     #[test]

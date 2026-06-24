@@ -366,6 +366,23 @@ mod tests {
             "ML-KEM-1024"
         );
     }
+
+    #[test]
+    fn negotiate_kem_aborts_at_empty_boundaries() {
+        // The downgrade chokepoint must fail closed at every empty/stripped boundary.
+        // (i) Empty offer: nothing to select.
+        assert!(Policy::enhanced().negotiate_kem(&[]).is_err());
+        // (ii) Empty allow-list: every candidate is filtered out, for any offer.
+        let no_kems = Policy {
+            allowed_kems: Vec::new(),
+            ..Policy::enhanced()
+        };
+        assert!(no_kems.negotiate_kem(&["ML-KEM-1024", "X25519"]).is_err());
+        // (iii) Offer of only unrecognized ids (no NIST level): filtered out, abort.
+        assert!(Policy::enhanced()
+            .negotiate_kem(&["BOGUS-KEM", "totally-made-up"])
+            .is_err());
+    }
 }
 
 #[cfg(test)]

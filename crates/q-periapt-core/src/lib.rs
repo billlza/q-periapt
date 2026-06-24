@@ -567,4 +567,39 @@ mod tests {
         buf.extend_from_slice(&[0u8; 8]);
         assert!(CombineInput::from_transport(&buf).is_none());
     }
+
+    #[test]
+    fn from_transport_rejects_non_four_byte_policy_version() {
+        // `policy_version` is the only intra-field length constraint in the shared
+        // C-ABI/WASM decoder: a field that is not exactly 4 bytes must be rejected.
+        for ver_len in [0usize, 3, 5, 8] {
+            let ver = vec![0u8; ver_len];
+            let mut buf = Vec::new();
+            for f in [
+                &b"S"[..],
+                &ver[..],
+                &[1u8; 32],
+                &[2u8; 32],
+                &[3u8; 4],
+                &[4u8; 5],
+                &[5u8; 6],
+                &[6u8; 7],
+                b"ctx",
+            ] {
+                lp(&mut buf, f);
+            }
+            assert!(
+                CombineInput::from_transport(&buf).is_none(),
+                "policy_version of {ver_len} bytes must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn secure_wipe_zeroes_the_buffer() {
+        let mut buf = [0xABu8; 64];
+        secure_wipe(&mut buf);
+        assert_eq!(buf, [0u8; 64], "secure_wipe must zero every byte");
+        secure_wipe(&mut []); // empty slice must not panic
+    }
 }
