@@ -14,19 +14,19 @@ Status of M0 KAT coverage.
   NIST ACVP test above.
 - **NIST ACVP ground-truth conformance** ✅ — `q-periapt-backends/src/acvp.rs` validates
   the libcrux backends against the authoritative NIST vectors (vendored under
-  `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the full
-  **ML-KEM-768** and **ML-KEM-1024** sets (25 keyGen, 25 encaps, 10 decaps incl.
-  implicit-rejection, each) and **ML-DSA-65** and **ML-DSA-87** (25 keyGen each + the
+  `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the **full FIPS
+  parameter family** — **ML-KEM-512/768/1024** (25 keyGen, 25 encaps, 10 decaps incl.
+  implicit-rejection, each) and **ML-DSA-44/65/87** (25 keyGen each + the
   deterministic/external/empty-context sigGen/sigVer cases, plus the **broader signature
   modes** the backend can reproduce — external/pure **hedged** + **non-empty context**
   and **HashML-DSA SHAKE-128 pre-hash**) — byte-identical to NIST.
   Direct ground truth, orthogonal to the differential.
 - **Multi-backend differential (full KEM chain)** ✅ — `q-periapt-backends/src/differential.rs`
   cross-checks every component against an **independent** implementation on random
-  inputs: ML-KEM-768 **and ML-KEM-1024** vs RustCrypto `ml-kem`, X25519 vs `orion`
+  inputs: **ML-KEM-512/768/1024** vs RustCrypto `ml-kem`, X25519 vs `orion`
   (+ the RFC 7748 §6.1 ground-truth vector), the full `HybridKem` reconstructed from
   independent ML-KEM + X25519 + SHA3 (for **both** the default ML-KEM-768 and the
-  enhanced ML-KEM-1024 suites), and **ML-DSA-65** and **ML-DSA-87** vs RustCrypto
+  enhanced ML-KEM-1024 suites), and **ML-DSA-44/65/87** vs RustCrypto
   `ml-dsa` (byte-identical keygen + signatures + cross-verification + tamper rejection)
   — all byte-identical. Orthogonal to fixed KATs.
 - **Generative property tests** ✅ — `q-periapt-backends/src/proptests.rs` (proptest)

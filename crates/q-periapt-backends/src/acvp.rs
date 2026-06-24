@@ -1,5 +1,5 @@
-//! NIST ACVP ground-truth conformance: ML-KEM-768 + ML-KEM-1024 (FIPS 203) and
-//! ML-DSA-65 + ML-DSA-87 (FIPS 204).
+//! NIST ACVP ground-truth conformance for the full FIPS parameter family:
+//! ML-KEM-512/768/1024 (FIPS 203) and ML-DSA-44/65/87 (FIPS 204).
 //!
 //! Validates our libcrux backends against the **authoritative** vectors published by
 //! NIST (ACVP-Server `gen-val/json-files`). For each ML-KEM parameter set: deterministic
@@ -13,8 +13,8 @@
 //! separately (`acvp_ml_dsa_{65,87}_signature_modes`). The internal interface,
 //! `externalMu`, and non-SHAKE128 pre-hash are not publicly exposed by libcrux and are
 //! out of scope. This is ground-truth conformance complementing the multi-backend
-//! differential. Vectors are vendored under `vectors/acvp-ml-{kem-768,kem-1024,dsa-65,
-//! dsa-87,dsa-65-modes,dsa-87-modes}.json`.
+//! differential. Vectors are vendored under `vectors/acvp-ml-{kem-512,kem-768,kem-1024,
+//! dsa-44,dsa-65,dsa-87,dsa-44-modes,dsa-65-modes,dsa-87-modes}.json`.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
@@ -445,6 +445,133 @@ fn acvp_ml_dsa_87_signature_modes() {
         MlDsa87,
         ML_DSA_87_SIG_LEN,
         include_str!("../vectors/acvp-ml-dsa-87-modes.json")
+    );
+    assert_eq!(
+        (eg, ev),
+        (30, 15),
+        "external/pure det+hedged set incomplete"
+    );
+    assert!(pg >= 1 && pv >= 1, "expected SHAKE-128 pre-hash cases");
+}
+
+// --- Lowest FIPS parameter sets: ML-KEM-512 (L1) + ML-DSA-44 (L2) -------------------
+
+const ML_KEM_512_VECTORS: &str = include_str!("../vectors/acvp-ml-kem-512.json");
+
+/// NIST ACVP (FIPS 203) conformance for ML-KEM-512 (NIST L1, the smallest set): the
+/// full 25 keyGen + 25 encaps + 10 decaps (incl. implicit-rejection VAL cases).
+#[test]
+fn acvp_ml_kem_512_conformance() {
+    use crate::{MlKem512, ML_KEM_512_CT_LEN, ML_KEM_512_KEYGEN_SEED_LEN};
+
+    let v: Vectors = serde_json::from_str(ML_KEM_512_VECTORS).unwrap();
+    assert_eq!(
+        (v.key_gen.len(), v.encap.len(), v.decap.len()),
+        (25, 25, 10),
+        "vendored ACVP ML-KEM-512 set incomplete"
+    );
+    const HALF: usize = ML_KEM_512_KEYGEN_SEED_LEN / 2;
+
+    for t in &v.key_gen {
+        let mut seed = [0u8; ML_KEM_512_KEYGEN_SEED_LEN];
+        seed[..HALF].copy_from_slice(&hex(&t.d));
+        seed[HALF..].copy_from_slice(&hex(&t.z));
+        let (sk, pk) = MlKem512::generate(seed);
+        assert_eq!(
+            &sk[..],
+            hex(&t.dk).as_slice(),
+            "ACVP-512 keyGen dk mismatch"
+        );
+        assert_eq!(
+            &pk[..],
+            hex(&t.ek).as_slice(),
+            "ACVP-512 keyGen ek mismatch"
+        );
+    }
+    for t in &v.encap {
+        let mut c = [0u8; ML_KEM_512_CT_LEN];
+        let mut k = [0u8; SHARED_SECRET_LEN];
+        MlKem512
+            .encapsulate(&hex(&t.ek), &hex(&t.m), &mut c, &mut k)
+            .unwrap();
+        assert_eq!(&c[..], hex(&t.c).as_slice(), "ACVP-512 encaps c mismatch");
+        assert_eq!(&k[..], hex(&t.k).as_slice(), "ACVP-512 encaps k mismatch");
+    }
+    for t in &v.decap {
+        let mut k = [0u8; SHARED_SECRET_LEN];
+        MlKem512
+            .decapsulate(&hex(&t.dk), &hex(&t.c), &mut k)
+            .unwrap();
+        assert_eq!(&k[..], hex(&t.k).as_slice(), "ACVP-512 decaps k mismatch");
+    }
+}
+
+const ML_DSA_44_VECTORS: &str = include_str!("../vectors/acvp-ml-dsa-44.json");
+
+/// NIST ACVP (FIPS 204) conformance for ML-DSA-44 (NIST L2, the smallest ML-DSA).
+/// keyGen is the full set; sigGen/sigVer are the default external/pure/deterministic/
+/// empty-context cases (the broader modes are covered by `acvp_ml_dsa_44_signature_modes`).
+#[test]
+fn acvp_ml_dsa_44_conformance() {
+    use crate::{MlDsa44, ML_DSA_44_KEYGEN_SEED_LEN, ML_DSA_44_SIGN_RAND_LEN, ML_DSA_44_SIG_LEN};
+    use q_periapt_sig::{Signer, Verifier};
+
+    let v: DsaVectors = serde_json::from_str(ML_DSA_44_VECTORS).unwrap();
+    assert_eq!(
+        v.key_gen.len(),
+        25,
+        "vendored ACVP ML-DSA-44 keyGen incomplete"
+    );
+    assert!(!v.sig_gen.is_empty() && !v.sig_ver.is_empty());
+
+    for t in &v.key_gen {
+        let seed: [u8; ML_DSA_44_KEYGEN_SEED_LEN] = hex(&t.seed).try_into().unwrap();
+        let (sk, pk) = MlDsa44::generate(seed);
+        assert_eq!(
+            &sk[..],
+            hex(&t.sk).as_slice(),
+            "ACVP ML-DSA-44 keyGen sk mismatch"
+        );
+        assert_eq!(
+            &pk[..],
+            hex(&t.pk).as_slice(),
+            "ACVP ML-DSA-44 keyGen pk mismatch"
+        );
+    }
+    for t in &v.sig_gen {
+        let mut sig = [0u8; ML_DSA_44_SIG_LEN];
+        MlDsa44
+            .sign(
+                &hex(&t.sk),
+                &hex(&t.message),
+                &[0u8; ML_DSA_44_SIGN_RAND_LEN],
+                &mut sig,
+            )
+            .unwrap();
+        assert_eq!(
+            &sig[..],
+            hex(&t.signature).as_slice(),
+            "ACVP ML-DSA-44 sigGen mismatch"
+        );
+    }
+    for t in &v.sig_ver {
+        let accepted = MlDsa44
+            .verify(&hex(&t.pk), &hex(&t.message), &hex(&t.signature))
+            .is_ok();
+        assert_eq!(
+            accepted, t.test_passed,
+            "ACVP ML-DSA-44 sigVer verdict mismatch"
+        );
+    }
+}
+
+#[test]
+fn acvp_ml_dsa_44_signature_modes() {
+    use crate::{MlDsa44, ML_DSA_44_SIG_LEN};
+    let (eg, ev, pg, pv) = check_dsa_modes!(
+        MlDsa44,
+        ML_DSA_44_SIG_LEN,
+        include_str!("../vectors/acvp-ml-dsa-44-modes.json")
     );
     assert_eq!(
         (eg, ev),

@@ -22,6 +22,8 @@ use q_periapt_core::Error;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[non_exhaustive]
 pub enum SigAlg {
+    /// ML-DSA-44 (FIPS 204), NIST level 2. Smallest ML-DSA parameter set.
+    MlDsa44,
     /// ML-DSA-65 (FIPS 204), NIST level 3. General-purpose default.
     MlDsa65,
     /// ML-DSA-87 (FIPS 204), NIST level 5. Enhanced mode.
@@ -39,6 +41,7 @@ impl SigAlg {
     #[must_use]
     pub fn id(self) -> &'static str {
         match self {
+            SigAlg::MlDsa44 => "ML-DSA-44",
             SigAlg::MlDsa65 => "ML-DSA-65",
             SigAlg::MlDsa87 => "ML-DSA-87",
             SigAlg::SlhDsaSha2_128s => "SLH-DSA-SHA2-128s",
@@ -47,10 +50,11 @@ impl SigAlg {
         }
     }
 
-    /// Claimed NIST security level (1/3/5).
+    /// Claimed NIST security level (1/2/3/5).
     #[must_use]
     pub fn nist_level(self) -> u8 {
         match self {
+            SigAlg::MlDsa44 => 2,
             SigAlg::MlDsa65 | SigAlg::SlhDsaSha2_192s => 3,
             SigAlg::MlDsa87 | SigAlg::SlhDsaSha2_256s => 5,
             SigAlg::SlhDsaSha2_128s => 1,

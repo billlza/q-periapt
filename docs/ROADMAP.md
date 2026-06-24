@@ -307,7 +307,8 @@ are the gap between research-grade and audited/production.
 | Enhanced suite `HybridKem<MlKem1024,X25519>` end-to-end + pinned KAT | **Done** |
 | Enhanced L5 handshake (ML-KEM-1024 + X25519 + ML-DSA-87) in `tls-demo`, generic core | **Done** |
 | ACVP ML-DSA signature modes: hedged + non-empty context + SHAKE-128 pre-hash (65 & 87) | **Done** |
-| Broader ACVP (ML-KEM-512 / ML-DSA-44; internal/externalMu/non-SHAKE128 pre-hash — libcrux-gated) | Pending |
+| Full FIPS family backends + ACVP + differential (ML-KEM-512/768/1024, ML-DSA-44/65/87) | **Done** |
+| Remaining ACVP modes: internal interface / externalMu / non-SHAKE128 pre-hash (libcrux-gated) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |

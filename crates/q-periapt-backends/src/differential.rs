@@ -5,34 +5,36 @@
 //! and the EasyCrypt proof. FIPS 203 / RFC 7748 fix every byte encoding, so any
 //! divergence is a conformance or integration bug that 3 fixed X-Wing vectors miss:
 //!
-//! - **ML-KEM-768** / **ML-KEM-1024** — our libcrux backends vs RustCrypto `ml-kem`
-//!   (byte-identical keygen/encaps/decaps; 1024 is the enhanced-mode KEM).
+//! - **ML-KEM-512 / 768 / 1024** — our libcrux backends vs RustCrypto `ml-kem`
+//!   (byte-identical keygen/encaps/decaps across the full FIPS 203 family).
 //! - **X25519** — our `x25519-dalek` backend vs the independent `orion` impl, plus
 //!   the authoritative RFC 7748 §6.1 ground-truth Diffie–Hellman vector.
 //! - **Hybrid CompatXWing** — our [`HybridKem`] reconstructed from RustCrypto ML-KEM
 //!   + orion X25519 + a RustCrypto SHA3 X-Wing combiner, for encaps **and** decaps.
-//! - **ML-DSA-65** / **ML-DSA-87** — our libcrux signature backends vs RustCrypto
-//!   `ml-dsa` (byte-identical keygen + deterministic signatures, plus cross-
-//!   verification; ML-DSA-87 is the enhanced-mode L5 signature).
+//! - **ML-DSA-44 / 65 / 87** — our libcrux signature backends vs RustCrypto `ml-dsa`
+//!   (byte-identical keygen + deterministic signatures, plus cross-verification + tamper
+//!   rejection, across the full FIPS 204 family).
 //!
 //! Fully deterministic: per-iteration inputs are `SHAKE-256(counter)`, no RNG.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, deprecated)]
 
 use crate::{
-    MlDsa65, MlDsa87, MlKem1024, MlKem768, Sha3_256Xof, ML_DSA_65_KEYGEN_SEED_LEN,
-    ML_DSA_65_SIGN_RAND_LEN, ML_DSA_65_SIG_LEN, ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN,
-    ML_DSA_87_SIG_LEN, ML_KEM_1024_CT_LEN, ML_KEM_1024_KEYGEN_SEED_LEN, ML_KEM_768_CT_LEN,
+    MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, Sha3_256Xof,
+    ML_DSA_44_KEYGEN_SEED_LEN, ML_DSA_44_SIGN_RAND_LEN, ML_DSA_44_SIG_LEN,
+    ML_DSA_65_KEYGEN_SEED_LEN, ML_DSA_65_SIGN_RAND_LEN, ML_DSA_65_SIG_LEN,
+    ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN, ML_DSA_87_SIG_LEN, ML_KEM_1024_CT_LEN,
+    ML_KEM_1024_KEYGEN_SEED_LEN, ML_KEM_512_CT_LEN, ML_KEM_512_KEYGEN_SEED_LEN, ML_KEM_768_CT_LEN,
     ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN, X25519, X25519_LEN,
 };
 use ml_dsa::{
-    EncodedSignature, ExpandedSigningKey, MlDsa65 as RcMlDsa65, MlDsa87 as RcMlDsa87, Seed,
-    Signature,
+    EncodedSignature, ExpandedSigningKey, MlDsa44 as RcMlDsa44, MlDsa65 as RcMlDsa65,
+    MlDsa87 as RcMlDsa87, Seed, Signature,
 };
 use ml_kem::kem::Decapsulate;
 use ml_kem::{
     EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem1024 as RcMlKem1024,
-    MlKem768 as RcMlKem768, B32,
+    MlKem512 as RcMlKem512, MlKem768 as RcMlKem768, B32,
 };
 use orion::hazardous::ecc::x25519 as ox;
 use q_periapt_core::{Kem, Profile, XWING_LABEL};
@@ -508,6 +510,103 @@ fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
         assert!(
             MlDsa87.verify(&vk, msg, &bad).is_err(),
             "tampered ml-dsa-87 sig accepted @ {ctr}"
+        );
+    }
+}
+
+/// ML-KEM-512 (NIST L1, the smallest set): our libcrux backend vs the independent
+/// RustCrypto `ml-kem`, byte-identical keygen + encaps + decaps over random `(d‖z, m)`.
+#[test]
+fn ml_kem_512_byte_identical_to_independent_rustcrypto() {
+    const HALF: usize = ML_KEM_512_KEYGEN_SEED_LEN / 2;
+    for ctr in 0u32..64 {
+        let expand = libcrux_sha3::shake256::<96>(&(ctr ^ 0x0201).to_le_bytes());
+        let mut seed = [0u8; ML_KEM_512_KEYGEN_SEED_LEN];
+        seed.copy_from_slice(&expand[..ML_KEM_512_KEYGEN_SEED_LEN]);
+        let m = &expand[ML_KEM_512_KEYGEN_SEED_LEN..];
+
+        let (sk, pk) = MlKem512::generate(seed);
+        let (dk_rc, ek_rc) =
+            RcMlKem512::generate_deterministic(&b32(&seed[..HALF]), &b32(&seed[HALF..]));
+        assert_eq!(&ek_rc.as_bytes()[..], &pk[..], "512 ek diverged @ {ctr}");
+        assert_eq!(&dk_rc.as_bytes()[..], &sk[..], "512 dk diverged @ {ctr}");
+
+        let mut ct = [0u8; ML_KEM_512_CT_LEN];
+        let mut ss = [0u8; SHARED_SECRET_LEN];
+        MlKem512.encapsulate(&pk, m, &mut ct, &mut ss).unwrap();
+        let (ct_rc, ss_rc) = ek_rc.encapsulate_deterministic(&b32(m)).unwrap();
+        assert_eq!(&ct_rc[..], &ct[..], "512 ct diverged @ {ctr}");
+        assert_eq!(&ss_rc[..], &ss[..], "512 encaps ss diverged @ {ctr}");
+
+        let mut ss_dec = [0u8; SHARED_SECRET_LEN];
+        MlKem512.decapsulate(&sk, &ct, &mut ss_dec).unwrap();
+        let ss_rc_dec = dk_rc.decapsulate(&ct_rc).unwrap();
+        assert_eq!(&ss_dec[..], &ss[..], "512 our decaps != encaps @ {ctr}");
+        assert_eq!(
+            &ss_rc_dec[..],
+            &ss_dec[..],
+            "512 rustcrypto decaps diverged @ {ctr}"
+        );
+    }
+}
+
+/// ML-DSA-44 (NIST L2, the smallest ML-DSA): our libcrux backend vs the independent
+/// RustCrypto `ml-dsa`. Byte-identical deterministic keygen + signing, cross-
+/// verification both directions, and tamper rejection.
+#[test]
+fn ml_dsa_44_byte_identical_to_independent_rustcrypto() {
+    for ctr in 0u32..16 {
+        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0x44AC).to_le_bytes());
+        let seed: [u8; ML_DSA_44_KEYGEN_SEED_LEN] =
+            exp[..ML_DSA_44_KEYGEN_SEED_LEN].try_into().unwrap();
+        let msg = &exp[ML_DSA_44_KEYGEN_SEED_LEN..];
+
+        let (sk, vk) = MlDsa44::generate(seed);
+        let esk_rc =
+            ExpandedSigningKey::<RcMlDsa44>::from_seed(&Seed::try_from(&seed[..]).unwrap());
+        let sk_rc = esk_rc.to_expanded();
+        let vk_rc = esk_rc.verifying_key().encode();
+        assert_eq!(
+            &sk_rc[..],
+            &sk[..],
+            "ml-dsa-44 signing key diverged @ {ctr}"
+        );
+        assert_eq!(
+            &vk_rc[..],
+            &vk[..],
+            "ml-dsa-44 verifying key diverged @ {ctr}"
+        );
+
+        let mut sig = [0u8; ML_DSA_44_SIG_LEN];
+        MlDsa44
+            .sign(&sk, msg, &[0u8; ML_DSA_44_SIGN_RAND_LEN], &mut sig)
+            .unwrap();
+        let sig_rc = esk_rc.sign_deterministic(msg, b"").unwrap().encode();
+        assert_eq!(
+            &sig_rc[..],
+            &sig[..],
+            "ml-dsa-44 signature diverged @ {ctr}"
+        );
+
+        let our_sig = Signature::<RcMlDsa44>::decode(
+            &EncodedSignature::<RcMlDsa44>::try_from(&sig[..]).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            esk_rc
+                .verifying_key()
+                .verify_with_context(msg, b"", &our_sig),
+            "rustcrypto rejected our ml-dsa-44 signature @ {ctr}"
+        );
+        MlDsa44
+            .verify(&vk, msg, &sig_rc)
+            .expect("our verifier rejected the rustcrypto ml-dsa-44 signature");
+
+        let mut bad = sig;
+        bad[100] ^= 1;
+        assert!(
+            MlDsa44.verify(&vk, msg, &bad).is_err(),
+            "tampered ml-dsa-44 sig accepted @ {ctr}"
         );
     }
 }
