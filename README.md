@@ -135,7 +135,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | ✅ all five faces (Rust core, C ABI, WASM/wasm32, Swift, Kotlin/Panama-FFM) reproduce both the hybrid shared vector **and** the combiner reference vectors (`q_periapt_combine` + `bindings/contextbound-vectors.txt`) byte-for-byte |
 | Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | 🟡 `q-periapt-tls-demo` workspace member: loopback server-authenticated hybrid handshake in **two suites** — default (ML-KEM-768 + X25519, ML-DSA-65) and enhanced **L5** (ML-KEM-1024 + X25519, ML-DSA-87) over one generic handshake core — + a report-only P99 bench in CI |
 | Auditability tooling | CBOM / SBOM / migration scanner | 🟡 `q-periapt-cli` workspace member emitting CycloneDX CBOM/SBOM in CI |
-| Formal models | EasyCrypt combiner binding + handshake model | ✅ EasyCrypt: `bind_le_cr` **machine-checked** (`Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`), `encode_inj` now a **proved lemma**, **0 admits**, CI-gated (`formal/easycrypt/BindingViaCR.ec`); a Tamarin symbolic handshake model is still planned |
+| Formal models | EasyCrypt combiner binding + Tamarin handshake model | ✅ EasyCrypt: `bind_le_cr` **machine-checked** (`Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`), `encode_inj` a **proved lemma**, **0 admits**, CI-gated (`formal/easycrypt/BindingViaCR.ec`); **Tamarin** symbolic handshake model **machine-checked** (`formal/tamarin/handshake.spthy`, 4 lemmas verified) — server authentication + **hybrid robustness** (the session key survives a break of *either* the PQ *or* the classical KEM; only breaking **both** loses it) |
 
 > The mechanized formal scope is deliberately bounded and stated honestly. The
 > machine-checked theorem establishes that the `ContextBound` combiner's binding
@@ -244,9 +244,9 @@ This is a **research artifact for an undergraduate thesis**, not a product.
   coverage (other param sets + signature modes) and an SLH-DSA interop differential
   (the NIST ACVP ML-KEM-768 + ML-DSA-65 conformance, the KEM-chain + ML-DSA-65
   differentials are done); extending binary-level constant-time over the primitive
-  paths + non-x86 (the dataflow CT gate over our composition is done); fuzz targets; the Tamarin handshake
-  model; and the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI
-  exercises.
+  paths + non-x86 (the dataflow CT gate over our composition is done); fuzz targets; and
+  the FFI / WASM / transport / CBOM-SBOM crates beyond their current CI exercises (the
+  Tamarin symbolic handshake model is now machine-checked — `formal/tamarin`).
 - **HQC is excluded from the side-channel claim**: its decoder has documented
   data-dependent timing and `pqcrypto-hqc` wraps C (breaks `no_std`). It is a
   strictly feature-gated, experimental *hedge*, never a default.

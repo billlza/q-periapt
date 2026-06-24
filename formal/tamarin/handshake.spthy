@@ -1,0 +1,179 @@
+theory PQTHybridHandshake
+/*
+  Symbolic (Dolev-Yao) model of the q-periapt server-authenticated PQ/T hybrid KEM
+  handshake (crates/q-periapt-tls-demo), in Tamarin.
+
+  Protocol (HPKE-base-shaped, server-authenticated):
+    Server has a static hybrid KEM key (ML-KEM dk + X25519 scalar) and an ML-DSA
+    identity key whose verifying key the client pins out-of-band.
+      1. C -> S : ClientHello   = nc
+      2. S -> C : ServerHello   = ek_pq, pk_x, ns
+      3. C -> S : ClientKem     = ct_pq, ct_x      (encapsulate to the static hybrid key)
+      4. S -> C : ServerFinished= sign_S(transcript), confirm = KDF(secret, ctx)
+    Both derive secret = COMBINE(ss_pq, ss_x, transcript-bound agility block), where
+    ss_pq is the ML-KEM shared secret and ss_x the X25519 DH secret.
+
+  Modeling choices:
+    * ML-KEM is modeled as an idealized KEM: ek = kempk(dk); the client encapsulates a
+      fresh secret ~sspq as ct = encap(ek, ~sspq); decap(dk, encap(kempk(dk), m)) = m.
+      (Custom functions, not the asymmetric-encryption builtin, to avoid the pk/1 clash
+      with the signing builtin.)
+    * X25519 via the diffie-hellman builtin.
+    * The combiner is a one-way hash h(<...>): computing `secret` requires BOTH ss_pq
+      AND ss_x, which is exactly the hybrid robustness we want to check.
+    * Signatures via the signing builtin; the client pins the server's vk (!Pinned).
+*/
+begin
+
+builtins: diffie-hellman, signing, hashing
+
+functions: kempk/1, encap/2, decap/2
+equations: decap(dk, encap(kempk(dk), m)) = m
+
+/* ===== Server long-term key setup ===== */
+rule Server_Setup:
+    [ Fr(~dkpq)    // ML-KEM decapsulation key (static)
+    , Fr(~x)       // X25519 static scalar
+    , Fr(~sigsk)   // ML-DSA signing key
+    ]
+  --[ ServerSetup($S, ~dkpq, ~x, ~sigsk) ]->
+    [ !Server($S, ~dkpq, ~x, ~sigsk)
+    , !Pinned($S, pk(~sigsk))      // the client pins this verifying key out-of-band
+    , Out(<kempk(~dkpq), 'g'^~x, pk(~sigsk)>)   // ek_pq, pk_x, vk are public
+    ]
+
+/* Adversary may compromise the long-term signing key (to test authentication). */
+rule Reveal_SignKey:
+    [ !Server($S, ~dkpq, ~x, ~sigsk) ]
+  --[ RevealSig($S) ]->
+    [ Out(~sigsk) ]
+
+/* Hybrid robustness: the adversary may break ONE primitive — learn the ML-KEM
+   decapsulation key, OR the X25519 scalar — independently. Secrecy must survive
+   either single compromise; only compromising BOTH should break it. */
+rule Reveal_KEM_PQ:
+    [ !Server($S, ~dkpq, ~x, ~sigsk) ]
+  --[ RevealPQ($S) ]->
+    [ Out(~dkpq) ]
+
+rule Reveal_KEM_Trad:
+    [ !Server($S, ~dkpq, ~x, ~sigsk) ]
+  --[ RevealTrad($S) ]->
+    [ Out(~x) ]
+
+/* ===== 1. Client -> Server : ClientHello ===== */
+rule Client_Hello:
+    [ Fr(~nc) ]
+  --[ ClientHello($C, ~nc) ]->
+    [ Out(~nc)
+    , St_C1($C, ~nc)
+    ]
+
+/* ===== 2. Server -> Client : ServerHello ===== */
+rule Server_Hello:
+    [ !Server($S, ~dkpq, ~x, ~sigsk)
+    , In(nc)
+    , Fr(~ns)
+    ]
+  --[ ServerHello($S, nc, ~ns) ]->
+    [ Out(<kempk(~dkpq), 'g'^~x, ~ns>)
+    , St_S1($S, ~dkpq, ~x, ~sigsk, nc, ~ns)
+    ]
+
+/* ===== 3. Client -> Server : ClientKem (and the client derives `secret`) =====
+   The client uses whatever public encapsulation key `ekpq` it received in ServerHello
+   (a network-bound variable — a MITM-substituted key is caught later by the signature
+   over the transcript and the key-confirmation). */
+rule Client_Kem:
+    [ St_C1($C, ~nc)
+    , In(<ekpq, pkx, ns>)             // ServerHello
+    , Fr(~sspq)                       // fresh ML-KEM shared secret to encapsulate
+    , Fr(~e)                          // X25519 ephemeral scalar
+    ]
+  --[ ClientKem($C, ~nc, ns, ekpq, pkx) ]->
+    [ Out(<encap(ekpq, ~sspq), 'g'^~e>)   // ct_pq, ct_x
+    , St_C2($C, ~nc, ns, ekpq, pkx, ~sspq, ~e)
+    ]
+
+/* ===== 4. Server -> Client : ServerFinished ===== */
+rule Server_Finish:
+    let ekpq    = kempk(~dkpq)
+        pkx     = 'g'^~x
+        sspq    = decap(~dkpq, ct_pq)
+        ssx     = ct_x ^ ~x
+        ctxt    = h(<nc, ekpq, pkx, ns>)                         // context = H(ch, sh)
+        secret  = h(<'combine', ekpq, pkx, ct_pq, ct_x, sspq, ssx, ctxt>)
+        transcript = h(<nc, ekpq, pkx, ns, ct_pq, ct_x>)         // auth transcript
+        confirm = h(<'finished', secret, ctxt>)
+    in
+    [ St_S1($S, ~dkpq, ~x, ~sigsk, nc, ns)
+    , In(<ct_pq, ct_x>)              // ClientKem
+    ]
+  --[ ServerDone($S, secret, transcript) ]->
+    [ Out(<sign(transcript, ~sigsk), confirm>) ]
+
+/* ===== 5. Client finishes: verify signature against the PINNED vk + key confirm ===== */
+rule Client_Finish:
+    let ssx     = pkx ^ ~e
+        ctxt    = h(<~nc, ekpq, pkx, ns>)
+        secret  = h(<'combine', ekpq, pkx, encap(ekpq, ~sspq), 'g'^~e, ~sspq, ssx, ctxt>)
+        transcript = h(<~nc, ekpq, pkx, ns, encap(ekpq, ~sspq), 'g'^~e>)
+        confirm = h(<'finished', secret, ctxt>)
+    in
+    [ St_C2($C, ~nc, ns, ekpq, pkx, ~sspq, ~e)
+    , !Pinned($S, vkS)
+    , In(<sig, confirm>)             // ServerFinished (confirm must match)
+    ]
+  --[ ClientFinish($C, $S, secret, transcript)
+    , Eq(verify(sig, transcript, vkS), true)
+    ]->
+    [ SessionKey_C($C, $S, secret) ]
+
+/* ----- restrictions ----- */
+restriction Equality:
+    "All a b #i. Eq(a, b) @ i ==> a = b"
+
+/* ===================== Security lemmas ===================== */
+
+// Sanity: an honest run can complete (no compromise needed).
+lemma executable:
+    exists-trace
+    "Ex C S k tr #i.
+        ClientFinish(C, S, k, tr) @ i
+      & not (Ex #r. RevealSig(S) @ r)
+      & not (Ex #r. RevealPQ(S)  @ r)
+      & not (Ex #r. RevealTrad(S) @ r)"
+
+// Server authentication: if a client finishes a session believing it spoke to S,
+// then S really produced a matching ServerFinished over the same transcript —
+// unless the server's signing key was revealed.
+lemma server_authentication:
+    "All C S k tr #i.
+        ClientFinish(C, S, k, tr) @ i
+      ==> (Ex #j. ServerDone(S, k, tr) @ j & #j < #i)
+          | (Ex #r. RevealSig(S) @ r)"
+
+// HYBRID secrecy: the session key the client accepts stays secret UNLESS either
+//   (a) the adversary compromised BOTH KEM components (ML-KEM dk AND X25519 scalar) —
+//       breaking only one is not enough, which is the whole point of the hybrid; OR
+//   (b) the server's signing key was revealed — then the adversary can impersonate the
+//       server and MITM the key exchange with its own KEM keys, so confidentiality of
+//       the *authenticated* channel necessarily falls back on the signature.
+lemma hybrid_secrecy:
+    "All C S k tr #i.
+        ClientFinish(C, S, k, tr) @ i
+      & (Ex #r. K(k) @ r)
+      ==> ((Ex #p. RevealPQ(S) @ p) & (Ex #q. RevealTrad(S) @ q))
+        | (Ex #r. RevealSig(S) @ r)"
+
+// Stronger, separate statement of the hybrid property in isolation: with an HONEST
+// server identity (signing key never revealed), the session key is secret unless BOTH
+// KEM components are broken — i.e. one post-quantum OR one classical break is survived.
+lemma hybrid_robustness_authenticated:
+    "All C S k tr #i.
+        ClientFinish(C, S, k, tr) @ i
+      & (Ex #r. K(k) @ r)
+      & not (Ex #r. RevealSig(S) @ r)
+      ==> (Ex #p. RevealPQ(S) @ p) & (Ex #q. RevealTrad(S) @ q)"
+
+end
