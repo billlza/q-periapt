@@ -176,6 +176,26 @@ pub enum Profile {
     ContextBound = 2,
 }
 
+impl Profile {
+    /// The stable 1-byte wire code (`1` = `CompatXWing`, `2` = `ContextBound`) used by
+    /// the C ABI / WASM / transport faces. This is the single source of truth for the
+    /// mapping, so the faces don't each hand-roll it.
+    #[must_use]
+    pub fn to_u8(self) -> u8 {
+        self as u8
+    }
+
+    /// Inverse of [`to_u8`](Self::to_u8): decode a wire code, or `None` if unrecognized.
+    #[must_use]
+    pub fn from_u8(code: u8) -> Option<Self> {
+        match code {
+            1 => Some(Profile::CompatXWing),
+            2 => Some(Profile::ContextBound),
+            _ => None,
+        }
+    }
+}
+
 /// The values fed to [`combine`]. Slices, so it works for any parameter set.
 #[derive(Clone, Copy)]
 pub struct CombineInput<'a> {
@@ -525,6 +545,17 @@ mod tests {
         assert!(CombineInput::from_transport(&trailing).is_none());
         assert!(CombineInput::from_transport(&buf[..buf.len() - 1]).is_none());
         assert!(CombineInput::from_transport(&[0u8; 4]).is_none());
+    }
+
+    #[test]
+    fn profile_u8_round_trips() {
+        for p in [Profile::CompatXWing, Profile::ContextBound] {
+            assert_eq!(Profile::from_u8(p.to_u8()), Some(p));
+        }
+        assert_eq!(Profile::CompatXWing.to_u8(), 1);
+        assert_eq!(Profile::ContextBound.to_u8(), 2);
+        assert_eq!(Profile::from_u8(0), None);
+        assert_eq!(Profile::from_u8(3), None);
     }
 
     #[test]

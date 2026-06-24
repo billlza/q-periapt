@@ -310,17 +310,10 @@ fn sha3(parts: &[&[u8]]) -> [u8; 32] {
 }
 
 fn profile_byte(p: Profile) -> u8 {
-    match p {
-        Profile::CompatXWing => 1,
-        Profile::ContextBound => 2,
-    }
+    p.to_u8()
 }
 fn profile_from(b: u8) -> Result<Profile, DemoError> {
-    match b {
-        1 => Ok(Profile::CompatXWing),
-        2 => Ok(Profile::ContextBound),
-        _ => Err(DemoError::Protocol),
-    }
+    Profile::from_u8(b).ok_or(DemoError::Protocol)
 }
 
 fn server_finished(secret: &Secret, context: &[u8]) -> [u8; 32] {

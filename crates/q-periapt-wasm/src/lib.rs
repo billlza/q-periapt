@@ -17,11 +17,7 @@ use q_periapt_kem::HybridKem;
 use wasm_bindgen::prelude::*;
 
 fn profile(code: u8) -> Result<Profile, JsError> {
-    match code {
-        1 => Ok(Profile::CompatXWing),
-        2 => Ok(Profile::ContextBound),
-        _ => Err(JsError::new("invalid profile code")),
-    }
+    Profile::from_u8(code).ok_or_else(|| JsError::new("invalid profile code"))
 }
 
 /// Derive a combined secret directly from the serialized combiner inputs — the
