@@ -20,6 +20,8 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets
       - run: cargo test --workspace
+      # C-ABI link smoke test on Linux (gcc/clang links a C consumer against the cdylib).
+      - run: sh bindings/c/build-and-run.sh
 
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs —
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
@@ -34,6 +36,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --workspace
       - run: cargo test -p q-periapt-backends --features slh-dsa,hqc
+      # C-ABI link smoke test: cl.exe links a C consumer against q_periapt_ffi.dll.
+      - run: bindings\c\build-and-run.bat
 
   # no_std build of the auditable core for an embedded target (must not pull std).
   no_std:
