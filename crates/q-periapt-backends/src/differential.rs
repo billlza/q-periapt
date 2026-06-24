@@ -241,19 +241,8 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
         // --- our hybrid encapsulation ---
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];
-        let (mut ssp, mut sst) = ([0u8; 32], [0u8; 32]);
         let secret = hk
-            .encapsulate(
-                &pk_pq,
-                &pk_trad,
-                b"",
-                m,
-                eph,
-                &mut ct_pq,
-                &mut ssp,
-                &mut ct_trad,
-                &mut sst,
-            )
+            .encapsulate(&pk_pq, &pk_trad, b"", m, eph, &mut ct_pq, &mut ct_trad)
             .unwrap();
 
         // --- independent reconstruction of the SAME shared secret ---
@@ -273,11 +262,8 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
         );
 
         // --- decapsulation: ours, and an independent reconstruction, both agree ---
-        let (mut ssp2, mut sst2) = ([0u8; 32], [0u8; 32]);
         let secret_dec = hk
-            .decapsulate(
-                &sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"", &mut ssp2, &mut sst2,
-            )
+            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
             .unwrap();
         let ss_pq_dec: [u8; 32] = (&dk_rc.decapsulate(&ct_pq_rc).unwrap()[..])
             .try_into()
@@ -324,19 +310,8 @@ fn hybrid_enhanced_compat_xwing_byte_identical_to_independent_reconstruction() {
         // --- our enhanced hybrid encapsulation ---
         let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];
-        let (mut ssp, mut sst) = ([0u8; 32], [0u8; 32]);
         let secret = hk
-            .encapsulate(
-                &pk_pq,
-                &pk_trad,
-                b"",
-                m,
-                eph,
-                &mut ct_pq,
-                &mut ssp,
-                &mut ct_trad,
-                &mut sst,
-            )
+            .encapsulate(&pk_pq, &pk_trad, b"", m, eph, &mut ct_pq, &mut ct_trad)
             .unwrap();
 
         // --- independent reconstruction of the SAME shared secret ---
@@ -356,11 +331,8 @@ fn hybrid_enhanced_compat_xwing_byte_identical_to_independent_reconstruction() {
         );
 
         // --- decapsulation: ours, and an independent reconstruction, both agree ---
-        let (mut ssp2, mut sst2) = ([0u8; 32], [0u8; 32]);
         let secret_dec = hk
-            .decapsulate(
-                &sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"", &mut ssp2, &mut sst2,
-            )
+            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
             .unwrap();
         let ss_pq_dec: [u8; 32] = (&dk_rc.decapsulate(&ct_pq_rc).unwrap()[..])
             .try_into()

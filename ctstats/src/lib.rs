@@ -90,9 +90,7 @@ mod tests {
         let ctx = b"ctx";
 
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
-        let mut ss_pq = [0u8; 32];
         let mut ct_trad = [0u8; X25519_LEN];
-        let mut ss_trad = [0u8; 32];
         let good = kem
             .encapsulate(
                 &pk_pq,
@@ -101,17 +99,14 @@ mod tests {
                 &[1u8; 32],
                 &[2u8; 32],
                 &mut ct_pq,
-                &mut ss_pq,
                 &mut ct_trad,
-                &mut ss_trad,
             )
             .unwrap();
 
         let mut bad_ct_pq = ct_pq;
         bad_ct_pq[0] ^= 0xFF;
-        let (mut a, mut b) = ([0u8; 32], [0u8; 32]);
         let dec = kem.decapsulate(
-            &sk_pq, &bad_ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx, &mut a, &mut b,
+            &sk_pq, &bad_ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx,
         );
         assert!(dec.is_ok(), "corrupt PQ ct must not surface an error");
         assert_ne!(

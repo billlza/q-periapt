@@ -21,7 +21,9 @@
 //! [`Profile::ContextBound`], which binds every ciphertext.
 
 use core::marker::PhantomData;
-use q_periapt_core::{combine, CombineInput, Error, Kem, Profile, Secret, Xof256};
+use q_periapt_core::{
+    combine, secure_wipe, CombineInput, Error, Kem, Profile, Secret, Xof256, SHARED_SECRET_LEN,
+};
 
 /// A PQ/T hybrid KEM binding a post-quantum and a traditional component.
 ///
@@ -74,6 +76,11 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// Encapsulate to both recipient public keys, producing both ciphertexts and
     /// the combined hybrid shared secret. `context` is bound only under
     /// [`Profile::ContextBound`].
+    ///
+    /// The component (ML-KEM and X25519) shared secrets never cross the API boundary:
+    /// they are held in internal scratch and securely wiped before return, since each
+    /// is attack-sufficient (the combined key is a deterministic hash of them) and only
+    /// the returned [`Secret`] — which carries its own zeroizing `Drop` — is wanted.
     #[allow(clippy::too_many_arguments)]
     pub fn encapsulate(
         &self,
@@ -83,25 +90,30 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         rand_pq: &[u8],
         rand_trad: &[u8],
         ct_pq: &mut [u8],
-        ss_pq: &mut [u8],
         ct_trad: &mut [u8],
-        ss_trad: &mut [u8],
     ) -> Result<Secret, Error> {
-        self.pq.encapsulate(pk_pq, rand_pq, ct_pq, ss_pq)?;
+        let mut ss_pq = [0u8; SHARED_SECRET_LEN];
+        let mut ss_trad = [0u8; SHARED_SECRET_LEN];
+        self.pq.encapsulate(pk_pq, rand_pq, ct_pq, &mut ss_pq)?;
         self.trad
-            .encapsulate(pk_trad, rand_trad, ct_trad, ss_trad)?;
-        let input = CombineInput {
-            suite_id: self.suite_id,
-            policy_version: self.policy_version,
-            ss_pq,
-            ss_trad,
-            ct_pq,
-            pk_pq,
-            ct_trad,
-            pk_trad,
-            context,
-        };
-        combine::<X>(self.profile, &input)
+            .encapsulate(pk_trad, rand_trad, ct_trad, &mut ss_trad)?;
+        let out = combine::<X>(
+            self.profile,
+            &CombineInput {
+                suite_id: self.suite_id,
+                policy_version: self.policy_version,
+                ss_pq: &ss_pq,
+                ss_trad: &ss_trad,
+                ct_pq,
+                pk_pq,
+                ct_trad,
+                pk_trad,
+                context,
+            },
+        );
+        secure_wipe(&mut ss_pq);
+        secure_wipe(&mut ss_trad);
+        out
     }
 
     /// Decapsulate both ciphertexts and recompute the combined hybrid secret.
@@ -120,23 +132,29 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         ct_trad: &[u8],
         pk_trad: &[u8],
         context: &[u8],
-        ss_pq: &mut [u8],
-        ss_trad: &mut [u8],
     ) -> Result<Secret, Error> {
-        self.pq.decapsulate(sk_pq, ct_pq, ss_pq)?;
-        self.trad.decapsulate(sk_trad, ct_trad, ss_trad)?;
-        let input = CombineInput {
-            suite_id: self.suite_id,
-            policy_version: self.policy_version,
-            ss_pq,
-            ss_trad,
-            ct_pq,
-            pk_pq,
-            ct_trad,
-            pk_trad,
-            context,
-        };
-        combine::<X>(self.profile, &input)
+        let mut ss_pq = [0u8; SHARED_SECRET_LEN];
+        let mut ss_trad = [0u8; SHARED_SECRET_LEN];
+        self.pq.decapsulate(sk_pq, ct_pq, &mut ss_pq)?;
+        self.trad.decapsulate(sk_trad, ct_trad, &mut ss_trad)?;
+        let out = combine::<X>(
+            self.profile,
+            &CombineInput {
+                suite_id: self.suite_id,
+                policy_version: self.policy_version,
+                ss_pq: &ss_pq,
+                ss_trad: &ss_trad,
+                ct_pq,
+                pk_pq,
+                ct_trad,
+                pk_trad,
+                context,
+            },
+        );
+        // Wipe the internal component secrets before return (see `encapsulate`).
+        secure_wipe(&mut ss_pq);
+        secure_wipe(&mut ss_trad);
+        out
     }
 }
 
@@ -232,8 +250,7 @@ mod tests {
         let (sk_pq, sk_trad) = ([0u8; 32], [0u8; 32]);
         let ctx = b"handshake-transcript";
 
-        let (mut ct_pq, mut ss_pq) = ([0u8; 32], [0u8; 32]);
-        let (mut ct_trad, mut ss_trad) = ([0u8; 32], [0u8; 32]);
+        let (mut ct_pq, mut ct_trad) = ([0u8; 32], [0u8; 32]);
         let enc = kem
             .encapsulate(
                 &pk_pq,
@@ -242,25 +259,12 @@ mod tests {
                 &[0xEEu8; 32],
                 &[0xDDu8; 32],
                 &mut ct_pq,
-                &mut ss_pq,
                 &mut ct_trad,
-                &mut ss_trad,
             )
             .unwrap();
 
-        let (mut d_ss_pq, mut d_ss_trad) = ([0u8; 32], [0u8; 32]);
         let dec = kem
-            .decapsulate(
-                &sk_pq,
-                &ct_pq,
-                &pk_pq,
-                &sk_trad,
-                &ct_trad,
-                &pk_trad,
-                ctx,
-                &mut d_ss_pq,
-                &mut d_ss_trad,
-            )
+            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
             .unwrap();
 
         assert_eq!(enc.as_bytes(), dec.as_bytes(), "encap/decap must agree");

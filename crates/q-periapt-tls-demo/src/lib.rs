@@ -355,9 +355,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     getrandom::fill(&mut coins).map_err(|_| DemoError::Crypto)?;
     let (rand_pq, rand_trad) = coins.split_at(32);
     let mut ct_pq = vec![0u8; Su::PQ_CT_LEN];
-    let mut ss_pq = [0u8; 32];
     let mut ct_trad = [0u8; X25519_LEN];
-    let mut ss_trad = [0u8; 32];
     let secret = kem.encapsulate(
         ek_pq,
         pk_x,
@@ -365,9 +363,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
         rand_pq,
         rand_trad,
         &mut ct_pq,
-        &mut ss_pq,
         &mut ct_trad,
-        &mut ss_trad,
     )?;
 
     // 5. ClientKem = ct_pq(PQ_CT_LEN) || ct_trad(32)
@@ -437,8 +433,6 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     let trad = X25519;
     let kem =
         HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
-    let mut ss_pq = [0u8; 32];
-    let mut ss_trad = [0u8; 32];
     let secret = kem.decapsulate(
         &keys.dk_pq,
         ct_pq,
@@ -447,8 +441,6 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
         ct_trad,
         &keys.pk_x,
         &context,
-        &mut ss_pq,
-        &mut ss_trad,
     )?;
 
     // 5. ServerFinished = sign(transcript) || key_confirmation

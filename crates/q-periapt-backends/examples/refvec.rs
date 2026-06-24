@@ -34,9 +34,7 @@ fn main() {
     .expect("hybrid kem");
 
     let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
-    let mut ss_pq = [0u8; 32];
     let mut ct_trad = [0u8; X25519_LEN];
-    let mut ss_trad = [0u8; 32];
     let secret = kem
         .encapsulate(
             &pk_pq,
@@ -45,9 +43,7 @@ fn main() {
             &rand_pq,
             &rand_trad,
             &mut ct_pq,
-            &mut ss_pq,
             &mut ct_trad,
-            &mut ss_trad,
         )
         .expect("encapsulate");
 

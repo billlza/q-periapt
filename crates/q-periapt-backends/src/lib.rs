@@ -322,11 +322,23 @@ const SHA3_XOF_INLINE_CAP: usize = 200;
 /// to the heap. This makes the X-Wing-compatible combiner allocation-free: it does
 /// the minimal single-block Keccak work with no per-`update` sponge bookkeeping and
 /// no heap traffic, while producing identical bytes.
-#[derive(Clone)]
 pub struct Sha3_256Xof {
     inline: [u8; SHA3_XOF_INLINE_CAP],
     len: usize,
     spill: Vec<u8>,
+}
+
+impl Drop for Sha3_256Xof {
+    fn drop(&mut self) {
+        // The inline buffer and heap spill stage raw component shared secrets absorbed
+        // into the combiner; wipe both (the spill's live allocation included) before the
+        // storage is released, mirroring `core::Secret`'s volatile wipe — otherwise the
+        // same key material `Secret::drop` protects would persist here. (Intermediate
+        // reallocations while the spill grows are a residual the Vec API can't reach.)
+        q_periapt_core::secure_wipe(&mut self.inline);
+        q_periapt_core::secure_wipe(self.spill.as_mut_slice());
+        self.len = 0;
+    }
 }
 
 impl Default for Sha3_256Xof {
@@ -751,9 +763,7 @@ mod tests {
                     .unwrap();
 
             let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
-            let mut ss_pq = [0u8; 32];
             let mut ct_trad = [0u8; X25519_LEN];
-            let mut ss_trad = [0u8; 32];
             let enc = kem
                 .encapsulate(
                     &pk_pq,
@@ -762,26 +772,12 @@ mod tests {
                     &[11u8; 32],
                     &[22u8; 32],
                     &mut ct_pq,
-                    &mut ss_pq,
                     &mut ct_trad,
-                    &mut ss_trad,
                 )
                 .unwrap();
 
-            let mut d_ss_pq = [0u8; 32];
-            let mut d_ss_trad = [0u8; 32];
             let dec = kem
-                .decapsulate(
-                    &sk_pq,
-                    &ct_pq,
-                    &pk_pq,
-                    &sk_trad,
-                    &ct_trad,
-                    &pk_trad,
-                    ctx,
-                    &mut d_ss_pq,
-                    &mut d_ss_trad,
-                )
+                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
                 .unwrap();
 
             assert_eq!(
@@ -811,9 +807,7 @@ mod tests {
                     .unwrap();
 
             let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
-            let mut ss_pq = [0u8; 32];
             let mut ct_trad = [0u8; X25519_LEN];
-            let mut ss_trad = [0u8; 32];
             let enc = kem
                 .encapsulate(
                     &pk_pq,
@@ -822,26 +816,12 @@ mod tests {
                     &[11u8; 32],
                     &[22u8; 32],
                     &mut ct_pq,
-                    &mut ss_pq,
                     &mut ct_trad,
-                    &mut ss_trad,
                 )
                 .unwrap();
 
-            let mut d_ss_pq = [0u8; 32];
-            let mut d_ss_trad = [0u8; 32];
             let dec = kem
-                .decapsulate(
-                    &sk_pq,
-                    &ct_pq,
-                    &pk_pq,
-                    &sk_trad,
-                    &ct_trad,
-                    &pk_trad,
-                    ctx,
-                    &mut d_ss_pq,
-                    &mut d_ss_trad,
-                )
+                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
                 .unwrap();
 
             assert_eq!(

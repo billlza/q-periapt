@@ -241,18 +241,8 @@ pub unsafe extern "C" fn q_periapt_hybrid_encapsulate(
                 Ok(k) => k,
                 Err(e) => return err_code(e),
             };
-        let mut ss_pq = [0u8; 32];
-        let mut ss_trad = [0u8; 32];
         match kem.encapsulate(
-            pk_pq,
-            pk_trad,
-            context,
-            rand_pq,
-            rand_trad,
-            ct_pq_o,
-            &mut ss_pq,
-            ct_trad_o,
-            &mut ss_trad,
+            pk_pq, pk_trad, context, rand_pq, rand_trad, ct_pq_o, ct_trad_o,
         ) {
             Ok(secret) => {
                 secret_o.copy_from_slice(secret.as_bytes());
@@ -333,19 +323,7 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
                 Ok(k) => k,
                 Err(e) => return err_code(e),
             };
-        let mut ss_pq = [0u8; 32];
-        let mut ss_trad = [0u8; 32];
-        match kem.decapsulate(
-            sk_pq,
-            ct_pq,
-            pk_pq,
-            sk_trad,
-            ct_trad,
-            pk_trad,
-            context,
-            &mut ss_pq,
-            &mut ss_trad,
-        ) {
+        match kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context) {
             Ok(secret) => {
                 secret_o.copy_from_slice(secret.as_bytes());
                 Q_PERIAPT_OK

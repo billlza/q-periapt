@@ -111,7 +111,9 @@ pub fn secure_wipe(buf: &mut [u8]) {
 
 /// An incremental XOF / hash used to derive the combined secret (e.g. SHAKE-256
 /// or SHA3-256). Implementations **must** be constant-time with respect to the
-/// absorbed data.
+/// absorbed data, and **must** securely wipe any internal staging/sponge state that
+/// held absorbed secret material when dropped (the combiner absorbs raw component
+/// shared secrets) — e.g. via [`secure_wipe`] in a `Drop` impl.
 pub trait Xof256 {
     /// Create a fresh, empty absorbing state.
     fn new() -> Self;

@@ -129,9 +129,7 @@ pub fn encapsulate(
     let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
         .map_err(|_| JsError::new("policy denied"))?;
     let mut ct_pq = vec![0u8; ML_KEM_768_CT_LEN];
-    let mut ss_pq = [0u8; 32];
     let mut ct_trad = vec![0u8; X25519_LEN];
-    let mut ss_trad = [0u8; 32];
     let secret = kem
         .encapsulate(
             pk_pq,
@@ -140,9 +138,7 @@ pub fn encapsulate(
             rand_pq,
             rand_trad,
             &mut ct_pq,
-            &mut ss_pq,
             &mut ct_trad,
-            &mut ss_trad,
         )
         .map_err(|_| JsError::new("encapsulate failed"))?;
     Ok(EncapResult {
@@ -171,20 +167,8 @@ pub fn decapsulate(
     let (pq, trad) = (MlKem768, X25519);
     let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
         .map_err(|_| JsError::new("policy denied"))?;
-    let mut ss_pq = [0u8; 32];
-    let mut ss_trad = [0u8; 32];
     let secret = kem
-        .decapsulate(
-            sk_pq,
-            ct_pq,
-            pk_pq,
-            sk_trad,
-            ct_trad,
-            pk_trad,
-            context,
-            &mut ss_pq,
-            &mut ss_trad,
-        )
+        .decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
         .map_err(|_| JsError::new("decapsulate failed"))?;
     Ok(secret.as_bytes().to_vec())
 }
@@ -281,6 +265,7 @@ mod tests {
     /// every target; the old truncating `as usize` would silently mask it back to the
     /// original length on wasm32 (32-bit `usize`) and *accept* — a cross-platform
     /// accept/reject divergence. This must reject.
+    #[cfg(target_arch = "wasm32")]
     fn check_overlong_prefix_rejected() {
         let hex = |s: &str| {
             (0..s.len() / 2)
@@ -300,12 +285,9 @@ mod tests {
         );
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[test]
-    fn overlong_prefix_rejected() {
-        check_overlong_prefix_rejected();
-    }
-
+    // wasm32-only: this exercises `combine`'s *error* path, which constructs a `JsError`
+    // (a wasm-bindgen import that panics on non-wasm hosts). The 64-bit rejection is
+    // covered by `q_periapt_core`'s `from_transport_rejects_overlong_length_prefix`.
     #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen_test::wasm_bindgen_test]
     fn overlong_prefix_rejected_wasm() {

@@ -21,7 +21,7 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
 use crate::{MlKem1024, Sha3_256Xof, ML_KEM_1024_CT_LEN, X25519, X25519_LEN};
-use q_periapt_core::{Profile, DOMAIN};
+use q_periapt_core::{Kem, Profile, DOMAIN};
 use q_periapt_kem::HybridKem;
 use sha3::{Digest, Sha3_256};
 
@@ -90,9 +90,7 @@ fn enhanced_suite_pinned_reference_vector() {
 
     // --- encapsulate (deterministic from fixed randomness) ---
     let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
-    let mut ss_pq = [0u8; 32];
     let mut ct_trad = [0u8; X25519_LEN];
-    let mut ss_trad = [0u8; 32];
     let secret = kem
         .encapsulate(
             &pk_pq,
@@ -101,26 +99,14 @@ fn enhanced_suite_pinned_reference_vector() {
             &[11u8; 32],
             &[22u8; 32],
             &mut ct_pq,
-            &mut ss_pq,
             &mut ct_trad,
-            &mut ss_trad,
         )
         .unwrap();
 
     // --- (1) round-trip: decapsulation recovers the same secret ---
-    let mut d_ss_pq = [0u8; 32];
-    let mut d_ss_trad = [0u8; 32];
     let dec = kem
         .decapsulate(
-            &sk_pq,
-            &ct_pq,
-            &pk_pq,
-            &sk_trad,
-            &ct_trad,
-            &pk_trad,
-            CONTEXT,
-            &mut d_ss_pq,
-            &mut d_ss_trad,
+            &sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, CONTEXT,
         )
         .unwrap();
     assert_eq!(
@@ -129,7 +115,28 @@ fn enhanced_suite_pinned_reference_vector() {
         "enhanced suite: decaps must recover the encapsulated secret"
     );
 
-    // --- (2) spec-anchored: independent SHA3 recompute over the real components ---
+    // --- (2) spec-anchored: the hybrid KEM keeps the component secrets internal (and
+    // wipes them), so derive them INDEPENDENTLY from the backends with the same fixed
+    // randomness, then recompute K via the from-scratch canonical encoder. The
+    // independently-derived ciphertexts must equal the hybrid's. ---
+    let mut ss_pq = [0u8; 32];
+    let mut ind_ct_pq = [0u8; ML_KEM_1024_CT_LEN];
+    MlKem1024
+        .encapsulate(&pk_pq, &[11u8; 32], &mut ind_ct_pq, &mut ss_pq)
+        .unwrap();
+    let mut ss_trad = [0u8; 32];
+    let mut ind_ct_trad = [0u8; X25519_LEN];
+    X25519
+        .encapsulate(&pk_trad, &[22u8; 32], &mut ind_ct_trad, &mut ss_trad)
+        .unwrap();
+    assert_eq!(
+        ind_ct_pq, ct_pq,
+        "independent ct_pq must match the hybrid's"
+    );
+    assert_eq!(
+        ind_ct_trad, ct_trad,
+        "independent ct_trad must match the hybrid's"
+    );
     let recomputed = independent_k(
         SUITE_ID,
         POLICY_VERSION,

@@ -55,9 +55,7 @@ fn xwing_draft_kat_byte_exact() {
         let kem =
             HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, Profile::CompatXWing, b"", 0).unwrap();
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
-        let mut ss_pq = [0u8; 32];
         let mut ct_trad = [0u8; X25519_LEN];
-        let mut ss_trad = [0u8; 32];
         let secret = kem
             .encapsulate(
                 &pk_m,
@@ -66,9 +64,7 @@ fn xwing_draft_kat_byte_exact() {
                 &eseed[0..32],
                 &eseed[32..64],
                 &mut ct_pq,
-                &mut ss_pq,
                 &mut ct_trad,
-                &mut ss_trad,
             )
             .unwrap();
 
@@ -82,20 +78,8 @@ fn xwing_draft_kat_byte_exact() {
         );
 
         // --- Decapsulate: must recover the same shared secret ---
-        let mut d_ss_pq = [0u8; 32];
-        let mut d_ss_trad = [0u8; 32];
         let dsec = kem
-            .decapsulate(
-                &sk_m,
-                &ct_pq,
-                &pk_m,
-                &skx,
-                &ct_trad,
-                &pk_x,
-                b"",
-                &mut d_ss_pq,
-                &mut d_ss_trad,
-            )
+            .decapsulate(&sk_m, &ct_pq, &pk_m, &skx, &ct_trad, &pk_x, b"")
             .unwrap();
         assert_eq!(
             dsec.as_bytes(),

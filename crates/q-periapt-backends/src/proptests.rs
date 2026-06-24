@@ -158,14 +158,12 @@ proptest! {
 
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_x = [0u8; X25519_LEN];
-        let (mut sp, mut st) = ([0u8; 32], [0u8; 32]);
         let enc = hk
-            .encapsulate(&pk_pq, &pk_x, b"", &m, &eph, &mut ct_pq, &mut sp, &mut ct_x, &mut st)
+            .encapsulate(&pk_pq, &pk_x, b"", &m, &eph, &mut ct_pq, &mut ct_x)
             .unwrap();
 
-        let (mut sp2, mut st2) = ([0u8; 32], [0u8; 32]);
         let dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"", &mut sp2, &mut st2)
+            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"")
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());
@@ -189,14 +187,12 @@ proptest! {
 
         let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
         let mut ct_x = [0u8; X25519_LEN];
-        let (mut sp, mut st) = ([0u8; 32], [0u8; 32]);
         let enc = hk
-            .encapsulate(&pk_pq, &pk_x, &ctx, &m, &eph, &mut ct_pq, &mut sp, &mut ct_x, &mut st)
+            .encapsulate(&pk_pq, &pk_x, &ctx, &m, &eph, &mut ct_pq, &mut ct_x)
             .unwrap();
 
-        let (mut sp2, mut st2) = ([0u8; 32], [0u8; 32]);
         let dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, &ctx, &mut sp2, &mut st2)
+            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, &ctx)
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());
