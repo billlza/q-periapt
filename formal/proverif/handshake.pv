@@ -1,0 +1,218 @@
+(*
+  Symbolic (Dolev-Yao) model of the q-periapt server-authenticated PQ/T hybrid KEM
+  handshake (crates/q-periapt-tls-demo), in ProVerif's applied pi-calculus.
+
+  This is an INDEPENDENT second symbolic tool alongside formal/tamarin/handshake.spthy
+  (Tamarin): same protocol, same abstractions, same properties, but a different prover
+  and a different modeling formalism (processes/events/queries vs multiset rewriting).
+  Two unrelated tools agreeing is the assurance-diversity argument.
+
+  Protocol (HPKE-base-shaped, server-authenticated):
+    Server has a static hybrid KEM key (ML-KEM dk + X25519 scalar) and an ML-DSA
+    identity key whose verifying key the client pins out-of-band.
+      1. C -> S : ClientHello    = nc
+      2. S -> C : ServerHello    = ek_pq, pk_x, ns
+      3. C -> S : ClientKem      = ct_pq, ct_x        (encapsulate to the static hybrid key)
+      4. S -> C : ServerFinished = sign_S(transcript), confirm = KDF(secret, ctx)
+    Both derive secret = COMBINE(ss_pq, ss_x, transcript-bound agility block), where
+    ss_pq is the ML-KEM shared secret and ss_x the X25519 DH secret.
+
+  Modeling choices (mirroring the Tamarin model exactly, except where noted):
+    * ML-KEM is modeled as an idealized KEM: ek = kempk(dk); the client encapsulates a
+      fresh secret sspq as ct = encap(ek, sspq); decap(dk, encap(kempk(dk), m)) = m.
+    * The combiner is a one-way hash h(<...>): computing `secret` requires BOTH ss_pq
+      AND ss_x, which is exactly the hybrid robustness we want to check.
+    * Signatures via a standard signature theory; the client pins the server's vk.
+    * Per-primitive Reveal events expose each long-term secret independently, so the
+      hybrid property (one break survived, both not) can be stated as a query.
+
+  *** ABSTRACTION DIFFERENCE vs the Tamarin model (documented; see README "Differences") ***
+    The Tamarin model uses the native `diffie-hellman` builtin for X25519 (exponentiation
+    with a real DH equation). ProVerif's equational reasoning over Diffie-Hellman is
+    limited (the `exp` theory is incomplete for the secrecy goals we need, and ProVerif
+    cannot reliably discharge the hybrid-secrecy query under a raw-DH model). We therefore
+    model the X25519 classical component as a SECOND idealized KEM (`xpk`/`xencap`/`xdecap`),
+    structurally parallel to the ML-KEM one. Both tools thus agree on the abstraction "a
+    static-key KEM-style key agreement whose shared secret is hidden unless its long-term
+    secret leaks"; they differ only in HOW the classical leg is idealized (raw DH in
+    Tamarin, idealized KEM in ProVerif). The hybrid property under test -- secret needs
+    BOTH component secrets -- is identical, and being verified by two different
+    idealizations of the classical leg is itself part of the diversity argument.
+*)
+
+(* ===================== Types ===================== *)
+type skey.        (* ML-DSA signing key *)
+type spkey.       (* ML-DSA verifying key *)
+type kemsk.       (* ML-KEM decapsulation key (static) *)
+type kempkey.     (* ML-KEM encapsulation key *)
+type xsk.         (* X25519 static scalar (modeled as a KEM secret key) *)
+type xpkey.       (* X25519 static public point (modeled as a KEM public key) *)
+type ss.          (* a KEM shared secret *)
+type nonce.       (* handshake nonces nc, ns *)
+type key.         (* derived session key `secret` *)
+
+(* ===================== Channels ===================== *)
+free net: channel.                 (* the public Dolev-Yao network *)
+
+(* ===================== ML-KEM (idealized KEM) ===================== *)
+fun kempk(kemsk): kempkey.
+fun encap(kempkey, ss): bitstring.                         (* ct_pq = encap(ek, sspq) *)
+reduc forall dk: kemsk, m: ss; decap(dk, encap(kempk(dk), m)) = m.
+
+(* ===================== X25519 (idealized as a second KEM; see header) =========== *)
+fun xpk(xsk): xpkey.
+fun xencap(xpkey, ss): bitstring.                          (* ct_x = xencap(pk_x, ssx) *)
+reduc forall x: xsk, m: ss; xdecap(x, xencap(xpk(x), m)) = m.
+
+(* ===================== ML-DSA signatures ===================== *)
+fun pk(skey): spkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; verify(sign(m, k), pk(k)) = m.
+
+(* ===================== Hash / combiner / KDF ===================== *)
+(* A single free, one-way constructor `h` over a tagged tuple plays the role of the
+   transcript hash, the combiner, the context hash and the key-confirmation tag, exactly
+   as `h(<...>)` does in the Tamarin model. No reduction => one-way & collision-free
+   symbolically: to compute it the attacker must already know every argument. *)
+fun h1(bitstring): bitstring.                              (* generic hash over a tuple *)
+
+(* The combiner: one-way over BOTH shared secrets + the agility block.
+   Returns the session `key`. Requires ss_pq AND ss_x AND the public context. *)
+fun combine(kempkey, xpkey, bitstring, bitstring, ss, ss, bitstring): key.
+
+(* Key-confirmation tag derived from the session key + context. *)
+fun confirmtag(key, bitstring): bitstring.
+
+(* ===================== Events ===================== *)
+event ServerDone(spkey, key, bitstring).                   (* server completed: vk, secret, transcript *)
+event ClientFinish(spkey, key, bitstring).                 (* client accepted: pinned vk, secret, transcript *)
+event RevealSig(spkey).                                     (* signing key revealed *)
+event RevealPQ(spkey).                                      (* ML-KEM dk revealed *)
+event RevealTrad(spkey).                                    (* X25519 scalar revealed *)
+
+(* ===================== Queries ===================== *)
+
+(* Sanity (executable): an honest client CAN finish a session.
+   ProVerif proves this by exhibiting a trace (RESULT ... is false => the event is
+   reachable, i.e. the honest run completes). *)
+query vk: spkey, k: key, tr: bitstring; event(ClientFinish(vk, k, tr)).
+
+(* Server authentication (INJECTIVE agreement): every ClientFinish over (vk, k, tr) is
+   matched by a DISTINCT prior ServerDone over the SAME (k, tr) -- i.e. no replay yields
+   two client acceptances for one server run -- unless the signing key leaked. Mirrors
+   Tamarin's `server_authentication` (the README describes it as "injective-style"). *)
+query vk: spkey, k: key, tr: bitstring;
+  inj-event(ClientFinish(vk, k, tr)) ==>
+    (inj-event(ServerDone(vk, k, tr)) || event(RevealSig(vk))).
+
+(* Hybrid secrecy: the accepted session key stays secret UNLESS both KEM components are
+   broken OR the signing key was revealed. We phrase it as: if the attacker learns the
+   key `k` that a client accepted, then (RevealPQ AND RevealTrad) OR RevealSig occurred.
+   Mirrors Tamarin's `hybrid_secrecy`. attacker(k) is ProVerif's "the adversary knows k". *)
+query vk: spkey, k: key, tr: bitstring;
+  event(ClientFinish(vk, k, tr)) && attacker(k) ==>
+    ((event(RevealPQ(vk)) && event(RevealTrad(vk))) || event(RevealSig(vk))).
+
+(* Hybrid robustness (the headline), stated as TWO single-break-survived statements with
+   an HONEST server identity. Mirrors Tamarin's `hybrid_robustness_authenticated`:
+   "with the signing key never revealed, the key survives a break of EITHER leg; only
+   breaking BOTH loses it." ProVerif cannot put `not(RevealSig)` in a query hypothesis,
+   so we encode the two single-break corners directly, which are STRICTLY stronger than
+   (and distinct from) the secrecy disjunction above:
+     (a) if the key leaks, the post-quantum leg alone being honest already forbids it
+         unless Trad OR Sig was revealed  -> a lone PQ break is survived;
+     (b) symmetrically, a lone Trad break is survived. *)
+query vk: spkey, k: key, tr: bitstring;
+  event(ClientFinish(vk, k, tr)) && attacker(k) ==>
+    (event(RevealTrad(vk)) || event(RevealSig(vk))).
+query vk: spkey, k: key, tr: bitstring;
+  event(ClientFinish(vk, k, tr)) && attacker(k) ==>
+    (event(RevealPQ(vk)) || event(RevealSig(vk))).
+
+(* ===================== Server long-term key setup ===================== *)
+(* One server identity, set up once; its public material is published; the adversary may
+   independently reveal each of the three long-term secrets. *)
+
+(* Reveal processes: each leaks exactly one primitive's secret and logs the matching
+   per-primitive event, mirroring Tamarin's Reveal_* rules. *)
+let revealSig(sigsk: skey) =
+  event RevealSig(pk(sigsk)); out(net, sigsk).
+
+let revealPQ(vk: spkey, dkpq: kemsk) =
+  event RevealPQ(vk); out(net, dkpq).
+
+let revealTrad(vk: spkey, x: xsk) =
+  event RevealTrad(vk); out(net, x).
+
+(* ===================== Server role (flights 2 and 4) ===================== *)
+let server(sigsk: skey, dkpq: kemsk, x: xsk) =
+  let vk = pk(sigsk) in
+  let ekpq = kempk(dkpq) in
+  let pkx  = xpk(x) in
+  (* 1. receive ClientHello *)
+  in(net, nc: nonce);
+  (* 2. ServerHello: publish ek_pq, pk_x, ns *)
+  new ns: nonce;
+  out(net, (ekpq, pkx, ns));
+  (* 3. receive ClientKem *)
+  in(net, (ct_pq: bitstring, ct_x: bitstring));
+  (* decapsulate BOTH legs with the static secrets *)
+  let sspq = decap(dkpq, ct_pq) in
+  let ssx  = xdecap(x, ct_x) in
+  (* context = H(ch, sh); secret = COMBINE(...); transcript = H(ch, sh, kem) *)
+  let ctxt = h1((nc, ekpq, pkx, ns)) in
+  let sec_k = combine(ekpq, pkx, ct_pq, ct_x, sspq, ssx, ctxt) in
+  let transcript = h1((nc, ekpq, pkx, ns, ct_pq, ct_x)) in
+  let confirm = confirmtag(sec_k, ctxt) in
+  event ServerDone(vk, sec_k, transcript);
+  (* 4. ServerFinished: signature over transcript + key confirmation *)
+  out(net, (sign(transcript, sigsk), confirm)).
+
+(* ===================== Client role (flights 1, 3, 5) ===================== *)
+(* The client pins the honest server's verifying key `vkpin` out-of-band. The ServerHello
+   public key material is whatever the network delivers (a MITM substitution is caught by
+   the signature over the transcript and the key-confirmation check). *)
+let client(vkpin: spkey) =
+  (* 1. ClientHello *)
+  new nc: nonce;
+  out(net, nc);
+  (* 2. receive ServerHello (network-bound ekpq, pkx) *)
+  in(net, (ekpq: kempkey, pkx: xpkey, ns: nonce));
+  (* 3. ClientKem: encapsulate a fresh shared secret to each received public key *)
+  new sspq: ss;
+  new ssx:  ss;
+  let ct_pq = encap(ekpq, sspq) in
+  let ct_x  = xencap(pkx, ssx) in
+  out(net, (ct_pq, ct_x));
+  (* client-side derivation of secret/transcript/confirm (must match the server's) *)
+  let ctxt = h1((nc, ekpq, pkx, ns)) in
+  let sec_k = combine(ekpq, pkx, ct_pq, ct_x, sspq, ssx, ctxt) in
+  let transcript = h1((nc, ekpq, pkx, ns, ct_pq, ct_x)) in
+  let confirm = confirmtag(sec_k, ctxt) in
+  (* 5. ServerFinished: verify signature against the PINNED vk + check key confirm *)
+  in(net, (sig: bitstring, conf_in: bitstring));
+  (* signature must verify under the pinned vk AND recover exactly our transcript *)
+  let (=transcript) = verify(sig, vkpin) in
+  (* key confirmation must match *)
+  let (=confirm) = conf_in in
+  event ClientFinish(vkpin, sec_k, transcript).
+
+(* ===================== Main ===================== *)
+(* Set up one honest server identity; publish its public material; run unboundedly many
+   client and server sessions in parallel; expose the three independent reveal oracles. *)
+process
+  new sigsk: skey;
+  new dkpq:  kemsk;
+  new x:     xsk;
+  let vk   = pk(sigsk) in
+  let ekpq = kempk(dkpq) in
+  let pkx  = xpk(x) in
+  (* publish the public encapsulation keys + verifying key (client pins vk out-of-band) *)
+  out(net, (ekpq, pkx, vk));
+  (
+      (!server(sigsk, dkpq, x))
+    | (!client(vk))
+    | (!revealSig(sigsk))
+    | (!revealPQ(vk, dkpq))
+    | (!revealTrad(vk, x))
+  )
