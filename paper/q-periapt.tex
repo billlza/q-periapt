@@ -308,20 +308,23 @@ over this provider.
 We evaluate handshake \emph{time-to-session} (TCP connect plus full TLS~1.3 handshake) over a real
 loopback socket shaped by \code{tc netem}, comparing a classical X25519 baseline against the two
 PQ/T profiles. \Cref{fig:netem} reports the result: the three curves coincide because latency is
-RTT-dominated, and the PQ/T overhead is a \emph{fixed} cost ($\sim$200\,$\mu$s of ML-KEM CPU plus
-the wire bytes of \cref{fig:wire}), so it becomes negligible---within $0.1$--$0.4\%$ of
-classical---at realistic RTT. The hybrid's $+2.27$\,KB (one ML-KEM-768 keyshare each way) fits
-within the existing TLS flights and triggers no additional round-trip. The two combiner profiles
-are indistinguishable: the stronger binding of the hash-everything combiner is free in latency.
-We report these measurements honestly as obtained on a virtualized host; the camera-ready figures
-should be reproduced on quiesced bare-metal hardware using the provided protocol script (the
-RTT-dominated points are already stable).
+RTT-dominated, and the PQ/T overhead is a \emph{fixed} cost ($\sim$190\,$\mu$s of ML-KEM CPU plus
+the wire bytes of \cref{fig:wire}). At realistic RTT this is negligible: at RTT~$\ge$~20\,ms the
+measured overhead is \emph{within run-to-run noise}---its sign varies across repeated runs
+(\cref{fig:netem}b, error bars span two repetitions)---while the only reproducible cost is the
+$\sim$190\,$\mu$s of CPU visible at RTT~0. The hybrid's $+2.27$\,KB (one ML-KEM-768 keyshare each
+way) fits within the existing TLS flights and triggers no additional round-trip. The two combiner
+profiles are indistinguishable: the stronger binding of the hash-everything combiner is free in
+latency. We report these measurements honestly as obtained on a virtualized host; a turnkey
+script reproduces the protocol on quiesced bare-metal hardware for the camera-ready (the
+RTT-dominated points are already stable across repetitions).
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_netem.pdf}
-\caption{Time-to-session under real \code{tc netem}. (a) latency is RTT-dominated---the three
-curves coincide. (b) the PQ/T overhead is a $\sim$fixed CPU cost, hence a negligible percentage at
-realistic RTT.}
+\caption{Time-to-session under real \code{tc netem} (mean of two repetitions). (a) latency is
+RTT-dominated---the three curves coincide. (b) the overhead is $\sim$190\,$\mu$s of CPU at RTT~0;
+at realistic RTT it is within run-to-run noise (error bars span the two repetitions and cross zero
+at RTT~20\,ms).}
 \label{fig:netem}
 \end{figure}
 
