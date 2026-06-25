@@ -98,7 +98,13 @@ We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs built around one p
 security property is only as trustworthy as its weakest realization. \Cref{fig:arch} is the
 organising idea---a single machine-checked binding result whose proven object is realized
 byte-identically across the whole deployment surface (``proof-to-byte''), guarded by
-reproducible gates (configured in CI; we report constant-time results here as local runs) that target the specific failure classes above.
+reproducible gates (configured in CI; we report constant-time results here as local runs) that
+target the specific failure classes above.\footnote{To be precise about the link: the EasyCrypt
+proof is over an abstract injective \code{encode}, and the shipped Rust \code{encode} is tied to it
+by \emph{conformance} (shared ContextBound KATs + the six-method matrix of \cref{sec:substrate}),
+not by a mechanized refinement proof. ``Proof-to-byte'' thus names a conformance-established link,
+not a verified compiler; the byte-identity \emph{across substrates} (\cref{sec:substrate}) is what
+is mechanically and exhaustively checked.}
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_arch.pdf}
