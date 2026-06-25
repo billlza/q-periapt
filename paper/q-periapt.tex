@@ -560,17 +560,46 @@ and an (unaudited) HQC backend used here as the CT discriminator's leaky referen
 primitives are standardized, the same proof-to-byte discipline applies unchanged.
 
 \section{Related Work}\label{sec:related}
-\textbf{KEM binding.} CDM~\cite{cdm} introduced the \mbox{X-BIND-$P$-$Q$} lattice and monotonicity;
-Schmieg~\cite{schmieg} proved ML-KEM's expanded-dk binding failures; Chempat~\cite{chempat}
-established that hash-everything combiners are binding from collision-resistance while lean
-combiners inherit the omitted component's binding (ContextBound is an instance). Context binding is
-the KEM-layer analogue of context-committing AEAD~\cite{cmt}; the role of public contexts in hybrid
-KEMs is analysed in~\cite{eprint2026140}. \textbf{Side channels.} KyberSlash~\cite{kyberslash} and
-the ctgrind/TIMECOP discipline motivate our binary-CT gate; libcrux/HACL* provide source-level
-guarantees we corroborate and discriminate against. \textbf{Hybrids in deployment.} X-Wing~\cite{xwing}
-and the TLS \code{X25519MLKEM768} group are the deployed baselines we position against.
-\textbf{Formal PQ.} formosa-mlkem~\cite{formosa} mechanizes ML-KEM IND-CCA; the SandboxAQ EasyCrypt-KEMs library
-mechanizes \mbox{LEAK-BIND-K-PK}; our EasyCrypt~\cite{easycrypt} development adds the (commitment-style) MAL Figure-6 instantiation for the hybrid combiner, complemented by symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}.
+\paragraph*{KEM binding and committing security}
+The systematic study of KEM binding is recent. CDM~\cite{cdm} introduced the
+\mbox{X-BIND-$P$-$Q$} lattice, the HON/LEAK/MAL adversary hierarchy, and its monotonicity, and
+showed where standard KEMs sit; Schmieg~\cite{schmieg} then proved that ML-KEM in its FIPS-203
+\emph{expanded} decapsulation-key form is neither \mbox{MAL-BIND-K-CT} nor \mbox{MAL-BIND-K-PK},
+with seed-form keys as the fix, and~\cite{cdmrej} analyzes implicitly-rejecting KEMs more broadly.
+For \emph{combined} KEMs, Chempat~\cite{chempat} establishes the dichotomy we rely on---a
+hash-everything combiner is binding from collision-resistance alone, while a lean combiner inherits
+the binding of whatever component it omits; ContextBound is an instance of the former, which is
+exactly why we attribute the binding \emph{fact} rather than claim it. At the symmetric layer, the
+same idea appears as context-committing AEAD (CMT)~\cite{cmt}, of which our context axis is the
+KEM-output-layer analogue; the role of public contexts specifically in hybrid KEMs is studied
+in~\cite{eprint2026140}. Our addition is not a new notion but the conjunction of
+\cref{tab:position}: a mechanized, assumption-minimal binding result whose proven object is
+byte-identical across the deployment surface.
+
+\paragraph*{Side-channel assurance}
+KyberSlash~\cite{kyberslash} showed that secret-dependent timings in widely-used Kyber/ML-KEM
+implementations were exploitable, underscoring that source-level constant-time arguments do not by
+themselves settle the question for shipped binaries. The dudect/ctgrind discipline of marking
+secrets and checking for secret-dependent control flow~\cite{dudect,ctgrind}, realized over
+Valgrind/Memcheck~\cite{valgrind}, is the basis of our binary-CT gate. We build on, rather than
+re-do, the source-level guarantees of HACL*~\cite{hacl} and the libcrux ML-KEM
+verification~\cite{libcrux}: our probe \emph{corroborates} them dynamically and, crucially,
+\emph{discriminates} a verified primitive from an unverified one in the same framework.
+
+\paragraph*{Hybrids in deployment}
+Hybrid key exchange is being standardized and shipped: the IETF hybrid design~\cite{tlshybrid} and
+the \code{X25519MLKEM768} group~\cite{tlsmlkem} for TLS~1.3~\cite{rfc8446,rfc7748}, the X-Wing
+KEM~\cite{xwing}, Signal's PQXDH (formally analyzed in~\cite{pqxdh}), and Apple's PQ3~\cite{pq3}.
+These are the baselines we position against; our combiner interoperates with X-Wing (the
+\code{CompatXWing} profile) and our rustls integration targets the same TLS~1.3 deployment path.
+
+\paragraph*{Formal verification of PQ cryptography}
+formosa-mlkem~\cite{formosa} delivers a verified ML-KEM \emph{implementation} (Jasmin/EasyCrypt) with
+IND-CCA and constant-time guarantees---an axis (specification-to-binary) we explicitly do not hold
+(\cref{tab:position}). The SandboxAQ EasyCrypt-KEMs library mechanizes \mbox{LEAK-BIND-K-PK} for
+ML-KEM. Our EasyCrypt~\cite{easycrypt} development is complementary: it targets the \emph{hybrid
+combiner's} binding (the commitment-style MAL Figure-6 instantiation), and is cross-checked by
+independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}, all CI-gated.
 
 \section{Limitations}\label{sec:limits}
 The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it is exactly the
