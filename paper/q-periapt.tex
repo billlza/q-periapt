@@ -49,14 +49,15 @@ self-validating source$\to$binary constant-time probe (configured as a CI gate; 
 that we show \emph{discriminates} a clean primitive (libcrux ML-KEM: zero secret-dependent branches
 after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a production TLS~1.3
 path (a rustls \code{CryptoProvider}) and evaluate handshake tail latency under real
-\code{tc netem}. Beyond attaining the ceiling, we prove a machine-checked
-\emph{shape\,$\times$\,format separation}: in one EasyCrypt model, a lean (X-Wing-shaped) combiner
-that omits the PQ public key \emph{loses} \mbox{MAL-BIND-K-PK} over the FIPS-203 expanded
-decapsulation-key serialization---a concrete adversary wins with probability one---yet
-\emph{regains} it over the seed-\code{dk} serialization, while ContextBound, which absorbs the
-public key, is binding over \emph{both}; the asymmetry (the full shape reduces to
-collision-resistance \emph{alone}, the seed-\code{dk} lean shape additionally needs injectivity of
-the rejection function) is the formal case for the construction. We are explicit about what is and
+\code{tc netem}. Beyond attaining the ceiling, we prove a machine-checked \emph{separation map}: in
+one EasyCrypt model we delete each combiner input in turn and show exactly which binding notion it
+costs---omitting the PQ public key loses \mbox{MAL-BIND-K-PK} over the FIPS-203 expanded
+decapsulation-key serialization (a concrete adversary wins with probability one) but not over the
+seed-\code{dk} form; omitting the context loses \mbox{MAL-BIND-K-CTX} unconditionally; whereas
+omitting the PQ ciphertext is \emph{harmless} because the shared secret already binds it. So
+public-key and context absorption are \emph{necessary} while ciphertext absorption is redundant, and
+the deployed X-Wing shape (omitting all three) provably loses \mbox{K-PK} and \mbox{K-CTX} while
+keeping \mbox{K-CT}---a field-resolved account of exactly where ContextBound's extra binding pays off. We are explicit about what is and
 is not novel: the binding \emph{fact} is a known consequence of recent results; our contributions
 are this separation theorem and the \emph{conjunction}---an assumption-minimal, machine-checked
 binding result whose proven object is demonstrably identical across a heterogeneous deployment
@@ -127,11 +128,13 @@ explicit (\cref{sec:kernel}) that the cryptographic content is this injective-en
 argument---the component $\mathrm{Decaps}$ is \emph{inert}, which is exactly why no KEM assumption
 is needed---and that C1's value is its completeness, mechanization, and role as the proven object
 tied to C2, not proof difficulty. On the same kernel we additionally prove a machine-checked
-\emph{shape\,$\times$\,format separation} (\cref{thm:sep}): the lean (X-Wing-shaped) combiner
-\emph{loses} \mbox{MAL-BIND-K-PK} over the expanded-\code{dk} serialization---a concrete adversary
-wins with probability one---but \emph{regains} it over seed-\code{dk}, while ContextBound is binding
-over \emph{both}, isolating public-key absorption as the determining factor. This is a stated,
-proven result, not an integration claim.
+\emph{separation map} (\cref{thm:sep}, \cref{tab:sepmap}): deleting each combiner input in turn, we
+show that omitting $pk_{\mathrm{pq}}$ loses \mbox{MAL-BIND-K-PK} over the expanded-\code{dk}
+serialization (concrete $\Pr{=}1$ adversary) but not over seed-\code{dk}, omitting the context loses
+\mbox{MAL-BIND-K-CTX} unconditionally, and omitting $ct_{\mathrm{pq}}$ is harmless (the shared secret
+binds it)---so public-key and context absorption are \emph{necessary}, ciphertext absorption
+redundant, and the X-Wing shape provably loses \mbox{K-PK}$+$\mbox{K-CTX} while keeping \mbox{K-CT}.
+This is a stated, proven characterization, not an integration claim.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
 same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph{executed} on
 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
@@ -496,52 +499,92 @@ genuinely-secret sub-fields ($\hat s$ and the implicit-rejection seed $z$) yield
 is standard practice~\cite{kyberslash}, but the embedded-public-key pitfall is a real trap; our
 probe encodes the correct granularity and gates it.
 
-\subsection{A mechanized shape\,$\times$\,format separation}\label{sec:sep}
-The headline of \cref{sec:kernel} is that ContextBound \emph{attains} the binding ceiling. Here we
-prove a complementary result that is the paper's distinctive cryptographic contribution: a
-\emph{machine-checked separation} pinning down exactly \emph{which combiner shapes attain
-\mbox{MAL-BIND-K-PK} over which component \code{dk} serializations}. The separation is established in
-\emph{one} EasyCrypt model---a single execution type, a single shared-secret wiring $ss=J(z,ct)$,
-the two combiners differing \emph{only} in whether the PQ public key is absorbed---so any difference
-in outcome is attributable to the combiner \emph{shape}, not to a difference in the modeled KEM.
+\subsection{A mechanized separation map across the binding sub-lattice}\label{sec:sep}
+\Cref{sec:kernel} shows ContextBound \emph{attains} the binding ceiling. Here we prove the paper's
+distinctive cryptographic contribution: a \emph{machine-checked map} pinning down, field by field,
+\emph{which inputs the combiner must absorb}---and \emph{why}---across the CDM
+$\text{K-binds-}\{$CT,PK,CTX$\}$ sub-lattice. All of it lives in \emph{one} EasyCrypt model (a single
+execution type, a single shared-secret wiring $ss=J(z,ct)$), so every verdict is attributable to
+combiner \emph{structure}, not to a difference in the modeled KEM. Starting from the full ContextBound
+field list (which absorbs $ct_{\mathrm{pq}}$, $pk_{\mathrm{pq}}$, and the context) we delete
+\emph{exactly one} field and ask which binding notion the deletion costs---\emph{three distinct
+combiners}, not one combiner read under three notions.
 
-\begin{theorem}[shape\,$\times$\,format separation, machine-checked]\label{thm:sep}
-Model the implicit-rejection secret as $ss=J(z,ct)$ (FIPS-203 \S6.3). Then, in a single binding
-model:
-\begin{enumerate}
-\item \emph{(expanded-\code{dk}, $z$ adversary-substitutable.)} The \textbf{lean} combiner that omits
-$pk_{\mathrm{pq}}$ is \emph{not} \mbox{MAL-BIND-K-PK}: a concrete, assumption-free, deterministic
-adversary wins with probability~$1$ (\code{lean\_kpk\_broken}). The \textbf{full} combiner that
-absorbs $pk_{\mathrm{pq}}$ satisfies $\mathsf{Adv}^{\text{MAL-BIND-K-PK}}\le\mathsf{Adv}^{\mathrm{CR}}(H)$
-(\code{full\_kpk\_le\_cr}).
-\item \emph{(seed-\code{dk}, $z$ key-derived.)} The \textbf{lean} combiner \emph{regains}
-\mbox{MAL-BIND-K-PK}, $\le\mathsf{Adv}^{\mathrm{CR}}(H)$, under the idealization that $J$ and the seed
-derivation are injective (\code{lean\_kpk\_seed\_le\_cr})---a strictly \emph{stronger} assumption than
-the full shape, which reduces to $\mathrm{CR}(H)$ \emph{alone}. The full combiner is safe a~fortiori.
+\begin{theorem}[separation map, machine-checked]\label{thm:sep}
+Model $ss=J(z,ct)$ (FIPS-203 \S6.3). In one binding model:
+\begin{enumerate}\itemsep1pt
+\item \emph{Omit $pk_{\mathrm{pq}}\Rightarrow$ lose \mbox{K-PK}, serialization-conditionally.} Over
+expanded-\code{dk} ($z$ adversary-substitutable) a concrete deterministic adversary wins
+\mbox{MAL-BIND-K-PK} with probability~$1$ (\code{lean\_kpk\_broken}); over seed-\code{dk}
+($z{=}\mathsf{zof}(\code{ek})$) binding is restored, $\le\mathrm{CR}(H)$ under injectivity of $J$ and
+$\mathsf{zof}$ (\code{lean\_kpk\_seed\_le\_cr}).
+\item \emph{Omit $ct_{\mathrm{pq}}\Rightarrow$ \mbox{K-CT} survives.} The retained shared secret
+$ss{=}J(z,ct_{\mathrm{pq}})$ transitively binds $ct_{\mathrm{pq}}$, so
+$\mathsf{Adv}^{\text{MAL-BIND-K-CT}}\le\mathrm{CR}(H)$ under injectivity of $J$
+(\code{omit\_ct\_kct\_le\_cr}).
+\item \emph{Omit context $\Rightarrow$ lose \mbox{K-CTX}, unconditionally.} A concrete adversary wins
+\mbox{MAL-BIND-K-CTX} with probability~$1$, for \emph{any} \code{dk} format
+(\code{omit\_ctx\_kctx\_broken}).
+\item \emph{Full combiner.} Absorbing all three, ContextBound is \mbox{MAL-BIND-K-\{CT,PK,CTX\}}
+$\le\mathrm{CR}(H)$, with \emph{no} $J/\mathsf{zof}$ assumption (\code{full\_k\{pk,ct,ctx\}\_le\_cr}).
+\item \emph{Joint X-Wing shape.} The deployed X-Wing combiner omits $ct_{\mathrm{pq}}$,
+$pk_{\mathrm{pq}}$, \emph{and} context at once; discharged directly, it \emph{loses} \mbox{K-PK}
+(expanded-\code{dk}) and \mbox{K-CTX} but \emph{keeps} \mbox{K-CT} (\code{xwing\_kpk\_broken},
+\code{xwing\_kctx\_broken}, \code{xwing\_kct\_le\_cr}).
 \end{enumerate}
 \end{theorem}
 
-\noindent The break works precisely because, over expanded-\code{dk}, an adversary can equalize the
-stored seed $z$ across two otherwise-distinct keypairs, so a garbage ciphertext implicit-rejects to
-the \emph{same} $J(z,ct)$ under $\code{ek}_0\neq\code{ek}_1$ (Schmieg~\cite{schmieg}); the lean key
-then collides while the public key differs---a genuine \mbox{MAL-BIND-K-PK} violation, not an
-artifact of omitting $pk_{\mathrm{pq}}$ (the win vanishes the moment $ss$ depends on the key, which
-is exactly what seed-\code{dk} enforces). Each half is load-bearing: removing the two-distinct-keys
-hypothesis collapses the break, and removing the encoding injectivity or the $J$/seed injectivity
-collapses the seed-\code{dk} safety (verified by deleted-hypothesis negative controls).
+\begin{table}[t]\centering
+\caption{The machine-checked separation map (\cref{thm:sep}): delete one field from ContextBound and
+ask which binding notion survives. Every cell is an EasyCrypt lemma; $J$ is the modeled
+implicit-rejection function.}
+\label{tab:sepmap}
+\begin{tabular}{@{}l l l@{}}
+\toprule
+omitted field & notion at risk & verdict \\
+\midrule
+$pk_{\mathrm{pq}}$ & \mbox{MAL-BIND-K-PK} & \textbf{broken} / expanded-\code{dk} ($\Pr{=}1$); safe / seed-\code{dk} \\
+$ct_{\mathrm{pq}}$ & \mbox{MAL-BIND-K-CT} & \textbf{safe} $\le\mathrm{CR}(H)$ ($ss$ binds $ct$; needs $J$-inj.) \\
+context & \mbox{MAL-BIND-K-CTX} & \textbf{broken} unconditionally ($\Pr{=}1$) \\
+\midrule
+\emph{none} (full) & all three & safe $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
+\emph{all three} (X-Wing) & --- & loses K-PK $+$ K-CTX, keeps K-CT \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-We are deliberately precise about scope. (i)~$J(z,ct)$ is \emph{modeled} after the FIPS-203
-implicit-rejection formula, not \emph{derived} from a mechanized Decaps; the statement is about the
-combiner, and the component shared secrets are otherwise inert. (ii)~The lean break is specific to
-the \emph{expanded}-\code{dk} serialization---this is \emph{not} a break of X-Wing, which mandates
-seed-\code{dk}. (iii)~The safety bounds are conditional on $H$'s collision resistance. (iv)~Note the
-honest \emph{asymmetry}: the full shape reduces to $\mathrm{CR}(H)$ \emph{alone}, whereas the
-seed-\code{dk} lean shape additionally needs injectivity of the rejection function and the seed
-derivation. That asymmetry \emph{is} the engineering case for ContextBound: absorbing
-$pk_{\mathrm{pq}}$ removes a latent dependence on the component library's serialization choice---a
-dependence an implementation that caches expanded keys for performance could silently reintroduce.
-We complement the proof with an executable regression oracle that exercises the same coupling
-against real libcrux as a CI-configured gate.
+\paragraph*{Reading the map.} The content is the \emph{dichotomy} between rows~2 and~3, not any cell
+alone. Omitting $ct_{\mathrm{pq}}$ is harmless because the shared secret already encodes it; omitting
+context is fatal because \emph{nothing} else does. So context absorption is necessary \emph{and}
+sufficient---necessity is admittedly the easy half of an iff (no other field mentions context),
+sufficiency is \code{full\_kctx\_le\_cr}; what makes it a result rather than a tautology is its
+contrast with $ct_{\mathrm{pq}}$, where the shared secret \emph{does} provide the missing binding.
+Conversely $ct_{\mathrm{pq}}$ absorption is \emph{redundant with the shared secret}---but only under
+the $J$-injectivity idealization; the full combiner achieves \mbox{K-CT} with no such assumption.
+Row~1 is the subtle one (Schmieg's mechanism): one might \emph{hope} $ss=J(z,ct)$ rescues
+$pk_{\mathrm{pq}}$ as it rescues $ct_{\mathrm{pq}}$, but over expanded-\code{dk} the adversary
+equalizes the stored seed $z$ across two distinct keypairs, so a garbage ciphertext implicit-rejects
+to the \emph{same} $J(z,ct)$ under $\code{ek}_0\neq\code{ek}_1$~\cite{schmieg}; the key is
+\emph{independent} of $pk_{\mathrm{pq}}$, so the break is genuine---not an artifact of omission (it
+vanishes the moment $ss$ depends on the key, i.e.\ under seed-\code{dk}). Every verdict is
+load-bearing under deleted-hypothesis negative controls (the K-PK break needs two distinct keys; the
+K-CT and K-CTX results need $J$-injectivity / a distinct context respectively; all reductions need
+the proved encoding injectivity). \textbf{Moral, and the formal design rationale for ContextBound:
+$pk_{\mathrm{pq}}$ (over expanded-\code{dk}) and context absorption are \emph{necessary};
+$ct_{\mathrm{pq}}$ absorption is \emph{redundant insurance}.} This is the multi-level edge the
+construction needed: not a stronger notion than X-Wing on a shared axis, but a proven,
+field-resolved account of \emph{exactly} where the X-Wing shape is exposed and ContextBound is not.
+
+\paragraph*{Scope, stated precisely.} (i)~$J,\mathsf{zof},H$ are abstract; $J(z,ct)$ is
+\emph{modeled} after FIPS-203 implicit rejection, not \emph{derived} from a mechanized Decaps, and
+the component shared secrets are otherwise inert. (ii)~The K-PK and K-CTX breaks need \emph{no}
+cryptographic assumption (concrete $\Pr{=}1$ adversaries); the safety bounds are conditional on
+$\mathrm{CR}(H)$, and the \mbox{K-CT} and seed-\code{dk}-\mbox{K-PK} results additionally on
+$J/\mathsf{zof}$ injectivity---a strictly stronger idealization than the full combiner needs.
+(iii)~The K-PK break is \emph{not} a break of X-Wing in deployment, which mandates seed-\code{dk};
+the map characterizes the \emph{shape}'s exposure field by field. We complement the proofs with an
+executable regression oracle that exercises the dk-format coupling against real libcrux as a
+CI-configured gate.
 
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
@@ -867,10 +910,14 @@ $\mathrm{CR}(H)$.}\label{tab:lemmas}
 \code{malbind\_k\{ct,pk,ctx\}\_le\_cr} & KEM-aware, implicit rejection $\le \mathrm{CR}(H)$ \\
 \code{malbind\_*\_xrej\_le\_cr} & full Fig.~6, explicit rejection, $\K\neq\bot$ \\
 \midrule
-\multicolumn{2}{@{}l}{\emph{Separation (\cref{thm:sep}); one model, combiners differ only in $pk_{\mathrm{pq}}$}}\\
-\code{lean\_kpk\_broken} & lean shape, expanded-\code{dk}: concrete adversary, $\Pr=1$ \\
-\code{full\_kpk\_le\_cr} & full shape, expanded-\code{dk}: $\le\mathrm{CR}(H)$ \\
-\code{lean\_kpk\_seed\_le\_cr} & lean shape, seed-\code{dk}: $\le\mathrm{CR}(H)$ (needs $J$/seed inj.) \\
+\multicolumn{2}{@{}l}{\emph{Separation map (\cref{thm:sep}, \cref{tab:sepmap}); single-field deletions from \code{full\_fields}}}\\
+\code{lean\_kpk\_broken} & omit $pk_{\mathrm{pq}}$, expanded-\code{dk}: K-PK adversary $\Pr=1$ \\
+\code{lean\_kpk\_seed\_le\_cr} & omit $pk_{\mathrm{pq}}$, seed-\code{dk}: K-PK $\le\mathrm{CR}(H)$ ($J$/seed inj.) \\
+\code{omit\_ct\_kct\_le\_cr} & omit $ct_{\mathrm{pq}}$: K-CT $\le\mathrm{CR}(H)$ ($ss$ binds $ct$, $J$-inj.) \\
+\code{omit\_ctx\_kctx\_broken} & omit context: K-CTX adversary $\Pr=1$ (any \code{dk}) \\
+\code{full\_k\{pk,ct,ctx\}\_le\_cr} & full shape: K-\{PK,CT,CTX\} $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
+\code{xwing\_k\{pk,ctx\}\_broken} & X-Wing (omit all 3): loses K-PK, K-CTX, $\Pr=1$ \\
+\code{xwing\_kct\_le\_cr} & X-Wing: keeps K-CT $\le\mathrm{CR}(H)$ \\
 \bottomrule
 \end{tabular}
 \end{table}
