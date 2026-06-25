@@ -66,20 +66,20 @@ if [ "$ISROOT" != 1 ]; then
 elif ! command -v tc >/dev/null 2>&1; then
   echo "SKIP: 'tc' not found — apt-get install -y iproute2"
 else
-  netrun() { # one_way_ms iters
+  netrun() { # one_way_ms iters reps
     tc qdisc del dev lo root 2>/dev/null || true
     [ "$1" != 0 ] && tc qdisc add dev lo root netem delay "$1"ms
-    echo "== one-way=$1 ms (RTT=$(( $1 * 2 )) ms) =="
-    i=1; while [ "$i" -le "$REPS" ]; do
+    echo "== one-way=$1 ms (RTT=$(( $1 * 2 )) ms), reps=$3 =="
+    i=1; while [ "$i" -le "$3" ]; do
       for k in classical standard bound compat; do
         printf 'rep%-2s %-10s ' "$i" "$k"; $PINCMD "$BIN" "$k" "$2" 100 | grep p50
       done; i=$(( i + 1 ))
     done
     tc qdisc del dev lo root 2>/dev/null || true
   }
-  netrun 0  2000   # RTT~0: the CPU-bound comparison (the one that was noisy on the VM) — full reps
-  netrun 10 300    # RTT=20ms: confirmatory (RTT dominates), fewer iters to bound wall-clock
-  netrun 25 200    # RTT=50ms: confirmatory
+  netrun 0  2000 "$REPS"   # RTT~0: the noise-sensitive CPU comparison (was unpublishable on the VM) — FULL reps
+  netrun 10 250 6          # RTT=20ms: confirmatory (RTT dominates variance) — few reps, fewer iters
+  netrun 25 150 4          # RTT=50ms: confirmatory
   echo "report: per (RTT,group) take median p50 + run-to-run spread; RTT>=20ms overhead is within noise."
 fi
 
