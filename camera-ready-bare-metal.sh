@@ -77,9 +77,9 @@ else
     done
     tc qdisc del dev lo root 2>/dev/null || true
   }
-  netrun 0  2000
-  netrun 10 800
-  netrun 25 600
+  netrun 0  2000   # RTT~0: the CPU-bound comparison (the one that was noisy on the VM) — full reps
+  netrun 10 300    # RTT=20ms: confirmatory (RTT dominates), fewer iters to bound wall-clock
+  netrun 25 200    # RTT=50ms: confirmatory
   echo "report: per (RTT,group) take median p50 + run-to-run spread; RTT>=20ms overhead is within noise."
 fi
 
