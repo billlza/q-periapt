@@ -143,3 +143,23 @@ negative control OK
 discriminator: expect ML-KEM probe = 0 (clean) vs HQC prefix > 0 (leaky).
 
 ================ done — paste this whole transcript back ================
+=== riscv64 byte-identity under qemu-user (2026-06-25T13:05:48Z) ===
+info: component rust-std for target riscv64gc-unknown-linux-gnu is up to date
+qemu: qemu-riscv64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.17)
+=== build + RUN byte-identity KAT on riscv64 under qemu-user ===
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running unittests src/lib.rs (target/riscv64gc-unknown-linux-gnu/release/deps/q_periapt_backends-58e01e8136150541)
+
+running 2 tests
+test contextbound_kat::contextbound_reference_vectors ... ok
+test enhanced_kat::enhanced_suite_pinned_reference_vector ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.04s
+
+     Running tests/binding_keyformat_separation.rs (target/riscv64gc-unknown-linux-gnu/release/deps/binding_keyformat_separation-39f69894c8bc32ea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+RISCV_DONE exit=0

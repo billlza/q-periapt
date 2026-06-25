@@ -42,8 +42,9 @@ theorem (the session key commits to the full transcript; the component decapsula
 the argument, which is precisely why no KEM assumption is needed), instantiated in the
 Cremers--Dax--Medinger Figure~6 game for both rejection styles. Crucially, the \emph{same} proven
 combiner is realized byte-identically across five language faces and three operating
-systems---executed natively on three instruction-set architectures and cross-compiled, with
-by-construction identity, on two more---verified by a six-method conformance matrix and a
+systems---\emph{executed} on four instruction-set architectures (three native, riscv64 under
+qemu-user emulation) and cross-compiled, with by-construction identity, on one more---verified by a
+six-method conformance matrix and a
 self-validating source$\to$binary constant-time probe (configured as a CI gate; measured locally)
 that we show \emph{discriminates} a clean primitive (libcrux ML-KEM: zero secret-dependent branches
 after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a production TLS~1.3
@@ -132,9 +133,9 @@ wins with probability one---but \emph{regains} it over seed-\code{dk}, while Con
 over \emph{both}, isolating public-key absorption as the determining factor. This is a stated,
 proven result, not an integration claim.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
-same proven combiner is byte-identical across 5 language faces and 3 OSes, executed natively on
-3 ISAs and cross-compiled with by-construction identity on 2 more, verified by a six-method
-conformance matrix.
+same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph{executed} on
+4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
+1 more, verified by a six-method conformance matrix.
 \item \textbf{C3 (\cref{sec:assurance}).} Reproducible assurance \emph{instruments}, configured as
 CI gates: a self-validating source$\to$binary constant-time probe that \emph{discriminates} clean
 (ML-KEM) from leaky (HQC) (HQC's leak is known; the contribution is the discriminating, gated
@@ -397,10 +398,13 @@ bytes?
 \Cref{tab:verif} lists the six orthogonal methods (NIST ACVP vectors~\cite{acvp} among them) that answer this. They are deliberately
 heterogeneous in their oracle and in what they catch, so a defect that escapes one is caught by
 another. \Cref{tab:substrate} reports the substrate coverage with honest per-cell status: the
-byte-identical shared secret is \emph{run} natively on x86-64, aarch64, and wasm32; on riscv64 and
-the bare-metal \code{thumbv7em} target the core cross-compiles cleanly and byte-identity follows by
-construction from the FIPS-deterministic encodings and identical source, but is not executed on a
-native runner. This honest accounting is what makes the cross-substrate claim defensible.
+byte-identical shared secret is \emph{run} natively on x86-64 and aarch64, on a WebAssembly runtime
+(wasm32), and under \code{qemu-user} emulation on riscv64---there the ContextBound and enhanced
+reference-vector KATs pass on the emulated riscv64 binary, reproducing the pinned bytes exactly. Only
+the bare-metal no\_std \code{thumbv7em} target is \emph{not} executed; there byte-identity follows by
+construction from the FIPS-deterministic encodings and identical source. So four of the five faces
+are \emph{run} and one is cross-compiled---this honest accounting is what makes the cross-substrate
+claim defensible.
 
 \emph{Footprint.} The deployable surface is small: the stripped C-ABI shared library---the
 \emph{entire} suite, including libcrux ML-KEM and ML-DSA---is $441$\,KB; the WebAssembly module is
@@ -435,10 +439,11 @@ Generative property tests & proptest: 7 properties $\times$ 128 cases & randomiz
 x86-64 & Linux, Win-MSVC & \checkmark & \checkmark\,(run) & \checkmark\ Memcheck \\
 aarch64 & Linux, macOS & \checkmark & \checkmark\,(run) & \checkmark\ Memcheck \\
 wasm32 & node & \checkmark & \checkmark\,(run) & source-CT \\
-riscv64 & Linux (cross) & \checkmark & by constr.$^\dagger$ & source-CT \\
+riscv64 & qemu-user & \checkmark & \checkmark\,(run)$^\ddagger$ & source-CT \\
 thumbv7em & bare-metal & \checkmark & by constr.$^\dagger$ & n/a \\
 \bottomrule
-\multicolumn{5}{@{}l}{\footnotesize $^\dagger$ cross-compiled, not run natively; identity follows from}\\[-2pt]
+\multicolumn{5}{@{}l}{\footnotesize $^\ddagger$ executed under \code{qemu-user} emulation (reference-vector KATs}\\[-2pt]
+\multicolumn{5}{@{}l}{\footnotesize \phantom{$^\ddagger$} reproduce pinned bytes); $^\dagger$ cross-compiled, identity by}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\dagger$} FIPS-deterministic encodings $+$ identical source.}\\[4pt]
 \multicolumn{5}{@{}l}{\emph{(b) language face $\times$ OS (shared vector $\to$ same \K)}}\\
 \toprule

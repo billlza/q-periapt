@@ -67,6 +67,24 @@ jobs:
           targets: ${{ matrix.target }}
       - run: cargo build -p q-periapt-core -p q-periapt-kem --target ${{ matrix.target }}
 
+  # riscv64 byte-identity, EXECUTED under qemu-user (not just cross-compiled): the pinned
+  # ContextBound / enhanced-suite reference-vector KATs must reproduce byte-for-byte on the
+  # emulated riscv64 binary. This upgrades riscv64 from "by construction" to "run" in the
+  # cross-substrate claim. Verified on bare-metal x86-64 (qemu 8.2): both KATs pass.
+  riscv64-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv64gc-unknown-linux-gnu
+      - run: sudo apt-get update && sudo apt-get install -y qemu-user-static gcc-riscv64-linux-gnu
+      - name: Run the byte-identity KATs on riscv64 under qemu-user
+        env:
+          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
+          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_RUNNER: qemu-riscv64-static -L /usr/riscv64-linux-gnu
+        run: cargo test --release --target riscv64gc-unknown-linux-gnu -p q-periapt-backends reference_vector
+
   # Cross-compiler differential: the constant-time / behaviour must not depend on
   # the compiler. (Placeholder: extend with gcc/clang FFI builds + differential KATs.)
   cross-compiler:
