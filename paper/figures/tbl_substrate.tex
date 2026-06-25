@@ -15,11 +15,11 @@
 x86-64    & Linux, Win-MSVC & \y & \y\,(run)            & \y\ Memcheck \\
 aarch64   & Linux, macOS    & \y & \y\,(run)            & \y\ Memcheck \\
 wasm32    & node            & \y & \y\,(run)            & source-CT \\
-riscv64   & Linux (cross)   & \y & by constr.$^\dagger$ & source-CT \\
+riscv64   & qemu-user       & \y & \y\,(run)$^\ddagger$ & source-CT \\
 thumbv7em & bare-metal      & \y & by constr.$^\dagger$ & n/a \\
 \bottomrule
-\multicolumn{5}{@{}l}{\footnotesize $^\dagger$ cross-compiled, not run natively; identity follows}\\[-2pt]
-\multicolumn{5}{@{}l}{\footnotesize \phantom{$^\dagger$} from FIPS-deterministic encodings + identical source.}
+\multicolumn{5}{@{}l}{\footnotesize $^\ddagger$ run under qemu-user (reference-vector KATs pass byte-identically);}\\[-2pt]
+\multicolumn{5}{@{}l}{\footnotesize $^\dagger$ cross-compiled; identity from FIPS-deterministic encodings + source.}
 \end{tabular}
 &
 % ---- (b) faces x OS ----
