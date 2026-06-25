@@ -64,16 +64,22 @@ secure if \emph{either} component holds. Hybrid KEMs are now shipping in TLS~1.3
 as X-Wing~\cite{xwing}.
 
 \paragraph*{The gap this paper addresses}
-Hybrids are being deployed faster than their \emph{deployment safety} can be assured. In the
-same window, the community has seen (i) \emph{side-channel} breaks of PQ implementations
-(KyberSlash~\cite{kyberslash}); (ii) \emph{binding} failures---the PQXDH re-encapsulation
-issue, and Schmieg's proof that ML-KEM in its FIPS-203 \emph{expanded} decapsulation-key form
-is neither \mbox{MAL-BIND-K-CT} nor \mbox{MAL-BIND-K-PK}~\cite{schmieg}; and (iii) a widening
-gap between a hybrid's \emph{specification}, its formally-verified source, and the
-\emph{compiled artifact} that actually runs---across the many languages, operating systems,
-and instruction sets that real deployments target. This safety question is distinct from, and
-orthogonal to, \emph{auditability} and \emph{crypto-agility} (which describe \emph{what} crypto
-is running): it asks whether the running hybrid is actually \emph{safe}.
+Hybrids are being deployed faster than their \emph{deployment safety} can be assured, and the
+failures of the last two years were realization-level, not failures of the underlying hard
+problems. \emph{(i) Side channels.} KyberSlash~\cite{kyberslash} showed that secret-dependent
+timings in widely-used Kyber/ML-KEM implementations leaked the secret key---a property of compiled
+code that a source-level constant-time argument does not by itself settle. \emph{(ii) Binding.} The
+PQXDH protocol admitted a re-encapsulation issue, and Schmieg~\cite{schmieg} proved that ML-KEM, in
+the FIPS-203 \emph{expanded} decapsulation-key form many libraries store, is neither
+\mbox{MAL-BIND-K-CT} nor \mbox{MAL-BIND-K-PK}---so whether a hybrid binds its transcript can depend
+on a serialization choice made three layers down. \emph{(iii) Spec-to-binary drift.} A hybrid's
+guarantee is stated on a specification, sometimes proved on a model or source, but \emph{run} as a
+compiled artifact---and real deployments compile it through many language bindings, operating
+systems, and instruction sets, each an opportunity for the proven object and the executed object to
+diverge. These three are one underlying problem: \emph{a security property holds only of a
+realization, and a hybrid has many}. This is distinct from---and orthogonal to---\emph{auditability}
+and \emph{crypto-agility}, which describe \emph{what} crypto is running; the question here is whether
+the hybrid that actually runs is \emph{safe}.
 
 \paragraph*{Approach}
 We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs built around one principle: a
@@ -198,13 +204,31 @@ always yields \emph{some} key. The binding of implicitly-rejecting KEMs---and ho
 malicious, expanded-form keys---is studied in detail by Schmieg and others~\cite{schmieg,cdmrej}.
 
 \subsection{Threat model}
-We consider three adversaries. The \emph{malicious-key (MAL) binding} adversary supplies
-adversarial keypairs and seeks colliding transcripts (\cref{sec:kernel}). The
-\emph{binary-level constant-time} adversary observes secret-dependent control flow / memory
-indexing in the \emph{compiled} code (\cref{sec:assurance}). The \emph{downgrade/agility}
-adversary attacks profile and policy negotiation (handled by fail-closed policy binding; out of
-scope here). Confidentiality of the component primitives (IND-CCA2 of ML-KEM, the
-Diffie--Hellman assumption for X25519) is assumed, not re-proved.
+Reflecting the deployment-safety framing, we consider three realization-level adversaries, each
+matched to one assurance instrument.
+
+\emph{The malicious-key (MAL) binding adversary} (\cref{sec:kernel}) is the strongest CDM class: it
+generates \emph{all} key material, including mutually inconsistent or maliciously-serialized keys,
+and wins if it produces two accepting executions whose hybrid keys collide while a ciphertext,
+public key, or context differs. This is the adversary behind re-encapsulation attacks (PQXDH) and
+the ML-KEM expanded-key binding failures; it is the one our combiner's binding theorem targets, and
+the one the dk-format demonstration of \cref{sec:assurance} exercises concretely.
+
+\emph{The binary-level constant-time adversary} (\cref{sec:assurance}) observes wall-clock or
+microarchitectural timing and seeks any secret-dependent conditional branch, memory index, or
+division in the \emph{compiled} code---not the source. KyberSlash is the canonical instance. Source
+-level constant-time arguments do not discharge this adversary on their own, which is why we probe
+the emitted binary.
+
+\emph{The downgrade/agility adversary} attacks profile and policy negotiation, attempting to force a
+weaker suite or combiner. We bind a signed, versioned policy and a domain-separating
+\code{policy\_version} into the transcript (\cref{alg:encode}) and fail closed on an unsatisfiable
+policy; a full treatment of agility is out of scope here.
+
+We \emph{assume}, rather than re-prove, the confidentiality of the component primitives---IND-CCA2 of
+ML-KEM and the Diffie--Hellman assumption for X25519---and the collision-resistance of SHA3; our
+contribution is orthogonal, concerning whether the \emph{realization} preserves the binding and
+constant-time properties the primitives are chosen for.
 
 \section{ContextBound and the Machine-Checked Kernel}\label{sec:kernel}
 \subsection{Construction}
