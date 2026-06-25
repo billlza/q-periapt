@@ -154,6 +154,15 @@ Verified spec$\to$binary impl.\ \emph{(we do not)} &  & \checkmark & $\sim$ & & 
 
 \section{Background and Threat Model}\label{sec:bg}
 \subsection{PQ/T hybrid KEMs and combiners}
+ML-KEM~\cite{fips203} is the standardized form of CRYSTALS-Kyber~\cite{kyber}; like most lattice
+KEMs it applies a Fujisaki--Okamoto transform~\cite{fo,hhk} with \emph{implicit rejection} (a
+malformed ciphertext yields a pseudorandom key rather than $\bot$). The companion signature
+standards are ML-DSA~\cite{fips204} and SLH-DSA~\cite{fips205}, and the broader process is surveyed
+in~\cite{nistpqc}. Hybrid key exchange in TLS~1.3~\cite{rfc8446} follows the IETF
+design~\cite{tlshybrid}---e.g.\ the \code{X25519MLKEM768} group~\cite{tlsmlkem} over
+X25519~\cite{rfc7748}---and deployed PQ/T protocols include Signal's PQXDH~\cite{pqxdh} and Apple's
+PQ3~\cite{pq3}.
+
 A hybrid KEM combines component shared secrets $ss_{\mathrm{pq}}$ and $ss_{\mathrm{tr}}$ into a
 session key \K. The design space ranges from simple \emph{concatenation} KDFs
 (\code{X25519MLKEM768}) to combiners that additionally absorb ciphertexts and public keys.
@@ -168,7 +177,7 @@ $P$ and \emph{disagree} on quantity $Q$, with $P,Q\in\{K,\textsf{PK},\textsf{CT}
 adversary supplies its own (possibly inconsistent) key material. For implicitly-rejecting KEMs
 such as ML-KEM, \mbox{MAL-BIND-K-CT} and \mbox{MAL-BIND-K-PK} are the achievable ceiling on those
 axes; the dual \mbox{X-BIND-CT-$\ast$} notions (a ciphertext binding the key or public key) are
-\emph{structurally unachievable}, since decapsulation never returns $\bot$.
+\emph{structurally unachievable}, since decapsulation never returns $\bot$; the binding of implicitly-rejecting KEMs is studied in detail in~\cite{schmieg,cdmrej}.
 
 \subsection{Threat model}
 We consider three adversaries. The \emph{malicious-key (MAL) binding} adversary supplies
@@ -258,7 +267,7 @@ The core is exposed through five language faces (Rust, a C ABI, WebAssembly, Swi
 Because the proven object is one piece of code, the question becomes whether \emph{every}
 realization produces the same bytes.
 
-\Cref{tab:verif} lists the six orthogonal methods that answer this. They are deliberately
+\Cref{tab:verif} lists the six orthogonal methods (NIST ACVP vectors~\cite{acvp} among them) that answer this. They are deliberately
 heterogeneous in their oracle and in what they catch, so a defect that escapes one is caught by
 another. \Cref{tab:substrate} reports the substrate coverage with honest per-cell status: the
 byte-identical shared secret is \emph{run} natively on x86-64, aarch64, and wasm32; on riscv64 and
@@ -352,11 +361,42 @@ two independent symbolic provers, Tamarin and ProVerif, each establishing that t
 survives the compromise of \emph{either} component KEM. All three formal artifacts are configured as CI gates (EasyCrypt make check, Tamarin, ProVerif), with checker and solver versions pinned in the artifact.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
-We expose ContextBound (and CompatXWing) as a TLS~1.3 key-exchange group via a rustls
-\code{CryptoProvider}, using private-use group codes; a real loopback TLS~1.3 handshake completes
-over this provider.
 
-We evaluate handshake \emph{time-to-session} (TCP connect plus full TLS~1.3 handshake) over a real
+\subsection{Microbenchmarks}
+\Cref{tab:bench} reports primitive and hybrid costs (Criterion, point estimates, on an Apple-Silicon
+arm64 host; the artifact reproduces them and an x86-64 run). Two findings matter for deployment.
+First, \emph{the post-quantum leg is not the bottleneck}: ML-KEM-768 encapsulation is
+$11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation ($89.6\,\mu$s, an ephemeral
+keygen plus a Diffie--Hellman), so the classical half dominates hybrid CPU---a useful corrective to
+the assumption that PQ is the expensive part. Second, \emph{the hash-everything combiner is cheap}:
+ContextBound costs only $+6.2\,\mu$s over the byte-exact X-Wing combiner CompatXWing (encapsulation
+$108.4$ vs.\ $102.2\,\mu$s; decapsulation $65.4$ vs.\ $59.2\,\mu$s)---the price of binding the full
+transcript is sub-$10\,\mu$s, well under the $\sim$190\,$\mu$s X25519 cost and far below any network RTT.
+
+\begin{table}[t]\centering\footnotesize
+\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
+\caption{Primitive and hybrid cost ($\mu$s) and key/ciphertext sizes (bytes). arm64 host.}\label{tab:bench}
+\begin{tabular}{@{}l r r r r r r@{}}
+\toprule
+ & \multicolumn{3}{c}{\textbf{time ($\mu$s)}} & \multicolumn{3}{c}{\textbf{size (B)}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+\textbf{Scheme} & keygen & encaps & decaps & ek & dk & ct \\
+\midrule
+ML-KEM-512   & 6.6  & 6.1  & 6.8  & 800  & 1632 & 768  \\
+ML-KEM-768   & 11.3 & 11.0 & 11.8 & 1184 & 2400 & 1088 \\
+ML-KEM-1024  & 18.5 & 16.5 & 16.7 & 1568 & 3168 & 1568 \\
+X25519       & 44.1 & 89.6 & 45.0 & 32   & 32   & 32   \\
+\midrule
+Hybrid, ContextBound & --- & 108.4 & 65.4 & 1216 & --- & 1120 \\
+Hybrid, CompatXWing  & --- & 102.2 & 59.2 & 1216 & --- & 1120 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Handshake latency under emulated networks}
+We expose ContextBound (and CompatXWing) as a TLS~1.3 key-exchange group via a rustls~\cite{rustls}
+\code{CryptoProvider}, using private-use group codes; a real loopback TLS~1.3 handshake completes
+over this provider. We evaluate handshake \emph{time-to-session} (TCP connect plus full TLS~1.3 handshake) over a real
 loopback socket shaped by \code{tc netem}, comparing a classical X25519 baseline against the two
 PQ/T profiles. \Cref{fig:netem} reports the result: the three curves coincide because latency is
 RTT-dominated, and the PQ/T overhead is a \emph{fixed} cost ($\sim$190\,$\mu$s of ML-KEM CPU plus
@@ -396,8 +436,8 @@ KEMs is analysed in~\cite{eprint2026140}. \textbf{Side channels.} KyberSlash~\ci
 the ctgrind/TIMECOP discipline motivate our binary-CT gate; libcrux/HACL* provide source-level
 guarantees we corroborate and discriminate against. \textbf{Hybrids in deployment.} X-Wing~\cite{xwing}
 and the TLS \code{X25519MLKEM768} group are the deployed baselines we position against.
-\textbf{Formal PQ.} formosa-mlkem mechanizes ML-KEM IND-CCA; the SandboxAQ EasyCrypt-KEMs library
-mechanizes \mbox{LEAK-BIND-K-PK}; our development adds the MAL Figure-6 game for the hybrid combiner.
+\textbf{Formal PQ.} formosa-mlkem~\cite{formosa} mechanizes ML-KEM IND-CCA; the SandboxAQ EasyCrypt-KEMs library
+mechanizes \mbox{LEAK-BIND-K-PK}; our EasyCrypt~\cite{easycrypt} development adds the (commitment-style) MAL Figure-6 instantiation for the hybrid combiner, complemented by symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}.
 
 \section{Limitations}\label{sec:limits}
 The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it is exactly the
@@ -434,5 +474,64 @@ Secret-Dependent Division Timings in Kyber Implementations,'' \emph{IACR TCHES},
 \bibitem{cmt} M.~Bellare and V.~T.~Hoang, ``Efficient Schemes for Committing Authenticated
 Encryption,'' \emph{EUROCRYPT}, 2022.
 \bibitem{eprint2026140} ``On the Role of Public Contexts in Hybrid KEMs,'' IACR ePrint 2026/140.
+\bibitem{fips204} National Institute of Standards and Technology, ``FIPS 204: Module-Lattice-Based
+Digital Signature Standard,'' 2024.
+\bibitem{fips205} National Institute of Standards and Technology, ``FIPS 205: Stateless Hash-Based
+Digital Signature Standard,'' 2024.
+\bibitem{kyber} J.~Bos \emph{et al.}, ``CRYSTALS-Kyber: A CCA-Secure Module-Lattice-Based KEM,''
+\emph{IEEE EuroS\&P}, 2018.
+\bibitem{nistpqc} G.~Alagic \emph{et al.}, ``Status Report on the Fourth Round of the NIST
+Post-Quantum Cryptography Standardization Process,'' NIST IR~8545, 2025.
+\bibitem{fo} E.~Fujisaki and T.~Okamoto, ``Secure Integration of Asymmetric and Symmetric
+Encryption Schemes,'' \emph{CRYPTO}, 1999.
+\bibitem{hhk} D.~Hofheinz, K.~H\"ovelmanns, and E.~Kiltz, ``A Modular Analysis of the
+Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
+\bibitem{rfc7748} A.~Langley, M.~Hamburg, and S.~Turner, ``Elliptic Curves for Security,'' RFC
+7748, IETF, 2016.
+\bibitem{rfc8446} E.~Rescorla, ``The Transport Layer Security (TLS) Protocol Version 1.3,'' RFC
+8446, IETF, 2018.
+\bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
+draft-ietf-tls-hybrid-design, IETF, 2023.
+\bibitem{tlsmlkem} K.~Kwiatkowski \emph{et al.}, ``Post-Quantum Key Exchange \code{X25519MLKEM768}
+for TLS 1.3,'' draft-kwiatkowski-tls-ecdhe-mlkem, IETF, 2024.
+\bibitem{pqxdh} K.~Bhargavan, C.~Jacomme, F.~Kiefer, and R.~Schmidt, ``Formal Verification of the
+PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
+\bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in
+Quantum-Secure Messaging,'' Apple Security Research, 2024.
+\bibitem{cdmrej} K.~H\"ovelmanns \emph{et al.}, ``Binding Security of Implicitly-Rejecting KEMs and
+Application to BIKE and HQC,'' IACR ePrint 2024/1233, 2024.
+\bibitem{hacl} J.-K.~Zinzindohou\'e, K.~Bhargavan, J.~Protzenko, and B.~Beurdouche, ``HACL*: A
+Verified Modern Cryptographic Library,'' \emph{ACM CCS}, 2017.
+\bibitem{libcrux} Cryspen, ``Verified ML-KEM (Kyber) in \code{libcrux},'' 2024.
+\bibitem{formosa} J.~B.~Almeida \emph{et al.}, ``Formally Verifying Kyber: Episode V,''
+\emph{CRYPTO}, 2024.
+\bibitem{easycrypt} G.~Barthe, B.~Gr\'egoire, S.~Heraud, and S.~Z.~B\'eguelin, ``Computer-Aided
+Security Proofs for the Working Cryptographer,'' \emph{CRYPTO}, 2011.
+\bibitem{tamarin} S.~Meier, B.~Schmidt, C.~Cremers, and D.~Basin, ``The TAMARIN Prover for the
+Symbolic Analysis of Security Protocols,'' \emph{CAV}, 2013.
+\bibitem{proverif} B.~Blanchet, ``Modeling and Verifying Security Protocols with the Applied Pi
+Calculus and ProVerif,'' \emph{Found.\ Trends Priv.\ Secur.}, 2016.
+\bibitem{dudect} O.~Reparaz, J.~Balasch, and I.~Verbauwhede, ``Dude, is My Code Constant Time?''
+\emph{DATE}, 2017.
+\bibitem{valgrind} N.~Nethercote and J.~Seward, ``Valgrind: A Framework for Heavyweight Dynamic
+Binary Instrumentation,'' \emph{ACM PLDI}, 2007.
+\bibitem{ctgrind} A.~Langley, ``ctgrind: Checking that Functions are Constant Time with Valgrind,''
+2010.
+\bibitem{acvp} National Institute of Standards and Technology, ``Automated Cryptographic Validation
+Protocol (ACVP),'' \url{https://github.com/usnistgov/ACVP}, 2024.
+\bibitem{rustls} J.~Birr-Pixton \emph{et al.}, ``rustls: A Modern TLS Library in Rust,''
+\url{https://github.com/rustls/rustls}, 2024.
 \end{thebibliography}
+
+\appendices
+\section{Artifact Availability}
+The complete suite---Rust core and backends, the five language faces, the EasyCrypt/Tamarin/ProVerif
+developments, the constant-time and netem harnesses, and the figure-generation
+scripts---is open source at \url{https://github.com/billlza/q-periapt}. All numbers in this paper
+are reproducible from that repository; the bare-metal netem protocol is provided as a script.
+
+\section*{Acknowledgment}
+The author thanks the maintainers of libcrux/HACL*, EasyCrypt, Tamarin, and ProVerif, whose tools
+this work builds upon. \emph{[Funding/advisor acknowledgments to be added.]}
+
 \end{document}
