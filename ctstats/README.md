@@ -96,18 +96,71 @@ static-reachability fact in libcrux 0.0.9, confirmed by reading the source (`ser
 `ind_cca.rs`, `ind_cpa.rs`, `vector/neon/arithmetic.rs`) and a 3-lens adversarial review.
 **libcrux ML-KEM decaps is constant-time on the genuine secret.**
 
-Harness lesson: a CT analysis of decapsulate must mark only the genuinely-secret sub-fields
-of `dk` — ŝ `[0..1152]` and z `[2336..2368]` — **not** the embedded public key. Marking the
-whole `dk` is conservative but mislabels the public bytes, producing these benign reports.
+Harness lesson (this is *standard* CT-harness practice, not a new pitfall — cf. KyberSlash
+TCHES 2025 §7.1.2, which explicitly marks public-key bytes *initialized*): a CT analysis of
+decapsulate must mark only the genuinely-secret sub-fields of `dk` — ŝ `[0..1152]` and
+z `[2368..2400]` — **not** the embedded public key `ek` `[1152..2336]` (it is `ek`/t̂, reduced
+via `deserialize_ring_elements_reduced`, that produces all 30 q-branches) or its hash
+`H(ek)` `[2336..2368]`. Marking the whole `dk` is conservative but mislabels the public bytes,
+producing these benign reports.
 
-**Empirically confirmed** (2026-06): re-running the probe under Memcheck while marking **only**
-the genuinely-secret sub-fields (ŝ `[0..1152]` + z `[2336..2368]`) yields **0 flags** in
-`decapsulate` — versus **2848 errors / 30 sites** when the whole `dk` (incl. the embedded
-public key) is marked. So all 30 reports were the public-key reduction; libcrux ML-KEM
-decapsulate has **zero** secret-dependent branches. The committed gate covers our own scalar,
-mask-based composition code; we rely on libcrux's source-level HACL*/Eurydice CT verification
-— now corroborated by both this dataflow analysis and the secret-only Memcheck measurement —
-for the primitive.
+**Corroboration, not discovery.** The load-bearing fact is the *source-level* one above
+(ŝ reduction-free; z reaches only PRF/SHA3 + a constant-time select; no secret hits a
+data-dependent branch). libcrux already machine-checks exactly this secret/public partition at
+compile time via its `libcrux-secrets`/hax typed discipline, so a dynamic Memcheck pass is
+**corroboration of a proven property, not an independent result**, and the 2848-vs-0 contrast
+is simply the expected before/after of correct vs. over-broad secret marking — not a finding
+about libcrux. *Caveat on the secret-only run:* the original probe marked ŝ `[0..1152]` +
+`[2336..2368]`, but `[2336..2368]` is `H(ek)` (public), not z — z is `[2368..2400]`. Both
+`H(ek)` and z flow only into branchless SHA3/PRF + mask-select, so the run still yields **0**
+`decapsulate` flags, but it corroborates **ŝ** (the reduction concern), not z. A corrected
+secret-only run marking ŝ `[0..1152]` + z `[2368..2400]` is now **done** — see the
+**source→binary CT gap probe** below (0 flags on aarch64 with the correct offsets). The
+committed gate covers our own scalar, mask-based composition code; for the primitive we rely on
+libcrux's source-level HACL*/Eurydice + libcrux-secrets CT verification, now also corroborated
+dynamically.
+
+## Source→binary CT gap probe (`ct_decaps_gap`)
+
+libcrux proves ML-KEM secret-independent at the *source* level (its `libcrux-secrets` typed
+discipline, machine-checked via hax/F*). The orthogonal *binary*-level question — does the
+compiler reintroduce a secret-dependent branch/index on the genuine secret (ŝ + z) path despite
+that guarantee? — is what `bin/ct_decaps_gap` answers: it marks **only** the genuinely-secret
+sub-fields of the FIPS-203 expanded dk (ŝ `[0..1152]` + z `[2368..2400]`, **not** ek/H(ek)) and
+runs the real libcrux `decapsulate` under Memcheck. Run `sh scripts/ct-gap-probe.sh` (also wired
+into the `constant-time` CI job, x86_64 + aarch64):
+
+| mode | marks | expect | role |
+|------|-------|--------|------|
+| `control` | a planted secret-indexed table load | **> 0** | negative control — harness must catch a real leak |
+| `ek` | the embedded **public** key `[1152..2336]` | **> 0** | positive control — Memcheck must flag the *real* libcrux q-branches |
+| `wholedk` | all 2400 dk bytes | baseline | reproduces the over-marking baseline |
+| `probe` | **genuine secret** ŝ + z | **0** | the gate — no source→binary gap on the secret path |
+
+**Result** (aarch64, libcrux-ml-kem 0.0.9, valgrind 3.24, release): `control` = **1** error
+(caught), `ek` = **5696** errors / 60 contexts (real branches flagged), `probe` = **0** errors.
+The `ek`-vs-`probe` contrast — *same binary, same tool, same library* — is the scientific
+control: Memcheck demonstrably sees branches (5696 on the public key), and the genuine secret
+drives **none**. So libcrux ML-KEM-768 decapsulate's source-level secret-independence
+**survives compilation to aarch64** — no source→binary CT gap on the ŝ/z path. (x86_64 runs
+natively in CI; riscv64/wasm32 have no mature binary-CT tool and stay source-CT + attestation.)
+This is corroboration of an expected property via an independent tool — an honest **negative
+(equivalence) result**, self-validating via the `ek` positive control, not a discovered leak.
+
+**The probe discriminates (clean vs leaky).** Running the same probe against the suite's
+*unaudited* HQC backend (`bin/ct_hqc_gap`, PQClean C via `pqcrypto-hqc`; build
+`--features valgrind,hqc`) marks the genuinely-secret sk prefix (`[0..56]` = `SK_LEN−PK_LEN`,
+no embedded pk) and runs the real `crypto_kem_dec` under Memcheck. **Result (aarch64): 193
+errors / 4 contexts**, localized to `PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight` ←
+`hqc_pke_encrypt` ← `crypto_kem_dec` — the known HQC constant-weight-sampling timing channel in
+the FO re-encryption (`prefix`-only and `whole`-sk marking give the *same* 193, so the leakage
+is on the genuine secret, not the embedded pk). So in **one framework, same tool**, the probe
+returns **0 for HACL\*-verified ML-KEM and 193 for unaudited HQC** — evidence that the ML-KEM
+`0` is not a vacuous "always-0", and that the suite's per-backend CT gating (HQC is
+feature-gated and `C2PRI = false`, forcing ContextBound) is *necessary*, not decorative. (The
+HQC leak itself is **known** — PQClean documents it and the 2024 HQC timing attacks target this
+exact site; this is a rigorous, self-validating *reproduction* + discriminator, not a new
+finding. HQC is therefore **not** added to the hard CI gate — it would always fail by design.)
 
 ## TODO (later milestones)
 

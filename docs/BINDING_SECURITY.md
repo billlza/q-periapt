@@ -15,7 +15,7 @@
 
 ## 1. Binding / committing notions
 
-A KEM is *binding* (a.k.a. *committing*) if an adversary cannot produce two encapsulation transcripts that **collide on one quantity** (typically the shared key `K`) while **disagreeing on another** (the public key `PK` or the ciphertext `CT`). The canonical framework is the **X-BIND-P-Q** family of Cremers, Dürmuth, Medinger and Naderpour (CDM) [CDM23]:
+A KEM is *binding* (a.k.a. *committing*) if an adversary cannot produce two encapsulation transcripts that **collide on one quantity** (typically the shared key `K`) while **disagreeing on another** (the public key `PK` or the ciphertext `CT`). The canonical framework is the **X-BIND-P-Q** family of Cremers, Dax and Medinger (CDM) [CDM23]:
 
 - `P ∈ {K, PK, CT}` — the quantity that must **agree** between the two transcripts.
 - `Q ∈ {K, PK, CT}` — the quantity that the adversary must make **disagree**.
@@ -296,7 +296,7 @@ The headline must **never** read "unconditional." In cryptography "unconditional
 
 ## References
 
-- **[CDM23]** Cremers, Dürmuth, Medinger, Naderpour. *Keeping Up with the KEMs: Binding (committing) security of KEMs.* (X-BIND-P-Q framework; HON/LEAK/MAL classes; Figure 6 game; monotonicity "Lemma 4.4".)
+- **[CDM23]** Cremers, Dax, Medinger. *Keeping Up with the KEMs: Stronger Security Bounds / Binding (committing) security of KEMs.* CCS 2024 / eprint 2023/1933. (X-BIND-P-Q framework; HON/LEAK/MAL classes; binding-targets BE = {pk, ct, k}; monotonicity lemma.)
 - **[eprint 2024/523]** Schmieg. *Unbindable Kemmy Schmidt: ML-KEM is neither MAL-BIND-K-CT nor MAL-BIND-K-PK in expanded-dk form; seed-format dk attains both.* (Also keymaterial.net writeup.)
 - **[eprint 2024/702]** Fiedler, Günther. *PQXDH re-encapsulation / UKS analysis.*
 - **[eprint 2024/843]** *Verified ML-KEM (Kyber) IND-CCA in EasyCrypt* (formosa-mlkem).

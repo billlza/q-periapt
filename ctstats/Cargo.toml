@@ -17,6 +17,8 @@ workspace = true
 # is present (Linux CI), and is a no-op otherwise (e.g. macOS) — so it builds and runs
 # everywhere; the actual dataflow check happens only under Valgrind.
 valgrind = []
+# Enable the HQC backend for the `ct_hqc_gap` probe (PQClean C; std/native only).
+hqc = ["q-periapt-backends/hqc"]
 
 [dependencies]
 q-periapt-core = { path = "../crates/q-periapt-core" }
@@ -30,3 +32,13 @@ cc = "1"
 [[bin]]
 name = "ct_verify"
 required-features = ["valgrind"]
+
+# Source→binary CT gap probe over real libcrux ML-KEM decapsulate.
+[[bin]]
+name = "ct_decaps_gap"
+required-features = ["valgrind"]
+
+# Source→binary CT gap probe over the (unaudited) HQC PQClean backend — the leaky contrast.
+[[bin]]
+name = "ct_hqc_gap"
+required-features = ["valgrind", "hqc"]

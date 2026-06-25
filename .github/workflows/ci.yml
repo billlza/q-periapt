@@ -128,6 +128,23 @@ jobs:
         run: cargo build --release -p q-periapt-ctstats --bin ct_verify --features valgrind
       - name: Memcheck — no secret-dependent control flow (hard gate)
         run: valgrind --error-exitcode=1 --leak-check=no --track-origins=yes ./target/release/ct_verify
+      - name: Build the source→binary CT gap probe (real libcrux ML-KEM decapsulate)
+        run: cargo build --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind
+      - name: Memcheck — source→binary CT gap probe (self-validating)
+        run: |
+          BIN=./target/release/ct_decaps_gap
+          # Negative control: a planted secret-indexed load MUST be caught, else the gate is vacuous.
+          if valgrind --error-exitcode=1 --leak-check=no -q "$BIN" control >/dev/null 2>&1; then
+            echo "::error::negative control not caught — Memcheck gate is vacuous on ${{ matrix.runner }}"; exit 1
+          fi
+          # Positive control: marking the embedded PUBLIC key (which drives the q-branches) MUST flag.
+          if valgrind --error-exitcode=1 --leak-check=no -q "$BIN" ek >/dev/null 2>&1; then
+            echo "::error::ek positive control did not flag — Memcheck not seeing real libcrux branches"; exit 1
+          fi
+          # HARD GATE: marking the GENUINE secret (ŝ+z) must yield ZERO secret-dependent branches,
+          # i.e. libcrux's source-level secret-independence survives compilation on this ISA.
+          valgrind --error-exitcode=1 --leak-check=no --track-origins=yes "$BIN" probe
+          echo "source→binary CT gap probe: no gap on ${{ matrix.runner }}"
 
   # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
   transport:

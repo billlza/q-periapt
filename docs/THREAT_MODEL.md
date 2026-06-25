@@ -45,7 +45,7 @@ We model four adversaries. They may be combined; each row states the assumed pow
 
 | ID | Adversary | Assumed capability |
 |----|-----------|--------------------|
-| **ADV-MAL** | Malicious-key / binding adversary | Supplies adversarially chosen public keys **and** decapsulation keys (the **MAL** class of Cremers–Dürmuth–Medinger–Naderpour). Tries to produce two encapsulation transcripts that collide on `K` while disagreeing on some `ct`, `pk`, or `context` (re-encapsulation / UKS / cross-context confusion). This is the load-bearing adversary — its venues (PQ-KEM-in-HPKE, Signal/MLS-style handshakes, PQXDH) accept attacker-supplied key material. |
+| **ADV-MAL** | Malicious-key / binding adversary | Supplies adversarially chosen public keys **and** decapsulation keys (the **MAL** class of Cremers–Dax–Medinger). Tries to produce two encapsulation transcripts that collide on `K` while disagreeing on some `ct`, `pk`, or `context` (re-encapsulation / UKS / cross-context confusion). This is the load-bearing adversary — its venues (PQ-KEM-in-HPKE, Signal/MLS-style handshakes, PQXDH) accept attacker-supplied key material. |
 | **ADV-CCA** | Chosen-ciphertext adversary | Submits arbitrary (including malformed or maliciously mutated) ciphertexts to `decapsulate` and observes any distinguishable reaction — a return code, a derived-secret relationship, or an error string. Seeks a Bleichenbacher/Manger-class **decapsulation oracle**. |
 | **ADV-TIME** | Passive timing / microarchitectural side-channel | Measures wall-clock latency (and, on a quiet host, finer signals) of `decapsulate` over many calls to distinguish valid from invalid ciphertexts or to recover secret-dependent control flow. Cannot read memory directly. |
 | **ADV-POLICY** | Policy-tampering / downgrade adversary | Modifies the policy file in transit or at rest, or stands in as a downgrading peer during negotiation, to push the suite below its intended NIST floor or onto a weaker combiner profile. |
@@ -288,8 +288,13 @@ source-proven and confirmed by a 3-lens adversarial review (details in
 [`ctstats/README.md`](../ctstats/README.md)). So **libcrux ML-KEM decaps is constant-time on
 the genuine secret**; the branch outcomes depend only on the (public) `ek`, i.e. zero marginal
 leakage. (Two earlier framings — "csel false positive" and "real secret-dependent branch" —
-were both retracted.) **Confirmed empirically**: under Memcheck, marking only ŝ + z yields
-**0** decapsulate flags, vs 2848 errors / 30 sites for the whole `dk`.
+were both retracted.) This **corroborates** — does not discover — what libcrux already
+machine-checks via its `libcrux-secrets`/hax typed secret-independence; the 2848-vs-0 Memcheck
+contrast is the expected before/after of correct vs. over-broad marking, per standard
+CT-harness practice (cf. KyberSlash §7.1.2). *Note:* the secret-only run marked
+ŝ `[0..1152]` + `[2336..2368]` = `H(ek)` (public — a slipped offset); the genuine z is
+`[2368..2400]`, so a corrected ŝ+z run is **pending**, with z's branch-freedom resting on the
+source argument meanwhile.
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
 test stays report-only). Binary-CT tooling is mature on **x86_64-linux and aarch64-linux**
 (our composition-code check is configured for both); **riscv64 / wasm32** remain
