@@ -135,7 +135,9 @@ fn main() {
             // SO_LINGER=0: close() sends RST, so the socket skips TIME_WAIT. Without this, the
             // tens of thousands of short loopback connections pile up TIME_WAIT sockets whose
             // port reuse injects 40ms delayed-ACK / ~100ms retransmit stalls into later reps.
-            sock.set_linger(Some(std::time::Duration::ZERO)).ok();
+            socket2::SockRef::from(&sock)
+                .set_linger(Some(std::time::Duration::ZERO))
+                .ok();
             let mut conn = ServerConnection::new(server_cfg.clone()).unwrap();
             let _ = conn.complete_io(&mut sock);
         }
@@ -149,7 +151,9 @@ fn main() {
         let t0 = Instant::now();
         let sock = TcpStream::connect(addr).unwrap();
         sock.set_nodelay(true).ok();
-        sock.set_linger(Some(std::time::Duration::ZERO)).ok(); // RST on close -> no TIME_WAIT churn
+        socket2::SockRef::from(&sock)
+            .set_linger(Some(std::time::Duration::ZERO))
+            .ok(); // RST on close -> no TIME_WAIT
         let mut conn = ClientConnection::new(client_cfg.clone(), name.clone()).unwrap();
         let mut s = Counting(sock);
         conn.complete_io(&mut s).unwrap();

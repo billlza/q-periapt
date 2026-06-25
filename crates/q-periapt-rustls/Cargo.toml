@@ -19,3 +19,4 @@ q-periapt-backends = { path = "../q-periapt-backends" }
 
 [dev-dependencies]
 rcgen = "0.13"
+socket2 = "0.5"  # stable SO_LINGER for the netem bench (std set_linger is nightly-only)
