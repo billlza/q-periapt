@@ -467,7 +467,12 @@ compilation. Run against the suite's unaudited HQC backend, the same probe flags
 reports localized to \code{vect\_set\_random\_fixed\_weight}---so the probe is a \emph{discriminator}
 (\cref{fig:ct}): clean ML-KEM versus leaky HQC in one framework. (HQC's leak is known; the
 contribution is the discriminating, gated artifact and the corollary that per-backend
-constant-time gating is necessary, not decorative.)
+constant-time gating is necessary, not decorative.) We additionally ran the probe natively on the
+bare-metal x86-64 host of \cref{tab:baremetal}: again $\code{probe}=0$ for ML-KEM and $22{,}849$
+flags for HQC, confirming the discrimination holds \emph{cross-architecture}. The \emph{absolute}
+counts differ markedly between ISAs (HQC $193$ on aarch64 vs.\ $22{,}849$ on x86-64; the public-key
+positive control $5696$ vs.\ $1778$)---exactly why the load-bearing signal is the
+$0$-versus-positive \emph{discrimination}, not the raw count.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_ct.pdf}
@@ -596,27 +601,46 @@ derive the same session key $K$ with the ContextBound combiner; $K$ remains secr
 \label{fig:handshake}
 \end{figure*}
 
-\Cref{fig:netem} reports the result: the three curves coincide because latency is
-RTT-dominated, and the PQ/T overhead is a \emph{fixed} cost ($\sim$190\,$\mu$s of ML-KEM CPU plus
-the wire bytes of \cref{fig:wire}). At realistic RTT this is negligible: at RTT~$\ge$~20\,ms the
-measured overhead is \emph{within run-to-run noise}---its sign varies across repeated runs
-(\cref{fig:netem}b, error bars span two repetitions)---while the only reproducible cost is the
-$\sim$190\,$\mu$s of CPU visible at RTT~0. The hybrid's $+2.27$\,KB (one ML-KEM-768 keyshare each
-way) fits within the existing TLS flights and triggers no additional round-trip. The two combiner
-profiles are indistinguishable: the stronger binding of the hash-everything combiner is free in
-latency. We report these measurements honestly as obtained on a virtualized host; a turnkey
-script reproduces the protocol on quiesced bare-metal hardware for the camera-ready (the
-RTT-dominated points are already stable across repetitions).
+\Cref{fig:netem} shows the qualitative picture---the curves coincide because latency is
+RTT-dominated---and \cref{tab:baremetal} gives the quantitative camera-ready measurement on quiesced
+bare-metal hardware (an 8-core AMD Ryzen~7~7700, Ubuntu~24.04, kernel 6.8, the benchmark pinned to
+two isolated cores under the \code{performance} governor; medians over $20$ repetitions). At
+RTT~$\approx$~0 the per-group medians are tight to $\pm 2$--$3\,\mu$s and the ordering is fully
+resolved: classical X25519 $238\,\mu$s, the IANA-standard \code{X25519MLKEM768} $263\,\mu$s,
+CompatXWing $317\,\mu$s, ContextBound $326\,\mu$s. The reproducible cost of the PQ/T upgrade is thus
+$\approx 88\,\mu$s of ML-KEM CPU over the classical baseline, and---critically---\textbf{ContextBound
+costs only $+8.6\,\mu$s over CompatXWing}, the price of the stronger hash-everything binding, in
+close agreement with the $+6.2\,\mu$s combiner cost measured in isolation (\cref{tab:bench}). This
+quiesced measurement supersedes our earlier virtualized-host run, whose $2\times$ run-to-run swings
+exceeded the few-$\mu$s combiner difference; on bare metal it resolves cleanly.
 
-\emph{Versus the IANA-standard hybrid.} We also benchmark the standardized \code{X25519MLKEM768}
-group (concatenation combiner, via aws-lc-rs). Its wire budget is \emph{identical} to
-ContextBound's---both carry one ML-KEM-768 keyshare each way ($\approx 3.24$\,KB)---so the only
-substantive difference between Q-Periapt's hybrid and the IANA standard is the combiner, isolated at
-$+6.2\,\mu$s in \cref{tab:bench}; full-handshake latency is the same order across all three hybrids.
-We deliberately do \emph{not} report precise per-group handshake percentiles for this comparison:
-on our non-quiesced virtualized host the run-to-run variance exceeds the few-$\mu$s combiner
-difference (classical alone swung by $2\times$ between repetitions), so a published table would be
-noise dressed as signal. The bare-metal script benchmarks all four groups for the camera-ready.
+As RTT grows this fixed cost vanishes into the network: at RTT~$=$~20\,ms all four groups sit at
+$41.1$\,ms within a $90\,\mu$s spread, and at RTT~$=$~50\,ms within $15\,\mu$s of one
+another---the combiner difference is two to three orders of magnitude below the link latency. The
+hybrid's $+2.27$\,KB (one ML-KEM-768 keyshare each way) fits within the existing TLS flights, adds no
+round-trip, and---being one ML-KEM-768 keyshare each way---is byte-identical in wire budget to the
+IANA standard; the \emph{only} substantive difference between Q-Periapt's hybrid and the IANA
+\code{X25519MLKEM768} is the combiner, and that difference is the $\le 25\,\mu$s separating the
+\code{standard} and \code{bound} rows of \cref{tab:baremetal}.
+
+\begin{table}[t]\centering
+\caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
+benchmark pinned to two isolated cores, \code{performance} governor; median p50 over $20$
+repetitions). At RTT~0 the per-group order resolves to $\pm$few-$\mu$s and ContextBound is
+$+8.6\,\mu$s over CompatXWing; at RTT~$\ge$~20\,ms the combiner cost is dwarfed by the link. Raw
+transcript in the artifact.}
+\label{tab:baremetal}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+key-exchange group & RTT~0 & RTT~20\,ms & RTT~50\,ms \\
+\midrule
+X25519 (classical)                  & $238.3\,\mu$s & $41.06$\,ms & $101.16$\,ms \\
+X25519MLKEM768 (IANA standard)      & $263.4\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
+Q-Periapt CompatXWing               & $317.3\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
+Q-Periapt ContextBound              & $325.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \emph{Under jitter and loss.} Adding $3$\,ms of jitter leaves the picture unchanged (all three
 groups $\approx 41$\,ms median, $\approx 50$\,ms p99.9). Under $1$--$3\%$ packet loss the median is

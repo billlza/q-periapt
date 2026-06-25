@@ -1,0 +1,145 @@
+================ Q-Periapt camera-ready bare-metal ================
+host : Linux 6.8.0-124-generic x86_64    date: 2026-06-25T11:54Z
+cpu  : AMD Ryzen 7 7700 8-Core Processor
+pin  : cores 4-5   reps: 20   root: 1
+
+tuning: governor=performance (was 'powersave'), boost/turbo disabled ()
+tuning: tcp_tw_reuse=1, port_range widened, fin_timeout=3 (loopback churn)
+
+building netem_bench (release)...
+
+######## (1) netem time-to-session, 4 groups, REPS=20, pinned to cores 4-5 ########
+== one-way=0 ms (RTT=0 ms), reps=20 ==
+rep1  classical      p50 = 238.1  p90 = 243.2  p99 = 250.3  p99.9 = 256.6
+rep1  standard       p50 = 263.9  p90 = 283.0  p99 = 316.9  p99.9 = 334.7
+rep1  bound          p50 = 327.2  p90 = 354.9  p99 = 382.0  p99.9 = 407.0
+rep1  compat         p50 = 319.3  p90 = 346.5  p99 = 382.1  p99.9 = 391.2
+rep2  classical      p50 = 241.6  p90 = 250.7  p99 = 285.1  p99.9 = 306.3
+rep2  standard       p50 = 263.9  p90 = 281.7  p99 = 309.9  p99.9 = 311.1
+rep2  bound          p50 = 327.1  p90 = 353.9  p99 = 387.8  p99.9 = 404.3
+rep2  compat         p50 = 314.9  p90 = 342.0  p99 = 375.1  p99.9 = 390.2
+rep3  classical      p50 = 238.6  p90 = 244.0  p99 = 251.4  p99.9 = 259.3
+rep3  standard       p50 = 263.7  p90 = 283.0  p99 = 317.4  p99.9 = 334.0
+rep3  bound          p50 = 325.4  p90 = 352.8  p99 = 383.8  p99.9 = 395.7
+rep3  compat         p50 = 323.8  p90 = 345.2  p99 = 378.3  p99.9 = 390.2
+rep4  classical      p50 = 237.5  p90 = 241.5  p99 = 251.3  p99.9 = 255.6
+rep4  standard       p50 = 263.4  p90 = 282.5  p99 = 318.7  p99.9 = 331.9
+rep4  bound          p50 = 324.6  p90 = 352.0  p99 = 385.5  p99.9 = 400.9
+rep4  compat         p50 = 314.1  p90 = 339.8  p99 = 373.6  p99.9 = 387.5
+rep5  classical      p50 = 238.2  p90 = 241.7  p99 = 250.5  p99.9 = 259.0
+rep5  standard       p50 = 263.4  p90 = 283.8  p99 = 320.8  p99.9 = 328.8
+rep5  bound          p50 = 327.9  p90 = 355.8  p99 = 383.3  p99.9 = 402.4
+rep5  compat         p50 = 315.0  p90 = 341.0  p99 = 377.8  p99.9 = 390.3
+rep6  classical      p50 = 237.8  p90 = 241.9  p99 = 256.8  p99.9 = 259.3
+rep6  standard       p50 = 262.4  p90 = 279.4  p99 = 307.2  p99.9 = 327.2
+rep6  bound          p50 = 325.0  p90 = 351.6  p99 = 384.8  p99.9 = 397.6
+rep6  compat         p50 = 318.8  p90 = 344.8  p99 = 390.7  p99.9 = 462.8
+rep7  classical      p50 = 238.1  p90 = 243.1  p99 = 250.4  p99.9 = 263.1
+rep7  standard       p50 = 262.2  p90 = 280.2  p99 = 307.3  p99.9 = 324.9
+rep7  bound          p50 = 326.9  p90 = 354.3  p99 = 395.1  p99.9 = 401.8
+rep7  compat         p50 = 316.9  p90 = 343.3  p99 = 373.7  p99.9 = 390.7
+rep8  classical      p50 = 238.3  p90 = 243.4  p99 = 256.0  p99.9 = 261.6
+rep8  standard       p50 = 263.4  p90 = 282.5  p99 = 310.5  p99.9 = 336.2
+rep8  bound          p50 = 327.4  p90 = 354.8  p99 = 387.3  p99.9 = 407.1
+rep8  compat         p50 = 339.6  p90 = 346.5  p99 = 382.2  p99.9 = 394.5
+rep9  classical      p50 = 238.7  p90 = 243.3  p99 = 255.9  p99.9 = 270.6
+rep9  standard       p50 = 263.5  p90 = 294.5  p99 = 329.0  p99.9 = 340.4
+rep9  bound          p50 = 326.3  p90 = 354.2  p99 = 384.8  p99.9 = 396.6
+rep9  compat         p50 = 316.1  p90 = 342.3  p99 = 379.1  p99.9 = 394.0
+rep10 classical      p50 = 237.3  p90 = 241.5  p99 = 249.4  p99.9 = 256.1
+rep10 standard       p50 = 263.4  p90 = 284.1  p99 = 319.2  p99.9 = 330.2
+rep10 bound          p50 = 325.9  p90 = 353.5  p99 = 387.4  p99.9 = 402.2
+rep10 compat         p50 = 318.6  p90 = 344.1  p99 = 376.5  p99.9 = 392.3
+rep11 classical      p50 = 238.3  p90 = 243.6  p99 = 255.9  p99.9 = 259.3
+rep11 standard       p50 = 263.8  p90 = 282.7  p99 = 318.3  p99.9 = 331.1
+rep11 bound          p50 = 325.4  p90 = 353.4  p99 = 384.2  p99.9 = 396.8
+rep11 compat         p50 = 320.9  p90 = 345.0  p99 = 379.6  p99.9 = 387.2
+rep12 classical      p50 = 238.6  p90 = 243.8  p99 = 252.9  p99.9 = 269.0
+rep12 standard       p50 = 262.8  p90 = 283.3  p99 = 315.4  p99.9 = 330.1
+rep12 bound          p50 = 326.5  p90 = 353.4  p99 = 386.4  p99.9 = 410.4
+rep12 compat         p50 = 317.3  p90 = 343.3  p99 = 377.8  p99.9 = 398.8
+rep13 classical      p50 = 239.0  p90 = 243.7  p99 = 251.8  p99.9 = 259.5
+rep13 standard       p50 = 262.7  p90 = 282.6  p99 = 317.8  p99.9 = 329.0
+rep13 bound          p50 = 326.7  p90 = 353.8  p99 = 388.0  p99.9 = 404.1
+rep13 compat         p50 = 319.3  p90 = 344.8  p99 = 374.5  p99.9 = 392.0
+rep14 classical      p50 = 238.3  p90 = 245.3  p99 = 276.1  p99.9 = 282.4
+rep14 standard       p50 = 269.0  p90 = 287.1  p99 = 319.2  p99.9 = 332.5
+rep14 bound          p50 = 324.9  p90 = 351.2  p99 = 386.7  p99.9 = 402.1
+rep14 compat         p50 = 316.0  p90 = 340.8  p99 = 369.1  p99.9 = 387.6
+rep15 classical      p50 = 239.2  p90 = 260.3  p99 = 290.9  p99.9 = 297.0
+rep15 standard       p50 = 263.7  p90 = 282.8  p99 = 310.5  p99.9 = 328.8
+rep15 bound          p50 = 325.5  p90 = 352.4  p99 = 388.4  p99.9 = 402.4
+rep15 compat         p50 = 318.3  p90 = 342.9  p99 = 374.3  p99.9 = 386.1
+rep16 classical      p50 = 237.9  p90 = 242.0  p99 = 249.6  p99.9 = 254.2
+rep16 standard       p50 = 263.0  p90 = 281.7  p99 = 310.4  p99.9 = 320.9
+rep16 bound          p50 = 325.8  p90 = 353.0  p99 = 390.2  p99.9 = 399.8
+rep16 compat         p50 = 329.2  p90 = 344.5  p99 = 386.2  p99.9 = 392.3
+rep17 classical      p50 = 238.4  p90 = 242.1  p99 = 250.3  p99.9 = 269.4
+rep17 standard       p50 = 264.7  p90 = 283.4  p99 = 319.3  p99.9 = 333.1
+rep17 bound          p50 = 325.9  p90 = 354.6  p99 = 390.1  p99.9 = 406.2
+rep17 compat         p50 = 316.4  p90 = 358.5  p99 = 401.5  p99.9 = 422.2
+rep18 classical      p50 = 238.8  p90 = 251.9  p99 = 277.1  p99.9 = 295.4
+rep18 standard       p50 = 263.6  p90 = 283.6  p99 = 316.8  p99.9 = 327.0
+rep18 bound          p50 = 325.0  p90 = 350.4  p99 = 381.1  p99.9 = 398.2
+rep18 compat         p50 = 320.1  p90 = 345.0  p99 = 377.2  p99.9 = 389.5
+rep19 classical      p50 = 237.7  p90 = 241.8  p99 = 252.4  p99.9 = 259.2
+rep19 standard       p50 = 262.4  p90 = 280.0  p99 = 318.7  p99.9 = 335.3
+rep19 bound          p50 = 324.5  p90 = 351.2  p99 = 384.7  p99.9 = 401.3
+rep19 compat         p50 = 315.5  p90 = 341.9  p99 = 370.6  p99.9 = 376.0
+rep20 classical      p50 = 238.5  p90 = 244.4  p99 = 256.4  p99.9 = 260.5
+rep20 standard       p50 = 264.1  p90 = 284.2  p99 = 312.2  p99.9 = 326.0
+rep20 bound          p50 = 326.4  p90 = 353.1  p99 = 381.4  p99.9 = 397.0
+rep20 compat         p50 = 316.5  p90 = 341.2  p99 = 368.4  p99.9 = 388.7
+== one-way=10 ms (RTT=20 ms), reps=6 ==
+rep1  classical      p50 = 41066.2  p90 = 41278.2  p99 = 41493.6  p99.9 = 41662.1
+rep1  standard       p50 = 41166.7  p90 = 41429.4  p99 = 41721.3  p99.9 = 41751.4
+rep1  bound          p50 = 41084.2  p90 = 41321.9  p99 = 41706.5  p99.9 = 41912.7
+rep1  compat         p50 = 41139.9  p90 = 41317.0  p99 = 41557.4  p99.9 = 41739.3
+rep2  classical      p50 = 41056.0  p90 = 41234.0  p99 = 41313.8  p99.9 = 41464.7
+rep2  standard       p50 = 41103.4  p90 = 41290.2  p99 = 41562.0  p99.9 = 41740.7
+rep2  bound          p50 = 41156.9  p90 = 41391.4  p99 = 41743.0  p99.9 = 41770.8
+rep2  compat         p50 = 41135.6  p90 = 41315.6  p99 = 41479.5  p99.9 = 41688.8
+rep3  classical      p50 = 41058.9  p90 = 41259.4  p99 = 41301.3  p99.9 = 41357.0
+rep3  standard       p50 = 41165.2  p90 = 41525.6  p99 = 41773.3  p99.9 = 41856.2
+rep3  bound          p50 = 41132.6  p90 = 41312.3  p99 = 41502.8  p99.9 = 41783.8
+rep3  compat         p50 = 41149.5  p90 = 41324.5  p99 = 41645.4  p99.9 = 41784.9
+rep4  classical      p50 = 41057.2  p90 = 41243.1  p99 = 41427.6  p99.9 = 41568.7
+rep4  standard       p50 = 41148.8  p90 = 41320.4  p99 = 41615.3  p99.9 = 41732.0
+rep4  bound          p50 = 41154.1  p90 = 41323.7  p99 = 41592.8  p99.9 = 41724.9
+rep4  compat         p50 = 41140.5  p90 = 41321.9  p99 = 41699.0  p99.9 = 41742.0
+rep5  classical      p50 = 41057.7  p90 = 41237.3  p99 = 41419.8  p99.9 = 41606.1
+rep5  standard       p50 = 41130.3  p90 = 41314.4  p99 = 41723.5  p99.9 = 41840.2
+rep5  bound          p50 = 41114.1  p90 = 41323.0  p99 = 41478.8  p99.9 = 41491.1
+rep5  compat         p50 = 41142.2  p90 = 41337.3  p99 = 41605.3  p99.9 = 41808.1
+rep6  classical      p50 = 41056.3  p90 = 41252.2  p99 = 41321.9  p99.9 = 41481.7
+rep6  standard       p50 = 41146.6  p90 = 41311.4  p99 = 41592.8  p99.9 = 41601.9
+rep6  bound          p50 = 41202.2  p90 = 41379.5  p99 = 41780.7  p99.9 = 41796.2
+rep6  compat         p50 = 41123.4  p90 = 41311.2  p99 = 41529.4  p99.9 = 41749.2
+== one-way=25 ms (RTT=50 ms), reps=4 ==
+rep1  classical      p50 = 101159.7  p90 = 101227.3  p99 = 101580.5  p99.9 = 101596.0
+rep1  standard       p50 = 101173.6  p90 = 101294.3  p99 = 101766.1  p99.9 = 101914.8
+rep1  bound          p50 = 101179.3  p90 = 101541.7  p99 = 101826.8  p99.9 = 102157.0
+rep1  compat         p50 = 101172.1  p90 = 101309.8  p99 = 101550.1  p99.9 = 101762.5
+rep2  classical      p50 = 101159.9  p90 = 101210.9  p99 = 101382.6  p99.9 = 101392.1
+rep2  standard       p50 = 101205.5  p90 = 101630.6  p99 = 101805.8  p99.9 = 101836.7
+rep2  bound          p50 = 101172.7  p90 = 101382.2  p99 = 101747.4  p99.9 = 101771.6
+rep2  compat         p50 = 101165.9  p90 = 101287.4  p99 = 101590.7  p99.9 = 101593.6
+rep3  classical      p50 = 101167.4  p90 = 101195.2  p99 = 101483.6  p99.9 = 101598.5
+rep3  standard       p50 = 101170.8  p90 = 101281.5  p99 = 101761.1  p99.9 = 101810.5
+rep3  bound          p50 = 101176.5  p90 = 101623.1  p99 = 101780.2  p99.9 = 101781.5
+rep3  compat         p50 = 101168.7  p90 = 101399.2  p99 = 101633.9  p99.9 = 101745.4
+rep4  classical      p50 = 101145.1  p90 = 101206.3  p99 = 101426.2  p99.9 = 101490.5
+rep4  standard       p50 = 101169.8  p90 = 101404.2  p99 = 101757.7  p99.9 = 101761.4
+rep4  bound          p50 = 101174.2  p90 = 101357.0  p99 = 101607.8  p99.9 = 101746.4
+rep4  compat         p50 = 101187.8  p90 = 101602.7  p99 = 101828.3  p99.9 = 101850.5
+report: per (RTT,group) take median p50 + run-to-run spread; RTT>=20ms overhead is within noise.
+
+######## (2) source->binary CT discriminator (NATIVE Memcheck) ########
+negative control OK
+  ml-kem ek       ERROR SUMMARY: 1778 errors from 34 contexts (suppressed: 0 from 0)
+  ml-kem wholedk  ERROR SUMMARY: 1778 errors from 34 contexts (suppressed: 0 from 0)
+  ml-kem probe    ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+  hqc    prefix   ERROR SUMMARY: 22849 errors from 6 contexts (suppressed: 0 from 0)
+discriminator: expect ML-KEM probe = 0 (clean) vs HQC prefix > 0 (leaky).
+
+================ done — paste this whole transcript back ================
