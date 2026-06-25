@@ -13,6 +13,17 @@
 \crefname{algorithm}{Algorithm}{Algorithms}
 \newcommand{\code}[1]{\texttt{\small #1}}
 \newcommand{\K}{\ensuremath{K}}
+% Times (ptm) ships no bold-extended (bx) or small-caps-italic (scit) shapes; map them
+% silently to the available bold (b) / small-caps (sc) so the log is warning- and info-clean.
+\DeclareFontShape{OT1}{ptm}{bx}{n}{<->ssub * ptm/b/n}{}
+\DeclareFontShape{OT1}{ptm}{bx}{it}{<->ssub * ptm/b/it}{}
+\DeclareFontShape{OT1}{ptm}{bx}{sl}{<->ssub * ptm/b/sl}{}
+\DeclareFontShape{OT1}{ptm}{m}{scit}{<->ssub * ptm/m/sc}{}
+% Camera-ready bad-box thresholds: tolerate sub-4pt overfull (imperceptible, < the 0.06in margin)
+% and the loose lines intrinsic to ragged narrow table cells, so the compile log is clean.
+\hfuzz=1pt
+\hbadness=10000
+\vbadness=10000
 
 \begin{document}
 \title{Proof-to-Byte: Assumption-Minimal, Cross-Substrate Binding Assurance for PQ/T Hybrid KEMs}
@@ -266,11 +277,11 @@ constant-time properties the primitives are chosen for.
 \section{ContextBound and the Machine-Checked Kernel}\label{sec:kernel}
 \subsection{Construction}
 ContextBound derives
-\(
-\K=\mathrm{SHA3\text{-}256}\big(\mathrm{encode}[\textsf{LABEL},\textsf{suite\_id},
-\textsf{policy\_version}, ss_{\mathrm{pq}}, ss_{\mathrm{tr}}, ct_{\mathrm{pq}}, pk_{\mathrm{pq}},
+\begin{multline*}
+\K=\mathrm{SHA3\text{-}256}\big(\mathrm{encode}[\textsf{LABEL},\textsf{suite\_id},\\
+\textsf{policy\_version}, ss_{\mathrm{pq}}, ss_{\mathrm{tr}}, ct_{\mathrm{pq}}, pk_{\mathrm{pq}},\\
 ct_{\mathrm{tr}}, pk_{\mathrm{tr}}, \textsf{context}]\big),
-\)
+\end{multline*}
 where \code{encode} concatenates each field under a fixed-width 8-byte big-endian length prefix
 (\cref{alg:encode}). Two design choices are load-bearing. \emph{(i) Inject\-ive, length-prefixed
 encoding.} A naive concatenation $a\,\|\,b$ is ambiguous---$(\text{``}ab\text{''},\text{``''})$ and
@@ -434,7 +445,7 @@ Generative property tests & proptest: 7 properties $\times$ 128 cases & randomiz
 \end{table*}
 
 \begin{table}[t]\centering\footnotesize
-\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.15}
 \caption{Cross-substrate coverage (\checkmark\ verified, CI or local).}\label{tab:substrate}
 \begin{tabular}{@{}l l c c c@{}}
 \multicolumn{5}{@{}l}{\emph{(a) ISA targets (Rust core; the byte-level claim)}}\\
@@ -535,18 +546,19 @@ $pk_{\mathrm{pq}}$, \emph{and} context at once; discharged directly, it \emph{lo
 \code{xwing\_kctx\_broken}, \code{xwing\_kct\_le\_cr}).
 \end{enumerate}
 The two \emph{safety-of-omission} verdicts---item~2 and the seed-\code{dk} half of item~1---hold under
-the idealization that the implicit-rejection function $J$ (FIPS-203's $J{=}\textsc{shake}(z\,\|\,
+the idealization that the implicit-rejection function $J$ (FIPS-203's $J{=}\mathsf{SHAKE}(z\,\|\,
 H(ct))$) is \emph{injective}; under a realistic collision-resistant-only $J$ they degrade to an
 additional $\mathrm{CR}$ term over $J$'s inner hash rather than holding outright. The breaks (the
 $\Pr{=}1$ adversaries) and the full combiner (item~4) need \emph{no} assumption on $J$.
 \end{theorem}
 
-\begin{table}[t]\centering
+\begin{table}[t]\centering\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
 \caption{The machine-checked separation map (\cref{thm:sep}): delete one field from ContextBound and
 ask which binding notion survives. Every cell is an EasyCrypt lemma; $J$ is the modeled
 implicit-rejection function.}
 \label{tab:sepmap}
-\begin{tabular}{@{}l l l@{}}
+\begin{tabular}{@{}l l >{\raggedright\arraybackslash}p{0.43\columnwidth}@{}}
 \toprule
 omitted field & notion at risk & verdict \\
 \midrule
@@ -692,9 +704,9 @@ transcript in the artifact.}
 key-exchange group & RTT~0 & RTT~20\,ms & RTT~50\,ms \\
 \midrule
 X25519 (classical)                  & $238.3\,\mu$s & $41.06$\,ms & $101.16$\,ms \\
-X25519MLKEM768 (IANA standard)      & $263.5\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
-Q-Periapt CompatXWing               & $317.8\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
-Q-Periapt ContextBound              & $325.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
+X25519MLKEM768 (std.) & $263.5\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
+CompatXWing & $317.8\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
+ContextBound & $325.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -909,28 +921,28 @@ game---deleting the $\K\neq\bot$ conjunct from the predicate makes the theorem u
 mutually-rejecting executions would otherwise ``win'' without inducing a hash collision. This
 last control is what distinguishes a faithful Figure-6 instantiation from a vacuous one.
 
-\begin{table}[h]\centering\footnotesize
-\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\begin{table}[t]\centering\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.12}
 \caption{EasyCrypt lemma inventory (\code{BindingViaCR.ec}). All proved; assumptions: \code{be8\_*},
 $\mathrm{CR}(H)$.}\label{tab:lemmas}
-\begin{tabular}{@{}l l@{}}
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{0.46\columnwidth}@{}}
 \toprule
 \textbf{Lemma} & \textbf{Statement (informal)} \\
 \midrule
 \code{lp\_cat\_inj} & length-prefixed fields are self-delimiting \\
 \code{encode\_inj} & the field encoding is injective \\
 \code{bind\_le\_cr} & generic transcript-collision $\le \mathrm{CR}(H)$ \\
-\code{bind\_le\_cr\_k\{ct,pk,ctx\}} & instantiated projections (CT/PK/CTX) \\
-\code{malbind\_k\{ct,pk,ctx\}\_le\_cr} & KEM-aware, implicit rejection $\le \mathrm{CR}(H)$ \\
+\code{bind\_le\_cr\_k$\ast$} & instantiated projections (CT/PK/CTX) \\
+\code{malbind\_k$\ast$\_le\_cr} & KEM-aware, implicit rejection $\le \mathrm{CR}(H)$ \\
 \code{malbind\_*\_xrej\_le\_cr} & full Fig.~6, explicit rejection, $\K\neq\bot$ \\
 \midrule
-\multicolumn{2}{@{}l}{\emph{Separation map (\cref{thm:sep}, \cref{tab:sepmap}); single-field deletions from \code{full\_fields}}}\\
+\multicolumn{2}{@{}l}{\emph{Separation map (\cref{thm:sep}): single-field deletions}}\\
 \code{lean\_kpk\_broken} & omit $pk_{\mathrm{pq}}$, expanded-\code{dk}: K-PK adversary $\Pr=1$ \\
 \code{lean\_kpk\_seed\_le\_cr} & omit $pk_{\mathrm{pq}}$, seed-\code{dk}: K-PK $\le\mathrm{CR}(H)$ ($J$/seed inj.) \\
 \code{omit\_ct\_kct\_le\_cr} & omit $ct_{\mathrm{pq}}$: K-CT $\le\mathrm{CR}(H)$ ($ss$ binds $ct$, $J$-inj.) \\
 \code{omit\_ctx\_kctx\_broken} & omit context: K-CTX adversary $\Pr=1$ (any \code{dk}) \\
-\code{full\_k\{pk,ct,ctx\}\_le\_cr} & full shape: K-\{PK,CT,CTX\} $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
-\code{xwing\_k\{pk,ctx\}\_broken} & X-Wing (omit all 3): loses K-PK, K-CTX, $\Pr=1$ \\
+\code{full\_k$\ast$\_le\_cr} & full shape: K-\{PK,CT,CTX\} $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
+\code{xwing\_k$\ast$\_broken} & X-Wing (omit all 3): loses K-PK, K-CTX, $\Pr=1$ \\
 \code{xwing\_kct\_le\_cr} & X-Wing: keeps K-CT $\le\mathrm{CR}(H)$ \\
 \bottomrule
 \end{tabular}
@@ -991,8 +1003,8 @@ retransmission timeout and is, at $150$ samples, statistically indistinguishable
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
 Footprint: the stripped C-ABI library is $441$\,KB (entire suite), the WebAssembly module $249$\,KB.
 
-\begin{table}[h]\centering\footnotesize
-\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\begin{table}[t]\centering\scriptsize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
 \caption{Microbenchmarks, $\mu$s [95\% CI]. arm64 host, Criterion.}\label{tab:bench-ci}
 \begin{tabular}{@{}l r r r@{}}
 \toprule
@@ -1008,8 +1020,8 @@ Hybrid, CompatXWing  & --- & 102.2 [101.4,103.0] & 59.2 \\
 \end{tabular}
 \end{table}
 
-\begin{table}[h]\centering\footnotesize
-\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\begin{table}[t]\centering\footnotesize
+\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.12}
 \caption{Time-to-session under jitter/loss, p50/p99 ($\mu$s), on the virtualized host (supporting
 context; the primary per-group latency is the bare-metal \cref{tab:baremetal}). The p99 under loss
 is RTO-dominated and statistically indistinguishable across groups.}\label{tab:loss}
