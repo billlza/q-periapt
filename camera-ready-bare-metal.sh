@@ -47,7 +47,8 @@ tune() {
   sysctl -w net.ipv4.tcp_tw_reuse=1 >/dev/null 2>&1 || true
   sysctl -w net.ipv4.ip_local_port_range="1024 65535" >/dev/null 2>&1 || true
   sysctl -w net.ipv4.tcp_fin_timeout=10 >/dev/null 2>&1 || true
-  echo "tuning: tcp_tw_reuse=1, port_range widened, fin_timeout=10 (loopback churn)"
+  sysctl -w net.ipv4.tcp_max_tw_buckets=4000000 >/dev/null 2>&1 || true   # don't let the TW table overflow
+  echo "tuning: tcp_tw_reuse=1, port_range widened, fin_timeout=10, tw_buckets=4M (loopback churn)"
 }
 restore() {
   [ -n "$GOV_OLD" ] && for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo "$GOV_OLD" > "$g" 2>/dev/null || true; done
@@ -83,7 +84,7 @@ else
     done
     tc qdisc del dev lo root 2>/dev/null || true
   }
-  netrun 0  2000 "$REPS"   # RTT~0: the noise-sensitive CPU comparison (was unpublishable on the VM) — FULL reps
+  netrun 0  800 "$REPS"    # RTT~0: the noise-sensitive CPU comparison (was unpublishable on the VM) — FULL reps
   netrun 10 250 6          # RTT=20ms: confirmatory (RTT dominates variance) — few reps, fewer iters
   netrun 25 150 4          # RTT=50ms: confirmatory
   echo "report: per (RTT,group) take median p50 + run-to-run spread; RTT>=20ms overhead is within noise."
