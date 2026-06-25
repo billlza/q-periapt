@@ -43,7 +43,9 @@ fn mark_secret(buf: &[u8]) {
 }
 
 fn main() {
-    let mode = std::env::args().nth(1).unwrap_or_else(|| "probe".to_string());
+    let mode = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "probe".to_string());
 
     // Fresh keypair; a valid ct (exercises decrypt→re-encrypt→accept, the ŝ path) and an
     // invalid ct (exercises implicit rejection, the z path).
@@ -94,7 +96,9 @@ fn main() {
 
     // Real libcrux decapsulate over the marked dk, both branches.
     let mut ss = [0u8; 32];
-    MlKem768.decapsulate(&dk_marked, &ct_valid, &mut ss).unwrap();
+    MlKem768
+        .decapsulate(&dk_marked, &ct_valid, &mut ss)
+        .unwrap();
     black_box(ss);
     let mut ss2 = [0u8; 32];
     MlKem768

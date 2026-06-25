@@ -64,11 +64,17 @@ fn provider_for(kind: &str) -> (CryptoProvider, &'static str) {
             (p, "X25519MLKEM768 (IANA standard hybrid)")
         }
         "compat" => (
-            one_group(q_periapt_rustls::provider(), q_periapt_rustls::Q_PERIAPT_COMPATXWING),
+            one_group(
+                q_periapt_rustls::provider(),
+                q_periapt_rustls::Q_PERIAPT_COMPATXWING,
+            ),
             "Q-Periapt CompatXWing (ML-KEM-768 + X25519)",
         ),
         _ => (
-            one_group(q_periapt_rustls::provider(), q_periapt_rustls::Q_PERIAPT_CONTEXTBOUND),
+            one_group(
+                q_periapt_rustls::provider(),
+                q_periapt_rustls::Q_PERIAPT_CONTEXTBOUND,
+            ),
             "Q-Periapt ContextBound (ML-KEM-768 + X25519)",
         ),
     }

@@ -26,17 +26,19 @@
  *         layer to cite for "machine-checked CDM MAL-BIND-K-CT".
  *
  *   HONEST SCOPE of (ii)/(iii) — read before citing (a reviewer will open this file):
- *   - Layer (iii) is the full CDM Figure 6 game (both rejection styles); layer (ii) is
- *     its implicit-rejection specialization. So we do NOT rely on "K≠⊥ is vacuous" —
- *     the general game keeps the conjunct and the proof depends on it.
+ *   - Layer (iii) follows the CDM Figure 6 SHAPE (both rejection styles), with the accept
+ *     predicate DECOUPLED from a real Decaps; layer (ii) is its implicit-rejection
+ *     specialization. So we do NOT rely on "K≠⊥ is vacuous" — the general game keeps the
+ *     conjunct and the proof depends on it.
  *   - `decaps_*` / `accepts_*` are ABSTRACT, AXIOM-FREE. The reduction uses NO property
  *     of Decaps, so the result holds for EVERY Decaps (ML-KEM included) ⇒ genuine "zero
  *     KEM binding assumption". The flip side: there is NO link to the FIPS-203 Decaps,
  *     and the shared-secret fields `ss_pq`/`ss_trad` are PRESENT in the hash but INERT
  *     in the K-binding argument (binding flows through the absorbed ct/pk/ctx fields —
  *     the hash-everything mechanism), so this proves nothing ABOUT ML-KEM's Decaps.
- *   - So the honest claim is "machine-checked CDM MAL-BIND-K-{CT,PK,CTX} (full Figure 6,
- *     both rejection styles), over abstract Decaps, reducing to CR(H)". Remaining honest
+ *   - So the honest claim is "machine-checked CDM-Figure-6-SHAPED commitment/transcript-binding
+ *     for MAL-BIND-K-{CT,PK,CTX} (both rejection styles), over abstract Decaps with the accept
+ *     predicate decoupled from decapsulation, reducing to CR(H)". Remaining honest
  *     caveats: no FIPS-203 Decaps linkage; H's CR is a modeling assumption; IND-CCA2
  *     robustness is on paper; no spec<->implementation linkage (docs/BINDING_SECURITY.md
  *     §5/§6).
@@ -386,14 +388,15 @@ smt(encode_inj hkey_def ctx_neq_fields_neq).
 qed.
 
 (* ===========================================================================
- * EXPLICIT-REJECTION variant — the FULLY GENERAL CDM MAL-BIND-K-CT game.
+ * EXPLICIT-REJECTION variant — CDM-Figure-6-SHAPED MAL-BIND-K-CT game, general rejection.
  *
  * Generalizes the game above so each component `Decaps` MAY return ⊥ (modeled as
  * `None`); the hybrid key is ⊥ whenever either component rejects. CDM's `K ≠ ⊥`
  * conjunct is now PRESENT in the predicate (`hkey_x e <> None`), not subsumed — so
- * this is faithful CDM Figure 6 for ARBITRARY KEMs (the implicit-rejection game above
- * is the special case where Decaps never returns None). The reduction still uses NO
- * property of Decaps.
+ * this matches the CDM Figure 6 SHAPE for an abstract (accept-predicate-decoupled) Decaps
+ * (the implicit-rejection game above is the special case where Decaps never returns None).
+ * NB: `decaps`/`accepts` remain abstract — this is NOT a faithful FIPS-203 Decaps; the
+ * reduction still uses NO property of Decaps.
  * =========================================================================== *)
 
 (* Explicit rejection modeled with a per-component accept predicate (Decaps stays the

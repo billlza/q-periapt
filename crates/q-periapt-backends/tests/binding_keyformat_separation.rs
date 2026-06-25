@@ -87,7 +87,10 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
     let mut ss2 = [0u8; 32];
     MlKem768.decapsulate(&dk1, &ct_garbage, &mut ss1).unwrap();
     MlKem768.decapsulate(&dk2, &ct_garbage, &mut ss2).unwrap();
-    assert_ne!(ss1, [0u8; 32], "implicit-rejection secret is non-zero (real reject branch)");
+    assert_ne!(
+        ss1, [0u8; 32],
+        "implicit-rejection secret is non-zero (real reject branch)"
+    );
     assert_eq!(
         ss1, ss2,
         "Schmieg MAL-BIND-K-PK precondition: same ML-KEM K under ek1 != ek2"
@@ -102,8 +105,16 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
     // (5a) LEAN shape over EXPANDED dk (CompatXWing / X-Wing byte-exact combiner): omits pk_pq
     //      ⇒ SAME hybrid key for the two distinct public keys ⇒ K-PK collides for THIS shape
     //      over THIS dk format. (Seed-dk X-Wing is unaffected.)
-    let lean1 = combine::<Sha3_256Xof>(Profile::CompatXWing, &input(&ss1, &ek1, &ct_garbage, common)).unwrap();
-    let lean2 = combine::<Sha3_256Xof>(Profile::CompatXWing, &input(&ss1, &ek2, &ct_garbage, common)).unwrap();
+    let lean1 = combine::<Sha3_256Xof>(
+        Profile::CompatXWing,
+        &input(&ss1, &ek1, &ct_garbage, common),
+    )
+    .unwrap();
+    let lean2 = combine::<Sha3_256Xof>(
+        Profile::CompatXWing,
+        &input(&ss1, &ek2, &ct_garbage, common),
+    )
+    .unwrap();
     assert_eq!(
         lean1.as_bytes(),
         lean2.as_bytes(),
@@ -112,8 +123,16 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
 
     // (5b) FULL-BINDING (ContextBound): absorbs pk_pq ⇒ the two public keys give DIFFERENT
     //      hybrid keys ⇒ K-PK holds under CR(SHA3) alone, independent of the component dk format.
-    let cb1 = combine::<Sha3_256Xof>(Profile::ContextBound, &input(&ss1, &ek1, &ct_garbage, common)).unwrap();
-    let cb2 = combine::<Sha3_256Xof>(Profile::ContextBound, &input(&ss1, &ek2, &ct_garbage, common)).unwrap();
+    let cb1 = combine::<Sha3_256Xof>(
+        Profile::ContextBound,
+        &input(&ss1, &ek1, &ct_garbage, common),
+    )
+    .unwrap();
+    let cb2 = combine::<Sha3_256Xof>(
+        Profile::ContextBound,
+        &input(&ss1, &ek2, &ct_garbage, common),
+    )
+    .unwrap();
     assert_ne!(
         cb1.as_bytes(),
         cb2.as_bytes(),

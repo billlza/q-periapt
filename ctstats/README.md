@@ -32,10 +32,9 @@ hardware.
   gated, in CI.
 - **Binary-level constant-time** (no secret-dependent branch/index/division in
   emitted assembly): a *stronger* property than a null t-test. Valgrind/Memcheck-TIMECOP
-  runs on both **x86_64-linux and aarch64-linux**. The `ct_verify` check is *configured*
-  for both (CI matrix `[ubuntu-latest, ubuntu-24.04-arm]`) — but note this repo has **no
-  git remote**, so CI has not actually executed: x86_64 gates once CI runs, and the aarch64
-  leg has so far been exercised **only once, locally** in a container
+  runs on both **x86_64-linux and aarch64-linux**. The `ct_verify` check runs in CI on both
+  (matrix `[ubuntu-latest, ubuntu-24.04-arm]` in `.github/workflows/ci.yml`, job
+  `constant-time`), and is additionally exercised **locally** in a container
   (`scripts/ct-in-container.sh`, with a planted-secret-branch negative control confirming
   Memcheck catches leaks there). The emitted assembly differs per target, so each arch is an
   independent check. **riscv64 / wasm32** still have no mature binary-CT tool and remain

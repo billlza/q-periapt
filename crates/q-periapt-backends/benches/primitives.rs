@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use q_periapt_backends::{
-    MlKem1024, MlKem512, MlKem768, Sha3_256Xof, X25519, ML_KEM_1024_CT_LEN, ML_KEM_512_CT_LEN,
-    ML_KEM_768_CT_LEN, X25519_LEN,
+    MlKem1024, MlKem512, MlKem768, Sha3_256Xof, ML_KEM_1024_CT_LEN, ML_KEM_512_CT_LEN,
+    ML_KEM_768_CT_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{Kem, Profile};
 use q_periapt_kem::HybridKem;
@@ -28,7 +28,9 @@ macro_rules! bench_mlkem {
                 black_box(ss)
             })
         });
-        <$T>::default().encapsulate(&ek, &[3u8; 32], &mut ct, &mut ss).unwrap();
+        <$T>::default()
+            .encapsulate(&ek, &[3u8; 32], &mut ct, &mut ss)
+            .unwrap();
         $g.bench_function(concat!($tag, "/decaps"), |b| {
             b.iter(|| {
                 <$T>::default()
@@ -50,17 +52,25 @@ fn primitives(c: &mut Criterion) {
     let (xsk, xpk) = X25519::generate([9u8; 32]);
     let mut xct = [0u8; X25519_LEN];
     let mut xss = [0u8; 32];
-    g.bench_function("X25519/keygen", |b| b.iter(|| black_box(X25519::generate(black_box([9u8; 32])))));
+    g.bench_function("X25519/keygen", |b| {
+        b.iter(|| black_box(X25519::generate(black_box([9u8; 32]))))
+    });
     g.bench_function("X25519/encaps", |b| {
         b.iter(|| {
-            X25519.encapsulate(black_box(&xpk), &[5u8; 32], &mut xct, &mut xss).unwrap();
+            X25519
+                .encapsulate(black_box(&xpk), &[5u8; 32], &mut xct, &mut xss)
+                .unwrap();
             black_box(xss)
         })
     });
-    X25519.encapsulate(&xpk, &[5u8; 32], &mut xct, &mut xss).unwrap();
+    X25519
+        .encapsulate(&xpk, &[5u8; 32], &mut xct, &mut xss)
+        .unwrap();
     g.bench_function("X25519/decaps", |b| {
         b.iter(|| {
-            X25519.decapsulate(black_box(&xsk), black_box(&xct), &mut xss).unwrap();
+            X25519
+                .decapsulate(black_box(&xsk), black_box(&xct), &mut xss)
+                .unwrap();
             black_box(xss)
         })
     });
@@ -83,18 +93,23 @@ fn hybrid(c: &mut Criterion) {
         g.bench_function(format!("{tag}/encaps"), |b| {
             b.iter(|| {
                 black_box(
-                    kem.encapsulate(&pk_pq, &pk_tr, ctx, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr)
-                        .unwrap(),
+                    kem.encapsulate(
+                        &pk_pq, &pk_tr, ctx, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr,
+                    )
+                    .unwrap(),
                 )
             })
         });
         let _ = kem
-            .encapsulate(&pk_pq, &pk_tr, ctx, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr)
+            .encapsulate(
+                &pk_pq, &pk_tr, ctx, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr,
+            )
             .unwrap();
         g.bench_function(format!("{tag}/decaps"), |b| {
             b.iter(|| {
                 black_box(
-                    kem.decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_tr, &ct_tr, &pk_tr, ctx).unwrap(),
+                    kem.decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_tr, &ct_tr, &pk_tr, ctx)
+                        .unwrap(),
                 )
             })
         });

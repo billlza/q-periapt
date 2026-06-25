@@ -32,7 +32,9 @@ fn mark_secret(b: &[u8]) {
 }
 
 fn main() {
-    let mode = std::env::args().nth(1).unwrap_or_else(|| "whole".to_string());
+    let mode = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "whole".to_string());
 
     let (sk, pk) = Hqc128::generate();
     let mut ct = [0u8; Hqc128::CT_LEN];

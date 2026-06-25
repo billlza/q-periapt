@@ -46,4 +46,23 @@ exec docker run --rm $RUNARGS -v "$REPO_ROOT":/work:ro -w /work rust:slim sh -c 
   echo
   echo "interpretation: probe = 0 errors  => libcrux ML-KEM decaps secret-independence survives"
   echo "                compilation on $(uname -m) (no source->binary CT gap on the ŝ/z path)."
+
+  # DISCRIMINATOR: the SAME probe on a KNOWN-LEAKY primitive (HQC, PQClean C). If HQC were
+  # also 0 the probe would be vacuous; HQC > 0 proves the probe actually distinguishes clean
+  # from leaky. The leak is PQClean vect_set_random_fixed_weight (secret-dependent control flow).
+  echo
+  echo "=== discriminator: same probe on HQC (PQClean C), marking the genuine secret prefix ==="
+  cargo build --release -p q-periapt-ctstats --bin ct_hqc_gap --features valgrind,hqc 2>/dev/null
+  HBIN=/tmp/ctbuild/release/ct_hqc_gap
+  valgrind --leak-check=no --track-origins=yes "$HBIN" prefix >/tmp/out.hqc 2>&1 || true
+  hqcsum=$(grep "ERROR SUMMARY" /tmp/out.hqc | tail -1 | sed "s/^==[0-9]*== //")
+  printf "  %-8s %s\n" "hqc:" "$hqcsum"
+  mlkemn=$(grep "ERROR SUMMARY" /tmp/out.probe | tail -1 | grep -oE "[0-9]+ errors" | grep -oE "^[0-9]+")
+  hqcn=$(grep "ERROR SUMMARY" /tmp/out.hqc   | tail -1 | grep -oE "[0-9]+ errors" | grep -oE "^[0-9]+")
+  echo
+  if [ "${mlkemn:-1}" = "0" ] && [ "${hqcn:-0}" -gt 0 ] 2>/dev/null; then
+    echo "DISCRIMINATOR HOLDS on $(uname -m): ML-KEM probe = 0 (clean) vs HQC prefix = $hqcn (leaky)."
+  else
+    echo "DISCRIMINATOR CHECK on $(uname -m): ML-KEM=${mlkemn:-?}, HQC=${hqcn:-?} (expected 0 vs >0)."
+  fi
 '

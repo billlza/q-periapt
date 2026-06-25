@@ -269,8 +269,9 @@ suite's **own** constant-time composition code — `ct_eq`, `ct_select32`, and t
 over secret shared secrets. A compiler-introduced secret-dependent branch *there* would fail
 the build on either arch (the emitted assembly differs per target, so each is an independent
 check), catching exactly the source→assembly gap that best-effort source-level CT cannot.
-**Caveat: this repo has no git remote, so CI has not run** — x86_64 gates once it does, and
-the aarch64 leg has so far been exercised only **once, locally**, in a container
+The `constant-time` CI job runs the dataflow gate on x86_64 and aarch64
+(matrix `[ubuntu-latest, ubuntu-24.04-arm]`); the aarch64 leg is additionally exercised
+**locally** in a container
 ([`ctstats/scripts/ct-in-container.sh`](../ctstats/scripts/ct-in-container.sh)), with a
 planted-secret-branch negative control confirming Memcheck catches leaks there.
 Still **TODO**: extending Memcheck over the component-**primitive** paths. This was
@@ -372,7 +373,7 @@ consistency, and the machine-checked binding proof** — never speed.
 | 4.4 | Secure zeroization of the combined key | post-use exposure | volatile wipe + fence; not `Clone` | **ENFORCED** (Drop + type-level) |
 | 4.5 | Cross-platform byte-identical output | binding divergence | shared-vector consistency tests | **ENFORCED** (CI) |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **REPORT-ONLY** (not gated) |
-| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (no remote → not yet run; aarch64 verified once locally) |
+| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (job `constant-time`); aarch64 also verified locally |
 | 5.2 | Binary-level CT — libcrux ML-KEM decaps q-branches | ADV-TIME | source dataflow: branches are on the embedded **public** key, not ŝ/z | **RESOLVED (benign)** — CT on the genuine secret |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
 | 5.5 | NIST ACVP conformance (full FIPS family) | — | X-Wing KAT + full ACVP set (`acvp.rs`) | **CONFORMANCE DONE** — not CMVP-certified |
