@@ -12,7 +12,7 @@ run() { # one_way_ms iters
   [ "$1" != 0 ] && tc qdisc add dev lo root netem delay "$1"ms
   echo "== one-way=$1 ms (RTT=$(( $1 * 2 )) ms), $REPS reps =="
   i=1; while [ "$i" -le "$REPS" ]; do
-    for k in classical bound compat; do
+    for k in classical standard bound compat; do
       printf 'rep%s %-10s ' "$i" "$k"; "$BIN" "$k" "$2" 100 | grep p50
     done; i=$(( i + 1 ))
   done

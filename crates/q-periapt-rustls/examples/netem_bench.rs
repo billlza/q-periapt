@@ -57,6 +57,12 @@ fn provider_for(kind: &str) -> (CryptoProvider, &'static str) {
             p.kx_groups = vec![rustls::crypto::ring::kx_group::X25519];
             (p, "X25519 (classical baseline)")
         }
+        "standard" => {
+            // The IANA-standard PQ/T hybrid group (concatenation combiner), via aws-lc-rs.
+            let mut p = rustls::crypto::aws_lc_rs::default_provider();
+            p.kx_groups = vec![rustls::crypto::aws_lc_rs::kx_group::X25519MLKEM768];
+            (p, "X25519MLKEM768 (IANA standard hybrid)")
+        }
         "compat" => (
             one_group(q_periapt_rustls::provider(), q_periapt_rustls::Q_PERIAPT_COMPATXWING),
             "Q-Periapt CompatXWing (ML-KEM-768 + X25519)",

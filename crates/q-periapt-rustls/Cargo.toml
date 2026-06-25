@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 # ring base provider (lighter build than aws-lc-rs); the custom hybrid KX group is ours.
-rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "aws_lc_rs", "std", "tls12", "logging"] }
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-kem = { path = "../q-periapt-kem" }
 q-periapt-backends = { path = "../q-periapt-backends" }

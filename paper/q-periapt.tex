@@ -545,6 +545,16 @@ latency. We report these measurements honestly as obtained on a virtualized host
 script reproduces the protocol on quiesced bare-metal hardware for the camera-ready (the
 RTT-dominated points are already stable across repetitions).
 
+\emph{Versus the IANA-standard hybrid.} We also benchmark the standardized \code{X25519MLKEM768}
+group (concatenation combiner, via aws-lc-rs). Its wire budget is \emph{identical} to
+ContextBound's---both carry one ML-KEM-768 keyshare each way ($\approx 3.24$\,KB)---so the only
+substantive difference between Q-Periapt's hybrid and the IANA standard is the combiner, isolated at
+$+6.2\,\mu$s in \cref{tab:bench}; full-handshake latency is the same order across all three hybrids.
+We deliberately do \emph{not} report precise per-group handshake percentiles for this comparison:
+on our non-quiesced virtualized host the run-to-run variance exceeds the few-$\mu$s combiner
+difference (classical alone swung by $2\times$ between repetitions), so a published table would be
+noise dressed as signal. The bare-metal script benchmarks all four groups for the camera-ready.
+
 \emph{Under jitter and loss.} Adding $3$\,ms of jitter leaves the picture unchanged (all three
 groups $\approx 41$\,ms median, $\approx 50$\,ms p99.9). Under $1$--$3\%$ packet loss the median is
 likewise unaffected---loss is rare relative to a handshake---but the \emph{tail} jumps to
