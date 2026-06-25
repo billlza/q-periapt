@@ -11,6 +11,16 @@
 
 ---
 
+## Figures (built, in `paper/figures/`; `make` rebuilds — IEEE vector PDF)
+
+| PDF | Use in | Shows |
+|-----|--------|-------|
+| `fig_arch.pdf` (hero) | §1 / §4 | proof-to-byte cross-substrate: one proven core → 5 faces/3 OS/5 ISA → byte-identical `K` |
+| `fig_binding.pdf` | §3 / §"novel" | honest CDM ceiling — both schemes reach MAL-BIND-K-{CT,PK}; edge = assumption-minimality, not a stronger notion; X-BIND-CT-* unachievable |
+| `fig_ct.pdf` | §5 | source→binary CT discriminator (ML-KEM 0 vs HQC 193) |
+| `fig_netem.pdf` | §6 | netem P99: PQ overhead ≈ fixed CPU, negligible % at RTT; combiner-neutral |
+| `fig_wire.pdf` | §6 | handshake wire budget (+2.27 KB ML-KEM keyshare) |
+
 ## 0. Positioning vs. the author's prior (appealed) TDSC submission
 
 The prior submission's contribution was **auditability + migratability** of PQC (incl. X-Wing)

@@ -1,0 +1,55 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{times}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
+\begin{document}
+\begin{tikzpicture}[
+  font=\footnotesize, >={Latex[length=4pt]},
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=3.5pt, line width=0.6pt},
+  proof/.style={box, fill=blue!8, draw=blue!60},
+  core/.style={box, fill=black!5, draw=black!55, line width=0.7pt},
+  face/.style={box, fill=orange!12, draw=orange!75!black, minimum height=6mm, minimum width=11mm},
+  sub/.style={box, fill=green!7, draw=green!45!black},
+  result/.style={box, fill=green!16, draw=green!42!black, line width=0.9pt},
+  lbl/.style={font=\scriptsize\itshape, text=black!55},
+  flow/.style={->, line width=0.7pt, black!70},
+]
+% ---- proof (top) ----
+\node[proof] (proof)
+  {\textbf{Machine-checked binding} \;(EasyCrypt, \texttt{BindingViaCR.ec})\\[1pt]
+   MAL-BIND-K-\{CT,\,PK,\,CTX\} $\;\le\;$ CR(SHA3-256)\, --- CDM Fig.\,6, zero KEM assumption};
+% ---- single core ----
+\node[core, below=5mm of proof] (core)
+  {\textbf{ContextBound} combiner \;|\; one Rust \texttt{no\_std} core (the proven object)};
+% ---- five language faces (own row, f3 centred under core) ----
+\node[face, below=8mm of core] (f3) {WASM};
+\node[face, left=2.4mm of f3] (f2) {C\,ABI};
+\node[face, left=2.4mm of f2] (f1) {Rust};
+\node[face, right=2.4mm of f3] (f4) {Swift};
+\node[face, right=2.4mm of f4] (f5) {Kotlin};
+\node[lbl, left=2mm of f1] {5 faces};
+% ---- substrate (below the faces row) ----
+\node[sub, below=7mm of f3, text width=74mm] (substrate)
+  {\textbf{3 OS}\, Linux $\cdot$ macOS $\cdot$ Windows-MSVC \hfill \textbf{5 ISA}\\[1pt]
+   x86-64 $\cdot$ aarch64 $\cdot$ riscv64 $\cdot$ wasm32 $\cdot$ thumbv7em};
+% ---- output: byte-identical K ----
+\node[result, below=6mm of substrate] (k)
+  {\textbf{byte-identical shared secret} $K$ \;(the \emph{same} 32 bytes on every cell)};
+% ---- verification methods (footer) ----
+\node[box, below=4mm of k, fill=black!3, draw=black!35, font=\scriptsize, text width=82mm] (ver)
+  {\textit{verified 6 ways:}\, fixed KATs (X-Wing, RFC\,7748) $\cdot$ NIST ACVP $\cdot$ independent
+   differential $\cdot$ EasyCrypt proof $\cdot$ cross-platform byte-identity $\cdot$ property tests};
+% ---- arrows ----
+\draw[flow] (proof) -- (core) node[midway, right, lbl] {specifies};
+\foreach \f in {f1,f2,f3,f4,f5} \draw[flow, black!45] (core) -- (\f.north);
+\draw[flow] (f3) -- (substrate) node[midway, right, lbl] {compiled \& run across};
+\draw[flow] (substrate) -- (k) node[midway, right, lbl] {all decapsulate to};
+% ---- proof-to-byte brace (right) ----
+\coordinate (rt) at ($(proof.east)+(4mm,0)$);
+\coordinate (rb) at ($(k.east)+(4mm,0)$);
+\draw[{Latex[length=4pt]}-{Latex[length=4pt]}, line width=0.8pt, blue!55]
+  (proof.east) -- (rt) -- (rb) -- (k.east);
+\node[rotate=-90, font=\scriptsize\bfseries, text=blue!60, anchor=south]
+  at ($(rt)!0.5!(rb)+(2.6mm,0)$) {proof\,$\to$\,byte};
+\end{tikzpicture}
+\end{document}
