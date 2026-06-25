@@ -2,6 +2,8 @@
 \usepackage{graphicx}
 \graphicspath{{figures/}}
 \usepackage{amsmath,amssymb,bm}
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}
 \usepackage{booktabs,array}
 \usepackage[hyphens]{url}
 \usepackage{microtype}
@@ -14,10 +16,13 @@
 
 \begin{document}
 \title{Proof-to-Byte: Assumption-Minimal, Cross-Substrate Binding Assurance for PQ/T Hybrid KEMs}
-\author{Ziang~Li% <-- 李子昂
-\thanks{Author affiliation omitted for review. Artifact (open source):
-\url{https://github.com/billlza/q-periapt}.}}
-\markboth{Preprint --- under review}{Li: Proof-to-Byte Binding Assurance for PQ/T Hybrid KEMs}
+% CAMERA-READY: restore author to ``Ziang~Li'' (李子昂) and artifact URL to
+% \url{https://github.com/billlza/q-periapt}; both anonymized below for double-blind review.
+\author{Anonymous Author(s)%
+\thanks{Submitted to IEEE TDSC; author and affiliation omitted for double-blind review.
+The open-source artifact is provided to reviewers via an anonymized repository through the
+editor; its public URL is withheld to preserve anonymity.}}
+\markboth{Submitted to IEEE Transactions on Dependable and Secure Computing --- under double-blind review}{}
 \maketitle
 
 \begin{abstract}
@@ -43,11 +48,18 @@ self-validating source$\to$binary constant-time probe (configured as a CI gate; 
 that we show \emph{discriminates} a clean primitive (libcrux ML-KEM: zero secret-dependent branches
 after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a production TLS~1.3
 path (a rustls \code{CryptoProvider}) and evaluate handshake tail latency under real
-\code{tc netem}. We are explicit about what is and is not novel: the binding \emph{fact} is a
-known consequence of recent results; our contribution is the \emph{conjunction}---an
-assumption-minimal, machine-checked binding result whose proven object is demonstrably
-identical across a heterogeneous deployment surface, with reproducible gates that catch the
-failure classes that have broken deployed hybrids.
+\code{tc netem}. Beyond attaining the ceiling, we prove a machine-checked
+\emph{shape\,$\times$\,format separation}: in one EasyCrypt model, a lean (X-Wing-shaped) combiner
+that omits the PQ public key \emph{loses} \mbox{MAL-BIND-K-PK} over the FIPS-203 expanded
+decapsulation-key serialization---a concrete adversary wins with probability one---yet
+\emph{regains} it over the seed-\code{dk} serialization, while ContextBound, which absorbs the
+public key, is binding over \emph{both}; the asymmetry (the full shape reduces to
+collision-resistance \emph{alone}, the seed-\code{dk} lean shape additionally needs injectivity of
+the rejection function) is the formal case for the construction. We are explicit about what is and
+is not novel: the binding \emph{fact} is a known consequence of recent results; our contributions
+are this separation theorem and the \emph{conjunction}---an assumption-minimal, machine-checked
+binding result whose proven object is demonstrably identical across a heterogeneous deployment
+surface, with reproducible gates that catch the failure classes that have broken deployed hybrids.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -107,7 +119,12 @@ the Cremers--Dax--Medinger Figure-6 game discharged for both rejection styles in
 explicit (\cref{sec:kernel}) that the cryptographic content is this injective-encoding + CR(SHA3)
 argument---the component $\mathrm{Decaps}$ is \emph{inert}, which is exactly why no KEM assumption
 is needed---and that C1's value is its completeness, mechanization, and role as the proven object
-tied to C2, not proof difficulty.
+tied to C2, not proof difficulty. On the same kernel we additionally prove a machine-checked
+\emph{shape\,$\times$\,format separation} (\cref{thm:sep}): the lean (X-Wing-shaped) combiner
+\emph{loses} \mbox{MAL-BIND-K-PK} over the expanded-\code{dk} serialization---a concrete adversary
+wins with probability one---but \emph{regains} it over seed-\code{dk}, while ContextBound is binding
+over \emph{both}, isolating public-key absorption as the determining factor. This is a stated,
+proven result, not an integration claim.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
 same proven combiner is byte-identical across 5 language faces and 3 OSes, executed natively on
 3 ISAs and cross-compiled with by-construction identity on 2 more, verified by a six-method
@@ -128,12 +145,16 @@ component's binding is the Chempat result~\cite{chempat}; ContextBound \emph{is}
 construction, not a new primitive. That ML-KEM's expanded-dk form breaks binding (and the seed
 form fixes it) is Schmieg's~\cite{schmieg}. The binding-notion lattice is
 CDM's~\cite{cdm}. That a constant-time harness must mark only secret sub-fields is standard
-practice~\cite{kyberslash}. \emph{Novel:} the \emph{conjunction} C1$\wedge$C2---a CR-only,
-machine-checked binding result whose proven object is demonstrably byte-identical across a
-heterogeneous substrate, which no prior work provides; the self-validating source$\to$binary
-\emph{discriminator} as a reusable CI artifact; and the operationalized design invariant that
-binding the ciphertext and public key in the KDF makes hybrid binding robust to the component
-KEM's key-serialization format. We do \textbf{not} claim stronger binding than X-Wing
+practice~\cite{kyberslash}. \emph{Novel:} first, a \emph{machine-checked
+shape\,$\times$\,format separation} (\cref{thm:sep})---where Schmieg shows a \emph{single} KEM's
+binding depends on its \code{dk} format, we prove, in one model, the orthogonal statement that the
+\emph{combiner shape} determines whether that format-dependence survives composition (lean: yes,
+broken over expanded-\code{dk}; full: no, binding over both), a result no prior work states; second,
+the \emph{conjunction} C1$\wedge$C2---a CR-only, machine-checked binding result whose proven object
+is demonstrably byte-identical across a heterogeneous substrate; third, the self-validating
+source$\to$binary \emph{discriminator} as a reusable CI artifact. The design invariant that binding
+the ciphertext and public key in the KDF makes hybrid binding robust to the component KEM's
+key-serialization format is thus no longer merely operationalized but \emph{proven}. We do \textbf{not} claim stronger binding than X-Wing
 (\cref{sec:kernel}), nor any live exploited deployment. \Cref{tab:position} makes the
 conjunction concrete: the delta is that no prior effort ties a mechanized hybrid-combiner binding
 theorem to a byte-identical multi-substrate realization with source$\to$binary and TLS gates---and
@@ -254,7 +275,7 @@ collision-resistance assumption. The dual profile \code{CompatXWing} reproduces 
 combiner byte-for-byte for interoperability; \code{ContextBound} is the hash-everything profile and
 is policy-selected when an application needs context binding or wishes to avoid the
 serialization-format dependence of \cref{sec:assurance}. The suite is open
-source.\footnote{\url{https://github.com/billlza/q-periapt}}
+source.\footnote{Anonymized artifact repository provided to reviewers via the editor.}
 
 \begin{algorithm}[t]\small
 \DontPrintSemicolon
@@ -324,8 +345,12 @@ rejection styles) reduces---using no property of $\mathrm{Decaps}$---through the
 a correctly-implemented seed-dk X-Wing both reach the \mbox{MAL-BIND-K-\{CT,PK\}} ceiling; we are
 \emph{not} ``stronger'' there. Our edge is (a) \emph{assumption-minimality}: ContextBound's
 binding reduces to CR(SHA3) alone, whereas X-Wing's relies on ML-KEM's Fujisaki--Okamoto
-self-binding together with the seed-dk format; (b) \emph{mechanization}; and (c) \emph{dk-format
-robustness} (\cref{sec:assurance}). Honest scope of the mechanization: $\mathrm{Decaps}$ is
+self-binding together with the seed-dk format; (b) \emph{mechanization}; and (c) \emph{provable
+dk-format robustness} (\cref{thm:sep})---and here the distinction is sharp: while we are not stronger
+on the \{CT,PK\} axis \emph{at a fixed} serialization, the lean shape's \mbox{MAL-BIND-K-PK}
+\emph{depends on} the format (it is broken over expanded-\code{dk}), whereas ContextBound's holds
+over \emph{both}. That is a genuine, machine-checked robustness separation, not a stronger notion on
+a shared axis. Honest scope of the mechanization: $\mathrm{Decaps}$ is
 modelled as an abstract function (which is exactly why ``zero KEM assumption'' is literal), so
 there is no FIPS-203 linkage and the shared-secret fields are inert in the binding argument;
 CR(SHA3) is assumed; IND-CCA2 robustness is argued on paper; and there is no
@@ -333,8 +358,9 @@ specification-to-implementation linkage proof.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_binding.pdf}
-\caption{Honest binding position. Both schemes reach the standard ceiling; our edge is
-assumption-minimality, mechanization, and dk-format robustness---not a stronger notion.
+\caption{Honest binding position. Both schemes reach the standard ceiling at a fixed serialization;
+our edge is assumption-minimality, mechanization, and a machine-checked dk-format robustness
+separation (\cref{thm:sep})---not a stronger notion on a shared axis.
 \mbox{X-BIND-CT-$\ast$} is structurally unachievable for implicitly-rejecting KEMs and is not
 claimed.}
 \label{fig:binding}
@@ -454,20 +480,51 @@ genuinely-secret sub-fields ($\hat s$ and the implicit-rejection seed $z$) yield
 is standard practice~\cite{kyberslash}, but the embedded-public-key pitfall is a real trap; our
 probe encodes the correct granularity and gates it.
 
-\subsection{Binding is contingent on the component dk format}
-We demonstrate, executably against real libcrux, that a lean (X-Wing-shaped) combiner's
-\mbox{MAL-BIND-K-PK} is \emph{contingent on} the component KEM's key-serialization format. Schmieg's
-construction exploits that the FIPS-203 \emph{expanded} \code{dk} stores the implicit-rejection seed
-$z$ as a substitutable field: an adversary equalizes $z$ across two otherwise-distinct keypairs, so
-a garbage ciphertext implicit-rejects to the \emph{same} $J(z\,\|\,c)$ under two different public
-keys. The lean combiner---which omits $pk_{\mathrm{pq}}$---then yields the same hybrid key for
-$\code{ek}_0\neq\code{ek}_1$, breaking \mbox{MAL-BIND-K-PK}; ContextBound, which absorbs
-$pk_{\mathrm{pq}}$, does not. We stress that this is \emph{not} a break of X-Wing, which mandates the
-seed-dk format that defeats the attack (KeyGen re-derives $z$); it is a robustness separation of the
-combiner \emph{shape}, and the operationalized lesson that binding ct/pk in the KDF removes a latent
-dependence on the component library's serialization choice---a dependence an implementation that
-caches expanded keys for performance could silently reintroduce. Our test executes this against real
-libcrux as a CI-configured regression oracle.
+\subsection{A mechanized shape\,$\times$\,format separation}\label{sec:sep}
+The headline of \cref{sec:kernel} is that ContextBound \emph{attains} the binding ceiling. Here we
+prove a complementary result that is the paper's distinctive cryptographic contribution: a
+\emph{machine-checked separation} pinning down exactly \emph{which combiner shapes attain
+\mbox{MAL-BIND-K-PK} over which component \code{dk} serializations}. The separation is established in
+\emph{one} EasyCrypt model---a single execution type, a single shared-secret wiring $ss=J(z,ct)$,
+the two combiners differing \emph{only} in whether the PQ public key is absorbed---so any difference
+in outcome is attributable to the combiner \emph{shape}, not to a difference in the modeled KEM.
+
+\begin{theorem}[shape\,$\times$\,format separation, machine-checked]\label{thm:sep}
+Model the implicit-rejection secret as $ss=J(z,ct)$ (FIPS-203 \S6.3). Then, in a single binding
+model:
+\begin{enumerate}
+\item \emph{(expanded-\code{dk}, $z$ adversary-substitutable.)} The \textbf{lean} combiner that omits
+$pk_{\mathrm{pq}}$ is \emph{not} \mbox{MAL-BIND-K-PK}: a concrete, assumption-free, deterministic
+adversary wins with probability~$1$ (\code{lean\_kpk\_broken}). The \textbf{full} combiner that
+absorbs $pk_{\mathrm{pq}}$ satisfies $\mathsf{Adv}^{\text{MAL-BIND-K-PK}}\le\mathsf{Adv}^{\mathrm{CR}}(H)$
+(\code{full\_kpk\_le\_cr}).
+\item \emph{(seed-\code{dk}, $z$ key-derived.)} The \textbf{lean} combiner \emph{regains}
+\mbox{MAL-BIND-K-PK}, $\le\mathsf{Adv}^{\mathrm{CR}}(H)$, under the idealization that $J$ and the seed
+derivation are injective (\code{lean\_kpk\_seed\_le\_cr}). The full combiner is safe a~fortiori.
+\end{enumerate}
+\end{theorem}
+
+\noindent The break works precisely because, over expanded-\code{dk}, an adversary can equalize the
+stored seed $z$ across two otherwise-distinct keypairs, so a garbage ciphertext implicit-rejects to
+the \emph{same} $J(z,ct)$ under $\code{ek}_0\neq\code{ek}_1$ (Schmieg~\cite{schmieg}); the lean key
+then collides while the public key differs---a genuine \mbox{MAL-BIND-K-PK} violation, not an
+artifact of omitting $pk_{\mathrm{pq}}$ (the win vanishes the moment $ss$ depends on the key, which
+is exactly what seed-\code{dk} enforces). Each half is load-bearing: removing the two-distinct-keys
+hypothesis collapses the break, and removing the encoding injectivity or the $J$/seed injectivity
+collapses the seed-\code{dk} safety (verified by deleted-hypothesis negative controls).
+
+We are deliberately precise about scope. (i)~$J(z,ct)$ is \emph{modeled} after the FIPS-203
+implicit-rejection formula, not \emph{derived} from a mechanized Decaps; the statement is about the
+combiner, and the component shared secrets are otherwise inert. (ii)~The lean break is specific to
+the \emph{expanded}-\code{dk} serialization---this is \emph{not} a break of X-Wing, which mandates
+seed-\code{dk}. (iii)~The safety bounds are conditional on $H$'s collision resistance. (iv)~Note the
+honest \emph{asymmetry}: the full shape reduces to $\mathrm{CR}(H)$ \emph{alone}, whereas the
+seed-\code{dk} lean shape additionally needs injectivity of the rejection function and the seed
+derivation. That asymmetry \emph{is} the engineering case for ContextBound: absorbing
+$pk_{\mathrm{pq}}$ removes a latent dependence on the component library's serialization choice---a
+dependence an implementation that caches expanded keys for performance could silently reintroduce.
+We complement the proof with an executable regression oracle that exercises the same coupling
+against real libcrux as a CI-configured gate.
 
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
@@ -738,7 +795,8 @@ Protocol (ACVP),'' \url{https://github.com/usnistgov/ACVP}, 2024.
 \section{Artifact Availability}
 The complete suite---Rust core and backends, the five language faces, the EasyCrypt/Tamarin/ProVerif
 developments, the constant-time and netem harnesses, and the figure-generation
-scripts---is open source at \url{https://github.com/billlza/q-periapt}. All numbers in this paper
+scripts---is open source and provided to reviewers as an anonymized repository via the editor
+(public URL withheld for double-blind review). All numbers in this paper
 are reproducible from that repository; the bare-metal netem protocol is provided as a script.
 
 \section{The Machine-Checked Kernel in Detail}\label{app:kernel}
@@ -768,6 +826,11 @@ $\mathrm{CR}(H)$.}\label{tab:lemmas}
 \code{bind\_le\_cr\_k\{ct,pk,ctx\}} & instantiated projections (CT/PK/CTX) \\
 \code{malbind\_k\{ct,pk,ctx\}\_le\_cr} & KEM-aware, implicit rejection $\le \mathrm{CR}(H)$ \\
 \code{malbind\_*\_xrej\_le\_cr} & full Fig.~6, explicit rejection, $\K\neq\bot$ \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Separation (\cref{thm:sep}); one model, combiners differ only in $pk_{\mathrm{pq}}$}}\\
+\code{lean\_kpk\_broken} & lean shape, expanded-\code{dk}: concrete adversary, $\Pr=1$ \\
+\code{full\_kpk\_le\_cr} & full shape, expanded-\code{dk}: $\le\mathrm{CR}(H)$ \\
+\code{lean\_kpk\_seed\_le\_cr} & lean shape, seed-\code{dk}: $\le\mathrm{CR}(H)$ (needs $J$/seed inj.) \\
 \bottomrule
 \end{tabular}
 \end{table}
