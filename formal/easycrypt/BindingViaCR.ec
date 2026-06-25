@@ -13,31 +13,33 @@
  *   PROVED LEMMA, not an axiom; the proof bottoms out at two ELEMENTARY facts about
  *   an 8-byte big-endian length field (`be8_size`, `be8_inj`).
  *
- *   This file has TWO layers:
- *   (i)  `bind_le_cr` + `bind_le_cr_kct/kpk/kctx` — the generic reduction at the
- *        TRANSCRIPT-COLLISION level (K is an opaque adversary value, abstract `proj`).
- *   (ii) `malbind_kct_le_cr` / `malbind_kpk_le_cr` / `malbind_kctx_le_cr` — the
- *        KEM-AWARE game: the (MAL) adversary supplies the keypairs, K is DERIVED via
- *        `Decaps` + the combiner, and the win condition is on the hybrid ciphertext /
- *        public key / context. THIS is the layer to cite for "MAL-BIND-K-CT".
+ *   This file has THREE layers:
+ *   (i)   `bind_le_cr` + `bind_le_cr_kct/kpk/kctx` — the generic reduction at the
+ *         TRANSCRIPT-COLLISION level (K is an opaque adversary value, abstract `proj`).
+ *   (ii)  `malbind_kct_le_cr` / `_kpk_` / `_kctx_` — the KEM-AWARE game for the
+ *         IMPLICIT-rejection setting: the (MAL) adversary supplies the keypairs, K is
+ *         DERIVED via total `Decaps` + the combiner; K≠⊥ holds by construction.
+ *   (iii) `malbind_kct_xrej_le_cr` / `_kpk_xrej_` / `_kctx_xrej_` — the FULLY GENERAL
+ *         CDM Figure 6 game: `Decaps` may reject, the hybrid key is `⊥` (`None`) if
+ *         either component rejects, and CDM's `K≠⊥` conjunct is PRESENT in the
+ *         predicate and LOAD-BEARING (removing it makes the proof fail). THIS is the
+ *         layer to cite for "machine-checked CDM MAL-BIND-K-CT".
  *
- *   HONEST SCOPE of layer (ii) — read before citing (a reviewer will open this file):
- *   - It is the CDM MAL-BIND-K-CT game **specialized to the implicit-rejection
- *     setting**: the key type has no ⊥ and `Decaps` is total, so ML-KEM never returns
- *     ⊥ and CDM's `K≠⊥` conjunct holds BY CONSTRUCTION (it is subsumed, not dropped as
- *     "vacuous"). This is faithful for ML-KEM-class KEMs; it does NOT model
- *     explicitly-rejecting KEMs.
- *   - `decaps_pq`/`decaps_trad` are ABSTRACT, TOTAL, AXIOM-FREE. The reduction uses NO
- *     property of Decaps, so the result holds for EVERY total Decaps (ML-KEM included)
- *     ⇒ genuine "zero KEM binding assumption". The flip side: there is NO link to the
- *     FIPS-203 Decaps, and the shared-secret fields `ss_pq`/`ss_trad` are PRESENT in
- *     the hash but INERT in the K-binding argument (binding flows through the absorbed
- *     ct/pk/ctx fields — the hash-everything mechanism).
- *   - So the honest claim is "machine-checked CDM MAL-BIND-K-{CT,PK,CTX} for the
- *     implicit-rejection setting, over abstract Decaps, reducing to CR(H)" — NOT a
- *     fully faithful mechanization of CDM Figure 6 for arbitrary KEMs.
- *   - H's CR is a modeling assumption; IND-CCA2 robustness is on paper; there is no
- *     spec<->implementation linkage proof (docs/BINDING_SECURITY.md §5/§6).
+ *   HONEST SCOPE of (ii)/(iii) — read before citing (a reviewer will open this file):
+ *   - Layer (iii) is the full CDM Figure 6 game (both rejection styles); layer (ii) is
+ *     its implicit-rejection specialization. So we do NOT rely on "K≠⊥ is vacuous" —
+ *     the general game keeps the conjunct and the proof depends on it.
+ *   - `decaps_*` / `accepts_*` are ABSTRACT, AXIOM-FREE. The reduction uses NO property
+ *     of Decaps, so the result holds for EVERY Decaps (ML-KEM included) ⇒ genuine "zero
+ *     KEM binding assumption". The flip side: there is NO link to the FIPS-203 Decaps,
+ *     and the shared-secret fields `ss_pq`/`ss_trad` are PRESENT in the hash but INERT
+ *     in the K-binding argument (binding flows through the absorbed ct/pk/ctx fields —
+ *     the hash-everything mechanism), so this proves nothing ABOUT ML-KEM's Decaps.
+ *   - So the honest claim is "machine-checked CDM MAL-BIND-K-{CT,PK,CTX} (full Figure 6,
+ *     both rejection styles), over abstract Decaps, reducing to CR(H)". Remaining honest
+ *     caveats: no FIPS-203 Decaps linkage; H's CR is a modeling assumption; IND-CCA2
+ *     robustness is on paper; no spec<->implementation linkage (docs/BINDING_SECURITY.md
+ *     §5/§6).
  * =========================================================================== *)
 
 require import AllCore List.
@@ -257,7 +259,8 @@ qed.
  * ------------------------------------------------------------------------- *)
 
 (* ===========================================================================
- * KEM-AWARE CDM MAL-BIND-K-CT GAME (implicit-rejection setting) — closes the main gap.
+ * KEM-AWARE CDM MAL-BIND-K-CT GAME — implicit-rejection layer (explicit-rejection /
+ * full Figure 6 follows below in `*_xrej_*`) — closes the main gap.
  *
  * We MODEL the component KEMs' Decaps and DERIVE K = H(encode(ContextBound fields))
  * from them, then state the CDM MAL-BIND-K-CT game: the (MAL) adversary supplies the
@@ -380,4 +383,76 @@ proof.
 byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
 proc; inline BK(A).find. wp. call (_ : true). auto => />.
 smt(encode_inj hkey_def ctx_neq_fields_neq).
+qed.
+
+(* ===========================================================================
+ * EXPLICIT-REJECTION variant — the FULLY GENERAL CDM MAL-BIND-K-CT game.
+ *
+ * Generalizes the game above so each component `Decaps` MAY return ⊥ (modeled as
+ * `None`); the hybrid key is ⊥ whenever either component rejects. CDM's `K ≠ ⊥`
+ * conjunct is now PRESENT in the predicate (`hkey_x e <> None`), not subsumed — so
+ * this is faithful CDM Figure 6 for ARBITRARY KEMs (the implicit-rejection game above
+ * is the special case where Decaps never returns None). The reduction still uses NO
+ * property of Decaps.
+ * =========================================================================== *)
+
+(* Explicit rejection modeled with a per-component accept predicate (Decaps stays the
+   total op from above; an additional reject flag models any KEM — ML-KEM/X25519 always
+   accept). The hybrid key is ⊥ (None) iff either component rejects, else H over the SAME
+   total `fields` list — so we reuse `fields` and the proved `ct_neq_fields_neq`. *)
+op accepts_pq   : sk -> bytes -> bool.
+op accepts_trad : sk -> bytes -> bool.
+
+op hkey_x (e : texec) : key option =
+  if accepts_pq e.`sk_pq e.`ct_pq /\ accepts_trad e.`sk_trad e.`ct_trad
+  then Some (H (encode (fields e))) else None.
+
+module MalBindKCTx (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey_x e0 = hkey_x e1 /\ hkey_x e0 <> None /\ ct_of e0 <> ct_of e1;
+  }
+}.
+
+(* Fully general CDM MAL-BIND-K-CT (explicit rejection, K≠⊥ PRESENT) <= CR(H). Reuses the
+   reduction BK and `ct_neq_fields_neq` — `fields` is total, rejection only gates acceptance. *)
+lemma malbind_kct_xrej_le_cr (A <: MalAdv) &m :
+  Pr[MalBindKCTx(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BK(A).find. wp. call (_ : true). auto => />.
+rewrite /hkey_x. smt(encode_inj ct_neq_fields_neq).
+qed.
+
+(* K-PK and K-CTX, explicit-rejection — same structure, other observable. *)
+module MalBindKPKx (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey_x e0 = hkey_x e1 /\ hkey_x e0 <> None /\ pk_of e0 <> pk_of e1;
+  }
+}.
+module MalBindKCTXx (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey_x e0 = hkey_x e1 /\ hkey_x e0 <> None /\ ctx_of e0 <> ctx_of e1;
+  }
+}.
+
+lemma malbind_kpk_xrej_le_cr (A <: MalAdv) &m :
+  Pr[MalBindKPKx(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BK(A).find. wp. call (_ : true). auto => />.
+rewrite /hkey_x. smt(encode_inj pk_neq_fields_neq).
+qed.
+
+lemma malbind_kctx_xrej_le_cr (A <: MalAdv) &m :
+  Pr[MalBindKCTXx(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BK(A).find. wp. call (_ : true). auto => />.
+rewrite /hkey_x. smt(encode_inj ctx_neq_fields_neq).
 qed.

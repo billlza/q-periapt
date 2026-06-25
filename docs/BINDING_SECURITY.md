@@ -15,18 +15,18 @@
 > `malbind_kpk_le_cr` / `malbind_kctx_le_cr` are the **KEM-aware** game: the MAL
 > adversary supplies the (possibly inconsistent) keypairs, K is **DERIVED** via `Decaps`
 > + the combiner, and the win condition is on the hybrid ciphertext / public key /
-> context — reducing to `CR(H)` using **no property of Decaps**. **Honest scope of (ii):**
-> it is the CDM MAL-BIND-K-CT game **specialized to implicit rejection** — the key type
-> is ⊥-free and `Decaps` is total, so CDM's `K≠⊥` conjunct holds **by construction**
-> (subsumed; *not* a faithful encoding of the explicitly-rejecting case). `decaps_pq`/
-> `decaps_trad` are **abstract, total, axiom-free**: the reduction holds for *every*
-> total Decaps (ML-KEM included) ⇒ literal "zero KEM binding assumption", but there is
-> **no FIPS-203 linkage** and the shared-secret fields are **inert** in the argument
-> (binding flows through the absorbed ct/pk/ctx — the hash-everything mechanism). So the
-> honest phrasing is *"machine-checked CDM MAL-BIND-K-{CT,PK,CTX} for the implicit-
-> rejection setting, over abstract Decaps, reducing to CR(H)"* — **not** *"a fully
-> faithful mechanization of CDM Figure 6 for arbitrary KEMs."* H's collision-resistance
-> and the IND-CCA2 argument remain as scoped below (§4–§6).
+> context — reducing to `CR(H)` using **no property of Decaps**. (iii) `malbind_kct_xrej_le_cr`
+> / `_kpk_xrej_` / `_kctx_xrej_` are the **fully general CDM Figure 6** game: `Decaps` may
+> reject, the hybrid key is `⊥` if either component rejects, and **CDM's `K≠⊥` conjunct is
+> PRESENT and LOAD-BEARING** (removing it makes the proof fail — verified). So we do **not**
+> rely on "K≠⊥ is vacuous." **Honest scope:** `decaps_*`/`accepts_*` are **abstract,
+> axiom-free** — the reduction holds for *every* Decaps (ML-KEM included) ⇒ literal "zero KEM
+> binding assumption", but there is **no FIPS-203 linkage** and the shared-secret fields are
+> **inert** in the argument (binding flows through the absorbed ct/pk/ctx — the hash-everything
+> mechanism), so this proves nothing *about* ML-KEM's Decaps. Honest phrasing:
+> *"machine-checked CDM MAL-BIND-K-{CT,PK,CTX} (full Figure 6, both rejection styles), over
+> abstract Decaps, reducing to CR(H)."* Remaining caveats: no spec↔implementation linkage; H's
+> CR is assumed; IND-CCA2 is on paper (§4–§6).
 > **Scope:** binding/committing security of the ContextBound combiner. IND-CCA2 robustness is summarized but is *not* the load-bearing contribution; the binding half is.
 > **Trust base (read this first):** every theorem below is at the **abstract-spec level**, models **SHA3-256 / SHAKE256 as collision-resistant (and, for the KDF, as a PRF / random oracle)**, and is **not** linked to a verified implementation. "No binding assumption on the component KEMs" means exactly that — *no* assumption on ML-KEM or X25519 — and **nothing more**; it is **not** an information-theoretic ("unconditional") guarantee. We trade a KEM-self-binding assumption for a SHA3 collision-resistance assumption.
 
