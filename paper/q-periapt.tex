@@ -6,7 +6,9 @@
 \usepackage[hyphens]{url}
 \usepackage{microtype}
 \usepackage[hidelinks]{hyperref}
+\usepackage[ruled,vlined]{algorithm2e}
 \usepackage[capitalize]{cleveref}
+\crefname{algorithm}{Algorithm}{Algorithms}
 \newcommand{\code}[1]{\texttt{\small #1}}
 \newcommand{\K}{\ensuremath{K}}
 
@@ -171,13 +173,29 @@ $\K=\mathrm{SHA3}(ss_{\mathrm{pq}}\,\|\,ss_{\mathrm{tr}}\,\|\,ct_{\mathrm{tr}}\,
 omitting the ML-KEM ciphertext and public key.
 
 \subsection{KEM binding}
-We use the Cremers--Dax--Medinger (CDM) \mbox{X-BIND-$P$-$Q$} framework~\cite{cdm}: an adversary
-of class MAL~$\supseteq$~LEAK~$\supseteq$~HON wins if two transcripts \emph{agree} on quantity
-$P$ and \emph{disagree} on quantity $Q$, with $P,Q\in\{K,\textsf{PK},\textsf{CT}\}$. The MAL
-adversary supplies its own (possibly inconsistent) key material. For implicitly-rejecting KEMs
-such as ML-KEM, \mbox{MAL-BIND-K-CT} and \mbox{MAL-BIND-K-PK} are the achievable ceiling on those
-axes; the dual \mbox{X-BIND-CT-$\ast$} notions (a ciphertext binding the key or public key) are
-\emph{structurally unachievable}, since decapsulation never returns $\bot$; the binding of implicitly-rejecting KEMs is studied in detail in~\cite{schmieg,cdmrej}.
+We use the Cremers--Dax--Medinger (CDM) \mbox{X-BIND-$P$-$Q$} framework~\cite{cdm}. A
+\emph{transcript} is a tuple $(pk, ct, \K)$ produced by a (possibly malicious) execution; the two
+``observable'' quantities a binding notion may constrain are the public key $\textsf{PK}$, the
+ciphertext $\textsf{CT}$, and the derived key $K$. For $P,Q\in\{K,\textsf{PK},\textsf{CT}\}$, a KEM
+is \mbox{X-BIND-$P$-$Q$} if no adversary in the game below wins:
+
+\smallskip
+\noindent\fbox{\parbox{0.95\columnwidth}{\footnotesize
+\textbf{Game} $\mathsf{Bind}^{P,Q}_{\mathcal{A}}$: the adversary $\mathcal{A}$ outputs two
+transcripts $(pk_0,ct_0,\K_0)$ and $(pk_1,ct_1,\K_1)$. $\mathcal{A}$ \emph{wins} iff
+$\;P_0 = P_1\;\wedge\;Q_0 \neq Q_1\;\wedge\;\K_0\neq\bot\;\wedge\;\K_1\neq\bot$.}}
+\smallskip
+
+\noindent Three adversary classes parameterize how the key material in each transcript is produced,
+in increasing strength: \textbf{HON} (honest \textsf{KeyGen}), \textbf{LEAK} (honest keys, secret
+keys leaked to $\mathcal{A}$), and \textbf{MAL} (adversarially generated keys). Thus MAL~$\supseteq$~LEAK~$\supseteq$~HON,
+and CDM prove monotonicity across the $(P,Q)$ lattice, so \mbox{MAL-BIND-K-CT} and
+\mbox{MAL-BIND-K-PK} jointly yield the whole K-binds-$\{$PK,CT$\}$ sub-lattice. For
+implicitly-rejecting KEMs such as ML-KEM, these two are the achievable ceiling on those axes; the
+dual \mbox{X-BIND-CT-$\ast$} notions (a ciphertext binding the key or public key) are
+\emph{structurally unachievable}, since decapsulation never returns $\bot$ and a mutated ciphertext
+always yields \emph{some} key. The binding of implicitly-rejecting KEMs---and how it fails under
+malicious, expanded-form keys---is studied in detail by Schmieg and others~\cite{schmieg,cdmrej}.
 
 \subsection{Threat model}
 We consider three adversaries. The \emph{malicious-key (MAL) binding} adversary supplies
@@ -196,16 +214,54 @@ ContextBound derives
 \textsf{policy\_version}, ss_{\mathrm{pq}}, ss_{\mathrm{tr}}, ct_{\mathrm{pq}}, pk_{\mathrm{pq}},
 ct_{\mathrm{tr}}, pk_{\mathrm{tr}}, \textsf{context}]\big),
 \)
-where \code{encode} concatenates each field under a fixed-width 8-byte big-endian length prefix.
-Two profiles are shipped: \code{CompatXWing} (byte-exact X-Wing, for interoperability) and
-\code{ContextBound} (the hash-everything profile above). The suite is open
+where \code{encode} concatenates each field under a fixed-width 8-byte big-endian length prefix
+(\cref{alg:encode}). Two design choices are load-bearing. \emph{(i) Inject\-ive, length-prefixed
+encoding.} A naive concatenation $a\,\|\,b$ is ambiguous---$(\text{``}ab\text{''},\text{``''})$ and
+$(\text{``}a\text{''},\text{``}b\text{''})$ collide---which is precisely the structure a binding
+adversary exploits. Prefixing every field with its fixed-width length makes the encoding
+self-delimiting and therefore injective (proved, \cref{sec:kernel}), so distinct transcripts map to
+distinct byte strings and the binding question reduces cleanly to collision-resistance of the hash.
+\emph{(ii) Absorb everything.} ContextBound feeds \emph{all} component ciphertexts and public keys
+(and an application context, and a domain-separating label, suite identifier, and policy version)
+into the hash. By the combiner-binding theorem of Chempat~\cite{chempat}, the binding advantage is
+then bounded by $\mathrm{Adv}^{\mathrm{CR}}$ alone, with no residual term requiring any component
+KEM to be binding---trading a KEM-self-binding assumption for a single, well-studied
+collision-resistance assumption. The dual profile \code{CompatXWing} reproduces X-Wing's lean
+combiner byte-for-byte for interoperability; \code{ContextBound} is the hash-everything profile and
+is policy-selected when an application needs context binding or wishes to avoid the
+serialization-format dependence of \cref{sec:assurance}. The suite is open
 source.\footnote{\url{https://github.com/billlza/q-periapt}}
+
+\begin{algorithm}[t]\small
+\DontPrintSemicolon
+\KwIn{label $L$, suite id $S$, version $v$, secrets $ss_{\mathrm{pq}},ss_{\mathrm{tr}}$,
+ciphertexts $ct_{\mathrm{pq}},ct_{\mathrm{tr}}$, public keys $pk_{\mathrm{pq}},pk_{\mathrm{tr}}$,
+context $x$}
+\KwOut{32-byte shared secret \K}
+$\mathsf{lp}(f) \gets \mathsf{be8}(|f|)\,\|\,f$ \tcp*{8-byte big-endian length prefix}
+$T \gets [\,L,\,S,\,\mathsf{be4}(v),\,ss_{\mathrm{pq}},\,ss_{\mathrm{tr}},\,ct_{\mathrm{pq}},\,pk_{\mathrm{pq}},\,ct_{\mathrm{tr}},\,pk_{\mathrm{tr}},\,x\,]$\;
+$e \gets \mathsf{lp}(T_0)\,\|\,\mathsf{lp}(T_1)\,\|\,\cdots\,\|\,\mathsf{lp}(T_{n-1})$ \tcp*{injective encode}
+\Return $\mathrm{SHA3\text{-}256}(e)$\;
+\caption{\textsc{ContextBound} combiner. \code{CompatXWing} omits
+$ct_{\mathrm{pq}},pk_{\mathrm{pq}},S,v,x$ and uses X-Wing's label.}\label{alg:encode}
+\end{algorithm}
 
 \subsection{The EasyCrypt development}
 \Cref{fig:kernel} shows the mechanized reduction. The encoding's injectivity, \code{encode\_inj},
-is a \emph{proved lemma}: it reduces, via self-delimiting length-prefixed fields, to two
-elementary facts about an 8-byte big-endian length field. On top of it we discharge (i) a generic
-transcript-collision reduction \code{bind\_le\_cr}; and (ii) the \emph{KEM-aware} game, in which
+is a \emph{proved lemma}, not an assumed one. The proof has two steps. A field-level lemma,
+\code{lp\_cat\_inj}, shows that a single length-prefixed field is self-delimiting: if
+$\mathsf{lp}(a)\,\|\,x = \mathsf{lp}(b)\,\|\,y$ then $a=b$ and $x=y$, because the two 8-byte
+prefixes have equal width and (being injective) force $|a|=|b|$, after which list-concatenation
+cancellation (\code{eqseq\_cat}) splits off equal field bodies and equal remainders. A structural
+induction over the field list then lifts this to whole encodings: a non-empty encoding has size
+$\ge 8$ and so can never equal the empty one, ruling out boundary-shift collisions, and the
+inductive step peels one field with \code{lp\_cat\_inj}. The whole argument bottoms out at two
+elementary facts about the length field---that an 8-byte big-endian integer occupies 8 bytes
+(\code{be8\_size}) and is injective (\code{be8\_inj}). On top of \code{encode\_inj} we discharge (i)
+a generic transcript-collision reduction \code{bind\_le\_cr}: a \code{byequiv} argument that maps any
+adversary winning the binding game to one finding an $H$-collision, since a differing observable
+forces a differing field list (hence, by injectivity, a differing encoding) while the colliding key
+forces equal hashes; and (ii) the \emph{KEM-aware} game, in which
 the MAL adversary supplies the keypairs and \K{} is \emph{derived} via the component
 $\mathrm{Decaps}$ functions and the combiner. We mechanize both the implicit-rejection
 specialization (\code{malbind\_*\_le\_cr}) and the fully general CDM Figure-6 game with explicit
