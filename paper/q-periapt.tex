@@ -317,11 +317,26 @@ claimed.}
 \end{figure}
 
 \section{Proof-to-Byte Cross-Substrate Realization}\label{sec:substrate}
-A single dependency-free Rust \code{no\_std} core implements the combiner and the binding/encoding
-logic; vetted backends (libcrux ML-KEM, x25519-dalek, libcrux SHA3) are injected through traits.
-The core is exposed through five language faces (Rust, a C ABI, WebAssembly, Swift, Kotlin).
-Because the proven object is one piece of code, the question becomes whether \emph{every}
-realization produces the same bytes.
+\subsection{Architecture}
+The combiner and its encoding live in a single dependency-free Rust \code{no\_std} core; the
+component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
+X25519, an extendable-output \code{Xof} trait for the hash), so the proven object---the encoding and
+combiner---is the same code regardless of which vetted backend (libcrux ML-KEM, x25519-dalek,
+libcrux SHA3) is plugged in. This trait boundary is also where \emph{crypto-agility} lives: a
+\code{Kem}'s \code{C2PRI} flag (ciphertext second-preimage resistance) gates which combiner profiles
+it may use, and a signed, versioned \emph{policy} object selects the suite and profile and binds a
+downgrade-resistant \code{policy\_version} into the transcript (\cref{alg:encode}). Shared secrets
+are zeroized on drop, and the composition code is written in a branchless, mask-based constant-time
+style (\cref{sec:assurance}).
+
+The core is exposed through five language faces---Rust, a C ABI (via \code{cbindgen}), WebAssembly
+(via \code{wasm-bindgen}), Swift (over the C ABI), and Kotlin (via the Java Foreign Function \&
+Memory API)---each a thin shim that marshals bytes in and out of the same core. Because the proven
+object is one piece of code and every face is a marshalling layer over it, the cross-substrate
+question reduces to a single, checkable property: does \emph{every} realization produce the same
+bytes?
+
+\subsection{The six-method conformance matrix}
 
 \Cref{tab:verif} lists the six orthogonal methods (NIST ACVP vectors~\cite{acvp} among them) that answer this. They are deliberately
 heterogeneous in their oracle and in what they catch, so a defect that escapes one is caught by
@@ -406,20 +421,40 @@ controls.}
 \label{fig:ct}
 \end{figure}
 
+\emph{Why marking granularity matters.} A naive harness that marks the \emph{whole} serialized
+decapsulation key secret produces, on the NEON path, $2848$ reports across $30$ branches comparing
+12-bit coefficients to $q$---which look exactly like a KyberSlash-class leak. They are not: the
+FIPS-203 \code{dk} \emph{embeds} the public key ($\code{dk}=\code{dk\_pke}\,\|\,\code{ek}\,\|\,H(\code{ek})\,\|\,z$), and those branches are the compiler's scalar lowering of the public-key
+reduction run during FO re-encryption---operating on \emph{public} bytes. Marking only the
+genuinely-secret sub-fields ($\hat s$ and the implicit-rejection seed $z$) yields zero reports. This
+is standard practice~\cite{kyberslash}, but the embedded-public-key pitfall is a real trap; our
+probe encodes the correct granularity and gates it.
+
 \subsection{Binding is contingent on the component dk format}
 We demonstrate, executably against real libcrux, that a lean (X-Wing-shaped) combiner's
-\mbox{MAL-BIND-K-PK} is \emph{contingent on} the component KEM's key-serialization format. Using
-Schmieg's expanded-dk construction, two distinct ML-KEM public keys yield the same shared secret;
-the lean combiner---which omits $pk_{\mathrm{pq}}$---then collides, whereas ContextBound, which
-absorbs $pk_{\mathrm{pq}}$, does not. We stress that this is \emph{not} a break of X-Wing, which
-mandates the seed-dk format that defeats the attack; it is a robustness separation of the combiner
-\emph{shape}, and the operationalized lesson that binding ct/pk in the KDF removes a latent
-dependence on the component library's serialization choice.
+\mbox{MAL-BIND-K-PK} is \emph{contingent on} the component KEM's key-serialization format. Schmieg's
+construction exploits that the FIPS-203 \emph{expanded} \code{dk} stores the implicit-rejection seed
+$z$ as a substitutable field: an adversary equalizes $z$ across two otherwise-distinct keypairs, so
+a garbage ciphertext implicit-rejects to the \emph{same} $J(z\,\|\,c)$ under two different public
+keys. The lean combiner---which omits $pk_{\mathrm{pq}}$---then yields the same hybrid key for
+$\code{ek}_0\neq\code{ek}_1$, breaking \mbox{MAL-BIND-K-PK}; ContextBound, which absorbs
+$pk_{\mathrm{pq}}$, does not. We stress that this is \emph{not} a break of X-Wing, which mandates the
+seed-dk format that defeats the attack (KeyGen re-derives $z$); it is a robustness separation of the
+combiner \emph{shape}, and the operationalized lesson that binding ct/pk in the KDF removes a latent
+dependence on the component library's serialization choice---a dependence an implementation that
+caches expanded keys for performance could silently reintroduce. Our test executes this against real
+libcrux as a CI-configured regression oracle.
 
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
-two independent symbolic provers, Tamarin and ProVerif, each establishing that the session key
-survives the compromise of \emph{either} component KEM. All three formal artifacts are configured as CI gates (EasyCrypt make check, Tamarin, ProVerif), with checker and solver versions pinned in the artifact.
+two independent symbolic provers. The Tamarin model captures the ML-KEM and X25519 key exchanges,
+the combiner as an opaque one-way function, and an ML-DSA server signature, with rules that let the
+adversary compromise either KEM or reveal the signing key; it proves executability, server
+authentication, and---the headline lemma---\emph{hybrid robustness}: under an honest server identity
+the session key remains secret unless \emph{both} KEMs are broken. A ProVerif model establishes the
+analogous queries under a different abstraction (the classical leg as a second idealized KEM), giving
+an independent cross-check. All three formal artifacts are configured as CI gates (EasyCrypt
+\code{make check}, Tamarin, ProVerif), with checker and solver versions pinned in the artifact.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
 
@@ -495,6 +530,34 @@ at RTT~20\,ms).}
 which fits inside the existing flights.}
 \label{fig:wire}
 \end{figure}
+
+\section{Discussion}\label{sec:disc}
+\paragraph*{When to use which profile}
+\code{CompatXWing} exists for interoperability: it is byte-exact X-Wing and should be selected when
+talking to an X-Wing peer. \code{ContextBound} is the default for first-party deployments and is
+preferable whenever (i) the application has a meaningful context (a protocol/role/version label, a
+channel binding) that the session key should commit to; or (ii) the deployment cannot guarantee that
+its component KEM will only ever be instantiated in the seed-dk form---in which case binding
+$pk_{\mathrm{pq}}$ and $ct_{\mathrm{pq}}$ directly removes the latent serialization dependence of
+\cref{sec:assurance}. The cost of that robustness, measured in \cref{sec:eval}, is sub-$10\,\mu$s and
+invisible end-to-end.
+
+\paragraph*{The assurance philosophy}
+Our position is deliberately modest about cryptographic novelty and deliberately ambitious about
+\emph{dependability}: a hybrid is trustworthy only to the extent that its weakest realization is. The
+recurring failures of the last two years---KyberSlash, PQXDH, the ML-KEM malicious-key binding
+gaps---were not failures of the underlying hard problems but of \emph{realizations}: a compiled
+branch, a serialization format, a missing transcript field. The contribution of this paper is a
+discipline that makes those realization-level properties \emph{checkable and reproducible}: a binding
+result whose proven object is carried byte-for-byte across the substrate, a constant-time probe that
+discriminates clean from leaky, and a regression oracle for the key-format coupling. We expect the
+individual instruments to be reused independently of ContextBound.
+
+\paragraph*{Generality}
+Nothing in the approach is specific to ML-KEM~$+$~X25519. The combiner and its proof are generic over
+the component KEMs; the trait-injected backends already include the full ML-KEM and ML-DSA families
+and an (unaudited) HQC backend used here as the CT discriminator's leaky reference. As new PQ
+primitives are standardized, the same proof-to-byte discipline applies unchanged.
 
 \section{Related Work}\label{sec:related}
 \textbf{KEM binding.} CDM~\cite{cdm} introduced the \mbox{X-BIND-$P$-$Q$} lattice and monotonicity;
@@ -599,6 +662,87 @@ The complete suite---Rust core and backends, the five language faces, the EasyCr
 developments, the constant-time and netem harnesses, and the figure-generation
 scripts---is open source at \url{https://github.com/billlza/q-periapt}. All numbers in this paper
 are reproducible from that repository; the bare-metal netem protocol is provided as a script.
+
+\section{The Machine-Checked Kernel in Detail}\label{app:kernel}
+\Cref{tab:lemmas} inventories the EasyCrypt development. Of the named results, all are fully
+discharged (no \code{admit}/\code{conjecture}); the only assumptions are the two elementary
+\code{be8\_*} facts about the 8-byte length field and the modeling of $H$ as collision-resistant.
+We validate that the proof is non-vacuous by an \emph{adversarial negative control}: for each
+binding theorem we mechanically delete a single hint from its closing tactic and re-run the
+checker, confirming the proof then \emph{fails} (\code{cannot prove goal}). Deleting
+\code{encode\_inj} breaks every binding theorem; deleting the disagreement lemma
+(\code{ct\_neq\_fields\_neq}, etc.) breaks the corresponding axis; and---in the explicit-rejection
+game---deleting the $\K\neq\bot$ conjunct from the predicate makes the theorem unprovable, since two
+mutually-rejecting executions would otherwise ``win'' without inducing a hash collision. This
+last control is what distinguishes a faithful Figure-6 instantiation from a vacuous one.
+
+\begin{table}[h]\centering\footnotesize
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\caption{EasyCrypt lemma inventory (\code{BindingViaCR.ec}). All proved; assumptions: \code{be8\_*},
+$\mathrm{CR}(H)$.}\label{tab:lemmas}
+\begin{tabular}{@{}l l@{}}
+\toprule
+\textbf{Lemma} & \textbf{Statement (informal)} \\
+\midrule
+\code{lp\_cat\_inj} & length-prefixed fields are self-delimiting \\
+\code{encode\_inj} & the field encoding is injective \\
+\code{bind\_le\_cr} & generic transcript-collision $\le \mathrm{CR}(H)$ \\
+\code{bind\_le\_cr\_k\{ct,pk,ctx\}} & instantiated projections (CT/PK/CTX) \\
+\code{malbind\_k\{ct,pk,ctx\}\_le\_cr} & KEM-aware, implicit rejection $\le \mathrm{CR}(H)$ \\
+\code{malbind\_*\_xrej\_le\_cr} & full Fig.~6, explicit rejection, $\K\neq\bot$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Extended Evaluation}\label{app:eval}
+\Cref{tab:bench-ci} gives the microbenchmarks of \cref{tab:bench} with Criterion's
+$95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss data of
+\cref{sec:eval}: the median is loss-insensitive, while the tail is governed by a per-loss TCP
+retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
+groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
+Footprint: the stripped C-ABI library is $441$\,KB (entire suite), the WebAssembly module $249$\,KB.
+
+\begin{table}[h]\centering\footnotesize
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\caption{Microbenchmarks, $\mu$s [95\% CI]. arm64 host, Criterion.}\label{tab:bench-ci}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+\textbf{Scheme} & \textbf{keygen} & \textbf{encaps} & \textbf{decaps} \\
+\midrule
+ML-KEM-512  & 6.6 [6.6,6.7]    & 6.1 [5.9,6.5]    & 6.8 [6.8,6.9] \\
+ML-KEM-768  & 11.3 [11.2,11.4] & 11.0 [10.9,11.0] & 11.8 [11.7,11.8] \\
+ML-KEM-1024 & 18.5 [18.1,19.2] & 16.5 [15.8,17.7] & 16.7 [16.5,16.8] \\
+X25519      & 44.1 [43.8,44.4] & 89.6 [89.2,90.0] & 45.0 [44.7,45.3] \\
+Hybrid, ContextBound & --- & 108.4 [107.9,108.9] & 65.4 [65.1,65.7] \\
+Hybrid, CompatXWing  & --- & 102.2 [101.4,103.0] & 59.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]\centering\footnotesize
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\caption{Time-to-session under jitter/loss, p50/p99 ($\mu$s). The p99 under loss is RTO-dominated
+and statistically indistinguishable across groups.}\label{tab:loss}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+\textbf{netem (RTT 20\,ms +)} & \textbf{X25519} & \textbf{ContextBound} & \textbf{CompatXWing} \\
+\midrule
+$+3$\,ms jitter & 41.5k / 49.9k & 41.6k / 50.1k & 41.2k / 49.5k \\
+$+1\%$ loss     & 41.1k / $\sim$1.08M & 41.3k / (noisy) & 41.4k / $\sim$1.09M \\
+$+3\%$ loss     & 41.2k / $\sim$1.09M & 41.6k / $\sim$1.09M & 41.5k / $\sim$1.10M \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Reproduction}\label{app:repro}
+Every result is reproducible from the artifact. The EasyCrypt kernel: \code{make -C formal/easycrypt
+check}. The constant-time discriminator: \code{sh ctstats/scripts/ct-gap-probe.sh} (Linux+Valgrind;
+ML-KEM and HQC). The binding/key-format demonstration:
+\code{cargo test -p q-periapt-backends --test binding\_keyformat\_separation}. Microbenchmarks:
+\code{cargo bench -p q-periapt-backends}. The TLS netem evaluation:
+\code{paper/netem-camera-ready.sh} (bare metal). Cross-substrate byte-identity: the per-face vector
+tests; the symbolic models: \code{make} under \code{formal/\{tamarin,proverif\}}. The figures of this
+paper rebuild via \code{make -C paper/figures}.
 
 \section*{Acknowledgment}
 The author thanks the maintainers of libcrux/HACL*, EasyCrypt, Tamarin, and ProVerif, whose tools
