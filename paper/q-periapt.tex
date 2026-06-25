@@ -516,7 +516,8 @@ absorbs $pk_{\mathrm{pq}}$ satisfies $\mathsf{Adv}^{\text{MAL-BIND-K-PK}}\le\mat
 (\code{full\_kpk\_le\_cr}).
 \item \emph{(seed-\code{dk}, $z$ key-derived.)} The \textbf{lean} combiner \emph{regains}
 \mbox{MAL-BIND-K-PK}, $\le\mathsf{Adv}^{\mathrm{CR}}(H)$, under the idealization that $J$ and the seed
-derivation are injective (\code{lean\_kpk\_seed\_le\_cr}). The full combiner is safe a~fortiori.
+derivation are injective (\code{lean\_kpk\_seed\_le\_cr})---a strictly \emph{stronger} assumption than
+the full shape, which reduces to $\mathrm{CR}(H)$ \emph{alone}. The full combiner is safe a~fortiori.
 \end{enumerate}
 \end{theorem}
 
@@ -610,12 +611,13 @@ derive the same session key $K$ with the ContextBound combiner; $K$ remains secr
 RTT-dominated---and \cref{tab:baremetal} gives the quantitative camera-ready measurement on quiesced
 bare-metal hardware (an 8-core AMD Ryzen~7~7700, Ubuntu~24.04, kernel 6.8, the benchmark pinned to
 two isolated cores under the \code{performance} governor; medians over $20$ repetitions). At
-RTT~$\approx$~0 the per-group medians are tight to $\pm 2$--$3\,\mu$s and the ordering is fully
-resolved: classical X25519 $238\,\mu$s, the IANA-standard \code{X25519MLKEM768} $263\,\mu$s,
-CompatXWing $317\,\mu$s, ContextBound $326\,\mu$s. The reproducible cost of the PQ/T upgrade is thus
-$\approx 88\,\mu$s of ML-KEM CPU over the classical baseline, and---critically---\textbf{ContextBound
-costs only $+8.6\,\mu$s over CompatXWing}, the price of the stronger hash-everything binding, in
-close agreement with the $+6.2\,\mu$s combiner cost measured in isolation (\cref{tab:bench}). This
+RTT~$\approx$~0 the per-group medians are tight to $\pm 2$--$3\,\mu$s and the ordering is resolved at
+the median (ContextBound $>$ CompatXWing in $18$ of $20$ reps): classical X25519 $238\,\mu$s, the
+IANA-standard \code{X25519MLKEM768} $263\,\mu$s, CompatXWing $318\,\mu$s, ContextBound $326\,\mu$s.
+The reproducible cost of the PQ/T upgrade is thus $\approx 88\,\mu$s of ML-KEM CPU over the classical
+baseline, and---critically---\textbf{ContextBound costs only $+8.1\,\mu$s over CompatXWing}, the
+price of the stronger hash-everything binding, in close agreement with the $+6.2\,\mu$s combiner cost
+measured in isolation (\cref{tab:bench}). This
 quiesced measurement supersedes our earlier virtualized-host run, whose $2\times$ run-to-run swings
 exceeded the few-$\mu$s combiner difference; on bare metal it resolves cleanly.
 
@@ -631,8 +633,8 @@ IANA standard; the \emph{only} substantive difference between Q-Periapt's hybrid
 \begin{table}[t]\centering
 \caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
 benchmark pinned to two isolated cores, \code{performance} governor; median p50 over $20$
-repetitions). At RTT~0 the per-group order resolves to $\pm$few-$\mu$s and ContextBound is
-$+8.6\,\mu$s over CompatXWing; at RTT~$\ge$~20\,ms the combiner cost is dwarfed by the link. Raw
+repetitions). At RTT~0 the per-group order resolves at the median and ContextBound is
+$+8.1\,\mu$s over CompatXWing; at RTT~$\ge$~20\,ms the combiner cost is dwarfed by the link. Raw
 transcript in the artifact.}
 \label{tab:baremetal}
 \begin{tabular}{@{}l r r r@{}}
@@ -640,8 +642,8 @@ transcript in the artifact.}
 key-exchange group & RTT~0 & RTT~20\,ms & RTT~50\,ms \\
 \midrule
 X25519 (classical)                  & $238.3\,\mu$s & $41.06$\,ms & $101.16$\,ms \\
-X25519MLKEM768 (IANA standard)      & $263.4\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
-Q-Periapt CompatXWing               & $317.3\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
+X25519MLKEM768 (IANA standard)      & $263.5\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
+Q-Periapt CompatXWing               & $317.8\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
 Q-Periapt ContextBound              & $325.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
 \bottomrule
 \end{tabular}
@@ -658,10 +660,12 @@ is byte-insensitive and the tail is governed by transport, not by the combiner.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_netem.pdf}
-\caption{Time-to-session under real \code{tc netem} (mean of two repetitions). (a) latency is
-RTT-dominated---the three curves coincide. (b) the overhead is $\sim$190\,$\mu$s of CPU at RTT~0;
-at realistic RTT it is within run-to-run noise (error bars span the two repetitions and cross zero
-at RTT~20\,ms).}
+\caption{Time-to-session under real \code{tc netem} on the \emph{virtualized} host (mean of two
+repetitions); the quiesced bare-metal numbers of \cref{tab:baremetal} supersede it quantitatively,
+and this figure is retained for the qualitative shape. (a) latency is RTT-dominated---the three
+curves coincide. (b) the overhead is the fixed ML-KEM CPU cost at RTT~0 ($\sim$190\,$\mu$s on this
+virtualized host; $\approx$88\,$\mu$s on bare metal, \cref{tab:baremetal}); at realistic RTT it is
+within run-to-run noise (error bars span the two repetitions and cross zero at RTT~20\,ms).}
 \label{fig:netem}
 \end{figure}
 
@@ -750,8 +754,9 @@ respectively in the model and on paper; there is no specification-to-implementat
 Binary-level constant-time tooling is mature only on x86-64 and aarch64; riscv64 and wasm32 are
 covered at source level plus upstream attestation. ACVP byte-identity is conformance, not CMVP
 certification. The suite is research-grade and has not had an independent third-party audit. The
-netem evaluation was obtained on a virtualized host; bare-metal reproduction is provided as a
-script.
+the primary netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
+earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
+retained as supporting context and labeled as such.
 
 \section{Conclusion}\label{sec:concl}
 A PQ/T hybrid is only as safe as its weakest realization. We closed that gap with an
@@ -897,8 +902,9 @@ Hybrid, CompatXWing  & --- & 102.2 [101.4,103.0] & 59.2 \\
 
 \begin{table}[h]\centering\footnotesize
 \setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
-\caption{Time-to-session under jitter/loss, p50/p99 ($\mu$s). The p99 under loss is RTO-dominated
-and statistically indistinguishable across groups.}\label{tab:loss}
+\caption{Time-to-session under jitter/loss, p50/p99 ($\mu$s), on the virtualized host (supporting
+context; the primary per-group latency is the bare-metal \cref{tab:baremetal}). The p99 under loss
+is RTO-dominated and statistically indistinguishable across groups.}\label{tab:loss}
 \begin{tabular}{@{}l r r r@{}}
 \toprule
 \textbf{netem (RTT 20\,ms +)} & \textbf{X25519} & \textbf{ContextBound} & \textbf{CompatXWing} \\
