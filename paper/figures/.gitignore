@@ -3,3 +3,4 @@
 *.log
 *.png
 *.synctex.gz
+__pycache__/
