@@ -42,6 +42,12 @@ tune() {
     BOOST_PATH=/sys/devices/system/cpu/intel_pstate/no_turbo; BOOST_OLD=$(cat "$BOOST_PATH"); echo 1 > "$BOOST_PATH" 2>/dev/null || true
   fi
   echo "tuning: governor=performance (was '${GOV_OLD:-?}'), boost/turbo disabled ($BOOST_PATH)"
+  # the bench opens a fresh TCP conn per handshake (tens of thousands total); without these,
+  # TIME_WAIT/port pressure injects ~100ms connect stalls into later reps. Standard harness fix.
+  sysctl -w net.ipv4.tcp_tw_reuse=1 >/dev/null 2>&1 || true
+  sysctl -w net.ipv4.ip_local_port_range="1024 65535" >/dev/null 2>&1 || true
+  sysctl -w net.ipv4.tcp_fin_timeout=10 >/dev/null 2>&1 || true
+  echo "tuning: tcp_tw_reuse=1, port_range widened, fin_timeout=10 (loopback churn)"
 }
 restore() {
   [ -n "$GOV_OLD" ] && for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo "$GOV_OLD" > "$g" 2>/dev/null || true; done
