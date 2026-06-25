@@ -583,3 +583,108 @@ byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
 proc; inline BKseed(A).find. wp. call (_ : true). auto => />.
 rewrite /lean_key_seed. smt(encode_inj seed_lpk_neq_fields_neq).
 qed.
+
+(* ===========================================================================
+ * COMPLETE SEPARATION MAP across the CDM K-sub-lattice: which field must the FULL
+ * combiner absorb, and why. Take `full_fields` (absorbs ct_pq, pk_pq, context) and OMIT
+ * exactly ONE field; ask which binding notion the omission costs:
+ *
+ *      omitted field   notion   verdict
+ *      -------------   ------   ------------------------------------------------
+ *      pk_pq           K-PK     BROKEN over expanded-dk (ss=J(z,ct) is key-INDEPENDENT;
+ *                               `lean_kpk_broken`), SAFE over seed-dk (`lean_kpk_seed_le_cr`)
+ *      ct_pq           K-CT     SAFE: ss=J(z,ct) transitively binds ct (`omit_ct_kct_le_cr`)
+ *      context         K-CTX    BROKEN unconditionally: nothing else binds context
+ *                               (`omit_ctx_kctx_broken`, Pr=1, any dk format)
+ *      (full absorbs all)  any  SAFE <= CR(H) (`full_k{pk,ct,ctx}_le_cr`)
+ *
+ * MORAL: pk_pq and context absorption are NECESSARY (their omission is exploitable); ct_pq
+ * absorption is REDUNDANT with the shared secret. This is the formal design rationale for
+ * ContextBound and the precise sense in which the X-Wing shape (which omits ct_pq, pk_pq,
+ * AND context) loses K-PK (over expanded-dk) and K-CTX while keeping K-CT.
+ * =========================================================================== *)
+
+(* ---- omit CONTEXT: K-CTX BROKEN unconditionally (concrete adversary, Pr = 1) ---- *)
+op omit_ctx_fields (e : lexec) : transcript =          (* full_fields minus lctx *)
+  [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ctp; e.`ek; e.`ctt; e.`ekt ].
+op omit_ctx_key (e : lexec) : key = H (encode (omit_ctx_fields e)).
+op lctxo (e : lexec) : bytes = e.`lctx.                 (* the K-CTX observable *)
+
+module LeanKCTX (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return omit_ctx_key e0 = omit_ctx_key e1 /\ lctxo e0 <> lctxo e1; }
+}.
+op lctxA : bytes. op lctxB : bytes.
+axiom lctx_neq : lctxA <> lctxB.
+op mkc (c : bytes) : lexec =
+  {| z = z0; ek = ek0; ctp = ct0; sst = sst0; ctt = ctt0; ekt = ekt0; lctx = c |}.
+module CtxAdv : LAdv = { proc find() : lexec * lexec = { return (mkc lctxA, mkc lctxB); } }.
+
+lemma omitctx_eq : omit_ctx_key (mkc lctxA) = omit_ctx_key (mkc lctxB).
+proof. by rewrite /omit_ctx_key /omit_ctx_fields /ss_of /mkc. qed.
+lemma lctxo_mkc (c : bytes) : lctxo (mkc c) = c.
+proof. by rewrite /lctxo /mkc. qed.
+
+lemma omit_ctx_kctx_broken &m : Pr[LeanKCTX(CtxAdv).main() @ &m : res] = 1%r.
+proof.
+byphoare => //.
+proc; inline CtxAdv.find; auto => />.
+smt(lctx_neq omitctx_eq lctxo_mkc).
+qed.
+
+(* ---- omit CT_PQ: K-CT still SAFE, because ss=J(z,ct) transitively binds ct ---- *)
+op omit_ct_fields (e : lexec) : transcript =           (* full_fields minus ctp *)
+  [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ek; e.`ctt; e.`ekt; e.`lctx ].
+op omit_ct_key (e : lexec) : key = H (encode (omit_ct_fields e)).
+op lct (e : lexec) : bytes * bytes = (e.`ctp, e.`ctt).  (* the K-CT observable *)
+
+module LeanKCT (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return omit_ct_key e0 = omit_ct_key e1 /\ lct e0 <> lct e1; }
+}.
+module BKct (A : LAdv) : CRAdv = {
+  proc find() : bytes * bytes = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return (encode (omit_ct_fields e0), encode (omit_ct_fields e1)); }
+}.
+
+(* differing ct forces a differing field list: either ctt differs (in the list), or ctp
+   differs => ss_of=jrej(z,ctp) differs (jrej_inj) even though ctp itself is omitted. *)
+lemma lct_neq_omitct_neq (e0 e1 : lexec) : lct e0 <> lct e1 => omit_ct_fields e0 <> omit_ct_fields e1.
+proof. rewrite /lct /omit_ct_fields /ss_of => h. smt(jrej_inj). qed.
+
+lemma omit_ct_kct_le_cr (A <: LAdv) &m :
+  Pr[LeanKCT(A).main() @ &m : res] <= Pr[CR(BKct(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BKct(A).find. wp. call (_ : true). auto => />.
+rewrite /omit_ct_key. smt(encode_inj lct_neq_omitct_neq).
+qed.
+
+(* ---- the FULL combiner is SAFE for K-CT and K-CTX too (it absorbs every field) ---- *)
+module FullKCT (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return full_key e0 = full_key e1 /\ lct e0 <> lct e1; }
+}.
+module FullKCTX (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return full_key e0 = full_key e1 /\ lctxo e0 <> lctxo e1; }
+}.
+lemma lct_neq_full_neq (e0 e1 : lexec) : lct e0 <> lct e1 => full_fields e0 <> full_fields e1.
+proof. rewrite /lct /full_fields => h. smt(). qed.
+lemma lctxo_neq_full_neq (e0 e1 : lexec) : lctxo e0 <> lctxo e1 => full_fields e0 <> full_fields e1.
+proof. rewrite /lctxo /full_fields => h. smt(). qed.
+
+lemma full_kct_le_cr (A <: LAdv) &m :
+  Pr[FullKCT(A).main() @ &m : res] <= Pr[CR(BKf(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BKf(A).find. wp. call (_ : true). auto => />.
+rewrite /full_key. smt(encode_inj lct_neq_full_neq).
+qed.
+lemma full_kctx_le_cr (A <: LAdv) &m :
+  Pr[FullKCTX(A).main() @ &m : res] <= Pr[CR(BKf(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BKf(A).find. wp. call (_ : true). auto => />.
+rewrite /full_key. smt(encode_inj lctxo_neq_full_neq).
+qed.
