@@ -516,9 +516,24 @@ Hybrid, CompatXWing  & --- & 102.2 & 59.2 & 1216 & --- & 1120 \\
 \subsection{Handshake latency under emulated networks}
 We expose ContextBound (and CompatXWing) as a TLS~1.3 key-exchange group via a rustls~\cite{rustls}
 \code{CryptoProvider}, using private-use group codes; a real loopback TLS~1.3 handshake completes
-over this provider. We evaluate handshake \emph{time-to-session} (TCP connect plus full TLS~1.3 handshake) over a real
+over this provider. \Cref{fig:handshake} shows the server-authenticated hybrid flow: the client
+offers a combined keyshare, the server encapsulates to both components and derives the session key
+with the combiner, authenticates with an ML-DSA signature, and the client decapsulates and re-derives
+the same key---which stays secret unless \emph{both} component KEMs are broken (the robustness
+property our symbolic models establish, \cref{sec:assurance}). We evaluate handshake
+\emph{time-to-session} (TCP connect plus full TLS~1.3 handshake) over a real
 loopback socket shaped by \code{tc netem}, comparing a classical X25519 baseline against the two
-PQ/T profiles. \Cref{fig:netem} reports the result: the three curves coincide because latency is
+PQ/T profiles.
+
+\begin{figure*}[t]\centering
+\includegraphics[width=0.84\textwidth]{fig_handshake.pdf}
+\caption{Server-authenticated PQ/T hybrid TLS 1.3 handshake over the rustls provider. Both peers
+derive the same session key $K$ with the ContextBound combiner; $K$ remains secret unless
+\emph{both} component KEMs are broken.}
+\label{fig:handshake}
+\end{figure*}
+
+\Cref{fig:netem} reports the result: the three curves coincide because latency is
 RTT-dominated, and the PQ/T overhead is a \emph{fixed} cost ($\sim$190\,$\mu$s of ML-KEM CPU plus
 the wire bytes of \cref{fig:wire}). At realistic RTT this is negligible: at RTT~$\ge$~20\,ms the
 measured overhead is \emph{within run-to-run noise}---its sign varies across repeated runs

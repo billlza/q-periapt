@@ -1,0 +1,51 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{times}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,fit}
+\begin{document}
+\begin{tikzpicture}[
+  font=\footnotesize, >={Latex[length=4pt]},
+  life/.style={draw=black!55, line width=0.5pt, dashed},
+  head/.style={draw, rounded corners=2pt, fill=black!5, inner sep=3pt, font=\bfseries, minimum width=20mm, align=center},
+  msg/.style={->, line width=0.8pt, black!75},
+  note/.style={font=\scriptsize, align=left, text=black!70},
+  cb/.style={draw, rounded corners=2pt, fill=blue!8, draw=blue!55, inner sep=2.5pt, font=\scriptsize, align=center},
+]
+% lifelines
+\node[head] (C) at (0,0) {Client};
+\node[head] (S) at (62mm,0) {Server};
+\draw[life] (C.south) -- ++(0,-58mm);
+\draw[life] (S.south) -- ++(0,-58mm);
+\coordinate (ct) at ($(C.south)+(0,-2mm)$);
+\coordinate (st) at ($(S.south)+(0,-2mm)$);
+
+% 1. ClientHello with hybrid keyshare
+\draw[msg] ($(ct)+(0,-3mm)$) -- ($(st)+(0,-3mm)$)
+  node[midway, above, note] {ClientHello: $pk_{\mathrm{pq}}\,\|\,pk_{\mathrm{tr}}$ \;(1216\,B)};
+
+% server-side compute
+\node[cb, anchor=west] (sc) at ($(st)+(2mm,-12mm)$)
+  {encapsulate $\Rightarrow ct_{\mathrm{pq}},ct_{\mathrm{tr}},\,ss_{\mathrm{pq}},ss_{\mathrm{tr}}$\\
+   $K=\textsc{ContextBound}(\cdots)$};
+
+% 2. ServerHello + auth
+\draw[msg] ($(st)+(0,-22mm)$) -- ($(ct)+(0,-22mm)$)
+  node[midway, above, note] {ServerHello: $ct_{\mathrm{pq}}\,\|\,ct_{\mathrm{tr}}$ \;(1120\,B)};
+\draw[msg] ($(st)+(0,-28mm)$) -- ($(ct)+(0,-28mm)$)
+  node[midway, above, note] {\{Cert, CertVerify (ML-DSA), Finished\}$_K$};
+
+% client-side compute
+\node[cb, anchor=east] (cc) at ($(ct)+(-2mm,-38mm)$)
+  {decapsulate $\Rightarrow ss_{\mathrm{pq}},ss_{\mathrm{tr}}$\\
+   $K=\textsc{ContextBound}(\cdots)$;\ verify sig};
+
+% 3. client Finished
+\draw[msg] ($(ct)+(0,-48mm)$) -- ($(st)+(0,-48mm)$)
+  node[midway, above, note] {\{Finished\}$_K$};
+
+% established
+\node[note, text=blue!55, font=\scriptsize\bfseries] at ($(C.south)!0.5!(S.south)+(0,-55mm)$)
+  {session established --- same $K$ unless \emph{both} KEMs broken};
+\end{tikzpicture}
+\end{document}
