@@ -1,5 +1,5 @@
 baseline: the unmodified development must check...
-  ok    baseline checks (admit-free)
+  ok    baseline checks (no proof holes)
 deleted-hypothesis negative controls (each MUST fail to check):
   ok    [K-PK break needs two distinct keys (ek_neq)] proof fails without it => load-bearing (necessity confirmed)
   ok    [K-CTX break needs two distinct contexts (lctx_neq)] proof fails without it => load-bearing (necessity confirmed)

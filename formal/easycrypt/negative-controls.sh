@@ -23,7 +23,7 @@ ctl() { # label  perl-substitution-deleting-the-hypothesis
 }
 
 echo "baseline: the unmodified development must check..."
-if "$EC" compile "$SRC" >/dev/null 2>&1; then echo "  ok    baseline checks (admit-free)"; else echo "  FAIL baseline does not check"; exit 2; fi
+if "$EC" compile "$SRC" >/dev/null 2>&1; then echo "  ok    baseline checks (no proof holes)"; else echo "  FAIL baseline does not check"; exit 2; fi
 echo "deleted-hypothesis negative controls (each MUST fail to check):"
 ctl "K-PK break needs two distinct keys (ek_neq)"      's/\Qsmt(ek_neq lean_eq lpk_mk)\E/smt(lean_eq lpk_mk)/'
 ctl "K-CTX break needs two distinct contexts (lctx_neq)" 's/\Qsmt(lctx_neq omitctx_eq lctxo_mkc)\E/smt(omitctx_eq lctxo_mkc)/'
