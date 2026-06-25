@@ -24,8 +24,11 @@
 > binding assumption", but there is **no FIPS-203 linkage** and the shared-secret fields are
 > **inert** in the argument (binding flows through the absorbed ct/pk/ctx — the hash-everything
 > mechanism), so this proves nothing *about* ML-KEM's Decaps. Honest phrasing:
-> *"machine-checked CDM MAL-BIND-K-{CT,PK,CTX} (full Figure 6, both rejection styles), over
-> abstract Decaps, reducing to CR(H)."* Remaining caveats: no spec↔implementation linkage; H's
+> *"machine-checked **commitment / transcript-binding** result — the CDM Figure-6 game (both
+> rejection styles), instantiated so that `Decaps` is **inert** (the binding target is forced by
+> the encoding, not by decapsulation semantics) — over abstract Decaps, reducing to CR(H)."*
+> A CDM-literate reader should read this as a commitment statement, not a result that exercises
+> Decaps; that inertness is exactly what makes "zero KEM assumption" achievable. Remaining caveats: no spec↔implementation linkage; H's
 > CR is assumed; IND-CCA2 is on paper (§4–§6).
 > **Scope:** binding/committing security of the ContextBound combiner. IND-CCA2 robustness is summarized but is *not* the load-bearing contribution; the binding half is.
 > **Trust base (read this first):** every theorem below is at the **abstract-spec level**, models **SHA3-256 / SHAKE256 as collision-resistant (and, for the KDF, as a PRF / random oracle)**, and is **not** linked to a verified implementation. "No binding assumption on the component KEMs" means exactly that — *no* assumption on ML-KEM or X25519 — and **nothing more**; it is **not** an information-theoretic ("unconditional") guarantee. We trade a KEM-self-binding assumption for a SHA3 collision-resistance assumption.
@@ -289,7 +292,7 @@ The headline must **never** read "unconditional." In cryptography "unconditional
 
 7. **Primary-source verification pending.** Concrete bounds in [eprint 2025/1416, Theorem 4], the [2025/1397] results, and [eprint 2026/140] were only partially accessible. **Re-verify against primary PDFs before publishing the novelty claim** — elevate this to a **go/no-go gate**.
 
-### 6.3 Effort estimate (honest, single undergraduate)
+### 6.3 Effort estimate (honest, single doctoral student)
 
 > **Reality check (critical):** EasyCrypt has a notoriously steep learning curve. A first machine-checked **reduction-with-oracles** (which both IND-CCA and the binding games are) typically costs an **expert weeks-to-months per theorem**, and a stuck proof has **unbounded tail latency**. Completing **all** listed artifacts in one thesis cycle is **not realistic** for a single student.
 

@@ -29,14 +29,17 @@ present Q-Periapt, an assurance suite for PQ/T hybrid KEMs organised around one 
 \emph{a security property is only as trustworthy as its weakest realization}. Its combiner,
 ContextBound, achieves binding (\mbox{MAL-BIND-K-CT} and \mbox{MAL-BIND-K-PK}) reducing to
 collision-resistance of SHA3 \emph{alone}---with no binding assumption on the component
-KEMs---and we machine-check this in EasyCrypt: the injective encoding is a proved lemma (not
-an axiom) and the KEM-aware game is the full Cremers--Dax--Medinger Figure~6 game for both
-implicit and explicit rejection. Crucially, the \emph{same} proven combiner is realized
-byte-identically across five language faces, three operating systems, and five
-instruction-set architectures, verified by a six-method conformance matrix and a CI-gated,
-self-validating source$\to$binary constant-time probe that we show \emph{discriminates} a clean
-primitive (libcrux ML-KEM: zero secret-dependent branches after compilation) from a leaky one
-(HQC's PQClean constant-weight sampler). We integrate the combiner into a production TLS~1.3
+KEMs---and we machine-check this in EasyCrypt. The injective encoding is a proved lemma (not an
+axiom), and---stated honestly---the result is in substance a \emph{commitment / transcript-binding}
+theorem (the session key commits to the full transcript; the component decapsulation is inert in
+the argument, which is precisely why no KEM assumption is needed), instantiated in the
+Cremers--Dax--Medinger Figure~6 game for both rejection styles. Crucially, the \emph{same} proven
+combiner is realized byte-identically across five language faces and three operating
+systems---executed natively on three instruction-set architectures and cross-compiled, with
+by-construction identity, on two more---verified by a six-method conformance matrix and a
+self-validating source$\to$binary constant-time probe (configured as a CI gate; measured locally)
+that we show \emph{discriminates} a clean primitive (libcrux ML-KEM: zero secret-dependent branches
+after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a production TLS~1.3
 path (a rustls \code{CryptoProvider}) and evaluate handshake tail latency under real
 \code{tc netem}. We are explicit about what is and is not novel: the binding \emph{fact} is a
 known consequence of recent results; our contribution is the \emph{conjunction}---an
@@ -75,7 +78,7 @@ We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs built around one p
 security property is only as trustworthy as its weakest realization. \Cref{fig:arch} is the
 organising idea---a single machine-checked binding result whose proven object is realized
 byte-identically across the whole deployment surface (``proof-to-byte''), guarded by
-reproducible CI gates that target the specific failure classes above.
+reproducible gates (configured in CI; we report constant-time results here as local runs) that target the specific failure classes above.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_arch.pdf}
@@ -88,17 +91,24 @@ and five instruction-set architectures, all converging on a byte-identical share
 
 \paragraph*{Contributions}
 \begin{itemize}
-\item \textbf{C1 (\cref{sec:kernel}).} An \emph{assumption-minimal, machine-checked} binding
-result: ContextBound reduces \mbox{MAL-BIND-K-CT}, \mbox{-K-PK}, and a context extension
-\mbox{-K-CTX} to collision-resistance of SHA3 \emph{alone}, with the injective encoding proved
-and the full CDM Figure-6 game (implicit \emph{and} explicit rejection) discharged in EasyCrypt.
+\item \textbf{C1 (\cref{sec:kernel}).} An \emph{assumption-minimal, machine-checked}
+\emph{commitment / transcript-binding} result: ContextBound's session key commits to the full
+transcript, reducing \mbox{MAL-BIND-K-CT}, \mbox{-K-PK}, and a (non-standard) context extension
+\mbox{-K-CTX} to collision-resistance of SHA3 \emph{alone}, with the injective encoding proved and
+the Cremers--Dax--Medinger Figure-6 game discharged for both rejection styles in EasyCrypt. We are
+explicit (\cref{sec:kernel}) that the cryptographic content is this injective-encoding + CR(SHA3)
+argument---the component $\mathrm{Decaps}$ is \emph{inert}, which is exactly why no KEM assumption
+is needed---and that C1's value is its completeness, mechanization, and role as the proven object
+tied to C2, not proof difficulty.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
-same proven combiner is byte-identical across 5 language faces, 3 OSes, and 5 ISAs, verified by
-a six-method conformance matrix.
-\item \textbf{C3 (\cref{sec:assurance}).} \emph{CI-gated assurance} that targets the deployment
-failure classes: a self-validating source$\to$binary constant-time probe shown to discriminate
-clean (ML-KEM) from leaky (HQC); an executable demonstration that a lean combiner's binding is
-contingent on the component KEM's key serialization; and two independent symbolic provers.
+same proven combiner is byte-identical across 5 language faces and 3 OSes, executed natively on
+3 ISAs and cross-compiled with by-construction identity on 2 more, verified by a six-method
+conformance matrix.
+\item \textbf{C3 (\cref{sec:assurance}).} Reproducible assurance \emph{instruments}, configured as
+CI gates: a self-validating source$\to$binary constant-time probe that \emph{discriminates} clean
+(ML-KEM) from leaky (HQC) (HQC's leak is known; the contribution is the discriminating, gated
+oracle); an executable \emph{regression oracle} for the known dk-format binding coupling; and two
+independent symbolic provers. We report the constant-time measurements honestly as local runs.
 \item \textbf{C4 (\cref{sec:eval}).} A production TLS~1.3 path (rustls \code{CryptoProvider}),
 evaluated under real \code{tc netem}.
 \end{itemize}
@@ -116,7 +126,31 @@ heterogeneous substrate, which no prior work provides; the self-validating sourc
 \emph{discriminator} as a reusable CI artifact; and the operationalized design invariant that
 binding the ciphertext and public key in the KDF makes hybrid binding robust to the component
 KEM's key-serialization format. We do \textbf{not} claim stronger binding than X-Wing
-(\cref{sec:kernel}), nor any live exploited deployment.
+(\cref{sec:kernel}), nor any live exploited deployment. \Cref{tab:position} makes the
+conjunction concrete: the delta is that no prior effort ties a mechanized hybrid-combiner binding
+theorem to a byte-identical multi-substrate realization with source$\to$binary and TLS gates---and
+we are equally explicit that an axis we do \emph{not} hold (a verified specification-to-binary
+implementation) is held by formosa-mlkem.
+
+\begin{table}[t]\centering\footnotesize
+\setlength{\tabcolsep}{3.2pt}\renewcommand{\arraystretch}{1.15}
+\caption{Positioning. \checkmark\ holds; $\sim$ partial; blank: not provided. The contribution is
+the \emph{conjunction} (last column), not any single row.}\label{tab:position}
+\begin{tabular}{@{}p{3.55cm} c c c c c@{}}
+\toprule
+ & \rotatebox{90}{X-Wing} & \rotatebox{90}{formosa} & \rotatebox{90}{SandboxAQ} & \rotatebox{90}{Chempat} & \rotatebox{90}{\textbf{this work}} \\
+\midrule
+Mechanized binding (combiner)        &       &        & $\sim$ &        & \checkmark \\
+Both rejection styles, $\K\neq\bot$  &       &        &        & $\sim$ & \checkmark \\
+Zero KEM-binding assumption          &       &        &        & \checkmark & \checkmark \\
+Byte-identical multi-substrate object&       &        &        &        & \checkmark \\
+Source$\to$binary CT gate            &       & $\sim$ &        &        & \checkmark \\
+Production TLS 1.3 path              & $\sim$ &        &        &        & \checkmark \\
+\midrule
+Verified spec$\to$binary impl.\ \emph{(we do not)} &  & \checkmark & $\sim$ & & \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Background and Threat Model}\label{sec:bg}
 \subsection{PQ/T hybrid KEMs and combiners}
@@ -168,8 +202,25 @@ $\mathrm{Decaps}$ functions and the combiner. We mechanize both the implicit-rej
 specialization (\code{malbind\_*\_le\_cr}) and the fully general CDM Figure-6 game with explicit
 rejection (\code{malbind\_*\_xrej\_le\_cr}), where the $\K\neq\bot$ side condition is
 \emph{present and load-bearing}---removing it makes the proof fail. Every theorem reduces only to
-$\mathrm{CR}(\mathrm{SHA3})$; the development compiles under the EasyCrypt checker, and each
-theorem is verified load-bearing on \code{encode\_inj} by an adversarial negative control.
+$\mathrm{CR}(\mathrm{SHA3})$; the development compiles under the EasyCrypt checker (we pin the
+checker and SMT-solver versions in the artifact), and each theorem is verified load-bearing on
+\code{encode\_inj} by an adversarial negative control.
+
+\emph{What this is, precisely.} We state the cryptographic content plainly, because a
+CDM-literate reader should not over-read the label. Since \K{} \emph{is defined} as
+$H(\mathrm{encode}[\dots])$ and the tuple contains the ciphertexts and public keys
+\emph{directly}, the proof is in substance a \emph{commitment / transcript-binding} statement: it
+shows that one cannot collide \K{} while changing a ciphertext, public key, or context, by
+reducing to $\mathrm{CR}(H)$ over the proved injective encoding. The component
+$\mathrm{Decaps}$---and hence the adversary's freedom over key material that CDM binding is
+fundamentally about---is \emph{inert} in the argument: the theorems would hold for \emph{any}
+$\mathrm{Decaps}$, which is exactly what ``zero KEM assumption'' means and why it is achievable.
+The value of C1 is therefore its \emph{completeness} (both rejection styles, with $\K\neq\bot$
+discharged), its \emph{mechanization}, and its role as the \emph{proven object} carried,
+byte-identically, across the substrate of \cref{sec:substrate}---not proof difficulty. The
+concrete attack-resistance arguments (re-encapsulation, the dk-format coupling of
+\cref{sec:assurance}) are \emph{design arguments} consistent with this commitment property, not
+claims the EasyCrypt artifact witnesses at the $\mathrm{Decaps}$ level.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_kernel.pdf}
@@ -274,7 +325,7 @@ the probe reports \textbf{zero} flags on aarch64: source-level secret-independen
 compilation. Run against the suite's unaudited HQC backend, the same probe flags \textbf{193}
 reports localized to \code{vect\_set\_random\_fixed\_weight}---so the probe is a \emph{discriminator}
 (\cref{fig:ct}): clean ML-KEM versus leaky HQC in one framework. (HQC's leak is known; the
-contribution is the discriminating, CI-gated artifact and the corollary that per-backend
+contribution is the discriminating, gated artifact and the corollary that per-backend
 constant-time gating is necessary, not decorative.)
 
 \begin{figure}[t]\centering
@@ -298,7 +349,7 @@ dependence on the component library's serialization choice.
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
 two independent symbolic provers, Tamarin and ProVerif, each establishing that the session key
-survives the compromise of \emph{either} component KEM. All three formal artifacts are CI-gated.
+survives the compromise of \emph{either} component KEM. All three formal artifacts are configured as CI gates (EasyCrypt make check, Tamarin, ProVerif), with checker and solver versions pinned in the artifact.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
 We expose ContextBound (and CompatXWing) as a TLS~1.3 key-exchange group via a rustls
@@ -362,7 +413,7 @@ script.
 \section{Conclusion}\label{sec:concl}
 A PQ/T hybrid is only as safe as its weakest realization. We closed that gap with an
 assumption-minimal, machine-checked binding result whose proven object is byte-identical across a
-heterogeneous deployment surface, guarded by reproducible CI gates---a source$\to$binary
+heterogeneous deployment surface, guarded by reproducible gates (configured in CI)---a source$\to$binary
 constant-time discriminator, a binding key-format coupling demonstration, and multi-prover symbolic
 models---and validated on a production TLS~1.3 path. The genuinely new element is the conjunction,
 not any single fact; we have been explicit about the boundary throughout.

@@ -1,7 +1,7 @@
 # Q-Periapt — PQ/T Hybrid Cryptographic Suite
 
 > [!WARNING]
-> **Status: pre-1.0 research / undergraduate-thesis project (v0.0.1). NOT audited,
+> **Status: pre-1.0 research / doctoral-thesis project (v0.0.1). NOT audited,
 > NOT FIPS-validated — do not use in production yet.** Real vetted backends are
 > wired (ML-KEM-768 / ML-DSA-65 / SHA3 via libcrux, X25519 via x25519-dalek;
 > SLH-DSA via fips205 and HQC via pqcrypto-hqc behind features), the X-Wing interop
@@ -209,7 +209,7 @@ CT equality.
 
 ## Status & disclaimer
 
-This is a **research artifact for an undergraduate thesis**, not a product.
+This is a **research artifact for a doctoral thesis**, not a product.
 
 - **Not audited. Not FIPS-validated. Not production-ready.**
 - **What is real now** (each grounded in committed code — read it before relying on

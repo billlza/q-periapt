@@ -78,7 +78,7 @@ IND-CCA and X25519 strong-DH (ROM) **only** for the IND-CCA paper argument — t
 binding theorems assume **none** of these. FIPS 203 64-byte seed `dk` with import
 validation is a spec requirement, not a proof dependency.
 
-## Honest effort (single undergraduate)
+## Honest effort (single doctoral student)
 
 Budget **8–12 weeks of EasyCrypt ramp-up before any thesis-specific proof**. Then
 target the **one** committed theorem (`MAL-BIND-K-CT` via CR). Treat K-PK, K-CTX,

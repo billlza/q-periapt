@@ -201,22 +201,22 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 - rustls CryptoProvider: the SupportedKxGroup/ActiveKeyExchange wiring; private-use group codes;
   TLS 1.3 loopback handshake passes (`crates/q-periapt-rustls`).
 - **Evaluation (socket TLS 1.3 via the rustls CryptoProvider, real `tc netem` on `lo`).**
-  Time-to-session (TCP connect + full TLS 1.3 handshake), p50/p99 in µs (`examples/netem_bench.rs`):
+  Time-to-session **p50** (mean of 2 reps), µs (`examples/netem_bench.rs`). *We report p50 only:*
+  the **p99 tails are dominated by VM scheduling noise** (the original single run even showed the
+  hybrid p99 *lower* than classical at 50 ms — a clear noise artifact R4 caught; do NOT publish a
+  p99 table from the VM).
 
-  | RTT | X25519 (classical) | ContextBound | CompatXWing |
-  |-----|--------------------|--------------|-------------|
-  | 0 ms  | 360 / 615 | 564 / 843 | 557 / 801 |
-  | 20 ms | 40 969 / 42 247 | 41 149 / 42 472 | 41 137 / 42 151 |
-  | 50 ms | 100 969 / 107 282 | 101 110 / 102 078 | 101 137 / 102 432 |
+  | RTT | X25519 (classical) | ContextBound | CompatXWing | overhead (CB−cl) |
+  |-----|--------------------|--------------|-------------|------------------|
+  | 0 ms  | 359.6  | 548.9  | 530.6  | **+189 µs (53%)** |
+  | 20 ms | 41 469 | 41 494 | 41 816 | **within noise** (rep spread straddles 0) |
+  | 50 ms | 101 630 | 102 214 | 102 159 | +0.5% (noisy) |
 
-  Wire (one handshake): classical X25519 ≈ **968 B**; PQ/T hybrid ≈ **3 240 B** (+2 272 B = ML-KEM-768
-  pk 1 184 B + ct 1 088 B). **Findings:** (1) **PQ/T overhead is negligible on real links** — at
-  RTT 0 the hybrid adds ~200 µs CPU (ML-KEM keygen/encaps/decaps) and ~2.3 KB wire, but at RTT ≥ 20 ms
-  the hybrid handshake is within **~0.1–0.4 %** of classical: the extra bytes fit inside the existing
-  TLS flights and trigger **no additional round-trip**, so RTT dominates. (2) **Combiner-neutral** —
-  ContextBound ≈ CompatXWing at every RTT, so the hash-everything combiner's stronger binding is
-  *free* in latency. Caveat: host = colima VM; the RTT 0 tails carry VM scheduling noise (the
-  RTT-dominated 20/50 ms figures are already clean); **camera-ready re-runs on quiesced bare metal**.
+  Wire: classical ≈ **968 B**; hybrid ≈ **3 240 B** (+2 272 B = ML-KEM-768 pk 1 184 + ct 1 088).
+  **Findings (honest):** (1) the only reproducible PQ/T cost is **~190 µs of ML-KEM CPU at RTT 0**;
+  at RTT ≥ 20 ms the overhead is **within run-to-run noise** (sign varies) — the extra bytes fit the
+  existing flights, no extra round-trip. (2) **Combiner-neutral** (ContextBound ≈ CompatXWing).
+  Caveat: **host = colima VM**; `paper/netem-camera-ready.sh` reproduces on quiesced bare metal.
 - Optional: ML-DSA-dominated wire-budget table (L3 5758 B vs L5 7940 B) from the demo `p99_bench`.
 
 ### §7 Related work
