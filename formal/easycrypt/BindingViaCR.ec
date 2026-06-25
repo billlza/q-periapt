@@ -610,7 +610,7 @@ op omit_ctx_fields (e : lexec) : transcript =          (* full_fields minus lctx
 op omit_ctx_key (e : lexec) : key = H (encode (omit_ctx_fields e)).
 op lctxo (e : lexec) : bytes = e.`lctx.                 (* the K-CTX observable *)
 
-module LeanKCTX (A : LAdv) = {
+module OmitCtxKCTX (A : LAdv) = {
   proc main() : bool = { var e0 : lexec; var e1 : lexec;
     (e0, e1) <@ A.find(); return omit_ctx_key e0 = omit_ctx_key e1 /\ lctxo e0 <> lctxo e1; }
 }.
@@ -625,7 +625,7 @@ proof. by rewrite /omit_ctx_key /omit_ctx_fields /ss_of /mkc. qed.
 lemma lctxo_mkc (c : bytes) : lctxo (mkc c) = c.
 proof. by rewrite /lctxo /mkc. qed.
 
-lemma omit_ctx_kctx_broken &m : Pr[LeanKCTX(CtxAdv).main() @ &m : res] = 1%r.
+lemma omit_ctx_kctx_broken &m : Pr[OmitCtxKCTX(CtxAdv).main() @ &m : res] = 1%r.
 proof.
 byphoare => //.
 proc; inline CtxAdv.find; auto => />.
@@ -638,7 +638,7 @@ op omit_ct_fields (e : lexec) : transcript =           (* full_fields minus ctp 
 op omit_ct_key (e : lexec) : key = H (encode (omit_ct_fields e)).
 op lct (e : lexec) : bytes * bytes = (e.`ctp, e.`ctt).  (* the K-CT observable *)
 
-module LeanKCT (A : LAdv) = {
+module OmitCtKCT (A : LAdv) = {
   proc main() : bool = { var e0 : lexec; var e1 : lexec;
     (e0, e1) <@ A.find(); return omit_ct_key e0 = omit_ct_key e1 /\ lct e0 <> lct e1; }
 }.
@@ -653,7 +653,7 @@ lemma lct_neq_omitct_neq (e0 e1 : lexec) : lct e0 <> lct e1 => omit_ct_fields e0
 proof. rewrite /lct /omit_ct_fields /ss_of => h. smt(jrej_inj). qed.
 
 lemma omit_ct_kct_le_cr (A <: LAdv) &m :
-  Pr[LeanKCT(A).main() @ &m : res] <= Pr[CR(BKct(A)).main() @ &m : res].
+  Pr[OmitCtKCT(A).main() @ &m : res] <= Pr[CR(BKct(A)).main() @ &m : res].
 proof.
 byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
 proc; inline BKct(A).find. wp. call (_ : true). auto => />.
@@ -687,4 +687,46 @@ proof.
 byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
 proc; inline BKf(A).find. wp. call (_ : true). auto => />.
 rewrite /full_key. smt(encode_inj lctxo_neq_full_neq).
+qed.
+
+(* ---- THE JOINT X-WING SHAPE: omits ct_pq, pk_pq, AND context simultaneously ---- *
+ * The per-field experiments above isolate each field's necessity. The deployed X-Wing
+ * combiner omits all three at once. We discharge its binding profile DIRECTLY (a checked
+ * theorem, not a composition argument): over expanded-dk it LOSES K-PK and K-CTX, yet
+ * KEEPS K-CT (the shared secret still binds ct). This is the precise sense of "the X-Wing
+ * shape" the paper refers to. *)
+op xwing_fields (e : lexec) : transcript =
+  [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ctt; e.`ekt ].   (* no ctp, no ek, no lctx *)
+op xwing_key (e : lexec) : key = H (encode (xwing_fields e)).
+
+module XWingKPK  (A : LAdv) = { proc main() : bool = { var e0 : lexec; var e1 : lexec;
+  (e0,e1) <@ A.find(); return xwing_key e0 = xwing_key e1 /\ lpk   e0 <> lpk   e1; } }.
+module XWingKCTX (A : LAdv) = { proc main() : bool = { var e0 : lexec; var e1 : lexec;
+  (e0,e1) <@ A.find(); return xwing_key e0 = xwing_key e1 /\ lctxo e0 <> lctxo e1; } }.
+module XWingKCT  (A : LAdv) = { proc main() : bool = { var e0 : lexec; var e1 : lexec;
+  (e0,e1) <@ A.find(); return xwing_key e0 = xwing_key e1 /\ lct   e0 <> lct   e1; } }.
+module BKxw (A : LAdv) : CRAdv = { proc find() : bytes * bytes = { var e0 : lexec; var e1 : lexec;
+  (e0,e1) <@ A.find(); return (encode (xwing_fields e0), encode (xwing_fields e1)); } }.
+
+(* (-) X-Wing loses K-PK over expanded-dk (vary pk; ss is key-independent) *)
+lemma xwing_eq_pk : xwing_key (mk ek0) = xwing_key (mk ek1).
+proof. by rewrite /xwing_key /xwing_fields /ss_of /mk. qed.
+lemma xwing_kpk_broken &m : Pr[XWingKPK(SchmiegAdv).main() @ &m : res] = 1%r.
+proof. byphoare => //. proc; inline SchmiegAdv.find; auto => />. smt(ek_neq xwing_eq_pk lpk_mk). qed.
+
+(* (-) X-Wing loses K-CTX unconditionally (vary context; nothing binds it) *)
+lemma xwing_eq_ctx : xwing_key (mkc lctxA) = xwing_key (mkc lctxB).
+proof. by rewrite /xwing_key /xwing_fields /ss_of /mkc. qed.
+lemma xwing_kctx_broken &m : Pr[XWingKCTX(CtxAdv).main() @ &m : res] = 1%r.
+proof. byphoare => //. proc; inline CtxAdv.find; auto => />. smt(lctx_neq xwing_eq_ctx lctxo_mkc). qed.
+
+(* (+) X-Wing KEEPS K-CT: ss=jrej(z,ctp) binds ct even though ct_pq is omitted *)
+lemma lct_neq_xwing_neq (e0 e1 : lexec) : lct e0 <> lct e1 => xwing_fields e0 <> xwing_fields e1.
+proof. rewrite /lct /xwing_fields /ss_of => h. smt(jrej_inj). qed.
+lemma xwing_kct_le_cr (A <: LAdv) &m :
+  Pr[XWingKCT(A).main() @ &m : res] <= Pr[CR(BKxw(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BKxw(A).find. wp. call (_ : true). auto => />.
+rewrite /xwing_key. smt(encode_inj lct_neq_xwing_neq).
 qed.
