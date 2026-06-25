@@ -13,15 +13,29 @@
  *   PROVED LEMMA, not an axiom; the proof bottoms out at two ELEMENTARY facts about
  *   an 8-byte big-endian length field (`be8_size`, `be8_inj`).
  *
- *   HONEST SCOPE — read before citing as "machine-checked MAL-BIND-K-CT":
- *   - This is modeled at the **transcript-collision** level. `combine` is a TOTAL
- *     function abstracting the component KEM; there is NO explicit KeyGen / Encaps /
- *     Decaps / implicit-rejection ⊥. The MAL adversary's power is captured by
- *     letting it output two arbitrary transcripts. A FAITHFUL CDM KEM-game
- *     instantiation (adversary-supplied keypairs, Decaps, the K≠⊥ win condition) is
- *     argued ON PAPER (docs/BINDING_SECURITY.md §4.3), NOT yet mechanized. So the
- *     honest claim is "machine-checked CR-based binding reduction, instantiated to
- *     K-CT/K-PK/K-CTX," not "machine-checked CDM MAL-BIND-K-CT game."
+ *   This file has TWO layers:
+ *   (i)  `bind_le_cr` + `bind_le_cr_kct/kpk/kctx` — the generic reduction at the
+ *        TRANSCRIPT-COLLISION level (K is an opaque adversary value, abstract `proj`).
+ *   (ii) `malbind_kct_le_cr` / `malbind_kpk_le_cr` / `malbind_kctx_le_cr` — the
+ *        KEM-AWARE game: the (MAL) adversary supplies the keypairs, K is DERIVED via
+ *        `Decaps` + the combiner, and the win condition is on the hybrid ciphertext /
+ *        public key / context. THIS is the layer to cite for "MAL-BIND-K-CT".
+ *
+ *   HONEST SCOPE of layer (ii) — read before citing (a reviewer will open this file):
+ *   - It is the CDM MAL-BIND-K-CT game **specialized to the implicit-rejection
+ *     setting**: the key type has no ⊥ and `Decaps` is total, so ML-KEM never returns
+ *     ⊥ and CDM's `K≠⊥` conjunct holds BY CONSTRUCTION (it is subsumed, not dropped as
+ *     "vacuous"). This is faithful for ML-KEM-class KEMs; it does NOT model
+ *     explicitly-rejecting KEMs.
+ *   - `decaps_pq`/`decaps_trad` are ABSTRACT, TOTAL, AXIOM-FREE. The reduction uses NO
+ *     property of Decaps, so the result holds for EVERY total Decaps (ML-KEM included)
+ *     ⇒ genuine "zero KEM binding assumption". The flip side: there is NO link to the
+ *     FIPS-203 Decaps, and the shared-secret fields `ss_pq`/`ss_trad` are PRESENT in
+ *     the hash but INERT in the K-binding argument (binding flows through the absorbed
+ *     ct/pk/ctx fields — the hash-everything mechanism).
+ *   - So the honest claim is "machine-checked CDM MAL-BIND-K-{CT,PK,CTX} for the
+ *     implicit-rejection setting, over abstract Decaps, reducing to CR(H)" — NOT a
+ *     fully faithful mechanization of CDM Figure 6 for arbitrary KEMs.
  *   - H's CR is a modeling assumption; IND-CCA2 robustness is on paper; there is no
  *     spec<->implementation linkage proof (docs/BINDING_SECURITY.md §5/§6).
  * =========================================================================== *)
@@ -232,12 +246,138 @@ smt(encode_inj combine_def neq_proj_neq).
 qed.
 
 (* ---- Honest scope ---------------------------------------------------------- *
- * (1) This is modeled at the TRANSCRIPT-COLLISION level: `combine` is a total
- *     function, abstracting the component KEM — there is no explicit Encaps/Decaps
- *     or implicit-rejection ⊥ here. The MAL adversary's power is captured by
- *     letting it output two arbitrary transcripts; a faithful CDM KEM-game
- *     instantiation (keypairs + Decaps + the K≠⊥ condition) is argued on paper
- *     (docs/BINDING_SECURITY.md §4.3), not yet mechanized.
+ * (1) The generic `bind_le_cr` above is at the TRANSCRIPT-COLLISION level (K is an
+ *     opaque adversary value). The KEM-aware game is mechanized BELOW
+ *     (`malbind_kct_le_cr`): K is DERIVED via Decaps + the combiner, the MAL adversary
+ *     supplies the keypairs, win is on the hybrid ciphertext. It is the CDM game
+ *     specialized to implicit rejection (⊥-free key, total Decaps ⇒ K≠⊥ holds by
+ *     construction), over abstract Decaps — see that section's header for exact scope.
  * (2) Establishes the K-binds-{CT,PK,CTX} direction only. X-BIND-CT-* is
  *     structurally UNACHIEVABLE for an implicitly-rejecting KEM and is NOT claimed.
  * ------------------------------------------------------------------------- *)
+
+(* ===========================================================================
+ * KEM-AWARE CDM MAL-BIND-K-CT GAME (implicit-rejection setting) — closes the main gap.
+ *
+ * We MODEL the component KEMs' Decaps and DERIVE K = H(encode(ContextBound fields))
+ * from them, then state the CDM MAL-BIND-K-CT game: the (MAL) adversary supplies the
+ * keypairs and a colliding pair of executions. The reduction to CR(H) uses NO property
+ * of Decaps — only injective absorption of the ciphertext fields; the "zero KEM binding
+ * assumption" claim is thus literal (it holds for EVERY total Decaps, ML-KEM included).
+ * SCOPE (honest): this is the CDM game SPECIALIZED to implicit rejection — the key type
+ * is ⊥-free and Decaps is total, so CDM's `K ≠ ⊥` conjunct holds BY CONSTRUCTION
+ * (subsumed; this is NOT a faithful encoding of the explicitly-rejecting case). The same
+ * totality is why X-BIND-CT-* is structurally unachievable (no ⊥ to provoke). NB:
+ * `ss_pq`/`ss_trad` are absorbed but INERT in the argument — K-binding flows through the
+ * ct/pk/ctx fields (the hash-everything mechanism), and Decaps carries no FIPS-203
+ * semantics, so this proves nothing ABOUT ML-KEM's Decaps, only about the combiner.
+ * =========================================================================== *)
+
+type sk.                                (* a component decapsulation key          *)
+op decaps_pq   : sk -> bytes -> bytes.  (* ML-KEM Decaps:  dk,ct |-> ss. TOTAL, ABSTRACT *)
+op decaps_trad : sk -> bytes -> bytes.  (* X25519 "Decaps": dk,ct |-> ss. TOTAL, ABSTRACT *)
+
+op label_f : bytes.   (* fixed framing fields (LABEL / suite_id / policy_version) *)
+op suite_f : bytes.
+op pv_f    : bytes.
+
+(* One hybrid execution: the adversary's CLAIMED keys (sk/pk may be mutually
+   inconsistent — the malicious-key setting), a ciphertext pair, and context. *)
+type texec = {
+  sk_pq   : sk;  pk_pq   : bytes;  ct_pq   : bytes;
+  sk_trad : sk;  pk_trad : bytes;  ct_trad : bytes;
+  ctx     : bytes;
+}.
+
+(* The ContextBound field list (canonical order) DERIVED from an execution: the two
+   shared secrets come from Decaps; every ct/pk/ctx is absorbed. *)
+op fields (e : texec) : transcript =
+  [ label_f; suite_f; pv_f;
+    decaps_pq e.`sk_pq e.`ct_pq; decaps_trad e.`sk_trad e.`ct_trad;
+    e.`ct_pq; e.`pk_pq; e.`ct_trad; e.`pk_trad; e.`ctx ].
+
+op hkey (e : texec) : key = H (encode (fields e)).
+lemma hkey_def (e : texec) : hkey e = H (encode (fields e)).
+proof. by rewrite /hkey. qed.
+
+(* The K-CT observable: the hybrid ciphertext (ct_pq, ct_trad). *)
+op ct_of (e : texec) : bytes * bytes = (e.`ct_pq, e.`ct_trad).
+
+(* A differing hybrid ciphertext forces differing field lists (ct_pq/ct_trad sit at
+   fixed positions of `fields`, so equal lists give an equal ciphertext pair). *)
+lemma ct_neq_fields_neq (e0 e1 : texec) :
+  ct_of e0 <> ct_of e1 => fields e0 <> fields e1.
+proof. rewrite /ct_of /fields => h. smt(). qed.
+
+module type MalAdv = { proc find() : texec * texec }.
+
+(* CDM MAL-BIND-K-CT: equal derived key, differing hybrid ciphertext. *)
+module MalBindKCT (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey e0 = hkey e1 /\ ct_of e0 <> ct_of e1;
+  }
+}.
+
+(* Reduction: emit the two ContextBound encodings as the CR challenge. *)
+module BK (A : MalAdv) : CRAdv = {
+  proc find() : bytes * bytes = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return (encode (fields e0), encode (fields e1));
+  }
+}.
+
+(* MAL-BIND-K-CT  <=  CR(H), with NO assumption on Decaps. *)
+lemma malbind_kct_le_cr (A <: MalAdv) &m :
+  Pr[MalBindKCT(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BK(A).find. wp. call (_ : true). auto => />.
+smt(encode_inj hkey_def ct_neq_fields_neq).
+qed.
+
+(* --- K-PK and K-CTX: same KEM-aware game + same reduction BK, other observable - *)
+op pk_of (e : texec) : bytes * bytes = (e.`pk_pq, e.`pk_trad).
+lemma pk_neq_fields_neq (e0 e1 : texec) :
+  pk_of e0 <> pk_of e1 => fields e0 <> fields e1.
+proof. rewrite /pk_of /fields => h. smt(). qed.
+
+op ctx_of (e : texec) : bytes = e.`ctx.
+lemma ctx_neq_fields_neq (e0 e1 : texec) :
+  ctx_of e0 <> ctx_of e1 => fields e0 <> fields e1.
+proof. rewrite /ctx_of /fields => h. smt(). qed.
+
+module MalBindKPK (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey e0 = hkey e1 /\ pk_of e0 <> pk_of e1;
+  }
+}.
+module MalBindKCTX (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey e0 = hkey e1 /\ ctx_of e0 <> ctx_of e1;
+  }
+}.
+
+(* MAL-BIND-K-PK  <=  CR(H). *)
+lemma malbind_kpk_le_cr (A <: MalAdv) &m :
+  Pr[MalBindKPK(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BK(A).find. wp. call (_ : true). auto => />.
+smt(encode_inj hkey_def pk_neq_fields_neq).
+qed.
+
+(* MAL-BIND-K-CTX  <=  CR(H) — context extension (superset guarantee; §3.6/§6). *)
+lemma malbind_kctx_le_cr (A <: MalAdv) &m :
+  Pr[MalBindKCTX(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BK(A).find. wp. call (_ : true). auto => />.
+smt(encode_inj hkey_def ctx_neq_fields_neq).
+qed.
