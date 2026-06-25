@@ -456,3 +456,127 @@ byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
 proc; inline BK(A).find. wp. call (_ : true). auto => />.
 rewrite /hkey_x. smt(encode_inj ctx_neq_fields_neq).
 qed.
+
+(* ===========================================================================
+ * SEPARATION: combiner shape x component-dk serialization -> MAL-BIND-K-PK.
+ *
+ * The FIPS-203 EXPANDED dk stores the implicit-rejection seed z as a substitutable
+ * field, so a garbage ciphertext rejects to J(z,ct) -- a value an adversary can make
+ * EQUAL across two DIFFERENT public keys by sharing z (Schmieg). We mechanize the
+ * resulting separation at the combiner layer, in ONE model:
+ *   (-) the LEAN combiner (omits pk_pq) is NOT MAL-BIND-K-PK: a concrete, assumption-
+ *       free adversary wins with probability 1 (`lean_kpk_broken`);
+ *   (+) the FULL combiner (absorbs pk_pq) IS MAL-BIND-K-PK <= CR(H) (`full_kpk_le_cr`),
+ *       over the SAME model -- so the separation is intrinsic to the combiner SHAPE,
+ *       not to a difference in the modeled KEM.
+ * =========================================================================== *)
+
+op jrej : bytes -> bytes -> bytes.   (* implicit-rejection J(z,ct): depends on z, ct, NOT ek *)
+
+type lexec = { z : bytes; ek : bytes; ctp : bytes;
+               sst : bytes; ctt : bytes; ekt : bytes; lctx : bytes }.
+
+op ss_of (e : lexec) : bytes = jrej e.`z e.`ctp.   (* pq shared secret = J(z, ct) *)
+
+(* LEAN combiner: omits pk_pq = ek.  FULL combiner: absorbs it. *)
+op lean_fields (e : lexec) : transcript =
+  [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ctp; e.`ctt; e.`ekt; e.`lctx ].
+op full_fields (e : lexec) : transcript =
+  [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ctp; e.`ek; e.`ctt; e.`ekt; e.`lctx ].
+op lean_key (e : lexec) : key = H (encode (lean_fields e)).
+op full_key (e : lexec) : key = H (encode (full_fields e)).
+op lpk (e : lexec) : bytes * bytes = (e.`ek, e.`ekt).   (* the K-PK observable *)
+
+module type LAdv = { proc find() : lexec * lexec }.
+module LeanKPK (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return lean_key e0 = lean_key e1 /\ lpk e0 <> lpk e1; }
+}.
+module FullKPK (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return full_key e0 = full_key e1 /\ lpk e0 <> lpk e1; }
+}.
+
+(* ---- (-) lean combiner BROKEN over expanded-dk: a concrete adversary, Pr = 1 ---- *)
+(* Two distinct public keys (trivially exist); every other field is shared (incl. z). *)
+op z0 : bytes. op ct0 : bytes. op sst0 : bytes. op ctt0 : bytes. op ekt0 : bytes. op lctx0 : bytes.
+op ek0 : bytes. op ek1 : bytes.
+axiom ek_neq : ek0 <> ek1.
+op mk (k : bytes) : lexec =
+  {| z = z0; ek = k; ctp = ct0; sst = sst0; ctt = ctt0; ekt = ekt0; lctx = lctx0 |}.
+
+module SchmiegAdv : LAdv = {
+  proc find() : lexec * lexec = { return (mk ek0, mk ek1); }
+}.
+
+(* the lean field list does not depend on ek, so the two executions share a key *)
+lemma lean_eq : lean_key (mk ek0) = lean_key (mk ek1).
+proof. by rewrite /lean_key /lean_fields /ss_of /mk. qed.
+lemma lpk_mk (k : bytes) : lpk (mk k) = (k, ekt0).
+proof. by rewrite /lpk /mk. qed.
+
+lemma lean_kpk_broken &m : Pr[LeanKPK(SchmiegAdv).main() @ &m : res] = 1%r.
+proof.
+byphoare => //.
+proc; inline SchmiegAdv.find; auto => />.
+smt(ek_neq lean_eq lpk_mk).
+qed.
+
+(* ---- (+) full combiner SAFE over the SAME model: MAL-BIND-K-PK <= CR(H) ---- *)
+module BKf (A : LAdv) : CRAdv = {
+  proc find() : bytes * bytes = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return (encode (full_fields e0), encode (full_fields e1)); }
+}.
+
+(* differing public key forces a differing full field list (ek sits in full_fields) *)
+lemma lpk_neq_full_neq (e0 e1 : lexec) : lpk e0 <> lpk e1 => full_fields e0 <> full_fields e1.
+proof. rewrite /lpk /full_fields => h. smt(). qed.
+
+lemma full_kpk_le_cr (A <: LAdv) &m :
+  Pr[FullKPK(A).main() @ &m : res] <= Pr[CR(BKf(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BKf(A).find. wp. call (_ : true). auto => />.
+rewrite /full_key. smt(encode_inj lpk_neq_full_neq).
+qed.
+
+(* ---- the OTHER format: SEED-dk makes the LEAN combiner SAFE -------------------- *
+ * In the seed-dk form the rejection seed z is DERIVED from the key (z = zof(ek)), so
+ * distinct public keys give distinct z, and the implicit-rejection secret ss = J(z,ct)
+ * then transitively encodes the key even though the lean combiner omits pk_pq. Under the
+ * idealization that the reject function J and the seed derivation are injective (a stronger
+ * modeling assumption than the full combiner needs -- it reduces to CR(H) ALONE), the lean
+ * combiner is MAL-BIND-K-PK <= CR(H) over seed-dk. Together with `lean_kpk_broken`
+ * (expanded-dk), this is the shape x FORMAT separation: the lean shape's K-PK security
+ * flips with the component's dk serialization, while the full shape is safe over both. *)
+op zof : bytes -> bytes.                          (* seed-dk: z derived from the key *)
+axiom zof_inj  (a b : bytes) : zof a = zof b => a = b.
+axiom jrej_inj (z0 z1 c0 c1 : bytes) : jrej z0 c0 = jrej z1 c1 => z0 = z1 /\ c0 = c1.
+
+op ss_seed (e : lexec) : bytes = jrej (zof e.`ek) e.`ctp.   (* seed-dk ss DEPENDS on ek *)
+op lean_fields_seed (e : lexec) : transcript =
+  [ label_f; suite_f; pv_f; ss_seed e; e.`sst; e.`ctp; e.`ctt; e.`ekt; e.`lctx ].
+op lean_key_seed (e : lexec) : key = H (encode (lean_fields_seed e)).
+
+module LeanKPKseed (A : LAdv) = {
+  proc main() : bool = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return lean_key_seed e0 = lean_key_seed e1 /\ lpk e0 <> lpk e1; }
+}.
+module BKseed (A : LAdv) : CRAdv = {
+  proc find() : bytes * bytes = { var e0 : lexec; var e1 : lexec;
+    (e0, e1) <@ A.find(); return (encode (lean_fields_seed e0), encode (lean_fields_seed e1)); }
+}.
+
+(* distinct public key forces a distinct seed-dk lean field list: either ekt differs
+   (position 7), or ek differs => zof ek differs (zof_inj) => ss_seed differs (jrej_inj). *)
+lemma seed_lpk_neq_fields_neq (e0 e1 : lexec) :
+  lpk e0 <> lpk e1 => lean_fields_seed e0 <> lean_fields_seed e1.
+proof. rewrite /lpk /lean_fields_seed /ss_seed => h. smt(jrej_inj zof_inj). qed.
+
+lemma lean_kpk_seed_le_cr (A <: LAdv) &m :
+  Pr[LeanKPKseed(A).main() @ &m : res] <= Pr[CR(BKseed(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline BKseed(A).find. wp. call (_ : true). auto => />.
+rewrite /lean_key_seed. smt(encode_inj seed_lpk_neq_fields_neq).
+qed.
