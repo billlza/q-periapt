@@ -12,7 +12,7 @@
 //!   probe    mark ŝ[0..1152] + z[2368..2400] only           → EXPECT 0 flags (no gap)
 //!   ek       mark ek[1152..2336] only                        → EXPECT ~30 q-branch flags
 //!            (attribution: the flags are on the embedded *public* key reduction)
-//!   wholedk  mark all 2400 bytes                             → EXPECT the ~2848/30 baseline
+//!   wholedk  mark all 2400 bytes                             → EXPECT the ~5696/60 baseline
 //!   control  mark a byte + a *deliberate* secret branch      → EXPECT a flag (harness sanity:
 //!            if this is NOT caught, the gate is vacuous on this target)
 //!

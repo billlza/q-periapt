@@ -40,8 +40,8 @@ exec docker run --rm $RUNARGS -v "$REPO_ROOT":/work:ro -w /work rust:slim sh -c 
     printf "  %-8s %s\n" "$1:" "$summary"
   }
   echo "Memcheck error summaries (marking the named field(s) secret, real libcrux decapsulate):"
-  run wholedk   # all 2400 dk bytes  -> baseline (~2848 errors / 30 contexts, on embedded ek)
-  run ek        # ek[1152..2336]     -> attribution (the ~30 q-branches are on the PUBLIC key)
+  run wholedk   # all 2400 dk bytes  -> baseline (~5696 errors / 60 contexts, on embedded ek)
+  run ek        # ek[1152..2336]     -> attribution (the ~60 q-branches are on the PUBLIC key)
   run probe     # ŝ[0..1152]+z[2368..2400] -> THE GAP QUESTION (0 = no source->binary gap)
   echo
   echo "interpretation: probe = 0 errors  => libcrux ML-KEM decaps secret-independence survives"

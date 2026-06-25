@@ -488,8 +488,8 @@ controls.}
 \end{figure}
 
 \emph{Why marking granularity matters.} A naive harness that marks the \emph{whole} serialized
-decapsulation key secret produces, on the NEON path, $2848$ reports across $30$ branches comparing
-12-bit coefficients to $q$---which look exactly like a KyberSlash-class leak. They are not: the
+decapsulation key secret produces, on the aarch64 NEON path, $5696$ reports across $60$ branches
+comparing 12-bit coefficients to $q$---which look exactly like a KyberSlash-class leak. They are not: the
 FIPS-203 \code{dk} \emph{embeds} the public key ($\code{dk}=\code{dk\_pke}\,\|\,\code{ek}\,\|\,H(\code{ek})\,\|\,z$), and those branches are the compiler's scalar lowering of the public-key
 reduction run during FO re-encryption---operating on \emph{public} bytes. Marking only the
 genuinely-secret sub-fields ($\hat s$ and the implicit-rejection seed $z$) yields zero reports. This

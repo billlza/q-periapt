@@ -1,0 +1,16 @@
+=== source->binary CT gap probe; container arch: aarch64 ===
+valgrind-3.24.0
+negative control OK: Memcheck catches a planted secret branch on aarch64
+
+Memcheck error summaries (marking the named field(s) secret, real libcrux decapsulate):
+  wholedk: ERROR SUMMARY: 5696 errors from 60 contexts (suppressed: 0 from 0)
+  ek:      ERROR SUMMARY: 5696 errors from 60 contexts (suppressed: 0 from 0)
+  probe:   ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+
+interpretation: probe = 0 errors  => libcrux ML-KEM decaps secret-independence survives
+                compilation on aarch64 (no source->binary CT gap on the ŝ/z path).
+
+=== discriminator: same probe on HQC (PQClean C), marking the genuine secret prefix ===
+  hqc:     ERROR SUMMARY: 193 errors from 4 contexts (suppressed: 0 from 0)
+
+DISCRIMINATOR HOLDS on aarch64: ML-KEM probe = 0 (clean) vs HQC prefix = 193 (leaky).

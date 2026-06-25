@@ -63,7 +63,7 @@ hardware.
 ## Primitive-path investigation — RESOLVED (benign): public-key over-marking, not a leak
 
 Extending the gate to mark the **ML-KEM-768 decapsulation key** secret and run libcrux's
-`decapsulate` under Memcheck (aarch64, 2026-06) flagged ~2848 reports across **30 branches**
+`decapsulate` under Memcheck (aarch64, 2026-06) flagged 5696 reports across **60 branches**
 in `libcrux_ml_kem::ind_cca::instantiations::neon::decapsulate`, comparing 12-bit coefficients
 to q (`0xd01` = 3329) and q−1 (`0xd00` = 3328). The investigation passed through two **wrong**
 framings before the correct one — recorded here because the corrections are the point:
@@ -79,7 +79,7 @@ secret-dependent.** Per FIPS 203 the decapsulation key **embeds the public key**
 embedded **public** key `ek` through libcrux's reducing path
 (`deserialize_ring_elements_reduced` → `deserialize_to_reduced_ring_element` →
 `cond_subtract_3329`) — which the libcrux source itself documents *"MUST NOT be used with
-secret inputs."* The 30 flagged branches are the **compiler's scalar lowering of that
+secret inputs."* The 60 flagged branches are the **compiler's scalar lowering of that
 public-key reduce loop** (the NEON `cond_subtract_3329` is itself branchless SIMD —
 `_vcgeq_s16` mask + subtract; the scalar `b.cs`/`b.ls` + the `0xd00` site come from LLVM
 scalarizing the public deserialize+clamp). The probe marked the **whole** `dk` secret,
@@ -99,7 +99,7 @@ Harness lesson (this is *standard* CT-harness practice, not a new pitfall — cf
 TCHES 2025 §7.1.2, which explicitly marks public-key bytes *initialized*): a CT analysis of
 decapsulate must mark only the genuinely-secret sub-fields of `dk` — ŝ `[0..1152]` and
 z `[2368..2400]` — **not** the embedded public key `ek` `[1152..2336]` (it is `ek`/t̂, reduced
-via `deserialize_ring_elements_reduced`, that produces all 30 q-branches) or its hash
+via `deserialize_ring_elements_reduced`, that produces all 60 q-branches) or its hash
 `H(ek)` `[2336..2368]`. Marking the whole `dk` is conservative but mislabels the public bytes,
 producing these benign reports.
 
@@ -107,7 +107,7 @@ producing these benign reports.
 (ŝ reduction-free; z reaches only PRF/SHA3 + a constant-time select; no secret hits a
 data-dependent branch). libcrux already machine-checks exactly this secret/public partition at
 compile time via its `libcrux-secrets`/hax typed discipline, so a dynamic Memcheck pass is
-**corroboration of a proven property, not an independent result**, and the 2848-vs-0 contrast
+**corroboration of a proven property, not an independent result**, and the 5696-vs-0 contrast
 is simply the expected before/after of correct vs. over-broad secret marking — not a finding
 about libcrux. *Caveat on the secret-only run:* the original probe marked ŝ `[0..1152]` +
 `[2336..2368]`, but `[2336..2368]` is `H(ek)` (public), not z — z is `[2368..2400]`. Both
@@ -129,28 +129,29 @@ sub-fields of the FIPS-203 expanded dk (ŝ `[0..1152]` + z `[2368..2400]`, **not
 runs the real libcrux `decapsulate` under Memcheck. Run `sh scripts/ct-gap-probe.sh` (also wired
 into the `constant-time` CI job, x86_64 + aarch64):
 
-**Canonical measurements** — one harness, one tool, all rows from the SAME environment
-(aarch64-linux, libcrux-ml-kem 0.0.9, PQClean HQC-128, valgrind 3.24, release, 2026-06):
+**Canonical measurements** — one harness, one tool, BOTH native ISAs (raw logs in the repo:
+`ct-gap-aarch64.log` for arm64; the x86_64 triple is in `paper/camera-ready-results.txt`):
 
-| mode | marks (secret set) | errors / contexts | role |
-|------|--------------------|-------------------|------|
-| `control` | a planted secret-indexed table load | **1** / 1 | negative control — harness must catch a real leak |
-| `ek` | embedded **public** key `[1152..2336]` | **5696** / 60 | positive control — Memcheck must flag the real libcrux q-branches |
-| `wholedk` | all 2400 dk bytes (over-marking) | ~**2848** / 30 | over-marking baseline (dominated by the embedded-pk branches) |
-| `probe` | **genuine secret** ŝ + z | **0** / 0 | THE GATE — no source→binary gap on the secret path |
-| `hqc prefix` | HQC genuine secret prefix `[0..56]` | **193** / 4 | discriminator — known PQClean `vect_set_random_fixed_weight` leak |
+| mode | marks (secret set) | aarch64 | x86_64 | role |
+|------|--------------------|---------|--------|------|
+| `control` | a planted secret-indexed table load | **caught** | **caught** | negative control — harness must catch a real leak |
+| `ek`      | embedded **public** key            | **5696** / 60 | **1778** / 34 | positive control — Memcheck must flag the real libcrux q-branches |
+| `wholedk` | all 2400 dk bytes (over-marking)   | **5696** / 60 | **1778** / 34 | same as `ek`: only the embedded-pk bytes drive branches |
+| `probe`   | **genuine secret** ŝ + z           | **0** / 0     | **0** / 0     | THE GATE — no source→binary gap on the secret path |
+| `hqc prefix` | HQC genuine secret prefix       | **193** / 4   | **22849** / 6 | discriminator — known PQClean `vect_set_random_fixed_weight` leak |
 
-**Read the contrast, not the absolute counts.** Memcheck error *counts* are run- and
-origin-tracking-dependent (they scale with executed paths, and a subset marking can surface more
-distinct branch *contexts* than a superset — so `ek`=5696 and `wholedk`=2848 are **not** meant to
-reconcile as a subset/superset relation). The load-bearing signal is the **discrimination**:
-`probe` = **0** for the HACL\*-verified ML-KEM path vs `ek`/`hqc` **> 0** for code that genuinely
-branches on its argument. So libcrux ML-KEM-768 decapsulate's source-level secret-independence
-**survives compilation to aarch64** — no source→binary CT gap on the ŝ/z path, and the `0` is
-demonstrably non-vacuous. (x86_64 runs natively in CI; riscv64/wasm32 have no mature binary-CT tool
-and stay source-CT + attestation.) This is an honest **negative (equivalence) result**,
-self-validating via the `ek` and `hqc` positive controls — a rigorous reproduction + discriminator,
-not a discovered leak.
+(arm64: native colima Apple-Silicon VM, libcrux current, valgrind 3.24; x86_64: bare-metal Ryzen 7
+7700, valgrind 3.22.) Within an ISA `ek`=`wholedk` (marking all of `dk` reduces to marking the
+embedded pk, since only the pk bytes drive branches). **Read the contrast, not the absolute
+counts.** The counts differ markedly BY ISA — `ek` 5696 (arm) vs 1778 (x86); HQC 193 (arm) vs 22849
+(x86) — because Memcheck error counts scale with the target's emitted instruction sequence. The
+load-bearing signal is the **discrimination**, identical on both ISAs: `probe` = **0** for the
+HACL\*-verified ML-KEM path vs `ek`/`hqc` **> 0** for code that genuinely branches on its argument.
+So libcrux ML-KEM-768 decapsulate's source-level secret-independence **survives compilation on both
+x86_64 and aarch64** — no source→binary CT gap on the ŝ/z path, and the `0` is demonstrably
+non-vacuous. (riscv64/wasm32 have no mature binary-CT tool and stay source-CT + attestation.) This
+is an honest **negative (equivalence) result**, self-validating via the `ek` and `hqc` positive
+controls — a rigorous reproduction + discriminator, not a discovered leak.
 
 **The probe discriminates (clean vs leaky).** Running the same probe against the suite's
 *unaudited* HQC backend (`bin/ct_hqc_gap`, PQClean C via `pqcrypto-hqc`; build

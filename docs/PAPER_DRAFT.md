@@ -127,7 +127,7 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 - That CT analysis must mark only secret sub-fields (not the public key embedded in dk) — this is
   **standard CT-harness practice (KyberSlash, TCHES 2025, §7.1.2)**; libcrux already
   machine-checks secret-independence via its `libcrux-secrets`/hax typed discipline. We use this;
-  we did not discover it. The "2848→0" Memcheck contrast is corroboration, not a finding.
+  we did not discover it. The "5696→0" Memcheck contrast is corroboration, not a finding.
 - That K-CTX (context binding) is desirable — this is the KEM-layer lift of **Bellare–Hoang
   context-committing AEAD (CMT-3)**; it is a *convenience corollary*, not a new security notion.
 

@@ -276,7 +276,7 @@ The `constant-time` CI job runs the dataflow gate on x86_64 and aarch64
 planted-secret-branch negative control confirming Memcheck catches leaks there.
 Still **TODO**: extending Memcheck over the component-**primitive** paths. This was
 investigated (marking the ML-KEM decapsulation key secret and running libcrux's
-`decapsulate`) and surfaced ~2848 reports across 30 branches in the NEON `decapsulate`
+`decapsulate`) and surfaced 5696 reports across 60 branches in the NEON `decapsulate`
 comparing 12-bit coefficients to q (3329) / q−1 — now **RESOLVED as benign**. Per FIPS 203
 the dk *embeds the public key* (`dk = dk_pke‖ek‖H(ek)‖z`); the flagged branches are the
 compiler's scalar lowering of libcrux's **public-key** deserialize-with-reduction
@@ -290,7 +290,7 @@ source-proven and confirmed by a 3-lens adversarial review (details in
 the genuine secret**; the branch outcomes depend only on the (public) `ek`, i.e. zero marginal
 leakage. (Two earlier framings — "csel false positive" and "real secret-dependent branch" —
 were both retracted.) This **corroborates** — does not discover — what libcrux already
-machine-checks via its `libcrux-secrets`/hax typed secret-independence; the 2848-vs-0 Memcheck
+machine-checks via its `libcrux-secrets`/hax typed secret-independence; the 5696-vs-0 Memcheck
 contrast is the expected before/after of correct vs. over-broad marking, per standard
 CT-harness practice (cf. KyberSlash §7.1.2). *Note:* the secret-only run marked
 ŝ `[0..1152]` + `[2336..2368]` = `H(ek)` (public — a slipped offset); the genuine z is
