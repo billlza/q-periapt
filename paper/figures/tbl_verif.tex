@@ -1,0 +1,19 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{times}
+\usepackage{booktabs,array,amssymb}
+\begin{document}
+\footnotesize
+\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{@{}>{\bfseries}l p{2.9cm} p{2.0cm} p{4.9cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Reference / oracle} & \textbf{Independence} & \textbf{What it catches} \\
+\midrule
+Fixed KATs & X-Wing draft vectors; RFC\,7748 & published vectors & combiner \& X25519 spec-conformance regressions \\
+NIST ACVP & \textit{usnistgov} ACVP, full FIPS family & NIST ground truth & primitive non-conformance (FIPS 203/204/205) \\
+Multi-backend differential & RustCrypto \texttt{ml-kem}/\texttt{ml-dsa}; orion X25519 & independent re-impls. & implementation bugs (must stay byte-identical) \\
+EasyCrypt proof & machine-checked; CR(SHA3) & formal (computational) & binding-design flaws in the combiner \\
+Cross-platform byte-identity & shared test vector & 5 faces $\times$ substrates & per-substrate divergence (same $K$ everywhere) \\
+Generative property tests & proptest: 7 props $\times$ 128 cases & randomized & edge-case violations (injectivity, dom.\ sep., K-CTX) \\
+\bottomrule
+\end{tabular}
+\end{document}

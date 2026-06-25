@@ -1,0 +1,41 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{times}
+\usepackage{booktabs,array,amssymb}
+\newcommand{\y}{\checkmark}
+\newcommand{\n}{\textendash}
+\begin{document}
+\footnotesize\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.16}
+\begin{tabular}{@{}l@{\hskip 8mm}l@{}}
+% ---- (a) ISA targets ----
+\begin{tabular}[t]{@{}l l c c c@{}}
+\multicolumn{5}{@{}l}{\textbf{(a) ISA targets} (Rust core; the byte-level claim)}\\[2pt]
+\toprule
+\textbf{ISA} & \textbf{runner} & \textbf{build} & \textbf{byte-id.\ $K$} & \textbf{binary-CT} \\
+\midrule
+x86-64    & Linux, Win-MSVC & \y & \y\,(run)            & \y\ Memcheck \\
+aarch64   & Linux, macOS    & \y & \y\,(run)            & \y\ Memcheck \\
+wasm32    & node            & \y & \y\,(run)            & source-CT \\
+riscv64   & Linux (cross)   & \y & by constr.$^\dagger$ & source-CT \\
+thumbv7em & bare-metal      & \y & by constr.$^\dagger$ & n/a \\
+\bottomrule
+\multicolumn{5}{@{}l}{\footnotesize $^\dagger$ cross-compiled, not run natively; identity follows}\\[-2pt]
+\multicolumn{5}{@{}l}{\footnotesize \phantom{$^\dagger$} from FIPS-deterministic encodings + identical source.}
+\end{tabular}
+&
+% ---- (b) faces x OS ----
+\begin{tabular}[t]{@{}l c c c@{}}
+\multicolumn{4}{@{}l}{\textbf{(b) language face $\times$ OS} (shared vector $\to$ same $K$)}\\[2pt]
+\toprule
+\textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} \\
+\midrule
+Rust            & \y & \y & \y \\
+C ABI           & \y & \y & \y\,(MSVC) \\
+WASM (node)     & \y & \y & \y \\
+Swift           & \n & \y & \n \\
+Kotlin (JVM/FFM)& \y & \y & \n \\
+\bottomrule
+\multicolumn{4}{@{}l}{\footnotesize \y\ verified (CI or local); \n\ not exercised.}\\
+\multicolumn{4}{@{}l}{\footnotesize }
+\end{tabular}
+\end{tabular}
+\end{document}

@@ -17,6 +17,9 @@
 |-----|--------|-------|
 | `fig_arch.pdf` (hero) | §1 / §4 | proof-to-byte cross-substrate: one proven core → 5 faces/3 OS/5 ISA → byte-identical `K` |
 | `fig_binding.pdf` | §3 / §"novel" | honest CDM ceiling — both schemes reach MAL-BIND-K-{CT,PK}; edge = assumption-minimality, not a stronger notion; X-BIND-CT-* unachievable |
+| `fig_kernel.pdf` | §3 | reduction tower: MAL-BIND-K-{CT,PK,CTX} → CR(SHA3) via proved `encode_inj`; honest scope boxed |
+| `tbl_verif.pdf` | §4 (Table) | the six orthogonal verification methods (oracle / independence / what it catches) |
+| `tbl_substrate.pdf` | §5 (Table) | cross-substrate coverage: (a) ISA targets (byte-id `K`, binary-CT), (b) faces × OS |
 | `fig_ct.pdf` | §5 | source→binary CT discriminator (ML-KEM 0 vs HQC 193) |
 | `fig_netem.pdf` | §6 | netem P99: PQ overhead ≈ fixed CPU, negligible % at RTT; combiner-neutral |
 | `fig_wire.pdf` | §6 | handshake wire budget (+2.27 KB ML-KEM keyshare) |
