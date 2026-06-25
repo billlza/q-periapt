@@ -760,9 +760,16 @@ the binding of whatever component it omits; ContextBound is an instance of the f
 exactly why we attribute the binding \emph{fact} rather than claim it. At the symmetric layer, the
 same idea appears as context-committing AEAD (CMT)~\cite{cmt}, of which our context axis is the
 KEM-output-layer analogue; the role of public contexts specifically in hybrid KEMs is studied
-in~\cite{eprint2026140}. Our addition is not a new notion but the conjunction of
-\cref{tab:position}: a mechanized, assumption-minimal binding result whose proven object is
-byte-identical across the deployment surface.
+in~\cite{eprint2026140}. Our separation map (\cref{thm:sep}) sits one level finer than each of these:
+where Chempat states a \emph{binary} dichotomy (the lean shape inherits the omitted component's
+binding) and Schmieg fixes a \emph{single} KEM's format-dependence, the map is a \emph{field-resolved
+necessity} statement---per binding notion and per \code{dk}-format, exactly which combiner input is
+load-bearing and which is made redundant by the shared secret. That the public key and context are
+necessary while the PQ ciphertext is not is a fact about combiner \emph{structure} that neither prior
+work isolates, and the deleted-hypothesis negative controls (\cref{app:sepproof}) are what upgrade it
+from a set of sufficient conditions to a necessity claim. Our contribution is thus twofold: this
+separation map, and the conjunction of \cref{tab:position}---a mechanized, assumption-minimal binding
+result whose proven object is byte-identical across the deployment surface.
 
 \paragraph*{Side-channel assurance}
 KyberSlash~\cite{kyberslash} showed that secret-dependent timings in widely-used Kyber/ML-KEM
@@ -921,6 +928,53 @@ $\mathrm{CR}(H)$.}\label{tab:lemmas}
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Proof structure of the separation map}\label{app:sepproof}
+All parts of \cref{thm:sep} are discharged by two idiomatic skeletons over a single \code{lexec}
+execution type, so the map is genuinely \emph{one} model rather than a family of bespoke arguments.
+\emph{Safety} bounds (\code{full\_*}, \code{omit\_ct\_kct\_le\_cr}, \code{lean\_kpk\_seed\_le\_cr},
+\code{xwing\_kct\_le\_cr}) are \code{byequiv} reductions to the collision game: a binding
+winner---two executions whose combiner keys collide while the observable differs---is mapped to the
+pair of \emph{encodings} of their field lists, which are distinct yet hash-equal, i.e.\ an
+$H$-collision. The list-difference step is the only non-boilerplate part, and it is exactly where
+each result's assumption enters. When the omitted observable still sits in the field list (the
+\code{full\_*} rows), plain injectivity of the encoding suffices. When it does \emph{not}---the
+crux of \code{omit\_ct\_kct\_le\_cr}, where $ct_{\mathrm{pq}}$ is absent---a differing ciphertext must
+instead force a differing \emph{shared secret} $J(z,ct_{\mathrm{pq}})$, which it does \emph{only}
+under injectivity of $J$ (\code{jrej\_inj}). That single implication is the formal content of ``the
+shared secret transitively binds the ciphertext,'' and isolating it is what keeps the K-CT result
+honest rather than circular. \emph{Breaks} (\code{lean\_kpk\_broken}, \code{omit\_ctx\_kctx\_broken},
+\code{xwing\_k\{pk,ctx\}\_broken}) are \code{byphoare} arguments exhibiting a concrete deterministic
+adversary that outputs two executions agreeing on every \emph{absorbed} field but differing on the
+omitted observable; the probability-one win is then a structural computation whose sole hypothesis is
+that two distinct observables exist (\code{ek\_neq}, \code{lctx\_neq}).
+
+\emph{Non-vacuity by deleted-hypothesis negative controls.} A passing machine proof certifies only
+that the conclusion follows from the stated hypotheses; it does \emph{not} certify that the
+hypotheses are needed, and a vacuous or over-strong premise is the classic way a mechanized result
+misleads. For every cell of the map we therefore re-ran the checker with its load-bearing hypothesis
+deleted from the \code{smt} invocation and confirmed the proof \emph{fails}: the K-PK break collapses
+without two distinct keys, the K-CTX break without two distinct contexts, the K-CT safety without
+$J$-injectivity, the seed-\code{dk} K-PK safety without $J$/$\mathsf{zof}$ injectivity, and every
+reduction without the proved \code{encode\_inj}. The negative controls are what turn the map from a
+list of \emph{sufficient} conditions into a \emph{necessity} statement (``ContextBound must absorb
+$pk_{\mathrm{pq}}$ and context''), and they are the same methodology that establishes the explicit
+$\mathsf{K}\neq\bot$ conjunct as load-bearing in \cref{tab:lemmas}. The whole development is
+admit-free and rests on six elementary axioms (\code{be8\_size}, \code{be8\_inj}, \code{ek\_neq},
+\code{lctx\_neq}, \code{zof\_inj}, \code{jrej\_inj}); $H$'s collision resistance is the sole
+\emph{cryptographic} assumption, and the injective encoding is a proved lemma, not an axiom.
+
+\emph{Honest assumption ladder.} The map's verdicts do not all sit at the same assumption level, and
+the differences are themselves informative. The two breaks and the full-combiner safety bounds need
+\emph{no} idealization of $J$: the breaks are unconditional concrete adversaries, and the full
+combiner reduces to $\mathrm{CR}(H)$ alone because it absorbs every field directly. The two
+\emph{conditional} verdicts---K-CT safety after omitting $ct_{\mathrm{pq}}$, and seed-\code{dk} K-PK
+safety---are precisely the ones that lean on the shared secret to do binding work the encoding no
+longer does, and they pay for it with the $J$/$\mathsf{zof}$ injectivity idealizations. So the
+assumption a reader must grant scales with how much the combiner offloads onto the component KEM's
+internals: zero for ContextBound's direct absorption, more for every shortcut. That monotonicity is
+the quantitative form of the paper's thesis that absorbing the full transcript is the
+assumption-minimal choice.
 
 \section{Extended Evaluation}\label{app:eval}
 \Cref{tab:bench-ci} gives the microbenchmarks of \cref{tab:bench} with Criterion's
