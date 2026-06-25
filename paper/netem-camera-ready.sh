@@ -4,7 +4,7 @@
 # Reproduces: classical X25519 vs ContextBound vs CompatXWing time-to-session under real netem.
 set -eu
 [ "$(id -u)" = 0 ] || { echo "run as root (tc needs NET_ADMIN)"; exit 1; }
-REPS=${REPS:-5}
+REPS=${REPS:-20}
 cargo build --release -p q-periapt-rustls --example netem_bench
 BIN=target/release/examples/netem_bench
 run() { # one_way_ms iters

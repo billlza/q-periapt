@@ -129,22 +129,28 @@ sub-fields of the FIPS-203 expanded dk (ŝ `[0..1152]` + z `[2368..2400]`, **not
 runs the real libcrux `decapsulate` under Memcheck. Run `sh scripts/ct-gap-probe.sh` (also wired
 into the `constant-time` CI job, x86_64 + aarch64):
 
-| mode | marks | expect | role |
-|------|-------|--------|------|
-| `control` | a planted secret-indexed table load | **> 0** | negative control — harness must catch a real leak |
-| `ek` | the embedded **public** key `[1152..2336]` | **> 0** | positive control — Memcheck must flag the *real* libcrux q-branches |
-| `wholedk` | all 2400 dk bytes | baseline | reproduces the over-marking baseline |
-| `probe` | **genuine secret** ŝ + z | **0** | the gate — no source→binary gap on the secret path |
+**Canonical measurements** — one harness, one tool, all rows from the SAME environment
+(aarch64-linux, libcrux-ml-kem 0.0.9, PQClean HQC-128, valgrind 3.24, release, 2026-06):
 
-**Result** (aarch64, libcrux-ml-kem 0.0.9, valgrind 3.24, release): `control` = **1** error
-(caught), `ek` = **5696** errors / 60 contexts (real branches flagged), `probe` = **0** errors.
-The `ek`-vs-`probe` contrast — *same binary, same tool, same library* — is the scientific
-control: Memcheck demonstrably sees branches (5696 on the public key), and the genuine secret
-drives **none**. So libcrux ML-KEM-768 decapsulate's source-level secret-independence
-**survives compilation to aarch64** — no source→binary CT gap on the ŝ/z path. (x86_64 runs
-natively in CI; riscv64/wasm32 have no mature binary-CT tool and stay source-CT + attestation.)
-This is corroboration of an expected property via an independent tool — an honest **negative
-(equivalence) result**, self-validating via the `ek` positive control, not a discovered leak.
+| mode | marks (secret set) | errors / contexts | role |
+|------|--------------------|-------------------|------|
+| `control` | a planted secret-indexed table load | **1** / 1 | negative control — harness must catch a real leak |
+| `ek` | embedded **public** key `[1152..2336]` | **5696** / 60 | positive control — Memcheck must flag the real libcrux q-branches |
+| `wholedk` | all 2400 dk bytes (over-marking) | ~**2848** / 30 | over-marking baseline (dominated by the embedded-pk branches) |
+| `probe` | **genuine secret** ŝ + z | **0** / 0 | THE GATE — no source→binary gap on the secret path |
+| `hqc prefix` | HQC genuine secret prefix `[0..56]` | **193** / 4 | discriminator — known PQClean `vect_set_random_fixed_weight` leak |
+
+**Read the contrast, not the absolute counts.** Memcheck error *counts* are run- and
+origin-tracking-dependent (they scale with executed paths, and a subset marking can surface more
+distinct branch *contexts* than a superset — so `ek`=5696 and `wholedk`=2848 are **not** meant to
+reconcile as a subset/superset relation). The load-bearing signal is the **discrimination**:
+`probe` = **0** for the HACL\*-verified ML-KEM path vs `ek`/`hqc` **> 0** for code that genuinely
+branches on its argument. So libcrux ML-KEM-768 decapsulate's source-level secret-independence
+**survives compilation to aarch64** — no source→binary CT gap on the ŝ/z path, and the `0` is
+demonstrably non-vacuous. (x86_64 runs natively in CI; riscv64/wasm32 have no mature binary-CT tool
+and stay source-CT + attestation.) This is an honest **negative (equivalence) result**,
+self-validating via the `ek` and `hqc` positive controls — a rigorous reproduction + discriminator,
+not a discovered leak.
 
 **The probe discriminates (clean vs leaky).** Running the same probe against the suite's
 *unaudited* HQC backend (`bin/ct_hqc_gap`, PQClean C via `pqcrypto-hqc`; build
