@@ -54,7 +54,9 @@ one EasyCrypt model we delete each combiner input in turn and show exactly which
 costs---omitting the PQ public key loses \mbox{MAL-BIND-K-PK} over the FIPS-203 expanded
 decapsulation-key serialization (a concrete adversary wins with probability one) but not over the
 seed-\code{dk} form; omitting the context loses \mbox{MAL-BIND-K-CTX} unconditionally; whereas
-omitting the PQ ciphertext is \emph{harmless} because the shared secret already binds it. So
+omitting the PQ ciphertext is \emph{harmless}. The asymmetry is the contribution: the
+implicit-rejection shared secret transitively rebinds the \emph{ciphertext} but \emph{not} the
+\emph{public key} (which it leaves key-independent under expanded-\code{dk} seed-substitution). So
 public-key and context absorption are \emph{necessary} while ciphertext absorption is redundant, and
 the deployed X-Wing shape (omitting all three) provably loses \mbox{K-PK} and \mbox{K-CTX} while
 keeping \mbox{K-CT}---a field-resolved account of exactly where ContextBound's extra binding pays off. We are explicit about what is and
@@ -532,6 +534,11 @@ $pk_{\mathrm{pq}}$, \emph{and} context at once; discharged directly, it \emph{lo
 (expanded-\code{dk}) and \mbox{K-CTX} but \emph{keeps} \mbox{K-CT} (\code{xwing\_kpk\_broken},
 \code{xwing\_kctx\_broken}, \code{xwing\_kct\_le\_cr}).
 \end{enumerate}
+The two \emph{safety-of-omission} verdicts---item~2 and the seed-\code{dk} half of item~1---hold under
+the idealization that the implicit-rejection function $J$ (FIPS-203's $J{=}\textsc{shake}(z\,\|\,
+H(ct))$) is \emph{injective}; under a realistic collision-resistant-only $J$ they degrade to an
+additional $\mathrm{CR}$ term over $J$'s inner hash rather than holding outright. The breaks (the
+$\Pr{=}1$ adversaries) and the full combiner (item~4) need \emph{no} assumption on $J$.
 \end{theorem}
 
 \begin{table}[t]\centering
@@ -953,7 +960,7 @@ that two distinct observables exist (\code{ek\_neq}, \code{lctx\_neq}).
 that the conclusion follows from the stated hypotheses; it does \emph{not} certify that the
 hypotheses are needed, and a vacuous or over-strong premise is the classic way a mechanized result
 misleads. For every cell of the map we therefore re-ran the checker with its load-bearing hypothesis
-deleted from the \code{smt} invocation and confirmed the proof \emph{fails}: the K-PK break collapses
+deleted from the \code{smt} invocation and confirmed the proof \emph{fails} (reproducible via \code{negative-controls.sh}, whose log is in the artifact): the K-PK break collapses
 without two distinct keys, the K-CTX break without two distinct contexts, the K-CT safety without
 $J$-injectivity, the seed-\code{dk} K-PK safety without $J$/$\mathsf{zof}$ injectivity, and every
 reduction without the proved \code{encode\_inj}. The negative controls are what turn the map from a

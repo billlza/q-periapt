@@ -291,6 +291,9 @@ jobs:
       - name: Machine-check the binding proof (make check)
         if: steps.ec.outcome == 'success'
         run: opam exec -- make -C formal/easycrypt check
+      - name: Separation-map necessity (deleted-hypothesis negative controls)
+        if: steps.ec.outcome == 'success'
+        run: opam exec -- sh formal/easycrypt/negative-controls.sh
 
   # Symbolic handshake proof. The lemma-presence check is a reliable HARD GATE
   # (catches a lemma being deleted/stubbed out); the full Tamarin machine-check
