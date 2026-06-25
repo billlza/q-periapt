@@ -23,14 +23,13 @@ editor cannot conflate the two.
 
 ---
 
-## 1. Title (pick one; all honest, spine-led)
+## 1. Title (LOCKED)
 
-1. **"Proof-to-Byte: Assumption-Minimal, Cross-Substrate Binding Assurance for PQ/T Hybrid KEMs."**
-2. "Q-Periapt: A Machine-Checked, Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
-3. "Closing the Deployment-Safety Gap for PQ/T Hybrid KEMs."
+**"Proof-to-Byte: Assumption-Minimal, Cross-Substrate Binding Assurance for PQ/T Hybrid KEMs."**
 
-Recommend #1 (leads with the genuine novel conjunction: a machine-checked binding result whose
-realized object is byte-identical across substrates).
+Leads with the genuine novel conjunction: a machine-checked binding result whose realized object
+is byte-identical across substrates. (Alternates, if a venue prefers: "Q-Periapt: A Machine-Checked,
+Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange.")
 
 ---
 
@@ -123,11 +122,14 @@ realized object is byte-identical across substrates).
 - **Do NOT** claim "stronger binding than X-Wing." On the standard {K,PK,CT} lattice, correctly-
   implemented **seed-dk X-Wing attains MAL-BIND-K-{CT,PK}**; our key-format demo is about
   *combiner robustness to the component dk format*, **not** a break of X-Wing.
-- **Do NOT** claim the EasyCrypt artifact is a "fully faithful CDM Figure 6" mechanization. It is
-  the CDM game **specialized to implicit rejection** (⊥-free key, total Decaps ⇒ K≠⊥ by
-  construction) over **abstract Decaps**; the shared-secret derivation is present but inert in the
-  binding argument, and there is **no FIPS-203 spec↔implementation linkage**. CR(SHA3) is a
-  modeling assumption; IND-CCA2 robustness is argued on paper.
+- **The EasyCrypt artifact IS the full CDM Figure 6 game** (both implicit and explicit rejection;
+  the `K≠⊥` conjunct is present and verified load-bearing). But scope it honestly: it is over
+  **abstract Decaps** (zero KEM assumption — holds for any Decaps — but therefore **no FIPS-203
+  linkage**, and the shared-secret fields are **inert** in the binding argument, which flows
+  through the absorbed ct/pk/ctx). CR(SHA3) is a modeling assumption; IND-CCA2 robustness is on
+  paper; there is **no spec↔implementation linkage**. So claim *"machine-checked CDM
+  MAL-BIND-K-{CT,PK,CTX} over abstract Decaps, reducing to CR(SHA3)"* — do NOT imply it proves a
+  property *about ML-KEM's* decapsulation, or that CR(SHA3) / IND-CCA2 / impl-linkage are results.
 - **Do NOT** claim a live exploited exposure in any deployed stack — the ecosystem has converged
   on seed-dk; the key-format hazard is a *latent design coupling we surface*, not a CVE.
 - **Do NOT** claim any X-BIND-CT-* notion (structurally unachievable for implicitly-rejecting KEMs).
@@ -201,7 +203,8 @@ realized object is byte-identical across substrates).
 - Formal PQ verification: formosa-mlkem (ML-KEM IND-CCA); SandboxAQ EasyCrypt-KEMs (LEAK-BIND-K-PK).
 
 ### §8 Limitations & honest scope (do not bury — TDSC rewards candor)
-- EasyCrypt: implicit-rejection specialization; abstract Decaps (no FIPS-203 linkage; ss inert);
+- EasyCrypt: full CDM Figure 6 (both rejection styles) but over **abstract Decaps** — no FIPS-203
+  linkage, ss fields inert in the binding argument (proves nothing *about* ML-KEM's decaps);
   CR(SHA3) assumed; IND-CCA2 on paper; no spec↔impl linkage.
 - Binary-CT: only x86-64 + aarch64 have mature tooling; riscv64/wasm32 are source-CT + attestation.
 - Conformance ≠ certification (ACVP byte-identity is not CMVP).
@@ -220,7 +223,7 @@ realized object is byte-identical across substrates).
 
 | # | Claim (as stated) | Evidence / artifact | Verified |
 |---|---|---|---|
-| C1a | MAL-BIND-K-{CT,PK,CTX} ≤ CR(SHA3), encode_inj proved, KEM-aware game (implicit-rejection, abstract Decaps) | `formal/easycrypt/BindingViaCR.ec` (`malbind_*_le_cr`); `easycrypt compile` exit 0; negative controls | ✔ this session (a5b9159) |
+| C1a | MAL-BIND-K-{CT,PK,CTX} ≤ CR(SHA3); encode_inj proved; **full CDM Figure 6** game (implicit + explicit rejection, K≠⊥ load-bearing), over abstract Decaps | `formal/easycrypt/BindingViaCR.ec` (`malbind_*_le_cr`, `malbind_*_xrej_le_cr`); `easycrypt compile` exit 0; negative controls (incl. K≠⊥) | ✔ this session (a5b9159, 65f4328) |
 | C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | ✔ (prior commits) |
 | C2b | byte-identical across 5 faces / 3 OS / 5 ISA | shared-vector tests; Windows-MSVC local; cbindgen C-ABI | ✔ local (CI configured) |
 | C3a | source→binary CT: ML-KEM 0 / HQC 193 (discriminator) | `ctstats/ct_decaps_gap`, `ct_hqc_gap`; `ct-gap-probe.sh` | ✔ aarch64 (e525bef) |
@@ -243,9 +246,10 @@ realized object is byte-identical across substrates).
 ---
 
 ## 8. Open author decisions (flag to 李子昂)
-- Title choice (§1).
-- Whether to add the rustls X25519MLKEM768 **baseline** to the netem evaluation (recommended — it
-  turns "combiner-neutral" into a quantified PQ-overhead story).
-- Whether to invest in the **faithful explicit-rejection** EasyCrypt encoding (closes one §8
-  limitation; MED effort) before submission or list it as future work.
-- Camera-ready netem numbers must be re-run on a quiesced bare-metal Linux host.
+- ~~Title choice~~ — **LOCKED** (§1, "Proof-to-Byte…").
+- ~~Faithful explicit-rejection EasyCrypt encoding~~ — **DONE** (full CDM Figure 6 mechanized,
+  `malbind_*_xrej_le_cr`, commit 65f4328).
+- **In progress:** add the rustls X25519MLKEM768 **baseline** to the netem evaluation (turns
+  "combiner-neutral" into a quantified PQ-overhead story).
+- **Pending:** camera-ready netem numbers re-run on a quiesced bare-metal Linux host (current
+  numbers are from a busy VM — methodology-demo only).
