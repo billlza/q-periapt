@@ -6,17 +6,24 @@
  * MAL-BIND-K-PK and the context extension MAL-BIND-K-CTX).
  *
  * STATUS: MACHINE-CHECKED. `easycrypt BindingViaCR.ec` succeeds; reproduce with
- *   `make check`. The theorem `bind_le_cr` is verified, reducing ONLY to
- *   collision-resistance of H.
+ *   `make check`. The generic reduction `bind_le_cr` AND its three instantiated
+ *   corollaries `bind_le_cr_kct` / `bind_le_cr_kpk` / `bind_le_cr_kctx` (concrete
+ *   ciphertext / public-key / context projections) are verified, each reducing
+ *   ONLY to collision-resistance of H. `encode_inj` (injective encoding) is a
+ *   PROVED LEMMA, not an axiom; the proof bottoms out at two ELEMENTARY facts about
+ *   an 8-byte big-endian length field (`be8_size`, `be8_inj`).
  *
- *   The canonical encoding is now CONCRETE (length-prefixed field concatenation)
- *   and its injectivity `encode_inj` is a PROVED LEMMA — it is no longer assumed.
- *   The proof bottoms out at two ELEMENTARY, self-evident facts about an 8-byte
- *   big-endian length field (`be8_size`, `be8_inj`: it is 8 bytes wide and
- *   injective), instead of the previous single opaque `encode_inj` axiom. Honest
- *   residual scope (docs/BINDING_SECURITY.md §5/§6): H's CR is a modeling
- *   assumption, IND-CCA2 robustness is argued on paper (not mechanized), and there
- *   is no spec<->implementation linkage proof.
+ *   HONEST SCOPE — read before citing as "machine-checked MAL-BIND-K-CT":
+ *   - This is modeled at the **transcript-collision** level. `combine` is a TOTAL
+ *     function abstracting the component KEM; there is NO explicit KeyGen / Encaps /
+ *     Decaps / implicit-rejection ⊥. The MAL adversary's power is captured by
+ *     letting it output two arbitrary transcripts. A FAITHFUL CDM KEM-game
+ *     instantiation (adversary-supplied keypairs, Decaps, the K≠⊥ win condition) is
+ *     argued ON PAPER (docs/BINDING_SECURITY.md §4.3), NOT yet mechanized. So the
+ *     honest claim is "machine-checked CR-based binding reduction, instantiated to
+ *     K-CT/K-PK/K-CTX," not "machine-checked CDM MAL-BIND-K-CT game."
+ *   - H's CR is a modeling assumption; IND-CCA2 robustness is on paper; there is no
+ *     spec<->implementation linkage proof (docs/BINDING_SECURITY.md §5/§6).
  * =========================================================================== *)
 
 require import AllCore List.
@@ -24,8 +31,10 @@ require import AllCore List.
 (* ---- Concrete byte / transcript model ------------------------------------ *)
 type bytes = int list.   (* a byte string (each entry a byte value)           *)
 type key.                (* the 32-byte combined shared secret                *)
-type obs.                (* an OBSERVABLE projection of a transcript: the
-                            ciphertext (K-CT), public key (K-PK), or context   *)
+type obs = bytes list.   (* an OBSERVABLE projection of a transcript: the
+                            ciphertext (K-CT), public key (K-PK), or context.
+                            Concrete (a list of the projected fields) so the
+                            named corollaries below are CHECKED instantiations. *)
 
 (* A fixed-width 8-byte big-endian length prefix, modeled by its two ELEMENTARY
    properties: a fixed-width BE integer field is 8 bytes wide and injective.
@@ -154,16 +163,81 @@ proof.
   smt(encode_inj combine_def).
 qed.
 
-(* ---- Named corollaries (instantiate `proj`) ------------------------------ *
- * With `proj` := the ciphertext projection, `bind_le_cr` is exactly
- *   MAL-BIND-K-CT:  Adv^{MAL-BIND-K-CT}(A) <= Adv^{CR}(H).
- * With `proj` := the public-key projection, it is MAL-BIND-K-PK.
- * With `proj` := the context projection, it is the lattice extension
- *   MAL-BIND-K-CTX (a superset guarantee, NOT a standard X-BIND lattice point —
- *   see docs/BINDING_SECURITY.md §3.6 and the well-posedness caveat in §6).
- *
- * NB (honest scope, §5.2): this establishes the K-binds-{CT,PK,CTX} direction
- * only. X-BIND-CT-* is structurally UNACHIEVABLE for an implicitly-rejecting KEM
- * and is NOT claimed here. IND-CCA2 robustness is argued on paper (§4.3), not
- * mechanized.
+(* ---- Named corollaries: CONCRETE projections, DISCHARGED ----------------- *
+ * The transcript is the ContextBound field list in canonical order:
+ *   0 LABEL, 1 suite_id, 2 policy_version, 3 ss_pq, 4 ss_trad,
+ *   5 ct_pq, 6 pk_pq, 7 ct_trad, 8 pk_trad, 9 context.
+ * We instantiate the observable to each standard binding axis and DISCHARGE the
+ * matching reduction, so K-CT / K-PK / K-CTX are machine-checked corollaries —
+ * not merely the generic `bind_le_cr` over an abstract `proj`. *)
+
+op proj_ct  (t : transcript) : obs = [nth [] t 5; nth [] t 7].  (* ct_pq , ct_trad *)
+op proj_pk  (t : transcript) : obs = [nth [] t 6; nth [] t 8].  (* pk_pq , pk_trad *)
+op proj_ctx (t : transcript) : obs = [nth [] t 9].              (* context         *)
+
+(* A differing observable forces differing transcripts (any projection is a
+   function, so equal transcripts project equally). *)
+lemma neq_proj_neq (p : transcript -> obs) (t0 t1 : transcript) :
+  p t0 <> p t1 => t0 <> t1.
+proof. by apply: contra => ->. qed.
+
+module BindCT (A : BindAdv) = {
+  proc main() : bool = {
+    var t0 : transcript; var t1 : transcript;
+    (t0, t1) <@ A.find();
+    return combine t0 = combine t1 /\ proj_ct t0 <> proj_ct t1;
+  }
+}.
+module BindPK (A : BindAdv) = {
+  proc main() : bool = {
+    var t0 : transcript; var t1 : transcript;
+    (t0, t1) <@ A.find();
+    return combine t0 = combine t1 /\ proj_pk t0 <> proj_pk t1;
+  }
+}.
+module BindCTX (A : BindAdv) = {
+  proc main() : bool = {
+    var t0 : transcript; var t1 : transcript;
+    (t0, t1) <@ A.find();
+    return combine t0 = combine t1 /\ proj_ctx t0 <> proj_ctx t1;
+  }
+}.
+
+(* MAL-BIND-K-CT: a ciphertext-disagreeing key-collision yields an H-collision. *)
+lemma bind_le_cr_kct (A <: BindAdv) &m :
+  Pr[BindCT(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline B(A).find. wp. call (_ : true). auto => />.
+smt(encode_inj combine_def neq_proj_neq).
+qed.
+
+(* MAL-BIND-K-PK: a public-key-disagreeing key-collision yields an H-collision. *)
+lemma bind_le_cr_kpk (A <: BindAdv) &m :
+  Pr[BindPK(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline B(A).find. wp. call (_ : true). auto => />.
+smt(encode_inj combine_def neq_proj_neq).
+qed.
+
+(* MAL-BIND-K-CTX: the context extension (superset guarantee, NOT a standard
+   X-BIND lattice point — see docs/BINDING_SECURITY.md §3.6 + §6 well-posedness). *)
+lemma bind_le_cr_kctx (A <: BindAdv) &m :
+  Pr[BindCTX(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].
+proof.
+byequiv (_ : ={glob A} ==> res{1} => res{2}) => //.
+proc; inline B(A).find. wp. call (_ : true). auto => />.
+smt(encode_inj combine_def neq_proj_neq).
+qed.
+
+(* ---- Honest scope ---------------------------------------------------------- *
+ * (1) This is modeled at the TRANSCRIPT-COLLISION level: `combine` is a total
+ *     function, abstracting the component KEM — there is no explicit Encaps/Decaps
+ *     or implicit-rejection ⊥ here. The MAL adversary's power is captured by
+ *     letting it output two arbitrary transcripts; a faithful CDM KEM-game
+ *     instantiation (keypairs + Decaps + the K≠⊥ condition) is argued on paper
+ *     (docs/BINDING_SECURITY.md §4.3), not yet mechanized.
+ * (2) Establishes the K-binds-{CT,PK,CTX} direction only. X-BIND-CT-* is
+ *     structurally UNACHIEVABLE for an implicitly-rejecting KEM and is NOT claimed.
  * ------------------------------------------------------------------------- *)

@@ -1,13 +1,25 @@
 # Binding Security of the ContextBound PQ/T Hybrid KEM
 
-> **Status:** specification + proof. The core binding theorem (`bind_le_cr`:
-> `Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`, instantiating to MAL-BIND-K-CT/K-PK/K-CTX) is
-> **machine-checked in EasyCrypt** — see [`formal/easycrypt/BindingViaCR.ec`](../formal/easycrypt/BindingViaCR.ec)
-> (`make check`). `encode_inj` (injectivity of the canonical encoding) is now a
-> **proved lemma** — no longer an axiom; the proof bottoms out only at two
-> elementary facts about an 8-byte big-endian length field (fixed width + injective).
-> H's collision-resistance and the on-paper IND-CCA2 argument remain as scoped below
-> (§4–§6).
+> **Status:** specification + proof. The core binding reduction (`bind_le_cr`:
+> `Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`) **and its three concrete corollaries**
+> `bind_le_cr_kct` / `bind_le_cr_kpk` / `bind_le_cr_kctx` (ciphertext / public-key /
+> context projections, instantiated and discharged) are **machine-checked in
+> EasyCrypt** — see [`formal/easycrypt/BindingViaCR.ec`](../formal/easycrypt/BindingViaCR.ec)
+> (`make check`). `encode_inj` (injectivity of the canonical encoding) is a **proved
+> lemma** — not an axiom; it bottoms out at two elementary facts about an 8-byte
+> big-endian length field (fixed width + injective).
+>
+> **Scope of the machine-checked claim (read before citing).** The mechanized
+> artifact establishes the binding reduction at the **transcript-collision** level:
+> the combiner is a *total* function abstracting the component KEM, with the MAL
+> adversary modeled as outputting two arbitrary transcripts — there is **no explicit
+> KeyGen / Encaps / Decaps / implicit-rejection ⊥** in the EasyCrypt game. So the
+> honest phrasing is *"machine-checked CR-based binding reduction, instantiated to
+> K-CT/K-PK/K-CTX,"* **not** *"machine-checked CDM MAL-BIND-K-CT game."* A faithful
+> CDM KEM-game instantiation (adversary-supplied keypairs + Decaps + the `K≠⊥`
+> condition) is argued **on paper** (§4.3), not yet mechanized — it is the main
+> remaining formal-verification gap. H's collision-resistance and the IND-CCA2
+> argument remain as scoped below (§4–§6).
 > **Scope:** binding/committing security of the ContextBound combiner. IND-CCA2 robustness is summarized but is *not* the load-bearing contribution; the binding half is.
 > **Trust base (read this first):** every theorem below is at the **abstract-spec level**, models **SHA3-256 / SHAKE256 as collision-resistant (and, for the KDF, as a PRF / random oracle)**, and is **not** linked to a verified implementation. "No binding assumption on the component KEMs" means exactly that — *no* assumption on ML-KEM or X25519 — and **nothing more**; it is **not** an information-theoretic ("unconditional") guarantee. We trade a KEM-self-binding assumption for a SHA3 collision-resistance assumption.
 
