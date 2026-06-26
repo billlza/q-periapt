@@ -153,9 +153,9 @@ same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph
 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
 1 more, verified by a six-method conformance matrix.
 \item \textbf{C3 (\cref{sec:assurance}).} Reproducible assurance \emph{instruments} wired into CI
-(hard-gated where the check is stable, e.g. the no-\code{admit} grep and the constant-time/regression
-oracles; proof-\emph{checker} and prover \emph{execution} are best-effort, stated precisely in
-\cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
+(the EasyCrypt binding proof is re-checked as a \emph{hermetic hard gate} in a pinned container, as
+are the constant-time/regression oracles; the Tamarin/ProVerif prover \emph{execution} is best-effort,
+stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
 \emph{discriminates} clean (ML-KEM) from leaky (HQC) (HQC's leak is known; the contribution is the
 discriminating, gated oracle); an executable \emph{regression oracle} for the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements honestly as
@@ -628,10 +628,12 @@ adversary compromise either KEM or reveal the signing key; it proves executabili
 authentication, and---the headline lemma---\emph{hybrid robustness}: under an honest server identity
 the session key remains secret unless \emph{both} KEMs are broken. A ProVerif model establishes the
 analogous queries under a different abstraction (the classical leg as a second idealized KEM), giving
-an independent cross-check. All three formal artifacts run in CI: the EasyCrypt no-\code{admit}/\code{sorry} check is an
-always-on hard gate, while the \code{make check} machine-check and the Tamarin/ProVerif
-\code{make prove} runs gate conditionally on a successful (best-effort) toolchain install, with
-checker and solver versions pinned in the artifact.
+an independent cross-check. The EasyCrypt binding proof is a \emph{hermetic hard CI gate}: a pinned
+EasyCrypt container (\code{formal/Dockerfile}, EC~r2026.06) re-checks \code{BindingViaCR.ec} and the
+deleted-hypothesis necessity controls on every run, and CI fails if either stops holding (the
+no-\code{admit}/\code{sorry} grep is an additional always-on gate). The Tamarin and ProVerif models
+are gated on lemma/query \emph{presence} (hard), with the full \code{make prove} run on a best-effort
+toolchain install; all checker and solver versions are pinned in the artifact.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
 

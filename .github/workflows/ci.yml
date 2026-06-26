@@ -290,23 +290,32 @@ jobs:
       - uses: actions/checkout@v4
       - name: No admits/sorry in the mechanized proofs (hard gate)
         run: "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/"
-      - name: Install Z3 + EasyCrypt (best-effort)
-        id: ec
-        continue-on-error: true
+      # The FULL proof re-check (easycrypt BindingViaCR.ec + the deleted-hypothesis necessity
+      # controls) now runs as a HARD GATE in the `formal-hermetic` job below, inside a pinned
+      # EasyCrypt container (formal/Dockerfile) — no more best-effort, continue-on-error install.
+
+  # Hermetic EasyCrypt proof check (HARD GATE). Builds the pinned EasyCrypt r2026.06 image
+  # (formal/Dockerfile, layer-cached) and re-runs the binding proof + necessity controls in it. If
+  # the proof stops checking, or a deleted-hypothesis control stops breaking its proof, CI FAILS —
+  # this is the real machine-check gate, not a best-effort install.
+  formal-hermetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the pinned EasyCrypt image (layer-cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: formal/Dockerfile
+          tags: q-periapt-ec:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Machine-check the binding proof + necessity controls (HARD GATE)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y opam z3 libgmp-dev libpcre2-dev
-          opam init -y --disable-sandboxing --compiler=5.4.1
-          opam install -y easycrypt
-          opam exec -- easycrypt why3config
-      - name: Machine-check the binding proof (make check)
-        if: steps.ec.outcome == 'success'
-        continue-on-error: true
-        run: opam exec -- make -C formal/easycrypt check
-      - name: Separation-map necessity (deleted-hypothesis negative controls)
-        if: steps.ec.outcome == 'success'
-        continue-on-error: true
-        run: opam exec -- sh formal/easycrypt/negative-controls.sh
+          docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/work" q-periapt-ec:ci \
+            opam exec -- sh -c 'cd /work && rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
 
   # Symbolic handshake proof. The lemma-presence check is a reliable HARD GATE
   # (catches a lemma being deleted/stubbed out); the full Tamarin machine-check

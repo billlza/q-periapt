@@ -30,6 +30,20 @@ not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
 make check   # runs `easycrypt BindingViaCR.ec`  (install EasyCrypt via opam first)
 ```
 
+### Hermetic check (the CI hard gate)
+
+CI does **not** rely on a best-effort opam install. The [`formal/Dockerfile`](../Dockerfile) pins the
+exact EasyCrypt the proofs check under (`r2026.06`, commit `50ae51d`) plus Why3 + Z3 + Alt-Ergo, and
+the `formal-hermetic` CI job re-runs the proof **and** the necessity controls inside it as a **hard
+gate** — if `BindingViaCR.ec` stops checking, or a deleted-hypothesis control stops breaking its
+proof, CI fails. Reproduce it locally:
+
+```sh
+docker build -f formal/Dockerfile -t q-periapt-ec .
+docker run --rm -v "$PWD/formal/easycrypt:/work" q-periapt-ec \
+    opam exec -- sh -c 'rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+```
+
 ## Tool
 
 **EasyCrypt** — the only viable choice: the reusable ecosystem is all in EasyCrypt.

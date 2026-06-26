@@ -1,0 +1,9 @@
+# The formal/Dockerfile COPYs nothing from the build context (it builds EasyCrypt from a pinned git
+# ref and mounts the proof at run time), so keep the context tiny — never ship the Rust build dir.
+target
+**/target
+.git
+node_modules
+bindings/swift/.build
+bindings/kotlin/build
+*.pdf
