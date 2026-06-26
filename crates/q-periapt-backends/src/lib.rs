@@ -287,8 +287,9 @@ impl Drop for Sha3_256Xof {
         // The inline buffer and heap spill stage raw component shared secrets absorbed
         // into the combiner; wipe both (the spill's live allocation included) before the
         // storage is released, mirroring `core::Secret`'s volatile wipe — otherwise the
-        // same key material `Secret::drop` protects would persist here. (Intermediate
-        // reallocations while the spill grows are a residual the Vec API can't reach.)
+        // same key material `Secret::drop` protects would persist here. The combiner pre-reserves
+        // the whole transcript via `Xof256::reserve`, so the spill allocates once and does not
+        // reallocate mid-absorb — there is no freed, un-zeroizable intermediate buffer to leak.
         q_periapt_core::secure_wipe(&mut self.inline);
         q_periapt_core::secure_wipe(self.spill.as_mut_slice());
         self.len = 0;
@@ -307,6 +308,16 @@ impl Xof256 for Sha3_256Xof {
             inline: [0u8; SHA3_XOF_INLINE_CAP],
             len: 0,
             spill: Vec::new(),
+        }
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        // Allocate the heap spill once for the whole transcript so later `absorb`s never reallocate
+        // and leak a secret-bearing buffer (the migration path moves the inline-staged bytes into
+        // the spill, so its final length is the full transcript). `reserve_exact` over the inline
+        // capacity is harmless; ContextBound transcripts always exceed it.
+        if additional > self.spill.len() {
+            self.spill.reserve_exact(additional - self.spill.len());
         }
     }
 

@@ -117,6 +117,11 @@ pub fn secure_wipe(buf: &mut [u8]) {
 pub trait Xof256 {
     /// Create a fresh, empty absorbing state.
     fn new() -> Self;
+    /// Hint that `additional` bytes will be absorbed, so a staging implementation can allocate its
+    /// buffer **once** up front and never reallocate mid-absorb. This matters for secret hygiene: a
+    /// reallocation while absorbing secret material would free the old buffer without zeroizing it,
+    /// leaving an unreachable copy. Default: no-op (for impls that never stage secrets).
+    fn reserve(&mut self, _additional: usize) {}
     /// Absorb a chunk of input.
     fn absorb(&mut self, data: &[u8]);
     /// Finalize and squeeze exactly 32 output bytes.
@@ -336,6 +341,20 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
             if input.context.is_empty() {
                 return Err(Error::InvalidLength);
             }
+            // Pre-reserve the whole length-prefixed transcript so a staging XOF allocates once and
+            // never reallocates mid-absorb (no un-zeroizable secret residue). Each field costs its
+            // 8-byte BE length prefix plus its body.
+            let total = (8 + DOMAIN.len())
+                + (8 + input.suite_id.len())
+                + (8 + core::mem::size_of::<u32>())
+                + (8 + input.ss_pq.len())
+                + (8 + input.ss_trad.len())
+                + (8 + input.ct_pq.len())
+                + (8 + input.pk_pq.len())
+                + (8 + input.ct_trad.len())
+                + (8 + input.pk_trad.len())
+                + (8 + input.context.len());
+            x.reserve(total);
             absorb_lp(&mut x, DOMAIN);
             absorb_lp(&mut x, input.suite_id);
             absorb_lp(&mut x, &input.policy_version.to_be_bytes());
