@@ -24,6 +24,11 @@ fn profile(code: u8) -> Result<Profile, JsError> {
     Profile::from_u8(code).ok_or_else(|| JsError::new("invalid profile code"))
 }
 
+/// The only suite the fixed WASM hybrid API implements. The combiner binds `suite_id`, so
+/// `encapsulate`/`decapsulate` reject any other value: a caller must not bind false agility
+/// metadata (e.g. claim `ML-KEM-1024`) into a key actually derived from ML-KEM-768 + X25519.
+const WASM_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
+
 /// Derive a combined secret directly from the serialized combiner inputs — the
 /// cross-platform reference-vector entry point. `input` is the nine fields, each
 /// 8-byte big-endian length-prefixed (suite_id, policy_version as 4-byte BE, ss_pq,
@@ -45,6 +50,9 @@ pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
 /// engine into the WASM face: a caller loads a signed policy once, then passes the returned code
 /// to [`encapsulate`]/[`decapsulate`] instead of hard-coding a profile. Fail-closed — an
 /// unauthenticated, weak-signer, or rolled-back policy is rejected (see `q_periapt_policy`).
+/// Rollback is enforced against `last_trusted_version`: a validly-signed policy whose
+/// `policy_version` is older than that is refused (pass `0` on first load; persist the accepted
+/// version and pass it back thereafter).
 ///
 /// Behind the off-by-default `signed-policy` cargo feature: it links an ML-DSA verifier, which
 /// roughly quadruples the module, so the lean default build ships without it.
@@ -54,9 +62,19 @@ pub fn profile_from_signed_policy(
     toml: &[u8],
     signature: &[u8],
     verification_key: &[u8],
+    last_trusted_version: u32,
 ) -> Result<u8, JsError> {
-    let policy = Policy::load_signed(&MlDsa65, verification_key, toml, signature)
-        .map_err(|e| JsError::new(&format!("policy rejected: {e}")))?;
+    // load_signed_monotonic (not load_signed) so a validly-signed but OLDER policy_version than
+    // `last_trusted_version` is refused as a rollback — the documented fail-closed behaviour. Pass
+    // 0 on first load; persist the accepted policy_version and pass it back thereafter.
+    let policy = Policy::load_signed_monotonic(
+        &MlDsa65,
+        verification_key,
+        toml,
+        signature,
+        last_trusted_version,
+    )
+    .map_err(|e| JsError::new(&format!("policy rejected: {e}")))?;
     Ok(policy.select_profile().to_u8())
 }
 
@@ -162,6 +180,11 @@ pub fn encapsulate(
     rand_trad: &[u8],
 ) -> Result<EncapResult, JsError> {
     let prof = profile(profile_code)?;
+    if suite_id != WASM_SUITE_ID {
+        return Err(JsError::new(
+            "suite_id does not match this build (ML-KEM-768+X25519)",
+        ));
+    }
     let (pq, trad) = (MlKem768, X25519);
     let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
         .map_err(|_| JsError::new("policy denied"))?;
@@ -201,6 +224,11 @@ pub fn decapsulate(
     context: &[u8],
 ) -> Result<Vec<u8>, JsError> {
     let prof = profile(profile_code)?;
+    if suite_id != WASM_SUITE_ID {
+        return Err(JsError::new(
+            "suite_id does not match this build (ML-KEM-768+X25519)",
+        ));
+    }
     let (pq, trad) = (MlKem768, X25519);
     let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
         .map_err(|_| JsError::new("policy denied"))?;
@@ -356,7 +384,7 @@ mod tests {
         let n = MlDsa65
             .sign(&sk, policy_toml.as_bytes(), &[0u8; 32], &mut sig)
             .unwrap();
-        let code = profile_from_signed_policy(policy_toml.as_bytes(), &sig[..n], &vk).unwrap();
+        let code = profile_from_signed_policy(policy_toml.as_bytes(), &sig[..n], &vk, 0).unwrap();
         assert_eq!(code, 1, "CompatXWing policy must select profile code 1");
     }
 

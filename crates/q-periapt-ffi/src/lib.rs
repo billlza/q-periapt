@@ -52,6 +52,11 @@ pub const Q_PERIAPT_PROFILE_COMPAT_XWING: u8 = 1;
 /// `profile = 2`: context-bound combiner.
 pub const Q_PERIAPT_PROFILE_CONTEXT_BOUND: u8 = 2;
 
+/// The only suite this fixed C ABI implements. The combiner binds `suite_id`, so encapsulate /
+/// decapsulate **reject** any other value: a caller must not bind false agility metadata (e.g.
+/// claim `ML-KEM-1024`) into a key that this build actually derives from ML-KEM-768 + X25519.
+pub const Q_PERIAPT_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
+
 // Literal values (so cbindgen emits numeric #defines for C), with compile-time
 // assertions that they match the backend — they cannot silently drift.
 /// ML-KEM-768 secret-key length, bytes.
@@ -116,7 +121,9 @@ fn profile_from(p: u8) -> Option<Profile> {
 /// [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`]). This threads the policy engine into the C ABI: load a
 /// signed policy once, then pass the returned code to encapsulate/decapsulate instead of
 /// hard-coding a profile. **Fail-closed:** an unauthenticated, weak-signer, or rolled-back policy
-/// yields [`Q_PERIAPT_ERR_POLICY`].
+/// yields [`Q_PERIAPT_ERR_POLICY`]. Rollback is enforced against `last_trusted_version`: a
+/// validly-signed policy whose `policy_version` is *older* than that is refused (pass `0` to accept
+/// any version on first load; persist the accepted `policy_version` and pass it back thereafter).
 ///
 /// # Safety
 /// `toml`/`signature`/`vk` must be readable for their lengths; `out_profile` writable for
@@ -130,6 +137,7 @@ pub unsafe extern "C" fn q_periapt_profile_from_signed_policy(
     signature_len: usize,
     vk: *const u8,
     vk_len: usize,
+    last_trusted_version: u32,
     out_profile: *mut u8,
     out_profile_len: usize,
 ) -> i32 {
@@ -145,7 +153,9 @@ pub unsafe extern "C" fn q_periapt_profile_from_signed_policy(
         if out.len() != 1 {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        match Policy::load_signed(&MlDsa65, vk, toml, sig) {
+        // load_signed_monotonic (not load_signed) so a validly-signed but OLDER policy_version than
+        // `last_trusted_version` is refused as a rollback — the documented fail-closed behaviour.
+        match Policy::load_signed_monotonic(&MlDsa65, vk, toml, sig, last_trusted_version) {
             Ok(policy) => {
                 out.copy_from_slice(&[policy.select_profile().to_u8()]);
                 Q_PERIAPT_OK
@@ -300,6 +310,11 @@ pub unsafe extern "C" fn q_periapt_hybrid_encapsulate(
         if secret_o.len() != Q_PERIAPT_SECRET_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
+        if suite != Q_PERIAPT_SUITE_ID {
+            // This fixed ABI is ML-KEM-768 + X25519; reject a caller claiming any other suite so a
+            // mismatched suite_id cannot be bound into the key as false agility metadata.
+            return Q_PERIAPT_ERR_POLICY;
+        }
         let (pq, trad) = (MlKem768, X25519);
         let kem =
             match HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version) {
@@ -382,6 +397,10 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
         if secret_o.len() != Q_PERIAPT_SECRET_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
+        if suite != Q_PERIAPT_SUITE_ID {
+            // Fixed ML-KEM-768 + X25519 ABI: reject a mismatched suite_id (see encapsulate).
+            return Q_PERIAPT_ERR_POLICY;
+        }
         let (pq, trad) = (MlKem768, X25519);
         let kem =
             match HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version) {
@@ -451,11 +470,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn profile_from_signed_policy_returns_selected_code() {
+    fn profile_from_signed_policy_returns_selected_code_and_blocks_rollback() {
         use q_periapt_backends::ML_DSA_65_SIG_LEN;
         use q_periapt_sig::Signer;
-        // A signed floor-3 / ContextBound policy must thread through to the ContextBound code.
-        let policy_toml = "schema_version = 1\nmin_nist_level = 3\n\
+        // A signed floor-3 / ContextBound policy at policy_version 2.
+        let policy_toml = "schema_version = 1\npolicy_version = 2\nmin_nist_level = 3\n\
             default_profile = \"ContextBound\"\n\
             allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
             allowed_sigs = [\"ML-DSA-65\"]\n";
@@ -465,40 +484,92 @@ mod tests {
             .sign(&sk, policy_toml.as_bytes(), &[0u8; 32], &mut sig)
             .unwrap();
         let mut prof = [0u8; 1];
-        unsafe {
-            assert_eq!(
+        let prof_ptr = prof.as_mut_ptr();
+        let run = |sig_ptr: *const u8, last_trusted: u32| -> i32 {
+            unsafe {
                 q_periapt_profile_from_signed_policy(
                     policy_toml.as_ptr(),
                     policy_toml.len(),
-                    sig.as_ptr(),
+                    sig_ptr,
                     n,
                     vk.as_ptr(),
                     vk.len(),
-                    prof.as_mut_ptr(),
+                    last_trusted,
+                    prof_ptr,
                     1,
-                ),
-                Q_PERIAPT_OK
-            );
-        }
+                )
+            }
+        };
+        // version 2 >= last-trusted 2 -> accepted, selects ContextBound.
+        assert_eq!(run(sig.as_ptr(), 2), Q_PERIAPT_OK);
         assert_eq!(prof[0], Q_PERIAPT_PROFILE_CONTEXT_BOUND);
-
-        // A tampered signature is rejected fail-closed with the policy error code.
+        // version 2 < last-trusted 3 -> ROLLBACK, refused (this is the doc'd fail-closed behaviour
+        // that load_signed alone did NOT enforce).
+        assert_eq!(run(sig.as_ptr(), 3), Q_PERIAPT_ERR_POLICY);
+        // tampered signature -> refused.
         let mut bad = sig;
         bad[0] ^= 1;
+        assert_eq!(run(bad.as_ptr(), 0), Q_PERIAPT_ERR_POLICY);
+    }
+
+    #[test]
+    fn hybrid_encapsulate_rejects_forged_suite_id() {
+        // The fixed ML-KEM-768+X25519 ABI must refuse a caller claiming a different suite, so a
+        // mismatched suite_id cannot be bound into the key as false agility metadata.
+        let (mut sk_pq, mut pk_pq) = (
+            [0u8; Q_PERIAPT_MLKEM768_SK_LEN],
+            [0u8; Q_PERIAPT_MLKEM768_PK_LEN],
+        );
+        let seed = [3u8; 64];
+        let (mut sk_t, mut pk_t) = ([0u8; 32], [0u8; 32]);
+        let xs = [4u8; 32];
+        let (mut ct_pq, mut ct_t, mut secret) =
+            ([0u8; Q_PERIAPT_MLKEM768_CT_LEN], [0u8; 32], [0u8; 32]);
         unsafe {
-            assert_eq!(
-                q_periapt_profile_from_signed_policy(
-                    policy_toml.as_ptr(),
-                    policy_toml.len(),
-                    bad.as_ptr(),
-                    n,
-                    vk.as_ptr(),
-                    vk.len(),
-                    prof.as_mut_ptr(),
-                    1,
-                ),
-                Q_PERIAPT_ERR_POLICY
+            q_periapt_mlkem768_keypair(
+                seed.as_ptr(),
+                64,
+                sk_pq.as_mut_ptr(),
+                sk_pq.len(),
+                pk_pq.as_mut_ptr(),
+                pk_pq.len(),
             );
+            q_periapt_x25519_keypair(
+                xs.as_ptr(),
+                32,
+                sk_t.as_mut_ptr(),
+                32,
+                pk_t.as_mut_ptr(),
+                32,
+            );
+            let forged = b"ML-KEM-1024+X25519"; // a stronger suite this build does NOT implement
+            let rc = q_periapt_hybrid_encapsulate(
+                Q_PERIAPT_PROFILE_CONTEXT_BOUND,
+                forged.as_ptr(),
+                forged.len(),
+                1,
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                pk_t.as_ptr(),
+                32,
+                b"ctx".as_ptr(),
+                3,
+                [0u8; 32].as_ptr(),
+                32,
+                [2u8; 32].as_ptr(),
+                32,
+                ct_pq.as_mut_ptr(),
+                ct_pq.len(),
+                ct_t.as_mut_ptr(),
+                32,
+                secret.as_mut_ptr(),
+                32,
+            );
+            assert_eq!(
+                rc, Q_PERIAPT_ERR_POLICY,
+                "forged suite_id must be rejected, not keyed"
+            );
+            assert_eq!(secret, [0u8; 32], "no key material on the rejected path");
         }
     }
 

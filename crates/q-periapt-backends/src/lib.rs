@@ -241,6 +241,11 @@ impl Kem for X25519 {
         let peer = PublicKey::from(to_arr::<X25519_LEN>(pk)?);
         let eph_pub = PublicKey::from(&eph);
         let shared = eph.diffie_hellman(&peer);
+        // Reject a low-order / non-contributory peer key (all-zero shared secret). The hybrid would
+        // still be safe via ML-KEM, but a zero classical leg must never key — defense-in-depth.
+        if !shared.was_contributory() {
+            return Err(Error::Backend);
+        }
         write_exact(ct, eph_pub.as_bytes())?;
         write_exact(ss, shared.as_bytes())
     }
@@ -249,6 +254,9 @@ impl Kem for X25519 {
         let secret = StaticSecret::from(to_arr::<X25519_LEN>(sk)?);
         let eph_pub = PublicKey::from(to_arr::<X25519_LEN>(ct)?);
         let shared = secret.diffie_hellman(&eph_pub);
+        if !shared.was_contributory() {
+            return Err(Error::Backend);
+        }
         write_exact(ss, shared.as_bytes())
     }
 }
@@ -664,6 +672,25 @@ mod tests {
         let mut ss_d = [0u8; 32];
         kem.decapsulate(&sk, &ct, &mut ss_d).unwrap();
         assert_eq!(ss_e, ss_d, "X25519 encaps/decaps must agree");
+    }
+
+    #[test]
+    fn x25519_rejects_low_order_point() {
+        // The all-zero public key is a low-order point: the DH yields an all-zero (non-contributory)
+        // shared secret, which must be rejected rather than keyed.
+        let low_order = [0u8; 32];
+        let (mut ct, mut ss) = ([0u8; 32], [0u8; 32]);
+        assert!(
+            X25519
+                .encapsulate(&low_order, &[5u8; 32], &mut ct, &mut ss)
+                .is_err(),
+            "encaps to a low-order pk must fail"
+        );
+        let (sk, _) = X25519::generate([9u8; 32]);
+        assert!(
+            X25519.decapsulate(&sk, &low_order, &mut ss).is_err(),
+            "decaps of a low-order ct must fail"
+        );
     }
 
     #[test]

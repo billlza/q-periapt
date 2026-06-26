@@ -19,11 +19,6 @@ members = [
     "crates/q-periapt-rustls",
     "ctstats",
 ]
-# Crates scaffolded but not yet implemented (added to `members` as they land):
-#   crates/q-periapt-ffi      — C ABI (cdylib + staticlib, cbindgen header)
-#   crates/q-periapt-wasm     — wasm-bindgen surface
-#   crates/q-periapt-tls-demo — rustls TLS1.3 / QUIC / HPKE integration demo
-#   crates/q-periapt-cli      — migration inventory + CBOM/SBOM generator
 
 [workspace.package]
 version = "0.0.1"

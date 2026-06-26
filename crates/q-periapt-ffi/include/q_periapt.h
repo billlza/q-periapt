@@ -89,7 +89,9 @@
  * [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`]). This threads the policy engine into the C ABI: load a
  * signed policy once, then pass the returned code to encapsulate/decapsulate instead of
  * hard-coding a profile. **Fail-closed:** an unauthenticated, weak-signer, or rolled-back policy
- * yields [`Q_PERIAPT_ERR_POLICY`].
+ * yields [`Q_PERIAPT_ERR_POLICY`]. Rollback is enforced against `last_trusted_version`: a
+ * validly-signed policy whose `policy_version` is *older* than that is refused (pass `0` to accept
+ * any version on first load; persist the accepted `policy_version` and pass it back thereafter).
  *
  * # Safety
  * `toml`/`signature`/`vk` must be readable for their lengths; `out_profile` writable for
@@ -102,6 +104,7 @@ int32_t q_periapt_profile_from_signed_policy(const uint8_t *toml,
                                              uintptr_t signature_len,
                                              const uint8_t *vk,
                                              uintptr_t vk_len,
+                                             uint32_t last_trusted_version,
                                              uint8_t *out_profile,
                                              uintptr_t out_profile_len);
 
