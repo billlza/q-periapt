@@ -7,9 +7,12 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
-  # Retry transient crates.io download failures (HTTP2 framing / curl errors on the runners)
-  # instead of failing the build; the default is 3.
+  # Retry transient crates.io download failures; the default is 3.
   CARGO_NET_RETRY: "10"
+  # Force HTTP/1.1 for registry downloads: cargo's curl hits intermittent "[16] Error in the HTTP2
+  # framing layer" on the runners, which CARGO_NET_RETRY does NOT cover. Disabling multiplexing is
+  # the documented workaround and makes crate fetches deterministic.
+  CARGO_HTTP_MULTIPLEXING: "false"
 
 jobs:
   # Format + lint + unit tests on the host.
