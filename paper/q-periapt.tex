@@ -295,9 +295,12 @@ into the hash. By the combiner-binding theorem of Chempat~\cite{chempat}, the bi
 then bounded by $\mathrm{Adv}^{\mathrm{CR}}$ alone, with no residual term requiring any component
 KEM to be binding---trading a KEM-self-binding assumption for a single, well-studied
 collision-resistance assumption. The dual profile \code{CompatXWing} reproduces X-Wing's lean
-combiner byte-for-byte for interoperability; \code{ContextBound} is the hash-everything profile and
-is policy-selected when an application needs context binding or wishes to avoid the
-serialization-format dependence of \cref{sec:assurance}. The suite is open
+combiner byte-for-byte for interoperability and therefore binds \emph{only}
+$ss_{\mathrm{pq}}\,\|\,ss_{\mathrm{trad}}\,\|\,ct_{\mathrm{trad}}\,\|\,pk_{\mathrm{trad}}$: any
+suite identifier, policy version, or context handed to it is \emph{intentionally ignored} (these are
+bound \emph{exclusively} by \code{ContextBound}, never by \code{CompatXWing}). \code{ContextBound}
+is the hash-everything profile and is policy-selected when an application needs context binding or
+wishes to avoid the serialization-format dependence of \cref{sec:assurance}. The suite is open
 source.\footnote{Anonymized artifact repository provided to reviewers via the editor.}
 
 \begin{algorithm}[t]\small
