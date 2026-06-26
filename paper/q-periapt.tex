@@ -422,10 +422,12 @@ construction from the FIPS-deterministic encodings and identical source. So four
 are \emph{run} and one is cross-compiled---this honest accounting is what makes the cross-substrate
 claim defensible.
 
-\emph{Footprint.} The deployable surface is small: the stripped C-ABI shared library---the
-\emph{entire} suite, including libcrux ML-KEM and ML-DSA---is $441$\,KB; the WebAssembly module is
-$249$\,KB; and the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target, so
-the same proven combiner runs from a server down to an embedded MCU.
+\emph{Footprint.} The deployable surface is small: the stripped C-ABI shared library---the default
+hybrid build (libcrux ML-KEM-768, X25519, and the combiner; the optional signature and HQC backends
+are feature-gated and dead-stripped from this build)---is $441$\,KB; the WebAssembly module is
+$\approx$195\,KB via \code{wasm-pack\ --release} (further reducible with \code{wasm-opt\ -Oz}); and
+the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target, so the same proven
+combiner runs from a server down to an embedded MCU.
 
 \begin{table*}[t]\centering\footnotesize
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.2}
@@ -439,7 +441,7 @@ NIST ACVP & \emph{usnistgov} ACVP, full FIPS family & NIST ground truth & primit
 Multi-backend differential & RustCrypto \code{ml-kem}/\code{ml-dsa}; orion X25519 & independent re-implementations & implementation bugs (output must stay byte-identical) \\
 EasyCrypt proof & machine-checked; CR(SHA3) & formal (computational) & binding-design flaws in the combiner \\
 Cross-platform byte-identity & shared test vector & 5 faces $\times$ substrates & per-substrate divergence (same \K{} everywhere) \\
-Generative property tests & proptest: 7 properties $\times$ 128 cases & randomized & edge-case violations (injectivity, domain separation, K-CTX) \\
+Generative property tests & proptest: 8 properties $\times$ 128 cases & randomized & edge-case violations (injectivity, domain separation, K-CTX) \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -688,9 +690,12 @@ $41.1$\,ms within a $90\,\mu$s spread, and at RTT~$=$~50\,ms within $15\,\mu$s o
 another---the combiner difference is two to three orders of magnitude below the link latency. The
 hybrid's $+2.27$\,KB (one ML-KEM-768 keyshare each way) fits within the existing TLS flights, adds no
 round-trip, and---being one ML-KEM-768 keyshare each way---is byte-identical in wire budget to the
-IANA standard; the \emph{only} substantive difference between Q-Periapt's hybrid and the IANA
-\code{X25519MLKEM768} is the combiner, and that difference is the $\le 25\,\mu$s separating the
-\code{standard} and \code{bound} rows of \cref{tab:baremetal}.
+IANA standard. The two hybrids differ in \emph{two} independent ways, which the table separates: the
+combiner (ContextBound vs.\ concatenation), worth $+8.1\,\mu$s (the \code{bound}$-$\code{compat}
+delta, same ML-KEM implementation), and the ML-KEM implementation itself ($+62\,\mu$s between the
+\code{standard} row, on aws-lc-rs, and the \code{bound} row, on libcrux/ring)---an
+implementation-not-combiner cost we do not optimize and that an aws-lc-rs ContextBound build would
+erase. The binding upgrade ContextBound provides is the $+8.1\,\mu$s, not the $62$.
 
 \begin{table}[t]\centering
 \caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
@@ -1001,7 +1006,7 @@ $95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss 
 \cref{sec:eval}: the median is loss-insensitive, while the tail is governed by a per-loss TCP
 retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
-Footprint: the stripped C-ABI library is $441$\,KB (entire suite), the WebAssembly module $249$\,KB.
+Footprint: the stripped C-ABI library is $441$\,KB (default hybrid build), the WebAssembly module $\approx$195\,KB.
 
 \begin{table}[t]\centering\scriptsize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
