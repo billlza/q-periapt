@@ -61,7 +61,7 @@ mod acvp_slhdsa;
 #[cfg(feature = "hqc")]
 mod hqc;
 #[cfg(feature = "hqc")]
-pub use hqc::{Hqc128, Hqc192, Hqc256};
+pub use hqc::{Hqc128, Hqc192, Hqc256, HqcAsKem};
 
 /// X25519 public-key / secret-key / ciphertext length, bytes.
 pub const X25519_LEN: usize = 32;

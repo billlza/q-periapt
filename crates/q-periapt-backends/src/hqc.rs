@@ -99,6 +99,60 @@ hqc_backend!(Hqc128, hqc128, "HQC-128", 2249, 2305, 4433, 64);
 hqc_backend!(Hqc192, hqc192, "HQC-192", 4522, 4586, 8978, 64);
 hqc_backend!(Hqc256, hqc256, "HQC-256", 7245, 7317, 14421, 64);
 
+/// Domain tag separating the HQC 64→32 secret compression from every other suite hash.
+const HQC_SS_KDF_DOMAIN: &[u8] = b"Q-PERIAPT-HQC-SS-KDF/v1";
+
+/// Adapter that makes an HQC backend usable inside the **hybrid** combiner. HQC's shared
+/// secret is 64 bytes; the suite's combiner consumes 32. `HqcAsKem` performs exactly the
+/// hashing step the module docs require — `ss32 = SHA3-XOF(DOMAIN ‖ ss64)` — so an HQC leg
+/// drops into [`q_periapt_kem::HybridKem`] like any 32-byte KEM. HQC is not ciphertext-
+/// second-preimage-resistant, so this keeps `C2PRI = false`; [`HybridKem::new`] therefore
+/// rejects pairing it with [`q_periapt_core::Profile::CompatXWing`] and confines it to
+/// [`q_periapt_core::Profile::ContextBound`] (which binds every ciphertext).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct HqcAsKem<H>(pub H);
+
+impl<H: Kem> Kem for HqcAsKem<H> {
+    const C2PRI: bool = false;
+
+    fn algorithm(&self) -> &'static str {
+        self.0.algorithm()
+    }
+
+    fn encapsulate(&self, pk: &[u8], rand: &[u8], ct: &mut [u8], ss: &mut [u8]) -> Result<(), Error> {
+        let mut ss64 = [0u8; 64];
+        let out = self
+            .0
+            .encapsulate(pk, rand, ct, &mut ss64)
+            .and_then(|()| hqc_ss_kdf(&ss64, ss));
+        q_periapt_core::secure_wipe(&mut ss64);
+        out
+    }
+
+    fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+        let mut ss64 = [0u8; 64];
+        let out = self
+            .0
+            .decapsulate(sk, ct, &mut ss64)
+            .and_then(|()| hqc_ss_kdf(&ss64, ss));
+        q_periapt_core::secure_wipe(&mut ss64);
+        out
+    }
+}
+
+/// `ss_out = SHA3-XOF(HQC_SS_KDF_DOMAIN ‖ ss64)`; `ss_out` must be exactly 32 bytes. Both the
+/// 64-byte HQC secret (by the caller) and the intermediate digest are wiped.
+fn hqc_ss_kdf(ss64: &[u8], ss_out: &mut [u8]) -> Result<(), Error> {
+    use q_periapt_core::Xof256;
+    let mut x = crate::Sha3_256Xof::new();
+    x.absorb(HQC_SS_KDF_DOMAIN);
+    x.absorb(ss64);
+    let mut digest = x.squeeze32();
+    let r = crate::write_exact(ss_out, &digest);
+    q_periapt_core::secure_wipe(&mut digest);
+    r
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
@@ -116,6 +170,70 @@ mod tests {
         kem.decapsulate(&sk, &ct, &mut ss_d).unwrap();
         assert_eq!(ss_e, ss_d, "HQC encaps/decaps must agree");
         assert_ne!(ss_e, [0u8; Hqc128::SS_LEN]);
+    }
+
+    #[test]
+    fn hqc_as_kem_roundtrips_in_contextbound_hybrid() {
+        // HQC wired into the live hybrid via the 64->32 KDF adapter, under ContextBound.
+        use crate::{Sha3_256Xof, X25519, X25519_LEN};
+        use q_periapt_core::Profile;
+        use q_periapt_kem::HybridKem;
+        let pq = HqcAsKem(Hqc128);
+        let (sk_pq, pk_pq) = Hqc128::generate();
+        let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
+        let kem = HybridKem::<_, _, Sha3_256Xof>::new(
+            &pq,
+            &X25519,
+            Profile::ContextBound,
+            b"HQC-128+X25519",
+            1,
+        )
+        .unwrap();
+        let mut ct_pq = [0u8; Hqc128::CT_LEN];
+        let mut ct_trad = [0u8; X25519_LEN];
+        let ss_e = kem
+            .encapsulate(
+                &pk_pq,
+                &pk_trad,
+                b"q-periapt/hqc-test",
+                &[0u8; 32],
+                &[2u8; 32],
+                &mut ct_pq,
+                &mut ct_trad,
+            )
+            .unwrap();
+        let ss_d = kem
+            .decapsulate(
+                &sk_pq,
+                &ct_pq,
+                &pk_pq,
+                &sk_trad,
+                &ct_trad,
+                &pk_trad,
+                b"q-periapt/hqc-test",
+            )
+            .unwrap();
+        assert_eq!(
+            ss_e.as_bytes(),
+            ss_d.as_bytes(),
+            "HQC ContextBound hybrid must roundtrip"
+        );
+    }
+
+    #[test]
+    fn hqc_as_kem_is_rejected_with_compatxwing() {
+        // HQC is not C2PRI: the hybrid must refuse the ciphertext-omitting X-Wing profile.
+        use q_periapt_core::Profile;
+        use q_periapt_kem::HybridKem;
+        let pq = HqcAsKem(Hqc128);
+        assert!(HybridKem::<_, _, crate::Sha3_256Xof>::new(
+            &pq,
+            &crate::X25519,
+            Profile::CompatXWing,
+            b"x",
+            1
+        )
+        .is_err());
     }
 
     #[test]
