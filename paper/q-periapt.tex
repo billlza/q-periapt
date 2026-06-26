@@ -134,8 +134,10 @@ show that omitting $pk_{\mathrm{pq}}$ loses \mbox{MAL-BIND-K-PK} over the expand
 serialization (concrete $\Pr{=}1$ adversary) but not over seed-\code{dk}, omitting the context loses
 \mbox{MAL-BIND-K-CTX} unconditionally, and omitting $ct_{\mathrm{pq}}$ is harmless (the shared secret
 binds it)---so public-key and context absorption are \emph{necessary}, ciphertext absorption
-redundant, and the X-Wing shape provably loses \mbox{K-PK}$+$\mbox{K-CTX} while keeping \mbox{K-CT}.
-This is a stated, proven characterization, not an integration claim.
+redundant, and the X-Wing field shape---instantiated over the FIPS-203 expanded-\code{dk} form or
+without external context---loses \mbox{K-PK} and \mbox{K-CTX} while keeping \mbox{K-CT} (a correctly
+deployed seed-\code{dk} X-Wing still reaches \mbox{MAL-BIND-K-\{CT,PK\}}; \cref{sec:sep}). This is a
+stated, proven characterization, not an integration claim.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
 same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph{executed} on
 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
