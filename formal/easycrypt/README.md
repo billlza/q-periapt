@@ -40,8 +40,11 @@ proof, CI fails. Reproduce it locally:
 
 ```sh
 docker build -f formal/Dockerfile -t q-periapt-ec .
-docker run --rm -v "$PWD/formal/easycrypt:/work" q-periapt-ec \
-    opam exec -- sh -c 'rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+# Mount read-only + copy into a container-owned dir (the committed .eco is host-owned), then
+# re-check from scratch:
+docker run --rm -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
+    opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco \
+        && easycrypt BindingViaCR.ec && sh negative-controls.sh'
 ```
 
 ## Tool

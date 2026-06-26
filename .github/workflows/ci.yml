@@ -314,8 +314,11 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Machine-check the binding proof + necessity controls (HARD GATE)
         run: |
-          docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/work" q-periapt-ec:ci \
-            opam exec -- sh -c 'cd /work && rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+          # Mount the proofs read-only and copy into a container-owned dir: the checkout's committed
+          # .eco is host-owned, so the container's opam user can't rm it in place. Copying makes the
+          # files opam-owned, so `rm -f *.eco` forces a from-scratch re-check.
+          docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/src:ro" q-periapt-ec:ci \
+            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
 
   # Symbolic handshake proof. The lemma-presence check is a reliable HARD GATE
   # (catches a lemma being deleted/stubbed out); the full Tamarin machine-check
