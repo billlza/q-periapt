@@ -7,7 +7,8 @@
 # Loaded by `q-periapt-policy` (TOML/serde + signed-policy verification: see ROADMAP).
 
 schema_version = 1
-min_nist_level = 3                 # downgrade floor (3 = default, 5 = enhanced)
+policy_version = 1                 # monotonic content version; load_signed_monotonic refuses a rollback to an older one
+min_nist_level = 3                 # downgrade floor; must be a real NIST level (1/2/3/5), 3 = default, 5 = enhanced
 default_profile = "CompatXWing"    # "CompatXWing" (fast) | "ContextBound" (binds transcript)
 
 # Hybrid by default: lattice (ML-KEM) + traditional (X25519).

@@ -53,6 +53,9 @@ pub fn is_c2pri(id: &str) -> bool {
 /// An evaluable algorithm policy.
 #[derive(Clone, Debug)]
 pub struct Policy {
+    /// Monotonic content version. A signed policy with a lower version than the caller's
+    /// last-trusted one is a rollback ([`Policy::load_signed_monotonic`]).
+    pub policy_version: u32,
     /// Minimum acceptable NIST security level (downgrade floor). Default 3.
     pub min_nist_level: u8,
     /// Default combiner profile when no stronger requirement applies.
@@ -71,6 +74,7 @@ impl Default for Policy {
     /// `docs/policy/default.policy.toml`.
     fn default() -> Self {
         Self {
+            policy_version: 1,
             min_nist_level: 3,
             default_profile: Profile::CompatXWing,
             allowed_kems: vec!["ML-KEM-768".into(), "X25519".into()],
@@ -86,6 +90,7 @@ impl Policy {
     #[must_use]
     pub fn enhanced() -> Self {
         Self {
+            policy_version: 1,
             min_nist_level: 5,
             default_profile: Profile::ContextBound,
             allowed_kems: vec!["ML-KEM-1024".into(), "X25519".into(), "HQC-256".into()],
@@ -202,6 +207,13 @@ pub enum PolicyError {
     /// The detached signature did not verify under the trusted key. **Fail-closed:**
     /// the policy is rejected; callers must not trust attacker-influenced data.
     SignatureInvalid,
+    /// The signing key's algorithm is weaker than the floor the policy asserts (e.g. an
+    /// L1 root signing an L5 policy) — the trust anchor must be at least as strong as the
+    /// posture it authorizes.
+    WeakSigner,
+    /// The policy's `policy_version` is older than the caller's last-trusted version — a
+    /// rollback/replay of a previously-valid but now-superseded policy.
+    Rollback,
 }
 
 impl core::fmt::Display for PolicyError {
@@ -211,6 +223,8 @@ impl core::fmt::Display for PolicyError {
             PolicyError::UnsupportedSchema => "unsupported policy schema_version",
             PolicyError::UnknownProfile => "unknown default_profile",
             PolicyError::SignatureInvalid => "policy signature did not verify",
+            PolicyError::WeakSigner => "signing key weaker than the policy's floor",
+            PolicyError::Rollback => "policy version older than last-trusted (rollback)",
         })
     }
 }
@@ -219,6 +233,10 @@ impl core::fmt::Display for PolicyError {
 #[derive(serde::Deserialize)]
 struct PolicyFile {
     schema_version: u32,
+    /// Monotonic content version (rollback protection). Optional for unsigned/legacy files;
+    /// signed deployments should always set it so [`Policy::load_signed_monotonic`] is meaningful.
+    #[serde(default)]
+    policy_version: u32,
     min_nist_level: u8,
     default_profile: String,
     allowed_kems: Vec<String>,
@@ -237,12 +255,18 @@ impl Policy {
         if f.schema_version != POLICY_SCHEMA_VERSION {
             return Err(PolicyError::UnsupportedSchema);
         }
+        // The downgrade floor must be a real NIST category; reject `min_nist_level = 0`
+        // (which would silently disable the floor) and the non-existent level 4.
+        if !matches!(f.min_nist_level, 1 | 2 | 3 | 5) {
+            return Err(PolicyError::Malformed);
+        }
         let default_profile = match f.default_profile.as_str() {
             "CompatXWing" => Profile::CompatXWing,
             "ContextBound" => Profile::ContextBound,
             _ => return Err(PolicyError::UnknownProfile),
         };
         Ok(Self {
+            policy_version: f.policy_version,
             min_nist_level: f.min_nist_level,
             default_profile,
             allowed_kems: f.allowed_kems,
@@ -271,7 +295,32 @@ impl Policy {
             .verify(verification_key, toml, signature)
             .map_err(|_| PolicyError::SignatureInvalid)?;
         let text = core::str::from_utf8(toml).map_err(|_| PolicyError::Malformed)?;
-        Self::from_toml(text)
+        let policy = Self::from_toml(text)?;
+        // The trust anchor must be at least as strong as the posture it authorizes: an L1
+        // root must not be able to sign an L5 policy. Bind the signer's strength to the floor.
+        if verifier.algorithm().nist_level() < policy.min_nist_level {
+            return Err(PolicyError::WeakSigner);
+        }
+        Ok(policy)
+    }
+
+    /// Like [`Policy::load_signed`] but additionally rejects a policy whose `policy_version`
+    /// is **older** than `last_trusted_version` — rollback/replay protection. A validly-signed
+    /// but superseded policy (e.g. one that predates a security tightening) must not be
+    /// re-installable. Callers persist the last accepted version and pass it here; the same
+    /// version is accepted (idempotent re-apply), only a strictly-older one is refused.
+    pub fn load_signed_monotonic<V: Verifier>(
+        verifier: &V,
+        verification_key: &[u8],
+        toml: &[u8],
+        signature: &[u8],
+        last_trusted_version: u32,
+    ) -> Result<Self, PolicyError> {
+        let policy = Self::load_signed(verifier, verification_key, toml, signature)?;
+        if policy.policy_version < last_trusted_version {
+            return Err(PolicyError::Rollback);
+        }
+        Ok(policy)
     }
 
     /// Like [`Policy::load_signed`] but **fail-closed to the conservative compiled-in
@@ -486,5 +535,54 @@ mod load_tests {
         assert_eq!(fp.select_profile(), Profile::ContextBound);
         assert_eq!(fp.min_nist_level, 5);
         assert_eq!(err, Some(PolicyError::SignatureInvalid));
+    }
+
+    // ---- audit hardening: floor validation, signer-strength binding, rollback ----
+
+    /// Sign `text` with a fresh ML-DSA-65 (L3) root, returning `(verification_key, signature)`.
+    fn sign_with_root(text: &str, seed: u8) -> (Vec<u8>, Vec<u8>) {
+        let (sk, vk) = MlDsa65::generate([seed; 32]);
+        let mut sig = [0u8; ML_DSA_65_SIG_LEN];
+        let n = MlDsa65.sign(&sk, text.as_bytes(), &[0u8; 32], &mut sig).unwrap();
+        (vk.to_vec(), sig[..n].to_vec())
+    }
+
+    #[test]
+    fn from_toml_rejects_invalid_floor() {
+        // 0 would silently disable the downgrade floor; 4 is not a real NIST category.
+        for bad in ["min_nist_level = 0", "min_nist_level = 4"] {
+            let t = POLICY.replace("min_nist_level = 3", bad);
+            assert_eq!(Policy::from_toml(&t).unwrap_err(), PolicyError::Malformed);
+        }
+    }
+
+    #[test]
+    fn signed_load_rejects_signer_weaker_than_floor() {
+        // An L5 policy signed by an L3 root (ML-DSA-65) must be refused — the trust anchor
+        // must be at least as strong as the posture it authorizes.
+        let l5 = POLICY.replace("min_nist_level = 3", "min_nist_level = 5");
+        let (vk, sig) = sign_with_root(&l5, 7);
+        assert_eq!(
+            Policy::load_signed(&MlDsa65, &vk, l5.as_bytes(), &sig).unwrap_err(),
+            PolicyError::WeakSigner
+        );
+        // The same policy at floor 3 (signer is also L3) loads fine.
+        let (vk3, sig3) = sign_with_root(POLICY, 7);
+        assert!(Policy::load_signed(&MlDsa65, &vk3, POLICY.as_bytes(), &sig3).is_ok());
+    }
+
+    #[test]
+    fn signed_load_monotonic_rejects_rollback() {
+        // A validly-signed policy at version 2.
+        let v2 = POLICY.replace("schema_version = 1\n", "schema_version = 1\npolicy_version = 2\n");
+        let (vk, sig) = sign_with_root(&v2, 5);
+        // Same or newer than last-trusted is accepted (idempotent re-apply / upgrade).
+        assert!(Policy::load_signed_monotonic(&MlDsa65, &vk, v2.as_bytes(), &sig, 2).is_ok());
+        assert!(Policy::load_signed_monotonic(&MlDsa65, &vk, v2.as_bytes(), &sig, 1).is_ok());
+        // Re-installing an older version than the last-trusted one (3) is a rollback → refused.
+        assert_eq!(
+            Policy::load_signed_monotonic(&MlDsa65, &vk, v2.as_bytes(), &sig, 3).unwrap_err(),
+            PolicyError::Rollback
+        );
     }
 }
