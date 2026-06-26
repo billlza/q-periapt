@@ -49,6 +49,11 @@ pub enum Error {
     InvalidLength,
     /// A backend primitive reported an opaque failure.
     Backend,
+    /// A supplied **public** key share is invalid and was rejected before keying — e.g. a
+    /// low-order / non-contributory X25519 point (which would force an all-zero DH secret). This is
+    /// a public-input validity failure, **not** a secret-dependent decapsulation oracle: an
+    /// FO-KEM's implicit rejection (ML-KEM) never produces this; only DH-style key shares do.
+    InvalidKeyShare,
     /// The active algorithm policy / profile combination is forbidden
     /// (e.g. a non-C2PRI KEM requested with the fast `CompatXWing` profile).
     PolicyDenied,
@@ -59,6 +64,7 @@ impl core::fmt::Display for Error {
         let s = match self {
             Error::InvalidLength => "invalid length",
             Error::Backend => "backend failure",
+            Error::InvalidKeyShare => "invalid public key share",
             Error::PolicyDenied => "policy denied",
         };
         f.write_str(s)
@@ -130,10 +136,16 @@ pub trait Xof256 {
 
 /// A key-encapsulation mechanism backend (ML-KEM, X25519-as-KEM, HQC, ...).
 ///
-/// All methods **must** run in constant time with respect to secret inputs, and
-/// `decapsulate` **must** use implicit rejection so its failure path is
-/// indistinguishable from success — it must NOT return [`Error`] to signal an
-/// invalid ciphertext (only public conditions like a length mismatch).
+/// All methods **must** run in constant time with respect to secret inputs.
+///
+/// **Failure contract.** A backend must never expose a *secret-dependent* decapsulation oracle:
+/// for an FO-KEM (ML-KEM), `decapsulate` **must** use implicit rejection — a cryptographically
+/// invalid ciphertext yields a pseudorandom secret, never an [`Error`], so the failure path is
+/// indistinguishable from success. Backends **may** return an [`Error`] only for **public** input
+/// conditions that an attacker already knows (a length mismatch via [`Error::InvalidLength`]; for a
+/// DH-style adapter such as X25519-as-KEM, a low-order / non-contributory key share via
+/// [`Error::InvalidKeyShare`]). Such checks depend only on public inputs, not on the secret key, so
+/// they are validity rejections, not an oracle.
 pub trait Kem {
     /// Stable algorithm identifier, e.g. `"ML-KEM-768"`.
     fn algorithm(&self) -> &'static str;

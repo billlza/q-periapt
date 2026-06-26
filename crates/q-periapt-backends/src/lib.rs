@@ -244,7 +244,7 @@ impl Kem for X25519 {
         // Reject a low-order / non-contributory peer key (all-zero shared secret). The hybrid would
         // still be safe via ML-KEM, but a zero classical leg must never key — defense-in-depth.
         if !shared.was_contributory() {
-            return Err(Error::Backend);
+            return Err(Error::InvalidKeyShare);
         }
         write_exact(ct, eph_pub.as_bytes())?;
         write_exact(ss, shared.as_bytes())
@@ -255,7 +255,7 @@ impl Kem for X25519 {
         let eph_pub = PublicKey::from(to_arr::<X25519_LEN>(ct)?);
         let shared = secret.diffie_hellman(&eph_pub);
         if !shared.was_contributory() {
-            return Err(Error::Backend);
+            return Err(Error::InvalidKeyShare);
         }
         write_exact(ss, shared.as_bytes())
     }

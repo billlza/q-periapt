@@ -12,9 +12,12 @@
 //!   Errors encode **only public conditions** (null pointer, wrong length, policy)
 //!   — never secret-dependent information.
 //! - Buffers are passed as `(ptr, len)` pairs; lengths are validated.
-//! - `decapsulate` always returns [`Q_PERIAPT_OK`] for a syntactically valid (correct
-//!   length) ciphertext, even if cryptographically invalid: implicit rejection
-//!   yields a pseudorandom secret, so there is **no decapsulation oracle**.
+//! - `decapsulate` returns [`Q_PERIAPT_OK`] for any correct-length ciphertext whose key shares are
+//!   public-valid, even if the PQ ciphertext is *cryptographically* invalid: ML-KEM's implicit
+//!   rejection yields a pseudorandom secret, so there is **no secret-dependent decapsulation
+//!   oracle**. The only rejections are on **public** inputs an attacker already controls — a length
+//!   mismatch ([`Q_PERIAPT_ERR_LENGTH`]) or a low-order / non-contributory X25519 share
+//!   ([`Q_PERIAPT_ERR_INVALID_KEYSHARE`]) — which reveal nothing about the secret key.
 //! - Every entry point is wrapped in `catch_unwind`; a panic becomes
 //!   [`Q_PERIAPT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
 //! - **No aliasing (caller obligation):** within a single call, the input `(ptr, len)`
@@ -46,6 +49,10 @@ pub const Q_PERIAPT_ERR_POLICY: i32 = -3;
 pub const Q_PERIAPT_ERR_PANIC: i32 = -4;
 /// An internal/backend error.
 pub const Q_PERIAPT_ERR_INTERNAL: i32 = -5;
+/// A supplied **public** key share was invalid (e.g. a low-order / non-contributory X25519 share,
+/// which would force an all-zero DH secret). This is a public-input validity rejection — it depends
+/// only on attacker-known inputs, **not** on the secret key, so it is not a decapsulation oracle.
+pub const Q_PERIAPT_ERR_INVALID_KEYSHARE: i32 = -6;
 
 /// `profile = 1`: fast X-Wing-compatible combiner.
 pub const Q_PERIAPT_PROFILE_COMPAT_XWING: u8 = 1;
@@ -102,6 +109,7 @@ unsafe fn out_slice<'a>(ptr: *mut u8, len: usize) -> Option<&'a mut [u8]> {
 fn err_code(e: Error) -> i32 {
     match e {
         Error::InvalidLength => Q_PERIAPT_ERR_LENGTH,
+        Error::InvalidKeyShare => Q_PERIAPT_ERR_INVALID_KEYSHARE,
         Error::PolicyDenied => Q_PERIAPT_ERR_POLICY,
         _ => Q_PERIAPT_ERR_INTERNAL,
     }
@@ -568,6 +576,56 @@ mod tests {
             assert_eq!(
                 rc, Q_PERIAPT_ERR_POLICY,
                 "forged suite_id must be rejected, not keyed"
+            );
+            assert_eq!(secret, [0u8; 32], "no key material on the rejected path");
+        }
+    }
+
+    #[test]
+    fn hybrid_encapsulate_rejects_low_order_x25519_share_as_public_error() {
+        // A low-order pk_trad (all-zero) is a PUBLIC-invalid key share: it must be rejected with the
+        // dedicated public error code, NOT mislabeled internal, and NOT keyed.
+        let (mut sk_pq, mut pk_pq) = (
+            [0u8; Q_PERIAPT_MLKEM768_SK_LEN],
+            [0u8; Q_PERIAPT_MLKEM768_PK_LEN],
+        );
+        let (mut ct_pq, mut ct_t, mut secret) =
+            ([0u8; Q_PERIAPT_MLKEM768_CT_LEN], [0u8; 32], [0u8; 32]);
+        unsafe {
+            q_periapt_mlkem768_keypair(
+                [3u8; 64].as_ptr(),
+                64,
+                sk_pq.as_mut_ptr(),
+                sk_pq.len(),
+                pk_pq.as_mut_ptr(),
+                pk_pq.len(),
+            );
+            let low_order = [0u8; 32]; // a low-order X25519 point
+            let rc = q_periapt_hybrid_encapsulate(
+                Q_PERIAPT_PROFILE_CONTEXT_BOUND,
+                Q_PERIAPT_SUITE_ID.as_ptr(),
+                Q_PERIAPT_SUITE_ID.len(),
+                1,
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                low_order.as_ptr(),
+                32,
+                b"ctx".as_ptr(),
+                3,
+                [0u8; 32].as_ptr(),
+                32,
+                [2u8; 32].as_ptr(),
+                32,
+                ct_pq.as_mut_ptr(),
+                ct_pq.len(),
+                ct_t.as_mut_ptr(),
+                32,
+                secret.as_mut_ptr(),
+                32,
+            );
+            assert_eq!(
+                rc, Q_PERIAPT_ERR_INVALID_KEYSHARE,
+                "low-order X25519 share must be a public key-share error, not internal"
             );
             assert_eq!(secret, [0u8; 32], "no key material on the rejected path");
         }

@@ -48,6 +48,13 @@
 #define Q_PERIAPT_ERR_INTERNAL -5
 
 /**
+ * A supplied **public** key share was invalid (e.g. a low-order / non-contributory X25519 share,
+ * which would force an all-zero DH secret). This is a public-input validity rejection — it depends
+ * only on attacker-known inputs, **not** on the secret key, so it is not a decapsulation oracle.
+ */
+#define Q_PERIAPT_ERR_INVALID_KEYSHARE -6
+
+/**
  * `profile = 1`: fast X-Wing-compatible combiner.
  */
 #define Q_PERIAPT_PROFILE_COMPAT_XWING 1
