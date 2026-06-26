@@ -195,7 +195,9 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
   X-Wing-shaped combiner over expanded-dk loses MAL-BIND-K-PK (Schmieg z-substitution), ContextBound
   does not. Framed strictly as combiner robustness (see §4 boundary).
 - **Multi-prover symbolic** (Tamarin + ProVerif): hybrid handshake robustness (key survives break
-  of EITHER component); both CI-gated, alongside the EasyCrypt computational proof.
+  of EITHER component); both run in CI (conditional on a best-effort toolchain install), alongside
+  the EasyCrypt computational proof — whose no-`admit` check is an always-on hard gate, while
+  `make check` runs best-effort.
 
 ### §6 Production integration & evaluation (C4)
 - rustls CryptoProvider: the SupportedKxGroup/ActiveKeyExchange wiring; private-use group codes;
@@ -254,7 +256,7 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 | C2b | byte-identical across 5 faces / 3 OS / 5 ISA | shared-vector tests; Windows-MSVC local; cbindgen C-ABI | ✔ local (CI configured) |
 | C3a | source→binary CT: ML-KEM 0 / HQC 193 (discriminator) | `ctstats/ct_decaps_gap`, `ct_hqc_gap`; `ct-gap-probe.sh` | ✔ aarch64 (e525bef) |
 | C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (real libcrux) | ✔ (e525bef) |
-| C3c | 2 symbolic provers + 1 computational, CI-gated | `formal/{tamarin,proverif,easycrypt}` | ✔ |
+| C3c | 2 symbolic provers + 1 computational (EasyCrypt no-`admit` = hard CI gate; checks best-effort) | `formal/{tamarin,proverif,easycrypt}` | ✔ |
 | C4a | rustls TLS 1.3 handshake over the combiner | `crates/q-periapt-rustls/tests/handshake.rs` | ✔ (778aeec) |
 | C4b | real netem P99: PQ overhead ~0.1–0.4% at RTT≥20ms (no extra round-trip), combiner-neutral; vs classical-X25519 baseline | `crates/q-periapt-rustls/examples/netem_bench.rs` under `tc netem` | ✔ (host=VM; rerun on bare metal) |
 

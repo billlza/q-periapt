@@ -256,7 +256,10 @@ jobs:
       # .cargo/audit.toml — surfaced, not hidden.
       - run: cargo audit
 
-  # Fence: the C-based hqc feature must NEVER build on wasm32 (compile_error guard).
+  # Fence: the C-based hqc feature must NEVER reach wasm32 (no C toolchain / no entropy there). Note:
+  # getrandom's own compile_error fires first, so this verifies the protective OUTCOME (hqc does not
+  # build for wasm), not the suite's hqc.rs compile_error message specifically — that fence is
+  # belt-and-suspenders intent. The grep confirms the failure is wasm/entropy-related, not unrelated.
   feature-fence:
     runs-on: ubuntu-latest
     steps:
@@ -266,8 +269,10 @@ jobs:
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
       - run: cargo build -p q-periapt-wasm --target wasm32-unknown-unknown
       - run: cargo build -p q-periapt-core --target thumbv7em-none-eabihf
-      - name: hqc feature must fail to build on wasm32 (fence holds)
-        run: "! cargo build -p q-periapt-backends --features hqc --target wasm32-unknown-unknown 2>/dev/null"
+      - name: hqc must not compile for wasm32 (HQC never reaches the browser)
+        run: |
+          ! cargo build -p q-periapt-backends --features hqc --target wasm32-unknown-unknown 2>/tmp/hqc-wasm.log
+          grep -qiE 'wasm32|getrandom|requires a std/native' /tmp/hqc-wasm.log
 
   # Formal proofs. The no-admits check is a reliable HARD GATE (catches a proof
   # being stubbed out); the full EasyCrypt machine-check runs when the toolchain

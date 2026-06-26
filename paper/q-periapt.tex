@@ -615,8 +615,10 @@ adversary compromise either KEM or reveal the signing key; it proves executabili
 authentication, and---the headline lemma---\emph{hybrid robustness}: under an honest server identity
 the session key remains secret unless \emph{both} KEMs are broken. A ProVerif model establishes the
 analogous queries under a different abstraction (the classical leg as a second idealized KEM), giving
-an independent cross-check. All three formal artifacts are configured as CI gates (EasyCrypt
-\code{make check}, Tamarin, ProVerif), with checker and solver versions pinned in the artifact.
+an independent cross-check. All three formal artifacts run in CI: the EasyCrypt no-\code{admit}/\code{sorry} check is an
+always-on hard gate, while the \code{make check} machine-check and the Tamarin/ProVerif
+\code{make prove} runs gate conditionally on a successful (best-effort) toolchain install, with
+checker and solver versions pinned in the artifact.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
 
@@ -627,13 +629,17 @@ First, \emph{the post-quantum leg is not the bottleneck}: ML-KEM-768 encapsulati
 $11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation ($89.6\,\mu$s, an ephemeral
 keygen plus a Diffie--Hellman), so the classical half dominates hybrid CPU---a useful corrective to
 the assumption that PQ is the expensive part. Second, \emph{the hash-everything combiner is cheap}:
-ContextBound costs only $+6.2\,\mu$s over the byte-exact X-Wing combiner CompatXWing (encapsulation
-$108.4$ vs.\ $102.2\,\mu$s; decapsulation $65.4$ vs.\ $59.2\,\mu$s)---the price of binding the full
-transcript is sub-$10\,\mu$s, well under the $\sim$190\,$\mu$s X25519 cost and far below any network RTT.
+ContextBound costs only $\sim$$6$--$8\,\mu$s over the byte-exact X-Wing combiner CompatXWing
+(encapsulation $108.4$ vs.\ $102.2\,\mu$s; decapsulation $65.4$ vs.\ $59.2\,\mu$s; single-run point
+estimates, run-to-run variance $\sim$$1\,\mu$s)---the price of binding the full transcript is
+sub-$10\,\mu$s, well under the $\sim$190\,$\mu$s X25519 cost and far below any network RTT.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
-\caption{Primitive and hybrid cost ($\mu$s) and key/ciphertext sizes (bytes). arm64 host.}\label{tab:bench}
+\caption{Primitive and hybrid cost ($\mu$s; Criterion 60-sample point estimates, arm64 host) and
+key/ciphertext sizes (bytes). A single-host \emph{supporting} microbench (run-to-run variance
+$\sim$$1\,\mu$s; regenerate with \code{cargo\ bench\ -p\ q-periapt-backends}); the bare-metal
+time-to-session of \cref{tab:baremetal} is the primary measurement.}\label{tab:bench}
 \begin{tabular}{@{}l r r r r r r@{}}
 \toprule
  & \multicolumn{3}{c}{\textbf{time ($\mu$s)}} & \multicolumn{3}{c}{\textbf{size (B)}} \\
