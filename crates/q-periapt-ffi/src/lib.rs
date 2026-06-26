@@ -17,6 +17,12 @@
 //!   yields a pseudorandom secret, so there is **no decapsulation oracle**.
 //! - Every entry point is wrapped in `catch_unwind`; a panic becomes
 //!   [`Q_PERIAPT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
+//! - **No aliasing (caller obligation):** within a single call, the input `(ptr, len)`
+//!   buffers and the output `(ptr, len)` buffers **must not overlap**. Each call
+//!   materializes its inputs as `&[u8]` and its outputs as `&mut [u8]` at the same time;
+//!   an overlap would create simultaneous shared/mutable references to the same memory,
+//!   which is undefined behavior. Pass distinct buffers (their required lengths differ in
+//!   any case). This obligation is part of every function's `# Safety` contract below.
 
 use core::slice;
 use q_periapt_backends::{
@@ -65,6 +71,8 @@ const _: () = {
     assert!(Q_PERIAPT_X25519_LEN == X25519_LEN);
 };
 
+/// Materialize an input buffer as `&[u8]`. The caller must ensure it does not overlap any
+/// output buffer in the same call (see the module-level no-aliasing convention).
 unsafe fn in_slice<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     if len == 0 {
         Some(&[])
@@ -75,6 +83,8 @@ unsafe fn in_slice<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     }
 }
 
+/// Materialize an output buffer as `&mut [u8]`. The caller must ensure it does not overlap any
+/// input or other output buffer in the same call (see the module-level no-aliasing convention).
 unsafe fn out_slice<'a>(ptr: *mut u8, len: usize) -> Option<&'a mut [u8]> {
     if ptr.is_null() {
         None
