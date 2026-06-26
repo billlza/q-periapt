@@ -626,33 +626,34 @@ checker and solver versions pinned in the artifact.
 \Cref{tab:bench} reports primitive and hybrid costs (Criterion, point estimates, on an Apple-Silicon
 arm64 host; the artifact reproduces them and an x86-64 run). Two findings matter for deployment.
 First, \emph{the post-quantum leg is not the bottleneck}: ML-KEM-768 encapsulation is
-$11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation ($89.6\,\mu$s, an ephemeral
+$11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation ($89.8\,\mu$s, an ephemeral
 keygen plus a Diffie--Hellman), so the classical half dominates hybrid CPU---a useful corrective to
 the assumption that PQ is the expensive part. Second, \emph{the hash-everything combiner is cheap}:
 ContextBound costs only $\sim$$6$--$8\,\mu$s over the byte-exact X-Wing combiner CompatXWing
-(encapsulation $108.4$ vs.\ $102.2\,\mu$s; decapsulation $65.4$ vs.\ $59.2\,\mu$s; single-run point
+(encapsulation $109.1$ vs.\ $101.3\,\mu$s; decapsulation $65.9$ vs.\ $59.2\,\mu$s; single-run point
 estimates, run-to-run variance $\sim$$1\,\mu$s)---the price of binding the full transcript is
-sub-$10\,\mu$s, well under the $\sim$190\,$\mu$s X25519 cost and far below any network RTT.
+sub-$10\,\mu$s, well under the $\sim$$90\,\mu$s X25519 encapsulation cost and far below any network RTT.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
 \caption{Primitive and hybrid cost ($\mu$s; Criterion 60-sample point estimates, arm64 host) and
 key/ciphertext sizes (bytes). A single-host \emph{supporting} microbench (run-to-run variance
-$\sim$$1\,\mu$s; regenerate with \code{cargo\ bench\ -p\ q-periapt-backends}); the bare-metal
-time-to-session of \cref{tab:baremetal} is the primary measurement.}\label{tab:bench}
+$\sim$$1\,\mu$s; committed as \code{paper/microbench-arm64.csv}, regenerate with
+\code{cargo\ bench\ -p\ q-periapt-backends}); the bare-metal time-to-session of
+\cref{tab:baremetal} is the primary measurement.}\label{tab:bench}
 \begin{tabular}{@{}l r r r r r r@{}}
 \toprule
  & \multicolumn{3}{c}{\textbf{time ($\mu$s)}} & \multicolumn{3}{c}{\textbf{size (B)}} \\
 \cmidrule(lr){2-4}\cmidrule(lr){5-7}
 \textbf{Scheme} & keygen & encaps & decaps & ek & dk & ct \\
 \midrule
-ML-KEM-512   & 6.6  & 6.1  & 6.8  & 800  & 1632 & 768  \\
-ML-KEM-768   & 11.3 & 11.0 & 11.8 & 1184 & 2400 & 1088 \\
-ML-KEM-1024  & 18.5 & 16.5 & 16.7 & 1568 & 3168 & 1568 \\
-X25519       & 44.1 & 89.6 & 45.0 & 32   & 32   & 32   \\
+ML-KEM-512   & 6.5  & 6.1  & 6.8  & 800  & 1632 & 768  \\
+ML-KEM-768   & 11.2 & 11.0 & 11.9 & 1184 & 2400 & 1088 \\
+ML-KEM-1024  & 18.2 & 16.2 & 17.0 & 1568 & 3168 & 1568 \\
+X25519       & 43.5 & 89.8 & 44.4 & 32   & 32   & 32   \\
 \midrule
-Hybrid, ContextBound & --- & 108.4 & 65.4 & 1216 & --- & 1120 \\
-Hybrid, CompatXWing  & --- & 102.2 & 59.2 & 1216 & --- & 1120 \\
+Hybrid, ContextBound & --- & 109.1 & 65.9 & 1216 & --- & 1120 \\
+Hybrid, CompatXWing  & --- & 101.3 & 59.2 & 1216 & --- & 1120 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1021,12 +1022,12 @@ Footprint: the stripped C-ABI library is $441$\,KB (default hybrid build), the W
 \toprule
 \textbf{Scheme} & \textbf{keygen} & \textbf{encaps} & \textbf{decaps} \\
 \midrule
-ML-KEM-512  & 6.6 [6.6,6.7]    & 6.1 [5.9,6.5]    & 6.8 [6.8,6.9] \\
-ML-KEM-768  & 11.3 [11.2,11.4] & 11.0 [10.9,11.0] & 11.8 [11.7,11.8] \\
-ML-KEM-1024 & 18.5 [18.1,19.2] & 16.5 [15.8,17.7] & 16.7 [16.5,16.8] \\
-X25519      & 44.1 [43.8,44.4] & 89.6 [89.2,90.0] & 45.0 [44.7,45.3] \\
-Hybrid, ContextBound & --- & 108.4 [107.9,108.9] & 65.4 [65.1,65.7] \\
-Hybrid, CompatXWing  & --- & 102.2 [101.4,103.0] & 59.2 \\
+ML-KEM-512  & 6.5 [6.4,6.6]    & 6.1 [6.0,6.3]    & 6.8 [6.8,6.9] \\
+ML-KEM-768  & 11.2 [11.2,11.3] & 11.0 [10.9,11.1] & 11.9 [11.8,12.0] \\
+ML-KEM-1024 & 18.2 [17.9,18.5] & 16.2 [15.8,16.7] & 17.0 [16.8,17.2] \\
+X25519      & 43.5 [43.2,43.9] & 89.8 [89.2,90.5] & 44.4 [44.1,44.7] \\
+Hybrid, ContextBound & --- & 109.1 [108.4,109.9] & 65.9 [65.5,66.4] \\
+Hybrid, CompatXWing  & --- & 101.3 [100.7,101.9] & 59.2 [58.8,59.5] \\
 \bottomrule
 \end{tabular}
 \end{table}
