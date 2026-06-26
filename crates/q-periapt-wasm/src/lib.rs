@@ -12,7 +12,7 @@
 use q_periapt_backends::{
     MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, X25519, X25519_LEN,
 };
-use q_periapt_core::{combine as core_combine, CombineInput, Profile};
+use q_periapt_core::{combine as core_combine, secure_wipe, CombineInput, Profile};
 use q_periapt_kem::HybridKem;
 use wasm_bindgen::prelude::*;
 
@@ -42,6 +42,15 @@ pub struct KeyPair {
     pk: Vec<u8>,
 }
 
+impl Drop for KeyPair {
+    fn drop(&mut self) {
+        // `sk` is secret key material; wipe the WASM-side copy on drop (`pk` is public). The
+        // copy handed to JS via the getter is outside our control, but the linear-memory
+        // original must not linger.
+        secure_wipe(&mut self.sk);
+    }
+}
+
 #[wasm_bindgen]
 impl KeyPair {
     /// The secret/signing/decapsulation key bytes.
@@ -62,6 +71,13 @@ pub struct EncapResult {
     ct_pq: Vec<u8>,
     ct_trad: Vec<u8>,
     secret: Vec<u8>,
+}
+
+impl Drop for EncapResult {
+    fn drop(&mut self) {
+        // `secret` is the session key; wipe the WASM-side copy on drop (ciphertexts are public).
+        secure_wipe(&mut self.secret);
+    }
 }
 
 #[wasm_bindgen]

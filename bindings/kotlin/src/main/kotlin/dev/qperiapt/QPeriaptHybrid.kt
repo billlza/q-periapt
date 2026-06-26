@@ -71,24 +71,41 @@ object QPeriaptHybrid {
     private fun MemorySegment.toBytes(n: Int): ByteArray =
         ByteArray(n).also { MemorySegment.copy(this, JAVA_BYTE, 0, it, 0, n) }
 
+    // A confined Arena frees its native memory on close but does NOT zero it; explicitly
+    // wipe any segment that held secret material (keys, shared secrets, combiner inputs)
+    // before that happens, so freed pages cannot leak a secret to a later allocation.
+    private fun MemorySegment.wipe() {
+        fill(0)
+    }
+
     fun mlkem768Keypair(seed: ByteArray): Pair<ByteArray, ByteArray> = Arena.ofConfined().use { a ->
+        val seedSeg = a.seg(seed)
         val sk = a.allocate(MLKEM_SK_LEN.toLong())
         val pk = a.allocate(MLKEM_PK_LEN.toLong())
-        val rc = mlkemKeypair.invokeExact(
-            a.seg(seed), seed.size.toLong(), sk, MLKEM_SK_LEN.toLong(), pk, MLKEM_PK_LEN.toLong()
-        ) as Int
-        require(rc == 0) { "q_periapt_mlkem768_keypair rc=$rc" }
-        sk.toBytes(MLKEM_SK_LEN) to pk.toBytes(MLKEM_PK_LEN)
+        try {
+            val rc = mlkemKeypair.invokeExact(
+                seedSeg, seed.size.toLong(), sk, MLKEM_SK_LEN.toLong(), pk, MLKEM_PK_LEN.toLong()
+            ) as Int
+            require(rc == 0) { "q_periapt_mlkem768_keypair rc=$rc" }
+            sk.toBytes(MLKEM_SK_LEN) to pk.toBytes(MLKEM_PK_LEN)
+        } finally {
+            seedSeg.wipe(); sk.wipe() // seed + secret key are sensitive; pk is public
+        }
     }
 
     fun x25519Keypair(secret: ByteArray): Pair<ByteArray, ByteArray> = Arena.ofConfined().use { a ->
+        val secretSeg = a.seg(secret)
         val sk = a.allocate(X25519_LEN.toLong())
         val pk = a.allocate(X25519_LEN.toLong())
-        val rc = x25519Keypair.invokeExact(
-            a.seg(secret), secret.size.toLong(), sk, X25519_LEN.toLong(), pk, X25519_LEN.toLong()
-        ) as Int
-        require(rc == 0) { "q_periapt_x25519_keypair rc=$rc" }
-        sk.toBytes(X25519_LEN) to pk.toBytes(X25519_LEN)
+        try {
+            val rc = x25519Keypair.invokeExact(
+                secretSeg, secret.size.toLong(), sk, X25519_LEN.toLong(), pk, X25519_LEN.toLong()
+            ) as Int
+            require(rc == 0) { "q_periapt_x25519_keypair rc=$rc" }
+            sk.toBytes(X25519_LEN) to pk.toBytes(X25519_LEN)
+        } finally {
+            secretSeg.wipe(); sk.wipe()
+        }
     }
 
     @Suppress("LongParameterList")
@@ -97,27 +114,38 @@ object QPeriaptHybrid {
         skPq: ByteArray, ctPq: ByteArray, pkPq: ByteArray,
         skTrad: ByteArray, ctTrad: ByteArray, pkTrad: ByteArray, context: ByteArray
     ): ByteArray = Arena.ofConfined().use { a ->
+        val skPqSeg = a.seg(skPq)
+        val skTradSeg = a.seg(skTrad)
         val out = a.allocate(SECRET_LEN.toLong())
-        val rc = decap.invokeExact(
-            profile, a.seg(suiteId), suiteId.size.toLong(), policyVersion,
-            a.seg(skPq), skPq.size.toLong(), a.seg(ctPq), ctPq.size.toLong(),
-            a.seg(pkPq), pkPq.size.toLong(), a.seg(skTrad), skTrad.size.toLong(),
-            a.seg(ctTrad), ctTrad.size.toLong(), a.seg(pkTrad), pkTrad.size.toLong(),
-            a.seg(context), context.size.toLong(), out, SECRET_LEN.toLong()
-        ) as Int
-        require(rc == 0) { "q_periapt_hybrid_decapsulate rc=$rc" }
-        out.toBytes(SECRET_LEN)
+        try {
+            val rc = decap.invokeExact(
+                profile, a.seg(suiteId), suiteId.size.toLong(), policyVersion,
+                skPqSeg, skPq.size.toLong(), a.seg(ctPq), ctPq.size.toLong(),
+                a.seg(pkPq), pkPq.size.toLong(), skTradSeg, skTrad.size.toLong(),
+                a.seg(ctTrad), ctTrad.size.toLong(), a.seg(pkTrad), pkTrad.size.toLong(),
+                a.seg(context), context.size.toLong(), out, SECRET_LEN.toLong()
+            ) as Int
+            require(rc == 0) { "q_periapt_hybrid_decapsulate rc=$rc" }
+            out.toBytes(SECRET_LEN)
+        } finally {
+            skPqSeg.wipe(); skTradSeg.wipe(); out.wipe() // both secret keys + the session secret
+        }
     }
 
     /** Derive a combined secret directly from the serialized combiner inputs (the
      * cross-platform reference-vector entry point): `input` is the nine 8-byte
      * big-endian length-prefixed fields consumed by `q_periapt_combine`. */
     fun combine(profile: Byte, input: ByteArray): ByteArray = Arena.ofConfined().use { a ->
+        val inputSeg = a.seg(input)
         val out = a.allocate(SECRET_LEN.toLong())
-        val rc = combineFn.invokeExact(
-            profile, a.seg(input), input.size.toLong(), out, SECRET_LEN.toLong()
-        ) as Int
-        require(rc == 0) { "q_periapt_combine rc=$rc" }
-        out.toBytes(SECRET_LEN)
+        try {
+            val rc = combineFn.invokeExact(
+                profile, inputSeg, input.size.toLong(), out, SECRET_LEN.toLong()
+            ) as Int
+            require(rc == 0) { "q_periapt_combine rc=$rc" }
+            out.toBytes(SECRET_LEN)
+        } finally {
+            inputSeg.wipe(); out.wipe() // input carries the component shared secrets
+        }
     }
 }

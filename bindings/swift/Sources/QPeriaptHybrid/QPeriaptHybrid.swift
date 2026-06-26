@@ -11,6 +11,11 @@ public enum QPeriaptProfile: UInt8 {
 public struct QPeriaptError: Error { public let code: Int32 }
 
 /// Swift face of the PQ/T hybrid suite (ML-KEM-768 + X25519), over the C ABI.
+///
+/// Secret hygiene: returned secrets (`sk`, the decapsulated/combined secret) are caller-owned
+/// Swift `[UInt8]` value arrays. Because Swift arrays are copy-on-write, the binding cannot zero
+/// them after `return` without corrupting the value it hands back, so wiping is the caller's
+/// responsibility — call ``wipe(_:)`` on each secret buffer when finished with it.
 public enum QPeriaptHybrid {
     public static let secretLen = Int(Q_PERIAPT_SECRET_LEN)
     public static let mlkemPkLen = Int(Q_PERIAPT_MLKEM768_PK_LEN)
@@ -61,5 +66,15 @@ public enum QPeriaptHybrid {
             profile.rawValue, input, UInt(input.count), &secret, UInt(secret.count))
         guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
         return secret
+    }
+
+    /// Securely zero a buffer that held secret material. Uses `memset_s`, which (unlike a plain
+    /// `memset` of a soon-to-be-freed buffer) the compiler is not permitted to elide as a dead
+    /// store. Call this on any `sk` or session secret once it is no longer needed.
+    public static func wipe(_ buffer: inout [UInt8]) {
+        buffer.withUnsafeMutableBytes { raw in
+            guard let base = raw.baseAddress, raw.count > 0 else { return }
+            memset_s(base, raw.count, 0, raw.count)
+        }
     }
 }
