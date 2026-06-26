@@ -17,8 +17,10 @@ crate-type = ["cdylib", "rlib"]
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-kem = { path = "../q-periapt-kem" }
 q-periapt-backends = { path = "../q-periapt-backends" }
+q-periapt-policy = { path = "../q-periapt-policy" }
 # Randomness is passed in by the JS caller (no getrandom/wasm entropy feature needed).
 wasm-bindgen = "0.2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+q-periapt-sig = { path = "../q-periapt-sig" } # Signer trait, to sign a policy in the profile test

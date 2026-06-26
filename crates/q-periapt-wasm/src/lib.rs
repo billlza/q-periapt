@@ -10,10 +10,12 @@
 //! Build: `wasm-pack build crates/q-periapt-wasm --target web` (see `README.md`).
 
 use q_periapt_backends::{
-    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, X25519, X25519_LEN,
+    MlDsa65, MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, X25519,
+    X25519_LEN,
 };
 use q_periapt_core::{combine as core_combine, secure_wipe, CombineInput, Profile};
 use q_periapt_kem::HybridKem;
+use q_periapt_policy::Policy;
 use wasm_bindgen::prelude::*;
 
 fn profile(code: u8) -> Result<Profile, JsError> {
@@ -33,6 +35,23 @@ pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
     let secret =
         core_combine::<Sha3_256Xof>(profile, &ci).map_err(|_| JsError::new("combine failed"))?;
     Ok(secret.as_bytes().to_vec())
+}
+
+/// Verify a detached-signed agility policy (`toml` + `signature`) under `verification_key`
+/// with the suite's ML-DSA-65 root verifier, and return the combiner profile code its
+/// `select_profile()` chooses (`1` = CompatXWing, `2` = ContextBound). This threads the policy
+/// engine into the WASM face: a caller loads a signed policy once, then passes the returned code
+/// to [`encapsulate`]/[`decapsulate`] instead of hard-coding a profile. Fail-closed — an
+/// unauthenticated, weak-signer, or rolled-back policy is rejected (see `q_periapt_policy`).
+#[wasm_bindgen]
+pub fn profile_from_signed_policy(
+    toml: &[u8],
+    signature: &[u8],
+    verification_key: &[u8],
+) -> Result<u8, JsError> {
+    let policy = Policy::load_signed(&MlDsa65, verification_key, toml, signature)
+        .map_err(|e| JsError::new(&format!("policy rejected: {e}")))?;
+    Ok(policy.select_profile().to_u8())
 }
 
 /// A generated key pair (`sk`, `pk`) exposed to JS.
@@ -313,6 +332,37 @@ mod tests {
     #[test]
     fn keypair_encap_decap_roundtrip() {
         check_keypair_encap_decap_roundtrip();
+    }
+
+    fn check_profile_from_signed_policy() {
+        // A signed floor-3 / CompatXWing policy must thread through to profile code 1. (The error
+        // path constructs a JsError, which panics off-wasm, and load_signed's rejection is already
+        // covered in q-periapt-policy; here we exercise the success threading on host + wasm.)
+        use q_periapt_backends::ML_DSA_65_SIG_LEN;
+        use q_periapt_sig::Signer;
+        let policy_toml = "schema_version = 1\nmin_nist_level = 3\n\
+            default_profile = \"CompatXWing\"\n\
+            allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+            allowed_sigs = [\"ML-DSA-65\"]\n";
+        let (sk, vk) = MlDsa65::generate([4u8; 32]);
+        let mut sig = [0u8; ML_DSA_65_SIG_LEN];
+        let n = MlDsa65
+            .sign(&sk, policy_toml.as_bytes(), &[0u8; 32], &mut sig)
+            .unwrap();
+        let code = profile_from_signed_policy(policy_toml.as_bytes(), &sig[..n], &vk).unwrap();
+        assert_eq!(code, 1, "CompatXWing policy must select profile code 1");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn profile_from_signed_policy_threads_the_policy() {
+        check_profile_from_signed_policy();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn profile_from_signed_policy_threads_the_policy_wasm() {
+        check_profile_from_signed_policy();
     }
 
     #[cfg(target_arch = "wasm32")]

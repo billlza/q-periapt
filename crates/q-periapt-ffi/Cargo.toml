@@ -18,3 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-kem = { path = "../q-periapt-kem" }
 q-periapt-backends = { path = "../q-periapt-backends" }
+q-periapt-policy = { path = "../q-periapt-policy" }
+
+[dev-dependencies]
+q-periapt-sig = { path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test

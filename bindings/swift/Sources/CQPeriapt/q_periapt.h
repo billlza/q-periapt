@@ -83,6 +83,29 @@
 #define Q_PERIAPT_SECRET_LEN 32
 
 /**
+ * Verify a detached-signed agility policy (`toml` + `signature`) under `vk` with the suite's
+ * ML-DSA-65 root verifier, and write the combiner profile code its `select_profile()` chooses
+ * into `out_profile` (one byte: [`Q_PERIAPT_PROFILE_COMPAT_XWING`] or
+ * [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`]). This threads the policy engine into the C ABI: load a
+ * signed policy once, then pass the returned code to encapsulate/decapsulate instead of
+ * hard-coding a profile. **Fail-closed:** an unauthenticated, weak-signer, or rolled-back policy
+ * yields [`Q_PERIAPT_ERR_POLICY`].
+ *
+ * # Safety
+ * `toml`/`signature`/`vk` must be readable for their lengths; `out_profile` writable for
+ * `out_profile_len` (which must be `1`). Input and output buffers must not overlap (see the
+ * module-level no-aliasing convention).
+ */
+int32_t q_periapt_profile_from_signed_policy(const uint8_t *toml,
+                                             uintptr_t toml_len,
+                                             const uint8_t *signature,
+                                             uintptr_t signature_len,
+                                             const uint8_t *vk,
+                                             uintptr_t vk_len,
+                                             uint8_t *out_profile,
+                                             uintptr_t out_profile_len);
+
+/**
  * Deterministically derive an ML-KEM-768 key pair from a 64-byte `seed`.
  *
  * # Safety

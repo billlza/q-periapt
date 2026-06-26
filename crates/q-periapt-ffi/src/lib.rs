@@ -26,11 +26,12 @@
 
 use core::slice;
 use q_periapt_backends::{
-    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519,
-    X25519_LEN,
+    MlDsa65, MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN,
+    X25519, X25519_LEN,
 };
 use q_periapt_core::{combine, secure_wipe, CombineInput, Error, Profile};
 use q_periapt_kem::HybridKem;
+use q_periapt_policy::Policy;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 /// Success.
@@ -107,6 +108,52 @@ fn profile_from(p: u8) -> Option<Profile> {
         Q_PERIAPT_PROFILE_CONTEXT_BOUND => Some(Profile::ContextBound),
         _ => None,
     }
+}
+
+/// Verify a detached-signed agility policy (`toml` + `signature`) under `vk` with the suite's
+/// ML-DSA-65 root verifier, and write the combiner profile code its `select_profile()` chooses
+/// into `out_profile` (one byte: [`Q_PERIAPT_PROFILE_COMPAT_XWING`] or
+/// [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`]). This threads the policy engine into the C ABI: load a
+/// signed policy once, then pass the returned code to encapsulate/decapsulate instead of
+/// hard-coding a profile. **Fail-closed:** an unauthenticated, weak-signer, or rolled-back policy
+/// yields [`Q_PERIAPT_ERR_POLICY`].
+///
+/// # Safety
+/// `toml`/`signature`/`vk` must be readable for their lengths; `out_profile` writable for
+/// `out_profile_len` (which must be `1`). Input and output buffers must not overlap (see the
+/// module-level no-aliasing convention).
+#[no_mangle]
+pub unsafe extern "C" fn q_periapt_profile_from_signed_policy(
+    toml: *const u8,
+    toml_len: usize,
+    signature: *const u8,
+    signature_len: usize,
+    vk: *const u8,
+    vk_len: usize,
+    out_profile: *mut u8,
+    out_profile_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let (Some(toml), Some(sig), Some(vk), Some(out)) = (
+            in_slice(toml, toml_len),
+            in_slice(signature, signature_len),
+            in_slice(vk, vk_len),
+            out_slice(out_profile, out_profile_len),
+        ) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if out.len() != 1 {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        match Policy::load_signed(&MlDsa65, vk, toml, sig) {
+            Ok(policy) => {
+                out.copy_from_slice(&[policy.select_profile().to_u8()]);
+                Q_PERIAPT_OK
+            }
+            Err(_) => Q_PERIAPT_ERR_POLICY,
+        }
+    }))
+    .unwrap_or(Q_PERIAPT_ERR_PANIC)
 }
 
 /// Deterministically derive an ML-KEM-768 key pair from a 64-byte `seed`.
@@ -402,6 +449,58 @@ pub unsafe extern "C" fn q_periapt_combine(
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use super::*;
+
+    #[test]
+    fn profile_from_signed_policy_returns_selected_code() {
+        use q_periapt_backends::ML_DSA_65_SIG_LEN;
+        use q_periapt_sig::Signer;
+        // A signed floor-3 / ContextBound policy must thread through to the ContextBound code.
+        let policy_toml = "schema_version = 1\nmin_nist_level = 3\n\
+            default_profile = \"ContextBound\"\n\
+            allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+            allowed_sigs = [\"ML-DSA-65\"]\n";
+        let (sk, vk) = MlDsa65::generate([8u8; 32]);
+        let mut sig = [0u8; ML_DSA_65_SIG_LEN];
+        let n = MlDsa65
+            .sign(&sk, policy_toml.as_bytes(), &[0u8; 32], &mut sig)
+            .unwrap();
+        let mut prof = [0u8; 1];
+        unsafe {
+            assert_eq!(
+                q_periapt_profile_from_signed_policy(
+                    policy_toml.as_ptr(),
+                    policy_toml.len(),
+                    sig.as_ptr(),
+                    n,
+                    vk.as_ptr(),
+                    vk.len(),
+                    prof.as_mut_ptr(),
+                    1,
+                ),
+                Q_PERIAPT_OK
+            );
+        }
+        assert_eq!(prof[0], Q_PERIAPT_PROFILE_CONTEXT_BOUND);
+
+        // A tampered signature is rejected fail-closed with the policy error code.
+        let mut bad = sig;
+        bad[0] ^= 1;
+        unsafe {
+            assert_eq!(
+                q_periapt_profile_from_signed_policy(
+                    policy_toml.as_ptr(),
+                    policy_toml.len(),
+                    bad.as_ptr(),
+                    n,
+                    vk.as_ptr(),
+                    vk.len(),
+                    prof.as_mut_ptr(),
+                    1,
+                ),
+                Q_PERIAPT_ERR_POLICY
+            );
+        }
+    }
 
     #[test]
     fn ffi_hybrid_roundtrip_context_bound() {
