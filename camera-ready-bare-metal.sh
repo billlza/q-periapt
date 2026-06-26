@@ -59,7 +59,7 @@ tune; echo
 # ---- build the bench --------------------------------------------------------
 if ! command -v cargo >/dev/null 2>&1 && [ -f "$HOME/.cargo/env" ]; then . "$HOME/.cargo/env"; fi
 echo "building netem_bench (release)..."
-cargo build --release -p q-periapt-rustls --example netem_bench >/tmp/build.log 2>&1 \
+cargo build --release -p q-periapt-rustls --example netem_bench --features bench-baseline >/tmp/build.log 2>&1 \
   || { echo "BUILD FAILED — see below"; tail -20 /tmp/build.log; exit 1; }
 BIN=target/release/examples/netem_bench
 PINCMD=""; command -v taskset >/dev/null 2>&1 && PINCMD="taskset -c $PIN"

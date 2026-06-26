@@ -152,6 +152,16 @@ struct QPeriaptActiveKx {
     pub_key: Vec<u8>,
 }
 
+impl Drop for QPeriaptActiveKx {
+    fn drop(&mut self) {
+        // Wipe the secret keys if this kx is dropped without completing the exchange
+        // (HelloRetryRequest, a connection abort) — the zeroize-on-drop property the API
+        // documents. `pk_*`/`pub_key` are public and need no wipe.
+        q_periapt_core::secure_wipe(&mut self.sk_pq);
+        q_periapt_core::secure_wipe(&mut self.sk_trad);
+    }
+}
+
 impl ActiveKeyExchange for QPeriaptActiveKx {
     fn pub_key(&self) -> &[u8] {
         &self.pub_key
@@ -197,19 +207,24 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
 }
 
 /// Build the two Q-Periapt hybrid key-exchange groups (ContextBound, CompatXWing), bound to
-/// `rng` for keypair/encapsulation randomness. Leaked to `'static` (called once at startup).
+/// `rng` for keypair/encapsulation randomness. The two `'static` groups are leaked exactly ONCE
+/// and cached, so repeated `provider()` calls do not leak (the `rng` is ring's process-static).
 fn kx_groups(rng: &'static dyn SecureRandom) -> Vec<&'static dyn SupportedKxGroup> {
-    let context_bound: &'static dyn SupportedKxGroup = Box::leak(Box::new(QPeriaptKxGroup {
-        profile: Profile::ContextBound,
-        group: Q_PERIAPT_CONTEXTBOUND,
-        rng,
-    }));
-    let compat_xwing: &'static dyn SupportedKxGroup = Box::leak(Box::new(QPeriaptKxGroup {
-        profile: Profile::CompatXWing,
-        group: Q_PERIAPT_COMPATXWING,
-        rng,
-    }));
-    vec![context_bound, compat_xwing]
+    static KX: std::sync::OnceLock<[&'static dyn SupportedKxGroup; 2]> = std::sync::OnceLock::new();
+    KX.get_or_init(|| {
+        let context_bound: &'static dyn SupportedKxGroup = Box::leak(Box::new(QPeriaptKxGroup {
+            profile: Profile::ContextBound,
+            group: Q_PERIAPT_CONTEXTBOUND,
+            rng,
+        }));
+        let compat_xwing: &'static dyn SupportedKxGroup = Box::leak(Box::new(QPeriaptKxGroup {
+            profile: Profile::CompatXWing,
+            group: Q_PERIAPT_COMPATXWING,
+            rng,
+        }));
+        [context_bound, compat_xwing]
+    })
+    .to_vec()
 }
 
 /// A rustls [`CryptoProvider`] = the `ring` base provider (cipher suites, signatures, RNG)

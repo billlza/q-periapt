@@ -11,12 +11,22 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
-# ring base provider (lighter build than aws-lc-rs); the custom hybrid KX group is ours.
-rustls = { version = "0.23", default-features = false, features = ["ring", "aws_lc_rs", "std", "tls12", "logging"] }
+# ring-only base provider: no aws-lc-sys C library in the production tree, TLS 1.3 only
+# (the IANA-standard X25519MLKEM768 baseline used by the netem bench is behind `bench-baseline`).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging"] }
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-kem = { path = "../q-periapt-kem" }
 q-periapt-backends = { path = "../q-periapt-backends" }
 
+[features]
+# Only the netem benchmark's X25519MLKEM768 reference arm needs aws-lc-rs; opt-in so the
+# production library never pulls the aws-lc-sys C backend.
+bench-baseline = ["rustls/aws_lc_rs"]
+
 [dev-dependencies]
 rcgen = "0.13"
 socket2 = "0.5"  # stable SO_LINGER for the netem bench (std set_linger is nightly-only)
+
+[[example]]
+name = "netem_bench"
+required-features = ["bench-baseline"]

@@ -5,7 +5,7 @@
 set -eu
 [ "$(id -u)" = 0 ] || { echo "run as root (tc needs NET_ADMIN)"; exit 1; }
 REPS=${REPS:-20}
-cargo build --release -p q-periapt-rustls --example netem_bench
+cargo build --release -p q-periapt-rustls --example netem_bench --features bench-baseline
 BIN=target/release/examples/netem_bench
 run() { # one_way_ms iters
   tc qdisc del dev lo root 2>/dev/null || true
