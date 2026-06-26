@@ -63,10 +63,16 @@ is deliberately ~19× more combiner hashing. We never claim a combiner speed win
 ### Where this can plausibly win
 
 - **Crypto-agility + assumption diversity** — the single most defensible claim.
-  A signed policy file negotiates fast (X-Wing-parity) vs strong (context-bound)
-  combiner, swaps the PQ KEM, raises to L5, or adds a code-based HQC hedge against
-  a lattice break, all without a recompile. X-Wing is a *single fixed
-  construction*; deployments cannot do any of this without forking it.
+  A signed policy selects the combiner profile (fast X-Wing-parity vs strong
+  context-bound), the PQ KEM (ML-KEM-512/768/1024), the NIST floor (up to L5), and a
+  code-based HQC hedge against a lattice break — all without a recompile. **Realized to
+  different depths per face** (no overclaim): the **library** instantiates the full
+  enhanced ML-KEM-1024 + X25519 suite and the `HqcAsKem` hedge end-to-end; the **rustls**
+  provider lets a policy drive key-exchange-group selection (`provider_with_policy`); the
+  fixed **C-ABI / WASM** faces expose the default ML-KEM-768 + X25519 suite with a
+  policy-*selected profile* (signed policy → profile code), not run-time algorithm
+  swapping. X-Wing is a *single fixed construction*; deployments cannot do any of this
+  without forking it.
 - **One auditable codebase across platforms** — a single Rust core means one
   CT-verified, one fuzzed, one differential-tested implementation under C / WASM /
   Swift / Kotlin, reducing audit and implementation-bug surface. (Note: ML-KEM and

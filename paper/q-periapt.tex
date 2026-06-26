@@ -422,10 +422,13 @@ construction from the FIPS-deterministic encodings and identical source. So four
 are \emph{run} and one is cross-compiled---this honest accounting is what makes the cross-substrate
 claim defensible.
 
-\emph{Footprint.} The deployable surface is small: the stripped C-ABI shared library---the default
-hybrid build (libcrux ML-KEM-768, X25519, and the combiner; the optional signature and HQC backends
-are feature-gated and dead-stripped from this build)---is $441$\,KB; the WebAssembly module is
-$\approx$195\,KB via \code{wasm-pack\ --release} (further reducible with \code{wasm-opt\ -Oz}); and
+\emph{Footprint} (platform-dependent; regenerate per host with \code{paper/footprint.sh}, values
+in \code{paper/footprint.csv}). The deployable surface is small: the stripped C-ABI shared
+library---the default hybrid build (libcrux ML-KEM-768, X25519, and the combiner; the optional
+signature and HQC backends are feature-gated and dead-stripped from this build)---is
+$\approx$796\,KiB on macOS arm64 and $\approx$441\,KB on Linux x86-64; the lean WebAssembly module is
+$\approx$195\,KiB via \code{wasm-pack\ --release} (the optional \code{signed-policy} feature, which
+links an ML-DSA verifier, grows it to $\approx$586\,KiB); and
 the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target, so the same proven
 combiner runs from a server down to an embedded MCU.
 
@@ -1013,7 +1016,9 @@ $95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss 
 \cref{sec:eval}: the median is loss-insensitive, while the tail is governed by a per-loss TCP
 retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
-Footprint: the stripped C-ABI library is $441$\,KB (default hybrid build), the WebAssembly module $\approx$195\,KB.
+Footprint (platform-dependent, \code{paper/footprint.csv}): the stripped C-ABI library is
+$\approx$796\,KiB on macOS arm64 / $\approx$441\,KB on Linux x86-64 (default hybrid build), the lean
+WebAssembly module $\approx$195\,KiB.
 
 \begin{table}[t]\centering\scriptsize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}

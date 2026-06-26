@@ -1,0 +1,5 @@
+# Q-Periapt binary footprint. PLATFORM-DEPENDENT — regenerate per host: sh paper/footprint.sh
+host,rustc,artifact,bytes,kib
+Darwin 27.0.0 arm64,1.96.0,c-abi-cdylib-stripped,815392,796.3
+Darwin 27.0.0 arm64,1.96.0,wasm-lean-default,200170,195.5
+Darwin 27.0.0 arm64,1.96.0,wasm-signed-policy,599994,585.9
