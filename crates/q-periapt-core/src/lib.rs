@@ -165,7 +165,13 @@ pub enum Profile {
     /// Fast, byte-exact X-Wing-compatible combiner (parity with mainstream).
     /// Binds the traditional ciphertext+pubkey; relies on the PQ KEM being
     /// [`Kem::C2PRI`] to *not* hash the PQ ct/pk. Requires all four absorbed
-    /// fields to be exactly 32 bytes. Does **not** bind external context.
+    /// fields to be exactly 32 bytes.
+    ///
+    /// **Footgun:** X-Wing has no `suite_id`/`policy_version`/`context` fields, so this profile
+    /// **silently ignores** any you pass — it does **not** bind external context or the agility
+    /// block. If you need that binding, you **must** use [`Profile::ContextBound`]; passing a
+    /// context here is accepted and discarded with no error (a deliberate compatibility limitation,
+    /// not context binding).
     CompatXWing = 1,
     /// Stronger context-bound combiner: domain-separated, injective fixed-width
     /// length-prefixed, binds a first-class agility block (`suite_id`,
@@ -493,13 +499,18 @@ mod tests {
     }
 
     #[test]
-    fn compat_profile_ignores_agility_and_context() {
-        // X-Wing-compatible profile must NOT depend on suite/version/context.
+    fn compat_xwing_silently_discards_context_use_contextbound_to_bind() {
+        // DELIBERATE COMPATIBILITY LIMITATION, *not* a security feature: CompatXWing is byte-exact
+        // X-Wing, which has no suite_id/policy_version/context, so it SILENTLY IGNORES them. A caller
+        // that needs to bind context or the agility block MUST select `Profile::ContextBound`;
+        // choosing CompatXWing and passing a context yields NO context binding (the footgun the
+        // `Profile::CompatXWing` doc warns about). We pin the discard so a regression cannot start
+        // binding here, which would break X-Wing byte-compatibility.
         let x =
             combine::<ToyXof>(Profile::CompatXWing, &input_with(b"suite-A", 1, b"ctx-A")).unwrap();
         let y =
             combine::<ToyXof>(Profile::CompatXWing, &input_with(b"suite-B", 9, b"ctx-B")).unwrap();
-        assert_eq!(x.as_bytes(), y.as_bytes());
+        assert_eq!(x.as_bytes(), y.as_bytes()); // identical despite different ctx => discarded
     }
 
     #[test]
