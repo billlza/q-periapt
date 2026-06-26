@@ -17,6 +17,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-kem = { path = "../q-periapt-kem" }
 q-periapt-backends = { path = "../q-periapt-backends" }
+q-periapt-policy = { path = "../q-periapt-policy" }
 
 [features]
 # Only the netem benchmark's X25519MLKEM768 reference arm needs aws-lc-rs; opt-in so the

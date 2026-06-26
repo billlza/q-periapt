@@ -238,3 +238,44 @@ pub fn provider() -> CryptoProvider {
         ..base
     }
 }
+
+/// A [`CryptoProvider`] whose offered hybrid group is **chosen by `policy`** rather than a hard-coded
+/// constant: [`q_periapt_policy::Policy::select_profile`] picks ContextBound (when the policy requires
+/// it — e.g. an L5 / non-C2PRI posture) or the policy's default profile. This is the shipping path
+/// that lets the agility policy actually drive key-exchange selection (vs. a raw profile argument).
+#[must_use]
+pub fn provider_with_policy(policy: &q_periapt_policy::Policy) -> CryptoProvider {
+    let base = rustls::crypto::ring::default_provider();
+    let want = match policy.select_profile() {
+        Profile::ContextBound => Q_PERIAPT_CONTEXTBOUND,
+        Profile::CompatXWing => Q_PERIAPT_COMPATXWING,
+    };
+    let kx: Vec<&'static dyn SupportedKxGroup> = kx_groups(base.secure_random)
+        .into_iter()
+        .filter(|g| g.name() == want)
+        .collect();
+    CryptoProvider {
+        kx_groups: kx,
+        ..base
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::indexing_slicing, clippy::unwrap_used)]
+    use super::*;
+    use q_periapt_policy::Policy;
+
+    #[test]
+    fn provider_with_policy_lets_the_policy_pick_the_kx_group() {
+        // The agility policy actually drives the offered group: enhanced (L5/HQC) -> ContextBound,
+        // default -> CompatXWing. This is the shipping-path use of Policy::select_profile().
+        let enhanced = provider_with_policy(&Policy::enhanced());
+        assert_eq!(enhanced.kx_groups.len(), 1);
+        assert_eq!(enhanced.kx_groups[0].name(), Q_PERIAPT_CONTEXTBOUND);
+
+        let default = provider_with_policy(&Policy::default());
+        assert_eq!(default.kx_groups.len(), 1);
+        assert_eq!(default.kx_groups[0].name(), Q_PERIAPT_COMPATXWING);
+    }
+}
