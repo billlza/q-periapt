@@ -20,4 +20,14 @@ fuzz/Cargo.lock
 /sbom/*.json
 /sbom/*.cdx.json
 
+# LaTeX build artifacts (the .tex source + the final .pdf are committed; intermediates are not)
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.bbl
+paper/*.blg
+paper/*.toc
+
 # NOTE: Cargo.lock is intentionally committed (auditable / reproducible builds).

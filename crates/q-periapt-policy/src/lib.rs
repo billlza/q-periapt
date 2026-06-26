@@ -543,7 +543,9 @@ mod load_tests {
     fn sign_with_root(text: &str, seed: u8) -> (Vec<u8>, Vec<u8>) {
         let (sk, vk) = MlDsa65::generate([seed; 32]);
         let mut sig = [0u8; ML_DSA_65_SIG_LEN];
-        let n = MlDsa65.sign(&sk, text.as_bytes(), &[0u8; 32], &mut sig).unwrap();
+        let n = MlDsa65
+            .sign(&sk, text.as_bytes(), &[0u8; 32], &mut sig)
+            .unwrap();
         (vk.to_vec(), sig[..n].to_vec())
     }
 
@@ -574,7 +576,10 @@ mod load_tests {
     #[test]
     fn signed_load_monotonic_rejects_rollback() {
         // A validly-signed policy at version 2.
-        let v2 = POLICY.replace("schema_version = 1\n", "schema_version = 1\npolicy_version = 2\n");
+        let v2 = POLICY.replace(
+            "schema_version = 1\n",
+            "schema_version = 1\npolicy_version = 2\n",
+        );
         let (vk, sig) = sign_with_root(&v2, 5);
         // Same or newer than last-trusted is accepted (idempotent re-apply / upgrade).
         assert!(Policy::load_signed_monotonic(&MlDsa65, &vk, v2.as_bytes(), &sig, 2).is_ok());

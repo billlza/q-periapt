@@ -119,7 +119,13 @@ impl<H: Kem> Kem for HqcAsKem<H> {
         self.0.algorithm()
     }
 
-    fn encapsulate(&self, pk: &[u8], rand: &[u8], ct: &mut [u8], ss: &mut [u8]) -> Result<(), Error> {
+    fn encapsulate(
+        &self,
+        pk: &[u8],
+        rand: &[u8],
+        ct: &mut [u8],
+        ss: &mut [u8],
+    ) -> Result<(), Error> {
         let mut ss64 = [0u8; 64];
         let out = self
             .0
