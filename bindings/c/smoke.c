@@ -82,7 +82,9 @@ static int test_hybrid_roundtrip(void) {
     rc = q_periapt_x25519_keypair(scalar, sizeof scalar, sk_trad, sizeof sk_trad, pk_trad, sizeof pk_trad);
     if (rc != Q_PERIAPT_OK) { printf("B: x25519 keypair rc=%d\n", rc); return 1; }
 
-    const uint8_t suite_id[] = {'S'};
+    /* The fixed C ABI validates suite_id against its canonical value (Q_PERIAPT_SUITE_ID);
+       pass that exactly. `sizeof - 1` drops the C string's trailing NUL so the length is 17. */
+    const uint8_t suite_id[] = "ML-KEM-768+X25519";
     const uint8_t context[] = {'c', 't', 'x'};
     const uint32_t policy_version = 1;
     uint8_t rand_pq[32], rand_trad[32];
@@ -93,14 +95,14 @@ static int test_hybrid_roundtrip(void) {
     uint8_t secret_enc[Q_PERIAPT_SECRET_LEN], secret_dec[Q_PERIAPT_SECRET_LEN];
 
     rc = q_periapt_hybrid_encapsulate(
-        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id, policy_version,
+        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id - 1, policy_version,
         pk_pq, sizeof pk_pq, pk_trad, sizeof pk_trad, context, sizeof context,
         rand_pq, sizeof rand_pq, rand_trad, sizeof rand_trad,
         ct_pq, sizeof ct_pq, ct_trad, sizeof ct_trad, secret_enc, sizeof secret_enc);
     if (rc != Q_PERIAPT_OK) { printf("B: encapsulate rc=%d\n", rc); return 1; }
 
     rc = q_periapt_hybrid_decapsulate(
-        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id, policy_version,
+        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id - 1, policy_version,
         sk_pq, sizeof sk_pq, ct_pq, sizeof ct_pq, pk_pq, sizeof pk_pq,
         sk_trad, sizeof sk_trad, ct_trad, sizeof ct_trad, pk_trad, sizeof pk_trad,
         context, sizeof context, secret_dec, sizeof secret_dec);
@@ -121,7 +123,7 @@ static int test_hybrid_roundtrip(void) {
     memcpy(ct_pq_bad, ct_pq, sizeof ct_pq_bad);
     ct_pq_bad[0] ^= 0x01;
     rc = q_periapt_hybrid_decapsulate(
-        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id, policy_version,
+        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id - 1, policy_version,
         sk_pq, sizeof sk_pq, ct_pq_bad, sizeof ct_pq_bad, pk_pq, sizeof pk_pq,
         sk_trad, sizeof sk_trad, ct_trad, sizeof ct_trad, pk_trad, sizeof pk_trad,
         context, sizeof context, secret_bad, sizeof secret_bad);
@@ -134,7 +136,7 @@ static int test_hybrid_roundtrip(void) {
        the wrong scalar/point, so the secret must differ. Proves the C ABI is positionally
        sensitive (a transposed (ptr,len) pair does not pass by luck). */
     rc = q_periapt_hybrid_decapsulate(
-        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id, policy_version,
+        Q_PERIAPT_PROFILE_CONTEXT_BOUND, suite_id, sizeof suite_id - 1, policy_version,
         sk_pq, sizeof sk_pq, ct_pq, sizeof ct_pq, pk_pq, sizeof pk_pq,
         ct_trad, sizeof ct_trad, sk_trad, sizeof sk_trad, pk_trad, sizeof pk_trad,
         context, sizeof context, secret_bad, sizeof secret_bad);
