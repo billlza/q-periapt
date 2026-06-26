@@ -32,7 +32,8 @@ libcrux-ml-kem = "0.0.9"
 # ACVP internal-interface conformance vectors.
 libcrux-ml-dsa = { version = "0.0.9", features = ["acvp"] }
 # X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
-x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+# `zeroize` makes StaticSecret wipe its scalar on drop (defense-in-depth for ephemeral secrets).
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets", "zeroize"] }
 # SHA3-256 / SHAKE-256 (libcrux, same verified family as the ML-KEM backend).
 libcrux-sha3 = "0.0.9"
 # --- optional backends (see [features]) ---

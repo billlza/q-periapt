@@ -427,6 +427,7 @@ dependencies = [
  "fiat-crypto 0.2.9",
  "rustc_version",
  "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -1284,6 +1285,7 @@ dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-kem",
+ "q-periapt-policy",
  "rcgen",
  "rustls",
  "socket2",
@@ -2141,6 +2143,7 @@ checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
 dependencies = [
  "curve25519-dalek",
  "rand_core 0.6.4",
+ "zeroize",
 ]
 
 [[package]]
