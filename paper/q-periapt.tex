@@ -37,44 +37,32 @@ editor; its public URL is withheld to preserve anonymity.}}
 \maketitle
 
 \begin{abstract}
-Post-quantum hybrid key-encapsulation (PQ/T KEMs, combining a lattice KEM with an
-elliptic-curve KEM) is being deployed across TLS, Signal, and MLS faster than its
-\emph{deployment safety} can be assured: the same period has seen side-channel breaks
-(KyberSlash), binding / re-encapsulation breaks (PQXDH; the ML-KEM malicious-key binding
-failures of Schmieg), and a widening gap between what a hybrid's \emph{specification}
-guarantees and what its compiled, multi-platform \emph{implementation} actually does. We
-present Q-Periapt, an assurance suite for PQ/T hybrid KEMs organised around one principle:
-\emph{a security property is only as trustworthy as its weakest realization}. Its combiner,
-ContextBound, achieves binding (\mbox{MAL-BIND-K-CT} and \mbox{MAL-BIND-K-PK}) reducing to
-collision-resistance of SHA3 \emph{alone}---with no binding assumption on the component
-KEMs---and we machine-check this in EasyCrypt. The injective encoding is a proved lemma (not an
-axiom), and---stated honestly---the result is in substance a \emph{commitment / transcript-binding}
-theorem (the session key commits to the full transcript; the component decapsulation is inert in
-the argument, which is precisely why no KEM assumption is needed), instantiated in the
-Cremers--Dax--Medinger Figure~6 game for both rejection styles. Crucially, the \emph{same} proven
-combiner is realized byte-identically across five language faces and three operating
-systems---\emph{executed} on four instruction-set architectures (three native, riscv64 under
-qemu-user emulation) and cross-compiled, with by-construction identity, on one more---verified by a
-six-method conformance matrix and a
-self-validating source$\to$binary constant-time probe (configured as a CI gate; measured locally)
-that we show \emph{discriminates} a clean primitive (libcrux ML-KEM: zero secret-dependent branches
-after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a real TLS~1.3
-stack (a rustls \code{CryptoProvider} with a private-use group) and evaluate handshake time-to-session under real
-\code{tc netem}. Beyond attaining the ceiling, we prove a machine-checked \emph{separation map}: in
-one EasyCrypt model we delete each combiner input in turn and show exactly which binding notion it
-costs---omitting the PQ public key loses \mbox{MAL-BIND-K-PK} over the FIPS-203 expanded
-decapsulation-key serialization (a concrete adversary wins with probability one) but not over the
-seed-\code{dk} form; omitting the context loses \mbox{MAL-BIND-K-CTX} unconditionally; whereas
-omitting the PQ ciphertext is \emph{harmless}. The asymmetry is the contribution: the
-implicit-rejection shared secret transitively rebinds the \emph{ciphertext} but \emph{not} the
-\emph{public key} (which it leaves key-independent under expanded-\code{dk} seed-substitution). So
-public-key and context absorption are \emph{necessary} while ciphertext absorption is redundant, and
-the deployed X-Wing shape (omitting all three) provably loses \mbox{K-PK} and \mbox{K-CTX} while
-keeping \mbox{K-CT}---a field-resolved account of exactly where ContextBound's extra binding pays off. We are explicit about what is and
-is not novel: the binding \emph{fact} is a known consequence of recent results; our contributions
-are this separation theorem and the \emph{conjunction}---an assumption-minimal, machine-checked
-binding result whose proven object is demonstrably identical across a heterogeneous deployment
-surface, with reproducible gates that catch the failure classes that have broken deployed hybrids.
+Post-quantum hybrid key-encapsulation (PQ/T KEMs---a lattice KEM combined with an elliptic-curve
+KEM) is being deployed across TLS, Signal, and MLS faster than its \emph{deployment safety} can be
+assured: the same period has seen side-channel breaks (KyberSlash), binding / re-encapsulation
+breaks (PQXDH; Schmieg's ML-KEM malicious-key binding failures), and a widening gap between what a
+hybrid's \emph{specification} guarantees and what its compiled, multi-platform \emph{implementation}
+actually does. We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs built on one principle:
+\emph{a security property is only as trustworthy as its weakest realization}.
+
+Its combiner, ContextBound, achieves \emph{combiner binding} (\mbox{MAL-BIND-K-CT} and
+\mbox{MAL-BIND-K-PK}) reducing to collision-resistance of SHA3 \emph{alone}---with no binding
+assumption on the component KEMs---machine-checked in EasyCrypt as a hermetic CI gate. The
+\emph{same} proven combiner is then realized byte-identically across five language faces, three
+operating systems, and five instruction-set architectures (four executed---one under qemu-user---and
+one cross-compiled), verified by a six-method conformance matrix and a self-validating
+source$\to$binary constant-time probe that discriminates a clean primitive from a leaky one. A
+machine-checked \emph{separation map} then resolves, field by field, which combiner inputs are
+load-bearing: public-key and context absorption are necessary, and the map characterizes exactly
+where the X-Wing field shape---when instantiated over the FIPS-203 expanded-\code{dk} serialization,
+or without external context binding---is exposed and ContextBound is not.
+
+We are explicit about novelty: the binding \emph{fact} follows from recent results; our
+contributions are this separation theorem and the \emph{conjunction}---an assumption-minimal
+(for the combiner-binding property), machine-checked result whose proven object is identical across a
+heterogeneous deployment surface, with reproducible gates that catch the failure classes that have
+broken deployed hybrids. Integrated as a rustls TLS~1.3 key-exchange group, ContextBound adds about
+$8\,\mu$s of local overhead, dominated by network RTT.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -706,6 +694,9 @@ two isolated cores under the \code{performance} governor; medians over $20$ repe
 RTT~$\approx$~0 the per-group medians are tight to $\pm 2$--$3\,\mu$s and the ordering is resolved at
 the median (ContextBound $>$ CompatXWing in $18$ of $20$ reps): classical X25519 $238\,\mu$s, the
 IANA-standard \code{X25519MLKEM768} $263\,\mu$s, CompatXWing $318\,\mu$s, ContextBound $326\,\mu$s.
+The p99 tracks the p50 (\cref{tab:baremetal}: $252.7$\,/\,$317.1$\,/\,$377.5$\,/\,$385.9\,\mu$s), so
+the ContextBound$-$CompatXWing gap is $+8.4\,\mu$s at the p99---the combiner cost does not grow in
+the tail.
 The reproducible local overhead of this Q-Periapt rustls path over classical X25519 is thus
 $\approx 88\,\mu$s, and---critically---\textbf{ContextBound costs only $+8.1\,\mu$s over CompatXWing},
 the price of explicit hash-everything transcript binding, in close agreement with the $+6.2\,\mu$s combiner cost
@@ -729,19 +720,22 @@ the $+8.1\,\mu$s, not the $62$.
 
 \begin{table}[t]\centering
 \caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
-benchmark pinned to two isolated cores, \code{performance} governor; median p50 over $20$
-repetitions). At RTT~0 the per-group order resolves at the median and ContextBound is
-$+8.1\,\mu$s over CompatXWing; at RTT~$\ge$~20\,ms the combiner cost is dwarfed by the link. Raw
-transcript in the artifact.}
+benchmark pinned to two isolated cores, \code{performance} governor; median of the per-rep p50 and
+p99 over $20$ repetitions, RTT-0 column). At RTT~0 the per-group order resolves and ContextBound is
+$+8.1\,\mu$s over CompatXWing ($+8.4\,\mu$s at the p99); at RTT~$\ge$~20\,ms the combiner cost is
+dwarfed by the link (medians shown). Raw transcript in the artifact
+(\code{paper/camera-ready-results.txt}).}
 \label{tab:baremetal}
-\begin{tabular}{@{}l r r r@{}}
+\begin{tabular}{@{}l r r r r@{}}
 \toprule
-key-exchange group & RTT~0 & RTT~20\,ms & RTT~50\,ms \\
+ & \multicolumn{2}{c}{RTT~0} & & \\
+\cmidrule(lr){2-3}
+key-exchange group & p50 & p99 & RTT~20\,ms & RTT~50\,ms \\
 \midrule
-X25519 (classical)                  & $238.3\,\mu$s & $41.06$\,ms & $101.16$\,ms \\
-X25519MLKEM768 (std.) & $263.5\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
-CompatXWing & $317.8\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
-ContextBound & $325.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
+X25519 (classical)                  & $238.3\,\mu$s & $252.7\,\mu$s & $41.06$\,ms & $101.16$\,ms \\
+X25519MLKEM768 (std.) & $263.5\,\mu$s & $317.1\,\mu$s & $41.15$\,ms & $101.17$\,ms \\
+CompatXWing & $317.8\,\mu$s & $377.5\,\mu$s & $41.14$\,ms & $101.17$\,ms \\
+ContextBound & $325.9\,\mu$s & $385.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -816,8 +810,7 @@ hash-everything combiner is binding from collision-resistance alone, while a lea
 the binding of whatever component it omits; ContextBound is an instance of the former, which is
 exactly why we attribute the binding \emph{fact} rather than claim it. At the symmetric layer, the
 same idea appears as context-committing AEAD (CMT)~\cite{cmt}, of which our context axis is the
-KEM-output-layer analogue; the role of public contexts specifically in hybrid KEMs is studied
-in~\cite{eprint2026140}. Our separation map (\cref{thm:sep}) sits one level finer than each of these:
+KEM-output-layer analogue. Our separation map (\cref{thm:sep}) sits one level finer than each of these:
 where Chempat states a \emph{binary} dichotomy (the lean shape inherits the omitted component's
 binding) and Schmieg fixes a \emph{single} KEM's format-dependence, the map is a \emph{field-resolved
 necessity} statement---per binding notion and per \code{dk}-format, exactly which combiner input is
@@ -883,12 +876,11 @@ MAL-BIND-K-PK,'' IACR ePrint 2024/523, 2024.
 \bibitem{chempat} J.~G\"uneysu, K.~H\"ovelmanns, \emph{et al.}, ``Binding Security of Combined KEMs
 / Chempat,'' IACR ePrint 2025/1416, 2025.
 \bibitem{xwing} D.~Connolly, P.~Schwabe, and B.~Westerbaan, ``X-Wing: The Hybrid KEM You've Been
-Looking For,'' draft-connolly-cfrg-xwing-kem (CFRG), 2024.
+Looking For,'' draft-connolly-cfrg-xwing-kem-10, individual Internet-Draft (work in progress), 2026.
 \bibitem{kyberslash} D.~J.~Bernstein, K.~Bhargavan, \emph{et al.}, ``KyberSlash: Exploiting
 Secret-Dependent Division Timings in Kyber Implementations,'' \emph{IACR TCHES}, 2025.
 \bibitem{cmt} M.~Bellare and V.~T.~Hoang, ``Efficient Schemes for Committing Authenticated
 Encryption,'' \emph{EUROCRYPT}, 2022.
-\bibitem{eprint2026140} ``On the Role of Public Contexts in Hybrid KEMs,'' IACR ePrint 2026/140.
 \bibitem{fips204} National Institute of Standards and Technology, ``FIPS 204: Module-Lattice-Based
 Digital Signature Standard,'' 2024.
 \bibitem{fips205} National Institute of Standards and Technology, ``FIPS 205: Stateless Hash-Based
@@ -907,8 +899,9 @@ Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
 8446, IETF, 2018.
 \bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
 draft-ietf-tls-hybrid-design, IETF, 2023.
-\bibitem{tlsmlkem} K.~Kwiatkowski \emph{et al.}, ``Post-Quantum Key Exchange \code{X25519MLKEM768}
-for TLS 1.3,'' draft-kwiatkowski-tls-ecdhe-mlkem, IETF, 2024.
+\bibitem{tlsmlkem} K.~Kwiatkowski \emph{et al.}, ``Post-Quantum Hybrid \code{ECDHE-MLKEM} Key
+Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS Working Group (work in progress),
+2026.
 \bibitem{pqxdh} K.~Bhargavan, C.~Jacomme, F.~Kiefer, and R.~Schmidt, ``Formal Verification of the
 PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
 \bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in
