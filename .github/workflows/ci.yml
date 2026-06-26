@@ -7,6 +7,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
+  # Retry transient crates.io download failures (HTTP2 framing / curl errors on the runners)
+  # instead of failing the build; the default is 3.
+  CARGO_NET_RETRY: "10"
 
 jobs:
   # Format + lint + unit tests on the host.
