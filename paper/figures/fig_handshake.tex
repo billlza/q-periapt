@@ -33,12 +33,12 @@
 \draw[msg] ($(st)+(0,-22mm)$) -- ($(ct)+(0,-22mm)$)
   node[midway, above, note] {ServerHello: $ct_{\mathrm{pq}}\,\|\,ct_{\mathrm{tr}}$ \;(1120\,B)};
 \draw[msg] ($(st)+(0,-28mm)$) -- ($(ct)+(0,-28mm)$)
-  node[midway, above, note] {\{Cert, CertVerify (ML-DSA), Finished\}$_K$};
+  node[midway, above, note] {\{Cert, CertVerify, Finished\}$_K$};
 
 % client-side compute
 \node[cb, anchor=east] (cc) at ($(ct)+(-2mm,-38mm)$)
   {decapsulate $\Rightarrow ss_{\mathrm{pq}},ss_{\mathrm{tr}}$\\
-   $K=\textsc{ContextBound}(\cdots)$;\ verify sig};
+   $K=\textsc{ContextBound}(\cdots)$;\ verify cert};
 
 % 3. client Finished
 \draw[msg] ($(ct)+(0,-48mm)$) -- ($(st)+(0,-48mm)$)

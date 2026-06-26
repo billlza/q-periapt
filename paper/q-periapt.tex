@@ -58,8 +58,8 @@ qemu-user emulation) and cross-compiled, with by-construction identity, on one m
 six-method conformance matrix and a
 self-validating source$\to$binary constant-time probe (configured as a CI gate; measured locally)
 that we show \emph{discriminates} a clean primitive (libcrux ML-KEM: zero secret-dependent branches
-after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a production TLS~1.3
-path (a rustls \code{CryptoProvider}) and evaluate handshake tail latency under real
+after compilation) from a leaky one (HQC's PQClean constant-weight sampler). We integrate the combiner into a real TLS~1.3
+stack (a rustls \code{CryptoProvider} with a private-use group) and evaluate handshake time-to-session under real
 \code{tc netem}. Beyond attaining the ceiling, we prove a machine-checked \emph{separation map}: in
 one EasyCrypt model we delete each combiner input in turn and show exactly which binding notion it
 costs---omitting the PQ public key loses \mbox{MAL-BIND-K-PK} over the FIPS-203 expanded
@@ -160,8 +160,8 @@ stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary c
 discriminating, gated oracle); an executable \emph{regression oracle} for the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements honestly as
 local runs.
-\item \textbf{C4 (\cref{sec:eval}).} A production TLS~1.3 path (rustls \code{CryptoProvider}),
-evaluated under real \code{tc netem}.
+\item \textbf{C4 (\cref{sec:eval}).} A production-stack TLS~1.3 integration (rustls
+\code{CryptoProvider}, private-use group), evaluated under real \code{tc netem}.
 \end{itemize}
 
 \paragraph*{What is and is not novel}
@@ -640,10 +640,11 @@ toolchain install; all checker and solver versions are pinned in the artifact.
 \subsection{Microbenchmarks}
 \Cref{tab:bench} reports primitive and hybrid costs (Criterion, point estimates, on an Apple-Silicon
 arm64 host; the artifact reproduces them and an x86-64 run). Two findings matter for deployment.
-First, \emph{the post-quantum leg is not the bottleneck}: ML-KEM-768 encapsulation is
-$11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation ($89.8\,\mu$s, an ephemeral
-keygen plus a Diffie--Hellman), so the classical half dominates hybrid CPU---a useful corrective to
-the assumption that PQ is the expensive part. Second, \emph{the hash-everything combiner is cheap}:
+First, \emph{in our libcrux\,/\,x25519-dalek backend the post-quantum leg is not the bottleneck}:
+ML-KEM-768 encapsulation is $11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation
+($89.8\,\mu$s, an ephemeral keygen plus a Diffie--Hellman), so the classical X25519-as-KEM path
+dominates hybrid CPU here---a corrective to the assumption that PQ is the expensive part (a different
+backend, e.g.\ the aws-lc-rs \code{X25519MLKEM768} row, shifts this balance). Second, \emph{the hash-everything combiner is cheap}:
 ContextBound costs only $\sim$$6$--$8\,\mu$s over the byte-exact X-Wing combiner CompatXWing
 (encapsulation $109.1$ vs.\ $101.3\,\mu$s; decapsulation $65.9$ vs.\ $59.2\,\mu$s; single-run point
 estimates, run-to-run variance $\sim$$1\,\mu$s)---the price of binding the full transcript is
@@ -676,20 +677,25 @@ Hybrid, CompatXWing  & --- & 101.3 & 59.2 & 1216 & --- & 1120 \\
 \subsection{Handshake latency under emulated networks}
 We expose ContextBound (and CompatXWing) as a TLS~1.3 key-exchange group via a rustls~\cite{rustls}
 \code{CryptoProvider}, using private-use group codes; a real loopback TLS~1.3 handshake completes
-over this provider. \Cref{fig:handshake} shows the server-authenticated hybrid flow: the client
-offers a combined keyshare, the server encapsulates to both components and derives the session key
-with the combiner, authenticates with an ML-DSA signature, and the client decapsulates and re-derives
-the same key---which stays secret unless \emph{both} component KEMs are broken (the robustness
-property our symbolic models establish, \cref{sec:assurance}). We evaluate handshake
-\emph{time-to-session} (TCP connect plus full TLS~1.3 handshake) over a real
-loopback socket shaped by \code{tc netem}, comparing a classical X25519 baseline against the two
-PQ/T profiles.
+over this provider, with the server authenticated by a \emph{standard TLS certificate} (a self-signed
+certificate in the loopback measurement, via the rustls cipher-suite/signature machinery---\emph{not}
+an ML-DSA signature). \Cref{fig:handshake} shows the key-exchange flow: the client offers a combined
+keyshare, the server encapsulates to both components and derives the session key with the combiner,
+and the client decapsulates and re-derives the same key---which stays secret unless \emph{both}
+component KEMs are broken. We evaluate handshake \emph{time-to-session} over a real loopback socket
+shaped by \code{tc netem}, comparing a classical X25519 baseline against the two PQ/T profiles.
+Because the metric is \emph{TCP connect plus a full TLS~1.3 handshake}, the floor is about two RTTs
+before any local CPU cost. The \emph{ML-DSA}-authenticated hybrid handshake---whose robustness our
+symbolic models establish (\cref{sec:assurance})---is a separate HPKE-shaped TCP demo, \emph{not} the
+TLS~1.3 wire format, and is not used for the measurements here.
 
 \begin{figure*}[t]\centering
 \includegraphics[width=0.84\textwidth]{fig_handshake.pdf}
-\caption{Server-authenticated PQ/T hybrid TLS 1.3 handshake over the rustls provider. Both peers
-derive the same session key $K$ with the ContextBound combiner; $K$ remains secret unless
-\emph{both} component KEMs are broken.}
+\caption{PQ/T hybrid TLS~1.3 \emph{key exchange} over the rustls provider (private-use group), with
+standard TLS server-certificate authentication (a self-signed certificate in the loopback
+measurement). Both peers derive the same session key $K$ with the ContextBound combiner; $K$ remains
+secret unless \emph{both} component KEMs are broken. ML-DSA-based authentication is the separate
+HPKE-shaped demo of \cref{sec:assurance}, not this measured TLS path.}
 \label{fig:handshake}
 \end{figure*}
 
@@ -700,9 +706,9 @@ two isolated cores under the \code{performance} governor; medians over $20$ repe
 RTT~$\approx$~0 the per-group medians are tight to $\pm 2$--$3\,\mu$s and the ordering is resolved at
 the median (ContextBound $>$ CompatXWing in $18$ of $20$ reps): classical X25519 $238\,\mu$s, the
 IANA-standard \code{X25519MLKEM768} $263\,\mu$s, CompatXWing $318\,\mu$s, ContextBound $326\,\mu$s.
-The reproducible cost of the PQ/T upgrade is thus $\approx 88\,\mu$s of ML-KEM CPU over the classical
-baseline, and---critically---\textbf{ContextBound costs only $+8.1\,\mu$s over CompatXWing}, the
-price of the stronger hash-everything binding, in close agreement with the $+6.2\,\mu$s combiner cost
+The reproducible local overhead of this Q-Periapt rustls path over classical X25519 is thus
+$\approx 88\,\mu$s, and---critically---\textbf{ContextBound costs only $+8.1\,\mu$s over CompatXWing},
+the price of explicit hash-everything transcript binding, in close agreement with the $+6.2\,\mu$s combiner cost
 measured in isolation (\cref{tab:bench}). This
 quiesced measurement supersedes our earlier virtualized-host run, whose $2\times$ run-to-run swings
 exceeded the few-$\mu$s combiner difference; on bare metal it resolves cleanly.
@@ -716,8 +722,10 @@ IANA standard. The two hybrids differ in \emph{two} independent ways, which the 
 combiner (ContextBound vs.\ concatenation), worth $+8.1\,\mu$s (the \code{bound}$-$\code{compat}
 delta, same ML-KEM implementation), and the ML-KEM implementation itself ($+62\,\mu$s between the
 \code{standard} row, on aws-lc-rs, and the \code{bound} row, on libcrux/ring)---an
-implementation-not-combiner cost we do not optimize and that an aws-lc-rs ContextBound build would
-erase. The binding upgrade ContextBound provides is the $+8.1\,\mu$s, not the $62$.
+implementation-not-combiner cost we do not optimize; isolating it would be the right job for an
+aws-lc-rs-backed ContextBound implementation, which we do not build---so we do not claim the
+$62\,\mu$s eliminated, only that it is backend-related. The binding upgrade ContextBound provides is
+the $+8.1\,\mu$s, not the $62$.
 
 \begin{table}[t]\centering
 \caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
@@ -760,8 +768,11 @@ within run-to-run noise (error bars span the two repetitions and cross zero at R
 
 \begin{figure}[t]\centering
 \includegraphics[width=0.86\columnwidth]{fig_wire.pdf}
-\caption{Handshake wire budget. The PQ/T cost is one ML-KEM-768 keyshare each way ($+2.27$\,KB),
-which fits inside the existing flights.}
+\caption{TLS~1.3 \emph{key-exchange} wire-budget increment only. The PQ/T cost is one ML-KEM-768
+keyshare each way ($+2.27$\,KB) on top of the classical group; it \emph{excludes} the
+authentication certificate/signature bytes, which are unchanged from the classical baseline in the
+rustls measurement. (The ML-DSA-authenticated demo's multi-KB signature is a separate budget, not
+shown here.)}
 \label{fig:wire}
 \end{figure}
 
@@ -850,7 +861,7 @@ respectively in the model and on paper; there is no specification-to-implementat
 Binary-level constant-time tooling is mature only on x86-64 and aarch64; riscv64 and wasm32 are
 covered at source level plus upstream attestation. ACVP byte-identity is conformance, not CMVP
 certification. The suite is research-grade and has not had an independent third-party audit. The
-the primary netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
+primary netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
 earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
 retained as supporting context and labeled as such.
 
@@ -859,7 +870,7 @@ A PQ/T hybrid is only as safe as its weakest realization. We closed that gap wit
 assumption-minimal, machine-checked binding result whose proven object is byte-identical across a
 heterogeneous deployment surface, guarded by reproducible gates (configured in CI)---a source$\to$binary
 constant-time discriminator, a binding key-format coupling demonstration, and multi-prover symbolic
-models---and validated on a production TLS~1.3 path. The genuinely new element is the conjunction,
+models---and validated on a real rustls TLS~1.3 integration path. The genuinely new element is the conjunction,
 not any single fact; we have been explicit about the boundary throughout.
 
 \begin{thebibliography}{99}
@@ -1075,8 +1086,7 @@ ML-KEM and HQC). The binding/key-format demonstration:
 tests; the symbolic models: \code{make} under \code{formal/\{tamarin,proverif\}}. The figures of this
 paper rebuild via \code{make -C paper/figures}.
 
-\section*{Acknowledgment}
-The author thanks the maintainers of libcrux/HACL*, EasyCrypt, Tamarin, and ProVerif, whose tools
-this work builds upon. \emph{[Funding/advisor acknowledgments to be added.]}
+% Acknowledgments omitted for double-blind review. CAMERA-READY: restore tool + funding/advisor
+% acknowledgments here.
 
 \end{document}
