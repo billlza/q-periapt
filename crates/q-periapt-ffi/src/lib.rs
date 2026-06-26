@@ -20,12 +20,13 @@
 //!   ([`Q_PERIAPT_ERR_INVALID_KEYSHARE`]) — which reveal nothing about the secret key.
 //! - Every entry point is wrapped in `catch_unwind`; a panic becomes
 //!   [`Q_PERIAPT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
-//! - **No aliasing (caller obligation):** within a single call, the input `(ptr, len)`
-//!   buffers and the output `(ptr, len)` buffers **must not overlap**. Each call
-//!   materializes its inputs as `&[u8]` and its outputs as `&mut [u8]` at the same time;
-//!   an overlap would create simultaneous shared/mutable references to the same memory,
-//!   which is undefined behavior. Pass distinct buffers (their required lengths differ in
-//!   any case). This obligation is part of every function's `# Safety` contract below.
+//! - **No aliasing (checked):** within a single call, the input `(ptr, len)` buffers and the
+//!   output `(ptr, len)` buffers must not overlap — materializing the inputs as `&[u8]` and the
+//!   outputs as `&mut [u8]` at the same time would create simultaneous shared/mutable references to
+//!   the same memory (UB). Rather than rely on the caller, the multi-buffer entry points **check
+//!   the raw `(ptr, len)` ranges up front and return [`Q_PERIAPT_ERR_ALIASING`]** before any slice
+//!   is formed, turning the footgun into a defined error. Pass distinct buffers (their required
+//!   lengths differ in any case).
 
 use core::slice;
 use q_periapt_backends::{
@@ -53,6 +54,10 @@ pub const Q_PERIAPT_ERR_INTERNAL: i32 = -5;
 /// which would force an all-zero DH secret). This is a public-input validity rejection — it depends
 /// only on attacker-known inputs, **not** on the secret key, so it is not a decapsulation oracle.
 pub const Q_PERIAPT_ERR_INVALID_KEYSHARE: i32 = -6;
+/// An output buffer overlapped an input (or another output) buffer. Rather than risk the undefined
+/// behavior of materializing aliasing `&[u8]`/`&mut [u8]`, the call is rejected. (Callers should pass
+/// disjoint buffers; their required lengths differ in any case.)
+pub const Q_PERIAPT_ERR_ALIASING: i32 = -7;
 
 /// `profile = 1`: fast X-Wing-compatible combiner.
 pub const Q_PERIAPT_PROFILE_COMPAT_XWING: u8 = 1;
@@ -104,6 +109,31 @@ unsafe fn out_slice<'a>(ptr: *mut u8, len: usize) -> Option<&'a mut [u8]> {
     } else {
         Some(slice::from_raw_parts_mut(ptr, len))
     }
+}
+
+/// Whether `[a, a+a_len)` and `[b, b+b_len)` overlap as byte ranges. Zero-length ranges never
+/// overlap. (Pointers are compared as integers purely for range disjointness — never dereferenced.)
+fn ranges_overlap(a: *const u8, a_len: usize, b: *const u8, b_len: usize) -> bool {
+    if a_len == 0 || b_len == 0 {
+        return false;
+    }
+    let (a0, b0) = (a as usize, b as usize);
+    a0 < b0.saturating_add(b_len) && b0 < a0.saturating_add(a_len)
+}
+
+/// Reject (return `true`) if any output region overlaps an input region or another output region.
+/// Inputs may freely alias one another (concurrent shared reads are fine); only the `&mut [u8]`
+/// outputs must be disjoint from everything, since aliasing a shared and a mutable reference is UB.
+fn outputs_alias(inputs: &[(*const u8, usize)], outputs: &[(*const u8, usize)]) -> bool {
+    outputs.iter().enumerate().any(|(i, &(op, ol))| {
+        inputs
+            .iter()
+            .any(|&(ip, il)| ranges_overlap(op, ol, ip, il))
+            || outputs
+                .iter()
+                .skip(i + 1)
+                .any(|&(op2, ol2)| ranges_overlap(op, ol, op2, ol2))
+    })
 }
 
 fn err_code(e: Error) -> i32 {
@@ -287,6 +317,25 @@ pub unsafe extern "C" fn q_periapt_hybrid_encapsulate(
     out_secret_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
+        // Reject overlapping buffers up front (before any slice is materialized) so we never form
+        // aliasing &[u8]/&mut [u8] — a defined error in place of undefined behavior.
+        if outputs_alias(
+            &[
+                (suite_id, suite_id_len),
+                (pk_pq, pk_pq_len),
+                (pk_trad, pk_trad_len),
+                (context, context_len),
+                (rand_pq, rand_pq_len),
+                (rand_trad, rand_trad_len),
+            ],
+            &[
+                (out_ct_pq.cast_const(), out_ct_pq_len),
+                (out_ct_trad.cast_const(), out_ct_trad_len),
+                (out_secret.cast_const(), out_secret_len),
+            ],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
         let Some(profile) = profile_from(profile) else {
             return Q_PERIAPT_ERR_POLICY;
         };
@@ -374,6 +423,23 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
     out_secret_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
+        // Reject overlapping buffers up front (see encapsulate): the single output must be disjoint
+        // from every input so no aliasing &[u8]/&mut [u8] is formed.
+        if outputs_alias(
+            &[
+                (suite_id, suite_id_len),
+                (sk_pq, sk_pq_len),
+                (ct_pq, ct_pq_len),
+                (pk_pq, pk_pq_len),
+                (sk_trad, sk_trad_len),
+                (ct_trad, ct_trad_len),
+                (pk_trad, pk_trad_len),
+                (context, context_len),
+            ],
+            &[(out_secret.cast_const(), out_secret_len)],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
         let Some(profile) = profile_from(profile) else {
             return Q_PERIAPT_ERR_POLICY;
         };
@@ -628,6 +694,47 @@ mod tests {
                 "low-order X25519 share must be a public key-share error, not internal"
             );
             assert_eq!(secret, [0u8; 32], "no key material on the rejected path");
+        }
+    }
+
+    #[test]
+    fn hybrid_encapsulate_rejects_overlapping_buffers() {
+        // An output that overlaps an input must be a defined Q_PERIAPT_ERR_ALIASING, never UB.
+        let mut buf = [7u8; Q_PERIAPT_MLKEM768_PK_LEN]; // used as BOTH pk_pq (input) and out_ct_pq
+        let pk_trad = [4u8; 32];
+        let (mut ct_trad, mut secret) = ([0u8; 32], [0u8; 32]);
+        let p = buf.as_mut_ptr();
+        unsafe {
+            let rc = q_periapt_hybrid_encapsulate(
+                Q_PERIAPT_PROFILE_CONTEXT_BOUND,
+                Q_PERIAPT_SUITE_ID.as_ptr(),
+                Q_PERIAPT_SUITE_ID.len(),
+                1,
+                p, // pk_pq input ...
+                Q_PERIAPT_MLKEM768_PK_LEN,
+                pk_trad.as_ptr(),
+                32,
+                b"ctx".as_ptr(),
+                3,
+                [0u8; 32].as_ptr(),
+                32,
+                [2u8; 32].as_ptr(),
+                32,
+                p, // ... and out_ct_pq output -> overlap
+                Q_PERIAPT_MLKEM768_CT_LEN,
+                ct_trad.as_mut_ptr(),
+                32,
+                secret.as_mut_ptr(),
+                32,
+            );
+            assert_eq!(
+                rc, Q_PERIAPT_ERR_ALIASING,
+                "overlapping in/out must be a defined error"
+            );
+            assert_eq!(
+                secret, [0u8; 32],
+                "no key material on the aliasing-rejected path"
+            );
         }
     }
 

@@ -1,5 +1,7 @@
 # Q-Periapt — PQ/T Hybrid Cryptographic Suite
 
+[![CI](https://github.com/billlza/q-periapt/actions/workflows/ci.yml/badge.svg)](https://github.com/billlza/q-periapt/actions/workflows/ci.yml)
+
 > [!WARNING]
 > **Status: pre-1.0 research / doctoral-thesis project (v0.0.1). NOT audited,
 > NOT FIPS-validated — do not use in production yet.** Real vetted backends are
@@ -79,7 +81,7 @@ is deliberately ~19× more combiner hashing. We never claim a combiner speed win
   X25519 are deterministic standardized primitives, so *any* conformant
   implementation interops across platforms — the win here is reduced audit
   surface, **not** a unique cross-platform interop capability.)
-- **Side-channel CI as a product feature** — the failure-path indistinguishability
+- **Side-channel CI as an assurance feature** — the failure-path indistinguishability
   / implicit-rejection check **is a hard merge gate today**
   ([`ctstats/`](ctstats/README.md): an invalid ML-KEM-768 ciphertext decapsulates
   to a deterministic, success-shaped secret, with no error-code oracle). The
