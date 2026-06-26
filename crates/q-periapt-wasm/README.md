@@ -16,6 +16,22 @@ cargo build -p q-periapt-wasm --target wasm32-unknown-unknown
 wasm-pack build crates/q-periapt-wasm --target web
 ```
 
+## Footprint (reproducible)
+
+The lean default module — `encapsulate` / `decapsulate` / `combine` / keygen only — is
+**≈195 KiB** (199 711 bytes, `wasm-pack 0.15`, `--release`):
+
+```sh
+wasm-pack build crates/q-periapt-wasm --release --target web        # ≈195 KiB
+```
+
+The optional signed-policy path (`profile_from_signed_policy`, behind the off-by-default
+`signed-policy` feature) links an ML-DSA verifier, which grows the module to **≈586 KiB**:
+
+```sh
+wasm-pack build crates/q-periapt-wasm --release --target web -- --features signed-policy  # ≈586 KiB
+```
+
 ## API
 
 ```ts

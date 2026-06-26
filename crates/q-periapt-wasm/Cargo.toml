@@ -17,9 +17,16 @@ crate-type = ["cdylib", "rlib"]
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-kem = { path = "../q-periapt-kem" }
 q-periapt-backends = { path = "../q-periapt-backends" }
-q-periapt-policy = { path = "../q-periapt-policy" }
+# The signed-policy verification path pulls in an ML-DSA verifier; optional so the default module
+# stays lean (encap / decap / combine only).
+q-periapt-policy = { path = "../q-periapt-policy", optional = true }
 # Randomness is passed in by the JS caller (no getrandom/wasm entropy feature needed).
 wasm-bindgen = "0.2"
+
+[features]
+# `profile_from_signed_policy` (Policy::load_signed → select_profile) — opt-in, since the ML-DSA
+# verifier it needs roughly quadruples the WASM module. Off by default.
+signed-policy = ["dep:q-periapt-policy"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

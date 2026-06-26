@@ -9,12 +9,14 @@
 //!
 //! Build: `wasm-pack build crates/q-periapt-wasm --target web` (see `README.md`).
 
+#[cfg(feature = "signed-policy")]
+use q_periapt_backends::MlDsa65;
 use q_periapt_backends::{
-    MlDsa65, MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, X25519,
-    X25519_LEN,
+    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{combine as core_combine, secure_wipe, CombineInput, Profile};
 use q_periapt_kem::HybridKem;
+#[cfg(feature = "signed-policy")]
 use q_periapt_policy::Policy;
 use wasm_bindgen::prelude::*;
 
@@ -43,6 +45,10 @@ pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
 /// engine into the WASM face: a caller loads a signed policy once, then passes the returned code
 /// to [`encapsulate`]/[`decapsulate`] instead of hard-coding a profile. Fail-closed — an
 /// unauthenticated, weak-signer, or rolled-back policy is rejected (see `q_periapt_policy`).
+///
+/// Behind the off-by-default `signed-policy` cargo feature: it links an ML-DSA verifier, which
+/// roughly quadruples the module, so the lean default build ships without it.
+#[cfg(feature = "signed-policy")]
 #[wasm_bindgen]
 pub fn profile_from_signed_policy(
     toml: &[u8],
@@ -334,6 +340,7 @@ mod tests {
         check_keypair_encap_decap_roundtrip();
     }
 
+    #[cfg(feature = "signed-policy")]
     fn check_profile_from_signed_policy() {
         // A signed floor-3 / CompatXWing policy must thread through to profile code 1. (The error
         // path constructs a JsError, which panics off-wasm, and load_signed's rejection is already
@@ -353,13 +360,13 @@ mod tests {
         assert_eq!(code, 1, "CompatXWing policy must select profile code 1");
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "signed-policy"))]
     #[test]
     fn profile_from_signed_policy_threads_the_policy() {
         check_profile_from_signed_policy();
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", feature = "signed-policy"))]
     #[wasm_bindgen_test::wasm_bindgen_test]
     fn profile_from_signed_policy_threads_the_policy_wasm() {
         check_profile_from_signed_policy();
