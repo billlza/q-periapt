@@ -180,6 +180,14 @@ pub unsafe extern "C" fn q_periapt_profile_from_signed_policy(
     out_profile_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
+        // Reject overlapping buffers up front (before any slice is materialized) so we never form
+        // aliasing &[u8]/&mut [u8] — a defined error in place of undefined behavior.
+        if outputs_alias(
+            &[(toml, toml_len), (signature, signature_len), (vk, vk_len)],
+            &[(out_profile.cast_const(), out_profile_len)],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
         let (Some(toml), Some(sig), Some(vk), Some(out)) = (
             in_slice(toml, toml_len),
             in_slice(signature, signature_len),
@@ -219,19 +227,31 @@ pub unsafe extern "C" fn q_periapt_mlkem768_keypair(
     out_pk_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let (Some(seed), Some(sk_o), Some(pk_o)) = (
+        // Reject overlapping buffers before any slice is materialized (defined error, not UB).
+        if outputs_alias(
+            &[(seed, seed_len)],
+            &[
+                (out_sk.cast_const(), out_sk_len),
+                (out_pk.cast_const(), out_pk_len),
+            ],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
+        let (Some(seed_in), Some(sk_o), Some(pk_o)) = (
             in_slice(seed, seed_len),
             out_slice(out_sk, out_sk_len),
             out_slice(out_pk, out_pk_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        let Ok(mut seed) = <[u8; 64]>::try_from(seed) else {
-            return Q_PERIAPT_ERR_LENGTH;
-        };
+        // Validate every length BEFORE copying any secret, so no error path can leave the
+        // 64-byte seed copy un-wiped (the length check used to sit after the copy).
         if sk_o.len() != ML_KEM_768_SK_LEN || pk_o.len() != ML_KEM_768_PK_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
+        let Ok(mut seed) = <[u8; 64]>::try_from(seed_in) else {
+            return Q_PERIAPT_ERR_LENGTH;
+        };
         let (mut sk, pk) = MlKem768::generate(seed);
         sk_o.copy_from_slice(&sk);
         pk_o.copy_from_slice(&pk);
@@ -259,19 +279,31 @@ pub unsafe extern "C" fn q_periapt_x25519_keypair(
     out_pk_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let (Some(secret), Some(sk_o), Some(pk_o)) = (
+        // Reject overlapping buffers before any slice is materialized (defined error, not UB).
+        if outputs_alias(
+            &[(secret, secret_len)],
+            &[
+                (out_sk.cast_const(), out_sk_len),
+                (out_pk.cast_const(), out_pk_len),
+            ],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
+        let (Some(secret_in), Some(sk_o), Some(pk_o)) = (
             in_slice(secret, secret_len),
             out_slice(out_sk, out_sk_len),
             out_slice(out_pk, out_pk_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        let Ok(mut secret) = <[u8; 32]>::try_from(secret) else {
-            return Q_PERIAPT_ERR_LENGTH;
-        };
+        // Validate every length BEFORE copying any secret, so no error path can leave the
+        // 32-byte scalar copy un-wiped (the length check used to sit after the copy).
         if sk_o.len() != X25519_LEN || pk_o.len() != X25519_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
+        let Ok(mut secret) = <[u8; 32]>::try_from(secret_in) else {
+            return Q_PERIAPT_ERR_LENGTH;
+        };
         let (mut sk, pk) = X25519::generate(secret);
         sk_o.copy_from_slice(&sk);
         pk_o.copy_from_slice(&pk);
@@ -512,6 +544,13 @@ pub unsafe extern "C" fn q_periapt_combine(
     out_secret_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
+        // Reject overlapping buffers before any slice is materialized (defined error, not UB).
+        if outputs_alias(
+            &[(input, input_len)],
+            &[(out_secret.cast_const(), out_secret_len)],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
         let (Some(input), Some(out)) = (
             in_slice(input, input_len),
             out_slice(out_secret, out_secret_len),
@@ -734,6 +773,73 @@ mod tests {
             assert_eq!(
                 secret, [0u8; 32],
                 "no key material on the aliasing-rejected path"
+            );
+        }
+    }
+
+    #[test]
+    fn keypair_rejects_overlapping_buffers() {
+        // seed (input) overlapping out_sk (output) must be a defined Q_PERIAPT_ERR_ALIASING,
+        // never UB from aliasing &[u8]/&mut [u8].
+        let mut sk = [0u8; Q_PERIAPT_MLKEM768_SK_LEN];
+        let mut pk = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let p = sk.as_mut_ptr();
+        unsafe {
+            let rc = q_periapt_mlkem768_keypair(
+                p.cast_const(), // seed input ...
+                64,
+                p, // ... overlaps out_sk output
+                sk.len(),
+                pk.as_mut_ptr(),
+                pk.len(),
+            );
+            assert_eq!(
+                rc, Q_PERIAPT_ERR_ALIASING,
+                "overlapping seed/out_sk must be rejected"
+            );
+            assert_eq!(
+                sk, [0u8; Q_PERIAPT_MLKEM768_SK_LEN],
+                "no key material written on the aliasing-rejected path"
+            );
+        }
+    }
+
+    #[test]
+    fn keypair_wrong_output_length_is_length_error_before_secret_copy() {
+        // The length check now runs BEFORE the 64-byte seed copy, so this path returns a defined
+        // ERR_LENGTH and never materializes (then leaks) the secret seed on the stack.
+        let seed = [5u8; 64];
+        let mut sk_short = [0u8; 10];
+        let mut pk = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        unsafe {
+            let rc = q_periapt_mlkem768_keypair(
+                seed.as_ptr(),
+                64,
+                sk_short.as_mut_ptr(),
+                sk_short.len(),
+                pk.as_mut_ptr(),
+                pk.len(),
+            );
+            assert_eq!(rc, Q_PERIAPT_ERR_LENGTH);
+        }
+    }
+
+    #[test]
+    fn combine_rejects_overlapping_buffers() {
+        // input overlapping out_secret must be a defined Q_PERIAPT_ERR_ALIASING.
+        let mut buf = [0u8; 64];
+        let p = buf.as_mut_ptr();
+        unsafe {
+            let rc = q_periapt_combine(
+                Q_PERIAPT_PROFILE_CONTEXT_BOUND,
+                p.cast_const(), // input ...
+                buf.len(),
+                p, // ... overlaps out_secret
+                Q_PERIAPT_SECRET_LEN,
+            );
+            assert_eq!(
+                rc, Q_PERIAPT_ERR_ALIASING,
+                "overlapping input/out_secret must be rejected"
             );
         }
     }

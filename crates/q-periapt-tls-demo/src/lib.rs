@@ -366,19 +366,27 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     let kem =
         HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
     let mut coins = [0u8; 64];
-    getrandom::fill(&mut coins).map_err(|_| DemoError::Crypto)?;
-    let (rand_pq, rand_trad) = coins.split_at(32);
+    if getrandom::fill(&mut coins).is_err() {
+        q_periapt_core::secure_wipe(&mut coins);
+        return Err(DemoError::Crypto);
+    }
     let mut ct_pq = vec![0u8; Su::PQ_CT_LEN];
     let mut ct_trad = [0u8; X25519_LEN];
-    let secret = kem.encapsulate(
-        ek_pq,
-        pk_x,
-        &context,
-        rand_pq,
-        rand_trad,
-        &mut ct_pq,
-        &mut ct_trad,
-    )?;
+    // Compute, then wipe the encapsulation coins on every path (success or encapsulate error).
+    let result = {
+        let (rand_pq, rand_trad) = coins.split_at(32);
+        kem.encapsulate(
+            ek_pq,
+            pk_x,
+            &context,
+            rand_pq,
+            rand_trad,
+            &mut ct_pq,
+            &mut ct_trad,
+        )
+    };
+    q_periapt_core::secure_wipe(&mut coins);
+    let secret = result?;
 
     // 5. ClientKem = ct_pq(PQ_CT_LEN) || ct_trad(32)
     let mut kem_msg = Vec::with_capacity(Su::PQ_CT_LEN + X25519_LEN);

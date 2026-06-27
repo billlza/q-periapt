@@ -78,12 +78,21 @@ impl SupportedKxGroup for QPeriaptKxGroup {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
         let mut seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
         let mut scalar = [0u8; X25519_LEN];
-        self.rng.fill(&mut seed)?;
-        self.rng.fill(&mut scalar)?;
+        // Wipe the keygen randomness on every exit path, including an RNG failure after `seed`
+        // has been filled (otherwise it would linger in the freed frame).
+        if let Err(e) = self
+            .rng
+            .fill(&mut seed)
+            .and_then(|()| self.rng.fill(&mut scalar))
+        {
+            q_periapt_core::secure_wipe(&mut seed);
+            q_periapt_core::secure_wipe(&mut scalar);
+            return Err(e.into());
+        }
         let (sk_pq, pk_pq) = MlKem768::generate(seed);
         let (sk_trad, pk_trad) = X25519::generate(scalar);
-        seed.fill(0);
-        scalar.fill(0);
+        q_periapt_core::secure_wipe(&mut seed);
+        q_periapt_core::secure_wipe(&mut scalar);
 
         let mut pub_key = Vec::with_capacity(CLIENT_SHARE);
         pub_key.extend_from_slice(&pk_pq);
@@ -114,9 +123,10 @@ impl SupportedKxGroup for QPeriaptKxGroup {
 
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];
-        let secret = self
-            .kem()?
-            .encapsulate(
+        // Compute, then wipe the encapsulation coins on EVERY path — a peer InvalidKeyShare
+        // (e.g. a low-order X25519 share) must not leave rand_pq/rand_trad in the frame.
+        let result = self.kem().and_then(|kem| {
+            kem.encapsulate(
                 pk_pq,
                 pk_trad,
                 self.context(),
@@ -125,9 +135,11 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                 &mut ct_pq,
                 &mut ct_trad,
             )
-            .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
-        rand_pq.fill(0);
-        rand_trad.fill(0);
+            .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
+        });
+        q_periapt_core::secure_wipe(&mut rand_pq);
+        q_periapt_core::secure_wipe(&mut rand_trad);
+        let secret = result?;
 
         let mut pub_key = Vec::with_capacity(SERVER_SHARE);
         pub_key.extend_from_slice(&ct_pq);
