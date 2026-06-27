@@ -118,8 +118,17 @@ impl SupportedKxGroup for QPeriaptKxGroup {
 
         let mut rand_pq = [0u8; ML_KEM_768_ENCAPS_RAND_LEN];
         let mut rand_trad = [0u8; X25519_LEN];
-        self.rng.fill(&mut rand_pq)?;
-        self.rng.fill(&mut rand_trad)?;
+        // Fill both coins as one fallible step; if the second fill fails after the first
+        // succeeded, wipe the already-filled rand_pq instead of leaking it on the `?`.
+        if let Err(e) = self
+            .rng
+            .fill(&mut rand_pq)
+            .and_then(|()| self.rng.fill(&mut rand_trad))
+        {
+            q_periapt_core::secure_wipe(&mut rand_pq);
+            q_periapt_core::secure_wipe(&mut rand_trad);
+            return Err(e.into());
+        }
 
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];

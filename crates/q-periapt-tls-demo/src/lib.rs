@@ -194,13 +194,19 @@ impl Drop for ServerKeys {
 
 impl ServerKeys {
     fn from_seeds_for<Su: HandshakeSuite>(
-        seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
-        seed_x: [u8; SEED32_LEN],
-        seed_sig: [u8; SEED32_LEN],
+        mut seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
+        mut seed_x: [u8; SEED32_LEN],
+        mut seed_sig: [u8; SEED32_LEN],
     ) -> Self {
         let (dk_pq, ek_pq) = Su::pq_keypair(&seed_pq);
         let (sk_x, pk_x) = X25519::generate(seed_x);
         let (sign_sk, verify_vk) = Su::sig_keypair(&seed_sig);
+        // Wipe the local key-seed copies once the long-term keys are derived (the keys
+        // themselves are Drop-wiped by ServerKeys). The CSPRNG caller (generate_for) wipes
+        // its own copy too, since `[u8; N]` seeds are Copy.
+        q_periapt_core::secure_wipe(&mut seed_pq);
+        q_periapt_core::secure_wipe(&mut seed_x);
+        q_periapt_core::secure_wipe(&mut seed_sig);
         Self {
             dk_pq,
             ek_pq,
@@ -235,10 +241,18 @@ impl ServerKeys {
         let mut seed_pq = [0u8; PQ_KEYGEN_SEED_LEN];
         let mut seed_x = [0u8; SEED32_LEN];
         let mut seed_sig = [0u8; SEED32_LEN];
-        getrandom::fill(&mut seed_pq).map_err(|_| DemoError::Crypto)?;
-        getrandom::fill(&mut seed_x).map_err(|_| DemoError::Crypto)?;
-        getrandom::fill(&mut seed_sig).map_err(|_| DemoError::Crypto)?;
-        Ok(Self::from_seeds_for::<Su>(seed_pq, seed_x, seed_sig))
+        let filled = getrandom::fill(&mut seed_pq)
+            .and_then(|()| getrandom::fill(&mut seed_x))
+            .and_then(|()| getrandom::fill(&mut seed_sig));
+        let result = filled
+            .map(|()| Self::from_seeds_for::<Su>(seed_pq, seed_x, seed_sig))
+            .map_err(|_| DemoError::Crypto);
+        // Wipe our CSPRNG key-seed copies on every path (success or RNG failure); they are
+        // transient secrets, and the derived long-term keys live on Drop-wiped in ServerKeys.
+        q_periapt_core::secure_wipe(&mut seed_pq);
+        q_periapt_core::secure_wipe(&mut seed_x);
+        q_periapt_core::secure_wipe(&mut seed_sig);
+        result
     }
 
     /// Generate **default-suite** keys from the OS CSPRNG.
@@ -473,9 +487,11 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     let mut sig_rand = [0u8; 32];
     getrandom::fill(&mut sig_rand).map_err(|_| DemoError::Crypto)?;
     let mut sig = vec![0u8; Su::SIG_LEN];
-    Su::Sig::default()
-        .sign(&keys.sign_sk, &auth_transcript, &sig_rand, &mut sig)
-        .map_err(|_| DemoError::Crypto)?;
+    // Wipe the per-signature randomness on every path (including a signing error), not just
+    // after a successful sign.
+    let sign_res = Su::Sig::default().sign(&keys.sign_sk, &auth_transcript, &sig_rand, &mut sig);
+    q_periapt_core::secure_wipe(&mut sig_rand);
+    sign_res.map_err(|_| DemoError::Crypto)?;
     let confirm = server_finished(&secret, &context);
 
     let mut sf = Vec::with_capacity(Su::SIG_LEN + 32);
