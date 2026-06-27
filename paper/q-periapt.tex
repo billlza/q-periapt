@@ -148,7 +148,7 @@ are the constant-time/regression oracles; the Tamarin/ProVerif prover \emph{exec
 stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
 \emph{discriminates} clean (ML-KEM) from leaky (HQC) (HQC's leak is known; the contribution is the
 discriminating, gated oracle); an executable \emph{regression oracle} for the known dk-format binding
-coupling; and two independent symbolic provers. We report the constant-time measurements honestly as
+coupling; and two independent symbolic provers. We report the constant-time measurements as
 local runs.
 \item \textbf{C4 (\cref{sec:eval}).} A production-stack TLS~1.3 integration (rustls
 \code{CryptoProvider}, private-use group), evaluated under real \code{tc netem}.
@@ -179,8 +179,10 @@ implementation) is held by formosa-mlkem.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{3.2pt}\renewcommand{\arraystretch}{1.15}
-\caption{Positioning. \checkmark\ holds; $\sim$ partial; blank: not provided. The contribution is
-the \emph{conjunction} (last column), not any single row.}\label{tab:position}
+\caption{Artifact-positioning dimensions. \checkmark\ denotes an artifact capability
+\emph{demonstrated in this paper}, not deployment maturity or standardization status; $\sim$
+partial; blank: not provided. The contribution is the \emph{conjunction} (last column), not any
+single row.}\label{tab:position}
 \begin{tabular}{@{}p{3.55cm} c c c c c@{}}
 \toprule
  & \rotatebox{90}{X-Wing} & \rotatebox{90}{formosa} & \rotatebox{90}{SandboxAQ} & \rotatebox{90}{Chempat} & \rotatebox{90}{\textbf{this work}} \\
@@ -190,7 +192,7 @@ Both rejection styles, $\K\neq\bot$  &       &        &        & $\sim$ & \check
 Zero KEM-binding assumption          &       &        &        & \checkmark & \checkmark \\
 Byte-identical multi-substrate object&       &        &        &        & \checkmark \\
 Source$\to$binary CT gate            &       & $\sim$ &        &        & \checkmark \\
-Production TLS 1.3 path              & $\sim$ &        &        &        & \checkmark \\
+rustls TLS 1.3 integration          & $\sim$ &        &        &        & \checkmark \\
 \midrule
 Verified spec$\to$binary impl.\ \emph{(we do not)} &  & \checkmark & $\sim$ & & \\
 \bottomrule
@@ -359,7 +361,7 @@ rejection styles) reduces---using no property of $\mathrm{Decaps}$---through the
 \label{fig:kernel}
 \end{figure}
 
-\subsection{Honest binding position}
+\subsection{Binding position}
 \Cref{fig:binding} states our position precisely. On the standard \{CT,PK\} axes, ContextBound and
 a correctly-implemented seed-dk X-Wing both reach the \mbox{MAL-BIND-K-\{CT,PK\}} ceiling; we are
 \emph{not} ``stronger'' there. Our edge is (a) \emph{assumption-minimality}: ContextBound's
@@ -369,7 +371,7 @@ dk-format robustness} (\cref{thm:sep})---and here the distinction is sharp: whil
 on the \{CT,PK\} axis \emph{at a fixed} serialization, the lean shape's \mbox{MAL-BIND-K-PK}
 \emph{depends on} the format (it is broken over expanded-\code{dk}), whereas ContextBound's holds
 over \emph{both}. That is a genuine, machine-checked robustness separation, not a stronger notion on
-a shared axis. Honest scope of the mechanization: $\mathrm{Decaps}$ is
+a shared axis. Scope of the mechanization: $\mathrm{Decaps}$ is
 modelled as an abstract function (which is exactly why ``zero KEM assumption'' is literal), so
 there is no FIPS-203 linkage and the shared-secret fields are inert in the binding argument;
 CR(SHA3) is assumed; IND-CCA2 robustness is argued on paper; and there is no
@@ -377,7 +379,7 @@ specification-to-implementation linkage proof.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_binding.pdf}
-\caption{Honest binding position. Both schemes reach the standard ceiling at a fixed serialization;
+\caption{Binding position. Both schemes reach the standard ceiling at a fixed serialization;
 our edge is assumption-minimality, mechanization, and a machine-checked dk-format robustness
 separation (\cref{thm:sep})---not a stronger notion on a shared axis.
 \mbox{X-BIND-CT-$\ast$} is structurally unachievable for implicitly-rejecting KEMs and is not
@@ -412,13 +414,13 @@ bytes?
 
 \Cref{tab:verif} lists the six orthogonal methods (NIST ACVP vectors~\cite{acvp} among them) that answer this. They are deliberately
 heterogeneous in their oracle and in what they catch, so a defect that escapes one is caught by
-another. \Cref{tab:substrate} reports the substrate coverage with honest per-cell status: the
+another. \Cref{tab:substrate} reports the substrate coverage with per-cell status: the
 byte-identical shared secret is \emph{run} natively on x86-64 and aarch64, on a WebAssembly runtime
 (wasm32), and under \code{qemu-user} emulation on riscv64---there the ContextBound and enhanced
 reference-vector KATs pass on the emulated riscv64 binary, reproducing the pinned bytes exactly. Only
 the bare-metal no\_std \code{thumbv7em} target is \emph{not} executed; there byte-identity follows by
 construction from the FIPS-deterministic encodings and identical source. So four of the five faces
-are \emph{run} and one is cross-compiled---this honest accounting is what makes the cross-substrate
+are \emph{run} and one is cross-compiled---this accounting is what makes the cross-substrate
 claim defensible.
 
 \emph{Footprint} (platform-dependent; regenerate per host with \code{paper/footprint.sh}, values
@@ -747,7 +749,7 @@ groups $\approx 41$\,ms median, $\approx 50$\,ms p99.9). Under $1$--$3\%$ packet
 likewise unaffected---loss is rare relative to a handshake---but the \emph{tail} jumps to
 $\sim$$1$\,s, dominated by a TCP retransmission timeout per lost packet rather than by crypto or
 wire size; this RTO-driven tail falls on the classical and PQ/T handshakes alike, and at our sample
-size the loss-event noise precludes a precise per-group tail comparison. The honest takeaway is
+size the loss-event noise precludes a precise per-group tail comparison. The takeaway is
 that the hybrid's extra keyshare does not \emph{systematically} worsen loss resilience: the median
 is byte-insensitive and the tail is governed by transport, not by the combiner.
 
@@ -875,11 +877,12 @@ Key-Encapsulation Mechanism Standard,'' 2024.
 Key Encapsulation Mechanisms,'' \emph{ACM CCS}, 2024. (ePrint 2023/1933.)
 \bibitem{schmieg} S.~Schmieg, ``Unbindable Kemmy Schmidt: ML-KEM is neither MAL-BIND-K-CT nor
 MAL-BIND-K-PK,'' IACR ePrint 2024/523, 2024.
-\bibitem{chempat} J.~G\"uneysu, K.~H\"ovelmanns, \emph{et al.}, ``Binding Security of Combined KEMs
-/ Chempat,'' IACR ePrint 2025/1416, 2025.
+\bibitem{chempat} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of Combined KEMs:
+An Analysis of Real-World KEM Combiners,'' IACR ePrint 2025/1416, 2025.
 \bibitem{xwing} D.~Connolly, P.~Schwabe, and B.~Westerbaan, ``X-Wing: The Hybrid KEM You've Been
 Looking For,'' draft-connolly-cfrg-xwing-kem-10, individual Internet-Draft (work in progress), 2026.
-\bibitem{kyberslash} D.~J.~Bernstein, K.~Bhargavan, \emph{et al.}, ``KyberSlash: Exploiting
+\bibitem{kyberslash} D.~J.~Bernstein, K.~Bhargavan, S.~Bhasin, A.~Chattopadhyay, T.~K.~Chia,
+M.~J.~Kannwischer, F.~Kiefer, T.~B.~Paiva, P.~Ravi, and G.~Tamvada, ``KyberSlash: Exploiting
 Secret-Dependent Division Timings in Kyber Implementations,'' \emph{IACR TCHES}, 2025.
 \bibitem{cmt} M.~Bellare and V.~T.~Hoang, ``Efficient Schemes for Committing Authenticated
 Encryption,'' \emph{EUROCRYPT}, 2022.
@@ -887,7 +890,8 @@ Encryption,'' \emph{EUROCRYPT}, 2022.
 Digital Signature Standard,'' 2024.
 \bibitem{fips205} National Institute of Standards and Technology, ``FIPS 205: Stateless Hash-Based
 Digital Signature Standard,'' 2024.
-\bibitem{kyber} J.~Bos \emph{et al.}, ``CRYSTALS-Kyber: A CCA-Secure Module-Lattice-Based KEM,''
+\bibitem{kyber} J.~W.~Bos, L.~Ducas, E.~Kiltz, T.~Lepoint, V.~Lyubashevsky, J.~M.~Schanck,
+P.~Schwabe, G.~Seiler, and D.~Stehl\'e, ``CRYSTALS-Kyber: A CCA-Secure Module-Lattice-Based KEM,''
 \emph{IEEE EuroS\&P}, 2018.
 \bibitem{nistpqc} G.~Alagic \emph{et al.}, ``Status Report on the Fourth Round of the NIST
 Post-Quantum Cryptography Standardization Process,'' NIST IR~8545, 2025.
@@ -901,20 +905,21 @@ Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
 8446, IETF, 2018.
 \bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
 draft-ietf-tls-hybrid-design, IETF, 2023.
-\bibitem{tlsmlkem} K.~Kwiatkowski \emph{et al.}, ``Post-Quantum Hybrid \code{ECDHE-MLKEM} Key
-Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS Working Group (work in progress),
-2026.
+\bibitem{tlsmlkem} K.~Kwiatkowski, P.~Kampanakis, B.~Westerbaan, and D.~Stebila, ``Post-Quantum
+Hybrid \code{ECDHE-MLKEM} Key Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS
+Working Group (work in progress), 2026.
 \bibitem{pqxdh} K.~Bhargavan, C.~Jacomme, F.~Kiefer, and R.~Schmidt, ``Formal Verification of the
 PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
 \bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in
 Quantum-Secure Messaging,'' Apple Security Research, 2024.
-\bibitem{cdmrej} K.~H\"ovelmanns \emph{et al.}, ``Binding Security of Implicitly-Rejecting KEMs and
-Application to BIKE and HQC,'' IACR ePrint 2024/1233, 2024.
+\bibitem{cdmrej} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of
+Implicitly-Rejecting KEMs and Application to BIKE and HQC,'' IACR ePrint 2024/1233, 2024.
 \bibitem{hacl} J.-K.~Zinzindohou\'e, K.~Bhargavan, J.~Protzenko, and B.~Beurdouche, ``HACL*: A
 Verified Modern Cryptographic Library,'' \emph{ACM CCS}, 2017.
 \bibitem{libcrux} Cryspen, ``Verified ML-KEM (Kyber) in \code{libcrux},'' 2024.
-\bibitem{formosa} J.~B.~Almeida \emph{et al.}, ``Formally Verifying Kyber: Episode V,''
-\emph{CRYPTO}, 2024.
+\bibitem{formosa} J.~B.~Almeida, S.~Arranz~Olmos, M.~Barbosa, G.~Barthe, F.~Dupressoir,
+B.~Gr\'egoire, V.~Laporte, J.-C.~L\'echenet, C.~Low, T.~Oliveira, H.~Pacheco, M.~Quaresma,
+P.~Schwabe, and P.-Y.~Strub, ``Formally Verifying Kyber: Episode V,'' \emph{CRYPTO}, 2024.
 \bibitem{easycrypt} G.~Barthe, B.~Gr\'egoire, S.~Heraud, and S.~Z.~B\'eguelin, ``Computer-Aided
 Security Proofs for the Working Cryptographer,'' \emph{CRYPTO}, 2011.
 \bibitem{tamarin} S.~Meier, B.~Schmidt, C.~Cremers, and D.~Basin, ``The TAMARIN Prover for the
@@ -995,7 +1000,7 @@ crux of \code{omit\_ct\_kct\_le\_cr}, where $ct_{\mathrm{pq}}$ is absent---a dif
 instead force a differing \emph{shared secret} $J(z,ct_{\mathrm{pq}})$, which it does \emph{only}
 under injectivity of $J$ (\code{jrej\_inj}). That single implication is the formal content of ``the
 shared secret transitively binds the ciphertext,'' and isolating it is what keeps the K-CT result
-honest rather than circular. \emph{Breaks} (\code{lean\_kpk\_broken}, \code{omit\_ctx\_kctx\_broken},
+sound rather than circular. \emph{Breaks} (\code{lean\_kpk\_broken}, \code{omit\_ctx\_kctx\_broken},
 \code{xwing\_k\{pk,ctx\}\_broken}) are \code{byphoare} arguments exhibiting a concrete deterministic
 adversary that outputs two executions agreeing on every \emph{absorbed} field but differing on the
 omitted observable; the probability-one win is then a structural computation whose sole hypothesis is
@@ -1016,7 +1021,7 @@ admit-free and rests on six elementary axioms (\code{be8\_size}, \code{be8\_inj}
 \code{lctx\_neq}, \code{zof\_inj}, \code{jrej\_inj}); $H$'s collision resistance is the sole
 \emph{cryptographic} assumption, and the injective encoding is a proved lemma, not an axiom.
 
-\emph{Honest assumption ladder.} The map's verdicts do not all sit at the same assumption level, and
+\emph{Assumption ladder.} The map's verdicts do not all sit at the same assumption level, and
 the differences are themselves informative. The two breaks and the full-combiner safety bounds need
 \emph{no} idealization of $J$: the breaks are unconditional concrete adversaries, and the full
 combiner reduces to $\mathrm{CR}(H)$ alone because it absorbs every field directly. The two
