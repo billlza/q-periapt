@@ -1,4 +1,10 @@
 \documentclass[journal]{IEEEtran}
+% Emit a /ToUnicode CMap so copied/extracted text (and PDF checkers) recover line-break
+% hyphens and ligatures as proper Unicode. Under the default OT1 encoding the hyphenation
+% character is the ordinary hyphen (U+002D), so both explicit and line-break hyphens extract
+% cleanly. Pure PDF metadata: no effect on typesetting.
+\input{glyphtounicode}
+\pdfgentounicode=1
 \usepackage{graphicx}
 \graphicspath{{figures/}}
 \usepackage{amsmath,amssymb,bm}
@@ -850,8 +856,8 @@ These are the baselines we position against; our combiner interoperates with X-W
 \paragraph*{Formal verification of PQ cryptography}
 formosa-mlkem~\cite{formosa} delivers a verified ML-KEM \emph{implementation} (Jasmin/EasyCrypt) with
 IND-CCA and constant-time guarantees---an axis (specification-to-binary) we explicitly do not hold
-(\cref{tab:position}). The SandboxAQ EasyCrypt-KEMs library mechanizes \mbox{LEAK-BIND-K-PK} for
-ML-KEM. Our EasyCrypt~\cite{easycrypt} development is complementary: it targets the \emph{hybrid
+(\cref{tab:position}). The SandboxAQ EasyCrypt-KEMs library~\cite{eckems} mechanizes a proof that
+ML-KEM satisfies \mbox{LEAK-BIND-K-PK} (in the ROM). Our EasyCrypt~\cite{easycrypt} development is complementary: it targets the \emph{hybrid
 combiner's} binding (the commitment-style MAL Figure-6 instantiation), cross-checked by
 independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}; the EasyCrypt
 proof is hard-gated hermetically in CI, while the symbolic models are presence-gated with
@@ -1086,6 +1092,10 @@ Verified Modern Cryptographic Library,'' \emph{ACM CCS}, 2017.
 \bibitem{formosa} J.~B.~Almeida, S.~Arranz~Olmos, M.~Barbosa, G.~Barthe, F.~Dupressoir,
 B.~Gr\'egoire, V.~Laporte, J.-C.~L\'echenet, C.~Low, T.~Oliveira, H.~Pacheco, M.~Quaresma,
 P.~Schwabe, and P.-Y.~Strub, ``Formally Verifying Kyber: Episode V,'' \emph{CRYPTO}, 2024.
+\bibitem{eckems} M.~Meijers and D.~Connolly, ``KEM Binding in EasyCrypt,'' SandboxAQ software
+artifact: machine-checked \mbox{LEAK-BIND} for ML-KEM and the Fujisaki--Okamoto transform, GitHub
+\code{sandbox-quantum/EasyCrypt-KEMs}, 2024--2025. [Online]. Available:
+\url{https://github.com/sandbox-quantum/EasyCrypt-KEMs}
 \bibitem{easycrypt} G.~Barthe, B.~Gr\'egoire, S.~Heraud, and S.~Z.~B\'eguelin, ``Computer-Aided
 Security Proofs for the Working Cryptographer,'' \emph{CRYPTO}, 2011.
 \bibitem{tamarin} S.~Meier, B.~Schmidt, C.~Cremers, and D.~Basin, ``The TAMARIN Prover for the
