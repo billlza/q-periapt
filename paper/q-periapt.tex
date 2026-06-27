@@ -53,7 +53,8 @@ operating systems, and five instruction-set architectures (four executed---one u
 one cross-compiled), verified by a six-method conformance matrix and a self-validating
 source$\to$binary constant-time probe that discriminates a clean primitive from a leaky one. A
 machine-checked \emph{separation map} then pins down which combiner inputs are load-bearing, and
-where the alternative X-Wing field shape is exposed while ContextBound is not.
+where the lean X-Wing shape, instantiated over ML-KEM's expanded-\code{dk} serialization, is exposed
+while ContextBound is not---deployed seed-\code{dk} X-Wing is unaffected.
 
 We are explicit about novelty: the binding \emph{fact} follows from recent results; our
 contributions are this separation theorem and the \emph{conjunction}---an assumption-minimal
@@ -133,10 +134,11 @@ serialization (concrete $\Pr{=}1$ adversary) but not over seed-\code{dk}, omitti
 \mbox{MAL-BIND-K-CTX} unconditionally, and omitting $ct_{\mathrm{pq}}$ is \emph{conditionally} safe in
 the modeled $J$-injective setting (the shared secret already binds it)---so public-key and context
 absorption are \emph{necessary}, ciphertext absorption redundant only under that injectivity, and the
-X-Wing field shape---instantiated over the FIPS-203 expanded-\code{dk} form or
-without external context---loses \mbox{K-PK} and \mbox{K-CTX} while keeping \mbox{K-CT} (a correctly
-deployed seed-\code{dk} X-Wing still reaches \mbox{MAL-BIND-K-\{CT,PK\}}; \cref{sec:sep}). This is a
-stated, proven characterization, not an integration claim.
+X-Wing field shape, instantiated over the FIPS-203 expanded-\code{dk} form, loses \mbox{K-PK} (and,
+lacking an external context field, loses \mbox{K-CTX} regardless of \code{dk} format) while keeping
+\mbox{K-CT}---whereas a correctly deployed seed-\code{dk} X-Wing (which the CFRG draft mandates) still
+reaches \mbox{MAL-BIND-K-\{CT,PK\}} (\cref{sec:sep}). This is a stated, proven characterization of the
+field shape, not a break of as-shipped X-Wing and not an integration claim.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
 same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph{executed} on
 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
@@ -163,8 +165,9 @@ CDM's~\cite{cdm}. That a constant-time harness must mark only secret sub-fields 
 practice~\cite{kyberslash}. \emph{Novel:} first, a \emph{machine-checked
 shape\,$\times$\,format separation} (\cref{thm:sep})---where Schmieg shows a \emph{single} KEM's
 binding depends on its \code{dk} format, we prove, in one model, the orthogonal statement that the
-\emph{combiner shape} determines whether that format-dependence survives composition (lean: yes,
-broken over expanded-\code{dk}; full: no, binding over both), a result no prior work states; second,
+\emph{combiner shape} determines whether that format-dependence survives composition (lean:
+yes---broken over expanded-\code{dk}, binding over seed-\code{dk}; full: no---binding over both), a
+result no prior work states; second,
 the \emph{conjunction} C1$\wedge$C2---a CR-only, machine-checked binding result whose proven object
 is demonstrably byte-identical across a heterogeneous substrate; third, the self-validating
 source$\to$binary \emph{discriminator} as a reusable CI artifact. The design invariant that binding
@@ -308,7 +311,8 @@ $T \gets [\,L,\,S,\,\mathsf{be4}(v),\,ss_{\mathrm{pq}},\,ss_{\mathrm{tr}},\,ct_{
 $e \gets \mathsf{lp}(T_0)\,\|\,\mathsf{lp}(T_1)\,\|\,\cdots\,\|\,\mathsf{lp}(T_{n-1})$ \tcp*{injective encode}
 \Return $\mathrm{SHA3\text{-}256}(e)$\;
 \caption{\textsc{ContextBound} combiner. \code{CompatXWing} omits
-$ct_{\mathrm{pq}},pk_{\mathrm{pq}},S,v,x$ and uses X-Wing's label.}\label{alg:encode}
+$ct_{\mathrm{pq}},pk_{\mathrm{pq}},S,v,x$ and uses X-Wing's label (byte-exact X-Wing; binding over the
+deployed seed-\code{dk} serialization, cf.\ \cref{thm:sep}).}\label{alg:encode}
 \end{algorithm}
 
 \subsection{The EasyCrypt development}
@@ -546,10 +550,14 @@ $\mathsf{Adv}^{\text{MAL-BIND-K-CT}}\le\mathrm{CR}(H)$ under injectivity of $J$
 (\code{omit\_ctx\_kctx\_broken}).
 \item \emph{Full combiner.} Absorbing all three, ContextBound is \mbox{MAL-BIND-K-\{CT,PK,CTX\}}
 $\le\mathrm{CR}(H)$, with \emph{no} $J/\mathsf{zof}$ assumption (\code{full\_k\{pk,ct,ctx\}\_le\_cr}).
-\item \emph{Joint X-Wing shape.} The deployed X-Wing combiner omits $ct_{\mathrm{pq}}$,
-$pk_{\mathrm{pq}}$, \emph{and} context at once; discharged directly, it \emph{loses} \mbox{K-PK}
-(expanded-\code{dk}) and \mbox{K-CTX} but \emph{keeps} \mbox{K-CT} (\code{xwing\_kpk\_broken},
-\code{xwing\_kctx\_broken}, \code{xwing\_kct\_le\_cr}).
+\item \emph{Joint X-Wing shape.} The X-Wing \emph{combiner shape} omits $ct_{\mathrm{pq}}$,
+$pk_{\mathrm{pq}}$, \emph{and} context at once. Discharged directly, this shape \emph{loses}
+\mbox{K-PK} \emph{over the expanded-\code{dk} serialization} and \emph{loses} \mbox{K-CTX} (for
+\emph{any} \code{dk} format, since the shape carries no context field), while \emph{keeping}
+\mbox{K-CT} (\code{xwing\_kpk\_broken}, \code{xwing\_kctx\_broken}, \code{xwing\_kct\_le\_cr}). The
+\mbox{K-PK} break is a property of the expanded-\code{dk} field set only: over the seed-\code{dk}
+serialization that deployed X-Wing (draft-connolly-cfrg-xwing) mandates, it vanishes (cf.\ item~1),
+so this is a statement about the shape's exposure, not about as-shipped X-Wing.
 \end{enumerate}
 The two \emph{safety-of-omission} verdicts---item~2 and the seed-\code{dk} half of item~1---hold under
 the idealization that the implicit-rejection function $J$ (FIPS-203's $J{=}\mathsf{SHAKE}(z\,\|\,
@@ -573,7 +581,7 @@ $ct_{\mathrm{pq}}$ & \mbox{MAL-BIND-K-CT} & \textbf{safe} $\le\mathrm{CR}(H)$ ($
 context & \mbox{MAL-BIND-K-CTX} & \textbf{broken} unconditionally ($\Pr{=}1$) \\
 \midrule
 \emph{none} (full) & all three & safe $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
-\emph{all three} (X-Wing) & --- & loses K-PK $+$ K-CTX, keeps K-CT \\
+\emph{all three} (X-Wing) & --- & \emph{shape} loses K-PK (expanded-\code{dk}) $+$ K-CTX, keeps K-CT \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -915,7 +923,7 @@ row statements.}\label{tab:lemmas}
 \code{omit\_ct\_kct\_le\_cr} & omit $ct_{\mathrm{pq}}$: K-CT $\le\mathrm{CR}(H)$ ($ss$ binds $ct$, $J$-inj.) \\
 \code{omit\_ctx\_kctx\_broken} & omit context: K-CTX adversary $\Pr=1$ (any \code{dk}) \\
 \code{full\_k$\ast$\_le\_cr} & full shape: K-\{PK,CT,CTX\} $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
-\code{xwing\_k$\ast$\_broken} & X-Wing (omit all 3): loses K-PK, K-CTX, $\Pr=1$ \\
+\code{xwing\_k$\ast$\_broken} & X-Wing \emph{shape} (omit all 3): loses K-PK (expanded-\code{dk}) and K-CTX (any \code{dk}), $\Pr=1$ \\
 \code{xwing\_kct\_le\_cr} & X-Wing: keeps K-CT $\le\mathrm{CR}(H)$ \\
 \bottomrule
 \end{tabular}
