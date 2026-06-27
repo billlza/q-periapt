@@ -1,0 +1,101 @@
+{
+  "artifact": "Q-Periapt — assumption-minimal, cross-substrate binding assurance for PQ/T hybrid KEMs",
+  "purpose": "Expected-result manifest so a reviewer can detect data drift: every value below is measured, not asserted. Run `sh artifact/smoke.sh` and compare; a full frozen run is in artifact/ci-snapshot.log.",
+  "provenance": {
+    "snapshot_commit": "87b1a636df6e238b55f41ec7fce26ca6af3f1cd8",
+    "note": "Values captured against the tree at this commit. The artifact-only files (artifact/*, this manifest) added afterward change no tested code, so the expected counts still hold.",
+    "toolchain": {
+      "rustc": "1.96.0 (ac68faa20 2026-05-25)",
+      "cargo": "1.96.0",
+      "minimum_cargo": "1.85"
+    },
+    "host_captured_on": "Darwin 27.0.0 arm64"
+  },
+  "smoke": {
+    "command": "sh artifact/smoke.sh",
+    "needs": "Rust toolchain + a C compiler (no Docker / wasm-pack / Node / network beyond cargo fetch)",
+    "expected_summary": "7 passed, 0 failed; ALL PASS; exit 0",
+    "steps": [
+      {
+        "name": "core unit tests",
+        "cmd": "cargo test -p q-periapt-core",
+        "expect": "12 passed"
+      },
+      {
+        "name": "shared reference vectors",
+        "cmd": "cargo test -p q-periapt-backends",
+        "expect": "39 + 2 = 41 passed (unit + binding_keyformat_separation)"
+      },
+      {
+        "name": "C-ABI tests incl. aliasing",
+        "cmd": "cargo test -p q-periapt-ffi",
+        "expect": "11 passed"
+      },
+      {
+        "name": "WASM shared vector (host)",
+        "cmd": "cargo test -p q-periapt-wasm",
+        "expect": "3 passed"
+      },
+      {
+        "name": "rustls loopback handshake",
+        "cmd": "cargo test -p q-periapt-rustls --test handshake",
+        "expect": "1 passed (real in-memory TLS 1.3 handshake over the hybrid group)"
+      },
+      {
+        "name": "C-ABI link-and-run smoke",
+        "cmd": "sh bindings/c/build-and-run.sh",
+        "expect": "ALL PASS"
+      },
+      {
+        "name": "EasyCrypt no-admit gate",
+        "cmd": "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/",
+        "expect": "grep finds nothing (exit 0)"
+      }
+    ]
+  },
+  "expected": {
+    "workspace_tests_default_features": {
+      "cmd": "cargo test --workspace",
+      "passed": 100,
+      "failed": 0
+    },
+    "clippy": {
+      "cmd": "RUSTFLAGS=-D warnings cargo clippy --workspace --all-targets",
+      "expect": "clean (no warnings)"
+    },
+    "fmt": {
+      "cmd": "cargo fmt --all --check",
+      "expect": "clean (no diff)"
+    },
+    "easycrypt": {
+      "smoke_gate": "no `admit`/`sorry` in formal/easycrypt/*.ec",
+      "full_machinecheck": "BindingViaCR.ec checks and negative-controls.sh passes 7/7 under the pinned EasyCrypt r2026.06 container (formal/Dockerfile); this is the hard CI gate (Tier 2, not part of the smoke)."
+    }
+  },
+  "data_files": {
+    "microbench_arm64_csv": "paper/microbench-arm64.csv",
+    "baremetal_netem_transcript": "paper/camera-ready-results.txt",
+    "footprint_csv": "paper/footprint.csv"
+  },
+  "footprint_bytes": {
+    "platform": "Darwin 27.0.0 arm64, rustc 1.96.0",
+    "note": "Platform-dependent; regenerate per host with `sh paper/footprint.sh`.",
+    "c_abi_cdylib_stripped": {
+      "bytes": 815392,
+      "kib": 796.3
+    },
+    "wasm_lean_default": {
+      "bytes": 200170,
+      "kib": 195.5
+    },
+    "wasm_signed_policy": {
+      "bytes": 599994,
+      "kib": 585.9
+    }
+  },
+  "ci_snapshot": {
+    "file": "artifact/ci-snapshot.log",
+    "sha256": "0011db9343ef501249173a27adf81176d5bf4f1a08c367fc148165e0dd0812d7",
+    "note": "A real local run of `artifact/smoke.sh` plus `cargo test --workspace`, clippy, and fmt. Verify with `shasum -a 256 artifact/ci-snapshot.log`. This is a local capture, NOT a GitHub Actions export."
+  }
+}

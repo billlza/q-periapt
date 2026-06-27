@@ -7,6 +7,24 @@ measurements (network shaping, binary constant-time) and needs specific hosts.
 
 All commands run from the repository root. `cargo` ≥ 1.85 is the only hard prerequisite for Tier 1.
 
+## Quick start — one command
+
+```sh
+sh artifact/smoke.sh
+```
+
+Runs the minimal closed loop (core tests, shared/reference vectors, the C-ABI face + a real C
+link-and-run, the WASM face's shared vector on the host, a real loopback TLS 1.3 handshake over the
+hybrid group, and the EasyCrypt no-`admit` gate) and prints `ALL PASS` (exit 0). Needs only a Rust
+toolchain and a C compiler — no Docker, wasm-pack, Node, or network beyond cargo's dependency fetch.
+
+The expected per-step counts, toolchain, footprint sizes, and data-file pointers are pinned in
+[`artifact/results.json`](artifact/results.json) (every value measured, so drift is visible). A
+frozen capture of one real run — `smoke.sh` plus `cargo test --workspace`, clippy, and fmt — is in
+[`artifact/ci-snapshot.log`](artifact/ci-snapshot.log); verify it with
+`shasum -a 256 artifact/ci-snapshot.log` against the hash in the manifest. (It is a local capture,
+not a GitHub Actions export.)
+
 ---
 
 ## Tier 1 — 10-minute smoke test (Rust only)
