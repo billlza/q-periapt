@@ -24,6 +24,18 @@ Expected: all tests pass; the grep finds nothing (exit 0 via the `!`). This esta
 KATs, NIST ACVP conformance, the independent-crate differential checks, and that the committed
 EasyCrypt proof has no `admit`/`sorry`.
 
+The dk-format separation (Theorem 1, item 5) is witnessed by a runnable example — both the
+expanded-`dk` break and its seed-`dk` negative control, against real libcrux:
+
+```sh
+cargo run -p q-periapt-backends --example binding_dk_format_witness
+```
+
+It prints, for two distinct ML-KEM public keys: over expanded-`dk` the lean (X-Wing-shaped)
+combiner collides on K-PK while `ContextBound` does not; over seed-`dk` (z re-derived from a 32-byte
+seed, as deployed X-Wing mandates) the attack vector is closed. The same two checks run as the
+`binding_keyformat_separation` integration test under Tier 1's `cargo test`.
+
 ## Tier 2 — ~1 hour, reproduce the CI gates
 
 Adds the optional backends, the **hermetic EasyCrypt machine-check**, the language bindings, and the

@@ -30,8 +30,14 @@
 //! shapes attain the same MAL ceiling (see docs/BINDING_SECURITY.md §6.6).
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
-use q_periapt_backends::{MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_SK_LEN};
+use q_periapt_backends::{
+    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN,
+};
 use q_periapt_core::{combine, CombineInput, Kem, Profile};
+use sha3::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Shake256,
+};
 
 // FIPS-203 ML-KEM-768 expanded dk layout: dk_pke(1152) ‖ ek(1184) ‖ H(ek)(32) ‖ z(32).
 const Z_OFFSET: usize = ML_KEM_768_SK_LEN - 32; // 2368: the implicit-rejection seed.
@@ -146,5 +152,86 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
          full binding (ContextBound, binds pk_pq):               K1 != K2  => K-PK holds\n  \
          NB: correctly-implemented seed-dk X-Wing is NOT affected; this is a robustness\n  \
          separation of the combiner shape, not a break of X-Wing."
+    );
+}
+
+/// X-Wing-style seed-dk keygen: a single 32-byte secret seed is expanded to the 64-byte ML-KEM
+/// keygen seed `(d ‖ z)`. Because `d` (which fixes the public key) and the implicit-rejection seed
+/// `z` BOTH come from the one seed, `z` is bound to the public key. (We model the expansion `zof`
+/// with SHAKE-256; draft-connolly-cfrg-xwing-kem uses a different but equally collision-resistant
+/// KDF — the injectivity argument is identical.)
+fn seed_dk_keypair(seed32: [u8; 32]) -> ([u8; ML_KEM_768_SK_LEN], [u8; ML_KEM_768_PK_LEN]) {
+    let mut dz = [0u8; 64];
+    let mut xof = Shake256::default();
+    xof.update(&seed32);
+    xof.finalize_xof().read(&mut dz);
+    MlKem768::generate(dz)
+}
+
+/// SEED-DK NEGATIVE CONTROL — the executable counterpart to the EasyCrypt lemma
+/// `lean_kpk_seed_le_cr` and to the "the seed-dk format fixes both" half of Schmieg 2024/523.
+///
+/// The expanded-dk witness above wins only because it overwrites `z` as a free, stored field. Under
+/// the seed-dk format that deployed X-Wing mandates, `z` is re-derived from the same 32-byte seed as
+/// the public key, so two distinct public keys carry distinct `z` (equalizing them would require a
+/// collision in the expansion). The garbage ciphertext therefore implicit-rejects to *different*
+/// shared secrets: Schmieg's MAL-BIND-K-PK precondition `ss1 == ss2` is unreachable, the attack
+/// vector is closed, and even the lean (X-Wing-shaped) combiner is not collided by it. This is the
+/// concrete reason correctly-deployed X-Wing is unaffected; the *general* seed-dk K-PK safety is the
+/// reduction `lean_kpk_seed_le_cr`, which this test does not replace, only witnesses one vector of.
+#[test]
+fn seed_dk_control_z_bound_to_key_closes_schmieg_vector() {
+    // (1) Two honest key pairs from two DISTINCT 32-byte X-Wing seeds.
+    let (dk1, ek1) = seed_dk_keypair([0x11; 32]);
+    let (dk2, ek2) = seed_dk_keypair([0x22; 32]);
+    assert_ne!(ek1, ek2, "distinct public keys");
+
+    // (2) The field the expanded-dk attack overwrote by hand is now BOUND to the key: distinct
+    //     seeds give distinct `z`. The adversary cannot set z1 == z2 without a SHAKE collision.
+    assert_ne!(
+        dk1[Z_OFFSET..],
+        dk2[Z_OFFSET..],
+        "seed-dk: z is re-derived from the keygen seed, so it differs across distinct public keys"
+    );
+
+    // (3) Same garbage ciphertext -> implicit rejection. Distinct z -> DISTINCT ML-KEM shared
+    //     secrets: the Schmieg precondition (ss1 == ss2) is NOT met.
+    let ct_garbage = [0xab_u8; ML_KEM_768_CT_LEN];
+    let mut ss1 = [0u8; 32];
+    let mut ss2 = [0u8; 32];
+    MlKem768.decapsulate(&dk1, &ct_garbage, &mut ss1).unwrap();
+    MlKem768.decapsulate(&dk2, &ct_garbage, &mut ss2).unwrap();
+    assert_ne!(
+        ss1, ss2,
+        "seed-dk defeats Schmieg: distinct z -> distinct implicit-rejection secret under ek1 != ek2"
+    );
+
+    // (4) With the attack vector closed, even the LEAN shape is not collided by it: the ML-KEM leg
+    //     already separates the two transcripts, so the hybrid keys differ without binding pk_pq.
+    let ss_trad = [0x33_u8; 32];
+    let ct_trad = [0x44_u8; 32];
+    let pk_trad = [0x55_u8; 32];
+    let common = (&ss_trad[..], &ct_trad[..], &pk_trad[..]);
+    let lean1 = combine::<Sha3_256Xof>(
+        Profile::CompatXWing,
+        &input(&ss1, &ek1, &ct_garbage, common),
+    )
+    .unwrap();
+    let lean2 = combine::<Sha3_256Xof>(
+        Profile::CompatXWing,
+        &input(&ss2, &ek2, &ct_garbage, common),
+    )
+    .unwrap();
+    assert_ne!(
+        lean1.as_bytes(),
+        lean2.as_bytes(),
+        "seed-dk closes Schmieg's vector: ss already differs, so the lean keys differ too"
+    );
+
+    eprintln!(
+        "seed-dk negative control (real libcrux ML-KEM-768, z derived from a 32-byte seed):\n  \
+         distinct seeds -> distinct z -> distinct implicit-rejection ss under ek1 != ek2\n  \
+         Schmieg precondition ss1 == ss2 is UNREACHABLE -> the expanded-dk attack vector is closed\n  \
+         even the lean shape (CompatXWing) is not collided by it; deployed seed-dk X-Wing is safe."
     );
 }

@@ -617,8 +617,9 @@ $\mathrm{CR}(H)$, and the \mbox{K-CT} and seed-\code{dk}-\mbox{K-PK} results add
 $J/\mathsf{zof}$ injectivity---a strictly stronger idealization than the full combiner needs.
 (iii)~The K-PK break is \emph{not} a break of X-Wing in deployment, which mandates seed-\code{dk};
 the map characterizes the \emph{shape}'s exposure field by field. We complement the proofs with an
-executable regression oracle that exercises the dk-format coupling against real libcrux as a
-CI-configured gate.
+executable regression oracle that exercises both the expanded-\code{dk} break and its seed-\code{dk}
+\emph{negative control} (where $z$ re-derived from the keygen seed closes the substitution) against
+real libcrux as a CI-configured gate.
 
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
