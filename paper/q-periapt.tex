@@ -711,9 +711,9 @@ exceeded the few-$\mu$s combiner difference; on bare metal it resolves cleanly.
 As RTT grows this fixed cost vanishes into the network: at RTT~$=$~20\,ms all four groups sit at
 $41.1$\,ms within a $90\,\mu$s spread, and at RTT~$=$~50\,ms within $15\,\mu$s of one
 another---the combiner difference is two to three orders of magnitude below the link latency. The
-hybrid's $+2.27$\,KB (one ML-KEM-768 keyshare each way) fits within the existing TLS flights, adds no
-round-trip, and---being one ML-KEM-768 keyshare each way---is byte-identical in wire budget to the
-IANA standard. The two hybrids differ in \emph{two} independent ways, which the table separates: the
+hybrid's $+2.27$\,KB key-exchange increment (one ML-KEM-768 keyshare each way; the authentication
+certificate/signature bytes are unchanged from the classical baseline) fits within the existing TLS
+flights, adds no round-trip, and is byte-identical in wire budget to the IANA standard. The two hybrids differ in \emph{two} independent ways, which the table separates: the
 combiner (ContextBound vs.\ concatenation), worth $+8.1\,\mu$s (the \code{bound}$-$\code{compat}
 delta, same ML-KEM implementation), and the ML-KEM implementation itself ($+62\,\mu$s between the
 \code{standard} row, on aws-lc-rs, and the \code{bound} row, on libcrux/ring)---an
@@ -764,15 +764,8 @@ within run-to-run noise (error bars span the two repetitions and cross zero at R
 \label{fig:netem}
 \end{figure}
 
-\begin{figure}[t]\centering
-\includegraphics[width=0.86\columnwidth]{fig_wire.pdf}
-\caption{TLS~1.3 \emph{key-exchange} wire-budget increment only. The PQ/T cost is one ML-KEM-768
-keyshare each way ($+2.27$\,KB) on top of the classical group; it \emph{excludes} the
-authentication certificate/signature bytes, which are unchanged from the classical baseline in the
-rustls measurement. (The ML-DSA-authenticated demo's multi-KB signature is a separate budget, not
-shown here.)}
-\label{fig:wire}
-\end{figure}
+% fig:wire removed: it was never referenced and duplicated the in-text "+2.27 KB key-exchange
+% increment, excluding the unchanged authentication bytes" statement (de-crowds the eval page).
 
 \section{Discussion}\label{sec:disc}
 \paragraph*{When to use which profile}
@@ -869,74 +862,6 @@ heterogeneous deployment surface, guarded by reproducible gates (configured in C
 constant-time discriminator, a binding key-format coupling demonstration, and multi-prover symbolic
 models---and validated on a real rustls TLS~1.3 integration path. The genuinely new element is the conjunction,
 not any single fact; we have been explicit about the boundary throughout.
-
-\begin{thebibliography}{99}
-\bibitem{fips203} National Institute of Standards and Technology, ``FIPS 203: Module-Lattice-Based
-Key-Encapsulation Mechanism Standard,'' 2024.
-\bibitem{cdm} C.~Cremers, A.~Dax, and N.~Medinger, ``Keeping Up with the KEMs: Binding Security of
-Key Encapsulation Mechanisms,'' \emph{ACM CCS}, 2024. (ePrint 2023/1933.)
-\bibitem{schmieg} S.~Schmieg, ``Unbindable Kemmy Schmidt: ML-KEM is neither MAL-BIND-K-CT nor
-MAL-BIND-K-PK,'' IACR ePrint 2024/523, 2024.
-\bibitem{chempat} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of Combined KEMs:
-An Analysis of Real-World KEM Combiners,'' IACR ePrint 2025/1416, 2025.
-\bibitem{xwing} D.~Connolly, P.~Schwabe, and B.~Westerbaan, ``X-Wing: The Hybrid KEM You've Been
-Looking For,'' draft-connolly-cfrg-xwing-kem-10, individual Internet-Draft (work in progress), 2026.
-\bibitem{kyberslash} D.~J.~Bernstein, K.~Bhargavan, S.~Bhasin, A.~Chattopadhyay, T.~K.~Chia,
-M.~J.~Kannwischer, F.~Kiefer, T.~B.~Paiva, P.~Ravi, and G.~Tamvada, ``KyberSlash: Exploiting
-Secret-Dependent Division Timings in Kyber Implementations,'' \emph{IACR TCHES}, 2025.
-\bibitem{cmt} M.~Bellare and V.~T.~Hoang, ``Efficient Schemes for Committing Authenticated
-Encryption,'' \emph{EUROCRYPT}, 2022.
-\bibitem{fips204} National Institute of Standards and Technology, ``FIPS 204: Module-Lattice-Based
-Digital Signature Standard,'' 2024.
-\bibitem{fips205} National Institute of Standards and Technology, ``FIPS 205: Stateless Hash-Based
-Digital Signature Standard,'' 2024.
-\bibitem{kyber} J.~W.~Bos, L.~Ducas, E.~Kiltz, T.~Lepoint, V.~Lyubashevsky, J.~M.~Schanck,
-P.~Schwabe, G.~Seiler, and D.~Stehl\'e, ``CRYSTALS-Kyber: A CCA-Secure Module-Lattice-Based KEM,''
-\emph{IEEE EuroS\&P}, 2018.
-\bibitem{nistpqc} G.~Alagic \emph{et al.}, ``Status Report on the Fourth Round of the NIST
-Post-Quantum Cryptography Standardization Process,'' NIST IR~8545, 2025.
-\bibitem{fo} E.~Fujisaki and T.~Okamoto, ``Secure Integration of Asymmetric and Symmetric
-Encryption Schemes,'' \emph{CRYPTO}, 1999.
-\bibitem{hhk} D.~Hofheinz, K.~H\"ovelmanns, and E.~Kiltz, ``A Modular Analysis of the
-Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
-\bibitem{rfc7748} A.~Langley, M.~Hamburg, and S.~Turner, ``Elliptic Curves for Security,'' RFC
-7748, IETF, 2016.
-\bibitem{rfc8446} E.~Rescorla, ``The Transport Layer Security (TLS) Protocol Version 1.3,'' RFC
-8446, IETF, 2018.
-\bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
-draft-ietf-tls-hybrid-design, IETF, 2023.
-\bibitem{tlsmlkem} K.~Kwiatkowski, P.~Kampanakis, B.~Westerbaan, and D.~Stebila, ``Post-Quantum
-Hybrid \code{ECDHE-MLKEM} Key Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS
-Working Group (work in progress), 2026.
-\bibitem{pqxdh} K.~Bhargavan, C.~Jacomme, F.~Kiefer, and R.~Schmidt, ``Formal Verification of the
-PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
-\bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in
-Quantum-Secure Messaging,'' Apple Security Research, 2024.
-\bibitem{cdmrej} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of
-Implicitly-Rejecting KEMs and Application to BIKE and HQC,'' IACR ePrint 2024/1233, 2024.
-\bibitem{hacl} J.-K.~Zinzindohou\'e, K.~Bhargavan, J.~Protzenko, and B.~Beurdouche, ``HACL*: A
-Verified Modern Cryptographic Library,'' \emph{ACM CCS}, 2017.
-\bibitem{libcrux} Cryspen, ``Verified ML-KEM (Kyber) in \code{libcrux},'' 2024.
-\bibitem{formosa} J.~B.~Almeida, S.~Arranz~Olmos, M.~Barbosa, G.~Barthe, F.~Dupressoir,
-B.~Gr\'egoire, V.~Laporte, J.-C.~L\'echenet, C.~Low, T.~Oliveira, H.~Pacheco, M.~Quaresma,
-P.~Schwabe, and P.-Y.~Strub, ``Formally Verifying Kyber: Episode V,'' \emph{CRYPTO}, 2024.
-\bibitem{easycrypt} G.~Barthe, B.~Gr\'egoire, S.~Heraud, and S.~Z.~B\'eguelin, ``Computer-Aided
-Security Proofs for the Working Cryptographer,'' \emph{CRYPTO}, 2011.
-\bibitem{tamarin} S.~Meier, B.~Schmidt, C.~Cremers, and D.~Basin, ``The TAMARIN Prover for the
-Symbolic Analysis of Security Protocols,'' \emph{CAV}, 2013.
-\bibitem{proverif} B.~Blanchet, ``Modeling and Verifying Security Protocols with the Applied Pi
-Calculus and ProVerif,'' \emph{Found.\ Trends Priv.\ Secur.}, 2016.
-\bibitem{dudect} O.~Reparaz, J.~Balasch, and I.~Verbauwhede, ``Dude, is My Code Constant Time?''
-\emph{DATE}, 2017.
-\bibitem{valgrind} N.~Nethercote and J.~Seward, ``Valgrind: A Framework for Heavyweight Dynamic
-Binary Instrumentation,'' \emph{ACM PLDI}, 2007.
-\bibitem{ctgrind} A.~Langley, ``ctgrind: Checking that Functions are Constant Time with Valgrind,''
-2010.
-\bibitem{acvp} National Institute of Standards and Technology, ``Automated Cryptographic Validation
-Protocol (ACVP),'' \url{https://github.com/usnistgov/ACVP}, 2024.
-\bibitem{rustls} J.~Birr-Pixton \emph{et al.}, ``rustls: A Modern TLS Library in Rust,''
-\url{https://github.com/rustls/rustls}, 2024.
-\end{thebibliography}
 
 \appendices
 \section{Artifact Availability}
@@ -1077,14 +1002,88 @@ $+3\%$ loss     & 41.2k / $\sim$1.09M & 41.6k / $\sim$1.09M & 41.5k / $\sim$1.10
 \end{table}
 
 \section{Reproduction}\label{app:repro}
-Every result is reproducible from the artifact. The EasyCrypt kernel: \code{make -C formal/easycrypt
-check}. The constant-time discriminator: \code{sh ctstats/scripts/ct-gap-probe.sh} (Linux+Valgrind;
-ML-KEM and HQC). The binding/key-format demonstration:
-\code{cargo test -p q-periapt-backends --test binding\_keyformat\_separation}. Microbenchmarks:
-\code{cargo bench -p q-periapt-backends}. The TLS netem evaluation:
-\code{paper/netem-camera-ready.sh} (bare metal). Cross-substrate byte-identity: the per-face vector
-tests; the symbolic models: \code{make} under \code{formal/\{tamarin,proverif\}}. The figures of this
-paper rebuild via \code{make -C paper/figures}.
+The artifact ships a layered guide (\code{ARTIFACT.md}) in three tiers by cost and dependency weight.
+\emph{Tier~1 (\textasciitilde$10$\,min, Rust only):} \code{cargo test --workspace} (KATs, NIST ACVP,
+cross-crate differential, proptests, host-side FFI/WASM vectors), \code{cargo fmt --all --check}, and
+the no-\code{admit}/\code{sorry} proof grep. \emph{Tier~2 (\textasciitilde$1$\,h, the CI gates):}
+\code{clippy -D warnings}; the \code{slh-dsa,hqc} backends; the \emph{hermetic} EasyCrypt machine-check
+(\code{docker build -f formal/Dockerfile} then re-run \code{BindingViaCR.ec} and the deleted-hypothesis
+necessity controls inside the pinned image); the C-ABI link smoke (\code{sh bindings/c/build-and-run.sh});
+the \code{wasm32} and \code{thumbv7em} cross-builds; and the Swift/Kotlin/WASM binding tests.
+\emph{Tier~3 (hardware-dependent):} the bare-metal time-to-session (\code{sudo sh
+camera-ready-bare-metal.sh}; root~+~\code{tc netem} on a quiesced Linux host); the
+source$\to$binary CT discriminator (\code{sh ctstats/scripts/ct-gap-probe.sh}; x86-64/aarch64 Linux~+~
+Valgrind); the Tamarin/ProVerif models (\code{make} under \code{formal/\{tamarin,proverif\}}); and the
+platform footprint (\code{sh paper/footprint.sh}). The figures rebuild via \code{make -C paper/figures}.
+
+
+\begin{thebibliography}{99}
+\bibitem{fips203} National Institute of Standards and Technology, ``FIPS 203: Module-Lattice-Based
+Key-Encapsulation Mechanism Standard,'' 2024.
+\bibitem{cdm} C.~Cremers, A.~Dax, and N.~Medinger, ``Keeping Up with the KEMs: Binding Security of
+Key Encapsulation Mechanisms,'' \emph{ACM CCS}, 2024. (ePrint 2023/1933.)
+\bibitem{schmieg} S.~Schmieg, ``Unbindable Kemmy Schmidt: ML-KEM is neither MAL-BIND-K-CT nor
+MAL-BIND-K-PK,'' IACR ePrint 2024/523, 2024.
+\bibitem{chempat} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of Combined KEMs:
+An Analysis of Real-World KEM Combiners,'' IACR ePrint 2025/1416, 2025.
+\bibitem{xwing} D.~Connolly, P.~Schwabe, and B.~Westerbaan, ``X-Wing: The Hybrid KEM You've Been
+Looking For,'' draft-connolly-cfrg-xwing-kem-10, individual Internet-Draft (work in progress), 2026.
+\bibitem{kyberslash} D.~J.~Bernstein, K.~Bhargavan, S.~Bhasin, A.~Chattopadhyay, T.~K.~Chia,
+M.~J.~Kannwischer, F.~Kiefer, T.~B.~Paiva, P.~Ravi, and G.~Tamvada, ``KyberSlash: Exploiting
+Secret-Dependent Division Timings in Kyber Implementations,'' \emph{IACR TCHES}, 2025.
+\bibitem{cmt} M.~Bellare and V.~T.~Hoang, ``Efficient Schemes for Committing Authenticated
+Encryption,'' \emph{EUROCRYPT}, 2022.
+\bibitem{fips204} National Institute of Standards and Technology, ``FIPS 204: Module-Lattice-Based
+Digital Signature Standard,'' 2024.
+\bibitem{fips205} National Institute of Standards and Technology, ``FIPS 205: Stateless Hash-Based
+Digital Signature Standard,'' 2024.
+\bibitem{kyber} J.~W.~Bos, L.~Ducas, E.~Kiltz, T.~Lepoint, V.~Lyubashevsky, J.~M.~Schanck,
+P.~Schwabe, G.~Seiler, and D.~Stehl\'e, ``CRYSTALS-Kyber: A CCA-Secure Module-Lattice-Based KEM,''
+\emph{IEEE EuroS\&P}, 2018.
+\bibitem{nistpqc} G.~Alagic \emph{et al.}, ``Status Report on the Fourth Round of the NIST
+Post-Quantum Cryptography Standardization Process,'' NIST IR~8545, 2025.
+\bibitem{fo} E.~Fujisaki and T.~Okamoto, ``Secure Integration of Asymmetric and Symmetric
+Encryption Schemes,'' \emph{CRYPTO}, 1999.
+\bibitem{hhk} D.~Hofheinz, K.~H\"ovelmanns, and E.~Kiltz, ``A Modular Analysis of the
+Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
+\bibitem{rfc7748} A.~Langley, M.~Hamburg, and S.~Turner, ``Elliptic Curves for Security,'' RFC
+7748, IETF, 2016.
+\bibitem{rfc8446} E.~Rescorla, ``The Transport Layer Security (TLS) Protocol Version 1.3,'' RFC
+8446, IETF, 2018.
+\bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
+draft-ietf-tls-hybrid-design, IETF, 2023.
+\bibitem{tlsmlkem} K.~Kwiatkowski, P.~Kampanakis, B.~Westerbaan, and D.~Stebila, ``Post-Quantum
+Hybrid \code{ECDHE-MLKEM} Key Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS
+Working Group (work in progress), 2026.
+\bibitem{pqxdh} K.~Bhargavan, C.~Jacomme, F.~Kiefer, and R.~Schmidt, ``Formal Verification of the
+PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
+\bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in
+Quantum-Secure Messaging,'' Apple Security Research, 2024.
+\bibitem{cdmrej} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of
+Implicitly-Rejecting KEMs and Application to BIKE and HQC,'' IACR ePrint 2024/1233, 2024.
+\bibitem{hacl} J.-K.~Zinzindohou\'e, K.~Bhargavan, J.~Protzenko, and B.~Beurdouche, ``HACL*: A
+Verified Modern Cryptographic Library,'' \emph{ACM CCS}, 2017.
+\bibitem{libcrux} Cryspen, ``Verified ML-KEM (Kyber) in \code{libcrux},'' 2024.
+\bibitem{formosa} J.~B.~Almeida, S.~Arranz~Olmos, M.~Barbosa, G.~Barthe, F.~Dupressoir,
+B.~Gr\'egoire, V.~Laporte, J.-C.~L\'echenet, C.~Low, T.~Oliveira, H.~Pacheco, M.~Quaresma,
+P.~Schwabe, and P.-Y.~Strub, ``Formally Verifying Kyber: Episode V,'' \emph{CRYPTO}, 2024.
+\bibitem{easycrypt} G.~Barthe, B.~Gr\'egoire, S.~Heraud, and S.~Z.~B\'eguelin, ``Computer-Aided
+Security Proofs for the Working Cryptographer,'' \emph{CRYPTO}, 2011.
+\bibitem{tamarin} S.~Meier, B.~Schmidt, C.~Cremers, and D.~Basin, ``The TAMARIN Prover for the
+Symbolic Analysis of Security Protocols,'' \emph{CAV}, 2013.
+\bibitem{proverif} B.~Blanchet, ``Modeling and Verifying Security Protocols with the Applied Pi
+Calculus and ProVerif,'' \emph{Found.\ Trends Priv.\ Secur.}, 2016.
+\bibitem{dudect} O.~Reparaz, J.~Balasch, and I.~Verbauwhede, ``Dude, is My Code Constant Time?''
+\emph{DATE}, 2017.
+\bibitem{valgrind} N.~Nethercote and J.~Seward, ``Valgrind: A Framework for Heavyweight Dynamic
+Binary Instrumentation,'' \emph{ACM PLDI}, 2007.
+\bibitem{ctgrind} A.~Langley, ``ctgrind: Checking that Functions are Constant Time with Valgrind,''
+2010.
+\bibitem{acvp} National Institute of Standards and Technology, ``Automated Cryptographic Validation
+Protocol (ACVP),'' \url{https://github.com/usnistgov/ACVP}, 2024.
+\bibitem{rustls} J.~Birr-Pixton \emph{et al.}, ``rustls: A Modern TLS Library in Rust,''
+\url{https://github.com/rustls/rustls}, 2024.
+\end{thebibliography}
 
 % Acknowledgments omitted for double-blind review. CAMERA-READY: restore tool + funding/advisor
 % acknowledgments here.
