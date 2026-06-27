@@ -52,10 +52,8 @@ assumption on the component KEMs---machine-checked in EasyCrypt as a hermetic CI
 operating systems, and five instruction-set architectures (four executed---one under qemu-user---and
 one cross-compiled), verified by a six-method conformance matrix and a self-validating
 source$\to$binary constant-time probe that discriminates a clean primitive from a leaky one. A
-machine-checked \emph{separation map} then resolves, field by field, which combiner inputs are
-load-bearing: public-key and context absorption are necessary, and the map characterizes exactly
-where the X-Wing field shape---when instantiated over the FIPS-203 expanded-\code{dk} serialization,
-or without external context binding---is exposed and ContextBound is not.
+machine-checked \emph{separation map} then pins down which combiner inputs are load-bearing, and
+where the alternative X-Wing field shape is exposed while ContextBound is not.
 
 We are explicit about novelty: the binding \emph{fact} follows from recent results; our
 contributions are this separation theorem and the \emph{conjunction}---an assumption-minimal
@@ -132,9 +130,10 @@ tied to C2, not proof difficulty. On the same kernel we additionally prove a mac
 \emph{separation map} (\cref{thm:sep}, \cref{tab:sepmap}): deleting each combiner input in turn, we
 show that omitting $pk_{\mathrm{pq}}$ loses \mbox{MAL-BIND-K-PK} over the expanded-\code{dk}
 serialization (concrete $\Pr{=}1$ adversary) but not over seed-\code{dk}, omitting the context loses
-\mbox{MAL-BIND-K-CTX} unconditionally, and omitting $ct_{\mathrm{pq}}$ is harmless (the shared secret
-binds it)---so public-key and context absorption are \emph{necessary}, ciphertext absorption
-redundant, and the X-Wing field shape---instantiated over the FIPS-203 expanded-\code{dk} form or
+\mbox{MAL-BIND-K-CTX} unconditionally, and omitting $ct_{\mathrm{pq}}$ is \emph{conditionally} safe in
+the modeled $J$-injective setting (the shared secret already binds it)---so public-key and context
+absorption are \emph{necessary}, ciphertext absorption redundant only under that injectivity, and the
+X-Wing field shape---instantiated over the FIPS-203 expanded-\code{dk} form or
 without external context---loses \mbox{K-PK} and \mbox{K-CTX} while keeping \mbox{K-CT} (a correctly
 deployed seed-\code{dk} X-Wing still reaches \mbox{MAL-BIND-K-\{CT,PK\}}; \cref{sec:sep}). This is a
 stated, proven characterization, not an integration claim.
@@ -579,8 +578,9 @@ context & \mbox{MAL-BIND-K-CTX} & \textbf{broken} unconditionally ($\Pr{=}1$) \\
 \end{tabular}
 \end{table}
 
-\paragraph*{Reading the map.} The content is the \emph{dichotomy} between rows~2 and~3, not any cell
-alone. Omitting $ct_{\mathrm{pq}}$ is harmless because the shared secret already encodes it; omitting
+\paragraph*{Reading the map} The content is the \emph{dichotomy} between rows~2 and~3, not any cell
+alone. Omitting $ct_{\mathrm{pq}}$ is safe---under the $J$-injectivity idealization made precise
+below---because the shared secret already encodes it; omitting
 context is fatal because \emph{nothing} else does. So context absorption is necessary \emph{and}
 sufficient---necessity is admittedly the easy half of an iff (no other field mentions context),
 sufficiency is \code{full\_kctx\_le\_cr}; what makes it a result rather than a tautology is its
@@ -601,7 +601,7 @@ $ct_{\mathrm{pq}}$ absorption is \emph{redundant insurance}.} This is the multi-
 construction needed: not a stronger notion than X-Wing on a shared axis, but a proven,
 field-resolved account of \emph{exactly} where the X-Wing shape is exposed and ContextBound is not.
 
-\paragraph*{Scope, stated precisely.} (i)~$J,\mathsf{zof},H$ are abstract; $J(z,ct)$ is
+\paragraph*{Scope, stated precisely} (i)~$J,\mathsf{zof},H$ are abstract; $J(z,ct)$ is
 \emph{modeled} after FIPS-203 implicit rejection, not \emph{derived} from a mechanized Decaps, and
 the component shared secrets are otherwise inert. (ii)~The K-PK and K-CTX breaks need \emph{no}
 cryptographic assumption (concrete $\Pr{=}1$ adversaries); the safety bounds are conditional on
@@ -631,8 +631,10 @@ toolchain install; all checker and solver versions are pinned in the artifact.
 
 \subsection{Microbenchmarks}
 \Cref{tab:bench} reports primitive and hybrid costs (Criterion, point estimates, on an Apple-Silicon
-arm64 host; the artifact reproduces them and an x86-64 run). Two findings matter for deployment.
-First, \emph{in our libcrux\,/\,x25519-dalek backend the post-quantum leg is not the bottleneck}:
+arm64 host; the artifact reproduces them and an x86-64 run). The committed data is
+\code{paper/microbench-arm64.csv}, regenerated with \code{cargo bench -p q-periapt-backends}. Two
+backend-specific observations matter for deployment. First, \emph{in our libcrux\,/\,x25519-dalek
+backend the post-quantum leg is not the bottleneck}:
 ML-KEM-768 encapsulation is $11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation
 ($89.8\,\mu$s, an ephemeral keygen plus a Diffie--Hellman), so the classical X25519-as-KEM path
 dominates hybrid CPU here---a corrective to the assumption that PQ is the expensive part (a different
@@ -646,9 +648,8 @@ sub-$10\,\mu$s, well under the $\sim$$90\,\mu$s X25519 encapsulation cost and fa
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
 \caption{Primitive and hybrid cost ($\mu$s; Criterion 60-sample point estimates, arm64 host) and
 key/ciphertext sizes (bytes). A single-host \emph{supporting} microbench (run-to-run variance
-$\sim$$1\,\mu$s; committed as \code{paper/microbench-arm64.csv}, regenerate with
-\code{cargo\ bench\ -p\ q-periapt-backends}); the bare-metal time-to-session of
-\cref{tab:baremetal} is the primary measurement.}\label{tab:bench}
+$\sim$$1\,\mu$s); the bare-metal time-to-session of \cref{tab:baremetal} is the primary
+measurement.}\label{tab:bench}
 \begin{tabular}{@{}l r r r r r r@{}}
 \toprule
  & \multicolumn{3}{c}{\textbf{time ($\mu$s)}} & \multicolumn{3}{c}{\textbf{size (B)}} \\
@@ -685,8 +686,9 @@ TLS~1.3 wire format, and is not used for the measurements here.
 \includegraphics[width=0.84\textwidth]{fig_handshake.pdf}
 \caption{PQ/T hybrid TLS~1.3 \emph{key exchange} over the rustls provider (private-use group), with
 standard TLS server-certificate authentication (a self-signed certificate in the loopback
-measurement). Both peers derive the same session key $K$ with the ContextBound combiner; $K$ remains
-secret unless \emph{both} component KEMs are broken. ML-DSA-based authentication is the separate
+measurement). Both peers derive the same session key $K$ with the ContextBound combiner; under the standard TLS
+server-authentication assumption, $K$'s secrecy fails only if \emph{both} component KEMs are broken.
+ML-DSA-based authentication is the separate
 HPKE-shaped demo of \cref{sec:assurance}, not this measured TLS path.}
 \label{fig:handshake}
 \end{figure*}
@@ -702,7 +704,7 @@ The p99 tracks the p50 (\cref{tab:baremetal}: $252.7$\,/\,$317.1$\,/\,$377.5$\,/
 the ContextBound$-$CompatXWing gap is $+8.4\,\mu$s at the p99---the combiner cost does not grow in
 the tail.
 The reproducible local overhead of this Q-Periapt rustls path over classical X25519 is thus
-$\approx 88\,\mu$s, and---critically---\textbf{ContextBound costs only $+8.1\,\mu$s over CompatXWing},
+$\approx 88\,\mu$s, and---critically---\textbf{ContextBound costs $+8.1\,\mu$s over CompatXWing},
 the price of explicit hash-everything transcript binding, in close agreement with the $+6.2\,\mu$s combiner cost
 measured in isolation (\cref{tab:bench}). This
 quiesced measurement supersedes our earlier virtualized-host run, whose $2\times$ run-to-run swings
@@ -722,13 +724,14 @@ aws-lc-rs-backed ContextBound implementation, which we do not build---so we do n
 $62\,\mu$s eliminated, only that it is backend-related. The binding upgrade ContextBound provides is
 the $+8.1\,\mu$s, not the $62$.
 
-\begin{table}[t]\centering
+\begin{table}[t]\centering\setlength{\tabcolsep}{4pt}
 \caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
 benchmark pinned to two isolated cores, \code{performance} governor; median of the per-rep p50 and
 p99 over $20$ repetitions, RTT-0 column). At RTT~0 the per-group order resolves and ContextBound is
-$+8.1\,\mu$s over CompatXWing ($+8.4\,\mu$s at the p99); at RTT~$\ge$~20\,ms the combiner cost is
-dwarfed by the link (medians shown). Raw transcript in the artifact
-(\code{paper/camera-ready-results.txt}).}
+$+8.1\,\mu$s over CompatXWing ($+8.4\,\mu$s at the p99). The tail claim is made at RTT~0, where the
+combiner cost is resolvable; at RTT~$\ge$~20\,ms the per-group spread is $\le 90\,\mu$s against a
+$\ge 41$\,ms link, so any tail there reflects network jitter rather than the combiner (medians shown,
+$6$/$4$ reps). Raw transcript in the artifact (\code{paper/camera-ready-results.txt}).}
 \label{tab:baremetal}
 \begin{tabular}{@{}l r r r r@{}}
 \toprule
@@ -758,7 +761,7 @@ is byte-insensitive and the tail is governed by transport, not by the combiner.
 \caption{Time-to-session under real \code{tc netem} on the \emph{virtualized} host (mean of two
 repetitions); the quiesced bare-metal numbers of \cref{tab:baremetal} supersede it quantitatively,
 and this figure is retained for the qualitative shape. (a) latency is RTT-dominated---the three
-curves coincide. (b) the overhead is the fixed ML-KEM CPU cost at RTT~0 ($\sim$190\,$\mu$s on this
+curves coincide. (b) the overhead is the fixed local KEX-path overhead at RTT~0 ($\sim$190\,$\mu$s on this
 virtualized host; $\approx$88\,$\mu$s on bare metal, \cref{tab:baremetal}); at realistic RTT it is
 within run-to-run noise (error bars span the two repetitions and cross zero at RTT~20\,ms).}
 \label{fig:netem}
@@ -840,8 +843,10 @@ formosa-mlkem~\cite{formosa} delivers a verified ML-KEM \emph{implementation} (J
 IND-CCA and constant-time guarantees---an axis (specification-to-binary) we explicitly do not hold
 (\cref{tab:position}). The SandboxAQ EasyCrypt-KEMs library mechanizes \mbox{LEAK-BIND-K-PK} for
 ML-KEM. Our EasyCrypt~\cite{easycrypt} development is complementary: it targets the \emph{hybrid
-combiner's} binding (the commitment-style MAL Figure-6 instantiation), and is cross-checked by
-independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}, all CI-gated.
+combiner's} binding (the commitment-style MAL Figure-6 instantiation), cross-checked by
+independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}; the EasyCrypt
+proof is hard-gated hermetically in CI, while the symbolic models are presence-gated with
+best-effort prover execution.
 
 \section{Limitations}\label{sec:limits}
 The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it is exactly the
@@ -873,8 +878,11 @@ are reproducible from that repository; the bare-metal netem protocol is provided
 
 \section{The Machine-Checked Kernel in Detail}\label{app:kernel}
 \Cref{tab:lemmas} inventories the EasyCrypt development. Of the named results, all are fully
-discharged (no \code{admit}/\code{conjecture}); the only assumptions are the two elementary
-\code{be8\_*} facts about the 8-byte length field and the modeling of $H$ as collision-resistant.
+discharged (no \code{admit}/\code{conjecture}). For the full ContextBound binding theorem the only
+structural encoding assumptions are the two elementary \code{be8\_*} facts about the 8-byte length
+field plus the modeling of $H$ as collision-resistant; the separation-map rows add the explicitly
+stated existence/injectivity assumptions (\code{ek\_neq}, \code{lctx\_neq}, \code{zof\_inj},
+\code{jrej\_inj}) shown in their row statements.
 We validate that the proof is non-vacuous by an \emph{adversarial negative control}: for each
 binding theorem we mechanically delete a single hint from its closing tactic and re-run the
 checker, confirming the proof then \emph{fails} (\code{cannot prove goal}). Deleting
@@ -886,8 +894,10 @@ last control is what distinguishes a faithful Figure-6 instantiation from a vacu
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.12}
-\caption{EasyCrypt lemma inventory (\code{BindingViaCR.ec}). All proved; assumptions: \code{be8\_*},
-$\mathrm{CR}(H)$.}\label{tab:lemmas}
+\caption{EasyCrypt lemma inventory (\code{BindingViaCR.ec}). All proved; full-combiner binding uses
+\code{be8\_*} and $\mathrm{CR}(H)$; the separation-map rows additionally use the elementary
+assumptions \code{ek\_neq}/\code{lctx\_neq}/\code{zof\_inj}/\code{jrej\_inj} stated in their
+row statements.}\label{tab:lemmas}
 \begin{tabular}{@{}l >{\raggedright\arraybackslash}p{0.46\columnwidth}@{}}
 \toprule
 \textbf{Lemma} & \textbf{Statement (informal)} \\
