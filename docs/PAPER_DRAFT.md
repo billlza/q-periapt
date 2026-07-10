@@ -182,7 +182,11 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
   byte-identity · generative property tests.
 - The substrate matrix (Table): 5 faces × 3 OSes × 5 ISAs, with **per-cell honesty** (what is
   verified locally vs. in CI; Windows-MSVC verified locally; binary-CT only on x86-64/aarch64;
-  riscv64/wasm32 = source-CT + attestation). Reproducible build attestations.
+  riscv64/wasm32 = source-CT + attestation). Reproducible build attestations. The artifact now also
+  has a separate Apple physical-device proof lane: Xcode 27 beta, one physical iPad plus one
+  physical iPhone, source-bound and artifact-bound. It also has a separate Android ART runtime
+  smoke over the AAR/JNI face on an emulator. Keep both in the artifact/evidence column rather than
+  overstating either as a package-distribution result.
 
 ### §5 CI-gated assurance against the failure classes (C3)
 - **Binary-CT source→binary gap probe** (`ctstats/ct_decaps_gap`): marks only ŝ+z, runs real
@@ -195,7 +199,7 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
   X-Wing-shaped combiner over expanded-dk loses MAL-BIND-K-PK (Schmieg z-substitution), ContextBound
   does not. Framed strictly as combiner robustness (see §4 boundary).
 - **Multi-prover symbolic** (Tamarin + ProVerif): hybrid handshake robustness (key survives break
-  of EITHER component); both run in CI (presence-gated hard; prover execution best-effort), alongside
+  of EITHER component); lemma/query presence and full prover execution are hard-gated in CI, alongside
   the EasyCrypt computational proof — which is a **hermetic hard gate**: a pinned EasyCrypt container
   (`formal/Dockerfile`) re-checks `BindingViaCR.ec` + the necessity controls on every run, failing CI
   if either breaks.
@@ -254,10 +258,10 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 |---|---|---|---|
 | C1a | MAL-BIND-K-{CT,PK,CTX} ≤ CR(SHA3); encode_inj proved; **full CDM Figure 6** game (implicit + explicit rejection, K≠⊥ load-bearing), over abstract Decaps | `formal/easycrypt/BindingViaCR.ec` (`malbind_*_le_cr`, `malbind_*_xrej_le_cr`); `easycrypt compile` exit 0; negative controls (incl. K≠⊥) | ✔ this session (a5b9159, 65f4328) |
 | C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | ✔ (prior commits) |
-| C2b | byte-identical across 5 faces / 3 OS / 5 ISA | shared-vector tests; Windows-MSVC local; cbindgen C-ABI | ✔ local (CI configured) |
+| C2b | byte-identical across 5 faces / 3 OS / 5 ISA | shared-vector tests; Windows-MSVC local; cbindgen C-ABI; `artifact/embedding-readiness.sh`; Apple iPad+iPhone device matrix proof and Android ART AAR/JNI smoke as hardware/runtime evidence | ✔ local (CI configured; fresh local device/runtime proof) |
 | C3a | source→binary CT: ML-KEM 0 / HQC 193 (discriminator) | `ctstats/ct_decaps_gap`, `ct_hqc_gap`; `ct-gap-probe.sh` | ✔ aarch64 (e525bef) |
 | C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (real libcrux) | ✔ (e525bef) |
-| C3c | 2 symbolic provers + 1 computational (EasyCrypt = **hermetic hard gate**, re-checked in a pinned container; provers presence-gated) | `formal/{tamarin,proverif,easycrypt}` | ✔ |
+| C3c | 2 symbolic provers + 1 computational (EasyCrypt = **hermetic hard gate**, re-checked in a pinned container; symbolic provers = full `make prove` hard gates) | `formal/{tamarin,proverif,easycrypt}` | ✔ |
 | C4a | rustls TLS 1.3 handshake over the combiner | `crates/q-periapt-rustls/tests/handshake.rs` | ✔ (778aeec) |
 | C4b | real netem P99: PQ overhead ~0.1–0.4% at RTT≥20ms (no extra round-trip), combiner-neutral; vs classical-X25519 baseline | `crates/q-periapt-rustls/examples/netem_bench.rs` under `tc netem` | ✔ (host=VM; rerun on bare metal) |
 

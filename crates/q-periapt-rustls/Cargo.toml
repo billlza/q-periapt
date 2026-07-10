@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
 
 [lints]
 workspace = true
@@ -14,10 +17,10 @@ workspace = true
 # ring-only base provider: no aws-lc-sys C library in the production tree, TLS 1.3 only
 # (the IANA-standard X25519MLKEM768 baseline used by the netem bench is behind `bench-baseline`).
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging"] }
-q-periapt-core = { path = "../q-periapt-core" }
-q-periapt-kem = { path = "../q-periapt-kem" }
-q-periapt-backends = { path = "../q-periapt-backends" }
-q-periapt-policy = { path = "../q-periapt-policy" }
+q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }
+q-periapt-kem = { version = "0.0.1", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "0.0.1", path = "../q-periapt-backends" }
+q-periapt-policy = { version = "0.0.1", path = "../q-periapt-policy" }
 
 [features]
 # Only the netem benchmark's X25519MLKEM768 reference arm needs aws-lc-rs; opt-in so the

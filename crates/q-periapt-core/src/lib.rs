@@ -150,15 +150,22 @@ pub trait Kem {
     /// Stable algorithm identifier, e.g. `"ML-KEM-768"`.
     fn algorithm(&self) -> &'static str;
 
-    /// Whether this KEM is **ciphertext second-preimage resistant** (C2PRI),
-    /// i.e. provably binds its ciphertext (ML-KEM-768 via the FO transform +
-    /// explicit rejection). This is the load-bearing property that lets
-    /// [`Profile::CompatXWing`] safely *omit* the PQ ciphertext from the KDF.
+    /// Whether this KEM's primitive is **ciphertext second-preimage resistant** (C2PRI),
+    /// i.e. provably binds its ciphertext (ML-KEM via the FO transform + explicit rejection).
     ///
     /// Defaults to `false` (the safe choice): a KEM that does not prove C2PRI
     /// must be combined with [`Profile::ContextBound`], which binds all
     /// ciphertexts. Backends that are proven C2PRI override this to `true`.
     const C2PRI: bool = false;
+
+    /// Whether this **backend API and exposed key format** may be used with
+    /// [`Profile::CompatXWing`].
+    ///
+    /// This is stricter than [`C2PRI`](Self::C2PRI): the primitive can be C2PRI while a
+    /// backend that accepts arbitrary expanded/imported decapsulation keys is still not a
+    /// safe X-Wing-compatible API. Such backends must use [`Profile::ContextBound`], which
+    /// binds `ct_pq` and `pk_pq` directly. Seed-derived X-Wing-style backends may opt in.
+    const COMPAT_XWING_SAFE: bool = false;
 
     /// Encapsulate to `pk`, writing the ciphertext to `ct` and shared secret to
     /// `ss`. `randomness` supplies the KEM's encapsulation coins (caller-provided
@@ -180,9 +187,9 @@ pub trait Kem {
 #[repr(u8)]
 pub enum Profile {
     /// Fast, byte-exact X-Wing-compatible combiner (parity with mainstream).
-    /// Binds the traditional ciphertext+pubkey; relies on the PQ KEM being
-    /// [`Kem::C2PRI`] to *not* hash the PQ ct/pk. Requires all four absorbed
-    /// fields to be exactly 32 bytes.
+    /// Binds the traditional ciphertext+pubkey; relies on the PQ backend being
+    /// [`Kem::COMPAT_XWING_SAFE`] to *not* hash the PQ ct/pk. Requires all four
+    /// absorbed fields to be exactly 32 bytes.
     ///
     /// **Footgun:** X-Wing has no `suite_id`/`policy_version`/`context` fields, so this profile
     /// **silently ignores** any you pass — it does **not** bind external context or the agility

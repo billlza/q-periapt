@@ -13,12 +13,12 @@
 //! implementation. Concrete backends (libcrux ML-KEM, x25519-dalek, sha3,
 //! pqcrypto HQC) are wired in behind cargo features — tracked in `docs/ROADMAP.md`.
 //!
-//! ## Safety invariant (C2PRI guard)
+//! ## Safety invariant (`CompatXWing` backend guard)
 //! [`Profile::CompatXWing`] omits the PQ ciphertext from the KDF; that is sound
-//! **only** when the PQ KEM is [`Kem::C2PRI`]. [`HybridKem::new`] enforces this:
-//! pairing a non-C2PRI PQ KEM (e.g. HQC) with `CompatXWing` is rejected with
-//! [`Error::PolicyDenied`]. Non-C2PRI components must use
-//! [`Profile::ContextBound`], which binds every ciphertext.
+//! **only** when the PQ backend is explicitly [`Kem::COMPAT_XWING_SAFE`]. [`HybridKem::new`]
+//! enforces this: raw/imported-key or non-C2PRI PQ KEMs (e.g. expanded ML-KEM, HQC)
+//! are rejected with [`Error::PolicyDenied`]. Those components must use
+//! [`Profile::ContextBound`], which binds every ciphertext and public key.
 
 use core::marker::PhantomData;
 use q_periapt_core::{
@@ -41,7 +41,7 @@ pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
 
 impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// Build a hybrid KEM. Returns [`Error::PolicyDenied`] if `profile` is
-    /// [`Profile::CompatXWing`] but the PQ backend is not [`Kem::C2PRI`].
+    /// [`Profile::CompatXWing`] but the PQ backend is not [`Kem::COMPAT_XWING_SAFE`].
     pub fn new(
         pq: &'a P,
         trad: &'a T,
@@ -49,8 +49,9 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         suite_id: &'a [u8],
         policy_version: u32,
     ) -> Result<Self, Error> {
-        if matches!(profile, Profile::CompatXWing) && !P::C2PRI {
-            // The fast profile omits the PQ ciphertext; only safe for a C2PRI KEM.
+        if matches!(profile, Profile::CompatXWing) && !P::COMPAT_XWING_SAFE {
+            // The fast profile omits the PQ ciphertext/public key; only a backend whose
+            // exposed key format preserves X-Wing's self-binding precondition may use it.
             return Err(Error::PolicyDenied);
         }
         Ok(Self {
@@ -200,10 +201,11 @@ mod tests {
     }
 
     /// Toy KEM. Deterministic, NON-cryptographic; with all fields sized 32 so it
-    /// works under either profile. `C2PRI` is parameterized via two newtypes.
+    /// works under either profile.
     struct ToyKem(&'static str);
     impl Kem for ToyKem {
         const C2PRI: bool = true; // pretend "ML-KEM-like": binds its ciphertext
+        const COMPAT_XWING_SAFE: bool = true;
         fn algorithm(&self) -> &'static str {
             self.0
         }
@@ -288,6 +290,7 @@ mod tests {
     struct ToyKemErr;
     impl Kem for ToyKemErr {
         const C2PRI: bool = true;
+        const COMPAT_XWING_SAFE: bool = true;
         fn algorithm(&self) -> &'static str {
             "TOY-ERR"
         }

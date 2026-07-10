@@ -12,6 +12,7 @@
  *   B. hybrid round-trip       — keypair -> encapsulate -> decapsulate, asserting the two
  *      32-byte secrets match; exercises the widest ABI surface (pointers, size_t lengths,
  *      uint8_t/uint32_t scalars, int32_t status) across four functions.
+ *   B2. CompatXWing seed-dk    — xwing_keypair -> compat encap -> compat decap.
  *   C. status-code ABI         — a NULL pointer must return Q_PERIAPT_ERR_NULL and a wrong
  *      output length must return Q_PERIAPT_ERR_LENGTH, proving the length-checked,
  *      non-aborting error contract holds across the boundary.
@@ -43,6 +44,37 @@ static int hex2bin(const char *hex, uint8_t *out, size_t out_cap, size_t *out_le
 }
 
 static int eq(const uint8_t *a, const uint8_t *b, size_t n) { return memcmp(a, b, n) == 0; }
+
+/* Test 0: runtime metadata must match the header this consumer compiled against. */
+static int test_runtime_metadata(void) {
+    if (q_periapt_abi_version() != Q_PERIAPT_ABI_VERSION) {
+        printf("0: ABI version mismatch header=%u runtime=%u\n",
+               (unsigned)Q_PERIAPT_ABI_VERSION, (unsigned)q_periapt_abi_version());
+        return 1;
+    }
+    if (q_periapt_version() == NULL || strlen(q_periapt_version()) == 0) {
+        printf("0: empty runtime version\n");
+        return 1;
+    }
+    if (strcmp(q_periapt_fixed_suite_id(), "ML-KEM-768+X25519") != 0) {
+        printf("0: fixed suite mismatch: %s\n", q_periapt_fixed_suite_id());
+        return 1;
+    }
+    if (q_periapt_fixed_suite_id_len() != strlen("ML-KEM-768+X25519")) {
+        printf("0: fixed suite length mismatch\n");
+        return 1;
+    }
+    if (strcmp(q_periapt_status_name(Q_PERIAPT_ERR_POLICY), "ERR_POLICY") != 0) {
+        printf("0: status name mismatch\n");
+        return 1;
+    }
+    if (strcmp(q_periapt_status_name(12345), "UNKNOWN_STATUS") != 0) {
+        printf("0: unknown status name mismatch\n");
+        return 1;
+    }
+    printf("0: runtime metadata / ABI version .... PASS\n");
+    return 0;
+}
 
 /* Test A: combine() must reproduce a ContextBound reference vector byte-for-byte. */
 static int test_combine_kat(void) {
@@ -82,7 +114,7 @@ static int test_hybrid_roundtrip(void) {
     rc = q_periapt_x25519_keypair(scalar, sizeof scalar, sk_trad, sizeof sk_trad, pk_trad, sizeof pk_trad);
     if (rc != Q_PERIAPT_OK) { printf("B: x25519 keypair rc=%d\n", rc); return 1; }
 
-    /* The fixed C ABI validates suite_id against its canonical value (Q_PERIAPT_SUITE_ID);
+    /* The fixed C ABI validates suite_id against its canonical ML-KEM-768+X25519 bytes;
        pass that exactly. `sizeof - 1` drops the C string's trailing NUL so the length is 17. */
     const uint8_t suite_id[] = "ML-KEM-768+X25519";
     const uint8_t context[] = {'c', 't', 'x'};
@@ -149,6 +181,47 @@ static int test_hybrid_roundtrip(void) {
     return 0;
 }
 
+/* Test B2: CompatXWing uses the X-Wing seed-dk key format, not expanded ML-KEM sk. */
+static int test_xwing_seed_roundtrip(void) {
+    uint8_t seed_pq[Q_PERIAPT_MLKEM768_XWING_SEED_LEN], scalar[Q_PERIAPT_X25519_LEN];
+    memset(seed_pq, 0x77, sizeof seed_pq);
+    memset(scalar, 0x24, sizeof scalar);
+
+    uint8_t sk_pq[Q_PERIAPT_MLKEM768_XWING_SEED_LEN], pk_pq[Q_PERIAPT_MLKEM768_PK_LEN];
+    uint8_t sk_trad[Q_PERIAPT_X25519_LEN], pk_trad[Q_PERIAPT_X25519_LEN];
+    int rc = q_periapt_mlkem768_xwing_keypair(
+        seed_pq, sizeof seed_pq, sk_pq, sizeof sk_pq, pk_pq, sizeof pk_pq);
+    if (rc != Q_PERIAPT_OK) { printf("B2: xwing mlkem keypair rc=%d\n", rc); return 1; }
+    rc = q_periapt_x25519_keypair(scalar, sizeof scalar, sk_trad, sizeof sk_trad, pk_trad, sizeof pk_trad);
+    if (rc != Q_PERIAPT_OK) { printf("B2: x25519 keypair rc=%d\n", rc); return 1; }
+
+    const uint8_t suite_id[] = "ML-KEM-768+X25519";
+    uint8_t rand_pq[32], rand_trad[32];
+    memset(rand_pq, 0x37, sizeof rand_pq);
+    memset(rand_trad, 0x9a, sizeof rand_trad);
+
+    uint8_t ct_pq[Q_PERIAPT_MLKEM768_CT_LEN], ct_trad[Q_PERIAPT_X25519_LEN];
+    uint8_t secret_enc[Q_PERIAPT_SECRET_LEN], secret_dec[Q_PERIAPT_SECRET_LEN];
+    rc = q_periapt_hybrid_encapsulate(
+        Q_PERIAPT_PROFILE_COMPAT_XWING, suite_id, sizeof suite_id - 1, 1,
+        pk_pq, sizeof pk_pq, pk_trad, sizeof pk_trad, NULL, 0,
+        rand_pq, sizeof rand_pq, rand_trad, sizeof rand_trad,
+        ct_pq, sizeof ct_pq, ct_trad, sizeof ct_trad, secret_enc, sizeof secret_enc);
+    if (rc != Q_PERIAPT_OK) { printf("B2: compat encapsulate rc=%d\n", rc); return 1; }
+
+    rc = q_periapt_hybrid_decapsulate(
+        Q_PERIAPT_PROFILE_COMPAT_XWING, suite_id, sizeof suite_id - 1, 1,
+        sk_pq, sizeof sk_pq, ct_pq, sizeof ct_pq, pk_pq, sizeof pk_pq,
+        sk_trad, sizeof sk_trad, ct_trad, sizeof ct_trad, pk_trad, sizeof pk_trad,
+        NULL, 0, secret_dec, sizeof secret_dec);
+    if (rc != Q_PERIAPT_OK) { printf("B2: compat decapsulate rc=%d\n", rc); return 1; }
+    if (!eq(secret_enc, secret_dec, Q_PERIAPT_SECRET_LEN)) {
+        printf("B2: compat encap/decap secret mismatch\n"); return 1;
+    }
+    printf("B2: CompatXWing seed-dk roundtrip ... PASS\n");
+    return 0;
+}
+
 /* Test C: the status-code contract must hold across the ABI (no aborts), on more than one
  * entry point and covering NULL / LENGTH / POLICY. */
 static int test_error_codes(void) {
@@ -179,8 +252,10 @@ static int test_error_codes(void) {
 int main(void) {
     int fails = 0;
     printf("q-periapt C-ABI link smoke test\n");
+    fails += test_runtime_metadata();
     fails += test_combine_kat();
     fails += test_hybrid_roundtrip();
+    fails += test_xwing_seed_roundtrip();
     fails += test_error_codes();
     if (fails == 0) { printf("ALL PASS\n"); return 0; }
     printf("FAILURES: %d\n", fails);

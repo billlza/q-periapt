@@ -1,0 +1,47 @@
+name: QPeriaptAppleDevice
+options:
+  minimumXcodeGenVersion: 2.42.0
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: YES
+schemes:
+  QPeriaptDeviceRunner:
+    build:
+      targets:
+        QPeriaptDeviceRunner: all
+targets:
+  QPeriaptDeviceRunner:
+    type: application
+    platform: iOS
+    supportedDestinations:
+      - iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources/QPeriaptDeviceRunner
+      - path: ../swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift
+      - path: ../shared-test-vectors.json
+        buildPhase: resources
+      - path: ../contextbound-vectors.txt
+        buildPhase: resources
+      - path: ../signed-policy-vectors.json
+        buildPhase: resources
+    dependencies:
+      # Xcode 27 runs AppIntents metadata extraction for app targets. The runner has
+      # no AppIntents source surface; keep this as a weak, harness-local dependency
+      # so warning-clean builds do not add a product/API dependency.
+      - sdk: AppIntents.framework
+        weak: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.qperiapt.DeviceRunner
+        INFOPLIST_FILE: Sources/QPeriaptDeviceRunner/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/QPeriaptDeviceRunner/QPeriaptDeviceRunner-Bridging-Header.h
+        LIBRARY_SEARCH_PATHS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release"
+        OTHER_LDFLAGS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release/libq_periapt_ffi.a"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_DEBUG_DYLIB: NO
+        SUPPORTED_PLATFORMS: iphoneos
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        TARGETED_DEVICE_FAMILY: "1,2"

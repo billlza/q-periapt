@@ -4,8 +4,11 @@
 //! # q-periapt-backends
 //!
 //! Vetted primitive backends wired into the `q-periapt-core` traits:
-//! - **ML-KEM** (FIPS 203) via `libcrux-ml-kem` (HACL*-derived, constant-time), C2PRI ⇒
-//!   usable with the fast `CompatXWing` profile: [`MlKem512`], [`MlKem768`], [`MlKem1024`].
+//! - **ML-KEM** (FIPS 203) via `libcrux-ml-kem` (HACL*-derived, constant-time):
+//!   [`MlKem512`], [`MlKem768`], [`MlKem1024`] expose the FIPS-expanded decapsulation
+//!   key format and are therefore confined to `ContextBound`; [`MlKem768XWingSeed`]
+//!   exposes the X-Wing seed-derived key format and is the only ML-KEM backend here
+//!   marked `COMPAT_XWING_SAFE` for the byte-exact `CompatXWing` profile.
 //! - **ML-DSA** (FIPS 204) via `libcrux-ml-dsa`: [`MlDsa44`], [`MlDsa65`], [`MlDsa87`]
 //!   (the `impl_mldsa_modes!` surface also adds context/hedged + SHAKE-128 pre-hash +
 //!   internal-interface signing, for ACVP conformance).
@@ -65,6 +68,12 @@ pub use hqc::{Hqc128, Hqc192, Hqc256, HqcAsKem};
 
 /// X25519 public-key / secret-key / ciphertext length, bytes.
 pub const X25519_LEN: usize = 32;
+
+/// Default concrete hybrid suite exposed by the fixed FFI/WASM product surfaces.
+pub const DEFAULT_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
+
+/// Default concrete hybrid suite as a NUL-terminated C string.
+pub const DEFAULT_SUITE_ID_CSTR: &[u8] = b"ML-KEM-768+X25519\0";
 
 #[inline]
 fn to_arr<const N: usize>(s: &[u8]) -> Result<[u8; N], Error> {
@@ -127,7 +136,12 @@ macro_rules! mlkem_backend {
         }
 
         impl Kem for $name {
-            const C2PRI: bool = true; // ML-KEM binds its ciphertext (FO transform).
+            const C2PRI: bool = true; // ML-KEM's primitive has FO ciphertext self-binding.
+                                      // This backend accepts arbitrary FIPS-expanded decapsulation keys. The expanded key
+                                      // format exposes rejection-seed material that can be adversarially imported/cached
+                                      // outside the seed-derived X-Wing key schedule. Use ContextBound for this raw-key
+                                      // backend; use MlKem768XWingSeed for byte-exact X-Wing compatibility.
+            const COMPAT_XWING_SAFE: bool = false;
 
             fn algorithm(&self) -> &'static str {
                 $alg
@@ -204,6 +218,62 @@ mlkem_backend!(
     MlKem512Ciphertext,
     "ML-KEM-512 backend (FIPS 203, NIST level 1) via libcrux — the smallest parameter set."
 );
+
+/// X-Wing seed decapsulation key length, bytes.
+pub const ML_KEM_768_XWING_SEED_LEN: usize = 32;
+
+/// ML-KEM-768 backend whose decapsulation key is the 32-byte X-Wing seed format.
+///
+/// `CompatXWing` is sound only when the omitted PQ fields are self-bound by the key
+/// schedule. This backend derives the FIPS 203 `(d || z)` seed from a single 32-byte
+/// seed with SHAKE-256, matching X-Wing's seed-derived key format; it never accepts an
+/// arbitrary expanded ML-KEM decapsulation key from the caller.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MlKem768XWingSeed;
+
+#[inline]
+fn mlkem768_xwing_dz(seed: [u8; ML_KEM_768_XWING_SEED_LEN]) -> [u8; ML_KEM_768_KEYGEN_SEED_LEN] {
+    libcrux_sha3::shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed)
+}
+
+impl MlKem768XWingSeed {
+    /// Deterministically generate a key pair from a 32-byte X-Wing seed.
+    /// Returns `(seed_decapsulation_key, encapsulation_key)`.
+    #[must_use]
+    pub fn generate(
+        seed: [u8; ML_KEM_768_XWING_SEED_LEN],
+    ) -> ([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]) {
+        let (_expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        (seed, pk)
+    }
+}
+
+impl Kem for MlKem768XWingSeed {
+    const C2PRI: bool = true;
+    const COMPAT_XWING_SAFE: bool = true;
+
+    fn algorithm(&self) -> &'static str {
+        "ML-KEM-768(seed-dk)"
+    }
+
+    fn encapsulate(
+        &self,
+        pk: &[u8],
+        randomness: &[u8],
+        ct: &mut [u8],
+        ss: &mut [u8],
+    ) -> Result<(), Error> {
+        MlKem768.encapsulate(pk, randomness, ct, ss)
+    }
+
+    fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+        let seed = to_arr::<ML_KEM_768_XWING_SEED_LEN>(sk)?;
+        let (mut expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        let out = MlKem768.decapsulate(&expanded_sk, ct, ss);
+        q_periapt_core::secure_wipe(&mut expanded_sk);
+        out
+    }
+}
 
 /// X25519 ECDH-as-KEM backend (deterministic from a 32-byte scalar).
 #[derive(Clone, Copy, Debug, Default)]
@@ -705,7 +775,7 @@ mod tests {
     }
 
     #[test]
-    fn hybrid_real_roundtrip_both_profiles() {
+    fn hybrid_real_roundtrip_context_bound_expanded_and_compat_seed_dk() {
         use q_periapt_core::Profile;
         use q_periapt_kem::HybridKem;
 
@@ -713,11 +783,16 @@ mod tests {
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let ctx = b"q-periapt/v1/test-transcript";
 
-        for profile in [Profile::CompatXWing, Profile::ContextBound] {
+        {
             let (pq, trad) = (MlKem768, X25519);
-            let kem =
-                HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, b"ML-KEM-768+X25519", 1)
-                    .unwrap();
+            let kem = HybridKem::<_, _, Sha3_256Xof>::new(
+                &pq,
+                &trad,
+                Profile::ContextBound,
+                b"ML-KEM-768+X25519",
+                1,
+            )
+            .unwrap();
 
             let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
             let mut ct_trad = [0u8; X25519_LEN];
@@ -740,16 +815,50 @@ mod tests {
             assert_eq!(
                 enc.as_bytes(),
                 dec.as_bytes(),
-                "{profile:?}: real hybrid encap/decap must agree"
+                "ContextBound expanded-key hybrid encap/decap must agree"
+            );
+        }
+
+        {
+            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]);
+            let (pq, trad) = (MlKem768XWingSeed, X25519);
+            let kem = HybridKem::<_, _, Sha3_256Xof>::new(
+                &pq,
+                &trad,
+                Profile::CompatXWing,
+                b"ML-KEM-768+X25519",
+                1,
+            )
+            .unwrap();
+            let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
+            let mut ct_trad = [0u8; X25519_LEN];
+            let enc = kem
+                .encapsulate(
+                    &pk_pq,
+                    &pk_trad,
+                    b"",
+                    &[11u8; 32],
+                    &[22u8; 32],
+                    &mut ct_pq,
+                    &mut ct_trad,
+                )
+                .unwrap();
+            let dec = kem
+                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
+                .unwrap();
+            assert_eq!(
+                enc.as_bytes(),
+                dec.as_bytes(),
+                "CompatXWing seed-dk hybrid encap/decap must agree"
             );
         }
     }
 
     #[test]
-    fn enhanced_hybrid_real_roundtrip_both_profiles() {
-        // The enhanced suite: ML-KEM-1024 + X25519. ML-KEM-1024 is C2PRI, so both
-        // profiles are legal; the buffers are sized to the 1024 ciphertext (1568, NOT
-        // the 768 length). Proves the enhanced HybridKem actually round-trips.
+    fn enhanced_hybrid_real_roundtrip_context_bound_and_rejects_compat() {
+        // The enhanced suite: ML-KEM-1024 + X25519. The raw expanded-key backend is
+        // confined to ContextBound; the buffers are sized to the 1024 ciphertext
+        // (1568, NOT the 768 length). Proves the enhanced HybridKem actually round-trips.
         use q_periapt_core::Profile;
         use q_periapt_kem::HybridKem;
 
@@ -757,11 +866,16 @@ mod tests {
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let ctx = b"q-periapt/v1/enhanced-transcript";
 
-        for profile in [Profile::CompatXWing, Profile::ContextBound] {
+        {
             let (pq, trad) = (MlKem1024, X25519);
-            let kem =
-                HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, b"ML-KEM-1024+X25519", 1)
-                    .unwrap();
+            let kem = HybridKem::<_, _, Sha3_256Xof>::new(
+                &pq,
+                &trad,
+                Profile::ContextBound,
+                b"ML-KEM-1024+X25519",
+                1,
+            )
+            .unwrap();
 
             let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
             let mut ct_trad = [0u8; X25519_LEN];
@@ -784,9 +898,17 @@ mod tests {
             assert_eq!(
                 enc.as_bytes(),
                 dec.as_bytes(),
-                "{profile:?}: enhanced hybrid encap/decap must agree"
+                "enhanced ContextBound hybrid encap/decap must agree"
             );
         }
+        assert!(HybridKem::<_, _, Sha3_256Xof>::new(
+            &MlKem1024,
+            &X25519,
+            Profile::CompatXWing,
+            b"ML-KEM-1024+X25519",
+            1
+        )
+        .is_err());
     }
 
     #[test]

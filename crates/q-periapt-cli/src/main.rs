@@ -1,7 +1,7 @@
 //! `qperiapt` — auditability & migration CLI for the PQ/T hybrid suite.
 
 use clap::{Parser, Subcommand};
-use q_periapt_cli::{cbom, findings_to_json, sbom, scan, Finding};
+use q_periapt_cli::{cbom, sbom, scan, scan_report_to_json, Finding, ScanError};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -87,6 +87,19 @@ fn print_findings(findings: &[Finding]) {
     }
 }
 
+fn print_scan_errors(errors: &[ScanError]) {
+    if errors.is_empty() {
+        return;
+    }
+    eprintln!(
+        "scan incomplete: {} path(s) could not be inspected",
+        errors.len()
+    );
+    for e in errors {
+        eprintln!("{}: [{}] {}", e.path, e.operation, e.message);
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.cmd {
@@ -99,15 +112,19 @@ fn main() -> ExitCode {
             }
         },
         Cmd::Scan { path, json } => {
-            let findings = scan(&path);
+            let report = scan(&path);
             if json {
                 let text =
-                    serde_json::to_string_pretty(&findings_to_json(&findings)).expect("serialize");
+                    serde_json::to_string_pretty(&scan_report_to_json(&report)).expect("serialize");
                 println!("{text}");
             } else {
-                print_findings(&findings);
+                print_findings(&report.findings);
+                print_scan_errors(&report.errors);
             }
-            if findings
+            if !report.errors.is_empty() {
+                ExitCode::FAILURE
+            } else if report
+                .findings
                 .iter()
                 .any(|f| f.severity == "high" || f.severity == "critical")
             {

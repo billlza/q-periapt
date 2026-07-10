@@ -20,7 +20,7 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, deprecated)]
 
 use crate::{
-    MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, Sha3_256Xof,
+    MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, MlKem768XWingSeed, Sha3_256Xof,
     ML_DSA_44_KEYGEN_SEED_LEN, ML_DSA_44_SIGN_RAND_LEN, ML_DSA_44_SIG_LEN,
     ML_DSA_65_KEYGEN_SEED_LEN, ML_DSA_65_SIGN_RAND_LEN, ML_DSA_65_SIG_LEN,
     ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN, ML_DSA_87_SIG_LEN, ML_KEM_1024_CT_LEN,
@@ -216,27 +216,34 @@ fn x25519_rfc7748_diffie_hellman_kat() {
     assert_eq!(ss2, k, "RFC 7748 K (Bob·A)");
 }
 
-/// Full hybrid CompatXWing chain: our `HybridKem` output reconstructed from THREE
+/// Full hybrid CompatXWing chain over the X-Wing seed-dk key format: our `HybridKem`
+/// output reconstructed from THREE
 /// independent components — RustCrypto ML-KEM, orion X25519, and a RustCrypto SHA3
 /// X-Wing combiner — must match byte-for-byte. Cross-validates the orchestration
 /// and the combiner end-to-end (encaps and decaps) on random inputs.
 #[test]
 fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
-    let pq = MlKem768;
+    let pq = MlKem768XWingSeed;
     let trad = X25519;
-    let hk =
-        HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(&pq, &trad, Profile::CompatXWing, b"", 0)
-            .unwrap();
+    let hk = HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
+        &pq,
+        &trad,
+        Profile::CompatXWing,
+        b"",
+        0,
+    )
+    .unwrap();
 
     for ctr in 0u32..32 {
-        let exp = libcrux_sha3::shake256::<160>(&(ctr ^ 0x5A5A).to_le_bytes());
-        let mut pq_seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
-        pq_seed.copy_from_slice(&exp[..ML_KEM_768_KEYGEN_SEED_LEN]); // d‖z
-        let (sk_pq, pk_pq) = MlKem768::generate(pq_seed);
-        let x_seed = &exp[64..96];
+        let exp = libcrux_sha3::shake256::<128>(&(ctr ^ 0x5A5A).to_le_bytes());
+        let mut seed_pq = [0u8; 32];
+        seed_pq.copy_from_slice(&exp[..32]);
+        let pq_seed = libcrux_sha3::shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed_pq);
+        let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq);
+        let x_seed = &exp[32..64];
         let (sk_trad, pk_trad) = X25519::generate(x_seed.try_into().unwrap());
-        let m = &exp[96..128]; // ML-KEM encaps message
-        let eph = &exp[128..160]; // X25519 ephemeral scalar
+        let m = &exp[64..96]; // ML-KEM encaps message
+        let eph = &exp[96..128]; // X25519 ephemeral scalar
 
         // --- our hybrid encapsulation ---
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
@@ -283,73 +290,27 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
     }
 }
 
-/// Enhanced suite (ML-KEM-1024 + X25519), full `CompatXWing` hybrid chain: our
-/// `HybridKem<MlKem1024, X25519>` output reconstructed from THREE independent
-/// components — RustCrypto ML-KEM-1024, orion X25519, and a RustCrypto SHA3 X-Wing
-/// combiner — must match byte-for-byte. The X-Wing combiner consumes only the 32-byte
-/// `ss_pq` and the X25519 components (never `ct_pq`/`pk_pq`), so it is parameter-set
-/// independent; this is the strongest single end-to-end check of the enhanced suite.
+/// Expanded ML-KEM decapsulation keys are deliberately not admitted to CompatXWing.
+/// ContextBound is the safe profile for raw/imported FIPS-expanded keys because it
+/// binds `ct_pq` and `pk_pq` directly.
 #[test]
-fn hybrid_enhanced_compat_xwing_byte_identical_to_independent_reconstruction() {
-    let pq = MlKem1024;
-    let trad = X25519;
-    let hk =
-        HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(&pq, &trad, Profile::CompatXWing, b"", 0)
-            .unwrap();
-
-    for ctr in 0u32..32 {
-        let exp = libcrux_sha3::shake256::<160>(&(ctr ^ 0xA51C).to_le_bytes());
-        let mut pq_seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
-        pq_seed.copy_from_slice(&exp[..ML_KEM_1024_KEYGEN_SEED_LEN]); // d‖z
-        let (sk_pq, pk_pq) = MlKem1024::generate(pq_seed);
-        let x_seed = &exp[64..96];
-        let (sk_trad, pk_trad) = X25519::generate(x_seed.try_into().unwrap());
-        let m = &exp[96..128]; // ML-KEM encaps message
-        let eph = &exp[128..160]; // X25519 ephemeral scalar
-
-        // --- our enhanced hybrid encapsulation ---
-        let mut ct_pq = [0u8; ML_KEM_1024_CT_LEN];
-        let mut ct_trad = [0u8; X25519_LEN];
-        let secret = hk
-            .encapsulate(&pk_pq, &pk_trad, b"", m, eph, &mut ct_pq, &mut ct_trad)
-            .unwrap();
-
-        // --- independent reconstruction of the SAME shared secret ---
-        let (dk_rc, ek_rc) =
-            RcMlKem1024::generate_deterministic(&b32(&pq_seed[..32]), &b32(&pq_seed[32..]));
-        let (ct_pq_rc, ss_pq_rc) = ek_rc.encapsulate_deterministic(&b32(m)).unwrap();
-        let ct_trad_ref = orion_pub(eph);
-        let ss_trad_ref = orion_dh(eph, &pk_trad);
-        let secret_ref = xwing_combine(&ss_pq_rc, &ss_trad_ref, &ct_trad_ref, &pk_trad);
-
-        assert_eq!(&ct_pq[..], &ct_pq_rc[..], "enhanced ct_pq diverged @ {ctr}");
-        assert_eq!(ct_trad, ct_trad_ref, "enhanced ct_trad diverged @ {ctr}");
-        assert_eq!(
-            secret.as_bytes(),
-            &secret_ref,
-            "enhanced encaps secret diverged @ {ctr}"
-        );
-
-        // --- decapsulation: ours, and an independent reconstruction, both agree ---
-        let secret_dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
-            .unwrap();
-        let ss_pq_dec: [u8; 32] = (&dk_rc.decapsulate(&ct_pq_rc).unwrap()[..])
-            .try_into()
-            .unwrap();
-        let ss_trad_dec = orion_dh(&sk_trad, &ct_trad);
-        let secret_dec_ref = xwing_combine(&ss_pq_dec, &ss_trad_dec, &ct_trad, &pk_trad);
-        assert_eq!(
-            secret_dec.as_bytes(),
-            &secret_dec_ref,
-            "enhanced decaps secret diverged @ {ctr}"
-        );
-        assert_eq!(
-            secret_dec.as_bytes(),
-            secret.as_bytes(),
-            "enhanced decaps != encaps @ {ctr}"
-        );
-    }
+fn expanded_mlkem_backends_are_rejected_with_compat_xwing() {
+    assert!(HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+        &MlKem768,
+        &X25519,
+        Profile::CompatXWing,
+        b"",
+        0
+    )
+    .is_err());
+    assert!(HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(
+        &MlKem1024,
+        &X25519,
+        Profile::CompatXWing,
+        b"",
+        0
+    )
+    .is_err());
 }
 
 /// Independent X-Wing combiner: SHA3-256(ss_pq‖ss_trad‖ct_trad‖pk_trad‖LABEL) via

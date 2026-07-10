@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
 
 [lints]
 workspace = true
@@ -18,4 +21,4 @@ default = []
 #   pqclean-hqc    -> HQC backup via pqcrypto/PQClean
 
 [dependencies]
-q-periapt-core = { path = "../q-periapt-core" }
+q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }

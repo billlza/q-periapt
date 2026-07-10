@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
 
 [lints]
 workspace = true
@@ -21,9 +24,9 @@ valgrind = []
 hqc = ["q-periapt-backends/hqc"]
 
 [dependencies]
-q-periapt-core = { path = "../crates/q-periapt-core" }
-q-periapt-kem = { path = "../crates/q-periapt-kem" }
-q-periapt-backends = { path = "../crates/q-periapt-backends" }
+q-periapt-core = { version = "0.0.1", path = "../crates/q-periapt-core" }
+q-periapt-kem = { version = "0.0.1", path = "../crates/q-periapt-kem" }
+q-periapt-backends = { version = "0.0.1", path = "../crates/q-periapt-backends" }
 
 [build-dependencies]
 cc = "1"

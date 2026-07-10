@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
 
 [lints]
 workspace = true
@@ -21,8 +24,8 @@ slh-dsa = ["dep:fips205"]
 hqc = ["dep:pqcrypto-hqc", "dep:pqcrypto-traits"]
 
 [dependencies]
-q-periapt-core = { path = "../q-periapt-core" }
-q-periapt-sig = { path = "../q-periapt-sig" }
+q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }
+q-periapt-sig = { version = "0.0.1", path = "../q-periapt-sig" }
 # ML-KEM-768: libcrux (HACL*-derived, constant-time; takes randomness as explicit
 # bytes — ideal for deterministic/KAT/no_std use).
 libcrux-ml-kem = "0.0.9"
@@ -45,7 +48,7 @@ pqcrypto-traits = { version = "0.3.5", optional = true }
 
 [dev-dependencies]
 # End-to-end hybrid KEM tests exercise the real backends through q-periapt-kem.
-q-periapt-kem = { path = "../q-periapt-kem" }
+q-periapt-kem = { version = "0.0.1", path = "../q-periapt-kem" }
 # Combiner micro-benchmark (cargo bench). `sha3` (RustCrypto) provides the faithful
 # *streaming* X-Wing combiner baseline to compare our one-shot path against.
 criterion = "0.5"

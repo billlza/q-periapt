@@ -44,24 +44,23 @@ Status of M0 KAT coverage.
 - **ML-KEM-768 deterministic encaps** ✅ — same randomness ⇒ identical ct + ss.
 - **ML-KEM-768 / X25519 round-trips** ✅.
 - **Hybrid round-trip, both profiles** ✅ — real ML-KEM-768 + X25519 + SHA3-256
-  through `q-periapt-kem::HybridKem`.
+  through `q-periapt-kem::HybridKem`; `ContextBound` covers the expanded ML-KEM
+  backend and `CompatXWing` covers the X-Wing seed-dk backend.
 - **Enhanced suite (ML-KEM-1024 + X25519) end-to-end KAT** ✅ —
   `q-periapt-backends/src/enhanced_kat.rs` drives a real `HybridKem<MlKem1024, X25519>`
   `ContextBound` round-trip and pins the 32-byte secret three independent ways
   (round-trip, an independent length-prefixed SHA3-256 recompute over the real
-  components, and a golden hex). The `CompatXWing` enhanced hybrid is additionally
-  cross-checked against a 3-way independent reconstruction (RustCrypto ML-KEM-1024 +
-  orion X25519 + RustCrypto SHA3) in `differential.rs`. Makes the enhanced suite real
-  end-to-end, not merely a policy string.
+  components, and a golden hex). The expanded ML-KEM-1024 backend is deliberately
+  rejected under `CompatXWing`; `differential.rs` pins that fail-closed boundary.
+  This makes the enhanced suite real end-to-end, not merely a policy string.
 - **Negative injectivity KAT** ✅ — `q-periapt-core`: boundary-shift tuples that would
   collide under naive concatenation stay distinct under fixed-width length
   prefixing (`docs/BINDING_SECURITY.md` §3.2).
 
 ## Pending (hardening / later milestones)
 
-- [ ] **Full FIPS 203 ACVP suite** — the complete NIST ACVP ML-KEM-768 case set
-      (edge cases, many vectors). Core correctness is already covered by the X-Wing
-      KAT above; this is breadth/hardening.
-- [ ] **ContextBound reference vectors** — fixed `(suite_id, policy_version,
-      components, context) → K` vectors so the construction is reproducible across
-      the C / WASM / Swift / Kotlin bindings (cross-platform consistency, M3).
+- [ ] **Spec-to-implementation linkage proof** — the EasyCrypt model and the Rust
+      implementation are linked by human review plus mirrored KATs today, not by a
+      mechanized refinement proof.
+- [ ] **More negative malformed-input vectors** — especially binding-language ABI
+      surfaces and profile/policy rejection cases beyond the current unit tests.

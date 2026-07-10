@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
 
 [lints]
 workspace = true
@@ -15,10 +18,10 @@ workspace = true
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-q-periapt-core = { path = "../q-periapt-core" }
-q-periapt-kem = { path = "../q-periapt-kem" }
-q-periapt-backends = { path = "../q-periapt-backends" }
-q-periapt-policy = { path = "../q-periapt-policy" }
+q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }
+q-periapt-kem = { version = "0.0.1", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "0.0.1", path = "../q-periapt-backends" }
+q-periapt-policy = { version = "0.0.1", path = "../q-periapt-policy" }
 
 [dev-dependencies]
-q-periapt-sig = { path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test
+q-periapt-sig = { version = "0.0.1", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test

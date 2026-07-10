@@ -23,11 +23,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
+      - run: cargo install cbindgen --locked
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets
+      - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - run: PYTHONPATH=artifact python3 -m unittest artifact/test_android_device_proof.py
       # C-ABI link smoke test on Linux (gcc/clang links a C consumer against the cdylib).
       - run: sh bindings/c/build-and-run.sh
+      # C-ABI distribution smoke: archive, extract, pkg-config consumer, and CMake consumer.
+      - run: sh artifact/c-package.sh
+
+  # Crates.io pre-publication contract. This is not an upload step: it checks the
+  # explicit publish allow/deny list, package file lists, and patched
+  # `cargo publish --dry-run` for every publishable crate from a clean checkout.
+  rust-publish-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sh artifact/rust-publish-dry-run.sh
 
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs —
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
@@ -214,9 +229,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - run: cargo build -p q-periapt-ffi --release
-      - run: cp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
+      - run: cargo install cbindgen --locked
+      - name: Generated C/Swift header freshness
+        run: |
+          mkdir -p target
+          cbindgen --config crates/q-periapt-ffi/cbindgen.toml \
+            --crate q-periapt-ffi \
+            --output target/qperiapt-ci-header.h
+          cmp target/qperiapt-ci-header.h crates/q-periapt-ffi/include/q_periapt.h
+          cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
       - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
+      - run: sh artifact/swift-xcframework.sh
 
   bindings-kotlin:
     runs-on: ubuntu-latest
@@ -232,6 +257,30 @@ jobs:
           gradle-version: "9.2.1"
       - run: cargo build -p q-periapt-ffi --release
       - run: gradle test --project-dir bindings/kotlin
+
+  bindings-android-aar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi,i686-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "22"
+      - uses: android-actions/setup-android@v3
+      - run: cargo install cbindgen --locked
+      - name: Install pinned Android SDK/NDK inputs
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+      - name: Android AAR/JNI packaging proof
+        run: |
+          QPERIAPT_ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.0.12077973" \
+          QPERIAPT_ANDROID_PLATFORM="$ANDROID_HOME/platforms/android-35" \
+          QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0" \
+          sh artifact/android-aar.sh
 
   # Auditability artifacts: emit the CycloneDX CBOM + SBOM (and prove the CLI runs).
   audit:
@@ -281,9 +330,9 @@ jobs:
           grep -qiE 'wasm32|getrandom|requires a std/native' /tmp/hqc-wasm.log
 
   # Formal proofs. The no-admits check is a reliable HARD GATE (catches a proof
-  # being stubbed out); the full EasyCrypt machine-check runs when the toolchain
-  # installs (best-effort — a hermetic EasyCrypt install is heavy). The binding
-  # theorem reduces only to be8 fixed-width/injectivity + CR(H); see formal/.
+  # being stubbed out). The full EasyCrypt machine-check runs in the hermetic
+  # hard-gate job below. The binding theorem reduces only to be8 fixed-width /
+  # injectivity + CR(H); see formal/.
   formal-proof:
     runs-on: ubuntu-latest
     steps:
@@ -292,7 +341,7 @@ jobs:
         run: "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/"
       # The FULL proof re-check (easycrypt BindingViaCR.ec + the deleted-hypothesis necessity
       # controls) now runs as a HARD GATE in the `formal-hermetic` job below, inside a pinned
-      # EasyCrypt container (formal/Dockerfile) — no more best-effort, continue-on-error install.
+      # EasyCrypt container (formal/Dockerfile), replacing the old optional install path.
 
   # Hermetic EasyCrypt proof check (HARD GATE). Builds the pinned EasyCrypt r2026.06 image
   # (formal/Dockerfile, layer-cached) and re-runs the binding proof + necessity controls in it. If
@@ -320,11 +369,10 @@ jobs:
           docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/src:ro" q-periapt-ec:ci \
             opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
 
-  # Symbolic handshake proof. The lemma-presence check is a reliable HARD GATE
-  # (catches a lemma being deleted/stubbed out); the full Tamarin machine-check
-  # runs when the toolchain installs (best-effort — Tamarin ships only as a
-  # release binary and pulls in maude). Proves authentication + hybrid secrecy
-  # of the PQ/T handshake in the symbolic (Dolev–Yao) model; see formal/tamarin.
+  # Symbolic handshake proof. The lemma-presence check catches a lemma being
+  # deleted/stubbed out; the full Tamarin machine-check is a HARD GATE too.
+  # Proves authentication + hybrid secrecy of the PQ/T handshake in the symbolic
+  # (Dolev–Yao) model; see formal/tamarin.
   tamarin-proof:
     runs-on: ubuntu-latest
     steps:
@@ -334,9 +382,7 @@ jobs:
           for l in executable server_authentication hybrid_secrecy hybrid_robustness_authenticated; do
             grep -qE "^lemma ${l}:" formal/tamarin/handshake.spthy || { echo "missing lemma: ${l}"; exit 1; }
           done
-      - name: Install Maude + Tamarin (best-effort)
-        id: tamarin
-        continue-on-error: true
+      - name: Install Maude + Tamarin
         run: |
           sudo apt-get update
           sudo apt-get install -y maude graphviz
@@ -344,13 +390,11 @@ jobs:
             | sudo tar -xz -C /usr/local/bin tamarin-prover
           tamarin-prover --version
       - name: Machine-check the handshake model (make prove)
-        if: steps.tamarin.outcome == 'success'
         run: make -C formal/tamarin prove
 
   # Second, independent symbolic prover (ProVerif) for the same handshake — assurance
-  # diversity. Hard gate = the security events + queries are present (catches a query being
-  # deleted/stubbed); the machine-check (best-effort install) additionally FAILS unless all
-  # four security queries are proved (`make prove` asserts the RESULT lines). See
+  # diversity. The security events + queries are presence-gated, and the ProVerif
+  # machine-check is also a HARD GATE: `make prove` asserts the RESULT lines. See
   # formal/proverif.
   proverif-proof:
     runs-on: ubuntu-latest
@@ -363,16 +407,13 @@ jobs:
           done
           n=$(grep -cE '^query ' formal/proverif/handshake.pv)
           test "$n" -ge 5 || { echo "expected >= 5 queries, found $n"; exit 1; }
-      - name: Install ProVerif (best-effort)
-        id: proverif
-        continue-on-error: true
+      - name: Install ProVerif
         run: |
           sudo apt-get update
           sudo apt-get install -y opam
           opam init -y --disable-sandboxing
           opam install -y proverif
       - name: Machine-check the handshake model (queries must hold)
-        if: steps.proverif.outcome == 'success'
         run: opam exec -- make -C formal/proverif prove
 
   # Still TODO as harnesses land (see ctstats/README.md):

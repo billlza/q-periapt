@@ -44,13 +44,17 @@ selected by policy, and is explicit about the trade between them:
 
 | Profile | What it binds | Cost | When |
 |---|---|---|---|
-| **`CompatXWing`** | `ss_M ‖ ss_X ‖ ct_X ‖ pk_X ‖ label` (X-Wing draft-10 layout) | parity with X-Wing — one Keccak block | wire interop with X-Wing / HPKE; only sound with a C2PRI KEM (ML-KEM) |
-| **`ContextBound`** | domain tag + length-prefixed *every* shared secret, ciphertext, public key, **and** an external context (transcript / suite / policy version) | strictly **slower** (more SHA3 input → more Keccak blocks); a deliberate robustness trade, **not** a speed win | non-C2PRI components (HQC, generic KEMs), or when maximal binding / downgrade resistance is required |
+| **`CompatXWing`** | `ss_M ‖ ss_X ‖ ct_X ‖ pk_X ‖ label` (X-Wing draft-10 layout) | parity with X-Wing — one Keccak block | wire interop with X-Wing / HPKE; only admitted for a backend whose exposed key format is X-Wing-safe (today: the ML-KEM-768 seed-dk backend) |
+| **`ContextBound`** | domain tag + length-prefixed *every* shared secret, ciphertext, public key, **and** an external context (transcript / suite / policy version) | strictly **slower** (more SHA3 input → more Keccak blocks); a deliberate robustness trade, **not** a speed win | default profile; expanded/imported keys, non-C2PRI components (HQC, generic KEMs), or when maximal binding / downgrade resistance is required |
 
 The `CompatXWing` profile can omit the ML-KEM ciphertext **only** because
 ML-KEM-768 is C2PRI (ciphertext-second-preimage-resistant via the FO transform +
-explicit rejection). That property is load-bearing; a non-C2PRI component (HQC, or
-X25519-as-KEM) **must** use `ContextBound`, which hashes all ciphertexts. The
+explicit rejection) **and** because X-Wing's seed-derived key format preserves that
+self-binding precondition. Primitive C2PRI is necessary but not sufficient: an
+expanded/imported-key backend can be C2PRI while still unsafe for the lean
+X-Wing-shaped API, so `CompatXWing` now requires `Kem::COMPAT_XWING_SAFE`.
+Raw expanded ML-KEM, HQC, or X25519-as-KEM **must** use `ContextBound`, which hashes
+all ciphertexts and public keys directly. The
 hashing delta between the two profiles is real and directional but is a *small*
 fraction of total encap/decap — encap/decap is dominated by ML-KEM arithmetic and
 SHAKE, not the combiner hash. This is **measured**, not asserted:
@@ -132,18 +136,18 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Dimension | Target | Today (v0.0.1) |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented `Secret` wipe block; builds `thumbv7em-none-eabihf`) |
-| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 (x25519-dalek) wired; real hybrid encap/decap round-trips under both profiles; the **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently-cross-checked end-to-end KAT), not just a policy string; **ML-KEM-512** (L1) also has a verified backend, so the whole FIPS-203 family (512/768/1024) is ACVP + differential covered for agility; HQC-128/192/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature, now usable **inside** the hybrid via `HqcAsKem` (a 64→32-byte SHA3 KDF adapter, `ContextBound`-only since HQC is not C2PRI; round-trip tested) |
+| Hybrid KEM | ML-KEM-768 + X25519, HQC backup | ✅ ML-KEM-768 (libcrux) + X25519 (x25519-dalek) wired; real hybrid encap/decap round-trips under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend; the **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently-cross-checked end-to-end KAT) and is `ContextBound`-only, not just a policy string; **ML-KEM-512** (L1) also has a verified backend, so the whole FIPS-203 family (512/768/1024) is ACVP + differential covered for agility; HQC-128/192/256 (pqcrypto-hqc) behind the off-by-default `hqc` feature, now usable **inside** the hybrid via `HqcAsKem` (a 64→32-byte SHA3 KDF adapter, `ContextBound`-only since HQC is not C2PRI; round-trip tested) |
 | Combiner profiles | `CompatXWing` (parity) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to a **real SHA3-256** (libcrux) backend |
-| Combiner safety guards | C2PRI guard, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four fields are exactly 32 bytes; `HybridKem::new` rejects a non-C2PRI KEM under `CompatXWing` with `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
+| Combiner safety guards | X-Wing-safe backend guard, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four absorbed fields are exactly 32 bytes; `HybridKem::new` rejects any backend that does not explicitly set `Kem::COMPAT_XWING_SAFE` under `CompatXWing` with `Error::PolicyDenied`; primitive `C2PRI` is recorded separately but is not enough for expanded/imported-key APIs; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-44/65/87, SLH-DSA | ✅ the full FIPS-204 family **ML-DSA-44/65/87** (libcrux) wired & tested (NIST ACVP — incl. hedged / context / SHAKE-128 pre-hash modes — + RustCrypto differential each); ML-DSA-65 is the default, ML-DSA-87 the enhanced-mode (L5) signature; **SLH-DSA-SHA2-128s/192s/256s** (fips205) — with **NIST ACVP conformance** (`acvp_slhdsa.rs`) — behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade floor, profile select | ✅ `q-periapt-policy`: real TOML loading (`Policy::from_toml`) + **signed-policy verification** (`Policy::load_signed`, fail-closed, plus `load_signed_or_failsafe`); downgrade floor + `negotiate_kem` + `select_profile` enforced |
 | KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** over the whole KEM chain (`src/differential.rs`) — **ML-KEM-512/768/1024** vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed from independent ML-KEM + X25519 + SHA3; and **ML-DSA-44/65/87 vs RustCrypto `ml-dsa`** (byte-identical keygen + signatures, cross-verification both directions, tamper rejection) — all byte-identical on random inputs; **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) — the **full FIPS family**: ML-KEM-512/768/1024 (60 cases each, incl. implicit-rejection) + **ML-DSA-44/65/87** keygen/sig **across signature modes** — external/pure (deterministic + **hedged**, with **non-empty contexts**), **HashML-DSA SHAKE-128 pre-hash**, and the **internal interface** (FIPS 204 Alg. 7/8, `externalMu=false`, via the libcrux `acvp` feature) (`acvp_ml_dsa_*_signature_modes`); only `externalMu=true` (no μ-injection entry in libcrux) and non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) remain out of scope; **SLH-DSA-SHA2-{128,192,256}s** (FIPS 205) also have NIST ACVP conformance under the `slh-dsa` feature (`acvp_slhdsa.rs` — deterministic keyGen via a seed-replay RNG, plus sigGen/sigVer); **property-based tests** (proptest, `src/proptests.rs`) hold the combiner + hybrid invariants — binding injectivity, determinism, domain separation, the guards, and KEM round-trip — over random inputs |
-| Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); **dataflow constant-time** is a **hard gate** (`constant-time` job: `ct_verify` under Valgrind/Memcheck-TIMECOP over `ct_eq`/`ct_select32`/the combiner); dudect timing stays **report-only** (`\|\| true`); binary-CT matrix is now **x86_64 + aarch64**; an ML-KEM-decaps **primitive-path** finding is unresolved and riscv64/wasm32 remain source-CT (see `docs/THREAT_MODEL.md` §5.2) |
+| Side-channel CI | indistinguishability gate + dudect + binary-CT matrix | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); **dataflow constant-time** is a **hard gate** (`constant-time` job: `ct_verify` under Valgrind/Memcheck-TIMECOP over `ct_eq`/`ct_select32`/the combiner); dudect timing stays **report-only** (`\|\| true`); binary-CT matrix is now **x86_64 + aarch64**; the earlier ML-KEM-decaps primitive-path Memcheck finding is resolved as public-key over-marking, but a corrected ŝ+z run is still pending and riscv64/wasm32 remain source-CT (see `docs/THREAT_MODEL.md` §5.2) |
 | Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | ✅ CI `cross` job builds `q-periapt-core`+`q-periapt-kem` on x86_64/aarch64/riscv64gc/wasm32; `no_std` builds the core on embedded `thumbv7em-none-eabihf`. **OS coverage:** Linux (CI) + macOS (`bindings-swift`); **Windows `x86_64-pc-windows-msvc` verified 2026-06** — full `cargo test --workspace` *and* the C-heavy `slh-dsa,hqc` features pass with byte-identical vectors (Win 11 build 26200, Rust 1.96; the C `ct_shim` + HQC reference compile via cc/MSVC). Run locally; a `windows` CI job is configured, and `.gitattributes` pins LF so the checkout stays byte-identical |
-| FFI / bindings | C ABI + Swift + Kotlin + WASM, byte-identical results | ✅ four faces (Rust core, WASM/wasm32, Swift, Kotlin/Panama-FFM) reproduce both the hybrid shared vector **and** all six combiner reference vectors (`bindings/contextbound-vectors.txt`) byte-for-byte; the **C-ABI** face is a link-level smoke test (`bindings/c/smoke.c`) that links the cdylib and checks a representative combiner vector + a keypair→encap→decap roundtrip + status-code ABI conformance (regression oracle, not the full vector set) |
+| FFI / bindings | C ABI + Swift + Kotlin/JVM + Android AAR/JNI + WASM | ✅ runtime-tested faces (Rust core, WASM/wasm32, Swift, Kotlin/Panama-FFM) reproduce both the hybrid shared vector **and** all six combiner reference vectors (`bindings/contextbound-vectors.txt`) byte-for-byte; Swift/Kotlin/WASM also exercise encapsulation and CompatXWing seed-dk round-trips; the **C-ABI** face is a link-level smoke test (`bindings/c/smoke.c`) that links the cdylib and checks runtime ABI/version/suite metadata, a representative combiner vector, ContextBound expanded-key roundtrip, CompatXWing seed-dk roundtrip, and status-code ABI conformance (regression oracle, not the full vector set); `artifact/c-package.sh` builds a host archive and proves extracted pkg-config + CMake consumers; Kotlin/JVM requires an explicit absolute native-library path and validates ABI/suite metadata at init; `artifact/android-aar.sh` builds a deterministic Android AAR with four JNI/native ABI slices plus isolated Java consumer compile, and `artifact/android-device-smoke.sh` runs the AAR/JNI facade on Android ART for runtime evidence; Android clean release provenance, physical/CI policy, and downstream SkyBridge harnesses remain separate work; WASM exposes version/fixed-suite metadata |
 | Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | 🟡 `q-periapt-tls-demo` workspace member: loopback server-authenticated hybrid handshake in **two suites** — default (ML-KEM-768 + X25519, ML-DSA-65) and enhanced **L5** (ML-KEM-1024 + X25519, ML-DSA-87) over one generic handshake core — + a report-only P99 bench in CI |
 | Auditability tooling | CBOM / SBOM / migration scanner | 🟡 `q-periapt-cli` workspace member emitting CycloneDX CBOM/SBOM in CI |
-| Formal models | EasyCrypt combiner binding + Tamarin & ProVerif handshake models | ✅ EasyCrypt: `bind_le_cr` **machine-checked** (`Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`), `encode_inj` a **proved lemma**, **0 admits** — re-checked as a **hermetic hard CI gate**: the `formal-hermetic` job rebuilds a pinned EasyCrypt container (`formal/Dockerfile`, EC r2026.06) and re-runs `BindingViaCR.ec` + the necessity controls on every push, failing CI if the proof or any control stops holding (plus an always-on no-`admit`/`sorry` grep); `formal/easycrypt/BindingViaCR.ec`; the symbolic handshake is **machine-checked by *two independent* provers** — **Tamarin** (`formal/tamarin/handshake.spthy`, 4 lemmas) and **ProVerif** (`formal/proverif/handshake.pv`, 5 queries), each with **lemma/query-presence hard-gated** and `make prove` run when the prover installs — both proving server authentication + **hybrid robustness** (the session key survives a break of *either* the PQ *or* the classical KEM; only breaking **both** loses it) |
+| Formal models | EasyCrypt combiner binding + Tamarin & ProVerif handshake models | ✅ EasyCrypt: `bind_le_cr` **machine-checked** (`Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`), `encode_inj` a **proved lemma**, **0 admits** — re-checked as a **hermetic hard CI gate**: the `formal-hermetic` job rebuilds a pinned EasyCrypt container (`formal/Dockerfile`, EC r2026.06) and re-runs `BindingViaCR.ec` + the necessity controls on every push, failing CI if the proof or any control stops holding (plus an always-on no-`admit`/`sorry` grep); `formal/easycrypt/BindingViaCR.ec`; the symbolic handshake is **machine-checked by *two independent* provers** — **Tamarin** (`formal/tamarin/handshake.spthy`, 4 lemmas) and **ProVerif** (`formal/proverif/handshake.pv`, 5 queries), with lemma/query presence and full `make prove` both hard-gated in CI — proving server authentication + **hybrid robustness** (the session key survives a break of *either* the PQ *or* the classical KEM; only breaking **both** loses it) |
 
 > The mechanized formal scope is deliberately bounded and stated honestly. The
 > machine-checked theorem establishes that the `ContextBound` combiner's binding
@@ -178,13 +182,30 @@ rustup target add aarch64-unknown-linux-gnu riscv64gc-unknown-linux-gnu wasm32-u
 cargo build -p q-periapt-core -p q-periapt-kem --target wasm32-unknown-unknown
 ```
 
+For downstream embedding readiness across the current Rust/C/Swift/Android/Kotlin/WASM faces, run
+`sh artifact/embedding-readiness.sh`. It is stricter than the quickstart: it checks locked
+dependencies, warning-denied clippy, generated C-header freshness, C link smoke, Swift XCTest count,
+Swift XCFramework/binaryTarget pre-publication packaging through an isolated consumer, host C archive
+extraction through dynamic/static pkg-config and CMake consumers, archive license texts plus
+CycloneDX CBOM/SBOM, Android AAR/JNI packaging through four ABI slices and an isolated Java
+consumer compile, Kotlin/Panama, WASM Node, and the proof-to-byte manifest. Rust crates also have a
+separate pre-publication contract in `artifact/rust-publish-dry-run.sh` for the explicit publish
+allow/deny list, package contents, and patched `cargo publish --dry-run`. `artifact/local-release-index.sh`
+can then aggregate the existing C archive, Swift XCFramework zip, Android AAR, and optional
+sanitized runtime proof summaries into one local hash-bound index; release mode requires a clean
+tree, while dirty trees must use diagnostic mode and are not public provenance. See
+[`docs/EMBEDDING_READINESS.md`](docs/EMBEDDING_READINESS.md) for the current package boundary:
+Swift has a local XCFramework/binaryTarget gate but not a public release URL/provenance yet, and
+Android has local ART runtime proof but still needs clean-tree release provenance plus an explicit
+emulator/physical-device policy before an Android product-ready runtime claim.
+
 ### Crate tree
 
 ```
 q-periapt/
 ├── crates/
 │   ├── q-periapt-core      # ✅ dependency-free no_std core: combiner + transcript binding + primitive traits
-│   ├── q-periapt-kem       # ✅ hybrid KEM (ML-KEM-768 + X25519) + pluggable HQC, generic over backends; C2PRI guard
+│   ├── q-periapt-kem       # ✅ hybrid KEM (ML-KEM-768 + X25519) + pluggable HQC, generic over backends; CompatXWing-safe backend guard
 │   ├── q-periapt-sig       # ✅ signature trait surface: ML-DSA-65/87, SLH-DSA (roots/firmware/long-term)
 │   ├── q-periapt-backends  # ✅ vetted backends: libcrux ML-KEM/ML-DSA/SHA3, x25519-dalek, fips205, pqcrypto-hqc
 │   ├── q-periapt-policy    # ✅ crypto-agility policy engine: TOML + signed-policy verification, no hardcoded algorithms
@@ -194,7 +215,7 @@ q-periapt/
 │   └── q-periapt-cli       # 🟡 migration inventory + CBOM/SBOM generator
 ├── ctstats/          # ✅ side-channel CI: indistinguishability hard gate + dudect report
 ├── docs/             # BINDING_SECURITY.md, COMBINER_SPEC.md, ARCHITECTURE.md, ...; policy/default.policy.toml
-├── formal/           # ✅ EasyCrypt binding proof (Dockerfile = hermetic hard gate: re-checks BindingViaCR.ec + necessity controls) + Tamarin & ProVerif (presence-gated; prover execution best-effort)
+├── formal/           # ✅ EasyCrypt binding proof (Dockerfile = hermetic hard gate: re-checks BindingViaCR.ec + necessity controls) + Tamarin & ProVerif hard-gated symbolic proofs
 ├── tests/            # kat/ + differential/ (X-Wing KAT currently lives in q-periapt-backends)
 ├── bench/  fuzz/  sbom/   # harness scaffolds (combiner bench lives in q-periapt-backends/benches/)
 └── bindings/         # c/ + swift/ + kotlin/ (exercised in CI against a shared test vector)
@@ -225,7 +246,8 @@ This is a **research artifact for a doctoral thesis**, not a product.
   - Real vetted backends are wired in `q-periapt-backends`: ML-KEM-768 / ML-DSA-65 /
     SHA3-256 via libcrux, X25519 via x25519-dalek, with SLH-DSA (fips205) and HQC
     (pqcrypto-hqc) behind off-by-default features. The hybrid KEM round-trips under
-    both combiner profiles with these real backends.
+    `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the
+    X-Wing seed-dk ML-KEM-768 backend.
   - The byte-exact X-Wing draft KAT **passes** against the 3 official
     `draft-connolly-cfrg-xwing-kem` vectors (`q-periapt-backends/src/xwing_kat.rs`).
     Beyond that, the **full NIST ACVP conformance set passes** (`src/acvp.rs`):
@@ -233,10 +255,12 @@ This is a **research artifact for a doctoral thesis**, not a product.
     SLH-DSA-SHA2-{128,192,256}s. That is conformance to the published vectors — **not**
     CMVP/CAVP certification (no formal FIPS validation is claimed).
   - Combiner safety guards are implemented: `CompatXWing` hard-checks all four
-    fields are exactly 32 bytes (`q-periapt-core` `combine`); `HybridKem::new`
-    forbids a non-C2PRI KEM under `CompatXWing` (`Error::PolicyDenied`), confining
-    X25519/HQC to `ContextBound`; and `ct_eq`/`ct_select32` give the branch-free
-    implicit-rejection primitive with a side-channel-safe, secret-free `Error`.
+    absorbed fields are exactly 32 bytes (`q-periapt-core` `combine`);
+    `HybridKem::new` forbids any backend that is not explicitly
+    `Kem::COMPAT_XWING_SAFE` under `CompatXWing` (`Error::PolicyDenied`), confining
+    expanded/imported ML-KEM keys, X25519-as-KEM and HQC to `ContextBound`; and
+    `ct_eq`/`ct_select32` give the branch-free implicit-rejection primitive with a
+    side-channel-safe, secret-free `Error`.
   - `q-periapt-policy` does real TOML loading **and** signed-policy verification
     (`Policy::load_signed` authenticates the exact policy bytes via an injected
     SLH-DSA-intended `Verifier` before trusting them, fail-closed;
@@ -285,4 +309,4 @@ Authoritative documents (refined as the code lands):
 
 ## License
 
-Apache-2.0 OR MIT, at your option.
+Apache-2.0 OR MIT, at your option. See [`LICENSE`](LICENSE), [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt), and [`LICENSES/MIT.txt`](LICENSES/MIT.txt).

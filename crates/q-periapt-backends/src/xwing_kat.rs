@@ -10,7 +10,7 @@
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
-use crate::{MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, X25519, X25519_LEN};
+use crate::{MlKem768XWingSeed, Sha3_256Xof, ML_KEM_768_CT_LEN, X25519, X25519_LEN};
 use q_periapt_core::Profile;
 use q_periapt_kem::HybridKem;
 
@@ -38,11 +38,10 @@ fn xwing_draft_kat_byte_exact() {
 
         // --- X-Wing key expansion: SHAKE256(seed, 96) = ML-KEM(d‖z) ‖ skX ---
         let expanded = shake256_96(&seed);
-        let mut dz = [0u8; 64];
-        dz.copy_from_slice(&expanded[0..64]);
+        let seed_m: [u8; 32] = seed.as_slice().try_into().unwrap();
         let mut skx = [0u8; 32];
         skx.copy_from_slice(&expanded[64..96]);
-        let (sk_m, pk_m) = MlKem768::generate(dz);
+        let (sk_m, pk_m) = MlKem768XWingSeed::generate(seed_m);
         let (_skx_bytes, pk_x) = X25519::generate(skx);
 
         // Public key = pkM ‖ pkX (validates ML-KEM-768 keygen byte-exactly).
@@ -51,7 +50,7 @@ fn xwing_draft_kat_byte_exact() {
         assert_eq!(pk, pk_exp, "keygen pk must match X-Wing vector");
 
         // --- Encapsulate: CompatXWing combiner == X-Wing combiner ---
-        let (pq, trad) = (MlKem768, X25519);
+        let (pq, trad) = (MlKem768XWingSeed, X25519);
         let kem =
             HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, Profile::CompatXWing, b"", 0).unwrap();
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];

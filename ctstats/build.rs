@@ -5,6 +5,7 @@
 
 use std::env;
 use std::path::Path;
+use std::process;
 
 fn main() {
     // Always compile the tiny shim (a no-op without the Valgrind header), so the
@@ -35,11 +36,12 @@ fn main() {
     }
     if have {
         build.define("HAVE_VALGRIND", None);
-    } else {
-        println!(
-            "cargo:warning=valgrind/memcheck.h not found; ct_verify shim is a no-op \
-             (the dataflow constant-time check runs only under Valgrind)."
+    } else if env::var_os("CARGO_FEATURE_VALGRIND").is_some() {
+        eprintln!(
+            "error: valgrind feature requested, but valgrind/memcheck.h was not found; \
+             install Valgrind or set VALGRIND_INCLUDE"
         );
+        process::exit(1);
     }
     build.compile("qperiapt_ct_shim");
 }

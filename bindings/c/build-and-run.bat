@@ -17,6 +17,6 @@ call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat" >nul || exit /b 1
 
 echo [3/3] cl smoke.c + link q_periapt_ffi.dll.lib, then run
 set "OUT=target\release"
-cl /nologo /W3 /utf-8 bindings\c\smoke.c /I crates\q-periapt-ffi\include /Fe:"%OUT%\c_smoke.exe" /Fo:"%OUT%\c_smoke.obj" /link "%OUT%\q_periapt_ffi.dll.lib" || exit /b 1
+cl /nologo /W4 /WX /utf-8 bindings\c\smoke.c /I crates\q-periapt-ffi\include /Fe:"%OUT%\c_smoke.exe" /Fo:"%OUT%\c_smoke.obj" /link "%OUT%\q_periapt_ffi.dll.lib" || exit /b 1
 "%OUT%\c_smoke.exe"
 exit /b %ERRORLEVEL%

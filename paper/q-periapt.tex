@@ -148,11 +148,14 @@ field shape, not a break of as-shipped X-Wing and not an integration claim.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
 same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph{executed} on
 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
-1 more, verified by a six-method conformance matrix.
+1 more, verified by a six-method conformance matrix. The artifact keeps the hardware-dependent
+Apple check separate: a source-bound Xcode 27 lane runs the Swift/C-ABI face on one physical iPad
+and one physical iPhone; a separate Android lane runs the AAR/JNI face under ART on an emulator.
+Both are evidence, not package-distribution claims.
 \item \textbf{C3 (\cref{sec:assurance}).} Reproducible assurance \emph{instruments} wired into CI
 (the EasyCrypt binding proof is re-checked as a \emph{hermetic hard gate} in a pinned container, as
-are the constant-time/regression oracles; the Tamarin/ProVerif prover \emph{execution} is best-effort,
-stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
+are the constant-time/regression oracles; Tamarin/ProVerif lemma/query presence and full prover
+execution are hard-gated in CI, stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
 \emph{discriminates} clean (ML-KEM) from leaky (HQC) (HQC's leak is known; the contribution is the
 discriminating, gated oracle); an executable \emph{regression oracle} for the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements as
@@ -639,8 +642,8 @@ an independent cross-check. The EasyCrypt binding proof is a \emph{hermetic hard
 EasyCrypt container (\code{formal/Dockerfile}, EC~r2026.06) re-checks \code{BindingViaCR.ec} and the
 deleted-hypothesis necessity controls on every run, and CI fails if either stops holding (the
 no-\code{admit}/\code{sorry} grep is an additional always-on gate). The Tamarin and ProVerif models
-are gated on lemma/query \emph{presence} (hard), with the full \code{make prove} run on a best-effort
-toolchain install; all checker and solver versions are pinned in the artifact.
+are gated on lemma/query \emph{presence} and full \code{make prove}; all checker and solver versions
+are pinned in the artifact.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
 
@@ -655,8 +658,8 @@ ML-KEM-768 encapsulation is $11.0\,\mu$s, roughly $8\times$ cheaper than X25519 
 dominates hybrid CPU here---a corrective to the assumption that PQ is the expensive part (a different
 backend, e.g.\ the aws-lc-rs \code{X25519MLKEM768} row, shifts this balance). Second, \emph{the hash-everything combiner is cheap}:
 ContextBound costs only $\sim$$6$--$8\,\mu$s over the byte-exact X-Wing combiner CompatXWing
-(encapsulation $109.1$ vs.\ $101.3\,\mu$s; decapsulation $65.9$ vs.\ $59.2\,\mu$s; single-run point
-estimates, run-to-run variance $\sim$$1\,\mu$s)---the price of binding the full transcript is
+(encapsulation $109.1$ vs.\ $101.3\,\mu$s; decapsulation $65.9$ vs.\ $59.2\,\mu$s; variance
+$\sim$$1\,\mu$s)---the price of binding the full transcript is
 sub-$10\,\mu$s, well under the $\sim$$90\,\mu$s X25519 encapsulation cost and far below any network RTT.
 
 \begin{table}[t]\centering\footnotesize
@@ -860,8 +863,8 @@ IND-CCA and constant-time guarantees---an axis (specification-to-binary) we expl
 ML-KEM satisfies \mbox{LEAK-BIND-K-PK} (in the ROM). Our EasyCrypt~\cite{easycrypt} development is complementary: it targets the \emph{hybrid
 combiner's} binding (the commitment-style MAL Figure-6 instantiation), cross-checked by
 independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}; the EasyCrypt
-proof is hard-gated hermetically in CI, while the symbolic models are presence-gated with
-best-effort prover execution.
+proof is hard-gated hermetically in CI, while the symbolic models are hard-gated on both
+lemma/query presence and full prover execution.
 
 \section{Limitations}\label{sec:limits}
 The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it is exactly the

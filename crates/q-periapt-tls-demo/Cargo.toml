@@ -6,14 +6,18 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-q-periapt-core = { path = "../q-periapt-core" }
-q-periapt-kem = { path = "../q-periapt-kem" }
-q-periapt-sig = { path = "../q-periapt-sig" }
-q-periapt-backends = { path = "../q-periapt-backends" }
+q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }
+q-periapt-kem = { version = "0.0.1", path = "../q-periapt-kem" }
+q-periapt-sig = { version = "0.0.1", path = "../q-periapt-sig" }
+q-periapt-backends = { version = "0.0.1", path = "../q-periapt-backends" }
 # OS CSPRNG for the client's encapsulation coins / nonces (demo uses real entropy).
 getrandom = "0.3"

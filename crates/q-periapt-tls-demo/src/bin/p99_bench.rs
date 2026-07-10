@@ -5,7 +5,7 @@
 //! quantity that actually drives tail latency on real links.
 //!
 //! Usage: `cargo run --release -p q-periapt-tls-demo --bin p99_bench [-- PROFILE ITERS DELAY_US]`
-//!   PROFILE  = `bound` (default) | `compat`
+//!   PROFILE  = `bound` (default) | `compat` (default L3 suite only)
 //!   ITERS    = measured handshakes (default 2000)
 //!   DELAY_US = emulated one-way latency injected per flight (default 0). This
 //!              models flight-count sensitivity to RTT; it does NOT model TCP
@@ -13,7 +13,9 @@
 //!   SUITE    = env var `SUITE=enhanced` selects the NIST-L5 suite (ML-KEM-1024 +
 //!              X25519, ML-DSA-87); default is ML-KEM-768 + X25519 + ML-DSA-65. The
 //!              L5 suite's larger ct (1568 B) and signature (4627 B) directly show
-//!              the bytes-on-wire effect the harness is built to surface.
+//!              the bytes-on-wire effect the harness is built to surface. `compat`
+//!              is rejected with `SUITE=enhanced`: the L5 expanded-key backend is
+//!              ContextBound-only.
 
 #![allow(
     clippy::unwrap_used,
@@ -80,6 +82,12 @@ fn main() {
     let enhanced = std::env::var("SUITE")
         .map(|s| s.eq_ignore_ascii_case("enhanced"))
         .unwrap_or(false);
+    if enhanced && matches!(profile, Profile::CompatXWing) {
+        eprintln!(
+            "error: SUITE=enhanced uses the expanded ML-KEM-1024 backend, which is ContextBound-only"
+        );
+        std::process::exit(2);
+    }
     let suite_name = if enhanced {
         "ML-KEM-1024 + X25519 / ML-DSA-87 (NIST L5)"
     } else {

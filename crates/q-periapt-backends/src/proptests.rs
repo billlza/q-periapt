@@ -10,7 +10,8 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
 use crate::{
-    MlKem1024, MlKem768, Sha3_256Xof, ML_KEM_1024_CT_LEN, ML_KEM_768_CT_LEN, X25519, X25519_LEN,
+    MlKem1024, MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_1024_CT_LEN, ML_KEM_768_CT_LEN,
+    X25519, X25519_LEN,
 };
 use proptest::prelude::*;
 use q_periapt_core::{combine, CombineInput, Error, Profile, SHARED_SECRET_LEN};
@@ -142,17 +143,17 @@ proptest! {
         );
     }
 
-    /// Hybrid CompatXWing KEM correctness over random keys: decapsulation recovers
-    /// exactly the encapsulated secret (real ML-KEM-768 + X25519 + SHA3).
+    /// Hybrid CompatXWing KEM correctness over random seed-dk keys: decapsulation recovers
+    /// exactly the encapsulated secret (real ML-KEM-768 seed format + X25519 + SHA3).
     #[test]
     fn hybrid_compat_round_trip(
-        seed_pq in any::<[u8; 64]>(), seed_x in any::<[u8; 32]>(),
+        seed_pq in any::<[u8; 32]>(), seed_x in any::<[u8; 32]>(),
         m in any::<[u8; 32]>(), eph in any::<[u8; 32]>(),
     ) {
-        let (sk_pq, pk_pq) = MlKem768::generate(seed_pq);
+        let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq);
         let (sk_x, pk_x) = X25519::generate(seed_x);
-        let (pq, trad) = (MlKem768, X25519);
-        let hk = HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+        let (pq, trad) = (MlKem768XWingSeed, X25519);
+        let hk = HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
             &pq, &trad, Profile::CompatXWing, b"", 0,
         ).unwrap();
 
@@ -167,6 +168,19 @@ proptest! {
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());
+    }
+
+    /// Raw FIPS-expanded ML-KEM keys must not be admitted to the ciphertext-omitting
+    /// CompatXWing profile. ContextBound is the supported profile for imported/expanded keys.
+    #[test]
+    fn expanded_mlkem_rejected_with_compat_xwing(_seed in any::<[u8; 64]>()) {
+        let (pq, trad) = (MlKem768, X25519);
+        prop_assert!(matches!(
+            HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+                &pq, &trad, Profile::CompatXWing, b"", 0,
+            ),
+            Err(Error::PolicyDenied)
+        ));
     }
 
     /// Enhanced suite (ML-KEM-1024 + X25519) round-trip over random keys under the

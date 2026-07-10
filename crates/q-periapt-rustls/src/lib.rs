@@ -20,8 +20,8 @@ use rustls::crypto::{
 use rustls::{Error, NamedGroup, PeerMisbehaved};
 
 use q_periapt_backends::{
-    MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_ENCAPS_RAND_LEN,
-    ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, X25519, X25519_LEN,
+    MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_ENCAPS_RAND_LEN,
+    ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{Profile, SHARED_SECRET_LEN};
 use q_periapt_kem::HybridKem;
@@ -63,9 +63,8 @@ impl QPeriaptKxGroup {
         }
     }
 
-    fn kem(&self) -> Result<HybridKem<'static, MlKem768, X25519, Sha3_256Xof>, Error> {
-        HybridKem::new(&MlKem768, &X25519, self.profile, SUITE_ID, POLICY_VERSION)
-            .map_err(|_| Error::General("q-periapt: invalid profile/backend pairing".into()))
+    fn invalid_pairing() -> Error {
+        Error::General("q-periapt: invalid profile/backend pairing".into())
     }
 }
 
@@ -89,7 +88,18 @@ impl SupportedKxGroup for QPeriaptKxGroup {
             q_periapt_core::secure_wipe(&mut scalar);
             return Err(e.into());
         }
-        let (sk_pq, pk_pq) = MlKem768::generate(seed);
+        let (sk_pq, pk_pq) = match self.profile {
+            Profile::ContextBound => {
+                let (sk, pk) = MlKem768::generate(seed);
+                (sk.to_vec(), pk)
+            }
+            Profile::CompatXWing => {
+                let mut seed32 = [0u8; ML_KEM_768_XWING_SEED_LEN];
+                seed32.copy_from_slice(&seed[..ML_KEM_768_XWING_SEED_LEN]);
+                let (sk, pk) = MlKem768XWingSeed::generate(seed32);
+                (sk.to_vec(), pk)
+            }
+        };
         let (sk_trad, pk_trad) = X25519::generate(scalar);
         q_periapt_core::secure_wipe(&mut seed);
         q_periapt_core::secure_wipe(&mut scalar);
@@ -134,18 +144,48 @@ impl SupportedKxGroup for QPeriaptKxGroup {
         let mut ct_trad = [0u8; X25519_LEN];
         // Compute, then wipe the encapsulation coins on EVERY path — a peer InvalidKeyShare
         // (e.g. a low-order X25519 share) must not leave rand_pq/rand_trad in the frame.
-        let result = self.kem().and_then(|kem| {
-            kem.encapsulate(
-                pk_pq,
-                pk_trad,
-                self.context(),
-                &rand_pq,
-                &rand_trad,
-                &mut ct_pq,
-                &mut ct_trad,
+        let result = match self.profile {
+            Profile::ContextBound => HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+                &MlKem768,
+                &X25519,
+                self.profile,
+                SUITE_ID,
+                POLICY_VERSION,
             )
-            .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
-        });
+            .map_err(|_| Self::invalid_pairing())
+            .and_then(|kem| {
+                kem.encapsulate(
+                    pk_pq,
+                    pk_trad,
+                    self.context(),
+                    &rand_pq,
+                    &rand_trad,
+                    &mut ct_pq,
+                    &mut ct_trad,
+                )
+                .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
+            }),
+            Profile::CompatXWing => HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
+                &MlKem768XWingSeed,
+                &X25519,
+                self.profile,
+                SUITE_ID,
+                POLICY_VERSION,
+            )
+            .map_err(|_| Self::invalid_pairing())
+            .and_then(|kem| {
+                kem.encapsulate(
+                    pk_pq,
+                    pk_trad,
+                    self.context(),
+                    &rand_pq,
+                    &rand_trad,
+                    &mut ct_pq,
+                    &mut ct_trad,
+                )
+                .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
+            }),
+        };
         q_periapt_core::secure_wipe(&mut rand_pq);
         q_periapt_core::secure_wipe(&mut rand_trad);
         let secret = result?;
@@ -166,7 +206,7 @@ impl SupportedKxGroup for QPeriaptKxGroup {
 struct QPeriaptActiveKx {
     profile: Profile,
     group: NamedGroup,
-    sk_pq: [u8; ML_KEM_768_SK_LEN],
+    sk_pq: Vec<u8>,
     pk_pq: [u8; ML_KEM_768_PK_LEN],
     sk_trad: [u8; X25519_LEN],
     pk_trad: [u8; X25519_LEN],
@@ -178,7 +218,7 @@ impl Drop for QPeriaptActiveKx {
         // Wipe the secret keys if this kx is dropped without completing the exchange
         // (HelloRetryRequest, a connection abort) — the zeroize-on-drop property the API
         // documents. `pk_*`/`pub_key` are public and need no wipe.
-        q_periapt_core::secure_wipe(&mut self.sk_pq);
+        q_periapt_core::secure_wipe(self.sk_pq.as_mut_slice());
         q_periapt_core::secure_wipe(&mut self.sk_trad);
     }
 }
@@ -199,29 +239,51 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
         }
         let (ct_pq, ct_trad) = server_share.split_at(PQ_SERVER_SHARE);
 
-        let kem = HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
-            &MlKem768,
-            &X25519,
-            self.profile,
-            SUITE_ID,
-            POLICY_VERSION,
-        )
-        .map_err(|_| Error::General("q-periapt: invalid profile/backend pairing".into()))?;
         let context: &[u8] = match self.profile {
             Profile::ContextBound => TLS_CONTEXT,
             Profile::CompatXWing => &[],
         };
-        let secret = kem
-            .decapsulate(
-                &self.sk_pq,
-                ct_pq,
-                &self.pk_pq,
-                &self.sk_trad,
-                ct_trad,
-                &self.pk_trad,
-                context,
-            )
-            .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
+        let secret = match self.profile {
+            Profile::ContextBound => {
+                let kem = HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+                    &MlKem768,
+                    &X25519,
+                    self.profile,
+                    SUITE_ID,
+                    POLICY_VERSION,
+                )
+                .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
+                kem.decapsulate(
+                    &self.sk_pq,
+                    ct_pq,
+                    &self.pk_pq,
+                    &self.sk_trad,
+                    ct_trad,
+                    &self.pk_trad,
+                    context,
+                )
+            }
+            Profile::CompatXWing => {
+                let kem = HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
+                    &MlKem768XWingSeed,
+                    &X25519,
+                    self.profile,
+                    SUITE_ID,
+                    POLICY_VERSION,
+                )
+                .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
+                kem.decapsulate(
+                    &self.sk_pq,
+                    ct_pq,
+                    &self.pk_pq,
+                    &self.sk_trad,
+                    ct_trad,
+                    &self.pk_trad,
+                    context,
+                )
+            }
+        }
+        .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
         debug_assert_eq!(secret.as_bytes().len(), SHARED_SECRET_LEN);
         Ok(SharedSecret::from(&secret.as_bytes()[..]))
     }
@@ -290,13 +352,13 @@ mod tests {
     #[test]
     fn provider_with_policy_lets_the_policy_pick_the_kx_group() {
         // The agility policy actually drives the offered group: enhanced (L5/HQC) -> ContextBound,
-        // default -> CompatXWing. This is the shipping-path use of Policy::select_profile().
+        // default -> ContextBound. This is the shipping-path use of Policy::select_profile().
         let enhanced = provider_with_policy(&Policy::enhanced());
         assert_eq!(enhanced.kx_groups.len(), 1);
         assert_eq!(enhanced.kx_groups[0].name(), Q_PERIAPT_CONTEXTBOUND);
 
         let default = provider_with_policy(&Policy::default());
         assert_eq!(default.kx_groups.len(), 1);
-        assert_eq!(default.kx_groups[0].name(), Q_PERIAPT_COMPATXWING);
+        assert_eq!(default.kx_groups[0].name(), Q_PERIAPT_CONTEXTBOUND);
     }
 }

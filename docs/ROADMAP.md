@@ -82,10 +82,11 @@ the shipped path:
 reproduces all **3 official `draft-connolly-cfrg-xwing-kem` vectors**
 byte-for-byte — public key, ciphertext, **and** shared secret, for encaps **and**
 decaps. This **reproduces FIPS 203 reference output on those three happy-path
-vectors** (it is not a full FIPS 203 validation; see PENDING §1) and confirms
+vectors** (the broader ACVP set is covered separately; this is not CMVP/FIPS
+module validation) and confirms
 `Profile::CompatXWing` ≡ X-Wing. See [`tests/kat/README.md`](../tests/kat/README.md).
 
-### 3. Both combiner profiles + C2PRI guard
+### 3. Both combiner profiles + backend-safety guard
 [`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs),
 `fn combine`:
 
@@ -98,11 +99,13 @@ vectors** (it is not a full FIPS 203 validation; see PENDING §1) and confirms
   separated by `DOMAIN = b"Q-PERIAPT-HYBRID-KEM/v1"`, binding `suite_id` +
   `policy_version` + every ct/pk + a **mandatory non-empty `context`** (empty
   context ⇒ `Error::InvalidLength`).
-- **C2PRI guard** — `Kem::C2PRI` (const, default `false`) + `HybridKem::new`
+- **`CompatXWing` backend guard** — `Kem::C2PRI` records the primitive property,
+  while `Kem::COMPAT_XWING_SAFE` is the stricter opt-in for X-Wing-compatible
+  exposed key formats. `HybridKem::new`
   ([`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)):
-  pairing a non-C2PRI KEM (X25519 / HQC) with `CompatXWing` is rejected with
-  `Error::PolicyDenied`, confining such KEMs to `ContextBound` (which binds all
-  ciphertexts).
+  pairing a non-X-Wing-safe backend (expanded ML-KEM, X25519-as-KEM, HQC) with
+  `CompatXWing` is rejected with `Error::PolicyDenied`, confining such backends
+  to `ContextBound` (which binds all ciphertexts and public keys).
 
 ### 4. `no_std` bare-metal core
 `q-periapt-core` is `#![no_std]` with `#![deny(unsafe_code)]` and exactly **one**
@@ -120,6 +123,9 @@ The same core is exposed through four faces, each verified to reproduce the
 - **Swift** — `bindings/swift` over the C ABI (CI `bindings-swift`, macOS).
 - **Kotlin** — `bindings/kotlin` via the Panama FFM API, JDK 22+ (CI
   `bindings-kotlin`).
+- **Android** — `bindings/android` via JNI over the same C ABI. `artifact/android-aar.sh`
+  builds a deterministic four-ABI AAR and compiles an isolated Java consumer (CI
+  `bindings-android-aar`); emulator/physical-device instrumentation is still pending.
 
 The single source of truth is `bindings/shared-test-vectors.json`; every face
 decapsulates it and must reproduce the secret byte-for-byte.
@@ -141,9 +147,9 @@ technique, inlined to keep the core dependency-free). `Secret` is intentionally
   the canonical encoding is modeled concretely and its injectivity proved,
   reducing only to two elementary `be8` facts (8-byte fixed width + injectivity)
   plus collision-resistance of SHA3. **0 admits / 0 sorry.**
-- **CI `formal-proof` job** — a `! grep -rnE 'admit|sorry'` **hard gate** (catches
-  a proof being stubbed out) plus a best-effort `make check` when an EasyCrypt
-  toolchain installs.
+- **CI formal jobs** — a `! grep -rnE 'admit|sorry'` **hard gate** (catches
+  a proof being stubbed out), `formal-hermetic` for pinned EasyCrypt re-check +
+  negative controls, and full Tamarin/ProVerif `make prove` hard gates.
 
 **Honest scope (unchanged):** H's collision-resistance is a modeling assumption;
 IND-CCA2 robustness is argued on paper, not mechanized; there is no
@@ -188,14 +194,14 @@ cross-validates the primitives **and the full hybrid** against independent
 implementations on random `SHAKE-256(counter)` inputs (no RNG) — an assurance method
 orthogonal to KATs and the proof, catching integration/encoding bugs that 3 fixed
 vectors would miss:
-- **ML-KEM-768** — our libcrux backend vs RustCrypto `ml-kem` (byte-identical keygen,
-  encapsulation, decapsulation over 64 inputs).
+- **ML-KEM-512/768/1024** — our libcrux backends vs RustCrypto `ml-kem`
+  (byte-identical keygen, encapsulation, decapsulation over 64 inputs each).
 - **X25519** — our `x25519-dalek` backend vs the independent `orion` implementation,
   plus the authoritative **RFC 7748 §6.1** ground-truth Diffie–Hellman vector.
-- **Hybrid CompatXWing** — our `HybridKem` output reconstructed from RustCrypto ML-KEM
-  + orion X25519 + a RustCrypto SHA3 X-Wing combiner, byte-identical for encaps and
-  decaps. Validates the orchestration + combiner end-to-end against three independent
-  components.
+- **Hybrid CompatXWing** — our seed-dk `HybridKem` output reconstructed from
+  RustCrypto ML-KEM + orion X25519 + a RustCrypto SHA3 X-Wing combiner, byte-identical
+  for encaps and decaps. Expanded ML-KEM backends are also negatively tested as
+  rejected under `CompatXWing`.
 - **ML-DSA-44/65/87** — our libcrux signature backends vs RustCrypto `ml-dsa`:
   byte-identical keygen + deterministic signatures (FIPS 204 external mode, rnd = 0), plus
   cross-verification (each implementation verifies the other's signature) and tamper
@@ -280,13 +286,33 @@ are the gap between research-grade and audited/production.
 
 4. **Independent third-party audit.** None has been performed.
 
-5. **Production hardening.** Backends are pre-1.0 / unaudited (`libcrux 0.0.9`
+5. **Embedding and package distribution.** `artifact/embedding-readiness.sh` now gives
+   downstream consumers one fail-closed gate over the current Rust/C/Swift/Android/Kotlin/WASM faces:
+   locked dependencies, warning-denied Rust checks, generated-header freshness, C link smoke,
+   Swift XCTest, Swift XCFramework/binaryTarget consumer proof, Android AAR/JNI package proof,
+   Kotlin/Panama, WASM Node, and `proof-to-byte`. The Apple device matrix is also real proof when explicitly required
+   (`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1`); the Xcode 27 beta lane has passed on one physical
+   iPad plus one physical iPhone through the full embedding gate for the current source-bound proof
+   inputs, and must be rerun after any source-bound proof input changes. This is still not a liboqs-style
+   public distribution surface: Swift has a local XCFramework pre-publication gate but still needs
+   public URL/checksum/provenance; Android has AAR/JNI package proof plus local ART runtime smoke,
+   but still needs clean-tree runtime release provenance and an explicit CI-emulator or
+   physical-device release policy; Rust now has a crates.io pre-publication contract
+   (`artifact/rust-publish-dry-run.sh`) over the explicit publish allow/deny list, package file
+   lists, and patched `cargo publish --dry-run`, but still needs actual registry-order publishing
+   and release provenance; C now has a host archive plus extracted dynamic/static pkg-config/CMake
+   proof, project license texts, and CycloneDX CBOM/SBOM, but still needs multi-target publishing,
+   Windows archive shape, and full third-party dependency license inventory. See
+   [`docs/EMBEDDING_READINESS.md`](EMBEDDING_READINESS.md).
+
+6. **Production hardening.** Backends are pre-1.0 / unaudited (`libcrux 0.0.9`
    asks for maintainer contact before production); RUSTSEC-2026-0163
    (`pqcrypto-internals` unmaintained) is *surfaced*, not hidden, in
    `.cargo/audit.toml`. Q-Periapt is **not for deployment**.
 
-6. **(Future) SkyBridge integration.** Folding Q-Periapt into the SkyBridge
-   quantum-comm project is a longer-term direction, not current work.
+7. **(Future) SkyBridge integration.** Folding Q-Periapt into the SkyBridge
+   quantum-comm project still needs a downstream harness per target repo. The Q-Periapt embedding
+   gate proves this repo's language faces; it does not prove SkyBridge product integration.
 
 ---
 
@@ -296,7 +322,7 @@ are the gap between research-grade and audited/production.
 | --- | --- |
 | Vetted backends wired (ML-KEM/ML-DSA/SHA3/X25519; opt-in SLH-DSA/HQC) | **Done** |
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
-| Both combiner profiles + C2PRI guard | **Done** |
+| Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
 | C ABI / WASM / Swift / Kotlin, byte-identical vs shared vector | **Done** |
 | Hardened `Secret` zeroization | **Done** |
@@ -305,7 +331,7 @@ are the gap between research-grade and audited/production.
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Tamarin symbolic handshake model (server auth + hybrid robustness, 4 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (5 queries) | **Done** |
-| CI gate for the Tamarin proof (hard lemma-presence gate + best-effort `make prove`) | **Done** |
+| CI gate for the Tamarin proof (hard lemma-presence gate + hard `make prove`) | **Done** |
 | Combiner micro-benchmark | **Done** |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
@@ -320,6 +346,12 @@ are the gap between research-grade and audited/production.
 | ACVP ML-DSA internal interface (FIPS 204 Alg. 7/8, `acvp` feature, ext-μ=false) | **Done** |
 | Remaining ACVP modes: `externalMu=true` (no libcrux μ-entry) / non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
+| Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Done** |
+| Physical Apple matrix proof (iPad + iPhone, Xcode 27 beta lane) | **Done, current local hardware proof; rerun required after source-bound changes** |
+| Android AAR/JNI package proof | **Done** |
+| Android ART runtime smoke | **Done locally; clean release provenance and CI/physical policy pending** |
+| Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Done locally; diagnostic mode available; clean/public release pending** |
+| liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Pending; Rust, Swift, Android package pre-publication gates and local index present |
 | Binary-CT over primitive paths + non-x86 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
 | Independent third-party audit | Pending |

@@ -216,6 +216,27 @@ pub struct Finding {
     pub recommendation: &'static str,
 }
 
+/// A path the scanner could not inspect. These are fail-closed audit conditions:
+/// callers must not treat a scan with access errors as a clean result.
+#[derive(Clone, Debug)]
+pub struct ScanError {
+    /// File or directory path the scanner tried to inspect.
+    pub path: String,
+    /// Operation that failed (`metadata`, `read_dir`, `dir_entry`, `read_file`).
+    pub operation: &'static str,
+    /// OS error rendered with context.
+    pub message: String,
+}
+
+/// Full scanner output: findings plus any paths that could not be inspected.
+#[derive(Clone, Debug, Default)]
+pub struct ScanReport {
+    /// Legacy / quantum-vulnerable crypto findings.
+    pub findings: Vec<Finding>,
+    /// Access/read errors that make the scan incomplete.
+    pub errors: Vec<ScanError>,
+}
+
 struct Pattern {
     token: &'static str,
     severity: &'static str,
@@ -316,15 +337,32 @@ fn contains_legacy_dsa(lower: &str) -> bool {
 
 /// Recursively scan `root` for legacy / quantum-vulnerable crypto.
 #[must_use]
-pub fn scan(root: &Path) -> Vec<Finding> {
-    let mut out = Vec::new();
-    scan_path(root, &mut out);
-    out
+pub fn scan(root: &Path) -> ScanReport {
+    let mut report = ScanReport::default();
+    scan_path(root, &mut report);
+    report
 }
 
-fn scan_path(path: &Path, out: &mut Vec<Finding>) {
-    let Ok(meta) = std::fs::symlink_metadata(path) else {
-        return;
+fn push_scan_error(
+    report: &mut ScanReport,
+    path: &Path,
+    operation: &'static str,
+    error: std::io::Error,
+) {
+    report.errors.push(ScanError {
+        path: path.display().to_string(),
+        operation,
+        message: error.to_string(),
+    });
+}
+
+fn scan_path(path: &Path, report: &mut ScanReport) {
+    let meta = match std::fs::symlink_metadata(path) {
+        Ok(meta) => meta,
+        Err(e) => {
+            push_scan_error(report, path, "metadata", e);
+            return;
+        }
     };
     if meta.is_dir() {
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -332,12 +370,21 @@ fn scan_path(path: &Path, out: &mut Vec<Finding>) {
                 return;
             }
         }
-        if let Ok(entries) = std::fs::read_dir(path) {
-            let mut paths: Vec<_> = entries.flatten().map(|e| e.path()).collect();
-            paths.sort();
-            for p in paths {
-                scan_path(&p, out);
+        match std::fs::read_dir(path) {
+            Ok(entries) => {
+                let mut paths = Vec::new();
+                for entry in entries {
+                    match entry {
+                        Ok(entry) => paths.push(entry.path()),
+                        Err(e) => push_scan_error(report, path, "dir_entry", e),
+                    }
+                }
+                paths.sort();
+                for p in paths {
+                    scan_path(&p, report);
+                }
             }
+            Err(e) => push_scan_error(report, path, "read_dir", e),
         }
     } else if meta.is_file() {
         let ext_ok = path
@@ -345,11 +392,20 @@ fn scan_path(path: &Path, out: &mut Vec<Finding>) {
             .and_then(|e| e.to_str())
             .map(|e| CODE_EXTS.contains(&e))
             .unwrap_or(false);
-        if !ext_ok || meta.len() > 2 * 1024 * 1024 {
+        if !ext_ok {
             return;
         }
-        if let Ok(text) = std::fs::read_to_string(path) {
-            scan_text(&path.display().to_string(), &text, out);
+        if meta.len() > 2 * 1024 * 1024 {
+            report.errors.push(ScanError {
+                path: path.display().to_string(),
+                operation: "too_large",
+                message: "code file exceeds 2 MiB scanner limit".to_string(),
+            });
+            return;
+        }
+        match std::fs::read_to_string(path) {
+            Ok(text) => scan_text(&path.display().to_string(), &text, &mut report.findings),
+            Err(e) => push_scan_error(report, path, "read_file", e),
         }
     }
 }
@@ -396,6 +452,43 @@ pub fn findings_to_json(findings: &[Finding]) -> Value {
         })
         .collect();
     json!({ "findings": items, "count": findings.len() })
+}
+
+/// Render a full scanner report as JSON, including fail-closed access errors.
+#[must_use]
+pub fn scan_report_to_json(report: &ScanReport) -> Value {
+    let findings: Vec<Value> = report
+        .findings
+        .iter()
+        .map(|f| {
+            json!({
+                "file": f.file,
+                "line": f.line,
+                "severity": f.severity,
+                "token": f.token,
+                "category": f.category,
+                "recommendation": f.recommendation,
+            })
+        })
+        .collect();
+    let errors: Vec<Value> = report
+        .errors
+        .iter()
+        .map(|e| {
+            json!({
+                "path": e.path,
+                "operation": e.operation,
+                "message": e.message,
+            })
+        })
+        .collect();
+    json!({
+        "findings": findings,
+        "count": report.findings.len(),
+        "errors": errors,
+        "error_count": report.errors.len(),
+        "complete": report.errors.is_empty(),
+    })
 }
 
 #[cfg(test)]
@@ -469,5 +562,13 @@ mod tests {
         );
         assert!(legacy.iter().any(|f| f.token == "dsa" && f.line == 1));
         assert!(legacy.iter().any(|f| f.token == "dsa" && f.line == 2));
+    }
+
+    #[test]
+    fn scan_reports_missing_root_as_incomplete() {
+        let report = scan(Path::new("/definitely/not/q-periapt/missing"));
+        assert!(report.findings.is_empty());
+        assert_eq!(report.errors.len(), 1);
+        assert_eq!(report.errors[0].operation, "metadata");
     }
 }

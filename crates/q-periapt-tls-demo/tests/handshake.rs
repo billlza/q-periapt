@@ -88,11 +88,6 @@ fn handshake_enhanced_context_bound() {
     run_enhanced(Profile::ContextBound);
 }
 
-#[test]
-fn handshake_enhanced_compat_xwing() {
-    run_enhanced(Profile::CompatXWing);
-}
-
 /// The enhanced handshake's ML-DSA-87 auth must reject a mismatched server identity.
 #[test]
 fn handshake_enhanced_rejects_wrong_server_identity() {

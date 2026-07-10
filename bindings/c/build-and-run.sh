@@ -14,6 +14,6 @@ CC="${CC:-cc}"
 
 echo "[2/2] $CC smoke.c -> link libq_periapt_ffi, then run"
 # rpath embeds the cdylib location so the test runs without LD_LIBRARY_PATH/DYLD_LIBRARY_PATH.
-"$CC" -std=c11 -Wall -Wextra bindings/c/smoke.c -I "$INC" \
+"$CC" -std=c11 -Wall -Wextra -Werror bindings/c/smoke.c -I "$INC" \
     -L "$LIB" -lq_periapt_ffi -Wl,-rpath,"$LIB" -o "$LIB/c_smoke"
 "$LIB/c_smoke"

@@ -34,9 +34,9 @@ use core::fmt;
 use std::io::{self, Read, Write};
 
 use q_periapt_backends::{
-    MlDsa65, MlDsa87, MlKem1024, MlKem768, Sha3_256Xof, ML_DSA_65_SIG_LEN, ML_DSA_87_SIG_LEN,
-    ML_KEM_1024_CT_LEN, ML_KEM_1024_PK_LEN, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, X25519,
-    X25519_LEN,
+    MlDsa65, MlDsa87, MlKem1024, MlKem768XWingSeed, Sha3_256Xof, ML_DSA_65_SIG_LEN,
+    ML_DSA_87_SIG_LEN, ML_KEM_1024_CT_LEN, ML_KEM_1024_PK_LEN, ML_KEM_768_CT_LEN,
+    ML_KEM_768_PK_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{ct_eq, Kem, Profile, Secret, Xof256};
 use q_periapt_kem::HybridKem;
@@ -82,14 +82,16 @@ pub trait HandshakeSuite {
 pub struct DefaultSuite;
 
 impl HandshakeSuite for DefaultSuite {
-    type Pq = MlKem768;
+    type Pq = MlKem768XWingSeed;
     type Sig = MlDsa65;
     const SUITE_ID: &'static [u8] = b"ML-KEM-768+X25519";
     const PQ_PK_LEN: usize = ML_KEM_768_PK_LEN;
     const PQ_CT_LEN: usize = ML_KEM_768_CT_LEN;
     const SIG_LEN: usize = ML_DSA_65_SIG_LEN;
     fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>) {
-        let (sk, pk) = MlKem768::generate(*seed);
+        let mut seed32 = [0u8; SEED32_LEN];
+        seed32.copy_from_slice(&seed[..SEED32_LEN]);
+        let (sk, pk) = MlKem768XWingSeed::generate(seed32);
         (sk.to_vec(), pk.to_vec())
     }
     fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>) {

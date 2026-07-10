@@ -3,12 +3,16 @@
 **/*.rs.bk
 *.profraw
 .DS_Store
+__pycache__/
+*.pyc
 
 # Binding build artifacts
 bindings/swift/.build/
 bindings/swift/Package.resolved
 bindings/kotlin/.gradle/
 bindings/kotlin/build/
+bindings/apple-device/*.xcodeproj/
+artifact/device-runs/
 
 # Fuzzing artifacts (targets + manifest are committed; run data is not)
 fuzz/corpus/

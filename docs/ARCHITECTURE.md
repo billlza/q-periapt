@@ -42,7 +42,7 @@ reference vector.
    │  q-periapt-core   (no_std, dependency-free, deny unsafe)    │
    │  • combine()  — CompatXWing | ContextBound                  │
    │  • CombineInput / absorb_lp (injective LP encoding)         │
-   │  • traits: Kem (+ C2PRI), Xof256                            │
+   │  • traits: Kem (+ C2PRI, COMPAT_XWING_SAFE), Xof256          │
    │  • Secret (zeroize-on-drop, not Clone)                      │
    │  • ct_eq / ct_select32 / ct_is_zero                         │
    └───────────────────────────────────────────────────────────┘
@@ -51,7 +51,7 @@ reference vector.
         │                         │                          │
   q-periapt-kem            q-periapt-sig              (Signer/Verifier
   HybridKem<P,T,X>         SigAlg / Signer /           trait surface)
-  (C2PRI guard)            Verifier traits
+  (profile/backend guard)  Verifier traits
         │                         │
         └────────────┬────────────┘
                      ▼
@@ -101,9 +101,10 @@ not six. This is also what makes the byte-identical cross-platform guarantee
 *possible* and *cheap* to test (§6).
 
 **Crypto-agility lives in policy, not in code.** Algorithm choices are data
-(`q-periapt-policy`), not hardcoded constants, so migration (L3 → L5, enabling an
+(`q-periapt-policy`), not hardcoded constants, so migration (L3 -> L5, enabling an
 HQC backup, deprecating an algorithm) is a config change and a minimum-NIST-level
-floor gives downgrade protection.
+floor gives downgrade protection. The safe default policy selects `ContextBound`;
+`CompatXWing` is an explicit interoperability profile, not the ambient default.
 
 ---
 
@@ -116,7 +117,7 @@ floor gives downgrade protection.
 
 | Trait | Method surface | Contract |
 |---|---|---|
-| `Kem` | `algorithm()`, `encapsulate()`, `decapsulate()`, `const C2PRI: bool` | Constant-time w.r.t. secrets; `decapsulate` **must** use implicit rejection and must NOT return `Error` to signal an invalid ciphertext (only public conditions). `C2PRI` defaults to `false` (the safe choice). |
+| `Kem` | `algorithm()`, `encapsulate()`, `decapsulate()`, `const C2PRI: bool`, `const COMPAT_XWING_SAFE: bool` | Constant-time w.r.t. secrets; `decapsulate` **must** use implicit rejection and must NOT return `Error` to signal an invalid ciphertext (only public conditions). `C2PRI` records the primitive property. `COMPAT_XWING_SAFE` is stricter and defaults to `false`: only backends whose exposed API/key format preserves X-Wing's self-binding precondition may opt into `CompatXWing`. |
 | `Xof256` | `new()`, `absorb()`, `squeeze32()` | Incremental hash/XOF producing 32 bytes; constant-time w.r.t. absorbed data. |
 | `Signer` / `Verifier` | in `q-periapt-sig` (see §5) | — |
 
@@ -137,10 +138,11 @@ Computes `SHA3-256(ss_pq || ss_trad || ct_trad || pk_trad || XWING_LABEL)` where
 each is **hard-checked** to be exactly `SHARED_SECRET_LEN` (32) first — otherwise
 arbitrary-length slices could collide across field boundaries (33+31 vs 32+32) and
 collapse domain separation; a wrong length returns `Error::InvalidLength`. The
-absorbed input is a single 134-byte block (≤ Keccak rate 136) and the path is
+absorbed input is a single 134-byte block (<= Keccak rate 136) and the path is
 allocation-free. This profile deliberately does **not** bind the PQ ciphertext/
 pubkey, nor `suite_id` / `policy_version` / `context` — it relies on the PQ KEM
-being `C2PRI` (§3.4). It **is** X-Wing byte-for-byte (verified, §6).
+being exposed through an X-Wing-safe seed-dk backend (§3.4). It **is** X-Wing
+byte-for-byte (verified, §6).
 
 **`Profile::ContextBound` — GHP/"hash everything".**
 The conservative profile. Domain-separated by
@@ -180,18 +182,24 @@ primitives are the standard ones via standard backends. The wins are provable
 binding, crypto-agility, side-channel CI, byte-identical cross-platform behavior,
 and auditability.
 
-### 3.4 The C2PRI safety guard
+### 3.4 The `CompatXWing` backend safety guard
 
-`CompatXWing` omits the PQ ciphertext from the KDF. That is sound **only** when the
-PQ KEM is *ciphertext second-preimage resistant* (C2PRI) — true for ML-KEM-768 (FO
-transform), false for X25519-as-KEM and HQC-as-wired. The guard is enforced in two
-layers:
+`CompatXWing` omits the PQ ciphertext and public key from the KDF. That is sound
+**only** when both conditions hold: the primitive is *ciphertext second-preimage
+resistant* (C2PRI), and the backend API/key format preserves the X-Wing seed-dk
+self-binding precondition. Primitive C2PRI alone is not enough for an API that
+accepts arbitrary expanded/imported ML-KEM decapsulation keys. The guard is
+enforced in two layers:
 
-1. `Kem::C2PRI` is an associated `const` (default `false`); only proven-C2PRI
-   backends override it to `true` (`MlKem768::C2PRI = true`).
-2. `HybridKem::new` (in `q-periapt-kem`) rejects `CompatXWing` paired with a
-   non-C2PRI PQ KEM, returning `Error::PolicyDenied`. This confines X25519/HQC to
-   `ContextBound`, which binds all ciphertexts.
+1. `Kem::C2PRI` is an associated `const` (default `false`) that records the
+   primitive-level property (`MlKem768::C2PRI = true`).
+2. `Kem::COMPAT_XWING_SAFE` is a stricter associated `const` (default `false`) for
+   the exposed backend/key format. The raw expanded ML-KEM backends keep this
+   `false`; `MlKem768XWingSeed` sets it to `true`.
+3. `HybridKem::new` (in `q-periapt-kem`) rejects `CompatXWing` unless
+   `P::COMPAT_XWING_SAFE`, returning `Error::PolicyDenied`. This confines
+   expanded/imported ML-KEM keys, X25519-as-KEM and HQC to `ContextBound`, which
+   binds all ciphertexts and public keys directly.
 
 ### 3.5 `Secret` and constant-time helpers
 
@@ -209,10 +217,11 @@ the side-channel assurance.
 
 ### 3.6 The `Error` type
 
-`Error` is deliberately coarse — `InvalidLength`, `Backend`, `PolicyDenied` — and
-`#[non_exhaustive]`. Every variant corresponds to a **publicly observable** condition
-(buffer length, policy). It **must never** encode secret-dependent information such
-as *why* a decapsulation failed; failure paths are designed to be indistinguishable.
+`Error` is deliberately coarse — `InvalidLength`, `Backend`, `InvalidKeyShare`,
+`PolicyDenied` — and `#[non_exhaustive]`. Every variant corresponds to a **publicly
+observable** condition (buffer length, public malformed DH/key-share input, policy).
+It **must never** encode secret-dependent information such as *why* an FO-KEM
+decapsulation failed; failure paths are designed to be indistinguishable.
 
 ---
 
@@ -223,7 +232,8 @@ cryptographic primitives. Each is a zero-sized type implementing a core trait:
 
 | Backend | Primitive | Crate | Notes |
 |---|---|---|---|
-| `MlKem768` | ML-KEM-768 (FIPS 203) | `libcrux-ml-kem` 0.0.9 (HACL*-derived, constant-time) | `Kem`, `C2PRI = true`. Takes randomness as explicit bytes — deterministic / KAT-able / `no_std`. |
+| `MlKem768` | ML-KEM-768 (FIPS 203) | `libcrux-ml-kem` 0.0.9 (HACL*-derived, constant-time) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Takes randomness as explicit bytes — deterministic / KAT-able / `no_std`. |
+| `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `libcrux-ml-kem` + `libcrux-sha3` | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; derives X-Wing's `(d||z)` key material from the 32-byte seed and is the only backend admitted to `CompatXWing`. |
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 2 | `Kem`, non-C2PRI; deterministic from a 32-byte scalar. |
 | `Sha3_256Xof` | SHA3-256 | `libcrux-sha3` 0.0.9 | `Xof256`; the combiner XOF. |
 | `MlDsa65` | ML-DSA-65 (FIPS 204) | `libcrux-ml-dsa` 0.0.9 | `Signer` + `Verifier`. |
@@ -374,9 +384,9 @@ allowed?", "does it meet the floor?", "which profile?" instead of naming concret
 algorithms inline.
 
 - **`Policy`** carries `min_nist_level` (downgrade floor), `default_profile`,
-  `allowed_kems`, `allowed_sigs`, `deprecated`. `Default` is the L3 / `CompatXWing`
-  posture; `enhanced()` is L5 / `ContextBound` with an HQC backup for assumption
-  diversity.
+  `allowed_kems`, `allowed_sigs`, `deprecated`. `Default` is the L3 / `ContextBound`
+  posture; explicit X-Wing interop can select `CompatXWing` with the seed-dk backend.
+  `enhanced()` is L5 / `ContextBound` with an HQC backup for assumption diversity.
 - **Downgrade floor.** `meets_floor` requires a leveled PQ algorithm to meet
   `min_nist_level`, allows a recognized traditional partner, and **fail-closes** on
   unknown ids. `kem_allowed` / `sig_allowed` require listed **and** not-deprecated
@@ -427,7 +437,8 @@ robustness is argued on paper; there is **no spec↔impl linkage proof**. `X-BIN
 is structurally impossible for implicitly-rejecting ML-KEM and is **not** claimed.
 `ContextBound` is **not** "stronger binding than X-Wing" — both share the same MAL
 ceiling; the edge is **assumption-minimality / proof-coverage**, not a stronger bound.
-CI has a formal-proof job: a no-admits hard gate plus best-effort `make check`.
+CI has formal hard gates: no-admits scanning, hermetic EasyCrypt re-check plus
+negative controls, and full Tamarin/ProVerif `make prove`.
 
 ---
 

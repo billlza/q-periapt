@@ -90,7 +90,8 @@ on the component KEMs** (no assumption on ML-KEM or X25519). Notably, the canoni
 injectivity (`encode_inj`) is now a **proved lemma**, not an axiom — it reduces to two
 elementary `be8` facts (8-byte fixed width + injectivity) plus CR of SHA3, with **0 admits**.
 A CI `formal-proof` job hard-gates on the absence of `admit`/`sorry`
-(`! grep -rnE 'admit|sorry' formal/easycrypt/`) and best-effort runs `make check`.
+(`! grep -rnE 'admit|sorry' formal/easycrypt/`), while `formal-hermetic` hard-gates
+the pinned EasyCrypt re-check plus negative controls.
 
 **What this is — and is NOT:**
 
@@ -135,9 +136,10 @@ selection so a deployment can negotiate without forking the spec
   `allowed_kems` is correctly rejected.
 - The combiner can swap fast (`CompatXWing`, X-Wing-parity) vs strong (`ContextBound`),
   raise the floor, swap the PQ KEM, or add the code-based HQC hedge — **without a
-  recompile**. The `Kem::C2PRI` guard (`HybridKem::new` returns `Error::PolicyDenied`
-  if a non-C2PRI KEM like X25519/HQC is requested under `CompatXWing`) keeps the
-  agility safe by confining non-C2PRI components to `ContextBound`.
+  recompile**. The `Kem::COMPAT_XWING_SAFE` guard (`HybridKem::new` returns
+  `Error::PolicyDenied` if an expanded/imported-key or non-C2PRI backend is requested
+  under `CompatXWing`) keeps the agility safe by confining those components to
+  `ContextBound`.
 
 ### 2.3 Side-channel CI (with the honest caveat)
 

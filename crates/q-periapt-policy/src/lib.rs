@@ -69,14 +69,14 @@ pub struct Policy {
 }
 
 impl Default for Policy {
-    /// Default posture: hybrid lattice+traditional at NIST L3, fast
-    /// (X-Wing-compatible) profile, ML-DSA-65 + SLH-DSA for roots. Matches
+    /// Default posture: hybrid lattice+traditional at NIST L3, context-bound
+    /// profile, ML-DSA-65 + SLH-DSA for roots. Matches
     /// `docs/policy/default.policy.toml`.
     fn default() -> Self {
         Self {
             policy_version: 1,
             min_nist_level: 3,
-            default_profile: Profile::CompatXWing,
+            default_profile: Profile::ContextBound,
             allowed_kems: vec!["ML-KEM-768".into(), "X25519".into()],
             allowed_sigs: vec!["ML-DSA-65".into(), "SLH-DSA-SHA2-256s".into()],
             deprecated: Vec::new(),
@@ -384,7 +384,17 @@ mod tests {
 
     #[test]
     fn non_c2pri_forces_context_bound() {
-        assert_eq!(Policy::default().select_profile(), Profile::CompatXWing);
+        assert_eq!(Policy::default().select_profile(), Profile::ContextBound);
+        let compat_requested_with_hqc = Policy {
+            default_profile: Profile::CompatXWing,
+            allowed_kems: vec!["ML-KEM-768".into(), "X25519".into(), "HQC-256".into()],
+            ..Policy::default()
+        };
+        assert_eq!(
+            compat_requested_with_hqc.select_profile(),
+            Profile::ContextBound,
+            "a non-C2PRI allowed KEM must override a CompatXWing default"
+        );
         // enhanced has HQC-256 (non-C2PRI) -> must force ContextBound.
         assert!(Policy::enhanced().requires_context_bound());
         assert_eq!(Policy::enhanced().select_profile(), Profile::ContextBound);
@@ -465,7 +475,7 @@ mod load_tests {
 
     const POLICY: &str = "schema_version = 1\n\
         min_nist_level = 3\n\
-        default_profile = \"CompatXWing\"\n\
+        default_profile = \"ContextBound\"\n\
         allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
         allowed_sigs = [\"ML-DSA-65\", \"SLH-DSA-SHA2-256s\"]\n\
         deprecated = []\n";
@@ -474,7 +484,7 @@ mod load_tests {
     fn from_toml_parses_and_enforces() {
         let p = Policy::from_toml(POLICY).unwrap();
         assert_eq!(p.min_nist_level, 3);
-        assert_eq!(p.default_profile, Profile::CompatXWing);
+        assert_eq!(p.default_profile, Profile::ContextBound);
         assert!(p.kem_allowed("ML-KEM-768"));
         assert!(p.sig_allowed("ML-DSA-65"));
         assert!(!p.kem_allowed("ML-KEM-512")); // below floor
@@ -487,7 +497,7 @@ mod load_tests {
             Policy::from_toml(&bad_schema).unwrap_err(),
             PolicyError::UnsupportedSchema
         );
-        let bad_profile = POLICY.replace("CompatXWing", "Nonsense");
+        let bad_profile = POLICY.replace("ContextBound", "Nonsense");
         assert_eq!(
             Policy::from_toml(&bad_profile).unwrap_err(),
             PolicyError::UnknownProfile
@@ -512,7 +522,7 @@ mod load_tests {
 
         // Authentic policy loads.
         let p = Policy::load_signed(&MlDsa65, &vk, POLICY.as_bytes(), sig).unwrap();
-        assert_eq!(p.default_profile, Profile::CompatXWing);
+        assert_eq!(p.default_profile, Profile::ContextBound);
 
         // One flipped byte in the body → rejected.
         let mut tampered = POLICY.as_bytes().to_vec();

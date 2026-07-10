@@ -107,9 +107,9 @@ no binding assumption on ML-KEM or X25519**.
   no longer an axiom.
 - **CI enforcement.** A `formal-proof` job
   ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) hard-gates on
-  `! grep -rnE 'admit|sorry' formal/easycrypt/` (catches a proof being stubbed out)
-  and runs `make check` best-effort (a hermetic EasyCrypt install is heavy, so the
-  full re-check is not a merge gate, but the no-admits guard is).
+  `! grep -rnE 'admit|sorry' formal/easycrypt/` (catches a proof being stubbed out);
+  `formal-hermetic` rebuilds the pinned EasyCrypt container and re-checks
+  `BindingViaCR.ec` plus the negative controls as the full merge gate.
 - **Implementation mirror.** The injective encoding is exercised by a negative KAT
   in [`q-periapt-core`](../crates/q-periapt-core/src/lib.rs)
   (`injective_encoding_prevents_boundary_collision`): two tuples that would collide
@@ -141,10 +141,12 @@ designed to be indistinguishable from success.
 
 - **No error oracle.** `decapsulate` does **not** return `Error` to signal an
   invalid ciphertext. The only `Error` values the suite produces correspond to
-  **publicly observable** conditions — buffer-length mismatches and policy denials.
-  `q_periapt_core::Error` has exactly three variants
-  (`InvalidLength`, `Backend`, `PolicyDenied`), each a public fact; by construction
-  none encodes *why* a decapsulation "failed."
+  **publicly observable** conditions — buffer-length mismatches, public invalid
+  DH-style key shares, backend failures, and policy denials.
+  `q_periapt_core::Error` is non-exhaustive and currently includes
+  `InvalidLength`, `Backend`, `InvalidKeyShare`, and `PolicyDenied`; each is a
+  public fact, and by construction none encodes *why* an FO-KEM decapsulation
+  "failed."
 - **Errors encode only PUBLIC conditions.** This is a deliberate design property of
   the coarse `Error` type ([`q-periapt-core`](../crates/q-periapt-core/src/lib.rs)
   "Security notes"). The `?` operators in
@@ -198,15 +200,17 @@ Two independent mechanisms, both fail-closed:
   is a security event, not a silent downgrade. Unit-gated by
   `signed_load_accepts_valid_and_fails_closed` (tampered body, wrong key, and
   failsafe fallback all covered).
-- **Profile/algorithm coupling (compile-time guard).** The fast `CompatXWing`
-  profile omits the PQ ciphertext from the KDF, which is sound **only** for a C2PRI
-  KEM. [`HybridKem::new`](../crates/q-periapt-kem/src/lib.rs) rejects pairing a
-  non-C2PRI PQ KEM (X25519/HQC) with `CompatXWing` (`Error::PolicyDenied`),
-  confining non-C2PRI components to `ContextBound`. The C2PRI bit is a
-  per-backend `const` ([`Kem::C2PRI`](../crates/q-periapt-core/src/lib.rs);
-  `true` for ML-KEM-768, `false` for X25519/HQC), and
-  [`Policy::select_profile`](../crates/q-periapt-policy/src/lib.rs) independently
-  forces `ContextBound` whenever a non-C2PRI KEM is allowed.
+- **Profile/backend coupling (compile-time guard).** The fast `CompatXWing`
+  profile omits the PQ ciphertext and public key from the KDF. Primitive C2PRI is
+  necessary but not sufficient: the exposed backend/key format must also preserve
+  X-Wing's seed-derived self-binding precondition. [`HybridKem::new`](../crates/q-periapt-kem/src/lib.rs)
+  rejects pairing any backend that is not explicitly `Kem::COMPAT_XWING_SAFE`
+  with `CompatXWing` (`Error::PolicyDenied`), confining expanded/imported ML-KEM,
+  X25519-as-KEM and HQC to `ContextBound`. The primitive C2PRI bit remains a
+  per-backend `const` ([`Kem::C2PRI`](../crates/q-periapt-core/src/lib.rs)), but
+  `CompatXWing` admission is controlled by the stricter
+  [`Kem::COMPAT_XWING_SAFE`](../crates/q-periapt-core/src/lib.rs). The default
+  policy selects `ContextBound`; explicit X-Wing interop uses the seed-dk backend.
 
 ### 4.4 Secure zeroization — **ENFORCED (type-level + Drop)**
 
@@ -369,7 +373,7 @@ consistency, and the machine-checked binding proof** — never speed.
 |---|-----------|-----------|-----------|-------------|
 | 4.1 | Binding to CR(SHA3); no KEM binding assumption | ADV-MAL | `ContextBound` injective hash-everything encoding | **PROVED** (`bind_le_cr`, 0 admits) + no-admits CI gate + mirror KAT |
 | 4.2 | No decapsulation oracle; failure-path indistinguishable; errors = public only | ADV-CCA | Implicit rejection; coarse `Error`; `ct_select32` | **ENFORCED** (ctstats hard gate) |
-| 4.3 | Downgrade protection (NIST floor + signed policy, fail-closed); profile/KEM coupling | ADV-POLICY | `meets_floor`/`kem_allowed`/`negotiate_kem`; `load_signed`; C2PRI guard | **ENFORCED** (logic/type + unit-gated) |
+| 4.3 | Downgrade protection (NIST floor + signed policy, fail-closed); profile/backend coupling | ADV-POLICY | `meets_floor`/`kem_allowed`/`negotiate_kem`; `load_signed`; `COMPAT_XWING_SAFE` guard | **ENFORCED** (logic/type + unit-gated) |
 | 4.4 | Secure zeroization of the combined key | post-use exposure | volatile wipe + fence; not `Clone` | **ENFORCED** (Drop + type-level) |
 | 4.5 | Cross-platform byte-identical output | binding divergence | shared-vector consistency tests | **ENFORCED** (CI) |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **REPORT-ONLY** (not gated) |

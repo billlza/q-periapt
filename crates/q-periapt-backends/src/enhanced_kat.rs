@@ -15,8 +15,8 @@
 //!
 //! ML-KEM-1024 + X25519 is not an external standard (X-Wing is ML-KEM-768-only), so
 //! a self-pinned, independently-cross-checked vector is the strongest available KAT.
-//! `CompatXWing` is also legal for this suite (ML-KEM-1024 is C2PRI), but the enhanced
-//! policy mandates `ContextBound`, so that is the profile pinned here.
+//! The exposed ML-KEM-1024 backend uses an expanded/imported decapsulation key format,
+//! so it is deliberately `ContextBound`-only even though the primitive is C2PRI.
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 

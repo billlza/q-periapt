@@ -5,7 +5,7 @@
 > in lock-step with, the implementation in
 > [`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)
 > (`combine`, `Profile`, `absorb_lp`, `CombineInput`, `Secret`, `DOMAIN`,
-> `XWING_LABEL`) and the C2PRI guard in
+> `XWING_LABEL`) and the `CompatXWing` backend-safety guard in
 > [`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)
 > (`HybridKem::new`). Byte-exactness of `CompatXWing` is proved by the KAT in
 > [`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs).
@@ -66,8 +66,9 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>)
   | `context` | `&[u8]` | no | yes (field 9, mandatory non-empty) |
 
 - Return: `Secret` on success, or `Error` (`InvalidLength` / `PolicyDenied` /
-  `Backend`). `Error` is deliberately coarse and carries **no** secret-dependent
-  information; every variant is a publicly observable condition (§5).
+  `InvalidKeyShare` / `Backend`). `Error` is deliberately coarse and carries
+  **no** secret-dependent information; every variant is a publicly observable
+  condition (§5).
 
 The two profiles are domain-separated: `CompatXWing` is keyed by `XWING_LABEL`
 (`5c 2e 2f 2f 5e 5c` = ASCII `\.//^\`, 6 bytes; the `XWING_LABEL` const,
@@ -143,7 +144,7 @@ the sponge state and 32 bytes are squeezed out. This is the parity-fast path.
 ### 2.4 Byte-exactness is proved, not asserted
 
 `crates/q-periapt-backends/src/xwing_kat.rs::xwing_draft_kat_byte_exact` drives
-`HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(.., Profile::CompatXWing, b"", 0)`
+`HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(.., Profile::CompatXWing, b"", 0)`
 through three official `draft-connolly-cfrg-xwing-kem` vectors (`XWING_VECTORS`).
 For each vector it reconstructs X-Wing's own key expansion
 (`SHAKE256(seed, 96) = ML-KEM(d‖z) ‖ skX`) and encapsulation-coin split
@@ -161,9 +162,9 @@ Because the public-key, ciphertext and shared-secret assertions all pass against
 the published vectors, the test also exercises the libcrux ML-KEM-768 backend.
 
 **Honest scope:** this reproduces the FIPS 203 reference output on those **three
-happy-path X-Wing draft vectors**. It is not a full ACVP / FIPS 203 validation
-(that is pending — see [`docs/ROADMAP.md`](./ROADMAP.md)); do not describe it as
-"validates against FIPS 203."
+happy-path X-Wing draft vectors**. The broader ACVP vector suite is covered
+separately by `q-periapt-backends/src/acvp.rs`, but neither test is CMVP/FIPS-module
+validation; do not describe it as "FIPS-validated."
 
 ---
 
@@ -279,27 +280,36 @@ negligible.
 
 ---
 
-## 4. The C2PRI safety guard
+## 4. The `CompatXWing` backend safety guard
 
 `CompatXWing` omits `ct_pq` and `pk_pq` from the KDF (it hashes only the
 *traditional* ciphertext and public key, per X-Wing). That omission is sound
-**only** when the PQ KEM is **ciphertext second-preimage resistant (C2PRI)** —
-i.e. it provably binds its own ciphertext, so the combiner does not need to. This
-is the load-bearing property that lets X-Wing's lean absorb stay binding.
+**only** when the PQ KEM is **ciphertext second-preimage resistant (C2PRI)** and
+the backend API/key format is X-Wing-compatible. Primitive C2PRI proves the KEM
+binds its own ciphertext; the API/key-format condition rules out expanded or
+imported decapsulation keys that do not preserve X-Wing's seed-derived
+self-binding precondition. Both are load-bearing for the lean X-Wing absorb.
 
 This is encoded in the `Kem` trait
 ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) as the
-associated const `Kem::C2PRI`, defaulting to the **safe** value:
+associated consts `Kem::C2PRI` and `Kem::COMPAT_XWING_SAFE`, both defaulting to
+the **safe** value:
 
 ```rust
 const C2PRI: bool = false; // a KEM that does not prove C2PRI is forced to ContextBound
+const COMPAT_XWING_SAFE: bool = false; // explicit opt-in for X-Wing-safe APIs
 ```
 
 Backends declare it explicitly:
 
-- `MlKem768`: `const C2PRI: bool = true;` (in `impl Kem for MlKem768`,
+- `MlKem768`: `const C2PRI: bool = true; const COMPAT_XWING_SAFE: bool = false;`
+  (in `impl Kem for MlKem768`,
   [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)) — ML-KEM-768
-  binds its ciphertext via the FO transform.
+  binds its ciphertext via the FO transform, but this backend accepts expanded/imported keys
+  and is therefore confined to `ContextBound`.
+- `MlKem768XWingSeed`: `const C2PRI: bool = true; const COMPAT_XWING_SAFE: bool = true;`
+  — this backend stores the 32-byte X-Wing seed and derives `(d||z)` internally, so it is
+  admitted to `CompatXWing`.
 - `X25519`: inherits the `false` default (`impl Kem for X25519`,
   [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)) — raw ECDH
   does not bind its "ciphertext."
@@ -311,36 +321,38 @@ The guard is enforced once, at construction, in
 `HybridKem::new` ([`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)):
 
 ```rust
-if matches!(profile, Profile::CompatXWing) && !P::C2PRI {
-    // The fast profile omits the PQ ciphertext; only safe for a C2PRI KEM.
+if matches!(profile, Profile::CompatXWing) && !P::COMPAT_XWING_SAFE {
+    // The fast profile omits the PQ ciphertext/public key; only safe for a
+    // backend whose exposed API preserves X-Wing's self-binding precondition.
     return Err(Error::PolicyDenied);
 }
 ```
 
-So pairing a **non-C2PRI** PQ KEM (X25519-as-PQ, HQC, or any backend that does not
-override the default) with `CompatXWing` is rejected at build time with
-`Error::PolicyDenied`, confining non-C2PRI components to `ContextBound`, which
+So pairing a non-X-Wing-safe PQ backend (expanded ML-KEM, X25519-as-PQ, HQC, or
+any backend that does not override the default) with `CompatXWing` is rejected at
+construction time with `Error::PolicyDenied`, confining it to `ContextBound`, which
 binds every ciphertext and public key directly and therefore needs **no** binding
-assumption on the components. The guard is decided at the type level (`P::C2PRI`)
-and exercised by the KEM-crate test `c2pri_guard_rejects_weak_kem_in_fast_profile`, which pairs a
-non-C2PRI toy KEM with `CompatXWing` and asserts `Some(Error::PolicyDenied)`
-([`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)).
+assumption on the components. The guard is decided at the type level
+(`P::COMPAT_XWING_SAFE`) and exercised by KEM/backend tests that assert both
+non-C2PRI and expanded-key ML-KEM backends are rejected under `CompatXWing`.
 
 > **Why a guard and not a silent fallback:** failing closed (an explicit
 > `PolicyDenied`) makes a profile/KEM mismatch a loud, testable construction-time
 > error rather than a quietly-weakened binding. The fast path is opt-in and only
-> reachable when the type system has witnessed `C2PRI = true`.
+> reachable when the type system has witnessed `COMPAT_XWING_SAFE = true`.
 
 ---
 
 ## 5. Error and failure-path discipline
 
 The `Error` enum ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs))
-has exactly three variants, each a **public** condition:
+has a small, non-exhaustive set of public-condition variants:
 
 - `InvalidLength` — a `CompatXWing` field was not 32 bytes (§2.2), or a
   `ContextBound` `context` was empty (§3.4). Attacker-known buffer facts.
 - `Backend` — an opaque backend-primitive failure.
+- `InvalidKeyShare` — a public invalid/non-contributory DH-style key share such as
+  a low-order X25519 input.
 - `PolicyDenied` — a forbidden profile/KEM combination (§4).
 
 No variant encodes secret-dependent information — in particular, **none** signals
