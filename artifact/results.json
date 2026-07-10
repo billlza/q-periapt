@@ -1,89 +1,106 @@
 {
-  "artifact": "Q-Periapt — assumption-minimal, cross-substrate binding assurance for PQ/T hybrid KEMs",
-  "purpose": "Expected-result manifest so a reviewer can detect data drift: every value below is measured, not asserted. Run `sh artifact/smoke.sh` and compare; a full frozen run is in artifact/ci-snapshot.log.",
-  "provenance": {
-    "snapshot_commit": "87b1a636df6e238b55f41ec7fce26ca6af3f1cd8",
-    "note": "Values captured against the tree at this commit. The artifact-only files (artifact/*, this manifest) added afterward change no tested code, so the expected counts still hold.",
-    "toolchain": {
-      "rustc": "1.96.0 (ac68faa20 2026-05-25)",
-      "cargo": "1.96.0",
-      "minimum_cargo": "1.85"
-    },
-    "host_captured_on": "Darwin 27.0.0 arm64"
-  },
-  "smoke": {
-    "command": "sh artifact/smoke.sh",
-    "needs": "Rust toolchain + a C compiler (no Docker / wasm-pack / Node / network beyond cargo fetch)",
-    "expected_summary": "7 passed, 0 failed; ALL PASS; exit 0",
-    "steps": [
-      {
-        "name": "core unit tests",
-        "cmd": "cargo test -p q-periapt-core",
-        "expect": "12 passed"
-      },
-      {
-        "name": "shared reference vectors",
-        "cmd": "cargo test -p q-periapt-backends",
-        "expect": "39 + 2 = 41 passed (unit + binding_keyformat_separation)"
-      },
-      {
-        "name": "C-ABI tests incl. aliasing",
-        "cmd": "cargo test -p q-periapt-ffi",
-        "expect": "11 passed"
-      },
-      {
-        "name": "WASM shared vector (host)",
-        "cmd": "cargo test -p q-periapt-wasm",
-        "expect": "3 passed"
-      },
-      {
-        "name": "rustls loopback handshake",
-        "cmd": "cargo test -p q-periapt-rustls --test handshake",
-        "expect": "1 passed (real in-memory TLS 1.3 handshake over the hybrid group)"
-      },
-      {
-        "name": "C-ABI link-and-run smoke",
-        "cmd": "sh bindings/c/build-and-run.sh",
-        "expect": "ALL PASS"
-      },
-      {
-        "name": "EasyCrypt no-admit gate",
-        "cmd": "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/",
-        "expect": "grep finds nothing (exit 0)"
-      }
+  "android_aar": {
+    "boundary": "This is AAR/JNI package proof only. Android runtime proof is now tracked separately by artifact/android-device-smoke.sh and artifact/android_device_proof.py; clean release claims still require clean-tree runtime provenance and an explicit emulator/physical-device policy.",
+    "command": "sh artifact/android-aar.sh",
+    "current_local_status": "dirty diagnostic run passed with Android SDK platform android-37.0 and NDK 30.0.14904198: built Rust q-periapt-ffi Android cdylib slices plus JNI shim slices for all four ABIs, verified q_periapt_abi_version, javap/RegisterNatives descriptor parity, JNI_OnLoad/RegisterNatives export shape, and JNI DT_NEEDED on libq_periapt_ffi.so, created a deterministic path-safe AAR, dexed the Java facade, and compiled an isolated consumer against the packaged classes.jar.",
+    "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1 sh artifact/android-aar.sh",
+    "mode": "Android AAR/JNI pre-publication packaging contract",
+    "targets": [
+      "arm64-v8a",
+      "x86_64",
+      "armeabi-v7a",
+      "x86"
     ]
   },
+  "android_device_runtime": {
+    "android_sdk": "35",
+    "boundary": "This is local emulator runtime evidence, not a clean public release artifact and not physical Android coverage. Product embedding should require a clean-tree proof and decide whether CI emulator evidence or physical Android devices are the release gate.",
+    "command": "sh artifact/android-device-smoke.sh",
+    "covered_tests": [
+      "runtimeMetadataMatches",
+      "combineReferenceVectors",
+      "sharedVectorDecapsulates",
+      "sharedVectorEncapsulates",
+      "contextBoundRejectsEmptyContext",
+      "compatXWingSeedKeypairRoundtrip",
+      "signedPolicySelectsProfileAndRejectsRollbackAndTamper",
+      "uint32ScalarsRejectNegativeAndOverflow"
+    ],
+    "current_local_status": "dirty diagnostic run passed at target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json, generated 2026-07-09T19:55:33.708334Z: emulator sdk_gphone64_arm64 Android 15 API 35 ABI arm64-v8a, adb serial sha256 prefix 04ab3fc382bf, run id 3ffd6c70e63bb09436e60a2183aa0dc7, 8 runtime tests passed through the Android Java facade; default verifier correctly rejects this proof as dirty-source release provenance.",
+    "device_abi": "arm64-v8a",
+    "device_kind": "emulator",
+    "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1 QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=SkyBridge_API_35 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator sh artifact/android-device-smoke.sh",
+    "mode": "Android ART runtime proof over the packaged AAR/JNI surface",
+    "proof_generated_at": "2026-07-09T19:55:33.708334Z",
+    "proof_sha256": "5d5a0733d82ccae9005b141b137e9dcf9370faf708e7e2f1bbf35cb791463153",
+    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator sh artifact/proof-to-byte.sh"
+  },
+  "apple_device": {
+    "command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_ID=<physical-device-udid> sh artifact/apple-device-smoke.sh",
+    "device_build": "xcodebuild build succeeds for physical iPad and iPhone destinations with Xcode 27.0 beta build 27A5194q, iPhoneOS27.0.sdk, bundle id dev.qperiapt.DeviceRunner, and automatic Apple Development signing.",
+    "device_install_run": "pass on physical iPadOS/iOS devices; per-device proof JSON binds run id, git commit, source-tree dirty status, source hashes including signed-policy vectors and the Rust workspace build-input tree, app hash, staticlib hash, build log hash, run-bound copied device-result marker, device family, and device id sha256 prefix. No simulator run is accepted as Apple-device proof. Verification rejects proof inputs outside artifact/device-runs, artifact app/staticlib paths outside target, commit mismatch, and dirty proof/current trees unless QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1 is explicitly set for diagnostics.",
+    "ios_staticlib": "cargo build -p q-periapt-ffi --release --target aarch64-apple-ios succeeds and the device runner links target/aarch64-apple-ios/release/libq_periapt_ffi.a directly.",
+    "macos_native": "SwiftPM binding tests run first and pass 7 XCTest cases, including runtime ABI/suite metadata checks, through Xcode 27 beta's xcrun swift.",
+    "matrix_command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-xcode27-gate.sh",
+    "matrix_install_run": "fresh dirty diagnostic pass at artifact/device-runs/xcode27-matrix-20260709T195437Z-c5fe98b3/apple-device-matrix-proof.json, generated 2026-07-09T19:55:09.998896Z under Xcode 27.0 beta build 27A5194q: git commit d0475a94276bc5ff65deb1c5367d1f56ca436f5b with source_tree_dirty=true; physical iPad16,3 on iPadOS 27.0 build 24A5380h (device id sha256 prefix 43d3f562bebe, run id 213bb17836f76dec6ec74fb23b282507) plus physical iPhone17,1 on iOS 26.5 build 23F77 (device id sha256 prefix 8321541a7563, run id b7764f483beea8db153c3a25e4b9d814). Matrix proof requires one physical iPad and one physical iPhone proof plus apple-device-matrix-proof.json. The xcode27 gate ran proof-to-byte without QPERIAPT_SKIP_SMOKE and completed the Tier-1 smoke with QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1. Rerun matrix_command from a clean tree before claiming release-grade QPERIAPT_DEVICE_PASS coverage.",
+    "matrix_proof_sha256": "f23b931eb7283d924b3bca8d4698d5b4a6af2d9d8840293349013a494d448401",
+    "provisioning": "uses a local Xcode-managed iOS Team Provisioning Profile with team id sha256 prefix dd5cc4f59c0c, expiring 2027-01-17; proof JSON verifies team, bundle id, selected device membership, profile expiration, codesign entitlements, static Rust FFI linkage, and weak AppIntents linkage."
+  },
+  "artifact": "Q-Periapt \u2014 assumption-minimal, cross-substrate binding assurance for PQ/T hybrid KEMs",
+  "local_release_index": {
+    "boundary": "Local diagnostic index only while source_tree_dirty=true; this is not a public release, registry upload, hosted Swift binaryTarget URL, Maven artifact, or clean release provenance. Raw device proof/log/profile artifacts are not copied into the index.",
+    "channel": "diagnostic",
+    "command": "QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1 QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=1 QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/xcode27-matrix-20260709T195437Z-c5fe98b3 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 sh artifact/local-release-index.sh",
+    "generated_at": "2026-07-09T19:56:27.261458Z",
+    "index_path": "target/qperiapt-local-release/0.0.1/d0475a94276bc5ff65deb1c5367d1f56ca436f5b/index.json",
+    "index_sha256": "7828252ca1048ffccd45fdc3fdb81237141051de3e560cd4635ce91b13de37d8",
+    "mode": "local hash-bound package index for C archive, Swift XCFramework zip, Android AAR, and sanitized runtime proof summaries",
+    "verify_command": "python3 artifact/release_index.py verify --index target/qperiapt-local-release/0.0.1/d0475a94276bc5ff65deb1c5367d1f56ca436f5b/index.json"
+  },
+  "ci_snapshot": {
+    "file": "artifact/ci-snapshot.log",
+    "note": "Historical local capture, NOT the current clean warning gate and NOT a GitHub Actions export. Current proof-to-byte validation is artifact/proof-to-byte.sh plus live build/test output.",
+    "sha256": "0011db9343ef501249173a27adf81176d5bf4f1a08c367fc148165e0dd0812d7"
+  },
+  "data_files": {
+    "baremetal_netem_transcript": "paper/camera-ready-results.txt",
+    "footprint_csv": "paper/footprint.csv",
+    "microbench_arm64_csv": "paper/microbench-arm64.csv"
+  },
   "expected": {
-    "workspace_tests_default_features": {
-      "cmd": "cargo test --workspace",
-      "passed": 100,
-      "failed": 0
+    "c_package": {
+      "cmd": "sh artifact/c-package.sh",
+      "expect": "C_ABI_PACKAGE_VERIFY_PASS; archive contains license texts plus CycloneDX CBOM/SBOM; extracted dynamic/static pkg-config and CMake consumers compile with warnings-as-errors and run the C ABI smoke"
     },
     "clippy": {
-      "cmd": "RUSTFLAGS=-D warnings cargo clippy --workspace --all-targets",
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
       "expect": "clean (no warnings)"
+    },
+    "easycrypt": {
+      "full_machinecheck": "BindingViaCR.ec checks and negative-controls.sh passes 7/7 under the pinned EasyCrypt r2026.06 container (formal/Dockerfile); this is the hard CI gate (Tier 2, not part of the smoke).",
+      "smoke_gate": "no `admit`/`sorry` in formal/easycrypt/*.ec"
     },
     "fmt": {
       "cmd": "cargo fmt --all --check",
       "expect": "clean (no diff)"
     },
-    "easycrypt": {
-      "smoke_gate": "no `admit`/`sorry` in formal/easycrypt/*.ec",
-      "full_machinecheck": "BindingViaCR.ec checks and negative-controls.sh passes 7/7 under the pinned EasyCrypt r2026.06 container (formal/Dockerfile); this is the hard CI gate (Tier 2, not part of the smoke)."
+    "symbolic": {
+      "proverif": "formal/proverif: query/event presence + `make prove` are hard-gated in CI.",
+      "tamarin": "formal/tamarin: lemma presence + `make prove` are hard-gated in CI."
+    },
+    "workspace_tests_default_features": {
+      "cmd": "cargo test --workspace",
+      "failed": 0,
+      "passed": 107
     }
   },
-  "data_files": {
-    "microbench_arm64_csv": "paper/microbench-arm64.csv",
-    "baremetal_netem_transcript": "paper/camera-ready-results.txt",
-    "footprint_csv": "paper/footprint.csv"
-  },
   "footprint_bytes": {
-    "platform": "Darwin 27.0.0 arm64, rustc 1.96.0",
-    "note": "Platform-dependent; regenerate per host with `sh paper/footprint.sh`.",
     "c_abi_cdylib_stripped": {
       "bytes": 815392,
       "kib": 796.3
     },
+    "note": "Platform-dependent; regenerate per host with `sh paper/footprint.sh`.",
+    "platform": "Darwin 27.0.0 arm64, rustc 1.96.0",
     "wasm_lean_default": {
       "bytes": 200170,
       "kib": 195.5
@@ -93,9 +110,125 @@
       "kib": 585.9
     }
   },
-  "ci_snapshot": {
-    "file": "artifact/ci-snapshot.log",
-    "sha256": "0011db9343ef501249173a27adf81176d5bf4f1a08c367fc148165e0dd0812d7",
-    "note": "A real local run of `artifact/smoke.sh` plus `cargo test --workspace`, clippy, and fmt. Verify with `shasum -a 256 artifact/ci-snapshot.log`. This is a local capture, NOT a GitHub Actions export."
+  "proof_to_byte_inputs": {
+    "android_aar_script_sha256": "81428728d797fc07af296eda1e543bccdfe2ad9870e3d900f60e10dac64d2a18",
+    "android_device_proof_tests_sha256": "9294b2b42e5be59396a07e06c5d3fa610a0f08c3ee06bc74049450b8fc49ac0d",
+    "android_device_proof_verifier_sha256": "e310404522c94b7949888dc7e9e28468f1a105ab65abd04464cf519c65971c08",
+    "android_device_smoke_script_sha256": "c52abd8b0d900a86b857aa8023b0b5215271706896a8f0c4dc5a917c08025ce7",
+    "android_facade_sha256": "98b1606885d15cadd57c15be394462a1b77526fa030543b94b771252998fe74f",
+    "android_jni_adapter_sha256": "15843532440667ed20d0e03f3bf69452e78d06cedab20311c7becb69a95ddab1",
+    "c_package_script_sha256": "6ee9166f42f7428bb2fe1c333e0ed6049034c00631f31a577381b9ce1d680c57",
+    "c_smoke_sha256": "fee85ad01ade9a7fdd31bc1de477eae54b59d5c4904de07edb377ebdcfe06d3b",
+    "contextbound_vectors_sha256": "df7d2613e74a8d4c27310d2d6b3b09ed18617280ded456a3f6e841940d8bde87",
+    "easycrypt_binding_sha256": "e56f85ebd1a29573866053244598efdcb87c210be0a9f2621d05f03f4f1b63d6",
+    "license_apache_sha256": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3",
+    "license_mit_sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
+    "license_sha256": "ed972005262b556e78016964a8c210b2e64e341b51d3064bab951b0b86f28c3f",
+    "local_release_index_script_sha256": "afa97909ded3d2d7097be04dd911ae5a65ed23cab04dd43efbaaa1646b1fea75",
+    "local_release_consumer_smoke_script_sha256": "0d886b6bba308989d6cc8910ae4451e1a3fc6b46dd9e43f0e176e8860095a66d",
+    "apple_device_matrix_script_sha256": "c4026b5ce6916d19cce6583f96fb58a20c0b133a013ea666955c626025d10284",
+    "apple_device_proof_verifier_sha256": "f9d50d288ae058ac7f9b2328ea3e45faa9146f1a0a8e849ce8e8b938796d13ef",
+    "apple_device_smoke_script_sha256": "89c95496953e329bd7e833c6f042f656469bc12986bcd2b79cfc31913fbc9e21",
+    "apple_device_xcode27_gate_script_sha256": "6d2f5008a85871ab7c28870bd269755e462323b506471e0efafdb701d553e8bd",
+    "proof_to_byte_script_sha256": "a9d7b0353996d7c783941605a3157f9cfcfd7e93865937f1364cc0ed22c9831e",
+    "proverif_model_sha256": "f44ad8116b67fe2657344495a83c127a58715c927d57a1bed29af6bc96b81681",
+    "qperiapt_cli_cargo_sha256": "a78cc8d0c784427990b78d72625627f4919d647589d3fe352d6086fc251293c8",
+    "qperiapt_cli_lib_sha256": "e03bf9bba815070a15dbc3490a7816bb660ac098461cd0a9a999f8397134e16f",
+    "qperiapt_cli_main_sha256": "2c151c071ed697907189b52468092c626568bc701e129de6ad4afd81d892644d",
+    "release_consumer_smoke_verifier_sha256": "90580da248bdbed761f098dfcc11702cc8ef2d4dfbfad5bd17b55f687286960b",
+    "release_index_verifier_sha256": "969e088dd380da9d83d4a6938b8613763595eaa18a2dd2bce0fd1d2c46c71029",
+    "shared_vectors_sha256": "230c0246b0c6a79cb96b3bd68641d0cb574ee237cb626626965b2db1b1ebd2f3",
+    "signed_policy_vectors_sha256": "cc725bdb6917bc82ce3bc69a699ae8e426cdf94bd4c043d5b72da2e5c667209a",
+    "swift_xcframework_script_sha256": "0e0fe8694a6d4a779e7bc826317038974995410957e90ccfe16f5ca2f06ae484",
+    "tamarin_model_sha256": "57c193ee85e2649e0bec3496c4132d65a7e3349aa3fa2fd130e4a5a601f022c1"
+  },
+  "provenance": {
+    "host_captured_on": "Darwin 27.0.0 arm64",
+    "note": "Values are bound to the implementation snapshot at this commit; this manifest is finalized in the immediately following provenance-only commit. Device install/run remains signing-account dependent and is tracked separately below.",
+    "snapshot_commit": "8b07f59e8cab2fd0ac89408773827a375faa8982",
+    "toolchain": {
+      "cargo": "1.96.0",
+      "minimum_cargo": "1.85",
+      "rustc": "1.96.0 (ac68faa20 2026-05-25)"
+    }
+  },
+  "purpose": "Expected-result manifest so a reviewer can detect data drift: every value below is measured, not asserted. Run `sh artifact/smoke.sh` and compare; Apple device proof is separate because it requires signing and a physical device.",
+  "rust_publish": {
+    "boundary": "This is not an upload and not a clean release proof while the worktree is dirty. First public release still requires clean tree, registry-order publishing, and release provenance for the actual crates.io versions.",
+    "command": "sh artifact/rust-publish-dry-run.sh",
+    "current_local_status": "dirty diagnostic run passed: metadata, package file-list denylist, and patched cargo publish --dry-run passed for every publishable crate; default clean-tree mode correctly rejects the current dirty worktree.",
+    "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
+    "mode": "patched cargo publish --dry-run pre-publication contract",
+    "nonpublishable_crates": [
+      "q-periapt-tls-demo",
+      "q-periapt-ctstats"
+    ],
+    "publishable_crates": [
+      "q-periapt-core",
+      "q-periapt-kem",
+      "q-periapt-sig",
+      "q-periapt-backends",
+      "q-periapt-policy",
+      "q-periapt-ffi",
+      "q-periapt-wasm",
+      "q-periapt-rustls",
+      "q-periapt-cli"
+    ]
+  },
+  "smoke": {
+    "command": "sh artifact/smoke.sh",
+    "expected_summary": "7 passed, 0 failed; ALL PASS; exit 0",
+    "needs": "Rust toolchain + a C compiler (no Docker / wasm-pack / Node / network beyond cargo fetch)",
+    "steps": [
+      {
+        "cmd": "cargo test -p q-periapt-core",
+        "expect": "12 passed",
+        "name": "core unit tests"
+      },
+      {
+        "cmd": "cargo test -p q-periapt-backends",
+        "expect": "40 + 2 = 42 passed (unit + binding_keyformat_separation)",
+        "name": "shared reference vectors"
+      },
+      {
+        "cmd": "cargo test -p q-periapt-ffi",
+        "expect": "15 passed",
+        "name": "C-ABI tests incl. aliasing"
+      },
+      {
+        "cmd": "cargo test -p q-periapt-wasm",
+        "expect": "5 passed",
+        "name": "WASM shared vector (host)"
+      },
+      {
+        "cmd": "cargo test -p q-periapt-rustls --test handshake",
+        "expect": "1 passed (real in-memory TLS 1.3 handshake over the hybrid group)",
+        "name": "rustls loopback handshake"
+      },
+      {
+        "cmd": "sh bindings/c/build-and-run.sh",
+        "expect": "ALL PASS",
+        "name": "C-ABI link-and-run smoke"
+      },
+      {
+        "cmd": "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/",
+        "expect": "grep finds nothing (exit 0)",
+        "name": "EasyCrypt no-admit gate"
+      }
+    ]
+  },
+  "swift_xcframework": {
+    "boundary": "This is not a public Swift package release and not a clean release proof while the worktree is dirty. Public distribution still requires a clean tree, hosted XCFramework URL/checksum, release provenance, and fresh physical iPad+iPhone proof for the same source state.",
+    "command": "sh artifact/swift-xcframework.sh",
+    "current_local_status": "dirty diagnostic run passed under Xcode 26.6: generated reproducible CQPeriapt.xcframework.zip, verified macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices, computed stable SwiftPM checksum 477b86ac92b9530405068468f64edb011eee8c8b22479d3b3bb81ebd80206c61 across two retained output directories, and ran an isolated binaryTarget consumer with 7 XCTest cases and 0 failures.",
+    "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1 sh artifact/swift-xcframework.sh",
+    "mode": "SwiftPM binaryTarget XCFramework pre-publication contract",
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "aarch64-apple-ios",
+      "aarch64-apple-ios-sim",
+      "x86_64-apple-ios"
+    ]
   }
 }
