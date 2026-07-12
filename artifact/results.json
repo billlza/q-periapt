@@ -40,7 +40,7 @@
   },
   "apple_device": {
     "command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_ID=<physical-device-udid> sh artifact/apple-device-smoke.sh",
-    "current_dirty_diagnostic": "Current 2026-07-12 ABI2 clean-tree single-device diagnostic passed macOS Swift XCTest 2/2 and a physical iPad Pro 11-inch (M4) build/install/launch/private-container-result roundtrip under Xcode 27 beta against canonical digest 9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9. The capture froze and rechecked the signed app executable and Rust static library around the device run; raw local evidence is 0700/0600. The strict iPad+iPhone aggregate remains stale because the paired iPhone is disconnected. This is source-bound single-device product-binding evidence, not the required paired release matrix, on-device binary attestation, or a Continuity session-protocol test.",
+    "current_dirty_diagnostic": "Current 2026-07-12 ABI2 clean-tree single-device diagnostic passed macOS Swift XCTest 2/2 and a physical iPad Pro 11-inch (M4) build/install/launch/private-container-result roundtrip under Xcode 27 beta against canonical digest 9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9. The capture froze and rechecked the signed app executable and Rust static library around the device run; raw local evidence is 0700/0600. The current_dirty_diagnostic field name is retained for schema compatibility, while the selected proof records source_tree_dirty=false. The distinct iPad+iPhone aggregate is recorded separately below. This is source-bound single-device product-binding evidence, not distribution signing, on-device binary attestation, or a Continuity session-protocol test.",
     "current_dirty_proof_generated_at": "2026-07-12T15:28:26.864849Z",
     "current_dirty_proof_path": "artifact/device-runs/apple-ipad-bf40ed2-20260712T152806Z/ipad-device-proof.json",
     "current_dirty_proof_schema": 2,
@@ -63,7 +63,7 @@
       "status": "pass"
     },
     "device_build": "Current clean-tree diagnostic: SwiftPM XCTest 2/2 passed, libq_periapt_ffi_abi2.a built for aarch64-apple-ios, Xcode 27 beta produced a warning-clean signed build, strict codesign verification passed, and app/staticlib hashes remained stable across the physical-device run.",
-    "device_install_run": "The connected physical iPad installed and launched the current-source binary, emitted one nonce-bound QPERIAPT_DEVICE_PASS marker, returned the exact marker from its app-private container, generated a source-bound schema-v2 proof, and passed strict independent validation. Simulator evidence was not accepted; the paired iPhone was disconnected, so the matrix remains stale.",
+    "device_install_run": "The connected physical iPad and distinct physical iPhone each installed and launched the current-source binary, emitted one unique nonce-bound QPERIAPT_DEVICE_PASS marker, returned the exact marker from its app-private container, generated a source-bound schema-v2 proof, and passed strict independent validation. Simulator evidence was not accepted, and the schema-v3 aggregate verified distinct device commitments and run identifiers.",
     "failed_attempts": [
       {
         "launch_log_path": "artifact/device-runs/ipad-snapshot-v2-20260711T070055Z/ipad-device-launch.log",
@@ -85,23 +85,23 @@
     "ios_staticlib": "cargo build -p q-periapt-ffi --release --target aarch64-apple-ios succeeds and the device runner links target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a directly.",
     "macos_native": "SwiftPM binding tests run first and pass 2 ABI2 product XCTest cases, including runtime ABI/suite metadata and signed-policy/OS-random workflow checks, through Xcode 27 beta's xcrun swift.",
     "matrix_command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' QPERIAPT_DEVICE_RESULT_DIR=<run-dir> QPERIAPT_DERIVED_DATA=<isolated-derived-dir> sh artifact/apple-device-matrix.sh",
-    "matrix_generated_at": "2026-07-12T06:21:14.343632Z",
-    "matrix_install_run": "Historical schema-v3 ABI2 dirty diagnostic pass at artifact/device-runs/apple-matrix-kctx-docsync-20260712T0617Z/apple-device-matrix-proof.json under Xcode 27 beta against canonical digest 2a26661c9d6055bac5b0b6226b148e917472c190de308adea36d451d78180b91; exactly one physical iPad plus one distinct physical iPhone. The source has since changed, so the aggregate and both child proofs are stale and must be rerun.",
-    "matrix_proof_path": "artifact/device-runs/apple-matrix-kctx-docsync-20260712T0617Z/apple-device-matrix-proof.json",
+    "matrix_generated_at": "2026-07-12T15:57:30.472983Z",
+    "matrix_install_run": "Current schema-v3 ABI2 clean-tree pass at artifact/device-runs/apple-matrix-fb54c17-20260712T155625Z/apple-device-matrix-proof.json under Xcode 27 beta against canonical digest 9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9; exactly one physical iPad plus one distinct physical iPhone, with distinct run identifiers and device commitments. Both child proofs and the aggregate passed strict independent verification, and raw evidence permissions are 0700/0600.",
+    "matrix_proof_path": "artifact/device-runs/apple-matrix-fb54c17-20260712T155625Z/apple-device-matrix-proof.json",
     "matrix_proof_schema": 3,
-    "matrix_proof_sha256": "022cc0bb77812d1dc9b87f7a61bad8e42c25af8520facffc63054cde06c034a7",
-    "matrix_source_status": "stale_requires_rerun",
+    "matrix_proof_sha256": "a189beac0db60d3f3c440e7a28125180757e5d89269918c254c6274c99049362",
+    "matrix_source_status": "current_dirty_diagnostic_pass",
     "matrix_status": "pass",
     "proof_source_tree_sha256": "9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9",
     "provisioning": "uses a local Xcode-managed iOS Team Provisioning Profile with team id sha256 prefix dd5cc4f59c0c, expiring 2027-01-17; proof JSON verifies team, bundle id, selected device membership, profile expiration, codesign entitlements, static Rust FFI linkage, and weak AppIntents linkage.",
-    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_APPLE_DEVICE=1 QPERIAPT_DEVICE_ARTIFACT_PREFIX=ipad QPERIAPT_EXPECT_DEVICE_TYPE=iPad QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/apple-ipad-bf40ed2-20260712T152806Z sh artifact/proof-to-byte.sh"
+    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX=1 QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/apple-matrix-fb54c17-20260712T155625Z sh artifact/proof-to-byte.sh"
   },
   "artifact": "Q-Periapt \u2014 assumption-minimal, cross-substrate binding assurance for PQ/T hybrid KEMs",
   "performance": {
-    "boundary": "The prior ABI2 source digest 80c418b20698a2105f6b840c5811400a75c3a560ca02e97549f85b4fafceb147 produced a complete schema-v2 raw stream with 81,920 paired samples per profile/operation, but the analyzer rejected the environment because combine block-median CV was 0.121067 against the fixed 0.050000 stability limit; no proof was emitted for that source. The source has since changed again. A fresh bc57a2c7 exact-source collection was not started because two preflights still showed MenuBarAgent at about 49-51% CPU and WindowServer at about 44-46% CPU, with Spotlight workers active on the first observation; another run is deferred until the host is quiet rather than selecting a favorable retry. The proof and metrics retained below belong to the earlier e12ffdd2 source snapshot and are historical only. Schema v4 keeps the same numeric budgets and both block scales. Any passing local proof remains a dirty single-host diagnostic, not clean release provenance, device energy evidence, or parity with production X-Wing/PQ3/Signal implementations.",
+    "boundary": "The current clean-tree schema-v4 proof binds commit fb54c1729cfd7d870961df2043e969a92d1523c0 and canonical source digest 9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9. It emitted all 491,520 schema-v2 raw records for 81,920 paired samples per profile/operation and passed the unchanged 5% block-median CV limit, both preregistered block scales, and every ratio/delta budget without a dirty or uncontrolled override. The proof records controlled AC-power and nominal-thermal observations before build, before run, after run, and after analysis; process-level CPU readiness and operator recovery actions are outside its authenticated schema. It remains single-host matched-backend evidence, not device energy evidence, distribution provenance, or parity with production X-Wing/PQ3/Signal implementations.",
     "budget_schema": 4,
-    "command": "sh artifact/python-run.sh artifact/performance_gate.py collect --root . --raw target/performance/paired-profile-abi2-final-20260712T0408Z.jsonl --proof target/performance/paired-profile-abi2-final-20260712T0408Z-proof.json --samples 81920 --warmup-ms 5000 --allow-dirty",
-    "current_source_status": "stale_requires_rerun",
+    "command": "sh artifact/python-run.sh artifact/performance_gate.py collect --root . --raw target/performance/paired-profile-fb54c17-20260712T160206Z.jsonl --proof target/performance/paired-profile-fb54c17-20260712T160206Z-proof.json --samples 81920 --warmup-ms 5000",
+    "current_source_status": "current_controlled_pass",
     "environment": "Darwin 27.0.0 arm64 Apple M1 Max, AC power, nominal thermal state at pre-build, pre-run, post-run, and post-analysis observations",
     "iterations_per_sample": {
       "combine": 256,
@@ -112,28 +112,28 @@
     "p99_tail_observations_per_pair_block": 11,
     "pair_block_size": 1024,
     "paired_upper_95": {
-      "combine_p95_delta_ns": 6995.93359375,
-      "decapsulate_p50_ratio": 1.0631209393118317,
-      "decapsulate_p95_delta_ns": 7458.0,
-      "decapsulate_p95_ratio": 1.080971617161716,
-      "decapsulate_p99_ratio": 1.0989102600449627,
-      "encapsulate_p50_ratio": 1.0431798742138365,
-      "encapsulate_p95_delta_ns": 7833.0,
-      "encapsulate_p95_ratio": 1.0586974043555493,
-      "encapsulate_p99_ratio": 1.1424828008500523
+      "combine_p95_delta_ns": 4368.328125,
+      "decapsulate_p50_ratio": 1.0632462448246582,
+      "decapsulate_p95_delta_ns": 5166.5,
+      "decapsulate_p95_ratio": 1.0690582776868263,
+      "decapsulate_p99_ratio": 1.072499458105537,
+      "encapsulate_p50_ratio": 1.0432746230216425,
+      "encapsulate_p95_delta_ns": 5001.0,
+      "encapsulate_p95_ratio": 1.0465539906103287,
+      "encapsulate_p99_ratio": 1.0532359081419624
     },
     "regression_guard_p99_tail_observations_per_pair_block": 3,
     "regression_guard_pair_block_size": 256,
     "regression_guard_upper_95": {
-      "combine_p95_delta_ns": 6910.80859375,
-      "decapsulate_p50_ratio": 1.0631093764790691,
-      "decapsulate_p95_delta_ns": 7229.0,
-      "decapsulate_p95_ratio": 1.0778354808114923,
-      "decapsulate_p99_ratio": 1.0834885434617372,
-      "encapsulate_p50_ratio": 1.0431899371069182,
-      "encapsulate_p95_delta_ns": 8708.0,
-      "encapsulate_p95_ratio": 1.0697695945604793,
-      "encapsulate_p99_ratio": 1.0980170038111992
+      "combine_p95_delta_ns": 4367.515625,
+      "decapsulate_p50_ratio": 1.0634746716697936,
+      "decapsulate_p95_delta_ns": 4958.5,
+      "decapsulate_p95_ratio": 1.066622134958066,
+      "decapsulate_p99_ratio": 1.068388594475449,
+      "encapsulate_p50_ratio": 1.0432562050387717,
+      "encapsulate_p95_delta_ns": 5208.0,
+      "encapsulate_p95_ratio": 1.048189613886705,
+      "encapsulate_p99_ratio": 1.0576815286624204
     },
     "previous_failed_attempts": [
       {
@@ -173,22 +173,23 @@
       }
     ],
     "proof_emitted": true,
-    "proof_generated_at": "2026-07-12T02:30:47.149979Z",
-    "proof_path": "target/performance/paired-profile-abi2-docsync-20260712T022615Z-proof.json",
+    "proof_generated_at": "2026-07-12T16:05:12.485370Z",
+    "proof_path": "target/performance/paired-profile-fb54c17-20260712T160206Z-proof.json",
     "proof_schema": 4,
-    "proof_sha256": "eca7d3444acf1c889e530c69aaacb6f382b6287595d2ef4626cd9ca708df6326",
-    "proof_source_tree_sha256": "e12ffdd2b63f8275385d89c96715d60869f317fd41bac943650573983ae82280",
-    "raw_path": "target/performance/paired-profile-abi2-docsync-20260712T022615Z.jsonl",
+    "proof_sha256": "5ee40deff58cbeb5d11bd9e24a2108732bca0d6a6260babb69758eb97ec02356",
+    "proof_source_tree_sha256": "9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9",
+    "raw_path": "target/performance/paired-profile-fb54c17-20260712T160206Z.jsonl",
     "raw_schema": 2,
-    "raw_sha256": "7b79c050b277b21fe31965f0a3b89e725040385d1865db8b152a036c04342729",
+    "raw_sha256": "aa879f40e5af6515241abc897f98d2484e8cd7f28e7d263df2f106e5fc423a88",
     "samples_per_profile_operation": 81920,
     "status": "pass",
     "stability_max_block_median_cv": {
-      "combine": 0.02758066753613369,
-      "decapsulate": 0.0025161871474682095,
-      "encapsulate": 0.0033505188328565912
+      "combine": 0.01103130587081823,
+      "decapsulate": 0.009259523567722052,
+      "encapsulate": 0.011317465183474843
     },
-    "validate_raw_command": "sh artifact/python-run.sh artifact/performance_gate.py validate-raw --raw target/performance/paired-profile-abi2-docsync-20260712T022615Z.jsonl"
+    "validate_raw_command": "sh artifact/python-run.sh artifact/performance_gate.py validate-raw --raw target/performance/paired-profile-fb54c17-20260712T160206Z.jsonl",
+    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_PERFORMANCE=1 QPERIAPT_PERFORMANCE_PROOF=target/performance/paired-profile-fb54c17-20260712T160206Z-proof.json sh artifact/proof-to-byte.sh"
   },
   "continuity_model": {
     "boundary": "Live source-bound model, strict PrekeySelectionV1 byte correspondence, and modeled-projection diagnostics only. No deployed wire protocol, manifest/prekey/directory authenticity, lease/consumption/tombstone state, projection-completeness proof, spec-to-Rust refinement, production persistence, session-security proof, or ABI2 release attestation.",
@@ -362,7 +363,7 @@
   "proof_source_tree_sha256": "9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
-    "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
+    "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
     "snapshot_commit": "bf40ed2eb0c226797c99c4681a088d5bae61c685",
     "toolchain": {
       "cargo": "1.96.0",
