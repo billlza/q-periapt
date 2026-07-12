@@ -93,6 +93,10 @@ The legacy JSON field `proof_source_tree_sha256`, transcript label `source-tree-
 `CLAIM_LEDGER_AND_SOURCE_TREE_PASS` marker are retained for schema/tool compatibility; each denotes
 this exclusions-aware canonical **source-input** digest, not an unfiltered Git tree hash or a
 hermetic build-input closure.
+The Apple manifest keys named `current_dirty_*` and the
+`current_dirty_diagnostic_pass` status are also legacy field names. The selected proof's
+`source_tree_dirty` value is authoritative; clean-tree single-device evidence may occupy those
+fields until a deliberate manifest-schema migration renames them atomically.
 
 The proof wrapper deliberately has no generic `PROOF_TO_BYTE_PASS` marker. It emits separate
 markers for manifest/source validation, Tier-1 host execution, formal machine-checking, Apple
@@ -107,8 +111,14 @@ release policy is decided; no generic all-platform release marker exists. Neithe
 nor historical device evidence is promoted to current release proof.
 The wrapper freezes the exact starting commit, canonical source digest, manifest digest, and dirty
 state before any domain gate. Its finalizer rechecks those values in one fail-closed Python boundary
-and includes the three immutable identifiers in the final marker; a commit or source transition
-during the run cannot be promoted by a later clean `git status` observation.
+and includes the three identifiers in the final marker. A persistent commit or source transition
+observed by the final recheck fails; a later merely clean `git status` observation cannot promote
+it. This does not make the working tree immutable: a same-UID replace-and-restore between samples
+remains outside detection and requires an isolated read-only checkout or a signed or
+transparency-backed source root.
+The final marker is only a terminal summary inside a successfully completed
+`artifact/proof-to-byte.sh` transcript whose exit status and preceding gate output are retained. It
+is not signed or independently verifiable, and a detached or copied marker line is not evidence.
 
 The Tamarin and ProVerif gates cover the current four-flight server-authenticated
 handshake only. They do not cover PQXDH, SPQR/Triple Ratchet, ML-KEM Braid, Sesame,
@@ -133,9 +143,10 @@ re-enrollment/reset; a version alone cannot be converted into an exact-policy di
 The noncanonical Continuity research snapshot shape is unrelated and never a release substitute.
 The HQC dependency-graph/tombstone change also changes the canonical source-input digest. Therefore
 all proofs captured before that change became stale even if their hardware run passed. The selected
-dirty single-iPad diagnostic has since been regenerated on the live source and is reverified through
-the manifest, but it is neither clean provenance nor the required iPad+iPhone matrix. The paired
-matrix and matched-performance proof still require fresh source-bound runs.
+clean-tree single-iPad diagnostic has since been regenerated on the live source and is reverified
+through the manifest, but it is neither the required iPad+iPhone matrix nor independent signed
+release provenance. The paired matrix and matched-performance proof still require fresh
+source-bound runs.
 
 The expected per-step counts, toolchain, footprint sizes, and data-file pointers are pinned in
 [`artifact/results.json`](artifact/results.json) (every value measured, so drift is visible). A

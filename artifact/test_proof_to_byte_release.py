@@ -74,25 +74,18 @@ HQC_CANDIDATE_PROOF_INPUTS = {
 }
 
 
-def run_marker(*states: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [
-            "sh",
-            str(ROOT / "artifact" / "python-run.sh"),
-            str(FINALIZER_SCRIPT),
-            "format",
-            "--commit",
-            TEST_COMMIT,
-            "--source-sha256",
-            TEST_SOURCE_SHA256,
-            "--manifest-sha256",
-            TEST_MANIFEST_SHA256,
-            *(str(state) for state in states),
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-        env=env,
+def format_marker(*states: int) -> str:
+    state = proof_to_byte_finalizer.AttestationState.from_values(
+        [str(value) for value in states]
+    )
+    return proof_to_byte_finalizer.format_attestation_marker(
+        state,
+        proof_to_byte_finalizer.SourceSnapshot(
+            commit=TEST_COMMIT,
+            source_sha256=TEST_SOURCE_SHA256,
+            manifest_sha256=TEST_MANIFEST_SHA256,
+            dirty=state.source_tree_dirty,
+        ),
     )
 
 
@@ -574,44 +567,40 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
 
     def test_clean_complete_state_requires_real_dependency_audit_pass(self) -> None:
-        result = run_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
         self.assertEqual(
-            result.stdout,
+            marker,
             "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=not_required"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
-            f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
+            f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
     def test_required_camera_bundle_is_part_of_release_state(self) -> None:
-        missing = run_marker(1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0)
-        self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", missing.stdout)
-        self.assertIn("camera_ready_bundle=0", missing.stdout)
-        verified = run_marker(1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0)
+        missing = format_marker(1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0)
+        self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", missing)
+        self.assertIn("camera_ready_bundle=0", missing)
+        verified = format_marker(1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0)
         self.assertEqual(
-            verified.stdout,
+            verified,
             "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=verified"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
-            f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
+            f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
     def test_missing_audit_is_scoped_summary_even_if_environment_claims_pass(self) -> None:
-        environment = os.environ.copy()
-        environment["DEPENDENCY_AUDIT_PASSED"] = "1"
-        result = run_marker(1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, env=environment)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", result.stdout)
-        self.assertIn("dependency_audit=0", result.stdout)
-        self.assertNotIn("PROOF_TO_BYTE_APPLE_RELEASE_PASS", result.stdout)
+        with mock.patch.dict(os.environ, {"DEPENDENCY_AUDIT_PASSED": "1"}):
+            marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0)
+        self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", marker)
+        self.assertIn("dependency_audit=0", marker)
+        self.assertNotIn("PROOF_TO_BYTE_APPLE_RELEASE_PASS", marker)
 
     def test_dirty_source_tree_cannot_emit_release_pass(self) -> None:
-        result = run_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0)
         self.assertEqual(
-            result.stdout,
+            marker,
             "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=dirty_source_tree"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
-            f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
+            f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
     def test_allow_dirty_proof_override_cannot_emit_release_pass(self) -> None:
@@ -620,7 +609,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 apple_override=apple_override,
                 performance_override=performance_override,
             ):
-                result = run_marker(
+                marker = format_marker(
                     1,
                     1,
                     0,
@@ -634,18 +623,34 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     apple_override,
                     performance_override,
                 )
-                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(
-                    result.stdout,
+                    marker,
                     "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=diagnostic_proof_override"
                     f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
-                    f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
+                    f" manifest_sha256={TEST_MANIFEST_SHA256}",
                 )
 
     def test_invalid_marker_state_fails_closed(self) -> None:
-        result = run_marker(1, 1, 0, 1, 0, 1, 2, 0, 1, 0, 0, 0)
+        with self.assertRaisesRegex(
+            proof_to_byte_finalizer.FinalizerError,
+            "release attestation state must be 0 or 1",
+        ):
+            format_marker(1, 1, 0, 1, 0, 1, 2, 0, 1, 0, 0, 0)
+
+    def test_format_cli_is_not_exposed(self) -> None:
+        result = subprocess.run(
+            [
+                "sh",
+                str(ROOT / "artifact" / "python-run.sh"),
+                str(FINALIZER_SCRIPT),
+                "format",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
         self.assertEqual(result.returncode, 2)
-        self.assertIn("release attestation state must be 0 or 1", result.stderr)
+        self.assertIn("invalid choice: 'format'", result.stderr)
         self.assertEqual(result.stdout, "")
 
     def test_finalizer_rejects_clean_commit_transition(self) -> None:

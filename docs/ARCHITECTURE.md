@@ -416,7 +416,7 @@ dependency audit, clean provenance, a same-source clean iPad+iPhone matrix, and 
 pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
 upgraded from a version alone; hosts require explicit authorized re-enrollment/reset.
 The HQC graph/tombstone change invalidated every pre-change Apple/performance proof. A
-source-bound dirty single-iPad diagnostic has since been regenerated and manifest-reverified;
+clean-tree, source-bound single-iPad diagnostic has since been regenerated and manifest-reverified;
 the clean paired matrix and matched-performance proof remain stale/pending.
 
 ### 6.4 X-Wing conformance KAT

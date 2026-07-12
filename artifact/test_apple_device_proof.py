@@ -170,7 +170,7 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
             )
 
     def test_device_id_digest_is_recomputed(self) -> None:
-        device_id = "00008132-0006452C1138801C"
+        device_id = "00000000-0000000000000000"
         apple_device_proof.verify_device_id_digest(
             {
                 "device_id": device_id,
@@ -236,7 +236,7 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         self.assertNotIn('cat "$BUILD_LOG"', script)
         self.assertNotIn('cat "$LOG"', script)
 
-    def test_emit_rejects_binary_replacement_after_install_freeze(self) -> None:
+    def test_emit_rejects_binary_replacements_after_install_freeze(self) -> None:
         executable = self.root / "target" / "app" / "QPeriaptDeviceRunner"
         staticlib = self.root / "target" / "libq_periapt_ffi_abi2.a"
         executable.parent.mkdir(parents=True)
@@ -257,6 +257,18 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(
             SystemExit,
             "app executable changed after device-install freeze",
+        ):
+            apple_device_proof.verify_expected_binary_hashes(
+                executable,
+                staticlib,
+                executable_sha256,
+                staticlib_sha256,
+            )
+        executable.write_bytes(b"installed executable")
+        staticlib.write_bytes(b"replacement staticlib")
+        with self.assertRaisesRegex(
+            SystemExit,
+            "static Rust FFI library changed after device-install freeze",
         ):
             apple_device_proof.verify_expected_binary_hashes(
                 executable,

@@ -96,7 +96,7 @@ is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
 product-suite identity. Upstream says it tracks an IPD, but as of 2026-07-12 NIST
 still says FIPS 207 is coming soon and no official IPD is retrievable; freezing the
 eventual official text is a promotion gate. That source-graph change invalidated all pre-change
-Apple and performance proofs. A regenerated source-bound dirty single-iPad diagnostic now passes;
+Apple and performance proofs. A regenerated clean-tree, source-bound single-iPad diagnostic now passes;
 the clean paired matrix and matched-performance proof remain stale/pending. ABI 2 remains unpublished, and the
 unsuppressed upstream `proc-macro-error2` advisory through libcrux/hax remains a hard
 release blocker.
@@ -339,7 +339,7 @@ release blocker.
   trusted-caller values; the native ABI exports no raw crypto bypass, but decision APIs still only
   reduce accidental mixing and do not authorize hostile same-process code. An opaque
   in-process handle is also insufficient; a trusted service/process must own the key and state.
-- A source-bound dirty single-iPad diagnostic passes, but a fresh clean current-source iPad+iPhone
+- A clean-tree, source-bound single-iPad diagnostic passes, but a fresh clean current-source iPad+iPhone
   matrix is pending. The matched-backend Mac gate accepts
   only controlled canonical-source-input proofs, but device energy, rustls end-to-end, clean baseline
   history, and optimized-production parity remain unproved.

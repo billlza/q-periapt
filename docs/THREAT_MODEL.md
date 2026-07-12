@@ -430,7 +430,7 @@ when its source digest matches the live canonical tree and the host satisfies th
 controlled-environment contract; `artifact/results.json` carries a path/hash/schema/source/pass
 summary, while the required performance verifier checks the selected proof and artifacts. The
 HQC graph/tombstone change changed that digest, so every pre-change proof became stale regardless
-of whether its older-source run passed. The selected dirty single-iPad diagnostic has since been
+of whether its older-source run passed. The selected clean-tree, source-bound single-iPad diagnostic has since been
 regenerated and manifest-reverified on the live source; the clean paired Apple matrix and the
 matched-performance proof remain stale/pending. The
 schema-v4 producer fixes Cargo/Rustc executable hashes, versions, and target; rejects repository/

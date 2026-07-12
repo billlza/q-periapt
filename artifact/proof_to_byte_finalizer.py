@@ -239,11 +239,6 @@ def build_parser() -> argparse.ArgumentParser:
     finalize.add_argument("--expected-source-dirty", choices=("0", "1"), required=True)
     finalize.add_argument("states", nargs="*")
 
-    marker = subparsers.add_parser("format")
-    marker.add_argument("--commit", required=True)
-    marker.add_argument("--source-sha256", required=True)
-    marker.add_argument("--manifest-sha256", required=True)
-    marker.add_argument("states", nargs="*")
     return parser
 
 
@@ -259,16 +254,6 @@ def run(args: argparse.Namespace) -> None:
             f"{snapshot.commit}:{snapshot.source_sha256}:{int(snapshot.dirty)}"
         )
         return
-    if args.command == "format":
-        snapshot = SourceSnapshot(
-            commit=args.commit,
-            source_sha256=args.source_sha256,
-            manifest_sha256=args.manifest_sha256,
-            dirty=False,
-        )
-        print(format_attestation_marker(AttestationState.from_values(args.states), snapshot))
-        return
-
     expected_dirty = args.expected_source_dirty == "1"
     snapshot = capture_source_snapshot(
         args.root.resolve(),

@@ -357,8 +357,8 @@ are the gap between research-grade and audited/production.
    an isolated source-only launcher rather than trusting Git excludes, repository pyc, user-site,
    or caller `PYTHON*`. The Apple device matrix is also real proof when explicitly required
    (`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1`). The HQC graph/tombstone change invalidated the
-   earlier Apple evidence. A regenerated source-bound dirty single-iPad diagnostic now passes, but
-   it is neither clean release provenance nor a Continuity session-protocol result. The older
+   earlier Apple evidence. A regenerated clean-tree, source-bound single-iPad diagnostic now passes,
+   but it is neither complete release provenance nor a Continuity session-protocol result. The older
    paired matrix remains stale. Time-varying status lives only in the results manifest; a source
    document cannot promote an older device digest. A fresh clean iPad+iPhone,
    same-commit schema-v3 matrix remains required for release. This is still not a liboqs-style
@@ -384,7 +384,7 @@ are the gap between research-grade and audited/production.
    matched-performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
    The HQC dependency-graph/tombstone change invalidated the pre-change Apple/performance proofs.
-   A dirty single-iPad proof has since been regenerated, but the paired Apple matrix and performance
+   A clean-tree single-iPad proof has since been regenerated, but the paired Apple matrix and performance
    proof remain stale. ABI 2 remains unpublished until every release-scoped gate passes.
 
 6. **Production hardening.** Backends are pre-1.0 / unaudited (`libcrux 0.0.9`
@@ -478,7 +478,7 @@ are the gap between research-grade and audited/production.
 | Remaining ACVP modes: `externalMu=true` (no libcrux μ-entry) / non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; rerun required for the current source tree** |
-| Physical Apple matrix proof (iPad + iPhone, Xcode 27 beta lane) | **Pending for current clean source; current dirty single-iPad diagnostic passes, but single-device/dirty evidence is not release proof** |
+| Physical Apple matrix proof (iPad + iPhone, Xcode 27 beta lane) | **Pending for current clean source; the current clean-tree single-iPad diagnostic passes, but single-device evidence is not matrix release proof** |
 | Strict evidence snapshots + selected-proof atomic manifest binding | **Implemented: duplicate/non-finite JSON and top-level hash/semantics A/B mixing fail closed; clean signed manifest provenance remains pending** |
 | Git/Python verifier-input provenance | **Implemented and negative-tested: local excludes, hidden index flags, ignored pyc, user-site/`.pth`, and caller `PYTHON*` fail closed; external interpreter/host attestation remains pending** |
 | Android AAR/JNI package proof | **Fresh four-ABI ABI2 package, symbol/SONAME/DT_NEEDED, Java/JNI `-Werror`, dex and isolated-consumer proof pass; ART runtime remains pending** |
