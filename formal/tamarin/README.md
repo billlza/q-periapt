@@ -7,7 +7,17 @@ proof in [`../easycrypt`](../easycrypt): EasyCrypt establishes the *combiner's* 
 in the computational model; Tamarin establishes the *protocol's* authentication and
 hybrid secrecy in the symbolic model.
 
-> **STATUS: MACHINE-CHECKED.** ✅ `make prove` verifies all four lemmas (Tamarin 1.10.0).
+This is a **four-flight demo-handshake model**, not a model of PQXDH, Signal's
+SPQR/Triple Ratchet, ML-KEM Braid, Sesame, Apple PQ3, or the future Q-Periapt
+Continuity work. It has no identity directory, prekey lifecycle, persistent ratchet,
+multi-device state, crash/rollback behavior, or recovery. The future proof matrix is
+specified in [`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md);
+none of those claims may be inferred from the five lemmas below.
+The separate `publish = false` lifecycle model exercises opaque persistence/effect
+ordering only; it is not imported into this Tamarin theory and proves no session
+authentication, FS, PCS, or rollback property.
+
+> **STATUS: MACHINE-CHECKED.** ✅ `make prove` verifies all five lemmas (Tamarin 1.10.0).
 
 ## File: [`handshake.spthy`](handshake.spthy)
 
@@ -40,7 +50,8 @@ pins the server's ML-DSA verifying key out of band.
 | Lemma | Meaning |
 |-------|---------|
 | `executable` | the honest handshake can complete (sanity, exists-trace) |
-| `server_authentication` | a client that finishes ⟹ the server ran a matching session over the same transcript (injective-style agreement), unless the signing key was revealed |
+| `server_authentication` | a client that finishes ⟹ the server ran a matching session over the same key and transcript, unless the signing key was revealed |
+| `authenticated_context_agreement` | absent signing-key compromise, the context accepted by the client is exactly the context previously committed by the server for the same session key and authenticated transcript |
 | `hybrid_secrecy` | the accepted session key is secret unless **both** KEM components are broken **or** the signing key was revealed |
 | `hybrid_robustness_authenticated` | **the headline:** with an honest server identity, the session key survives a break of *either* the post-quantum *or* the classical KEM — only breaking **both** loses it |
 
@@ -51,6 +62,6 @@ unbroken (given the signature authenticates the ephemeral key material).
 ## Run
 
 ```sh
-make prove      # prove all four lemmas
+make prove      # prove all five lemmas
 make check      # parse + wellformedness only (fast)
 ```

@@ -17,33 +17,33 @@
 % ---- proof (top) ----
 \node[proof] (proof)
   {\textbf{Machine-checked binding} \;(EasyCrypt, \texttt{BindingViaCR.ec})\\[1pt]
-   MAL-BIND-K-\{CT,\,PK,\,CTX\} $\;\le\;$ CR(SHA3-256)\, --- CDM Fig.\,6, zero KEM assumption};
+   standard MAL-BIND-K-\{CT,\,PK\} $+$ syntactic K-CTX extension $\;\le\;$ CR(SHA3-256)\\[-1pt]
+   {\scriptsize CDM Fig.\,6 for CT/PK; K-CTX is outside the CDM lattice; zero KEM assumption}};
 % ---- single core ----
 \node[core, below=5mm of proof] (core)
-  {\textbf{ContextBound} combiner \;|\; one Rust \texttt{no\_std} core (the proven object)};
-% ---- five language faces (own row, f3 centred under core) ----
-\node[face, below=8mm of core] (f3) {WASM};
-\node[face, left=2.4mm of f3] (f2) {C\,ABI};
-\node[face, left=2.4mm of f2] (f1) {Rust};
-\node[face, right=2.4mm of f3] (f4) {Swift};
-\node[face, right=2.4mm of f4] (f5) {Kotlin};
-\node[lbl, left=2mm of f1] {5 faces};
+  {\textbf{ContextBound} combiner \;|\; one Rust \texttt{no\_std} core (conformance target)};
+% ---- evidence planes (own row, centred under core) ----
+\node[face, below=8mm of core] (f3) {Rust / WASM\\deterministic};
+\node[face, left=4mm of f3, text width=24mm] (f2) {ISA KAT / ACVP\\conformance};
+\node[face, right=4mm of f3, text width=28mm] (f4)
+  {ABI~2 C / Swift / Kotlin / Android\\OS-random product};
 % ---- substrate (below the faces row) ----
 \node[sub, below=7mm of f3, text width=74mm] (substrate)
-  {\textbf{3 OS}\, Linux $\cdot$ macOS $\cdot$ Windows-MSVC \hfill \textbf{5 ISA}\\[1pt]
+  {\textbf{reported OS cells}\, Linux $\cdot$ macOS $\cdot$ Windows-MSVC \hfill \textbf{5 ISA}\\[1pt]
    x86-64 $\cdot$ aarch64 $\cdot$ riscv64 $\cdot$ wasm32 $\cdot$ thumbv7em};
 % ---- output: byte-identical K ----
 \node[result, below=6mm of substrate] (k)
-  {\textbf{byte-identical shared secret} $K$ \;(the \emph{same} 32 bytes on every cell)};
+  {\textbf{two explicit evidence claims}: byte-identical $K$ in deterministic cells;\\
+   signed-policy / round-trip / atomic-failure parity in ABI~2 product cells};
 % ---- verification methods (footer) ----
 \node[box, below=4mm of k, fill=black!3, draw=black!35, font=\scriptsize, text width=82mm] (ver)
   {\textit{verified 6 ways:}\, fixed KATs (X-Wing, RFC\,7748) $\cdot$ NIST ACVP $\cdot$ independent
    differential $\cdot$ EasyCrypt proof $\cdot$ cross-platform byte-identity $\cdot$ property tests};
 % ---- arrows ----
-\draw[flow] (proof) -- (core) node[midway, right, lbl] {specifies};
-\foreach \f in {f1,f2,f3,f4,f5} \draw[flow, black!45] (core) -- (\f.north);
-\draw[flow] (f3) -- (substrate) node[midway, right, lbl] {compiled \& run across};
-\draw[flow] (substrate) -- (k) node[midway, right, lbl] {all decapsulate to};
+\draw[flow] (proof) -- (core) node[midway, right, lbl] {conformance link};
+\foreach \f in {f2,f3,f4} \draw[flow, black!45] (core) -- (\f.north);
+\draw[flow] (f3) -- (substrate) node[midway, right, lbl] {compiled; 4 ISA run};
+\draw[flow] (substrate) -- (k) node[midway, right, lbl] {claim by cell type};
 % ---- proof-to-byte brace (right) ----
 \coordinate (rt) at ($(proof.east)+(4mm,0)$);
 \coordinate (rb) at ($(k.east)+(4mm,0)$);

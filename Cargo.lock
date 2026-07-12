@@ -360,9 +360,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-epoch"
-version = "0.9.18"
+version = "0.9.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+checksum = "2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -620,12 +620,6 @@ dependencies = [
  "r-efi 6.0.0",
  "rand_core 0.10.1",
 ]
-
-[[package]]
-name = "glob"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "half"
@@ -1124,37 +1118,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pqcrypto-hqc"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41b53d94e26b7e7e625a4bd379b7237987b986e7791e07bee4081d9478c20a0f"
-dependencies = [
- "cc",
- "glob",
- "libc",
- "pqcrypto-internals",
- "pqcrypto-traits",
-]
-
-[[package]]
-name = "pqcrypto-internals"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4a326caf27cbf2ac291ca7fd56300497ba9e76a8cc6a7d95b7a18b57f22b61d"
-dependencies = [
- "cc",
- "dunce",
- "getrandom 0.3.4",
- "libc",
-]
-
-[[package]]
-name = "pqcrypto-traits"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94e851c7654eed9e68d7d27164c454961a616cf8c203d500607ef22c737b51bb"
-
-[[package]]
 name = "proc-macro-error-attr2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1206,7 +1169,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-backends"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "criterion",
  "fips205",
@@ -1216,8 +1179,6 @@ dependencies = [
  "ml-dsa",
  "ml-kem",
  "orion",
- "pqcrypto-hqc",
- "pqcrypto-traits",
  "proptest",
  "q-periapt-core",
  "q-periapt-kem",
@@ -1231,19 +1192,23 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-cli"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "clap",
  "serde_json",
 ]
 
 [[package]]
+name = "q-periapt-continuity-model"
+version = "0.1.0-alpha.1"
+
+[[package]]
 name = "q-periapt-core"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 
 [[package]]
 name = "q-periapt-ctstats"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "cc",
  "q-periapt-backends",
@@ -1253,8 +1218,9 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-ffi"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
+ "getrandom 0.3.4",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-kem",
@@ -1264,25 +1230,26 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-kem"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-policy"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-sig",
  "serde",
+ "sha3",
  "toml",
 ]
 
 [[package]]
 name = "q-periapt-rustls"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1295,14 +1262,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-sig"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-tls-demo"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "getrandom 0.3.4",
  "q-periapt-backends",
@@ -1313,7 +1280,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-wasm"
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",

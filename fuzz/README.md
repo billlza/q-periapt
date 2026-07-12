@@ -3,6 +3,12 @@
 A detached crate (its own `[workspace]`) so the nightly/libFuzzer-only targets do
 not affect the stable `cargo build/clippy --workspace` gate.
 
+The current targets fuzz only the stateless combiner and ML-KEM decapsulation. They
+provide no coverage of a prekey/ratchet parser, persistent state machine, retries,
+rollback, or multi-device concurrency. Those targets become mandatory only if the
+future Continuity crate is implemented; see
+[`../docs/CONTINUITY_RESEARCH.md`](../docs/CONTINUITY_RESEARCH.md).
+
 ## Targets
 
 - **`combine`** — feeds arbitrary-length fields to `q_periapt_core::combine` (both

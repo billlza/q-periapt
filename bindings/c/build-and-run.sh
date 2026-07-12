@@ -6,14 +6,14 @@ set -eu
 cd "$(dirname "$0")/../.."
 
 echo "[1/2] cargo build -p q-periapt-ffi --release"
-cargo build -p q-periapt-ffi --release
+cargo build -p q-periapt-ffi --release --locked
 
 INC="crates/q-periapt-ffi/include"
 LIB="$(pwd)/target/release"
 CC="${CC:-cc}"
 
-echo "[2/2] $CC smoke.c -> link libq_periapt_ffi, then run"
+echo "[2/2] $CC smoke.c -> link libq_periapt_ffi_abi2, then run"
 # rpath embeds the cdylib location so the test runs without LD_LIBRARY_PATH/DYLD_LIBRARY_PATH.
 "$CC" -std=c11 -Wall -Wextra -Werror bindings/c/smoke.c -I "$INC" \
-    -L "$LIB" -lq_periapt_ffi -Wl,-rpath,"$LIB" -o "$LIB/c_smoke"
+    -L "$LIB" -lq_periapt_ffi_abi2 -Wl,-rpath,"$LIB" -o "$LIB/c_smoke"
 "$LIB/c_smoke"

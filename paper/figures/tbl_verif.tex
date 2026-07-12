@@ -12,8 +12,8 @@ Fixed KATs & X-Wing draft vectors; RFC\,7748 & published vectors & combiner \& X
 NIST ACVP & \textit{usnistgov} ACVP, full FIPS family & NIST ground truth & primitive non-conformance (FIPS 203/204/205) \\
 Multi-backend differential & RustCrypto \texttt{ml-kem}/\texttt{ml-dsa}; orion X25519 & independent re-impls. & implementation bugs (must stay byte-identical) \\
 EasyCrypt proof & machine-checked; CR(SHA3) & formal (computational) & binding-design flaws in the combiner \\
-Cross-platform byte-identity & shared test vector & 5 faces $\times$ substrates & per-substrate divergence (same $K$ everywhere) \\
-Generative property tests & proptest: 7 props $\times$ 128 cases & randomized & edge-case violations (injectivity, dom.\ sep., K-CTX) \\
+Cross-platform realization & deterministic vectors $+$ product invariants & evidence mode per cell & byte drift in conformance; policy/context/state/failure drift in ABI~2 product cells \\
+Generative property tests & proptest: 9 props $\times$ 128 cases & randomized & edge-case violations (injectivity, dom.\ sep., K-CTX) \\
 \bottomrule
 \end{tabular}
 \end{document}

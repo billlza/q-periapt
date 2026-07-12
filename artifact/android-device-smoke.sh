@@ -10,6 +10,7 @@ set -eu
 unset CDPATH
 ROOT=$(cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -59,7 +60,6 @@ PY
 }
 
 need cargo
-need git
 need javac
 need keytool
 need python3
@@ -71,7 +71,16 @@ if [ "${QPERIAPT_ANDROID_DEVICE_SKIP_VERIFY:-0}" = "1" ]; then
 fi
 
 if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "1" ]; then
-	if [ -n "$(git status --porcelain=v1)" ]; then
+	SOURCE_TREE_DIRTY=$(PYTHONPATH=artifact python3 - "$ROOT" <<'PY'
+import pathlib
+import sys
+
+from git_provenance import source_tree_dirty
+
+print(int(source_tree_dirty(pathlib.Path(sys.argv[1]))))
+PY
+)
+	if [ "$SOURCE_TREE_DIRTY" = "1" ]; then
 		printf 'error: Android device runtime gate requires a clean worktree; set QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1 only for local diagnostics\n' >&2
 		exit 2
 	fi
@@ -122,6 +131,16 @@ PACKAGE="dev.qperiapt.androidsmoke"
 RESULT_TXT="$DIST/qperiapt-android-device-result.txt"
 RESULT_JSON="$DIST/qperiapt-android-device-result.json"
 PROOF_JSON="$DIST/qperiapt-android-device-proof.json"
+SOURCE_TREE_SHA256=$(python3 - "$ROOT" <<'PY'
+import pathlib
+import sys
+
+from artifact.claim_ledger import canonical_tree_digest, repository_paths
+
+root = pathlib.Path(sys.argv[1]).resolve()
+print(canonical_tree_digest(root, repository_paths(root)))
+PY
+)
 
 if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
 	QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1 sh artifact/android-aar.sh
@@ -141,6 +160,10 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
+if [ "$VERSION" != "0.1.0-alpha.1" ]; then
+	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.0-alpha.1\n' "$VERSION" >&2
+	exit 1
+fi
 AAR_DIST="$ROOT/target/qperiapt-android-aar/q-periapt-android-$VERSION"
 AAR_PATH="$AAR_DIST/q-periapt-android-$VERSION.aar"
 test -f "$AAR_PATH" || {
@@ -202,8 +225,6 @@ DEX="$WORK/dex"
 APK_ROOT="$WORK/apk-root"
 ASSETS="$WORK/assets"
 mkdir -p "$SRC/dev/qperiapt/androidsmoke" "$CLASSES" "$DEX" "$APK_ROOT/lib" "$ASSETS"
-cp bindings/contextbound-vectors.txt "$ASSETS/contextbound-vectors.txt"
-cp bindings/shared-test-vectors.json "$ASSETS/shared-test-vectors.json"
 cp bindings/signed-policy-vectors.json "$ASSETS/signed-policy-vectors.json"
 for abi_dir in "$safe_unzip_dir"/jni/*; do
 	[ -d "$abi_dir" ] || continue
@@ -258,13 +279,8 @@ public final class QPeriaptSmokeActivity extends Activity {
         List<String> passed = new ArrayList<String>();
         try {
             runtimeMetadataMatches(passed);
-            combineReferenceVectors(passed);
-            sharedVectorDecapsulates(passed);
-            sharedVectorEncapsulates(passed);
-            contextBoundRejectsEmptyContext(passed);
-            compatXWingSeedKeypairRoundtrip(passed);
-            signedPolicySelectsProfileAndRejectsRollbackAndTamper(passed);
-            uint32ScalarsRejectNegativeAndOverflow(passed);
+            signedPolicyDecisionIsExactAndFailClosed(passed);
+            osRandomPolicyRoundtripAndWipes(passed);
             writeResult(runId, true, passed, null);
             Log.i(TAG, "QPERIAPT_ANDROID_DEVICE_PASS run-id=" + runId + " tests=" + passed.size());
         } catch (Throwable t) {
@@ -281,140 +297,73 @@ public final class QPeriaptSmokeActivity extends Activity {
 
     private void runtimeMetadataMatches(List<String> passed) {
         expect(QPeriaptAndroid.runtimeAbiVersion() == QPeriaptAndroid.ABI_VERSION, "ABI mismatch");
-        expect("0.0.1".equals(QPeriaptAndroid.runtimeVersion()), "version mismatch");
+        expect("0.1.0-alpha.1".equals(QPeriaptAndroid.runtimeVersion()), "version mismatch");
         assertBytes("ML-KEM-768+X25519".getBytes(StandardCharsets.UTF_8), QPeriaptAndroid.fixedSuiteId(), "suite id");
         expect(QPeriaptAndroid.fixedSuiteIdLen() == "ML-KEM-768+X25519".length(), "suite len");
+        expect(QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES == 65536, "signed policy limit");
+        expect(QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES == 65536, "application context limit");
         expect("ERR_POLICY".equals(QPeriaptAndroid.statusName(-3)), "status -3");
         expect("UNKNOWN_STATUS".equals(QPeriaptAndroid.statusName(12345)), "unknown status");
         passed.add("runtimeMetadataMatches");
     }
 
-    private void combineReferenceVectors(List<String> passed) throws Exception {
-        String text = asset("contextbound-vectors.txt");
-        int count = 0;
-        String[] lines = text.split("\\r?\\n");
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (trimmed.length() == 0) {
-                continue;
-            }
-            String[] parts = trimmed.split(" ");
-            if (parts.length != 3) {
-                continue;
-            }
-            byte[] got = QPeriaptAndroid.combine((byte) Integer.parseInt(parts[0]), hex(parts[1]));
-            assertBytes(hex(parts[2]), got, "combine vector " + count);
-            count++;
-        }
-        expect(count == 6, "expected 6 combine vectors, got " + count);
-        passed.add("combineReferenceVectors");
-    }
-
-    private void sharedVectorDecapsulates(List<String> passed) throws Exception {
-        String json = asset("shared-test-vectors.json");
-        byte[] secret = QPeriaptAndroid.decapsulate(
-                QPeriaptAndroid.PROFILE_CONTEXT_BOUND,
-                hex(field(json, "suite_id")),
-                intField(json, "policy_version"),
-                hex(field(json, "sk_pq")),
-                hex(field(json, "ct_pq")),
-                hex(field(json, "pk_pq")),
-                hex(field(json, "sk_trad")),
-                hex(field(json, "ct_trad")),
-                hex(field(json, "pk_trad")),
-                hex(field(json, "context"))
-        );
-        assertBytes(hex(field(json, "secret")), secret, "decapsulated shared vector secret");
-        passed.add("sharedVectorDecapsulates");
-    }
-
-    private void sharedVectorEncapsulates(List<String> passed) throws Exception {
-        String json = asset("shared-test-vectors.json");
-        QPeriaptAndroid.EncapsulationResult enc = QPeriaptAndroid.encapsulate(
-                QPeriaptAndroid.PROFILE_CONTEXT_BOUND,
-                hex(field(json, "suite_id")),
-                intField(json, "policy_version"),
-                hex(field(json, "pk_pq")),
-                hex(field(json, "pk_trad")),
-                hex(field(json, "context")),
-                hex(field(json, "rand_pq")),
-                hex(field(json, "rand_trad"))
-        );
-        assertBytes(hex(field(json, "ct_pq")), enc.ctPq(), "encapsulated ct_pq");
-        assertBytes(hex(field(json, "ct_trad")), enc.ctTrad(), "encapsulated ct_trad");
-        assertBytes(hex(field(json, "secret")), enc.secret(), "encapsulated secret");
-        passed.add("sharedVectorEncapsulates");
-    }
-
-    private void contextBoundRejectsEmptyContext(List<String> passed) throws Exception {
-        String json = asset("shared-test-vectors.json");
-        try {
-            QPeriaptAndroid.encapsulate(
-                    QPeriaptAndroid.PROFILE_CONTEXT_BOUND,
-                    hex(field(json, "suite_id")),
-                    intField(json, "policy_version"),
-                    hex(field(json, "pk_pq")),
-                    hex(field(json, "pk_trad")),
-                    new byte[0],
-                    hex(field(json, "rand_pq")),
-                    hex(field(json, "rand_trad"))
-            );
-            throw new AssertionError("empty ContextBound context was accepted");
-        } catch (QPeriaptAndroid.QPeriaptException err) {
-            expect(err.code() == -2, "empty ContextBound context rc=" + err.code());
-        }
-        passed.add("contextBoundRejectsEmptyContext");
-    }
-
-    private void compatXWingSeedKeypairRoundtrip(List<String> passed) {
-        byte[] seed = fill(QPeriaptAndroid.MLKEM_XWING_SEED_LEN, 7);
-        QPeriaptAndroid.KeyPairResult pq = QPeriaptAndroid.mlkem768XWingKeypair(seed);
-        QPeriaptAndroid.KeyPairResult trad = QPeriaptAndroid.x25519Keypair(fill(QPeriaptAndroid.X25519_LEN, 9));
-        QPeriaptAndroid.EncapsulationResult enc = QPeriaptAndroid.encapsulate(
-                QPeriaptAndroid.PROFILE_COMPAT_XWING,
-                "ML-KEM-768+X25519".getBytes(StandardCharsets.UTF_8),
-                1,
-                pq.publicKey(),
-                trad.publicKey(),
-                new byte[0],
-                fill(32, 3),
-                fill(32, 5)
-        );
-        byte[] dec = QPeriaptAndroid.decapsulate(
-                QPeriaptAndroid.PROFILE_COMPAT_XWING,
-                "ML-KEM-768+X25519".getBytes(StandardCharsets.UTF_8),
-                1,
-                pq.secretKey(),
-                enc.ctPq(),
-                pq.publicKey(),
-                trad.secretKey(),
-                enc.ctTrad(),
-                trad.publicKey(),
-                new byte[0]
-        );
-        assertBytes(enc.secret(), dec, "CompatXWing roundtrip");
-        passed.add("compatXWingSeedKeypairRoundtrip");
-    }
-
-    private void signedPolicySelectsProfileAndRejectsRollbackAndTamper(List<String> passed) throws Exception {
+    private void signedPolicyDecisionIsExactAndFailClosed(List<String> passed) throws Exception {
         String json = asset("signed-policy-vectors.json");
         byte[] policyToml = stringField(json, "policy_toml").getBytes(StandardCharsets.UTF_8);
         byte[] signature = hex(field(json, "signature"));
         byte[] verificationKey = hex(field(json, "verification_key"));
         byte expected = (byte) intField(json, "selected_profile_code");
-        byte profile = QPeriaptAndroid.profileFromSignedPolicy(
+        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
+                policyToml,
+                signature,
+                verificationKey
+        );
+        expect(decision.profile() == expected, "signed policy selected profile mismatch");
+        expect(decision.suiteCode() == QPeriaptAndroid.SUITE_MLKEM768_X25519,
+                "signed policy selected suite mismatch");
+        expect(decision.policyVersion() == intField(json, "policy_version"),
+                "signed policy selected version mismatch");
+        assertBytes(hex(field(json, "policy_digest")), decision.policyDigest(),
+                "exact signed policy digest");
+        QPeriaptAndroid.PolicyDecision reapplied = QPeriaptAndroid.decisionFromSignedPolicy(
                 policyToml,
                 signature,
                 verificationKey,
-                intField(json, "last_trusted_version_accept")
+                decision.trustedState()
         );
-        expect(profile == expected, "signed policy selected profile mismatch");
+        assertBytes(decision.policyDigest(), reapplied.policyDigest(), "reapplied policy digest");
         try {
-            QPeriaptAndroid.profileFromSignedPolicy(
+            QPeriaptAndroid.decisionFromSignedPolicy(
+                    policyToml, signature, verificationKey, new byte[] {0, 0, 0, 2});
+            throw new AssertionError("legacy ABI1 version-only state was accepted");
+        } catch (IllegalArgumentException expectedLegacyStateFailure) {
+            // ABI1 has no exact policy digest and therefore cannot be migrated automatically.
+        }
+        try {
+            QPeriaptAndroid.decisionFromSignedPolicy(
+                    new byte[QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES], signature, verificationKey);
+            throw new AssertionError("maximum-size invalid policy unexpectedly verified");
+        } catch (QPeriaptAndroid.QPeriaptException expectedPolicyFailure) {
+            // The exact boundary reached native verification rather than the facade size guard.
+        }
+        try {
+            QPeriaptAndroid.decisionFromSignedPolicy(
+                    new byte[QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES + 1], signature, verificationKey);
+            throw new AssertionError("oversized policy reached native verification");
+        } catch (IllegalArgumentException expectedSizeFailure) {
+            // The Java facade rejects before JNI copies the policy.
+        }
+        byte[] newerState = decision.trustedState();
+        newerState[0] = 0;
+        newerState[1] = 0;
+        newerState[2] = 0;
+        newerState[3] = (byte) intField(json, "last_trusted_version_reject");
+        try {
+            QPeriaptAndroid.decisionFromSignedPolicy(
                     policyToml,
                     signature,
                     verificationKey,
-                    intField(json, "last_trusted_version_reject")
+                    newerState
             );
             throw new AssertionError("rollback policy was accepted");
         } catch (QPeriaptAndroid.QPeriaptException err) {
@@ -424,38 +373,123 @@ public final class QPeriaptSmokeActivity extends Activity {
         int tamperByte = (int) intField(json, "tamper_signature_byte");
         tampered[tamperByte] = (byte) (tampered[tamperByte] ^ 1);
         try {
-            QPeriaptAndroid.profileFromSignedPolicy(policyToml, tampered, verificationKey, 0);
+            QPeriaptAndroid.decisionFromSignedPolicy(policyToml, tampered, verificationKey);
             throw new AssertionError("tampered policy signature was accepted");
         } catch (QPeriaptAndroid.QPeriaptException err) {
             expect(err.code() == -3, "tamper rc=" + err.code());
         }
-        passed.add("signedPolicySelectsProfileAndRejectsRollbackAndTamper");
+        passed.add("signedPolicyDecisionIsExactAndFailClosed");
     }
 
-    private void uint32ScalarsRejectNegativeAndOverflow(List<String> passed) throws Exception {
-        String json = asset("shared-test-vectors.json");
-        try {
-            QPeriaptAndroid.encapsulate(
-                    QPeriaptAndroid.PROFILE_CONTEXT_BOUND,
-                    hex(field(json, "suite_id")),
-                    -1,
-                    hex(field(json, "pk_pq")),
-                    hex(field(json, "pk_trad")),
-                    hex(field(json, "context")),
-                    hex(field(json, "rand_pq")),
-                    hex(field(json, "rand_trad"))
-            );
-            throw new AssertionError("negative policyVersion was accepted");
-        } catch (IllegalArgumentException expected) {
-            // expected
+    private void osRandomPolicyRoundtripAndWipes(List<String> passed) throws Exception {
+        String json = asset("signed-policy-vectors.json");
+        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
+                stringField(json, "policy_toml").getBytes(StandardCharsets.UTF_8),
+                hex(field(json, "signature")),
+                hex(field(json, "verification_key")));
+        byte[] applicationContext = "android-device-policy-context".getBytes(StandardCharsets.UTF_8);
+
+        QPeriaptAndroid.KeyPairResult keys = QPeriaptAndroid.generateKeypair(decision);
+        try (keys) {
+            byte[] skPq = keys.skPq();
+            byte[] skTrad = keys.skTrad();
+            byte[] encapsulatedSecret = null;
+            byte[] decapsulatedSecret = null;
+            byte[] wrongContextSecret = null;
+            try {
+                try (QPeriaptAndroid.EncapsulationResult maximumContext =
+                                QPeriaptAndroid.encapsulate(
+                                        decision,
+                                        keys.pkPq(),
+                                        keys.pkTrad(),
+                                        fill(QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES, 1))) {
+                    byte[] maximumSecret = maximumContext.takeSecret();
+                    QPeriaptAndroid.wipe(maximumSecret);
+                    assertWiped(maximumSecret, "maximum application-context secret");
+                }
+                try {
+                    QPeriaptAndroid.encapsulate(
+                            decision,
+                            keys.pkPq(),
+                            keys.pkTrad(),
+                            new byte[QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES + 1]);
+                    throw new AssertionError("oversized application context reached JNI");
+                } catch (IllegalArgumentException expectedSizeFailure) {
+                    // The Java facade rejects before JNI copies the context.
+                }
+                try (QPeriaptAndroid.EncapsulationResult encapsulation =
+                                QPeriaptAndroid.encapsulate(
+                                        decision, keys.pkPq(), keys.pkTrad(), applicationContext)) {
+                    encapsulatedSecret = encapsulation.takeSecret();
+                    try {
+                        encapsulation.secret();
+                        throw new AssertionError("transferred encapsulation secret remained readable");
+                    } catch (IllegalStateException expectedClosedResult) {
+                        // takeSecret transfers the sole binding-owned secret and closes the result.
+                    }
+                    decapsulatedSecret = QPeriaptAndroid.decapsulate(
+                            decision,
+                            skPq,
+                            encapsulation.ctPq(),
+                            keys.pkPq(),
+                            skTrad,
+                            encapsulation.ctTrad(),
+                            keys.pkTrad(),
+                            applicationContext);
+                    assertBytes(encapsulatedSecret, decapsulatedSecret,
+                            "OS-random policy-bound roundtrip");
+                    wrongContextSecret = QPeriaptAndroid.decapsulate(
+                            decision,
+                            skPq,
+                            encapsulation.ctPq(),
+                            keys.pkPq(),
+                            skTrad,
+                            encapsulation.ctTrad(),
+                            keys.pkTrad(),
+                            "wrong-context".getBytes(StandardCharsets.UTF_8));
+                    expect(!bytesEqual(decapsulatedSecret, wrongContextSecret),
+                            "application context was not committed");
+                }
+            } finally {
+                QPeriaptAndroid.wipe(skPq);
+                QPeriaptAndroid.wipe(skTrad);
+                if (encapsulatedSecret != null) {
+                    QPeriaptAndroid.wipe(encapsulatedSecret);
+                }
+                if (decapsulatedSecret != null) {
+                    QPeriaptAndroid.wipe(decapsulatedSecret);
+                }
+                if (wrongContextSecret != null) {
+                    QPeriaptAndroid.wipe(wrongContextSecret);
+                }
+            }
+            assertWiped(skPq, "ML-KEM secret key");
+            assertWiped(skTrad, "X25519 secret key");
+            if (encapsulatedSecret != null) {
+                assertWiped(encapsulatedSecret, "encapsulated secret");
+            }
+            if (decapsulatedSecret != null) {
+                assertWiped(decapsulatedSecret, "decapsulated secret");
+            }
+            if (wrongContextSecret != null) {
+                assertWiped(wrongContextSecret, "wrong-context secret");
+            }
         }
         try {
-            QPeriaptAndroid.profileFromSignedPolicy(new byte[0], new byte[0], new byte[0], 0x1_0000_0000L);
-            throw new AssertionError("overflow lastTrustedVersion was accepted");
-        } catch (IllegalArgumentException expected) {
-            // expected
+            keys.skPq();
+            throw new AssertionError("closed key-pair secrets remained readable");
+        } catch (IllegalStateException expectedClosedKeys) {
+            // close wipes the binding-owned key buffers and seals their accessors.
         }
-        passed.add("uint32ScalarsRejectNegativeAndOverflow");
+
+        try {
+            QPeriaptAndroid.decisionFromSignedPolicy(
+                    new byte[0], new byte[0], new byte[0], new byte[1]);
+            throw new AssertionError("malformed lastTrustedState was accepted");
+        } catch (IllegalArgumentException expectedMalformedState) {
+            // Malformed state never reaches native verification.
+        }
+        passed.add("osRandomPolicyRoundtripAndWipes");
     }
 
     private void writeResult(String runId, boolean ok, List<String> passed, Throwable failure) throws Exception {
@@ -558,6 +592,25 @@ public final class QPeriaptSmokeActivity extends Activity {
         }
     }
 
+    private static void assertWiped(byte[] value, String label) {
+        for (int i = 0; i < value.length; i++) {
+            if (value[i] != 0) {
+                throw new AssertionError(label + " was not wiped at byte " + i);
+            }
+        }
+    }
+
+    private static boolean bytesEqual(byte[] left, byte[] right) {
+        if (left.length != right.length) {
+            return false;
+        }
+        int difference = 0;
+        for (int i = 0; i < left.length; i++) {
+            difference |= left[i] ^ right[i];
+        }
+        return difference == 0;
+    }
+
     private static void expect(boolean condition, String label) {
         if (!condition) {
             throw new AssertionError(label);
@@ -608,7 +661,7 @@ UNSIGNED_APK="$WORK/unsigned.apk"
 ALIGNED_APK="$WORK/aligned.apk"
 SIGNED_APK="$DIST/qperiapt-android-smoke.apk"
 KEYSTORE="$WORK/qperiapt-android-smoke.p12"
-EXPECTED_MARKER="QPERIAPT_ANDROID_DEVICE_PASS run-id=$RUN_ID tests=8"
+EXPECTED_MARKER="QPERIAPT_ANDROID_DEVICE_PASS run-id=$RUN_ID tests=3"
 TARGET_SDK=$(python3 - "$ANDROID_PLATFORM" <<'PY'
 import pathlib
 import re
@@ -715,16 +768,14 @@ with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as dst:
 required = {
     "AndroidManifest.xml",
     "classes.dex",
-    "lib/arm64-v8a/libq_periapt_ffi.so",
-    "lib/arm64-v8a/libqperiapt_jni.so",
-    "lib/x86_64/libq_periapt_ffi.so",
-    "lib/x86_64/libqperiapt_jni.so",
-    "lib/armeabi-v7a/libq_periapt_ffi.so",
-    "lib/armeabi-v7a/libqperiapt_jni.so",
-    "lib/x86/libq_periapt_ffi.so",
-    "lib/x86/libqperiapt_jni.so",
-    "assets/contextbound-vectors.txt",
-    "assets/shared-test-vectors.json",
+    "lib/arm64-v8a/libq_periapt_ffi_abi2.so",
+    "lib/arm64-v8a/libqperiapt_jni_abi2.so",
+    "lib/x86_64/libq_periapt_ffi_abi2.so",
+    "lib/x86_64/libqperiapt_jni_abi2.so",
+    "lib/armeabi-v7a/libq_periapt_ffi_abi2.so",
+    "lib/armeabi-v7a/libqperiapt_jni_abi2.so",
+    "lib/x86/libq_periapt_ffi_abi2.so",
+    "lib/x86/libqperiapt_jni_abi2.so",
     "assets/signed-policy-vectors.json",
 }
 with zipfile.ZipFile(out) as zf:
@@ -732,6 +783,12 @@ with zipfile.ZipFile(out) as zf:
 missing = sorted(required - names)
 if missing:
     raise SystemExit("error: smoke APK missing required entries: " + ", ".join(missing))
+legacy = sorted(
+    name for name in names
+    if name.endswith("/libq_periapt_ffi.so") or name.endswith("/libqperiapt_jni.so")
+)
+if legacy:
+    raise SystemExit("error: smoke APK contains legacy ABI1 native names: " + ", ".join(legacy))
 PY
 "$ZIPALIGN" -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
 keytool -genkeypair \
@@ -950,23 +1007,21 @@ if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|Unsa
 fi
 "$ADB" -s "$SERIAL" uninstall "$PACKAGE" >"$DIST/adb-uninstall.log"
 
-python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'
-import json
+PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'
 import pathlib
 import sys
 
+from evidence_io import load_json_object_snapshot
+
 txt = pathlib.Path(sys.argv[1]).read_text()
-payload = json.loads(pathlib.Path(sys.argv[2]).read_text())
+payload = load_json_object_snapshot(
+    pathlib.Path(sys.argv[2]), label="Android device result"
+).value
 run_id = sys.argv[3]
 expected_tests = [
     "runtimeMetadataMatches",
-    "combineReferenceVectors",
-    "sharedVectorDecapsulates",
-    "sharedVectorEncapsulates",
-    "contextBoundRejectsEmptyContext",
-    "compatXWingSeedKeypairRoundtrip",
-    "signedPolicySelectsProfileAndRejectsRollbackAndTamper",
-    "uint32ScalarsRejectNegativeAndOverflow",
+    "signedPolicyDecisionIsExactAndFailClosed",
+    "osRandomPolicyRoundtripAndWipes",
 ]
 expected_marker = f"QPERIAPT_ANDROID_DEVICE_PASS run-id={run_id} tests={len(expected_tests)}\n"
 if txt != expected_marker:
@@ -985,7 +1040,7 @@ PY
 printf 'PASS: Android runtime smoke returned run-bound marker\n'
 
 printf '\n=== Emit Android runtime proof ===\n'
-python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_DIST/MANIFEST.json" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$ADB" <<'PY'
+python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_DIST/MANIFEST.json" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$ADB" "$SOURCE_TREE_SHA256" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -993,6 +1048,10 @@ import pathlib
 import re
 import subprocess
 import sys
+
+from artifact.claim_ledger import canonical_tree_digest, repository_paths
+from artifact.evidence_io import load_json_object_snapshot
+from artifact.git_provenance import git_commit, source_tree_dirty
 
 root = pathlib.Path(sys.argv[1])
 run_id = sys.argv[2]
@@ -1009,6 +1068,7 @@ android_platform = pathlib.Path(sys.argv[12])
 android_build_tools = pathlib.Path(sys.argv[13])
 aar_extract = pathlib.Path(sys.argv[14])
 adb = pathlib.Path(sys.argv[15])
+source_tree_sha256 = sys.argv[16]
 
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -1035,11 +1095,19 @@ for abi_dir in sorted((aar_extract / "jni").iterdir()):
     if not abi_dir.is_dir():
         continue
     native[abi_dir.name] = {
-        "ffi_so_sha256": sha256(abi_dir / "libq_periapt_ffi.so"),
-        "jni_so_sha256": sha256(abi_dir / "libqperiapt_jni.so"),
+        "ffi_so_sha256": sha256(abi_dir / "libq_periapt_ffi_abi2.so"),
+        "jni_so_sha256": sha256(abi_dir / "libqperiapt_jni_abi2.so"),
     }
 
-result_payload = json.loads(result_json.read_text())
+result_payload = load_json_object_snapshot(
+    result_json, label="Android device result"
+).value
+current_source_tree_sha256 = canonical_tree_digest(root, repository_paths(root))
+if current_source_tree_sha256 != source_tree_sha256:
+    raise SystemExit(
+        "error: canonical execution-input tree changed while Android runtime proof was running: "
+        f"got {current_source_tree_sha256}, expected {source_tree_sha256}"
+    )
 source_paths = {
     "android_device_smoke_script": root / "artifact/android-device-smoke.sh",
     "android_device_proof": root / "artifact/android_device_proof.py",
@@ -1047,8 +1115,7 @@ source_paths = {
     "android_aar_script": root / "artifact/android-aar.sh",
     "android_facade": root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
     "android_jni_adapter": root / "bindings/android/jni/qperiapt_jni.c",
-    "contextbound_vectors": root / "bindings/contextbound-vectors.txt",
-    "shared_vectors": root / "bindings/shared-test-vectors.json",
+    "c_abi_contract": root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
     "signed_policy_vectors": root / "bindings/signed-policy-vectors.json",
 }
 
@@ -1056,10 +1123,11 @@ def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
 
 payload = {
-    "schema": 1,
+    "schema": 2,
     "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
-    "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
-    "source_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain=v1"], cwd=root, text=True).strip()),
+    "git_commit": git_commit(root),
+    "source_tree_dirty": source_tree_dirty(root),
+    "proof_source_tree_sha256": source_tree_sha256,
     "device_runtime_proof": True,
     "package_only": False,
     "run_id": run_id,
@@ -1090,6 +1158,14 @@ payload = {
         "min_sdk": 23,
         "target_sdk": int(target_sdk_match.group(1)),
         "adb_version": subprocess.check_output([str(adb), "version"], text=True).splitlines()[0],
+    },
+    "abi": {
+        "major": 2,
+        "contract_path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+        "contract_sha256": sha256(root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"),
+        "runtime_library": "libq_periapt_ffi_abi2.so",
+        "jni_library": "libqperiapt_jni_abi2.so",
+        "legacy_library_names_present": False,
     },
     "result": {
         "marker_sha256": sha256(result_txt),

@@ -19,8 +19,12 @@
 ## 0. Scope and non-goals
 
 Q-Periapt does **not** implement any cryptographic primitive. ML-KEM-768, X25519,
-HQC, SHA3-256 and SHAKE256 come from vetted backends (libcrux / HACL\*-derived,
-x25519-dalek, pqcrypto-hqc, fips205). This document specifies only the
+SHA3-256 and SHAKE256 come from third-party backends (libcrux / HACL\*-derived,
+x25519-dalek, fips205), each with a distinct conformance/audit/constant-time
+boundary. The former timing-leaky, unmaintained PQClean-HQC adapter has been removed
+from the publishable/runtime graph. A RustCrypto HQC-v5/FIPS-207-draft candidate exists only in
+a standalone `publish = false` shadow crate and is outside this combiner's product
+suite/ABI claims. This document specifies only the
 **composition** layer — how the two component KEMs' shared secrets, ciphertexts
 and public keys are hashed into one 32-byte combined secret. The combiner is the
 entire security-critical surface that Q-Periapt itself owns; it is deliberately
@@ -30,6 +34,12 @@ and primitive-agnostic so it can be audited in isolation.
 This is **research-grade, not production**: there is no third-party audit, and the
 backends are pre-1.0 / unaudited (libcrux 0.0.9 asks you to contact maintainers
 before production use). Do not deploy.
+
+This specification is also **not a session protocol**. It does not define identities,
+prekeys, offline initiation, AEAD messages, ratchets, persistence, multi-device
+state, recovery, or key transparency. The future-only Continuity plan is in
+[`CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md). Adding session fields to
+`context` cannot turn this KEM theorem into a PQXDH/PQ3/Triple-Ratchet proof.
 
 The combiner produces a `SHARED_SECRET_LEN = 32`-byte secret
 (the `SHARED_SECRET_LEN` const,
@@ -47,7 +57,9 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>)
     -> Result<Secret, Error>;
 ```
 
-- `X: Xof256` is the injected hash/XOF (`new` / `absorb` / `squeeze32`). In
+- `X: Xof256` is the injected hash/XOF (`new` / `reserve` / `absorb_public` /
+  `absorb_secret` / `squeeze32`). The legacy `absorb` remains a conservative
+  unclassified-input method so existing callers cannot silently lose secret erasure. In
   production it is instantiated to SHA3-256 (`Sha3_256Xof`); the core depends on no
   concrete primitive.
 - `Profile` selects the construction (`CompatXWing = 1`, `ContextBound = 2`).
@@ -81,11 +93,11 @@ profile can never alias the other.
 
 ---
 
-## 2. Profile `CompatXWing` — byte-exact X-Wing
+## 2. Profile `CompatXWing` — byte-exact X-Wing combiner profile
 
 ### 2.1 Definition
 
-`CompatXWing` reproduces the X-Wing combiner of
+`CompatXWing` reproduces the X-Wing combiner encoding of
 `draft-connolly-cfrg-xwing-kem` **byte-for-byte**:
 
 ```
@@ -215,15 +227,26 @@ layer, not only via the opaque `context`. The unit test
 
 ### 3.3 Injective encoding — fixed-width 8-byte big-endian length prefix
 
-Every field is absorbed via `absorb_lp`
+Every field is encoded through the public- or secret-body LP helper
 ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)):
 
 ```rust
-fn absorb_lp<X: Xof256>(x: &mut X, data: &[u8]) {
-    x.absorb(&(data.len() as u64).to_be_bytes()); // 8-byte big-endian length prefix
-    x.absorb(data);
+fn absorb_public_lp<X: Xof256>(x: &mut X, data: &[u8]) {
+    x.absorb_public(&(data.len() as u64).to_be_bytes());
+    x.absorb_public(data);
+}
+fn absorb_secret_lp<X: Xof256>(x: &mut X, data: &[u8]) {
+    x.absorb_public(&(data.len() as u64).to_be_bytes());
+    x.absorb_secret(data);
 }
 ```
+
+The two helpers emit identical framing; the sensitivity marker affects only staging-buffer
+erasure. `ss_pq`, `ss_trad`, and caller-supplied `context` use the secret-body helper. Context is
+often a public transcript hash, but the API does not forbid sensitive caller bytes, so erasure is
+conservative. Every length prefix and all domain/suite/policy/ciphertext/public-key bytes use the
+public helper. Fixed KATs and a classification-aware mock pin both the byte stream and this
+separation.
 
 So each field is encoded as `LP(data) = be64(len(data)) ‖ data`, an **8-byte
 fixed-width big-endian length prefix** followed by the raw bytes, and:
@@ -258,12 +281,22 @@ width + injectivity of `to_be_bytes`) plus collision-resistance of SHA3. See
 if input.context.is_empty() { return Err(Error::InvalidLength); }
 ```
 
-If `context` could be empty, the `MAL-BIND-K-CTX` guarantee degenerates. Callers
-with no application context **must** pass a fixed protocol/role/version label (e.g.
-`"ContextBound/v1/initiator"`). The test
+This is a **profile-level semantic guard**, not an injectivity or CR-proof
+precondition: fixed-width length prefixing encodes an empty field unambiguously.
+The guard forces every call to name an explicit protocol/role/version context and
+makes accidental omission fail closed. Callers with no application context **must**
+pass a fixed label (e.g. `"ContextBound/v1/initiator"`). The test
 `context_bound_requires_nonempty_context`
 ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)) pins the empty-context
 rejection. See [`docs/BINDING_SECURITY.md`](./BINDING_SECURITY.md) §3.3.
+
+For a future stateful protocol, the context must be produced by one canonical typed
+decision and authenticated by the surrounding handshake/ratchet transcript. It may
+include identity, device, prekey, directory, policy, epoch, and direction digests,
+but the combiner only commits those bytes. It does not make a prekey one-time, detect
+directory equivocation, advance an epoch, or provide FS/PCS. The published Signal
+PQXDH/Triple-Ratchet KDFs must not be silently replaced with this combiner while
+retaining a compatibility label.
 
 ### 3.5 Cost vs `CompatXWing` (honest)
 
@@ -310,36 +343,39 @@ Backends declare it explicitly:
 - `MlKem768XWingSeed`: `const C2PRI: bool = true; const COMPAT_XWING_SAFE: bool = true;`
   — this backend stores the 32-byte X-Wing seed and derives `(d||z)` internally, so it is
   admitted to `CompatXWing`.
-- `X25519`: inherits the `false` default (`impl Kem for X25519`,
-  [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)) — raw ECDH
-  does not bind its "ciphertext."
-- `Hqc`: `const C2PRI: bool = false;` (in the `impl Kem` of the HQC backend macro,
-  [`crates/q-periapt-backends/src/hqc.rs`](../crates/q-periapt-backends/src/hqc.rs)) — confined
-  to `ContextBound`.
+- `X25519`: inherits both `false` defaults (`impl Kem for X25519`,
+  [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)).
+  It is valid in X-Wing's absorbed traditional slot, but cannot be substituted into
+  the omitted first slot.
+
+Historical note: the retired PQClean-HQC adapter declared `C2PRI = false` and was
+therefore confined to `ContextBound`. Its removal does not authorize the independent
+HQC-v5/FIPS-207-draft candidate: that shadow has no suite code or ABI, and any future product
+integration must make a new, reviewed C2PRI/API decision.
 
 The guard is enforced once, at construction, in
 `HybridKem::new` ([`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)):
 
 ```rust
-if matches!(profile, Profile::CompatXWing) && !P::COMPAT_XWING_SAFE {
-    // The fast profile omits the PQ ciphertext/public key; only safe for a
-    // backend whose exposed API preserves X-Wing's self-binding precondition.
+if matches!(profile, Profile::CompatXWing) && (!P::C2PRI || !P::COMPAT_XWING_SAFE) {
+    // Primitive C2PRI and the exposed API/key format are independent requirements.
     return Err(Error::PolicyDenied);
 }
 ```
 
-So pairing a non-X-Wing-safe PQ backend (expanded ML-KEM, X25519-as-PQ, HQC, or
+So pairing a non-X-Wing-safe PQ backend (expanded ML-KEM, X25519-as-PQ, or
 any backend that does not override the default) with `CompatXWing` is rejected at
 construction time with `Error::PolicyDenied`, confining it to `ContextBound`, which
 binds every ciphertext and public key directly and therefore needs **no** binding
 assumption on the components. The guard is decided at the type level
-(`P::COMPAT_XWING_SAFE`) and exercised by KEM/backend tests that assert both
-non-C2PRI and expanded-key ML-KEM backends are rejected under `CompatXWing`.
+(`P::C2PRI && P::COMPAT_XWING_SAFE`) and exercised by a four-quadrant capability
+test plus backend tests. A deliberately contradictory
+`C2PRI=false, COMPAT_XWING_SAFE=true` backend is rejected.
 
 > **Why a guard and not a silent fallback:** failing closed (an explicit
 > `PolicyDenied`) makes a profile/KEM mismatch a loud, testable construction-time
 > error rather than a quietly-weakened binding. The fast path is opt-in and only
-> reachable when the type system has witnessed `COMPAT_XWING_SAFE = true`.
+> reachable when the type system has witnessed both required capabilities.
 
 ---
 
@@ -370,8 +406,8 @@ then select with a mask).
 rejection **is** a hard CI gate (ctstats). Binary-level **dataflow** constant-time over this
 composition code (`ct_eq`/`ct_select32`/the combiner) **is** also a hard CI gate today
 (Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64); extending it over the
-libcrux **primitive** paths and to riscv64/wasm32 is **TODO**. The dudect **timing** test is
-**report-only** (runs with `|| true`, not a merge gate). The portable `ct_*` helpers are
+libcrux **primitive** paths and to riscv64/wasm32 is **TODO**. The dudect **timing** test is a
+local diagnostic, intentionally absent from noisy shared CI and not a merge gate. The portable `ct_*` helpers are
 best-effort in safe Rust; do not read this as "timing is gated." See
 [`docs/ROADMAP.md`](./ROADMAP.md) and [`docs/THREAT_MODEL.md`](./THREAT_MODEL.md).
 
@@ -402,18 +438,22 @@ The binding security argument is **not** restated here; it is owned by
 [`docs/BINDING_SECURITY.md`](./BINDING_SECURITY.md). Summary of what that document
 establishes, with the honest caveats:
 
-- The core theorem `bind_le_cr` (`Adv^{X-BIND-K-*} ≤ Adv^{CR}(H)`, instantiating to
-  `MAL-BIND-K-CT` / `K-PK` / `K-CTX`) is **machine-checked in EasyCrypt**
-  (`formal/easycrypt/BindingViaCR.ec`, 0 admits).
+- The generic transcript-projection theorem `bind_le_cr` is **machine-checked in
+  EasyCrypt** (`formal/easycrypt/BindingViaCR.ec`, 0 admits). Its CT/PK projections
+  instantiate the standard `MAL-BIND-K-CT` / `MAL-BIND-K-PK` games; the CTX projection
+  is a separately self-defined context-wrapper collision game, not a CDM node.
 - `encode_inj` (§3.3) is now a **proved lemma**, not an axiom — the §3.3 injective
   encoding is exactly the object it proves injective.
 - `ContextBound` reduces binding to **collision-resistance of SHA3 alone**, with
   **no** binding assumption on ML-KEM or X25519.
 - `ContextBound` is **not** "stronger binding than X-Wing" on the standard CT/PK
   axes — a correctly-implemented seed-format X-Wing reaches the same `MAL` ceiling.
-  The defensible delta is **assumption-minimality and proof coverage**, plus the
-  orthogonal `K-CTX` context-binding axis. Never claim "faster than X-Wing"
-  (`CompatXWing` is X-Wing byte-for-byte; the generic abstraction measures tens of ns
+  The defensible delta is **assumption-minimality and proof coverage**, plus an
+  optional syntactic commitment to exact context bytes whose meaning still requires
+  protocol authentication. Never call that wrapper a CDM axis or say native X-Wing
+  "loses K-CTX," because its KEM API has no context parameter. Never claim "faster than X-Wing"
+  (the admitted seed-`dk` ML-KEM-768 + X25519 construction is X-Wing-vector byte-exact;
+  the generic combiner abstraction measures tens of ns
   slower than a streaming X-Wing reference — negligible).
 - Scope: H's CR is a modeling assumption; IND-CCA2 robustness is argued on paper;
   there is no spec↔impl linkage proof; `X-BIND-CT-*` is structurally impossible for
@@ -428,6 +468,8 @@ establishes, with the honest caveats:
   `DOMAIN` (`…/v1` → `…/v2`).
 - `CompatXWing` is pinned to `draft-connolly-cfrg-xwing-kem`; it **must not** be
   "optimized" or extended — its only correctness oracle is byte-equality with the
-  X-Wing vectors (§2.4). Changing it breaks X-Wing interoperability.
+  X-Wing vectors (§2.4). Changing it breaks construction/vector compatibility;
+  passing those vectors alone does not establish independent endpoint or HPKE
+  interoperability.
 - The KAT in `xwing_kat.rs` and the unit tests in `q-periapt-core/src/lib.rs`
   (§2.2, §3.2–§3.4) are the regression gate for this spec; CI must keep them green.

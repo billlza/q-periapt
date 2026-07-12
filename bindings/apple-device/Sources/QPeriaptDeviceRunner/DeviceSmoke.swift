@@ -22,127 +22,15 @@ enum DeviceSmokeError: Error, CustomStringConvertible {
 
 enum DeviceSmoke {
     static func run() throws {
-        let vector = try sharedVector()
-        try assertSharedVectorDecapsulates(vector)
-        try assertSharedVectorEncapsulates(vector)
-        try assertContextBoundRejectsEmptyContext(vector)
-        try assertCompatXWingSeedKeypairRoundtrips()
-        try assertCombinerVectors()
         try assertSignedPolicyVector()
     }
 
-    private static func sharedVector() throws -> [String: Any] {
-        guard let url = Bundle.main.url(forResource: "shared-test-vectors", withExtension: "json") else {
-            throw DeviceSmokeError.missingResource("shared-test-vectors.json")
-        }
-        let data = try Data(contentsOf: url)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw DeviceSmokeError.invalidVector("shared-test-vectors.json is not an object")
-        }
-        return json
-    }
-
-    private static func assertSharedVectorDecapsulates(_ v: [String: Any]) throws {
-        let secret = try QPeriaptHybrid.decapsulate(
-            profile: .contextBound,
-            suiteId: try hexField(v, "suite_id"),
-            policyVersion: try policyVersion(v),
-            skPq: try hexField(v, "sk_pq"),
-            ctPq: try hexField(v, "ct_pq"),
-            pkPq: try hexField(v, "pk_pq"),
-            skTrad: try hexField(v, "sk_trad"),
-            ctTrad: try hexField(v, "ct_trad"),
-            pkTrad: try hexField(v, "pk_trad"),
-            context: try hexField(v, "context"))
-        try assertEqual(secret, try hexField(v, "secret"), "shared vector decapsulation")
-    }
-
-    private static func assertSharedVectorEncapsulates(_ v: [String: Any]) throws {
-        let enc = try QPeriaptHybrid.encapsulate(
-            profile: .contextBound,
-            suiteId: try hexField(v, "suite_id"),
-            policyVersion: try policyVersion(v),
-            pkPq: try hexField(v, "pk_pq"),
-            pkTrad: try hexField(v, "pk_trad"),
-            context: try hexField(v, "context"),
-            randPq: try hexField(v, "rand_pq"),
-            randTrad: try hexField(v, "rand_trad"))
-        try assertEqual(enc.ctPq, try hexField(v, "ct_pq"), "shared vector ML-KEM ciphertext")
-        try assertEqual(enc.ctTrad, try hexField(v, "ct_trad"), "shared vector X25519 ciphertext")
-        try assertEqual(enc.secret, try hexField(v, "secret"), "shared vector encapsulation secret")
-    }
-
-    private static func assertContextBoundRejectsEmptyContext(_ v: [String: Any]) throws {
-        do {
-            _ = try QPeriaptHybrid.encapsulate(
-                profile: .contextBound,
-                suiteId: try hexField(v, "suite_id"),
-                policyVersion: try policyVersion(v),
-                pkPq: try hexField(v, "pk_pq"),
-                pkTrad: try hexField(v, "pk_trad"),
-                context: [],
-                randPq: try hexField(v, "rand_pq"),
-                randTrad: try hexField(v, "rand_trad"))
-        } catch let error as QPeriaptError where error.code == QPeriaptError.lengthCode {
-            return
-        }
-        throw DeviceSmokeError.expectedFailureMissing("empty ContextBound context was accepted")
-    }
-
-    private static func assertCompatXWingSeedKeypairRoundtrips() throws {
-        let pq = try QPeriaptHybrid.mlkem768XWingKeypair(
-            seed: [UInt8](repeating: 7, count: QPeriaptHybrid.mlkemXWingSeedLen))
-        let x = try QPeriaptHybrid.x25519Keypair(
-            secret: [UInt8](repeating: 9, count: QPeriaptHybrid.x25519Len))
-        let enc = try QPeriaptHybrid.encapsulate(
-            profile: .compatXWing,
-            suiteId: Array("ML-KEM-768+X25519".utf8),
-            policyVersion: 1,
-            pkPq: pq.pk,
-            pkTrad: x.pk,
-            context: [],
-            randPq: [UInt8](repeating: 3, count: 32),
-            randTrad: [UInt8](repeating: 5, count: 32))
-        let dec = try QPeriaptHybrid.decapsulate(
-            profile: .compatXWing,
-            suiteId: Array("ML-KEM-768+X25519".utf8),
-            policyVersion: 1,
-            skPq: pq.skSeed,
-            ctPq: enc.ctPq,
-            pkPq: pq.pk,
-            skTrad: x.sk,
-            ctTrad: enc.ctTrad,
-            pkTrad: x.pk,
-            context: [])
-        try assertEqual(enc.secret, dec, "CompatXWing seed-dk roundtrip")
-    }
-
-    private static func assertCombinerVectors() throws {
-        guard let url = Bundle.main.url(forResource: "contextbound-vectors", withExtension: "txt") else {
-            throw DeviceSmokeError.missingResource("contextbound-vectors.txt")
-        }
-        let text = try String(contentsOf: url, encoding: .utf8)
-        var count = 0
-        for line in text.split(separator: "\n") {
-            let parts = line.split(separator: " ")
-            if parts.isEmpty || parts[0].hasPrefix("#") {
-                continue
-            }
-            guard parts.count == 3,
-                  let rawProfile = UInt8(parts[0]),
-                  let profile = QPeriaptProfile(rawValue: rawProfile) else {
-                throw DeviceSmokeError.invalidVector("bad combiner line: \(line)")
-            }
-            let got = try QPeriaptHybrid.combine(profile: profile, input: try hex(String(parts[1])))
-            try assertEqual(got, try hex(String(parts[2])), "combiner vector \(count)")
-            count += 1
-        }
-        if count != 6 {
-            throw DeviceSmokeError.invalidVector("expected 6 combiner vectors, found \(count)")
-        }
-    }
-
     private static func assertSignedPolicyVector() throws {
+        guard QPeriaptHybrid.runtimeAbiVersion == QPeriaptHybrid.abiVersion,
+              QPeriaptHybrid.runtimeVersion == "0.1.0-alpha.1"
+        else {
+            throw DeviceSmokeError.mismatch("ABI2 runtime metadata")
+        }
         guard let url = Bundle.main.url(forResource: "signed-policy-vectors", withExtension: "json") else {
             throw DeviceSmokeError.missingResource("signed-policy-vectors.json")
         }
@@ -158,21 +46,133 @@ enum DeviceSmoke {
         let verificationKey = try hexField(vector, "verification_key")
         let signature = try hexField(vector, "signature")
         let expectedCode = try profileCode(vector)
-        let accepted = try QPeriaptHybrid.profileFromSignedPolicy(
+        let expectedPolicyVersion = try uint32Field(vector, "policy_version")
+        let accepted = try QPeriaptHybrid.decisionFromSignedPolicy(
+            toml: policyToml,
+            signature: signature,
+            verificationKey: verificationKey)
+        guard accepted.profile.rawValue == expectedCode,
+              accepted.suiteCode == QPeriaptHybrid.fixedSuiteCode,
+              accepted.policyVersion == expectedPolicyVersion,
+              accepted.policyDigest == (try hexField(vector, "policy_digest"))
+        else {
+            throw DeviceSmokeError.mismatch("signed policy atomic decision")
+        }
+
+        let reapplied = try QPeriaptHybrid.decisionFromSignedPolicy(
             toml: policyToml,
             signature: signature,
             verificationKey: verificationKey,
-            lastTrustedVersion: try uint32Field(vector, "last_trusted_version_accept"))
-        guard accepted.rawValue == expectedCode else {
-            throw DeviceSmokeError.mismatch("signed policy selected profile")
+            lastTrustedState: accepted.trustedState)
+        guard reapplied.policyDigest == accepted.policyDigest else {
+            throw DeviceSmokeError.mismatch("signed policy trusted state")
         }
 
-        try expectPolicyRejection("signed policy rollback") {
-            _ = try QPeriaptHybrid.profileFromSignedPolicy(
+        try expectLengthRejection("legacy ABI 1 version-only state") {
+            _ = try QPeriaptHybrid.decisionFromSignedPolicy(
                 toml: policyToml,
                 signature: signature,
                 verificationKey: verificationKey,
-                lastTrustedVersion: try uint32Field(vector, "last_trusted_version_reject"))
+                lastTrustedState: uint32Bytes(expectedPolicyVersion))
+        }
+
+        var policyKeys = try QPeriaptHybrid.generateKeypair(decision: accepted)
+        defer { policyKeys.wipeSecrets() }
+        let applicationContext = Array("device-policy-context".utf8)
+        var maximumContextEnc = try QPeriaptHybrid.encapsulate(
+            decision: accepted,
+            pkPq: policyKeys.pkPq,
+            pkTrad: policyKeys.pkTrad,
+            applicationContext: [UInt8](
+                repeating: 1, count: QPeriaptHybrid.maxApplicationContextBytes))
+        maximumContextEnc.wipeSecret()
+        try assertEqual(
+            maximumContextEnc.secret,
+            [UInt8](repeating: 0, count: QPeriaptHybrid.secretLen),
+            "maximum application context secret wipe")
+        do {
+            _ = try QPeriaptHybrid.encapsulate(
+                decision: accepted,
+                pkPq: policyKeys.pkPq,
+                pkTrad: policyKeys.pkTrad,
+                applicationContext: [UInt8](
+                    repeating: 0, count: QPeriaptHybrid.maxApplicationContextBytes + 1))
+            throw DeviceSmokeError.expectedFailureMissing(
+                "oversized policy-bound application context was accepted")
+        } catch let error as QPeriaptError where error.code == QPeriaptError.lengthCode {
+            // Expected fail-closed resource bound.
+        }
+        var policyEnc = try QPeriaptHybrid.encapsulate(
+            decision: accepted,
+            pkPq: policyKeys.pkPq,
+            pkTrad: policyKeys.pkTrad,
+            applicationContext: applicationContext)
+        var policyDec = [UInt8]()
+        var wrongContextSecret = [UInt8]()
+        defer {
+            policyEnc.wipeSecret()
+            QPeriaptHybrid.wipe(&policyDec)
+            QPeriaptHybrid.wipe(&wrongContextSecret)
+        }
+        policyDec = try QPeriaptHybrid.decapsulate(
+            decision: accepted,
+            skPq: policyKeys.skPq,
+            ctPq: policyEnc.ctPq,
+            pkPq: policyKeys.pkPq,
+            skTrad: policyKeys.skTrad,
+            ctTrad: policyEnc.ctTrad,
+            pkTrad: policyKeys.pkTrad,
+            applicationContext: applicationContext)
+        guard policyEnc.secret == policyDec else {
+            throw DeviceSmokeError.mismatch("signed policy-bound roundtrip")
+        }
+        wrongContextSecret = try QPeriaptHybrid.decapsulate(
+            decision: accepted,
+            skPq: policyKeys.skPq,
+            ctPq: policyEnc.ctPq,
+            pkPq: policyKeys.pkPq,
+            skTrad: policyKeys.skTrad,
+            ctTrad: policyEnc.ctTrad,
+            pkTrad: policyKeys.pkTrad,
+            applicationContext: Array("wrong-context".utf8))
+        guard wrongContextSecret != policyDec else {
+            throw DeviceSmokeError.mismatch("signed policy application context binding")
+        }
+        policyEnc.wipeSecret()
+        QPeriaptHybrid.wipe(&policyDec)
+        QPeriaptHybrid.wipe(&wrongContextSecret)
+        policyKeys.wipeSecrets()
+        try assertEqual(
+            policyEnc.secret,
+            [UInt8](repeating: 0, count: QPeriaptHybrid.secretLen),
+            "encapsulation secret wipe")
+        try assertEqual(
+            policyDec,
+            [UInt8](repeating: 0, count: QPeriaptHybrid.secretLen),
+            "decapsulation secret wipe")
+        try assertEqual(
+            wrongContextSecret,
+            [UInt8](repeating: 0, count: QPeriaptHybrid.secretLen),
+            "wrong-context secret wipe")
+        try assertEqual(
+            policyKeys.skPq,
+            [UInt8](repeating: 0, count: QPeriaptHybrid.mlkemSkLen),
+            "ML-KEM secret-key wipe")
+        try assertEqual(
+            policyKeys.skTrad,
+            [UInt8](repeating: 0, count: QPeriaptHybrid.x25519Len),
+            "X25519 secret-key wipe")
+
+        var newerState = accepted.trustedState
+        newerState.replaceSubrange(
+            0..<4,
+            with: uint32Bytes(try uint32Field(vector, "last_trusted_version_reject")))
+        try expectPolicyRejection("signed policy rollback") {
+            _ = try QPeriaptHybrid.decisionFromSignedPolicy(
+                toml: policyToml,
+                signature: signature,
+                verificationKey: verificationKey,
+                lastTrustedState: newerState)
         }
 
         var tampered = signature
@@ -182,11 +182,10 @@ enum DeviceSmoke {
         }
         tampered[byteIndex] ^= 1
         try expectPolicyRejection("signed policy tamper") {
-            _ = try QPeriaptHybrid.profileFromSignedPolicy(
+            _ = try QPeriaptHybrid.decisionFromSignedPolicy(
                 toml: policyToml,
                 signature: tampered,
-                verificationKey: verificationKey,
-                lastTrustedVersion: 0)
+                verificationKey: verificationKey)
         }
     }
 
@@ -199,11 +198,13 @@ enum DeviceSmoke {
         throw DeviceSmokeError.expectedFailureMissing(label)
     }
 
-    private static func policyVersion(_ v: [String: Any]) throws -> UInt32 {
-        guard let n = v["policy_version"] as? Int, n >= 0, n <= Int(UInt32.max) else {
-            throw DeviceSmokeError.invalidVector("policy_version")
+    private static func expectLengthRejection(_ label: String, _ operation: () throws -> Void) throws {
+        do {
+            try operation()
+        } catch let error as QPeriaptError where error.code == QPeriaptError.lengthCode {
+            return
         }
-        return UInt32(n)
+        throw DeviceSmokeError.expectedFailureMissing(label)
     }
 
     private static func intField(_ v: [String: Any], _ name: String) throws -> Int {
@@ -219,6 +220,11 @@ enum DeviceSmoke {
             throw DeviceSmokeError.invalidVector(name)
         }
         return UInt32(n)
+    }
+
+    private static func uint32Bytes(_ value: UInt32) -> [UInt8] {
+        let bigEndian = value.bigEndian
+        return withUnsafeBytes(of: bigEndian) { Array($0) }
     }
 
     private static func profileCode(_ v: [String: Any]) throws -> UInt8 {

@@ -1,6 +1,6 @@
 [package]
 name = "q-periapt-sig"
-description = "Signature layer: ML-DSA-65/87 (general) and SLH-DSA (roots / firmware / long-term), over vetted backends"
+description = "Signature layer: ML-DSA-65/87 (general) and SLH-DSA (roots / firmware / long-term), over third-party backends"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -19,4 +19,4 @@ default = []
 # its `slh-dsa` feature; this crate is backend-agnostic and only defines the trait surface.
 
 [dependencies]
-q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }
+q-periapt-core = { version = "=0.1.0-alpha.1", path = "../q-periapt-core" }

@@ -6,13 +6,28 @@ contribution. Per `docs/BINDING_SECURITY.md`, the defensible delta vs X-Wing is
 itself*), **not** a stronger primitive. Read `BINDING_SECURITY.md` first; this
 file is the engineering plan for §4.
 
+This proof covers a combiner binding game only. It does not model identities,
+prekeys, replay, ratchets, FS/PCS, multi-device state, recovery, or persistence,
+and it is not a spec-to-Rust refinement. The future Q-Periapt Continuity work has
+separate protocol, storage, and implementation-linkage gates in
+[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+The `publish = false` lifecycle model under `models/` is finite executable testing.
+Its separate [`continuity`](continuity) diagnostics prove only LP8 projection
+injectivity and explicit Lifecycle policy/direction plus named prekey-field omission
+collisions. The hermetic CI image now compiles both diagnostics from scratch alongside
+the paper proof, but they remain non-normative. They prove neither SHA3 injectivity nor
+a protocol theorem or model-to-Rust refinement and do not enlarge the paper's
+ContextBound contribution.
+
 ## File: [`BindingViaCR.ec`](BindingViaCR.ec)
 
-Formalizes `bind_le_cr`: `Adv^{X-BIND-K-*}(A) <= Adv^{CR}(B(A))` for the
-ContextBound combiner — reducing **only** to collision-resistance of the hash,
-with no binding assumption on ML-KEM / X25519. It is generic over the observable
-projection `proj`, so it instantiates to **MAL-BIND-K-CT** (ciphertext),
-**MAL-BIND-K-PK** (public key), and **MAL-BIND-K-CTX** (context). The load-bearing
+Formalizes `bind_le_cr`: a generic transcript-projection collision bound for the
+ContextBound combiner, reducing **only** to collision-resistance of the hash with
+no binding assumption on ML-KEM / X25519. Its ciphertext/public-key projections
+instantiate the standard **MAL-BIND-K-CT** and **MAL-BIND-K-PK** notions. A separate
+context projection gives a self-defined
+context-parameterized **MAL-BIND-K-CTX** syntactic extension. K-CTX is outside the
+published CDM lattice and does not inherit CDM monotonicity. The load-bearing
 step, `encode_inj` (injectivity of the fixed-width length-prefixed encoding), is
 **proved** (the encoding is modeled concretely and its injectivity machine-checked),
 not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
@@ -34,9 +49,9 @@ make check   # runs `easycrypt BindingViaCR.ec`  (install EasyCrypt via opam fir
 
 CI does **not** rely on a best-effort opam install. The [`formal/Dockerfile`](../Dockerfile) pins the
 exact EasyCrypt the proofs check under (`r2026.06`, commit `50ae51d`) plus Why3 + Z3 + Alt-Ergo, and
-the `formal-hermetic` CI job re-runs the proof **and** the necessity controls inside it as a **hard
-gate** — if `BindingViaCR.ec` stops checking, or a deleted-hypothesis control stops breaking its
-proof, CI fails. Reproduce it locally:
+the `formal-hermetic` CI job re-runs the proof **and** its proof-dependency regression controls
+inside it as a **hard gate** — if `BindingViaCR.ec` stops checking, or an expected proof-script
+dependency changes, CI fails. Reproduce it locally:
 
 ```sh
 docker build -f formal/Dockerfile -t q-periapt-ec .
@@ -46,6 +61,16 @@ docker run --rm -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
     opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco \
         && easycrypt BindingViaCR.ec && sh negative-controls.sh'
 ```
+
+The historical `negative-controls.sh` filename is retained because the CI entrypoint invokes it.
+Its controls remove named facts from selected `smt()` hints and verify that the current edited
+proof script no longer compiles. They are **proof-dependency regression controls**, not logical
+necessity proofs: failure of an automated tactic is not a counterexample. Semantic necessity is
+claimed only where `BindingViaCR.ec` contains an explicit checked counterexample. In particular,
+`kctx_without_nonbottom_broken` constructs two rejecting executions with distinct contexts and
+proves a probability-1 win when the explicit-rejection game omits `K != bottom`. The file does not
+currently contain a corresponding semantic countermodel for removing the `jrej_inj` idealization;
+the script's J-related controls establish only that the present reduction scripts use that axiom.
 
 ## Tool
 
@@ -76,9 +101,10 @@ Structure (the load-bearing, novel half):
    some element ⇒ either equal hash inputs (contradicting injectivity) or a SHA3
    collision. Bound: `Adv_MAL-BIND-K-CT ≤ Adv_CR`.
 
-`MAL-BIND-K-PK` and `MAL-BIND-K-CTX` follow by the identical structure (each is
-just another injectively-encoded absorbed field); the joint / `LEAK` / `HON`
-corollaries follow by porting CDM monotonicity. These are **stretch**, not the
+`MAL-BIND-K-PK` and the syntactic `MAL-BIND-K-CTX` extension follow by the identical
+collision-reduction structure (each is another injectively-encoded absorbed field).
+The standard CT/PK joint / `LEAK` / `HON` corollaries follow by CDM monotonicity;
+that statement does not extend to K-CTX. These are **stretch**, not the
 committed deliverable.
 
 ## What we explicitly do NOT mechanize
@@ -105,8 +131,8 @@ Do not plan four parallel mechanization tracks.
 ## Open questions to resolve against primary PDFs first
 
 - ePrint **2026/140** "On the Necessity of Public Contexts in Hybrid KEMs: A Case
-  Study of X-Wing" — overlaps the context axis; reposition the novelty as the
-  *mechanization* accordingly.
+  Study of X-Wing" — overlaps the public-context problem. Treat novelty/priority as
+  an open literature-review item; do not call the local wrapper a CDM axis.
 - ePrint **2025/1416** (generic hash-combiner binding, Thm 4) and **2025/1397**
   ("Starfighters", QSF generality) — confirm exact bounds / any combiner-level
   notion X-Wing fails before publishing the comparison.

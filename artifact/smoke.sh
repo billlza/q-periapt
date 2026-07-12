@@ -42,7 +42,7 @@ step "C-ABI tests (incl. aliasing)" cargo test -p q-periapt-ffi
 step "WASM shared vector (host)"   cargo test -p q-periapt-wasm
 step "rustls loopback handshake"   cargo test -p q-periapt-rustls --test handshake
 step "C-ABI link-and-run smoke"    sh bindings/c/build-and-run.sh
-step "EasyCrypt no-admit gate"     sh -c "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/"
+step "EasyCrypt no-admit gate"     sh -c "! grep -rnEw 'admit|sorry' --include='*.ec' formal/easycrypt/"
 
 printf '\n================ SUMMARY ================\n'
 printf '%d passed, %d failed\n' "$pass" "$fail"

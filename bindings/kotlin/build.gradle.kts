@@ -26,7 +26,7 @@ tasks.test {
     useJUnitPlatform()
     // The native lib must be built first: cargo build -p q-periapt-ffi --release
     val libDir = file("${rootDir}/../../target/release")
-    val lib = file("$libDir/${System.mapLibraryName("q_periapt_ffi")}")
+    val lib = file("$libDir/${System.mapLibraryName("q_periapt_ffi_abi2")}")
     systemProperty("qperiapt.lib", lib.absolutePath)
     systemProperty("java.library.path", libDir.absolutePath)
     jvmArgs("--enable-native-access=ALL-UNNAMED")

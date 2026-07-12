@@ -4,11 +4,19 @@ This runner is the physical-device lane for the Swift/C ABI face. It is intentio
 separate from the Swift Package tests: SwiftPM's tool-hosted XCTest can run on macOS,
 but Xcode refuses to run it directly on an iPhone or iPad without a host app.
 
-The app links the same generated C header and the same Rust `q-periapt-ffi` static
-library built for `aarch64-apple-ios`. At launch it runs the shared vector
-decapsulation, shared vector encapsulation, empty-ContextBound rejection,
-CompatXWing seed-dk roundtrip, all combiner vectors, and the ML-DSA-65
-signed-policy vector including rollback and tamper rejection. It prints exactly one
+This runner proves the ABI2 signed-policy/OS-random KEM face only. It does not run
+an offline prekey exchange, persistent ratchet, multi-device session, recovery flow,
+or two-endpoint messaging benchmark. A passing iPad/iPhone matrix is therefore not
+PQ3/Signal session parity. The future Continuity lane needs separate two-device
+state, crash/reconnect, healing, wire, latency, energy, and thermal evidence; see
+[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+
+The app links the ABI-major generated C header and the Rust
+`libq_periapt_ffi_abi2.a` static library built for `aarch64-apple-ios`. At launch
+it runs the ML-DSA-65 signed-policy vector, exact digest/state checks, OS-random
+atomic key generation and encapsulation, context-bound roundtrip, ABI1 four-byte
+state rejection, rollback/tamper controls, and secret wipe. Raw deterministic,
+CompatXWing and combine paths are not exported by the product ABI. It prints exactly one
 machine-readable result marker to stderr and to
 `Documents/qperiapt-device-result.txt` plus a run-bound
 `Documents/qperiapt-device-result-<run-id>.txt` file in the app data container:

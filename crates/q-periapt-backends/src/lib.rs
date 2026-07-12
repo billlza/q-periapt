@@ -3,7 +3,7 @@
 
 //! # q-periapt-backends
 //!
-//! Vetted primitive backends wired into the `q-periapt-core` traits:
+//! Third-party primitive backends wired into the `q-periapt-core` traits:
 //! - **ML-KEM** (FIPS 203) via `libcrux-ml-kem` (HACL*-derived, constant-time):
 //!   [`MlKem512`], [`MlKem768`], [`MlKem1024`] expose the FIPS-expanded decapsulation
 //!   key format and are therefore confined to `ContextBound`; [`MlKem768XWingSeed`]
@@ -13,17 +13,19 @@
 //!   (the `impl_mldsa_modes!` surface also adds context/hedged + SHAKE-128 pre-hash +
 //!   internal-interface signing, for ACVP conformance).
 //! - [`X25519`] — X25519 ECDH-as-KEM via `x25519-dalek`, deterministic from a 32-byte
-//!   scalar (non-C2PRI ⇒ `ContextBound` only, enforced by `q-periapt-kem`).
+//!   scalar. It is the absorbed traditional slot in canonical X-Wing. If a caller
+//!   instead places it in the first slot whose ct/pk `CompatXWing` omits, the
+//!   default-false capabilities make `q-periapt-kem` reject that construction.
 //! - [`Sha3_256Xof`] — the combiner XOF (SHA3-256).
-//! - Off by default (cargo features): `slh-dsa` ⇒ `SlhDsaSha2_128s`/`_192s`/`_256s`
-//!   (FIPS 205, via `fips205`); `hqc` ⇒ `Hqc128`/`Hqc192`/`Hqc256` (via `pqcrypto-hqc`).
+//! - Off by default (cargo feature): `slh-dsa` ⇒
+//!   `SlhDsaSha2_128s`/`_192s`/`_256s` (FIPS 205, via `fips205`).
 //!
 //! This is the only crate that touches real cryptographic primitives; the
 //! security-critical composition stays in the dependency-free `q-periapt-core`.
 
 use libcrux_ml_dsa::{ml_dsa_44, ml_dsa_65, ml_dsa_87};
 use libcrux_ml_kem::{mlkem1024, mlkem512, mlkem768};
-use q_periapt_core::{Error, Kem, Xof256, SHARED_SECRET_LEN};
+use q_periapt_core::{Error, Kem, Xof256, ZeroizingBytes, SHARED_SECRET_LEN};
 use q_periapt_sig::{SigAlg, Signer, Verifier};
 use x25519_dalek::{PublicKey, StaticSecret};
 
@@ -60,11 +62,6 @@ pub use slhdsa::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s};
 // NIST ACVP (FIPS 205) ground-truth conformance vectors for SLH-DSA-SHA2-{128,192,256}s.
 #[cfg(all(test, feature = "slh-dsa"))]
 mod acvp_slhdsa;
-
-#[cfg(feature = "hqc")]
-mod hqc;
-#[cfg(feature = "hqc")]
-pub use hqc::{Hqc128, Hqc192, Hqc256, HqcAsKem};
 
 /// X25519 public-key / secret-key / ciphertext length, bytes.
 pub const X25519_LEN: usize = 32;
@@ -243,7 +240,8 @@ impl MlKem768XWingSeed {
     pub fn generate(
         seed: [u8; ML_KEM_768_XWING_SEED_LEN],
     ) -> ([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]) {
-        let (_expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        let (expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        let _expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
         (seed, pk)
     }
 }
@@ -268,10 +266,9 @@ impl Kem for MlKem768XWingSeed {
 
     fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
         let seed = to_arr::<ML_KEM_768_XWING_SEED_LEN>(sk)?;
-        let (mut expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
-        let out = MlKem768.decapsulate(&expanded_sk, ct, ss);
-        q_periapt_core::secure_wipe(&mut expanded_sk);
-        out
+        let (expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        let expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
+        MlKem768.decapsulate(expanded_sk.as_bytes(), ct, ss)
     }
 }
 
@@ -291,8 +288,8 @@ impl X25519 {
 }
 
 impl Kem for X25519 {
-    // C2PRI defaults to false: X25519-as-KEM does not bind its ciphertext, so
-    // q-periapt-kem forbids it under the fast CompatXWing profile.
+    // Both capabilities default to false. X25519 is valid as the traditional
+    // slot whose ct/pk CompatXWing absorbs, but cannot occupy the omitted first slot.
 
     fn algorithm(&self) -> &'static str {
         "X25519"
@@ -336,6 +333,13 @@ impl Kem for X25519 {
 /// performance-sensitive one — entirely on the stack (no heap allocation).
 const SHA3_XOF_INLINE_CAP: usize = 200;
 
+/// Maximum number of disjoint secret transcript ranges tracked without falling
+/// back to erasing the entire staging buffer. The combiner's two component
+/// secrets plus conservatively sensitive caller context require three entries;
+/// the extra entry keeps the generic XOF surface useful without making the
+/// hot-path state dynamically allocated.
+const SHA3_XOF_SECRET_RANGE_CAP: usize = 4;
+
 /// SHA3-256-based [`Xof256`] for the combiner (fixed 32-byte output), via libcrux.
 ///
 /// libcrux exposes a one-shot SHA3-256 (`sha256`), so absorbed chunks are staged
@@ -348,21 +352,198 @@ const SHA3_XOF_INLINE_CAP: usize = 200;
 /// no heap traffic, while producing identical bytes.
 pub struct Sha3_256Xof {
     inline: [u8; SHA3_XOF_INLINE_CAP],
-    len: usize,
+    inline_len: usize,
     spill: Vec<u8>,
+    secret_ranges: [(usize, usize); SHA3_XOF_SECRET_RANGE_CAP],
+    secret_range_count: usize,
+    wipe_all: bool,
+}
+
+impl Sha3_256Xof {
+    fn staged_len(&self) -> usize {
+        if self.spill.is_empty() {
+            self.inline_len
+        } else {
+            self.spill.len()
+        }
+    }
+
+    fn record_secret_range(&mut self, len: usize) {
+        if len == 0 || self.wipe_all {
+            return;
+        }
+        let start = self.staged_len();
+        let Some(end) = start.checked_add(len) else {
+            self.wipe_all = true;
+            return;
+        };
+        let Some(slot) = self.secret_ranges.get_mut(self.secret_range_count) else {
+            self.wipe_all = true;
+            return;
+        };
+        *slot = (start, end);
+        self.secret_range_count += 1;
+    }
+
+    fn ranges_are_valid(&self, transcript_len: usize) -> bool {
+        self.inline_len <= self.inline.len()
+            && self.secret_range_count <= self.secret_ranges.len()
+            && self
+                .secret_ranges
+                .iter()
+                .take(self.secret_range_count)
+                .all(|&(start, end)| start <= end && end <= transcript_len)
+    }
+
+    fn wipe_range_intersections(
+        storage: &mut [u8],
+        initialized_len: usize,
+        ranges: &[(usize, usize); SHA3_XOF_SECRET_RANGE_CAP],
+        range_count: usize,
+    ) -> bool {
+        if initialized_len > storage.len() || range_count > ranges.len() {
+            return false;
+        }
+        for &(start, end) in ranges.iter().take(range_count) {
+            let intersection_start = start.min(initialized_len);
+            let intersection_end = end.min(initialized_len);
+            if intersection_start < intersection_end {
+                let Some(secret) = storage.get_mut(intersection_start..intersection_end) else {
+                    return false;
+                };
+                q_periapt_core::secure_wipe(secret);
+            }
+        }
+        true
+    }
+
+    fn wipe_live_spill_before_reallocation(&mut self) {
+        if self.spill.is_empty() {
+            return;
+        }
+        let spill_len = self.spill.len();
+        let metadata_valid = self.secret_range_count <= self.secret_ranges.len()
+            && self
+                .secret_ranges
+                .iter()
+                .take(self.secret_range_count)
+                .all(|&(start, end)| start <= end && end <= spill_len);
+        if self.wipe_all
+            || !metadata_valid
+            || !Self::wipe_range_intersections(
+                self.spill.as_mut_slice(),
+                spill_len,
+                &self.secret_ranges,
+                self.secret_range_count,
+            )
+        {
+            q_periapt_core::secure_wipe(self.spill.as_mut_slice());
+        }
+    }
+
+    fn ensure_spill_capacity(&mut self, required: usize) {
+        if self.spill.capacity() >= required {
+            return;
+        }
+        let target_capacity = self
+            .spill
+            .capacity()
+            .checked_mul(2)
+            .map_or(required, |doubled| doubled.max(required));
+        // Copy first, then volatile-wipe the secret-bearing ranges in the old
+        // allocation before replacing it. This preserves secret hygiene even
+        // for generic callers that did not pre-reserve the complete transcript.
+        // Geometric growth retains Vec's amortized behavior for that generic
+        // incremental path; an explicit initial reserve remains exact.
+        let mut replacement = Vec::new();
+        if replacement.try_reserve_exact(target_capacity).is_err() {
+            self.wipe_and_abort();
+        }
+        replacement.extend_from_slice(&self.spill);
+        self.wipe_live_spill_before_reallocation();
+        self.spill = replacement;
+    }
+
+    fn wipe_and_abort(&mut self) -> ! {
+        // A live slice and initialized Vec cannot legitimately exceed usize, so
+        // callers use this for corrupted private state, impossible address-space
+        // requests, and allocation failure. `abort` skips Drop, so wipe the live
+        // staging copies synchronously before terminating.
+        self.wipe_all = true;
+        self.wipe_staged_secrets();
+        std::process::abort()
+    }
+
+    fn append_bytes(&mut self, data: &[u8]) {
+        // Once the input has outgrown the inline buffer, everything goes to heap.
+        if !self.spill.is_empty() {
+            let Some(required) = self.spill.len().checked_add(data.len()) else {
+                self.wipe_and_abort();
+            };
+            self.ensure_spill_capacity(required);
+            self.spill.extend_from_slice(data);
+            return;
+        }
+
+        let Some(end) = self.inline_len.checked_add(data.len()) else {
+            self.wipe_and_abort();
+        };
+        match self.inline.get_mut(self.inline_len..end) {
+            Some(dst) => {
+                dst.copy_from_slice(data);
+                self.inline_len = end;
+            }
+            None => {
+                // Inline capacity exceeded: migrate the initialized prefix. Keep
+                // inline_len because the inline copy remains live until Drop and
+                // may contain an earlier secret range that must also be erased.
+                self.ensure_spill_capacity(end);
+                let Some(staged) = self.inline.get(..self.inline_len) else {
+                    self.wipe_and_abort();
+                };
+                self.spill.extend_from_slice(staged);
+                self.spill.extend_from_slice(data);
+            }
+        }
+    }
+
+    fn wipe_staged_secrets(&mut self) {
+        let transcript_len = self.staged_len();
+        let spill_len = self.spill.len();
+        let metadata_valid = self.ranges_are_valid(transcript_len);
+        let selective_ok = metadata_valid
+            && Self::wipe_range_intersections(
+                &mut self.inline,
+                self.inline_len,
+                &self.secret_ranges,
+                self.secret_range_count,
+            )
+            && Self::wipe_range_intersections(
+                self.spill.as_mut_slice(),
+                spill_len,
+                &self.secret_ranges,
+                self.secret_range_count,
+            );
+
+        if self.wipe_all || !selective_ok {
+            // Metadata corruption, range overflow, or legacy/unclassified input
+            // always falls back to the original whole-buffer erase behavior.
+            q_periapt_core::secure_wipe(&mut self.inline);
+            q_periapt_core::secure_wipe(self.spill.as_mut_slice());
+        }
+        self.inline_len = 0;
+        self.secret_ranges = [(0, 0); SHA3_XOF_SECRET_RANGE_CAP];
+        self.secret_range_count = 0;
+        self.wipe_all = false;
+    }
 }
 
 impl Drop for Sha3_256Xof {
     fn drop(&mut self) {
-        // The inline buffer and heap spill stage raw component shared secrets absorbed
-        // into the combiner; wipe both (the spill's live allocation included) before the
-        // storage is released, mirroring `core::Secret`'s volatile wipe — otherwise the
-        // same key material `Secret::drop` protects would persist here. The combiner pre-reserves
-        // the whole transcript via `Xof256::reserve`, so the spill allocates once and does not
-        // reallocate mid-absorb — there is no freed, un-zeroizable intermediate buffer to leak.
-        q_periapt_core::secure_wipe(&mut self.inline);
-        q_periapt_core::secure_wipe(self.spill.as_mut_slice());
-        self.len = 0;
+        // Erase every staging copy of explicitly secret or legacy/unclassified
+        // input before releasing storage. Public transcript bytes need no volatile
+        // erase; malformed range metadata fails closed to a whole-buffer wipe.
+        self.wipe_staged_secrets();
     }
 }
 
@@ -376,48 +557,49 @@ impl Xof256 for Sha3_256Xof {
     fn new() -> Self {
         Self {
             inline: [0u8; SHA3_XOF_INLINE_CAP],
-            len: 0,
+            inline_len: 0,
             spill: Vec::new(),
+            secret_ranges: [(0, 0); SHA3_XOF_SECRET_RANGE_CAP],
+            secret_range_count: 0,
+            wipe_all: false,
         }
     }
 
     fn reserve(&mut self, additional: usize) {
         // Allocate the heap spill once for the whole transcript so later `absorb`s never reallocate
         // and leak a secret-bearing buffer (the migration path moves the inline-staged bytes into
-        // the spill, so its final length is the full transcript). `reserve_exact` over the inline
+        // the spill, so its final length is the full transcript). Reserving over the inline
         // capacity is harmless; ContextBound transcripts always exceed it.
-        if additional > self.spill.len() {
-            self.spill.reserve_exact(additional - self.spill.len());
+        let Some(required) = self.staged_len().checked_add(additional) else {
+            self.wipe_and_abort();
+        };
+        if required > SHA3_XOF_INLINE_CAP {
+            self.ensure_spill_capacity(required);
         }
     }
 
     fn absorb(&mut self, data: &[u8]) {
-        // Once the input has outgrown the inline buffer, everything goes to heap.
-        if !self.spill.is_empty() {
-            self.spill.extend_from_slice(data);
-            return;
-        }
-        let end = self.len + data.len();
-        match self.inline.get_mut(self.len..end) {
-            Some(dst) => {
-                dst.copy_from_slice(data);
-                self.len = end;
-            }
-            None => {
-                // Inline capacity exceeded (ContextBound): migrate staged bytes.
-                self.spill.reserve(end);
-                if let Some(staged) = self.inline.get(..self.len) {
-                    self.spill.extend_from_slice(staged);
-                }
-                self.spill.extend_from_slice(data);
-                self.len = 0;
-            }
-        }
+        // Preserve the legacy contract conservatively: unclassified input may
+        // contain secrets, so erase the complete staging buffer on Drop.
+        self.wipe_all = true;
+        self.append_bytes(data);
     }
 
-    fn squeeze32(self) -> [u8; SHARED_SECRET_LEN] {
+    fn absorb_public(&mut self, data: &[u8]) {
+        self.append_bytes(data);
+    }
+
+    fn absorb_secret(&mut self, data: &[u8]) {
+        self.record_secret_range(data.len());
+        self.append_bytes(data);
+    }
+
+    fn squeeze32(mut self) -> [u8; SHARED_SECRET_LEN] {
         if self.spill.is_empty() {
-            libcrux_sha3::sha256(self.inline.get(..self.len).unwrap_or(&[]))
+            let Some(staged) = self.inline.get(..self.inline_len) else {
+                self.wipe_and_abort();
+            };
+            libcrux_sha3::sha256(staged)
         } else {
             libcrux_sha3::sha256(&self.spill)
         }
@@ -712,11 +894,182 @@ mod tests {
     fn sha3_256_known_answer() {
         // SHA3-256("") = a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a
         let mut x = Sha3_256Xof::new();
-        x.absorb(b"");
+        x.absorb_public(b"");
         let d = x.squeeze32();
         let expected = "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a";
         let got: String = d.iter().map(|b| format!("{b:02x}")).collect();
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn sha3_staging_wipes_only_inline_secret_ranges() {
+        let prefix = b"public-prefix";
+        let secret = [0xA5u8; 32];
+        let suffix = b"public-suffix";
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(prefix);
+        x.absorb_secret(&secret);
+        x.absorb_public(suffix);
+        assert!(x.spill.is_empty());
+
+        let secret_start = prefix.len();
+        let secret_end = secret_start + secret.len();
+        let suffix_end = secret_end + suffix.len();
+        x.wipe_staged_secrets();
+
+        assert_eq!(&x.inline[..secret_start], prefix);
+        assert_eq!(&x.inline[secret_start..secret_end], &[0u8; 32]);
+        assert_eq!(&x.inline[secret_end..suffix_end], suffix);
+    }
+
+    #[test]
+    fn sha3_staging_wipes_inline_and_spill_secret_copies() {
+        let prefix = b"public-prefix";
+        let secret = [0x5Au8; 32];
+        let suffix = vec![0xC3u8; SHA3_XOF_INLINE_CAP];
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(prefix);
+        x.absorb_secret(&secret);
+        x.absorb_public(&suffix);
+        assert!(
+            !x.spill.is_empty(),
+            "large public suffix must trigger spill"
+        );
+
+        let secret_start = prefix.len();
+        let secret_end = secret_start + secret.len();
+        let suffix_end = secret_end + suffix.len();
+        x.wipe_staged_secrets();
+
+        assert_eq!(&x.inline[..secret_start], prefix);
+        assert_eq!(&x.inline[secret_start..secret_end], &[0u8; 32]);
+        assert_eq!(&x.spill[..secret_start], prefix);
+        assert_eq!(&x.spill[secret_start..secret_end], &[0u8; 32]);
+        assert_eq!(&x.spill[secret_end..suffix_end], suffix.as_slice());
+    }
+
+    #[test]
+    fn sha3_staging_tracks_secret_that_triggers_and_follows_spill() {
+        let prefix = vec![0x11u8; SHA3_XOF_INLINE_CAP - 4];
+        let first_secret = [0x22u8; 16];
+        let public_middle = b"middle";
+        let second_secret = [0x33u8; 8];
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(&prefix);
+        x.absorb_secret(&first_secret);
+        x.absorb_public(public_middle);
+        x.absorb_secret(&second_secret);
+        assert!(!x.spill.is_empty());
+
+        let first_start = prefix.len();
+        let first_end = first_start + first_secret.len();
+        let middle_end = first_end + public_middle.len();
+        let second_end = middle_end + second_secret.len();
+        x.wipe_staged_secrets();
+
+        assert_eq!(&x.inline[..first_start], prefix.as_slice());
+        assert_eq!(&x.inline[first_start..SHA3_XOF_INLINE_CAP], &[0u8; 4]);
+        assert_eq!(&x.spill[..first_start], prefix.as_slice());
+        assert_eq!(&x.spill[first_start..first_end], &[0u8; 16]);
+        assert_eq!(&x.spill[first_end..middle_end], public_middle);
+        assert_eq!(&x.spill[middle_end..second_end], &[0u8; 8]);
+    }
+
+    #[test]
+    fn sha3_staging_range_overflow_and_invalid_metadata_wipe_all() {
+        let mut x = Sha3_256Xof::new();
+        for value in 0..=SHA3_XOF_SECRET_RANGE_CAP {
+            x.absorb_public(&[0x40 + value as u8]);
+            x.absorb_secret(&[0x80 + value as u8]);
+        }
+        assert!(x.wipe_all, "range-capacity exhaustion must fail closed");
+        let initialized = x.inline_len;
+        x.wipe_staged_secrets();
+        assert_eq!(&x.inline[..initialized], vec![0u8; initialized]);
+
+        let mut invalid = Sha3_256Xof::new();
+        invalid.absorb_public(b"public");
+        invalid.secret_ranges[0] = (1, usize::MAX);
+        invalid.secret_range_count = 1;
+        invalid.wipe_staged_secrets();
+        assert_eq!(&invalid.inline[..b"public".len()], &[0u8; 6]);
+
+        let mut arithmetic_overflow = Sha3_256Xof::new();
+        arithmetic_overflow.absorb_public(b"public");
+        arithmetic_overflow.record_secret_range(usize::MAX);
+        assert!(
+            arithmetic_overflow.wipe_all,
+            "range arithmetic overflow must fail closed"
+        );
+        arithmetic_overflow.wipe_staged_secrets();
+        assert_eq!(&arithmetic_overflow.inline[..b"public".len()], &[0u8; 6]);
+    }
+
+    #[test]
+    fn sha3_staging_empty_secret_is_free_and_classification_preserves_digest() {
+        let mut public_secret = Sha3_256Xof::new();
+        public_secret.absorb_public(b"prefix");
+        public_secret.absorb_secret(&[]);
+        assert_eq!(public_secret.secret_range_count, 0);
+        public_secret.absorb_secret(b"secret");
+        public_secret.absorb_public(b"suffix");
+
+        let mut legacy = Sha3_256Xof::new();
+        legacy.absorb(b"prefix");
+        legacy.absorb(b"secret");
+        legacy.absorb(b"suffix");
+        assert_eq!(public_secret.squeeze32(), legacy.squeeze32());
+    }
+
+    #[test]
+    fn sha3_legacy_absorb_and_spill_range_overflow_wipe_every_live_byte() {
+        let mut legacy = Sha3_256Xof::new();
+        legacy.absorb(b"public-but-unclassified");
+        legacy.absorb(b"secret");
+        let inline_len = legacy.inline_len;
+        assert!(legacy.wipe_all);
+        legacy.wipe_staged_secrets();
+        assert_eq!(&legacy.inline[..inline_len], vec![0u8; inline_len]);
+
+        let mut overflow = Sha3_256Xof::new();
+        overflow.absorb_public(&vec![0x71u8; SHA3_XOF_INLINE_CAP + 1]);
+        for value in 0..=SHA3_XOF_SECRET_RANGE_CAP {
+            overflow.absorb_secret(&[0x90 + value as u8]);
+            overflow.absorb_public(&[0x30 + value as u8]);
+        }
+        assert!(overflow.wipe_all);
+        let spill_len = overflow.spill.len();
+        overflow.wipe_staged_secrets();
+        assert_eq!(&overflow.spill[..spill_len], vec![0u8; spill_len]);
+    }
+
+    #[test]
+    fn sha3_spill_reallocation_wipes_old_secret_ranges_and_grows_geometrically() {
+        let prefix = vec![0x41u8; SHA3_XOF_INLINE_CAP + 1];
+        let secret = [0x52u8; 16];
+        let suffix = b"suffix";
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(&prefix);
+        x.absorb_secret(&secret);
+        x.absorb_public(suffix);
+
+        let secret_start = prefix.len();
+        let secret_end = secret_start + secret.len();
+        let suffix_end = secret_end + suffix.len();
+        x.wipe_live_spill_before_reallocation();
+        assert_eq!(&x.spill[..secret_start], prefix.as_slice());
+        assert_eq!(&x.spill[secret_start..secret_end], &[0u8; 16]);
+        assert_eq!(&x.spill[secret_end..suffix_end], suffix);
+
+        let mut growth = Sha3_256Xof::new();
+        growth.absorb_public(&prefix);
+        let old_capacity = growth.spill.capacity();
+        let additional = old_capacity + 1 - growth.spill.len();
+        growth.absorb_public(&vec![0x63u8; additional]);
+        assert!(
+            growth.spill.capacity() >= old_capacity * 2,
+            "unreserved incremental spill growth must remain amortized"
+        );
     }
 
     #[test]
@@ -852,6 +1205,21 @@ mod tests {
                 "CompatXWing seed-dk hybrid encap/decap must agree"
             );
         }
+    }
+
+    #[test]
+    fn compat_rejects_x25519_in_the_omitted_first_slot() {
+        use q_periapt_core::{Error, Profile};
+        use q_periapt_kem::HybridKem;
+
+        let result = HybridKem::<_, _, Sha3_256Xof>::new(
+            &X25519,
+            &MlKem768XWingSeed,
+            Profile::CompatXWing,
+            b"reversed-slots",
+            1,
+        );
+        assert!(matches!(result.err(), Some(Error::PolicyDenied)));
     }
 
     #[test]

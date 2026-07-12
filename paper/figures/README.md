@@ -4,11 +4,11 @@ Reproducible, IEEE-styled vector figures. `make` rebuilds every PDF.
 
 | File | Figure | Shows |
 |------|--------|-------|
-| `fig_arch.pdf`    | Architecture (hero) | proof-to-byte cross-substrate: one proven core → 5 faces / 3 OS / 5 ISA → byte-identical `K` |
+| `fig_arch.pdf`    | Architecture (hero) | proof-to-byte cross-substrate: deterministic byte-identity cells and separate native ABI 2 semantic-product cells over one core |
 | `fig_binding.pdf` | Binding position    | the honest CDM ceiling — ContextBound & X-Wing both reach MAL-BIND-K-{CT,PK}; our edge = assumption-minimality, not a stronger notion; X-BIND-CT-* unachievable |
-| `fig_ct.pdf`      | CT discriminator    | source→binary probe: ML-KEM secret = 0 flags, HQC = 193 (`vect_set_random_fixed_weight`); self-validating controls |
-| `fig_netem.pdf`   | netem P99           | PQ/T overhead = ~fixed ~180µs CPU → negligible % at real RTT; combiner-neutral |
-| `fig_kernel.pdf`  | §3 | reduction tower: MAL-BIND-K-{CT,PK,CTX} → CR(SHA3) via `encode_inj`; honest scope |
+| `fig_ct.pdf`      | CT discriminator    | current source→binary predicates: ML-KEM secret = 0, planted synthetic leak > 0, plus self-validating controls; historical HQC counts are not a current binary claim |
+| `fig_netem.pdf`   | historical virtualized netem p50 | Two historical VM runs show the qualitative fixed-cost/RTT shape; not current P99, device, or production parity |
+| `fig_kernel.pdf`  | §3 | reduction tower: standard MAL-BIND-K-{CT,PK} plus syntactic K-CTX extension → CR(SHA3) via `encode_inj`; honest scope |
 | `tbl_verif.pdf`   | §4 | the six orthogonal verification methods |
 | `tbl_substrate.pdf`| §5 | cross-substrate coverage: (a) ISA targets, (b) faces × OS |
 | `fig_wire.pdf`    | Wire budget         | PQ cost = one ML-KEM-768 keyshare each way (+2.27 KB), fits existing flights |

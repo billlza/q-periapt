@@ -20,10 +20,6 @@ targets:
     sources:
       - path: Sources/QPeriaptDeviceRunner
       - path: ../swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift
-      - path: ../shared-test-vectors.json
-        buildPhase: resources
-      - path: ../contextbound-vectors.txt
-        buildPhase: resources
       - path: ../signed-policy-vectors.json
         buildPhase: resources
     dependencies:
@@ -38,7 +34,7 @@ targets:
         INFOPLIST_FILE: Sources/QPeriaptDeviceRunner/Info.plist
         SWIFT_OBJC_BRIDGING_HEADER: Sources/QPeriaptDeviceRunner/QPeriaptDeviceRunner-Bridging-Header.h
         LIBRARY_SEARCH_PATHS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release"
-        OTHER_LDFLAGS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release/libq_periapt_ffi.a"
+        OTHER_LDFLAGS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a"
         CODE_SIGN_STYLE: Automatic
         ENABLE_DEBUG_DYLIB: NO
         SUPPORTED_PLATFORMS: iphoneos

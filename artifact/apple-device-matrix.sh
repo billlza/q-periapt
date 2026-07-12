@@ -4,6 +4,7 @@ set -eu
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -13,18 +14,21 @@ need() {
 }
 
 need date
-need git
 need python3
 need xcrun
 
 MATRIX_SPEC=${QPERIAPT_IOS_DEVICE_MATRIX:-}
-REQUIRED_TYPES=${QPERIAPT_REQUIRED_DEVICE_TYPES:-iPad,iPhone}
 DEVICE_PROOF_MAX_AGE_SECONDS=${QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS:-86400}
 ALLOW_DIRTY_APPLE_DEVICE=${QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE:-0}
 RUN_LABEL=$(date -u +%Y%m%dT%H%M%SZ)-$(python3 -c 'import secrets; print(secrets.token_hex(4))')
 MATRIX_RESULT_DIR=${QPERIAPT_DEVICE_RESULT_DIR:-"$ROOT/artifact/device-runs/apple-matrix-$RUN_LABEL"}
 DERIVED_BASE=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-device-derived-matrix-$RUN_LABEL"}
 MATRIX_PROOF="$MATRIX_RESULT_DIR/apple-device-matrix-proof.json"
+
+if [ "${QPERIAPT_REQUIRED_DEVICE_TYPES+x}" = x ]; then
+	printf 'error: QPERIAPT_REQUIRED_DEVICE_TYPES was removed; the release matrix always requires iPad and iPhone\n' >&2
+	exit 2
+fi
 
 case "$ALLOW_DIRTY_APPLE_DEVICE" in
 	0 | 1) ;;
@@ -33,7 +37,16 @@ case "$ALLOW_DIRTY_APPLE_DEVICE" in
 		exit 2
 		;;
 esac
-if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
+SOURCE_TREE_DIRTY=$(PYTHONPATH=artifact python3 - "$ROOT" <<'PY'
+import pathlib
+import sys
+
+from git_provenance import source_tree_dirty
+
+print(int(source_tree_dirty(pathlib.Path(sys.argv[1]))))
+PY
+)
+if [ "$SOURCE_TREE_DIRTY" = "1" ]; then
 	if [ "$ALLOW_DIRTY_APPLE_DEVICE" != "1" ]; then
 		printf 'error: Apple device matrix proof requires a clean source tree; set QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE=1 for local diagnostics only\n' >&2
 		exit 2
@@ -68,11 +81,16 @@ if not 0 < max_age <= limit:
 PY
 
 if [ -z "$MATRIX_SPEC" ]; then
-	MATRIX_SPEC=$(xcrun devicectl list devices --json-output - 2>/dev/null | python3 -c '
-import json
+	MATRIX_SPEC=$(xcrun devicectl list devices --json-output - 2>/dev/null | PYTHONPATH=artifact python3 -c '
 import sys
+from evidence_io import parse_strict_json_bytes
 
-data = json.load(sys.stdin)
+raw = sys.stdin.buffer.read(8 * 1024 * 1024 + 1)
+if len(raw) > 8 * 1024 * 1024:
+    raise SystemExit("error: devicectl device list JSON exceeds 8 MiB")
+data = parse_strict_json_bytes(raw, label="devicectl device list")
+if not isinstance(data, dict):
+    raise SystemExit("error: devicectl device list root is not an object")
 matches = {"ipad": [], "iphone": []}
 for dev in data.get("result", {}).get("devices", []):
     props = dev.get("properties", {})
@@ -97,16 +115,14 @@ fi
 
 mkdir -p "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
 
-python3 - "$MATRIX_SPEC" "$REQUIRED_TYPES" <<'PY'
-import json
+PYTHONPATH=artifact python3 - "$MATRIX_SPEC" <<'PY'
 import re
 import subprocess
 import sys
 
+from evidence_io import parse_strict_json_bytes
+
 matrix_spec = sys.argv[1]
-required_types = {item for item in sys.argv[2].split(",") if item}
-if not required_types <= {"iPad", "iPhone"}:
-    raise SystemExit(f"error: unsupported QPERIAPT_REQUIRED_DEVICE_TYPES: {sorted(required_types)}")
 label_to_type = {"ipad": "iPad", "iphone": "iPhone"}
 entries = []
 seen_labels = set()
@@ -133,10 +149,14 @@ seen_types = set()
 for label, device_id, expected_type in entries:
     raw_json = subprocess.check_output(
         ["xcrun", "devicectl", "device", "info", "details", "--device", device_id, "--json-output", "-"],
-        text=True,
         stderr=subprocess.DEVNULL,
     )
-    result = json.loads(raw_json).get("result", {})
+    if len(raw_json) > 8 * 1024 * 1024:
+        raise SystemExit(f"error: devicectl detail JSON exceeds 8 MiB for {label}")
+    document = parse_strict_json_bytes(raw_json, label=f"devicectl detail for {label}")
+    if not isinstance(document, dict):
+        raise SystemExit(f"error: devicectl detail root is not an object for {label}")
+    result = document.get("result", {})
     props = result.get("properties", {})
     hardware = props.get("hardware", {})
     state = props.get("state", {})
@@ -156,8 +176,8 @@ for label, device_id, expected_type in entries:
             "devicectl available/paired but disconnected devices are not accepted as runnable proof"
         )
     seen_types.add(actual_type)
-if not required_types <= seen_types:
-    raise SystemExit(f"error: matrix missing required device types: {sorted(required_types - seen_types)}")
+if seen_types != {"iPad", "iPhone"}:
+    raise SystemExit(f"error: matrix must contain iPad and iPhone, got: {sorted(seen_types)}")
 PY
 
 MATRIX_SPEC_DISPLAY=$(python3 - "$MATRIX_SPEC" <<'PY'
@@ -253,7 +273,6 @@ if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 		--root "$ROOT" \
 		--matrix-root "$MATRIX_RESULT_DIR" \
 		--output "$MATRIX_PROOF" \
-		--required-device-types "$REQUIRED_TYPES" \
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS" \
 		--allow-dirty-proof \
 		"$@"
@@ -268,7 +287,6 @@ else
 		--root "$ROOT" \
 		--matrix-root "$MATRIX_RESULT_DIR" \
 		--output "$MATRIX_PROOF" \
-		--required-device-types "$REQUIRED_TYPES" \
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS" \
 		"$@"
 	python3 artifact/apple_device_proof.py verify-matrix \

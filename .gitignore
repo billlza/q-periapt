@@ -6,6 +6,9 @@
 __pycache__/
 *.pyc
 
+# Ephemeral review/render outputs are never execution or release inputs.
+/tmp/
+
 # Binding build artifacts
 bindings/swift/.build/
 bindings/swift/Package.resolved

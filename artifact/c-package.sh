@@ -2,8 +2,9 @@
 # Build and verify a host C-ABI release archive for downstream consumers.
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd) || exit 2
+ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -16,11 +17,13 @@ need cargo
 need cbindgen
 need cc
 need cmake
+need ctest
 need pkg-config
 need python3
 need rustc
 need shasum
 need tar
+need nm
 
 if [ "${QPERIAPT_C_PACKAGE_SKIP_VERIFY:-0}" = "1" ]; then
 	printf 'error: QPERIAPT_C_PACKAGE_SKIP_VERIFY is not supported by the release archive proof gate\n' >&2
@@ -33,6 +36,11 @@ export CARGO_TARGET_DIR
 static_libs_log=$(mktemp "$ROOT/target/qperiapt-c-package-static-libs.XXXXXX.log")
 tmp_cbom=$(mktemp "$ROOT/target/qperiapt-cbom.XXXXXX.json")
 tmp_sbom=$(mktemp "$ROOT/target/qperiapt-sbom.XXXXXX.json")
+ABI_MAJOR=2
+ABI_COMPAT_VERSION=2.0.0
+CONTRACT_SOURCE="$ROOT/crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+HEADER_SOURCE="$ROOT/crates/q-periapt-ffi/include/q_periapt.h"
+FIXTURE_SOURCE="$ROOT/bindings/c/signed_policy_fixture.h"
 VERSION=$(cargo metadata --locked --format-version 1 | python3 -c '
 import json
 import sys
@@ -46,8 +54,8 @@ else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
 HOST=$(rustc -vV | awk '/^host: / { print $2 }')
-PACKAGE_NAME="q-periapt-c-abi-$VERSION-$HOST"
-OUT_ROOT=${QPERIAPT_C_PACKAGE_OUT_DIR:-"$ROOT/target/qperiapt-c-abi"}
+PACKAGE_NAME="q-periapt-c-abi2-$VERSION-$HOST"
+OUT_ROOT=${QPERIAPT_C_PACKAGE_OUT_DIR:-"$ROOT/target/qperiapt-c-abi2"}
 PACKAGE_DIR="$OUT_ROOT/$PACKAGE_NAME"
 ARCHIVE="$OUT_ROOT/$PACKAGE_NAME.tar.gz"
 VERIFY_ROOT="$OUT_ROOT/verify-$PACKAGE_NAME"
@@ -61,22 +69,26 @@ trap cleanup EXIT INT TERM
 
 case "$(uname -s)" in
 	Darwin)
-		SHARED_LIB="libq_periapt_ffi.dylib"
+		PLATFORM="macos"
+		BUILD_SHARED_LIB="libq_periapt_ffi_abi2.dylib"
+		SHARED_LIB="libq_periapt_ffi.2.dylib"
 		RPATH_FLAG="-Wl,-rpath,"
-		need install_name_tool
 		need otool
 		;;
 	Linux)
-		SHARED_LIB="libq_periapt_ffi.so"
+		PLATFORM="linux"
+		BUILD_SHARED_LIB="libq_periapt_ffi_abi2.so"
+		SHARED_LIB="libq_periapt_ffi.so.2"
 		RPATH_FLAG="-Wl,-rpath,"
 		need ldd
+		need readelf
 		;;
 	*)
 		printf 'error: C package script currently supports Darwin/Linux hosts, got %s\n' "$(uname -s)" >&2
 	exit 2
 		;;
 esac
-STATIC_LIB="libq_periapt_ffi.a"
+STATIC_LIB="libq_periapt_ffi_abi2.a"
 
 inspect_dynamic_linkage() {
 	binary=$1
@@ -116,7 +128,16 @@ inspect_static_linkage() {
 			otool -L "$binary" >"$linkage"
 			;;
 		Linux)
-			ldd "$binary" >"$linkage" 2>&1 || true
+			if ldd "$binary" >"$linkage" 2>&1; then
+				:
+			else
+				ldd_status=$?
+				if [ "$ldd_status" -ne 1 ] || ! grep -Eq 'not a dynamic executable|statically linked' "$linkage"; then
+					cat "$linkage" >&2
+					printf 'error: ldd failed unexpectedly for static consumer (exit %s)\n' "$ldd_status" >&2
+					exit 1
+				fi
+			fi
 			;;
 	esac
 	if grep -F "$SHARED_LIB" "$linkage" >/dev/null 2>&1; then
@@ -204,7 +225,6 @@ expected_crypto = {
     "ML-KEM-768",
     "ML-KEM-1024",
     "X25519",
-    "HQC-256",
     "ML-DSA-65",
     "ML-DSA-87",
     "SLH-DSA-SHA2-256s",
@@ -224,7 +244,12 @@ for component in cbom_components:
     require(algo.get("parameterSetIdentifier") == name, f"CBOM parameterSetIdentifier mismatch for {name}")
     require(isinstance(algo.get("cryptoFunctions"), list) and algo["cryptoFunctions"], f"CBOM cryptoFunctions missing for {name}")
     require(isinstance(algo.get("nistQuantumSecurityLevel"), int), f"CBOM NIST level missing for {name}")
-require(expected_crypto <= seen_crypto, f"CBOM missing assets: {sorted(expected_crypto - seen_crypto)}")
+require(
+    seen_crypto == expected_crypto,
+    "CBOM asset inventory mismatch: "
+    f"missing={sorted(expected_crypto - seen_crypto)} "
+    f"unexpected={sorted(seen_crypto - expected_crypto)}",
+)
 
 lock_components = []
 name = version = None
@@ -274,7 +299,7 @@ for raw, label in ((sys.argv[2], "QPERIAPT_C_PACKAGE_OUT_DIR"), (sys.argv[3], "p
         raise SystemExit(f"error: {label} must be under {target}: {path}") from exc
     if path == target:
         raise SystemExit(f"error: {label} must not be the target root itself: {path}")
-if not re.fullmatch(r"q-periapt-c-abi-[0-9A-Za-z._+-]+-[0-9A-Za-z._+-]+", pathlib.Path(sys.argv[3]).name):
+if not re.fullmatch(r"q-periapt-c-abi2-[0-9A-Za-z._+-]+-[0-9A-Za-z._+-]+", pathlib.Path(sys.argv[3]).name):
     raise SystemExit(f"error: unsafe package directory name: {pathlib.Path(sys.argv[3]).name}")
 PY
 
@@ -283,13 +308,37 @@ printf 'version : %s\n' "$VERSION"
 printf 'host    : %s\n' "$HOST"
 printf 'out     : %s\n' "$OUT_ROOT"
 
-printf '\n=== Generated header freshness ===\n'
+printf '\n=== Frozen ABI 2 contract and generated header freshness ===\n'
+test -f "$CONTRACT_SOURCE" || {
+	printf 'error: missing ABI contract: %s\n' "$CONTRACT_SOURCE" >&2
+	exit 1
+}
+test -f "$FIXTURE_SOURCE" || {
+	printf 'error: missing signed-policy fixture: %s\n' "$FIXTURE_SOURCE" >&2
+	exit 1
+}
+python3 artifact/c_abi_contract.py \
+	--contract "$CONTRACT_SOURCE" \
+	--header "$HEADER_SOURCE"
 cbindgen --config crates/q-periapt-ffi/cbindgen.toml \
 	--crate q-periapt-ffi \
 	--output "$tmp_header"
-cmp "$tmp_header" crates/q-periapt-ffi/include/q_periapt.h
-cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
-printf 'PASS: generated header freshness\n'
+cmp "$tmp_header" "$HEADER_SOURCE"
+cmp "$HEADER_SOURCE" bindings/swift/Sources/CQPeriapt/q_periapt.h
+CONTRACT_VERSION=$(python3 - "$CONTRACT_SOURCE" <<'PY'
+import json
+import pathlib
+import sys
+
+print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["package"]["semver"])
+PY
+)
+if [ "$VERSION" != "$CONTRACT_VERSION" ]; then
+	printf 'error: Cargo package version %s differs from frozen ABI contract version %s\n' \
+		"$VERSION" "$CONTRACT_VERSION" >&2
+	exit 1
+fi
+printf 'PASS: ABI 2 source contract and generated header freshness\n'
 
 printf '\n=== Build release C ABI ===\n'
 cargo build -p q-periapt-ffi --release --locked
@@ -297,11 +346,11 @@ test -f "$ROOT/target/release/$STATIC_LIB" || {
 	printf 'error: missing static library: %s\n' "$ROOT/target/release/$STATIC_LIB" >&2
 	exit 1
 }
-test -f "$ROOT/target/release/$SHARED_LIB" || {
-	printf 'error: missing shared library: %s\n' "$ROOT/target/release/$SHARED_LIB" >&2
+test -f "$ROOT/target/release/$BUILD_SHARED_LIB" || {
+	printf 'error: missing shared library: %s\n' "$ROOT/target/release/$BUILD_SHARED_LIB" >&2
 	exit 1
 }
-if ! cargo rustc -p q-periapt-ffi --release --locked --crate-type staticlib -- --print native-static-libs >"$static_libs_log" 2>&1; then
+if ! CARGO_TERM_COLOR=never cargo rustc -p q-periapt-ffi --release --locked --crate-type staticlib -- --print native-static-libs >"$static_libs_log" 2>&1; then
 	cat "$static_libs_log" >&2
 	printf 'error: failed to obtain q-periapt-ffi native static link libraries\n' >&2
 	exit 1
@@ -312,8 +361,15 @@ import re
 import shlex
 import sys
 
-text = pathlib.Path(sys.argv[1]).read_text()
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 platform = sys.argv[2]
+# GitHub runners can force colored Cargo diagnostics even when output is redirected.
+# Strip only well-formed ANSI CSI sequences, then reject any remaining escape byte;
+# the native linker tokens below still pass through the strict allowlist.
+ansi_csi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+text = ansi_csi.sub("", text)
+if "\x1b" in text:
+    raise SystemExit("error: unsupported terminal escape in rustc native-static-libs output")
 matches = re.findall(r"native-static-libs:\s*(.*)", text)
 if not matches:
     raise SystemExit("error: rustc did not print native-static-libs for q-periapt-ffi")
@@ -349,6 +405,22 @@ PY
 )
 printf 'native static libs: %s\n' "$NATIVE_STATIC_LIBS"
 
+if [ "$PLATFORM" = "macos" ]; then
+	# Mach-O compatibility/current versions cannot be set by install_name_tool.
+	# Write all three ABI-major identity fields at link time, then have the
+	# independent contract verifier read LC_ID_DYLIB from the packaged copy.
+	cargo rustc -p q-periapt-ffi --release --locked --crate-type cdylib -- \
+		-C "link-arg=-Wl,-install_name,@rpath/$SHARED_LIB" \
+		-C "link-arg=-Wl,-compatibility_version,$ABI_COMPAT_VERSION" \
+		-C "link-arg=-Wl,-current_version,$ABI_COMPAT_VERSION"
+elif [ "$PLATFORM" = "linux" ]; then
+	# Cargo has no stable manifest key for an ELF SONAME. Re-link this single
+	# cdylib target with the frozen ABI-major SONAME and verify it below; merely
+	# renaming an unversioned ELF file would create a false runtime identity.
+	cargo rustc -p q-periapt-ffi --release --locked --crate-type cdylib -- \
+		-C "link-arg=-Wl,-soname,$SHARED_LIB"
+fi
+
 for required_file in LICENSE LICENSES/Apache-2.0.txt LICENSES/MIT.txt; do
 	test -f "$ROOT/$required_file" || {
 		printf 'error: required license file missing: %s\n' "$required_file" >&2
@@ -356,19 +428,27 @@ for required_file in LICENSE LICENSES/Apache-2.0.txt LICENSES/MIT.txt; do
 	}
 done
 
-rm -rf "$PACKAGE_DIR" "$VERIFY_ROOT" "$ARCHIVE"
-mkdir -p "$PACKAGE_DIR/include" "$PACKAGE_DIR/lib/pkgconfig" "$PACKAGE_DIR/lib/cmake/QPeriapt" \
-	"$PACKAGE_DIR/share/q-periapt/bom" "$PACKAGE_DIR/LICENSES"
-cp "$ROOT/crates/q-periapt-ffi/include/q_periapt.h" "$PACKAGE_DIR/include/q_periapt.h"
+rm -rf "$PACKAGE_DIR" "$VERIFY_ROOT" "$ARCHIVE" "$ARCHIVE.sha256"
+mkdir -p "$PACKAGE_DIR/include/qperiapt/abi2" \
+	"$PACKAGE_DIR/lib/pkgconfig" \
+	"$PACKAGE_DIR/lib/cmake/QPeriaptABI2" \
+	"$PACKAGE_DIR/share/q-periapt/abi" \
+	"$PACKAGE_DIR/share/q-periapt/bom" \
+	"$PACKAGE_DIR/LICENSES"
+cp "$HEADER_SOURCE" "$PACKAGE_DIR/include/qperiapt/abi2/q_periapt.h"
+cp "$FIXTURE_SOURCE" "$PACKAGE_DIR/include/qperiapt/abi2/signed_policy_fixture.h"
+cp "$CONTRACT_SOURCE" "$PACKAGE_DIR/share/q-periapt/abi/q-periapt-c-abi-v2.json"
 cp "$ROOT/target/release/$STATIC_LIB" "$PACKAGE_DIR/lib/$STATIC_LIB"
-cp "$ROOT/target/release/$SHARED_LIB" "$PACKAGE_DIR/lib/$SHARED_LIB"
+cp "$ROOT/target/release/$BUILD_SHARED_LIB" "$PACKAGE_DIR/lib/$SHARED_LIB"
 cp "$ROOT/bindings/c/smoke.c" "$PACKAGE_DIR/share/q-periapt/smoke.c"
 cp "$ROOT/LICENSE" "$PACKAGE_DIR/LICENSE"
 cp "$ROOT/LICENSES/Apache-2.0.txt" "$PACKAGE_DIR/LICENSES/Apache-2.0.txt"
 cp "$ROOT/LICENSES/MIT.txt" "$PACKAGE_DIR/LICENSES/MIT.txt"
-if [ "$(uname -s)" = "Darwin" ]; then
-	install_name_tool -id "@rpath/$SHARED_LIB" "$PACKAGE_DIR/lib/$SHARED_LIB"
-fi
+python3 artifact/c_abi_contract.py \
+	--contract "$PACKAGE_DIR/share/q-periapt/abi/q-periapt-c-abi-v2.json" \
+	--header "$PACKAGE_DIR/include/qperiapt/abi2/q_periapt.h" \
+	--library "$PACKAGE_DIR/lib/$SHARED_LIB" \
+	--platform "$PLATFORM"
 
 cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- cbom >"$tmp_cbom"
 cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock >"$tmp_sbom"
@@ -376,101 +456,113 @@ cp "$tmp_cbom" "$PACKAGE_DIR/share/q-periapt/bom/cbom.cdx.json"
 cp "$tmp_sbom" "$PACKAGE_DIR/share/q-periapt/bom/sbom.cdx.json"
 validate_license_and_boms "$PACKAGE_DIR"
 
-cat > "$PACKAGE_DIR/lib/pkgconfig/qperiapt.pc" <<EOF
+cat > "$PACKAGE_DIR/lib/pkgconfig/qperiapt-abi2.pc" <<EOF
 prefix=\${pcfiledir}/../..
 exec_prefix=\${prefix}
 libdir=\${prefix}/lib
-includedir=\${prefix}/include
+includedir=\${prefix}/include/qperiapt/abi2
 
-Name: q-periapt
-Description: Q-Periapt fixed C ABI (ML-KEM-768 + X25519)
+Name: qperiapt-abi2
+Description: Q-Periapt policy-gated C ABI 2 (ML-KEM-768 + X25519)
 Version: $VERSION
 Cflags: -I\${includedir}
-Libs: -L\${libdir} -lq_periapt_ffi ${RPATH_FLAG}\${libdir}
+Libs: \${libdir}/$SHARED_LIB ${RPATH_FLAG}\${libdir}
 EOF
 
-cat > "$PACKAGE_DIR/lib/pkgconfig/qperiapt-static.pc" <<EOF
+cat > "$PACKAGE_DIR/lib/pkgconfig/qperiapt-abi2-static.pc" <<EOF
 prefix=\${pcfiledir}/../..
 exec_prefix=\${prefix}
 libdir=\${prefix}/lib
-includedir=\${prefix}/include
+includedir=\${prefix}/include/qperiapt/abi2
 
-Name: q-periapt-static
-Description: Q-Periapt fixed C ABI static library (ML-KEM-768 + X25519)
+Name: qperiapt-abi2-static
+Description: Q-Periapt policy-gated C ABI 2 static library (ML-KEM-768 + X25519)
 Version: $VERSION
 Cflags: -I\${includedir}
 Libs: \${libdir}/$STATIC_LIB
 Libs.private: $NATIVE_STATIC_LIBS
 EOF
 
-cat > "$PACKAGE_DIR/lib/cmake/QPeriapt/QPeriaptConfig.cmake" <<EOF
+cat > "$PACKAGE_DIR/lib/cmake/QPeriaptABI2/QPeriaptABI2Config.cmake" <<EOF
 include_guard(GLOBAL)
 
-get_filename_component(_QPERIAPT_PREFIX "\${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
-set(QPeriapt_VERSION "$VERSION")
-set(QPeriapt_INCLUDE_DIR "\${_QPERIAPT_PREFIX}/include")
-set(QPeriapt_LIBRARY "\${_QPERIAPT_PREFIX}/lib/$SHARED_LIB")
-set(QPeriapt_STATIC_LIBRARY "\${_QPERIAPT_PREFIX}/lib/$STATIC_LIB")
-set(_QPERIAPT_STATIC_NATIVE_LIBS $CMAKE_NATIVE_STATIC_LIBS)
-
-if(NOT EXISTS "\${QPeriapt_INCLUDE_DIR}/q_periapt.h")
-  message(FATAL_ERROR "QPeriapt header not found: \${QPeriapt_INCLUDE_DIR}/q_periapt.h")
-endif()
-if(NOT EXISTS "\${QPeriapt_LIBRARY}")
-  message(FATAL_ERROR "QPeriapt shared library not found: \${QPeriapt_LIBRARY}")
-endif()
-if(NOT EXISTS "\${QPeriapt_STATIC_LIBRARY}")
-  message(FATAL_ERROR "QPeriapt static library not found: \${QPeriapt_STATIC_LIBRARY}")
+if(NOT DEFINED QPeriaptABI2_FIND_VERSION OR
+   NOT QPeriaptABI2_FIND_VERSION VERSION_EQUAL "$ABI_COMPAT_VERSION" OR
+   NOT QPeriaptABI2_FIND_VERSION_EXACT)
+  message(FATAL_ERROR
+    "QPeriaptABI2 must be requested as find_package(QPeriaptABI2 $ABI_COMPAT_VERSION EXACT CONFIG REQUIRED)")
 endif()
 
-if(NOT TARGET QPeriapt::qperiapt)
-  add_library(QPeriapt::qperiapt UNKNOWN IMPORTED)
-  set_target_properties(QPeriapt::qperiapt PROPERTIES
-    IMPORTED_LOCATION "\${QPeriapt_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "\${QPeriapt_INCLUDE_DIR}"
+get_filename_component(_QPERIAPT_ABI2_PREFIX "\${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set(QPeriaptABI2_VERSION "$ABI_COMPAT_VERSION")
+set(QPeriaptABI2_ABI_MAJOR "$ABI_MAJOR")
+set(QPeriaptABI2_RELEASE_VERSION "$VERSION")
+set(QPeriaptABI2_INCLUDE_DIR "\${_QPERIAPT_ABI2_PREFIX}/include/qperiapt/abi2")
+set(QPeriaptABI2_LIBRARY "\${_QPERIAPT_ABI2_PREFIX}/lib/$SHARED_LIB")
+set(QPeriaptABI2_STATIC_LIBRARY "\${_QPERIAPT_ABI2_PREFIX}/lib/$STATIC_LIB")
+set(_QPERIAPT_ABI2_STATIC_NATIVE_LIBS $CMAKE_NATIVE_STATIC_LIBS)
+
+if(NOT EXISTS "\${QPeriaptABI2_INCLUDE_DIR}/q_periapt.h")
+  message(FATAL_ERROR "QPeriapt ABI 2 header not found: \${QPeriaptABI2_INCLUDE_DIR}/q_periapt.h")
+endif()
+if(NOT EXISTS "\${QPeriaptABI2_LIBRARY}")
+  message(FATAL_ERROR "QPeriapt ABI 2 shared library not found: \${QPeriaptABI2_LIBRARY}")
+endif()
+if(NOT EXISTS "\${QPeriaptABI2_STATIC_LIBRARY}")
+  message(FATAL_ERROR "QPeriapt ABI 2 static library not found: \${QPeriaptABI2_STATIC_LIBRARY}")
+endif()
+
+if(NOT TARGET QPeriaptABI2::qperiapt)
+  add_library(QPeriaptABI2::qperiapt UNKNOWN IMPORTED)
+  set_target_properties(QPeriaptABI2::qperiapt PROPERTIES
+    IMPORTED_LOCATION "\${QPeriaptABI2_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "\${QPeriaptABI2_INCLUDE_DIR}"
   )
 endif()
 
-if(NOT TARGET QPeriapt::qperiapt_static)
-  add_library(QPeriapt::qperiapt_static STATIC IMPORTED)
-  set_target_properties(QPeriapt::qperiapt_static PROPERTIES
-    IMPORTED_LOCATION "\${QPeriapt_STATIC_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "\${QPeriapt_INCLUDE_DIR}"
+if(NOT TARGET QPeriaptABI2::qperiapt_static)
+  add_library(QPeriaptABI2::qperiapt_static STATIC IMPORTED)
+  set_target_properties(QPeriaptABI2::qperiapt_static PROPERTIES
+    IMPORTED_LOCATION "\${QPeriaptABI2_STATIC_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "\${QPeriaptABI2_INCLUDE_DIR}"
   )
-  if(_QPERIAPT_STATIC_NATIVE_LIBS)
-    set_property(TARGET QPeriapt::qperiapt_static APPEND PROPERTY
-      INTERFACE_LINK_LIBRARIES \${_QPERIAPT_STATIC_NATIVE_LIBS})
+  if(_QPERIAPT_ABI2_STATIC_NATIVE_LIBS)
+    set_property(TARGET QPeriaptABI2::qperiapt_static APPEND PROPERTY
+      INTERFACE_LINK_LIBRARIES \${_QPERIAPT_ABI2_STATIC_NATIVE_LIBS})
   endif()
 endif()
 EOF
 
-cat > "$PACKAGE_DIR/lib/cmake/QPeriapt/QPeriaptConfigVersion.cmake" <<EOF
-set(PACKAGE_VERSION "$VERSION")
+cat > "$PACKAGE_DIR/lib/cmake/QPeriaptABI2/QPeriaptABI2ConfigVersion.cmake" <<EOF
+set(PACKAGE_VERSION "$ABI_COMPAT_VERSION")
 
 if(PACKAGE_FIND_VERSION VERSION_EQUAL PACKAGE_VERSION)
   set(PACKAGE_VERSION_EXACT TRUE)
   set(PACKAGE_VERSION_COMPATIBLE TRUE)
-elseif(PACKAGE_FIND_VERSION VERSION_LESS PACKAGE_VERSION)
-  set(PACKAGE_VERSION_COMPATIBLE TRUE)
 else()
   set(PACKAGE_VERSION_COMPATIBLE FALSE)
+  set(PACKAGE_VERSION_UNSUITABLE TRUE)
 endif()
 EOF
 
 cat > "$PACKAGE_DIR/README.md" <<EOF
-# Q-Periapt C ABI $VERSION ($HOST)
+# Q-Periapt C ABI 2 — $VERSION ($HOST)
 
-This archive contains the fixed Q-Periapt C ABI for ML-KEM-768 + X25519.
+This archive contains the policy-gated Q-Periapt C ABI 2 for ML-KEM-768 + X25519.
+The CMake ABI compatibility version is \`$ABI_COMPAT_VERSION\`; the full release
+version is exposed as \`QPeriaptABI2_RELEASE_VERSION=$VERSION\`.
 
 Contents:
 
-- \`include/q_periapt.h\`
+- \`include/qperiapt/abi2/q_periapt.h\`
+- \`include/qperiapt/abi2/signed_policy_fixture.h\` (public smoke-test material)
 - \`lib/$STATIC_LIB\`
 - \`lib/$SHARED_LIB\`
-- \`lib/pkgconfig/qperiapt.pc\`
-- \`lib/pkgconfig/qperiapt-static.pc\`
-- \`lib/cmake/QPeriapt/QPeriaptConfig.cmake\`
-- \`lib/cmake/QPeriapt/QPeriaptConfigVersion.cmake\`
+- \`lib/pkgconfig/qperiapt-abi2.pc\`
+- \`lib/pkgconfig/qperiapt-abi2-static.pc\`
+- \`lib/cmake/QPeriaptABI2/QPeriaptABI2Config.cmake\`
+- \`lib/cmake/QPeriaptABI2/QPeriaptABI2ConfigVersion.cmake\`
+- \`share/q-periapt/abi/q-periapt-c-abi-v2.json\`
 - \`share/q-periapt/smoke.c\`
 - \`share/q-periapt/bom/cbom.cdx.json\`
 - \`share/q-periapt/bom/sbom.cdx.json\`
@@ -488,8 +580,10 @@ shasum -a 256 -c SHA256SUMS
 Compile the bundled smoke with pkg-config:
 
 \`\`\`sh
-PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" cc -std=c11 -Wall -Wextra \\
-  share/q-periapt/smoke.c \$(PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" pkg-config --cflags --libs qperiapt) \\
+PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" PKG_CONFIG_LIBDIR="\$PWD/lib/pkgconfig" \\
+  pkg-config --cflags --libs qperiapt-abi2 > qperiapt-abi2.flags
+cc -std=c11 -Wall -Wextra -Wpedantic -Werror share/q-periapt/smoke.c \\
+  @qperiapt-abi2.flags \\
   -o c_smoke
 ./c_smoke
 \`\`\`
@@ -497,8 +591,10 @@ PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" cc -std=c11 -Wall -Wextra \\
 Compile the bundled smoke with the static archive:
 
 \`\`\`sh
-PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" cc -std=c11 -Wall -Wextra \\
-  share/q-periapt/smoke.c \$(PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" pkg-config --cflags --libs --static qperiapt-static) \\
+PKG_CONFIG_PATH="\$PWD/lib/pkgconfig" PKG_CONFIG_LIBDIR="\$PWD/lib/pkgconfig" \\
+  pkg-config --cflags --libs --static qperiapt-abi2-static > qperiapt-abi2-static.flags
+cc -std=c11 -Wall -Wextra -Wpedantic -Werror share/q-periapt/smoke.c \\
+  @qperiapt-abi2-static.flags \\
   -o c_static_smoke
 ./c_static_smoke
 \`\`\`
@@ -525,7 +621,8 @@ if grep -R -n -F "target/release" \
 	exit 1
 fi
 
-python3 - "$ROOT" "$PACKAGE_DIR" "$PACKAGE_NAME" "$VERSION" "$HOST" <<'PY'
+python3 - "$ROOT" "$PACKAGE_DIR" "$PACKAGE_NAME" "$VERSION" "$HOST" \
+	"$PLATFORM" "$SHARED_LIB" "$STATIC_LIB" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -539,6 +636,9 @@ package_dir = pathlib.Path(sys.argv[2]).resolve()
 package_name = sys.argv[3]
 version = sys.argv[4]
 host = sys.argv[5]
+platform = sys.argv[6]
+shared_filename = sys.argv[7]
+static_filename = sys.argv[8]
 
 def sha256(path: pathlib.Path) -> str:
     hasher = hashlib.sha256()
@@ -588,8 +688,27 @@ def tree_hash(rels: tuple[str, ...]) -> str:
         raise SystemExit("error: source tree hash had no inputs")
     return hasher.hexdigest()
 
+source_contract_rel = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+embedded_contract_rel = "share/q-periapt/abi/q-periapt-c-abi-v2.json"
+source_contract_path = root / source_contract_rel
+embedded_contract_path = package_dir / embedded_contract_rel
+if sha256(source_contract_path) != sha256(embedded_contract_path):
+    raise SystemExit("error: embedded ABI contract differs from repository trust root")
+contract = json.loads(embedded_contract_path.read_text(encoding="utf-8"))
+exports = sorted(item["name"] for item in contract["abi"]["exports"])
+if len(exports) != 9 or len(exports) != len(set(exports)):
+    raise SystemExit(f"error: ABI contract export count differs from frozen value: {len(exports)}")
+# ABI export-set digest encoding: UTF-8 of sorted exact names, one per line,
+# including the final LF. This is stable across JSON formatting and platforms.
+exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode("utf-8")).hexdigest()
+runtime_identity = contract["package"]["platforms"][platform]
+if runtime_identity["shared_filename"] != shared_filename:
+    raise SystemExit("error: packaged shared filename differs from ABI contract")
+if runtime_identity["static_filename"] != static_filename:
+    raise SystemExit("error: packaged static filename differs from ABI contract")
+
 manifest = {
-    "schema_version": 1,
+    "schema_version": 2,
     "package": package_name,
     "version": version,
     "host": host,
@@ -598,10 +717,25 @@ manifest = {
     "git_dirty": bool(run(["git", "status", "--short"])),
     "rustc": run(["rustc", "--version"]),
     "cargo": run(["cargo", "--version"]),
+    "abi": {
+        "major": 2,
+        "contract_path": source_contract_rel,
+        "embedded_contract_path": embedded_contract_rel,
+        "contract_sha256": sha256(embedded_contract_path),
+        "exports_sha256": exports_sha256,
+        "export_count": len(exports),
+        "platform": platform,
+        "runtime_identity": runtime_identity,
+        "shared_filename": shared_filename,
+        "static_filename": static_filename,
+    },
     "source_inputs_sha256": {
         "cargo_lock": sha256(root / "Cargo.lock"),
         "c_package_script": sha256(root / "artifact" / "c-package.sh"),
+        "c_abi_contract_script": sha256(root / "artifact" / "c_abi_contract.py"),
+        "c_abi_contract": sha256(root / "crates" / "q-periapt-ffi" / "abi" / "q-periapt-c-abi-v2.json"),
         "c_smoke": sha256(root / "bindings" / "c" / "smoke.c"),
+        "c_signed_policy_fixture": sha256(root / "bindings" / "c" / "signed_policy_fixture.h"),
         "license": sha256(root / "LICENSE"),
         "license_apache": sha256(root / "LICENSES" / "Apache-2.0.txt"),
         "license_mit": sha256(root / "LICENSES" / "MIT.txt"),
@@ -689,11 +823,33 @@ sums_path = root / "SHA256SUMS"
 require(manifest_path.is_file(), "MANIFEST.json missing after extraction")
 require(sums_path.is_file(), "SHA256SUMS missing after extraction")
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-require(manifest.get("schema_version") == 1, "unsupported MANIFEST schema")
+require(manifest.get("schema_version") == 2, "unsupported MANIFEST schema")
 files = manifest.get("files")
 require(isinstance(files, list) and files, "MANIFEST files list missing")
 source_inputs = manifest.get("source_inputs_sha256")
 require(isinstance(source_inputs, dict), "MANIFEST source_inputs_sha256 missing")
+abi = manifest.get("abi")
+require(isinstance(abi, dict), "MANIFEST abi object missing")
+require(set(abi) == {
+    "major",
+    "contract_path",
+    "embedded_contract_path",
+    "contract_sha256",
+    "exports_sha256",
+    "export_count",
+    "platform",
+    "runtime_identity",
+    "shared_filename",
+    "static_filename",
+}, "MANIFEST abi keys differ from schema 2")
+require(abi["major"] == 2, "MANIFEST ABI major is not 2")
+require(abi["export_count"] == 9, "MANIFEST ABI export count is not 9")
+require(abi["platform"] in {"macos", "linux"}, "MANIFEST ABI platform is unsupported")
+require(abi["contract_path"] == "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json", "MANIFEST repository contract path differs")
+require(abi["embedded_contract_path"] == "share/q-periapt/abi/q-periapt-c-abi-v2.json", "MANIFEST embedded contract path differs")
+require(re.fullmatch(r"[0-9a-f]{64}", abi["contract_sha256"] or "") is not None, "MANIFEST ABI contract hash is malformed")
+require(re.fullmatch(r"[0-9a-f]{64}", abi["exports_sha256"] or "") is not None, "MANIFEST ABI exports hash is malformed")
+require(isinstance(abi["runtime_identity"], dict), "MANIFEST runtime identity is not an object")
 
 manifest_hashes = {}
 for entry in files:
@@ -740,8 +896,47 @@ for rel, digest in manifest_hashes.items():
     require(sum_hashes[rel] == digest, f"MANIFEST/SHA256SUMS hash mismatch for {rel}")
     require(sha256(root / rel) == digest, f"file hash mismatch for {rel}")
 require(sha256(manifest_path) == sum_hashes["MANIFEST.json"], "MANIFEST.json hash mismatch")
+embedded_contract_path = root / abi["embedded_contract_path"]
+require(embedded_contract_path.is_file(), "embedded ABI contract is missing")
+require(sha256(embedded_contract_path) == abi["contract_sha256"], "embedded ABI contract hash mismatch")
+source_contract_path = repo_root / abi["contract_path"]
+require(source_contract_path.is_file(), "repository ABI contract is missing")
+require(sha256(source_contract_path) == abi["contract_sha256"], "repository/embedded ABI contract hash mismatch")
+contract = json.loads(embedded_contract_path.read_text(encoding="utf-8"))
+require(contract["abi"]["major"] == 2, "embedded ABI contract major differs")
+require(contract["package"]["semver"] == manifest.get("version"), "manifest version differs from ABI contract")
+require(abi["runtime_identity"] == contract["package"]["platforms"][abi["platform"]], "MANIFEST runtime identity differs from ABI contract")
+require(abi["shared_filename"] == abi["runtime_identity"]["shared_filename"], "MANIFEST shared filename differs from runtime identity")
+require(abi["static_filename"] == abi["runtime_identity"]["static_filename"], "MANIFEST static filename differs from runtime identity")
+exports = sorted(item["name"] for item in contract["abi"]["exports"])
+require(len(exports) == 9 and len(exports) == len(set(exports)), "embedded ABI contract export count differs")
+# Encoding is UTF-8 of sorted exact export names, one name per line, with a final LF.
+exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode("utf-8")).hexdigest()
+require(exports_sha256 == abi["exports_sha256"], "MANIFEST ABI export-set hash mismatch")
+require((root / "lib" / abi["shared_filename"]).is_file(), "MANIFEST shared library is missing")
+require((root / "lib" / abi["static_filename"]).is_file(), "MANIFEST static library is missing")
+require((root / "include/qperiapt/abi2/q_periapt.h").is_file(), "ABI-major header path is missing")
+require((root / "include/qperiapt/abi2/signed_policy_fixture.h").is_file(), "signed-policy fixture is missing")
+for legacy in (
+    "include/q_periapt.h",
+    "lib/libq_periapt_ffi.dylib",
+    "lib/libq_periapt_ffi.so",
+    "lib/libq_periapt_ffi.a",
+    "lib/libq_periapt_ffi_abi2.dylib",
+    "lib/libq_periapt_ffi_abi2.so",
+    "lib/pkgconfig/qperiapt.pc",
+    "lib/pkgconfig/qperiapt-static.pc",
+    "lib/cmake/QPeriapt/QPeriaptConfig.cmake",
+):
+    require(not (root / legacy).exists(), f"legacy/unversioned package path is present: {legacy}")
 expected_source_files = {
     "cargo_lock": "Cargo.lock",
+    "c_package_script": "artifact/c-package.sh",
+    "c_abi_contract_script": "artifact/c_abi_contract.py",
+    "c_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+    "c_smoke": "bindings/c/smoke.c",
+    "c_signed_policy_fixture": "bindings/c/signed_policy_fixture.h",
+    "ffi_header": "crates/q-periapt-ffi/include/q_periapt.h",
     "license": "LICENSE",
     "license_apache": "LICENSES/Apache-2.0.txt",
     "license_mit": "LICENSES/MIT.txt",
@@ -754,18 +949,53 @@ for key, rel in expected_source_files.items():
     require(source_inputs[key] == sha256(repo_root / rel), f"MANIFEST source input hash mismatch for {rel}")
 PY
 
+python3 artifact/c_abi_contract.py \
+	--contract "$EXTRACTED/share/q-periapt/abi/q-periapt-c-abi-v2.json" \
+	--header "$EXTRACTED/include/qperiapt/abi2/q_periapt.h" \
+	--library "$EXTRACTED/lib/$SHARED_LIB" \
+	--platform "$PLATFORM"
+
+printf '\n=== Legacy package-name negative controls ===\n'
+for legacy_module in qperiapt qperiapt-static; do
+	if PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" \
+		PKG_CONFIG_LIBDIR="$EXTRACTED/lib/pkgconfig" \
+		pkg-config --exists "$legacy_module"; then
+		printf 'error: legacy pkg-config module unexpectedly resolves: %s\n' "$legacy_module" >&2
+		exit 1
+	fi
+done
+printf 'PASS: legacy pkg-config modules do not resolve\n'
+
 printf '\n=== pkg-config extracted consumer ===\n'
 PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" \
-cc -std=c11 -Wall -Wextra -Werror "$EXTRACTED/share/q-periapt/smoke.c" \
-	$(PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" pkg-config --cflags --libs qperiapt) \
+	PKG_CONFIG_LIBDIR="$EXTRACTED/lib/pkgconfig" \
+	pkg-config --cflags --libs qperiapt-abi2 > "$VERIFY_ROOT/pkgconfig-dynamic.flags"
+PKG_DYNAMIC_VERSION=$(PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" \
+	PKG_CONFIG_LIBDIR="$EXTRACTED/lib/pkgconfig" \
+	pkg-config --modversion qperiapt-abi2)
+if [ "$PKG_DYNAMIC_VERSION" != "$VERSION" ]; then
+	printf 'error: dynamic pkg-config release version differs: %s\n' "$PKG_DYNAMIC_VERSION" >&2
+	exit 1
+fi
+cc -std=c11 -Wall -Wextra -Wpedantic -Werror "$EXTRACTED/share/q-periapt/smoke.c" \
+	@"$VERIFY_ROOT/pkgconfig-dynamic.flags" \
 	-o "$VERIFY_ROOT/pkgconfig-smoke"
 "$VERIFY_ROOT/pkgconfig-smoke"
 inspect_dynamic_linkage "$VERIFY_ROOT/pkgconfig-smoke" "pkgconfig-smoke"
 
 printf '\n=== pkg-config static extracted consumer ===\n'
 PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" \
-cc -std=c11 -Wall -Wextra -Werror "$EXTRACTED/share/q-periapt/smoke.c" \
-	$(PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" pkg-config --cflags --libs --static qperiapt-static) \
+	PKG_CONFIG_LIBDIR="$EXTRACTED/lib/pkgconfig" \
+	pkg-config --cflags --libs --static qperiapt-abi2-static > "$VERIFY_ROOT/pkgconfig-static.flags"
+PKG_STATIC_VERSION=$(PKG_CONFIG_PATH="$EXTRACTED/lib/pkgconfig" \
+	PKG_CONFIG_LIBDIR="$EXTRACTED/lib/pkgconfig" \
+	pkg-config --modversion qperiapt-abi2-static)
+if [ "$PKG_STATIC_VERSION" != "$VERSION" ]; then
+	printf 'error: static pkg-config release version differs: %s\n' "$PKG_STATIC_VERSION" >&2
+	exit 1
+fi
+cc -std=c11 -Wall -Wextra -Wpedantic -Werror "$EXTRACTED/share/q-periapt/smoke.c" \
+	@"$VERIFY_ROOT/pkgconfig-static.flags" \
 	-o "$VERIFY_ROOT/pkgconfig-static-smoke"
 "$VERIFY_ROOT/pkgconfig-static-smoke"
 inspect_static_linkage "$VERIFY_ROOT/pkgconfig-static-smoke" "pkgconfig-static-smoke"
@@ -778,17 +1008,29 @@ cp "$EXTRACTED/share/q-periapt/smoke.c" "$CMAKE_SRC/smoke.c"
 cat > "$CMAKE_SRC/CMakeLists.txt" <<'EOF'
 cmake_minimum_required(VERSION 3.20)
 project(QPeriaptCConsumer C)
-find_package(QPeriapt REQUIRED CONFIG)
+find_package(QPeriaptABI2 2.0.0 EXACT REQUIRED CONFIG)
+if(NOT QPeriaptABI2_RELEASE_VERSION STREQUAL EXPECTED_QPERIAPT_RELEASE_VERSION)
+  message(FATAL_ERROR
+    "QPeriapt ABI 2 release version mismatch: ${QPeriaptABI2_RELEASE_VERSION}")
+endif()
 add_executable(cmake-smoke smoke.c)
-target_link_libraries(cmake-smoke PRIVATE QPeriapt::qperiapt)
+target_compile_features(cmake-smoke PRIVATE c_std_11)
+target_compile_options(cmake-smoke PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(cmake-smoke PRIVATE QPeriaptABI2::qperiapt)
 add_executable(cmake-static-smoke smoke.c)
-target_link_libraries(cmake-static-smoke PRIVATE QPeriapt::qperiapt_static)
+target_compile_features(cmake-static-smoke PRIVATE c_std_11)
+target_compile_options(cmake-static-smoke PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(cmake-static-smoke PRIVATE QPeriaptABI2::qperiapt_static)
 enable_testing()
 add_test(NAME qperiapt-cmake-smoke COMMAND cmake-smoke)
 add_test(NAME qperiapt-cmake-static-smoke COMMAND cmake-static-smoke)
 EOF
 cmake -S "$CMAKE_SRC" -B "$CMAKE_BUILD" -DCMAKE_PREFIX_PATH="$EXTRACTED" \
-	-DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+	-DEXPECTED_QPERIAPT_RELEASE_VERSION="$VERSION" \
+	-DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+	-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON \
+	-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \
+	-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF
 cmake --build "$CMAKE_BUILD"
 ctest_list=$(ctest --test-dir "$CMAKE_BUILD" -N)
 printf '%s\n' "$ctest_list"
@@ -799,5 +1041,28 @@ fi
 ctest --test-dir "$CMAKE_BUILD" --output-on-failure
 inspect_dynamic_linkage "$CMAKE_BUILD/cmake-smoke" "cmake-smoke"
 inspect_static_linkage "$CMAKE_BUILD/cmake-static-smoke" "cmake-static-smoke"
+
+printf '\n=== Legacy CMake package negative control ===\n'
+LEGACY_CMAKE_SRC="$VERIFY_ROOT/cmake-legacy-negative-src"
+LEGACY_CMAKE_BUILD="$VERIFY_ROOT/cmake-legacy-negative-build"
+mkdir -p "$LEGACY_CMAKE_SRC"
+cat > "$LEGACY_CMAKE_SRC/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(QPeriaptLegacyNegative NONE)
+find_package(QPeriapt CONFIG QUIET PATHS "${QPERIAPT_TEST_PREFIX}" NO_DEFAULT_PATH)
+if(QPeriapt_FOUND)
+  message(FATAL_ERROR "legacy QPeriapt CMake package unexpectedly resolved")
+endif()
+find_package(QPeriaptABI2 2.0.1 EXACT CONFIG QUIET
+  PATHS "${QPERIAPT_TEST_PREFIX}" NO_DEFAULT_PATH)
+if(QPeriaptABI2_FOUND)
+  message(FATAL_ERROR "wrong QPeriaptABI2 compatibility version unexpectedly resolved")
+endif()
+EOF
+cmake -S "$LEGACY_CMAKE_SRC" -B "$LEGACY_CMAKE_BUILD" \
+	-DQPERIAPT_TEST_PREFIX="$EXTRACTED" \
+	-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \
+	-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF
+printf 'PASS: legacy CMake package and wrong ABI compatibility version do not resolve\n'
 
 printf '\nC_ABI_PACKAGE_VERIFY_PASS\n'

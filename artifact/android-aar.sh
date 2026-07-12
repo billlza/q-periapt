@@ -10,6 +10,7 @@ set -eu
 unset CDPATH
 ROOT=$(cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -148,6 +149,10 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
+if [ "$VERSION" != "0.1.0-alpha.1" ]; then
+	printf 'error: Android ABI2 package version mismatch: got %s, expected 0.1.0-alpha.1\n' "$VERSION" >&2
+	exit 1
+fi
 
 required_targets="aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android"
 installed_targets=$(rustup target list --installed)
@@ -178,6 +183,9 @@ AAR_PATH="$DIST/$PACKAGE_NAME.aar"
 MANIFEST="$DIST/MANIFEST.json"
 SHA256SUMS="$DIST/SHA256SUMS"
 JAVA_SOURCES="$WORK/java-sources.txt"
+# A clean checkout has no target directory yet; mktemp requires its template
+# directory to exist before any build command has had a chance to create it.
+mkdir -p "$ROOT/target"
 tmp_header=$(mktemp "$ROOT/target/qperiapt-android-header.XXXXXX.h")
 
 cleanup() {
@@ -194,8 +202,6 @@ printf 'platform : %s\n' "$ANDROID_PLATFORM"
 printf 'buildtools: %s\n' "$ANDROID_BUILD_TOOLS"
 printf 'rustc    : %s\n' "$(rustc --version)"
 printf 'javac    : %s\n' "$(javac -version 2>&1)"
-
-mkdir -p "$ROOT/target"
 
 printf '\n=== Generated C header freshness ===\n'
 cbindgen --config crates/q-periapt-ffi/cbindgen.toml \
@@ -219,26 +225,27 @@ test -s "$JAVA_SOURCES" || {
 }
 javac --release 11 -Xlint:all -Werror -cp "$ANDROID_JAR" -d "$CLASSES" @"$JAVA_SOURCES"
 javap -classpath "$CLASSES" -s -p dev.qperiapt.android.QPeriaptAndroid >"$WORK/QPeriaptAndroid.javap"
-python3 - "$WORK/QPeriaptAndroid.javap" "$ROOT/bindings/android/jni/qperiapt_jni.c" <<'PY'
+python3 - "$WORK/QPeriaptAndroid.javap" "$ROOT/bindings/android/jni/qperiapt_jni.c" "$ROOT/bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java" <<'PY'
 import pathlib
 import re
 import sys
 
 javap = pathlib.Path(sys.argv[1]).read_text()
 csrc = pathlib.Path(sys.argv[2]).read_text()
+java_src = pathlib.Path(sys.argv[3]).read_text()
+loader_names = re.findall(r'System\.loadLibrary\("([^"]+)"\)', java_src)
+if loader_names != ["q_periapt_ffi_abi2", "qperiapt_jni_abi2"]:
+    raise SystemExit(f"error: Android ABI2 loader names mismatch: {loader_names}")
 expected = {
     "runtimeAbiVersionNative": "()I",
     "runtimeVersionNative": "()Ljava/lang/String;",
     "fixedSuiteIdNative": "()Ljava/lang/String;",
     "fixedSuiteIdLenNative": "()J",
     "statusNameNative": "(I)Ljava/lang/String;",
-    "profileFromSignedPolicyNative": "([B[B[BI)B",
-    "mlkem768KeypairNative": "([B[B[B)V",
-    "mlkem768XWingKeypairNative": "([B[B[B)V",
-    "x25519KeypairNative": "([B[B[B)V",
-    "encapsulateNative": "(B[BI[B[B[B[B[B[B[B[B)V",
-    "decapsulateNative": "(B[BI[B[B[B[B[B[B[B[B)V",
-    "combineNative": "(B[B[B)V",
+    "decisionFromSignedPolicyNative": "([B[B[B[B)[B",
+    "generateKeypairNative": "([B[B[B[B[B)V",
+    "encapsulateNative": "([B[B[B[B[B[B[B)V",
+    "decapsulateNative": "([B[B[B[B[B[B[B[B[B)V",
 }
 for name, descriptor in expected.items():
     javap_pattern = re.compile(
@@ -296,6 +303,15 @@ if [ -d LICENSES ]; then
 fi
 
 printf '\n=== Build Android Rust FFI slices and JNI shim ===\n'
+EXPECTED_FFI_EXPORTS='q_periapt_abi_version
+q_periapt_decapsulate
+q_periapt_decision_from_signed_policy
+q_periapt_encapsulate
+q_periapt_fixed_suite_id
+q_periapt_fixed_suite_id_len
+q_periapt_generate_keypair
+q_periapt_status_name
+q_periapt_version'
 while IFS='|' read -r abi triple clang_name cargo_var cc_var ar_var; do
 	clang="$TOOLCHAIN/bin/$clang_name"
 	if [ ! -x "$clang" ]; then
@@ -304,15 +320,16 @@ while IFS='|' read -r abi triple clang_name cargo_var cc_var ar_var; do
 	fi
 	printf '\n--- %s (%s) ---\n' "$abi" "$triple"
 	env "$cargo_var=$clang" "$cc_var=$clang" "$ar_var=$LLVM_AR" \
-		cargo build -p q-periapt-ffi --release --locked --target "$triple"
-	ffi_src="$ROOT/target/$triple/release/libq_periapt_ffi.so"
+		cargo rustc -p q-periapt-ffi --release --locked --target "$triple" -- \
+		-C link-arg=-Wl,-soname,libq_periapt_ffi_abi2.so
+	ffi_src="$ROOT/target/$triple/release/libq_periapt_ffi_abi2.so"
 	test -f "$ffi_src" || {
 		printf 'error: missing Rust Android cdylib: %s\n' "$ffi_src" >&2
 		exit 1
 	}
 	abi_dir="$STAGE/jni/$abi"
 	mkdir -p "$abi_dir"
-	cp "$ffi_src" "$abi_dir/libq_periapt_ffi.so"
+	cp "$ffi_src" "$abi_dir/libq_periapt_ffi_abi2.so"
 	"$clang" \
 		-shared \
 		-fPIC \
@@ -326,29 +343,42 @@ while IFS='|' read -r abi triple clang_name cargo_var cc_var ar_var; do
 		-I "$ROOT/crates/q-periapt-ffi/include" \
 		"$ROOT/bindings/android/jni/qperiapt_jni.c" \
 		-L "$ROOT/target/$triple/release" \
-		-lq_periapt_ffi \
+		-lq_periapt_ffi_abi2 \
 		-Wl,--no-undefined \
 		-Wl,--fatal-warnings \
 		-Wl,-z,relro \
 		-Wl,-z,now \
-		-Wl,-soname,libqperiapt_jni.so \
-		-o "$abi_dir/libqperiapt_jni.so"
-	file "$abi_dir/libq_periapt_ffi.so" "$abi_dir/libqperiapt_jni.so"
-	if ! "$LLVM_NM" -D --defined-only "$abi_dir/libq_periapt_ffi.so" 2>/dev/null | grep -F "q_periapt_abi_version" >/dev/null 2>&1; then
-		printf 'error: missing q_periapt_abi_version export in %s\n' "$abi_dir/libq_periapt_ffi.so" >&2
+		-Wl,-soname,libqperiapt_jni_abi2.so \
+		-o "$abi_dir/libqperiapt_jni_abi2.so"
+	file "$abi_dir/libq_periapt_ffi_abi2.so" "$abi_dir/libqperiapt_jni_abi2.so"
+	ffi_exports=$("$LLVM_NM" -D --defined-only "$abi_dir/libq_periapt_ffi_abi2.so" 2>/dev/null | awk '{print $3}' | LC_ALL=C sort)
+	if [ "$ffi_exports" != "$EXPECTED_FFI_EXPORTS" ]; then
+		printf 'error: Rust FFI for %s differs from the exact ABI2 9-symbol allowlist\n' "$abi" >&2
+		printf 'actual exports:\n%s\n' "$ffi_exports" >&2
 		exit 1
 	fi
-	jni_exports=$("$LLVM_NM" -D --defined-only "$abi_dir/libqperiapt_jni.so" 2>/dev/null)
-	if ! printf '%s\n' "$jni_exports" | grep -F "JNI_OnLoad" >/dev/null 2>&1; then
-		printf 'error: missing JNI_OnLoad export in %s\n' "$abi_dir/libqperiapt_jni.so" >&2
+	ffi_dynamic=$("$LLVM_READELF" -d "$abi_dir/libq_periapt_ffi_abi2.so" 2>/dev/null)
+	if ! printf '%s\n' "$ffi_dynamic" | grep -F "Library soname: [libq_periapt_ffi_abi2.so]" >/dev/null 2>&1; then
+		printf 'error: Rust FFI for %s does not declare ABI2 SONAME\n' "$abi" >&2
 		exit 1
 	fi
-	if printf '%s\n' "$jni_exports" | grep -F "Java_dev_qperiapt" >/dev/null 2>&1; then
-		printf 'error: JNI shim for %s must use RegisterNatives and not export Java_* method symbols\n' "$abi" >&2
+	jni_exports=$("$LLVM_NM" -D --defined-only "$abi_dir/libqperiapt_jni_abi2.so" 2>/dev/null)
+	jni_export_names=$(printf '%s\n' "$jni_exports" | awk '{print $3}' | LC_ALL=C sort)
+	if [ "$jni_export_names" != "JNI_OnLoad" ]; then
+		printf 'error: JNI shim for %s must export exactly JNI_OnLoad; got:\n%s\n' "$abi" "$jni_export_names" >&2
 		exit 1
 	fi
-	if ! "$LLVM_READELF" -d "$abi_dir/libqperiapt_jni.so" 2>/dev/null | grep -F "Shared library: [libq_periapt_ffi.so]" >/dev/null 2>&1; then
-		printf 'error: JNI shim for %s does not declare libq_periapt_ffi.so dependency\n' "$abi" >&2
+	jni_dynamic=$("$LLVM_READELF" -d "$abi_dir/libqperiapt_jni_abi2.so" 2>/dev/null)
+	if ! printf '%s\n' "$jni_dynamic" | grep -F "Library soname: [libqperiapt_jni_abi2.so]" >/dev/null 2>&1; then
+		printf 'error: JNI shim for %s does not declare ABI2 SONAME\n' "$abi" >&2
+		exit 1
+	fi
+	if ! printf '%s\n' "$jni_dynamic" | grep -F "Shared library: [libq_periapt_ffi_abi2.so]" >/dev/null 2>&1; then
+		printf 'error: JNI shim for %s does not declare libq_periapt_ffi_abi2.so dependency\n' "$abi" >&2
+		exit 1
+	fi
+	if printf '%s\n%s\n' "$ffi_dynamic" "$jni_dynamic" | grep -E 'libq_periapt_ffi\.so|libqperiapt_jni\.so' >/dev/null 2>&1; then
+		printf 'error: legacy ABI1 native library name leaked into %s dynamic tags\n' "$abi" >&2
 		exit 1
 	fi
 done <<'EOF'
@@ -392,14 +422,14 @@ required = {
     "classes.jar",
     "R.txt",
     "proguard.txt",
-    "jni/arm64-v8a/libq_periapt_ffi.so",
-    "jni/arm64-v8a/libqperiapt_jni.so",
-    "jni/x86_64/libq_periapt_ffi.so",
-    "jni/x86_64/libqperiapt_jni.so",
-    "jni/armeabi-v7a/libq_periapt_ffi.so",
-    "jni/armeabi-v7a/libqperiapt_jni.so",
-    "jni/x86/libq_periapt_ffi.so",
-    "jni/x86/libqperiapt_jni.so",
+    "jni/arm64-v8a/libq_periapt_ffi_abi2.so",
+    "jni/arm64-v8a/libqperiapt_jni_abi2.so",
+    "jni/x86_64/libq_periapt_ffi_abi2.so",
+    "jni/x86_64/libqperiapt_jni_abi2.so",
+    "jni/armeabi-v7a/libq_periapt_ffi_abi2.so",
+    "jni/armeabi-v7a/libqperiapt_jni_abi2.so",
+    "jni/x86/libq_periapt_ffi_abi2.so",
+    "jni/x86/libqperiapt_jni_abi2.so",
 }
 allowed_toplevel = {"AndroidManifest.xml", "classes.jar", "R.txt", "proguard.txt", "jni", "META-INF"}
 seen = set()
@@ -424,6 +454,12 @@ with zipfile.ZipFile(aar) as zf:
     missing = sorted(required - names)
     if missing:
         raise SystemExit("error: AAR missing required entries: " + ", ".join(missing))
+    legacy = sorted(
+        name for name in names
+        if name.endswith("/libq_periapt_ffi.so") or name.endswith("/libqperiapt_jni.so")
+    )
+    if legacy:
+        raise SystemExit("error: AAR contains legacy ABI1 native names: " + ", ".join(legacy))
 print("ANDROID_AAR_ZIP_AUDIT_PASS")
 PY
 printf 'PASS: deterministic AAR zip audit\n'
@@ -438,12 +474,36 @@ final class Consumer {
 
     static int compileOnlyContract() {
         byte[] suite = QPeriaptAndroid.fixedSuiteId();
-        QPeriaptAndroid.KeyPairResult keyPair = QPeriaptAndroid.mlkem768XWingKeypair(
-                new byte[QPeriaptAndroid.MLKEM_XWING_SEED_LEN]
-        );
-        byte[] combined = QPeriaptAndroid.combine(QPeriaptAndroid.PROFILE_COMPAT_XWING, new byte[0]);
-        Class<?> exceptionClass = QPeriaptAndroid.QPeriaptException.class;
-        return suite.length + keyPair.publicKey().length + combined.length + exceptionClass.getName().length();
+        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
+                new byte[0], new byte[0], new byte[0]);
+        try (QPeriaptAndroid.KeyPairResult keyPair = QPeriaptAndroid.generateKeypair(decision)) {
+            byte[] skPq = keyPair.skPq();
+            byte[] skTrad = keyPair.skTrad();
+            try (QPeriaptAndroid.EncapsulationResult encapsulation = QPeriaptAndroid.encapsulate(
+                    decision, keyPair.pkPq(), keyPair.pkTrad(), new byte[] {1})) {
+                byte[] encapsulatedSecret = encapsulation.takeSecret();
+                byte[] decapsulatedSecret = QPeriaptAndroid.decapsulate(
+                        decision,
+                        skPq,
+                        encapsulation.ctPq(),
+                        keyPair.pkPq(),
+                        skTrad,
+                        encapsulation.ctTrad(),
+                        keyPair.pkTrad(),
+                        new byte[] {1});
+                try {
+                    Class<?> exceptionClass = QPeriaptAndroid.QPeriaptException.class;
+                    return suite.length + keyPair.pkPq().length + encapsulatedSecret.length
+                            + decapsulatedSecret.length + exceptionClass.getName().length();
+                } finally {
+                    QPeriaptAndroid.wipe(encapsulatedSecret);
+                    QPeriaptAndroid.wipe(decapsulatedSecret);
+                }
+            } finally {
+                QPeriaptAndroid.wipe(skPq);
+                QPeriaptAndroid.wipe(skTrad);
+            }
+        }
     }
 }
 EOF
@@ -451,7 +511,7 @@ javac --release 11 -Xlint:all -Werror -cp "$ANDROID_JAR:$CLASSES_JAR" -d "$CONSU
 printf 'PASS: isolated Java consumer compile\n'
 
 printf '\n=== Emit manifest and checksums ===\n'
-python3 - "$ROOT" "$DIST" "$STAGE" "$AAR_PATH" "$CLASSES_JAR" "$MANIFEST" "$SHA256SUMS" "$ANDROID_SDK" "$ANDROID_NDK" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" <<'PY'
+python3 - "$ROOT" "$DIST" "$STAGE" "$AAR_PATH" "$CLASSES_JAR" "$MANIFEST" "$SHA256SUMS" "$ANDROID_SDK" "$ANDROID_NDK" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$VERSION" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -470,6 +530,7 @@ android_sdk = pathlib.Path(sys.argv[8])
 android_ndk = pathlib.Path(sys.argv[9])
 android_platform = pathlib.Path(sys.argv[10])
 android_build_tools = pathlib.Path(sys.argv[11])
+version = sys.argv[12]
 
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -482,18 +543,45 @@ abis = ["arm64-v8a", "x86_64", "armeabi-v7a", "x86"]
 native = {}
 for abi in abis:
     native[abi] = {
-        "ffi_so_sha256": sha256(stage / "jni" / abi / "libq_periapt_ffi.so"),
-        "jni_so_sha256": sha256(stage / "jni" / abi / "libqperiapt_jni.so"),
+        "ffi_so_sha256": sha256(stage / "jni" / abi / "libq_periapt_ffi_abi2.so"),
+        "jni_so_sha256": sha256(stage / "jni" / abi / "libqperiapt_jni_abi2.so"),
     }
 
+contract = root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+contract_document = json.loads(contract.read_text(encoding="utf-8"))
+export_names = sorted(entry["name"] for entry in contract_document["abi"]["exports"])
+if len(export_names) != 9 or len(set(export_names)) != 9:
+    raise SystemExit("error: Android manifest requires the exact 9-symbol ABI2 export set")
+exports_digest = hashlib.sha256(("\n".join(export_names) + "\n").encode("utf-8")).hexdigest()
 payload = {
-    "schema": 1,
+    "schema_version": 2,
+    "kind": "qperiapt.android_aar_manifest",
     "package": aar.name,
+    "version": version,
     "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
     "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
+    "git_dirty": bool(subprocess.check_output(
+        ["git", "status", "--porcelain=v1"], cwd=root, text=True
+    ).strip()),
     "package_only": True,
     "device_runtime_proof": False,
     "boundary": "AAR/JNI packaging proof only; Android emulator or physical-device instrumentation is required before claiming Android runtime readiness.",
+    "abi": {
+        "major": 2,
+        "contract_path": contract.relative_to(root).as_posix(),
+        "contract_sha256": sha256(contract),
+        "exports_sha256": exports_digest,
+        "export_count": len(export_names),
+        "platform": "android-aar",
+        "runtime_identity": {
+            "abis": abis,
+            "jni_library": "libqperiapt_jni_abi2.so",
+            "loader_order": ["q_periapt_ffi_abi2", "qperiapt_jni_abi2"],
+            "runtime_library": "libq_periapt_ffi_abi2.so",
+        },
+        "shared_filename": "libq_periapt_ffi_abi2.so",
+        "static_filename": "not-shipped-abi2",
+    },
     "android": {
         "sdk": "local-android-sdk",
         "ndk": android_ndk.name,

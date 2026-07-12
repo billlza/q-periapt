@@ -84,8 +84,8 @@ fun combine(kempkey, xpkey, bitstring, bitstring, ss, ss, bitstring): key.
 fun confirmtag(key, bitstring): bitstring.
 
 (* ===================== Events ===================== *)
-event ServerDone(spkey, key, bitstring).                   (* server completed: vk, secret, transcript *)
-event ClientFinish(spkey, key, bitstring).                 (* client accepted: pinned vk, secret, transcript *)
+event ServerDone(spkey, key, bitstring, bitstring).        (* server: vk, secret, transcript, context *)
+event ClientFinish(spkey, key, bitstring, bitstring).      (* client: pinned vk, secret, transcript, context *)
 event RevealSig(spkey).                                     (* signing key revealed *)
 event RevealPQ(spkey).                                      (* ML-KEM dk revealed *)
 event RevealTrad(spkey).                                    (* X25519 scalar revealed *)
@@ -95,22 +95,31 @@ event RevealTrad(spkey).                                    (* X25519 scalar rev
 (* Sanity (executable): an honest client CAN finish a session.
    ProVerif proves this by exhibiting a trace (RESULT ... is false => the event is
    reachable, i.e. the honest run completes). *)
-query vk: spkey, k: key, tr: bitstring; event(ClientFinish(vk, k, tr)).
+query vk: spkey, k: key, tr: bitstring, ctxt: bitstring;
+  event(ClientFinish(vk, k, tr, ctxt)).
 
-(* Server authentication (INJECTIVE agreement): every ClientFinish over (vk, k, tr) is
-   matched by a DISTINCT prior ServerDone over the SAME (k, tr) -- i.e. no replay yields
-   two client acceptances for one server run -- unless the signing key leaked. Mirrors
-   Tamarin's `server_authentication` (the README describes it as "injective-style"). *)
-query vk: spkey, k: key, tr: bitstring;
-  inj-event(ClientFinish(vk, k, tr)) ==>
-    (inj-event(ServerDone(vk, k, tr)) || event(RevealSig(vk))).
+(* Server authentication (INJECTIVE agreement): every ClientFinish over
+   (vk, k, transcript, context) is matched by a DISTINCT prior ServerDone over the same
+   tuple -- i.e. no replay yields two client acceptances for one server run -- unless the
+   signing key leaked. *)
+query vk: spkey, k: key, tr: bitstring, ctxt: bitstring;
+  inj-event(ClientFinish(vk, k, tr, ctxt)) ==>
+    (inj-event(ServerDone(vk, k, tr, ctxt)) || event(RevealSig(vk))).
+
+(* Authenticated context agreement/commitment: absent signing-key compromise, a context
+   accepted by the client was previously committed by the server for exactly the same
+   session key and authenticated transcript. This non-injective correspondence states
+   the context property directly; the preceding query additionally rules out replay. *)
+query vk: spkey, k: key, tr: bitstring, ctxt: bitstring;
+  event(ClientFinish(vk, k, tr, ctxt)) ==>
+    (event(ServerDone(vk, k, tr, ctxt)) || event(RevealSig(vk))).
 
 (* Hybrid secrecy: the accepted session key stays secret UNLESS both KEM components are
    broken OR the signing key was revealed. We phrase it as: if the attacker learns the
    key `k` that a client accepted, then (RevealPQ AND RevealTrad) OR RevealSig occurred.
    Mirrors Tamarin's `hybrid_secrecy`. attacker(k) is ProVerif's "the adversary knows k". *)
-query vk: spkey, k: key, tr: bitstring;
-  event(ClientFinish(vk, k, tr)) && attacker(k) ==>
+query vk: spkey, k: key, tr: bitstring, ctxt: bitstring;
+  event(ClientFinish(vk, k, tr, ctxt)) && attacker(k) ==>
     ((event(RevealPQ(vk)) && event(RevealTrad(vk))) || event(RevealSig(vk))).
 
 (* Hybrid robustness (the headline), stated as TWO single-break-survived statements with
@@ -122,11 +131,11 @@ query vk: spkey, k: key, tr: bitstring;
      (a) if the key leaks, the post-quantum leg alone being honest already forbids it
          unless Trad OR Sig was revealed  -> a lone PQ break is survived;
      (b) symmetrically, a lone Trad break is survived. *)
-query vk: spkey, k: key, tr: bitstring;
-  event(ClientFinish(vk, k, tr)) && attacker(k) ==>
+query vk: spkey, k: key, tr: bitstring, ctxt: bitstring;
+  event(ClientFinish(vk, k, tr, ctxt)) && attacker(k) ==>
     (event(RevealTrad(vk)) || event(RevealSig(vk))).
-query vk: spkey, k: key, tr: bitstring;
-  event(ClientFinish(vk, k, tr)) && attacker(k) ==>
+query vk: spkey, k: key, tr: bitstring, ctxt: bitstring;
+  event(ClientFinish(vk, k, tr, ctxt)) && attacker(k) ==>
     (event(RevealPQ(vk)) || event(RevealSig(vk))).
 
 (* ===================== Server long-term key setup ===================== *)
@@ -164,7 +173,7 @@ let server(sigsk: skey, dkpq: kemsk, x: xsk) =
   let sec_k = combine(ekpq, pkx, ct_pq, ct_x, sspq, ssx, ctxt) in
   let transcript = h1((nc, ekpq, pkx, ns, ct_pq, ct_x)) in
   let confirm = confirmtag(sec_k, ctxt) in
-  event ServerDone(vk, sec_k, transcript);
+  event ServerDone(vk, sec_k, transcript, ctxt);
   (* 4. ServerFinished: signature over transcript + key confirmation *)
   out(net, (sign(transcript, sigsk), confirm)).
 
@@ -195,7 +204,7 @@ let client(vkpin: spkey) =
   let (=transcript) = verify(sig, vkpin) in
   (* key confirmation must match *)
   let (=confirm) = conf_in in
-  event ClientFinish(vkpin, sec_k, transcript).
+  event ClientFinish(vkpin, sec_k, transcript, ctxt).
 
 (* ===================== Main ===================== *)
 (* Set up one honest server identity; publish its public material; run unboundedly many

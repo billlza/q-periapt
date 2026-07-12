@@ -13,21 +13,29 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Kotlin face of the PQ/T hybrid suite over the `q-periapt-ffi` C ABI, via the Foreign
- * Function & Memory API (Project Panama, JDK 22+). One Rust core, byte-identical
- * across platforms — see bindings/README.md.
+ * Kotlin product face of the PQ/T hybrid suite over the ABI-major C library, via the Foreign
+ * Function & Memory API (Project Panama, JDK 22+). It reuses the Rust core but obtains
+ * randomness inside the native ABI, so tests assert semantic parity rather than deterministic
+ * byte replay — see bindings/README.md.
+ *
+ * Returned secret arrays are caller-owned. Invoke [EncapsulationResult.wipeSecret]
+ * or `fill(0)` on every secret/key array after use; JVM and OS copies remain outside
+ * this binding's control.
  */
 object QPeriaptHybrid {
-    const val ABI_VERSION = 1
-    const val PROFILE_COMPAT_XWING: Byte = 1
+    const val ABI_VERSION = 2
     const val PROFILE_CONTEXT_BOUND: Byte = 2
     const val SECRET_LEN = 32
     const val MLKEM_PK_LEN = 1184
     const val MLKEM_SK_LEN = 2400
-    const val MLKEM_XWING_SEED_LEN = 32
     const val MLKEM_CT_LEN = 1088
     const val X25519_LEN = 32
-    private const val UINT32_MAX = 0xffff_ffffL
+    const val POLICY_DECISION_LEN = 40
+    const val TRUSTED_POLICY_STATE_LEN = 36
+    const val MAX_SIGNED_POLICY_BYTES = 64 * 1024
+    const val MAX_APPLICATION_CONTEXT_BYTES = 64 * 1024
+    const val SUITE_MLKEM768_X25519: Byte = 1
+    const val KEY_FORMAT_EXPANDED: Byte = 1
 
     class QPeriaptException(val operation: String, val code: Int) :
         RuntimeException("$operation rc=$code")
@@ -37,7 +45,62 @@ object QPeriaptHybrid {
         val ctTrad: ByteArray,
         /** Caller-owned secret material. Wipe this array when the session no longer needs it. */
         val secret: ByteArray,
-    )
+    ) {
+        /** Best-effort zeroization of this result's current secret array. */
+        fun wipeSecret() {
+            secret.fill(0)
+        }
+    }
+
+    data class KeyPairResult(
+        val skPq: ByteArray,
+        val pkPq: ByteArray,
+        val skTrad: ByteArray,
+        val pkTrad: ByteArray,
+    ) {
+        fun wipeSecrets() {
+            skPq.fill(0)
+            skTrad.fill(0)
+        }
+    }
+
+    /** Atomic suite/profile/version decision produced by a verified signed policy. */
+    class PolicyDecision internal constructor(encoded: ByteArray) {
+        val suiteCode: Byte
+        val profile: Byte
+        val keyFormat: Byte
+        val policyVersion: Long
+        private val digest: ByteArray
+        private val canonical: ByteArray = encoded.clone()
+
+        init {
+            require(encoded.size == POLICY_DECISION_LEN) { "invalid policy decision length" }
+            require(encoded[0] == 1.toByte()) { "unknown policy decision version" }
+            require(encoded[1] == SUITE_MLKEM768_X25519) { "unsupported policy suite" }
+            require(encoded[2] == PROFILE_CONTEXT_BOUND) { "unsupported policy profile" }
+            require(encoded[3] == KEY_FORMAT_EXPANDED) { "unsupported policy key format" }
+            suiteCode = encoded[1]
+            profile = encoded[2]
+            keyFormat = encoded[3]
+            policyVersion = encoded.copyOfRange(4, 8).fold(0L) { value, byte ->
+                (value shl 8) or (byte.toLong() and 0xff)
+            }
+            require(policyVersion != 0L) { "zero policy version" }
+            digest = encoded.copyOfRange(8, POLICY_DECISION_LEN)
+        }
+
+        fun policyDigest(): ByteArray = digest.clone()
+
+        internal fun encoded(): ByteArray = canonical.clone()
+
+        /** Persist atomically and pass to the next decision load. */
+        fun trustedState(): ByteArray = byteArrayOf(
+            (policyVersion ushr 24).toByte(),
+            (policyVersion ushr 16).toByte(),
+            (policyVersion ushr 8).toByte(),
+            policyVersion.toByte(),
+        ) + digest
+    }
 
     private val linker = Linker.nativeLinker()
     // Product code must bind a specific native library path, then verify ABI/suite metadata below.
@@ -59,48 +122,76 @@ object QPeriaptHybrid {
     private val fixedSuiteIdLenFn = handle("q_periapt_fixed_suite_id_len", FunctionDescriptor.of(JAVA_LONG))
     private val statusNameFn = handle("q_periapt_status_name", FunctionDescriptor.of(ADDRESS, JAVA_INT))
 
-    // (ptr,long) buffer pairs are modeled as ADDRESS + JAVA_LONG.
-    private val keypairDesc = FunctionDescriptor.of(
-        JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
-    )
-    private val mlkemKeypair = handle("q_periapt_mlkem768_keypair", keypairDesc)
-    private val mlkemXWingKeypair = handle("q_periapt_mlkem768_xwing_keypair", keypairDesc)
-    private val x25519Keypair = handle("q_periapt_x25519_keypair", keypairDesc)
-
-    private val profilePolicyDesc = FunctionDescriptor.of(
+    private val decisionPolicyDesc = FunctionDescriptor.of(
         JAVA_INT,
-        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
-        JAVA_INT, ADDRESS, JAVA_LONG
-    )
-    private val profilePolicy = handle("q_periapt_profile_from_signed_policy", profilePolicyDesc)
-
-    private val encapDesc = FunctionDescriptor.of(
-        JAVA_INT,
-        JAVA_BYTE, ADDRESS, JAVA_LONG, JAVA_INT,
-        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
-        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
-        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
-    )
-    private val encap = handle("q_periapt_hybrid_encapsulate", encapDesc)
-
-    private val decapDesc = FunctionDescriptor.of(
-        JAVA_INT,
-        JAVA_BYTE, ADDRESS, JAVA_LONG, JAVA_INT,
-        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
         ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
         ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
     )
-    private val decap = handle("q_periapt_hybrid_decapsulate", decapDesc)
+    private val decisionPolicy =
+        handle("q_periapt_decision_from_signed_policy", decisionPolicyDesc)
 
-    private val combineDesc = FunctionDescriptor.of(
-        JAVA_INT, JAVA_BYTE, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
+    // (ptr,long) buffer pairs are modeled as ADDRESS + JAVA_LONG.
+    private val generateKeypairDesc = FunctionDescriptor.of(
+        JAVA_INT,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
     )
-    private val combineFn = handle("q_periapt_combine", combineDesc)
+    private val generateKeypair = handle("q_periapt_generate_keypair", generateKeypairDesc)
+
+    private val encapDesc = FunctionDescriptor.of(
+        JAVA_INT,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
+        ADDRESS, JAVA_LONG
+    )
+    private val encap = handle("q_periapt_encapsulate", encapDesc)
+
+    private val decapDesc = FunctionDescriptor.of(
+        JAVA_INT,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG,
+        ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG
+    )
+    private val decap = handle("q_periapt_decapsulate", decapDesc)
 
     private fun Arena.seg(bytes: ByteArray): MemorySegment =
         allocate(bytes.size.toLong().coerceAtLeast(1)).also {
             MemorySegment.copy(bytes, 0, it, JAVA_BYTE, 0, bytes.size)
         }
+
+    /**
+     * Owns native segments that contain secret material from the moment they are
+     * allocated. The owner wipes every registered segment before the surrounding
+     * arena releases it, including allocation/copy/native-call failure paths.
+     */
+    private class SecretSegments(private val arena: Arena) : AutoCloseable {
+        private val segments = ArrayList<MemorySegment>()
+
+        fun copy(bytes: ByteArray): MemorySegment =
+            allocate(bytes.size.toLong().coerceAtLeast(1)).also {
+                MemorySegment.copy(bytes, 0, it, JAVA_BYTE, 0, bytes.size)
+            }
+
+        fun allocate(byteSize: Long): MemorySegment =
+            arena.allocate(byteSize.coerceAtLeast(1)).also { segments.add(it) }
+
+        override fun close() {
+            var failure: Throwable? = null
+            for (segment in segments.asReversed()) {
+                try {
+                    segment.fill(0)
+                } catch (error: Throwable) {
+                    val first = failure
+                    if (first == null) {
+                        failure = error
+                    } else {
+                        first.addSuppressed(error)
+                    }
+                }
+            }
+            failure?.let { throw it }
+        }
+    }
 
     private fun MemorySegment.toBytes(n: Int): ByteArray =
         ByteArray(n).also { MemorySegment.copy(this, JAVA_BYTE, 0, it, 0, n) }
@@ -114,11 +205,6 @@ object QPeriaptHybrid {
 
     private fun checkOk(operation: String, rc: Int) {
         if (rc != 0) throw QPeriaptException(operation, rc)
-    }
-
-    private fun checkedUInt32(label: String, value: Long): Int {
-        require(value in 0..UINT32_MAX) { "$label must be in uint32 range: $value" }
-        return value.toInt()
     }
 
     private fun cString(pointer: MemorySegment, maxBytes: Long): String {
@@ -152,147 +238,122 @@ object QPeriaptHybrid {
         validateRuntimeMetadata()
     }
 
-    fun profileFromSignedPolicy(
+    fun decisionFromSignedPolicy(
         toml: ByteArray,
         signature: ByteArray,
         verificationKey: ByteArray,
-        lastTrustedVersion: Long,
-    ): Byte = Arena.ofConfined().use { a ->
+        lastTrustedState: ByteArray = byteArrayOf(),
+    ): PolicyDecision = Arena.ofConfined().use { a ->
+        require(toml.size <= MAX_SIGNED_POLICY_BYTES) {
+            "toml exceeds $MAX_SIGNED_POLICY_BYTES bytes: ${toml.size}"
+        }
+        require(lastTrustedState.isEmpty() || lastTrustedState.size == TRUSTED_POLICY_STATE_LEN) {
+            "lastTrustedState must be empty or $TRUSTED_POLICY_STATE_LEN bytes"
+        }
         val tomlSeg = a.seg(toml)
         val sigSeg = a.seg(signature)
         val vkSeg = a.seg(verificationKey)
-        val out = a.allocate(1)
-        val lastTrusted = checkedUInt32("lastTrustedVersion", lastTrustedVersion)
+        val stateSeg = a.seg(lastTrustedState)
+        val out = a.allocate(POLICY_DECISION_LEN.toLong())
         try {
-            val rc = profilePolicy.invokeExact(
+            val rc = decisionPolicy.invokeExact(
                 tomlSeg, toml.size.toLong(), sigSeg, signature.size.toLong(),
-                vkSeg, verificationKey.size.toLong(), lastTrusted, out, 1L
+                vkSeg, verificationKey.size.toLong(),
+                stateSeg, lastTrustedState.size.toLong(),
+                out, POLICY_DECISION_LEN.toLong()
             ) as Int
-            checkOk("q_periapt_profile_from_signed_policy", rc)
-            out.get(JAVA_BYTE, 0L)
+            checkOk("q_periapt_decision_from_signed_policy", rc)
+            PolicyDecision(out.toBytes(POLICY_DECISION_LEN))
         } finally {
-            out.wipe()
+            stateSeg.wipe(); out.wipe()
         }
     }
 
-    fun mlkem768Keypair(seed: ByteArray): Pair<ByteArray, ByteArray> = Arena.ofConfined().use { a ->
-        val seedSeg = a.seg(seed)
-        val sk = a.allocate(MLKEM_SK_LEN.toLong())
-        val pk = a.allocate(MLKEM_PK_LEN.toLong())
-        try {
-            val rc = mlkemKeypair.invokeExact(
-                seedSeg, seed.size.toLong(), sk, MLKEM_SK_LEN.toLong(), pk, MLKEM_PK_LEN.toLong()
+    fun generateKeypair(decision: PolicyDecision): KeyPairResult = Arena.ofConfined().use { a ->
+        SecretSegments(a).use { secrets ->
+            val skPq = secrets.allocate(MLKEM_SK_LEN.toLong())
+            val pkPq = a.allocate(MLKEM_PK_LEN.toLong())
+            val skTrad = secrets.allocate(X25519_LEN.toLong())
+            val pkTrad = a.allocate(X25519_LEN.toLong())
+            val decisionBytes = decision.encoded()
+            val rc = generateKeypair.invokeExact(
+                a.seg(decisionBytes), decisionBytes.size.toLong(),
+                skPq, MLKEM_SK_LEN.toLong(), pkPq, MLKEM_PK_LEN.toLong(),
+                skTrad, X25519_LEN.toLong(), pkTrad, X25519_LEN.toLong()
             ) as Int
-            checkOk("q_periapt_mlkem768_keypair", rc)
-            sk.toBytes(MLKEM_SK_LEN) to pk.toBytes(MLKEM_PK_LEN)
-        } finally {
-            seedSeg.wipe(); sk.wipe() // seed + secret key are sensitive; pk is public
+            checkOk("q_periapt_generate_keypair", rc)
+            KeyPairResult(
+                skPq = skPq.toBytes(MLKEM_SK_LEN),
+                pkPq = pkPq.toBytes(MLKEM_PK_LEN),
+                skTrad = skTrad.toBytes(X25519_LEN),
+                pkTrad = pkTrad.toBytes(X25519_LEN),
+            )
         }
     }
 
-    fun mlkem768XWingKeypair(seed: ByteArray): Pair<ByteArray, ByteArray> = Arena.ofConfined().use { a ->
-        val seedSeg = a.seg(seed)
-        val skSeed = a.allocate(MLKEM_XWING_SEED_LEN.toLong())
-        val pk = a.allocate(MLKEM_PK_LEN.toLong())
-        try {
-            val rc = mlkemXWingKeypair.invokeExact(
-                seedSeg, seed.size.toLong(),
-                skSeed, MLKEM_XWING_SEED_LEN.toLong(),
-                pk, MLKEM_PK_LEN.toLong()
-            ) as Int
-            checkOk("q_periapt_mlkem768_xwing_keypair", rc)
-            skSeed.toBytes(MLKEM_XWING_SEED_LEN) to pk.toBytes(MLKEM_PK_LEN)
-        } finally {
-            seedSeg.wipe(); skSeed.wipe()
-        }
-    }
-
-    fun x25519Keypair(secret: ByteArray): Pair<ByteArray, ByteArray> = Arena.ofConfined().use { a ->
-        val secretSeg = a.seg(secret)
-        val sk = a.allocate(X25519_LEN.toLong())
-        val pk = a.allocate(X25519_LEN.toLong())
-        try {
-            val rc = x25519Keypair.invokeExact(
-                secretSeg, secret.size.toLong(), sk, X25519_LEN.toLong(), pk, X25519_LEN.toLong()
-            ) as Int
-            checkOk("q_periapt_x25519_keypair", rc)
-            sk.toBytes(X25519_LEN) to pk.toBytes(X25519_LEN)
-        } finally {
-            secretSeg.wipe(); sk.wipe()
-        }
-    }
-
-    @Suppress("LongParameterList")
-    fun decapsulate(
-        profile: Byte, suiteId: ByteArray, policyVersion: Long,
-        skPq: ByteArray, ctPq: ByteArray, pkPq: ByteArray,
-        skTrad: ByteArray, ctTrad: ByteArray, pkTrad: ByteArray, context: ByteArray
-    ): ByteArray = Arena.ofConfined().use { a ->
-        val skPqSeg = a.seg(skPq)
-        val skTradSeg = a.seg(skTrad)
-        val out = a.allocate(SECRET_LEN.toLong())
-        val checkedPolicyVersion = checkedUInt32("policyVersion", policyVersion)
-        try {
-            val rc = decap.invokeExact(
-                profile, a.seg(suiteId), suiteId.size.toLong(), checkedPolicyVersion,
-                skPqSeg, skPq.size.toLong(), a.seg(ctPq), ctPq.size.toLong(),
-                a.seg(pkPq), pkPq.size.toLong(), skTradSeg, skTrad.size.toLong(),
-                a.seg(ctTrad), ctTrad.size.toLong(), a.seg(pkTrad), pkTrad.size.toLong(),
-                a.seg(context), context.size.toLong(), out, SECRET_LEN.toLong()
-            ) as Int
-            checkOk("q_periapt_hybrid_decapsulate", rc)
-            out.toBytes(SECRET_LEN)
-        } finally {
-            skPqSeg.wipe(); skTradSeg.wipe(); out.wipe() // both secret keys + the session secret
-        }
-    }
-
-    @Suppress("LongParameterList")
+    /** Encapsulate while committing the exact signed-policy digest and application context. */
     fun encapsulate(
-        profile: Byte, suiteId: ByteArray, policyVersion: Long,
-        pkPq: ByteArray, pkTrad: ByteArray, context: ByteArray,
-        randPq: ByteArray, randTrad: ByteArray
+        decision: PolicyDecision,
+        pkPq: ByteArray,
+        pkTrad: ByteArray,
+        applicationContext: ByteArray,
     ): EncapsulationResult = Arena.ofConfined().use { a ->
-        val randPqSeg = a.seg(randPq)
-        val randTradSeg = a.seg(randTrad)
-        val outCtPq = a.allocate(MLKEM_CT_LEN.toLong())
-        val outCtTrad = a.allocate(X25519_LEN.toLong())
-        val outSecret = a.allocate(SECRET_LEN.toLong())
-        val checkedPolicyVersion = checkedUInt32("policyVersion", policyVersion)
-        try {
+        require(applicationContext.size <= MAX_APPLICATION_CONTEXT_BYTES) {
+            "applicationContext exceeds $MAX_APPLICATION_CONTEXT_BYTES bytes: ${applicationContext.size}"
+        }
+        SecretSegments(a).use { secrets ->
+            val decisionBytes = decision.encoded()
+            val decisionSeg = a.seg(decisionBytes)
+            val outCtPq = a.allocate(MLKEM_CT_LEN.toLong())
+            val outCtTrad = a.allocate(X25519_LEN.toLong())
+            val outSecret = secrets.allocate(SECRET_LEN.toLong())
             val rc = encap.invokeExact(
-                profile, a.seg(suiteId), suiteId.size.toLong(), checkedPolicyVersion,
+                decisionSeg, decisionBytes.size.toLong(),
                 a.seg(pkPq), pkPq.size.toLong(), a.seg(pkTrad), pkTrad.size.toLong(),
-                a.seg(context), context.size.toLong(), randPqSeg, randPq.size.toLong(),
-                randTradSeg, randTrad.size.toLong(),
+                a.seg(applicationContext), applicationContext.size.toLong(),
                 outCtPq, MLKEM_CT_LEN.toLong(), outCtTrad, X25519_LEN.toLong(),
                 outSecret, SECRET_LEN.toLong()
             ) as Int
-            checkOk("q_periapt_hybrid_encapsulate", rc)
+            checkOk("q_periapt_encapsulate", rc)
             EncapsulationResult(
                 ctPq = outCtPq.toBytes(MLKEM_CT_LEN),
                 ctTrad = outCtTrad.toBytes(X25519_LEN),
                 secret = outSecret.toBytes(SECRET_LEN),
             )
-        } finally {
-            randPqSeg.wipe(); randTradSeg.wipe(); outSecret.wipe()
         }
     }
 
-    /** Derive a combined secret directly from the serialized combiner inputs (the
-     * cross-platform reference-vector entry point): `input` is the nine 8-byte
-     * big-endian length-prefixed fields consumed by `q_periapt_combine`. */
-    fun combine(profile: Byte, input: ByteArray): ByteArray = Arena.ofConfined().use { a ->
-        val inputSeg = a.seg(input)
-        val out = a.allocate(SECRET_LEN.toLong())
-        try {
-            val rc = combineFn.invokeExact(
-                profile, inputSeg, input.size.toLong(), out, SECRET_LEN.toLong()
+    /** Decapsulate under the same policy decision and application context. */
+    fun decapsulate(
+        decision: PolicyDecision,
+        skPq: ByteArray,
+        ctPq: ByteArray,
+        pkPq: ByteArray,
+        skTrad: ByteArray,
+        ctTrad: ByteArray,
+        pkTrad: ByteArray,
+        applicationContext: ByteArray,
+    ): ByteArray = Arena.ofConfined().use { a ->
+        require(applicationContext.size <= MAX_APPLICATION_CONTEXT_BYTES) {
+            "applicationContext exceeds $MAX_APPLICATION_CONTEXT_BYTES bytes: ${applicationContext.size}"
+        }
+        SecretSegments(a).use { secrets ->
+            val decisionBytes = decision.encoded()
+            val decisionSeg = a.seg(decisionBytes)
+            val skPqSeg = secrets.copy(skPq)
+            val skTradSeg = secrets.copy(skTrad)
+            val out = secrets.allocate(SECRET_LEN.toLong())
+            val rc = decap.invokeExact(
+                decisionSeg, decisionBytes.size.toLong(),
+                skPqSeg, skPq.size.toLong(), a.seg(ctPq), ctPq.size.toLong(),
+                a.seg(pkPq), pkPq.size.toLong(), skTradSeg, skTrad.size.toLong(),
+                a.seg(ctTrad), ctTrad.size.toLong(), a.seg(pkTrad), pkTrad.size.toLong(),
+                a.seg(applicationContext), applicationContext.size.toLong(),
+                out, SECRET_LEN.toLong()
             ) as Int
-            checkOk("q_periapt_combine", rc)
+            checkOk("q_periapt_decapsulate", rc)
             out.toBytes(SECRET_LEN)
-        } finally {
-            inputSeg.wipe(); out.wipe() // input carries the component shared secrets
         }
     }
+
 }

@@ -33,12 +33,10 @@
 
 \begin{document}
 \title{Proof-to-Byte: Assumption-Minimal, Cross-Substrate Binding Assurance for PQ/T Hybrid KEMs}
-% CAMERA-READY: restore author to ``Ziang~Li'' (李子昂) and artifact URL to
-% \url{https://github.com/billlza/q-periapt}; both anonymized below for double-blind review.
 \author{Anonymous Author(s)%
 \thanks{Submitted to IEEE TDSC; author and affiliation omitted for double-blind review.
-The open-source artifact is provided to reviewers via an anonymized repository through the
-editor; its public URL is withheld to preserve anonymity.}}
+An anonymized, history-free review artifact must be supplied through the editor; its public URL is
+withheld to preserve anonymity.}}
 \markboth{Submitted to IEEE Transactions on Dependable and Secure Computing --- under double-blind review}{}
 \maketitle
 
@@ -54,20 +52,34 @@ actually does. We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs bui
 Its combiner, ContextBound, achieves \emph{combiner binding} (\mbox{MAL-BIND-K-CT} and
 \mbox{MAL-BIND-K-PK}) reducing to collision-resistance of SHA3 \emph{alone}---with no binding
 assumption on the component KEMs---machine-checked in EasyCrypt as a hermetic CI gate. The
-\emph{same} proven combiner is then realized byte-identically across five language faces, three
-operating systems, and five instruction-set architectures (four executed---one under qemu-user---and
-one cross-compiled), verified by a six-method conformance matrix and a self-validating
-source$\to$binary constant-time probe that discriminates a clean primitive from a leaky one. A
+\emph{modeled} combiner is implemented once in a Rust \code{no\_std} core. Its pinned output
+is checked in the deterministic OS/ISA conformance cells reported in this paper (four ISA targets
+executed---one under qemu-user---and one cross-compiled); native ABI~2 product adapters instead
+check signed-policy/context semantics, round trip, rollback, and failure atomicity without exposing
+caller-controlled seeds or raw combine operations. The evidence uses a six-method conformance matrix and a self-validating
+source$\to$binary constant-time probe that discriminates the clean ML-KEM path from a synthetic
+planted secret-indexed leak. A
 machine-checked \emph{separation map} then pins down which combiner inputs are load-bearing, and
 where the lean X-Wing shape, instantiated over ML-KEM's expanded-\code{dk} serialization, is exposed
 while ContextBound is not---deployed seed-\code{dk} X-Wing is unaffected.
 
 We are explicit about novelty: the binding \emph{fact} follows from recent results; our
 contributions are this separation theorem and the \emph{conjunction}---an assumption-minimal
-(for the combiner-binding property), machine-checked result whose proven object is identical across a
-heterogeneous deployment surface, with reproducible gates that catch the failure classes that have
-broken deployed hybrids. Integrated as a rustls TLS~1.3 key-exchange group, ContextBound adds about
-$8\,\mu$s of local overhead, dominated by network RTT.
+(for the combiner-binding property), machine-checked result tied by conformance (not mechanized
+refinement) to one implementation across a heterogeneous deployment surface, with reproducible gates
+that catch the failure classes that have broken deployed hybrids. A signed, monotonic policy is
+resolved into one authenticated suite/profile/key-format decision whose digest is absorbed into the
+application context. A machine-verifiable claim ledger keeps mechanized, conformance, device, and
+performance evidence separate. A source-bound, matched-backend single-host gate accepts only
+controlled runs whose proof digest matches the live canonical source tree. Authoritative JSON is
+strict-parsed from bounded regular-file snapshots, and selected-proof hashing and semantic
+validation consume the same bytes; release matrix and performance-budget policy are verifier-fixed,
+not proof-selected. Repository provenance ignores local Git excludes, rejects ignored Python
+bytecode, and dispatches verifier source under isolated/no-site CPython with a fresh private cache
+prefix; this is canonical source-input consistency after fixed generated-prefix exclusions, not a
+hermetic build-input, interpreter, or host attestation. Specification-to-
+implementation refinement, a current clean two-device Apple matrix, and cross-device/end-to-end
+performance parity remain explicitly pending.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -80,8 +92,9 @@ verification, constant-time, cross-platform assurance, TLS.
 conservatively, through \emph{hybrids}: a PQ KEM (ML-KEM~\cite{fips203}) run alongside a
 classical KEM (X25519), with the two shared secrets combined so that the session key is
 secure if \emph{either} component holds. Hybrid KEMs are now shipping in TLS~1.3
-(\code{X25519MLKEM768}), in Signal's PQXDH, and in MLS, and are specified in CFRG drafts such
-as X-Wing~\cite{xwing}.
+(\code{X25519MLKEM768}), in Signal's PQXDH and subsequent Triple Ratchet,
+and in MLS; designs such as X-Wing are also proposed
+in individual Internet-Drafts~\cite{xwing}.
 
 \paragraph*{The gap this paper addresses}
 Hybrids are being deployed faster than their \emph{deployment safety} can be assured, and the
@@ -95,31 +108,31 @@ the FIPS-203 \emph{expanded} decapsulation-key form many libraries store, is nei
 on a serialization choice made three layers down. \emph{(iii) Spec-to-binary drift.} A hybrid's
 guarantee is stated on a specification, sometimes proved on a model or source, but \emph{run} as a
 compiled artifact---and real deployments compile it through many language bindings, operating
-systems, and instruction sets, each an opportunity for the proven object and the executed object to
+systems, and instruction sets, each an opportunity for the specified model and the executed object to
 diverge. These three are one underlying problem: \emph{a security property holds only of a
 realization, and a hybrid has many}. This is distinct from---and orthogonal to---\emph{auditability}
-and \emph{crypto-agility}, which describe \emph{what} crypto is running; the question here is whether
+and \emph{crypto-agility}~\cite{nistagility}, which describe \emph{what} crypto is running; the question here is whether
 the hybrid that actually runs is \emph{safe}.
 
 \paragraph*{Approach}
 We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs built around one principle: a
 security property is only as trustworthy as its weakest realization. \Cref{fig:arch} is the
-organising idea---a single machine-checked binding result whose proven object is realized
-byte-identically across the whole deployment surface (``proof-to-byte''), guarded by
+organising idea---a single machine-checked binding result tied by conformance to one core
+implementation across the reported deployment surface (``proof-to-byte''), guarded by
 reproducible gates (configured in CI; we report constant-time results here as local runs) that
 target the specific failure classes above.\footnote{To be precise about the link: the EasyCrypt
 proof is over an abstract injective \code{encode}, and the shipped Rust \code{encode} is tied to it
 by \emph{conformance} (shared ContextBound KATs + the six-method matrix of \cref{sec:substrate}),
 not by a mechanized refinement proof. ``Proof-to-byte'' thus names a conformance-established link,
-not a verified compiler; the byte-identity \emph{across substrates} (\cref{sec:substrate}) is what
-is mechanically and exhaustively checked.}
+not a verified compiler. The claim ledger records this as conformance evidence and intentionally
+leaves specification-to-implementation refinement open.}
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_arch.pdf}
-\caption{Proof-to-byte. One machine-checked binding result (top) is realized by a single Rust
-\code{no\_std} core, exposed through five language faces and run across three operating systems
-and five instruction-set architectures, all converging on a byte-identical shared secret~\K{}
-(bottom); verified six ways.}
+\caption{Proof-to-byte. One machine-checked binding result (top) is tied by conformance---not a
+verified refinement proof---to a single Rust \code{no\_std} core. Deterministic cells converge on
+a pinned shared secret~\K{}; native ABI~2 product cells instead verify fail-closed semantic parity
+without a deterministic product bypass.}
 \label{fig:arch}
 \end{figure}
 
@@ -127,41 +140,57 @@ and five instruction-set architectures, all converging on a byte-identical share
 \begin{itemize}
 \item \textbf{C1 (\cref{sec:kernel}).} An \emph{assumption-minimal, machine-checked}
 \emph{commitment / transcript-binding} result: ContextBound's session key commits to the full
-transcript, reducing \mbox{MAL-BIND-K-CT}, \mbox{-K-PK}, and a (non-standard) context extension
-\mbox{-K-CTX} to collision-resistance of SHA3 \emph{alone}, with the injective encoding proved and
-the Cremers--Dax--Medinger Figure-6 game discharged for both rejection styles in EasyCrypt. We are
+transcript, reducing the standard \mbox{MAL-BIND-K-CT}/\mbox{-K-PK} notions and a self-defined,
+context-parameterized \mbox{-K-CTX} syntactic extension to collision-resistance of SHA3 \emph{alone},
+with the injective encoding proved. The standard axes instantiate the Cremers--Dax--Medinger
+Figure-6 game; K-CTX reuses its rejection skeleton but is outside the published CDM lattice. We are
 explicit (\cref{sec:kernel}) that the cryptographic content is this injective-encoding + CR(SHA3)
 argument---the component $\mathrm{Decaps}$ is \emph{inert}, which is exactly why no KEM assumption
-is needed---and that C1's value is its completeness, mechanization, and role as the proven object
-tied to C2, not proof difficulty. On the same kernel we additionally prove a machine-checked
+is needed---and that C1's value is its completeness, mechanization, and role as the formal object
+tied by conformance to C2, not proof difficulty. On the same kernel we additionally prove a machine-checked
 \emph{separation map} (\cref{thm:sep}, \cref{tab:sepmap}): deleting each combiner input in turn, we
 show that omitting $pk_{\mathrm{pq}}$ loses \mbox{MAL-BIND-K-PK} over the expanded-\code{dk}
-serialization (concrete $\Pr{=}1$ adversary) but not over seed-\code{dk}, omitting the context loses
-\mbox{MAL-BIND-K-CTX} unconditionally, and omitting $ct_{\mathrm{pq}}$ is \emph{conditionally} safe in
-the modeled $J$-injective setting (the shared secret already binds it)---so public-key and context
-absorption are \emph{necessary}, ciphertext absorption redundant only under that injectivity, and the
-X-Wing field shape, instantiated over the FIPS-203 expanded-\code{dk} form, loses \mbox{K-PK} (and,
-lacking an external context field, loses \mbox{K-CTX} regardless of \code{dk} format) while keeping
-\mbox{K-CT}---whereas a correctly deployed seed-\code{dk} X-Wing (which the CFRG draft mandates) still
-reaches \mbox{MAL-BIND-K-\{CT,PK\}} (\cref{sec:sep}). This is a stated, proven characterization of the
-field shape, not a break of as-shipped X-Wing and not an integration claim.
-\item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate equivalence}: the
-same proven combiner is byte-identical across 5 language faces and 3 OSes, \emph{executed} on
-4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with by-construction identity on
-1 more, verified by a six-method conformance matrix. The artifact keeps the hardware-dependent
-Apple check separate: a source-bound Xcode 27 lane runs the Swift/C-ABI face on one physical iPad
-and one physical iPhone; a separate Android lane runs the AAR/JNI face under ART on an emulator.
-Both are evidence, not package-distribution claims.
+serialization (concrete $\Pr{=}1$ adversary) but not over seed-\code{dk}; omitting context from our
+\emph{context-parameterized wrapper} fails the locally named K-CTX collision game with
+$\Pr{=}1$; and omitting $ct_{\mathrm{pq}}$ is \emph{conditionally} safe in the modeled
+$J$-injective setting (the shared secret already binds it). Thus public-key absorption is necessary
+over expanded-\code{dk}, context absorption is necessary only for that explicit wrapper property,
+and ciphertext absorption is redundant only under the stated injectivity. The X-Wing field shape,
+instantiated over the FIPS-203 expanded-\code{dk} form, loses standard \mbox{K-PK} while keeping
+\mbox{K-CT}; a correctly deployed seed-\code{dk} X-Wing (which its individual draft mandates)
+reaches \mbox{MAL-BIND-K-\{CT,PK\}} (\cref{sec:sep}). Native X-Wing has no context parameter, so
+K-CTX is not a well-typed comparison; only a hypothetical context wrapper around that shape which
+ignores its context fails our local wrapper game.
+\item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate conformance}: one
+core implementation produces pinned bytes in the reported deterministic Rust/WASM/ISA cells,
+\emph{executed} on 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with
+by-construction identity on 1 more. Native ABI~2 C/Swift/Kotlin/Android cells reuse the same core
+but test semantic product invariants rather than caller-selected randomness. The artifact keeps the hardware-dependent
+Apple check separate: a source-bound Xcode lane can run the Swift/C-ABI face on paired physical
+iOS/iPadOS devices; a separate Android lane runs the AAR/JNI face under ART. Device results are
+source-bound diagnostic evidence, not package-distribution claims, and are never inferred from a
+host package build.
 \item \textbf{C3 (\cref{sec:assurance}).} Reproducible assurance \emph{instruments} wired into CI
-(the EasyCrypt binding proof is re-checked as a \emph{hermetic hard gate} in a pinned container, as
+(the EasyCrypt binding proof is re-checked as a \emph{hermetic hard gate} in a versioned container lane, as
 are the constant-time/regression oracles; Tamarin/ProVerif lemma/query presence and full prover
 execution are hard-gated in CI, stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
-\emph{discriminates} clean (ML-KEM) from leaky (HQC) (HQC's leak is known; the contribution is the
-discriminating, gated oracle); an executable \emph{regression oracle} for the known dk-format binding
+hard-gates a zero genuine-secret ML-KEM result against a positive synthetic planted-leak
+control; historical older-source PQClean-HQC runs provide an additional retired-backend contrast,
+not a current gate; an executable \emph{regression oracle} for the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements as
 local runs.
 \item \textbf{C4 (\cref{sec:eval}).} A production-stack TLS~1.3 integration (rustls
 \code{CryptoProvider}, private-use group), evaluated under real \code{tc netem}.
+\item \textbf{C5 (\cref{sec:substrate}).} A fail-closed policy-to-byte path: an ML-DSA-authenticated,
+strictly parsed, monotonic policy is atomically resolved to a closed suite/profile/key-format
+decision; the policy version and digest are carried in trusted state, and the digest is absorbed into
+a domain-separated application context. The signed-policy native ABI~2 and WASM execution APIs
+accept this atomic decision rather than independently re-selecting its fields. Native ABI~2 exports
+no raw hybrid, deterministic key-generation, X-Wing, or combine operation; its 40-byte decision
+descriptor and WASM's raw/conformance inputs remain forgeable trusted-caller values---not authorization
+capabilities---and are excluded from the authentication claim. A hostile local caller
+requires a service/process that owns the pinned verification key and monotonic state; an opaque
+handle in the same address space is insufficient.
 \end{itemize}
 
 \paragraph*{What is and is not novel}
@@ -171,29 +200,31 @@ component's binding is the Chempat result~\cite{chempat}; ContextBound \emph{is}
 construction, not a new primitive. That ML-KEM's expanded-dk form breaks binding (and the seed
 form fixes it) is Schmieg's~\cite{schmieg}. The binding-notion lattice is
 CDM's~\cite{cdm}. That a constant-time harness must mark only secret sub-fields is standard
-practice~\cite{kyberslash}. \emph{Novel:} first, a \emph{machine-checked
+practice~\cite{kyberslash}. \emph{Artifact-specific contribution:} first, a \emph{machine-checked
 shape\,$\times$\,format separation} (\cref{thm:sep})---where Schmieg shows a \emph{single} KEM's
 binding depends on its \code{dk} format, we prove, in one model, the orthogonal statement that the
 \emph{combiner shape} determines whether that format-dependence survives composition (lean:
 yes---broken over expanded-\code{dk}, binding over seed-\code{dk}; full: no---binding over both), a
-result no prior work states; second,
-the \emph{conjunction} C1$\wedge$C2---a CR-only, machine-checked binding result whose proven object
-is demonstrably byte-identical across a heterogeneous substrate; third, the self-validating
+result instantiated and checked in our model. We do not assert exhaustive priority over adjacent
+generic-combiner or safe-omission work without a complete primary-source review. Second,
+the \emph{conjunction} C1$\wedge$C2---a CR-only, machine-checked binding result tied by explicit
+conformance tests to one implementation across a heterogeneous substrate; third, the self-validating
 source$\to$binary \emph{discriminator} as a reusable CI artifact. The design invariant that binding
 the ciphertext and public key in the KDF makes hybrid binding robust to the component KEM's
 key-serialization format is thus no longer merely operationalized but \emph{proven}. We do \textbf{not} claim stronger binding than X-Wing
 (\cref{sec:kernel}), nor any live exploited deployment. \Cref{tab:position} makes the
-conjunction concrete: the delta is that no prior effort ties a mechanized hybrid-combiner binding
-theorem to a byte-identical multi-substrate realization with source$\to$binary and TLS gates---and
+conjunction concrete: this artifact ties a mechanized hybrid-combiner binding theorem to a
+multi-substrate conformance matrix with source$\to$binary and TLS gates. The table reports
+capabilities demonstrated by the cited comparison artifacts, not an exhaustive priority search---and
 we are equally explicit that an axis we do \emph{not} hold (a verified specification-to-binary
 implementation) is held by formosa-mlkem.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{3.2pt}\renewcommand{\arraystretch}{1.15}
 \caption{Artifact-positioning dimensions. \checkmark\ denotes an artifact capability
-\emph{demonstrated in this paper}, not deployment maturity or standardization status; $\sim$
-partial; blank: not provided. The contribution is the \emph{conjunction} (last column), not any
-single row.}\label{tab:position}
+\emph{demonstrated in this paper}, not deployment maturity, standardization status, or an exhaustive
+priority search; $\sim$ partial; blank: not demonstrated in the scoped cited artifact. The
+contribution is the \emph{conjunction} (last column), not any single row.}\label{tab:position}
 \begin{tabular}{@{}p{3.55cm} c c c c c@{}}
 \toprule
  & \rotatebox{90}{X-Wing} & \rotatebox{90}{formosa} & \rotatebox{90}{SandboxAQ} & \rotatebox{90}{Chempat} & \rotatebox{90}{\textbf{this work}} \\
@@ -218,8 +249,8 @@ malformed ciphertext yields a pseudorandom key rather than $\bot$). The companio
 standards are ML-DSA~\cite{fips204} and SLH-DSA~\cite{fips205}, and the broader process is surveyed
 in~\cite{nistpqc}. Hybrid key exchange in TLS~1.3~\cite{rfc8446} follows the IETF
 design~\cite{tlshybrid}---e.g.\ the \code{X25519MLKEM768} group~\cite{tlsmlkem} over
-X25519~\cite{rfc7748}---and deployed PQ/T protocols include Signal's PQXDH~\cite{pqxdh} and Apple's
-PQ3~\cite{pq3}.
+X25519~\cite{rfc7748}---and deployed PQ/T protocols include Signal's PQXDH~\cite{pqxdh}
+plus SPQR/Triple Ratchet~\cite{signaldr4,mlkembraid}, and Apple's PQ3~\cite{pq3}.
 
 A hybrid KEM combines component shared secrets $ss_{\mathrm{pq}}$ and $ss_{\mathrm{tr}}$ into a
 session key \K. The design space ranges from simple \emph{concatenation} KDFs
@@ -253,11 +284,20 @@ dual \mbox{X-BIND-CT-$\ast$} notions (a ciphertext binding the key or public key
 always yields \emph{some} key. The binding of implicitly-rejecting KEMs---and how it fails under
 malicious, expanded-form keys---is studied in detail by Schmieg and others~\cite{schmieg,cdmrej}.
 
+Our \mbox{K-CTX} label is deliberately separate. In the standard CDM syntax, CTX is a caller input,
+not a transcript output in $\{K,PK,CT\}$, so it is neither a CDM lattice node nor a consequence of
+CDM monotonicity. We define a context-parameterized KEM whose Encaps/Decaps interfaces both take
+the context, then apply the same accepting/rejecting game skeleton to the key/context projection.
+This hash-level statement says that a colliding accepted key cannot accompany different context
+bytes; it does not authenticate what those bytes mean. Authenticated context agreement is a
+separate protocol property of the Tamarin/ProVerif models and the signed-policy execution boundary.
+
 \subsection{Threat model}
 Reflecting the deployment-safety framing, we consider three realization-level adversaries, each
 matched to one assurance instrument.
 
-\emph{The malicious-key (MAL) binding adversary} (\cref{sec:kernel}) is the strongest CDM class: it
+\emph{The malicious-key (MAL) binding adversary} (\cref{sec:kernel}) is the strongest CDM class on
+the standard CT/PK axes, with an analogous adversary in our explicitly labeled K-CTX extension: it
 generates \emph{all} key material, including mutually inconsistent or maliciously-serialized keys,
 and wins if it produces two accepting executions whose hybrid keys collide while a ciphertext,
 public key, or context differs. This is the adversary behind re-encapsulation attacks (PQXDH) and
@@ -301,7 +341,7 @@ into the hash. By the combiner-binding theorem of Chempat~\cite{chempat}, the bi
 then bounded by $\mathrm{Adv}^{\mathrm{CR}}$ alone, with no residual term requiring any component
 KEM to be binding---trading a KEM-self-binding assumption for a single, well-studied
 collision-resistance assumption. The dual profile \code{CompatXWing} reproduces X-Wing's lean
-combiner byte-for-byte for interoperability and therefore binds \emph{only}
+combiner byte-for-byte for construction compatibility and therefore binds \emph{only}
 $ss_{\mathrm{pq}}\,\|\,ss_{\mathrm{trad}}\,\|\,ct_{\mathrm{trad}}\,\|\,pk_{\mathrm{trad}}$: any
 suite identifier, policy version, or context handed to it is \emph{intentionally ignored} (these are
 bound \emph{exclusively} by \code{ContextBound}, never by \code{CompatXWing}). \code{ContextBound}
@@ -342,12 +382,14 @@ forces a differing field list (hence, by injectivity, a differing encoding) whil
 forces equal hashes; and (ii) the \emph{KEM-aware} game, in which
 the MAL adversary supplies the keypairs and \K{} is \emph{derived} via the component
 $\mathrm{Decaps}$ functions and the combiner. We mechanize both the implicit-rejection
-specialization (\code{malbind\_*\_le\_cr}) and the fully general CDM Figure-6 game with explicit
-rejection (\code{malbind\_*\_xrej\_le\_cr}), where the $\K\neq\bot$ side condition is
-\emph{present and load-bearing}---removing it makes the proof fail. Every theorem reduces only to
+specialization (\code{malbind\_*\_le\_cr}) and explicit rejection
+(\code{malbind\_*\_xrej\_le\_cr}), where the $\K\neq\bot$ side condition is
+\emph{present and load-bearing}---an explicit probability-one countermodel demonstrates the game
+failure if it is removed. These are CDM Figure-6 instantiations for CT/PK and the same rejection
+skeleton over the context-parameterized syntax for K-CTX. Every theorem reduces only to
 $\mathrm{CR}(\mathrm{SHA3})$; the development compiles under the EasyCrypt checker (we pin the
-checker and SMT-solver versions in the artifact), and each theorem is verified load-bearing on
-\code{encode\_inj} by an adversarial negative control.
+checker and SMT-solver versions in the artifact), and proof-dependency regression controls ensure
+the current scripts use \code{encode\_inj} and their axis-specific disagreement lemmas.
 
 \emph{What this is, precisely.} We state the cryptographic content plainly, because a
 CDM-literate reader should not over-read the label. Since \K{} \emph{is defined} as
@@ -359,16 +401,17 @@ $\mathrm{Decaps}$---and hence the adversary's freedom over key material that CDM
 fundamentally about---is \emph{inert} in the argument: the theorems would hold for \emph{any}
 $\mathrm{Decaps}$, which is exactly what ``zero KEM assumption'' means and why it is achievable.
 The value of C1 is therefore its \emph{completeness} (both rejection styles, with $\K\neq\bot$
-discharged), its \emph{mechanization}, and its role as the \emph{proven object} carried,
-byte-identically, across the substrate of \cref{sec:substrate}---not proof difficulty. The
-concrete attack-resistance arguments (re-encapsulation, the dk-format coupling of
+discharged), its \emph{mechanization}, and its role as the formal object tied by conformance---not
+mechanized refinement---to the substrate of \cref{sec:substrate}; it is not the intrinsic difficulty
+of the collision reduction. The concrete attack-resistance arguments (re-encapsulation, the dk-format coupling of
 \cref{sec:assurance}) are \emph{design arguments} consistent with this commitment property, not
 claims the EasyCrypt artifact witnesses at the $\mathrm{Decaps}$ level.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_kernel.pdf}
-\caption{The kernel as a reduction tower: \mbox{MAL-BIND-K-\{CT,PK,CTX\}} (CDM Figure~6, both
-rejection styles) reduces---using no property of $\mathrm{Decaps}$---through the proved
+\caption{The kernel as a reduction tower: standard \mbox{MAL-BIND-K-\{CT,PK\}} plus the separately
+labeled syntactic K-CTX extension (both rejection styles) reduce---using no property of
+$\mathrm{Decaps}$---through the proved
 \code{encode\_inj} to collision-resistance of SHA3, the sole cryptographic assumption.}
 \label{fig:kernel}
 \end{figure}
@@ -403,24 +446,42 @@ claimed.}
 \subsection{Architecture}
 The combiner and its encoding live in a single dependency-free Rust \code{no\_std} core; the
 component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
-X25519, an extendable-output \code{Xof} trait for the hash), so the proven object---the encoding and
-combiner---is the same code regardless of which vetted backend (libcrux ML-KEM, x25519-dalek,
-libcrux SHA3) is plugged in. This trait boundary is also where \emph{crypto-agility} lives: a
-\code{Kem}'s \code{C2PRI} flag (ciphertext second-preimage resistance) gates which combiner profiles
-it may use, and a signed, versioned \emph{policy} object selects suites and profiles \emph{at the
-library level} (binding a downgrade-resistant \code{policy\_version} into the transcript,
-\cref{alg:encode}); in the rustls path used here it drives key-exchange group/profile selection,
-while the fixed C/WASM faces expose the default ML-KEM-768\,+\,X25519 suite and accept
-policy-selected \emph{profiles} only. Shared secrets
-are zeroized on drop, and the composition code is written in a branchless, mask-based constant-time
-style (\cref{sec:assurance}).
+X25519, an extendable-output \code{Xof} trait for the hash), so the implementation under
+conformance test---the encoding and combiner---is the same code regardless of which third-party
+backend (libcrux ML-KEM, x25519-dalek, libcrux SHA3) is plugged in. Backend correctness,
+audit, and constant-time posture remain per implementation and ISA. This trait boundary is also where \emph{crypto-agility} lives:
+\code{Kem::C2PRI} records the primitive property, while the separate, default-false
+\code{Kem::COMPAT\_XWING\_SAFE} capability records whether the exposed key format preserves
+X-Wing's seed-dk self-binding precondition. The lean profile requires both constants, so an
+inconsistent third-party declaration fails closed. A signed, versioned \emph{policy} is strictly parsed and verified before the policy crate
+atomically resolves a closed suite/profile/key-format decision. Rollback is rejected, and reuse of a
+version with a different digest is treated as equivocation. The native ABI~2 and signed-policy
+WASM paths consume that decision and absorb its policy digest into a domain-separated application
+context. Signed-policy documents and policy-bound application contexts are each capped at 64\,KiB
+before Rust-side verification, parsing, or derived-context allocation; Java/Kotlin/JNI also check
+before their explicit native copies, while host-runtime marshalling and service-level quotas remain
+outside this bound. Oversized inputs fail explicitly. The rustls demonstrator is intentionally
+separate: from an already parsed but not cryptographically authenticated \code{Policy}, it accepts
+only the ML-KEM-768\,+\,X25519 suite at policy version~1, selecting either
+ContextBound/expanded-key or CompatXWing/seed-dk exactly as resolved. It does not consume an
+authenticated decision, policy digest, or monotonic store. Its fixed protocol-domain context
+demonstrates fail-closed suite/profile selection, but not signed-policy authorization or arbitrary
+per-session K-CTX binding. The core's owned shared-secret storage is zeroized on drop, and the
+concrete SHA3 staging owner marks public and secret absorptions without changing their byte stream:
+it volatile-wipes component-secret and conservatively sensitive caller-context ranges from both
+inline and heap copies and fails closed to a whole-buffer wipe for unclassified input or invalid
+range metadata. This is local storage hygiene,
+not a full-runtime erasure claim. The
+composition code is written in a branchless, mask-based constant-time style
+(\cref{sec:assurance}); arrays copied across Swift/JVM/JavaScript/OS boundaries remain
+caller-managed best effort rather than a full-stack zeroization guarantee.
 
-The core is exposed through five language faces---Rust, a C ABI (via \code{cbindgen}), WebAssembly
-(via \code{wasm-bindgen}), Swift (over the C ABI), and Kotlin (via the Java Foreign Function \&
-Memory API)---each a thin shim that marshals bytes in and out of the same core. Because the proven
-object is one piece of code and every face is a marshalling layer over it, the cross-substrate
-question reduces to a single, checkable property: does \emph{every} realization produce the same
-bytes?
+The core is exposed through deterministic Rust/WASM conformance surfaces and native ABI~2 C,
+Swift, Kotlin, and Android/JNI product adapters. Each is a thin shim that marshals bytes in and out
+of the same core. Deterministic cells can answer whether a realization produces pinned bytes;
+OS-random product cells instead answer whether it preserves the authenticated decision, round-trip,
+context-separation, state-transition, and failure-atomicity semantics. These are complementary,
+not interchangeable, evidence claims.
 
 \subsection{The six-method conformance matrix}
 
@@ -431,20 +492,20 @@ byte-identical shared secret is \emph{run} natively on x86-64 and aarch64, on a 
 (wasm32), and under \code{qemu-user} emulation on riscv64---there the ContextBound and enhanced
 reference-vector KATs pass on the emulated riscv64 binary, reproducing the pinned bytes exactly. Only
 the bare-metal no\_std \code{thumbv7em} target is \emph{not} executed; there byte-identity follows by
-construction from the FIPS-deterministic encodings and identical source. So four of the five faces
-are \emph{run} and one is cross-compiled---this accounting is what makes the cross-substrate
+construction from the FIPS-deterministic encodings and identical source. Thus four of the five ISA
+targets are \emph{run} and one is only cross-compiled---this accounting is what makes the cross-substrate
 claim defensible.
 
 \emph{Footprint} (platform-dependent; regenerate per host with \code{paper/footprint.sh}, values
-in \code{paper/footprint.csv}). The deployable surface is small: the stripped C-ABI shared
-library---the default hybrid build (libcrux ML-KEM-768, X25519, and the combiner; the optional
-signature and HQC backends are feature-gated and dead-stripped from this build)---is
-$\approx$796\,KiB on macOS arm64 (committed in \code{footprint.csv}; Linux x86-64 is smaller and
+in \code{paper/footprint.csv}). The stripped native ABI~2 shared library---including
+ML-KEM-768, X25519, the combiner, signed-policy ML-DSA-65 verification, and OS-random
+product entry points, with the former PQClean-HQC backend removed from the publishable graph---is
+$\approx$829\,KiB on macOS arm64 (committed in \code{footprint.csv}; Linux x86-64 is smaller and
 regenerated by the script, not committed here); the lean WebAssembly module is
-$\approx$195\,KiB via \code{wasm-pack\ --release} (the optional \code{signed-policy} feature, which
-links an ML-DSA verifier, grows it to $\approx$586\,KiB); and
-the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target, so the same proven
-combiner runs from a server down to an embedded MCU.
+$\approx$202\,KiB via \code{wasm-pack\ --release} (the optional \code{signed-policy} feature, which
+links an ML-DSA verifier, grows it to $\approx$605\,KiB); and
+the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target. This establishes
+buildability on that target, not runtime evidence from an embedded MCU.
 
 \begin{table*}[t]\centering\footnotesize
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.2}
@@ -457,8 +518,8 @@ Fixed KATs & X-Wing draft vectors; RFC 7748 & published vectors & combiner and X
 NIST ACVP & \emph{usnistgov} ACVP, full FIPS family & NIST ground truth & primitive non-conformance (FIPS 203/204/205) \\
 Multi-backend differential & RustCrypto \code{ml-kem}/\code{ml-dsa}; orion X25519 & independent re-implementations & implementation bugs (output must stay byte-identical) \\
 EasyCrypt proof & machine-checked; CR(SHA3) & formal (computational) & binding-design flaws in the combiner \\
-Cross-platform byte-identity & shared test vector & 5 faces $\times$ substrates & per-substrate divergence (same \K{} everywhere) \\
-Generative property tests & proptest: 8 properties $\times$ 128 cases & randomized & edge-case violations (injectivity, domain separation, K-CTX) \\
+Cross-platform realization & deterministic vectors $+$ product invariants & evidence mode separated per cell & byte divergence in conformance cells; policy/context/state/failure drift in ABI~2 product cells \\
+Generative property tests & proptest: 9 properties $\times$ 128 cases & randomized & edge-case violations (injectivity, domain separation, K-CTX) \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -480,16 +541,16 @@ thumbv7em & bare-metal & \checkmark & by constr.$^\dagger$ & n/a \\
 \multicolumn{5}{@{}l}{\footnotesize $^\ddagger$ executed under \code{qemu-user} emulation (reference-vector KATs}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\ddagger$} reproduce pinned bytes); $^\dagger$ cross-compiled, identity by}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\dagger$} FIPS-deterministic encodings $+$ identical source.}\\[4pt]
-\multicolumn{5}{@{}l}{\emph{(b) language face $\times$ OS (shared vector $\to$ same \K)}}\\
+\multicolumn{5}{@{}l}{\emph{(b) native ABI~2 product workflow (current-source evidence)}}\\
 \toprule
-\textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} & \\
+\textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} & \textbf{device} \\
 \midrule
-Rust & \checkmark & \checkmark & \checkmark & \\
-C ABI & \checkmark & \checkmark & \checkmark\,(MSVC) & \\
-WASM (node) & \checkmark & \checkmark & \checkmark & \\
-Swift & \textendash & \checkmark & \textendash & \\
-Kotlin (JVM/FFM) & \checkmark & \checkmark & \textendash & \\
+C ABI & pending & \checkmark & pending & n/a \\
+Swift & n/a & \checkmark & n/a & iPad diag. \checkmark \\
+Kotlin (JVM/FFM) & pending & pending & pending & n/a \\
+Android/JNI & n/a & n/a & n/a & pending \\
 \bottomrule
+\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize A source-bound dirty single-iPad diagnostic passes; a fresh clean same-source iPad+iPhone matrix remains pending.}\\
 \end{tabular}
 \end{table}
 
@@ -503,22 +564,20 @@ genuinely-secret decapsulation-key sub-fields ($\hat s$, $z$) and runs the real 
 load is caught (harness sanity), and marking the embedded \emph{public} key flags 5696 reports
 (Memcheck demonstrably sees real branches in this binary). With only the genuine secret marked,
 the probe reports \textbf{zero} flags on aarch64: source-level secret-independence survives
-compilation. Run against the suite's unaudited HQC backend, the same probe flags \textbf{193}
-reports localized to \code{vect\_set\_random\_fixed\_weight}---so the probe is a \emph{discriminator}
-(\cref{fig:ct}): clean ML-KEM versus leaky HQC in one framework. (HQC's leak is known; the
-contribution is the discriminating, gated artifact and the corollary that per-backend
-constant-time gating is necessary, not decorative.) We additionally ran the probe natively on the
-bare-metal x86-64 host of \cref{tab:baremetal}: again $\code{probe}=0$ for ML-KEM and $22{,}849$
-flags for HQC, confirming the discrimination holds \emph{cross-architecture}. The \emph{absolute}
-counts differ markedly between ISAs (HQC $193$ on aarch64 vs.\ $22{,}849$ on x86-64; the public-key
-positive control $5696$ vs.\ $1778$)---exactly why the load-bearing signal is the
-$0$-versus-positive \emph{discrimination}, not the raw count.
+compilation. The current hard gate pairs that zero with a synthetic secret-indexed planted load
+that must report positive, making a vacuous always-zero harness fail. On an older source snapshot,
+the same framework run against the now-retired PQClean-HQC backend reported \textbf{193} flags on
+aarch64, localized to \code{vect\_set\_random\_fixed\_weight}, and $22{,}849$ on bare-metal
+x86-64. Those HQC counts are historical corroboration that per-backend constant-time gating is
+necessary; they are not current-source CI/release evidence. Their ISA-dependent magnitude
+($193$ versus $22{,}849$, while the public-key control was $5696$ versus $1778$) also shows why
+the load-bearing current signal is zero-versus-positive discrimination, not a raw count.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_ct.pdf}
-\caption{The source$\to$binary CT probe discriminates: the genuine ML-KEM secret yields zero
-flags; the same harness flags HQC's constant-weight sampler (193) and validates itself with two
-controls.}
+\caption{Historical older-source contrast: the genuine ML-KEM secret yielded zero flags while
+the retired PQClean-HQC path's constant-weight sampler yielded 193. The current gate instead
+validates zero with a synthetic planted secret-indexed leak.}
 \label{fig:ct}
 \end{figure}
 
@@ -531,11 +590,12 @@ genuinely-secret sub-fields ($\hat s$ and the implicit-rejection seed $z$) yield
 is standard practice~\cite{kyberslash}, but the embedded-public-key pitfall is a real trap; our
 probe encodes the correct granularity and gates it.
 
-\subsection{A mechanized separation map across the binding sub-lattice}\label{sec:sep}
+\subsection{A mechanized field-separation map}\label{sec:sep}
 \Cref{sec:kernel} shows ContextBound \emph{attains} the binding ceiling. Here we prove the paper's
 distinctive cryptographic contribution: a \emph{machine-checked map} pinning down, field by field,
-\emph{which inputs the combiner must absorb}---and \emph{why}---across the CDM
-$\text{K-binds-}\{$CT,PK,CTX$\}$ sub-lattice. All of it lives in \emph{one} EasyCrypt model (a single
+\emph{which inputs the combiner must absorb}---and \emph{why}---across the standard CDM CT/PK axes
+and the separately identified K-CTX syntactic extension. K-CTX is not a third CDM lattice axis and
+no CDM monotonicity result is claimed for it. All of it lives in \emph{one} EasyCrypt model (a single
 execution type, a single shared-secret wiring $ss=J(z,ct)$), so every verdict is attributable to
 combiner \emph{structure}, not to a difference in the modeled KEM. Starting from the full ContextBound
 field list (which absorbs $ct_{\mathrm{pq}}$, $pk_{\mathrm{pq}}$, and the context) we delete
@@ -554,19 +614,21 @@ $\mathsf{zof}$ (\code{lean\_kpk\_seed\_le\_cr}).
 $ss{=}J(z,ct_{\mathrm{pq}})$ transitively binds $ct_{\mathrm{pq}}$, so
 $\mathsf{Adv}^{\text{MAL-BIND-K-CT}}\le\mathrm{CR}(H)$ under injectivity of $J$
 (\code{omit\_ct\_kct\_le\_cr}).
-\item \emph{Omit context $\Rightarrow$ lose \mbox{K-CTX}, unconditionally.} A concrete adversary wins
-\mbox{MAL-BIND-K-CTX} with probability~$1$, for \emph{any} \code{dk} format
-(\code{omit\_ctx\_kctx\_broken}).
-\item \emph{Full combiner.} Absorbing all three, ContextBound is \mbox{MAL-BIND-K-\{CT,PK,CTX\}}
-$\le\mathrm{CR}(H)$, with \emph{no} $J/\mathsf{zof}$ assumption (\code{full\_k\{pk,ct,ctx\}\_le\_cr}).
-\item \emph{Joint X-Wing shape.} The X-Wing \emph{combiner shape} omits $ct_{\mathrm{pq}}$,
-$pk_{\mathrm{pq}}$, \emph{and} context at once. Discharged directly, this shape \emph{loses}
-\mbox{K-PK} \emph{over the expanded-\code{dk} serialization} and \emph{loses} \mbox{K-CTX} (for
-\emph{any} \code{dk} format, since the shape carries no context field), while \emph{keeping}
-\mbox{K-CT} (\code{xwing\_kpk\_broken}, \code{xwing\_kctx\_broken}, \code{xwing\_kct\_le\_cr}). The
-\mbox{K-PK} break is a property of the expanded-\code{dk} field set only: over the seed-\code{dk}
-serialization that deployed X-Wing (draft-connolly-cfrg-xwing) mandates, it vanishes (cf.\ item~1),
-so this is a statement about the shape's exposure, not about as-shipped X-Wing.
+\item \emph{Omit context from the local wrapper $\Rightarrow$ its K-CTX game fails structurally.}
+A concrete adversary wins the self-defined context-wrapper collision game with probability~$1$ for
+\emph{any} \code{dk} format (\code{omit\_ctx\_kctx\_broken}). This is not a CDM result.
+\item \emph{Full combiner.} Absorbing all three gives the standard
+\mbox{MAL-BIND-K-\{CT,PK\}} bounds and, separately, the local K-CTX wrapper bound,
+each $\le\mathrm{CR}(H)$ with \emph{no} $J/\mathsf{zof}$ assumption
+(\code{full\_k\{pk,ct,ctx\}\_le\_cr}).
+\item \emph{X-Wing field shape and a separate wrapper experiment.} The native X-Wing
+\emph{combiner shape} omits $ct_{\mathrm{pq}}$ and $pk_{\mathrm{pq}}$. It loses standard
+\mbox{K-PK} \emph{over the expanded-\code{dk} serialization} while keeping
+\mbox{K-CT} (\code{xwing\_kpk\_broken}, \code{xwing\_kct\_le\_cr}). The K-PK break vanishes
+over the seed-\code{dk} serialization that deployed X-Wing mandates (cf.\ item~1). Native X-Wing
+has no context parameter and therefore cannot be assigned our K-CTX property. Separately,
+\code{xwing\_kctx\_broken} embeds the same lean field list in our context-parameterized wrapper
+and then ignores that wrapper input; only this hypothetical extension fails the local game.
 \end{enumerate}
 The two \emph{safety-of-omission} verdicts---item~2 and the seed-\code{dk} half of item~1---hold under
 the idealization that the implicit-rejection function $J$ (FIPS-203's $J{=}\mathsf{SHAKE}(z\,\|\,
@@ -581,25 +643,29 @@ $\Pr{=}1$ adversaries) and the full combiner (item~4) need \emph{no} assumption 
 ask which binding notion survives. Every cell is an EasyCrypt lemma; $J$ is the modeled
 implicit-rejection function.}
 \label{tab:sepmap}
-\begin{tabular}{@{}l l >{\raggedright\arraybackslash}p{0.43\columnwidth}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.20\columnwidth}
+>{\raggedright\arraybackslash}p{0.22\columnwidth}
+>{\raggedright\arraybackslash}p{0.50\columnwidth}@{}}
 \toprule
 omitted field & notion at risk & verdict \\
 \midrule
-$pk_{\mathrm{pq}}$ & \mbox{MAL-BIND-K-PK} & \textbf{broken} / expanded-\code{dk} ($\Pr{=}1$); safe / seed-\code{dk} \\
-$ct_{\mathrm{pq}}$ & \mbox{MAL-BIND-K-CT} & \textbf{safe} $\le\mathrm{CR}(H)$ ($ss$ binds $ct$; needs $J$-inj.) \\
-context & \mbox{MAL-BIND-K-CTX} & \textbf{broken} unconditionally ($\Pr{=}1$) \\
+$pk_{\mathrm{pq}}$ & standard K-PK & \textbf{broken} / expanded-\code{dk} ($\Pr{=}1$); safe / seed-\code{dk} \\
+$ct_{\mathrm{pq}}$ & standard K-CT & \textbf{safe} $\le\mathrm{CR}(H)$ ($ss$ binds $ct$; needs $J$-inj.) \\
+context & local K-CTX wrapper & \textbf{broken} structurally ($\Pr{=}1$) \\
 \midrule
-\emph{none} (full) & all three & safe $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
-\emph{all three} (X-Wing) & --- & \emph{shape} loses K-PK (expanded-\code{dk}) $+$ K-CTX, keeps K-CT \\
+\emph{none} (full) & standard CT/PK $+$ local CTX & safe $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
+X-Wing lean fields & standard CT/PK & loses K-PK only for expanded-\code{dk}; keeps K-CT \\
+ctx ignored by hypothetical wrapper & local K-CTX wrapper & \textbf{broken} ($\Pr{=}1$); native X-Wing out of scope \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph*{Reading the map} The content is the \emph{dichotomy} between rows~2 and~3, not any cell
 alone. Omitting $ct_{\mathrm{pq}}$ is safe---under the $J$-injectivity idealization made precise
-below---because the shared secret already encodes it; omitting
-context is fatal because \emph{nothing} else does. So context absorption is necessary \emph{and}
-sufficient---necessity is admittedly the easy half of an iff (no other field mentions context),
+below---because the shared secret already encodes it; omitting context from the local wrapper is
+fatal for that wrapper game because \emph{nothing} else does. For this local property, context
+absorption is necessary \emph{and} sufficient---necessity is admittedly the easy half of an iff
+(no other field mentions context),
 sufficiency is \code{full\_kctx\_le\_cr}; what makes it a result rather than a tautology is its
 contrast with $ct_{\mathrm{pq}}$, where the shared secret \emph{does} provide the missing binding.
 Conversely $ct_{\mathrm{pq}}$ absorption is \emph{redundant with the shared secret}---but only under
@@ -610,18 +676,21 @@ equalizes the stored seed $z$ across two distinct keypairs, so a garbage ciphert
 to the \emph{same} $J(z,ct)$ under $\code{ek}_0\neq\code{ek}_1$~\cite{schmieg}; the key is
 \emph{independent} of $pk_{\mathrm{pq}}$, so the break is genuine---not an artifact of omission (it
 vanishes the moment $ss$ depends on the key, i.e.\ under seed-\code{dk}). Every verdict is
-load-bearing under deleted-hypothesis negative controls (the K-PK break needs two distinct keys; the
-K-CT and K-CTX results need $J$-injectivity / a distinct context respectively; all reductions need
-the proved encoding injectivity). \textbf{Moral, and the formal design rationale for ContextBound:
-$pk_{\mathrm{pq}}$ (over expanded-\code{dk}) and context absorption are \emph{necessary};
-$ct_{\mathrm{pq}}$ absorption is \emph{redundant insurance}.} This is the multi-level edge the
-construction needed: not a stronger notion than X-Wing on a shared axis, but a proven,
-field-resolved account of \emph{exactly} where the X-Wing shape is exposed and ContextBound is not.
+supported in two different ways: explicit probability-one countermodels demonstrate the expanded-dk
+K-PK loss and the local wrapper's context-omission loss, while proof-dependency regression controls confirm that the safety scripts actually use
+their stated injectivity and encoding lemmas. These script-mutation controls are not, by themselves,
+logical necessity proofs. \textbf{Moral, and the formal design rationale for ContextBound:
+$pk_{\mathrm{pq}}$ is necessary for standard K-PK over expanded-\code{dk}; context absorption is
+necessary for the local wrapper property; and $ct_{\mathrm{pq}}$ absorption is \emph{redundant
+insurance}.} This is not a stronger notion than
+X-Wing on a shared axis. It is a field-resolved account of the lean shape's expanded-\code{dk}
+exposure, plus a separate experiment showing exactly what a context-parameterized wrapper must absorb.
 
 \paragraph*{Scope, stated precisely} (i)~$J,\mathsf{zof},H$ are abstract; $J(z,ct)$ is
 \emph{modeled} after FIPS-203 implicit rejection, not \emph{derived} from a mechanized Decaps, and
-the component shared secrets are otherwise inert. (ii)~The K-PK and K-CTX breaks need \emph{no}
-cryptographic assumption (concrete $\Pr{=}1$ adversaries); the safety bounds are conditional on
+the component shared secrets are otherwise inert. (ii)~The expanded-dk K-PK break and the local
+wrapper's context-omission break need \emph{no} cryptographic assumption (concrete $\Pr{=}1$
+adversaries); the safety bounds are conditional on
 $\mathrm{CR}(H)$, and the \mbox{K-CT} and seed-\code{dk}-\mbox{K-PK} results additionally on
 $J/\mathsf{zof}$ injectivity---a strictly stronger idealization than the full combiner needs.
 (iii)~The K-PK break is \emph{not} a break of X-Wing in deployment, which mandates seed-\code{dk};
@@ -636,37 +705,77 @@ two independent symbolic provers. The Tamarin model captures the ML-KEM and X255
 the combiner as an opaque one-way function, and an ML-DSA server signature, with rules that let the
 adversary compromise either KEM or reveal the signing key; it proves executability, server
 authentication, and---the headline lemma---\emph{hybrid robustness}: under an honest server identity
-the session key remains secret unless \emph{both} KEMs are broken. A ProVerif model establishes the
-analogous queries under a different abstraction (the classical leg as a second idealized KEM), giving
-an independent cross-check. The EasyCrypt binding proof is a \emph{hermetic hard CI gate}: a pinned
-EasyCrypt container (\code{formal/Dockerfile}, EC~r2026.06) re-checks \code{BindingViaCR.ec} and the
-deleted-hypothesis necessity controls on every run, and CI fails if either stops holding (the
-no-\code{admit}/\code{sorry} grep is an additional always-on gate). The Tamarin and ProVerif models
-are gated on lemma/query \emph{presence} and full \code{make prove}; all checker and solver versions
-are pinned in the artifact.
+the session key remains secret unless \emph{both} KEMs are broken. It also proves authenticated
+context agreement: matching accepted sessions agree on the explicit application context. A ProVerif
+model establishes the analogous secrecy/authentication/context queries under a different abstraction
+(the classical leg as a second idealized KEM), giving an independent cross-check. The current
+inventories are five Tamarin lemmas and six individually checked ProVerif queries. The EasyCrypt
+binding proof is a \emph{hermetic hard CI gate}: a containerized EasyCrypt~r2026.06 lane re-checks
+\code{BindingViaCR.ec}, the explicit $\K\neq\bot$ probability-one countermodel, and the
+proof-dependency regression controls; CI fails if any stops holding (the no-\code{admit}/\code{sorry}
+grep is an additional always-on gate). Tamarin and ProVerif are gated on exact lemma/query inventories
+and full \code{make prove}. Tool versions are recorded by the artifact; we do not claim every base
+image is immutable by digest.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
 
 \subsection{Microbenchmarks}
-\Cref{tab:bench} reports primitive and hybrid costs (Criterion, point estimates, on an Apple-Silicon
-arm64 host; the artifact reproduces them and an x86-64 run). The committed data is
-\code{paper/microbench-arm64.csv}, regenerated with \code{cargo bench -p q-periapt-backends}. Two
+\Cref{tab:bench} reports a committed historical snapshot of primitive and hybrid costs (Criterion,
+point estimates, on an Apple-Silicon arm64 host). The data is
+\code{paper/microbench-arm64.csv}, regenerable with \code{cargo bench -p q-periapt-backends}. These
+numbers establish scale on one host, not current cross-version or cross-device performance parity. Two
 backend-specific observations matter for deployment. First, \emph{in our libcrux\,/\,x25519-dalek
 backend the post-quantum leg is not the bottleneck}:
 ML-KEM-768 encapsulation is $11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation
 ($89.8\,\mu$s, an ephemeral keygen plus a Diffie--Hellman), so the classical X25519-as-KEM path
 dominates hybrid CPU here---a corrective to the assumption that PQ is the expensive part (a different
 backend, e.g.\ the aws-lc-rs \code{X25519MLKEM768} row, shifts this balance). Second, \emph{the hash-everything combiner is cheap}:
-ContextBound costs only $\sim$$6$--$8\,\mu$s over the byte-exact X-Wing combiner CompatXWing
+In that snapshot, ContextBound costs $\sim 6$--$8\,\mu$s over the byte-exact X-Wing combiner CompatXWing
 (encapsulation $109.1$ vs.\ $101.3\,\mu$s; decapsulation $65.9$ vs.\ $59.2\,\mu$s; variance
-$\sim$$1\,\mu$s)---the price of binding the full transcript is
-sub-$10\,\mu$s, well under the $\sim$$90\,\mu$s X25519 encapsulation cost and far below any network RTT.
+$\sim 1\,\mu$s). This supports a sub-$10\,\mu$s local combiner-overhead observation for that run;
+it does not support the stronger claim that the complete stack is never slower than X-Wing or other
+PQC deployments.
+
+We therefore added a paired gate that removes the earlier backend/key-format confound:
+ContextBound and CompatXWing use the same ML-KEM-768 seed-\code{dk} + X25519 backend, keys, coins,
+64-case deterministic ciphertext corpus, suite/version/context inputs, and ABBA/BAAB schedule. After
+a 5-s warm-up it records 20,480 paired samples per operation/profile. Each timed sample batches
+256/1/2 calls for combine/encapsulation/decapsulation, records the unrounded total, and normalizes
+only after a strict iteration-map check. Consecutive 1,024-pair, corpus-balanced blocks define both
+the primary paired point estimate and its span-5 moving-block-bootstrap upper bound. Under the
+nearest-rank rule each block's p99 has 11 tail observations; budget schema v4 requires at least 10
+instead of the three supplied by the former 256-pair blocks. Since changing block size changes the
+estimand, schema v4 also recomputes the former 256-pair estimator and requires every published
+numeric limit to pass at both scales. Separate 64/256/256-pair windows test temporal
+stability without changing the 5\% CV limit. A controlled Apple-Silicon proof is accepted only if it
+passes nine published \emph{per-metric} one-sided 95\% bootstrap budgets (not a simultaneous 95\%
+family guarantee; span-5 coverage under autocorrelation has not been independently calibrated):
+p50/p95/p99 ratios of 1.10/1.15/1.20 and a $15\,\mu$s p95 absolute delta for
+encapsulation/decapsulation, plus a $10\,\mu$s combiner p95 delta. The proof binds the raw samples,
+harness binary, verifier-fixed repository budget, commit, and canonical source-input tree after
+fixed generated-prefix exclusions. This is not yet a hermetic build-input closure. Raw,
+budget, and proof semantics share their digest snapshots; four boundary power/thermal observations
+are gated. The producer fixes Cargo/Rustc executable hashes, versions, and target; rejects
+repository/ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes
+system-tool lookup; and builds offline in a fresh private target. It still trusts the user-writable
+Cargo registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector source-to-binary
+honesty; the verifier does not independently rebuild the binary. Clean provenance checks
+HEAD/index/actual bytes under a fixed Git environment. The
+results-manifest digest is pinned across one verifier run; the manifest root and historical
+camera transcript remain outside that non-self-referential digest with distinct Git/hash provenance,
+and exact run values are retained in the
+machine-readable artifact. A proof counts as current only when its source digest matches the live
+canonical tree and the host satisfies the controlled-environment contract; the manifest carries
+its path/hash/schema/source/pass summary, while the required domain verifier checks the actual proof,
+artifacts, and freshness. This source text cannot self-promote a stale run. A passing snapshot
+closes only a single-host matched-core diagnostic for those bytes, not device energy, rustls
+end-to-end, or optimized production-X-Wing parity.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
 \caption{Primitive and hybrid cost ($\mu$s; Criterion 60-sample point estimates, arm64 host) and
 key/ciphertext sizes (bytes). A single-host \emph{supporting} microbench (run-to-run variance
-$\sim$$1\,\mu$s); the bare-metal time-to-session of \cref{tab:baremetal} is the primary
+$\sim 1\,\mu$s); the bare-metal time-to-session of \cref{tab:baremetal} is the primary
 measurement.}\label{tab:bench}
 \begin{tabular}{@{}l r r r r r r@{}}
 \toprule
@@ -714,7 +823,8 @@ HPKE-shaped demo of \cref{sec:assurance}, not this measured TLS path.}
 \Cref{fig:netem} shows the qualitative picture---the curves coincide because latency is
 RTT-dominated---and \cref{tab:baremetal} gives the quantitative camera-ready measurement on quiesced
 bare-metal hardware (an 8-core AMD Ryzen~7~7700, Ubuntu~24.04, kernel 6.8, the benchmark pinned to
-two isolated cores under the \code{performance} governor; medians over $20$ repetitions). At
+two selected cores on a quiesced host under the \code{performance} governor; medians over $20$
+repetitions). At
 RTT~$\approx$~0 the per-group medians are tight to $\pm 2$--$3\,\mu$s and the ordering is resolved at
 the median (ContextBound $>$ CompatXWing in $18$ of $20$ reps): classical X25519 $238\,\mu$s, the
 IANA-standard \code{X25519MLKEM768} $263\,\mu$s, CompatXWing $318\,\mu$s, ContextBound $326\,\mu$s.
@@ -726,7 +836,12 @@ $\approx 88\,\mu$s, and---critically---\textbf{ContextBound costs $+8.1\,\mu$s o
 the price of explicit hash-everything transcript binding, in close agreement with the $+6.2\,\mu$s combiner cost
 measured in isolation (\cref{tab:bench}). This
 quiesced measurement supersedes our earlier virtualized-host run, whose $2\times$ run-to-run swings
-exceeded the few-$\mu$s combiner difference; on bare metal it resolves cleanly.
+exceeded the few-$\mu$s combiner difference; on bare metal it resolves cleanly. The committed raw
+capture predates the hardened archive/tool/binary-bound harness and is therefore historical data,
+not a current-tree proof; a new bare-metal capture must pass the shipped raw-bundle verifier before
+these values can be promoted to final artifact evidence. Even then, the bundle is producer-origin
+integrity evidence: without an external challenge nonce and separately trusted TPM/signing identity,
+its hashes do not constitute independent hardware attestation or prevent wholesale replay.
 
 As RTT grows this fixed cost vanishes into the network: at RTT~$=$~20\,ms all four groups sit at
 $41.1$\,ms within a $90\,\mu$s spread, and at RTT~$=$~50\,ms within $15\,\mu$s of one
@@ -744,12 +859,14 @@ the $+8.1\,\mu$s, not the $62$.
 
 \begin{table}[t]\centering\setlength{\tabcolsep}{4pt}
 \caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
-benchmark pinned to two isolated cores, \code{performance} governor; median of the per-rep p50 and
+benchmark pinned to two selected cores, \code{performance} governor; median of the per-rep p50 and
 p99 over $20$ repetitions, RTT-0 column). At RTT~0 the per-group order resolves and ContextBound is
 $+8.1\,\mu$s over CompatXWing ($+8.4\,\mu$s at the p99). The tail claim is made at RTT~0, where the
 combiner cost is resolvable; at RTT~$\ge$~20\,ms the per-group spread is $\le 90\,\mu$s against a
 $\ge 41$\,ms link, so any tail there reflects network jitter rather than the combiner (medians shown,
-$6$/$4$ reps). Raw transcript in the artifact (\code{paper/camera-ready-results.txt}).}
+$6$/$4$ reps). The historical raw transcript is in
+\code{paper/camera-ready-results.txt}; it lacks the source archive, binaries, logs, qdisc snapshots,
+and bundle manifest required by the current harness/verifier, which must be rerun before promotion.}
 \label{tab:baremetal}
 \begin{tabular}{@{}l r r r r@{}}
 \toprule
@@ -768,7 +885,7 @@ ContextBound & $325.9\,\mu$s & $385.9\,\mu$s & $41.13$\,ms & $101.17$\,ms \\
 \emph{Under jitter and loss.} Adding $3$\,ms of jitter leaves the picture unchanged (all three
 groups $\approx 41$\,ms median, $\approx 50$\,ms p99.9). Under $1$--$3\%$ packet loss the median is
 likewise unaffected---loss is rare relative to a handshake---but the \emph{tail} jumps to
-$\sim$$1$\,s, dominated by a TCP retransmission timeout per lost packet rather than by crypto or
+$\sim 1$\,s, dominated by a TCP retransmission timeout per lost packet rather than by crypto or
 wire size; this RTO-driven tail falls on the classical and PQ/T handshakes alike, and at our sample
 size the loss-event noise precludes a precise per-group tail comparison. The takeaway is
 that the hybrid's extra keyshare does not \emph{systematically} worsen loss resilience: the median
@@ -790,14 +907,16 @@ within run-to-run noise (error bars span the two repetitions and cross zero at R
 
 \section{Discussion}\label{sec:disc}
 \paragraph*{When to use which profile}
-\code{CompatXWing} exists for interoperability: it is byte-exact X-Wing and should be selected when
-talking to an X-Wing peer. \code{ContextBound} is the default for first-party deployments and is
+\code{CompatXWing} is the construction-compatible control: it is byte-exact against the official
+X-Wing vectors, but independent endpoint/HPKE interoperability remains untested. \code{ContextBound}
+is the default for first-party deployments and is
 preferable whenever (i) the application has a meaningful context (a protocol/role/version label, a
 channel binding) that the session key should commit to; or (ii) the deployment cannot guarantee that
 its component KEM will only ever be instantiated in the seed-dk form---in which case binding
 $pk_{\mathrm{pq}}$ and $ct_{\mathrm{pq}}$ directly removes the latent serialization dependence of
-\cref{sec:assurance}. The cost of that robustness, measured in \cref{sec:eval}, is sub-$10\,\mu$s and
-invisible end-to-end.
+\cref{sec:assurance}. In the committed single-host snapshot, that robustness adds under
+$10\,\mu$s at the combiner layer; end-to-end invisibility and parity remain deployment-specific
+claims requiring current paired measurements.
 
 \paragraph*{The assurance philosophy}
 Our position is deliberately modest about cryptographic novelty and deliberately ambitious about
@@ -806,15 +925,19 @@ recurring failures of the last two years---KyberSlash, PQXDH, the ML-KEM malicio
 gaps---were not failures of the underlying hard problems but of \emph{realizations}: a compiled
 branch, a serialization format, a missing transcript field. The contribution of this paper is a
 discipline that makes those realization-level properties \emph{checkable and reproducible}: a binding
-result whose proven object is carried byte-for-byte across the substrate, a constant-time probe that
+result tied to one implementation through a byte-conformance matrix, a constant-time probe that
 discriminates clean from leaky, and a regression oracle for the key-format coupling. We expect the
 individual instruments to be reused independently of ContextBound.
 
 \paragraph*{Generality}
 Nothing in the approach is specific to ML-KEM~$+$~X25519. The combiner and its proof are generic over
-the component KEMs; the trait-injected backends already include the full ML-KEM and ML-DSA families
-and an (unaudited) HQC backend used here as the CT discriminator's leaky reference. As new PQ
-primitives are standardized, the same proof-to-byte discipline applies unchanged.
+the component KEMs; the publishable trait-injected backends include the full ML-KEM and ML-DSA
+families. The former PQClean-HQC adapter has been removed. A separate non-publishable RustCrypto
+HQC-v5/FIPS-207-draft candidate shadow tests only its declared research boundary and owns no
+product-suite code or ABI. Although its upstream describes it as tracking an IPD, as of
+2026-07-12 NIST still labels FIPS~207 as coming soon and no official IPD is retrievable; freezing
+and testing the eventual official text is a promotion gate. As new PQ primitives are standardized, the same proof-to-byte discipline
+can be applied after an explicit security/API and release review.
 
 \section{Related Work}\label{sec:related}
 \paragraph*{KEM binding and committing security}
@@ -827,17 +950,20 @@ For \emph{combined} KEMs, Chempat~\cite{chempat} establishes the dichotomy we re
 hash-everything combiner is binding from collision-resistance alone, while a lean combiner inherits
 the binding of whatever component it omits; ContextBound is an instance of the former, which is
 exactly why we attribute the binding \emph{fact} rather than claim it. At the symmetric layer, the
-same idea appears as context-committing AEAD (CMT)~\cite{cmt}, of which our context axis is the
-KEM-output-layer analogue. Our separation map (\cref{thm:sep}) sits one level finer than each of these:
+same idea appears as context-committing AEAD (CMT)~\cite{cmt}; our self-defined context-wrapper
+projection is a syntactic KEM-output-layer analogue, not a CDM axis. Our separation map
+(\cref{thm:sep}) sits one level finer than each of these:
 where Chempat states a \emph{binary} dichotomy (the lean shape inherits the omitted component's
-binding) and Schmieg fixes a \emph{single} KEM's format-dependence, the map is a \emph{field-resolved
-necessity} statement---per binding notion and per \code{dk}-format, exactly which combiner input is
-load-bearing and which is made redundant by the shared secret. That the public key and context are
-necessary while the PQ ciphertext is not is a fact about combiner \emph{structure} that neither prior
-work isolates, and the deleted-hypothesis negative controls (\cref{app:sepproof}) are what upgrade it
-from a set of sufficient conditions to a necessity claim. Our contribution is thus twofold: this
+binding) and Schmieg fixes a \emph{single} KEM's format-dependence, the map is a \emph{field-resolved}
+statement---per binding notion and per \code{dk}-format, exactly which combiner input is
+load-bearing and which is made redundant by the shared secret. It shows that the public key is
+load-bearing over expanded-\code{dk}, while context is load-bearing only for the explicit wrapper
+property and the PQ ciphertext can be redundant under the stated idealization. We make no priority
+claim for the concept of context absorption. The necessity claims rest on explicit probability-one countermodels; the
+proof-dependency controls (\cref{app:sepproof}) only guard against accidental weakening of the proof
+scripts. Our contribution is thus twofold: this
 separation map, and the conjunction of \cref{tab:position}---a mechanized, assumption-minimal binding
-result whose proven object is byte-identical across the deployment surface.
+result tied by explicit conformance evidence to one implementation across the reported substrate.
 
 \paragraph*{Side-channel assurance}
 KyberSlash~\cite{kyberslash} showed that secret-dependent timings in widely-used Kyber/ML-KEM
@@ -847,14 +973,26 @@ secrets and checking for secret-dependent control flow~\cite{dudect,ctgrind}, re
 Valgrind/Memcheck~\cite{valgrind}, is the basis of our binary-CT gate. We build on, rather than
 re-do, the source-level guarantees of HACL*~\cite{hacl} and the libcrux ML-KEM
 verification~\cite{libcrux}: our probe \emph{corroborates} them dynamically and, crucially,
-\emph{discriminates} a verified primitive from an unverified one in the same framework.
+the current gate discriminates the tested zero-result path from a synthetic planted leak. Historical
+older-source runs also discriminated it from the now-retired timing-leaky PQClean-HQC path; that
+dynamic result is not current-source evidence or a blanket verification of either dependency.
 
 \paragraph*{Hybrids in deployment}
-Hybrid key exchange is being standardized and shipped: the IETF hybrid design~\cite{tlshybrid} and
+Hybrid key exchange is being standardized and shipped: the IRTF combiner draft's
+\code{UniversalCombiner} and C2PRI profiles~\cite{hybridkems}, the IETF hybrid design~\cite{tlshybrid} and
 the \code{X25519MLKEM768} group~\cite{tlsmlkem} for TLS~1.3~\cite{rfc8446,rfc7748}, the X-Wing
-KEM~\cite{xwing}, Signal's PQXDH (formally analyzed in~\cite{pqxdh}), and Apple's PQ3~\cite{pq3}.
-These are the baselines we position against; our combiner interoperates with X-Wing (the
-\code{CompatXWing} profile) and our rustls integration targets the same TLS~1.3 deployment path.
+KEM~\cite{xwing}, Signal's PQXDH (formally analyzed in~\cite{pqxdh}) followed by its
+SPQR/ML-KEM-Braid Triple Ratchet~\cite{signaldr4,mlkembraid,signalspqr} and Sesame
+multi-device session management~\cite{sesame}, and Apple's PQ3~\cite{pq3}.
+X-Wing is presently an individual, intended-Informational Internet-Draft rather than an IETF
+Standards-Track RFC. These are the baselines we position against; our \code{CompatXWing} profile
+reproduces the official X-Wing KEM vectors, while our rustls integration targets the same TLS~1.3
+deployment path. We do not claim interoperability with an independent X-Wing or HPKE endpoint.
+The current IRTF hybrid-KEM draft-12 labels its Section~6.4.2 binding arguments informal
+LEAK-BIND sketches, defers rigorous proofs, and does not prove the potential common-seed MAL
+strengthening~\cite{hybridkems}. Thus our defensible delta is machine-checked, field-resolved
+standard MAL-BIND-K-CT/K-PK reductions, a separately scoped local K-CTX wrapper reduction, and
+executable countermodels---not the already-published current-draft idea of absorbing all fields.
 
 \paragraph*{Formal verification of PQ cryptography}
 formosa-mlkem~\cite{formosa} delivers a verified ML-KEM \emph{implementation} (Jasmin/EasyCrypt) with
@@ -865,6 +1003,10 @@ combiner's} binding (the commitment-style MAL Figure-6 instantiation), cross-che
 independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}; the EasyCrypt
 proof is hard-gated hermetically in CI, while the symbolic models are hard-gated on both
 lemma/query presence and full prover execution.
+Signal reports a stronger implementation-linkage baseline for its stateful ratchet crate:
+ProVerif state-machine models plus hax-to-F* checks of core Rust pre/postconditions and panic freedom
+on every CI run~\cite{signalspqr}. Our proof-to-byte chain is conformance and provenance evidence,
+not a mechanized refinement result, and we make no superiority claim on that axis.
 
 \section{Limitations}\label{sec:limits}
 The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it is exactly the
@@ -876,23 +1018,64 @@ covered at source level plus upstream attestation. ACVP byte-identity is conform
 certification. The suite is research-grade and has not had an independent third-party audit. The
 primary netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
 earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
-retained as supporting context and labeled as such.
+retained as supporting context and labeled as such. The matched-backend host gate accepts only a
+controlled proof whose digest matches the live canonical source tree; its machine-readable manifest
+carries the current state. Snapshot consistency does not turn a dirty mutable manifest into a trust
+root or atomically freeze a writable worktree; release provenance still requires a clean committed,
+signed, or transparency-backed root. Even a current one-host pass would not establish performance parity with current X-Wing, TLS, Signal's
+combined PQXDH/Triple-Ratchet stack, PQ3, or other PQC implementations; device energy, optimized backend, end-to-end, and
+stable clean-baseline evidence remain open. Current release attestation additionally requires a
+clean, source-bound Apple device matrix; a dirty-tree diagnostic or a prior device result is not such
+an attestation. Removing the PQClean dependency graph and tombstoning suite code~3 invalidated the
+pre-change Apple/performance proofs. A regenerated dirty single-iPad diagnostic passes, while the
+clean paired matrix and matched-performance proof remain stale/pending.
+ABI~2 remains unpublished; the unsuppressed upstream \code{proc-macro-error2} maintenance advisory
+in the libcrux/hax edge is still a release hard gate. The rustls integration uses a fixed protocol-domain context and an already parsed,
+unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
+the signed-policy authenticity claim. The C ABI assumes a trusted local caller for metadata and the
+forgeable decision descriptor, despite removing raw/deterministic cryptographic exports,
+and the former known-leaky PQClean-HQC adapter is removed rather than shipped as a fallback.
+Its numeric suite code is a permanent tombstone; the standalone HQC draft-candidate shadow has no
+ABI or product identity. Finally, policy signatures authenticate configuration bytes; decision descriptors,
+WASM raw inputs, and
+same-process opaque handles do not turn a hostile in-process caller into an authorization boundary.
+The artifact is not an asynchronous session protocol: it has no account/device directory, one-time
+prekeys, persistent ratchet, multi-device convergence, recovery, or key transparency. Signal and
+PQ3 remain ahead on those lifecycle and deployment axes. A separate, non-normative Q-Periapt
+Continuity research model now explores canonical typed lifecycle-context admission, a strict
+model-only two-leg prekey-selection record, exact version-and-digest repository advances, and
+no-op-anchor rejection, but deliberately has no context-advance API, credential/manifest/prekey
+service, production wire, ratchet,
+provider-policy authorization, real persistence adapter, or
+implementation-refinement claim. It is future work
+and is not evidence for any claim in this paper.
 
 \section{Conclusion}\label{sec:concl}
-A PQ/T hybrid is only as safe as its weakest realization. We closed that gap with an
-assumption-minimal, machine-checked binding result whose proven object is byte-identical across a
-heterogeneous deployment surface, guarded by reproducible gates (configured in CI)---a source$\to$binary
+A PQ/T hybrid is only as safe as its weakest realization. We narrowed that gap with an
+assumption-minimal, machine-checked binding result tied by conformance evidence to one implementation
+across a heterogeneous deployment surface, guarded by reproducible gates (configured in CI)---a source$\to$binary
 constant-time discriminator, a binding key-format coupling demonstration, and multi-prover symbolic
-models---and validated on a real rustls TLS~1.3 integration path. The genuinely new element is the conjunction,
-not any single fact; we have been explicit about the boundary throughout.
+models---plus an atomic, authenticated policy-to-byte path. The artifact-specific contribution is
+the evaluated conjunction, not an exhaustive priority claim over any single fact; a machine-readable
+ledger keeps proved, tested, device-bound, and pending claims separate.
+Future pairwise-protocol work will first build component-conformant PQXDH and Triple-Ratchet
+references plus a separately specified Sesame-compatible manager integration. It will then evaluate
+authenticated policy/context continuity, prekey accountability, crash/rollback invariants,
+schedule-relative PQ-healing debt, native Apple PQ providers, metadata privacy, and
+proof-to-state-to-byte evidence under physical-device wire/latency/energy budgets; it remains
+deliberately outside the present contribution and is not messaging-product parity.
 
 \appendices
 \section{Artifact Availability}
-The complete suite---Rust core and backends, the five language faces, the EasyCrypt/Tamarin/ProVerif
-developments, the constant-time and netem harnesses, and the figure-generation
-scripts---is open source and provided to reviewers as an anonymized repository via the editor
-(public URL withheld for double-blind review). All numbers in this paper
-are reproducible from that repository; the bare-metal netem protocol is provided as a script.
+The complete suite---Rust core and backends, the deterministic conformance surfaces, the native
+ABI~2 product adapters, the EasyCrypt/Tamarin/ProVerif
+developments, the constant-time and netem harnesses, and the figure-generation scripts---is prepared
+for a history-free anonymized export through the editor (public URL withheld for double-blind
+review). The development repository and raw local device directories are not themselves suitable
+review artifacts: the export must remove identity and publicly linkable history, then regenerate all
+source-bound proofs from the anonymous root snapshot. The resulting snapshot contains the committed
+measurements, inputs, and regeneration protocols; exact timing reproduction remains host- and
+toolchain-dependent.
 
 \section{The Machine-Checked Kernel in Detail}\label{app:kernel}
 \Cref{tab:lemmas} inventories the EasyCrypt development. Of the named results, all are fully
@@ -901,14 +1084,15 @@ structural encoding assumptions are the two elementary \code{be8\_*} facts about
 field plus the modeling of $H$ as collision-resistant; the separation-map rows add the explicitly
 stated existence/injectivity assumptions (\code{ek\_neq}, \code{lctx\_neq}, \code{zof\_inj},
 \code{jrej\_inj}) shown in their row statements.
-We validate that the proof is non-vacuous by an \emph{adversarial negative control}: for each
-binding theorem we mechanically delete a single hint from its closing tactic and re-run the
-checker, confirming the proof then \emph{fails} (\code{cannot prove goal}). Deleting
+We guard the proof scripts with \emph{proof-dependency regression controls}: for each
+binding theorem we mechanically remove a selected closing hint and re-run the checker, confirming
+that the current script then \emph{fails} (\code{cannot prove goal}). Removing
 \code{encode\_inj} breaks every binding theorem; deleting the disagreement lemma
-(\code{ct\_neq\_fields\_neq}, etc.) breaks the corresponding axis; and---in the explicit-rejection
-game---deleting the $\K\neq\bot$ conjunct from the predicate makes the theorem unprovable, since two
-mutually-rejecting executions would otherwise ``win'' without inducing a hash collision. This
-last control is what distinguishes a faithful Figure-6 instantiation from a vacuous one.
+(\code{ct\_neq\_fields\_neq}, etc.) breaks the corresponding axis. These mutations show that the
+checked scripts depend on their intended lemmas; they do not prove logical necessity. Separately, an
+explicit probability-one countermodel for the game with the $\K\neq\bot$ requirement removed shows
+that two mutually rejecting executions can otherwise ``win'' without inducing a hash collision.
+That countermodel, rather than a failed tactic, establishes why the Figure-6 conjunct is required.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.12}
@@ -924,16 +1108,17 @@ row statements.}\label{tab:lemmas}
 \code{encode\_inj} & the field encoding is injective \\
 \code{bind\_le\_cr} & generic transcript-collision $\le \mathrm{CR}(H)$ \\
 \code{bind\_le\_cr\_k$\ast$} & instantiated projections (CT/PK/CTX) \\
-\code{malbind\_k$\ast$\_le\_cr} & KEM-aware, implicit rejection $\le \mathrm{CR}(H)$ \\
-\code{malbind\_*\_xrej\_le\_cr} & full Fig.~6, explicit rejection, $\K\neq\bot$ \\
+\code{malbind\_k$\ast$\_le\_cr} & standard CT/PK plus local CTX wrapper, implicit rejection $\le \mathrm{CR}(H)$ \\
+\code{malbind\_*\_xrej\_le\_cr} & CDM Fig.~6 for CT/PK; same rejection skeleton for K-CTX, $\K\neq\bot$ \\
 \midrule
 \multicolumn{2}{@{}l}{\emph{Separation map (\cref{thm:sep}): single-field deletions}}\\
 \code{lean\_kpk\_broken} & omit $pk_{\mathrm{pq}}$, expanded-\code{dk}: K-PK adversary $\Pr=1$ \\
 \code{lean\_kpk\_seed\_le\_cr} & omit $pk_{\mathrm{pq}}$, seed-\code{dk}: K-PK $\le\mathrm{CR}(H)$ ($J$/seed inj.) \\
 \code{omit\_ct\_kct\_le\_cr} & omit $ct_{\mathrm{pq}}$: K-CT $\le\mathrm{CR}(H)$ ($ss$ binds $ct$, $J$-inj.) \\
-\code{omit\_ctx\_kctx\_broken} & omit context: K-CTX adversary $\Pr=1$ (any \code{dk}) \\
-\code{full\_k$\ast$\_le\_cr} & full shape: K-\{PK,CT,CTX\} $\le\mathrm{CR}(H)$, no $J/\mathsf{zof}$ \\
-\code{xwing\_k$\ast$\_broken} & X-Wing \emph{shape} (omit all 3): loses K-PK (expanded-\code{dk}) and K-CTX (any \code{dk}), $\Pr=1$ \\
+\code{omit\_ctx\_kctx\_broken} & omit context: local-wrapper adversary $\Pr=1$ (any \code{dk}) \\
+\code{full\_k$\ast$\_le\_cr} & full shape: standard K-\{PK,CT\} plus extended K-CTX $\le\mathrm{CR}(H)$ \\
+\code{xwing\_kpk\_broken} & X-Wing lean fields: loses K-PK for expanded-\code{dk}, $\Pr=1$ \\
+\code{xwing\_kctx\_broken} & hypothetical context wrapper around lean fields ignores ctx: local game $\Pr=1$; native X-Wing out of scope \\
 \code{xwing\_kct\_le\_cr} & X-Wing: keeps K-CT $\le\mathrm{CR}(H)$ \\
 \bottomrule
 \end{tabular}
@@ -959,30 +1144,32 @@ adversary that outputs two executions agreeing on every \emph{absorbed} field bu
 omitted observable; the probability-one win is then a structural computation whose sole hypothesis is
 that two distinct observables exist (\code{ek\_neq}, \code{lctx\_neq}).
 
-\emph{Non-vacuity by deleted-hypothesis negative controls.} A passing machine proof certifies only
+\emph{Proof-dependency regression controls and explicit countermodels.} A passing machine proof certifies only
 that the conclusion follows from the stated hypotheses; it does \emph{not} certify that the
 hypotheses are needed, and a vacuous or over-strong premise is the classic way a mechanized result
-misleads. For every cell of the map we therefore re-ran the checker with its load-bearing hypothesis
-deleted from the \code{smt} invocation and confirmed the proof \emph{fails} (reproducible via \code{negative-controls.sh}, whose log is in the artifact): the K-PK break collapses
+misleads. For each relevant script we therefore re-ran the checker with a selected proof hint
+removed from the \code{smt} invocation and confirmed the script \emph{fails} (reproducible via
+\code{negative-controls.sh}, whose log is in the artifact): the K-PK break script fails
 without two distinct keys, the K-CTX break without two distinct contexts, the K-CT safety without
 $J$-injectivity, the seed-\code{dk} K-PK safety without $J$/$\mathsf{zof}$ injectivity, and every
-reduction without the proved \code{encode\_inj}. The negative controls are what turn the map from a
-list of \emph{sufficient} conditions into a \emph{necessity} statement (``ContextBound must absorb
-$pk_{\mathrm{pq}}$ and context''), and they are the same methodology that establishes the explicit
-$\mathsf{K}\neq\bot$ conjunct as load-bearing in \cref{tab:lemmas}. The whole development is
+reduction without the proved \code{encode\_inj}. These controls protect against accidental script
+weakening but do not turn sufficient conditions into logical necessity. Necessity for public-key and
+context absorption is instead supported by the explicit probability-one adversaries, and the need
+for the $\mathsf{K}\neq\bot$ conjunct by its explicit probability-one countermodel. The whole development is
 admit-free and rests on six elementary axioms (\code{be8\_size}, \code{be8\_inj}, \code{ek\_neq},
 \code{lctx\_neq}, \code{zof\_inj}, \code{jrej\_inj}); $H$'s collision resistance is the sole
 \emph{cryptographic} assumption, and the injective encoding is a proved lemma, not an axiom.
 
 \emph{Assumption ladder.} The map's verdicts do not all sit at the same assumption level, and
 the differences are themselves informative. The two breaks and the full-combiner safety bounds need
-\emph{no} idealization of $J$: the breaks are unconditional concrete adversaries, and the full
+\emph{no} idealization of $J$: the breaks are structural probability-one adversaries, and the full
 combiner reduces to $\mathrm{CR}(H)$ alone because it absorbs every field directly. The two
 \emph{conditional} verdicts---K-CT safety after omitting $ct_{\mathrm{pq}}$, and seed-\code{dk} K-PK
 safety---are precisely the ones that lean on the shared secret to do binding work the encoding no
 longer does, and they pay for it with the $J$/$\mathsf{zof}$ injectivity idealizations. So the
 assumption a reader must grant scales with how much the combiner offloads onto the component KEM's
-internals: zero for ContextBound's direct absorption, more for every shortcut. That monotonicity is
+internals: zero additional component-KEM binding/injectivity assumptions for ContextBound's direct
+absorption beyond $\mathrm{CR}(H)$, and more for every shortcut. That monotonicity is
 the quantitative form of the paper's thesis that absorbing the full transcript is the
 assumption-minimal choice.
 
@@ -992,9 +1179,9 @@ $95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss 
 \cref{sec:eval}: the median is loss-insensitive, while the tail is governed by a per-loss TCP
 retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
-Footprint (platform-dependent, \code{paper/footprint.csv}): the stripped C-ABI library is
-$\approx$796\,KiB on macOS arm64 (default hybrid build; Linux x86-64 is smaller, regenerated by the
-script and not committed here), the lean WebAssembly module $\approx$195\,KiB.
+Footprint (platform-dependent, \code{paper/footprint.csv}): the stripped native ABI~2 library is
+$\approx$829\,KiB on macOS arm64 (signed-policy product build; Linux x86-64 must be regenerated
+on its own lane), the lean WebAssembly module $\approx$202\,KiB.
 
 \begin{table}[t]\centering\scriptsize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
@@ -1034,12 +1221,22 @@ The artifact ships a layered guide (\code{ARTIFACT.md}) in three tiers by cost a
 \emph{Tier~1 (\textasciitilde$10$\,min, Rust only):} \code{cargo test --workspace} (KATs, NIST ACVP,
 cross-crate differential, proptests, host-side FFI/WASM vectors), \code{cargo fmt --all --check}, and
 the no-\code{admit}/\code{sorry} proof grep. \emph{Tier~2 (\textasciitilde$1$\,h, the CI gates):}
-\code{clippy -D warnings}; the \code{slh-dsa,hqc} backends; the \emph{hermetic} EasyCrypt machine-check
-(\code{docker build -f formal/Dockerfile} then re-run \code{BindingViaCR.ec} and the deleted-hypothesis
-necessity controls inside the pinned image); the C-ABI link smoke (\code{sh bindings/c/build-and-run.sh});
+\code{clippy -D warnings}; the \code{slh-dsa} backend and separately bounded non-publishable HQC
+draft-candidate tests; the \emph{hermetic} EasyCrypt machine-check
+(\code{docker build -f formal/Dockerfile} then re-run \code{BindingViaCR.ec}, the explicit
+$\K\neq\bot$ countermodel, and proof-dependency controls); the C-ABI link smoke (\code{sh bindings/c/build-and-run.sh});
 the \code{wasm32} and \code{thumbv7em} cross-builds; and the Swift/Kotlin/WASM binding tests.
-\emph{Tier~3 (hardware-dependent):} the bare-metal time-to-session (\code{sudo sh
-camera-ready-bare-metal.sh}; root~+~\code{tc netem} on a quiesced Linux host); the
+\emph{Tier~3 (hardware-dependent):} the bare-metal time-to-session
+(\code{sudo env QPERIAPT\_BARE\_METAL\_CONFIRMED=1 sh camera-ready-bare-metal.sh}; a frozen
+root-owned host-state launcher that runs all build and measured code in a clean, read-only snapshot
+under a dedicated locked, group/capability-cleared \code{no\_new\_privs} account and per-command
+cgroup v2 with finite process/memory limits on a quiesced Linux host. Each build receives a fresh
+Cargo home populated only from \code{Cargo.lock}-checksum-verified crate archives and runs in a
+network namespace without host networking. The harness then emits a raw hash-bound run-id bundle,
+including canonical before/active/after host-state metadata, only after verified host restoration;
+this producer-origin lane trusts the pinned dependency/toolchain closure and is not a hostile-builder
+or formal source-to-binary refinement proof);
+the
 source$\to$binary CT discriminator (\code{sh ctstats/scripts/ct-gap-probe.sh}; x86-64/aarch64 Linux~+~
 Valgrind); the Tamarin/ProVerif models (\code{make} under \code{formal/\{tamarin,proverif\}}); and the
 platform footprint (\code{sh paper/footprint.sh}). The figures rebuild via \code{make -C paper/figures}.
@@ -1080,6 +1277,10 @@ Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
 8446, IETF, 2018.
 \bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
 draft-ietf-tls-hybrid-design, IETF, 2023.
+\bibitem{hybridkems} D.~Connolly, R.~Barnes, and P.~Grubbs, ``Hybrid PQ/T Key Encapsulation
+Mechanisms,'' draft-irtf-cfrg-hybrid-kems-12, IRTF CFRG (work in progress), 2026.
+\bibitem{nistagility} E.~Barker \emph{et al.}, ``Considerations for Achieving Crypto Agility:
+Strategies and Practices,'' NIST CSWP~39upd1, updated June 2026.
 \bibitem{tlsmlkem} K.~Kwiatkowski, P.~Kampanakis, B.~Westerbaan, and D.~Stebila, ``Post-Quantum
 Hybrid \code{ECDHE-MLKEM} Key Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS
 Working Group (work in progress), 2026.
@@ -1087,6 +1288,18 @@ Working Group (work in progress), 2026.
 PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
 \bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in
 Quantum-Secure Messaging,'' Apple Security Research, 2024.
+\bibitem{signaldr4} T.~Perrin, M.~Marlinspike, and R.~Schmidt, ``The Double Ratchet
+Algorithm,'' revision~4, Signal specifications, 2025. [Online]. Available:
+\url{https://signal.org/docs/specifications/doubleratchet/}
+\bibitem{mlkembraid} G.~Connell and R.~Schmidt, ``The ML-KEM Braid Protocol,'' Signal
+specifications, 2025. [Online]. Available:
+\url{https://signal.org/docs/specifications/mlkembraid/}
+\bibitem{sesame} M.~Marlinspike and T.~Perrin, ``The Sesame Algorithm: Session Management
+for Asynchronous Message Encryption,'' revision~2, Signal specifications, 2017. [Online].
+Available: \url{https://signal.org/docs/specifications/sesame/}
+\bibitem{signalspqr} G.~Connell and R.~Schmidt, ``Signal Protocol and Post-Quantum
+Ratchets,'' Signal, Oct.~2025. [Online]. Available:
+\url{https://signal.org/blog/spqr/}
 \bibitem{cdmrej} J.~Kr\"amer, P.~Struck, and M.~Weish\"aupl, ``Binding Security of
 Implicitly-Rejecting KEMs and Application to BIKE and HQC,'' IACR ePrint 2024/1233, 2024.
 \bibitem{hacl} J.-K.~Zinzindohou\'e, K.~Bhargavan, J.~Protzenko, and B.~Beurdouche, ``HACL*: A

@@ -26,17 +26,28 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
       - run: cargo install cbindgen --locked
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
-      - run: PYTHONPATH=artifact python3 -m unittest artifact/test_android_device_proof.py
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      # Discover every artifact/test_*.py module so newly added fail-closed
+      # verifiers cannot silently remain local-only because an explicit list drifted.
+      - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
+      - name: Proof-to-byte manifest and canonical source binding
+        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh
+      - name: Paired performance harness schema (shared-runner, no numeric claim)
+        run: |
+          cargo run --release --locked -p q-periapt-backends --example paired_profile_perf -- \
+            --samples 200 --warmup-ms 100 --raw-out target/performance/ci-paired-profile.jsonl
+          sh artifact/python-run.sh artifact/performance_gate.py validate-raw \
+            --raw target/performance/ci-paired-profile.jsonl
       # C-ABI link smoke test on Linux (gcc/clang links a C consumer against the cdylib).
       - run: sh bindings/c/build-and-run.sh
       # C-ABI distribution smoke: archive, extract, pkg-config consumer, and CMake consumer.
       - run: sh artifact/c-package.sh
 
   # Crates.io pre-publication contract. This is not an upload step: it checks the
-  # explicit publish allow/deny list, package file lists, and patched
-  # `cargo publish --dry-run` for every publishable crate from a clean checkout.
+  # explicit publish allow/deny list, package file lists, patched
+  # `cargo publish --dry-run` for every publishable crate, and an isolated scan
+  # of Cargo's normalized backend package from a clean checkout.
   rust-publish-contract:
     runs-on: ubuntu-latest
     steps:
@@ -44,20 +55,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: sh artifact/rust-publish-dry-run.sh
 
-  # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs —
+  # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs,
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
-  # (compiled via cc/cl.exe) and the C HQC reference (`pqcrypto-hqc`). Verified locally on
-  # Windows 11 (build 26200, Rust 1.96, 2026-06): `cargo test --workspace` + the C-heavy
-  # `slh-dsa,hqc` features all pass, vectors byte-identical. (`.gitattributes` pins LF so the
-  # checkout is byte-identical here too.)
+  # (compiled via cc/cl.exe) and the optional pure-Rust SLH-DSA backend.
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace
-      - run: cargo test -p q-periapt-backends --features slh-dsa,hqc
-      # C-ABI link smoke test: cl.exe links a C consumer against q_periapt_ffi.dll.
+      - run: cargo test --workspace --locked
+      - run: cargo test -p q-periapt-backends --features slh-dsa --locked
+      # ABI2 C link smoke: cl.exe links a C consumer against q_periapt_ffi_abi2.dll.
       - run: bindings\c\build-and-run.bat
 
   # no_std build of the auditable core for an embedded target (must not pull std).
@@ -104,7 +112,7 @@ jobs:
         env:
           CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
           CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_RUNNER: qemu-riscv64-static -L /usr/riscv64-linux-gnu
-        run: cargo test --release --target riscv64gc-unknown-linux-gnu -p q-periapt-backends reference_vector
+        run: cargo test --release --locked --target riscv64gc-unknown-linux-gnu -p q-periapt-backends reference_vector
 
   # Cross-compiler differential: the constant-time / behaviour must not depend on
   # the compiler. (Placeholder: extend with gcc/clang FFI builds + differential KATs.)
@@ -120,7 +128,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       # `+${{ matrix.toolchain }}` is REQUIRED: the root rust-toolchain.toml pins stable and
       # would otherwise shadow the action's default, silently running beta/nightly on stable.
-      - run: cargo +${{ matrix.toolchain }} test --workspace
+      - run: cargo +${{ matrix.toolchain }} test --workspace --locked
 
   # Enforce the declared MSRV against the committed lock. `+1.85` selects it explicitly so the
   # root rust-toolchain.toml (stable) can't shadow it.
@@ -131,18 +139,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85
       - run: cargo +1.85 build --workspace --locked
 
-  # Side-channel gates: failure-path indistinguishability (hard gate) + dudect
-  # timing report (informational). See ctstats/README.md for the honest scope.
+  # Side-channel gate: failure-path indistinguishability. Empirical dudect timing
+  # is intentionally not run on noisy shared CI; use the documented local command
+  # on quiesced hardware and treat its exit status as meaningful.
   sidechannel:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Failure-path indistinguishability (hard gate)
-        run: cargo test -p q-periapt-ctstats
-      - name: dudect timing report (informational, never fails)
-        run: cargo run --release -p q-periapt-ctstats --bin dudect_decaps || true
-
+        run: cargo test -p q-periapt-ctstats --locked
   # Dataflow constant-time HARD GATE (Valgrind/Memcheck TIMECOP). Secrets are marked
   # "undefined"; Memcheck flags any branch/index that depends on them, so a non-CT
   # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code
@@ -192,9 +198,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Loopback handshake (both profiles)
-        run: cargo test -p q-periapt-tls-demo
+        run: cargo test -p q-periapt-tls-demo --locked
       - name: P99 harness (informational)
-        run: cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000 || true
+        run: cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000
 
   # Cross-platform bindings: each binding decapsulates the shared reference vector
   # (bindings/shared-test-vectors.json) and must reproduce the secret byte-for-byte.
@@ -229,6 +235,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          # The release gate inspects Rust-produced archives with the matching
+          # Rust LLVM version; Xcode llvm-nm may reject newer Rust bitcode.
+          components: llvm-tools
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - run: cargo build -p q-periapt-ffi --release
       - run: cargo install cbindgen --locked
@@ -294,9 +304,12 @@ jobs:
         with:
           name: cyclonedx-boms
           path: "*.cdx.json"
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      # Unconditional release gate over the complete root lockfile. No advisory
+      # is ignored; an upstream-only warning intentionally keeps ABI 2 blocked.
+      - run: cargo audit --deny warnings
 
-  # Optional PQ backends (SLH-DSA via fips205, HQC via PQClean C): the ONLY job
-  # that compiles them. Default/wasm/no_std jobs above prove they stay unpulled.
+  # Optional SLH-DSA backend (FIPS 205 via fips205).
   pq-optional-backends:
     runs-on: ubuntu-latest
     steps:
@@ -304,17 +317,23 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo clippy -p q-periapt-backends --features slh-dsa,hqc --all-targets -- -D warnings
-      - run: cargo test -p q-periapt-backends --features slh-dsa,hqc
-      - run: cargo install cargo-audit
-      # RUSTSEC-2026-0163 (pqcrypto-internals unmaintained) is acknowledged in
-      # .cargo/audit.toml — surfaced, not hidden.
-      - run: cargo audit
+      - run: cargo clippy -p q-periapt-backends --features slh-dsa --all-targets --locked -- -D warnings
+      - run: cargo test -p q-periapt-backends --features slh-dsa --locked
 
-  # Fence: the C-based hqc feature must NEVER reach wasm32 (no C toolchain / no entropy there). Note:
-  # getrandom's own compile_error fires first, so this verifies the protective OUTCOME (hqc does not
-  # build for wasm), not the suite's hqc.rs compile_error message specifically — that fence is
-  # belt-and-suspenders intent. The grep confirms the failure is wasm/entropy-related, not unrelated.
+  # Isolated HQC v5 / FIPS 207 draft-candidate research lane. It has its own
+  # workspace and lockfile and is never a dependency of a publishable crate.
+  hqc-draft-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: wasm32-unknown-unknown,thumbv7em-none-eabihf,aarch64-unknown-linux-gnu,x86_64-pc-windows-gnu
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: bash research/hqc-fips207-candidate/scripts/verify.sh
+
+  # Cross-target feature fence for the shipping WASM face and dependency-free core.
   feature-fence:
     runs-on: ubuntu-latest
     steps:
@@ -324,10 +343,6 @@ jobs:
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
       - run: cargo build -p q-periapt-wasm --target wasm32-unknown-unknown
       - run: cargo build -p q-periapt-core --target thumbv7em-none-eabihf
-      - name: hqc must not compile for wasm32 (HQC never reaches the browser)
-        run: |
-          ! cargo build -p q-periapt-backends --features hqc --target wasm32-unknown-unknown 2>/tmp/hqc-wasm.log
-          grep -qiE 'wasm32|getrandom|requires a std/native' /tmp/hqc-wasm.log
 
   # Formal proofs. The no-admits check is a reliable HARD GATE (catches a proof
   # being stubbed out). The full EasyCrypt machine-check runs in the hermetic
@@ -338,15 +353,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: No admits/sorry in the mechanized proofs (hard gate)
-        run: "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/"
-      # The FULL proof re-check (easycrypt BindingViaCR.ec + the deleted-hypothesis necessity
-      # controls) now runs as a HARD GATE in the `formal-hermetic` job below, inside a pinned
-      # EasyCrypt container (formal/Dockerfile), replacing the old optional install path.
+        run: "! grep -rnEw 'admit|sorry' --include='*.ec' formal/easycrypt/"
+      # The FULL proof re-check (BindingViaCR.ec + seven proof-dependency regression controls
+      # + the non-normative Lifecycle/Prekey canonical-projection diagnostics) runs as a HARD
+      # GATE in `formal-hermetic` below. Hint-deletion failures establish only dependencies of
+      # the current scripts; semantic necessity comes from explicit countermodels.
 
-  # Hermetic EasyCrypt proof check (HARD GATE). Builds the pinned EasyCrypt r2026.06 image
-  # (formal/Dockerfile, layer-cached) and re-runs the binding proof + necessity controls in it. If
-  # the proof stops checking, or a deleted-hypothesis control stops breaking its proof, CI FAILS —
-  # this is the real machine-check gate, not a best-effort install.
+  # Hermetic EasyCrypt proof check (HARD GATE). Builds the EasyCrypt r2026.06 toolchain image
+  # (formal/Dockerfile, layer-cached) and re-runs the binding proof, proof-dependency controls,
+  # and both Continuity canonical-projection diagnostics.
+  # `BindingViaCR.ec` also contains the explicit probability-one K!=bottom countermodel; do not
+  # infer logical necessity merely from an edited tactic failing.
   formal-hermetic:
     runs-on: ubuntu-latest
     steps:
@@ -361,13 +378,13 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Machine-check the binding proof + necessity controls (HARD GATE)
+      - name: Machine-check proof, countermodels, and dependency controls (HARD GATE)
         run: |
           # Mount the proofs read-only and copy into a container-owned dir: the checkout's committed
           # .eco is host-owned, so the container's opam user can't rm it in place. Copying makes the
           # files opam-owned, so `rm -f *.eco` forces a from-scratch re-check.
           docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/src:ro" q-periapt-ec:ci \
-            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh && EC=easycrypt make -C continuity check'
 
   # Symbolic handshake proof. The lemma-presence check catches a lemma being
   # deleted/stubbed out; the full Tamarin machine-check is a HARD GATE too.
@@ -377,9 +394,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: All four security lemmas present (hard gate)
+      - name: All five Tamarin lemmas present (hard gate)
         run: |
-          for l in executable server_authentication hybrid_secrecy hybrid_robustness_authenticated; do
+          for l in executable server_authentication authenticated_context_agreement hybrid_secrecy hybrid_robustness_authenticated; do
             grep -qE "^lemma ${l}:" formal/tamarin/handshake.spthy || { echo "missing lemma: ${l}"; exit 1; }
           done
       - name: Install Maude + Tamarin
@@ -400,26 +417,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Handshake events + queries present (hard gate)
+      - name: Handshake events + six queries present (hard gate)
         run: |
           for e in ServerDone ClientFinish RevealSig RevealPQ RevealTrad; do
             grep -qE "^event ${e}\(" formal/proverif/handshake.pv || { echo "missing event: ${e}"; exit 1; }
           done
           n=$(grep -cE '^query ' formal/proverif/handshake.pv)
-          test "$n" -ge 5 || { echo "expected >= 5 queries, found $n"; exit 1; }
+          test "$n" -eq 6 || { echo "expected exactly 6 queries, found $n"; exit 1; }
       - name: Install ProVerif
         run: |
           sudo apt-get update
-          sudo apt-get install -y opam
+          sudo apt-get install -y libgtk2.0-dev opam pkg-config
           opam init -y --disable-sandboxing
           opam install -y proverif
       - name: Machine-check the handshake model (queries must hold)
         run: opam exec -- make -C formal/proverif prove
 
   # Still TODO as harnesses land (see ctstats/README.md):
-  #   - extend the `constant-time` Memcheck/TIMECOP gate over the libcrux primitive
-  #     paths and to non-x86 targets (it covers our composition code today)
-  #   - promote the dudect timing test from report-only to a gate on quiesced hardware
+  #   - extend the `constant-time` Memcheck/TIMECOP gate to the remaining primitive/backend
+  #     paths and to riscv64/wasm32; ML-KEM decapsulation is already gated on x86_64+aarch64
+  #   - promote the local dudect timing diagnostic to a gate on quiesced hardware
   # Done since this note was written: full NIST ACVP (ML-KEM-512/768/1024 +
   # ML-DSA-44/65/87 + SLH-DSA) and ContextBound reference vectors in q-periapt-backends;
   # cargo-fuzz targets under fuzz/ (combine + ML-KEM decapsulate) with a seed corpus.

@@ -4,10 +4,12 @@
 //! the paper's performance table. `cargo bench -p q-periapt-backends --bench primitives`.
 use std::time::Duration;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{
+    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+};
 use q_periapt_backends::{
-    MlKem1024, MlKem512, MlKem768, Sha3_256Xof, ML_KEM_1024_CT_LEN, ML_KEM_512_CT_LEN,
-    ML_KEM_768_CT_LEN, X25519, X25519_LEN,
+    MlKem1024, MlKem512, MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_1024_CT_LEN,
+    ML_KEM_512_CT_LEN, ML_KEM_768_CT_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{Kem, Profile};
 use q_periapt_kem::HybridKem;
@@ -77,43 +79,97 @@ fn primitives(c: &mut Criterion) {
     g.finish();
 }
 
+struct HybridBenchCase<'a, P: Kem> {
+    tag: &'a str,
+    pq: &'a P,
+    sk_pq: &'a [u8],
+    pk_pq: &'a [u8],
+    profile: Profile,
+    suite_id: &'a [u8],
+    policy_version: u32,
+    context: &'a [u8],
+}
+
+fn bench_hybrid_case<P: Kem>(g: &mut BenchmarkGroup<'_, WallTime>, case: HybridBenchCase<'_, P>) {
+    let HybridBenchCase {
+        tag,
+        pq,
+        sk_pq,
+        pk_pq,
+        profile,
+        suite_id,
+        policy_version,
+        context,
+    } = case;
+    let (sk_tr, pk_tr) = X25519::generate([9u8; 32]);
+    let trad = X25519;
+    let kem = HybridKem::<_, _, Sha3_256Xof>::new(pq, &trad, profile, suite_id, policy_version)
+        .expect("benchmark case must use a backend admitted by its profile");
+    let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
+    let mut ct_tr = [0u8; X25519_LEN];
+    g.bench_function(format!("{tag}/encaps"), |b| {
+        b.iter(|| {
+            black_box(
+                kem.encapsulate(
+                    pk_pq, &pk_tr, context, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr,
+                )
+                .unwrap(),
+            )
+        })
+    });
+    let _ = kem
+        .encapsulate(
+            pk_pq, &pk_tr, context, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr,
+        )
+        .unwrap();
+    g.bench_function(format!("{tag}/decaps"), |b| {
+        b.iter(|| {
+            black_box(
+                kem.decapsulate(sk_pq, &ct_pq, pk_pq, &sk_tr, &ct_tr, &pk_tr, context)
+                    .unwrap(),
+            )
+        })
+    });
+}
+
 fn hybrid(c: &mut Criterion) {
     let mut g = c.benchmark_group("hybrid");
     g.measurement_time(Duration::from_secs(2)).sample_size(60);
-    let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]);
-    let (sk_tr, pk_tr) = X25519::generate([9u8; 32]);
-    for (tag, profile, ctx) in [
-        ("ContextBound", Profile::ContextBound, &b"ctx"[..]),
-        ("CompatXWing", Profile::CompatXWing, &b""[..]),
-    ] {
-        let kem =
-            HybridKem::<_, _, Sha3_256Xof>::new(&MlKem768, &X25519, profile, b"suite", 1).unwrap();
-        let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
-        let mut ct_tr = [0u8; X25519_LEN];
-        g.bench_function(format!("{tag}/encaps"), |b| {
-            b.iter(|| {
-                black_box(
-                    kem.encapsulate(
-                        &pk_pq, &pk_tr, ctx, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr,
-                    )
-                    .unwrap(),
-                )
-            })
-        });
-        let _ = kem
-            .encapsulate(
-                &pk_pq, &pk_tr, ctx, &[1u8; 32], &[2u8; 32], &mut ct_pq, &mut ct_tr,
-            )
-            .unwrap();
-        g.bench_function(format!("{tag}/decaps"), |b| {
-            b.iter(|| {
-                black_box(
-                    kem.decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_tr, &ct_tr, &pk_tr, ctx)
-                        .unwrap(),
-                )
-            })
-        });
-    }
+
+    let expanded_pq = MlKem768;
+    let (expanded_sk, expanded_pk) = MlKem768::generate([7u8; 64]);
+    bench_hybrid_case(
+        &mut g,
+        HybridBenchCase {
+            tag: "ContextBound",
+            pq: &expanded_pq,
+            sk_pq: &expanded_sk,
+            pk_pq: &expanded_pk,
+            profile: Profile::ContextBound,
+            suite_id: b"suite",
+            policy_version: 1,
+            context: b"ctx",
+        },
+    );
+
+    // CompatXWing deliberately rejects imported/expanded ML-KEM keys. Benchmark the
+    // policy-admitted X-Wing seed-dk backend instead of weakening that invariant.
+    let seed_pq = MlKem768XWingSeed;
+    let (seed_sk, seed_pk) = MlKem768XWingSeed::generate([7u8; 32]);
+    bench_hybrid_case(
+        &mut g,
+        HybridBenchCase {
+            tag: "CompatXWing",
+            pq: &seed_pq,
+            sk_pq: &seed_sk,
+            pk_pq: &seed_pk,
+            profile: Profile::CompatXWing,
+            suite_id: b"",
+            policy_version: 0,
+            context: b"",
+        },
+    );
+
     g.finish();
 }
 

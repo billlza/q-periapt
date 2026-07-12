@@ -2,6 +2,11 @@
 
 Status of M0 KAT coverage.
 
+These are primitive/combiner KATs. They do not cover the future Continuity wire,
+prekey, ratchet, persistence, or multi-device state machine; those require a distinct
+transition-vector corpus described in
+[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+
 ## Present (passing)
 
 - **X-Wing draft byte-exact KAT** ✅ — `q-periapt-backends/src/xwing_kat.rs` reproduces all

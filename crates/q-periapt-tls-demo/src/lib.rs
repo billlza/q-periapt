@@ -27,8 +27,8 @@
 //!   transcript and sends a key-confirmation.
 //! - It is **not** the TLS 1.3 wire format. Real TLS 1.3 hybrid key exchange uses the
 //!   `X25519MLKEM768` named group (`0x11EC`) with the TLS key-schedule combiner. See
-//!   `README.md` for the mapping and the production path (a rustls `CryptoProvider`
-//!   over `q-periapt-ffi`).
+//!   `README.md` for the mapping and the production-stack integration demo (a
+//!   private-use rustls `CryptoProvider` over the shared Q-Periapt implementation).
 
 use core::fmt;
 use std::io::{self, Read, Write};
@@ -38,7 +38,7 @@ use q_periapt_backends::{
     ML_DSA_87_SIG_LEN, ML_KEM_1024_CT_LEN, ML_KEM_1024_PK_LEN, ML_KEM_768_CT_LEN,
     ML_KEM_768_PK_LEN, X25519, X25519_LEN,
 };
-use q_periapt_core::{ct_eq, Kem, Profile, Secret, Xof256};
+use q_periapt_core::{ct_eq, Kem, Profile, Secret, Xof256, ZeroizingBytes};
 use q_periapt_kem::HybridKem;
 use q_periapt_sig::{Signer, Verifier};
 
@@ -196,19 +196,16 @@ impl Drop for ServerKeys {
 
 impl ServerKeys {
     fn from_seeds_for<Su: HandshakeSuite>(
-        mut seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
-        mut seed_x: [u8; SEED32_LEN],
-        mut seed_sig: [u8; SEED32_LEN],
+        seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
+        seed_x: [u8; SEED32_LEN],
+        seed_sig: [u8; SEED32_LEN],
     ) -> Self {
-        let (dk_pq, ek_pq) = Su::pq_keypair(&seed_pq);
-        let (sk_x, pk_x) = X25519::generate(seed_x);
-        let (sign_sk, verify_vk) = Su::sig_keypair(&seed_sig);
-        // Wipe the local key-seed copies once the long-term keys are derived (the keys
-        // themselves are Drop-wiped by ServerKeys). The CSPRNG caller (generate_for) wipes
-        // its own copy too, since `[u8; N]` seeds are Copy.
-        q_periapt_core::secure_wipe(&mut seed_pq);
-        q_periapt_core::secure_wipe(&mut seed_x);
-        q_periapt_core::secure_wipe(&mut seed_sig);
+        let seed_pq = ZeroizingBytes::from_bytes(seed_pq);
+        let seed_x = ZeroizingBytes::from_bytes(seed_x);
+        let seed_sig = ZeroizingBytes::from_bytes(seed_sig);
+        let (dk_pq, ek_pq) = Su::pq_keypair(seed_pq.as_bytes());
+        let (sk_x, pk_x) = X25519::generate(*seed_x.as_bytes());
+        let (sign_sk, verify_vk) = Su::sig_keypair(seed_sig.as_bytes());
         Self {
             dk_pq,
             ek_pq,
@@ -240,21 +237,18 @@ impl ServerKeys {
     }
 
     fn generate_for<Su: HandshakeSuite>() -> Result<Self, DemoError> {
-        let mut seed_pq = [0u8; PQ_KEYGEN_SEED_LEN];
-        let mut seed_x = [0u8; SEED32_LEN];
-        let mut seed_sig = [0u8; SEED32_LEN];
-        let filled = getrandom::fill(&mut seed_pq)
-            .and_then(|()| getrandom::fill(&mut seed_x))
-            .and_then(|()| getrandom::fill(&mut seed_sig));
-        let result = filled
-            .map(|()| Self::from_seeds_for::<Su>(seed_pq, seed_x, seed_sig))
-            .map_err(|_| DemoError::Crypto);
-        // Wipe our CSPRNG key-seed copies on every path (success or RNG failure); they are
-        // transient secrets, and the derived long-term keys live on Drop-wiped in ServerKeys.
-        q_periapt_core::secure_wipe(&mut seed_pq);
-        q_periapt_core::secure_wipe(&mut seed_x);
-        q_periapt_core::secure_wipe(&mut seed_sig);
-        result
+        let mut seed_pq = ZeroizingBytes::<PQ_KEYGEN_SEED_LEN>::zeroed();
+        let mut seed_x = ZeroizingBytes::<SEED32_LEN>::zeroed();
+        let mut seed_sig = ZeroizingBytes::<SEED32_LEN>::zeroed();
+        getrandom::fill(seed_pq.as_mut_bytes())
+            .and_then(|()| getrandom::fill(seed_x.as_mut_bytes()))
+            .and_then(|()| getrandom::fill(seed_sig.as_mut_bytes()))
+            .map_err(|_| DemoError::Crypto)?;
+        Ok(Self::from_seeds_for::<Su>(
+            *seed_pq.as_bytes(),
+            *seed_x.as_bytes(),
+            *seed_sig.as_bytes(),
+        ))
     }
 
     /// Generate **default-suite** keys from the OS CSPRNG.
@@ -328,10 +322,10 @@ impl<'a> Cursor<'a> {
     }
 }
 
-fn sha3(parts: &[&[u8]]) -> [u8; 32] {
+fn sha3_public(parts: &[&[u8]]) -> [u8; 32] {
     let mut x = Sha3_256Xof::new();
     for p in parts {
-        x.absorb(p);
+        x.absorb_public(p);
     }
     x.squeeze32()
 }
@@ -344,7 +338,11 @@ fn profile_from(b: u8) -> Result<Profile, DemoError> {
 }
 
 fn server_finished(secret: &Secret, context: &[u8]) -> [u8; 32] {
-    sha3(&[secret.as_bytes(), SERVER_FINISHED_LABEL, context])
+    let mut x = Sha3_256Xof::new();
+    x.absorb_secret(secret.as_bytes());
+    x.absorb_public(SERVER_FINISHED_LABEL);
+    x.absorb_public(context);
+    x.squeeze32()
 }
 
 /// Generic **client** side, parameterized by the [`HandshakeSuite`].
@@ -374,23 +372,20 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     cur.finish()?;
 
     // 3. Transcript context for the combiner (binds nonces, profile, server keys).
-    let context = sha3(&[&ch, &sh]);
+    let context = sha3_public(&[&ch, &sh]);
 
     // 4. Encapsulate to the server's static hybrid key.
     let pq = Su::Pq::default();
     let trad = X25519;
     let kem =
         HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
-    let mut coins = [0u8; 64];
-    if getrandom::fill(&mut coins).is_err() {
-        q_periapt_core::secure_wipe(&mut coins);
-        return Err(DemoError::Crypto);
-    }
+    let mut coins = ZeroizingBytes::<64>::zeroed();
+    getrandom::fill(coins.as_mut_bytes()).map_err(|_| DemoError::Crypto)?;
     let mut ct_pq = vec![0u8; Su::PQ_CT_LEN];
     let mut ct_trad = [0u8; X25519_LEN];
     // Compute, then wipe the encapsulation coins on every path (success or encapsulate error).
     let result = {
-        let (rand_pq, rand_trad) = coins.split_at(32);
+        let (rand_pq, rand_trad) = coins.as_bytes().split_at(32);
         kem.encapsulate(
             ek_pq,
             pk_x,
@@ -401,7 +396,6 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
             &mut ct_trad,
         )
     };
-    q_periapt_core::secure_wipe(&mut coins);
     let secret = result?;
 
     // 5. ClientKem = ct_pq(PQ_CT_LEN) || ct_trad(32)
@@ -420,7 +414,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     cur.finish()?;
 
     // Server authentication: signature over the full transcript, pinned vk.
-    let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
+    let auth_transcript = sha3_public(&[&ch, &sh, &kem_msg]);
     Su::Sig::default()
         .verify(server_vk, &auth_transcript, signature)
         .map_err(|_| DemoError::AuthFailed)?;
@@ -459,7 +453,7 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     stats.bytes_sent += write_msg(stream, &sh)?;
     stats.messages += 1;
 
-    let context = sha3(&[&ch, &sh]);
+    let context = sha3_public(&[&ch, &sh]);
 
     // 3. ClientKem
     let kem_msg = read_msg(stream)?;
@@ -485,14 +479,18 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     )?;
 
     // 5. ServerFinished = sign(transcript) || key_confirmation
-    let auth_transcript = sha3(&[&ch, &sh, &kem_msg]);
-    let mut sig_rand = [0u8; 32];
-    getrandom::fill(&mut sig_rand).map_err(|_| DemoError::Crypto)?;
+    let auth_transcript = sha3_public(&[&ch, &sh, &kem_msg]);
+    let mut sig_rand = ZeroizingBytes::<32>::zeroed();
+    getrandom::fill(sig_rand.as_mut_bytes()).map_err(|_| DemoError::Crypto)?;
     let mut sig = vec![0u8; Su::SIG_LEN];
     // Wipe the per-signature randomness on every path (including a signing error), not just
     // after a successful sign.
-    let sign_res = Su::Sig::default().sign(&keys.sign_sk, &auth_transcript, &sig_rand, &mut sig);
-    q_periapt_core::secure_wipe(&mut sig_rand);
+    let sign_res = Su::Sig::default().sign(
+        &keys.sign_sk,
+        &auth_transcript,
+        sig_rand.as_bytes(),
+        &mut sig,
+    );
     sign_res.map_err(|_| DemoError::Crypto)?;
     let confirm = server_finished(&secret, &context);
 

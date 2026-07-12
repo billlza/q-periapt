@@ -14,9 +14,10 @@
   lbl/.style={font=\scriptsize\itshape, text=black!55, align=center},
 ]
 % ---- achieved ceiling ----
-\node[ceil, text width=63mm] (ceil)
+\node[ceil, text width=72mm] (ceil)
   {\textbf{Achieved ceiling on the standard axes}\\[2pt]
-   \mbox{MAL-BIND-K-CT} \;$\wedge$\; \mbox{MAL-BIND-K-PK} \,($+$\,K-CTX)};
+   \mbox{MAL-BIND-K-CT} \;$\wedge$\; \mbox{MAL-BIND-K-PK}\\[1pt]
+   {\scriptsize ContextBound separately proves a syntactic K-CTX extension (not a CDM axis)}};
 % ---- the two schemes (chips) ----
 \node[chip, fill=blue!12, draw=blue!60, below=5mm of ceil, xshift=-16mm] (cb)
   {\textbf{ContextBound} (this work)};

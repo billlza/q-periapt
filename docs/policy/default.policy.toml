@@ -23,5 +23,7 @@ deprecated = []
 # --- Enhanced posture (see q_periapt_policy::Policy::enhanced) -----------------------
 # min_nist_level = 5
 # default_profile = "ContextBound"
-# allowed_kems = ["ML-KEM-1024", "X25519", "HQC-256"]  # + code-based assumption diversity
+# allowed_kems = ["ML-KEM-1024", "X25519"]
+# Suite code 3 (the retired PQClean-HQC experiment) is a permanent tombstone.
+# The publish=false HQC-v5/FIPS-207-draft shadow has no policy identifier, suite code, or ABI.
 # allowed_sigs = ["ML-DSA-87", "SLH-DSA-SHA2-256s"]

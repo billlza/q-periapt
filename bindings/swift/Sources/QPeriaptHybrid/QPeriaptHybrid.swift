@@ -8,8 +8,58 @@ import Foundation
 
 /// Combiner profile selector (mirrors `Q_PERIAPT_PROFILE_*`).
 public enum QPeriaptProfile: UInt8 {
-    case compatXWing = 1
     case contextBound = 2
+}
+
+/// Atomic decision produced by a verified signed policy for the fixed native suite.
+/// Fields are read-only so Swift callers cannot accidentally mix a profile from one
+/// policy with a suite/version from another.
+public struct QPeriaptPolicyDecision {
+    public let suiteCode: UInt8
+    public let profile: QPeriaptProfile
+    public let keyFormatCode: UInt8
+    public let policyVersion: UInt32
+    public let policyDigest: [UInt8]
+    fileprivate let encoded: [UInt8]
+
+    /// Persist this exact value atomically after accepting the policy and pass it
+    /// to the next ``QPeriaptHybrid/decisionFromSignedPolicy`` call.
+    public var trustedState: [UInt8] {
+        var state = Array(policyVersion.bigEndianBytes)
+        state.append(contentsOf: policyDigest)
+        return state
+    }
+
+    fileprivate init(encoded: [UInt8]) throws {
+        guard encoded.count == Int(Q_PERIAPT_POLICY_DECISION_LEN),
+              encoded[0] == UInt8(Q_PERIAPT_POLICY_DECISION_VERSION),
+              encoded[1] == UInt8(Q_PERIAPT_SUITE_MLKEM768_X25519),
+              let profile = QPeriaptProfile(rawValue: encoded[2]),
+              encoded[3] == UInt8(Q_PERIAPT_KEY_FORMAT_EXPANDED)
+        else {
+            throw QPeriaptError(code: Q_PERIAPT_ERR_POLICY)
+        }
+        let version = encoded[4..<8].reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
+        guard version != 0 else { throw QPeriaptError(code: Q_PERIAPT_ERR_POLICY) }
+        let keyFormat = encoded[3]
+        guard profile == .contextBound,
+              keyFormat == UInt8(Q_PERIAPT_KEY_FORMAT_EXPANDED) else {
+            throw QPeriaptError(code: Q_PERIAPT_ERR_POLICY)
+        }
+        self.suiteCode = encoded[1]
+        self.profile = profile
+        self.keyFormatCode = keyFormat
+        self.policyVersion = version
+        self.policyDigest = Array(encoded[8...])
+        self.encoded = encoded
+    }
+}
+
+private extension UInt32 {
+    var bigEndianBytes: [UInt8] {
+        let value = bigEndian
+        return withUnsafeBytes(of: value) { Array($0) }
+    }
 }
 
 /// Errors mirroring the C status codes.
@@ -24,7 +74,30 @@ public struct QPeriaptError: Error {
 public struct QPeriaptEncapsulation {
     public let ctPq: [UInt8]
     public let ctTrad: [UInt8]
-    public let secret: [UInt8]
+    public private(set) var secret: [UInt8]
+
+    /// Best-effort destruction of this value's current secret buffer.
+    ///
+    /// Swift arrays use copy-on-write. Callers must also wipe every independent
+    /// copy they created; this method cannot erase copies held elsewhere or by
+    /// the operating system.
+    public mutating func wipeSecret() {
+        QPeriaptHybrid.wipe(&secret)
+    }
+}
+
+/// One atomically generated fixed-suite key pair. Secret-key buffers are
+/// caller-owned and must be wiped when no longer needed.
+public struct QPeriaptKeyPair {
+    public private(set) var skPq: [UInt8]
+    public let pkPq: [UInt8]
+    public private(set) var skTrad: [UInt8]
+    public let pkTrad: [UInt8]
+
+    public mutating func wipeSecrets() {
+        QPeriaptHybrid.wipe(&skPq)
+        QPeriaptHybrid.wipe(&skTrad)
+    }
 }
 
 /// Swift face of the PQ/T hybrid suite (ML-KEM-768 + X25519), over the C ABI.
@@ -32,15 +105,21 @@ public struct QPeriaptEncapsulation {
 /// Secret hygiene: returned secrets (`sk`, the decapsulated/combined secret) are caller-owned
 /// Swift `[UInt8]` value arrays. Because Swift arrays are copy-on-write, the binding cannot zero
 /// them after `return` without corrupting the value it hands back, so wiping is the caller's
-/// responsibility — call ``wipe(_:)`` on each secret buffer when finished with it.
+/// responsibility — call ``wipe(_:)`` on each returned array and ``QPeriaptEncapsulation/wipeSecret()``
+/// on every encapsulation value when finished with it. These APIs are best-effort: they cannot erase
+/// independent copy-on-write buffers or operating-system copies.
 public enum QPeriaptHybrid {
     public static let abiVersion = UInt32(Q_PERIAPT_ABI_VERSION)
     public static let secretLen = Int(Q_PERIAPT_SECRET_LEN)
     public static let mlkemPkLen = Int(Q_PERIAPT_MLKEM768_PK_LEN)
     public static let mlkemSkLen = Int(Q_PERIAPT_MLKEM768_SK_LEN)
-    public static let mlkemXWingSeedLen = Int(Q_PERIAPT_MLKEM768_XWING_SEED_LEN)
     public static let mlkemCtLen = Int(Q_PERIAPT_MLKEM768_CT_LEN)
     public static let x25519Len = Int(Q_PERIAPT_X25519_LEN)
+    public static let policyDecisionLen = Int(Q_PERIAPT_POLICY_DECISION_LEN)
+    public static let trustedPolicyStateLen = Int(Q_PERIAPT_TRUSTED_POLICY_STATE_LEN)
+    public static let maxSignedPolicyBytes = Int(Q_PERIAPT_MAX_SIGNED_POLICY_BYTES)
+    public static let maxApplicationContextBytes = Int(Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES)
+    public static let fixedSuiteCode = UInt8(Q_PERIAPT_SUITE_MLKEM768_X25519)
 
     public static var runtimeAbiVersion: UInt32 {
         q_periapt_abi_version()
@@ -62,88 +141,77 @@ public enum QPeriaptHybrid {
         String(cString: q_periapt_status_name(code))
     }
 
-    public static func profileFromSignedPolicy(
-        toml: [UInt8], signature: [UInt8], verificationKey: [UInt8], lastTrustedVersion: UInt32
-    ) throws -> QPeriaptProfile {
-        var code = [UInt8](repeating: 0, count: 1)
-        let rc = q_periapt_profile_from_signed_policy(
-            toml, UInt(toml.count), signature, UInt(signature.count),
-            verificationKey, UInt(verificationKey.count), lastTrustedVersion,
-            &code, UInt(code.count))
-        guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
-        guard let profile = QPeriaptProfile(rawValue: code[0]) else {
-            throw QPeriaptError(code: Q_PERIAPT_ERR_POLICY)
+    public static func decisionFromSignedPolicy(
+        toml: [UInt8], signature: [UInt8], verificationKey: [UInt8],
+        lastTrustedState: [UInt8] = []
+    ) throws -> QPeriaptPolicyDecision {
+        guard lastTrustedState.isEmpty
+                || lastTrustedState.count == Int(Q_PERIAPT_TRUSTED_POLICY_STATE_LEN)
+        else {
+            throw QPeriaptError(code: Q_PERIAPT_ERR_LENGTH)
         }
-        return profile
-    }
-
-    public static func mlkem768Keypair(seed: [UInt8]) throws -> (sk: [UInt8], pk: [UInt8]) {
-        var sk = [UInt8](repeating: 0, count: mlkemSkLen)
-        var pk = [UInt8](repeating: 0, count: mlkemPkLen)
-        let rc = q_periapt_mlkem768_keypair(
-            seed, UInt(seed.count), &sk, UInt(sk.count), &pk, UInt(pk.count))
+        var encoded = [UInt8](
+            repeating: 0, count: Int(Q_PERIAPT_POLICY_DECISION_LEN))
+        let rc = q_periapt_decision_from_signed_policy(
+            toml, UInt(toml.count), signature, UInt(signature.count),
+            verificationKey, UInt(verificationKey.count),
+            lastTrustedState, UInt(lastTrustedState.count),
+            &encoded, UInt(encoded.count))
         guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
-        return (sk, pk)
+        return try QPeriaptPolicyDecision(encoded: encoded)
     }
 
-    public static func mlkem768XWingKeypair(seed: [UInt8]) throws -> (skSeed: [UInt8], pk: [UInt8]) {
-        var skSeed = [UInt8](repeating: 0, count: mlkemXWingSeedLen)
-        var pk = [UInt8](repeating: 0, count: mlkemPkLen)
-        let rc = q_periapt_mlkem768_xwing_keypair(
-            seed, UInt(seed.count), &skSeed, UInt(skSeed.count), &pk, UInt(pk.count))
+    public static func generateKeypair(
+        decision: QPeriaptPolicyDecision
+    ) throws -> QPeriaptKeyPair {
+        var skPq = [UInt8](repeating: 0, count: mlkemSkLen)
+        var pkPq = [UInt8](repeating: 0, count: mlkemPkLen)
+        var skTrad = [UInt8](repeating: 0, count: x25519Len)
+        var pkTrad = [UInt8](repeating: 0, count: x25519Len)
+        let rc = q_periapt_generate_keypair(
+            decision.encoded, UInt(decision.encoded.count),
+            &skPq, UInt(skPq.count), &pkPq, UInt(pkPq.count),
+            &skTrad, UInt(skTrad.count), &pkTrad, UInt(pkTrad.count))
         guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
-        return (skSeed, pk)
+        return QPeriaptKeyPair(skPq: skPq, pkPq: pkPq, skTrad: skTrad, pkTrad: pkTrad)
     }
 
-    public static func x25519Keypair(secret: [UInt8]) throws -> (sk: [UInt8], pk: [UInt8]) {
-        var sk = [UInt8](repeating: 0, count: x25519Len)
-        var pk = [UInt8](repeating: 0, count: x25519Len)
-        let rc = q_periapt_x25519_keypair(
-            secret, UInt(secret.count), &sk, UInt(sk.count), &pk, UInt(pk.count))
-        guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
-        return (sk, pk)
-    }
-
-    public static func decapsulate(
-        profile: QPeriaptProfile, suiteId: [UInt8], policyVersion: UInt32,
-        skPq: [UInt8], ctPq: [UInt8], pkPq: [UInt8],
-        skTrad: [UInt8], ctTrad: [UInt8], pkTrad: [UInt8],
-        context: [UInt8]
-    ) throws -> [UInt8] {
-        var secret = [UInt8](repeating: 0, count: secretLen)
-        let rc = q_periapt_hybrid_decapsulate(
-            profile.rawValue, suiteId, UInt(suiteId.count), policyVersion,
-            skPq, UInt(skPq.count), ctPq, UInt(ctPq.count), pkPq, UInt(pkPq.count),
-            skTrad, UInt(skTrad.count), ctTrad, UInt(ctTrad.count), pkTrad, UInt(pkTrad.count),
-            context, UInt(context.count), &secret, UInt(secret.count))
-        guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
-        return secret
-    }
-
+    /// Encapsulate under one authenticated policy decision. The native core
+    /// canonically commits the exact policy digest and `applicationContext`;
+    /// a CompatXWing decision is rejected because that profile ignores context.
     public static func encapsulate(
-        profile: QPeriaptProfile, suiteId: [UInt8], policyVersion: UInt32,
-        pkPq: [UInt8], pkTrad: [UInt8], context: [UInt8],
-        randPq: [UInt8], randTrad: [UInt8]
+        decision: QPeriaptPolicyDecision,
+        pkPq: [UInt8], pkTrad: [UInt8], applicationContext: [UInt8]
     ) throws -> QPeriaptEncapsulation {
         var ctPq = [UInt8](repeating: 0, count: mlkemCtLen)
         var ctTrad = [UInt8](repeating: 0, count: x25519Len)
         var secret = [UInt8](repeating: 0, count: secretLen)
-        let rc = q_periapt_hybrid_encapsulate(
-            profile.rawValue, suiteId, UInt(suiteId.count), policyVersion,
+        let rc = q_periapt_encapsulate(
+            decision.encoded, UInt(decision.encoded.count),
             pkPq, UInt(pkPq.count), pkTrad, UInt(pkTrad.count),
-            context, UInt(context.count), randPq, UInt(randPq.count), randTrad, UInt(randTrad.count),
-            &ctPq, UInt(ctPq.count), &ctTrad, UInt(ctTrad.count), &secret, UInt(secret.count))
+            applicationContext, UInt(applicationContext.count),
+            &ctPq, UInt(ctPq.count), &ctTrad, UInt(ctTrad.count),
+            &secret, UInt(secret.count))
         guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
         return QPeriaptEncapsulation(ctPq: ctPq, ctTrad: ctTrad, secret: secret)
     }
 
-    /// Derive a combined secret directly from the serialized combiner inputs (the
-    /// cross-platform reference-vector entry point). `input` is the nine 8-byte
-    /// big-endian length-prefixed fields consumed by `q_periapt_combine`.
-    public static func combine(profile: QPeriaptProfile, input: [UInt8]) throws -> [UInt8] {
+    /// Decapsulate under the same authenticated decision and application context
+    /// used by the policy-controlled encapsulation path.
+    public static func decapsulate(
+        decision: QPeriaptPolicyDecision,
+        skPq: [UInt8], ctPq: [UInt8], pkPq: [UInt8],
+        skTrad: [UInt8], ctTrad: [UInt8], pkTrad: [UInt8],
+        applicationContext: [UInt8]
+    ) throws -> [UInt8] {
         var secret = [UInt8](repeating: 0, count: secretLen)
-        let rc = q_periapt_combine(
-            profile.rawValue, input, UInt(input.count), &secret, UInt(secret.count))
+        let rc = q_periapt_decapsulate(
+            decision.encoded, UInt(decision.encoded.count),
+            skPq, UInt(skPq.count), ctPq, UInt(ctPq.count), pkPq, UInt(pkPq.count),
+            skTrad, UInt(skTrad.count), ctTrad, UInt(ctTrad.count),
+            pkTrad, UInt(pkTrad.count),
+            applicationContext, UInt(applicationContext.count),
+            &secret, UInt(secret.count))
         guard rc == Q_PERIAPT_OK else { throw QPeriaptError(code: rc) }
         return secret
     }

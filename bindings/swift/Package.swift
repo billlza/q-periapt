@@ -2,7 +2,7 @@
 import PackageDescription
 
 // Build the static lib first: `cargo build -p q-periapt-ffi --release`
-// (produces ../../target/release/libq_periapt_ffi.a). See README.md.
+// (produces ../../target/release/libq_periapt_ffi_abi2.a). See README.md.
 let package = Package(
     name: "QPeriaptHybrid",
     products: [
@@ -15,7 +15,7 @@ let package = Package(
             name: "QPeriaptHybrid",
             dependencies: ["CQPeriapt"],
             linkerSettings: [
-                .unsafeFlags(["-L../../target/release", "-lq_periapt_ffi"])
+                .unsafeFlags(["-L../../target/release", "-lq_periapt_ffi_abi2"])
             ]
         ),
         .testTarget(name: "QPeriaptHybridTests", dependencies: ["QPeriaptHybrid"]),

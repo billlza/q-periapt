@@ -4,8 +4,8 @@
  * Linux CI runner with Valgrind installed), `qperiapt_ct_mark_undefined` issues the
  * Memcheck MAKE_MEM_UNDEFINED client request, marking the bytes "secret" so Memcheck
  * flags any later branch/index that depends on them. Without the header it is a
- * no-op, so the harness still builds and runs (e.g. on macOS) — the real check just
- * does not happen there. */
+ * no-op for feature-disabled builds. Feature-enabled builds fail in build.rs when
+ * the real header is absent, so a purported CT harness cannot silently do nothing. */
 
 #include <stddef.h>
 

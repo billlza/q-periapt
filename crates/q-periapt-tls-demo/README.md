@@ -61,12 +61,17 @@ benchmarks mis-rank designs.
   the full transcript and sends a constant-time-checked key-confirmation.
 - **Isn't:** the TLS 1.3 wire format. Identity here is a pinned key (no X.509 chain);
   the combiner is our standalone one, not the TLS key schedule (see below).
+- **Isn't:** PQXDH, Signal's SPQR/Triple Ratchet or Sesame, Apple PQ3, or the
+  future Q-Periapt Continuity protocol. It has no offline prekeys, mutual device
+  identity, persistent message chains, PQ healing, multi-device state, crash
+  recovery, or key transparency. Its four flights and P99 numbers cannot be used as
+  session-protocol parity evidence.
 
 ## Mapping to TLS 1.3 / QUIC / HPKE
 
 | Protocol | Relationship |
 |---|---|
-| **TLS 1.3** | Standardized hybrid uses the `X25519MLKEM768` named group (codepoint `0x11EC`) with the **TLS key-schedule** combiner — a *different object* from our standalone combiner. Production path: a rustls `CryptoProvider` backed by `q-periapt-ffi` (the suite supplies the KEM + policy/agility/auditability; TLS supplies the key schedule). |
+| **TLS 1.3** | Standardized hybrid uses the `X25519MLKEM768` named group (codepoint `0x11EC`) with the **TLS key-schedule** combiner — a *different object* from our standalone combiner. Production-stack demo path: a private-use rustls `CryptoProvider` backed by the shared Q-Periapt implementation; this is an evaluation integration, not a standardized or production-ready group. |
 | **QUIC** | Same key exchange as TLS 1.3; the transport difference amplifies the byte cost — the server's first flight is bound by the anti-amplification limit, so the extra ML-KEM bytes directly shape the initial RTTs. |
 | **HPKE** | This demo *is* essentially HPKE base mode (KEM → KDF). HPKE with a PQ/T KEM is the most direct consumer of our standalone combiner. |
 
@@ -78,3 +83,7 @@ benchmarks mis-rank designs.
 - Real netem/tc link emulation (loss + slow-start), beyond the fixed per-flight
   `DELAY_US` knob here.
 - Mutual auth / X.509-style identity (currently a pinned ML-DSA key).
+- A separate stateful protocol workstream is specified in
+  [`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md); this demo
+  will remain the small synchronous handshake/performance reference rather than grow
+  database, directory, or ratchet responsibilities.

@@ -1,0 +1,204 @@
+{
+  "abi": {
+    "exports": [
+      {
+        "declaration": "uint32_t q_periapt_abi_version(void);",
+        "name": "q_periapt_abi_version",
+        "role": "metadata"
+      },
+      {
+        "declaration": "const char *q_periapt_version(void);",
+        "name": "q_periapt_version",
+        "role": "metadata"
+      },
+      {
+        "declaration": "const char *q_periapt_fixed_suite_id(void);",
+        "name": "q_periapt_fixed_suite_id",
+        "role": "metadata"
+      },
+      {
+        "declaration": "uintptr_t q_periapt_fixed_suite_id_len(void);",
+        "name": "q_periapt_fixed_suite_id_len",
+        "role": "metadata"
+      },
+      {
+        "declaration": "const char *q_periapt_status_name(int32_t code);",
+        "name": "q_periapt_status_name",
+        "role": "metadata"
+      },
+      {
+        "declaration": "int32_t q_periapt_decision_from_signed_policy(const uint8_t *toml, uintptr_t toml_len, const uint8_t *signature, uintptr_t signature_len, const uint8_t *vk, uintptr_t vk_len, const uint8_t *last_trusted_state, uintptr_t last_trusted_state_len, uint8_t *out_decision, uintptr_t out_decision_len);",
+        "name": "q_periapt_decision_from_signed_policy",
+        "role": "policy"
+      },
+      {
+        "declaration": "int32_t q_periapt_generate_keypair(const uint8_t *decision, uintptr_t decision_len, uint8_t *out_sk_pq, uintptr_t out_sk_pq_len, uint8_t *out_pk_pq, uintptr_t out_pk_pq_len, uint8_t *out_sk_trad, uintptr_t out_sk_trad_len, uint8_t *out_pk_trad, uintptr_t out_pk_trad_len);",
+        "name": "q_periapt_generate_keypair",
+        "role": "key_management"
+      },
+      {
+        "declaration": "int32_t q_periapt_encapsulate(const uint8_t *decision, uintptr_t decision_len, const uint8_t *pk_pq, uintptr_t pk_pq_len, const uint8_t *pk_trad, uintptr_t pk_trad_len, const uint8_t *application_context, uintptr_t application_context_len, uint8_t *out_ct_pq, uintptr_t out_ct_pq_len, uint8_t *out_ct_trad, uintptr_t out_ct_trad_len, uint8_t *out_secret, uintptr_t out_secret_len);",
+        "name": "q_periapt_encapsulate",
+        "role": "operation"
+      },
+      {
+        "declaration": "int32_t q_periapt_decapsulate(const uint8_t *decision, uintptr_t decision_len, const uint8_t *sk_pq, uintptr_t sk_pq_len, const uint8_t *ct_pq, uintptr_t ct_pq_len, const uint8_t *pk_pq, uintptr_t pk_pq_len, const uint8_t *sk_trad, uintptr_t sk_trad_len, const uint8_t *ct_trad, uintptr_t ct_trad_len, const uint8_t *pk_trad, uintptr_t pk_trad_len, const uint8_t *application_context, uintptr_t application_context_len, uint8_t *out_secret, uintptr_t out_secret_len);",
+        "name": "q_periapt_decapsulate",
+        "role": "operation"
+      }
+    ],
+    "forbidden_exports": [
+      "q_periapt_combine",
+      "q_periapt_hybrid_decapsulate",
+      "q_periapt_hybrid_decapsulate_with_decision",
+      "q_periapt_hybrid_encapsulate",
+      "q_periapt_hybrid_encapsulate_with_decision",
+      "q_periapt_mlkem768_keypair",
+      "q_periapt_mlkem768_xwing_keypair",
+      "q_periapt_x25519_keypair"
+    ],
+    "layouts": {
+      "policy_decision": {
+        "bytes": 40,
+        "fields": [
+          {
+            "bytes": 1,
+            "encoding": "u8_constant",
+            "name": "decision_version",
+            "offset": 0
+          },
+          {
+            "bytes": 1,
+            "encoding": "u8_enum",
+            "name": "suite_code",
+            "offset": 1
+          },
+          {
+            "bytes": 1,
+            "encoding": "u8_enum",
+            "name": "profile_code",
+            "offset": 2
+          },
+          {
+            "bytes": 1,
+            "encoding": "u8_enum",
+            "name": "key_format_code",
+            "offset": 3
+          },
+          {
+            "bytes": 4,
+            "encoding": "u32_be_nonzero",
+            "name": "policy_version",
+            "offset": 4
+          },
+          {
+            "bytes": 32,
+            "encoding": "sha3_256_exact_policy",
+            "name": "policy_digest",
+            "offset": 8
+          }
+        ]
+      },
+      "trusted_policy_state": {
+        "bytes": 36,
+        "fields": [
+          {
+            "bytes": 4,
+            "encoding": "u32_be_nonzero",
+            "name": "policy_version",
+            "offset": 0
+          },
+          {
+            "bytes": 32,
+            "encoding": "sha3_256_exact_policy",
+            "name": "policy_digest",
+            "offset": 4
+          }
+        ]
+      }
+    },
+    "macros": {
+      "Q_PERIAPT_ABI_VERSION": 2,
+      "Q_PERIAPT_ERR_ALIASING": -7,
+      "Q_PERIAPT_ERR_ENTROPY": -8,
+      "Q_PERIAPT_ERR_INTERNAL": -5,
+      "Q_PERIAPT_ERR_INVALID_KEYSHARE": -6,
+      "Q_PERIAPT_ERR_LENGTH": -2,
+      "Q_PERIAPT_ERR_NULL": -1,
+      "Q_PERIAPT_ERR_PANIC": -4,
+      "Q_PERIAPT_ERR_POLICY": -3,
+      "Q_PERIAPT_KEY_FORMAT_EXPANDED": 1,
+      "Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES": 65536,
+      "Q_PERIAPT_MAX_SIGNED_POLICY_BYTES": 65536,
+      "Q_PERIAPT_MLKEM768_CT_LEN": 1088,
+      "Q_PERIAPT_MLKEM768_PK_LEN": 1184,
+      "Q_PERIAPT_MLKEM768_SK_LEN": 2400,
+      "Q_PERIAPT_OK": 0,
+      "Q_PERIAPT_POLICY_DECISION_LEN": 40,
+      "Q_PERIAPT_POLICY_DECISION_VERSION": 1,
+      "Q_PERIAPT_PROFILE_CONTEXT_BOUND": 2,
+      "Q_PERIAPT_SECRET_LEN": 32,
+      "Q_PERIAPT_SUITE_MLKEM768_X25519": 1,
+      "Q_PERIAPT_TRUSTED_POLICY_STATE_LEN": 36,
+      "Q_PERIAPT_X25519_LEN": 32
+    },
+    "major": 2,
+    "status_codes": {
+      "Q_PERIAPT_ERR_ALIASING": -7,
+      "Q_PERIAPT_ERR_ENTROPY": -8,
+      "Q_PERIAPT_ERR_INTERNAL": -5,
+      "Q_PERIAPT_ERR_INVALID_KEYSHARE": -6,
+      "Q_PERIAPT_ERR_LENGTH": -2,
+      "Q_PERIAPT_ERR_NULL": -1,
+      "Q_PERIAPT_ERR_PANIC": -4,
+      "Q_PERIAPT_ERR_POLICY": -3,
+      "Q_PERIAPT_OK": 0
+    }
+  },
+  "kind": "qperiapt.c_abi_contract",
+  "migration": {
+    "abi1_state_bytes": 4,
+    "automatic_migration": false,
+    "migration_exports": [],
+    "required_action": "explicit_host_authorized_reenrollment_or_reset"
+  },
+  "package": {
+    "abi_major": 2,
+    "archive_prefix": "q-periapt-c-abi2",
+    "cmake": {
+      "abi_compatibility_version": "2.0.0",
+      "config_directory": "lib/cmake/QPeriaptABI2",
+      "package": "QPeriaptABI2",
+      "release_semver_variable": "QPeriaptABI2_RELEASE_VERSION",
+      "shared_target": "QPeriaptABI2::qperiapt",
+      "static_target": "QPeriaptABI2::qperiapt_static",
+      "version_match": "exact"
+    },
+    "pkg_config": {
+      "dynamic_module": "qperiapt-abi2",
+      "static_module": "qperiapt-abi2-static"
+    },
+    "platforms": {
+      "linux": {
+        "shared_filename": "libq_periapt_ffi.so.2",
+        "soname": "libq_periapt_ffi.so.2",
+        "static_filename": "libq_periapt_ffi_abi2.a"
+      },
+      "macos": {
+        "compatibility_version": "2.0.0",
+        "current_version": "2.0.0",
+        "install_name": "@rpath/libq_periapt_ffi.2.dylib",
+        "shared_filename": "libq_periapt_ffi.2.dylib",
+        "static_filename": "libq_periapt_ffi_abi2.a"
+      },
+      "windows": {
+        "import_library_filename": "q_periapt_ffi_abi2.lib",
+        "shared_filename": "q_periapt_ffi_abi2.dll",
+        "static_filename": "q_periapt_ffi_abi2_static.lib"
+      }
+    },
+    "rust_library_name": "q_periapt_ffi_abi2",
+    "semver": "0.1.0-alpha.1"
+  },
+  "schema": 1
+}

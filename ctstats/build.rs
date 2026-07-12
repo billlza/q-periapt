@@ -1,7 +1,8 @@
 //! Compiles the constant-time verification shim (`src/ct_shim.c`) only for the
 //! `valgrind` feature. The shim issues the Valgrind Memcheck `MAKE_MEM_UNDEFINED`
-//! client request when `valgrind/memcheck.h` is found (Linux CI with Valgrind),
-//! and is a no-op otherwise — so the harness builds and runs on any host.
+//! client request when `valgrind/memcheck.h` is found (Linux CI with Valgrind).
+//! Feature-enabled builds fail closed when the header is unavailable; ordinary
+//! feature-disabled builds retain a no-op symbol for Cargo feature unification.
 
 use std::env;
 use std::path::Path;
@@ -11,7 +12,8 @@ fn main() {
     // Always compile the tiny shim (a no-op without the Valgrind header), so the
     // `qperiapt_ct_mark_undefined` symbol is unconditionally available regardless of
     // which feature unification Cargo builds. The `valgrind` feature only gates the
-    // `ct_verify` *binary* (required-features), not this symbol.
+    // `ct_verify` *binary* (required-features), not this symbol. A requested
+    // `valgrind` feature still requires the real header below.
     println!("cargo:rerun-if-changed=src/ct_shim.c");
     println!("cargo:rerun-if-env-changed=VALGRIND_INCLUDE");
 

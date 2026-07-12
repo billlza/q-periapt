@@ -15,13 +15,15 @@ workspace = true
 
 [lib]
 # staticlib/cdylib for C/Swift/Kotlin linking; rlib so Rust tests can drive the ABI.
+name = "q_periapt_ffi_abi2"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-q-periapt-core = { version = "0.0.1", path = "../q-periapt-core" }
-q-periapt-kem = { version = "0.0.1", path = "../q-periapt-kem" }
-q-periapt-backends = { version = "0.0.1", path = "../q-periapt-backends" }
-q-periapt-policy = { version = "0.0.1", path = "../q-periapt-policy" }
+q-periapt-core = { version = "=0.1.0-alpha.1", path = "../q-periapt-core" }
+q-periapt-kem = { version = "=0.1.0-alpha.1", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "=0.1.0-alpha.1", path = "../q-periapt-backends" }
+q-periapt-policy = { version = "=0.1.0-alpha.1", path = "../q-periapt-policy" }
+getrandom = "0.3"
 
 [dev-dependencies]
-q-periapt-sig = { version = "0.0.1", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test
+q-periapt-sig = { version = "=0.1.0-alpha.1", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test

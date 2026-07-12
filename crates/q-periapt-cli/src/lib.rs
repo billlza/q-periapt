@@ -57,15 +57,6 @@ const ASSETS: &[CryptoAsset] = &[
         note: "RFC 7748; classical (quantum-vulnerable) — used ONLY as a hybrid partner.",
     },
     CryptoAsset {
-        name: "HQC-256",
-        primitive: "kem",
-        functions: &["keygen", "encapsulate", "decapsulate"],
-        nist_quantum_level: 5,
-        family: "code",
-        oid: None,
-        note: "Code-based backup KEM for assumption diversity (enhanced; non-C2PRI -> ContextBound only).",
-    },
-    CryptoAsset {
         name: "ML-DSA-65",
         primitive: "signature",
         functions: &["keygen", "sign", "verify"],
@@ -497,12 +488,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cbom_is_valid_cyclonedx_with_mlkem() {
+    fn cbom_is_valid_cyclonedx_and_excludes_research_hqc() {
         let b = cbom();
         assert_eq!(b["bomFormat"], "CycloneDX");
         assert_eq!(b["specVersion"], "1.6");
         let comps = b["components"].as_array().unwrap();
         assert!(comps.iter().any(|c| c["name"] == "ML-KEM-768"));
+        assert!(
+            !comps
+                .iter()
+                .any(|c| c["name"].as_str().is_some_and(|name| name.contains("HQC"))),
+            "the shipping CBOM must not include the isolated HQC draft-candidate research lane"
+        );
         let mlkem = comps.iter().find(|c| c["name"] == "ML-KEM-768").unwrap();
         assert_eq!(
             mlkem["cryptoProperties"]["algorithmProperties"]["nistQuantumSecurityLevel"],

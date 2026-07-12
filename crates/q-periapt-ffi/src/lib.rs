@@ -32,16 +32,28 @@
 use core::slice;
 use q_periapt_backends::{
     MlDsa65, MlKem768, MlKem768XWingSeed, Sha3_256Xof, DEFAULT_SUITE_ID, DEFAULT_SUITE_ID_CSTR,
-    ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
+    X25519,
 };
-use q_periapt_core::{combine, secure_wipe, CombineInput, Error, Profile};
+#[cfg(test)]
+use q_periapt_backends::{
+    ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN, ML_KEM_768_XWING_SEED_LEN, X25519_LEN,
+};
+#[cfg(test)]
+use q_periapt_core::{combine, CombineInput};
+use q_periapt_core::{
+    encode_policy_bound_context, policy_bound_context_len, Error, Profile, ZeroizingBytes,
+};
 use q_periapt_kem::HybridKem;
-use q_periapt_policy::Policy;
+use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
 use std::ffi::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 /// C ABI version for this header/library contract.
-pub const Q_PERIAPT_ABI_VERSION: u32 = 1;
+pub const Q_PERIAPT_ABI_VERSION: u32 = 2;
+/// Maximum exact signed-policy document size accepted by the policy ABI.
+pub const Q_PERIAPT_MAX_SIGNED_POLICY_BYTES: usize = 65_536;
+/// Maximum application-context size accepted by policy-bound operations.
+pub const Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES: usize = 65_536;
 /// Success.
 pub const Q_PERIAPT_OK: i32 = 0;
 /// A required pointer was null.
@@ -62,11 +74,27 @@ pub const Q_PERIAPT_ERR_INVALID_KEYSHARE: i32 = -6;
 /// behavior of materializing aliasing `&[u8]`/`&mut [u8]`, the call is rejected. (Callers should pass
 /// disjoint buffers; their required lengths differ in any case.)
 pub const Q_PERIAPT_ERR_ALIASING: i32 = -7;
+/// The operating-system cryptographic random-number generator failed.
+pub const Q_PERIAPT_ERR_ENTROPY: i32 = -8;
 
-/// `profile = 1`: fast X-Wing-compatible combiner.
-pub const Q_PERIAPT_PROFILE_COMPAT_XWING: u8 = 1;
 /// `profile = 2`: context-bound combiner.
 pub const Q_PERIAPT_PROFILE_CONTEXT_BOUND: u8 = 2;
+/// Canonical signed-policy decision encoding version.
+pub const Q_PERIAPT_POLICY_DECISION_VERSION: u8 = 1;
+/// Length of a trusted policy state (`version_be || SHA3-256(exact_policy_bytes)`).
+pub const Q_PERIAPT_TRUSTED_POLICY_STATE_LEN: usize = 36;
+/// Length of an authenticated fixed-suite decision.
+///
+/// Layout: `decision_version || suite_code || profile_code || key_format_code ||
+/// policy_version_be || policy_digest`.
+pub const Q_PERIAPT_POLICY_DECISION_LEN: usize = 40;
+/// Suite code for the fixed ML-KEM-768 + X25519 ABI.
+pub const Q_PERIAPT_SUITE_MLKEM768_X25519: u8 = 1;
+/// Expanded/importable secret-key representation.
+pub const Q_PERIAPT_KEY_FORMAT_EXPANDED: u8 = 1;
+// Internal conformance key format; never emitted or accepted by product ABI 2.
+#[cfg(test)]
+const KEY_FORMAT_SEED_DERIVED: u8 = 2;
 
 /// The only suite this fixed C ABI implements. The combiner binds `suite_id`, so encapsulate /
 /// decapsulate **reject** any other value: a caller must not bind false agility metadata (e.g.
@@ -79,8 +107,9 @@ fn fixed_suite_id() -> &'static [u8] {
 // assertions that they match the backend — they cannot silently drift.
 /// ML-KEM-768 secret-key length, bytes.
 pub const Q_PERIAPT_MLKEM768_SK_LEN: usize = 2400;
-/// ML-KEM-768 X-Wing seed secret length, bytes.
-pub const Q_PERIAPT_MLKEM768_XWING_SEED_LEN: usize = 32;
+// Internal X-Wing conformance seed length.
+#[cfg(test)]
+const MLKEM768_XWING_SEED_LEN: usize = 32;
 /// ML-KEM-768 public-key length, bytes.
 pub const Q_PERIAPT_MLKEM768_PK_LEN: usize = 1184;
 /// ML-KEM-768 ciphertext length, bytes.
@@ -127,6 +156,7 @@ pub extern "C" fn q_periapt_status_name(code: i32) -> *const c_char {
         Q_PERIAPT_ERR_INTERNAL => b"ERR_INTERNAL\0",
         Q_PERIAPT_ERR_INVALID_KEYSHARE => b"ERR_INVALID_KEYSHARE\0",
         Q_PERIAPT_ERR_ALIASING => b"ERR_ALIASING\0",
+        Q_PERIAPT_ERR_ENTROPY => b"ERR_ENTROPY\0",
         _ => b"UNKNOWN_STATUS\0",
     };
     name.as_ptr().cast()
@@ -190,78 +220,180 @@ fn err_code(e: Error) -> i32 {
 
 fn profile_from(p: u8) -> Option<Profile> {
     match p {
-        Q_PERIAPT_PROFILE_COMPAT_XWING => Some(Profile::CompatXWing),
+        // Internal conformance profile code; never admitted by the product
+        // decision parser or emitted in the public header.
+        1 => Some(Profile::CompatXWing),
         Q_PERIAPT_PROFILE_CONTEXT_BOUND => Some(Profile::ContextBound),
         _ => None,
     }
 }
 
-/// Verify a detached-signed agility policy (`toml` + `signature`) under `vk` with the suite's
-/// ML-DSA-65 root verifier, and write the combiner profile code its `select_profile()` chooses
-/// into `out_profile` (one byte: [`Q_PERIAPT_PROFILE_COMPAT_XWING`] or
-/// [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`]). This threads the policy engine into the C ABI: load a
-/// signed policy once, then pass the returned code to encapsulate/decapsulate instead of
-/// hard-coding a profile. **Fail-closed:** an unauthenticated, weak-signer, or rolled-back policy
-/// yields [`Q_PERIAPT_ERR_POLICY`]. Rollback is enforced against `last_trusted_version`: a
-/// validly-signed policy whose `policy_version` is *older* than that is refused (pass `0` to accept
-/// any version on first load; persist the accepted `policy_version` and pass it back thereafter).
+#[derive(Clone, Copy)]
+struct ParsedPolicyDecision {
+    profile: Profile,
+    policy_version: u32,
+    policy_digest: [u8; 32],
+}
+
+fn parse_policy_decision(encoded: &[u8]) -> Option<ParsedPolicyDecision> {
+    if encoded.len() != Q_PERIAPT_POLICY_DECISION_LEN
+        || *encoded.first()? != Q_PERIAPT_POLICY_DECISION_VERSION
+        || *encoded.get(1)? != Q_PERIAPT_SUITE_MLKEM768_X25519
+    {
+        return None;
+    }
+    let profile = profile_from(*encoded.get(2)?)?;
+    let key_format = *encoded.get(3)?;
+    if profile != Profile::ContextBound || key_format != Q_PERIAPT_KEY_FORMAT_EXPANDED {
+        return None;
+    }
+    let policy_version = u32::from_be_bytes(encoded.get(4..8)?.try_into().ok()?);
+    if policy_version == 0 {
+        return None;
+    }
+    let policy_digest = encoded.get(8..)?.try_into().ok()?;
+    Some(ParsedPolicyDecision {
+        profile,
+        policy_version,
+        policy_digest,
+    })
+}
+
+fn policy_bound_context(
+    decision: ParsedPolicyDecision,
+    application_context: &[u8],
+) -> Result<Vec<u8>, Error> {
+    // CompatXWing ignores context by construction. Refuse it here rather than
+    // pretending the authenticated policy digest was committed by the KDF.
+    if decision.profile != Profile::ContextBound {
+        return Err(Error::PolicyDenied);
+    }
+    let len = policy_bound_context_len(application_context.len()).ok_or(Error::InvalidLength)?;
+    let mut context = Vec::new();
+    context
+        .try_reserve_exact(len)
+        .map_err(|_| Error::InvalidLength)?;
+    context.resize(len, 0);
+    encode_policy_bound_context(&decision.policy_digest, application_context, &mut context)?;
+    Ok(context)
+}
+
+/// Verify a detached, domain-separated signed agility policy and atomically resolve it against
+/// the only suite implemented by this ABI (ML-KEM-768 + X25519).
+///
+/// On success `out_decision` receives [`Q_PERIAPT_POLICY_DECISION_LEN`] canonical bytes containing
+/// the selected suite, profile, key format, non-zero policy version, and SHA3-256 identity of the
+/// exact signed policy. A policy that requires L5/ML-KEM-1024 is rejected instead of silently
+/// executing this L3 fixed suite. Persist bytes 4..40 as the next `last_trusted_state`; pass an
+/// empty state only for an explicitly provisioned first load. A lower version or different policy
+/// reusing the same version is rejected. The verification key is a trust root and therefore must
+/// be pinned by the host; accepting it from the same untrusted channel as the policy permits an
+/// attacker to self-sign a replacement policy. **Fail-closed:** after the caller supplies a valid,
+/// disjoint, exact-length output, every subsequent length/authentication/parse/resolve error leaves
+/// that output all-zero. Earlier public output-contract or aliasing errors return without writing an
+/// output whose extent or disjointness is invalid. A legacy ABI 1 four-byte version is rejected:
+/// it cannot be upgraded without the exact previously accepted policy bytes and must go through an
+/// explicit host-authorized re-enrollment/reset flow.
 ///
 /// # Safety
-/// `toml`/`signature`/`vk` must be readable for their lengths; `out_profile` writable for
-/// `out_profile_len` (which must be `1`). Input and output buffers must not overlap (see the
-/// module-level no-aliasing convention).
+/// `toml`/`signature`/`vk`/`last_trusted_state` must be readable for their lengths;
+/// `out_decision` writable for `out_decision_len`, which must equal
+/// [`Q_PERIAPT_POLICY_DECISION_LEN`]. `last_trusted_state_len` must be zero or
+/// [`Q_PERIAPT_TRUSTED_POLICY_STATE_LEN`]. Inputs and output must not overlap.
 #[no_mangle]
-pub unsafe extern "C" fn q_periapt_profile_from_signed_policy(
+pub unsafe extern "C" fn q_periapt_decision_from_signed_policy(
     toml: *const u8,
     toml_len: usize,
     signature: *const u8,
     signature_len: usize,
     vk: *const u8,
     vk_len: usize,
-    last_trusted_version: u32,
-    out_profile: *mut u8,
-    out_profile_len: usize,
+    last_trusted_state: *const u8,
+    last_trusted_state_len: usize,
+    out_decision: *mut u8,
+    out_decision_len: usize,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         // Reject overlapping buffers up front (before any slice is materialized) so we never form
         // aliasing &[u8]/&mut [u8] — a defined error in place of undefined behavior.
         if outputs_alias(
-            &[(toml, toml_len), (signature, signature_len), (vk, vk_len)],
-            &[(out_profile.cast_const(), out_profile_len)],
+            &[
+                (toml, toml_len),
+                (signature, signature_len),
+                (vk, vk_len),
+                (last_trusted_state, last_trusted_state_len),
+            ],
+            &[(out_decision.cast_const(), out_decision_len)],
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(toml), Some(sig), Some(vk), Some(out)) = (
+        let (Some(toml), Some(sig), Some(vk), Some(last_state), Some(out)) = (
             in_slice(toml, toml_len),
             in_slice(signature, signature_len),
             in_slice(vk, vk_len),
-            out_slice(out_profile, out_profile_len),
+            in_slice(last_trusted_state, last_trusted_state_len),
+            out_slice(out_decision, out_decision_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        if out.len() != 1 {
+        if out.len() != Q_PERIAPT_POLICY_DECISION_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        // load_signed_monotonic (not load_signed) so a validly-signed but OLDER policy_version than
-        // `last_trusted_version` is refused as a rollback — the documented fail-closed behaviour.
-        match Policy::load_signed_monotonic(&MlDsa65, vk, toml, sig, last_trusted_version) {
-            Ok(policy) => {
-                out.copy_from_slice(&[policy.select_profile().to_u8()]);
-                Q_PERIAPT_OK
-            }
-            Err(_) => Q_PERIAPT_ERR_POLICY,
+        // Once the caller provides a valid, disjoint output extent, every
+        // subsequent failure is fail-closed. In particular, a legacy ABI 1
+        // four-byte version is not a migration source: it cannot authenticate
+        // the exact policy digest required by ABI 2, so reject it and erase any
+        // stale decision bytes.
+        out.fill(0);
+        if !matches!(last_state.len(), 0 | Q_PERIAPT_TRUSTED_POLICY_STATE_LEN) {
+            return Q_PERIAPT_ERR_LENGTH;
         }
+        let last_state = if last_state.is_empty() {
+            None
+        } else {
+            match TrustedPolicyState::decode(last_state) {
+                Ok(state) => Some(state),
+                Err(_) => return Q_PERIAPT_ERR_POLICY,
+            }
+        };
+        let authenticated =
+            match Policy::load_signed_monotonic(&MlDsa65, vk, toml, sig, last_state.as_ref()) {
+                Ok(policy) => policy,
+                Err(_) => return Q_PERIAPT_ERR_POLICY,
+            };
+        let decision = match authenticated.resolve_suite(&[HybridSuite::MlKem768X25519]) {
+            Ok(decision) => decision,
+            Err(_) => return Q_PERIAPT_ERR_POLICY,
+        };
+        let resolved = decision.resolved();
+        if resolved.profile() != Profile::ContextBound {
+            return Q_PERIAPT_ERR_POLICY;
+        }
+        let state = decision.trusted_state();
+        let mut encoded = Vec::with_capacity(Q_PERIAPT_POLICY_DECISION_LEN);
+        encoded.extend_from_slice(&[
+            Q_PERIAPT_POLICY_DECISION_VERSION,
+            resolved.suite().to_u8(),
+            resolved.profile().to_u8(),
+            resolved.key_format().to_u8(),
+        ]);
+        encoded.extend_from_slice(&resolved.policy_version().to_be_bytes());
+        encoded.extend_from_slice(&state.digest());
+        debug_assert_eq!(encoded.len(), Q_PERIAPT_POLICY_DECISION_LEN);
+        out.copy_from_slice(&encoded);
+        Q_PERIAPT_OK
     }))
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
 }
 
-/// Deterministically derive an ML-KEM-768 key pair from a 64-byte `seed`.
+/// Deterministically derive an ML-KEM-768 key pair from a 64-byte `seed` for
+/// internal KAT and conformance coverage.
 ///
 /// # Safety
 /// `seed`/`out_sk`/`out_pk` must point to readable/writable regions of the given
 /// lengths (`64` / [`Q_PERIAPT_MLKEM768_SK_LEN`] / [`Q_PERIAPT_MLKEM768_PK_LEN`]).
-#[no_mangle]
-pub unsafe extern "C" fn q_periapt_mlkem768_keypair(
+#[cfg(test)]
+unsafe fn mlkem768_keypair_raw(
     seed: *const u8,
     seed_len: usize,
     out_sk: *mut u8,
@@ -287,22 +419,20 @@ pub unsafe extern "C" fn q_periapt_mlkem768_keypair(
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        // Validate every length BEFORE copying any secret, so no error path can leave the
-        // 64-byte seed copy un-wiped (the length check used to sit after the copy).
+        // Validate every public buffer length before constructing the local
+        // ZeroizingBytes owner. Copies created by by-value backend calls remain
+        // backend-managed and are outside this owner's Drop guarantee.
         if sk_o.len() != ML_KEM_768_SK_LEN || pk_o.len() != ML_KEM_768_PK_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        let Ok(mut seed) = <[u8; 64]>::try_from(seed_in) else {
+        let Ok(seed) = <[u8; 64]>::try_from(seed_in) else {
             return Q_PERIAPT_ERR_LENGTH;
         };
-        let (mut sk, pk) = MlKem768::generate(seed);
-        sk_o.copy_from_slice(&sk);
+        let seed = ZeroizingBytes::from_bytes(seed);
+        let (sk, pk) = MlKem768::generate(*seed.as_bytes());
+        let sk = ZeroizingBytes::from_bytes(sk);
+        sk_o.copy_from_slice(sk.as_bytes());
         pk_o.copy_from_slice(&pk);
-        // Wipe our local copies of the long-term secret material (the caller keeps its own
-        // copy in out_sk); the seed (d‖z) and sk are non-`Drop` arrays that would otherwise
-        // linger in the freed stack frame.
-        secure_wipe(&mut sk);
-        secure_wipe(&mut seed);
         Q_PERIAPT_OK
     }))
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
@@ -311,16 +441,16 @@ pub unsafe extern "C" fn q_periapt_mlkem768_keypair(
 /// Deterministically derive an X-Wing-compatible ML-KEM-768 key pair from a 32-byte seed.
 ///
 /// The returned secret key is the 32-byte seed accepted by
-/// [`Q_PERIAPT_PROFILE_COMPAT_XWING`] decapsulation. The expanded 2400-byte secret key
-/// produced by [`q_periapt_mlkem768_keypair`] is intentionally **not** admitted to
+/// internal CompatXWing decapsulation. The expanded 2400-byte secret key
+/// produced by the internal expanded-key helper is intentionally **not** admitted to
 /// `CompatXWing`; use it with [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`].
 ///
 /// # Safety
 /// `seed`/`out_sk_seed`/`out_pk` must point to readable/writable regions of the given
-/// lengths (`32` / [`Q_PERIAPT_MLKEM768_XWING_SEED_LEN`] /
+/// lengths (`32` / the internal X-Wing seed length /
 /// [`Q_PERIAPT_MLKEM768_PK_LEN`]).
-#[no_mangle]
-pub unsafe extern "C" fn q_periapt_mlkem768_xwing_keypair(
+#[cfg(test)]
+unsafe fn mlkem768_xwing_keypair_raw(
     seed: *const u8,
     seed_len: usize,
     out_sk_seed: *mut u8,
@@ -348,25 +478,26 @@ pub unsafe extern "C" fn q_periapt_mlkem768_xwing_keypair(
         if sk_o.len() != ML_KEM_768_XWING_SEED_LEN || pk_o.len() != ML_KEM_768_PK_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        let Ok(mut seed) = <[u8; ML_KEM_768_XWING_SEED_LEN]>::try_from(seed_in) else {
+        let Ok(seed) = <[u8; ML_KEM_768_XWING_SEED_LEN]>::try_from(seed_in) else {
             return Q_PERIAPT_ERR_LENGTH;
         };
-        let (mut sk_seed, pk) = MlKem768XWingSeed::generate(seed);
-        sk_o.copy_from_slice(&sk_seed);
+        let seed = ZeroizingBytes::from_bytes(seed);
+        let (sk_seed, pk) = MlKem768XWingSeed::generate(*seed.as_bytes());
+        let sk_seed = ZeroizingBytes::from_bytes(sk_seed);
+        sk_o.copy_from_slice(sk_seed.as_bytes());
         pk_o.copy_from_slice(&pk);
-        secure_wipe(&mut sk_seed);
-        secure_wipe(&mut seed);
         Q_PERIAPT_OK
     }))
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
 }
 
-/// Deterministically derive an X25519 key pair from a 32-byte scalar.
+/// Deterministically derive an X25519 key pair from a 32-byte scalar for
+/// internal KAT and conformance coverage.
 ///
 /// # Safety
 /// All pointers must be valid for the given lengths (`32` each).
-#[no_mangle]
-pub unsafe extern "C" fn q_periapt_x25519_keypair(
+#[cfg(test)]
+unsafe fn x25519_keypair_raw(
     secret: *const u8,
     secret_len: usize,
     out_sk: *mut u8,
@@ -392,20 +523,111 @@ pub unsafe extern "C" fn q_periapt_x25519_keypair(
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
-        // Validate every length BEFORE copying any secret, so no error path can leave the
-        // 32-byte scalar copy un-wiped (the length check used to sit after the copy).
+        // Validate every public buffer length before constructing the local
+        // ZeroizingBytes owner. Copies created by by-value backend calls remain
+        // backend-managed and are outside this owner's Drop guarantee.
         if sk_o.len() != X25519_LEN || pk_o.len() != X25519_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        let Ok(mut secret) = <[u8; 32]>::try_from(secret_in) else {
+        let Ok(secret) = <[u8; 32]>::try_from(secret_in) else {
             return Q_PERIAPT_ERR_LENGTH;
         };
-        let (mut sk, pk) = X25519::generate(secret);
-        sk_o.copy_from_slice(&sk);
+        let secret = ZeroizingBytes::from_bytes(secret);
+        let (sk, pk) = X25519::generate(*secret.as_bytes());
+        let sk = ZeroizingBytes::from_bytes(sk);
+        sk_o.copy_from_slice(sk.as_bytes());
         pk_o.copy_from_slice(&pk);
-        // Wipe local copies of the long-term secret scalar + derived sk (see mlkem keypair).
-        secure_wipe(&mut sk);
-        secure_wipe(&mut secret);
+        Q_PERIAPT_OK
+    }))
+    .unwrap_or(Q_PERIAPT_ERR_PANIC)
+}
+
+/// Generate the fixed-suite ML-KEM-768 and X25519 key pairs from the operating
+/// system CSPRNG under one authenticated policy decision.
+///
+/// The decision must select the context-bound/expanded-key product profile. No
+/// deterministic seed is accepted by the product ABI; deterministic derivation
+/// remains an internal KAT facility so production callers cannot accidentally
+/// reuse low-entropy test material.
+///
+/// The encoded decision is an integrity-preserving value between trusted
+/// components in one process, not an unforgeable capability. The host must pin
+/// the verification key used to create it and isolate untrusted native code.
+///
+/// # Safety
+/// `decision` must be readable for `decision_len`. All four outputs must be
+/// writable for their exact published lengths and disjoint from the input and
+/// from one another.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn q_periapt_generate_keypair(
+    decision: *const u8,
+    decision_len: usize,
+    out_sk_pq: *mut u8,
+    out_sk_pq_len: usize,
+    out_pk_pq: *mut u8,
+    out_pk_pq_len: usize,
+    out_sk_trad: *mut u8,
+    out_sk_trad_len: usize,
+    out_pk_trad: *mut u8,
+    out_pk_trad_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        let outputs = [
+            (out_sk_pq.cast_const(), out_sk_pq_len),
+            (out_pk_pq.cast_const(), out_pk_pq_len),
+            (out_sk_trad.cast_const(), out_sk_trad_len),
+            (out_pk_trad.cast_const(), out_pk_trad_len),
+        ];
+        if outputs_alias(&[(decision, decision_len)], &outputs) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
+        let (Some(sk_pq_out), Some(pk_pq_out), Some(sk_trad_out), Some(pk_trad_out)) = (
+            out_slice(out_sk_pq, out_sk_pq_len),
+            out_slice(out_pk_pq, out_pk_pq_len),
+            out_slice(out_sk_trad, out_sk_trad_len),
+            out_slice(out_pk_trad, out_pk_trad_len),
+        ) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if sk_pq_out.len() != Q_PERIAPT_MLKEM768_SK_LEN
+            || pk_pq_out.len() != Q_PERIAPT_MLKEM768_PK_LEN
+            || sk_trad_out.len() != Q_PERIAPT_X25519_LEN
+            || pk_trad_out.len() != Q_PERIAPT_X25519_LEN
+        {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        sk_pq_out.fill(0);
+        pk_pq_out.fill(0);
+        sk_trad_out.fill(0);
+        pk_trad_out.fill(0);
+
+        let Some(decision) = in_slice(decision, decision_len) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        let Some(decision) = parse_policy_decision(decision) else {
+            return Q_PERIAPT_ERR_POLICY;
+        };
+        if decision.profile != Profile::ContextBound {
+            return Q_PERIAPT_ERR_POLICY;
+        }
+
+        let mut seed_pq = ZeroizingBytes::from_bytes([0u8; 64]);
+        let mut seed_trad = ZeroizingBytes::from_bytes([0u8; 32]);
+        if getrandom::fill(seed_pq.as_mut_bytes()).is_err()
+            || getrandom::fill(seed_trad.as_mut_bytes()).is_err()
+        {
+            return Q_PERIAPT_ERR_ENTROPY;
+        }
+        let (sk_pq, pk_pq) = MlKem768::generate(*seed_pq.as_bytes());
+        let (sk_trad, pk_trad) = X25519::generate(*seed_trad.as_bytes());
+        let sk_pq = ZeroizingBytes::from_bytes(sk_pq);
+        let sk_trad = ZeroizingBytes::from_bytes(sk_trad);
+
+        sk_pq_out.copy_from_slice(sk_pq.as_bytes());
+        pk_pq_out.copy_from_slice(&pk_pq);
+        sk_trad_out.copy_from_slice(sk_trad.as_bytes());
+        pk_trad_out.copy_from_slice(&pk_trad);
         Q_PERIAPT_OK
     }))
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
@@ -422,9 +644,8 @@ pub unsafe extern "C" fn q_periapt_x25519_keypair(
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region; output buffers must be
 /// writable for their lengths.
-#[no_mangle]
 #[allow(clippy::too_many_arguments)]
-pub unsafe extern "C" fn q_periapt_hybrid_encapsulate(
+unsafe fn hybrid_encapsulate_raw(
     profile: u8,
     suite_id: *const u8,
     suite_id_len: usize,
@@ -538,16 +759,15 @@ pub unsafe extern "C" fn q_periapt_hybrid_encapsulate(
 /// yields a pseudorandom secret (implicit rejection — no oracle).
 ///
 /// `sk_pq` is profile-specific: [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`] expects the
-/// 2400-byte expanded key from [`q_periapt_mlkem768_keypair`], while
-/// [`Q_PERIAPT_PROFILE_COMPAT_XWING`] expects the 32-byte seed from
-/// [`q_periapt_mlkem768_xwing_keypair`].
+/// 2400-byte expanded key from the internal deterministic keypair helper, while
+/// internal CompatXWing conformance expects the 32-byte seed from
+/// the internal X-Wing conformance keypair helper.
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region; `out_secret` must be
 /// writable for [`Q_PERIAPT_SECRET_LEN`].
-#[no_mangle]
 #[allow(clippy::too_many_arguments)]
-pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
+unsafe fn hybrid_decapsulate_raw(
     profile: u8,
     suite_id: *const u8,
     suite_id_len: usize,
@@ -649,6 +869,261 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
     .unwrap_or(Q_PERIAPT_ERR_PANIC)
 }
 
+/// Hybrid encapsulation authorized by an authenticated policy decision.
+///
+/// This is the only product encapsulation entry point. It derives suite/profile/version from one
+/// canonical decision and injectively wraps `application_context` together with the exact signed
+/// policy digest before invoking the context-bound combiner. `CompatXWing` decisions are rejected
+/// because that profile intentionally ignores context and therefore cannot commit the digest.
+/// Encapsulation coins come from the operating-system CSPRNG; deterministic coins are not exposed
+/// by the product ABI.
+///
+/// The decision is an integrity-preserving high-level API between trusted components of one
+/// process; C memory is caller-writable, so hostile native code in the same process can still forge
+/// it or bypass this entry point. Use process isolation when local native callers are untrusted.
+///
+/// # Safety
+/// Every `(ptr, len)` pair must describe a valid region. Outputs must be writable and disjoint
+/// from every input and from each other.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn q_periapt_encapsulate(
+    decision: *const u8,
+    decision_len: usize,
+    pk_pq: *const u8,
+    pk_pq_len: usize,
+    pk_trad: *const u8,
+    pk_trad_len: usize,
+    application_context: *const u8,
+    application_context_len: usize,
+    out_ct_pq: *mut u8,
+    out_ct_pq_len: usize,
+    out_ct_trad: *mut u8,
+    out_ct_trad_len: usize,
+    out_secret: *mut u8,
+    out_secret_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        if outputs_alias(
+            &[
+                (decision, decision_len),
+                (pk_pq, pk_pq_len),
+                (pk_trad, pk_trad_len),
+                (application_context, application_context_len),
+            ],
+            &[
+                (out_ct_pq.cast_const(), out_ct_pq_len),
+                (out_ct_trad.cast_const(), out_ct_trad_len),
+                (out_secret.cast_const(), out_secret_len),
+            ],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
+        let (Some(ct_pq_out), Some(ct_trad_out), Some(secret_out)) = (
+            out_slice(out_ct_pq, out_ct_pq_len),
+            out_slice(out_ct_trad, out_ct_trad_len),
+            out_slice(out_secret, out_secret_len),
+        ) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if ct_pq_out.len() != Q_PERIAPT_MLKEM768_CT_LEN
+            || ct_trad_out.len() != Q_PERIAPT_X25519_LEN
+            || secret_out.len() != Q_PERIAPT_SECRET_LEN
+        {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        ct_pq_out.fill(0);
+        ct_trad_out.fill(0);
+        secret_out.fill(0);
+
+        let (Some(decision), Some(pk_pq_input), Some(pk_trad_input), Some(application_context)) = (
+            in_slice(decision, decision_len),
+            in_slice(pk_pq, pk_pq_len),
+            in_slice(pk_trad, pk_trad_len),
+            in_slice(application_context, application_context_len),
+        ) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if pk_pq_input.len() != Q_PERIAPT_MLKEM768_PK_LEN
+            || pk_trad_input.len() != Q_PERIAPT_X25519_LEN
+        {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        let Some(decision) = parse_policy_decision(decision) else {
+            return Q_PERIAPT_ERR_POLICY;
+        };
+        let context = match policy_bound_context(decision, application_context) {
+            Ok(context) => context,
+            Err(error) => return err_code(error),
+        };
+        let mut rand_pq = ZeroizingBytes::from_bytes([0u8; 32]);
+        let mut rand_trad = ZeroizingBytes::from_bytes([0u8; 32]);
+        if getrandom::fill(rand_pq.as_mut_bytes()).is_err()
+            || getrandom::fill(rand_trad.as_mut_bytes()).is_err()
+        {
+            return Q_PERIAPT_ERR_ENTROPY;
+        }
+        let mut ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut secret = ZeroizingBytes::from_bytes([0u8; Q_PERIAPT_SECRET_LEN]);
+        let rc = hybrid_encapsulate_raw(
+            decision.profile.to_u8(),
+            fixed_suite_id().as_ptr(),
+            fixed_suite_id().len(),
+            decision.policy_version,
+            pk_pq,
+            pk_pq_len,
+            pk_trad,
+            pk_trad_len,
+            context.as_ptr(),
+            context.len(),
+            rand_pq.as_bytes().as_ptr(),
+            rand_pq.as_bytes().len(),
+            rand_trad.as_bytes().as_ptr(),
+            rand_trad.as_bytes().len(),
+            ct_pq.as_mut_ptr(),
+            ct_pq.len(),
+            ct_trad.as_mut_ptr(),
+            ct_trad.len(),
+            secret.as_mut_bytes().as_mut_ptr(),
+            secret.as_bytes().len(),
+        );
+        if rc != Q_PERIAPT_OK {
+            return rc;
+        }
+        ct_pq_out.copy_from_slice(&ct_pq);
+        ct_trad_out.copy_from_slice(&ct_trad);
+        secret_out.copy_from_slice(secret.as_bytes());
+        Q_PERIAPT_OK
+    }))
+    .unwrap_or(Q_PERIAPT_ERR_PANIC)
+}
+
+/// Hybrid decapsulation authorized by an authenticated policy decision.
+///
+/// Suite/profile/version and the policy-bound context are reconstructed exactly as in
+/// [`q_periapt_encapsulate`]. See that function for the same-process trust
+/// boundary and `CompatXWing` rejection rationale.
+///
+/// # Safety
+/// Every `(ptr, len)` pair must describe a valid region. `out_secret` must be writable and
+/// disjoint from every input.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn q_periapt_decapsulate(
+    decision: *const u8,
+    decision_len: usize,
+    sk_pq: *const u8,
+    sk_pq_len: usize,
+    ct_pq: *const u8,
+    ct_pq_len: usize,
+    pk_pq: *const u8,
+    pk_pq_len: usize,
+    sk_trad: *const u8,
+    sk_trad_len: usize,
+    ct_trad: *const u8,
+    ct_trad_len: usize,
+    pk_trad: *const u8,
+    pk_trad_len: usize,
+    application_context: *const u8,
+    application_context_len: usize,
+    out_secret: *mut u8,
+    out_secret_len: usize,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        if outputs_alias(
+            &[
+                (decision, decision_len),
+                (sk_pq, sk_pq_len),
+                (ct_pq, ct_pq_len),
+                (pk_pq, pk_pq_len),
+                (sk_trad, sk_trad_len),
+                (ct_trad, ct_trad_len),
+                (pk_trad, pk_trad_len),
+                (application_context, application_context_len),
+            ],
+            &[(out_secret.cast_const(), out_secret_len)],
+        ) {
+            return Q_PERIAPT_ERR_ALIASING;
+        }
+        let Some(secret_out) = out_slice(out_secret, out_secret_len) else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if secret_out.len() != Q_PERIAPT_SECRET_LEN {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        secret_out.fill(0);
+
+        let (
+            Some(decision),
+            Some(sk_pq_input),
+            Some(ct_pq_input),
+            Some(pk_pq_input),
+            Some(sk_trad_input),
+            Some(ct_trad_input),
+            Some(pk_trad_input),
+            Some(application_context),
+        ) = (
+            in_slice(decision, decision_len),
+            in_slice(sk_pq, sk_pq_len),
+            in_slice(ct_pq, ct_pq_len),
+            in_slice(pk_pq, pk_pq_len),
+            in_slice(sk_trad, sk_trad_len),
+            in_slice(ct_trad, ct_trad_len),
+            in_slice(pk_trad, pk_trad_len),
+            in_slice(application_context, application_context_len),
+        )
+        else {
+            return Q_PERIAPT_ERR_NULL;
+        };
+        if sk_pq_input.len() != Q_PERIAPT_MLKEM768_SK_LEN
+            || ct_pq_input.len() != Q_PERIAPT_MLKEM768_CT_LEN
+            || pk_pq_input.len() != Q_PERIAPT_MLKEM768_PK_LEN
+            || sk_trad_input.len() != Q_PERIAPT_X25519_LEN
+            || ct_trad_input.len() != Q_PERIAPT_X25519_LEN
+            || pk_trad_input.len() != Q_PERIAPT_X25519_LEN
+        {
+            return Q_PERIAPT_ERR_LENGTH;
+        }
+        let Some(decision) = parse_policy_decision(decision) else {
+            return Q_PERIAPT_ERR_POLICY;
+        };
+        let context = match policy_bound_context(decision, application_context) {
+            Ok(context) => context,
+            Err(error) => return err_code(error),
+        };
+        let mut secret = ZeroizingBytes::from_bytes([0u8; Q_PERIAPT_SECRET_LEN]);
+        let rc = hybrid_decapsulate_raw(
+            decision.profile.to_u8(),
+            fixed_suite_id().as_ptr(),
+            fixed_suite_id().len(),
+            decision.policy_version,
+            sk_pq,
+            sk_pq_len,
+            ct_pq,
+            ct_pq_len,
+            pk_pq,
+            pk_pq_len,
+            sk_trad,
+            sk_trad_len,
+            ct_trad,
+            ct_trad_len,
+            pk_trad,
+            pk_trad_len,
+            context.as_ptr(),
+            context.len(),
+            secret.as_mut_bytes().as_mut_ptr(),
+            secret.as_bytes().len(),
+        );
+        if rc != Q_PERIAPT_OK {
+            return rc;
+        }
+        secret_out.copy_from_slice(secret.as_bytes());
+        Q_PERIAPT_OK
+    }))
+    .unwrap_or(Q_PERIAPT_ERR_PANIC)
+}
+
 /// Derive a combined secret directly from the combiner inputs — exposes the
 /// `combine()` core (not the full hybrid) so the `ContextBound` / `CompatXWing`
 /// reference vectors are reproducible byte-for-byte across every binding face.
@@ -656,12 +1131,12 @@ pub unsafe extern "C" fn q_periapt_hybrid_decapsulate(
 /// `input` is the nine combiner fields, each 8-byte big-endian length-prefixed, in
 /// the canonical order: `suite_id`, `policy_version` (a 4-byte big-endian `u32`),
 /// `ss_pq`, `ss_trad`, `ct_pq`, `pk_pq`, `ct_trad`, `pk_trad`, `context`. `profile`
-/// is [`Q_PERIAPT_PROFILE_COMPAT_XWING`] or [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`].
+/// selects the internal CompatXWing or [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`] profile.
 ///
 /// # Safety
 /// `input`/`out_secret` must be valid for `input_len` / [`Q_PERIAPT_SECRET_LEN`].
-#[no_mangle]
-pub unsafe extern "C" fn q_periapt_combine(
+#[cfg(test)]
+unsafe fn combine_raw(
     profile: u8,
     input: *const u8,
     input_len: usize,
@@ -711,13 +1186,82 @@ mod tests {
     #[test]
     fn abi_constants_match_backend_lengths() {
         assert_eq!(q_periapt_abi_version(), Q_PERIAPT_ABI_VERSION);
-        assert_eq!(Q_PERIAPT_ABI_VERSION, 1);
+        assert_eq!(Q_PERIAPT_ABI_VERSION, 2);
         assert_eq!(q_periapt_fixed_suite_id_len(), fixed_suite_id().len());
         assert_eq!(Q_PERIAPT_MLKEM768_SK_LEN, ML_KEM_768_SK_LEN);
-        assert_eq!(Q_PERIAPT_MLKEM768_XWING_SEED_LEN, ML_KEM_768_XWING_SEED_LEN);
+        assert_eq!(MLKEM768_XWING_SEED_LEN, ML_KEM_768_XWING_SEED_LEN);
         assert_eq!(Q_PERIAPT_MLKEM768_PK_LEN, ML_KEM_768_PK_LEN);
         assert_eq!(Q_PERIAPT_MLKEM768_CT_LEN, ML_KEM_768_CT_LEN);
         assert_eq!(Q_PERIAPT_X25519_LEN, X25519_LEN);
+        assert_eq!(
+            Q_PERIAPT_MAX_SIGNED_POLICY_BYTES,
+            q_periapt_policy::MAX_SIGNED_POLICY_BYTES
+        );
+        assert_eq!(
+            Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES,
+            q_periapt_core::MAX_APPLICATION_CONTEXT_BYTES
+        );
+        assert_eq!(
+            Q_PERIAPT_TRUSTED_POLICY_STATE_LEN,
+            TrustedPolicyState::ENCODED_LEN
+        );
+        assert_eq!(
+            Q_PERIAPT_SUITE_MLKEM768_X25519,
+            HybridSuite::MlKem768X25519 as u8
+        );
+        assert_eq!(
+            Q_PERIAPT_KEY_FORMAT_EXPANDED,
+            q_periapt_policy::KeyFormat::Expanded as u8
+        );
+        assert_eq!(
+            KEY_FORMAT_SEED_DERIVED,
+            q_periapt_policy::KeyFormat::SeedDerived as u8
+        );
+    }
+
+    #[test]
+    fn policy_bound_context_cap_accepts_boundary_and_rejects_oversize_before_crypto() {
+        let decision = ParsedPolicyDecision {
+            profile: Profile::ContextBound,
+            policy_version: 1,
+            policy_digest: [0xA5; 32],
+        };
+        let boundary = vec![0x11; Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES];
+        assert!(policy_bound_context(decision, &boundary).is_ok());
+        let oversized = vec![0x22; Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES + 1];
+        assert_eq!(
+            policy_bound_context(decision, &oversized).unwrap_err(),
+            Error::InvalidLength
+        );
+
+        let mut encoded = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
+        encoded[0] = Q_PERIAPT_POLICY_DECISION_VERSION;
+        encoded[1] = Q_PERIAPT_SUITE_MLKEM768_X25519;
+        encoded[2] = Q_PERIAPT_PROFILE_CONTEXT_BOUND;
+        encoded[3] = Q_PERIAPT_KEY_FORMAT_EXPANDED;
+        encoded[7] = 1;
+        let mut ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut secret = [0u8; Q_PERIAPT_SECRET_LEN];
+        let rc = unsafe {
+            q_periapt_encapsulate(
+                encoded.as_ptr(),
+                encoded.len(),
+                core::ptr::null(),
+                0,
+                core::ptr::null(),
+                0,
+                oversized.as_ptr(),
+                oversized.len(),
+                ct_pq.as_mut_ptr(),
+                ct_pq.len(),
+                ct_trad.as_mut_ptr(),
+                ct_trad.len(),
+                secret.as_mut_ptr(),
+                secret.len(),
+            )
+        };
+        assert_eq!(rc, Q_PERIAPT_ERR_LENGTH);
     }
 
     #[test]
@@ -753,46 +1297,70 @@ mod tests {
     }
 
     #[test]
-    fn profile_from_signed_policy_returns_selected_code_and_blocks_rollback() {
+    fn decision_from_signed_policy_binds_suite_state_and_blocks_rollback() {
         use q_periapt_backends::ML_DSA_65_SIG_LEN;
+        use q_periapt_policy::policy_signature_message;
         use q_periapt_sig::Signer;
-        // A signed floor-3 / ContextBound policy at policy_version 2.
+
         let policy_toml = "schema_version = 1\npolicy_version = 2\nmin_nist_level = 3\n\
             default_profile = \"ContextBound\"\n\
             allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
-            allowed_sigs = [\"ML-DSA-65\"]\n";
+            allowed_sigs = [\"ML-DSA-65\"]\n\
+            deprecated = []\n";
         let (sk, vk) = MlDsa65::generate([8u8; 32]);
         let mut sig = [0u8; ML_DSA_65_SIG_LEN];
-        let n = MlDsa65
-            .sign(&sk, policy_toml.as_bytes(), &[0u8; 32], &mut sig)
-            .unwrap();
-        let mut prof = [0u8; 1];
-        let prof_ptr = prof.as_mut_ptr();
-        let run = |sig_ptr: *const u8, last_trusted: u32| -> i32 {
+        let message = policy_signature_message(policy_toml.as_bytes());
+        let n = MlDsa65.sign(&sk, &message, &[0u8; 32], &mut sig).unwrap();
+        let run = |signature: &[u8], last_state: &[u8], out: &mut [u8]| -> i32 {
             unsafe {
-                q_periapt_profile_from_signed_policy(
+                q_periapt_decision_from_signed_policy(
                     policy_toml.as_ptr(),
                     policy_toml.len(),
-                    sig_ptr,
-                    n,
+                    signature.as_ptr(),
+                    signature.len(),
                     vk.as_ptr(),
                     vk.len(),
-                    last_trusted,
-                    prof_ptr,
-                    1,
+                    last_state.as_ptr(),
+                    last_state.len(),
+                    out.as_mut_ptr(),
+                    out.len(),
                 )
             }
         };
-        // version 2 >= last-trusted 2 -> accepted, selects ContextBound.
-        assert_eq!(run(sig.as_ptr(), 2), Q_PERIAPT_OK);
-        assert_eq!(prof[0], Q_PERIAPT_PROFILE_CONTEXT_BOUND);
-        // version 2 < last-trusted 3 -> ROLLBACK, refused (this is the doc'd fail-closed behaviour
-        // that load_signed alone did NOT enforce).
-        assert_eq!(run(sig.as_ptr(), 3), Q_PERIAPT_ERR_POLICY);
-        // tampered signature -> refused.
+
+        let mut decision = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
+        assert_eq!(run(&sig[..n], &[], &mut decision), Q_PERIAPT_OK);
+        assert_eq!(decision[0], Q_PERIAPT_POLICY_DECISION_VERSION);
+        assert_eq!(decision[1], Q_PERIAPT_SUITE_MLKEM768_X25519);
+        assert_eq!(decision[2], Q_PERIAPT_PROFILE_CONTEXT_BOUND);
+        assert_eq!(decision[3], Q_PERIAPT_KEY_FORMAT_EXPANDED);
+        assert_eq!(&decision[4..8], &2u32.to_be_bytes());
+
+        let trusted_state = decision[4..].to_vec();
+        assert_eq!(run(&sig[..n], &trusted_state, &mut decision), Q_PERIAPT_OK);
+
+        // ABI 1 persisted only a four-byte version. That value cannot prove
+        // the exact policy identity required by ABI 2 and must never be
+        // interpreted as a fresh install or padded into a synthetic digest.
+        decision.fill(0xA5);
+        assert_eq!(
+            run(&sig[..n], &2u32.to_be_bytes(), &mut decision),
+            Q_PERIAPT_ERR_LENGTH
+        );
+        assert!(decision.iter().all(|byte| *byte == 0));
+
+        let newer_state = TrustedPolicyState::new(3, [3u8; 32]).unwrap().encode();
+        assert_eq!(
+            run(&sig[..n], &newer_state, &mut decision),
+            Q_PERIAPT_ERR_POLICY
+        );
+        assert!(decision.iter().all(|byte| *byte == 0));
+
         let mut bad = sig;
         bad[0] ^= 1;
-        assert_eq!(run(bad.as_ptr(), 0), Q_PERIAPT_ERR_POLICY);
+        decision.fill(0xA5);
+        assert_eq!(run(&bad[..n], &[], &mut decision), Q_PERIAPT_ERR_POLICY);
+        assert!(decision.iter().all(|byte| *byte == 0));
     }
 
     #[test]
@@ -809,7 +1377,7 @@ mod tests {
         let (mut ct_pq, mut ct_t, mut secret) =
             ([0u8; Q_PERIAPT_MLKEM768_CT_LEN], [0u8; 32], [0u8; 32]);
         unsafe {
-            q_periapt_mlkem768_keypair(
+            mlkem768_keypair_raw(
                 seed.as_ptr(),
                 64,
                 sk_pq.as_mut_ptr(),
@@ -817,7 +1385,7 @@ mod tests {
                 pk_pq.as_mut_ptr(),
                 pk_pq.len(),
             );
-            q_periapt_x25519_keypair(
+            x25519_keypair_raw(
                 xs.as_ptr(),
                 32,
                 sk_t.as_mut_ptr(),
@@ -826,7 +1394,7 @@ mod tests {
                 32,
             );
             let forged = b"ML-KEM-1024+X25519"; // a stronger suite this build does NOT implement
-            let rc = q_periapt_hybrid_encapsulate(
+            let rc = hybrid_encapsulate_raw(
                 Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                 forged.as_ptr(),
                 forged.len(),
@@ -859,7 +1427,7 @@ mod tests {
     #[test]
     fn xwing_seed_abi_roundtrips_compat_xwing() {
         let mut pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
-        let mut sk_pq = [0u8; Q_PERIAPT_MLKEM768_XWING_SEED_LEN];
+        let mut sk_pq = [0u8; MLKEM768_XWING_SEED_LEN];
         let mut pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
         let mut sk_trad = [0u8; Q_PERIAPT_X25519_LEN];
         let mut ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
@@ -868,7 +1436,7 @@ mod tests {
         let mut secret_d = [0u8; Q_PERIAPT_SECRET_LEN];
         unsafe {
             assert_eq!(
-                q_periapt_mlkem768_xwing_keypair(
+                mlkem768_xwing_keypair_raw(
                     [3u8; 32].as_ptr(),
                     32,
                     sk_pq.as_mut_ptr(),
@@ -879,7 +1447,7 @@ mod tests {
                 Q_PERIAPT_OK
             );
             assert_eq!(
-                q_periapt_x25519_keypair(
+                x25519_keypair_raw(
                     [4u8; 32].as_ptr(),
                     32,
                     sk_trad.as_mut_ptr(),
@@ -889,8 +1457,8 @@ mod tests {
                 ),
                 Q_PERIAPT_OK
             );
-            let rc = q_periapt_hybrid_encapsulate(
-                Q_PERIAPT_PROFILE_COMPAT_XWING,
+            let rc = hybrid_encapsulate_raw(
+                Profile::CompatXWing.to_u8(),
                 fixed_suite_id().as_ptr(),
                 fixed_suite_id().len(),
                 1,
@@ -913,8 +1481,8 @@ mod tests {
             );
             assert_eq!(rc, Q_PERIAPT_OK);
             assert_eq!(
-                q_periapt_hybrid_decapsulate(
-                    Q_PERIAPT_PROFILE_COMPAT_XWING,
+                hybrid_decapsulate_raw(
+                    Profile::CompatXWing.to_u8(),
                     fixed_suite_id().as_ptr(),
                     fixed_suite_id().len(),
                     1,
@@ -945,7 +1513,7 @@ mod tests {
     #[test]
     fn expanded_key_abi_rejects_compat_xwing_decapsulation() {
         // The expanded-key ABI remains ContextBound-only for decapsulation. CompatXWing accepts
-        // the 32-byte seed secret produced by q_periapt_mlkem768_xwing_keypair, not a 2400-byte
+        // the 32-byte seed secret produced by the internal X-Wing keypair helper, not a 2400-byte
         // FIPS-expanded secret key.
         let mut pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
         let mut sk_pq = [0u8; Q_PERIAPT_MLKEM768_SK_LEN];
@@ -956,7 +1524,7 @@ mod tests {
         let mut secret = [0u8; Q_PERIAPT_SECRET_LEN];
         unsafe {
             assert_eq!(
-                q_periapt_mlkem768_keypair(
+                mlkem768_keypair_raw(
                     [3u8; 64].as_ptr(),
                     64,
                     sk_pq.as_mut_ptr(),
@@ -967,7 +1535,7 @@ mod tests {
                 Q_PERIAPT_OK
             );
             assert_eq!(
-                q_periapt_x25519_keypair(
+                x25519_keypair_raw(
                     [4u8; 32].as_ptr(),
                     32,
                     sk_trad.as_mut_ptr(),
@@ -978,8 +1546,8 @@ mod tests {
                 Q_PERIAPT_OK
             );
             assert_eq!(
-                q_periapt_hybrid_encapsulate(
-                    Q_PERIAPT_PROFILE_COMPAT_XWING,
+                hybrid_encapsulate_raw(
+                    Profile::CompatXWing.to_u8(),
                     fixed_suite_id().as_ptr(),
                     fixed_suite_id().len(),
                     1,
@@ -1003,8 +1571,8 @@ mod tests {
                 Q_PERIAPT_OK
             );
             secret = [0u8; Q_PERIAPT_SECRET_LEN];
-            let rc = q_periapt_hybrid_decapsulate(
-                Q_PERIAPT_PROFILE_COMPAT_XWING,
+            let rc = hybrid_decapsulate_raw(
+                Profile::CompatXWing.to_u8(),
                 fixed_suite_id().as_ptr(),
                 fixed_suite_id().len(),
                 1,
@@ -1041,7 +1609,7 @@ mod tests {
         let (mut ct_pq, mut ct_t, mut secret) =
             ([0u8; Q_PERIAPT_MLKEM768_CT_LEN], [0u8; 32], [0u8; 32]);
         unsafe {
-            q_periapt_mlkem768_keypair(
+            mlkem768_keypair_raw(
                 [3u8; 64].as_ptr(),
                 64,
                 sk_pq.as_mut_ptr(),
@@ -1050,7 +1618,7 @@ mod tests {
                 pk_pq.len(),
             );
             let low_order = [0u8; 32]; // a low-order X25519 point
-            let rc = q_periapt_hybrid_encapsulate(
+            let rc = hybrid_encapsulate_raw(
                 Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                 fixed_suite_id().as_ptr(),
                 fixed_suite_id().len(),
@@ -1088,7 +1656,7 @@ mod tests {
         let (mut ct_trad, mut secret) = ([0u8; 32], [0u8; 32]);
         let p = buf.as_mut_ptr();
         unsafe {
-            let rc = q_periapt_hybrid_encapsulate(
+            let rc = hybrid_encapsulate_raw(
                 Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                 fixed_suite_id().as_ptr(),
                 fixed_suite_id().len(),
@@ -1129,7 +1697,7 @@ mod tests {
         let mut pk = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
         let p = sk.as_mut_ptr();
         unsafe {
-            let rc = q_periapt_mlkem768_keypair(
+            let rc = mlkem768_keypair_raw(
                 p.cast_const(), // seed input ...
                 64,
                 p, // ... overlaps out_sk output
@@ -1156,7 +1724,7 @@ mod tests {
         let mut sk_short = [0u8; 10];
         let mut pk = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
         unsafe {
-            let rc = q_periapt_mlkem768_keypair(
+            let rc = mlkem768_keypair_raw(
                 seed.as_ptr(),
                 64,
                 sk_short.as_mut_ptr(),
@@ -1174,7 +1742,7 @@ mod tests {
         let mut buf = [0u8; 64];
         let p = buf.as_mut_ptr();
         unsafe {
-            let rc = q_periapt_combine(
+            let rc = combine_raw(
                 Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                 p.cast_const(), // input ...
                 buf.len(),
@@ -1195,7 +1763,7 @@ mod tests {
         let seed = [3u8; 64];
         unsafe {
             assert_eq!(
-                q_periapt_mlkem768_keypair(
+                mlkem768_keypair_raw(
                     seed.as_ptr(),
                     64,
                     sk_pq.as_mut_ptr(),
@@ -1210,7 +1778,7 @@ mod tests {
         let xs = [4u8; 32];
         unsafe {
             assert_eq!(
-                q_periapt_x25519_keypair(
+                x25519_keypair_raw(
                     xs.as_ptr(),
                     32,
                     sk_t.as_mut_ptr(),
@@ -1230,7 +1798,7 @@ mod tests {
         let mut sec = [0u8; Q_PERIAPT_SECRET_LEN];
         unsafe {
             assert_eq!(
-                q_periapt_hybrid_encapsulate(
+                hybrid_encapsulate_raw(
                     Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                     suite.as_ptr(),
                     suite.len(),
@@ -1259,7 +1827,7 @@ mod tests {
         let mut sec2 = [0u8; Q_PERIAPT_SECRET_LEN];
         unsafe {
             assert_eq!(
-                q_periapt_hybrid_decapsulate(
+                hybrid_decapsulate_raw(
                     Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                     suite.as_ptr(),
                     suite.len(),
@@ -1292,7 +1860,7 @@ mod tests {
         let mut sec = [0u8; 32];
         // profile 0 is invalid
         let rc = unsafe {
-            q_periapt_hybrid_decapsulate(
+            hybrid_decapsulate_raw(
                 0,
                 core::ptr::null(),
                 0,
@@ -1351,7 +1919,7 @@ mod tests {
 
         let mut sec = [0u8; Q_PERIAPT_SECRET_LEN];
         let rc = unsafe {
-            q_periapt_hybrid_decapsulate(
+            hybrid_decapsulate_raw(
                 Q_PERIAPT_PROFILE_CONTEXT_BOUND,
                 suite.as_ptr(),
                 suite.len(),
@@ -1382,7 +1950,165 @@ mod tests {
         );
     }
 
-    /// The C ABI `q_periapt_combine` reproduces every combiner reference vector — the
+    #[test]
+    fn signed_policy_product_path_binds_digest_context_and_generated_keys() {
+        use q_periapt_backends::ML_DSA_65_SIG_LEN;
+        use q_periapt_policy::policy_signature_message;
+        use q_periapt_sig::Signer;
+
+        let policy_toml = "schema_version = 1\npolicy_version = 2\nmin_nist_level = 3\n\
+            default_profile = \"ContextBound\"\n\
+            allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+            allowed_sigs = [\"ML-DSA-65\"]\n\
+            deprecated = []\n";
+        let (signing_key, verification_key) = MlDsa65::generate([8u8; 32]);
+        let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+        let signature_len = MlDsa65
+            .sign(
+                &signing_key,
+                &policy_signature_message(policy_toml.as_bytes()),
+                &[0u8; 32],
+                &mut signature,
+            )
+            .unwrap();
+        let mut decision = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
+        assert_eq!(
+            unsafe {
+                q_periapt_decision_from_signed_policy(
+                    policy_toml.as_ptr(),
+                    policy_toml.len(),
+                    signature.as_ptr(),
+                    signature_len,
+                    verification_key.as_ptr(),
+                    verification_key.len(),
+                    core::ptr::null(),
+                    0,
+                    decision.as_mut_ptr(),
+                    decision.len(),
+                )
+            },
+            Q_PERIAPT_OK
+        );
+
+        let mut sk_pq = [0u8; Q_PERIAPT_MLKEM768_SK_LEN];
+        let mut pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let mut sk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        assert_eq!(
+            unsafe {
+                q_periapt_generate_keypair(
+                    decision.as_ptr(),
+                    decision.len(),
+                    sk_pq.as_mut_ptr(),
+                    sk_pq.len(),
+                    pk_pq.as_mut_ptr(),
+                    pk_pq.len(),
+                    sk_trad.as_mut_ptr(),
+                    sk_trad.len(),
+                    pk_trad.as_mut_ptr(),
+                    pk_trad.len(),
+                )
+            },
+            Q_PERIAPT_OK
+        );
+
+        let application_context = b"ffi-policy-context";
+        let mut ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut enc_secret = [0u8; Q_PERIAPT_SECRET_LEN];
+        let rc = unsafe {
+            q_periapt_encapsulate(
+                decision.as_ptr(),
+                decision.len(),
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                pk_trad.as_ptr(),
+                pk_trad.len(),
+                application_context.as_ptr(),
+                application_context.len(),
+                ct_pq.as_mut_ptr(),
+                ct_pq.len(),
+                ct_trad.as_mut_ptr(),
+                ct_trad.len(),
+                enc_secret.as_mut_ptr(),
+                enc_secret.len(),
+            )
+        };
+        assert_eq!(rc, Q_PERIAPT_OK);
+
+        let low_order_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut rejected_ct_pq = [0xA5u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut rejected_ct_trad = [0xA5u8; Q_PERIAPT_X25519_LEN];
+        let mut rejected_secret = [0xA5u8; Q_PERIAPT_SECRET_LEN];
+        let rejected = unsafe {
+            q_periapt_encapsulate(
+                decision.as_ptr(),
+                decision.len(),
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                low_order_trad.as_ptr(),
+                low_order_trad.len(),
+                application_context.as_ptr(),
+                application_context.len(),
+                rejected_ct_pq.as_mut_ptr(),
+                rejected_ct_pq.len(),
+                rejected_ct_trad.as_mut_ptr(),
+                rejected_ct_trad.len(),
+                rejected_secret.as_mut_ptr(),
+                rejected_secret.len(),
+            )
+        };
+        assert_eq!(rejected, Q_PERIAPT_ERR_INVALID_KEYSHARE);
+        assert!(rejected_ct_pq.iter().all(|byte| *byte == 0));
+        assert!(rejected_ct_trad.iter().all(|byte| *byte == 0));
+        assert!(rejected_secret.iter().all(|byte| *byte == 0));
+
+        let decapsulate = |decision_bytes: &[u8], context: &[u8]| {
+            let mut secret = [0u8; Q_PERIAPT_SECRET_LEN];
+            let rc = unsafe {
+                q_periapt_decapsulate(
+                    decision_bytes.as_ptr(),
+                    decision_bytes.len(),
+                    sk_pq.as_ptr(),
+                    sk_pq.len(),
+                    ct_pq.as_ptr(),
+                    ct_pq.len(),
+                    pk_pq.as_ptr(),
+                    pk_pq.len(),
+                    sk_trad.as_ptr(),
+                    sk_trad.len(),
+                    ct_trad.as_ptr(),
+                    ct_trad.len(),
+                    pk_trad.as_ptr(),
+                    pk_trad.len(),
+                    context.as_ptr(),
+                    context.len(),
+                    secret.as_mut_ptr(),
+                    secret.len(),
+                )
+            };
+            (rc, secret)
+        };
+        let (rc, dec_secret) = decapsulate(&decision, application_context);
+        assert_eq!(rc, Q_PERIAPT_OK);
+        assert_eq!(enc_secret, dec_secret);
+
+        let (_, wrong_context) = decapsulate(&decision, b"wrong-context");
+        assert_ne!(enc_secret, wrong_context);
+        let last_digest_byte = decision.last_mut().unwrap();
+        *last_digest_byte ^= 1;
+        let (_, wrong_policy) = decapsulate(&decision, application_context);
+        assert_ne!(enc_secret, wrong_policy);
+
+        decision[2] = Profile::CompatXWing.to_u8();
+        decision[3] = KEY_FORMAT_SEED_DERIVED;
+        assert_eq!(
+            decapsulate(&decision, application_context).0,
+            Q_PERIAPT_ERR_POLICY
+        );
+    }
+
+    /// The internal raw combiner helper reproduces every combiner reference vector — the
     /// Rust face of the cross-platform `ContextBound`/`CompatXWing` vector check.
     #[test]
     fn combine_matches_reference_vectors() {
@@ -1398,7 +2124,7 @@ mod tests {
             let (profile, input, k) = (p[0].parse::<u8>().unwrap(), hex(p[1]), hex(p[2]));
             let mut out = [0u8; 32];
             let rc = unsafe {
-                q_periapt_combine(
+                combine_raw(
                     profile,
                     input.as_ptr(),
                     input.len(),

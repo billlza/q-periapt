@@ -19,26 +19,32 @@
  *   (ii)  `malbind_kct_le_cr` / `_kpk_` / `_kctx_` — the KEM-AWARE game for the
  *         IMPLICIT-rejection setting: the (MAL) adversary supplies the keypairs, K is
  *         DERIVED via total `Decaps` + the combiner; K≠⊥ holds by construction.
- *   (iii) `malbind_kct_xrej_le_cr` / `_kpk_xrej_` / `_kctx_xrej_` — the FULLY GENERAL
- *         CDM Figure 6 game: `Decaps` may reject, the hybrid key is `⊥` (`None`) if
- *         either component rejects, and CDM's `K≠⊥` conjunct is PRESENT in the
- *         predicate and LOAD-BEARING (removing it makes the proof fail). THIS is the
- *         layer to cite for "machine-checked CDM MAL-BIND-K-CT".
+ *   (iii) `malbind_kct_xrej_le_cr` / `_kpk_xrej_` instantiate the FULLY GENERAL
+ *         CDM Figure 6 game; `_kctx_xrej_` uses the same rejection skeleton after the
+ *         explicit syntactic extension to a context-parameterized KEM. `Decaps` may
+ *         reject, the hybrid key is `⊥` (`None`) if either component rejects, and the
+ *         `K≠⊥` conjunct is PRESENT. `kctx_without_nonbottom_broken` gives a checked probability-1
+ *         counterexample when that conjunct is removed. THIS is the layer to cite for
+ *         "machine-checked CDM MAL-BIND-K-CT".
  *
  *   HONEST SCOPE of (ii)/(iii) — read before citing (a reviewer will open this file):
  *   - Layer (iii) follows the CDM Figure 6 SHAPE (both rejection styles), with the accept
  *     predicate DECOUPLED from a real Decaps; layer (ii) is its implicit-rejection
  *     specialization. So we do NOT rely on "K≠⊥ is vacuous" — the general game keeps the
  *     conjunct and the proof depends on it.
- *   - `decaps_*` / `accepts_*` are ABSTRACT, AXIOM-FREE. The reduction uses NO property
- *     of Decaps, so the result holds for EVERY Decaps (ML-KEM included) ⇒ genuine "zero
- *     KEM binding assumption". The flip side: there is NO link to the FIPS-203 Decaps,
- *     and the shared-secret fields `ss_pq`/`ss_trad` are PRESENT in the hash but INERT
- *     in the K-binding argument (binding flows through the absorbed ct/pk/ctx fields —
- *     the hash-everything mechanism), so this proves nothing ABOUT ML-KEM's Decaps.
- *   - So the honest claim is "machine-checked CDM-Figure-6-SHAPED commitment/transcript-binding
- *     for MAL-BIND-K-{CT,PK,CTX} (both rejection styles), over abstract Decaps with the accept
- *     predicate decoupled from decapsulation, reducing to CR(H)". Remaining honest
+ *   - `decaps_*` / `accepts_*` are ABSTRACT. The reductions impose NO property on either,
+ *     so they hold for every Decaps/acceptance relation (ML-KEM included) ⇒ genuine "zero
+ *     KEM binding assumption". The separate non-bottom countermodel assumes only that one
+ *     concrete input rejects and that two contexts exist. The flip side: there is NO link
+ *     to the FIPS-203 Decaps, and the shared-secret fields `ss_pq`/`ss_trad` are PRESENT in
+ *     the hash but INERT in the K-binding argument (binding flows through the absorbed
+ *     ct/pk/ctx fields — the hash-everything mechanism), so this proves nothing ABOUT
+ *     ML-KEM's Decaps.
+ *   - So the honest claim is "machine-checked CDM Figure-6 commitment/transcript-binding
+ *     for standard MAL-BIND-K-{CT,PK}, plus a self-defined K-CTX syntactic extension
+ *     using the same rejection skeleton (both rejection styles), over abstract Decaps
+ *     with the accept predicate decoupled from decapsulation, reducing to CR(H)".
+ *     K-CTX is not a published CDM lattice node and inherits no CDM monotonicity. Remaining honest
  *     caveats: no FIPS-203 Decaps linkage; H's CR is a modeling assumption; IND-CCA2
  *     robustness is on paper; no spec<->implementation linkage (docs/BINDING_SECURITY.md
  *     §5/§6).
@@ -114,8 +120,9 @@ qed.
 (* ---- The hash, the combiner, and the observable -------------------------- *)
 op H : bytes -> key.                          (* SHA3-256, modeled CR below.   *)
 op combine (t : transcript) : key = H (encode t).
-(* Instantiate: proj := ct_pq||ct_trad -> K-CT ; pk_pq||pk_trad -> K-PK ;
-   context -> K-CTX (docs/BINDING_SECURITY.md §3.6). *)
+(* Instantiate: proj := ct_pq||ct_trad -> standard K-CT;
+   pk_pq||pk_trad -> standard K-PK; context -> the self-defined local K-CTX
+   wrapper projection (docs/BINDING_SECURITY.md §3.6). *)
 op proj : transcript -> obs.
 
 (* ---- Collision-resistance game for H ------------------------------------- *)
@@ -132,10 +139,11 @@ module CR (A : CRAdv) = {
   }
 }.
 
-(* ---- The X-BIND-K-* game (generic over the observable `proj`) ------------ *)
-(* The (MAL) adversary outputs two transcripts colliding on the derived key K but
-   DIFFERING on the observable. Both keys are total (our combiner never returns
-   bottom), matching docs/BINDING_SECURITY.md §3.6. *)
+(* ---- Generic Bind-K-observable transcript game ---------------------------- *)
+(* The adversary outputs two transcripts colliding on the derived key K but
+   DIFFERING on the observable. This generic layer is not itself a CDM theorem:
+   the CT/PK projections map to standard X-BIND games, while the context projection
+   is the explicitly self-defined wrapper game. Both keys are total here. *)
 module type BindAdv = {
   proc find() : transcript * transcript
 }.
@@ -163,8 +171,9 @@ lemma combine_def (t : transcript) : combine t = H (encode t).
 proof. by rewrite /combine. qed.
 
 (* ---- Main theorem -------------------------------------------------------- *
- * Adv^{X-BIND-K-*}(A)  <=  Adv^{CR}(B(A)),  reducing ONLY to CR of H.
- * Instantiating `proj` gives MAL-BIND-K-CT / K-PK / K-CTX (§5.1).
+ * Adv^{Bind-K-observable}(A) <= Adv^{CR}(B(A)), reducing ONLY to CR of H.
+ * CT/PK give standard MAL-BIND corollaries. CTX gives a separate local wrapper
+ * corollary and is not a CDM node, axis, or monotonicity result (§3.6/§5.1).
  * ------------------------------------------------------------------------- *)
 lemma bind_le_cr (A <: BindAdv) &m :
   Pr[Bind(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].
@@ -185,9 +194,9 @@ qed.
  * The transcript is the ContextBound field list in canonical order:
  *   0 LABEL, 1 suite_id, 2 policy_version, 3 ss_pq, 4 ss_trad,
  *   5 ct_pq, 6 pk_pq, 7 ct_trad, 8 pk_trad, 9 context.
- * We instantiate the observable to each standard binding axis and DISCHARGE the
- * matching reduction, so K-CT / K-PK / K-CTX are machine-checked corollaries —
- * not merely the generic `bind_le_cr` over an abstract `proj`. *)
+ * We instantiate the observable and DISCHARGE each matching reduction. K-CT and
+ * K-PK are standard CDM projections; K-CTX is a separately labeled local wrapper
+ * projection. All are concrete corollaries, not merely an abstract `proj`. *)
 
 op proj_ct  (t : transcript) : obs = [nth [] t 5; nth [] t 7].  (* ct_pq , ct_trad *)
 op proj_pk  (t : transcript) : obs = [nth [] t 6; nth [] t 8].  (* pk_pq , pk_trad *)
@@ -239,8 +248,8 @@ proc; inline B(A).find. wp. call (_ : true). auto => />.
 smt(encode_inj combine_def neq_proj_neq).
 qed.
 
-(* MAL-BIND-K-CTX: the context extension (superset guarantee, NOT a standard
-   X-BIND lattice point — see docs/BINDING_SECURITY.md §3.6 + §6 well-posedness). *)
+(* Local K-CTX wrapper collision bound: self-defined, NOT a standard X-BIND
+   lattice point, superset, axis, or monotonicity result (§3.6/§6). *)
 lemma bind_le_cr_kctx (A <: BindAdv) &m :
   Pr[BindCTX(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].
 proof.
@@ -256,8 +265,9 @@ qed.
  *     supplies the keypairs, win is on the hybrid ciphertext. It is the CDM game
  *     specialized to implicit rejection (⊥-free key, total Decaps ⇒ K≠⊥ holds by
  *     construction), over abstract Decaps — see that section's header for exact scope.
- * (2) Establishes the K-binds-{CT,PK,CTX} direction only. X-BIND-CT-* is
- *     structurally UNACHIEVABLE for an implicitly-rejecting KEM and is NOT claimed.
+ * (2) Establishes the standard K-binds-{CT,PK} direction plus the separately defined
+ *     K-CTX syntactic extension. X-BIND-CT-* is structurally UNACHIEVABLE for an
+ *     implicitly-rejecting KEM and is NOT claimed.
  * ------------------------------------------------------------------------- *)
 
 (* ===========================================================================
@@ -343,7 +353,7 @@ proc; inline BK(A).find. wp. call (_ : true). auto => />.
 smt(encode_inj hkey_def ct_neq_fields_neq).
 qed.
 
-(* --- K-PK and K-CTX: same KEM-aware game + same reduction BK, other observable - *)
+(* Standard K-PK and separate local K-CTX wrapper share reduction BK; observables differ. *)
 op pk_of (e : texec) : bytes * bytes = (e.`pk_pq, e.`pk_trad).
 lemma pk_neq_fields_neq (e0 e1 : texec) :
   pk_of e0 <> pk_of e1 => fields e0 <> fields e1.
@@ -378,7 +388,7 @@ proc; inline BK(A).find. wp. call (_ : true). auto => />.
 smt(encode_inj hkey_def pk_neq_fields_neq).
 qed.
 
-(* MAL-BIND-K-CTX  <=  CR(H) — context extension (superset guarantee; §3.6/§6). *)
+(* Local K-CTX wrapper collision bound <= CR(H); not a CDM superset (§3.6/§6). *)
 lemma malbind_kctx_le_cr (A <: MalAdv) &m :
   Pr[MalBindKCTX(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].
 proof.
@@ -410,6 +420,54 @@ op hkey_x (e : texec) : key option =
   if accepts_pq e.`sk_pq e.`ct_pq /\ accepts_trad e.`sk_trad e.`ct_trad
   then Some (H (encode (fields e))) else None.
 
+(* In an explicit-rejection model admitting a rejectable input, `K <> bottom` is
+   semantically necessary, not merely a dependency of a particular SMT invocation. The
+   following concrete model has a rejectable PQ input and two executions that differ only
+   in context. If the non-bottom conjunct is omitted, both executions derive `None`, so
+   the K-CTX game is won with probability 1. This is a checked counterexample; no
+   conclusion is inferred from tactic failure. *)
+op reject_sk_pq   : sk.    op reject_sk_trad : sk.
+op reject_pk_pq   : bytes. op reject_pk_trad : bytes.
+op reject_ct_pq   : bytes. op reject_ct_trad : bytes.
+op reject_ctx0    : bytes = [].
+op reject_ctx1    : bytes = [0].
+lemma reject_ctx_neq : reject_ctx0 <> reject_ctx1.
+proof. by rewrite /reject_ctx0 /reject_ctx1. qed.
+axiom reject_pq_input : accepts_pq reject_sk_pq reject_ct_pq = false.
+
+op reject_exec (c : bytes) : texec =
+  {| sk_pq = reject_sk_pq; pk_pq = reject_pk_pq; ct_pq = reject_ct_pq;
+     sk_trad = reject_sk_trad; pk_trad = reject_pk_trad; ct_trad = reject_ct_trad;
+     ctx = c |}.
+
+module MalBindKCTXWithoutNonBottom (A : MalAdv) = {
+  proc main() : bool = {
+    var e0 : texec; var e1 : texec;
+    (e0, e1) <@ A.find();
+    return hkey_x e0 = hkey_x e1 /\ ctx_of e0 <> ctx_of e1;
+  }
+}.
+
+module RejectCtxAdv : MalAdv = {
+  proc find() : texec * texec = {
+    return (reject_exec reject_ctx0, reject_exec reject_ctx1);
+  }
+}.
+
+lemma reject_exec_bottom (c : bytes) : hkey_x (reject_exec c) = None.
+proof. by rewrite /hkey_x /reject_exec reject_pq_input. qed.
+
+lemma reject_exec_ctx (c : bytes) : ctx_of (reject_exec c) = c.
+proof. by rewrite /ctx_of /reject_exec. qed.
+
+lemma kctx_without_nonbottom_broken &m :
+  Pr[MalBindKCTXWithoutNonBottom(RejectCtxAdv).main() @ &m : res] = 1%r.
+proof.
+byphoare => //.
+proc; inline RejectCtxAdv.find; auto => />.
+smt(reject_ctx_neq reject_exec_bottom reject_exec_ctx).
+qed.
+
 module MalBindKCTx (A : MalAdv) = {
   proc main() : bool = {
     var e0 : texec; var e1 : texec;
@@ -428,7 +486,7 @@ proc; inline BK(A).find. wp. call (_ : true). auto => />.
 rewrite /hkey_x. smt(encode_inj ct_neq_fields_neq).
 qed.
 
-(* K-PK and K-CTX, explicit-rejection — same structure, other observable. *)
+(* Standard K-PK and local K-CTX wrapper share the explicit-rejection skeleton. *)
 module MalBindKPKx (A : MalAdv) = {
   proc main() : bool = {
     var e0 : texec; var e1 : texec;
@@ -585,26 +643,26 @@ rewrite /lean_key_seed. smt(encode_inj seed_lpk_neq_fields_neq).
 qed.
 
 (* ===========================================================================
- * COMPLETE SEPARATION MAP across the CDM K-sub-lattice: which field must the FULL
- * combiner absorb, and why. Take `full_fields` (absorbs ct_pq, pk_pq, context) and OMIT
- * exactly ONE field; ask which binding notion the omission costs:
+ * SEPARATION MAP: standard CDM CT/PK experiments plus a separate local context-
+ * wrapper experiment. Take `full_fields` (absorbs ct_pq, pk_pq, context) and OMIT
+ * exactly ONE field; ask which corresponding collision property the omission costs:
  *
  *      omitted field   notion   verdict
  *      -------------   ------   ------------------------------------------------
  *      pk_pq           K-PK     BROKEN over expanded-dk (ss=J(z,ct) is key-INDEPENDENT;
  *                               `lean_kpk_broken`), SAFE over seed-dk (`lean_kpk_seed_le_cr`)
  *      ct_pq           K-CT     SAFE: ss=J(z,ct) transitively binds ct (`omit_ct_kct_le_cr`)
- *      context         K-CTX    BROKEN unconditionally: nothing else binds context
- *                               (`omit_ctx_kctx_broken`, Pr=1, any dk format)
- *      (full absorbs all)  any  SAFE <= CR(H) (`full_k{pk,ct,ctx}_le_cr`)
+ *      context         local    wrapper game BROKEN structurally: nothing else binds
+ *                               context (`omit_ctx_kctx_broken`, Pr=1, any dk format)
+ *      (full absorbs all)       standard CT/PK and local CTX SAFE <= CR(H)
  *
- * MORAL: pk_pq and context absorption are NECESSARY (their omission is exploitable); ct_pq
- * absorption is REDUNDANT with the shared secret. This is the formal design rationale for
- * ContextBound and the precise sense in which the X-Wing shape (which omits ct_pq, pk_pq,
- * AND context) loses K-PK (over expanded-dk) and K-CTX while keeping K-CT.
+ * MORAL: pk_pq absorption is necessary for standard K-PK over expanded-dk; context
+ * absorption is necessary only for the local wrapper property; ct_pq absorption is
+ * redundant with the shared secret under jrej_inj. Native X-Wing has no context input,
+ * so no K-CTX property is assigned to it.
  * =========================================================================== *)
 
-(* ---- omit CONTEXT: K-CTX BROKEN unconditionally (concrete adversary, Pr = 1) ---- *)
+(* ---- omit CONTEXT: local wrapper game BROKEN structurally (Pr = 1) --------- *)
 op omit_ctx_fields (e : lexec) : transcript =          (* full_fields minus lctx *)
   [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ctp; e.`ek; e.`ctt; e.`ekt ].
 op omit_ctx_key (e : lexec) : key = H (encode (omit_ctx_fields e)).
@@ -660,7 +718,7 @@ proc; inline BKct(A).find. wp. call (_ : true). auto => />.
 rewrite /omit_ct_key. smt(encode_inj lct_neq_omitct_neq).
 qed.
 
-(* ---- the FULL combiner is SAFE for K-CT and K-CTX too (it absorbs every field) ---- *)
+(* ---- full combiner: standard K-CT and separate local CTX bounds ------------ *)
 module FullKCT (A : LAdv) = {
   proc main() : bool = { var e0 : lexec; var e1 : lexec;
     (e0, e1) <@ A.find(); return full_key e0 = full_key e1 /\ lct e0 <> lct e1; }
@@ -689,12 +747,11 @@ proc; inline BKf(A).find. wp. call (_ : true). auto => />.
 rewrite /full_key. smt(encode_inj lctxo_neq_full_neq).
 qed.
 
-(* ---- THE JOINT X-WING SHAPE: omits ct_pq, pk_pq, AND context simultaneously ---- *
- * The per-field experiments above isolate each field's necessity. The deployed X-Wing
- * combiner omits all three at once. We discharge its binding profile DIRECTLY (a checked
- * theorem, not a composition argument): over expanded-dk it LOSES K-PK and K-CTX, yet
- * KEEPS K-CT (the shared secret still binds ct). This is the precise sense of "the X-Wing
- * shape" the paper refers to. *)
+(* ---- X-Wing lean fields plus a SEPARATE hypothetical wrapper experiment ---- *
+ * Native X-Wing omits ct_pq and pk_pq and has no context parameter. Directly, its
+ * lean field list LOSES K-PK over expanded-dk and KEEPS K-CT. `XWingKCTX` is not
+ * native X-Wing: it embeds that lean field list in our context-parameterized syntax
+ * and deliberately ignores the wrapper's context, thereby failing only the local game. *)
 op xwing_fields (e : lexec) : transcript =
   [ label_f; suite_f; pv_f; ss_of e; e.`sst; e.`ctt; e.`ekt ].   (* no ctp, no ek, no lctx *)
 op xwing_key (e : lexec) : key = H (encode (xwing_fields e)).
@@ -714,7 +771,7 @@ proof. by rewrite /xwing_key /xwing_fields /ss_of /mk. qed.
 lemma xwing_kpk_broken &m : Pr[XWingKPK(SchmiegAdv).main() @ &m : res] = 1%r.
 proof. byphoare => //. proc; inline SchmiegAdv.find; auto => />. smt(ek_neq xwing_eq_pk lpk_mk). qed.
 
-(* (-) X-Wing loses K-CTX unconditionally (vary context; nothing binds it) *)
+(* (-) Hypothetical context wrapper around lean fields ignores ctx: local-game break. *)
 lemma xwing_eq_ctx : xwing_key (mkc lctxA) = xwing_key (mkc lctxB).
 proof. by rewrite /xwing_key /xwing_fields /ss_of /mkc. qed.
 lemma xwing_kctx_broken &m : Pr[XWingKCTX(CtxAdv).main() @ &m : res] = 1%r.

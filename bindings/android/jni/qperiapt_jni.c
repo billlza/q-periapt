@@ -112,6 +112,29 @@ static uint8_t *copy_input(JNIEnv *env, jbyteArray array, uintptr_t *out_len, co
 	return buf;
 }
 
+static int copy_inputs(
+		JNIEnv *env,
+		const jbyteArray *arrays,
+		const char *const *labels,
+		size_t count,
+		uint8_t **buffers,
+		uintptr_t *lengths) {
+	for (size_t i = 0; i < count; i++) {
+		buffers[i] = copy_input(env, arrays[i], &lengths[i], labels[i]);
+		if ((*env)->ExceptionCheck(env)) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static void wipe_free_inputs(uint8_t **buffers, const uintptr_t *lengths, size_t count) {
+	for (size_t i = 0; i < count; i++) {
+		secure_zero(buffers[i], (size_t)lengths[i]);
+		free(buffers[i]);
+	}
+}
+
 static int check_exact_array(JNIEnv *env, jbyteArray array, jsize expected, const char *label) {
 	if (array == NULL) {
 		throw_null(env, label);
@@ -120,6 +143,20 @@ static int check_exact_array(JNIEnv *env, jbyteArray array, jsize expected, cons
 	jsize got = (*env)->GetArrayLength(env, array);
 	if (got != expected) {
 		throw_arg(env, "output array length mismatch");
+		return 0;
+	}
+	return 1;
+}
+
+static int check_max_array(
+		JNIEnv *env, jbyteArray array, jsize maximum, const char *null_label, const char *size_label) {
+	if (array == NULL) {
+		throw_null(env, null_label);
+		return 0;
+	}
+	jsize got = (*env)->GetArrayLength(env, array);
+	if (got < 0 || got > maximum) {
+		throw_arg(env, size_label);
 		return 0;
 	}
 	return 1;
@@ -170,22 +207,30 @@ static jstring native_status_name(
 	return new_native_string(env, q_periapt_status_name((int32_t)code), "q_periapt_status_name returned NULL");
 }
 
-static jbyte native_profile_from_signed_policy(
+static jbyteArray native_decision_from_signed_policy(
 		JNIEnv *env,
 		jclass cls,
 		jbyteArray toml_array,
 		jbyteArray signature_array,
 		jbyteArray vk_array,
-		jint last_trusted_version) {
+		jbyteArray last_state_array) {
 	(void)cls;
 	uintptr_t toml_len = 0;
 	uintptr_t signature_len = 0;
 	uintptr_t vk_len = 0;
+	uintptr_t last_state_len = 0;
 	uint8_t *toml = NULL;
 	uint8_t *signature = NULL;
 	uint8_t *vk = NULL;
-	uint8_t out_profile = 0;
+	uint8_t *last_state = NULL;
+	uint8_t decision[Q_PERIAPT_POLICY_DECISION_LEN] = {0};
+	jbyteArray result = NULL;
 
+	if (!check_max_array(
+			env, toml_array, Q_PERIAPT_MAX_SIGNED_POLICY_BYTES,
+			"toml must not be null", "toml exceeds maximum signed-policy size")) {
+		goto cleanup;
+	}
 	toml = copy_input(env, toml_array, &toml_len, "toml must not be null");
 	if ((*env)->ExceptionCheck(env)) {
 		goto cleanup;
@@ -198,145 +243,113 @@ static jbyte native_profile_from_signed_policy(
 	if ((*env)->ExceptionCheck(env)) {
 		goto cleanup;
 	}
+	last_state = copy_input(env, last_state_array, &last_state_len, "lastTrustedState must not be null");
+	if ((*env)->ExceptionCheck(env)) {
+		goto cleanup;
+	}
 
-	int32_t rc = q_periapt_profile_from_signed_policy(
+	int32_t rc = q_periapt_decision_from_signed_policy(
 			toml,
 			toml_len,
 			signature,
 			signature_len,
 			vk,
 			vk_len,
-			(uint32_t)last_trusted_version,
-			&out_profile,
-			1);
+			last_state,
+			last_state_len,
+			decision,
+			Q_PERIAPT_POLICY_DECISION_LEN);
 	if (rc != Q_PERIAPT_OK) {
-		throw_qperiapt(env, "q_periapt_profile_from_signed_policy", rc);
+		throw_qperiapt(env, "q_periapt_decision_from_signed_policy", rc);
+		goto cleanup;
+	}
+	result = (*env)->NewByteArray(env, Q_PERIAPT_POLICY_DECISION_LEN);
+	if (result == NULL) {
+		goto cleanup;
+	}
+	if (!set_output(env, result, decision, Q_PERIAPT_POLICY_DECISION_LEN)) {
+		result = NULL;
 	}
 
 cleanup:
 	secure_zero(toml, (size_t)toml_len);
 	secure_zero(signature, (size_t)signature_len);
 	secure_zero(vk, (size_t)vk_len);
+	secure_zero(last_state, (size_t)last_state_len);
+	secure_zero(decision, sizeof(decision));
 	free(toml);
 	free(signature);
 	free(vk);
-	return (jbyte)out_profile;
+	free(last_state);
+	return result;
 }
 
-static void keypair_common(
-		JNIEnv *env,
-		jbyteArray seed_array,
-		jbyteArray out_secret_key_array,
-		jbyteArray out_public_key_array,
-		uintptr_t expected_seed_len,
-		uintptr_t expected_secret_key_len,
-		uintptr_t expected_public_key_len,
-		const char *operation,
-		int32_t (*fn)(const uint8_t *, uintptr_t, uint8_t *, uintptr_t, uint8_t *, uintptr_t)) {
-	if (!check_exact_array(env, out_secret_key_array, (jsize)expected_secret_key_len, "outSecretKey must not be null") ||
-			!check_exact_array(env, out_public_key_array, (jsize)expected_public_key_len, "outPublicKey must not be null")) {
-		return;
-	}
-	uintptr_t seed_len = 0;
-	uint8_t *seed = NULL;
-	uint8_t *secret_key = NULL;
-	uint8_t *public_key = NULL;
+static void native_generate_keypair(
+        JNIEnv *env,
+        jclass cls,
+        jbyteArray decision_array,
+        jbyteArray out_sk_pq_array,
+        jbyteArray out_pk_pq_array,
+        jbyteArray out_sk_trad_array,
+        jbyteArray out_pk_trad_array) {
+    (void)cls;
+    if (!check_exact_array(env, out_sk_pq_array, Q_PERIAPT_MLKEM768_SK_LEN, "outSkPq must not be null") ||
+            !check_exact_array(env, out_pk_pq_array, Q_PERIAPT_MLKEM768_PK_LEN, "outPkPq must not be null") ||
+            !check_exact_array(env, out_sk_trad_array, Q_PERIAPT_X25519_LEN, "outSkTrad must not be null") ||
+            !check_exact_array(env, out_pk_trad_array, Q_PERIAPT_X25519_LEN, "outPkTrad must not be null")) {
+        return;
+    }
+    uintptr_t decision_len = 0;
+    uint8_t *decision = copy_input(env, decision_array, &decision_len, "decision must not be null");
+    uint8_t *sk_pq = NULL;
+    uint8_t *pk_pq = NULL;
+    uint8_t *sk_trad = NULL;
+    uint8_t *pk_trad = NULL;
+    if ((*env)->ExceptionCheck(env)) {
+        goto cleanup;
+    }
+    sk_pq = alloc_bytes(env, Q_PERIAPT_MLKEM768_SK_LEN, "native ML-KEM secret allocation failed");
+    pk_pq = alloc_bytes(env, Q_PERIAPT_MLKEM768_PK_LEN, "native ML-KEM public allocation failed");
+    sk_trad = alloc_bytes(env, Q_PERIAPT_X25519_LEN, "native X25519 secret allocation failed");
+    pk_trad = alloc_bytes(env, Q_PERIAPT_X25519_LEN, "native X25519 public allocation failed");
+    if ((*env)->ExceptionCheck(env)) {
+        goto cleanup;
+    }
 
-	seed = copy_input(env, seed_array, &seed_len, "seed must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	secret_key = alloc_bytes(env, (size_t)expected_secret_key_len, "native secret-key allocation failed");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	public_key = alloc_bytes(env, (size_t)expected_public_key_len, "native public-key allocation failed");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-
-	if (seed_len != expected_seed_len) {
-		throw_qperiapt(env, operation, Q_PERIAPT_ERR_LENGTH);
-	} else {
-		int32_t rc = fn(
-				seed,
-				seed_len,
-				secret_key,
-				expected_secret_key_len,
-				public_key,
-				expected_public_key_len);
-		if (rc != Q_PERIAPT_OK) {
-			throw_qperiapt(env, operation, rc);
-		} else if (set_output(env, out_secret_key_array, secret_key, (jsize)expected_secret_key_len)) {
-			(void)set_output(env, out_public_key_array, public_key, (jsize)expected_public_key_len);
-		}
-	}
+    int32_t rc = q_periapt_generate_keypair(
+            decision, decision_len,
+            sk_pq, Q_PERIAPT_MLKEM768_SK_LEN,
+            pk_pq, Q_PERIAPT_MLKEM768_PK_LEN,
+            sk_trad, Q_PERIAPT_X25519_LEN,
+            pk_trad, Q_PERIAPT_X25519_LEN);
+    if (rc != Q_PERIAPT_OK) {
+        throw_qperiapt(env, "q_periapt_generate_keypair", rc);
+    } else if (set_output(env, out_sk_pq_array, sk_pq, Q_PERIAPT_MLKEM768_SK_LEN) &&
+            set_output(env, out_pk_pq_array, pk_pq, Q_PERIAPT_MLKEM768_PK_LEN) &&
+            set_output(env, out_sk_trad_array, sk_trad, Q_PERIAPT_X25519_LEN)) {
+        (void)set_output(env, out_pk_trad_array, pk_trad, Q_PERIAPT_X25519_LEN);
+    }
 
 cleanup:
-	secure_zero(seed, (size_t)seed_len);
-	secure_zero(secret_key, (size_t)expected_secret_key_len);
-	secure_zero(public_key, (size_t)expected_public_key_len);
-	free(seed);
-	free(secret_key);
-	free(public_key);
-}
-
-static void native_mlkem768_keypair(
-		JNIEnv *env, jclass cls, jbyteArray seed, jbyteArray out_secret_key, jbyteArray out_public_key) {
-	(void)cls;
-	keypair_common(
-			env,
-			seed,
-			out_secret_key,
-			out_public_key,
-			64,
-			Q_PERIAPT_MLKEM768_SK_LEN,
-			Q_PERIAPT_MLKEM768_PK_LEN,
-			"q_periapt_mlkem768_keypair",
-			q_periapt_mlkem768_keypair);
-}
-
-static void native_mlkem768_xwing_keypair(
-		JNIEnv *env, jclass cls, jbyteArray seed, jbyteArray out_secret_key, jbyteArray out_public_key) {
-	(void)cls;
-	keypair_common(
-			env,
-			seed,
-			out_secret_key,
-			out_public_key,
-			Q_PERIAPT_MLKEM768_XWING_SEED_LEN,
-			Q_PERIAPT_MLKEM768_XWING_SEED_LEN,
-			Q_PERIAPT_MLKEM768_PK_LEN,
-			"q_periapt_mlkem768_xwing_keypair",
-			q_periapt_mlkem768_xwing_keypair);
-}
-
-static void native_x25519_keypair(
-		JNIEnv *env, jclass cls, jbyteArray secret, jbyteArray out_secret_key, jbyteArray out_public_key) {
-	(void)cls;
-	keypair_common(
-			env,
-			secret,
-			out_secret_key,
-			out_public_key,
-			Q_PERIAPT_X25519_LEN,
-			Q_PERIAPT_X25519_LEN,
-			Q_PERIAPT_X25519_LEN,
-			"q_periapt_x25519_keypair",
-			q_periapt_x25519_keypair);
+    secure_zero(decision, (size_t)decision_len);
+    secure_zero(sk_pq, Q_PERIAPT_MLKEM768_SK_LEN);
+    secure_zero(pk_pq, Q_PERIAPT_MLKEM768_PK_LEN);
+    secure_zero(sk_trad, Q_PERIAPT_X25519_LEN);
+    secure_zero(pk_trad, Q_PERIAPT_X25519_LEN);
+    free(decision);
+    free(sk_pq);
+    free(pk_pq);
+    free(sk_trad);
+    free(pk_trad);
 }
 
 static void native_encapsulate(
 		JNIEnv *env,
 		jclass cls,
-		jbyte profile,
-		jbyteArray suite_id_array,
-		jint policy_version,
+		jbyteArray decision_array,
 		jbyteArray pk_pq_array,
 		jbyteArray pk_trad_array,
-		jbyteArray context_array,
-		jbyteArray rand_pq_array,
-		jbyteArray rand_trad_array,
+        jbyteArray application_context_array,
 		jbyteArray out_ct_pq_array,
 		jbyteArray out_ct_trad_array,
 		jbyteArray out_secret_array) {
@@ -346,44 +359,24 @@ static void native_encapsulate(
 			!check_exact_array(env, out_secret_array, Q_PERIAPT_SECRET_LEN, "outSecret must not be null")) {
 		return;
 	}
-	uintptr_t suite_id_len = 0;
-	uintptr_t pk_pq_len = 0;
-	uintptr_t pk_trad_len = 0;
-	uintptr_t context_len = 0;
-	uintptr_t rand_pq_len = 0;
-	uintptr_t rand_trad_len = 0;
-	uint8_t *suite_id = NULL;
-	uint8_t *pk_pq = NULL;
-	uint8_t *pk_trad = NULL;
-	uint8_t *context = NULL;
-	uint8_t *rand_pq = NULL;
-	uint8_t *rand_trad = NULL;
+    jbyteArray arrays[] = {
+        decision_array, pk_pq_array, pk_trad_array, application_context_array
+    };
+	const char *labels[] = {
+        "decision must not be null", "pkPq must not be null", "pkTrad must not be null",
+        "applicationContext must not be null"
+    };
+    uint8_t *inputs[4] = {NULL};
+    uintptr_t lengths[4] = {0};
 	uint8_t *out_ct_pq = NULL;
 	uint8_t *out_ct_trad = NULL;
 	uint8_t *out_secret = NULL;
-
-	suite_id = copy_input(env, suite_id_array, &suite_id_len, "suiteId must not be null");
-	if ((*env)->ExceptionCheck(env)) {
+	if (!check_max_array(
+			env, application_context_array, Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES,
+			"applicationContext must not be null", "applicationContext exceeds maximum size")) {
 		goto cleanup;
 	}
-	pk_pq = copy_input(env, pk_pq_array, &pk_pq_len, "pkPq must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	pk_trad = copy_input(env, pk_trad_array, &pk_trad_len, "pkTrad must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	context = copy_input(env, context_array, &context_len, "context must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	rand_pq = copy_input(env, rand_pq_array, &rand_pq_len, "randPq must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	rand_trad = copy_input(env, rand_trad_array, &rand_trad_len, "randTrad must not be null");
-	if ((*env)->ExceptionCheck(env)) {
+    if (!copy_inputs(env, arrays, labels, 4, inputs, lengths)) {
 		goto cleanup;
 	}
 	out_ct_pq = alloc_bytes(env, Q_PERIAPT_MLKEM768_CT_LEN, "native ct_pq allocation failed");
@@ -399,50 +392,24 @@ static void native_encapsulate(
 		goto cleanup;
 	}
 
-	int32_t rc = q_periapt_hybrid_encapsulate(
-			(uint8_t)profile,
-			suite_id,
-			suite_id_len,
-			(uint32_t)policy_version,
-			pk_pq,
-			pk_pq_len,
-			pk_trad,
-			pk_trad_len,
-			context,
-			context_len,
-			rand_pq,
-			rand_pq_len,
-			rand_trad,
-			rand_trad_len,
-			out_ct_pq,
-			Q_PERIAPT_MLKEM768_CT_LEN,
-			out_ct_trad,
-			Q_PERIAPT_X25519_LEN,
-			out_secret,
-			Q_PERIAPT_SECRET_LEN);
+    int32_t rc = q_periapt_encapsulate(
+            inputs[0], lengths[0], inputs[1], lengths[1], inputs[2], lengths[2],
+            inputs[3], lengths[3],
+			out_ct_pq, Q_PERIAPT_MLKEM768_CT_LEN,
+			out_ct_trad, Q_PERIAPT_X25519_LEN,
+			out_secret, Q_PERIAPT_SECRET_LEN);
 	if (rc != Q_PERIAPT_OK) {
-		throw_qperiapt(env, "q_periapt_hybrid_encapsulate", rc);
+        throw_qperiapt(env, "q_periapt_encapsulate", rc);
 	} else if (set_output(env, out_ct_pq_array, out_ct_pq, Q_PERIAPT_MLKEM768_CT_LEN) &&
 			set_output(env, out_ct_trad_array, out_ct_trad, Q_PERIAPT_X25519_LEN)) {
 		(void)set_output(env, out_secret_array, out_secret, Q_PERIAPT_SECRET_LEN);
 	}
 
 cleanup:
-	secure_zero(suite_id, (size_t)suite_id_len);
-	secure_zero(pk_pq, (size_t)pk_pq_len);
-	secure_zero(pk_trad, (size_t)pk_trad_len);
-	secure_zero(context, (size_t)context_len);
-	secure_zero(rand_pq, (size_t)rand_pq_len);
-	secure_zero(rand_trad, (size_t)rand_trad_len);
+    wipe_free_inputs(inputs, lengths, 4);
 	secure_zero(out_ct_pq, Q_PERIAPT_MLKEM768_CT_LEN);
 	secure_zero(out_ct_trad, Q_PERIAPT_X25519_LEN);
 	secure_zero(out_secret, Q_PERIAPT_SECRET_LEN);
-	free(suite_id);
-	free(pk_pq);
-	free(pk_trad);
-	free(context);
-	free(rand_pq);
-	free(rand_trad);
 	free(out_ct_pq);
 	free(out_ct_trad);
 	free(out_secret);
@@ -451,69 +418,37 @@ cleanup:
 static void native_decapsulate(
 		JNIEnv *env,
 		jclass cls,
-		jbyte profile,
-		jbyteArray suite_id_array,
-		jint policy_version,
+		jbyteArray decision_array,
 		jbyteArray sk_pq_array,
 		jbyteArray ct_pq_array,
 		jbyteArray pk_pq_array,
 		jbyteArray sk_trad_array,
 		jbyteArray ct_trad_array,
 		jbyteArray pk_trad_array,
-		jbyteArray context_array,
+		jbyteArray application_context_array,
 		jbyteArray out_secret_array) {
 	(void)cls;
 	if (!check_exact_array(env, out_secret_array, Q_PERIAPT_SECRET_LEN, "outSecret must not be null")) {
 		return;
 	}
-	uintptr_t suite_id_len = 0;
-	uintptr_t sk_pq_len = 0;
-	uintptr_t ct_pq_len = 0;
-	uintptr_t pk_pq_len = 0;
-	uintptr_t sk_trad_len = 0;
-	uintptr_t ct_trad_len = 0;
-	uintptr_t pk_trad_len = 0;
-	uintptr_t context_len = 0;
-	uint8_t *suite_id = NULL;
-	uint8_t *sk_pq = NULL;
-	uint8_t *ct_pq = NULL;
-	uint8_t *pk_pq = NULL;
-	uint8_t *sk_trad = NULL;
-	uint8_t *ct_trad = NULL;
-	uint8_t *pk_trad = NULL;
-	uint8_t *context = NULL;
+	jbyteArray arrays[] = {
+		decision_array, sk_pq_array, ct_pq_array, pk_pq_array, sk_trad_array,
+		ct_trad_array, pk_trad_array, application_context_array
+	};
+	const char *labels[] = {
+		"decision must not be null", "skPq must not be null", "ctPq must not be null",
+		"pkPq must not be null", "skTrad must not be null", "ctTrad must not be null",
+		"pkTrad must not be null", "applicationContext must not be null"
+	};
+	uint8_t *inputs[8] = {NULL};
+	uintptr_t lengths[8] = {0};
 	uint8_t *out_secret = NULL;
-
-	suite_id = copy_input(env, suite_id_array, &suite_id_len, "suiteId must not be null");
-	if ((*env)->ExceptionCheck(env)) {
+	if (!check_max_array(
+			env, application_context_array, Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES,
+			"applicationContext must not be null", "applicationContext exceeds maximum size")) {
 		goto cleanup;
 	}
-	sk_pq = copy_input(env, sk_pq_array, &sk_pq_len, "skPq must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	ct_pq = copy_input(env, ct_pq_array, &ct_pq_len, "ctPq must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	pk_pq = copy_input(env, pk_pq_array, &pk_pq_len, "pkPq must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	sk_trad = copy_input(env, sk_trad_array, &sk_trad_len, "skTrad must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	ct_trad = copy_input(env, ct_trad_array, &ct_trad_len, "ctTrad must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	pk_trad = copy_input(env, pk_trad_array, &pk_trad_len, "pkTrad must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	context = copy_input(env, context_array, &context_len, "context must not be null");
-	if ((*env)->ExceptionCheck(env)) {
+	if (!copy_inputs(env, arrays, labels, 8, inputs, lengths)) {
 		goto cleanup;
 	}
 	out_secret = alloc_bytes(env, Q_PERIAPT_SECRET_LEN, "native secret allocation failed");
@@ -521,93 +456,20 @@ static void native_decapsulate(
 		goto cleanup;
 	}
 
-	int32_t rc = q_periapt_hybrid_decapsulate(
-			(uint8_t)profile,
-			suite_id,
-			suite_id_len,
-			(uint32_t)policy_version,
-			sk_pq,
-			sk_pq_len,
-			ct_pq,
-			ct_pq_len,
-			pk_pq,
-			pk_pq_len,
-			sk_trad,
-			sk_trad_len,
-			ct_trad,
-			ct_trad_len,
-			pk_trad,
-			pk_trad_len,
-			context,
-			context_len,
-			out_secret,
-			Q_PERIAPT_SECRET_LEN);
+    int32_t rc = q_periapt_decapsulate(
+			inputs[0], lengths[0], inputs[1], lengths[1], inputs[2], lengths[2],
+			inputs[3], lengths[3], inputs[4], lengths[4], inputs[5], lengths[5],
+			inputs[6], lengths[6], inputs[7], lengths[7],
+			out_secret, Q_PERIAPT_SECRET_LEN);
 	if (rc != Q_PERIAPT_OK) {
-		throw_qperiapt(env, "q_periapt_hybrid_decapsulate", rc);
+        throw_qperiapt(env, "q_periapt_decapsulate", rc);
 	} else {
 		(void)set_output(env, out_secret_array, out_secret, Q_PERIAPT_SECRET_LEN);
 	}
 
 cleanup:
-	secure_zero(suite_id, (size_t)suite_id_len);
-	secure_zero(sk_pq, (size_t)sk_pq_len);
-	secure_zero(ct_pq, (size_t)ct_pq_len);
-	secure_zero(pk_pq, (size_t)pk_pq_len);
-	secure_zero(sk_trad, (size_t)sk_trad_len);
-	secure_zero(ct_trad, (size_t)ct_trad_len);
-	secure_zero(pk_trad, (size_t)pk_trad_len);
-	secure_zero(context, (size_t)context_len);
+	wipe_free_inputs(inputs, lengths, 8);
 	secure_zero(out_secret, Q_PERIAPT_SECRET_LEN);
-	free(suite_id);
-	free(sk_pq);
-	free(ct_pq);
-	free(pk_pq);
-	free(sk_trad);
-	free(ct_trad);
-	free(pk_trad);
-	free(context);
-	free(out_secret);
-}
-
-static void native_combine(
-		JNIEnv *env,
-		jclass cls,
-		jbyte profile,
-		jbyteArray input_array,
-		jbyteArray out_secret_array) {
-	(void)cls;
-	if (!check_exact_array(env, out_secret_array, Q_PERIAPT_SECRET_LEN, "outSecret must not be null")) {
-		return;
-	}
-	uintptr_t input_len = 0;
-	uint8_t *input = NULL;
-	uint8_t *out_secret = NULL;
-
-	input = copy_input(env, input_array, &input_len, "input must not be null");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-	out_secret = alloc_bytes(env, Q_PERIAPT_SECRET_LEN, "native secret allocation failed");
-	if ((*env)->ExceptionCheck(env)) {
-		goto cleanup;
-	}
-
-	int32_t rc = q_periapt_combine(
-			(uint8_t)profile,
-			input,
-			input_len,
-			out_secret,
-			Q_PERIAPT_SECRET_LEN);
-	if (rc != Q_PERIAPT_OK) {
-		throw_qperiapt(env, "q_periapt_combine", rc);
-	} else {
-		(void)set_output(env, out_secret_array, out_secret, Q_PERIAPT_SECRET_LEN);
-	}
-
-cleanup:
-	secure_zero(input, (size_t)input_len);
-	secure_zero(out_secret, Q_PERIAPT_SECRET_LEN);
-	free(input);
 	free(out_secret);
 }
 
@@ -617,13 +479,10 @@ static JNINativeMethod QPERIAPT_METHODS[] = {
 	{"fixedSuiteIdNative", "()Ljava/lang/String;", (void *)native_fixed_suite_id},
 	{"fixedSuiteIdLenNative", "()J", (void *)native_fixed_suite_id_len},
 	{"statusNameNative", "(I)Ljava/lang/String;", (void *)native_status_name},
-	{"profileFromSignedPolicyNative", "([B[B[BI)B", (void *)native_profile_from_signed_policy},
-	{"mlkem768KeypairNative", "([B[B[B)V", (void *)native_mlkem768_keypair},
-	{"mlkem768XWingKeypairNative", "([B[B[B)V", (void *)native_mlkem768_xwing_keypair},
-	{"x25519KeypairNative", "([B[B[B)V", (void *)native_x25519_keypair},
-	{"encapsulateNative", "(B[BI[B[B[B[B[B[B[B[B)V", (void *)native_encapsulate},
-	{"decapsulateNative", "(B[BI[B[B[B[B[B[B[B[B)V", (void *)native_decapsulate},
-	{"combineNative", "(B[B[B)V", (void *)native_combine},
+	{"decisionFromSignedPolicyNative", "([B[B[B[B)[B", (void *)native_decision_from_signed_policy},
+    {"generateKeypairNative", "([B[B[B[B[B)V", (void *)native_generate_keypair},
+    {"encapsulateNative", "([B[B[B[B[B[B[B)V", (void *)native_encapsulate},
+    {"decapsulateNative", "([B[B[B[B[B[B[B[B[B)V", (void *)native_decapsulate},
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

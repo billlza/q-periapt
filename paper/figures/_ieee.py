@@ -10,6 +10,10 @@ mpl.rcParams.update({
     "font.family": "serif",
     "font.serif": ["Times New Roman", "STIXGeneral", "DejaVu Serif"],
     "mathtext.fontset": "stix",
+    # Matplotlib defaults to Type 3 glyphs in PDF output.  IEEE PDF eXpress and
+    # archival searchability require embedded outline fonts instead.
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
     "font.size": 8,
     "axes.labelsize": 8,
     "axes.titlesize": 8.5,

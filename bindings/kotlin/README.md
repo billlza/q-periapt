@@ -3,20 +3,26 @@
 Kotlin face of the PQ/T hybrid suite over the `q-periapt-ffi` C ABI, via the Foreign
 Function & Memory API (Project Panama, **JDK 22+**).
 
+This binding exposes a stateless ABI2 KEM/policy operation surface and no prekey, ratchet, session-store,
+multi-device, or recovery behavior. Its product tests cover signed policy/digest,
+OS-random round trips, context separation, fail-closed state transitions, and secret
+wipes rather than deterministic byte replay; none is session-protocol evidence. Future Continuity work is specified in
+[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+
 This is a host JVM binding, not the Android binding. Android apps should consume
 the AAR/JNI surface under [`../android`](../android/), built by
 `artifact/android-aar.sh`.
 
-> **Verified** ✅ — `gradle test` passes against the shared reference vector
-> (Kotlin → FFM → C ABI → Rust core, byte-for-byte) and covers a CompatXWing
-> seed-dk roundtrip. Gated in CI
-> (`bindings-kotlin`, JDK 22 + Gradle 9.2.1). Needs a JDK ≥22 (stable FFM).
+> **Current-machine verification pending** — `gradle test` exercises
+> signed-policy resolution, exact digest/state, OS-random key generation and
+> encapsulation, context-bound roundtrip, legacy-state/rollback/tamper rejection,
+> and secret wipe. It needs JDK 22+ (stable FFM); this machine currently has JDK 21.
 
 ## Build
 
 ```sh
 # 1. Build the native lib from the repo root:
-cargo build -p q-periapt-ffi --release      # -> target/release/libq_periapt_ffi.{so,dylib}
+cargo build -p q-periapt-ffi --release      # -> target/release/libq_periapt_ffi_abi2.{so,dylib}
 
 # 2. Run the Kotlin tests on a JDK >= 22:
 JAVA_HOME=/path/to/jdk22+ gradle -p bindings/kotlin test
@@ -31,22 +37,20 @@ cryptographic calls.
 ## Usage
 
 ```kotlin
-val (skPq, pkPq) = QPeriaptHybrid.mlkem768Keypair(seed64)
-val (skX,  pkX)  = QPeriaptHybrid.x25519Keypair(scalar32)
 require(QPeriaptHybrid.runtimeAbiVersion() == QPeriaptHybrid.ABI_VERSION)
 require(QPeriaptHybrid.fixedSuiteId().contentEquals("ML-KEM-768+X25519".encodeToByteArray()))
+val decision = QPeriaptHybrid.decisionFromSignedPolicy(
+    policyBytes, signature, pinnedVerificationKey, storedState)
+val keys = QPeriaptHybrid.generateKeypair(decision)
+val enc = QPeriaptHybrid.encapsulate(decision, keys.pkPq, keys.pkTrad, transcript)
 val secret = QPeriaptHybrid.decapsulate(
-    QPeriaptHybrid.PROFILE_CONTEXT_BOUND, suiteId, policyVersion = 1,
-    skPq, ctPq, pkPq, skX, ctX, pkX, context)
-
-val (xwingSkPq, xwingPkPq) = QPeriaptHybrid.mlkem768XWingKeypair(seed32)
-val xwingSecret = QPeriaptHybrid.decapsulate(
-    QPeriaptHybrid.PROFILE_COMPAT_XWING, suiteId, policyVersion = 1,
-    xwingSkPq, xwingCtPq, xwingPkPq, skX, xwingCtX, pkX, byteArrayOf())
+    decision, keys.skPq, enc.ctPq, keys.pkPq,
+    keys.skTrad, enc.ctTrad, keys.pkTrad, transcript)
+keys.wipeSecrets()
+enc.wipeSecret()
 ```
 
-Use `mlkem768Keypair(seed64)` for `ContextBound`'s expanded key path and
-`mlkem768XWingKeypair(seed32)` for `CompatXWing`; passing an expanded ML-KEM secret
-key to `CompatXWing` is rejected. The test (`src/test`) decapsulates
-`bindings/shared-test-vectors.json`, vector-checks encapsulation, and asserts the
-CompatXWing seed-dk roundtrip.
+ABI2 does not expose deterministic seeds/coins, raw hybrid, CompatXWing, or combine
+through the product FFM surface. Those remain Rust-internal KAT/conformance paths.
+The host must pin the policy verification key and must not treat missing/corrupt
+trusted-state storage as first enrollment.

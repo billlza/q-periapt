@@ -10,7 +10,7 @@
 # secret-dependent branch/index in the suite's composition code (ct_eq/ct_select32/combiner).
 set -eu
 
-REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+REPO_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 
 exec docker run --rm -v "$REPO_ROOT":/work:ro -w /work rust:slim sh -c '
   set -e

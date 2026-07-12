@@ -79,7 +79,8 @@ proptest! {
         prop_assert_eq!(secret(Profile::CompatXWing, &inp), Err(Error::InvalidLength));
     }
 
-    /// ContextBound requires a non-empty context (the MAL-BIND-K-CTX precondition).
+    /// ContextBound requires a non-empty context as an explicit-label profile rule;
+    /// fixed-width encoding injectivity itself does not require this guard.
     #[test]
     fn contextbound_rejects_empty_context(
         s in any::<[u8; 32]>(), v in prop::collection::vec(any::<u8>(), 0..100),
@@ -125,8 +126,8 @@ proptest! {
         );
     }
 
-    /// ContextBound binds the caller context: flipping a single bit of `context`
-    /// changes the derived key (the K-CTX guarantee).
+    /// ContextBound is byte-sensitive to caller context: flipping one bit changes
+    /// the derived key. This tests the local wrapper encoding, not context authentication.
     #[test]
     fn contextbound_binds_context(
         s in any::<[u8; 32]>(), ctx in prop::collection::vec(any::<u8>(), 1..40),

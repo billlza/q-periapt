@@ -1,11 +1,11 @@
-//! Production path: Q-Periapt's PQ/T hybrid KEM wired into rustls as a TLS 1.3
-//! key-exchange group, exposed via a [`CryptoProvider`].
+//! Production-stack integration demo: Q-Periapt's PQ/T hybrid KEM wired into rustls
+//! as a TLS 1.3 key-exchange group, exposed via a [`CryptoProvider`].
 //!
 //! Unlike the IANA-standard `X25519MLKEM768` group (which rustls ships, using the simple
 //! *concatenation* combiner of draft-ietf-tls-ecdhe-mlkem), this group runs Q-Periapt's own
 //! combiner — `ContextBound` (assumption-minimal injective binding) or `CompatXWing`
-//! (X-Wing byte-exact). It reuses [`q_periapt_kem::HybridKem`] verbatim, so the same audited,
-//! formally-analysed composition that the rest of the suite uses is what runs on the wire.
+//! (X-Wing byte-exact). It reuses [`q_periapt_kem::HybridKem`] verbatim, so the same
+//! composition covered by the suite's conformance and formal-model evidence runs on the wire.
 //!
 //! Group codes are in the TLS "private use" range (RFC 8446 §11), so this interoperates with
 //! another Q-Periapt endpoint, not with the standard group — it is a research deployment of
@@ -23,8 +23,9 @@ use q_periapt_backends::{
     MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_ENCAPS_RAND_LEN,
     ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
-use q_periapt_core::{Profile, SHARED_SECRET_LEN};
+use q_periapt_core::{Profile, ZeroizingBytes, SHARED_SECRET_LEN};
 use q_periapt_kem::HybridKem;
+use q_periapt_policy::{HybridSuite, PolicyResolutionError};
 
 const PQ_CLIENT_SHARE: usize = ML_KEM_768_PK_LEN; // 1184: ML-KEM encapsulation key
 const PQ_SERVER_SHARE: usize = ML_KEM_768_CT_LEN; // 1088: ML-KEM ciphertext
@@ -38,8 +39,10 @@ pub const Q_PERIAPT_CONTEXTBOUND: NamedGroup = NamedGroup::Unknown(0xFE01);
 pub const Q_PERIAPT_COMPATXWING: NamedGroup = NamedGroup::Unknown(0xFE02);
 
 const SUITE_ID: &[u8] = b"Q-PERIAPT-TLS/ML-KEM-768+X25519";
-const POLICY_VERSION: u32 = 1;
-// ContextBound requires a non-empty context; bind a fixed protocol label.
+const SUPPORTED_POLICY_VERSION: u32 = 1;
+// `SupportedKxGroup` cannot access the TLS transcript. This is a protocol-domain
+// label, not a per-session transcript commitment; the rustls key schedule binds
+// the transcript separately.
 const TLS_CONTEXT: &[u8] = b"q-periapt-tls/v1";
 
 /// A Q-Periapt hybrid key-exchange group (one combiner profile).
@@ -75,34 +78,26 @@ impl SupportedKxGroup for QPeriaptKxGroup {
 
     /// Client side: generate the ML-KEM + X25519 key pairs and stage the combined key share.
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
-        let mut seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
-        let mut scalar = [0u8; X25519_LEN];
-        // Wipe the keygen randomness on every exit path, including an RNG failure after `seed`
-        // has been filled (otherwise it would linger in the freed frame).
-        if let Err(e) = self
-            .rng
-            .fill(&mut seed)
-            .and_then(|()| self.rng.fill(&mut scalar))
-        {
-            q_periapt_core::secure_wipe(&mut seed);
-            q_periapt_core::secure_wipe(&mut scalar);
-            return Err(e.into());
-        }
+        let mut seed = ZeroizingBytes::<ML_KEM_768_KEYGEN_SEED_LEN>::zeroed();
+        let mut scalar = ZeroizingBytes::<X25519_LEN>::zeroed();
+        self.rng
+            .fill(seed.as_mut_bytes())
+            .and_then(|()| self.rng.fill(scalar.as_mut_bytes()))?;
         let (sk_pq, pk_pq) = match self.profile {
             Profile::ContextBound => {
-                let (sk, pk) = MlKem768::generate(seed);
+                let (sk, pk) = MlKem768::generate(*seed.as_bytes());
                 (sk.to_vec(), pk)
             }
             Profile::CompatXWing => {
-                let mut seed32 = [0u8; ML_KEM_768_XWING_SEED_LEN];
-                seed32.copy_from_slice(&seed[..ML_KEM_768_XWING_SEED_LEN]);
-                let (sk, pk) = MlKem768XWingSeed::generate(seed32);
+                let mut seed32 = ZeroizingBytes::<ML_KEM_768_XWING_SEED_LEN>::zeroed();
+                seed32
+                    .as_mut_bytes()
+                    .copy_from_slice(&seed.as_bytes()[..ML_KEM_768_XWING_SEED_LEN]);
+                let (sk, pk) = MlKem768XWingSeed::generate(*seed32.as_bytes());
                 (sk.to_vec(), pk)
             }
         };
-        let (sk_trad, pk_trad) = X25519::generate(scalar);
-        q_periapt_core::secure_wipe(&mut seed);
-        q_periapt_core::secure_wipe(&mut scalar);
+        let (sk_trad, pk_trad) = X25519::generate(*scalar.as_bytes());
 
         let mut pub_key = Vec::with_capacity(CLIENT_SHARE);
         pub_key.extend_from_slice(&pk_pq);
@@ -126,19 +121,11 @@ impl SupportedKxGroup for QPeriaptKxGroup {
         }
         let (pk_pq, pk_trad) = client_share.split_at(PQ_CLIENT_SHARE);
 
-        let mut rand_pq = [0u8; ML_KEM_768_ENCAPS_RAND_LEN];
-        let mut rand_trad = [0u8; X25519_LEN];
-        // Fill both coins as one fallible step; if the second fill fails after the first
-        // succeeded, wipe the already-filled rand_pq instead of leaking it on the `?`.
-        if let Err(e) = self
-            .rng
-            .fill(&mut rand_pq)
-            .and_then(|()| self.rng.fill(&mut rand_trad))
-        {
-            q_periapt_core::secure_wipe(&mut rand_pq);
-            q_periapt_core::secure_wipe(&mut rand_trad);
-            return Err(e.into());
-        }
+        let mut rand_pq = ZeroizingBytes::<ML_KEM_768_ENCAPS_RAND_LEN>::zeroed();
+        let mut rand_trad = ZeroizingBytes::<X25519_LEN>::zeroed();
+        self.rng
+            .fill(rand_pq.as_mut_bytes())
+            .and_then(|()| self.rng.fill(rand_trad.as_mut_bytes()))?;
 
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];
@@ -150,7 +137,7 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                 &X25519,
                 self.profile,
                 SUITE_ID,
-                POLICY_VERSION,
+                SUPPORTED_POLICY_VERSION,
             )
             .map_err(|_| Self::invalid_pairing())
             .and_then(|kem| {
@@ -158,8 +145,8 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                     pk_pq,
                     pk_trad,
                     self.context(),
-                    &rand_pq,
-                    &rand_trad,
+                    rand_pq.as_bytes(),
+                    rand_trad.as_bytes(),
                     &mut ct_pq,
                     &mut ct_trad,
                 )
@@ -170,7 +157,7 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                 &X25519,
                 self.profile,
                 SUITE_ID,
-                POLICY_VERSION,
+                SUPPORTED_POLICY_VERSION,
             )
             .map_err(|_| Self::invalid_pairing())
             .and_then(|kem| {
@@ -178,16 +165,14 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                     pk_pq,
                     pk_trad,
                     self.context(),
-                    &rand_pq,
-                    &rand_trad,
+                    rand_pq.as_bytes(),
+                    rand_trad.as_bytes(),
                     &mut ct_pq,
                     &mut ct_trad,
                 )
                 .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
             }),
         };
-        q_periapt_core::secure_wipe(&mut rand_pq);
-        q_periapt_core::secure_wipe(&mut rand_trad);
         let secret = result?;
 
         let mut pub_key = Vec::with_capacity(SERVER_SHARE);
@@ -250,7 +235,7 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
                     &X25519,
                     self.profile,
                     SUITE_ID,
-                    POLICY_VERSION,
+                    SUPPORTED_POLICY_VERSION,
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate(
@@ -269,7 +254,7 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
                     &X25519,
                     self.profile,
                     SUITE_ID,
-                    POLICY_VERSION,
+                    SUPPORTED_POLICY_VERSION,
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate(
@@ -322,14 +307,58 @@ pub fn provider() -> CryptoProvider {
     }
 }
 
-/// A [`CryptoProvider`] whose offered hybrid group is **chosen by `policy`** rather than a hard-coded
-/// constant: [`q_periapt_policy::Policy::select_profile`] picks ContextBound (when the policy requires
-/// it — e.g. an L5 / non-C2PRI posture) or the policy's default profile. This is the shipping path
-/// that lets the agility policy actually drive key-exchange selection (vs. a raw profile argument).
-#[must_use]
-pub fn provider_with_policy(policy: &q_periapt_policy::Policy) -> CryptoProvider {
+/// Error resolving a runtime policy onto this rustls provider's fixed wire groups.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ProviderPolicyError {
+    /// No suite implemented by this provider meets the policy floor/allow-list.
+    NoSupportedSuite,
+    /// This provider has only a statically defined v1 wire group. It refuses a
+    /// different policy content version instead of binding false agility metadata.
+    UnsupportedPolicyVersion,
+}
+
+impl fmt::Display for ProviderPolicyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoSupportedSuite => {
+                f.write_str("policy cannot be satisfied by the rustls ML-KEM-768 suite")
+            }
+            Self::UnsupportedPolicyVersion => {
+                f.write_str("policy version is not represented by this static rustls group")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ProviderPolicyError {}
+
+impl From<PolicyResolutionError> for ProviderPolicyError {
+    fn from(_: PolicyResolutionError) -> Self {
+        Self::NoSupportedSuite
+    }
+}
+
+/// Build a provider only when `policy` resolves atomically to the exact suite,
+/// profile, key representation, and policy version this static wire group runs.
+///
+/// This version implements ML-KEM-768 + X25519 only. L5/enhanced policies and
+/// newer policy versions fail closed; they are never silently mapped onto L3 or
+/// version 1. The rustls KX API supplies only a fixed protocol-domain context,
+/// so this path must not be described as per-session transcript K-CTX binding.
+/// `policy` is already parsed but is not cryptographically authenticated by this
+/// function; no signed-policy digest or monotonic state crosses this API. A caller
+/// making an authorization claim must authenticate the policy and own rollback
+/// state at a trusted boundary before invoking this parsed-policy selector.
+pub fn provider_with_policy(
+    policy: &q_periapt_policy::Policy,
+) -> Result<CryptoProvider, ProviderPolicyError> {
+    let decision = policy.resolve_suite(&[HybridSuite::MlKem768X25519])?;
+    if decision.policy_version() != SUPPORTED_POLICY_VERSION {
+        return Err(ProviderPolicyError::UnsupportedPolicyVersion);
+    }
     let base = rustls::crypto::ring::default_provider();
-    let want = match policy.select_profile() {
+    let want = match decision.profile() {
         Profile::ContextBound => Q_PERIAPT_CONTEXTBOUND,
         Profile::CompatXWing => Q_PERIAPT_COMPATXWING,
     };
@@ -337,10 +366,10 @@ pub fn provider_with_policy(policy: &q_periapt_policy::Policy) -> CryptoProvider
         .into_iter()
         .filter(|g| g.name() == want)
         .collect();
-    CryptoProvider {
+    Ok(CryptoProvider {
         kx_groups: kx,
         ..base
-    }
+    })
 }
 
 #[cfg(test)]
@@ -350,15 +379,44 @@ mod tests {
     use q_periapt_policy::Policy;
 
     #[test]
-    fn provider_with_policy_lets_the_policy_pick_the_kx_group() {
-        // The agility policy actually drives the offered group: enhanced (L5/HQC) -> ContextBound,
-        // default -> ContextBound. This is the shipping-path use of Policy::select_profile().
-        let enhanced = provider_with_policy(&Policy::enhanced());
-        assert_eq!(enhanced.kx_groups.len(), 1);
-        assert_eq!(enhanced.kx_groups[0].name(), Q_PERIAPT_CONTEXTBOUND);
-
-        let default = provider_with_policy(&Policy::default());
+    fn provider_with_policy_resolves_exact_suite_and_fails_closed() {
+        let default = provider_with_policy(&Policy::default()).unwrap();
         assert_eq!(default.kx_groups.len(), 1);
         assert_eq!(default.kx_groups[0].name(), Q_PERIAPT_CONTEXTBOUND);
+
+        let compat = Policy::from_toml(
+            "schema_version = 1\n\
+             policy_version = 1\n\
+             min_nist_level = 3\n\
+             default_profile = \"CompatXWing\"\n\
+             allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+             allowed_sigs = [\"ML-DSA-65\"]\n\
+             deprecated = []\n",
+        )
+        .unwrap();
+        let compat_provider = provider_with_policy(&compat).unwrap();
+        assert_eq!(compat_provider.kx_groups.len(), 1);
+        assert_eq!(compat_provider.kx_groups[0].name(), Q_PERIAPT_COMPATXWING);
+
+        assert_eq!(
+            provider_with_policy(&Policy::enhanced()).unwrap_err(),
+            ProviderPolicyError::NoSupportedSuite,
+            "an L5 policy must never run the fixed L3 group"
+        );
+
+        let version_two = Policy::from_toml(
+            "schema_version = 1\n\
+             policy_version = 2\n\
+             min_nist_level = 3\n\
+             default_profile = \"ContextBound\"\n\
+             allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+             allowed_sigs = [\"ML-DSA-65\"]\n\
+             deprecated = []\n",
+        )
+        .unwrap();
+        assert_eq!(
+            provider_with_policy(&version_two).unwrap_err(),
+            ProviderPolicyError::UnsupportedPolicyVersion
+        );
     }
 }

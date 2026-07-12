@@ -22,20 +22,18 @@ thumbv7em & bare-metal      & \y & by constr.$^\dagger$ & n/a \\
 \multicolumn{5}{@{}l}{\footnotesize $^\dagger$ cross-compiled; identity from FIPS-deterministic encodings + source.}
 \end{tabular}
 &
-% ---- (b) faces x OS ----
+% ---- (b) native product workflows ----
 \begin{tabular}[t]{@{}l c c c@{}}
-\multicolumn{4}{@{}l}{\textbf{(b) language face $\times$ OS} (shared vector $\to$ same $K$)}\\[2pt]
+\multicolumn{4}{@{}l}{\textbf{(b) native ABI~2 product workflow} (current source)}\\[2pt]
 \toprule
-\textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} \\
+\textbf{Face} & \textbf{host} & \textbf{device} & \textbf{status} \\
 \midrule
-Rust            & \y & \y & \y \\
-C ABI           & \y & \y & \y\,(MSVC) \\
-WASM (node)     & \y & \y & \y \\
-Swift           & \n & \y & \n \\
-Kotlin (JVM/FFM)& \y & \y & \n \\
+C ABI           & macOS & n/a & \y \\
+Swift           & macOS & iOS/iPadOS & \y\ (diag.) \\
+Kotlin (JVM/FFM)& JDK~22+ & n/a & pending \\
+Android/JNI     & macOS build & Android & pending \\
 \bottomrule
-\multicolumn{4}{@{}l}{\footnotesize \y\ verified (CI or local); \n\ not exercised.}\\
-\multicolumn{4}{@{}l}{\footnotesize }
+\multicolumn{4}{@{}p{78mm}@{}}{\footnotesize \y\ = verified; Swift/device is a current-source dirty diagnostic. Clean release provenance remains pending.}\\
 \end{tabular}
 \end{tabular}
 \end{document}

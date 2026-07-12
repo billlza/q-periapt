@@ -11,7 +11,16 @@ argument — a soundness bug in one tool is unlikely to be shared by the other. 
 complements the EasyCrypt proof in [`../easycrypt`](../easycrypt), which establishes the
 *combiner's* binding in the computational model.
 
-> **STATUS: MACHINE-CHECKED.** ✅ `make prove` verifies all five queries (ProVerif 2.05).
+This model is deliberately limited to the current four-flight demo handshake. It is
+not PQXDH, SPQR/Triple Ratchet, ML-KEM Braid, Sesame, PQ3, or a persistent session
+state machine, and it proves nothing about prekey consumption, multi-device
+convergence, crash consistency, rollback, or compromise-timed PQ healing. The
+future-only Continuity verification gates are in
+[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+The test-only lifecycle model under `models/` is not a ProVerif protocol model and
+does not extend any query in this directory.
+
+> **STATUS: MACHINE-CHECKED.** ✅ `make prove` verifies all six queries (ProVerif 2.05).
 
 ## File: [`handshake.pv`](handshake.pv)
 
@@ -61,7 +70,8 @@ pinned `vk`, key-confirmation check) is one-to-one.
 | Query | Mirrors (Tamarin) | Meaning |
 |-------|-------------------|---------|
 | reachability of `ClientFinish` | `executable` | the honest handshake can complete (sanity — ProVerif reports `not event(ClientFinish) is false`, i.e. the event is reachable) |
-| `inj-event(ClientFinish) ==> inj-event(ServerDone) ∥ RevealSig` | `server_authentication` | **injective** agreement: a client that finishes ⟹ a distinct prior server run over the same `(secret, transcript)` (no replay), unless the signing key was revealed |
+| `inj-event(ClientFinish) ==> inj-event(ServerDone) ∥ RevealSig` | `server_authentication` | **injective** agreement: a client that finishes ⟹ a distinct prior server run over the same `(secret, transcript, context)` (no replay), unless the signing key was revealed |
+| `ClientFinish(vk,k,tr,ctx) ==> ServerDone(vk,k,tr,ctx) ∥ RevealSig` | `authenticated_context_agreement` | absent signing-key compromise, the client accepts exactly the context previously committed by the server for the same key and authenticated transcript |
 | `ClientFinish ∧ attacker(k) ==> (RevealPQ ∧ RevealTrad) ∥ RevealSig` | `hybrid_secrecy` | the accepted session key is secret unless **both** KEM components are broken **or** the signing key was revealed |
 | `ClientFinish ∧ attacker(k) ==> RevealTrad ∥ RevealSig` | `hybrid_robustness_authenticated` (corner a) | a **lone post-quantum break is survived**: leaking the key needs the classical leg broken too (or the signature) |
 | `ClientFinish ∧ attacker(k) ==> RevealPQ ∥ RevealSig` | `hybrid_robustness_authenticated` (corner b) | a **lone classical break is survived**: leaking the key needs the post-quantum leg broken too (or the signature) |
@@ -76,7 +86,7 @@ the plain secrecy disjunction.
 ## Run
 
 ```sh
-make prove      # prove all five queries
+make prove      # prove all six queries and match every expected RESULT individually
 make check      # syntax/typing check only (fast, `-test`)
 ```
 

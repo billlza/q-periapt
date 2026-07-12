@@ -4,25 +4,27 @@
 
 //! # q-periapt-kem
 //!
-//! The PQ/T hybrid KEM: a post-quantum component (ML-KEM-768, HQC backup) and a
-//! traditional component (X25519) combined into one IND-CCA2-aware shared secret
-//! via [`q_periapt_core::combine`].
+//! A generic PQ/T hybrid KEM: one post-quantum component and one traditional
+//! component combined into one IND-CCA2-aware shared secret via
+//! [`q_periapt_core::combine`].
 //!
 //! This crate is generic over the two [`Kem`] backends and the [`Xof256`] used
-//! by the combiner, so the same logic runs against any vetted primitive
-//! implementation. Concrete backends (libcrux ML-KEM, x25519-dalek, sha3,
-//! pqcrypto HQC) are wired in behind cargo features — tracked in `docs/ROADMAP.md`.
+//! by the combiner, so the same logic runs against any compatible primitive
+//! implementation. Concrete release-graph backends are wired in
+//! `q-periapt-backends` and tracked in `docs/ROADMAP.md`; isolated research
+//! candidates do not acquire a suite code or ABI merely by implementing [`Kem`].
 //!
 //! ## Safety invariant (`CompatXWing` backend guard)
-//! [`Profile::CompatXWing`] omits the PQ ciphertext from the KDF; that is sound
-//! **only** when the PQ backend is explicitly [`Kem::COMPAT_XWING_SAFE`]. [`HybridKem::new`]
-//! enforces this: raw/imported-key or non-C2PRI PQ KEMs (e.g. expanded ML-KEM, HQC)
+//! [`Profile::CompatXWing`] omits the first (`P`, conventionally PQ) component's
+//! ciphertext and public key from the KDF; that is sound **only** when that backend
+//! is both [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`]. [`HybridKem::new`] enforces
+//! both independent capabilities: raw/imported-key or non-C2PRI first-slot KEMs
 //! are rejected with [`Error::PolicyDenied`]. Those components must use
 //! [`Profile::ContextBound`], which binds every ciphertext and public key.
 
 use core::marker::PhantomData;
 use q_periapt_core::{
-    combine, secure_wipe, CombineInput, Error, Kem, Profile, Secret, Xof256, SHARED_SECRET_LEN,
+    combine, CombineInput, Error, Kem, Profile, Secret, Xof256, ZeroizingBytes, SHARED_SECRET_LEN,
 };
 
 /// A PQ/T hybrid KEM binding a post-quantum and a traditional component.
@@ -41,7 +43,8 @@ pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
 
 impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// Build a hybrid KEM. Returns [`Error::PolicyDenied`] if `profile` is
-    /// [`Profile::CompatXWing`] but the PQ backend is not [`Kem::COMPAT_XWING_SAFE`].
+    /// [`Profile::CompatXWing`] but the first-slot backend is not both
+    /// [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`].
     pub fn new(
         pq: &'a P,
         trad: &'a T,
@@ -49,9 +52,10 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         suite_id: &'a [u8],
         policy_version: u32,
     ) -> Result<Self, Error> {
-        if matches!(profile, Profile::CompatXWing) && !P::COMPAT_XWING_SAFE {
-            // The fast profile omits the PQ ciphertext/public key; only a backend whose
-            // exposed key format preserves X-Wing's self-binding precondition may use it.
+        if matches!(profile, Profile::CompatXWing) && (!P::C2PRI || !P::COMPAT_XWING_SAFE) {
+            // The fast profile omits the first-slot ciphertext/public key. Primitive
+            // C2PRI and an X-Wing-safe exposed key format are separate load-bearing
+            // requirements, so contradictory third-party capability declarations fail closed.
             return Err(Error::PolicyDenied);
         }
         Ok(Self {
@@ -78,10 +82,10 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// the combined hybrid shared secret. `context` is bound only under
     /// [`Profile::ContextBound`].
     ///
-    /// The component (ML-KEM and X25519) shared secrets never cross the API boundary:
-    /// they are held in internal scratch and securely wiped before return, since each
-    /// is attack-sufficient (the combined key is a deterministic hash of them) and only
-    /// the returned [`Secret`] — which carries its own zeroizing `Drop` — is wanted.
+    /// Component secrets never cross this composition API boundary. The
+    /// composition-owned output scratch buffers have zeroizing `Drop`; backend-internal
+    /// copies remain backend-managed (see `docs/THREAT_MODEL.md`). Only the returned
+    /// [`Secret`] is intentionally exposed by this layer.
     #[allow(clippy::too_many_arguments)]
     pub fn encapsulate(
         &self,
@@ -93,35 +97,29 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         ct_pq: &mut [u8],
         ct_trad: &mut [u8],
     ) -> Result<Secret, Error> {
-        let mut ss_pq = [0u8; SHARED_SECRET_LEN];
-        let mut ss_trad = [0u8; SHARED_SECRET_LEN];
-        // Run the fallible body, then wipe BOTH component secrets on every exit path. The
-        // second backend's `?` (or a combiner error) early-returns *after* `ss_pq` already
-        // holds a live ML-KEM secret; that error is a public length condition reachable from
-        // the FFI/WASM faces with caller-controlled buffer lengths, so the wipe must not be
-        // skipped. (Wiping the unconditional way also covers the first-backend error path.)
-        let out = (|| -> Result<Secret, Error> {
-            self.pq.encapsulate(pk_pq, rand_pq, ct_pq, &mut ss_pq)?;
-            self.trad
-                .encapsulate(pk_trad, rand_trad, ct_trad, &mut ss_trad)?;
-            combine::<X>(
-                self.profile,
-                &CombineInput {
-                    suite_id: self.suite_id,
-                    policy_version: self.policy_version,
-                    ss_pq: &ss_pq,
-                    ss_trad: &ss_trad,
-                    ct_pq,
-                    pk_pq,
-                    ct_trad,
-                    pk_trad,
-                    context,
-                },
-            )
-        })();
-        secure_wipe(&mut ss_pq);
-        secure_wipe(&mut ss_trad);
-        out
+        let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+        let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+        // Drop-based ownership wipes both component secrets on success, Result
+        // errors, and panic unwinding. In particular, a second-backend failure
+        // cannot bypass cleanup after the first backend filled `ss_pq`.
+        self.pq
+            .encapsulate(pk_pq, rand_pq, ct_pq, ss_pq.as_mut_bytes())?;
+        self.trad
+            .encapsulate(pk_trad, rand_trad, ct_trad, ss_trad.as_mut_bytes())?;
+        combine::<X>(
+            self.profile,
+            &CombineInput {
+                suite_id: self.suite_id,
+                policy_version: self.policy_version,
+                ss_pq: ss_pq.as_bytes(),
+                ss_trad: ss_trad.as_bytes(),
+                ct_pq,
+                pk_pq,
+                ct_trad,
+                pk_trad,
+                context,
+            },
+        )
     }
 
     /// Decapsulate both ciphertexts and recompute the combined hybrid secret.
@@ -144,31 +142,25 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         pk_trad: &[u8],
         context: &[u8],
     ) -> Result<Secret, Error> {
-        let mut ss_pq = [0u8; SHARED_SECRET_LEN];
-        let mut ss_trad = [0u8; SHARED_SECRET_LEN];
-        // Wipe both component secrets on every exit path (see `encapsulate`): a public
-        // length error from the second backend must not leave a live ML-KEM secret behind.
-        let out = (|| -> Result<Secret, Error> {
-            self.pq.decapsulate(sk_pq, ct_pq, &mut ss_pq)?;
-            self.trad.decapsulate(sk_trad, ct_trad, &mut ss_trad)?;
-            combine::<X>(
-                self.profile,
-                &CombineInput {
-                    suite_id: self.suite_id,
-                    policy_version: self.policy_version,
-                    ss_pq: &ss_pq,
-                    ss_trad: &ss_trad,
-                    ct_pq,
-                    pk_pq,
-                    ct_trad,
-                    pk_trad,
-                    context,
-                },
-            )
-        })();
-        secure_wipe(&mut ss_pq);
-        secure_wipe(&mut ss_trad);
-        out
+        let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+        let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+        self.pq.decapsulate(sk_pq, ct_pq, ss_pq.as_mut_bytes())?;
+        self.trad
+            .decapsulate(sk_trad, ct_trad, ss_trad.as_mut_bytes())?;
+        combine::<X>(
+            self.profile,
+            &CombineInput {
+                suite_id: self.suite_id,
+                policy_version: self.policy_version,
+                ss_pq: ss_pq.as_bytes(),
+                ss_trad: ss_trad.as_bytes(),
+                ct_pq,
+                pk_pq,
+                ct_trad,
+                pk_trad,
+                context,
+            },
+        )
     }
 }
 
@@ -232,11 +224,14 @@ mod tests {
         }
     }
 
-    /// Non-C2PRI toy KEM (default `C2PRI = false`), like an HQC stand-in.
-    struct ToyKemWeak;
-    impl Kem for ToyKemWeak {
+    /// Capability-matrix backend for construction-time guard regression tests.
+    struct CapabilityKem<const C2PRI: bool, const SAFE: bool>;
+    impl<const C2PRI: bool, const SAFE: bool> Kem for CapabilityKem<C2PRI, SAFE> {
+        const C2PRI: bool = C2PRI;
+        const COMPAT_XWING_SAFE: bool = SAFE;
+
         fn algorithm(&self) -> &'static str {
-            "TOY-WEAK"
+            "TOY-CAPABILITY"
         }
         fn encapsulate(
             &self,
@@ -310,9 +305,9 @@ mod tests {
 
     /// Regression for the wipe-on-error contract: when the PQ backend succeeds (leaving a
     /// live `ss_pq`) and the trad backend then errors, the error must propagate — and the
-    /// fix makes the `secure_wipe` of both component secrets unconditional, so no live
-    /// secret survives this path (which is reachable from the FFI/WASM faces via a valid
-    /// PQ input plus a wrong-length trad input).
+    /// Drop-owned component buffers still clean both secrets, so no live owned scratch
+    /// survives this path (which is reachable from the FFI/WASM faces via a valid PQ input
+    /// plus a wrong-length trad input).
     #[test]
     fn second_backend_error_propagates_on_both_directions() {
         let pq = ToyKem("TOY-PQ");
@@ -337,14 +332,46 @@ mod tests {
     }
 
     #[test]
-    fn c2pri_guard_rejects_weak_kem_in_fast_profile() {
-        let weak = ToyKemWeak;
+    fn compat_guard_requires_both_c2pri_and_safe_capabilities() {
         let trad = ToyKem("TOY-TRAD");
-        // Non-C2PRI PQ KEM + fast profile MUST be rejected.
-        let res = HybridKem::<_, _, ToyXof>::new(&weak, &trad, Profile::CompatXWing, b"S", 1);
-        assert!(matches!(res.err(), Some(Error::PolicyDenied)));
-        // ...but the same weak KEM is fine under the context-bound profile.
-        let ok = HybridKem::<_, _, ToyXof>::new(&weak, &trad, Profile::ContextBound, b"S", 1);
-        assert!(ok.is_ok());
+        let neither = CapabilityKem::<false, false>;
+        let c2pri_only = CapabilityKem::<true, false>;
+        let safe_without_c2pri = CapabilityKem::<false, true>;
+        let both = CapabilityKem::<true, true>;
+
+        assert!(matches!(
+            HybridKem::<_, _, ToyXof>::new(&neither, &trad, Profile::CompatXWing, b"S", 1,).err(),
+            Some(Error::PolicyDenied)
+        ));
+        assert!(matches!(
+            HybridKem::<_, _, ToyXof>::new(&c2pri_only, &trad, Profile::CompatXWing, b"S", 1,)
+                .err(),
+            Some(Error::PolicyDenied)
+        ));
+        assert!(matches!(
+            HybridKem::<_, _, ToyXof>::new(
+                &safe_without_c2pri,
+                &trad,
+                Profile::CompatXWing,
+                b"S",
+                1,
+            )
+            .err(),
+            Some(Error::PolicyDenied)
+        ));
+        assert!(
+            HybridKem::<_, _, ToyXof>::new(&both, &trad, Profile::CompatXWing, b"S", 1,).is_ok()
+        );
+
+        // ContextBound binds the omitted fields directly and therefore does not
+        // require either fast-profile capability.
+        assert!(HybridKem::<_, _, ToyXof>::new(
+            &safe_without_c2pri,
+            &trad,
+            Profile::ContextBound,
+            b"S",
+            1,
+        )
+        .is_ok());
     }
 }

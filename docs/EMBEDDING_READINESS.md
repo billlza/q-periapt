@@ -3,6 +3,18 @@
 This note is the current integration contract for downstream projects such as SkyBridge. It is
 deliberately stricter than a README quickstart and narrower than a product release promise.
 
+It covers the implemented KEM/policy/binding faces only. It does not establish
+identity-directory, prekey, ratchet, multi-device, recovery, or key-transparency
+readiness. The future Q-Periapt Continuity plan is separate
+([`CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md)). Its `publish = false`
+lifecycle model now checks trusted pairwise session/current-context admission and
+preserves that authority across abstract reconstruction. It deliberately has no
+context-advance API. It is not a product dependency,
+does not authenticate its trusted genesis or authorize its caller-selected provider profile, and
+proves no deployed protocol behavior; until a
+real session crate and its own gates exist, this embedding command cannot be used as
+a PQ3/Signal-parity claim.
+
 ## Current Gate
 
 Run from the repository root:
@@ -22,25 +34,28 @@ packaging behavior only, not release provenance.
 The optional Apple device matrix also requires a clean worktree for release proof. During local
 hardware diagnostics on an in-progress tree, set `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE=1` when
 generating proof and `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1` when reverifying it; that mode is
-diagnostic only.
+diagnostic only. Matrix schema v3 fixes the release requirement to distinct physical iPad and
+iPhone entries; callers cannot weaken it to a single-device subset.
 
 The gate fails closed and checks:
 
 - locked Cargo metadata;
+- isolated CPython 3.11+ dispatch for every live-worktree proof/package/device Python invocation, with
+  user-site/`.pth`, caller `PYTHON*`, adjacent bytecode-cache, and Git-exclude hiding rejected;
 - `cargo fmt --all --check`;
 - `cargo clippy --workspace --all-targets -- -D warnings`;
 - `cargo test --workspace --locked`;
-- optional SLH-DSA/HQC backend tests;
+- optional SLH-DSA backend tests;
 - release `q-periapt-ffi` build;
 - generated C header freshness against both `crates/q-periapt-ffi/include/q_periapt.h` and
   `bindings/swift/Sources/CQPeriapt/q_periapt.h`;
 - C ABI link-and-run smoke;
 - host C ABI release archive smoke through extracted dynamic/static pkg-config and CMake consumers,
   plus archive license text and CycloneDX CBOM/SBOM validation;
-- Swift XCTest execution with the expected seven passing tests;
+- Swift XCTest execution with the expected two passing ABI2 product tests;
 - Swift XCFramework/binaryTarget pre-publication gate: universal macOS static slice, iOS device
   slice, iOS simulator slice, SwiftPM checksum, zip/path-safety checks, and an isolated binary
-  consumer that executes the same expected seven passing tests without `../../target/release`
+  consumer that executes three isolated ABI2 product checks without `../../target/release`
   linker flags;
 - Android AAR/JNI pre-publication gate: four Rust Android `q-periapt-ffi` cdylib ABI slices
   (`arm64-v8a`, `x86_64`, `armeabi-v7a`, `x86`), JNI shim slices, `JNI_OnLoad`/`RegisterNatives`
@@ -110,11 +125,17 @@ bundles, UDIDs, or adb serials.
 | Face | Status | Boundary |
 |---|---|---|
 | Rust | Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io publish allow/deny list, package file lists, and patched `cargo publish --dry-run` for every publishable crate. | Crates are not uploaded; first public release still requires a clean tree, registry publish order, and release provenance for the actual crates.io versions. |
-| C ABI | Release cdylib/staticlib builds; generated header is freshness-checked; runtime ABI/version/suite metadata is exposed; C smoke links and runs; `artifact/c-package.sh` creates a host archive and verifies extracted dynamic/static pkg-config plus CMake consumers, project license texts, and CycloneDX CBOM/SBOM. | Host archive proof is now present, but multi-target release publishing, Windows archive shape, full third-party dependency license inventory, and install docs still need hardening before being liboqs-like. |
-| Swift | SwiftPM tests pass on macOS; `artifact/swift-xcframework.sh` builds and verifies a SwiftPM `binaryTarget` XCFramework through an isolated consumer; physical iPad+iPhone runner links the iOS staticlib and emits run-bound `QPERIAPT_DEVICE_PASS` when rerun against the current source tree. | The XCFramework gate is still pre-publication: no public URL/checksum release has been uploaded, and dirty diagnostic runs are not clean release proof. Raw device proof artifacts stay local and must not be published as release artifacts. |
-| Android | `artifact/android-aar.sh` builds a deterministic AAR from the Rust C ABI plus a JNI shim, checks all four ABI slices, audits archive paths, dexes the Java facade, and compiles an isolated consumer. `artifact/android-device-smoke.sh` then installs a temporary APK on ART and runs the same metadata, shared-vector, combiner, CompatXWing, signed-policy rollback/tamper, and fail-closed negative checks through the Android Java facade. | The current runtime proof is local emulator evidence, not a clean public release artifact. Product readiness still needs a clean-tree Android runtime proof, a CI emulator policy or documented physical-device lane, and downstream SkyBridge target-level harnesses. |
-| Kotlin | JVM/Panama FFM tests pass on JDK 22+; the wrapper requires `-Dqperiapt.lib` to name an absolute native library path and validates ABI/suite metadata on init. | This is host JVM only; it is intentionally separate from the Android AAR/JNI surface. |
-| WASM | Node `wasm-pack` tests pass and expose version/fixed-suite metadata. | Browser/package publishing is not yet a release contract. |
+| C ABI | Package `0.1.0-alpha.1` now has a frozen machine-readable ABI2 authority: nine exact product exports, status/constants, 40/36-byte layouts, forbidden raw/deterministic symbols, ABI-major header guard and platform identities. The host C product smoke proves signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | Public release remains blocked until the ABI2 C archive passes on every supported platform, release-index semantics bind every face, dependency audit is warning-clean, and clean signed provenance exists. Windows archive proof, full third-party license inventory and public install docs remain open. |
+| Swift | Current SwiftPM ABI2 product tests and a source-bound dirty single-iPad install/launch/private-container-result diagnostic pass; the five-slice XCFramework isolated consumer passes on its recorded source. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | The paired iPad+iPhone proof still predates the current source. A fresh paired clean run, public URL/checksum, and clean provenance remain required. |
+| Android | The four-ABI AAR uses ABI-major FFI/JNI names and the same nine-symbol native product workflow; export/SONAME/DT_NEEDED checks, Java/JNI warnings-as-errors, dex, signing and isolated consumer pass. | Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
+| Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path. | JDK 22+ test verification is pending on this machine (only JDK 21 is installed); this is host JVM only and separate from Android. |
+| WASM | Deterministic Node/WASM conformance tests and version/fixed-suite metadata remain. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
+
+The retired PQClean-HQC adapter is absent from every package above. Numeric suite code
+`3` is a fail-closed tombstone, while `research/hqc-fips207-candidate` is a standalone
+`publish = false` shadow with no ABI/package identity. The same source change invalidated
+all earlier matched-performance proofs; no fresh controlled-host proof exists yet. ABI 2 remains unpublished, and the unsuppressed
+upstream `proc-macro-error2` advisory through libcrux/hax is still a hard release blocker.
 
 ## Apple Device Matrix
 
@@ -122,40 +143,56 @@ The full Apple family matrix means iPad plus iPhone, not just one attached devic
 proof is source-bound, artifact-bound, run-bound, and device-family-bound:
 
 - source hashes include the Apple proof scripts, Swift binding files, shared vectors, signed-policy
-  vectors, and the Rust workspace build-input tree;
+  vectors, named Rust workspace sources, and the canonical source-input digest after fixed
+  generated-prefix exclusions;
 - the proof records the git commit and whether the source tree was dirty when the proof was
   generated; release verification rejects dirty proof and a dirty current tree by default;
 - app executable and iOS staticlib hashes are recorded and rechecked;
+- clean provenance uses a fixed Git environment, rejects hidden index flags, and compares
+  HEAD/index to actual tracked bytes and executable modes rather than trusting `git status`;
 - each launch must copy back a result file from the app data container containing exactly one
   `QPERIAPT_DEVICE_PASS run-id=<32 hex chars>` marker;
 - simulator output is never accepted;
 - verification rejects stale proofs, proof inputs outside `artifact/device-runs`, and app/staticlib
   artifact paths outside the repository `target/` tree.
 
-The current local Xcode 27 beta matrix proof recorded in `artifact/results.json` is
-`artifact/device-runs/xcode27-matrix-20260709T195437Z-c5fe98b3/apple-device-matrix-proof.json`.
-It covers one physical iPad and one physical iPhone, and `artifact/proof-to-byte.sh` reverified it
-with `QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX=1` during the same Xcode 27 gate run. That run is dirty
-diagnostic evidence (`source_tree_dirty=true`), not clean release provenance. It becomes historical
-evidence as soon as any source-bound proof input changes; the gate rejects stale proof until the
-matrix is rerun against the current tree. Proofs generated before the git/dirty provenance fields
-were added are historical only and must be rerun before being used with the current verifier. The
-raw run directory is ignored by git because it contains local signing/profile/device metadata and
-should not be uploaded as a public release artifact.
+The active local device proof is identified by `artifact/results.json`; reviewers must supply its
+run directory through `QPERIAPT_DEVICE_RESULT_DIR` and let `artifact/proof-to-byte.sh` reverify the
+declared single-device or matrix mode. A proof is current only when its schema, selected input
+hashes, canonical source digest, recomputed device commitment, single-snapshot child artifact
+hashes, age, and dirty/clean policy all pass the live
+verifier. Time-varying single-device and matrix currentness lives only in
+`artifact/results.json`; this source document does not promote a named run. A dirty proof
+(`source_tree_dirty=true`) is diagnostic evidence, not clean release provenance. Historical
+iPad+iPhone matrix files remain historical whenever their schema or source digest differs; a current
+matrix requires both physical lanes to be rerun at one accepted source snapshot. Any source-bound change immediately makes a
+proof historical; legacy schema proofs and previously named run directories must not be described
+as current merely because their files still exist. The raw run directory is ignored by
+git because it contains local signing/profile/device metadata and should not be uploaded as a public
+release artifact.
 
 ## Remaining Work Before Product Embedding
 
 - Publishable Rust crate surface: actual crates.io upload sequence and release provenance. The local
   contract exists, but a dirty diagnostic run is not release proof and dependency crates still need
   registry-order publication.
-- C ABI product surface: multi-target release publishing, Windows archive shape, full third-party
-  dependency license inventory, and install docs.
+- C ABI product surface: finish and verify `.so.2`, `.2.dylib`, ABI-major Windows,
+  exact CMake/pkg-config, manifest/index semantics and platform compatibility negatives.
+  ABI1 uses a deliberate hard cut—four-byte state is rejected and requires explicit
+  host-authorized re-enrollment/reset, not an unverifiable synthetic migration. Then
+  complete multi-target publishing, dependency license inventory and install docs.
 - Swift product surface: publish the generated XCFramework package from a clean tree with public
   URL/checksum/provenance, and rerun the physical iPad+iPhone matrix against that same source state.
-- Android product surface: promote the runtime smoke from local diagnostic proof to clean release
+- Android product surface: replace the historical, stale, pre-ABI2 emulator ART
+  diagnostic with a current ABI2 runtime smoke, then promote it to clean release
   provenance, decide whether CI requires an emulator lane or whether physical Android devices are
-  the release gate, and add downstream SkyBridge target-level harnesses. The AAR/JNI package proof
-  and local ART runtime proof now exist.
+  the release gate, and add downstream SkyBridge target-level harnesses. The current
+  AAR/JNI package proof exists; no current-source ABI2 ART proof exists yet.
 - Downstream SkyBridge harness: one minimal integration test per target repository using the same
   shared vectors and policy files, so Q-Periapt proof does not get mistaken for downstream product
   proof.
+- Stateful channel work, if selected: finish G1 beyond the current non-normative lifecycle model,
+  then implement the reference and Continuity session lanes, formal state/storage models,
+  model-to-Rust linkage, transactional persistence, and physical two-endpoint latency/energy/healing
+  gates. This is a separate product and research milestone, not a missing packaging checkbox for
+  the current library.

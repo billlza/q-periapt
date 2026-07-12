@@ -6,19 +6,27 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
-import json
 import pathlib
 import re
-import subprocess
 import sys
 import zipfile
 from typing import Any
 
+from claim_ledger import LedgerError, canonical_tree_digest, repository_paths
+from evidence_io import EvidenceIOError, load_json_object_snapshot
+from git_provenance import (
+    GitProvenanceError,
+    git_commit as provenance_git_commit,
+    source_tree_dirty as provenance_source_tree_dirty,
+)
 
-SCHEMA_VERSION = 1
+
+PROOF_SCHEMA_VERSION = 2
+RESULT_SCHEMA_VERSION = 1
 PASS_MARKER = "QPERIAPT_ANDROID_DEVICE_PASS"
 FAIL_MARKER = "QPERIAPT_ANDROID_DEVICE_FAIL"
 RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MAX_ANDROID_PROOF_AGE_SECONDS = 7 * 24 * 60 * 60
 
 EXPECTED_TESTS = [
@@ -28,7 +36,7 @@ EXPECTED_TESTS = [
     "sharedVectorEncapsulates",
     "contextBoundRejectsEmptyContext",
     "compatXWingSeedKeypairRoundtrip",
-    "signedPolicySelectsProfileAndRejectsRollbackAndTamper",
+    "signedPolicyResolvesDecisionAndRejectsRollbackAndTamper",
     "uint32ScalarsRejectNegativeAndOverflow",
 ]
 
@@ -87,11 +95,9 @@ def sha256_file(path: pathlib.Path) -> str:
 
 def load_json(path: pathlib.Path) -> dict[str, Any]:
     try:
-        value = json.loads(read_text(path))
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f"error: cannot parse JSON {path}: {exc}") from exc
-    require(isinstance(value, dict), f"JSON root is not an object: {path}")
-    return value
+        return load_json_object_snapshot(path, label=f"Android JSON {path}").value
+    except EvidenceIOError as exc:
+        raise SystemExit(f"error: {exc}") from exc
 
 
 def require_under(path: pathlib.Path, base: pathlib.Path, label: str) -> None:
@@ -101,25 +107,47 @@ def require_under(path: pathlib.Path, base: pathlib.Path, label: str) -> None:
         raise SystemExit(f"error: {label} must be under {base}: {path}") from None
 
 
-def run_git(root: pathlib.Path, *args: str) -> str:
-    try:
-        return subprocess.check_output(
-            ["git", "-C", str(root), *args],
-            text=True,
-            stderr=subprocess.STDOUT,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise SystemExit(f"error: cannot run git {' '.join(args)}: {exc}") from exc
-
-
 def git_commit(root: pathlib.Path) -> str:
-    commit = run_git(root, "rev-parse", "HEAD")
-    require(re.fullmatch(r"[0-9a-f]{40,64}", commit) is not None, f"malformed git commit: {commit}")
-    return commit
+    try:
+        return provenance_git_commit(root)
+    except GitProvenanceError as exc:
+        raise SystemExit(f"error: cannot inspect git commit: {exc}") from exc
 
 
 def source_tree_dirty(root: pathlib.Path) -> bool:
-    return bool(run_git(root, "status", "--porcelain=v1", "--untracked-files=all"))
+    try:
+        return provenance_source_tree_dirty(root)
+    except GitProvenanceError as exc:
+        raise SystemExit(f"error: cannot inspect git worktree: {exc}") from exc
+
+
+def verify_proof_schema(proof: dict[str, Any]) -> None:
+    require(
+        proof.get("schema") == PROOF_SCHEMA_VERSION,
+        f"Android proof schema must be {PROOF_SCHEMA_VERSION}",
+    )
+
+
+def current_source_tree_digest(root: pathlib.Path) -> str:
+    """Return the exact canonical digest used by the claim-ledger gate."""
+
+    try:
+        return canonical_tree_digest(root, repository_paths(root))
+    except (LedgerError, OSError, UnicodeDecodeError) as exc:
+        raise SystemExit(f"error: cannot compute canonical source-input digest: {exc}") from exc
+
+
+def verify_source_tree_digest(root: pathlib.Path, proof: dict[str, Any]) -> None:
+    expected = proof.get("proof_source_tree_sha256")
+    require(
+        isinstance(expected, str) and SHA256_RE.fullmatch(expected) is not None,
+        "Android proof lacks a valid proof_source_tree_sha256",
+    )
+    actual = current_source_tree_digest(root)
+    require(
+        expected == actual,
+        f"canonical source-input tree changed since Android proof: got {actual}, expected {expected}",
+    )
 
 
 def verify_git_provenance(root: pathlib.Path, proof: dict[str, Any], allow_dirty_proof: bool) -> None:
@@ -188,7 +216,7 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
     require(marker_text == marker + "\n", f"Android result marker mismatch in {paths['result_txt']}")
 
     result = load_json(paths["result_json"])
-    require(result.get("schema") == SCHEMA_VERSION, "Android result schema mismatch")
+    require(result.get("schema") == RESULT_SCHEMA_VERSION, "Android result schema mismatch")
     require(result.get("status") == "pass", "Android result status is not pass")
     require(result.get("run_id") == run_id, "Android result run_id mismatch")
     require(result.get("test_count") == len(EXPECTED_TESTS), "Android result test_count mismatch")
@@ -230,8 +258,8 @@ def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) 
         expected = native.get(abi)
         require(isinstance(expected, dict), f"proof lacks native hashes for {abi}")
         with zipfile.ZipFile(paths["aar"]) as zf:
-            ffi = sha256_bytes(zf.read(f"jni/{abi}/libq_periapt_ffi.so"))
-            jni = sha256_bytes(zf.read(f"jni/{abi}/libqperiapt_jni.so"))
+            ffi = sha256_bytes(zf.read(f"jni/{abi}/libq_periapt_ffi_abi2.so"))
+            jni = sha256_bytes(zf.read(f"jni/{abi}/libqperiapt_jni_abi2.so"))
         require(expected.get("ffi_so_sha256") == ffi, f"AAR ffi hash mismatch for {abi}")
         require(expected.get("jni_so_sha256") == jni, f"AAR JNI hash mismatch for {abi}")
 
@@ -242,7 +270,7 @@ def verify(args: argparse.Namespace) -> None:
     require_under(proof_path, root / "target", "Android proof")
     proof = load_json(proof_path)
 
-    require(proof.get("schema") == SCHEMA_VERSION, "Android proof schema mismatch")
+    verify_proof_schema(proof)
     require(proof.get("device_runtime_proof") is True, "proof is not an Android runtime proof")
     require(proof.get("package_only") is False, "runtime proof must not be package_only")
     require(proof.get("package") == "dev.qperiapt.androidsmoke", "unexpected Android proof package")
@@ -255,6 +283,7 @@ def verify(args: argparse.Namespace) -> None:
     require(age_seconds >= 0, "Android proof generated_at is in the future")
     require(age_seconds <= args.max_age_seconds, f"Android proof is stale: {int(age_seconds)}s old")
     verify_git_provenance(root, proof, args.allow_dirty_proof)
+    verify_source_tree_digest(root, proof)
 
     device = proof.get("device")
     require(isinstance(device, dict), "proof lacks device metadata")

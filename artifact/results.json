@@ -2,7 +2,8 @@
   "android_aar": {
     "boundary": "This is AAR/JNI package proof only. Android runtime proof is now tracked separately by artifact/android-device-smoke.sh and artifact/android_device_proof.py; clean release claims still require clean-tree runtime provenance and an explicit emulator/physical-device policy.",
     "command": "sh artifact/android-aar.sh",
-    "current_local_status": "dirty diagnostic run passed with Android SDK platform android-37.0 and NDK 30.0.14904198: built Rust q-periapt-ffi Android cdylib slices plus JNI shim slices for all four ABIs, verified q_periapt_abi_version, javap/RegisterNatives descriptor parity, JNI_OnLoad/RegisterNatives export shape, and JNI DT_NEEDED on libq_periapt_ffi.so, created a deterministic path-safe AAR, dexed the Java facade, and compiled an isolated consumer against the packaged classes.jar.",
+    "current_local_status": "Historical ABI2 dirty package diagnostic passed with Android SDK platform android-37.0 and NDK 30.0.14904198: all four ABI slices exposed the exact nine-symbol FFI contract, JNI exported only JNI_OnLoad, SONAME/DT_NEEDED and loader order used libq_periapt_ffi_abi2.so plus libqperiapt_jni_abi2.so, legacy names were absent, and Java/JNI warnings-as-errors, dex, APK alignment/signing, deterministic AAR, schema-2 manifest and isolated consumer passed. It predates the current canonical source digest and no current ABI2 ART proof exists.",
+    "current_source_status": "stale_requires_rerun",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1 sh artifact/android-aar.sh",
     "mode": "Android AAR/JNI pre-publication packaging contract",
     "targets": [
@@ -23,39 +24,195 @@
       "sharedVectorEncapsulates",
       "contextBoundRejectsEmptyContext",
       "compatXWingSeedKeypairRoundtrip",
-      "signedPolicySelectsProfileAndRejectsRollbackAndTamper",
+      "signedPolicyResolvesDecisionAndRejectsRollbackAndTamper",
       "uint32ScalarsRejectNegativeAndOverflow"
     ],
-    "current_local_status": "dirty diagnostic run passed at target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json, generated 2026-07-09T19:55:33.708334Z: emulator sdk_gphone64_arm64 Android 15 API 35 ABI arm64-v8a, adb serial sha256 prefix 04ab3fc382bf, run id 3ffd6c70e63bb09436e60a2183aa0dc7, 8 runtime tests passed through the Android Java facade; default verifier correctly rejects this proof as dirty-source release provenance.",
+    "current_local_status": "Historical 2026-07-10 dirty diagnostic passed on the Android 15/API-35 arm64 emulator against canonical source digest f64d53d1cff64fc40199ee3ddadfa248491abb571276248a45ec895800b7395e: four-ABI AAR/JNI packaging, exact JNI descriptors, the policy-digest/application-context path including pre-copy size limits, caller-visible secret ownership lifecycle, all 8 runtime tests, nonce-bound marker retrieval, and independent schema-v2 proof verification passed. It predates the current canonical source digest and must be rerun before any current-source Android claim; it is emulator evidence, not physical Android or clean release provenance.",
+    "current_source_status": "stale_requires_rerun",
     "device_abi": "arm64-v8a",
     "device_kind": "emulator",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1 QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=SkyBridge_API_35 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator sh artifact/android-device-smoke.sh",
     "mode": "Android ART runtime proof over the packaged AAR/JNI surface",
-    "proof_generated_at": "2026-07-09T19:55:33.708334Z",
-    "proof_sha256": "5d5a0733d82ccae9005b141b137e9dcf9370faf708e7e2f1bbf35cb791463153",
+    "proof_generated_at": "2026-07-10T15:11:43.183635Z",
+    "proof_sha256": "beddbe07b5a0c0a0d840046bb006bda3a8dcbebb11a839c11acf0c9cfb21dafa",
+    "proof_source_tree_sha256": "f64d53d1cff64fc40199ee3ddadfa248491abb571276248a45ec895800b7395e",
     "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator sh artifact/proof-to-byte.sh"
   },
   "apple_device": {
     "command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_ID=<physical-device-udid> sh artifact/apple-device-smoke.sh",
-    "device_build": "xcodebuild build succeeds for physical iPad and iPhone destinations with Xcode 27.0 beta build 27A5194q, iPhoneOS27.0.sdk, bundle id dev.qperiapt.DeviceRunner, and automatic Apple Development signing.",
-    "device_install_run": "pass on physical iPadOS/iOS devices; per-device proof JSON binds run id, git commit, source-tree dirty status, source hashes including signed-policy vectors and the Rust workspace build-input tree, app hash, staticlib hash, build log hash, run-bound copied device-result marker, device family, and device id sha256 prefix. No simulator run is accepted as Apple-device proof. Verification rejects proof inputs outside artifact/device-runs, artifact app/staticlib paths outside target, commit mismatch, and dirty proof/current trees unless QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1 is explicitly set for diagnostics.",
-    "ios_staticlib": "cargo build -p q-periapt-ffi --release --target aarch64-apple-ios succeeds and the device runner links target/aarch64-apple-ios/release/libq_periapt_ffi.a directly.",
-    "macos_native": "SwiftPM binding tests run first and pass 7 XCTest cases, including runtime ABI/suite metadata checks, through Xcode 27 beta's xcrun swift.",
-    "matrix_command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-xcode27-gate.sh",
-    "matrix_install_run": "fresh dirty diagnostic pass at artifact/device-runs/xcode27-matrix-20260709T195437Z-c5fe98b3/apple-device-matrix-proof.json, generated 2026-07-09T19:55:09.998896Z under Xcode 27.0 beta build 27A5194q: git commit d0475a94276bc5ff65deb1c5367d1f56ca436f5b with source_tree_dirty=true; physical iPad16,3 on iPadOS 27.0 build 24A5380h (device id sha256 prefix 43d3f562bebe, run id 213bb17836f76dec6ec74fb23b282507) plus physical iPhone17,1 on iOS 26.5 build 23F77 (device id sha256 prefix 8321541a7563, run id b7764f483beea8db153c3a25e4b9d814). Matrix proof requires one physical iPad and one physical iPhone proof plus apple-device-matrix-proof.json. The xcode27 gate ran proof-to-byte without QPERIAPT_SKIP_SMOKE and completed the Tier-1 smoke with QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1. Rerun matrix_command from a clean tree before claiming release-grade QPERIAPT_DEVICE_PASS coverage.",
-    "matrix_proof_sha256": "f23b931eb7283d924b3bca8d4698d5b4a6af2d9d8840293349013a494d448401",
-    "provisioning": "uses a local Xcode-managed iOS Team Provisioning Profile with team id sha256 prefix dd5cc4f59c0c, expiring 2027-01-17; proof JSON verifies team, bundle id, selected device membership, profile expiration, codesign entitlements, static Rust FFI linkage, and weak AppIntents linkage."
+    "current_dirty_diagnostic": "Current 2026-07-12 ABI2 dirty diagnostic passed macOS Swift XCTest 2/2 and a physical iPad Pro 11-inch (M4) build/install/launch/private-container-result roundtrip under Xcode 27 beta against canonical digest 56e91aa583c040933dc000c2cbab019644287ac4ba6bc10186b18a0ec3b51dfc after the iPad network condition was corrected. The strict iPad+iPhone aggregate remains stale because the iPhone is offline. This is source-bound diagnostic product-binding evidence, not clean release provenance or a Continuity session-protocol test.",
+    "current_dirty_proof_generated_at": "2026-07-12T09:27:34.821227Z",
+    "current_dirty_proof_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-proof.json",
+    "current_dirty_proof_schema": 2,
+    "current_dirty_proof_sha256": "9d758f8522a018c1ec4b8b68b6e745b0b3c1568f6c94aa53fe8bdf7f97b993e9",
+    "current_source_status": "stale_requires_rerun",
+    "current_attempt": {
+      "build": "pass",
+      "device_kind": "physical iPad Pro 11-inch (M4)",
+      "install": "pass",
+      "launch": "pass",
+      "launch_log_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-launch.log",
+      "launch_log_sha256": "54f667df76bb185171a3df782e05ea9aa1db576da79e1f9810792c6ee8b977c5",
+      "proof_emitted": true,
+      "proof_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-proof.json",
+      "proof_sha256": "9d758f8522a018c1ec4b8b68b6e745b0b3c1568f6c94aa53fe8bdf7f97b993e9",
+      "proof_source_tree_sha256": "56e91aa583c040933dc000c2cbab019644287ac4ba6bc10186b18a0ec3b51dfc",
+      "result_dir": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z",
+      "result_marker_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-result-copy.txt",
+      "result_marker_sha256": "9c40107b3583dd9b160a3170f12b1d651f979f872d12f0bdc882e76d0502612d",
+      "status": "pass"
+    },
+    "device_build": "Current source-bound dirty diagnostic: SwiftPM XCTest 2/2 passed, libq_periapt_ffi_abi2.a built for aarch64-apple-ios, and Xcode 27 beta produced a warning-clean signed build for the connected physical iPad destination.",
+    "device_install_run": "The connected physical iPad installed and launched the current-source binary, emitted one nonce-bound QPERIAPT_DEVICE_PASS marker, returned the exact marker from its app-private container, generated a source-bound schema-v2 proof, and passed independent validation. Simulator evidence was not accepted; the iPhone matrix lane was offline.",
+    "failed_attempts": [
+      {
+        "launch_log_path": "artifact/device-runs/ipad-snapshot-v2-20260711T070055Z/ipad-device-launch.log",
+        "launch_log_sha256": "582a671ab87b2601a3d233e85783f8c0dc8cb150aa835229f8d75055f6fd69f8",
+        "proof_emitted": false,
+        "proof_source_tree_sha256": "1bb6f91cd223ff6653c7fa6225360c140cfc5f987a14046cefc28f4551589f12",
+        "reason": "The launch log proves a SpringBoard security/profile-trust refusal before application execution. The operator reported that the iPad was concurrently attached to a Wi-Fi network without working connectivity; after correcting network connectivity, an otherwise equivalent exact-source rerun passed. The log does not independently prove that network state was the sole cause.",
+        "result_dir": "artifact/device-runs/ipad-snapshot-v2-20260711T070055Z",
+        "status": "fail_closed_before_application_execution"
+      },
+      {
+        "proof_emitted": false,
+        "proof_source_tree_sha256": "0ddb4f78134e2a00d283704f69b2747a194791caeec698ec0f75e295438ed93d",
+        "reason": "An operator preflight passed a CoreDevice record identifier rather than the physical hardware UDID. The matrix validator rejected it before any device build, install, launch, or proof emission; the corrected explicit-UDID invocation then passed.",
+        "result_dir": "artifact/device-runs/apple-matrix-budget4-dual-scale-20260711T144642Z",
+        "status": "fail_closed_preflight_wrong_device_identifier"
+      }
+    ],
+    "ios_staticlib": "cargo build -p q-periapt-ffi --release --target aarch64-apple-ios succeeds and the device runner links target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a directly.",
+    "macos_native": "SwiftPM binding tests run first and pass 2 ABI2 product XCTest cases, including runtime ABI/suite metadata and signed-policy/OS-random workflow checks, through Xcode 26.6's xcrun swift.",
+    "matrix_command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' QPERIAPT_DEVICE_RESULT_DIR=<run-dir> QPERIAPT_DERIVED_DATA=<isolated-derived-dir> sh artifact/apple-device-matrix.sh",
+    "matrix_generated_at": "2026-07-12T06:21:14.343632Z",
+    "matrix_install_run": "Historical schema-v3 ABI2 dirty diagnostic pass at artifact/device-runs/apple-matrix-kctx-docsync-20260712T0617Z/apple-device-matrix-proof.json under Xcode 27 beta against canonical digest 2a26661c9d6055bac5b0b6226b148e917472c190de308adea36d451d78180b91; exactly one physical iPad plus one distinct physical iPhone. The source has since changed, so the aggregate and both child proofs are stale and must be rerun.",
+    "matrix_proof_path": "artifact/device-runs/apple-matrix-kctx-docsync-20260712T0617Z/apple-device-matrix-proof.json",
+    "matrix_proof_schema": 3,
+    "matrix_proof_sha256": "022cc0bb77812d1dc9b87f7a61bad8e42c25af8520facffc63054cde06c034a7",
+    "matrix_source_status": "stale_requires_rerun",
+    "matrix_status": "pass",
+    "proof_source_tree_sha256": "56e91aa583c040933dc000c2cbab019644287ac4ba6bc10186b18a0ec3b51dfc",
+    "provisioning": "uses a local Xcode-managed iOS Team Provisioning Profile with team id sha256 prefix dd5cc4f59c0c, expiring 2027-01-17; proof JSON verifies team, bundle id, selected device membership, profile expiration, codesign entitlements, static Rust FFI linkage, and weak AppIntents linkage.",
+    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_APPLE_DEVICE=1 QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1 QPERIAPT_DEVICE_ARTIFACT_PREFIX=ipad QPERIAPT_EXPECT_DEVICE_TYPE=iPad QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z sh artifact/proof-to-byte.sh"
   },
   "artifact": "Q-Periapt \u2014 assumption-minimal, cross-substrate binding assurance for PQ/T hybrid KEMs",
+  "performance": {
+    "boundary": "The prior ABI2 source digest 80c418b20698a2105f6b840c5811400a75c3a560ca02e97549f85b4fafceb147 produced a complete schema-v2 raw stream with 81,920 paired samples per profile/operation, but the analyzer rejected the environment because combine block-median CV was 0.121067 against the fixed 0.050000 stability limit; no proof was emitted for that source. The source has since changed again. A fresh bc57a2c7 exact-source collection was not started because two preflights still showed MenuBarAgent at about 49-51% CPU and WindowServer at about 44-46% CPU, with Spotlight workers active on the first observation; another run is deferred until the host is quiet rather than selecting a favorable retry. The proof and metrics retained below belong to the earlier e12ffdd2 source snapshot and are historical only. Schema v4 keeps the same numeric budgets and both block scales. Any passing local proof remains a dirty single-host diagnostic, not clean release provenance, device energy evidence, or parity with production X-Wing/PQ3/Signal implementations.",
+    "budget_schema": 4,
+    "command": "sh artifact/python-run.sh artifact/performance_gate.py collect --root . --raw target/performance/paired-profile-abi2-final-20260712T0408Z.jsonl --proof target/performance/paired-profile-abi2-final-20260712T0408Z-proof.json --samples 81920 --warmup-ms 5000 --allow-dirty",
+    "current_source_status": "stale_requires_rerun",
+    "environment": "Darwin 27.0.0 arm64 Apple M1 Max, AC power, nominal thermal state at pre-build, pre-run, post-run, and post-analysis observations",
+    "iterations_per_sample": {
+      "combine": 256,
+      "decapsulate": 2,
+      "encapsulate": 1
+    },
+    "mode": "matched-backend paired host non-regression diagnostic",
+    "p99_tail_observations_per_pair_block": 11,
+    "pair_block_size": 1024,
+    "paired_upper_95": {
+      "combine_p95_delta_ns": 6995.93359375,
+      "decapsulate_p50_ratio": 1.0631209393118317,
+      "decapsulate_p95_delta_ns": 7458.0,
+      "decapsulate_p95_ratio": 1.080971617161716,
+      "decapsulate_p99_ratio": 1.0989102600449627,
+      "encapsulate_p50_ratio": 1.0431798742138365,
+      "encapsulate_p95_delta_ns": 7833.0,
+      "encapsulate_p95_ratio": 1.0586974043555493,
+      "encapsulate_p99_ratio": 1.1424828008500523
+    },
+    "regression_guard_p99_tail_observations_per_pair_block": 3,
+    "regression_guard_pair_block_size": 256,
+    "regression_guard_upper_95": {
+      "combine_p95_delta_ns": 6910.80859375,
+      "decapsulate_p50_ratio": 1.0631093764790691,
+      "decapsulate_p95_delta_ns": 7229.0,
+      "decapsulate_p95_ratio": 1.0778354808114923,
+      "decapsulate_p99_ratio": 1.0834885434617372,
+      "encapsulate_p50_ratio": 1.0431899371069182,
+      "encapsulate_p95_delta_ns": 8708.0,
+      "encapsulate_p95_ratio": 1.0697695945604793,
+      "encapsulate_p99_ratio": 1.0980170038111992
+    },
+    "previous_failed_attempts": [
+      {
+        "budget": 0.05,
+        "metric": "environment.combine.block_median_cv",
+        "observed": 0.121067,
+        "raw_path": "target/performance/paired-profile-abi2-final-20260712T0408Z.jsonl",
+        "raw_sha256": "ea9cbb196caf7a9d15c2f074ec1dd3724435b99a60b681694f2e46fd6d578564",
+        "reason": "The prior ABI2 candidate source emitted all 491,520 raw records and passed raw schema validation, but host instability exceeded the fixed CV limit. No proof was emitted and the numeric performance budgets were not evaluated or relaxed.",
+        "status": "invalid_environment_no_proof"
+      },
+      {
+        "budget": 1.2,
+        "metric": "encapsulate.primary.block_median_p99_ratio_upper_95",
+        "observed": 1.200220,
+        "raw_path": "target/performance/paired-profile-abi2-docsync-20260712T022311Z.jsonl",
+        "raw_sha256": "db409eaa0501e0990fa807c846526caca71b750741e00c89cdb12378252af312",
+        "reason": "The current-source 40,960-pair attempt passed raw schema emission but encapsulation primary p99 uncertainty was 1.200220 against the unchanged 1.200000 budget. No proof was emitted. The raw is retained; the follow-up doubled the declared sample count to 81,920 without changing the budget.",
+        "status": "budget_fail_no_proof"
+      },
+      {
+        "budget": 1.2,
+        "metric": "encapsulate.primary.block_median_p99_ratio_upper_95",
+        "observed": 1.2124806601340898,
+        "raw_path": "target/performance/paired-profile-authority-20260712T014810Z.jsonl",
+        "raw_sha256": "b418bf3dfbf2da5447596a6481dd33d0f37a9c5fde9d9b3e66cb753381ac7f42",
+        "reason": "The current-source 20,480-pair attempt passed schema, source, environment stability, p50 and p95 budgets, but encapsulation p99 uncertainty exceeded the fixed 1.20 budget at both the primary (1.212481) and 256-pair regression-guard (1.243603) scales. No proof was emitted. The raw is retained; any follow-up uses a larger declared sample count without changing the budget.",
+        "status": "budget_fail_no_proof"
+      },
+      {
+        "budget": 1.2,
+        "metric": "decapsulate.block_median_p99_ratio_upper_95",
+        "observed": 1.2467542821550919,
+        "raw_path": "target/performance/paired-profile-schema4-selective-wipe-20260711T130105Z.jsonl",
+        "reason": "The former 256-pair estimate blocks supplied only three nearest-rank p99 tail observations and produced block ratios from 0.24 to 4.28. The failed raw remains diagnostic only and was not reused for proof emission.",
+        "status": "budget_fail_no_proof"
+      }
+    ],
+    "proof_emitted": true,
+    "proof_generated_at": "2026-07-12T02:30:47.149979Z",
+    "proof_path": "target/performance/paired-profile-abi2-docsync-20260712T022615Z-proof.json",
+    "proof_schema": 4,
+    "proof_sha256": "eca7d3444acf1c889e530c69aaacb6f382b6287595d2ef4626cd9ca708df6326",
+    "proof_source_tree_sha256": "e12ffdd2b63f8275385d89c96715d60869f317fd41bac943650573983ae82280",
+    "raw_path": "target/performance/paired-profile-abi2-docsync-20260712T022615Z.jsonl",
+    "raw_schema": 2,
+    "raw_sha256": "7b79c050b277b21fe31965f0a3b89e725040385d1865db8b152a036c04342729",
+    "samples_per_profile_operation": 81920,
+    "status": "pass",
+    "stability_max_block_median_cv": {
+      "combine": 0.02758066753613369,
+      "decapsulate": 0.0025161871474682095,
+      "encapsulate": 0.0033505188328565912
+    },
+    "validate_raw_command": "sh artifact/python-run.sh artifact/performance_gate.py validate-raw --raw target/performance/paired-profile-abi2-docsync-20260712T022615Z.jsonl"
+  },
+  "continuity_model": {
+    "boundary": "Live source-bound model, strict PrekeySelectionV1 byte correspondence, and modeled-projection diagnostics only. No deployed wire protocol, manifest/prekey/directory authenticity, lease/consumption/tombstone state, projection-completeness proof, spec-to-Rust refinement, production persistence, session-security proof, or ABI2 release attestation.",
+    "classification": "non_normative_diagnostic",
+    "command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC=1 sh artifact/proof-to-byte.sh",
+    "durable_snapshot_schema": 3,
+    "expected_marker": "PROOF_TO_BYTE_CONTINUITY_MODEL_DIAGNOSTIC_PASS boundary=non_normative_not_release",
+    "lifecycle_context_schema": 1,
+    "model_crate": "models/q-periapt-continuity-model",
+    "prekey_selection_digest_preimage_len": 555,
+    "prekey_selection_record_len": 492,
+    "prekey_selection_schema": 1,
+    "rust_test_count": 52
+  },
   "local_release_index": {
-    "boundary": "Local diagnostic index only while source_tree_dirty=true; this is not a public release, registry upload, hosted Swift binaryTarget URL, Maven artifact, or clean release provenance. Raw device proof/log/profile artifacts are not copied into the index.",
+    "boundary": "Historical local diagnostic index only; it predates the current canonical source digest. This is not a public release, registry upload, hosted Swift binaryTarget URL, Maven artifact, or clean release provenance. Raw device proof/log/profile artifacts are not copied into the index.",
     "channel": "diagnostic",
-    "command": "QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1 QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=1 QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/xcode27-matrix-20260709T195437Z-c5fe98b3 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 sh artifact/local-release-index.sh",
-    "generated_at": "2026-07-09T19:56:27.261458Z",
-    "index_path": "target/qperiapt-local-release/0.0.1/d0475a94276bc5ff65deb1c5367d1f56ca436f5b/index.json",
-    "index_sha256": "7828252ca1048ffccd45fdc3fdb81237141051de3e560cd4635ce91b13de37d8",
+    "command": "QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1 QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=1 QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/apple-matrix-20260712T041932Z-2df812ae sh artifact/local-release-index.sh",
+    "generated_at": "2026-07-12T04:27:03.358592Z",
+    "current_source_status": "stale_requires_rerun",
+    "index_path": "target/qperiapt-local-release/diagnostic/0.1.0-alpha.1/cb4ab8ed2be768c8313b5a7a84fc432fd752dc90/index.json",
+    "index_sha256": "16941f443f9a85934cb6a51ea6dee94ad03c2a716e193f94d314972bc4f7d66a",
     "mode": "local hash-bound package index for C archive, Swift XCFramework zip, Android AAR, and sanitized runtime proof summaries",
-    "verify_command": "python3 artifact/release_index.py verify --index target/qperiapt-local-release/0.0.1/d0475a94276bc5ff65deb1c5367d1f56ca436f5b/index.json"
+    "verify_command": "sh artifact/python-run.sh artifact/release_index.py verify --allow-diagnostic --index target/qperiapt-local-release/diagnostic/0.1.0-alpha.1/cb4ab8ed2be768c8313b5a7a84fc432fd752dc90/index.json"
   },
   "ci_snapshot": {
     "file": "artifact/ci-snapshot.log",
@@ -77,7 +234,7 @@
       "expect": "clean (no warnings)"
     },
     "easycrypt": {
-      "full_machinecheck": "BindingViaCR.ec checks and negative-controls.sh passes 7/7 under the pinned EasyCrypt r2026.06 container (formal/Dockerfile); this is the hard CI gate (Tier 2, not part of the smoke).",
+      "full_machinecheck": "BindingViaCR.ec checks, the explicit K!=bottom countermodel is present, and negative-controls.sh passes 7/7 proof-dependency regression controls with EasyCrypt r2026.06; this is a Tier-2 hard gate. Hint-deletion failure is not a semantic necessity proof.",
       "smoke_gate": "no `admit`/`sorry` in formal/easycrypt/*.ec"
     },
     "fmt": {
@@ -85,83 +242,145 @@
       "expect": "clean (no diff)"
     },
     "symbolic": {
-      "proverif": "formal/proverif: query/event presence + `make prove` are hard-gated in CI.",
-      "tamarin": "formal/tamarin: lemma presence + `make prove` are hard-gated in CI."
+      "proverif": "formal/proverif: six exact query results + `make prove` are hard-gated in CI.",
+      "tamarin": "formal/tamarin: five lemma names + `make prove` are hard-gated in CI."
     },
     "workspace_tests_default_features": {
       "cmd": "cargo test --workspace",
       "failed": 0,
-      "passed": 107
+      "passed": 163
     }
   },
   "footprint_bytes": {
     "c_abi_cdylib_stripped": {
-      "bytes": 815392,
-      "kib": 796.3
+      "bytes": 848712,
+      "kib": 828.8
     },
     "note": "Platform-dependent; regenerate per host with `sh paper/footprint.sh`.",
     "platform": "Darwin 27.0.0 arm64, rustc 1.96.0",
     "wasm_lean_default": {
-      "bytes": 200170,
-      "kib": 195.5
+      "bytes": 206851,
+      "kib": 202.0
     },
     "wasm_signed_policy": {
-      "bytes": 599994,
-      "kib": 585.9
+      "bytes": 619623,
+      "kib": 605.1
     }
   },
   "proof_to_byte_inputs": {
-    "android_aar_script_sha256": "81428728d797fc07af296eda1e543bccdfe2ad9870e3d900f60e10dac64d2a18",
-    "android_device_proof_tests_sha256": "9294b2b42e5be59396a07e06c5d3fa610a0f08c3ee06bc74049450b8fc49ac0d",
-    "android_device_proof_verifier_sha256": "e310404522c94b7949888dc7e9e28468f1a105ab65abd04464cf519c65971c08",
-    "android_device_smoke_script_sha256": "c52abd8b0d900a86b857aa8023b0b5215271706896a8f0c4dc5a917c08025ce7",
-    "android_facade_sha256": "98b1606885d15cadd57c15be394462a1b77526fa030543b94b771252998fe74f",
-    "android_jni_adapter_sha256": "15843532440667ed20d0e03f3bf69452e78d06cedab20311c7becb69a95ddab1",
-    "c_package_script_sha256": "6ee9166f42f7428bb2fe1c333e0ed6049034c00631f31a577381b9ce1d680c57",
-    "c_smoke_sha256": "fee85ad01ade9a7fdd31bc1de477eae54b59d5c4904de07edb377ebdcfe06d3b",
+    "android_aar_script_sha256": "4b3b7ebe71e74ea7cafa91375daf7962921bfdd9fd69aa2449e312b29f58fd63",
+    "android_device_proof_tests_sha256": "e1a9d4d7add983a412ff50d267f13bb9e99d85a704a104a4720806eb3b9fdcba",
+    "android_device_proof_verifier_sha256": "3b1a1c70a1017f226a6e7a7572d9fdd5ee0510d2c67647b50d48c485a91be62f",
+    "android_device_smoke_script_sha256": "5c6b7d784aec81574cc332d5f9ecb2c3377752272c51e607fc377f88dd365d24",
+    "android_facade_sha256": "431432c5878c3beca03d9dec6a20cc209b6182e68e79b949e13a35f7ba554ebc",
+    "android_jni_adapter_sha256": "1e474ad433bfc1aea96aea7bf6703b56244b689e59ecdbbb65986463c4dfcdad",
+    "apple_device_matrix_script_sha256": "9b8a404908ed85a4cd44a5687f883e281661a0d6401866175f753ac1ade068ec",
+    "apple_device_proof_tests_sha256": "45ed20de66579eea3ef9d71a347708046225eb1a99c6c2bb605f304499b81f41",
+    "apple_device_proof_verifier_sha256": "cf3fb67e5ec1b885fda10d31f17fb6d353f5fe75fde5020c2c82384cb265f920",
+    "apple_device_smoke_script_sha256": "27967e53622ae90e26ced9b4879f2bca4f9ef840bcf395236015be67da5eb312",
+    "apple_device_xcode27_gate_script_sha256": "4d51ecd767f49ce9f0869fefc667c2036b016120ee8f3f11590c82e92def5f63",
+    "c_package_script_sha256": "0aa0ebe72c125a1041b65acb07d4c2db49a2a9ac90d1ac56af73f8255067b95e",
+    "c_smoke_sha256": "54b88389a5fd011b67e3d3d518922cce93aa15e870b2be6f39f1266e662b92b4",
+    "camera_ready_bare_metal_script_sha256": "0c557b35acd6861fdc25fbcf8415fb9c7c54c4188141773b4bcc27d5140d542d",
+    "camera_ready_bare_metal_transcript_sha256": "3613c42205c6283707f13cd90c3db6573b280474bedf74e8680214d05e83d0bb",
+    "camera_ready_proof_tests_sha256": "f4e513a1113146bfc99c4f62002b2b7e8de9612d724abb154cbbed6bd349a6cd",
+    "camera_ready_proof_verifier_sha256": "b966c7e36e3dc4a0ecdbef4ac49e1e847093514d8bbec09760fa90e07a66c6af",
+    "camera_ready_sandbox_script_sha256": "4158068d33a5ce183ad03974113f61898bcb963bda23576b8cdfeb7d581493d8",
+    "claim_ledger_sha256": "5ab11711420e26326436be69059a62b988d41b7331ca21da8681947b13425045",
+    "claim_ledger_tests_sha256": "2b6597b3d8c951fbb441c33808acee96431950997ab7ea5424de5bc922e420ae",
+    "claim_ledger_verifier_sha256": "4ed8f09c4ac682cecd1b4a1b6f116c23f72c62e891e1c5bddb545582e43c06eb",
     "contextbound_vectors_sha256": "df7d2613e74a8d4c27310d2d6b3b09ed18617280ded456a3f6e841940d8bde87",
-    "easycrypt_binding_sha256": "e56f85ebd1a29573866053244598efdcb87c210be0a9f2621d05f03f4f1b63d6",
+    "continuity_context_model_sha256": "fa8e2f7a575d8cbd8f414177425b543e74d0265e1f8624f31996c669cb91f938",
+    "continuity_context_spec_sha256": "1a072e732d28c3e682f737fc1e2928fd1aeb46e4c844b81982433288bf5d6f2a",
+    "continuity_context_tests_sha256": "40660e8ddd4a1b4c43d82bf7db7faa7b417fb2277412ca0b835b6606f0fc6a4d",
+    "continuity_context_vector_emitter_sha256": "0aabf7c8045ffb57f1cc2c8732b4fc83a01b480c2c9a3bca2e84f448537c0e6b",
+    "continuity_context_vectors_sha256": "76e08aa675845b290764b84b04d985d8af7f8671f2e6b417b31c5e2654995d9e",
+    "continuity_context_verifier_sha256": "fa8f3a5f4a66f311e6aa079138ba8bddb38c41d708c881559737fb0d3de0e66b",
+    "continuity_context_verifier_tests_sha256": "10100f2e0f687f681a72967d26151b9f9e05dc8459002a9cbeaa816549d1956c",
+    "continuity_easycrypt_makefile_sha256": "8891f93d892a059fcb15e1816f236d75e6f6123afd72e536c0195ef38a2014bf",
+    "continuity_easycrypt_model_sha256": "f6942ca33a1952624c5310b63db4c82df05585445fe97de85f4342188f17286c",
+    "continuity_effect_lifecycle_spec_sha256": "98a4478a2ada45be16a355966d97d7e1d0b6df8de8a118f42310a66996000baa",
+    "continuity_model_isolation_tests_sha256": "587d8dc6c6eb9542a6b564abe5089405f472a52577084a6b574333264b651d7a",
+    "continuity_model_lib_sha256": "2b6c9b4fb5d73a38a3d4574eb093b6a2ddf309799938ab0e1dd46902c35a95f5",
+    "continuity_model_lifecycle_tests_sha256": "27f959661b931ad01c5eb2b7c0878c4b38ed7c5f9d003afa843a23e437b6a0b4",
+    "continuity_model_manifest_sha256": "ac676a196022fe9ab28050184c049e085deac66c20784cc5f19b0c9c02b247b6",
+    "continuity_model_state_machine_sha256": "522cc9ae23479cc78acdb86d447a2ed52b99bf495aa8049ffe2bb11fb471d4aa",
+    "continuity_model_types_sha256": "74bbf85b989ea075a1482b1b0aa7267df6d17bbe8cf3cc96772489548ddcfb62",
+    "continuity_prekey_codec_sha256": "89a463f3543cbff414d559b77eb18f85cf4c3baae264b3a129dac9f097e36223",
+    "continuity_prekey_commitments_sha256": "f6c736a2e338937de4b776e6dd40d75c6c0da4eb9e720bc6a6d33ad3dbe3aba4",
+    "continuity_prekey_easycrypt_model_sha256": "a5a1341009084c3cadd069233d94bd39930b9b7fa8e871ba5a7b24a051fae470",
+    "continuity_prekey_model_sha256": "cf5bac9bc231b930ec6dabc8da96e6d5c7bdddcd3a5c5db85a59d5aa301ead51",
+    "continuity_prekey_spec_sha256": "41c0c74bbf4b7a4c967597cced9f3dc199e76bdb1114c923d6ecb37fa2b3c787",
+    "continuity_prekey_tests_sha256": "c8ec9d744c4c3e8b3009a0b77abf6ff5a0661a0044a300de0f3601baa8b51bb0",
+    "continuity_prekey_vector_emitter_sha256": "f5c3b1b1d509542fe72418930b6cc1a57206aed8987470ec1f7e24e2d02581b2",
+    "continuity_prekey_vectors_sha256": "2157fbfacdff8d326061dbe7b1fd8c0b18aabb7f3ba77469a1bcea8a4b6dc7b8",
+    "continuity_prekey_verifier_sha256": "2f1f6e8cb30aeefffbb0441f4b9db9806d5f11c1e3808ab48ec4fb17d325a345",
+    "continuity_prekey_verifier_tests_sha256": "77e2c558ae48063ae39600e80efc9e2b0a2424a6a7e8226583f69ae147e28176",
+    "easycrypt_binding_sha256": "56be8379973d6ef0602d7ee18384492f8963db25e29e38f2df63f9841ab30e68",
+    "evidence_io_sha256": "611d2d3f09bc6d9bb8f0fc4a6a4d0a335ab98e6147e12e3b8bfee3c1dfe25f3f",
+    "evidence_io_tests_sha256": "13e41832717a77696f32ac54a2a2446819d9ee6666fffe9e82fdf93284c65493",
+    "git_provenance_sha256": "07f53c8723ae2aa74ffbaa6f82c588dc1efc71fdb15b30e77dd0528657357926",
+    "git_provenance_tests_sha256": "d5cd9f2ff073c5e5bca0bdde4cdd0705c2f2998df582badcda63e4ad9d6c5f0a",
+    "hqc_candidate_adapter_sha256": "f3cce4d33365bd32bfae9fa0754b62d81748553b78d3aa770aa5692bfe2c26e4",
+    "hqc_candidate_lock_sha256": "1d620284f768dcd4e49d2ace6cb2a31ddee816bd2173d34a7aac50b2f526e79f",
+    "hqc_candidate_manifest_sha256": "13b806b08d83b14095d0494bb89e08700487d66c5fad62666d1b71ada549e4d3",
+    "hqc_candidate_readme_sha256": "0f34090f630ee15f3dcbf9ced0856b29791172d4af59366aeacbad0c4351e746",
+    "hqc_candidate_tests_sha256": "3f39f4f45e5e12b8e9b2ed25e87802625f74c157d29429cd6508abe5944411e7",
+    "hqc_candidate_verify_sha256": "9dea9e8c6e57c0f2469aaf6144b29f862c4204dc4ff44c0d810934bf59614144",
     "license_apache_sha256": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3",
     "license_mit_sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
     "license_sha256": "ed972005262b556e78016964a8c210b2e64e341b51d3064bab951b0b86f28c3f",
-    "local_release_index_script_sha256": "afa97909ded3d2d7097be04dd911ae5a65ed23cab04dd43efbaaa1646b1fea75",
-    "local_release_consumer_smoke_script_sha256": "0d886b6bba308989d6cc8910ae4451e1a3fc6b46dd9e43f0e176e8860095a66d",
-    "apple_device_matrix_script_sha256": "c4026b5ce6916d19cce6583f96fb58a20c0b133a013ea666955c626025d10284",
-    "apple_device_proof_verifier_sha256": "f9d50d288ae058ac7f9b2328ea3e45faa9146f1a0a8e849ce8e8b938796d13ef",
-    "apple_device_smoke_script_sha256": "89c95496953e329bd7e833c6f042f656469bc12986bcd2b79cfc31913fbc9e21",
-    "apple_device_xcode27_gate_script_sha256": "6d2f5008a85871ab7c28870bd269755e462323b506471e0efafdb701d553e8bd",
-    "proof_to_byte_script_sha256": "a9d7b0353996d7c783941605a3157f9cfcfd7e93865937f1364cc0ed22c9831e",
-    "proverif_model_sha256": "f44ad8116b67fe2657344495a83c127a58715c927d57a1bed29af6bc96b81681",
+    "local_release_consumer_smoke_script_sha256": "77858dacc7160857dadf10befbda8acbba1b8b5b1838f560fa79dc9120d70c99",
+    "local_release_index_script_sha256": "7a313d9359d14c7c4f179fdd7a23f17a2209e8a9757bc821dd5e103fb975347a",
+    "paired_profile_perf_harness_sha256": "a33433eeeb891bd840e1b5f22133cf6404b6dd2f54b80c65362ab76469358432",
+    "performance_budgets_sha256": "67627c7b155e0e60d067de50de1f7f87ba75842dd4446e32d08160fb3203ea95",
+    "performance_gate_sha256": "6d45a1114f8f5bae706e8fd96e050b5418fd388d8c69eed14ab9befe70273a2e",
+    "performance_gate_tests_sha256": "40c6159135ac526f90d101a272f59d2b584817ab0a761b3a8ce29cd7e995a112",
+    "proof_manifest_sha256": "67df80c5ff91cbd2cf3c84768ea79aff372f4b157d2be7db6e8ca8369f943f9b",
+    "proof_manifest_tests_sha256": "fa984420c3937b338089c0f85ca901c7c3bbbdb5b2a5f32f4abe98604c8db59e",
+    "proof_to_byte_release_tests_sha256": "4d2f80dc98519a7f6bb69bb7f42d65e199d261e64acbb5c53650432342b11c00",
+    "proof_to_byte_script_sha256": "7a784a8a36b6c8fa033994afbc67c2c69f8bdc64865ae4b9d3afcccc99a82913",
+    "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
+    "python_bootstrap_sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+    "python_env_sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "python_runner_sha256": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
     "qperiapt_cli_cargo_sha256": "a78cc8d0c784427990b78d72625627f4919d647589d3fe352d6086fc251293c8",
-    "qperiapt_cli_lib_sha256": "e03bf9bba815070a15dbc3490a7816bb660ac098461cd0a9a999f8397134e16f",
+    "qperiapt_cli_lib_sha256": "5a00d2f62cd70d5c6a9e603c9eaf306e5e6794937c1ce20a3a775f79c3f70af1",
     "qperiapt_cli_main_sha256": "2c151c071ed697907189b52468092c626568bc701e129de6ad4afd81d892644d",
-    "release_consumer_smoke_verifier_sha256": "90580da248bdbed761f098dfcc11702cc8ef2d4dfbfad5bd17b55f687286960b",
-    "release_index_verifier_sha256": "969e088dd380da9d83d4a6938b8613763595eaa18a2dd2bce0fd1d2c46c71029",
+    "reference_baseline_sha256": "5b2fe3369a7a055e8b8343082ffd582b17052dd85daf4805e4d72bbf4885b5cd",
+    "reference_baseline_tests_sha256": "1d5abbe3fa29278e8b58ed9ddfa04e3418a858c700ff7f68854c1076f9055362",
+    "reference_baseline_verifier_sha256": "a000dd00714dea70fadef3eab42ae4286de6403274e21d6ecd14e05309f2510e",
+    "release_consumer_smoke_verifier_sha256": "a989182b789ca6fbb6e7e298bceb50f8aacba0eeefa249af2b990a58ae1f1fb6",
+    "release_index_verifier_sha256": "b72ecc90c3fba8e2131c5346c0c0d512d6b1317518ac7de7e41d769729fe3332",
+    "rust_publish_dry_run_script_sha256": "58750f0f7664a2c9d5219808aa8bff9e412a4fdab4725001bd900e117d060e4a",
     "shared_vectors_sha256": "230c0246b0c6a79cb96b3bd68641d0cb574ee237cb626626965b2db1b1ebd2f3",
-    "signed_policy_vectors_sha256": "cc725bdb6917bc82ce3bc69a699ae8e426cdf94bd4c043d5b72da2e5c667209a",
-    "swift_xcframework_script_sha256": "0e0fe8694a6d4a779e7bc826317038974995410957e90ccfe16f5ca2f06ae484",
-    "tamarin_model_sha256": "57c193ee85e2649e0bec3496c4132d65a7e3349aa3fa2fd130e4a5a601f022c1"
+    "signed_policy_vectors_sha256": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5",
+    "swift_xcframework_script_sha256": "7f0bdd79930101c5b1948255a2dc306657459c7b73442962483ead8dbddcfee1",
+    "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
+  "proof_source_tree_sha256": "12c6db1e80cd5e73ef773ef676d4abc42a96cfedd95b821a6e64de9c39105a5d",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
-    "note": "Values are bound to the implementation snapshot at this commit; this manifest is finalized in the immediately following provenance-only commit. Device install/run remains signing-account dependent and is tracked separately below.",
-    "snapshot_commit": "8b07f59e8cab2fd0ac89408773827a375faa8982",
+    "note": "proof_source_tree_sha256 records and checks consistency with the current dirty execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. Each nested device/performance proof retains its own source digest and must be rerun after source changes. Only clean committed or signed release provenance can bind the manifest root; all dirty-tree results are diagnostic.",
+    "snapshot_commit": "cb4ab8ed2be768c8313b5a7a84fc432fd752dc90",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
       "rustc": "1.96.0 (ac68faa20 2026-05-25)"
     }
   },
-  "purpose": "Expected-result manifest so a reviewer can detect data drift: every value below is measured, not asserted. Run `sh artifact/smoke.sh` and compare; Apple device proof is separate because it requires signing and a physical device.",
+  "purpose": "Expected-result manifest so a reviewer can detect data drift. Selected hashes and the canonical execution-input digest are checked before execution. That digest excludes only artifact/results.json and paper/camera-ready-results.txt to avoid self-reference. The transcript and selected proofs are bound by named path/hash fields in this manifest; the manifest root itself must be bound by clean committed or signed release provenance. Formal, package, and device evidence remain separately scoped.",
   "rust_publish": {
     "boundary": "This is not an upload and not a clean release proof while the worktree is dirty. First public release still requires clean tree, registry-order publishing, and release provenance for the actual crates.io versions.",
     "command": "sh artifact/rust-publish-dry-run.sh",
-    "current_local_status": "dirty diagnostic run passed: metadata, package file-list denylist, and patched cargo publish --dry-run passed for every publishable crate; default clean-tree mode correctly rejects the current dirty worktree.",
+    "current_local_status": "Current 2026-07-12 dirty diagnostic passed locked metadata, package file-list denylist, patched cargo publish --dry-run for all nine publishable crates, and a fresh isolated q-periapt-backends archive scan of Cargo's normalized manifest and exact file set. The archive contained no retired HQC/PQCrypto dependency, feature, or source path. Default clean-tree mode still correctly rejects the dirty worktree; this is not an upload or release attestation.",
+    "current_source_status": "current_dirty_diagnostic_pass",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
     "nonpublishable_crates": [
       "q-periapt-tls-demo",
-      "q-periapt-ctstats"
+      "q-periapt-ctstats",
+      "q-periapt-continuity-model"
     ],
     "publishable_crates": [
       "q-periapt-core",
@@ -182,17 +401,17 @@
     "steps": [
       {
         "cmd": "cargo test -p q-periapt-core",
-        "expect": "12 passed",
+        "expect": "16 passed",
         "name": "core unit tests"
       },
       {
         "cmd": "cargo test -p q-periapt-backends",
-        "expect": "40 + 2 = 42 passed (unit + binding_keyformat_separation)",
+        "expect": "48 + 2 = 50 passed (unit + binding_keyformat_separation)",
         "name": "shared reference vectors"
       },
       {
         "cmd": "cargo test -p q-periapt-ffi",
-        "expect": "15 passed",
+        "expect": "17 passed",
         "name": "C-ABI tests incl. aliasing"
       },
       {
@@ -211,7 +430,7 @@
         "name": "C-ABI link-and-run smoke"
       },
       {
-        "cmd": "! grep -rnE 'admit|sorry' --include='*.ec' formal/easycrypt/",
+        "cmd": "! grep -rnEw 'admit|sorry' --include='*.ec' formal/easycrypt/",
         "expect": "grep finds nothing (exit 0)",
         "name": "EasyCrypt no-admit gate"
       }
@@ -220,7 +439,8 @@
   "swift_xcframework": {
     "boundary": "This is not a public Swift package release and not a clean release proof while the worktree is dirty. Public distribution still requires a clean tree, hosted XCFramework URL/checksum, release provenance, and fresh physical iPad+iPhone proof for the same source state.",
     "command": "sh artifact/swift-xcframework.sh",
-    "current_local_status": "dirty diagnostic run passed under Xcode 26.6: generated reproducible CQPeriapt.xcframework.zip, verified macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices, computed stable SwiftPM checksum 477b86ac92b9530405068468f64edb011eee8c8b22479d3b3bb81ebd80206c61 across two retained output directories, and ran an isolated binaryTarget consumer with 7 XCTest cases and 0 failures.",
+    "current_local_status": "Historical ABI2 dirty package diagnostic generated CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices; every slice had the exact nine-symbol contract and ABI-major static identity, and the isolated binaryTarget consumer passed three signed-policy/legacy-state/OS-random product checks. It predates the current canonical source digest. Archive SHA-256 was 2aa0bbab4061a0a75dce02d73daecf7e36a77f2a15447249fd317f8beafa7693; manifest SHA-256 was d0a592184587be5ed5bdcaac10e16451bd337f385b42ffd340d350ecad14f9fc.",
+    "current_source_status": "stale_requires_rerun",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1 sh artifact/swift-xcframework.sh",
     "mode": "SwiftPM binaryTarget XCFramework pre-publication contract",
     "targets": [

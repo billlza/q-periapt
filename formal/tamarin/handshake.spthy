@@ -109,7 +109,7 @@ rule Server_Finish:
     [ St_S1($S, ~dkpq, ~x, ~sigsk, nc, ns)
     , In(<ct_pq, ct_x>)              // ClientKem
     ]
-  --[ ServerDone($S, secret, transcript) ]->
+  --[ ServerDone($S, secret, transcript, ctxt) ]->
     [ Out(<sign(transcript, ~sigsk), confirm>) ]
 
 /* ===== 5. Client finishes: verify signature against the PINNED vk + key confirm ===== */
@@ -124,7 +124,7 @@ rule Client_Finish:
     , !Pinned($S, vkS)
     , In(<sig, confirm>)             // ServerFinished (confirm must match)
     ]
-  --[ ClientFinish($C, $S, secret, transcript)
+  --[ ClientFinish($C, $S, secret, transcript, ctxt)
     , Eq(verify(sig, transcript, vkS), true)
     ]->
     [ SessionKey_C($C, $S, secret) ]
@@ -138,8 +138,8 @@ restriction Equality:
 // Sanity: an honest run can complete (no compromise needed).
 lemma executable:
     exists-trace
-    "Ex C S k tr #i.
-        ClientFinish(C, S, k, tr) @ i
+    "Ex C S k tr ctx #i.
+        ClientFinish(C, S, k, tr, ctx) @ i
       & not (Ex #r. RevealSig(S) @ r)
       & not (Ex #r. RevealPQ(S)  @ r)
       & not (Ex #r. RevealTrad(S) @ r)"
@@ -148,9 +148,18 @@ lemma executable:
 // then S really produced a matching ServerFinished over the same transcript —
 // unless the server's signing key was revealed.
 lemma server_authentication:
-    "All C S k tr #i.
-        ClientFinish(C, S, k, tr) @ i
-      ==> (Ex #j. ServerDone(S, k, tr) @ j & #j < #i)
+    "All C S k tr ctx #i.
+        ClientFinish(C, S, k, tr, ctx) @ i
+      ==> (Ex server_ctx #j. ServerDone(S, k, tr, server_ctx) @ j & #j < #i)
+          | (Ex #r. RevealSig(S) @ r)"
+
+// Authenticated context agreement: an accepted context is not just a local KDF input;
+// absent signing-key compromise, the server previously committed to the identical
+// (session key, authenticated transcript, context) tuple.
+lemma authenticated_context_agreement:
+    "All C S k tr ctx #i.
+        ClientFinish(C, S, k, tr, ctx) @ i
+      ==> (Ex #j. ServerDone(S, k, tr, ctx) @ j & #j < #i)
           | (Ex #r. RevealSig(S) @ r)"
 
 // HYBRID secrecy: the session key the client accepts stays secret UNLESS either
@@ -160,8 +169,8 @@ lemma server_authentication:
 //       server and MITM the key exchange with its own KEM keys, so confidentiality of
 //       the *authenticated* channel necessarily falls back on the signature.
 lemma hybrid_secrecy:
-    "All C S k tr #i.
-        ClientFinish(C, S, k, tr) @ i
+    "All C S k tr ctx #i.
+        ClientFinish(C, S, k, tr, ctx) @ i
       & (Ex #r. K(k) @ r)
       ==> ((Ex #p. RevealPQ(S) @ p) & (Ex #q. RevealTrad(S) @ q))
         | (Ex #r. RevealSig(S) @ r)"
@@ -170,8 +179,8 @@ lemma hybrid_secrecy:
 // server identity (signing key never revealed), the session key is secret unless BOTH
 // KEM components are broken — i.e. one post-quantum OR one classical break is survived.
 lemma hybrid_robustness_authenticated:
-    "All C S k tr #i.
-        ClientFinish(C, S, k, tr) @ i
+    "All C S k tr ctx #i.
+        ClientFinish(C, S, k, tr, ctx) @ i
       & (Ex #r. K(k) @ r)
       & not (Ex #r. RevealSig(S) @ r)
       ==> (Ex #p. RevealPQ(S) @ p) & (Ex #q. RevealTrad(S) @ q)"

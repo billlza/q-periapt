@@ -1,10 +1,5 @@
-# cargo-audit configuration.
-#
-# RUSTSEC-2026-0163: `pqcrypto-internals` is flagged UNMAINTAINED (upstream PQClean
-# is being archived). It is a transitive dependency of the OPTIONAL, off-by-default
-# `hqc` feature ONLY — the default, wasm32, and no_std builds never pull it. HQC is
-# documented as experimental, unaudited, and pre-standard (see
-# crates/q-periapt-backends/src/hqc.rs). We surface this advisory in CI and acknowledge it
-# explicitly here rather than hiding it; revisit when a maintained HQC path exists.
+# Cargo-audit configuration: no advisory is suppressed. Any warning from the
+# shipping root lockfile is an explicit release blocker until an audited,
+# publishable upstream dependency path removes it.
 [advisories]
-ignore = ["RUSTSEC-2026-0163"]
+ignore = []

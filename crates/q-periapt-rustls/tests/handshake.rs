@@ -1,6 +1,7 @@
-//! A real loopback TLS 1.3 handshake driven entirely by Q-Periapt's hybrid KEX group,
-//! proving the production path: both peers use `q_periapt_rustls::provider()`, complete a
-//! handshake over an in-memory transport, and exchange application data.
+//! A real loopback TLS 1.3 handshake driven entirely by Q-Periapt's private-use hybrid
+//! KEX group, proving the production-stack integration demo: both peers use
+//! `q_periapt_rustls::provider()`, complete a handshake over an in-memory transport,
+//! and exchange application data.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::panic)]
 
 use std::io::{Read, Write};

@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "evidence_date": "2026-07-11",
+  "status": "selected_revisions_with_reproducible_content_hashes",
+  "byte_lock_status": "partial_versioned_archives_only",
+  "integration_profile_status": "pending",
+  "external_interoperability_status": "unproven",
+  "hash_profiles": {
+    "raw_sha256_v1": {
+      "algorithm": "sha256",
+      "transform": "none"
+    },
+    "signal_cfemail_normalized_sha256_v1": {
+      "algorithm": "sha256",
+      "scope": "signal.org only",
+      "transform": [
+        "replace ASCII regex data-cfemail=\"[0-9A-Fa-f]+\" with data-cfemail=\"<normalized>\"",
+        "replace ASCII regex /cdn-cgi/l/email-protection#[0-9A-Fa-f]+ with /cdn-cgi/l/email-protection#<normalized>"
+      ],
+      "non_transformations": "no DOM parsing, whitespace normalization, Unicode normalization, decompression rewrite, or field reordering"
+    }
+  },
+  "components": [
+    {
+      "id": "PQXDH",
+      "revision": "3",
+      "revision_date": "2023-05-24",
+      "last_updated": "2024-01-23",
+      "url": "https://signal.org/docs/specifications/pqxdh/",
+      "source_stability": "mutable_publisher_page",
+      "content_hash": {
+        "method": "signal_cfemail_normalized_sha256_v1",
+        "sha256": "84d4a83a480df8028999c5534aaa07bae2409764ca537b0e98dc17dd723df18a"
+      }
+    },
+    {
+      "id": "SIGNAL-DOUBLE-TRIPLE-RATCHET",
+      "revision": "4",
+      "revision_date": "2025-11-04",
+      "url": "https://signal.org/docs/specifications/doubleratchet/",
+      "source_stability": "mutable_publisher_page",
+      "content_hash": {
+        "method": "signal_cfemail_normalized_sha256_v1",
+        "sha256": "266693396278bff2be262f02946baecfd9410e8e40e546fe6e9db60b6ce4d419"
+      }
+    },
+    {
+      "id": "ML-KEM-BRAID",
+      "revision": "1",
+      "revision_date": "2025-02-21",
+      "last_updated": "2025-09-26",
+      "url": "https://signal.org/docs/specifications/mlkembraid/",
+      "source_stability": "mutable_publisher_page",
+      "content_hash": {
+        "method": "signal_cfemail_normalized_sha256_v1",
+        "sha256": "07bee8d0dd7a8f59c462a047b0e529b6fb74c4bde2b665386c17fcdcfb4f6ccd"
+      }
+    },
+    {
+      "id": "SESAME",
+      "revision": "2",
+      "revision_date": "2017-04-14",
+      "url": "https://signal.org/docs/specifications/sesame/",
+      "source_stability": "mutable_publisher_page",
+      "content_hash": {
+        "method": "signal_cfemail_normalized_sha256_v1",
+        "sha256": "495b786a1d7642e6d684fbb3e3fd6bb5d5498b17aed57047c46a0d84dc489169"
+      }
+    },
+    {
+      "id": "SIGNAL-SPQR-ENGINEERING",
+      "revision": "published-2025-10-02",
+      "revision_date": "2025-10-02",
+      "url": "https://signal.org/blog/spqr/",
+      "source_stability": "mutable_publisher_page",
+      "content_hash": {
+        "method": "signal_cfemail_normalized_sha256_v1",
+        "sha256": "ae97c801ec1e5b9c12ab18cebdbbe4ab9dec0faaacbb2885a0fcde0ad8b1438e"
+      }
+    },
+    {
+      "id": "SIGNAL-SPQR-RUST",
+      "revision": "f2589fef855c10f39d72634dab3d14654dd410bf",
+      "retrieved_at": "2026-07-11",
+      "url": "https://github.com/signalapp/SparsePostQuantumRatchet/tree/f2589fef855c10f39d72634dab3d14654dd410bf",
+      "source_stability": "immutable_git_commit"
+    },
+    {
+      "id": "APPLE-PQ3-PUBLIC-DESCRIPTION",
+      "revision": "published-2024-02-21",
+      "revision_date": "2024-02-21",
+      "url": "https://security.apple.com/blog/imessage-pq3/",
+      "source_stability": "mutable_publisher_page",
+      "content_hash": {
+        "method": "raw_sha256_v1",
+        "sha256": "a79ced6d7d8a83ab7f9768f63baa52109e53b1c766ce3fc01b95c0241b2c56a7"
+      }
+    },
+    {
+      "id": "X-WING",
+      "revision": "draft-connolly-cfrg-xwing-kem-10",
+      "revision_date": "2026-03-02",
+      "url": "https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-10.txt",
+      "source_stability": "versioned_ietf_archive",
+      "content_hash": {
+        "method": "raw_sha256_v1",
+        "sha256": "530900ac0519e28eb1ff50bf80ecdb7648add22e500db72b465bab4fb6b6a5ec"
+      }
+    },
+    {
+      "id": "IRTF-HYBRID-KEMS",
+      "revision": "draft-irtf-cfrg-hybrid-kems-12",
+      "revision_date": "2026-07-06",
+      "url": "https://www.ietf.org/archive/id/draft-irtf-cfrg-hybrid-kems-12.txt",
+      "source_stability": "versioned_ietf_archive",
+      "content_hash": {
+        "method": "raw_sha256_v1",
+        "sha256": "3357939858dd988cf34d0d8c17c3d8df3cc992cc76e87fec23672f5bbb031b90"
+      }
+    }
+  ]
+}

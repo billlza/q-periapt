@@ -1,8 +1,8 @@
 # PQ/T Hybrid Cryptographic Suite — Cargo workspace.
 #
 # Design rule: the security-critical *composition* logic lives in `q-periapt-core`,
-# which is dependency-free and `no_std`. Vetted/verified primitive backends
-# (libcrux, RustCrypto, x25519-dalek, sha3, pqcrypto/PQClean) are wired in
+# which is dependency-free and `no_std`. Third-party primitive backends
+# (libcrux, RustCrypto, x25519-dalek, sha3) are wired in
 # behind traits in the higher crates so the core stays auditable in isolation.
 [workspace]
 resolver = "2"
@@ -18,10 +18,12 @@ members = [
     "crates/q-periapt-cli",
     "crates/q-periapt-rustls",
     "ctstats",
+    "models/q-periapt-continuity-model",
 ]
+exclude = ["research/hqc-fips207-candidate"]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.1.0-alpha.1"
 edition = "2021"
 # True floor: the resolved lock pulls clap 4.6 + hashbrown 0.17, which require 1.85.
 rust-version = "1.85"

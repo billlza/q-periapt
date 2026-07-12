@@ -4,6 +4,7 @@ set -eu
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then

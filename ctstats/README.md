@@ -3,6 +3,12 @@
 Constant-time assurance for the suite, split into a **hard gate** and an honest
 **best-effort report**, because not every claim can be enforced on cloud CI.
 
+This scope is the current KEM/combiner backend. It does not establish constant-time,
+traffic-shape, metadata, or end-to-end performance properties for a future prekey or
+ratchet protocol. Continuity requires separate physical-device hot-path and PQ-epoch
+measurements under the budgets in
+[`../docs/CONTINUITY_RESEARCH.md`](../docs/CONTINUITY_RESEARCH.md).
+
 ## Hard gates (fail the build)
 
 `cargo test -p q-periapt-ctstats` enforces **failure-path indistinguishability**:
@@ -19,7 +25,8 @@ verifiable deterministically and so gates every merge.
 
 `cargo run -p q-periapt-ctstats --bin dudect_decaps` prints a dudect-style Welch
 t-statistic comparing decaps timing for fixed-valid vs random-invalid
-ciphertexts. It runs in **report mode** and never fails CI.
+ciphertexts. Run it locally on quiesced hardware and preserve its exit status.
+It is intentionally absent from noisy shared CI; there is no current timing gate.
 
 Why not a gate: shared CI runners have too much scheduling/frequency noise for a
 stable `|t| < 4.5` threshold; a hard gate there produces flaky failures that get
@@ -28,8 +35,8 @@ hardware.
 
 ## Honest coverage scope (per the threat-model review)
 
-- **Empirical timing** (dudect): meaningful on a quiet x86_64 host; reported, not
-  gated, in CI.
+- **Empirical timing** (dudect): meaningful on a quiet x86_64 host; local diagnostic,
+  not run or gated in shared CI.
 - **Binary-level constant-time** (no secret-dependent branch/index/division in
   emitted assembly): a *stronger* property than a null t-test. Valgrind/Memcheck-TIMECOP
   runs on both **x86_64-linux and aarch64-linux**. The `ct_verify` check runs in CI on both
@@ -138,40 +145,40 @@ into the `constant-time` CI job, x86_64 + aarch64):
 | `ek`      | embedded **public** key            | **5696** / 60 | **1778** / 34 | positive control — Memcheck must flag the real libcrux q-branches |
 | `wholedk` | all 2400 dk bytes (over-marking)   | **5696** / 60 | **1778** / 34 | same as `ek`: only the embedded-pk bytes drive branches |
 | `probe`   | **genuine secret** ŝ + z           | **0** / 0     | **0** / 0     | THE GATE — no source→binary gap on the secret path |
-| `hqc prefix` | HQC genuine secret prefix       | **193** / 4   | **22849** / 6 | discriminator — known PQClean `vect_set_random_fixed_weight` leak |
+| `leaky-control` | synthetic planted secret branch | **> 0** | **> 0** | dependency-free discriminator — harness must catch the planted leak |
 
 (arm64: native colima Apple-Silicon VM, libcrux current, valgrind 3.24; x86_64: bare-metal Ryzen 7
 7700, valgrind 3.22.) Within an ISA `ek`=`wholedk` (marking all of `dk` reduces to marking the
 embedded pk, since only the pk bytes drive branches). **Read the contrast, not the absolute
-counts.** The counts differ markedly BY ISA — `ek` 5696 (arm) vs 1778 (x86); HQC 193 (arm) vs 22849
-(x86) — because Memcheck error counts scale with the target's emitted instruction sequence. The
+counts.** The counts differ markedly BY ISA — for example, `ek` is 5696 (arm) vs 1778 (x86) —
+because Memcheck error counts scale with the target's emitted instruction sequence. The
 load-bearing signal is the **discrimination**, identical on both ISAs: `probe` = **0** for the
-HACL\*-verified ML-KEM path vs `ek`/`hqc` **> 0** for code that genuinely branches on its argument.
+HACL\*-verified ML-KEM path vs `ek`/`leaky-control` **> 0** for code that genuinely branches on
+marked data.
 So libcrux ML-KEM-768 decapsulate's source-level secret-independence **survives compilation on both
 x86_64 and aarch64** — no source→binary CT gap on the ŝ/z path, and the `0` is demonstrably
 non-vacuous. (riscv64/wasm32 have no mature binary-CT tool and stay source-CT + attestation.) This
-is an honest **negative (equivalence) result**, self-validating via the `ek` and `hqc` positive
-controls — a rigorous reproduction + discriminator, not a discovered leak.
+is an honest **negative (equivalence) result**, self-validating via the `ek`/`wholedk` attribution
+controls and an explicit planted-leak discriminator — corroboration, not a discovered leak.
 
-**The probe discriminates (clean vs leaky).** Running the same probe against the suite's
-*unaudited* HQC backend (`bin/ct_hqc_gap`, PQClean C via `pqcrypto-hqc`; build
-`--features valgrind,hqc`) marks the genuinely-secret sk prefix (`[0..56]` = `SK_LEN−PK_LEN`,
-no embedded pk) and runs the real `crypto_kem_dec` under Memcheck. **Result (aarch64): 193
-errors / 4 contexts**, localized to `PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight` ←
-`hqc_pke_encrypt` ← `crypto_kem_dec` — the known HQC constant-weight-sampling timing channel in
-the FO re-encryption (`prefix`-only and `whole`-sk marking give the *same* 193, so the leakage
-is on the genuine secret, not the embedded pk). So in **one framework, same tool**, the probe
-returns **0 for HACL\*-verified ML-KEM and 193 for unaudited HQC** — evidence that the ML-KEM
-`0` is not a vacuous "always-0", and that the suite's per-backend CT gating (HQC is
-feature-gated and `C2PRI = false`, forcing ContextBound) is *necessary*, not decorative. (The
-HQC leak itself is **known** — PQClean documents it and the 2024 HQC timing attacks target this
-exact site; this is a rigorous, self-validating *reproduction* + discriminator, not a new
-finding. HQC is therefore **not** added to the hard CI gate — it would always fail by design.)
+**The current probe discriminates (clean vs deliberately leaky).** `bin/ct_leaky_control` has no
+cryptographic dependency: it marks one byte secret, performs a volatile read, and feeds it to an
+explicit planted secret-dependent branch. Its only valid mode is `planted`, and the gate requires
+a strictly positive Memcheck count. This proves that ML-KEM's zero is not an "always zero" harness
+result without keeping a backend with a known timing defect in the current dependency graph. The
+synthetic binary is not a production primitive and makes no claim about another algorithm.
+
+**Historical HQC reproduction (not a current binary claim).** The archived arm64 log records 193
+errors / 4 contexts, and the 2026-07-10 x86_64 capture recorded 22849 / 6 for the former PQClean
+`vect_set_random_fixed_weight` reproduction. Those counts remain provenance for the old experiment
+only. `ct_hqc_gap`, its `hqc` feature, and its PQClean dependency have been retired; current builds,
+camera-ready bundles, figures, and gates must use `ct_leaky_control` and must not present 193/22849
+as results of a current binary.
 
 ## TODO (later milestones)
 
 - Triage the libcrux primitive paths well enough to gate them (an alternative to Memcheck for
   primitives is Binsec/Rel-style symbolic CT).
-- Promote the dudect timing test from report-only to a gate on quiesced hardware.
+- Promote the local dudect timing diagnostic to a gate on quiesced hardware.
 - Per-(backend, target) CT-coverage matrix published as an artifact.
 - KyberSlash-class site audit hooks once a non-libcrux backend is added.

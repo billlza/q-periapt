@@ -6,10 +6,12 @@
 # - iOS build proves the aarch64-apple-ios Rust staticlib and Swift app compile for a real device.
 # - iOS launch proves the app executed on the attached physical device and printed
 #   QPERIAPT_DEVICE_PASS run-id=<nonce>. Simulator output is never accepted as a substitute.
+# - commit and canonical source bytes are frozen before work and rechecked before proof emission.
 set -eu
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 if [ -n "${QPERIAPT_DEVELOPER_DIR:-}" ]; then
 	DEVELOPER_DIR=$QPERIAPT_DEVELOPER_DIR
@@ -95,7 +97,6 @@ if len(matches) == 1:
 
 need cargo
 need codesign
-need git
 need xcodebuild
 need xcodegen
 need xcrun
@@ -114,7 +115,16 @@ case "$ALLOW_DIRTY_APPLE_DEVICE" in
 		exit 2
 		;;
 esac
-if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
+SOURCE_TREE_DIRTY=$(PYTHONPATH=artifact python3 - "$ROOT" <<'PY'
+import pathlib
+import sys
+
+from git_provenance import source_tree_dirty
+
+print(int(source_tree_dirty(pathlib.Path(sys.argv[1]))))
+PY
+)
+if [ "$SOURCE_TREE_DIRTY" = "1" ]; then
 	if [ "$ALLOW_DIRTY_APPLE_DEVICE" != "1" ]; then
 		printf 'error: Apple device proof requires a clean source tree; set QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE=1 for local diagnostics only\n' >&2
 		exit 2
@@ -170,6 +180,21 @@ if not 0 < max_age_seconds <= max_age_limit:
     raise SystemExit(f"error: QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS must be between 1 and {max_age_limit}: {max_age_seconds}")
 PY
 
+SOURCE_SNAPSHOT=$(python3 artifact/apple_device_proof.py freeze-source --root "$ROOT")
+case "$SOURCE_SNAPSHOT" in
+	*:*:*)
+		printf 'error: malformed Apple source snapshot: expected one separator\n' >&2
+		exit 2
+		;;
+	*:*) ;;
+	*)
+		printf 'error: malformed Apple source snapshot: missing separator\n' >&2
+		exit 2
+		;;
+esac
+SOURCE_GIT_COMMIT=${SOURCE_SNAPSHOT%%:*}
+SOURCE_TREE_SHA256=${SOURCE_SNAPSHOT#*:}
+
 RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
 
 if [ -z "$DEVICE_ID" ]; then
@@ -219,7 +244,7 @@ xcrun swift test --package-path bindings/swift -Xlinker "-L$ROOT/target/release"
 
 printf '\n=== iOS Rust staticlib ===\n'
 cargo build -p q-periapt-ffi --release --target aarch64-apple-ios
-test -f "$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi.a" || {
+test -f "$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a" || {
 	printf 'error: missing iOS staticlib\n' >&2
 	exit 1
 }
@@ -281,7 +306,7 @@ PROFILE_PLIST="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-embedded-profile.plist"
 ENTITLEMENTS_PLIST="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-codesign-entitlements.plist"
 LINKAGE="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-otool-l.txt"
 PROOF_JSON="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-proof.json"
-STATICLIB="$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi.a"
+STATICLIB="$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a"
 rm -f "$PROFILE_PLIST" "$ENTITLEMENTS_PLIST" "$LINKAGE" "$PROOF_JSON"
 security cms -D -i "$APP/embedded.mobileprovision" >"$PROFILE_PLIST"
 codesign -d --entitlements :- "$APP" >"$ENTITLEMENTS_PLIST" 2>/dev/null
@@ -337,7 +362,17 @@ if grep -q 'QPERIAPT_DEVICE_FAIL' "$DEVICE_RESULT"; then
 	printf 'error: device result marker is failure; see %s\n' "$DEVICE_RESULT" >&2
 	exit 1
 fi
-PASS_COUNT=$(grep -cx "QPERIAPT_DEVICE_PASS run-id=$RUN_ID" "$DEVICE_RESULT" || true)
+if PASS_COUNT=$(grep -cx "QPERIAPT_DEVICE_PASS run-id=$RUN_ID" "$DEVICE_RESULT"); then
+	:
+else
+	grep_status=$?
+	if [ "$grep_status" -eq 1 ]; then
+		PASS_COUNT=0
+	else
+		printf 'error: could not count device pass markers (grep exit %s)\n' "$grep_status" >&2
+		exit 1
+	fi
+fi
 if [ "$PASS_COUNT" -ne 1 ]; then
 	printf 'error: device result did not contain exactly one run-bound QPERIAPT_DEVICE_PASS; see %s\n' "$DEVICE_RESULT" >&2
 	exit 1
@@ -365,7 +400,9 @@ python3 artifact/apple_device_proof.py emit \
 	--profile-plist "$PROFILE_PLIST" \
 	--entitlements-plist "$ENTITLEMENTS_PLIST" \
 	--linkage "$LINKAGE" \
-	--output "$PROOF_JSON"
+	--output "$PROOF_JSON" \
+	--expected-git-commit "$SOURCE_GIT_COMMIT" \
+	--expected-source-tree-sha256 "$SOURCE_TREE_SHA256"
 if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 	python3 artifact/apple_device_proof.py verify \
 		--root "$ROOT" \

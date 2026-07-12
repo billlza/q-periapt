@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), no_std)]
-// `deny` (not `forbid`) so the single, audited secure-zeroization block in
+// `deny` (not `forbid`) so the single, isolated secure-zeroization block in
 // `Secret::drop` can opt in with a local `#[allow(unsafe_code)]`. That is the
 // ONLY `unsafe` in the crate; everything else is forbidden by the deny.
 #![deny(unsafe_code)]
@@ -10,12 +10,12 @@
 //! Auditable, `no_std`, panic-light core for the PQ/T hybrid suite.
 //!
 //! This crate contains **no cryptographic primitive implementations**. Every
-//! primitive (ML-KEM, X25519, HQC, SHA3/SHAKE) is injected through a trait.
+//! primitive (for example ML-KEM, X25519, or SHA3/SHAKE) is injected through a trait.
 //!
 //! Rationale: keep the security-critical *composition* logic — the hybrid KEM
 //! combiner and its transcript/context binding — tiny, primitive-agnostic and
-//! reviewable in isolation, decoupled from any backend or platform. Vetted /
-//! formally-verified backends (libcrux, RustCrypto, x25519-dalek, sha3) are
+//! reviewable in isolation, decoupled from any backend or platform. Third-party
+//! backends (libcrux, RustCrypto, x25519-dalek, sha3) are
 //! wired in by the `q-periapt-kem` / `q-periapt-sig` crates.
 //!
 //! ## Security notes
@@ -36,6 +36,10 @@ pub const SHARED_SECRET_LEN: usize = 32;
 /// wire-incompatible change to the binding format.
 pub const DOMAIN: &[u8] = b"Q-PERIAPT-HYBRID-KEM/v1";
 
+/// Domain separation for the high-level context that commits an authenticated
+/// policy digest together with an application transcript/context.
+pub const POLICY_CONTEXT_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-CONTEXT/v1";
+
 /// The X-Wing combiner label `\.//^\` (6 bytes), per
 /// `draft-connolly-cfrg-xwing-kem`. Used only by [`Profile::CompatXWing`].
 pub const XWING_LABEL: [u8; 6] = [0x5c, 0x2e, 0x2f, 0x2f, 0x5e, 0x5c];
@@ -55,7 +59,7 @@ pub enum Error {
     /// FO-KEM's implicit rejection (ML-KEM) never produces this; only DH-style key shares do.
     InvalidKeyShare,
     /// The active algorithm policy / profile combination is forbidden
-    /// (e.g. a non-C2PRI KEM requested with the fast `CompatXWing` profile).
+    /// (e.g. a first-slot KEM lacking either required `CompatXWing` capability).
     PolicyDenied,
 }
 
@@ -76,8 +80,9 @@ impl core::fmt::Display for Error {
 /// The wipe uses volatile byte writes (which the optimizer may not elide) followed
 /// by a compiler fence — the same technique the audited `zeroize` crate uses,
 /// inlined here to keep `q-periapt-core` dependency-free. `Secret` is intentionally
-/// **not** `Clone`/`Copy`: a combined key has a single owner, so no copy can
-/// survive past the wipe. Read it once via [`as_bytes`](Secret::as_bytes).
+/// **not** `Clone`/`Copy`, preventing implicit duplication of the owner. Its
+/// [`as_bytes`](Secret::as_bytes) borrow can still be copied explicitly; callers
+/// own and must wipe any such copy. Drop wipes only this value's storage.
 pub struct Secret([u8; SHARED_SECRET_LEN]);
 
 impl Secret {
@@ -100,6 +105,50 @@ impl Drop for Secret {
     }
 }
 
+/// Fixed-size byte storage that securely wipes its own storage on drop.
+///
+/// This is the shared RAII owner for seeds, component secrets, and randomness
+/// that must survive fallible calls. It is intentionally not `Clone`/`Copy`.
+/// Borrowers can still copy the bytes explicitly; such copies are outside this
+/// value's ownership and must be wiped by their owners.
+pub struct ZeroizingBytes<const N: usize>([u8; N]);
+
+impl<const N: usize> ZeroizingBytes<N> {
+    /// Allocate a zero-filled owned buffer.
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self([0u8; N])
+    }
+
+    /// Take ownership of an existing fixed-size array.
+    #[must_use]
+    pub const fn from_bytes(bytes: [u8; N]) -> Self {
+        Self(bytes)
+    }
+
+    /// Borrow the owned bytes.
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8; N] {
+        &self.0
+    }
+
+    /// Mutably borrow the owned bytes.
+    pub fn as_mut_bytes(&mut self) -> &mut [u8; N] {
+        &mut self.0
+    }
+
+    /// Wipe the owned storage immediately. Drop remains idempotent and wipes it again.
+    pub fn clear(&mut self) {
+        secure_wipe(&mut self.0);
+    }
+}
+
+impl<const N: usize> Drop for ZeroizingBytes<N> {
+    fn drop(&mut self) {
+        self.clear();
+    }
+}
+
 /// Volatile-zero a buffer so the compiler may not elide the wipe, with a fence so the
 /// zeroing is ordered before the storage is reused. This is exactly the `zeroize`
 /// crate's technique, inlined to keep the crate dependency-free. Use it to clear
@@ -117,9 +166,11 @@ pub fn secure_wipe(buf: &mut [u8]) {
 
 /// An incremental XOF / hash used to derive the combined secret (e.g. SHAKE-256
 /// or SHA3-256). Implementations **must** be constant-time with respect to the
-/// absorbed data, and **must** securely wipe any internal staging/sponge state that
-/// held absorbed secret material when dropped (the combiner absorbs raw component
-/// shared secrets) — e.g. via [`secure_wipe`] in a `Drop` impl.
+/// absorbed data, and **must** securely wipe any secret-bearing staging/sponge
+/// storage that the implementation owns and can still reach when dropped (the
+/// combiner absorbs raw component shared secrets) — e.g. via [`secure_wipe`] in a
+/// `Drop` impl. Primitive/callee temporaries, registers, and OS copies outside the
+/// implementation's ownership are a separate backend-assurance boundary.
 pub trait Xof256 {
     /// Create a fresh, empty absorbing state.
     fn new() -> Self;
@@ -128,13 +179,34 @@ pub trait Xof256 {
     /// reallocation while absorbing secret material would free the old buffer without zeroizing it,
     /// leaving an unreachable copy. Default: no-op (for impls that never stage secrets).
     fn reserve(&mut self, _additional: usize) {}
-    /// Absorb a chunk of input.
+    /// Absorb a chunk whose sensitivity is not classified by the caller.
+    ///
+    /// Implementations must conservatively treat this input as potentially secret.
+    /// New code should prefer [`Xof256::absorb_public`] or
+    /// [`Xof256::absorb_secret`] so a staging implementation can erase only bytes
+    /// that actually held secret material. This method retains the conservative
+    /// legacy contract for existing implementations and callers.
     fn absorb(&mut self, data: &[u8]);
+    /// Absorb bytes known to be public and attacker-observable.
+    ///
+    /// The default delegates to [`Xof256::absorb`], preserving the conservative
+    /// erase behavior of implementations that do not distinguish sensitivity.
+    fn absorb_public(&mut self, data: &[u8]) {
+        self.absorb(data);
+    }
+    /// Absorb bytes that contain secret material.
+    ///
+    /// The default delegates to [`Xof256::absorb`]. Implementations that stage
+    /// input may override this method to track the exact ranges that require a
+    /// secure erase, without changing the absorbed byte stream.
+    fn absorb_secret(&mut self, data: &[u8]) {
+        self.absorb(data);
+    }
     /// Finalize and squeeze exactly 32 output bytes.
     fn squeeze32(self) -> [u8; SHARED_SECRET_LEN];
 }
 
-/// A key-encapsulation mechanism backend (ML-KEM, X25519-as-KEM, HQC, ...).
+/// A key-encapsulation mechanism backend (for example ML-KEM or X25519-as-KEM).
 ///
 /// All methods **must** run in constant time with respect to secret inputs.
 ///
@@ -151,17 +223,17 @@ pub trait Kem {
     fn algorithm(&self) -> &'static str;
 
     /// Whether this KEM's primitive is **ciphertext second-preimage resistant** (C2PRI),
-    /// i.e. provably binds its ciphertext (ML-KEM via the FO transform + explicit rejection).
+    /// i.e. provably binds its ciphertext (ML-KEM via its FO transform and implicit rejection).
     ///
-    /// Defaults to `false` (the safe choice): a KEM that does not prove C2PRI
-    /// must be combined with [`Profile::ContextBound`], which binds all
-    /// ciphertexts. Backends that are proven C2PRI override this to `true`.
+    /// Defaults to `false` (the safe choice): a KEM placed in the first slot whose
+    /// ciphertext/public key `CompatXWing` omits must prove C2PRI. Otherwise it must
+    /// use [`Profile::ContextBound`], which binds all ciphertexts and public keys.
     const C2PRI: bool = false;
 
     /// Whether this **backend API and exposed key format** may be used with
     /// [`Profile::CompatXWing`].
     ///
-    /// This is stricter than [`C2PRI`](Self::C2PRI): the primitive can be C2PRI while a
+    /// This is an additional requirement beyond [`C2PRI`](Self::C2PRI): the primitive can be C2PRI while a
     /// backend that accepts arbitrary expanded/imported decapsulation keys is still not a
     /// safe X-Wing-compatible API. Such backends must use [`Profile::ContextBound`], which
     /// binds `ct_pq` and `pk_pq` directly. Seed-derived X-Wing-style backends may opt in.
@@ -187,9 +259,9 @@ pub trait Kem {
 #[repr(u8)]
 pub enum Profile {
     /// Fast, byte-exact X-Wing-compatible combiner (parity with mainstream).
-    /// Binds the traditional ciphertext+pubkey; relies on the PQ backend being
-    /// [`Kem::COMPAT_XWING_SAFE`] to *not* hash the PQ ct/pk. Requires all four
-    /// absorbed fields to be exactly 32 bytes.
+    /// Binds the traditional ciphertext+pubkey; relies on the first-slot backend being
+    /// both [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`] to *not* hash that slot's
+    /// ct/pk. Requires all four absorbed fields to be exactly 32 bytes.
     ///
     /// **Footgun:** X-Wing has no `suite_id`/`policy_version`/`context` fields, so this profile
     /// **silently ignores** any you pass — it does **not** bind external context or the agility
@@ -197,12 +269,14 @@ pub enum Profile {
     /// context here is accepted and discarded with no error (a deliberate compatibility limitation,
     /// not context binding).
     CompatXWing = 1,
-    /// Stronger context-bound combiner: domain-separated, injective fixed-width
+    /// Full-transcript context-bound profile: domain-separated, injective fixed-width
     /// length-prefixed, binds a first-class agility block (`suite_id`,
     /// `policy_version`), every component ct+pk, **and** a mandatory non-empty
-    /// caller context (e.g. a handshake transcript hash). Target notion
+    /// caller context (e.g. a handshake transcript hash). Standard target notions
     /// `MAL-BIND-K-CT`/`K-PK` reducing only to XOF collision-resistance — see
-    /// `docs/BINDING_SECURITY.md`. Costs extra hashing vs [`Profile::CompatXWing`].
+    /// `docs/BINDING_SECURITY.md`; the context field has a separate local wrapper
+    /// collision bound and requires protocol authentication for semantic meaning.
+    /// Costs extra hashing vs [`Profile::CompatXWing`].
     ContextBound = 2,
 }
 
@@ -250,7 +324,9 @@ pub struct CombineInput<'a> {
     pub pk_trad: &'a [u8],
     /// Caller context to bind (transcript hash, etc.). Used only by
     /// [`Profile::ContextBound`]. Downgrade resistance does NOT rely on this
-    /// field — it is bound *in addition to* the structured agility block.
+    /// field — it is bound *in addition to* the structured agility block. The
+    /// staging XOF treats it conservatively as potentially sensitive because the
+    /// public API does not require callers to supply only attacker-visible bytes.
     pub context: &'a [u8],
 }
 
@@ -303,14 +379,78 @@ impl<'a> CombineInput<'a> {
     }
 }
 
-fn absorb_lp<X: Xof256>(x: &mut X, data: &[u8]) {
+fn absorb_public_lp<X: Xof256>(x: &mut X, data: &[u8]) {
     // Fixed-width (8-byte) big-endian length prefix on every field, so the
     // encoding of the field tuple is injective: distinct tuples — including ones
     // differing only in field boundaries — can never map to the same byte
     // string. This injectivity is the load-bearing step of the
     // collision-resistance → binding reduction (docs/BINDING_SECURITY.md §3.2).
-    x.absorb(&(data.len() as u64).to_be_bytes());
-    x.absorb(data);
+    x.absorb_public(&(data.len() as u64).to_be_bytes());
+    x.absorb_public(data);
+}
+
+fn absorb_secret_lp<X: Xof256>(x: &mut X, data: &[u8]) {
+    // Field lengths are public framing metadata; only the potentially sensitive
+    // field body is marked secret. Both helpers produce the exact same LP byte encoding.
+    x.absorb_public(&(data.len() as u64).to_be_bytes());
+    x.absorb_secret(data);
+}
+
+/// Maximum application-context size accepted by policy-bound operations.
+///
+/// Current protocol labels and transcript hashes are tiny; this bound prevents
+/// unauthenticated callers from requesting an unbounded wrapper allocation.
+pub const MAX_APPLICATION_CONTEXT_BYTES: usize = 64 * 1024;
+
+/// Exact byte length required by [`encode_policy_bound_context`].
+#[must_use]
+pub fn policy_bound_context_len(application_context_len: usize) -> Option<usize> {
+    if application_context_len > MAX_APPLICATION_CONTEXT_BYTES {
+        return None;
+    }
+    (8 + POLICY_CONTEXT_DOMAIN.len())
+        .checked_add(8 + SHARED_SECRET_LEN)
+        .and_then(|size| size.checked_add(8 + application_context_len))
+}
+
+fn write_lp<'a>(out: &'a mut [u8], field: &[u8]) -> Result<&'a mut [u8], Error> {
+    let field_len = u64::try_from(field.len()).map_err(|_| Error::InvalidLength)?;
+    let needed = 8usize
+        .checked_add(field.len())
+        .ok_or(Error::InvalidLength)?;
+    if out.len() < needed {
+        return Err(Error::InvalidLength);
+    }
+    let (length_out, rest) = out.split_at_mut(8);
+    length_out.copy_from_slice(&field_len.to_be_bytes());
+    let (field_out, tail) = rest.split_at_mut(field.len());
+    field_out.copy_from_slice(field);
+    Ok(tail)
+}
+
+/// Encode the canonical context used by signed-policy-controlled execution.
+///
+/// The result is `LP(domain) || LP(policy_digest) || LP(application_context)`
+/// with 8-byte big-endian lengths. The caller supplies the exact SHA3-256 digest
+/// of the authenticated policy and an output buffer at least
+/// [`policy_bound_context_len`] bytes long. This helper is shared by native and
+/// WASM faces so their context-wrapper bytes cannot drift.
+pub fn encode_policy_bound_context(
+    policy_digest: &[u8; SHARED_SECRET_LEN],
+    application_context: &[u8],
+    out: &mut [u8],
+) -> Result<usize, Error> {
+    let expected =
+        policy_bound_context_len(application_context.len()).ok_or(Error::InvalidLength)?;
+    if out.len() < expected {
+        return Err(Error::InvalidLength);
+    }
+    let expected_tail = out.len() - expected;
+    let tail = write_lp(out, POLICY_CONTEXT_DOMAIN)?;
+    let tail = write_lp(tail, policy_digest)?;
+    let tail = write_lp(tail, application_context)?;
+    debug_assert_eq!(tail.len(), expected_tail);
+    Ok(expected)
 }
 
 /// Derive the combined hybrid shared secret from both components.
@@ -319,8 +459,8 @@ fn absorb_lp<X: Xof256>(x: &mut X, data: &[u8]) {
 /// authoritative definitions and test vectors. Returns [`Error::InvalidLength`]
 /// if a [`Profile::CompatXWing`] field is not exactly 32 bytes (required for
 /// X-Wing byte-exactness and to avoid canonical-encoding ambiguity), or if a
-/// [`Profile::ContextBound`] call has an empty `context` (required for the
-/// `MAL-BIND-K-CTX` guarantee).
+/// [`Profile::ContextBound`] call has an empty `context` (the profile requires an
+/// explicit protocol/application label; this is not an encoding-injectivity precondition).
 pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<Secret, Error> {
     let mut x = X::new();
     match profile {
@@ -337,11 +477,11 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
             {
                 return Err(Error::InvalidLength);
             }
-            x.absorb(input.ss_pq);
-            x.absorb(input.ss_trad);
-            x.absorb(input.ct_trad);
-            x.absorb(input.pk_trad);
-            x.absorb(&XWING_LABEL);
+            x.absorb_secret(input.ss_pq);
+            x.absorb_secret(input.ss_trad);
+            x.absorb_public(input.ct_trad);
+            x.absorb_public(input.pk_trad);
+            x.absorb_public(&XWING_LABEL);
         }
         // Context-bound: the GHP/Chempat "hash everything" shape under an
         // injective, fixed-width-BE-length-prefixed, domain-separated encoding.
@@ -354,36 +494,44 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
         // cross-profile separation; suite_id + policy_version are bound
         // first-class for downgrade/substitution resistance.
         Profile::ContextBound => {
-            // Mandatory non-empty context, else the K-CTX guarantee degenerates
-            // (docs/BINDING_SECURITY.md §3.3). Callers with no application
-            // context pass a fixed protocol/role/version label.
+            // Mandatory non-empty context as a semantic profile guard
+            // (docs/BINDING_SECURITY.md §3.3). Fixed-width length prefixes would
+            // encode an empty field injectively, but callers must make protocol /
+            // role / version intent explicit through a fixed or application label.
             if input.context.is_empty() {
                 return Err(Error::InvalidLength);
             }
             // Pre-reserve the whole length-prefixed transcript so a staging XOF allocates once and
             // never reallocates mid-absorb (no un-zeroizable secret residue). Each field costs its
             // 8-byte BE length prefix plus its body.
-            let total = (8 + DOMAIN.len())
-                + (8 + input.suite_id.len())
-                + (8 + core::mem::size_of::<u32>())
-                + (8 + input.ss_pq.len())
-                + (8 + input.ss_trad.len())
-                + (8 + input.ct_pq.len())
-                + (8 + input.pk_pq.len())
-                + (8 + input.ct_trad.len())
-                + (8 + input.pk_trad.len())
-                + (8 + input.context.len());
+            let total = [
+                DOMAIN.len(),
+                input.suite_id.len(),
+                core::mem::size_of::<u32>(),
+                input.ss_pq.len(),
+                input.ss_trad.len(),
+                input.ct_pq.len(),
+                input.pk_pq.len(),
+                input.ct_trad.len(),
+                input.pk_trad.len(),
+                input.context.len(),
+            ]
+            .into_iter()
+            .try_fold(0usize, |size, field_len| {
+                size.checked_add(8)?.checked_add(field_len)
+            })
+            .ok_or(Error::InvalidLength)?;
             x.reserve(total);
-            absorb_lp(&mut x, DOMAIN);
-            absorb_lp(&mut x, input.suite_id);
-            absorb_lp(&mut x, &input.policy_version.to_be_bytes());
-            absorb_lp(&mut x, input.ss_pq);
-            absorb_lp(&mut x, input.ss_trad);
-            absorb_lp(&mut x, input.ct_pq);
-            absorb_lp(&mut x, input.pk_pq);
-            absorb_lp(&mut x, input.ct_trad);
-            absorb_lp(&mut x, input.pk_trad);
-            absorb_lp(&mut x, input.context);
+            absorb_public_lp(&mut x, DOMAIN);
+            absorb_public_lp(&mut x, input.suite_id);
+            absorb_public_lp(&mut x, &input.policy_version.to_be_bytes());
+            absorb_secret_lp(&mut x, input.ss_pq);
+            absorb_secret_lp(&mut x, input.ss_trad);
+            absorb_public_lp(&mut x, input.ct_pq);
+            absorb_public_lp(&mut x, input.pk_pq);
+            absorb_public_lp(&mut x, input.ct_trad);
+            absorb_public_lp(&mut x, input.pk_trad);
+            absorb_secret_lp(&mut x, input.context);
         }
     }
     Ok(Secret::from_bytes(x.squeeze32()))
@@ -453,6 +601,48 @@ mod tests {
         }
     }
 
+    struct ClassifyingXof {
+        transcript: Vec<u8>,
+        legacy_calls: u8,
+        public_calls: u8,
+        secret_calls: u8,
+    }
+
+    impl Xof256 for ClassifyingXof {
+        fn new() -> Self {
+            Self {
+                transcript: Vec::new(),
+                legacy_calls: 0,
+                public_calls: 0,
+                secret_calls: 0,
+            }
+        }
+
+        fn absorb(&mut self, data: &[u8]) {
+            self.legacy_calls = self.legacy_calls.saturating_add(1);
+            self.transcript.extend_from_slice(data);
+        }
+
+        fn absorb_public(&mut self, data: &[u8]) {
+            self.public_calls = self.public_calls.saturating_add(1);
+            self.transcript.extend_from_slice(data);
+        }
+
+        fn absorb_secret(&mut self, data: &[u8]) {
+            self.secret_calls = self.secret_calls.saturating_add(1);
+            self.transcript.extend_from_slice(data);
+        }
+
+        fn squeeze32(self) -> [u8; SHARED_SECRET_LEN] {
+            let mut out = [0u8; SHARED_SECRET_LEN];
+            out[0] = self.legacy_calls;
+            out[1] = self.public_calls;
+            out[2] = self.secret_calls;
+            out[3..11].copy_from_slice(&(self.transcript.len() as u64).to_be_bytes());
+            out
+        }
+    }
+
     fn input_with(suite: &'static [u8], ver: u32, ctx: &'static [u8]) -> CombineInput<'static> {
         CombineInput {
             suite_id: suite,
@@ -482,6 +672,28 @@ mod tests {
             a.as_bytes(),
             b.as_bytes(),
             "profiles must be domain-separated"
+        );
+    }
+
+    #[test]
+    fn combiner_classifies_component_secrets_and_caller_context_as_sensitive() {
+        let input = input_with(b"suite-A", 1, b"ctx");
+        let compat = combine::<ClassifyingXof>(Profile::CompatXWing, &input).unwrap();
+        assert_eq!(compat.as_bytes()[0], 0, "legacy absorb must not be used");
+        assert_eq!(compat.as_bytes()[1], 3, "ct, pk, and label are public");
+        assert_eq!(compat.as_bytes()[2], 2, "both component secrets are secret");
+
+        let context = combine::<ClassifyingXof>(Profile::ContextBound, &input).unwrap();
+        assert_eq!(context.as_bytes()[0], 0, "legacy absorb must not be used");
+        assert_eq!(
+            context.as_bytes()[1],
+            17,
+            "seven public LP fields plus three sensitive length prefixes are public"
+        );
+        assert_eq!(
+            context.as_bytes()[2],
+            3,
+            "both component-secret bodies and caller context are conservatively sensitive"
         );
     }
 
@@ -650,5 +862,47 @@ mod tests {
         secure_wipe(&mut buf);
         assert_eq!(buf, [0u8; 64], "secure_wipe must zero every byte");
         secure_wipe(&mut []); // empty slice must not panic
+    }
+
+    #[test]
+    fn zeroizing_bytes_explicit_clear_zeroes_owned_storage() {
+        let mut bytes = ZeroizingBytes::from_bytes([0xABu8; 64]);
+        bytes.clear();
+        assert_eq!(bytes.as_bytes(), &[0u8; 64]);
+    }
+
+    #[test]
+    fn policy_bound_context_is_canonical_and_commits_every_field() {
+        let digest_a = [0x11u8; SHARED_SECRET_LEN];
+        let digest_b = [0x12u8; SHARED_SECRET_LEN];
+        let app_a = b"transcript-a";
+        let app_b = b"transcript-b";
+        let len = policy_bound_context_len(app_a.len()).unwrap();
+        let mut encoded_a = vec![0u8; len];
+        let mut encoded_digest = vec![0u8; len];
+        let mut encoded_app = vec![0u8; len];
+        assert_eq!(
+            encode_policy_bound_context(&digest_a, app_a, &mut encoded_a).unwrap(),
+            len
+        );
+        encode_policy_bound_context(&digest_b, app_a, &mut encoded_digest).unwrap();
+        encode_policy_bound_context(&digest_a, app_b, &mut encoded_app).unwrap();
+        assert_ne!(encoded_a, encoded_digest, "policy digest must commit");
+        assert_ne!(encoded_a, encoded_app, "application context must commit");
+
+        let mut short = vec![0u8; len - 1];
+        assert_eq!(
+            encode_policy_bound_context(&digest_a, app_a, &mut short).unwrap_err(),
+            Error::InvalidLength
+        );
+    }
+
+    #[test]
+    fn policy_bound_context_rejects_unbounded_allocation_requests() {
+        assert!(policy_bound_context_len(MAX_APPLICATION_CONTEXT_BYTES).is_some());
+        assert_eq!(
+            policy_bound_context_len(MAX_APPLICATION_CONTEXT_BYTES + 1),
+            None
+        );
     }
 }

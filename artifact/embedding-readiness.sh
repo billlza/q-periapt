@@ -11,6 +11,7 @@ set -eu
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
+. "$ROOT/artifact/python-env.sh"
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -54,8 +55,8 @@ swift_binding_tests() {
 	if [ "$rc" -ne 0 ]; then
 		return "$rc"
 	fi
-	if ! grep -q 'Executed 7 tests, with 0 failures' "$swift_log"; then
-		printf 'error: Swift XCTest count was not the expected 7 passing tests\n' >&2
+	if ! grep -q 'Executed 2 tests, with 0 failures' "$swift_log"; then
+		printf 'error: Swift XCTest count was not the expected 2 passing ABI2 product tests\n' >&2
 		return 1
 	fi
 }
@@ -114,8 +115,11 @@ step "cargo metadata locked" sh -c "cargo metadata --locked --format-version 1 >
 step "rustfmt" cargo fmt --all --check
 step "clippy warnings denied" cargo clippy --workspace --all-targets -- -D warnings
 step "workspace tests locked" cargo test --workspace --locked
-step "Android proof provenance tests" env PYTHONPATH=artifact python3 -m unittest artifact/test_android_device_proof.py
-step "optional PQ backend tests" cargo test -p q-periapt-backends --features slh-dsa,hqc --locked
+run_android_proof_tests() {
+	PYTHONPATH=artifact python3 -m unittest artifact/test_android_device_proof.py
+}
+step "Android proof provenance tests" run_android_proof_tests
+step "optional SLH-DSA backend tests" cargo test -p q-periapt-backends --features slh-dsa --locked
 step "release C ABI build" cargo build -p q-periapt-ffi --release --locked
 
 printf '\n=== generated C header freshness ===\n'

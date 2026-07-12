@@ -1,0 +1,37 @@
+[package]
+name = "q-periapt-hqc-fips207-candidate"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+license = "Apache-2.0 OR MIT"
+description = "Isolated Q-Periapt shadow adapter for the HQC v5 FIPS 207 draft candidate"
+
+# This nested workspace is deliberately independent from the repository's
+# production workspace and lockfile. It is a research/evaluation lane only.
+[workspace]
+resolver = "2"
+members = ["."]
+
+[dependencies]
+hqc-kem = { version = "=0.1.0-rc.0", default-features = false, features = ["kgen", "ecap", "dcap"] }
+q-periapt-core = { path = "../../crates/q-periapt-core" }
+
+[dev-dependencies]
+q-periapt-kem = { path = "../../crates/q-periapt-kem" }
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+unreachable_pub = "deny"
+
+[lints.clippy]
+indexing_slicing = "deny"
+panic = "deny"
+unwrap_used = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true

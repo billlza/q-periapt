@@ -15,14 +15,78 @@ use q_periapt_backends::{
     MlKem768, MlKem768XWingSeed, Sha3_256Xof, DEFAULT_SUITE_ID, ML_KEM_768_CT_LEN,
     ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
-use q_periapt_core::{combine as core_combine, secure_wipe, CombineInput, Profile};
+use q_periapt_core::{
+    combine as core_combine, encode_policy_bound_context, policy_bound_context_len, secure_wipe,
+    CombineInput, Profile,
+};
 use q_periapt_kem::HybridKem;
 #[cfg(feature = "signed-policy")]
-use q_periapt_policy::Policy;
+use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
 use wasm_bindgen::prelude::*;
 
 fn profile(code: u8) -> Result<Profile, JsError> {
     Profile::from_u8(code).ok_or_else(|| JsError::new("invalid profile code"))
+}
+
+struct ParsedPolicyDecision {
+    profile: Profile,
+    policy_version: u32,
+    policy_digest: [u8; 32],
+}
+
+fn parse_policy_decision(encoded: &[u8]) -> Result<ParsedPolicyDecision, JsError> {
+    if encoded.len() != 40 || encoded.first() != Some(&1) || encoded.get(1) != Some(&1) {
+        return Err(JsError::new("invalid or unsupported policy decision"));
+    }
+    let profile = profile(
+        *encoded
+            .get(2)
+            .ok_or_else(|| JsError::new("missing policy profile"))?,
+    )?;
+    let expected_key_format = match profile {
+        Profile::ContextBound => 1,
+        Profile::CompatXWing => 2,
+    };
+    if encoded.get(3) != Some(&expected_key_format) {
+        return Err(JsError::new("policy profile/key-format mismatch"));
+    }
+    let policy_version = u32::from_be_bytes(
+        encoded
+            .get(4..8)
+            .ok_or_else(|| JsError::new("missing policy version"))?
+            .try_into()
+            .map_err(|_| JsError::new("invalid policy version"))?,
+    );
+    if policy_version == 0 {
+        return Err(JsError::new("zero policy version"));
+    }
+    let policy_digest = encoded
+        .get(8..)
+        .ok_or_else(|| JsError::new("missing policy digest"))?
+        .try_into()
+        .map_err(|_| JsError::new("invalid policy digest"))?;
+    Ok(ParsedPolicyDecision {
+        profile,
+        policy_version,
+        policy_digest,
+    })
+}
+
+fn bound_policy_context(
+    decision: &ParsedPolicyDecision,
+    application_context: &[u8],
+) -> Result<Vec<u8>, JsError> {
+    if decision.profile != Profile::ContextBound {
+        return Err(JsError::new(
+            "CompatXWing cannot bind an authenticated policy digest",
+        ));
+    }
+    let len = policy_bound_context_len(application_context.len())
+        .ok_or_else(|| JsError::new("application context too large"))?;
+    let mut context = vec![0u8; len];
+    encode_policy_bound_context(&decision.policy_digest, application_context, &mut context)
+        .map_err(|_| JsError::new("policy context encoding failed"))?;
+    Ok(context)
 }
 
 /// The only suite the fixed WASM hybrid API implements. The combiner binds `suite_id`, so
@@ -44,6 +108,19 @@ pub fn fixed_suite_id() -> Vec<u8> {
     wasm_suite_id().to_vec()
 }
 
+/// Maximum exact signed-policy document size accepted by this module.
+#[cfg(feature = "signed-policy")]
+#[wasm_bindgen]
+pub fn max_signed_policy_bytes() -> usize {
+    q_periapt_policy::MAX_SIGNED_POLICY_BYTES
+}
+
+/// Maximum application-context size accepted by policy-bound operations.
+#[wasm_bindgen]
+pub fn max_application_context_bytes() -> usize {
+    q_periapt_core::MAX_APPLICATION_CONTEXT_BYTES
+}
+
 /// Derive a combined secret directly from the serialized combiner inputs — the
 /// cross-platform reference-vector entry point. `input` is the nine fields, each
 /// 8-byte big-endian length-prefixed (suite_id, policy_version as 4-byte BE, ss_pq,
@@ -59,38 +136,61 @@ pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
     Ok(secret.as_bytes().to_vec())
 }
 
-/// Verify a detached-signed agility policy (`toml` + `signature`) under `verification_key`
-/// with the suite's ML-DSA-65 root verifier, and return the combiner profile code its
-/// `select_profile()` chooses (`1` = CompatXWing, `2` = ContextBound). This threads the policy
-/// engine into the WASM face: a caller loads a signed policy once, then passes the returned code
-/// to [`encapsulate`]/[`decapsulate`] instead of hard-coding a profile. Fail-closed — an
-/// unauthenticated, weak-signer, or rolled-back policy is rejected (see `q_periapt_policy`).
-/// Rollback is enforced against `last_trusted_version`: a validly-signed policy whose
-/// `policy_version` is older than that is refused (pass `0` on first load; persist the accepted
-/// version and pass it back thereafter).
+/// Verify a detached, domain-separated signed policy and atomically resolve it against this
+/// module's fixed ML-KEM-768 + X25519 suite.
+///
+/// Returns 40 canonical bytes: `decision_version || suite_code || profile_code ||
+/// key_format_code || policy_version_be || SHA3-256(exact_policy_bytes)`. Pass an empty
+/// `last_trusted_state` on first load; thereafter persist and pass the returned bytes 4..40.
+/// A policy requiring another suite, a rollback, or different bytes reusing the same version is
+/// rejected instead of silently executing the fixed suite.
 ///
 /// Behind the off-by-default `signed-policy` cargo feature: it links an ML-DSA verifier, which
 /// roughly quadruples the module, so the lean default build ships without it.
 #[cfg(feature = "signed-policy")]
 #[wasm_bindgen]
-pub fn profile_from_signed_policy(
+pub fn decision_from_signed_policy(
     toml: &[u8],
     signature: &[u8],
     verification_key: &[u8],
-    last_trusted_version: u32,
-) -> Result<u8, JsError> {
-    // load_signed_monotonic (not load_signed) so a validly-signed but OLDER policy_version than
-    // `last_trusted_version` is refused as a rollback — the documented fail-closed behaviour. Pass
-    // 0 on first load; persist the accepted policy_version and pass it back thereafter.
+    last_trusted_state: &[u8],
+) -> Result<Vec<u8>, JsError> {
+    let last_state = if last_trusted_state.is_empty() {
+        None
+    } else {
+        Some(
+            TrustedPolicyState::decode(last_trusted_state)
+                .map_err(|e| JsError::new(&format!("trusted policy state rejected: {e}")))?,
+        )
+    };
     let policy = Policy::load_signed_monotonic(
         &MlDsa65,
         verification_key,
         toml,
         signature,
-        last_trusted_version,
+        last_state.as_ref(),
     )
     .map_err(|e| JsError::new(&format!("policy rejected: {e}")))?;
-    Ok(policy.select_profile().to_u8())
+    let decision = policy
+        .resolve_suite(&[HybridSuite::MlKem768X25519])
+        .map_err(|e| JsError::new(&format!("policy suite rejected: {e}")))?;
+    let resolved = decision.resolved();
+    if resolved.profile() != Profile::ContextBound {
+        return Err(JsError::new(
+            "signed-policy execution requires ContextBound policy-digest binding",
+        ));
+    }
+    let mut encoded = Vec::with_capacity(40);
+    encoded.extend_from_slice(&[
+        1,
+        resolved.suite().to_u8(),
+        resolved.profile().to_u8(),
+        resolved.key_format().to_u8(),
+    ]);
+    encoded.extend_from_slice(&resolved.policy_version().to_be_bytes());
+    encoded.extend_from_slice(&decision.trusted_state().digest());
+    debug_assert_eq!(encoded.len(), 40);
+    Ok(encoded)
 }
 
 /// A generated key pair (`sk`, `pk`) exposed to JS.
@@ -301,6 +401,65 @@ pub fn decapsulate(
     Ok(secret.as_bytes().to_vec())
 }
 
+/// Hybrid encapsulation controlled by one authenticated policy decision.
+///
+/// The exact signed-policy digest and `application_context` are canonically
+/// committed into the ContextBound KDF input. CompatXWing decisions are refused
+/// because that profile intentionally ignores context.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn encapsulate_with_decision(
+    decision: &[u8],
+    pk_pq: &[u8],
+    pk_trad: &[u8],
+    application_context: &[u8],
+    rand_pq: &[u8],
+    rand_trad: &[u8],
+) -> Result<EncapResult, JsError> {
+    let decision = parse_policy_decision(decision)?;
+    let context = bound_policy_context(&decision, application_context)?;
+    encapsulate(
+        decision.profile.to_u8(),
+        wasm_suite_id(),
+        decision.policy_version,
+        pk_pq,
+        pk_trad,
+        &context,
+        rand_pq,
+        rand_trad,
+    )
+}
+
+/// Hybrid decapsulation controlled by the same authenticated decision and
+/// policy-bound application context as [`encapsulate_with_decision`].
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn decapsulate_with_decision(
+    decision: &[u8],
+    sk_pq: &[u8],
+    ct_pq: &[u8],
+    pk_pq: &[u8],
+    sk_trad: &[u8],
+    ct_trad: &[u8],
+    pk_trad: &[u8],
+    application_context: &[u8],
+) -> Result<Vec<u8>, JsError> {
+    let decision = parse_policy_decision(decision)?;
+    let context = bound_policy_context(&decision, application_context)?;
+    decapsulate(
+        decision.profile.to_u8(),
+        wasm_suite_id(),
+        decision.policy_version,
+        sk_pq,
+        ct_pq,
+        pk_pq,
+        sk_trad,
+        ct_trad,
+        pk_trad,
+        &context,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
@@ -350,6 +509,7 @@ mod tests {
     fn metadata_matches_backend_suite() {
         assert_eq!(version(), env!("CARGO_PKG_VERSION"));
         assert_eq!(fixed_suite_id(), b"ML-KEM-768+X25519".to_vec());
+        assert_eq!(max_application_context_bytes(), 65_536);
     }
 
     // Runs on actual wasm via `wasm-pack test --node crates/q-periapt-wasm`.
@@ -358,6 +518,21 @@ mod tests {
     fn metadata_matches_backend_suite_wasm() {
         assert_eq!(version(), env!("CARGO_PKG_VERSION"));
         assert_eq!(fixed_suite_id(), b"ML-KEM-768+X25519".to_vec());
+        assert_eq!(max_application_context_bytes(), 65_536);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn policy_context_cap_accepts_boundary_and_rejects_oversize_wasm() {
+        let decision = ParsedPolicyDecision {
+            profile: Profile::ContextBound,
+            policy_version: 1,
+            policy_digest: [0xA5; 32],
+        };
+        let boundary = vec![0x11; max_application_context_bytes()];
+        assert!(bound_policy_context(&decision, &boundary).is_ok());
+        let oversized = vec![0x22; max_application_context_bytes() + 1];
+        assert!(bound_policy_context(&decision, &oversized).is_err());
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -488,35 +663,78 @@ mod tests {
     }
 
     #[cfg(feature = "signed-policy")]
-    fn check_profile_from_signed_policy() {
-        // A signed floor-3 / CompatXWing policy must thread through to profile code 1. (The error
-        // path constructs a JsError, which panics off-wasm, and load_signed's rejection is already
-        // covered in q-periapt-policy; here we exercise the success threading on host + wasm.)
+    fn check_decision_from_signed_policy() {
+        // A signed floor-3 / ContextBound policy must resolve the complete fixed-suite decision.
         use q_periapt_backends::ML_DSA_65_SIG_LEN;
+        use q_periapt_policy::policy_signature_message;
         use q_periapt_sig::Signer;
-        let policy_toml = "schema_version = 1\nmin_nist_level = 3\n\
-            default_profile = \"CompatXWing\"\n\
+        let policy_toml = "schema_version = 1\npolicy_version = 2\nmin_nist_level = 3\n\
+            default_profile = \"ContextBound\"\n\
             allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
-            allowed_sigs = [\"ML-DSA-65\"]\n";
+            allowed_sigs = [\"ML-DSA-65\"]\n\
+            deprecated = []\n";
         let (sk, vk) = MlDsa65::generate([4u8; 32]);
         let mut sig = [0u8; ML_DSA_65_SIG_LEN];
-        let n = MlDsa65
-            .sign(&sk, policy_toml.as_bytes(), &[0u8; 32], &mut sig)
-            .unwrap();
-        let code = profile_from_signed_policy(policy_toml.as_bytes(), &sig[..n], &vk, 0).unwrap();
-        assert_eq!(code, 1, "CompatXWing policy must select profile code 1");
+        let message = policy_signature_message(policy_toml.as_bytes());
+        let n = MlDsa65.sign(&sk, &message, &[0u8; 32], &mut sig).unwrap();
+        let decision =
+            decision_from_signed_policy(policy_toml.as_bytes(), &sig[..n], &vk, &[]).unwrap();
+        assert_eq!(decision.len(), 40);
+        assert_eq!(&decision[..4], &[1, 1, 2, 1]);
+        assert_eq!(&decision[4..8], &2u32.to_be_bytes());
+        let reapplied =
+            decision_from_signed_policy(policy_toml.as_bytes(), &sig[..n], &vk, &decision[4..])
+                .unwrap();
+        assert_eq!(decision, reapplied);
+
+        let kp_pq = mlkem768_keypair(&[9u8; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
+        let kp_x = x25519_keypair(&[10u8; X25519_LEN]).unwrap();
+        let application_context = b"wasm-policy-context";
+        let enc = encapsulate_with_decision(
+            &decision,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            application_context,
+            &[11u8; 32],
+            &[12u8; 32],
+        )
+        .unwrap();
+        let dec = decapsulate_with_decision(
+            &decision,
+            &kp_pq.sk(),
+            &enc.ct_pq(),
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            application_context,
+        )
+        .unwrap();
+        assert_eq!(enc.secret(), dec);
+        let wrong_context = decapsulate_with_decision(
+            &decision,
+            &kp_pq.sk(),
+            &enc.ct_pq(),
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            b"wrong-context",
+        )
+        .unwrap();
+        assert_ne!(dec, wrong_context);
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "signed-policy"))]
     #[test]
-    fn profile_from_signed_policy_threads_the_policy() {
-        check_profile_from_signed_policy();
+    fn decision_from_signed_policy_threads_the_policy() {
+        check_decision_from_signed_policy();
     }
 
     #[cfg(all(target_arch = "wasm32", feature = "signed-policy"))]
     #[wasm_bindgen_test::wasm_bindgen_test]
-    fn profile_from_signed_policy_threads_the_policy_wasm() {
-        check_profile_from_signed_policy();
+    fn decision_from_signed_policy_threads_the_policy_wasm() {
+        check_decision_from_signed_policy();
     }
 
     #[cfg(target_arch = "wasm32")]
