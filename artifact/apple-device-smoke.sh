@@ -8,6 +8,7 @@
 #   QPERIAPT_DEVICE_PASS run-id=<nonce>. Simulator output is never accepted as a substitute.
 # - commit and canonical source bytes are frozen before work and rechecked before proof emission.
 set -eu
+umask 077
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
@@ -49,7 +50,7 @@ case "$ALLOW_PROVISIONING_DEVICE_REGISTRATION" in
 		;;
 esac
 if [ "$ALLOW_PROVISIONING_UPDATES" = "1" ]; then
-	printf 'note: QPERIAPT_ALLOW_PROVISIONING_UPDATES=1 lets Xcode create/update development profiles for DEVELOPMENT_TEAM=%s\n' "${DEVELOPMENT_TEAM:-<unset>}"
+	printf 'note: QPERIAPT_ALLOW_PROVISIONING_UPDATES=1 lets Xcode create/update development profiles for the configured team\n'
 	if [ "$ALLOW_PROVISIONING_DEVICE_REGISTRATION" = "1" ]; then
 		printf 'note: QPERIAPT_ALLOW_PROVISIONING_DEVICE_REGISTRATION=1 lets Xcode register the selected device if needed\n'
 	fi
@@ -224,6 +225,7 @@ PY
 )
 
 mkdir -p "$RESULT_DIR"
+chmod 700 "$RESULT_DIR"
 
 printf 'Q-Periapt Apple device smoke\n'
 printf 'repo    : %s\n' "$ROOT"
@@ -282,7 +284,6 @@ fi
 "$@" >"$BUILD_LOG" 2>&1
 build_rc=$?
 set -e
-cat "$BUILD_LOG"
 if [ "$build_rc" -ne 0 ]; then
 	printf 'error: Xcode device runner build failed (exit=%s); see %s\n' "$build_rc" "$BUILD_LOG" >&2
 	exit 1
@@ -307,14 +308,59 @@ ENTITLEMENTS_PLIST="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-codesign-entitlements.pl
 LINKAGE="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-otool-l.txt"
 PROOF_JSON="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-proof.json"
 STATICLIB="$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a"
+APP_EXECUTABLE="$APP/QPeriaptDeviceRunner"
 rm -f "$PROFILE_PLIST" "$ENTITLEMENTS_PLIST" "$LINKAGE" "$PROOF_JSON"
 security cms -D -i "$APP/embedded.mobileprovision" >"$PROFILE_PLIST"
 codesign -d --entitlements :- "$APP" >"$ENTITLEMENTS_PLIST" 2>/dev/null
-otool -L "$APP/QPeriaptDeviceRunner" >"$LINKAGE"
+otool -L "$APP_EXECUTABLE" >"$LINKAGE"
+
+binary_hashes() {
+	PYTHONPATH=artifact python3 - "$APP_EXECUTABLE" "$STATICLIB" <<'PY'
+import pathlib
+import sys
+
+from evidence_io import read_regular_snapshot
+
+executable = read_regular_snapshot(
+    pathlib.Path(sys.argv[1]),
+    maximum=512 * 1024 * 1024,
+    label="Apple device executable",
+)
+staticlib = read_regular_snapshot(
+    pathlib.Path(sys.argv[2]),
+    maximum=512 * 1024 * 1024,
+    label="Apple Rust static library",
+)
+print(f"{executable.sha256}:{staticlib.sha256}")
+PY
+}
+
+codesign --verify --deep --strict "$APP"
+FROZEN_BINARY_HASHES=$(binary_hashes)
+case "$FROZEN_BINARY_HASHES" in
+	*:*:*)
+		printf 'error: malformed binary freeze: expected one separator\n' >&2
+		exit 2
+		;;
+	*:*) ;;
+	*)
+		printf 'error: malformed binary freeze: missing separator\n' >&2
+		exit 2
+		;;
+esac
+FROZEN_APP_EXECUTABLE_SHA256=${FROZEN_BINARY_HASHES%%:*}
+FROZEN_STATICLIB_SHA256=${FROZEN_BINARY_HASHES#*:}
 
 printf '\n=== Install device runner ===\n'
-xcrun devicectl device uninstall app --device "$DEVICE_ID" "$BUNDLE_ID"
-xcrun devicectl device install app --device "$DEVICE_ID" "$APP"
+INSTALL_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-install.log"
+if ! xcrun devicectl device uninstall app --device "$DEVICE_ID" "$BUNDLE_ID" >"$INSTALL_LOG" 2>&1; then
+	printf 'error: device runner uninstall failed; see %s\n' "$INSTALL_LOG" >&2
+	exit 1
+fi
+if ! xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >>"$INSTALL_LOG" 2>&1; then
+	printf 'error: device runner install failed; see %s\n' "$INSTALL_LOG" >&2
+	exit 1
+fi
 
 printf '\n=== Launch device runner ===\n'
 LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-launch.log"
@@ -333,7 +379,6 @@ xcrun devicectl device process launch \
 	"$BUNDLE_ID" >"$LOG" 2>&1
 rc=$?
 set -e
-cat "$LOG"
 
 if [ "$rc" -ne 0 ]; then
 	printf 'error: device runner launch failed (exit=%s); see %s\n' "$rc" "$LOG" >&2
@@ -345,18 +390,21 @@ if grep -q 'QPERIAPT_DEVICE_FAIL' "$LOG"; then
 fi
 
 printf '\n=== Fetch device result marker ===\n'
-xcrun devicectl device copy from \
+COPY_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-copy.log"
+if ! xcrun devicectl device copy from \
 	--device "$DEVICE_ID" \
 	--domain-type appDataContainer \
 	--domain-identifier "$BUNDLE_ID" \
 	--source "/Documents/$DEVICE_RESULT_UNIQUE_NAME" \
-	--destination "$DEVICE_RESULT_COPY"
+	--destination "$DEVICE_RESULT_COPY" >"$COPY_LOG" 2>&1; then
+	printf 'error: device result copy failed; see %s\n' "$COPY_LOG" >&2
+	exit 1
+fi
 test -f "$DEVICE_RESULT_COPY" || {
 	printf 'error: run-bound device result marker missing from copied app container: %s\n' "$DEVICE_RESULT_UNIQUE_NAME" >&2
 	exit 1
 }
 cp "$DEVICE_RESULT_COPY" "$DEVICE_RESULT"
-cat "$DEVICE_RESULT"
 
 if grep -q 'QPERIAPT_DEVICE_FAIL' "$DEVICE_RESULT"; then
 	printf 'error: device result marker is failure; see %s\n' "$DEVICE_RESULT" >&2
@@ -381,6 +429,14 @@ if grep -cx 'QPERIAPT_DEVICE_PASS' "$DEVICE_RESULT" >/dev/null 2>&1; then
 	printf 'error: device result contains legacy bare QPERIAPT_DEVICE_PASS; see %s\n' "$DEVICE_RESULT" >&2
 	exit 1
 fi
+printf 'QPERIAPT_DEVICE_RESULT_VERIFIED run-id=%s\n' "$RUN_ID"
+
+codesign --verify --deep --strict "$APP"
+FINAL_BINARY_HASHES=$(binary_hashes)
+if [ "$FINAL_BINARY_HASHES" != "$FROZEN_BINARY_HASHES" ]; then
+	printf 'error: app executable or static library changed after device installation\n' >&2
+	exit 1
+fi
 
 printf '\n=== Validate device proof metadata ===\n'
 python3 artifact/apple_device_proof.py emit \
@@ -402,7 +458,9 @@ python3 artifact/apple_device_proof.py emit \
 	--linkage "$LINKAGE" \
 	--output "$PROOF_JSON" \
 	--expected-git-commit "$SOURCE_GIT_COMMIT" \
-	--expected-source-tree-sha256 "$SOURCE_TREE_SHA256"
+	--expected-source-tree-sha256 "$SOURCE_TREE_SHA256" \
+	--expected-app-executable-sha256 "$FROZEN_APP_EXECUTABLE_SHA256" \
+	--expected-staticlib-sha256 "$FROZEN_STATICLIB_SHA256"
 if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 	python3 artifact/apple_device_proof.py verify \
 		--root "$ROOT" \

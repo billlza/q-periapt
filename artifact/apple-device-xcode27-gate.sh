@@ -1,6 +1,7 @@
 #!/bin/sh
-# Fail-closed Xcode 27 physical-device gate for the Apple Swift/C ABI proof lane.
+# Fail-closed Xcode 27 physical-device capture for the Apple Swift/C ABI proof lane.
 set -eu
+umask 077
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
@@ -86,8 +87,10 @@ fi
 
 if [ "$MATRIX_MODE" = "1" ]; then
 	sh artifact/apple-device-matrix.sh
-	QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX=1 sh artifact/proof-to-byte.sh
+	printf 'APPLE_DEVICE_XCODE27_CAPTURE_PASS mode=matrix promotion=pending result_dir=%s\n' \
+		"$QPERIAPT_DEVICE_RESULT_DIR"
 else
 	sh artifact/apple-device-smoke.sh
-	QPERIAPT_REQUIRE_APPLE_DEVICE=1 sh artifact/proof-to-byte.sh
+	printf 'APPLE_DEVICE_XCODE27_CAPTURE_PASS mode=single promotion=pending result_dir=%s\n' \
+		"$QPERIAPT_DEVICE_RESULT_DIR"
 fi

@@ -56,3 +56,12 @@ and refuses to treat one device family as proof for the other. Proof verificatio
 requires proof inputs under `artifact/device-runs`, app/staticlib artifacts under
 `target`, and a positive `QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS` no larger than
 seven days.
+Before installation, the runner strictly verifies the app signature and freezes
+the app executable/static-library hashes. It rechecks them after retrieving the
+run-bound marker and during proof emission. This closes persistent local rebuild
+races; it does not claim on-device binary attestation. Raw profiles, logs, paths,
+and device identifiers are private local evidence created under `umask 077`.
+The Xcode 27 wrapper is a capture gate and ends with `promotion=pending`; it does
+not rewrite or bypass `artifact/results.json`. After selecting the new proof path
+and SHA-256 in that manifest, run `artifact/proof-to-byte.sh` with the matching
+`QPERIAPT_REQUIRE_APPLE_DEVICE` or `QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX` flag.

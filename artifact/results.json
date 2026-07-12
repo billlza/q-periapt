@@ -248,7 +248,7 @@
     "workspace_tests_default_features": {
       "cmd": "cargo test --workspace",
       "failed": 0,
-      "passed": 163
+      "passed": 174
     }
   },
   "footprint_bytes": {
@@ -274,11 +274,11 @@
     "android_device_smoke_script_sha256": "5c6b7d784aec81574cc332d5f9ecb2c3377752272c51e607fc377f88dd365d24",
     "android_facade_sha256": "431432c5878c3beca03d9dec6a20cc209b6182e68e79b949e13a35f7ba554ebc",
     "android_jni_adapter_sha256": "1e474ad433bfc1aea96aea7bf6703b56244b689e59ecdbbb65986463c4dfcdad",
-    "apple_device_matrix_script_sha256": "9b8a404908ed85a4cd44a5687f883e281661a0d6401866175f753ac1ade068ec",
-    "apple_device_proof_tests_sha256": "45ed20de66579eea3ef9d71a347708046225eb1a99c6c2bb605f304499b81f41",
-    "apple_device_proof_verifier_sha256": "cf3fb67e5ec1b885fda10d31f17fb6d353f5fe75fde5020c2c82384cb265f920",
-    "apple_device_smoke_script_sha256": "27967e53622ae90e26ced9b4879f2bca4f9ef840bcf395236015be67da5eb312",
-    "apple_device_xcode27_gate_script_sha256": "4d51ecd767f49ce9f0869fefc667c2036b016120ee8f3f11590c82e92def5f63",
+    "apple_device_matrix_script_sha256": "06690db86ab0b368a1718cd833aaa95b105fb41d66aa8221f0a9547b3ec60dcb",
+    "apple_device_proof_tests_sha256": "7982c2e4100dc6120989aa34158c0a6a00e1c681d1d31b6260eb80e62b145eb5",
+    "apple_device_proof_verifier_sha256": "2d1d1f1b4f443182376595ec32bc846d5bf2dd813071f18b6f0b75a7c5863c7f",
+    "apple_device_smoke_script_sha256": "4a405643633ced500e1cc436683f07389fe5aa35cf5dc5d5bc339efefbe51a49",
+    "apple_device_xcode27_gate_script_sha256": "8d0e243ab99518a012e649da124b1bcc88b5d10ae98b1a3871150d03a80618f1",
     "c_package_script_sha256": "0aa0ebe72c125a1041b65acb07d4c2db49a2a9ac90d1ac56af73f8255067b95e",
     "c_smoke_sha256": "54b88389a5fd011b67e3d3d518922cce93aa15e870b2be6f39f1266e662b92b4",
     "camera_ready_bare_metal_script_sha256": "0c557b35acd6861fdc25fbcf8415fb9c7c54c4188141773b4bcc27d5140d542d",
@@ -303,7 +303,7 @@
     "continuity_model_isolation_tests_sha256": "587d8dc6c6eb9542a6b564abe5089405f472a52577084a6b574333264b651d7a",
     "continuity_model_lib_sha256": "2b6c9b4fb5d73a38a3d4574eb093b6a2ddf309799938ab0e1dd46902c35a95f5",
     "continuity_model_lifecycle_tests_sha256": "27f959661b931ad01c5eb2b7c0878c4b38ed7c5f9d003afa843a23e437b6a0b4",
-    "continuity_model_manifest_sha256": "ac676a196022fe9ab28050184c049e085deac66c20784cc5f19b0c9c02b247b6",
+    "continuity_model_manifest_sha256": "a92fdceb2244e7d1fe1d969c930e25e81724fad36558f15c923d8ad6c385f0e8",
     "continuity_model_state_machine_sha256": "522cc9ae23479cc78acdb86d447a2ed52b99bf495aa8049ffe2bb11fb471d4aa",
     "continuity_model_types_sha256": "74bbf85b989ea075a1482b1b0aa7267df6d17bbe8cf3cc96772489548ddcfb62",
     "continuity_prekey_codec_sha256": "89a463f3543cbff414d559b77eb18f85cf4c3baae264b3a129dac9f097e36223",
@@ -338,8 +338,9 @@
     "performance_gate_tests_sha256": "40c6159135ac526f90d101a272f59d2b584817ab0a761b3a8ce29cd7e995a112",
     "proof_manifest_sha256": "67df80c5ff91cbd2cf3c84768ea79aff372f4b157d2be7db6e8ca8369f943f9b",
     "proof_manifest_tests_sha256": "fa984420c3937b338089c0f85ca901c7c3bbbdb5b2a5f32f4abe98604c8db59e",
-    "proof_to_byte_release_tests_sha256": "4d2f80dc98519a7f6bb69bb7f42d65e199d261e64acbb5c53650432342b11c00",
-    "proof_to_byte_script_sha256": "7a784a8a36b6c8fa033994afbc67c2c69f8bdc64865ae4b9d3afcccc99a82913",
+    "proof_to_byte_finalizer_sha256": "a2c61e2058cb90ff5222544ab9fed0dcd6d51cb31f17fe517915b1e46764a4a5",
+    "proof_to_byte_release_tests_sha256": "ee4cc58a6fdf661b052a9e20a455018dcc68366287772dfb803a7aaf96c49396",
+    "proof_to_byte_script_sha256": "fd2bf379f9d9f2107efad505bea1906f77044560cd6babf933b98f16c36eadb9",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
     "python_bootstrap_sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
     "python_env_sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
@@ -358,11 +359,11 @@
     "swift_xcframework_script_sha256": "7f0bdd79930101c5b1948255a2dc306657459c7b73442962483ead8dbddcfee1",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "12c6db1e80cd5e73ef773ef676d4abc42a96cfedd95b821a6e64de9c39105a5d",
+  "proof_source_tree_sha256": "d6171bb5770225b9278683f157b2880626ad86307127c35a4de502543e2a6a23",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
-    "note": "proof_source_tree_sha256 records and checks consistency with the current dirty execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. Each nested device/performance proof retains its own source digest and must be rerun after source changes. Only clean committed or signed release provenance can bind the manifest root; all dirty-tree results are diagnostic.",
-    "snapshot_commit": "cb4ab8ed2be768c8313b5a7a84fc432fd752dc90",
+    "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
+    "snapshot_commit": "b49b95e7b17182b362ccdc9d911889b5622752e5",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",

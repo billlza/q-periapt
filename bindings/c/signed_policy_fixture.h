@@ -359,4 +359,3 @@ static const uint8_t QP_TEST_POLICY_DIGEST[] = {
 };
 
 #endif  /* Q_PERIAPT_ABI2_SIGNED_POLICY_FIXTURE_H */
-

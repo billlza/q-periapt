@@ -208,6 +208,72 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         self.assertIn('--expected-git-commit "$SOURCE_GIT_COMMIT"', script)
         self.assertIn('--expected-source-tree-sha256 "$SOURCE_TREE_SHA256"', script)
 
+    def test_smoke_script_freezes_and_rechecks_installed_binary_inputs(self) -> None:
+        script = (pathlib.Path(__file__).parent / "apple-device-smoke.sh").read_text(encoding="utf-8")
+        freeze = script.index("FROZEN_BINARY_HASHES=$(binary_hashes)")
+        install = script.index("device install app")
+        result = script.index("QPERIAPT_DEVICE_RESULT_VERIFIED")
+        recheck = script.index("FINAL_BINARY_HASHES=$(binary_hashes)")
+        emit = script.index("apple_device_proof.py emit")
+        self.assertLess(freeze, install)
+        self.assertLess(install, result)
+        self.assertLess(result, recheck)
+        self.assertLess(recheck, emit)
+        self.assertGreaterEqual(script.count("codesign --verify --deep --strict"), 2)
+        self.assertIn(
+            '--expected-app-executable-sha256 "$FROZEN_APP_EXECUTABLE_SHA256"',
+            script,
+        )
+        self.assertIn(
+            '--expected-staticlib-sha256 "$FROZEN_STATICLIB_SHA256"',
+            script,
+        )
+        self.assertNotIn('cat "$BUILD_LOG"', script)
+        self.assertNotIn('cat "$LOG"', script)
+
+    def test_emit_rejects_binary_replacement_after_install_freeze(self) -> None:
+        executable = self.root / "target" / "app" / "QPeriaptDeviceRunner"
+        staticlib = self.root / "target" / "libq_periapt_ffi_abi2.a"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"installed executable")
+        staticlib.write_bytes(b"installed staticlib")
+        executable_sha256 = hashlib.sha256(executable.read_bytes()).hexdigest()
+        staticlib_sha256 = hashlib.sha256(staticlib.read_bytes()).hexdigest()
+        self.assertEqual(
+            apple_device_proof.verify_expected_binary_hashes(
+                executable,
+                staticlib,
+                executable_sha256,
+                staticlib_sha256,
+            ),
+            (executable_sha256, staticlib_sha256),
+        )
+        executable.write_bytes(b"replacement executable")
+        with self.assertRaisesRegex(
+            SystemExit,
+            "app executable changed after device-install freeze",
+        ):
+            apple_device_proof.verify_expected_binary_hashes(
+                executable,
+                staticlib,
+                executable_sha256,
+                staticlib_sha256,
+            )
+
+    def test_apple_capture_entrypoints_use_private_umask(self) -> None:
+        artifact = pathlib.Path(__file__).parent
+        for name in (
+            "apple-device-smoke.sh",
+            "apple-device-matrix.sh",
+            "apple-device-xcode27-gate.sh",
+        ):
+            with self.subTest(entrypoint=name):
+                source = (artifact / name).read_text(encoding="utf-8")
+                self.assertLess(
+                    source.index("umask 077"),
+                    source.index('. "$ROOT/artifact/python-env.sh"'),
+                )
+
 
 class AppleReleaseMatrixPolicyTests(unittest.TestCase):
     def setUp(self) -> None:

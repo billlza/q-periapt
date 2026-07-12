@@ -105,6 +105,10 @@ scoped `PROOF_TO_BYTE_RUN_FINISHED ...` summary (or `PROOF_TO_BYTE_RELEASE_NOT_A
 diagnostic run). Android runtime remains an independently gated proof until its physical-vs-emulator
 release policy is decided; no generic all-platform release marker exists. Neither a package build
 nor historical device evidence is promoted to current release proof.
+The wrapper freezes the exact starting commit, canonical source digest, manifest digest, and dirty
+state before any domain gate. Its finalizer rechecks those values in one fail-closed Python boundary
+and includes the three immutable identifiers in the final marker; a commit or source transition
+during the run cannot be promoted by a later clean `git status` observation.
 
 The Tamarin and ProVerif gates cover the current four-flight server-authenticated
 handshake only. They do not cover PQXDH, SPQR/Triple Ratchet, ML-KEM Braid, Sesame,
@@ -363,6 +367,11 @@ These produce the paper's primary network table and the binary constant-time dis
   single-device proof; stale evidence is rejected after `QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS`
   (default: 86400). Release verification fixes this value to 86400 seconds and requires the
   proof's profile policy to demand at least 30 valid days; wider thresholds are diagnostic-only.
+  The capture freezes the app executable and Rust static-library hashes before installation,
+  strictly verifies the app signature, and rechecks both hashes after the run-bound marker returns
+  from the app-private container and again during proof emission. This binds persistent local
+  artifacts to the installation window; it is not on-device binary attestation. Raw local evidence
+  uses a private umask and is never part of a publishable package or release index.
   For iPhone+iPad family coverage, use the matrix lane:
   `QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-matrix.sh`.
   The matrix lane writes one proof per device plus `apple-device-matrix-proof.json`, and
@@ -370,8 +379,11 @@ These produce the paper's primary network table and the binary constant-time dis
   families are present, fresh, source-bound, and artifact-bound. Matrix schema v3 requires exactly
   canonical `ipad`/iPad and `iphone`/iPhone entries, distinct device commitments, run ids, and child
   proofs; the former device-type override has been removed. For beta/GM readiness, prefer
-  `artifact/apple-device-xcode27-gate.sh`: with `QPERIAPT_IOS_DEVICE_ID` it runs the single-device
-  gate; with `QPERIAPT_IOS_DEVICE_MATRIX` it runs the iPhone+iPad matrix gate.
+  `artifact/apple-device-xcode27-gate.sh`: with `QPERIAPT_IOS_DEVICE_ID` it captures and directly
+  verifies the single-device proof; with `QPERIAPT_IOS_DEVICE_MATRIX` it does the same for the
+  iPhone+iPad matrix. The capture deliberately stops with `promotion=pending`: select its path and
+  SHA-256 in `artifact/results.json`, then run the matching required domain in
+  `artifact/proof-to-byte.sh` for manifest-bound promotion.
   By default, Apple device proof requires a clean tree. Use
   `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE=1` only to generate local diagnostic proof, and
   `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1` only to reverify that diagnostic proof.

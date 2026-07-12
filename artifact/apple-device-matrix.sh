@@ -1,6 +1,7 @@
 #!/bin/sh
 # Physical iPhone+iPad matrix proof for the Apple Swift/C ABI face.
 set -eu
+umask 077
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
@@ -114,6 +115,7 @@ print("ipad:{},iphone:{}".format(matches["ipad"][0], matches["iphone"][0]))
 fi
 
 mkdir -p "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
+chmod 700 "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
 
 PYTHONPATH=artifact python3 - "$MATRIX_SPEC" <<'PY'
 import re

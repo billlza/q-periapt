@@ -426,6 +426,39 @@ def source_hashes(root: pathlib.Path) -> dict[str, str]:
     return {name: sha256_file(root / rel) for name, rel in SOURCE_INPUTS.items()}
 
 
+def verify_expected_binary_hashes(
+    executable: pathlib.Path,
+    staticlib: pathlib.Path,
+    expected_executable_sha256: str,
+    expected_staticlib_sha256: str,
+) -> tuple[str, str]:
+    """Bind proof emission to the binaries frozen before device installation."""
+
+    for value, label in (
+        (expected_executable_sha256, "expected app executable digest"),
+        (expected_staticlib_sha256, "expected static library digest"),
+    ):
+        require(
+            isinstance(value, str) and SHA256_RE.fullmatch(value) is not None,
+            f"{label} is not a SHA-256 digest",
+        )
+    executable_sha256 = snapshot_file(
+        executable, "Apple device executable"
+    ).sha256
+    staticlib_sha256 = snapshot_file(
+        staticlib, "Apple Rust static library"
+    ).sha256
+    require(
+        executable_sha256 == expected_executable_sha256,
+        "app executable changed after device-install freeze",
+    )
+    require(
+        staticlib_sha256 == expected_staticlib_sha256,
+        "static Rust FFI library changed after device-install freeze",
+    )
+    return executable_sha256, staticlib_sha256
+
+
 def validate_source_policy(root: pathlib.Path) -> dict[str, Any]:
     swift_runner = root / "bindings" / "apple-device" / "Sources" / "QPeriaptDeviceRunner"
     offending_imports: list[str] = []
@@ -646,6 +679,12 @@ def emit(args: argparse.Namespace) -> None:
         args.expected_source_tree_sha256,
         "Apple device proof was running",
     )
+    executable_sha256, staticlib_sha256 = verify_expected_binary_hashes(
+        app / "QPeriaptDeviceRunner",
+        staticlib,
+        args.expected_app_executable_sha256,
+        args.expected_staticlib_sha256,
+    )
 
     proof = {
         "schema_version": SCHEMA_VERSION,
@@ -665,9 +704,9 @@ def emit(args: argparse.Namespace) -> None:
         "rustc_version": run_line(["rustc", "--version"]),
         "app": {
             "path": str(app),
-            "executable_sha256": sha256_file(app / "QPeriaptDeviceRunner"),
+            "executable_sha256": executable_sha256,
             "staticlib_path": str(staticlib),
-            "staticlib_sha256": sha256_file(staticlib),
+            "staticlib_sha256": staticlib_sha256,
         },
         "checks": {
             "build_log_warning_free": True,
@@ -1329,6 +1368,8 @@ def main() -> None:
     emit_parser.add_argument("--output", required=True)
     emit_parser.add_argument("--expected-git-commit", required=True)
     emit_parser.add_argument("--expected-source-tree-sha256", required=True)
+    emit_parser.add_argument("--expected-app-executable-sha256", required=True)
+    emit_parser.add_argument("--expected-staticlib-sha256", required=True)
     emit_parser.set_defaults(func=emit)
 
     verify_parser = sub.add_parser("verify")

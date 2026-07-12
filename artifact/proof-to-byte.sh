@@ -91,63 +91,6 @@ bool_flag() {
 	esac
 }
 
-# BEGIN RELEASE_ATTESTATION_MARKER
-apple_release_attestation_marker() {
-	if [ "$#" -ne 12 ]; then
-		printf 'error: apple_release_attestation_marker requires exactly 12 state values\n' >&2
-		return 2
-	fi
-	for proof_state_value in "$@"; do
-		case "$proof_state_value" in
-			0 | 1) ;;
-			*)
-				printf 'error: release attestation state must be 0 or 1: %s\n' "$proof_state_value" >&2
-				return 2
-				;;
-		esac
-	done
-
-	proof_host_smoke=$1
-	proof_formal=$2
-	proof_apple_device=$3
-	proof_apple_matrix=$4
-	proof_android_runtime=$5
-	proof_performance=$6
-	proof_camera_ready=$7
-	proof_camera_required=$8
-	proof_dependency_audit=$9
-	proof_source_tree_dirty=${10}
-	proof_allow_dirty_apple=${11}
-	proof_allow_dirty_performance=${12}
-	# Standalone Apple-device and Android runtime states are reported for scoped
-	# runs, but the current release contract intentionally requires the paired
-	# Apple matrix. Android remains a separately scoped platform proof.
-
-	if [ "$proof_host_smoke" = "1" ] && [ "$proof_formal" = "1" ] && \
-			[ "$proof_apple_matrix" = "1" ] && [ "$proof_performance" = "1" ] && \
-			{ [ "$proof_camera_required" = "0" ] || [ "$proof_camera_ready" = "1" ]; } && \
-			[ "$proof_dependency_audit" = "1" ]; then
-		if [ "$proof_source_tree_dirty" = "1" ]; then
-			printf 'PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=dirty_source_tree\n'
-		elif [ "$proof_allow_dirty_apple" = "1" ] || [ "$proof_allow_dirty_performance" = "1" ]; then
-			printf 'PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=diagnostic_proof_override\n'
-		else
-			if [ "$proof_camera_required" = "1" ]; then
-				printf 'PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=verified\n'
-			else
-				printf 'PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=not_required\n'
-			fi
-		fi
-	else
-		printf 'PROOF_TO_BYTE_RUN_FINISHED host_smoke=%s formal=%s apple_device=%s apple_matrix=%s android_runtime=%s performance=%s camera_ready_bundle=%s camera_ready_required=%s dependency_audit=%s allow_dirty_apple_proof=%s allow_dirty_performance_proof=%s\n' \
-			"$proof_host_smoke" "$proof_formal" "$proof_apple_device" "$proof_apple_matrix" \
-			"$proof_android_runtime" "$proof_performance" "$proof_camera_ready" \
-			"$proof_camera_required" "$proof_dependency_audit" \
-			"$proof_allow_dirty_apple" "$proof_allow_dirty_performance"
-	fi
-}
-# END RELEASE_ATTESTATION_MARKER
-
 SKIP_SMOKE=$(bool_flag QPERIAPT_SKIP_SMOKE "${QPERIAPT_SKIP_SMOKE:-0}")
 REQUIRE_FORMAL=$(bool_flag QPERIAPT_REQUIRE_FORMAL "${QPERIAPT_REQUIRE_FORMAL:-0}")
 RUN_CONTINUITY_DIAGNOSTIC=$(bool_flag QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC "${QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC:-0}")
@@ -171,6 +114,19 @@ from proof_manifest import load_results_manifest_snapshot
 print(load_results_manifest_snapshot(pathlib.Path(sys.argv[1])).file.sha256)
 PY
 )
+
+FROZEN_SOURCE_SNAPSHOT=$(python3 artifact/proof_to_byte_finalizer.py freeze \
+	--root "$ROOT" \
+	--ledger "$ROOT/artifact/claim-ledger.json" \
+	--manifest "$RESULTS_MANIFEST" \
+	--expected-manifest-sha256 "$RESULTS_MANIFEST_SHA256")
+FROZEN_GIT_COMMIT=${FROZEN_SOURCE_SNAPSHOT%%:*}
+FROZEN_SOURCE_REMAINDER=${FROZEN_SOURCE_SNAPSHOT#*:}
+FROZEN_SOURCE_TREE_SHA256=${FROZEN_SOURCE_REMAINDER%%:*}
+FROZEN_SOURCE_TREE_DIRTY=${FROZEN_SOURCE_REMAINDER##*:}
+printf 'PROOF_TO_BYTE_SOURCE_SNAPSHOT_PASS commit=%s source_sha256=%s manifest_sha256=%s dirty=%s\n' \
+	"$FROZEN_GIT_COMMIT" "$FROZEN_SOURCE_TREE_SHA256" "$RESULTS_MANIFEST_SHA256" \
+	"$FROZEN_SOURCE_TREE_DIRTY"
 
 # These values are process-local observations, not caller-supplied claims. An
 # environment variable with the same name is deliberately overwritten here.
@@ -207,6 +163,7 @@ paths = {
     "tamarin_model_sha256": "formal/tamarin/handshake.spthy",
     "proverif_model_sha256": "formal/proverif/handshake.pv",
     "proof_to_byte_script_sha256": "artifact/proof-to-byte.sh",
+    "proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "evidence_io_sha256": "artifact/evidence_io.py",
     "evidence_io_tests_sha256": "artifact/test_evidence_io.py",
@@ -304,12 +261,6 @@ for key, rel in paths.items():
 
 print("PROOF_TO_BYTE_MANIFEST_HASHES_PASS")
 PY
-
-python3 artifact/claim_ledger.py \
-	--root "$ROOT" \
-	--ledger "$ROOT/artifact/claim-ledger.json" \
-	--manifest "$RESULTS_MANIFEST" \
-	--expected-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 
 if [ "$REQUIRE_CAMERA_READY" = "1" ]; then
 		CAMERA_READY_TRANSCRIPT=${QPERIAPT_CAMERA_READY_TRANSCRIPT:-$ROOT/target/camera-ready/transcript.txt}
@@ -569,30 +520,16 @@ if [ "$REQUIRE_PERFORMANCE" = "1" ]; then
 	printf 'PROOF_TO_BYTE_PERFORMANCE_HOST_PASS\n'
 fi
 
-SOURCE_TREE_DIRTY=$(PYTHONPATH=artifact python3 - "$ROOT" <<'PY'
-import pathlib
-import sys
-
-from git_provenance import source_tree_dirty
-
-print(int(source_tree_dirty(pathlib.Path(sys.argv[1]))))
-PY
-)
-PYTHONPATH=artifact python3 - "$RESULTS_MANIFEST" "$RESULTS_MANIFEST_SHA256" <<'PY'
-import pathlib
-import sys
-
-from proof_manifest import load_results_manifest_snapshot
-
-load_results_manifest_snapshot(
-    pathlib.Path(sys.argv[1]),
-    expected_sha256=sys.argv[2],
-)
-print("PROOF_TO_BYTE_RESULTS_MANIFEST_STABLE_PASS")
-PY
-apple_release_attestation_marker \
+python3 artifact/proof_to_byte_finalizer.py finalize \
+	--root "$ROOT" \
+	--ledger "$ROOT/artifact/claim-ledger.json" \
+	--manifest "$RESULTS_MANIFEST" \
+	--expected-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
+	--expected-git-commit "$FROZEN_GIT_COMMIT" \
+	--expected-source-sha256 "$FROZEN_SOURCE_TREE_SHA256" \
+	--expected-source-dirty "$FROZEN_SOURCE_TREE_DIRTY" \
 	"$HOST_SMOKE_PASSED" "$FORMAL_PASSED" "$APPLE_DEVICE_PASSED" \
 	"$APPLE_MATRIX_PASSED" "$ANDROID_RUNTIME_PASSED" "$PERFORMANCE_PASSED" \
 	"$CAMERA_READY_BUNDLE_PASSED" "$REQUIRE_CAMERA_READY" \
-	"$DEPENDENCY_AUDIT_PASSED" "$SOURCE_TREE_DIRTY" \
-	"$ALLOW_DIRTY_APPLE_DEVICE_PROOF" "$ALLOW_DIRTY_PERFORMANCE_PROOF"
+	"$DEPENDENCY_AUDIT_PASSED" "$ALLOW_DIRTY_APPLE_DEVICE_PROOF" \
+	"$ALLOW_DIRTY_PERFORMANCE_PROOF"

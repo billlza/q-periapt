@@ -14,8 +14,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from camera_ready_proof import EXPECTED_TOOLS
+from git_provenance import WorktreeInspection
+import proof_to_byte_finalizer
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -26,8 +29,11 @@ ARTIFACT_GUIDE = ROOT / "ARTIFACT.md"
 PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
-BEGIN = "# BEGIN RELEASE_ATTESTATION_MARKER"
-END = "# END RELEASE_ATTESTATION_MARKER"
+FINALIZER_SCRIPT = ROOT / "artifact" / "proof_to_byte_finalizer.py"
+XCODE27_GATE = ROOT / "artifact" / "apple-device-xcode27-gate.sh"
+TEST_COMMIT = "a" * 40
+TEST_SOURCE_SHA256 = "b" * 64
+TEST_MANIFEST_SHA256 = "c" * 64
 
 CONTINUITY_PROOF_INPUTS = {
     "continuity_context_spec_sha256": "docs/continuity/LIFECYCLE_CONTEXT_V1.md",
@@ -68,18 +74,21 @@ HQC_CANDIDATE_PROOF_INPUTS = {
 }
 
 
-def marker_function_source() -> str:
-    source = PROOF_SCRIPT.read_text(encoding="utf-8")
-    start = source.index(BEGIN)
-    end = source.index(END, start)
-    return source[start:end]
-
-
 def run_marker(*states: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    program = marker_function_source() + '\napple_release_attestation_marker "$@"\n'
     return subprocess.run(
-        ["sh", "-eu", "-s", "--", *(str(state) for state in states)],
-        input=program,
+        [
+            "sh",
+            str(ROOT / "artifact" / "python-run.sh"),
+            str(FINALIZER_SCRIPT),
+            "format",
+            "--commit",
+            TEST_COMMIT,
+            "--source-sha256",
+            TEST_SOURCE_SHA256,
+            "--manifest-sha256",
+            TEST_MANIFEST_SHA256,
+            *(str(state) for state in states),
+        ],
         text=True,
         capture_output=True,
         check=False,
@@ -152,7 +161,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         for command in (cargo, python_tests, vectors, prekey_vectors, formal):
             self.assertNotIn(command + " ||", source)
             self.assertNotIn(command + "; true", source)
-        release_marker = marker_function_source()
+        release_marker = FINALIZER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("CONTINUITY", release_marker)
         self.assertNotIn("continuity", release_marker)
         self.assertNotIn("CONTINUITY_DIAGNOSTIC_PASSED", source)
@@ -216,7 +225,37 @@ class BoundVerifierWiringTests(unittest.TestCase):
             ),
             6,
         )
-        self.assertIn("PROOF_TO_BYTE_RESULTS_MANIFEST_STABLE_PASS", source)
+        finalizer = FINALIZER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("PROOF_TO_BYTE_RESULTS_MANIFEST_STABLE_PASS", finalizer)
+
+    def test_finalizer_is_a_named_proof_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        self.assertIn(
+            '"proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py"',
+            source,
+        )
+        self.assertEqual(
+            manifest["proof_to_byte_inputs"].get("proof_to_byte_finalizer_sha256"),
+            hashlib.sha256(FINALIZER_SCRIPT.read_bytes()).hexdigest(),
+        )
+
+    def test_finalizer_freezes_before_domains_and_rechecks_after_them(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        freeze = source.index("proof_to_byte_finalizer.py freeze")
+        first_domain = source.index('if [ "$REQUIRE_CAMERA_READY" = "1" ]')
+        last_domain = source.index('if [ "$REQUIRE_PERFORMANCE" = "1" ]')
+        finalize = source.index("proof_to_byte_finalizer.py finalize")
+        self.assertLess(freeze, first_domain)
+        self.assertLess(last_domain, finalize)
+        self.assertIn('--expected-git-commit "$FROZEN_GIT_COMMIT"', source)
+        self.assertIn('--expected-source-sha256 "$FROZEN_SOURCE_TREE_SHA256"', source)
+
+    def test_xcode27_capture_does_not_self_promote_unselected_proof(self) -> None:
+        source = XCODE27_GATE.read_text(encoding="utf-8")
+        self.assertNotIn("artifact/proof-to-byte.sh", source)
+        self.assertIn("APPLE_DEVICE_XCODE27_CAPTURE_PASS", source)
+        self.assertIn("promotion=pending", source)
 
     def test_domain_verifiers_emit_manifest_bound_marker(self) -> None:
         apple = (ROOT / "artifact" / "apple_device_proof.py").read_text(
@@ -251,8 +290,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
 
     def test_release_dirty_state_uses_hardened_git_provenance(self) -> None:
+        finalizer = FINALIZER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("from git_provenance import (", finalizer)
+        self.assertIn("inspect_worktree", finalizer)
+        self.assertNotIn("git status --porcelain", finalizer)
         for relative in (
-            "artifact/proof-to-byte.sh",
             "artifact/apple-device-smoke.sh",
             "artifact/apple-device-matrix.sh",
             "artifact/android-device-smoke.sh",
@@ -536,7 +578,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=not_required\n",
+            "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=not_required"
+            f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
+            f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
         )
 
     def test_required_camera_bundle_is_part_of_release_state(self) -> None:
@@ -546,7 +590,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         verified = run_marker(1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0)
         self.assertEqual(
             verified.stdout,
-            "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=verified\n",
+            "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=verified"
+            f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
+            f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
         )
 
     def test_missing_audit_is_scoped_summary_even_if_environment_claims_pass(self) -> None:
@@ -563,7 +609,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=dirty_source_tree\n",
+            "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=dirty_source_tree"
+            f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
+            f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
         )
 
     def test_allow_dirty_proof_override_cannot_emit_release_pass(self) -> None:
@@ -589,7 +637,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(
                     result.stdout,
-                    "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=diagnostic_proof_override\n",
+                    "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=diagnostic_proof_override"
+                    f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
+                    f" manifest_sha256={TEST_MANIFEST_SHA256}\n",
                 )
 
     def test_invalid_marker_state_fails_closed(self) -> None:
@@ -597,6 +647,99 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("release attestation state must be 0 or 1", result.stderr)
         self.assertEqual(result.stdout, "")
+
+    def test_finalizer_rejects_clean_commit_transition(self) -> None:
+        first = "1" * 40
+        second = "2" * 40
+        inspection = WorktreeInspection(commit=second, dirty=False, reasons=())
+        with (
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "git_commit",
+                side_effect=[first, second],
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "verify_claim_ledger",
+                return_value=TEST_SOURCE_SHA256,
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "inspect_worktree",
+                return_value=inspection,
+            ),
+        ):
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "Git commit changed while finalizing",
+            ):
+                proof_to_byte_finalizer.capture_source_snapshot(
+                    ROOT,
+                    ROOT / "artifact" / "claim-ledger.json",
+                    ROOT / "artifact" / "results.json",
+                    TEST_MANIFEST_SHA256,
+                )
+
+    def test_finalizer_rejects_digest_or_dirty_state_transition(self) -> None:
+        inspection = WorktreeInspection(commit=TEST_COMMIT, dirty=True, reasons=("changed",))
+        with (
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "git_commit",
+                side_effect=[TEST_COMMIT, TEST_COMMIT],
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "verify_claim_ledger",
+                side_effect=[TEST_SOURCE_SHA256, "d" * 64],
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "inspect_worktree",
+                return_value=inspection,
+            ),
+        ):
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "canonical source digest changed",
+            ):
+                proof_to_byte_finalizer.capture_source_snapshot(
+                    ROOT,
+                    ROOT / "artifact" / "claim-ledger.json",
+                    ROOT / "artifact" / "results.json",
+                    TEST_MANIFEST_SHA256,
+                )
+
+        with (
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "git_commit",
+                side_effect=[TEST_COMMIT, TEST_COMMIT],
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "verify_claim_ledger",
+                return_value=TEST_SOURCE_SHA256,
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "inspect_worktree",
+                return_value=inspection,
+            ),
+        ):
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "source dirty state changed",
+            ):
+                proof_to_byte_finalizer.capture_source_snapshot(
+                    ROOT,
+                    ROOT / "artifact" / "claim-ledger.json",
+                    ROOT / "artifact" / "results.json",
+                    TEST_MANIFEST_SHA256,
+                    expected_commit=TEST_COMMIT,
+                    expected_source_sha256=TEST_SOURCE_SHA256,
+                    expected_dirty=False,
+                )
 
     def test_audit_pass_state_is_set_only_after_warning_denied_command(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
