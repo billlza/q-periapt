@@ -40,30 +40,30 @@
   },
   "apple_device": {
     "command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_ID=<physical-device-udid> sh artifact/apple-device-smoke.sh",
-    "current_dirty_diagnostic": "Current 2026-07-12 ABI2 dirty diagnostic passed macOS Swift XCTest 2/2 and a physical iPad Pro 11-inch (M4) build/install/launch/private-container-result roundtrip under Xcode 27 beta against canonical digest 56e91aa583c040933dc000c2cbab019644287ac4ba6bc10186b18a0ec3b51dfc after the iPad network condition was corrected. The strict iPad+iPhone aggregate remains stale because the iPhone is offline. This is source-bound diagnostic product-binding evidence, not clean release provenance or a Continuity session-protocol test.",
-    "current_dirty_proof_generated_at": "2026-07-12T09:27:34.821227Z",
-    "current_dirty_proof_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-proof.json",
+    "current_dirty_diagnostic": "Current 2026-07-12 ABI2 clean-source single-device diagnostic passed macOS Swift XCTest 2/2 and a physical iPad Pro 11-inch (M4) build/install/launch/private-container-result roundtrip under Xcode 27 beta against canonical digest bbb3b703d42c0c7c4ef797ca4cc3351f16fe4e847f2096fcce508567499048c1. The capture froze and rechecked the signed app executable and Rust static library around the device run; raw local evidence is 0700/0600. The strict iPad+iPhone aggregate remains stale because the paired iPhone is disconnected. This is source-bound single-device product-binding evidence, not the required paired release matrix, on-device binary attestation, or a Continuity session-protocol test.",
+    "current_dirty_proof_generated_at": "2026-07-12T14:54:09.694175Z",
+    "current_dirty_proof_path": "artifact/device-runs/apple-ipad-c30dc2c-20260712T145349Z/ipad-device-proof.json",
     "current_dirty_proof_schema": 2,
-    "current_dirty_proof_sha256": "9d758f8522a018c1ec4b8b68b6e745b0b3c1568f6c94aa53fe8bdf7f97b993e9",
-    "current_source_status": "stale_requires_rerun",
+    "current_dirty_proof_sha256": "05980749f792b2fd802862dc233f14932bb81814623c6bc1114b4beef2ee350b",
+    "current_source_status": "current_dirty_diagnostic_pass",
     "current_attempt": {
       "build": "pass",
       "device_kind": "physical iPad Pro 11-inch (M4)",
       "install": "pass",
       "launch": "pass",
-      "launch_log_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-launch.log",
-      "launch_log_sha256": "54f667df76bb185171a3df782e05ea9aa1db576da79e1f9810792c6ee8b977c5",
+      "launch_log_path": "artifact/device-runs/apple-ipad-c30dc2c-20260712T145349Z/ipad-device-launch.log",
+      "launch_log_sha256": "63473bb1b4acf49b716a4219013c49c28697eb274fa753e16924f3330467766d",
       "proof_emitted": true,
-      "proof_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-proof.json",
-      "proof_sha256": "9d758f8522a018c1ec4b8b68b6e745b0b3c1568f6c94aa53fe8bdf7f97b993e9",
-      "proof_source_tree_sha256": "56e91aa583c040933dc000c2cbab019644287ac4ba6bc10186b18a0ec3b51dfc",
-      "result_dir": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z",
-      "result_marker_path": "artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z/ipad-device-result-copy.txt",
-      "result_marker_sha256": "9c40107b3583dd9b160a3170f12b1d651f979f872d12f0bdc882e76d0502612d",
+      "proof_path": "artifact/device-runs/apple-ipad-c30dc2c-20260712T145349Z/ipad-device-proof.json",
+      "proof_sha256": "05980749f792b2fd802862dc233f14932bb81814623c6bc1114b4beef2ee350b",
+      "proof_source_tree_sha256": "bbb3b703d42c0c7c4ef797ca4cc3351f16fe4e847f2096fcce508567499048c1",
+      "result_dir": "artifact/device-runs/apple-ipad-c30dc2c-20260712T145349Z",
+      "result_marker_path": "artifact/device-runs/apple-ipad-c30dc2c-20260712T145349Z/ipad-device-result-copy.txt",
+      "result_marker_sha256": "08f69dadfb31beebbe0e4ae235260aee953c2607c6f395c2ec8f92bdba2e341e",
       "status": "pass"
     },
-    "device_build": "Current source-bound dirty diagnostic: SwiftPM XCTest 2/2 passed, libq_periapt_ffi_abi2.a built for aarch64-apple-ios, and Xcode 27 beta produced a warning-clean signed build for the connected physical iPad destination.",
-    "device_install_run": "The connected physical iPad installed and launched the current-source binary, emitted one nonce-bound QPERIAPT_DEVICE_PASS marker, returned the exact marker from its app-private container, generated a source-bound schema-v2 proof, and passed independent validation. Simulator evidence was not accepted; the iPhone matrix lane was offline.",
+    "device_build": "Current clean-source diagnostic: SwiftPM XCTest 2/2 passed, libq_periapt_ffi_abi2.a built for aarch64-apple-ios, Xcode 27 beta produced a warning-clean signed build, strict codesign verification passed, and app/staticlib hashes remained stable across the physical-device run.",
+    "device_install_run": "The connected physical iPad installed and launched the current-source binary, emitted one nonce-bound QPERIAPT_DEVICE_PASS marker, returned the exact marker from its app-private container, generated a source-bound schema-v2 proof, and passed strict independent validation. Simulator evidence was not accepted; the paired iPhone was disconnected, so the matrix remains stale.",
     "failed_attempts": [
       {
         "launch_log_path": "artifact/device-runs/ipad-snapshot-v2-20260711T070055Z/ipad-device-launch.log",
@@ -83,7 +83,7 @@
       }
     ],
     "ios_staticlib": "cargo build -p q-periapt-ffi --release --target aarch64-apple-ios succeeds and the device runner links target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a directly.",
-    "macos_native": "SwiftPM binding tests run first and pass 2 ABI2 product XCTest cases, including runtime ABI/suite metadata and signed-policy/OS-random workflow checks, through Xcode 26.6's xcrun swift.",
+    "macos_native": "SwiftPM binding tests run first and pass 2 ABI2 product XCTest cases, including runtime ABI/suite metadata and signed-policy/OS-random workflow checks, through Xcode 27 beta's xcrun swift.",
     "matrix_command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer DEVELOPMENT_TEAM=<team> QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' QPERIAPT_DEVICE_RESULT_DIR=<run-dir> QPERIAPT_DERIVED_DATA=<isolated-derived-dir> sh artifact/apple-device-matrix.sh",
     "matrix_generated_at": "2026-07-12T06:21:14.343632Z",
     "matrix_install_run": "Historical schema-v3 ABI2 dirty diagnostic pass at artifact/device-runs/apple-matrix-kctx-docsync-20260712T0617Z/apple-device-matrix-proof.json under Xcode 27 beta against canonical digest 2a26661c9d6055bac5b0b6226b148e917472c190de308adea36d451d78180b91; exactly one physical iPad plus one distinct physical iPhone. The source has since changed, so the aggregate and both child proofs are stale and must be rerun.",
@@ -92,9 +92,9 @@
     "matrix_proof_sha256": "022cc0bb77812d1dc9b87f7a61bad8e42c25af8520facffc63054cde06c034a7",
     "matrix_source_status": "stale_requires_rerun",
     "matrix_status": "pass",
-    "proof_source_tree_sha256": "56e91aa583c040933dc000c2cbab019644287ac4ba6bc10186b18a0ec3b51dfc",
+    "proof_source_tree_sha256": "bbb3b703d42c0c7c4ef797ca4cc3351f16fe4e847f2096fcce508567499048c1",
     "provisioning": "uses a local Xcode-managed iOS Team Provisioning Profile with team id sha256 prefix dd5cc4f59c0c, expiring 2027-01-17; proof JSON verifies team, bundle id, selected device membership, profile expiration, codesign entitlements, static Rust FFI linkage, and weak AppIntents linkage.",
-    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_APPLE_DEVICE=1 QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1 QPERIAPT_DEVICE_ARTIFACT_PREFIX=ipad QPERIAPT_EXPECT_DEVICE_TYPE=iPad QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/apple-ipad-hqc-retirement-20260712T092712Z sh artifact/proof-to-byte.sh"
+    "verify_command": "QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_APPLE_DEVICE=1 QPERIAPT_DEVICE_ARTIFACT_PREFIX=ipad QPERIAPT_EXPECT_DEVICE_TYPE=iPad QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/apple-ipad-c30dc2c-20260712T145349Z sh artifact/proof-to-byte.sh"
   },
   "artifact": "Q-Periapt \u2014 assumption-minimal, cross-substrate binding assurance for PQ/T hybrid KEMs",
   "performance": {
@@ -363,7 +363,7 @@
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "d983eb01067a3a1c5cf2a741c7150526bdd3cb6b",
+    "snapshot_commit": "c30dc2cf088722c560bfda050083194b2bea8007",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
