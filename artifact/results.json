@@ -275,9 +275,9 @@
     "android_facade_sha256": "431432c5878c3beca03d9dec6a20cc209b6182e68e79b949e13a35f7ba554ebc",
     "android_jni_adapter_sha256": "1e474ad433bfc1aea96aea7bf6703b56244b689e59ecdbbb65986463c4dfcdad",
     "apple_device_matrix_script_sha256": "06690db86ab0b368a1718cd833aaa95b105fb41d66aa8221f0a9547b3ec60dcb",
-    "apple_device_proof_tests_sha256": "7982c2e4100dc6120989aa34158c0a6a00e1c681d1d31b6260eb80e62b145eb5",
+    "apple_device_proof_tests_sha256": "b835ae045a58194ee4846482897ce6f4a13baaaf4beedae3ec1121aab3a880b3",
     "apple_device_proof_verifier_sha256": "2d1d1f1b4f443182376595ec32bc846d5bf2dd813071f18b6f0b75a7c5863c7f",
-    "apple_device_smoke_script_sha256": "4a405643633ced500e1cc436683f07389fe5aa35cf5dc5d5bc339efefbe51a49",
+    "apple_device_smoke_script_sha256": "46e0d2af16ffa44f3cadc7eab649f4ac01c2930437aba2a525787cb7459a4fd3",
     "apple_device_xcode27_gate_script_sha256": "8d0e243ab99518a012e649da124b1bcc88b5d10ae98b1a3871150d03a80618f1",
     "c_package_script_sha256": "0aa0ebe72c125a1041b65acb07d4c2db49a2a9ac90d1ac56af73f8255067b95e",
     "c_smoke_sha256": "54b88389a5fd011b67e3d3d518922cce93aa15e870b2be6f39f1266e662b92b4",
@@ -359,11 +359,11 @@
     "swift_xcframework_script_sha256": "7f0bdd79930101c5b1948255a2dc306657459c7b73442962483ead8dbddcfee1",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "d6171bb5770225b9278683f157b2880626ad86307127c35a4de502543e2a6a23",
+  "proof_source_tree_sha256": "bbb3b703d42c0c7c4ef797ca4cc3351f16fe4e847f2096fcce508567499048c1",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "b49b95e7b17182b362ccdc9d911889b5622752e5",
+    "snapshot_commit": "d983eb01067a3a1c5cf2a741c7150526bdd3cb6b",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",

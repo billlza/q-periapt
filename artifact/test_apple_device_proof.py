@@ -228,6 +228,11 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
             '--expected-staticlib-sha256 "$FROZEN_STATICLIB_SHA256"',
             script,
         )
+        copy = script.index("device copy from")
+        private_copy = script.index('chmod 600 "$DEVICE_RESULT_COPY"')
+        consume_copy = script.index('cp "$DEVICE_RESULT_COPY" "$DEVICE_RESULT"')
+        self.assertLess(copy, private_copy)
+        self.assertLess(private_copy, consume_copy)
         self.assertNotIn('cat "$BUILD_LOG"', script)
         self.assertNotIn('cat "$LOG"', script)
 

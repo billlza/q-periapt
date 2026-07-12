@@ -400,6 +400,7 @@ if ! xcrun devicectl device copy from \
 	printf 'error: device result copy failed; see %s\n' "$COPY_LOG" >&2
 	exit 1
 fi
+chmod 600 "$DEVICE_RESULT_COPY"
 test -f "$DEVICE_RESULT_COPY" || {
 	printf 'error: run-bound device result marker missing from copied app container: %s\n' "$DEVICE_RESULT_UNIQUE_NAME" >&2
 	exit 1
