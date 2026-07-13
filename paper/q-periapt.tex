@@ -546,11 +546,11 @@ thumbv7em & bare-metal & \checkmark & by constr.$^\dagger$ & n/a \\
 \textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} & \textbf{device} \\
 \midrule
 C ABI & pending & \checkmark & pending & n/a \\
-Swift & n/a & \checkmark & n/a & iPad diag. \checkmark \\
-Kotlin (JVM/FFM) & pending & pending & pending & n/a \\
+Swift & n/a & \checkmark & n/a & iOS \checkmark \\
+Kotlin (JVM/FFM) & n/a & \checkmark & n/a & n/a \\
 Android/JNI & n/a & n/a & n/a & pending \\
 \bottomrule
-\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize A clean-tree, source-bound single-iPad diagnostic passes; a fresh clean same-source iPad+iPhone matrix remains pending.}\\
+\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize A clean-tree schema-v3 matrix passes on one physical iPad and one distinct physical iPhone; currentness is manifest-bound and live-verified.}\\
 \end{tabular}
 \end{table}
 
@@ -1027,8 +1027,10 @@ combined PQXDH/Triple-Ratchet stack, PQ3, or other PQC implementations; device e
 stable clean-baseline evidence remain open. Current release attestation additionally requires a
 clean, source-bound Apple device matrix; a dirty-tree diagnostic or a prior device result is not such
 an attestation. Removing the PQClean dependency graph and tombstoning suite code~3 invalidated the
-pre-change Apple/performance proofs. A regenerated clean-tree single-iPad diagnostic passes, while the
-clean paired matrix and matched-performance proof remain stale/pending.
+pre-change Apple/performance proofs. Later clean-tree schema-v3 Apple matrix and controlled-host
+matched-backend proofs passed on a successor source snapshot; their currentness is determined only
+by the machine-readable manifest and live verifiers. Neither is distribution-signing, device-energy,
+or optimized-production parity evidence.
 ABI~2 remains unpublished; the unsuppressed upstream \code{proc-macro-error2} maintenance advisory
 in the libcrux/hax edge is still a release hard gate. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to

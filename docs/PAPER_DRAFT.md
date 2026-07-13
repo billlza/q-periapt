@@ -78,17 +78,19 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 > surface, with reproducible gates that catch specific failure classes. A signed policy is resolved
 > to one closed suite/profile/key-format/version decision and its exact digest is committed by the
 > decision-controlled ContextBound path. A matched-backend, single-host performance gate accepts
-> only controlled runs bound to the live canonical source digest. Current clean iPad+iPhone proof, formal spec-to-Rust
-> refinement, and cross-device/end-to-end performance parity remain pending.
+> only controlled runs bound to the live canonical source digest. The selected clean Apple matrix
+> covers one physical iPad and one distinct physical iPhone, while formal spec-to-Rust refinement
+> and cross-device/end-to-end performance parity remain pending.
 
 The concrete SHA3 staging owner uses explicit public/secret absorption without changing any
 combiner byte: it volatile-wipes the component-secret and conservatively sensitive caller-context
 ranges from every live inline/heap copy and fails closed to whole-buffer erasure for unclassified
 input or invalid metadata. This is a candidate implementation optimization with a local
-secret-hygiene property and historical performance diagnostics. `artifact/results.json` currently
-marks performance evidence stale: the latest complete older-source collection failed the fixed host
-stability threshold and emitted no proof, so the current source still requires a quiet-host rerun.
-This is not a new reduction or a full-runtime zeroization guarantee.
+secret-hygiene property and a controlled-host matched-backend non-regression diagnostic.
+`artifact/results.json` selects the time-varying proof and the live domain verifier checks its
+source, artifacts, budget, host contract, and freshness. A selected passing proof is not a speed,
+energy, or optimized-production parity claim. This is not a new reduction or a full-runtime
+zeroization guarantee.
 
 The PQClean-HQC dependency/runtime path has since been removed; numeric suite code `3`
 is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
@@ -96,8 +98,9 @@ is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
 product-suite identity. Upstream says it tracks an IPD, but as of 2026-07-12 NIST
 still says FIPS 207 is coming soon and no official IPD is retrievable; freezing the
 eventual official text is a promotion gate. That source-graph change invalidated all pre-change
-Apple and performance proofs. A regenerated clean-tree, source-bound single-iPad diagnostic now passes;
-the clean paired matrix and matched-performance proof remain stale/pending. ABI 2 remains unpublished, and the
+Apple and performance proofs. Later clean-tree Apple schema-3 matrix and controlled-host
+matched-backend proofs passed on a successor source snapshot; currentness is authoritative only
+through `artifact/results.json` plus live verification. ABI 2 remains unpublished, and the
 unsuppressed upstream `proc-macro-error2` advisory through libcrux/hax remains a hard
 release blocker.
 
@@ -249,8 +252,9 @@ release blocker.
   verified locally vs. in CI; Windows-MSVC verified locally; binary-CT only on x86-64/aarch64;
   riscv64/wasm32 = source-CT + attestation). Reproducible build attestations. The artifact now also
   has a separate Apple physical-device proof lane capable of source/artifact-bound iPad+iPhone
-  evidence. A fresh clean matrix for the current tree is pending; historical/dirty diagnostics do
-  not close it. The Android ART runtime harness is also separate from package proof and requires a
+  evidence. A clean schema-3 matrix has passed on distinct physical devices; its currentness must
+  still be established from the results manifest and live verifier, and historical/dirty diagnostics
+  do not close it. The Android ART runtime harness is also separate from package proof and requires a
   current clean rerun before a release claim.
 
 ### §5 CI-gated assurance against the failure classes (C3)
@@ -339,8 +343,8 @@ release blocker.
   trusted-caller values; the native ABI exports no raw crypto bypass, but decision APIs still only
   reduce accidental mixing and do not authorize hostile same-process code. An opaque
   in-process handle is also insufficient; a trusted service/process must own the key and state.
-- A clean-tree, source-bound single-iPad diagnostic passes, but a fresh clean current-source iPad+iPhone
-  matrix is pending. The matched-backend Mac gate accepts
+- A clean-tree schema-3 matrix has passed on one physical iPad and one distinct physical iPhone;
+  the manifest-bound verifier, not this prose, determines whether it is current. The matched-backend Mac gate accepts
   only controlled canonical-source-input proofs, but device energy, rustls end-to-end, clean baseline
   history, and optimized-production parity remain unproved.
 - CI: the repo's gates are *configured*; report which have actually executed (note the no-remote
@@ -376,7 +380,7 @@ release blocker.
 | C1a | Standard MAL-BIND-K-{CT,PK} ≤ CR(SHA3); encode_inj proved; **full CDM Figure 6** game (implicit + explicit rejection), over abstract Decaps | `formal/easycrypt/BindingViaCR.ec` (`malbind_kct_*`, `malbind_kpk_*`); explicit `K != bottom` countermodel; proof-dependency controls | Machine-checked; no spec↔Rust refinement |
 | C1b | Self-defined context-parameterized K-CTX syntactic extension ≤ CR(SHA3); not a CDM lattice node or monotonicity corollary | `formal/easycrypt/BindingViaCR.ec` (`malbind_kctx_*`, `omit_ctx_kctx_broken`); Tamarin/ProVerif authenticated-context models | Machine-checked at hash/game level; protocol meaning depends on authenticated context and trusted host |
 | C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | ✔ (prior commits) |
-| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; Windows-MSVC historical local; exact-nine-symbol C ABI contract; `artifact/embedding-readiness.sh`; separate device harnesses | Host ABI2 package implemented; current clean iPad+iPhone, Android, Linux-SONAME, and Windows-PE release evidence pending |
+| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; Windows-MSVC historical local; exact-nine-symbol C ABI contract; `artifact/embedding-readiness.sh`; separate device harnesses | Host ABI2 package implemented; clean iPad+iPhone product execution has a schema-3 proof lane; current Android, Linux-SONAME, Windows-PE, and signed release evidence remain pending |
 | C3a | source→binary CT: current ML-KEM-zero / synthetic-positive discriminator; retired PQClean-HQC 193 is historical | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Current gate uses planted control; HQC row is older-source provenance only |
 | C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (real libcrux) | ✔ (e525bef) |
 | C3c | Tamarin 5 lemmas + ProVerif 6 exact queries + EasyCrypt computational proof | `formal/{tamarin,proverif,easycrypt}` | Machine-checked in current local toolchain; new remote CI run still separate |

@@ -126,16 +126,18 @@ bundles, UDIDs, or adb serials.
 |---|---|---|
 | Rust | Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io publish allow/deny list, package file lists, and patched `cargo publish --dry-run` for every publishable crate. | Crates are not uploaded; first public release still requires a clean tree, registry publish order, and release provenance for the actual crates.io versions. |
 | C ABI | Package `0.1.0-alpha.1` now has a frozen machine-readable ABI2 authority: nine exact product exports, status/constants, 40/36-byte layouts, forbidden raw/deterministic symbols, ABI-major header guard and platform identities. The host C product smoke proves signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | Public release remains blocked until the ABI2 C archive passes on every supported platform, release-index semantics bind every face, dependency audit is warning-clean, and clean signed provenance exists. Windows archive proof, full third-party license inventory and public install docs remain open. |
-| Swift | Current SwiftPM ABI2 product tests and a clean-tree, source-bound single-iPad install/launch/private-container-result diagnostic pass; the five-slice XCFramework isolated consumer passes on its recorded source. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | The paired iPad+iPhone proof still predates the current source. A fresh paired clean run, public URL/checksum, and independent signed provenance remain required. |
+| Swift | Current SwiftPM ABI2 product tests and the five-slice XCFramework isolated consumer pass on their recorded source. The selected clean-tree schema-3 matrix covers one physical iPad and one distinct physical iPhone, with source/artifact/run/device-family binding. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | Time-varying matrix currentness must pass the results-manifest-bound live verifier. Public URL/checksum, Apple distribution signing, and independent signed provenance remain required. |
 | Android | The four-ABI AAR uses ABI-major FFI/JNI names and the same nine-symbol native product workflow; export/SONAME/DT_NEEDED checks, Java/JNI warnings-as-errors, dex, signing and isolated consumer pass. | Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
-| Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path. | JDK 22+ test verification is pending on this machine (only JDK 21 is installed); this is host JVM only and separate from Android. |
+| Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path; the current machine has Temurin JDK 22.0.2. | The JDK 22+ test gate must pass on each release source; this is host JVM only and separate from Android. |
 | WASM | Deterministic Node/WASM conformance tests and version/fixed-suite metadata remain. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
 
 The retired PQClean-HQC adapter is absent from every package above. Numeric suite code
 `3` is a fail-closed tombstone, while `research/hqc-fips207-candidate` is a standalone
 `publish = false` shadow with no ABI/package identity. The same source change invalidated
-all earlier matched-performance proofs; no fresh controlled-host proof exists yet. ABI 2 remains unpublished, and the unsuppressed
-upstream `proc-macro-error2` advisory through libcrux/hax is still a hard release blocker.
+all earlier matched-performance proofs. A later controlled-host matched-backend proof passed the
+fixed non-regression budget; `artifact/results.json` and the live verifier determine currentness.
+ABI 2 remains unpublished, and the unsuppressed upstream `proc-macro-error2` advisory through
+libcrux/hax is still a hard release blocker.
 
 ## Apple Device Matrix
 

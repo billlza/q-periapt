@@ -104,11 +104,13 @@ single-device or matrix evidence, Android runtime evidence, matched-backend host
 an optional producer-origin camera-ready capture bundle.
 Only a clean-tree run that requires host smoke + all formal tools + the iPad/iPhone matrix + a
 fresh controlled-host performance budget + a warning-denied dependency audit may emit the
-explicitly Apple/core-scoped `PROOF_TO_BYTE_APPLE_RELEASE_PASS`; otherwise the final line is a
+explicitly local Apple/core-scoped `PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS`; otherwise the final line is a
 scoped `PROOF_TO_BYTE_RUN_FINISHED ...` summary (or `PROOF_TO_BYTE_RELEASE_NOT_ATTESTED` for a dirty
 diagnostic run). Android runtime remains an independently gated proof until its physical-vs-emulator
-release policy is decided; no generic all-platform release marker exists. Neither a package build
-nor historical device evidence is promoted to current release proof.
+release policy is decided; no distribution, notarization, or generic all-platform release marker
+exists. The local-candidate marker does not accept an Apple Development profile as distribution
+provenance. Neither a package build nor historical device evidence is promoted to current release
+proof.
 The wrapper freezes the exact starting commit, canonical source digest, manifest digest, and dirty
 state before any domain gate. Its finalizer rechecks those values in one fail-closed Python boundary
 and includes the three identifiers in the final marker. A persistent commit or source transition
@@ -141,12 +143,14 @@ publication: every platform package/index, dependency audit, clean provenance, a
 fresh device/performance proof must still pass. ABI1 needs explicit authorized
 re-enrollment/reset; a version alone cannot be converted into an exact-policy digest.
 The noncanonical Continuity research snapshot shape is unrelated and never a release substitute.
-The HQC dependency-graph/tombstone change also changes the canonical source-input digest. Therefore
-all proofs captured before that change became stale even if their hardware run passed. The selected
-clean-tree single-iPad diagnostic has since been regenerated on the live source and is reverified
-through the manifest, but it is neither the required iPad+iPhone matrix nor independent signed
-release provenance. The paired matrix and matched-performance proof still require fresh
-source-bound runs.
+The HQC dependency-graph/tombstone change also changed the canonical source-input digest, so every
+proof captured before it became stale even if its hardware run passed. A later clean-tree schema-3
+matrix covered one physical iPad and one distinct physical iPhone, and a controlled-host
+matched-backend proof passed the fixed non-regression budget. Time-varying currentness is
+authoritative only through `artifact/results.json` plus the required live domain verifiers; source
+prose cannot promote an old proof after another source change. These are local product-execution
+and single-host diagnostic results, not independent signed release provenance, device-energy
+evidence, or cross-implementation performance parity.
 
 The expected per-step counts, toolchain, footprint sizes, and data-file pointers are pinned in
 [`artifact/results.json`](artifact/results.json) (every value measured, so drift is visible). A
@@ -456,5 +460,11 @@ These produce the paper's primary network table and the binary constant-time dis
   `QPERIAPT_REQUIRE_PERFORMANCE=1 sh artifact/proof-to-byte.sh`. Dirty diagnostic collection and
   verification require the explicit `--allow-dirty` and
   `QPERIAPT_ALLOW_DIRTY_PERFORMANCE_PROOF=1` opt-ins and never qualify for release attestation.
+  Process-level CPU and compositor energy are outside the authenticated performance schema. Before
+  collection, observe the host without changing repository inputs; if WindowServer, MenuBarAgent,
+  or another persistent process is continuously busy, defer the run. Do not kill WindowServer,
+  lower budgets, or automate restart-and-retry loops until a favorable sample appears. A future
+  device/host energy claim requires a separate calibrated energy lane with explicit hardware,
+  duration, power, thermal, and selection-bias controls.
 - **Footprint (platform-dependent).** `sh paper/footprint.sh` writes `paper/footprint.csv` for the
   host it runs on (cdylib + WASM module sizes).

@@ -13,10 +13,10 @@ This is a host JVM binding, not the Android binding. Android apps should consume
 the AAR/JNI surface under [`../android`](../android/), built by
 `artifact/android-aar.sh`.
 
-> **Current-machine verification pending** — `gradle test` exercises
+> **Current-machine toolchain** — `gradle test` exercises
 > signed-policy resolution, exact digest/state, OS-random key generation and
 > encapsulation, context-bound roundtrip, legacy-state/rollback/tamper rejection,
-> and secret wipe. It needs JDK 22+ (stable FFM); this machine currently has JDK 21.
+> and secret wipe. It needs JDK 22+ (stable FFM); this machine has Temurin JDK 22.0.2.
 
 ## Build
 

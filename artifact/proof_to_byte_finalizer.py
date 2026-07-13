@@ -164,7 +164,7 @@ def format_attestation_marker(
     state: AttestationState,
     snapshot: SourceSnapshot,
 ) -> str:
-    """Return the scoped release summary bound to the verified source snapshot."""
+    """Return the scoped local-candidate summary bound to the verified snapshot."""
 
     _require_commit(snapshot.commit, "attested Git commit")
     _require_sha256(snapshot.source_sha256, "attested source digest")
@@ -192,7 +192,7 @@ def format_attestation_marker(
             )
         camera = "verified" if state.camera_required else "not_required"
         return (
-            "PROOF_TO_BYTE_APPLE_RELEASE_PASS "
+            "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS "
             f"camera_ready_bundle={camera}" + provenance
         )
     return (

@@ -188,12 +188,14 @@ the aggregate claim is false. Q-Periapt now separates:
 - optional bare-metal producer-origin bundle integrity, explicitly separated from
   independent hardware attestation.
 
-Only the required clean-tree Apple/core combination may emit the explicitly scoped
-`PROOF_TO_BYTE_APPLE_RELEASE_PASS`. Android runtime remains a separate proof until an
-emulator-vs-physical release policy is selected; there is no generic all-platform pass marker.
-[`claim-ledger.json`](../artifact/claim-ledger.json) deliberately leaves
-spec-to-implementation refinement, current clean Apple matrix, and performance parity
-as `pending`.
+Only the required clean-tree Apple/core combination may emit the explicitly scoped local marker
+`PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS`. It is not distribution signing, notarization, or public
+attestation. Android runtime remains a separate proof until an emulator-vs-physical release policy
+is selected; there is no generic all-platform release marker.
+[`claim-ledger.json`](../artifact/claim-ledger.json) deliberately leaves formal
+spec-to-implementation refinement and end-to-end performance parity as `pending`. Apple matrix
+and matched-host proof currentness are time-varying states selected by `artifact/results.json` and
+checked by their live domain verifiers.
 
 ### 2.9 Implementation linkage is now a competitive baseline
 
@@ -307,7 +309,7 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Field-resolved combiner reductions | CFRG general construction + evolving binding analysis | protocol-specific KDF/proof models | potential artifact delta in executable standard MAL-BIND-K-CT/K-PK reductions plus a separately scoped local K-CTX wrapper reduction; still no refinement or exhaustive novelty proof |
 | Authenticated external context | no X-Wing context; TLS binds transcript elsewhere | both protocols authenticate extensive transcript/state data | potential reusable-API delta only; not a current protocol lead, and the rustls KEM-layer path is partial |
 | Signed policy/execution coupling | fixed suites or stack-specific config | versioned product protocols | potential open-artifact delta among the explicitly compared baselines: atomic decision + digest state + fail-closed fixed-suite boundary; systematic novelty review pending |
-| Source/claim/binary/device ledger | implementation-specific | Signal reports CI implementation proofs; product evidence is otherwise partly internal | potential **public reproducibility** delta: strict single-byte proof/auxiliary snapshots, environment-independent HEAD/index/actual-byte Git checks, ignore-independent untracked-input inventory, isolated source-only Python startup, manifest path/hash binding, and fixed release policy; not refinement superiority, and current clean Apple claim remains pending |
+| Source/claim/binary/device ledger | implementation-specific | Signal reports CI implementation proofs; product evidence is otherwise partly internal | potential **public reproducibility** delta: strict single-byte proof/auxiliary snapshots, environment-independent HEAD/index/actual-byte Git checks, ignore-independent untracked-input inventory, isolated source-only Python startup, manifest path/hash binding, and fixed release policy; not refinement superiority. A clean schema-3 physical iPad+iPhone matrix exists, but its currentness is established only by the live verifier. |
 | Asynchronous identity/prekeys | outside KEM scope | both have deployed device/key-directory paths; Signal specifies independent classical/PQ one-time/fallback semantics | **behind**: no protocol/service; only a strict model-level 16-field selection codec and outer-scope graft controls |
 | Ongoing hybrid PQ ratchet | outside KEM scope | PQ3 and Signal Triple Ratchet **lead** | **behind / absent** |
 | Multi-device/recovery | outside KEM scope | major deployed capability | **behind / absent** |
@@ -345,11 +347,13 @@ ratios ranged from 0.24 to 4.28 while the global ContextBound p99 was below Comp
 order halves had the same approximately 1.063 median ratio. Later schema-v4 collections moved the
 primary tail estimator to 1,024-pair blocks while retaining 256-pair blocks as a regression guard.
 A 20,480-pair run then missed the unchanged encapsulation p99 limit, and a 40,960-pair follow-up
-missed it by 0.000220. The latest complete 81,920-pair-per-profile collection belongs to older
-digest `80c418b2...`; all 491,520 raw records passed schema validation, but combine block-median CV
-was 0.121067 against the fixed 0.050000 environment limit, so no proof was emitted and numeric
-performance budgets were not evaluated. The current source therefore remains
-`stale_requires_rerun`; none of these raws supports a current-source or lead claim.
+missed it by 0.000220. An older complete 81,920-pair-per-profile collection belonged to digest
+`80c418b2...`; all 491,520 raw records passed schema validation, but combine block-median CV was
+0.121067 against the fixed 0.050000 environment limit, so no proof was emitted and numeric budgets
+were not evaluated. A later clean-tree collection at the same preregistered sample count passed the
+unchanged stability and non-regression budgets. The selected path/hash/source status is recorded in
+`artifact/results.json` and must pass the live verifier; neither the failed raw nor this prose can
+establish a current-source or performance-lead claim.
 
 This redesign invalidates the earlier single-call controlled-Mac diagnostic: its 334/375 ns
 CompatXWing combine block medians were timer-quantization levels, so their mixture could cross the
@@ -452,7 +456,7 @@ Forbidden:
 - “HQC is a production-ready hedge in this build,” or that the HQC-v5/FIPS-207-draft shadow
   is part of ABI 2 / assigned the permanently tombstoned suite code `3`.
 - “Proof-to-byte is a formal source-to-binary refinement.”
-- “Current HEAD has clean iPad+iPhone proof” until a fresh matrix verifies.
+- “Current HEAD has clean iPad+iPhone proof” without the selected matrix passing the live verifier.
 - “Performance parity” until the pending ledger claim is closed.
 - “Signal only provides initial PQ protection” or “Signal has no ongoing PQ ratchet.”
 - “Proof-to-byte is stronger than Signal's reported hax/F* implementation checks.”

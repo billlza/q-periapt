@@ -412,12 +412,14 @@ decision and 36-byte trusted policy state.
 This is an **unpublished ABI 2 candidate**, not a stable binary release. Continuity's
 abstract snapshot schema 3 is unrelated and is not part of this ABI. Before ABI 2
 can be published, all platform package identities, release-index cross-face semantics,
-dependency audit, clean provenance, a same-source clean iPad+iPhone matrix, and fresh performance evidence must
-pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
+dependency audit, clean provenance, same-source Apple matrix verification, and controlled-host
+performance verification must pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
 upgraded from a version alone; hosts require explicit authorized re-enrollment/reset.
-The HQC graph/tombstone change invalidated every pre-change Apple/performance proof. A
-clean-tree, source-bound single-iPad diagnostic has since been regenerated and manifest-reverified;
-the clean paired matrix and matched-performance proof remain stale/pending.
+The HQC graph/tombstone change invalidated every pre-change Apple/performance proof. Later
+clean-tree Apple schema-3 matrix and controlled-host matched-backend proofs passed on a successor
+source snapshot. Their time-varying currentness is authoritative only through
+`artifact/results.json` and live verification; neither is a distribution-signing or device-energy
+claim.
 
 ### 6.4 X-Wing conformance KAT
 

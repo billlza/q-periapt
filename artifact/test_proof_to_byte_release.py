@@ -570,7 +570,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
         self.assertEqual(
             marker,
-            "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=not_required"
+            "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=not_required"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
@@ -582,7 +582,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         verified = format_marker(1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0)
         self.assertEqual(
             verified,
-            "PROOF_TO_BYTE_APPLE_RELEASE_PASS camera_ready_bundle=verified"
+            "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=verified"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
@@ -592,7 +592,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0)
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", marker)
         self.assertIn("dependency_audit=0", marker)
-        self.assertNotIn("PROOF_TO_BYTE_APPLE_RELEASE_PASS", marker)
+        self.assertNotIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", marker)
+
+    def test_finalizer_never_claims_distribution_release(self) -> None:
+        source = FINALIZER_SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("PROOF_TO_BYTE_APPLE_RELEASE_PASS", source)
 
     def test_dirty_source_tree_cannot_emit_release_pass(self) -> None:
         marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0)

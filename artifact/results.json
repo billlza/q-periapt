@@ -45,7 +45,7 @@
     "current_dirty_proof_path": "artifact/device-runs/apple-ipad-bf40ed2-20260712T152806Z/ipad-device-proof.json",
     "current_dirty_proof_schema": 2,
     "current_dirty_proof_sha256": "15fbd80efa678ad8ecbf09a3e845ae3f8be8a7fb03fd464d15a738541cc19f98",
-    "current_source_status": "current_dirty_diagnostic_pass",
+    "current_source_status": "stale_requires_rerun",
     "current_attempt": {
       "build": "pass",
       "device_kind": "physical iPad Pro 11-inch (M4)",
@@ -90,7 +90,7 @@
     "matrix_proof_path": "artifact/device-runs/apple-matrix-fb54c17-20260712T155625Z/apple-device-matrix-proof.json",
     "matrix_proof_schema": 3,
     "matrix_proof_sha256": "a189beac0db60d3f3c440e7a28125180757e5d89269918c254c6274c99049362",
-    "matrix_source_status": "current_dirty_diagnostic_pass",
+    "matrix_source_status": "stale_requires_rerun",
     "matrix_status": "pass",
     "proof_source_tree_sha256": "9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9",
     "provisioning": "uses a local Xcode-managed iOS Team Provisioning Profile with team id sha256 prefix dd5cc4f59c0c, expiring 2027-01-17; proof JSON verifies team, bundle id, selected device membership, profile expiration, codesign entitlements, static Rust FFI linkage, and weak AppIntents linkage.",
@@ -101,7 +101,7 @@
     "boundary": "The current clean-tree schema-v4 proof binds commit fb54c1729cfd7d870961df2043e969a92d1523c0 and canonical source digest 9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9. It emitted all 491,520 schema-v2 raw records for 81,920 paired samples per profile/operation and passed the unchanged 5% block-median CV limit, both preregistered block scales, and every ratio/delta budget without a dirty or uncontrolled override. The proof records controlled AC-power and nominal-thermal observations before build, before run, after run, and after analysis; process-level CPU readiness and operator recovery actions are outside its authenticated schema. It remains single-host matched-backend evidence, not device energy evidence, distribution provenance, or parity with production X-Wing/PQ3/Signal implementations.",
     "budget_schema": 4,
     "command": "sh artifact/python-run.sh artifact/performance_gate.py collect --root . --raw target/performance/paired-profile-fb54c17-20260712T160206Z.jsonl --proof target/performance/paired-profile-fb54c17-20260712T160206Z-proof.json --samples 81920 --warmup-ms 5000",
-    "current_source_status": "current_controlled_pass",
+    "current_source_status": "stale_requires_rerun",
     "environment": "Darwin 27.0.0 arm64 Apple M1 Max, AC power, nominal thermal state at pre-build, pre-run, post-run, and post-analysis observations",
     "iterations_per_sample": {
       "combine": 256,
@@ -339,8 +339,8 @@
     "performance_gate_tests_sha256": "40c6159135ac526f90d101a272f59d2b584817ab0a761b3a8ce29cd7e995a112",
     "proof_manifest_sha256": "67df80c5ff91cbd2cf3c84768ea79aff372f4b157d2be7db6e8ca8369f943f9b",
     "proof_manifest_tests_sha256": "fa984420c3937b338089c0f85ca901c7c3bbbdb5b2a5f32f4abe98604c8db59e",
-    "proof_to_byte_finalizer_sha256": "afe539de978080896053b805016e4538fe53926193baf9b070afe7e0cbc097b5",
-    "proof_to_byte_release_tests_sha256": "db516a089f029eb87a1a0bf1f88a1e8050260d87dcf271e968bb810dfb776b8e",
+    "proof_to_byte_finalizer_sha256": "a8cf02c8e48a7bdf0ebbd5296111a8dfdc3ac6c12ec8a208df50abce48aa88be",
+    "proof_to_byte_release_tests_sha256": "a9d2ca6f4f9bde3654aea5fc08090527e93abe5c7a6a818be02b7382ef8e8b6b",
     "proof_to_byte_script_sha256": "fd2bf379f9d9f2107efad505bea1906f77044560cd6babf933b98f16c36eadb9",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
     "python_bootstrap_sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
@@ -360,7 +360,7 @@
     "swift_xcframework_script_sha256": "7f0bdd79930101c5b1948255a2dc306657459c7b73442962483ead8dbddcfee1",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9",
+  "proof_source_tree_sha256": "e9ddee1a3f273ed3788fabba34569da81f70fed6a77fcbdbd072b793b121c4c1",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
@@ -376,7 +376,7 @@
     "boundary": "This is a clean-tree pre-publication dry-run, not an upload or registry attestation. First public release still requires registry-order publishing and release provenance for the actual crates.io versions.",
     "command": "sh artifact/rust-publish-dry-run.sh",
     "current_local_status": "Current 2026-07-12 clean-tree pre-publication contract passed locked metadata, package file-list denylist, patched cargo publish --dry-run for all nine publishable crates, and a fresh isolated q-periapt-backends archive scan against canonical digest 9044ee54471fa6522977659952a80bf1a7febd515730e9b08e58ed6e6f2acbb9. The archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its required dry-run terminal warning that upload was aborted; this is not an upload or release attestation.",
-    "current_source_status": "current_clean_tree_diagnostic_pass",
+    "current_source_status": "stale_requires_rerun",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
     "nonpublishable_crates": [

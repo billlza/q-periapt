@@ -430,15 +430,16 @@ when its source digest matches the live canonical tree and the host satisfies th
 controlled-environment contract; `artifact/results.json` carries a path/hash/schema/source/pass
 summary, while the required performance verifier checks the selected proof and artifacts. The
 HQC graph/tombstone change changed that digest, so every pre-change proof became stale regardless
-of whether its older-source run passed. The selected clean-tree, source-bound single-iPad diagnostic has since been
-regenerated and manifest-reverified on the live source; the clean paired Apple matrix and the
-matched-performance proof remain stale/pending. The
+of whether its older-source run passed. A later clean-tree schema-3 matrix covered one physical
+iPad and one distinct physical iPhone, and a controlled-host matched-backend proof passed the fixed
+non-regression budget. Their currentness is determined only by `artifact/results.json` plus live
+verification against the canonical tree. The
 schema-v4 producer fixes Cargo/Rustc executable hashes, versions, and target; rejects repository/
 ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes system-tool
 lookup; and builds offline in a fresh private target. It still trusts the user-writable Cargo
 registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector source-to-binary
 honesty; standalone verification does not independently rebuild the binary. Even
-a passing result remains diagnostic host evidence, not cross-device, energy, rustls
+a passing result remains diagnostic host evidence, not cross-device energy, rustls
 end-to-end, or optimized production parity.
 `ContextBound` is **slower on the extra-hashing axis, not stronger** there. The value of Q-Periapt
 is **auditability, crypto-agility, side-channel CI, cross-platform byte-identical

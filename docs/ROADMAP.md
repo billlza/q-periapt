@@ -357,11 +357,11 @@ are the gap between research-grade and audited/production.
    an isolated source-only launcher rather than trusting Git excludes, repository pyc, user-site,
    or caller `PYTHON*`. The Apple device matrix is also real proof when explicitly required
    (`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1`). The HQC graph/tombstone change invalidated the
-   earlier Apple evidence. A regenerated clean-tree, source-bound single-iPad diagnostic now passes,
-   but it is neither complete release provenance nor a Continuity session-protocol result. The older
-   paired matrix remains stale. Time-varying status lives only in the results manifest; a source
-   document cannot promote an older device digest. A fresh clean iPad+iPhone,
-   same-commit schema-v3 matrix remains required for release. This is still not a liboqs-style
+   earlier Apple evidence. A later clean-tree schema-3 matrix covered one physical iPad and one
+   distinct physical iPhone, but it is neither independent release provenance nor a Continuity
+   session-protocol result. Time-varying status lives only in the results manifest plus the live
+   domain verifier; a source document cannot promote an older device digest. A current clean,
+   same-commit schema-3 matrix remains required for release. This is still not a liboqs-style
    public distribution surface: Swift has a local XCFramework pre-publication gate but still needs
    public URL/checksum/provenance; Android has current AAR/JNI package proof plus only a
    historical, stale, pre-ABI2 emulator ART diagnostic, and still needs a current ABI2
@@ -380,12 +380,13 @@ are the gap between research-grade and audited/production.
    raw/deterministic symbols. ABI1 is an explicit hard cut—its version-only state is
    rejected and requires authorized re-enrollment/reset, not a synthetic migration.
    Publication remains blocked on all-platform package/index verification, warning-clean
-   dependency audit, clean source provenance, a same-source clean iPad+iPhone matrix, and fresh
-   matched-performance evidence.
+   dependency audit, clean signed source provenance, and live verification of same-source Apple
+   matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
    The HQC dependency-graph/tombstone change invalidated the pre-change Apple/performance proofs.
-   A clean-tree single-iPad proof has since been regenerated, but the paired Apple matrix and performance
-   proof remain stale. ABI 2 remains unpublished until every release-scoped gate passes.
+   Later clean-tree Apple schema-3 matrix and controlled-host matched-backend proofs passed on a
+   successor source snapshot; `artifact/results.json` and the live verifiers are authoritative for
+   currentness. ABI 2 remains unpublished until every release-scoped gate passes.
 
 6. **Production hardening.** Backends are pre-1.0 / unaudited (`libcrux 0.0.9`
    asks for maintainer contact before production). Current `cargo audit --deny warnings`
@@ -477,14 +478,14 @@ are the gap between research-grade and audited/production.
 | ACVP ML-DSA internal interface (FIPS 204 Alg. 7/8, `acvp` feature, ext-μ=false) | **Done** |
 | Remaining ACVP modes: `externalMu=true` (no libcrux μ-entry) / non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
-| Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; rerun required for the current source tree** |
-| Physical Apple matrix proof (iPad + iPhone, Xcode 27 beta lane) | **Pending for current clean source; the current clean-tree single-iPad diagnostic passes, but single-device evidence is not matrix release proof** |
+| Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; time-varying pass state is selected by `artifact/results.json` and checked by live verifiers** |
+| Physical Apple matrix proof (iPad + iPhone, stable-Xcode lane) | **Schema-3 clean-tree matrix passed on one physical iPad and one distinct physical iPhone; live source/proof freshness verification remains mandatory** |
 | Strict evidence snapshots + selected-proof atomic manifest binding | **Implemented: duplicate/non-finite JSON and top-level hash/semantics A/B mixing fail closed; clean signed manifest provenance remains pending** |
 | Git/Python verifier-input provenance | **Implemented and negative-tested: local excludes, hidden index flags, ignored pyc, user-site/`.pth`, and caller `PYTHON*` fail closed; external interpreter/host attestation remains pending** |
 | Android AAR/JNI package proof | **Fresh four-ABI ABI2 package, symbol/SONAME/DT_NEEDED, Java/JNI `-Werror`, dex and isolated-consumer proof pass; ART runtime remains pending** |
 | Android ART runtime smoke | **Harness and schema-v2 verifier are implemented, but the selected dirty emulator proof predates the current canonical inputs and is stale; a fresh run, clean release provenance, and physical/CI policy remain pending** |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema2 semantic diagnostic index, cross-face ABI contract, destructive-path negative controls and isolated C consumers pass; clean release channel remains pending** |
-| C ABI 2 public release | **0.1.0-alpha.1 candidate implemented, not publishable: suite code 3 is tombstoned; the unsuppressed upstream proc-macro-error2 advisory, clean provenance, Linux/Windows package lanes, JDK22/ART, a clean paired Apple matrix, and fresh performance evidence remain required** |
+| C ABI 2 public release | **0.1.0-alpha.1 candidate implemented, not publishable: suite code 3 is tombstoned; the unsuppressed upstream proc-macro-error2 advisory, signed provenance, Linux/Windows package lanes, current ART runtime evidence, third-party audit, and public distribution signing remain required** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Pending; Rust, Swift, Android package pre-publication gates and local index present |
 | Binary-CT beyond the gated ML-KEM decap path + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
