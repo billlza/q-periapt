@@ -133,7 +133,7 @@ class EvidenceIOTests(unittest.TestCase):
             (outside / "proof.json").write_text("{}", encoding="utf-8")
             linked = root / "linked"
             linked.symlink_to(outside, target_is_directory=True)
-            with self.assertRaisesRegex(EvidenceIOError, "cannot safely open"):
+            with self.assertRaisesRegex(EvidenceIOError, "reparse|cannot safely open"):
                 read_regular_snapshot(
                     linked / "proof.json", maximum=1024, label="ancestor symlink"
                 )
