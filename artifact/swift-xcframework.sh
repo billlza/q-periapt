@@ -179,8 +179,8 @@ q_periapt_version'
 for lib in "$LIBS/macos/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a" "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"; do
 	ffi_exports=$("$LLVM_NM" -g "$lib" 2>/dev/null | awk '{print $NF}' | sed 's/^_//' | grep -E '^q_periapt_[a-z0-9_]+$' | LC_ALL=C sort -u)
 	if [ "$ffi_exports" != "$EXPECTED_FFI_EXPORTS" ]; then
-		printf 'error: Apple static slice differs from the exact ABI2 9-symbol allowlist: %s\n' "$lib" >&2
-		printf 'actual exports:\n%s\n' "$ffi_exports" >&2
+		printf 'error: Apple static slice differs from the exact ABI2 public q_periapt_* namespace allowlist: %s\n' "$lib" >&2
+		printf 'actual public namespace symbols:\n%s\n' "$ffi_exports" >&2
 		exit 1
 	fi
 done

@@ -1,0 +1,37 @@
+[package]
+name = "q-periapt-mlkem-native-sys"
+description = "Auditable safe Rust boundary for the portable mlkem-native implementation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+links = "q_periapt_mlkem_native"
+include = [
+    "/Cargo.toml",
+    "/LICENSE",
+    "/LICENSES/**",
+    "/README.md",
+    "/build.rs",
+    "/src/**",
+    "/vendor/INVENTORY.sha256",
+    "/vendor/LICENSE-INVENTORY.md",
+    "/vendor/LICENSE.mlkem-native",
+    "/vendor/PROVENANCE.md",
+    "/vendor/mlkem-native/**/*.c",
+    "/vendor/mlkem-native/**/*.h",
+    "/vendor/mlkem-native/**/*.inc",
+    "/vendor/mlkem-native/**/*.S",
+]
+
+[lints]
+workspace = true
+
+[build-dependencies]
+cc = "=1.2.67"
+
+[dev-dependencies]
+sha3 = { version = "=0.10.9", default-features = false }

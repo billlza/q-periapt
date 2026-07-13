@@ -14,30 +14,55 @@ Randomness (encapsulation coins, key seeds) is supplied **by the JS caller** as 
 
 ## Build
 
+The portable C ML-KEM provider requires upstream LLVM Clang with a `wasm32`
+backend. Set `CC_wasm32_unknown_unknown` to the compiler's **absolute path**;
+the build validates that it is a regular Clang executable, rejects Apple Clang,
+and requires `clang --print-targets` to list `wasm32`.
+
 ```sh
+# macOS (Homebrew LLVM; do not use /usr/bin/clang):
+export CC_wasm32_unknown_unknown="$(brew --prefix llvm)/bin/clang"
+
+# Linux CI equivalent:
+# export CC_wasm32_unknown_unknown=/usr/bin/clang-18
+
 # Compiles to wasm32 (proves portability; checked in CI):
-cargo build -p q-periapt-wasm --target wasm32-unknown-unknown
+cargo build --locked -p q-periapt-wasm --target wasm32-unknown-unknown
 
 # Full JS package with bindings (needs wasm-pack):
 wasm-pack build crates/q-periapt-wasm --target web
 ```
 
-## Footprint (reproducible)
+## Current-source local footprint (platform/toolchain-specific)
 
-The lean default module — `encapsulate` / `decapsulate` / `combine` / keygen only — is
-**≈195 KiB** (199 711 bytes, `wasm-pack 0.15`, `--release`):
-
-```sh
-wasm-pack build crates/q-periapt-wasm --release --target web        # ≈195 KiB
-```
-
-The optional signed-policy path (`decision_from_signed_policy`, behind the off-by-default
-`signed-policy` feature) links an ML-DSA verifier, which grows the historical measured
-module to **≈586 KiB**:
+On Darwin 27.0.0 arm64, the current working source built with Rust 1.96.0,
+`wasm-pack` 0.15.0, and Homebrew LLVM Clang 22.1.8 measured **97.7 KiB**
+(100,034 bytes) for the lean default module (`encapsulate` / `decapsulate` /
+`combine` / keygen only):
 
 ```sh
-wasm-pack build crates/q-periapt-wasm --release --target web -- --features signed-policy  # ≈586 KiB
+wasm-pack build crates/q-periapt-wasm --release --target web
 ```
+
+The optional signed-policy path (`decision_from_signed_policy`, behind the
+off-by-default `signed-policy` feature) links an ML-DSA verifier and measured
+**332.6 KiB** (340,625 bytes) in the same run:
+
+```sh
+wasm-pack build crates/q-periapt-wasm --release --target web -- --features signed-policy
+```
+
+These are current-source **local diagnostics**, not architecture-independent package
+sizes, clean signed provenance, or a cross-platform binary claim. Reproduce all
+three local artifacts (including the C ABI row) from a repository checkout with:
+
+```sh
+CC_wasm32_unknown_unknown="$(brew --prefix llvm)/bin/clang" sh paper/footprint.sh
+```
+
+The exact host/toolchain/result rows live at `paper/footprint.csv` in the repository
+checkout (that file is not part of this crate package); regenerate them for every
+platform or toolchain named in a footprint claim.
 
 ## API
 

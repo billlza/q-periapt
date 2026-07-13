@@ -13,11 +13,15 @@ fuzz_target!(|data: &[u8]| {
     }
     let mut seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
     seed.copy_from_slice(&data[..ML_KEM_768_KEYGEN_SEED_LEN]);
-    let (sk, _pk) = MlKem768::generate(seed);
+    let (sk, _pk) =
+        MlKem768::generate(seed).expect("deterministic ML-KEM key generation must succeed");
 
     let ct = &data[ML_KEM_768_KEYGEN_SEED_LEN..ML_KEM_768_KEYGEN_SEED_LEN + ML_KEM_768_CT_LEN];
     let mut ss = [0u8; 32];
     // Must succeed (implicit rejection) for any ciphertext — never panic, never error.
     let r = MlKem768.decapsulate(&sk, ct, &mut ss);
-    assert!(r.is_ok(), "decapsulate must not error on any well-sized ciphertext");
+    assert!(
+        r.is_ok(),
+        "decapsulate must not error on any well-sized ciphertext"
+    );
 });

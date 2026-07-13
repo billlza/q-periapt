@@ -5,6 +5,9 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /
 Swift / Kotlin / Android. Deterministic conformance cells are byte-identical;
 native ABI 2 product cells use OS randomness and are checked by semantic invariants.
+ABI 2 / `0.1.0-alpha.1` is a release-ready research-alpha source line intended
+for coordinated Rust-crate publication; it is not a current multi-platform binary
+or production release.
 
 This file is the single source of truth for *what is done* vs *what is pending*.
 Where a claim is subtle, it cross-references the authoritative spec
@@ -40,7 +43,8 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
 - **We track standards; we do not set them.** X-Wing is an IETF draft, not a
   ratified standard.
 - **No completed third-party audit.** This is **research-grade, not
-  production**: the pinned `fips203` 0.4.3, `fips204` 0.4.6, `sha3` 0.10.9,
+  production**: the portable-only `q-periapt-mlkem-native-sys` integration over
+  `mlkem-native` v1.2.0, pinned `fips204` 0.4.6, `sha3` 0.10.9,
   x25519-dalek, and optional fips205 integrations have not been independently
   audited as this suite or ABI. **Do not deploy.**
 
@@ -84,10 +88,12 @@ Every item below is grounded in code/commits in this repository.
 traits (`Kem`, `Xof256`, `Signer`/`Verifier`) to real implementations — no toy primitives in
 the shipped path:
 
-- **ML-KEM-512/768/1024** via `fips203` 0.4.3 and **ML-DSA-44/65/87** via
-  `fips204` 0.4.6. Explicit seed/randomness inputs preserve deterministic
-  conformance testing, and checked key import fails rather than accepting malformed
-  expanded keys. No source-CT/hax assurance from the replaced backend is inherited.
+- **ML-KEM-512/768/1024** through `q-periapt-mlkem-native-sys` over portable
+  `mlkem-native` v1.2.0 and **ML-DSA-44/65/87** via `fips204` 0.4.6. Explicit
+  seed/randomness inputs preserve deterministic conformance testing. Expanded-DK import
+  validates the embedded public key's canonical encoding and stored hash before
+  decapsulation; malformed keys fail without publishing temporary output. No
+  source-CT/hax assurance from a replaced backend is inherited.
 - **X25519** via `x25519-dalek` 2 (`default-features = false`, `static_secrets`).
 - **SHA3-256 / SHAKE-256** via RustCrypto `sha3` 0.10.9.
 - **SLH-DSA** (FIPS 205) via `fips205 0.4.1`, **off by default** behind the
@@ -140,8 +146,10 @@ builds it for `thumbv7em-none-eabihf` (Cortex-M) and must not pull `std`.
 The same core is exposed through multiple faces, but ABI2 now separates product
 misuse resistance from deterministic conformance:
 
-- **C ABI / FFI** — `q-periapt-ffi`: exact nine-symbol policy-controlled product
-  ABI; raw deterministic KAT helpers remain private Rust tests.
+- **C ABI / FFI** — `q-periapt-ffi`: exact-nine dynamic `q_periapt_*`
+  policy-controlled product ABI; the static archive constrains only that public
+  namespace and retains unsupported hidden bridge link symbols, so it assumes a
+  trusted same-process consumer. Raw deterministic KAT helpers remain private Rust tests.
 - **WASM** — `q-periapt-wasm`, run on a real Node runtime via `wasm-pack test`
   (CI `bindings-wasm`).
 - **Swift** — `bindings/swift` over ABI2; host product test passes.
@@ -253,7 +261,7 @@ cross-validates the primitives **and the full hybrid** against independent
 implementations on random `SHAKE-256(counter)` inputs (no RNG) — an assurance method
 orthogonal to KATs and the proof, catching integration/encoding bugs that 3 fixed
 vectors would miss:
-- **ML-KEM-512/768/1024** — production `fips203` vs independent RustCrypto `ml-kem`
+- **ML-KEM-512/768/1024** — release-graph portable `mlkem-native` vs independent RustCrypto `ml-kem`
   (byte-identical keygen, encapsulation, decapsulation over 64 inputs each).
 - **X25519** — our `x25519-dalek` backend vs the independent `orion` implementation,
   plus the authoritative **RFC 7748 §6.1** ground-truth Diffie–Hellman vector.
@@ -273,7 +281,7 @@ check would be signature interoperability rather than byte-identity).
 
 ### 12. NIST ACVP ground-truth conformance
 [`crates/q-periapt-backends/src/acvp.rs`](../crates/q-periapt-backends/src/acvp.rs)
-validates the `fips203`/`fips204` adapters against the **authoritative** NIST ACVP vectors
+validates the `mlkem-native`/`fips204` adapters against the **authoritative** NIST ACVP vectors
 (vendored under `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`):
 - **ML-KEM-512/768/1024 (FIPS 203)** — the full set each: keyGen `(d,z)→(dk,ek)`,
   encaps `(ek,m)→(c,k)`, and decaps `(dk,c)→k` including modified-ciphertext cases that
@@ -337,9 +345,12 @@ are the gap between research-grade and audited/production.
    Binary-level **dataflow** constant-time is now a **hard gate** (the
    `constant-time` CI job runs `ct_verify` under Valgrind/Memcheck-TIMECOP) over the
    suite's own CT composition code — `ct_eq`, `ct_select32`, and the combiner. The
-   same x86_64+aarch64 job is configured to hard-gate the corrected ŝ+z `fips203`
-   ML-KEM decapsulation probe with positive/negative controls. The backend/source
-   migration invalidated the previous `libcrux` captures, so a fresh two-ISA pass
+   same x86_64+aarch64 job is configured to hard-gate corrected ŝ+z
+   ML-KEM-512/768/1024 shipped-provider decapsulation probes with planted controls.
+   The superseded `fips203` provider failed this gate on both ISAs in
+   [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107),
+   and those historical counts do not describe portable `mlkem-native`. The backend/source
+   migration also invalidated previous `libcrux` captures, so a fresh two-ISA pass
    for the release digest is required. No source-CT/hax result transfers. Still TODO: other component
    primitive paths, riscv64/wasm32 binary-CT, and promoting a quiesced-hardware
    **timing** check to a gate (the
@@ -368,38 +379,56 @@ are the gap between research-grade and audited/production.
    backend/source-digest migration and is now historical, as are the recorded package,
    performance, and CT proofs. Time-varying status lives only in the results manifest plus the live
    domain verifier; a source document cannot promote an older device digest. A current clean,
-   same-commit schema-3 matrix remains required for release. This is still not a liboqs-style
+   same-commit schema-3 matrix remains required for production promotion or a
+   platform-binary claim. This is still not a liboqs-style
    public distribution surface: Swift has a local XCFramework pre-publication gate but still needs
    public URL/checksum/provenance; Android has current AAR/JNI package proof plus only a
    historical, stale, pre-ABI2 emulator ART diagnostic, and still needs a current ABI2
    runtime proof, clean-tree release provenance, and an explicit CI-emulator or
    physical-device release policy; Rust now has a crates.io pre-publication contract
-   (`artifact/rust-publish-dry-run.sh`) over the explicit publish allow/deny list, package file
-   lists, and patched `cargo publish --dry-run`, but still needs actual registry-order publishing
-   and release provenance; C now has a host archive plus extracted dynamic/static pkg-config/CMake
+   (`artifact/rust-publish-dry-run.sh`) over the explicit ten-crate publish allow/deny list,
+   every downstream local patch, package file lists, patched `cargo publish --dry-run`, an
+   independent sys `.crate` fixed 124-entry upstream inventory/exact 118-code-file packaged-subset
+   hash/license/forbidden-path check (six upstream README files excluded), and a normalized
+   backends audit with the sys crate patched in. The planned coordinated dependency-order
+   registry release defines the intended research-alpha Rust surface; independent signed
+   or transparency-backed provenance remains required before production promotion.
+   C now has a host archive plus extracted dynamic/static pkg-config/CMake
    proof, project license texts, and CycloneDX CBOM/SBOM, but still needs multi-target publishing,
    Windows archive shape, and full third-party dependency license inventory. See
    [`docs/EMBEDDING_READINESS.md`](EMBEDDING_READINESS.md).
 
-   The working tree implements package `0.1.0-alpha.1` and a frozen machine-readable
-   C **ABI 2** candidate: nine exact product exports, OS-random key/encapsulation,
+   The coordinated Rust registry order is `q-periapt-mlkem-native-sys`, core,
+   KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves. The
+   dependency-free CLI may upload independently but remains in the same ten-crate version set.
+
+   Package `0.1.0-alpha.1` is the release-ready research-alpha source/crate line and has a
+   frozen machine-readable C **ABI 2** contract: nine exact dynamic public exports
+   (and the same exact reserved public namespace in static archives), OS-random key/encapsulation,
    ABI-major library/header/package identities, 40/36-byte layouts, and forbidden
    raw/deterministic symbols. ABI1 is an explicit hard cut—its version-only state is
    rejected and requires authorized re-enrollment/reset, not a synthetic migration.
-   Publication remains blocked on all-platform package/index verification, warning-clean
-   dependency audit, clean signed source provenance, and live verification of same-source Apple
-   matrix and controlled-host performance evidence.
+   No current prebuilt platform binary is claimed by that publication. Production
+   promotion and any platform-binary distribution remain blocked on all-platform
+   package/index verification, warning-clean dependency audit, clean signed or
+   transparency-backed source provenance, independent cryptographic/C-FFI/ABI review,
+   and live verification of same-source Apple matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
    The backend/source migration invalidated all prior package, Apple/performance, and
    binary-CT proofs, including proofs collected after the HQC tombstone change.
    `artifact/results.json` and the live verifiers are authoritative for currentness.
-   ABI 2 remains unpublished until every release-scoped gate passes.
+   These production-promotion gates do not turn the release-ready research
+   alpha into a production or full-binary release.
 
 6. **Production hardening.** Backends are pre-1.0 / unaudited for this integration.
-   The migration to `fips203`/`fips204`/`sha3` removed `libcrux`/hax and the
-   `proc-macro-error2` advisory edge. Current `cargo audit --deny warnings` passes
-   with `.cargo/audit.toml` still carrying `ignore = []`. This closes the dependency-
-   advisory gate only; independent cryptographic/code/ABI review, fresh per-source
+   The current graph uses portable `mlkem-native` v1.2.0, `fips204`, and `sha3`; it
+   removes both the `fips203` path that failed the project CT gate and the earlier
+   `libcrux`/hax/`proc-macro-error2` advisory edge. The ML-KEM trust anchors are commit
+   `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit archive SHA-256
+   `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
+   Current `cargo audit --deny warnings` passes with `.cargo/audit.toml` still carrying
+   `ignore = []`, but RustSec does not inspect vendored C. This closes the Rust dependency-
+   advisory gate only; independent cryptographic/C-FFI/code/ABI review, fresh per-source
    CT and platform evidence, and signed distribution provenance remain mandatory.
 
 7. **Q-Periapt Continuity session research.** This is a separate, gated workstream,
@@ -491,7 +520,7 @@ are the gap between research-grade and audited/production.
 | Android AAR/JNI package proof | **Harness and semantic checks implemented; the recorded four-ABI package predates the backend/source-digest migration and must be rebuilt; ART runtime remains pending** |
 | Android ART runtime smoke | **Harness and schema-v2 verifier are implemented, but the selected dirty emulator proof predates the current canonical inputs and is stale; a fresh run, clean release provenance, and physical/CI policy remain pending** |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema2 semantic diagnostic index and checks are implemented; the recorded component artifacts predate the backend/source migration and a new same-source index is required; clean release channel remains pending** |
-| C ABI 2 public release | **0.1.0-alpha.1 candidate implemented, not publishable: suite code 3 is tombstoned and the dependency advisory gate is clean, but same-source package/device/performance/CT evidence, signed provenance, Linux/Windows lanes, current ART runtime evidence, independent cryptographic/ABI audit, and public distribution signing remain required** |
+| C ABI 2 research-alpha release readiness | **The 0.1.0-alpha.1 source/crate contract is release-ready and intended for coordinated source-crate publication; no current prebuilt C/Swift/Android binary release is claimed. Same-source package/device/performance evidence, signed or transparency-backed provenance, Linux/Windows binary lanes, current ART runtime evidence, independent cryptographic/C-FFI/ABI audit, and platform distribution signing remain required for production promotion or binary publication.** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Pending; Rust, Swift, Android package pre-publication gates and local index present |
 | Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |

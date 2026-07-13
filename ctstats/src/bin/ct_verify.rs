@@ -69,13 +69,14 @@ fn main() {
     let _ = black_box(combine::<Sha3_256Xof>(Profile::ContextBound, &inp).map(|s| *s.as_bytes()));
 
     // Primitive-path note: a FIPS 203 expanded decapsulation key contains both secrets and
-    // public material: dk = dk_pke/ŝ ‖ ek ‖ H(ek) ‖ z. The `ct_decaps_gap probe` mode therefore
-    // marks only ŝ[0..1152] and z[2368..2400]. Its `ek` and `wholedk` modes are diagnostics,
-    // not positive controls with fixed expected counts: backend key import and public-field
-    // validation may legitimately make either mode report zero or non-zero. The hard
-    // discriminator is instead backend-independent: the planted-secret control must report
-    // errors while the shipped wrapper's genuine-secret probe must report zero. Historical
-    // libcrux measurements do not describe the current fips203-backed binary. See
-    // ctstats/README.md "Shipped-backend binary dataflow probe".
+    // public material: dk = dk_pke/ŝ ‖ ek ‖ H(ek) ‖ z. For ML-KEM-512/768/1024,
+    // `ct_decaps_gap probe` derives the parameter-specific offsets from the public key and
+    // expanded-key lengths and marks only ŝ + z. Its `ek` and `wholedk` modes are diagnostics,
+    // not positive controls with fixed expected counts: provider key import and public-field
+    // validation may legitimately make either mode report zero or non-zero. The load-bearing
+    // discriminator is provider-independent: every planted-secret control must report errors,
+    // while every shipped wrapper's genuine-secret probe must report exact 0 errors / 0 contexts.
+    // Historical provider measurements do not describe the current binary. See ctstats/README.md
+    // "Shipped-backend binary dataflow probe".
     eprintln!("ct_verify: exercised the constant-time paths (no-op outside Valgrind)");
 }

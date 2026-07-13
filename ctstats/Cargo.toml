@@ -34,7 +34,7 @@ cc = "1"
 name = "ct_verify"
 required-features = ["valgrind"]
 
-# Binary dataflow probe over the shipped fips203-backed ML-KEM decapsulation wrapper.
+# Binary dataflow probe over every shipped q-periapt-backends ML-KEM decapsulation wrapper.
 [[bin]]
 name = "ct_decaps_gap"
 required-features = ["valgrind"]

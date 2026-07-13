@@ -16,7 +16,7 @@ use q_periapt_kem::HybridKem;
 
 macro_rules! bench_mlkem {
     ($g:expr, $tag:literal, $T:ty, $ct:expr) => {{
-        let (dk, ek) = <$T>::generate([7u8; 64]);
+        let (dk, ek) = <$T>::generate([7u8; 64]).unwrap();
         let mut ct = [0u8; $ct];
         let mut ss = [0u8; 32];
         $g.bench_function(concat!($tag, "/keygen"), |b| {
@@ -137,7 +137,7 @@ fn hybrid(c: &mut Criterion) {
     g.measurement_time(Duration::from_secs(2)).sample_size(60);
 
     let expanded_pq = MlKem768;
-    let (expanded_sk, expanded_pk) = MlKem768::generate([7u8; 64]);
+    let (expanded_sk, expanded_pk) = MlKem768::generate([7u8; 64]).unwrap();
     bench_hybrid_case(
         &mut g,
         HybridBenchCase {
@@ -155,7 +155,7 @@ fn hybrid(c: &mut Criterion) {
     // CompatXWing deliberately rejects imported/expanded ML-KEM keys. Benchmark the
     // policy-admitted X-Wing seed-dk backend instead of weakening that invariant.
     let seed_pq = MlKem768XWingSeed;
-    let (seed_sk, seed_pk) = MlKem768XWingSeed::generate([7u8; 32]);
+    let (seed_sk, seed_pk) = MlKem768XWingSeed::generate([7u8; 32]).unwrap();
     bench_hybrid_case(
         &mut g,
         HybridBenchCase {

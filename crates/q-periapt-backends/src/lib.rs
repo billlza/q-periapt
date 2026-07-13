@@ -4,7 +4,7 @@
 //! # q-periapt-backends
 //!
 //! Third-party primitive backends wired into the `q-periapt-core` traits:
-//! - **ML-KEM** (FIPS 203) via `fips203`:
+//! - **ML-KEM** (FIPS 203) via the portable `mlkem-native` integration:
 //!   [`MlKem512`], [`MlKem768`], [`MlKem1024`] expose the FIPS-expanded decapsulation
 //!   key format and are therefore confined to `ContextBound`; [`MlKem768XWingSeed`]
 //!   exposes the X-Wing seed-derived key format and is the only ML-KEM backend here
@@ -19,27 +19,40 @@
 //! - Off by default (cargo feature): `slh-dsa` ⇒
 //!   `SlhDsaSha2_128s`/`_192s`/`_256s` (FIPS 205, via `fips205`).
 //!
-//! This is the only crate that touches real cryptographic primitives; the
-//! security-critical composition stays in the dependency-free `q-periapt-core`.
+//! This is the single high-level primitive-adapter crate. Native C and `unsafe`
+//! integration stay below it in `q-periapt-mlkem-native-sys`; security-critical
+//! composition stays in the dependency-free `q-periapt-core`.
 
-use fips203::{
-    ml_kem_1024 as mlkem1024, ml_kem_512 as mlkem512, ml_kem_768 as mlkem768,
-    traits::{
-        Decaps as Fips203Decaps, Encaps as Fips203Encaps, KeyGen as Fips203KeyGen,
-        SerDes as Fips203SerDes,
-    },
-};
 use q_periapt_core::{Error, Kem, Xof256, ZeroizingBytes, SHARED_SECRET_LEN};
+use q_periapt_mlkem_native_sys::{
+    Error as NativeMlKemError, MlKem1024 as NativeMlKem1024, MlKem512 as NativeMlKem512,
+    MlKem768 as NativeMlKem768,
+};
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Digest, Sha3_256, Shake256,
 };
 use x25519_dalek::{PublicKey, StaticSecret};
 
+const _: [(); 64] = [(); q_periapt_mlkem_native_sys::KEY_GENERATION_SEED_LEN];
+const _: [(); 32] = [(); q_periapt_mlkem_native_sys::ENCAPSULATION_SEED_LEN];
+const _: [(); SHARED_SECRET_LEN] = [(); q_periapt_mlkem_native_sys::SHARED_SECRET_LEN];
+
+fn map_mlkem_error(error: NativeMlKemError) -> Error {
+    match error {
+        NativeMlKemError::InvalidPublicKey => Error::InvalidKeyShare,
+        NativeMlKemError::Aliasing
+        | NativeMlKemError::InvalidDecapsulationKey
+        | NativeMlKemError::KeyGenerationFailed
+        | NativeMlKemError::OutOfMemory
+        | NativeMlKemError::UnexpectedStatus(_) => Error::Backend,
+    }
+}
+
 #[cfg(test)]
 mod xwing_kat;
 
-// Multi-backend differential: fips203 vs the independent RustCrypto `ml-kem`
+// Multi-backend differential: mlkem-native vs the independent RustCrypto `ml-kem`
 // implementation (byte-identical keygen/encaps/decaps under FIPS 203).
 #[cfg(test)]
 mod differential;
@@ -127,7 +140,7 @@ fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
     output
 }
 
-/// Declares an ML-KEM (FIPS 203) backend over a `fips203` parameter module: the
+/// Declares an ML-KEM (FIPS 203) backend over an `mlkem-native` parameter type: the
 /// public length constants, the unit struct, its seed-deterministic
 /// `generate` associated fn, and the [`Kem`] impl. All parameter sets share this
 /// boilerplate (validated expanded-key import, C2PRI ⇒ ciphertext-binding),
@@ -135,7 +148,7 @@ fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
 /// generated from one definition rather than hand-copied.
 macro_rules! mlkem_backend {
     (
-        $name:ident, $m:ident, $alg:literal,
+        $name:ident, $native:ident, $alg:literal,
         $pk_len:ident = $pk:literal,
         $sk_len:ident = $sk:literal,
         $ct_len:ident = $ct:literal,
@@ -154,6 +167,10 @@ macro_rules! mlkem_backend {
         #[doc = concat!($alg, " encapsulation randomness length, bytes.")]
         pub const $rand_len: usize = $rand;
 
+        const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];
+        const _: [(); $sk] = [(); $native::DECAPSULATION_KEY_LEN];
+        const _: [(); $ct] = [(); $native::CIPHERTEXT_LEN];
+
         #[doc = $struct_doc]
         #[derive(Clone, Copy, Debug, Default)]
         pub struct $name;
@@ -161,20 +178,24 @@ macro_rules! mlkem_backend {
         impl $name {
             /// Deterministically generate a key pair from a 64-byte seed.
             /// Returns `(decapsulation_key, encapsulation_key)`.
-            #[must_use]
-            pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $pk_len]) {
+            ///
+            /// # Errors
+            ///
+            /// Returns [`Error::Backend`] if the pinned primitive cannot
+            /// complete deterministic key generation.
+            pub fn generate(
+                seed: [u8; $seed_len],
+            ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
                 let seed = ZeroizingBytes::from_bytes(seed);
-                let (d_bytes, z_bytes) = seed.as_bytes().split_at($seed_len / 2);
-                let mut d = ZeroizingBytes::<32>::zeroed();
-                let mut z = ZeroizingBytes::<32>::zeroed();
-                d.as_mut_bytes().copy_from_slice(d_bytes);
-                z.as_mut_bytes().copy_from_slice(z_bytes);
-                let (encapsulation_key, decapsulation_key) =
-                    $m::KG::keygen_from_seed(*d.as_bytes(), *z.as_bytes());
-                (
-                    decapsulation_key.into_bytes(),
-                    encapsulation_key.into_bytes(),
+                let mut encapsulation_key = [0u8; $pk_len];
+                let mut decapsulation_key = ZeroizingBytes::<$sk_len>::zeroed();
+                $native::keypair_derand(
+                    seed.as_bytes(),
+                    &mut encapsulation_key,
+                    decapsulation_key.as_mut_bytes(),
                 )
+                .map_err(map_mlkem_error)?;
+                Ok((*decapsulation_key.as_bytes(), encapsulation_key))
             }
         }
 
@@ -200,30 +221,35 @@ macro_rules! mlkem_backend {
                 if ct.len() != $ct_len || ss.len() != SHARED_SECRET_LEN {
                     return Err(Error::InvalidLength);
                 }
-                let pk_arr = to_arr::<$pk_len>(pk)?;
-                let public = $m::EncapsKey::try_from_bytes(pk_arr).map_err(|_| Error::Backend)?;
+                let public_key = to_arr::<$pk_len>(pk)?;
                 let randomness = to_zeroizing::<$rand_len>(randomness)?;
-                let (shared, ciphertext) = public.encaps_from_seed(randomness.as_bytes());
-                let shared = ZeroizingBytes::from_bytes(shared.into_bytes());
-                write_exact(ct, &ciphertext.into_bytes())?;
-                write_exact(ss, shared.as_bytes())
+                let mut ciphertext = [0u8; $ct_len];
+                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                $native::encapsulate_derand(
+                    &public_key,
+                    randomness.as_bytes(),
+                    &mut ciphertext,
+                    shared_secret.as_mut_bytes(),
+                )
+                .map_err(map_mlkem_error)?;
+                write_exact(ct, &ciphertext)?;
+                write_exact(ss, shared_secret.as_bytes())
             }
 
             fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
                 if ss.len() != SHARED_SECRET_LEN {
                     return Err(Error::InvalidLength);
                 }
-                let sk_arr = to_zeroizing::<$sk_len>(sk)?;
-                let ct_arr = to_arr::<$ct_len>(ct)?;
-                let private = $m::DecapsKey::try_from_bytes(*sk_arr.as_bytes())
-                    .map_err(|_| Error::Backend)?;
-                let ciphertext =
-                    $m::CipherText::try_from_bytes(ct_arr).map_err(|_| Error::Backend)?;
-                let shared = private
-                    .try_decaps(&ciphertext)
-                    .map_err(|_| Error::Backend)?;
-                let shared = ZeroizingBytes::from_bytes(shared.into_bytes());
-                write_exact(ss, shared.as_bytes())
+                let decapsulation_key = to_zeroizing::<$sk_len>(sk)?;
+                let ciphertext = to_arr::<$ct_len>(ct)?;
+                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                $native::decapsulate(
+                    decapsulation_key.as_bytes(),
+                    &ciphertext,
+                    shared_secret.as_mut_bytes(),
+                )
+                .map_err(map_mlkem_error)?;
+                write_exact(ss, shared_secret.as_bytes())
             }
         }
     };
@@ -231,38 +257,38 @@ macro_rules! mlkem_backend {
 
 mlkem_backend!(
     MlKem768,
-    mlkem768,
+    NativeMlKem768,
     "ML-KEM-768",
     ML_KEM_768_PK_LEN = 1184,
     ML_KEM_768_SK_LEN = 2400,
     ML_KEM_768_CT_LEN = 1088,
     ML_KEM_768_KEYGEN_SEED_LEN = 64,
     ML_KEM_768_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-768 backend (FIPS 203) via fips203."
+    "ML-KEM-768 backend (FIPS 203) via the portable mlkem-native integration."
 );
 
 mlkem_backend!(
     MlKem1024,
-    mlkem1024,
+    NativeMlKem1024,
     "ML-KEM-1024",
     ML_KEM_1024_PK_LEN = 1568,
     ML_KEM_1024_SK_LEN = 3168,
     ML_KEM_1024_CT_LEN = 1568,
     ML_KEM_1024_KEYGEN_SEED_LEN = 64,
     ML_KEM_1024_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via fips203 — the enhanced-mode KEM."
+    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via the portable mlkem-native integration — the enhanced-mode KEM."
 );
 
 mlkem_backend!(
     MlKem512,
-    mlkem512,
+    NativeMlKem512,
     "ML-KEM-512",
     ML_KEM_512_PK_LEN = 800,
     ML_KEM_512_SK_LEN = 1632,
     ML_KEM_512_CT_LEN = 768,
     ML_KEM_512_KEYGEN_SEED_LEN = 64,
     ML_KEM_512_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-512 backend (FIPS 203, NIST level 1) via fips203 — the smallest parameter set."
+    "ML-KEM-512 backend (FIPS 203, NIST level 1) via the portable mlkem-native integration — the smallest parameter set."
 );
 
 /// X-Wing seed decapsulation key length, bytes.
@@ -285,13 +311,17 @@ fn mlkem768_xwing_dz(seed: [u8; ML_KEM_768_XWING_SEED_LEN]) -> [u8; ML_KEM_768_K
 impl MlKem768XWingSeed {
     /// Deterministically generate a key pair from a 32-byte X-Wing seed.
     /// Returns `(seed_decapsulation_key, encapsulation_key)`.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Backend`] if expansion or deterministic ML-KEM key
+    /// generation fails.
     pub fn generate(
         seed: [u8; ML_KEM_768_XWING_SEED_LEN],
-    ) -> ([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]) {
-        let (expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+    ) -> Result<([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]), Error> {
+        let (expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed))?;
         let _expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
-        (seed, pk)
+        Ok((seed, pk))
     }
 }
 
@@ -315,7 +345,7 @@ impl Kem for MlKem768XWingSeed {
 
     fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
         let seed = to_arr::<ML_KEM_768_XWING_SEED_LEN>(sk)?;
-        let (expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        let (expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed))?;
         let expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
         MlKem768.decapsulate(expanded_sk.as_bytes(), ct, ss)
     }
@@ -845,7 +875,7 @@ mod tests {
 
     #[test]
     fn mlkem768_roundtrip() {
-        let (sk, pk) = MlKem768::generate([7u8; 64]);
+        let (sk, pk) = MlKem768::generate([7u8; 64]).unwrap();
         let kem = MlKem768;
         let mut ct = [0u8; ML_KEM_768_CT_LEN];
         let mut ss_e = [0u8; 32];
@@ -903,7 +933,7 @@ mod tests {
         use q_periapt_core::Profile;
         use q_periapt_kem::HybridKem;
 
-        let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]);
+        let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let ctx = b"q-periapt/v1/test-transcript";
 
@@ -944,7 +974,7 @@ mod tests {
         }
 
         {
-            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]);
+            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]).unwrap();
             let (pq, trad) = (MlKem768XWingSeed, X25519);
             let kem = HybridKem::<_, _, Sha3_256Xof>::new(
                 &pq,
@@ -1001,7 +1031,7 @@ mod tests {
         use q_periapt_core::Profile;
         use q_periapt_kem::HybridKem;
 
-        let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]);
+        let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let ctx = b"q-periapt/v1/enhanced-transcript";
 
@@ -1053,7 +1083,7 @@ mod tests {
     #[test]
     fn deterministic_encaps() {
         // Same randomness ⇒ identical ciphertext+secret (KAT precondition).
-        let (_sk, pk) = MlKem768::generate([1u8; 64]);
+        let (_sk, pk) = MlKem768::generate([1u8; 64]).unwrap();
         let kem = MlKem768;
         let (mut ct1, mut ss1) = ([0u8; ML_KEM_768_CT_LEN], [0u8; 32]);
         let (mut ct2, mut ss2) = ([0u8; ML_KEM_768_CT_LEN], [0u8; 32]);
@@ -1071,7 +1101,7 @@ mod tests {
             ML_KEM_768_SK_LEN - ML_KEM_768_PK_LEN - (2 * SHARED_SECRET_LEN);
         const EMBEDDED_EK_HASH_OFFSET: usize = ML_KEM_768_SK_LEN - (2 * SHARED_SECRET_LEN);
 
-        let (sk, pk) = MlKem768::generate([0x31; ML_KEM_768_KEYGEN_SEED_LEN]);
+        let (sk, pk) = MlKem768::generate([0x31; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
         let mut ct = [0u8; ML_KEM_768_CT_LEN];
         let mut expected_secret = [0u8; SHARED_SECRET_LEN];
         MlKem768
@@ -1119,7 +1149,7 @@ mod tests {
 
     #[test]
     fn mlkem768_malformed_ciphertext_uses_deterministic_implicit_rejection() {
-        let (sk, pk) = MlKem768::generate([0x17; ML_KEM_768_KEYGEN_SEED_LEN]);
+        let (sk, pk) = MlKem768::generate([0x17; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
         let mut valid_ct = [0u8; ML_KEM_768_CT_LEN];
         let mut valid_secret = [0u8; SHARED_SECRET_LEN];
         MlKem768
@@ -1158,7 +1188,7 @@ mod tests {
                 &mut ct,
                 &mut secret,
             ),
-            Err(Error::Backend)
+            Err(Error::InvalidKeyShare)
         );
         assert_eq!(ct, [0xA5; ML_KEM_768_CT_LEN]);
         assert_eq!(secret, [0x5A; SHARED_SECRET_LEN]);

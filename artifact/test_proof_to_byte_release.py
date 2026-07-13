@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib._bootstrap_external
 import importlib.util
@@ -110,7 +111,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
                 self.assertEqual(inputs.get(key), actual)
 
-    def test_publish_contract_rejects_shipping_or_research_hqc(self) -> None:
+    def test_publish_contract_fences_research_and_mlkem_provider(self) -> None:
         source = RUST_PUBLISH_SCRIPT.read_text(encoding="utf-8")
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         expected_hash = hashlib.sha256(RUST_PUBLISH_SCRIPT.read_bytes()).hexdigest()
@@ -129,6 +130,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertNotIn("--no-verify", source)
         self.assertIn("qperiapt-package-inspection.XXXXXX", source)
         self.assertIn("publishable q-periapt-backends exposes retired hqc feature", source)
+        self.assertIn(
+            'python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"',
+            source,
+        )
+        self.assertIn("mlkem_reference_dependencies", source)
+        self.assertIn("=0.2.3", source)
+        self.assertIn("RUST_MLKEM_PROVIDER_FENCE_PASS", source)
+        self.assertIn("resolved_mlkem_providers", source)
         self.assertEqual(
             manifest["proof_to_byte_inputs"].get("rust_publish_dry_run_script_sha256"),
             expected_hash,
@@ -675,6 +684,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             ),
             mock.patch.object(
                 proof_to_byte_finalizer,
+                "validate_release_metadata",
+                return_value=(TEST_COMMIT, "e" * 64),
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
                 "verify_claim_ledger",
                 return_value=TEST_SOURCE_SHA256,
             ),
@@ -702,6 +716,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 proof_to_byte_finalizer,
                 "git_commit",
                 side_effect=[TEST_COMMIT, TEST_COMMIT],
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "validate_release_metadata",
+                return_value=(TEST_COMMIT, "e" * 64),
             ),
             mock.patch.object(
                 proof_to_byte_finalizer,
@@ -733,6 +752,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             ),
             mock.patch.object(
                 proof_to_byte_finalizer,
+                "validate_release_metadata",
+                return_value=(TEST_COMMIT, "e" * 64),
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
                 "verify_claim_ledger",
                 return_value=TEST_SOURCE_SHA256,
             ),
@@ -755,6 +779,197 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     expected_source_sha256=TEST_SOURCE_SHA256,
                     expected_dirty=False,
                 )
+
+    def test_release_metadata_binds_snapshot_commit_and_footprint_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            paper = root / "paper"
+            paper.mkdir()
+            footprint = paper / "footprint.csv"
+            footprint.write_text(
+                "# generated footprint\n"
+                "host,rustc,artifact,bytes,kib\n"
+                "Darwin 27.0.0 arm64,1.96.0,c-abi-cdylib-stripped,683800,667.8\n"
+                "Darwin 27.0.0 arm64,1.96.0,wasm-lean-default,100034,97.7\n"
+                "Darwin 27.0.0 arm64,1.96.0,wasm-signed-policy,340625,332.6\n",
+                encoding="utf-8",
+            )
+            expected, footprint_sha256 = proof_to_byte_finalizer._load_footprint_csv(
+                footprint
+            )
+            self.assertEqual(expected["platform"], "Darwin 27.0.0 arm64, rustc 1.96.0")
+            self.assertEqual(
+                expected["c_abi_cdylib_stripped"],
+                {"bytes": 683800, "kib": 667.8},
+            )
+            document = {
+                "provenance": {"snapshot_commit": TEST_COMMIT},
+                "footprint_bytes": expected,
+            }
+            manifest_snapshot = mock.Mock(value=document)
+            with (
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "load_results_manifest_snapshot",
+                    return_value=manifest_snapshot,
+                ),
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "require_commit_or_evidence_successor",
+                ) as require_successor,
+            ):
+                self.assertEqual(
+                    proof_to_byte_finalizer.validate_release_metadata(
+                        root,
+                        root / "artifact" / "results.json",
+                        TEST_MANIFEST_SHA256,
+                    ),
+                    (TEST_COMMIT, footprint_sha256),
+                )
+                require_successor.assert_called_once_with(root, TEST_COMMIT)
+
+                document["footprint_bytes"] = dict(expected)
+                document["footprint_bytes"]["wasm_lean_default"] = {
+                    "bytes": 100035,
+                    "kib": 97.7,
+                }
+                with self.assertRaisesRegex(
+                    proof_to_byte_finalizer.FinalizerError,
+                    "footprint_bytes differs",
+                ):
+                    proof_to_byte_finalizer.validate_release_metadata(
+                        root,
+                        root / "artifact" / "results.json",
+                        TEST_MANIFEST_SHA256,
+                    )
+
+    def test_footprint_csv_rejects_duplicate_and_inconsistent_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            footprint = pathlib.Path(temporary) / "footprint.csv"
+            footprint.write_text(
+                "host,rustc,artifact,bytes,kib\n"
+                "host,1.96.0,c-abi-cdylib-stripped,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,1024,1.0\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "unknown or duplicate artifact",
+            ):
+                proof_to_byte_finalizer._load_footprint_csv(footprint)
+
+            footprint.write_text(
+                "host,rustc,artifact,bytes,kib\n"
+                "host,1.96.0,c-abi-cdylib-stripped,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,1024,1.0\n"
+                "other,1.96.0,wasm-signed-policy,1024,1.0\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "share one host",
+            ):
+                proof_to_byte_finalizer._load_footprint_csv(footprint)
+
+    def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            footprint = pathlib.Path(temporary) / "footprint.csv"
+            trailing_rows = (
+                "host,1.96.0,wasm-lean-default,1024,1.0\n"
+                "host,1.96.0,wasm-signed-policy,1024,1.0\n"
+            )
+            cases = (
+                (
+                    "9" * 5000,
+                    "1.0",
+                    r"artifact 'c-abi-cdylib-stripped' field 'bytes' exceeds",
+                ),
+                (
+                    "1024",
+                    "1.1",
+                    r"artifact 'c-abi-cdylib-stripped' field 'kib' differs from bytes",
+                ),
+            )
+            for raw_bytes, raw_kib, message in cases:
+                with self.subTest(message=message):
+                    footprint.write_text(
+                        "host,rustc,artifact,bytes,kib\n"
+                        f"host,1.96.0,c-abi-cdylib-stripped,{raw_bytes},{raw_kib}\n"
+                        + trailing_rows,
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(
+                        proof_to_byte_finalizer.FinalizerError,
+                        message,
+                    ):
+                        proof_to_byte_finalizer._load_footprint_csv(footprint)
+
+    def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            paper = root / "paper"
+            paper.mkdir()
+            footprint = paper / "footprint.csv"
+            footprint.write_text(
+                "host,rustc,artifact,bytes,kib\n"
+                "host,1.96.0,c-abi-cdylib-stripped,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,2048,2.0\n"
+                "host,1.96.0,wasm-signed-policy,3072,3.0\n",
+                encoding="utf-8",
+            )
+            expected, _ = proof_to_byte_finalizer._load_footprint_csv(footprint)
+            document = {
+                "provenance": {"snapshot_commit": TEST_COMMIT},
+                "footprint_bytes": expected,
+            }
+            manifest_snapshot = mock.Mock(value=document)
+            with (
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "load_results_manifest_snapshot",
+                    return_value=manifest_snapshot,
+                ),
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "require_commit_or_evidence_successor",
+                ),
+            ):
+                invalid_cases = (
+                    (
+                        lambda value: value.update({"unexpected": {}}),
+                        "footprint_bytes fields differ.*extra=\\['unexpected'\\]",
+                    ),
+                    (
+                        lambda value: value["wasm_lean_default"].update(
+                            {"unexpected": 0}
+                        ),
+                        "entry 'wasm_lean_default' fields differ.*unexpected",
+                    ),
+                    (
+                        lambda value: value["wasm_lean_default"].update(
+                            {"bytes": True}
+                        ),
+                        "entry 'wasm_lean_default' field 'bytes' must be an integer",
+                    ),
+                    (
+                        lambda value: value["wasm_lean_default"].update({"kib": 2}),
+                        "entry 'wasm_lean_default' field 'kib' must be a finite JSON float",
+                    ),
+                )
+                for mutate, message in invalid_cases:
+                    with self.subTest(message=message):
+                        document["footprint_bytes"] = copy.deepcopy(expected)
+                        mutate(document["footprint_bytes"])
+                        with self.assertRaisesRegex(
+                            proof_to_byte_finalizer.FinalizerError,
+                            message,
+                        ):
+                            proof_to_byte_finalizer.validate_release_metadata(
+                                root,
+                                root / "artifact" / "results.json",
+                                TEST_MANIFEST_SHA256,
+                            )
 
     def test_audit_pass_state_is_set_only_after_warning_denied_command(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")

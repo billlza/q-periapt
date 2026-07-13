@@ -75,7 +75,7 @@ fn hex(s: &str) -> Vec<u8> {
 
 #[test]
 fn enhanced_suite_pinned_reference_vector() {
-    let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]);
+    let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]).unwrap();
     let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
 
     let (pq, trad) = (MlKem1024, X25519);

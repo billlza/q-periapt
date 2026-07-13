@@ -54,6 +54,13 @@ else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
 HOST=$(rustc -vV | awk '/^host: / { print $2 }')
+RUST_SYSROOT=$(rustc --print sysroot)
+LLVM_NM="$RUST_SYSROOT/lib/rustlib/$HOST/bin/llvm-nm"
+if [ ! -f "$LLVM_NM" ] || [ -L "$LLVM_NM" ] || [ ! -x "$LLVM_NM" ]; then
+	printf 'error: matching Rust llvm-nm is unavailable; install the llvm-tools component: %s\n' \
+		"$LLVM_NM" >&2
+	exit 2
+fi
 PACKAGE_NAME="q-periapt-c-abi2-$VERSION-$HOST"
 OUT_ROOT=${QPERIAPT_C_PACKAGE_OUT_DIR:-"$ROOT/target/qperiapt-c-abi2"}
 PACKAGE_DIR="$OUT_ROOT/$PACKAGE_NAME"
@@ -389,10 +396,13 @@ for token in tokens:
         raise SystemExit(f"error: unsafe native static library token: {token}")
 if expect_value:
     raise SystemExit("error: native static library option missing value")
+
 if platform == "Darwin":
-    # AppleClang injects -lSystem itself; keeping rustc's copy makes ld warn
-    # about a duplicate system library in every static consumer proof.
-    tokens = [token for token in tokens if token != "-lSystem"]
+    # AppleClang injects libSystem (which provides libc and libm) itself;
+    # spelling any alias again makes ld warn in every static consumer proof.
+    # Preserve every other token, including ordering and duplication: rustc's
+    # native-static-libs contract warns that both can be significant.
+    tokens = [token for token in tokens if token not in {"-lSystem", "-lc", "-lm"}]
 print(" ".join(tokens))
 PY
 )
@@ -448,6 +458,8 @@ python3 artifact/c_abi_contract.py \
 	--contract "$PACKAGE_DIR/share/q-periapt/abi/q-periapt-c-abi-v2.json" \
 	--header "$PACKAGE_DIR/include/qperiapt/abi2/q_periapt.h" \
 	--library "$PACKAGE_DIR/lib/$SHARED_LIB" \
+	--static-library "$PACKAGE_DIR/lib/$STATIC_LIB" \
+	--llvm-nm "$LLVM_NM" \
 	--platform "$PLATFORM"
 
 cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- cbom >"$tmp_cbom"
@@ -953,6 +965,8 @@ python3 artifact/c_abi_contract.py \
 	--contract "$EXTRACTED/share/q-periapt/abi/q-periapt-c-abi-v2.json" \
 	--header "$EXTRACTED/include/qperiapt/abi2/q_periapt.h" \
 	--library "$EXTRACTED/lib/$SHARED_LIB" \
+	--static-library "$EXTRACTED/lib/$STATIC_LIB" \
+	--llvm-nm "$LLVM_NM" \
 	--platform "$PLATFORM"
 
 printf '\n=== Legacy package-name negative controls ===\n'

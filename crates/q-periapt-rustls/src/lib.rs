@@ -23,7 +23,7 @@ use q_periapt_backends::{
     MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_ENCAPS_RAND_LEN,
     ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
-use q_periapt_core::{Profile, ZeroizingBytes, SHARED_SECRET_LEN};
+use q_periapt_core::{Error as KemError, Profile, ZeroizingBytes, SHARED_SECRET_LEN};
 use q_periapt_kem::HybridKem;
 use q_periapt_policy::{HybridSuite, PolicyResolutionError};
 
@@ -69,6 +69,18 @@ impl QPeriaptKxGroup {
     fn invalid_pairing() -> Error {
         Error::General("q-periapt: invalid profile/backend pairing".into())
     }
+
+    fn kem_error(error: KemError) -> Error {
+        match error {
+            KemError::InvalidKeyShare => PeerMisbehaved::InvalidKeyShare.into(),
+            KemError::InvalidLength => {
+                Error::General("q-periapt: hybrid KEM length invariant failed".into())
+            }
+            KemError::Backend => Error::General("q-periapt: hybrid KEM backend failure".into()),
+            KemError::PolicyDenied => Self::invalid_pairing(),
+            _ => Error::General("q-periapt: hybrid KEM failed".into()),
+        }
+    }
 }
 
 impl SupportedKxGroup for QPeriaptKxGroup {
@@ -85,7 +97,9 @@ impl SupportedKxGroup for QPeriaptKxGroup {
             .and_then(|()| self.rng.fill(scalar.as_mut_bytes()))?;
         let (sk_pq, pk_pq) = match self.profile {
             Profile::ContextBound => {
-                let (sk, pk) = MlKem768::generate(*seed.as_bytes());
+                let (sk, pk) = MlKem768::generate(*seed.as_bytes()).map_err(|_| {
+                    Error::General("q-periapt: ML-KEM key generation failed".into())
+                })?;
                 (sk.to_vec(), pk)
             }
             Profile::CompatXWing => {
@@ -93,7 +107,9 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                 seed32
                     .as_mut_bytes()
                     .copy_from_slice(&seed.as_bytes()[..ML_KEM_768_XWING_SEED_LEN]);
-                let (sk, pk) = MlKem768XWingSeed::generate(*seed32.as_bytes());
+                let (sk, pk) = MlKem768XWingSeed::generate(*seed32.as_bytes()).map_err(|_| {
+                    Error::General("q-periapt: ML-KEM key generation failed".into())
+                })?;
                 (sk.to_vec(), pk)
             }
         };
@@ -150,7 +166,7 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                     &mut ct_pq,
                     &mut ct_trad,
                 )
-                .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
+                .map_err(Self::kem_error)
             }),
             Profile::CompatXWing => HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
                 &MlKem768XWingSeed,
@@ -170,7 +186,7 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                     &mut ct_pq,
                     &mut ct_trad,
                 )
-                .map_err(|_| Error::from(PeerMisbehaved::InvalidKeyShare))
+                .map_err(Self::kem_error)
             }),
         };
         let secret = result?;
@@ -268,7 +284,7 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
                 )
             }
         }
-        .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
+        .map_err(QPeriaptKxGroup::kem_error)?;
         debug_assert_eq!(secret.as_bytes().len(), SHARED_SECRET_LEN);
         Ok(SharedSecret::from(&secret.as_bytes()[..]))
     }
@@ -377,6 +393,26 @@ mod tests {
     #![allow(clippy::indexing_slicing, clippy::unwrap_used)]
     use super::*;
     use q_periapt_policy::Policy;
+
+    #[test]
+    fn kem_error_only_attributes_public_key_share_failures_to_the_peer() {
+        assert_eq!(
+            QPeriaptKxGroup::kem_error(KemError::InvalidKeyShare),
+            Error::PeerMisbehaved(PeerMisbehaved::InvalidKeyShare)
+        );
+        assert_eq!(
+            QPeriaptKxGroup::kem_error(KemError::InvalidLength),
+            Error::General("q-periapt: hybrid KEM length invariant failed".into())
+        );
+        assert_eq!(
+            QPeriaptKxGroup::kem_error(KemError::Backend),
+            Error::General("q-periapt: hybrid KEM backend failure".into())
+        );
+        assert_eq!(
+            QPeriaptKxGroup::kem_error(KemError::PolicyDenied),
+            Error::General("q-periapt: invalid profile/backend pairing".into())
+        );
+    }
 
     #[test]
     fn provider_with_policy_resolves_exact_suite_and_fails_closed() {

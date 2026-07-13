@@ -151,7 +151,7 @@ proptest! {
         seed_pq in any::<[u8; 32]>(), seed_x in any::<[u8; 32]>(),
         m in any::<[u8; 32]>(), eph in any::<[u8; 32]>(),
     ) {
-        let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq);
+        let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq).unwrap();
         let (sk_x, pk_x) = X25519::generate(seed_x);
         let (pq, trad) = (MlKem768XWingSeed, X25519);
         let hk = HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
@@ -193,7 +193,7 @@ proptest! {
         m in any::<[u8; 32]>(), eph in any::<[u8; 32]>(),
         ctx in proptest::collection::vec(any::<u8>(), 1..40),
     ) {
-        let (sk_pq, pk_pq) = MlKem1024::generate(seed_pq);
+        let (sk_pq, pk_pq) = MlKem1024::generate(seed_pq).unwrap();
         let (sk_x, pk_x) = X25519::generate(seed_x);
         let (pq, trad) = (MlKem1024, X25519);
         let hk = HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(

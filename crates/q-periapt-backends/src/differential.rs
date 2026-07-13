@@ -5,7 +5,7 @@
 //! and the EasyCrypt proof. FIPS 203 / RFC 7748 fix every byte encoding, so any
 //! divergence is a conformance or integration bug that 3 fixed X-Wing vectors miss:
 //!
-//! - **ML-KEM-512 / 768 / 1024** — the production `fips203` backends vs RustCrypto `ml-kem`
+//! - **ML-KEM-512 / 768 / 1024** — the production `mlkem-native` backends vs RustCrypto `ml-kem`
 //!   (byte-identical keygen/encaps/decaps across the full FIPS 203 family).
 //! - **X25519** — our `x25519-dalek` backend vs the independent `orion` impl, plus
 //!   the authoritative RFC 7748 §6.1 ground-truth Diffie–Hellman vector.
@@ -82,7 +82,7 @@ fn hex32(s: &str) -> [u8; 32] {
 fn ml_kem_768_byte_identical_to_independent_rustcrypto() {
     // FIPS 203 keygen seed is d‖z, each 32 bytes.
     const HALF: usize = ML_KEM_768_KEYGEN_SEED_LEN / 2;
-    for ctr in 0u32..64 {
+    for ctr in 0u32..256 {
         // Deterministic per-iteration inputs: SHAKE-256(counter) -> 96 bytes
         // = a 64-byte keygen seed (d‖z) + a 32-byte encapsulation message m.
         let expand = crate::shake256::<96>(&ctr.to_le_bytes());
@@ -91,7 +91,7 @@ fn ml_kem_768_byte_identical_to_independent_rustcrypto() {
         let m = &expand[ML_KEM_768_KEYGEN_SEED_LEN..];
 
         // --- keygen: byte-identical decapsulation + encapsulation keys ---
-        let (sk, pk) = MlKem768::generate(seed);
+        let (sk, pk) = MlKem768::generate(seed).unwrap();
         let (dk_rc, ek_rc) =
             RcMlKem768::generate_deterministic(&b32(&seed[..HALF]), &b32(&seed[HALF..]));
         assert_eq!(
@@ -126,18 +126,18 @@ fn ml_kem_768_byte_identical_to_independent_rustcrypto() {
     }
 }
 
-/// ML-KEM-1024 (the enhanced-mode KEM): our `fips203` backend vs the independent
+/// ML-KEM-1024 (the enhanced-mode KEM): our `mlkem-native` backend vs the independent
 /// RustCrypto `ml-kem`, byte-identical keygen + encaps + decaps over random `(d‖z, m)`.
 #[test]
 fn ml_kem_1024_byte_identical_to_independent_rustcrypto() {
     const HALF: usize = ML_KEM_1024_KEYGEN_SEED_LEN / 2;
-    for ctr in 0u32..64 {
+    for ctr in 0u32..256 {
         let expand = crate::shake256::<96>(&(ctr ^ 0x0401).to_le_bytes());
         let mut seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
         seed.copy_from_slice(&expand[..ML_KEM_1024_KEYGEN_SEED_LEN]);
         let m = &expand[ML_KEM_1024_KEYGEN_SEED_LEN..];
 
-        let (sk, pk) = MlKem1024::generate(seed);
+        let (sk, pk) = MlKem1024::generate(seed).unwrap();
         let (dk_rc, ek_rc) =
             RcMlKem1024::generate_deterministic(&b32(&seed[..HALF]), &b32(&seed[HALF..]));
         assert_eq!(&ek_rc.as_bytes()[..], &pk[..], "1024 ek diverged @ {ctr}");
@@ -244,7 +244,7 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
         let mut seed_pq = [0u8; 32];
         seed_pq.copy_from_slice(&exp[..32]);
         let pq_seed = crate::shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed_pq);
-        let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq);
+        let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq).unwrap();
         let x_seed = &exp[32..64];
         let (sk_trad, pk_trad) = X25519::generate(x_seed.try_into().unwrap());
         let m = &exp[64..96]; // ML-KEM encaps message
@@ -444,18 +444,18 @@ fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
     }
 }
 
-/// ML-KEM-512 (NIST L1, the smallest set): our `fips203` backend vs the independent
+/// ML-KEM-512 (NIST L1, the smallest set): our `mlkem-native` backend vs the independent
 /// RustCrypto `ml-kem`, byte-identical keygen + encaps + decaps over random `(d‖z, m)`.
 #[test]
 fn ml_kem_512_byte_identical_to_independent_rustcrypto() {
     const HALF: usize = ML_KEM_512_KEYGEN_SEED_LEN / 2;
-    for ctr in 0u32..64 {
+    for ctr in 0u32..256 {
         let expand = crate::shake256::<96>(&(ctr ^ 0x0201).to_le_bytes());
         let mut seed = [0u8; ML_KEM_512_KEYGEN_SEED_LEN];
         seed.copy_from_slice(&expand[..ML_KEM_512_KEYGEN_SEED_LEN]);
         let m = &expand[ML_KEM_512_KEYGEN_SEED_LEN..];
 
-        let (sk, pk) = MlKem512::generate(seed);
+        let (sk, pk) = MlKem512::generate(seed).unwrap();
         let (dk_rc, ek_rc) =
             RcMlKem512::generate_deterministic(&b32(&seed[..HALF]), &b32(&seed[HALF..]));
         assert_eq!(&ek_rc.as_bytes()[..], &pk[..], "512 ek diverged @ {ctr}");

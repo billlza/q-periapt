@@ -5,7 +5,7 @@
 //! cargo run -p q-periapt-backends --example binding_dk_format_witness
 //! ```
 //!
-//! It prints both halves against the shipped **fips203 ML-KEM-768** backend:
+//! It prints both halves against the shipped **mlkem-native ML-KEM-768** backend:
 //!   * EXPANDED-dk witness — Schmieg's free-`z` substitution makes two distinct public keys share
 //!     one ML-KEM shared secret, so the lean (X-Wing-shaped) `CompatXWing` combiner collides (loses
 //!     MAL-BIND-K-PK) while `ContextBound` — which binds `pk_pq` — does not.
@@ -61,7 +61,7 @@ fn seed_dk_keypair(seed32: [u8; 32]) -> ([u8; ML_KEM_768_SK_LEN], [u8; ML_KEM_76
     let mut xof = Shake256::default();
     xof.update(&seed32);
     xof.finalize_xof().read(&mut dz);
-    MlKem768::generate(dz)
+    MlKem768::generate(dz).unwrap()
 }
 
 fn main() {
@@ -70,8 +70,8 @@ fn main() {
 
     // ---- EXPANDED-dk witness: the free-z substitution (Schmieg 2024/523) ---------------------
     println!("== EXPANDED-dk witness (Schmieg free-z substitution) ==");
-    let (mut dk1, ek1) = MlKem768::generate([0x11; 64]);
-    let (mut dk2, ek2) = MlKem768::generate([0x22; 64]);
+    let (mut dk1, ek1) = MlKem768::generate([0x11; 64]).unwrap();
+    let (mut dk2, ek2) = MlKem768::generate([0x22; 64]).unwrap();
     println!(
         "  ek1[..8]   = {}…  ek2[..8] = {}…  (distinct: {})",
         hex(&ek1[..8]),

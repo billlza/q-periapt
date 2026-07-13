@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Verify the frozen Q-Periapt C ABI 2 header and packaged runtime identity.
 
-The contract deliberately checks only the public ``q_periapt_*`` namespace in a
-dynamic library. Toolchain/runtime support symbols are outside this project's
-namespace and are not part of the C ABI allowlist.
+For a dynamic library the contract compares every named, defined export against
+the nine-symbol allowlist. Toolchain support or internal bridge symbols are not
+permitted to escape merely because they use another namespace. For a static
+archive, the reserved public ``q_periapt_*`` namespace must contain exactly the
+same nine definitions; other static implementation symbols remain outside the
+public contract.
 """
 
 from __future__ import annotations
@@ -257,6 +260,9 @@ _DECLARATION_RE = re.compile(
 )
 _FUNCTION_TOKEN_RE = re.compile(r"\b(q_periapt_[A-Za-z0-9_]+)\s*\(")
 _VERSION_RE = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
+_LLVM_NM_ARCHIVE_MEMBER_HEADING_RE = re.compile(
+    r"[A-Za-z0-9_][A-Za-z0-9_.+-]*\.(?:o|obj):"
+)
 
 
 class CAbiContractError(ValueError):
@@ -559,23 +565,116 @@ def _require_regular_library(path: pathlib.Path) -> None:
         _fail(f"ABI library must be a non-symlink regular file: {path}")
 
 
-def _namespace_exports(output: str, platform: str) -> frozenset[str]:
+def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
+    """Parse every defined dynamic export emitted by the platform tool."""
+
     names: set[str] = set()
+
+    def record(name: str) -> None:
+        if name in names:
+            _fail(f"dynamic library defines export more than once: {name}")
+        names.add(name)
+
     if platform == "macos":
-        candidates = output.splitlines()
+        candidates = [line.strip() for line in output.splitlines() if line.strip()]
+        if any(len(candidate.split()) != 1 for candidate in candidates):
+            _fail("cannot parse nm dynamic-export row")
+        for candidate in candidates:
+            record(candidate[1:] if candidate.startswith("_") else candidate)
     elif platform == "linux":
-        candidates = [line.split(maxsplit=1)[0] for line in output.splitlines() if line.strip()]
+        for line in output.splitlines():
+            if not line.strip():
+                continue
+            fields = line.split()
+            if len(fields) not in {3, 4} or len(fields[1]) != 1:
+                _fail(f"cannot parse nm dynamic-export row: {line!r}")
+            record(fields[0])
     elif platform == "windows":
-        candidates = re.findall(r"(?:^|\s)(_?q_periapt_[A-Za-z0-9_]+)(?=\s|$)", output)
+        lines = output.splitlines()
+        header_index = next(
+            (
+                index
+                for index, line in enumerate(lines)
+                if re.fullmatch(
+                    r"\s*ordinal\s+hint\s+rva\s+name\s*", line, re.IGNORECASE
+                )
+            ),
+            None,
+        )
+        if header_index is None:
+            _fail("cannot locate dumpbin export-table header")
+        saw_row = False
+        for line in lines[header_index + 1 :]:
+            if not line.strip():
+                if saw_row:
+                    break
+                continue
+            match = re.fullmatch(
+                r"\s*\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(.+?)\s*", line
+            )
+            if match is None:
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            saw_row = True
+            payload = match.group(1).split()
+            name = payload[0]
+            if name == "[NONAME]":
+                _fail("dynamic library contains an ordinal-only export")
+            if len(payload) != 1:
+                if len(payload) >= 2 and payload[1] == "=":
+                    _fail(f"dynamic library contains a forwarded export: {name}")
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            record(name)
     else:
         _fail(f"unknown dynamic-library platform: {platform}")
+    return frozenset(names)
 
-    for candidate in candidates:
-        name = candidate.strip().split("@", 1)[0]
-        if name.startswith("_q_periapt_"):
-            name = name[1:]
-        if re.fullmatch(r"q_periapt_[A-Za-z0-9_]+", name):
-            names.add(name)
+
+def _static_reserved_exports(output: str, platform: str) -> frozenset[str]:
+    """Parse the defined external ``q_periapt_*`` namespace from llvm-nm.
+
+    ``--just-symbol-name`` still emits archive-member headings. LLVM prints the
+    member's object filename followed by one colon; only that exact form is
+    ignored. Every other non-empty line must be one whitespace-free symbol
+    token, so malformed output cannot hide an ABI name. Mach-O must use exactly
+    one leading underscore for reserved exports. Linux and Windows must use the
+    undecorated canonical spelling; because this verifier has no architecture
+    input, decorated 32-bit COFF spellings fail closed and are outside this ABI
+    2 release scope.
+    """
+
+    names: set[str] = set()
+    for raw_line in output.splitlines():
+        if raw_line == "":
+            continue
+        if _LLVM_NM_ARCHIVE_MEMBER_HEADING_RE.fullmatch(raw_line) is not None:
+            continue
+        if re.fullmatch(r"\S+", raw_line) is None or raw_line.endswith(":"):
+            _fail(f"cannot parse llvm-nm static reserved-symbol row: {raw_line!r}")
+        candidate = raw_line
+        if platform == "macos":
+            if candidate.startswith("q_periapt_"):
+                _fail(
+                    "static library contains an undecorated reserved symbol on macos; "
+                    f"Mach-O requires _q_periapt_* spelling: {candidate}"
+                )
+            normalized = (
+                candidate[1:] if candidate.startswith("_q_periapt_") else candidate
+            )
+        else:
+            if candidate.startswith("_q_periapt_"):
+                _fail(
+                    f"static library contains a decorated reserved symbol on {platform}; "
+                    "this verifier requires canonical undecorated q_periapt_* spelling "
+                    f"and excludes 32-bit COFF: {candidate}"
+                )
+            normalized = candidate
+        if not normalized.startswith("q_periapt_"):
+            continue
+        if re.fullmatch(r"q_periapt_[a-z0-9_]+", normalized) is None:
+            _fail(f"cannot parse llvm-nm static reserved-symbol row: {raw_line!r}")
+        if normalized in names:
+            _fail(f"static library defines reserved symbol more than once: {normalized}")
+        names.add(normalized)
     return frozenset(names)
 
 
@@ -643,13 +742,58 @@ def verify_dynamic_library(
     else:
         exports_output = runner(["dumpbin", "/nologo", "/exports", str(path)])
 
-    exports = _namespace_exports(exports_output, platform)
+    exports = _dynamic_exports(exports_output, platform)
     if exports != contract.export_names:
         missing = sorted(contract.export_names - exports)
         extra = sorted(exports - contract.export_names)
         forbidden = sorted(exports & set(contract.document["abi"]["forbidden_exports"]))
         _fail(
-            "dynamic-library q_periapt exports differ from contract: "
+            "dynamic-library exports differ from contract: "
+            f"missing={missing}, extra={extra}, forbidden={forbidden}"
+        )
+
+
+def verify_static_library(
+    contract: CAbiContract,
+    library_path: pathlib.Path,
+    platform: str,
+    llvm_nm: pathlib.Path,
+    *,
+    runner: CommandRunner = _default_runner,
+) -> None:
+    """Verify the exact reserved public namespace of one static archive."""
+
+    if platform not in {"macos", "linux", "windows"}:
+        _fail(f"unknown static-library platform: {platform}")
+    path = pathlib.Path(library_path)
+    _require_regular_library(path)
+    identity = contract.document["package"]["platforms"][platform]
+    if path.name != identity["static_filename"]:
+        _fail(
+            f"{platform} static-library filename differs: "
+            f"{path.name} != {identity['static_filename']}"
+        )
+
+    nm_path = pathlib.Path(llvm_nm)
+    if not nm_path.is_absolute():
+        _fail(f"llvm-nm path must be absolute: {nm_path}")
+    _require_regular_library(nm_path)
+    output = runner(
+        [
+            str(nm_path),
+            "--defined-only",
+            "--extern-only",
+            "--just-symbol-name",
+            str(path),
+        ]
+    )
+    exports = _static_reserved_exports(output, platform)
+    if exports != contract.export_names:
+        missing = sorted(contract.export_names - exports)
+        extra = sorted(exports - contract.export_names)
+        forbidden = sorted(exports & set(contract.document["abi"]["forbidden_exports"]))
+        _fail(
+            "static-library reserved exports differ from contract: "
             f"missing={missing}, extra={extra}, forbidden={forbidden}"
         )
 
@@ -672,19 +816,35 @@ def _parse_args() -> argparse.Namespace:
         default=root / "crates/q-periapt-ffi/include/q_periapt.h",
     )
     parser.add_argument("--library", type=pathlib.Path)
+    parser.add_argument("--static-library", type=pathlib.Path)
+    parser.add_argument("--llvm-nm", type=pathlib.Path)
     parser.add_argument("--platform", choices=("macos", "linux", "windows"))
     return parser.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
-    if (args.library is None) != (args.platform is None):
-        raise SystemExit("error: --library and --platform must be supplied together")
+    has_library = args.library is not None or args.static_library is not None
+    if has_library != (args.platform is not None):
+        raise SystemExit(
+            "error: --platform must be supplied exactly when a library is supplied"
+        )
+    if (args.static_library is None) != (args.llvm_nm is None):
+        raise SystemExit(
+            "error: --static-library and --llvm-nm must be supplied together"
+        )
     try:
         contract = load_contract(args.contract)
         verify_header(contract, args.header)
         if args.library is not None:
             verify_dynamic_library(contract, args.library, args.platform)
+        if args.static_library is not None:
+            verify_static_library(
+                contract,
+                args.static_library,
+                args.platform,
+                args.llvm_nm,
+            )
     except CAbiContractError as exc:
         raise SystemExit(f"error: {exc}") from exc
     result = {
@@ -693,6 +853,9 @@ def main() -> int:
         "exports": len(contract.export_names),
         "header": str(args.header),
         "library": str(args.library) if args.library is not None else None,
+        "static_library": (
+            str(args.static_library) if args.static_library is not None else None
+        ),
         "package_semver": PACKAGE_SEMVER,
         "platform": args.platform,
         "status": "pass",

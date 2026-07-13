@@ -81,10 +81,16 @@ bytecode, and dispatches verifier source under isolated/no-site CPython with a f
 prefix; this is canonical source-input consistency after fixed generated-prefix exclusions, not a
 hermetic build-input, interpreter, or host attestation. Specification-to-
 implementation refinement, a current clean two-device Apple matrix, and cross-device/end-to-end
-performance parity remain explicitly pending. The current production graph uses pinned
-\code{fips203}~0.4.3, \code{fips204}~0.4.6, and \code{sha3}~0.10.9. That migration changed the
-canonical source digest, so all recorded \code{libcrux}-era package, device, performance, and
-binary-CT results are historical predecessor evidence; no replacement measurement is claimed here.
+performance parity remain explicitly pending. The current research-alpha release graph uses portable
+\code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary, plus pinned
+\code{fips204}~0.4.6 and \code{sha3}~0.10.9. That migration changed the
+canonical source digest, so all recorded former-provider package, device, performance, and
+binary-CT results are historical predecessor evidence; no replacement timing, device, or
+binary-CT measurement is claimed here. The current-source local footprint capture reported below
+is a platform/toolchain-specific diagnostic, not release provenance.
+ABI~2 / \code{0.1.0-alpha.1} is a release-ready research-alpha source line intended
+for coordinated Rust-crate publication; no current multi-platform binary or production
+release is claimed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -181,8 +187,9 @@ host package build.
 are the constant-time/regression oracles; Tamarin/ProVerif lemma/query presence and full prover
 execution are hard-gated in CI, stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
 requires a zero genuine-secret ML-KEM result against a positive synthetic planted-leak
-control. The migrated \code{fips203} probe needs a fresh x86-64/aarch64 capture; former
-\code{libcrux} zero and older-source PQClean-HQC results are historical, not a current gate.
+control. The portable-\code{mlkem-native} probes need a fresh x86-64/aarch64 capture;
+the intervening \code{fips203} provider failed on both ISAs, while former \code{libcrux}
+zero and older-source PQClean-HQC results are historical, not a current gate.
 An executable \emph{regression oracle} covers the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements as
 local runs.
@@ -456,9 +463,11 @@ The combiner and its encoding live in a single dependency-free Rust \code{no\_st
 component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
 X25519, an extendable-output \code{Xof} trait for the hash), so the implementation under
 conformance test---the encoding and combiner---is the same code regardless of which third-party
-backend (\code{fips203}~0.4.3 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
+backend (portable \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
 plugged in; ML-DSA uses \code{fips204}~0.4.6. Backend correctness,
-audit, and constant-time posture remain per implementation and ISA. This trait boundary is also where \emph{crypto-agility} lives:
+audit, and constant-time posture remain per implementation and ISA. The ML-KEM source is
+commit- and archive-hash-pinned, but RustSec does not inspect vendored C and neither the
+provider nor this Rust/C integration has completed an independent audit. This trait boundary is also where \emph{crypto-agility} lives:
 \code{Kem::C2PRI} records the primitive property, while the separate, default-false
 \code{Kem::COMPAT\_XWING\_SAFE} capability records whether the exposed key format preserves
 X-Wing's seed-dk self-binding precondition. The lean profile requires both constants, so an
@@ -502,15 +511,16 @@ the byte-identical shared secret was run natively on x86-64 and aarch64, on a We
 \code{thumbv7em} target was only cross-compiled. The backend migration invalidated those
 source-bound cells for release promotion; current-source execution must be reported separately.
 
-\emph{Historical footprint} (platform-dependent; regenerate per host with
-\code{paper/footprint.sh}, predecessor values in \code{paper/footprint.csv}). The predecessor
-stripped native ABI~2 shared library---including
+\emph{Current-source local footprint} (platform/toolchain-dependent; regenerate per
+host with \code{paper/footprint.sh}; exact rows in \code{paper/footprint.csv}). On
+Darwin~27.0.0 arm64 with Rust~1.96.0, \code{wasm-pack}~0.15.0, and Homebrew LLVM
+Clang~22.1.8, the stripped native ABI~2 shared library---including
 ML-KEM-768, X25519, the combiner, signed-policy ML-DSA-65 verification, and OS-random
-product entry points, with the former PQClean-HQC backend removed from the publishable graph---is
-$\approx$829\,KiB on macOS arm64 (committed in \code{footprint.csv}; Linux x86-64 is smaller and
-regenerated by the script, not committed here); the lean WebAssembly module is
-$\approx$202\,KiB via \code{wasm-pack\ --release} (the optional \code{signed-policy} feature, which
-links an ML-DSA verifier, grows it to $\approx$605\,KiB); and
+product entry points---is $667.8$\,KiB (683{,}800 bytes); the lean WebAssembly module is
+$97.7$\,KiB (100{,}034 bytes), and the optional \code{signed-policy} module is
+$332.6$\,KiB (340{,}625 bytes). These are local current-working-source diagnostics,
+not clean signed provenance, architecture-independent package sizes, or a cross-platform
+binary claim. Separately,
 the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target. This establishes
 predecessor-source buildability on that target, not current package/runtime evidence from an embedded MCU.
 
@@ -566,11 +576,12 @@ it stale; both lanes and all packages require same-source reruns.}\\
 
 \section{CI-Gated Assurance}\label{sec:assurance}
 \subsection{A source\texorpdfstring{$\to$}{-to-}binary constant-time \emph{discriminator}}
-The production ML-KEM backend is now \code{fips203}~0.4.3. No source-level
-secret-independence result from the replaced \code{libcrux}/hax path transfers to this backend.
+The release-graph ML-KEM backend is now portable \code{mlkem-native}~v1.2.0 behind a
+dedicated safe Rust/C boundary. No source-level secret-independence result from a replaced
+provider transfers to this backend.
 The binary-level question---does the compiled path branch or index on the genuine secret?---is
 tested by a probe that marks only the genuinely-secret decapsulation-key sub-fields
-($\hat s$, $z$) and runs real \code{fips203} decapsulation under Memcheck. The harness is
+($\hat s$, $z$) for each parameter set and runs real \code{mlkem-native} decapsulation under Memcheck. The harness is
 self-validating: a synthetic planted secret-indexed load must report positive. Whole-dk and
 embedded-public-key observations are diagnostic only because an expanded FIPS-203 dk embeds public
 $ek$ and $H(ek)$ fields.
@@ -578,14 +589,20 @@ $ek$ and $H(ek)$ fields.
 No fresh migrated-backend binary-CT result is claimed in this paper. The former
 \code{libcrux} aarch64 zero and embedded-public-key 5696-report captures, together with the
 now-retired PQClean-HQC backend's \textbf{193} aarch64 and $22{,}849$ x86-64 counts, are historical
-predecessor-source evidence. A current ABI~2 release requires fresh x86-64 and aarch64 runs whose
+predecessor-source evidence. The intervening \code{fips203}~0.4.3 provider also failed the
+corrected gate: 34,306 errors across 100 contexts on x86-64 and 30,464 across 70 contexts on
+aarch64 in CI run 29230650107\footnote{\url{https://github.com/billlza/q-periapt/actions/runs/29230650107}}.
+Those counts are historical \code{fips203} failure evidence,
+not a result for \code{mlkem-native}. Production promotion of the ABI~2 binary surface requires
+fresh x86-64 and aarch64 runs whose
 genuine-secret probes report zero and planted controls report positive.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_ct.pdf}
 \caption{Historical predecessor-source contrast: the \code{libcrux} ML-KEM secret yielded zero
 flags while the retired PQClean-HQC path's constant-weight sampler yielded 193. The migrated
-\code{fips203} gate retains the synthetic planted control but requires a fresh two-ISA capture.}
+portable-\code{mlkem-native} gate retains the synthetic planted control but requires a fresh
+two-ISA capture; the intervening \code{fips203} run failed and is historical.}
 \label{fig:ct}
 \end{figure}
 
@@ -705,8 +722,9 @@ $J/\mathsf{zof}$ injectivity---a strictly stronger idealization than the full co
 the map characterizes the \emph{shape}'s exposure field by field. We complement the proofs with an
 executable regression oracle that exercises both the expanded-\code{dk} break and its seed-\code{dk}
 \emph{negative control} (where $z$ re-derived from the keygen seed closes the substitution) against
-the production \code{fips203} adapter as a CI-configured gate. The predecessor
-\code{libcrux} result is historical; the migrated test must be reported from the live release source.
+the release-graph portable-\code{mlkem-native} adapter as a CI-configured gate. The predecessor
+\code{libcrux} result and failed \code{fips203} run are historical; the migrated test must be
+reported from the live release source.
 
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
@@ -733,7 +751,8 @@ image is immutable by digest.
 
 \paragraph*{Evidence currentness}
 Every committed timing value in this section was collected on predecessor
-\code{libcrux}-era source. The production graph now uses \code{fips203}/\code{fips204}/\code{sha3};
+\code{libcrux}-era source. The research-alpha release graph now uses portable
+\code{mlkem-native}/\code{fips204}/\code{sha3};
 the source digest changed, so these values remain historical study data and are not current ABI~2
 performance evidence. No migrated-backend replacement measurement is asserted.
 
@@ -788,7 +807,7 @@ its path/hash/schema/source/pass summary, while the required domain verifier che
 artifacts, and freshness. This source text cannot self-promote a stale run. A passing snapshot
 closes only a single-host matched-core diagnostic for those bytes, not device energy, rustls
 end-to-end, or optimized production-X-Wing parity.
-The migrated harness identifies \code{fips203}~0.4.3 + \code{sha3}~0.10.9 +
+The migrated harness identifies \code{mlkem-native}~v1.2.0 + \code{sha3}~0.10.9 +
 x25519-dalek~2.0.1; every previously recorded paired proof has a different source/backend identity
 and must be recollected.
 
@@ -996,7 +1015,7 @@ secrets and checking for secret-dependent control flow~\cite{dudect,ctgrind}, re
 Valgrind/Memcheck~\cite{valgrind}, is the basis of our binary-CT gate. We build on, rather than
 re-do, the literature on HACL*~\cite{hacl} and predecessor libcrux ML-KEM
 verification~\cite{libcrux}. That source-level assurance and our former dynamic zero result are
-historical and do not transfer to \code{fips203}. The migrated gate retains the synthetic planted
+historical and do not transfer to \code{mlkem-native}. The migrated gate retains the synthetic planted
 leak, but its genuine-secret path needs fresh x86-64/aarch64 capture. Older-source runs also
 discriminated the former path from the now-retired timing-leaky PQClean-HQC path; those results are
 not current-source evidence or a blanket verification of any dependency.
@@ -1038,7 +1057,8 @@ The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it i
 shared-secret fields are inert in the argument, and CR(SHA3) and IND-CCA2 remain assumptions argued
 respectively in the model and on paper; there is no specification-to-implementation linkage proof.
 Binary-level constant-time tooling is configured only on x86-64 and aarch64, and the migrated
-\code{fips203} path still needs fresh runs on both; riscv64 and wasm32 have no current binary-CT
+portable-\code{mlkem-native} path still needs fresh runs on both; the failed \code{fips203}
+run is historical, and riscv64 and wasm32 have no current binary-CT
 or inherited source-CT claim. ACVP byte-identity is conformance, not CMVP
 certification. The suite is research-grade and has not had an independent third-party audit. The
 historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
@@ -1053,17 +1073,23 @@ stable clean-baseline evidence remain open. Current release attestation addition
 clean, source-bound Apple device matrix; a dirty-tree diagnostic or a prior device result is not such
 an attestation. Removing the PQClean dependency graph and tombstoning suite code~3 invalidated the
 pre-change Apple/performance proofs. A later predecessor snapshot recorded a clean-tree schema-v3
-Apple matrix and controlled-host matched-backend proof results, but the production backend migration
+Apple matrix and controlled-host matched-backend proof results, but the release-graph backend migration
 changed the source digest again; all recorded package, device, performance, and binary-CT evidence
 is therefore historical and must be regenerated. The migration removed the
 \code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
 without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
-ABI~2 remains unpublished pending such review, fresh two-ISA CT, same-source package/device/
-performance evidence, clean signed provenance, and distribution signing. The rustls integration uses a fixed protocol-domain context and an already parsed,
+ABI~2 is release-ready as a research-alpha source/Rust-crate line intended for
+coordinated registry publication. Production
+promotion or a public binary-package claim still requires such review, fresh
+release-bound two-ISA CT, same-source package/device/performance evidence, clean
+signed or transparency-backed provenance, and platform distribution signing. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
 the signed-policy authenticity claim. The C ABI assumes a trusted local caller for metadata and the
 forgeable decision descriptor, despite removing raw/deterministic cryptographic exports,
-and the former known-leaky PQClean-HQC adapter is removed rather than shipped as a fallback.
+and its exact-nine claim applies to the dynamic \code{q\_periapt\_*} export table.
+Static archives constrain that public namespace but retain unsupported hidden
+\code{qpn\_*} bridge link symbols; hidden visibility is not same-process access control.
+The former known-leaky PQClean-HQC adapter is removed rather than shipped as a fallback.
 Its numeric suite code is a permanent tombstone; the standalone HQC draft-candidate shadow has no
 ABI or product identity. Finally, policy signatures authenticate configuration bytes; decision descriptors,
 WASM raw inputs, and
@@ -1212,9 +1238,13 @@ $95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss 
 \cref{sec:eval}: the median is loss-insensitive, while the tail is governed by a per-loss TCP
 retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
-Footprint (platform-dependent, \code{paper/footprint.csv}): the stripped native ABI~2 library is
-$\approx$829\,KiB on macOS arm64 (signed-policy product build; Linux x86-64 must be regenerated
-on its own lane), the lean WebAssembly module $\approx$202\,KiB.
+Current-source local footprint (platform/toolchain-dependent,
+\code{paper/footprint.csv}): on Darwin~27.0.0 arm64 with Rust~1.96.0,
+\code{wasm-pack}~0.15.0, and Homebrew LLVM Clang~22.1.8, the stripped native ABI~2
+library is $667.8$\,KiB, lean WebAssembly is $97.7$\,KiB, and signed-policy
+WebAssembly is $332.6$\,KiB. These are local diagnostics rather than signed
+provenance or cross-platform package-size evidence; regenerate each claimed
+platform/toolchain from the selected source.
 
 \begin{table}[t]\centering\scriptsize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
@@ -1260,6 +1290,10 @@ draft-candidate tests; the containerized, pinned-source EasyCrypt machine-check
 $\K\neq\bot$ countermodel, and proof-dependency controls; the apt/opam solver and transitive graph
 remain non-hermetic); the C-ABI link smoke (\code{sh bindings/c/build-and-run.sh});
 the \code{wasm32} and \code{thumbv7em} cross-builds; and the Swift/Kotlin/WASM binding tests.
+The WASM provider build requires
+\code{CC\_wasm32\_unknown\_unknown} to be an absolute path to upstream LLVM Clang
+with the \code{wasm32} backend (Homebrew LLVM on macOS or \code{/usr/bin/clang-18}
+on Linux); Apple Clang is rejected.
 \emph{Tier~3 (hardware-dependent):} the bare-metal time-to-session
 (\code{sudo env QPERIAPT\_BARE\_METAL\_CONFIRMED=1 sh camera-ready-bare-metal.sh}; a frozen
 root-owned host-state launcher that runs all build and measured code in a clean, read-only snapshot

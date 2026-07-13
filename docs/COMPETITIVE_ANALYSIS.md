@@ -48,7 +48,7 @@ production superiority.
 | [Signal SPQR / Triple Ratchet](https://signal.org/docs/specifications/doubleratchet/) + [ML-KEM Braid](https://signal.org/docs/specifications/mlkembraid/) | Ongoing hybrid FS/PCS | Sparse PQ continuous key agreement, bounded epoch/skipped-key state, dropped-message analysis, heterogeneous migration, public specifications | This removes the old comparison claim that Signal has only initial PQ protection. Q-Periapt has no comparable state machine or implementation-level proof. |
 | [Signal Sesame](https://signal.org/docs/specifications/sesame/) | Asynchronous multi-device session management | Per-device active/inactive sessions, convergence, retries, stale devices, bounded storage/error handling | Q-Periapt has no user/device/session graph, queue, retry, revocation, or recovery implementation. |
 | [Apple PQ3](https://security.apple.com/blog/imessage-pq3/) | Deployed messaging protocol with asynchronous establishment and ongoing PQ ratcheting | Pairwise per-device sessions, Contact Key Verification, hardware-backed classical device authentication, periodic PQ healing, protocol analysis, external review, huge deployment | Authentication remains classical against an active quantum attacker; cadence and platform infrastructure are product trade-offs. Q-Periapt still has no comparable ratchet, transparency service, audit, telemetry, or scale. |
-| [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current Rust `fips203`/`fips204` keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
+| [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current software `mlkem-native`/`fips204` keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
 | Q-Periapt `CompatXWing` | Byte-exact X-Wing comparison profile | Three official-vector KATs; seed-`dk` guard | Intentionally ignores suite/version/context; native X-Wing has no context parameter, so the local K-CTX wrapper property is inapplicable. |
 | Q-Periapt `ContextBound` | Non-standard committing hybrid profile | Binds suite/version/all ct/pk/context; machine-checked reductions and countermodels | Research profile; no standards adoption, external audit, or formal spec-to-Rust refinement. |
 
@@ -162,9 +162,12 @@ KEM core and current paper must not absorb server/database/session responsibilit
 ### 2.7 Side channels are backend-and-architecture properties
 
 Q-Periapt configures ML-KEM-768 decapsulation binary-level constant-time gates on x86_64 and
-aarch64, and implicit-rejection behavior is tested. The production migration to `fips203`
-invalidated the former backend captures; a fresh two-ISA pass for the release source is
-required, and no predecessor source-CT/hax claim transfers. This cannot be generalized to every
+aarch64, and implicit-rejection behavior is tested. The production migration to portable
+`mlkem-native` invalidated all former-provider captures; a fresh two-ISA pass for the release
+source is required, and no predecessor source-CT/hax claim transfers. In particular,
+`fips203` 0.4.3's historical probe failed on both ISAs in
+[CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107);
+those counts do not transfer to the current provider. This cannot be generalized to every
 primitive, feature, or ISA. The old HQC/PQClean backend was pre-standard, unaudited,
 known timing-leaky, and unmaintained; it has now been removed from the publishable and
 runtime-suite graph rather than carried as a hedge. Its 193/22,849 Memcheck counts are

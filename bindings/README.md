@@ -4,8 +4,11 @@ One Rust core (`q-periapt-ffi`, the C ABI), current runtime-tested faces **C**,
 **WASM**, and **Swift**, a source-migrated **Kotlin/JVM** face awaiting JDK 22,
 plus a package-tested **Android AAR/JNI** surface.
 The native ABI 2 product property is *one policy-controlled implementation across
-platforms*: C, Swift, and Kotlin consume the same nine-symbol contract; Android's
-JNI adapter consumes that native contract without reimplementing cryptography. All
+platforms*: C, Swift, and Kotlin consume the same exact-nine dynamic
+`q_periapt_*` contract; Android's JNI adapter consumes that native contract without
+reimplementing cryptography. Static archives constrain the same reserved public
+namespace but retain unsupported hidden bridge link symbols, so static embedding is
+a trusted same-address-space boundary rather than access control. All public faces
 reject raw/deterministic product bypasses. Byte-exact KATs remain in the Rust test layer.
 
 These bindings expose the implemented KEM/policy surface only. They do not expose

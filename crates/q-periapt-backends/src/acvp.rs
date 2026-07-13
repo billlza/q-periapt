@@ -1,7 +1,7 @@
 //! NIST ACVP ground-truth conformance for the full FIPS parameter family:
 //! ML-KEM-512/768/1024 (FIPS 203) and ML-DSA-44/65/87 (FIPS 204).
 //!
-//! Validates the `fips203` / `fips204` backends against the **authoritative** vectors published by
+//! Validates the `mlkem-native` / `fips204` backends against the **authoritative** vectors published by
 //! NIST (ACVP-Server `gen-val/json-files`). For each ML-KEM parameter set: deterministic
 //! keygen from `(d, z)`, encapsulation from `(ek, m)`, and decapsulation — including the
 //! VAL cases with modified ciphertexts that exercise the FO implicit-rejection path
@@ -80,7 +80,7 @@ fn acvp_ml_kem_768_conformance() {
         let mut seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
         seed[..HALF].copy_from_slice(&hex(&t.d));
         seed[HALF..].copy_from_slice(&hex(&t.z));
-        let (sk, pk) = MlKem768::generate(seed);
+        let (sk, pk) = MlKem768::generate(seed).unwrap();
         assert_eq!(&sk[..], hex(&t.dk).as_slice(), "ACVP keyGen dk mismatch");
         assert_eq!(&pk[..], hex(&t.ek).as_slice(), "ACVP keyGen ek mismatch");
     }
@@ -223,7 +223,7 @@ fn acvp_ml_kem_1024_conformance() {
         let mut seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
         seed[..HALF].copy_from_slice(&hex(&t.d));
         seed[HALF..].copy_from_slice(&hex(&t.z));
-        let (sk, pk) = MlKem1024::generate(seed);
+        let (sk, pk) = MlKem1024::generate(seed).unwrap();
         assert_eq!(
             &sk[..],
             hex(&t.dk).as_slice(),
@@ -497,7 +497,7 @@ fn acvp_ml_kem_512_conformance() {
         let mut seed = [0u8; ML_KEM_512_KEYGEN_SEED_LEN];
         seed[..HALF].copy_from_slice(&hex(&t.d));
         seed[HALF..].copy_from_slice(&hex(&t.z));
-        let (sk, pk) = MlKem512::generate(seed);
+        let (sk, pk) = MlKem512::generate(seed).unwrap();
         assert_eq!(
             &sk[..],
             hex(&t.dk).as_slice(),

@@ -10,15 +10,20 @@
 //!
 //! ## ABI conventions
 //! - Every function returns an `int32` status ([`Q_PERIAPT_OK`] or a negative error).
-//!   Errors encode **only public conditions** (null pointer, wrong length, policy)
-//!   — never secret-dependent information.
+//!   Public input failures are classified (null pointer, wrong length, policy, aliasing, or an
+//!   invalid public key share). Entropy and local key/provider failures cross the ABI only as
+//!   coarse [`Q_PERIAPT_ERR_ENTROPY`] or [`Q_PERIAPT_ERR_INTERNAL`] statuses; no provider-specific
+//!   or local-secret diagnostic is exposed.
 //! - Buffers are passed as `(ptr, len)` pairs; lengths are validated.
 //! - `decapsulate` returns [`Q_PERIAPT_OK`] for any correct-length ciphertext whose key shares are
 //!   public-valid, even if the PQ ciphertext is *cryptographically* invalid: ML-KEM's implicit
 //!   rejection yields a pseudorandom secret, so there is **no secret-dependent decapsulation
 //!   oracle**. The only rejections are on **public** inputs an attacker already controls — a length
-//!   mismatch ([`Q_PERIAPT_ERR_LENGTH`]) or a low-order / non-contributory X25519 share
-//!   ([`Q_PERIAPT_ERR_INVALID_KEYSHARE`]) — which reveal nothing about the secret key.
+//!   mismatch ([`Q_PERIAPT_ERR_LENGTH`]) or an invalid public key share (a non-canonical ML-KEM
+//!   encapsulation key, or a low-order/non-contributory X25519 point,
+//!   [`Q_PERIAPT_ERR_INVALID_KEYSHARE`]) — which reveal nothing about the secret key. A malformed
+//!   local expanded ML-KEM decapsulation key is an opaque [`Q_PERIAPT_ERR_INTERNAL`] failure and is
+//!   never confused with peer behavior.
 //! - Every entry point is wrapped in `catch_unwind`; a panic becomes
 //!   [`Q_PERIAPT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
 //! - **No aliasing (checked):** within a single call, the input `(ptr, len)` buffers and the
@@ -429,7 +434,10 @@ unsafe fn mlkem768_keypair_raw(
             return Q_PERIAPT_ERR_LENGTH;
         };
         let seed = ZeroizingBytes::from_bytes(seed);
-        let (sk, pk) = MlKem768::generate(*seed.as_bytes());
+        let (sk, pk) = match MlKem768::generate(*seed.as_bytes()) {
+            Ok(keypair) => keypair,
+            Err(error) => return err_code(error),
+        };
         let sk = ZeroizingBytes::from_bytes(sk);
         sk_o.copy_from_slice(sk.as_bytes());
         pk_o.copy_from_slice(&pk);
@@ -482,7 +490,10 @@ unsafe fn mlkem768_xwing_keypair_raw(
             return Q_PERIAPT_ERR_LENGTH;
         };
         let seed = ZeroizingBytes::from_bytes(seed);
-        let (sk_seed, pk) = MlKem768XWingSeed::generate(*seed.as_bytes());
+        let (sk_seed, pk) = match MlKem768XWingSeed::generate(*seed.as_bytes()) {
+            Ok(keypair) => keypair,
+            Err(error) => return err_code(error),
+        };
         let sk_seed = ZeroizingBytes::from_bytes(sk_seed);
         sk_o.copy_from_slice(sk_seed.as_bytes());
         pk_o.copy_from_slice(&pk);
@@ -619,7 +630,10 @@ pub unsafe extern "C" fn q_periapt_generate_keypair(
         {
             return Q_PERIAPT_ERR_ENTROPY;
         }
-        let (sk_pq, pk_pq) = MlKem768::generate(*seed_pq.as_bytes());
+        let (sk_pq, pk_pq) = match MlKem768::generate(*seed_pq.as_bytes()) {
+            Ok(keypair) => keypair,
+            Err(error) => return err_code(error),
+        };
         let (sk_trad, pk_trad) = X25519::generate(*seed_trad.as_bytes());
         let sk_pq = ZeroizingBytes::from_bytes(sk_pq);
         let sk_trad = ZeroizingBytes::from_bytes(sk_trad);
@@ -2048,6 +2062,35 @@ mod tests {
                 pk_pq.len(),
                 low_order_trad.as_ptr(),
                 low_order_trad.len(),
+                application_context.as_ptr(),
+                application_context.len(),
+                rejected_ct_pq.as_mut_ptr(),
+                rejected_ct_pq.len(),
+                rejected_ct_trad.as_mut_ptr(),
+                rejected_ct_trad.len(),
+                rejected_secret.as_mut_ptr(),
+                rejected_secret.len(),
+            )
+        };
+        assert_eq!(rejected, Q_PERIAPT_ERR_INVALID_KEYSHARE);
+        assert!(rejected_ct_pq.iter().all(|byte| *byte == 0));
+        assert!(rejected_ct_trad.iter().all(|byte| *byte == 0));
+        assert!(rejected_secret.iter().all(|byte| *byte == 0));
+
+        let mut noncanonical_pq = pk_pq;
+        noncanonical_pq[0] = 0xFF;
+        noncanonical_pq[1] = 0x0F;
+        rejected_ct_pq.fill(0xA5);
+        rejected_ct_trad.fill(0xA5);
+        rejected_secret.fill(0xA5);
+        let rejected = unsafe {
+            q_periapt_encapsulate(
+                decision.as_ptr(),
+                decision.len(),
+                noncanonical_pq.as_ptr(),
+                noncanonical_pq.len(),
+                pk_trad.as_ptr(),
+                pk_trad.len(),
                 application_context.as_ptr(),
                 application_context.len(),
                 rejected_ct_pq.as_mut_ptr(),

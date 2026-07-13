@@ -16,7 +16,7 @@ use std::thread;
 fn run(profile: Profile) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = ServerKeys::from_seeds([1u8; 64], [2u8; 32], [3u8; 32]);
+    let keys = ServerKeys::from_seeds([1u8; 64], [2u8; 32], [3u8; 32]).unwrap();
     let server_vk = keys.verifying_key();
 
     let (tx, rx) = mpsc::channel();
@@ -56,7 +56,7 @@ fn handshake_compat_xwing() {
 fn run_enhanced(profile: Profile) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = ServerKeys::from_seeds_enhanced([1u8; 64], [2u8; 32], [3u8; 32]);
+    let keys = ServerKeys::from_seeds_enhanced([1u8; 64], [2u8; 32], [3u8; 32]).unwrap();
     let server_vk = keys.verifying_key();
 
     let (tx, rx) = mpsc::channel();
@@ -93,13 +93,14 @@ fn handshake_enhanced_context_bound() {
 fn handshake_enhanced_rejects_wrong_server_identity() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = ServerKeys::from_seeds_enhanced([4u8; 64], [5u8; 32], [6u8; 32]);
-    let wrong_vk = ServerKeys::from_seeds_enhanced([0u8; 64], [0u8; 32], [9u8; 32]).verifying_key();
+    let keys = ServerKeys::from_seeds_enhanced([4u8; 64], [5u8; 32], [6u8; 32]).unwrap();
+    let wrong_vk = ServerKeys::from_seeds_enhanced([0u8; 64], [0u8; 32], [9u8; 32])
+        .unwrap()
+        .verifying_key();
 
     let server = thread::spawn(move || {
-        if let Ok((mut s, _)) = listener.accept() {
-            let _ = server_handshake_enhanced(&mut s, &keys);
-        }
+        let (mut s, _) = listener.accept().unwrap();
+        server_handshake_enhanced(&mut s, &keys)
     });
 
     let mut s = TcpStream::connect(addr).unwrap();
@@ -108,21 +109,25 @@ fn handshake_enhanced_rejects_wrong_server_identity() {
         res.is_err(),
         "enhanced client must reject a mismatched ML-DSA-87 server identity"
     );
-    let _ = server.join();
+    server
+        .join()
+        .unwrap()
+        .expect("enhanced server handshake should complete before client auth rejection");
 }
 
 #[test]
 fn handshake_rejects_wrong_server_identity() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let keys = ServerKeys::from_seeds([4u8; 64], [5u8; 32], [6u8; 32]);
+    let keys = ServerKeys::from_seeds([4u8; 64], [5u8; 32], [6u8; 32]).unwrap();
     // A different identity key than the server actually holds.
-    let wrong_vk = ServerKeys::from_seeds([0u8; 64], [0u8; 32], [9u8; 32]).verifying_key();
+    let wrong_vk = ServerKeys::from_seeds([0u8; 64], [0u8; 32], [9u8; 32])
+        .unwrap()
+        .verifying_key();
 
     let server = thread::spawn(move || {
-        if let Ok((mut s, _)) = listener.accept() {
-            let _ = server_handshake(&mut s, &keys);
-        }
+        let (mut s, _) = listener.accept().unwrap();
+        server_handshake(&mut s, &keys)
     });
 
     let mut s = TcpStream::connect(addr).unwrap();
@@ -131,5 +136,8 @@ fn handshake_rejects_wrong_server_identity() {
         res.is_err(),
         "client must reject a mismatched server identity"
     );
-    let _ = server.join();
+    server
+        .join()
+        .unwrap()
+        .expect("server handshake should complete before client auth rejection");
 }

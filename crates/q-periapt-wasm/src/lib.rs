@@ -262,7 +262,8 @@ impl EncapResult {
 pub fn mlkem768_keypair(seed: &[u8]) -> Result<KeyPair, JsError> {
     let s = <[u8; ML_KEM_768_KEYGEN_SEED_LEN]>::try_from(seed)
         .map_err(|_| JsError::new("seed must be 64 bytes"))?;
-    let (sk, pk) = MlKem768::generate(s);
+    let (sk, pk) =
+        MlKem768::generate(s).map_err(|_| JsError::new("ML-KEM key generation failed"))?;
     Ok(KeyPair {
         sk: sk.to_vec(),
         pk: pk.to_vec(),
@@ -278,7 +279,8 @@ pub fn mlkem768_keypair(seed: &[u8]) -> Result<KeyPair, JsError> {
 pub fn mlkem768_xwing_keypair(seed: &[u8]) -> Result<KeyPair, JsError> {
     let s = <[u8; ML_KEM_768_XWING_SEED_LEN]>::try_from(seed)
         .map_err(|_| JsError::new("seed must be 32 bytes"))?;
-    let (sk, pk) = MlKem768XWingSeed::generate(s);
+    let (sk, pk) =
+        MlKem768XWingSeed::generate(s).map_err(|_| JsError::new("ML-KEM key generation failed"))?;
     Ok(KeyPair {
         sk: sk.to_vec(),
         pk: pk.to_vec(),
@@ -650,6 +652,69 @@ mod tests {
         );
     }
 
+    fn check_fixed_length_ciphertext_uses_implicit_rejection() {
+        let kp_pq = mlkem768_keypair(&[17u8; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
+        let kp_x = x25519_keypair(&[19u8; X25519_LEN]).unwrap();
+        let suite = b"ML-KEM-768+X25519";
+        let context = b"wasm-implicit-rejection";
+        let enc = encapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            context,
+            &[23u8; 32],
+            &[29u8; 32],
+        )
+        .unwrap();
+
+        let valid = decapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.sk(),
+            &enc.ct_pq(),
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            context,
+        )
+        .unwrap();
+        let mut altered_ct = enc.ct_pq();
+        altered_ct[0] ^= 1;
+        let rejected_once = decapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.sk(),
+            &altered_ct,
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            context,
+        )
+        .expect("a correctly sized altered ciphertext must use implicit rejection");
+        let rejected_twice = decapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.sk(),
+            &altered_ct,
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            context,
+        )
+        .expect("implicit rejection must be deterministic");
+
+        assert_eq!(rejected_once, rejected_twice);
+        assert_ne!(valid, rejected_once);
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn keypair_encap_decap_roundtrip() {
@@ -660,6 +725,12 @@ mod tests {
     #[test]
     fn xwing_seed_keypair_compat_roundtrip() {
         check_xwing_seed_keypair_compat_roundtrip();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn fixed_length_ciphertext_uses_implicit_rejection() {
+        check_fixed_length_ciphertext_uses_implicit_rejection();
     }
 
     #[cfg(feature = "signed-policy")]
@@ -747,6 +818,52 @@ mod tests {
     #[wasm_bindgen_test::wasm_bindgen_test]
     fn xwing_seed_keypair_compat_roundtrip_wasm() {
         check_xwing_seed_keypair_compat_roundtrip();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn altered_expanded_key_is_rejected_without_panicking_wasm() {
+        let kp_pq = mlkem768_keypair(&[31u8; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
+        let kp_x = x25519_keypair(&[37u8; X25519_LEN]).unwrap();
+        let suite = b"ML-KEM-768+X25519";
+        let context = b"wasm-strict-expanded-key";
+        let enc = encapsulate(
+            2,
+            suite,
+            1,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            context,
+            &[41u8; 32],
+            &[43u8; 32],
+        )
+        .unwrap();
+        let mut altered_sk = kp_pq.sk();
+        let embedded_key_hash_offset = altered_sk.len().checked_sub(64).unwrap();
+        altered_sk[embedded_key_hash_offset] ^= 1;
+
+        assert!(
+            decapsulate(
+                2,
+                suite,
+                1,
+                &altered_sk,
+                &enc.ct_pq(),
+                &kp_pq.pk(),
+                &kp_x.sk(),
+                &enc.ct_trad(),
+                &kp_x.pk(),
+                context,
+            )
+            .is_err(),
+            "an expanded DK with an altered H(EK) must be rejected"
+        );
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn fixed_length_ciphertext_uses_implicit_rejection_wasm() {
+        check_fixed_length_ciphertext_uses_implicit_rejection();
     }
 
     /// Regression for the 32-bit length-prefix truncation: corrupt a valid vector's

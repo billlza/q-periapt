@@ -5,13 +5,22 @@ calls its frozen ABI 2 surface. It proves the C calling convention, strict heade
 signed-policy gate, OS-random key generation, ContextBound round trip, and atomic
 failure behavior end to end. It is not only a header parse.
 
-ABI 2 exports exactly nine `q_periapt_*` symbols: five metadata functions,
+The ABI 2 `cdylib`/DLL dynamic export table contains exactly nine
+`q_periapt_*` symbols: five metadata functions,
 `q_periapt_decision_from_signed_policy`, `q_periapt_generate_keypair`,
 `q_periapt_encapsulate`, and `q_periapt_decapsulate`. Raw KEM, raw combiner, and
 profile-selection entry points are deliberately not exported from the product ABI;
-their deterministic KATs remain Rust-core evidence. A native caller in the same
-process can still forge decision bytes, so this ABI is a trusted-local-caller and
-network-downgrade boundary, not process isolation.
+their deterministic KATs remain Rust-core evidence.
+
+The static archive has a necessarily different boundary: only the reserved public
+`q_periapt_*` namespace is constrained to those nine names. It also contains hidden,
+versioned `qpn_mlkem_bridge_*` link symbols needed by the safe Rust adapter. They are
+absent from the public header, unsupported, and may change without ABI notice, but a
+same-process static consumer can deliberately declare and link them by name. Hidden
+visibility is not access control for a static archive. A native caller can also forge
+decision bytes, so both static embedding and the decision descriptor assume a trusted
+same-address-space caller; this ABI is a misuse-resistance/network-downgrade boundary,
+not process isolation.
 
 The ABI remains stateless KEM/policy plumbing. It does not expose identity,
 prekeys, ratchets, persistence, multi-device state, or recovery, so a passing C
@@ -81,7 +90,7 @@ no ABI 1/unversioned aliases or symlinks and contains:
 
 The CMake ABI compatibility version is `2.0.0`; the prerelease semver is exposed
 separately as `QPeriaptABI2_RELEASE_VERSION`. Manifest schema 2 binds the embedded
-contract hash, exact platform runtime identity, and the export-set digest. The
+contract hash, exact platform runtime identity, and the dynamic export-set digest. The
 `contract_path` field names the repository trust root at
 `crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json`; `embedded_contract_path`
 names its byte-identical archive copy at
@@ -96,6 +105,9 @@ pkg-config and CMake with warnings as errors. It also proves the legacy pkg-conf
 and CMake package names do not resolve from the archive.
 
 Only the host platform executed by the gate is proven. macOS verification checks
-Mach-O exports and install-name/current/compatibility identity; Linux verification
-checks ELF exports and SONAME. Windows ABI 2 still requires its Windows CI/native
+the Mach-O dynamic exports and install-name/current/compatibility identity; Linux
+verification checks ELF dynamic exports and SONAME. Static verification separately
+checks that the public `q_periapt_*` namespace is exact-nine; it does not claim that
+the archive has only nine total link symbols or that internal bridge symbols are
+physically inaccessible. Windows ABI 2 still requires its Windows CI/native
 packaging lane.

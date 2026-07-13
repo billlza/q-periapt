@@ -27,7 +27,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
       - run: cargo install cbindgen --version 0.29.4 --locked
       - run: cargo fmt --all --check
@@ -90,9 +90,10 @@ jobs:
           targets: thumbv7em-none-eabihf
       - run: cargo build --locked -p q-periapt-core --target thumbv7em-none-eabihf
 
-  # Cross-platform behavioural consistency: build the same code everywhere.
+  # Cross-platform behavioural consistency: compile the actual primitive backend and its
+  # composition consumers everywhere. Building only core/kem would not exercise provider code.
   cross:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -108,7 +109,22 @@ jobs:
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: ${{ matrix.target }}
-      - run: cargo build --locked -p q-periapt-core -p q-periapt-kem --target ${{ matrix.target }}
+      - name: Install AArch64 C cross-toolchain
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Install RISC-V C cross-toolchain
+        if: matrix.target == 'riscv64gc-unknown-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu
+      - name: Install and verify the pinned WebAssembly C compiler
+        if: matrix.target == 'wasm32-unknown-unknown'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+          test -x /usr/bin/clang-18
+          /usr/bin/clang-18 --version
+          /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
+          echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
+      - run: cargo build --locked -p q-periapt-core -p q-periapt-kem -p q-periapt-backends --target ${{ matrix.target }}
 
   # riscv64 byte-identity, EXECUTED under qemu-user (not just cross-compiled): the pinned
   # ContextBound / enhanced-suite reference-vector KATs must reproduce byte-for-byte on the
@@ -173,8 +189,8 @@ jobs:
         run: cargo test -p q-periapt-ctstats --locked
   # Dataflow constant-time HARD GATE (Valgrind/Memcheck TIMECOP). Secrets are marked
   # "undefined"; Memcheck flags any branch/index that depends on them, so a non-CT
-  # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code
-  # (ct_eq / ct_select32 / the combiner over secret shared secrets).
+  # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code and every
+  # shipped ML-KEM-{512,768,1024} expanded-DK decapsulation wrapper.
   constant-time:
     # Dataflow CT gate on BOTH architectures: Memcheck/TIMECOP marks secrets undefined and
     # flags any secret-dependent branch/index in our composition code. x86_64 + aarch64 —
@@ -199,31 +215,45 @@ jobs:
         run: valgrind --error-exitcode=1 --leak-check=no --track-origins=yes ./target/release/ct_verify
       - name: Build the shipped-backend binary CT probes
         run: cargo build --locked --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind
-      - name: Memcheck — shipped fips203 wrapper probe (self-validating)
+      - name: Memcheck — shipped ML-KEM provider probes (self-validating)
         run: |
           BIN=./target/release/ct_decaps_gap
-          # Negative control: accept only Valgrind's dedicated sentinel plus a positive
-          # summary. A crash, tool startup failure, or unrelated exit must fail the gate.
-          set +e
-          valgrind --error-exitcode=99 --leak-check=no --track-origins=yes \
-            "$BIN" control >control.memcheck.log 2>&1
-          control_rc=$?
-          set -e
-          if [ "$control_rc" -ne 99 ] || ! grep -Eq 'ERROR SUMMARY: [1-9][0-9]* errors' control.memcheck.log; then
-            cat control.memcheck.log
-            echo "::error::negative control expected Valgrind sentinel 99 and a positive summary, got rc=$control_rc on ${{ matrix.runner }}"
-            exit 1
-          fi
-          rm -f control.memcheck.log
-          echo "negative control passed on ${{ matrix.runner }}"
-          # Embedded-public-key and whole-key over-marking are diagnostics only. Their counts
-          # legitimately depend on backend validation and compiler lowering.
-          valgrind --leak-check=no --track-origins=yes "$BIN" ek
-          valgrind --leak-check=no --track-origins=yes "$BIN" wholedk
-          # HARD GATE: marking the genuine secret ŝ+z must yield zero Memcheck-visible
-          # secret-dependent branches/indexes on the exercised valid and invalid paths.
-          valgrind --error-exitcode=1 --leak-check=no --track-origins=yes "$BIN" probe
-          echo "shipped-backend binary CT probe passed on ${{ matrix.runner }}"
+          for parameter in 512 768 1024; do
+            control_log="control-$parameter.memcheck.log"
+            probe_log="probe-$parameter.memcheck.log"
+
+            # Negative control: accept only Valgrind's dedicated sentinel plus a positive
+            # summary. A crash, tool startup failure, or unrelated exit must fail the gate.
+            set +e
+            valgrind --error-exitcode=99 --leak-check=no --track-origins=yes \
+              "$BIN" "$parameter" control >"$control_log" 2>&1
+            control_rc=$?
+            set -e
+            if [ "$control_rc" -ne 99 ] || ! grep -Eq 'ERROR SUMMARY: [1-9][0-9]* errors' "$control_log"; then
+              cat "$control_log"
+              echo "::error::ML-KEM-$parameter negative control expected Valgrind sentinel 99 and a positive summary, got rc=$control_rc on ${{ matrix.runner }}"
+              exit 1
+            fi
+
+            # HARD GATE: marking only genuine secret s-hat+z must produce exact 0 errors / 0
+            # contexts on both valid and implicit-rejection paths. Exit status alone is not
+            # enough: the exact summary proves Memcheck completed and observed no contexts.
+            set +e
+            valgrind --error-exitcode=97 --leak-check=no --track-origins=yes \
+              "$BIN" "$parameter" probe >"$probe_log" 2>&1
+            probe_rc=$?
+            set -e
+            if [ "$probe_rc" -ne 0 ] || ! grep -Fq 'ERROR SUMMARY: 0 errors from 0 contexts' "$probe_log"; then
+              cat "$probe_log"
+              echo "::error::ML-KEM-$parameter genuine-secret probe expected exact 0 errors / 0 contexts, got rc=$probe_rc on ${{ matrix.runner }}"
+              exit 1
+            fi
+
+            grep 'ERROR SUMMARY' "$control_log" | tail -1
+            grep 'ERROR SUMMARY' "$probe_log" | tail -1
+            rm -f "$control_log" "$probe_log"
+            echo "ML-KEM-$parameter shipped-provider CT probe passed on ${{ matrix.runner }}"
+          done
 
   # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
   transport:
@@ -243,7 +273,7 @@ jobs:
   # The Rust core + C ABI path is checked in `check` (ffi_matches_shared_vector).
 
   bindings-wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -254,6 +284,14 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "24"
+      - name: Install and verify the pinned WebAssembly C compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+          test -x /usr/bin/clang-18
+          /usr/bin/clang-18 --version
+          /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
+          echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
       - run: cargo install wasm-pack --version 0.15.0 --locked
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
       - run: wasm-pack test --node crates/q-periapt-wasm
@@ -392,7 +430,7 @@ jobs:
 
   # Cross-target feature fence for the shipping WASM face and dependency-free core.
   feature-fence:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -400,6 +438,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
+      - name: Install and verify the pinned WebAssembly C compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+          test -x /usr/bin/clang-18
+          /usr/bin/clang-18 --version
+          /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
+          echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
       - run: cargo build --locked -p q-periapt-wasm --target wasm32-unknown-unknown
       - run: cargo build --locked -p q-periapt-core --target thumbv7em-none-eabihf
 

@@ -18,7 +18,8 @@ transition-vector corpus described in
   **not** itself a full ACVP / FIPS 203 validation — that breadth is provided by the
   NIST ACVP test below.
 - **NIST ACVP ground-truth conformance** ✅ — `q-periapt-backends/src/acvp.rs` validates
-  the `fips203` 0.4.3 / `fips204` 0.4.6 adapters against the authoritative NIST
+  the portable `mlkem-native` v1.2.0 (through
+  `q-periapt-mlkem-native-sys`) / `fips204` 0.4.6 adapters against the authoritative NIST
   vectors (vendored under
   `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the **full FIPS
   parameter family** — **ML-KEM-512/768/1024** (25 keyGen, 25 encaps, 10 decaps incl.

@@ -23,6 +23,13 @@ Run from the repository root:
 sh artifact/embedding-readiness.sh
 ```
 
+The WASM sub-gate compiles the portable C ML-KEM provider. Set
+`CC_wasm32_unknown_unknown` to an **absolute path** to upstream LLVM Clang and
+verify that `clang --print-targets` lists `wasm32`; Apple Clang is rejected. Use
+`$(brew --prefix llvm)/bin/clang` on macOS or `/usr/bin/clang-18` on Linux. The
+same variable is required by direct `cargo build --target wasm32-unknown-unknown`
+and `wasm-pack test --node` invocations.
+
 The Swift XCFramework sub-gate requires a clean worktree for release proof. During local diagnostics
 on an in-progress tree, set `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1`; do not use that mode as
 release provenance.
@@ -124,8 +131,8 @@ bundles, UDIDs, or adb serials.
 
 | Face | Status | Boundary |
 |---|---|---|
-| Rust | Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io publish allow/deny list, package file lists, and patched `cargo publish --dry-run` for every publishable crate. | Crates are not uploaded; first public release still requires a clean tree, registry publish order, and release provenance for the actual crates.io versions. |
-| C ABI | Package `0.1.0-alpha.1` has a frozen machine-readable ABI2 authority: nine exact product exports, status/constants, 40/36-byte layouts, forbidden raw/deterministic symbols, ABI-major header guard and platform identities. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | The backend/source migration invalidated recorded archives and smoke proofs. Public release remains blocked until every supported-platform archive and release index is rebuilt against one source digest, then independently reviewed and bound to clean signed provenance. Windows archive proof, full third-party license inventory and public install docs remain open. |
+| Rust | The coordinated ten-crate set forms the release-ready `0.1.0-alpha.1` research-alpha source/crate line intended for crates.io publication. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and patched `cargo publish --dry-run`. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and portable-only build surface, then audits the normalized backend graph with the sys crate patched in. | Registry publication by itself does not establish independent signed provenance, audit the vendored C provider, or promote the crates to production. Those remain production-promotion requirements. |
+| C ABI | The release-ready research-alpha source/crate contract for `0.1.0-alpha.1` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | This release line includes no platform C archive. Before binary distribution or production promotion, every claimed platform archive and release index must be rebuilt against one source digest, independently reviewed, and bound to clean signed or transparency-backed provenance. Windows archive proof, full third-party license inventory and public install docs remain open. |
 | Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | The recorded XCFramework and clean-tree iPad+iPhone matrix are historical after the backend/source migration. Both package and physical-device lanes must be rerun against the release source. Public URL/checksum, Apple distribution signing, and independent signed provenance remain required. |
 | Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. | The recorded AAR predates the backend/source migration and must be rebuilt. Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
 | Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path; the current machine has Temurin JDK 22.0.2. | The JDK 22+ test gate must pass on each release source; this is host JVM only and separate from Android. |
@@ -133,13 +140,22 @@ bundles, UDIDs, or adb serials.
 
 The retired PQClean-HQC adapter is absent from every package above. Numeric suite code
 `3` is a fail-closed tombstone, while `research/hqc-fips207-candidate` is a standalone
-`publish = false` shadow with no ABI/package identity. The migration to `fips203`
-0.4.3, `fips204` 0.4.6, and `sha3` 0.10.9 changed the source digest and invalidated
+`publish = false` shadow with no ABI/package identity. The migration to the
+portable-only `q-periapt-mlkem-native-sys` boundary over `mlkem-native` v1.2.0,
+`fips204` 0.4.6, and `sha3` 0.10.9 changed the source digest and invalidated
 every previously recorded package, device, matched-performance, and binary-CT proof.
-The same migration removed the `libcrux`/hax `proc-macro-error2` advisory edge, and
-`cargo audit --deny warnings` now passes without an ignore. ABI 2 remains unpublished:
-fresh same-source evidence, independent cryptographic and ABI review, clean signed
-provenance, and distribution signing remain hard blockers.
+It removed both the earlier `libcrux`/hax `proc-macro-error2` advisory edge and the
+later `fips203` provider that failed the historical two-ISA binary-CT probe. The vendored
+trust anchors are upstream commit `0ba906cb14b1c241476134d7403a811b382ca498`
+and immutable GitHub commit archive SHA-256
+`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
+`cargo audit --deny warnings` passes without an ignore for the Rust graph; it does
+not inspect vendored C. ABI 2 is release-ready as a research-alpha source/Rust-crate
+line intended for coordinated registry publication. Fresh same-source
+package/device/performance evidence, independent
+cryptographic, C/FFI and ABI review, clean signed or transparency-backed provenance,
+and platform distribution signing remain hard requirements for production promotion
+or a public binary-package claim.
 
 ## Apple Device Matrix
 
@@ -177,9 +193,12 @@ release artifact.
 
 ## Remaining Work Before Product Embedding
 
-- Publishable Rust crate surface: actual crates.io upload sequence and release provenance. The local
-  contract exists, but a dirty diagnostic run is not release proof and dependency crates still need
-  registry-order publication.
+- Rust crate release surface: retain the coordinated dependency order for every
+  subsequent version — `q-periapt-mlkem-native-sys`, core, KEM/signature traits,
+  backends, policy, then the FFI/WASM/rustls leaves; the dependency-free CLI remains
+  version-coordinated. A dirty diagnostic run is not release proof, and registry
+  packages still need independently verifiable signed or transparency-backed
+  provenance before production promotion.
 - C ABI product surface: finish and verify `.so.2`, `.2.dylib`, ABI-major Windows,
   exact CMake/pkg-config, manifest/index semantics and platform compatibility negatives.
   ABI1 uses a deliberate hard cut—four-byte state is rejected and requires explicit

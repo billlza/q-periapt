@@ -2,7 +2,7 @@
 #
 # Design rule: the security-critical *composition* logic lives in `q-periapt-core`,
 # which is dependency-free and `no_std`. Third-party primitive backends
-# (fips203, fips204, x25519-dalek, sha3, and optional fips205) are wired in
+# (mlkem-native, fips204, x25519-dalek, sha3, and optional fips205) are wired in
 # behind traits in the higher crates so the core stays auditable in isolation.
 [workspace]
 resolver = "2"
@@ -11,6 +11,7 @@ members = [
     "crates/q-periapt-kem",
     "crates/q-periapt-sig",
     "crates/q-periapt-policy",
+    "crates/q-periapt-mlkem-native-sys",
     "crates/q-periapt-backends",
     "crates/q-periapt-ffi",
     "crates/q-periapt-wasm",

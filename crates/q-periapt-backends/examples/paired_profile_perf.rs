@@ -23,7 +23,7 @@ use q_periapt_kem::HybridKem;
 use serde::Serialize;
 
 const SCHEMA_VERSION: u32 = 2;
-const BACKEND_ID: &str = "ML-KEM-768(seed-dk)+X25519/fips203+sha3+x25519-dalek";
+const BACKEND_ID: &str = "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0+sha3+x25519-dalek";
 const SCHEDULE: &str = "ABBA/BAAB";
 const CORPUS_SIZE: usize = 64;
 const SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
@@ -226,7 +226,8 @@ fn kem_error(context: &str, error: q_periapt_core::Error) -> BenchError {
 }
 
 fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixture, BenchError> {
-    let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(derive32(1, 0));
+    let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(derive32(1, 0))
+        .map_err(|error| kem_error("prepare ML-KEM key pair", error))?;
     let (sk_trad, pk_trad) = X25519::generate(derive32(2, 0));
     let mut corpus = Vec::with_capacity(CORPUS_SIZE);
     let mut combine_ss_pq = [0u8; 32];

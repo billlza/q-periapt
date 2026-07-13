@@ -41,7 +41,7 @@ fn xwing_draft_kat_byte_exact() {
         let seed_m: [u8; 32] = seed.as_slice().try_into().unwrap();
         let mut skx = [0u8; 32];
         skx.copy_from_slice(&expanded[64..96]);
-        let (sk_m, pk_m) = MlKem768XWingSeed::generate(seed_m);
+        let (sk_m, pk_m) = MlKem768XWingSeed::generate(seed_m).unwrap();
         let (_skx_bytes, pk_x) = X25519::generate(skx);
 
         // Public key = pkM ‖ pkX (validates ML-KEM-768 keygen byte-exactly).
