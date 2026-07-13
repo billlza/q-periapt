@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
+import dataclasses
+import errno
+import fcntl
 import hashlib
 import importlib._bootstrap_external
 import importlib.util
@@ -10,11 +14,15 @@ import json
 import os
 import pathlib
 import re
+import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from collections.abc import Iterator
 from unittest import mock
 
 from camera_ready_proof import EXPECTED_TOOLS
@@ -66,6 +74,464 @@ EXPECTED_PROOF_TO_BYTE_STEP = (
 YAML_ALIAS = re.compile(
     r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+"
 )
+
+
+_RELEASE_TEST_DIRECTORY_OPEN_FLAGS = (
+    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+)
+
+
+@dataclasses.dataclass(slots=True)
+class _ReleaseTestParentDirectory:
+    path: pathlib.Path
+    owned: bool
+    identity: tuple[int, int] | None = None
+    directory_fd: int | None = None
+
+
+@dataclasses.dataclass(slots=True)
+class _ReleaseTestChildDirectory:
+    parent: _ReleaseTestParentDirectory
+    name: str
+    identity: tuple[int, int] | None = None
+    directory_fd: int | None = None
+
+    @property
+    def path(self) -> pathlib.Path:
+        return self.parent.path / self.name
+
+
+def _release_test_directory_identity_from_state(
+    state: os.stat_result, path: pathlib.Path
+) -> tuple[int, int]:
+    if not stat.S_ISDIR(state.st_mode):
+        raise AssertionError(f"release test path must be a real directory: {path}")
+    return state.st_dev, state.st_ino
+
+
+def _release_test_directory_identity(path: pathlib.Path) -> tuple[int, int]:
+    return _release_test_directory_identity_from_state(path.lstat(), path)
+
+
+def _release_test_directory_identity_at(
+    parent: _ReleaseTestParentDirectory, name: str
+) -> tuple[int, int]:
+    if parent.directory_fd is None:
+        raise AssertionError(
+            f"release test parent has no anchored descriptor: {parent.path}"
+        )
+    state = os.stat(name, dir_fd=parent.directory_fd, follow_symlinks=False)
+    return _release_test_directory_identity_from_state(state, parent.path / name)
+
+
+def _clear_release_test_directory_contents(
+    directory_fd: int, display_path: pathlib.Path
+) -> list[BaseException]:
+    cleanup_errors: list[BaseException] = []
+    try:
+        with os.scandir(directory_fd) as entries:
+            entry_names = [entry.name for entry in entries]
+    except OSError as exc:
+        exc.add_note(f"while listing test-owned release directory: {display_path}")
+        return [exc]
+
+    for entry_name in entry_names:
+        entry_path = display_path / entry_name
+        try:
+            entry_fd = os.open(
+                entry_name,
+                _RELEASE_TEST_DIRECTORY_OPEN_FLAGS,
+                dir_fd=directory_fd,
+            )
+        except OSError as exc:
+            if exc.errno not in {errno.ELOOP, errno.ENOTDIR}:
+                exc.add_note(f"while opening test-owned release entry: {entry_path}")
+                cleanup_errors.append(exc)
+                continue
+            try:
+                os.unlink(entry_name, dir_fd=directory_fd)
+            except OSError as unlink_error:
+                unlink_error.add_note(
+                    f"while unlinking test-owned release entry: {entry_path}"
+                )
+                cleanup_errors.append(unlink_error)
+            continue
+
+        try:
+            entry_identity = _release_test_directory_identity_from_state(
+                os.fstat(entry_fd), entry_path
+            )
+            cleanup_errors.extend(
+                _clear_release_test_directory_contents(entry_fd, entry_path)
+            )
+            try:
+                actual_state = os.stat(
+                    entry_name, dir_fd=directory_fd, follow_symlinks=False
+                )
+                actual_identity = _release_test_directory_identity_from_state(
+                    actual_state, entry_path
+                )
+            except FileNotFoundError:
+                cleanup_errors.append(
+                    AssertionError(
+                        "test-owned release directory disappeared before removal: "
+                        f"{entry_path}"
+                    )
+                )
+                continue
+            except AssertionError as exc:
+                cleanup_error = AssertionError(
+                    "test-owned release directory was replaced before removal: "
+                    f"{entry_path}"
+                )
+                cleanup_error.__cause__ = exc
+                cleanup_errors.append(cleanup_error)
+                continue
+            except OSError as exc:
+                cleanup_errors.append(exc)
+                continue
+            if actual_identity != entry_identity:
+                cleanup_errors.append(
+                    AssertionError(
+                        "test-owned release directory was replaced before removal: "
+                        f"{entry_path}"
+                    )
+                )
+                continue
+            try:
+                os.rmdir(entry_name, dir_fd=directory_fd)
+            except OSError as exc:
+                exc.add_note(
+                    f"while removing test-owned release directory: {entry_path}"
+                )
+                cleanup_errors.append(exc)
+        finally:
+            try:
+                os.close(entry_fd)
+            except BaseException as exc:
+                exc.add_note(
+                    f"while closing test-owned release directory: {entry_path}"
+                )
+                cleanup_errors.append(exc)
+    return cleanup_errors
+
+
+@contextlib.contextmanager
+def _temporary_release_test_directories(
+    parents: tuple[pathlib.Path, ...],
+) -> Iterator[tuple[pathlib.Path, ...]]:
+    """Create isolated children under release roots without assuming ignored dirs exist.
+
+    Design invariants: every parent, child, and nested directory stays anchored by
+    an ``O_DIRECTORY | O_NOFOLLOW`` descriptor until its cleanup completes, which
+    prevents Linux inode-ABA reuse and path replacement from changing the deletion
+    target. Child contents are removed only relative to an anchored descriptor;
+    child roots use identity revalidation plus non-recursive ``rmdir``, and only
+    parents created by this helper may be removed. ``TemporaryDirectory`` or a
+    root-name ``rmtree`` would violate those replacement boundaries. Cleanup must
+    always attempt child clearing, child close, owned-parent removal, and parent
+    close in that order, preserving body and cleanup failures in an exception group.
+    """
+
+    # The lock is a stable, repo-scoped inode and leaves no worktree or /tmp lock
+    # artifact. It serializes create/use/cleanup across concurrent test processes.
+    with pathlib.Path(__file__).resolve().open("rb") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        parent_directories: list[_ReleaseTestParentDirectory] = []
+        child_directories: list[_ReleaseTestChildDirectory] = []
+
+        def cleanup_child_directories() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            for child in reversed(child_directories):
+                if (
+                    child.parent.directory_fd is None
+                    or child.identity is None
+                    or child.directory_fd is None
+                ):
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child could not be verified for cleanup: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                try:
+                    parent_state = os.fstat(child.parent.directory_fd)
+                    child_state = os.fstat(child.directory_fd)
+                except OSError as exc:
+                    exc.add_note(
+                        f"while verifying test-owned release child: {child.path}"
+                    )
+                    cleanup_errors.append(exc)
+                    continue
+                parent_identity = _release_test_directory_identity_from_state(
+                    parent_state, child.parent.path
+                )
+                if parent_identity != child.parent.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "release test parent descriptor identity changed: "
+                            f"{child.parent.path}"
+                        )
+                    )
+                    continue
+                child_identity = _release_test_directory_identity_from_state(
+                    child_state, child.path
+                )
+                if child_identity != child.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child descriptor identity changed: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                cleanup_errors.extend(
+                    _clear_release_test_directory_contents(
+                        child.directory_fd, child.path
+                    )
+                )
+                try:
+                    actual_identity = _release_test_directory_identity_at(
+                        child.parent, child.name
+                    )
+                except FileNotFoundError:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child disappeared before cleanup: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                except AssertionError as exc:
+                    cleanup_error = AssertionError(
+                        "test-owned release child was replaced before cleanup: "
+                        f"{child.path}"
+                    )
+                    cleanup_error.__cause__ = exc
+                    cleanup_errors.append(cleanup_error)
+                    continue
+                except OSError as exc:
+                    cleanup_errors.append(exc)
+                    continue
+                if actual_identity != child.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child was replaced before cleanup: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                try:
+                    os.rmdir(child.name, dir_fd=child.parent.directory_fd)
+                except OSError as exc:
+                    exc.add_note(f"while removing test-owned release child: {child.path}")
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def close_child_descriptors() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            for child in reversed(child_directories):
+                if child.directory_fd is None:
+                    continue
+                try:
+                    os.close(child.directory_fd)
+                except BaseException as exc:
+                    exc.add_note(
+                        f"while closing test-owned release child descriptor: {child.path}"
+                    )
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def cleanup_parent_directories() -> list[Exception]:
+            cleanup_errors: list[Exception] = []
+            for parent in reversed(parent_directories):
+                if parent.directory_fd is None or parent.identity is None:
+                    if parent.owned:
+                        cleanup_errors.append(
+                            AssertionError(
+                                "test-owned release parent could not be verified for cleanup: "
+                                f"{parent.path}"
+                            )
+                        )
+                    continue
+                try:
+                    descriptor_state = os.fstat(parent.directory_fd)
+                except OSError as exc:
+                    exc.add_note(
+                        f"while verifying release parent descriptor: {parent.path}"
+                    )
+                    cleanup_errors.append(exc)
+                    continue
+                descriptor_identity = _release_test_directory_identity_from_state(
+                    descriptor_state, parent.path
+                )
+                if descriptor_identity != parent.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            f"release parent descriptor identity changed: {parent.path}"
+                        )
+                    )
+                    continue
+                try:
+                    actual_identity = _release_test_directory_identity(parent.path)
+                except FileNotFoundError:
+                    qualifier = "test-owned " if parent.owned else ""
+                    cleanup_errors.append(
+                        AssertionError(
+                            f"{qualifier}release parent disappeared before cleanup: "
+                            f"{parent.path}"
+                        )
+                    )
+                    continue
+                except AssertionError as exc:
+                    qualifier = "test-owned " if parent.owned else ""
+                    cleanup_error = AssertionError(
+                        f"{qualifier}release parent was replaced before cleanup: "
+                        f"{parent.path}"
+                    )
+                    cleanup_error.__cause__ = exc
+                    cleanup_errors.append(cleanup_error)
+                    continue
+                except OSError as exc:
+                    cleanup_errors.append(exc)
+                    continue
+                if actual_identity != parent.identity:
+                    qualifier = "test-owned " if parent.owned else ""
+                    cleanup_errors.append(
+                        AssertionError(
+                            f"{qualifier}release parent was replaced before cleanup: "
+                            f"{parent.path}"
+                        )
+                    )
+                    continue
+                if not parent.owned:
+                    continue
+                try:
+                    parent.path.rmdir()
+                except OSError as exc:
+                    if exc.errno in {errno.ENOTEMPTY, errno.EEXIST}:
+                        cleanup_error = AssertionError(
+                            "test-owned release parent is not empty after cleanup: "
+                            f"{parent.path}"
+                        )
+                        cleanup_error.__cause__ = exc
+                        cleanup_errors.append(cleanup_error)
+                    else:
+                        cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def close_parent_descriptors() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            for parent in reversed(parent_directories):
+                if parent.directory_fd is None:
+                    continue
+                try:
+                    os.close(parent.directory_fd)
+                except BaseException as exc:
+                    exc.add_note(
+                        f"while closing release parent descriptor: {parent.path}"
+                    )
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def cleanup_release_directories() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            cleanup_phases = (
+                cleanup_child_directories,
+                close_child_descriptors,
+                cleanup_parent_directories,
+                close_parent_descriptors,
+            )
+            for cleanup_phase in cleanup_phases:
+                try:
+                    cleanup_errors.extend(cleanup_phase())
+                except BaseException as exc:
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        try:
+            for parent_path in parents:
+                try:
+                    parent_path.mkdir(mode=0o700)
+                except FileExistsError:
+                    parent_identity = _release_test_directory_identity(parent_path)
+                    parent = _ReleaseTestParentDirectory(
+                        path=parent_path,
+                        owned=False,
+                        identity=parent_identity,
+                    )
+                    parent_directories.append(parent)
+                else:
+                    parent = _ReleaseTestParentDirectory(
+                        path=parent_path, owned=True
+                    )
+                    parent_directories.append(parent)
+                    parent.identity = _release_test_directory_identity(parent_path)
+                parent.directory_fd = os.open(
+                    parent.path, _RELEASE_TEST_DIRECTORY_OPEN_FLAGS
+                )
+                descriptor_identity = _release_test_directory_identity_from_state(
+                    os.fstat(parent.directory_fd), parent.path
+                )
+                if descriptor_identity != parent.identity:
+                    raise AssertionError(
+                        f"release parent changed while acquiring ownership: {parent.path}"
+                    )
+
+            for parent in parent_directories:
+                if parent.directory_fd is None:
+                    raise AssertionError(
+                        f"release test parent has no anchored descriptor: {parent.path}"
+                    )
+                for _ in range(128):
+                    child_name = f".qperiapt-release-test-{secrets.token_hex(16)}"
+                    try:
+                        os.mkdir(child_name, mode=0o700, dir_fd=parent.directory_fd)
+                    except FileExistsError:
+                        continue
+                    break
+                else:
+                    raise FileExistsError(
+                        errno.EEXIST,
+                        "could not allocate a unique release test child directory",
+                        str(parent.path),
+                    )
+                child = _ReleaseTestChildDirectory(parent=parent, name=child_name)
+                child_directories.append(child)
+                child.identity = _release_test_directory_identity_at(parent, child_name)
+                child.directory_fd = os.open(
+                    child_name,
+                    _RELEASE_TEST_DIRECTORY_OPEN_FLAGS,
+                    dir_fd=parent.directory_fd,
+                )
+                descriptor_identity = _release_test_directory_identity_from_state(
+                    os.fstat(child.directory_fd), child.path
+                )
+                if descriptor_identity != child.identity:
+                    raise AssertionError(
+                        "release test child changed while acquiring ownership: "
+                        f"{child.path}"
+                    )
+
+            yield tuple(child.path for child in child_directories)
+        except BaseException as operation_error:
+            cleanup_errors = cleanup_release_directories()
+            if cleanup_errors:
+                raise BaseExceptionGroup(
+                    "release test fixture operation and cleanup both failed",
+                    [operation_error, *cleanup_errors],
+                ) from None
+            raise
+        else:
+            cleanup_errors = cleanup_release_directories()
+            if len(cleanup_errors) == 1:
+                raise cleanup_errors[0]
+            if cleanup_errors:
+                raise BaseExceptionGroup(
+                    "multiple release test fixture cleanups failed", cleanup_errors
+                )
+
 
 CONTINUITY_PROOF_INPUTS = {
     "continuity_context_spec_sha256": "docs/continuity/LIFECYCLE_CONTEXT_V1.md",
@@ -900,14 +1366,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 self.assertNotIn("Traceback", result.stderr)
                 self.assertLess(len(result.stderr), 1024)
 
-        with (
-            tempfile.TemporaryDirectory(
-                dir=ROOT / "artifact" / "device-runs"
-            ) as device_temporary,
-            tempfile.TemporaryDirectory(dir=ROOT / "target") as target_temporary,
-        ):
-            device_loop = pathlib.Path(device_temporary) / "loop"
-            performance_loop = pathlib.Path(target_temporary) / "loop"
+        with _temporary_release_test_directories(
+            (ROOT / "artifact" / "device-runs", ROOT / "target")
+        ) as (device_temporary, target_temporary):
+            device_loop = device_temporary / "loop"
+            performance_loop = target_temporary / "loop"
             device_loop.symlink_to(device_loop)
             performance_loop.symlink_to(performance_loop)
             loop_cases = (
@@ -953,6 +1416,608 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     self.assertIn(expected_error, result.stderr)
                     self.assertEqual(result.stdout, "")
                     self.assertNotIn("Traceback", result.stderr)
+
+    def test_release_test_directories_have_safe_owned_lifecycles(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+
+            fresh = (root / "fresh-device", root / "fresh-target")
+            with _temporary_release_test_directories(fresh) as children:
+                self.assertTrue(all(child.is_dir() for child in children))
+            self.assertTrue(all(not os.path.lexists(parent) for parent in fresh))
+
+            preexisting = (root / "existing-device", root / "existing-target")
+            sentinels = []
+            for parent in preexisting:
+                parent.mkdir()
+                sentinel = parent / "sentinel"
+                sentinel.write_text("owned by caller\n", encoding="utf-8")
+                sentinels.append(sentinel)
+            with _temporary_release_test_directories(preexisting):
+                pass
+            self.assertTrue(all(parent.is_dir() for parent in preexisting))
+            self.assertTrue(all(sentinel.is_file() for sentinel in sentinels))
+
+            unsafe_target = root / "unsafe-target"
+            unsafe_target.mkdir()
+            unsafe_symlink = root / "unsafe-symlink"
+            unsafe_symlink.symlink_to(unsafe_target, target_is_directory=True)
+            with self.assertRaisesRegex(
+                AssertionError, "release test path must be a real directory"
+            ):
+                with _temporary_release_test_directories((unsafe_symlink,)):
+                    pass
+            self.assertEqual(list(unsafe_target.iterdir()), [])
+
+            unsafe_file = root / "unsafe-file"
+            unsafe_file.write_text("not a directory\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                AssertionError, "release test path must be a real directory"
+            ):
+                with _temporary_release_test_directories((unsafe_file,)):
+                    pass
+            self.assertEqual(
+                unsafe_file.read_text(encoding="utf-8"), "not a directory\n"
+            )
+
+            exceptional = (root / "exception-device", root / "exception-target")
+            with self.assertRaisesRegex(RuntimeError, "synthetic fixture failure"):
+                with _temporary_release_test_directories(exceptional):
+                    raise RuntimeError("synthetic fixture failure")
+            self.assertTrue(all(not os.path.lexists(parent) for parent in exceptional))
+
+            partial = (root / "partial-device", root / "partial-unsafe-target")
+            partial[1].write_text("owned by caller\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                AssertionError, "release test path must be a real directory"
+            ):
+                with _temporary_release_test_directories(partial):
+                    pass
+            self.assertFalse(os.path.lexists(partial[0]))
+            self.assertEqual(
+                partial[1].read_text(encoding="utf-8"), "owned by caller\n"
+            )
+
+            external_tree_target = root / "external-tree-target"
+            external_tree_target.mkdir()
+            external_tree_sentinel = external_tree_target / "sentinel"
+            external_tree_sentinel.write_text("external data\n", encoding="utf-8")
+            tree_parent = root / "tree-parent"
+            with _temporary_release_test_directories((tree_parent,)) as (child,):
+                nested = child / "nested"
+                nested.mkdir()
+                (nested / "fixture-data").write_text(
+                    "fixture data\n", encoding="utf-8"
+                )
+                (child / "external-link").symlink_to(
+                    external_tree_target, target_is_directory=True
+                )
+            self.assertFalse(os.path.lexists(tree_parent))
+            self.assertEqual(
+                external_tree_sentinel.read_text(encoding="utf-8"),
+                "external data\n",
+            )
+
+    def test_release_test_directory_cleanup_preserves_data_and_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+
+            contaminated = (root / "contaminated-device", root / "contaminated-target")
+            foreign_file = contaminated[1] / "foreign-file"
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent is not empty after cleanup"
+            ):
+                with _temporary_release_test_directories(contaminated):
+                    foreign_file.write_text("external data\n", encoding="utf-8")
+            self.assertFalse(os.path.lexists(contaminated[0]))
+            self.assertEqual(
+                foreign_file.read_text(encoding="utf-8"), "external data\n"
+            )
+            foreign_file.unlink()
+            contaminated[1].rmdir()
+
+            combined = (root / "combined-device", root / "combined-target")
+            combined_foreign_file = combined[1] / "foreign-file"
+            with self.assertRaises(ExceptionGroup) as raised:
+                with _temporary_release_test_directories(combined):
+                    combined_foreign_file.write_text(
+                        "external data\n", encoding="utf-8"
+                    )
+                    raise RuntimeError("synthetic fixture body failure")
+            self.assertEqual(
+                raised.exception.message,
+                "release test fixture operation and cleanup both failed",
+            )
+            self.assertEqual(len(raised.exception.exceptions), 2)
+            body_error, cleanup_error = raised.exception.exceptions
+            self.assertIs(type(body_error), RuntimeError)
+            self.assertEqual(str(body_error), "synthetic fixture body failure")
+            self.assertIs(type(cleanup_error), AssertionError)
+            self.assertEqual(
+                str(cleanup_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{combined[1]}",
+            )
+            self.assertFalse(os.path.lexists(combined[0]))
+            self.assertEqual(
+                combined_foreign_file.read_text(encoding="utf-8"), "external data\n"
+            )
+            combined_foreign_file.unlink()
+            combined[1].rmdir()
+
+            multiply_contaminated = (
+                root / "multiply-contaminated-device",
+                root / "multiply-contaminated-target",
+            )
+            multiply_foreign_files = tuple(
+                parent / "foreign-file" for parent in multiply_contaminated
+            )
+            with self.assertRaises(ExceptionGroup) as multiple_cleanup:
+                with _temporary_release_test_directories(multiply_contaminated):
+                    for foreign_file_path in multiply_foreign_files:
+                        foreign_file_path.write_text(
+                            "external data\n", encoding="utf-8"
+                        )
+            self.assertEqual(
+                multiple_cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(multiple_cleanup.exception.exceptions), 2)
+            for error, parent in zip(
+                multiple_cleanup.exception.exceptions,
+                reversed(multiply_contaminated),
+                strict=True,
+            ):
+                self.assertIs(type(error), AssertionError)
+                self.assertEqual(
+                    str(error),
+                    "test-owned release parent is not empty after cleanup: "
+                    f"{parent}",
+                )
+            for foreign_file_path, parent in zip(
+                multiply_foreign_files, multiply_contaminated, strict=True
+            ):
+                self.assertEqual(
+                    foreign_file_path.read_text(encoding="utf-8"),
+                    "external data\n",
+                )
+                foreign_file_path.unlink()
+                parent.rmdir()
+
+            vanished = root / "vanished-parent"
+            vanished_original = root / "vanished-parent-original"
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent disappeared before cleanup"
+            ):
+                with _temporary_release_test_directories((vanished,)):
+                    vanished.rename(vanished_original)
+            self.assertFalse(os.path.lexists(vanished))
+            self.assertEqual(list(vanished_original.iterdir()), [])
+            vanished_original.rmdir()
+
+            replaced = root / "replaced-parent"
+            replaced_original = root / "replaced-parent-original"
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent was replaced before cleanup"
+            ):
+                with _temporary_release_test_directories((replaced,)):
+                    replaced.rename(replaced_original)
+                    replaced.mkdir()
+            self.assertTrue(replaced.is_dir())
+            self.assertEqual(list(replaced_original.iterdir()), [])
+            replaced.rmdir()
+            replaced_original.rmdir()
+
+            aba_replaced = root / "aba-replaced-parent"
+            with self.assertRaises(ExceptionGroup) as aba_cleanup:
+                with _temporary_release_test_directories((aba_replaced,)) as (child,):
+                    child.rmdir()
+                    aba_replaced.rmdir()
+                    aba_replaced.mkdir()
+            self.assertEqual(
+                aba_cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(aba_cleanup.exception.exceptions), 2)
+            child_error, parent_error = aba_cleanup.exception.exceptions
+            self.assertIs(type(child_error), AssertionError)
+            self.assertIn(
+                "test-owned release child disappeared before cleanup", str(child_error)
+            )
+            self.assertIs(type(parent_error), AssertionError)
+            self.assertEqual(
+                str(parent_error),
+                "test-owned release parent was replaced before cleanup: "
+                f"{aba_replaced}",
+            )
+            self.assertTrue(aba_replaced.is_dir())
+            aba_replaced.rmdir()
+
+            symlink_replaced = root / "symlink-replaced-parent"
+            symlink_original = root / "symlink-replaced-parent-original"
+            external_target = root / "external-target"
+            external_target.mkdir()
+            external_payload: pathlib.Path
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent was replaced before cleanup"
+            ):
+                with _temporary_release_test_directories((symlink_replaced,)) as (
+                    child,
+                ):
+                    symlink_replaced.rename(symlink_original)
+                    external_child = external_target / child.name
+                    external_child.mkdir()
+                    external_payload = external_child / "foreign-data"
+                    external_payload.write_text(
+                        "must survive cleanup\n", encoding="utf-8"
+                    )
+                    symlink_replaced.symlink_to(
+                        external_target, target_is_directory=True
+                    )
+            self.assertEqual(
+                external_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertEqual(list(symlink_original.iterdir()), [])
+            symlink_replaced.unlink()
+            external_payload.unlink()
+            external_payload.parent.rmdir()
+            external_target.rmdir()
+            symlink_original.rmdir()
+
+            preexisting_replaced = root / "preexisting-replaced-parent"
+            preexisting_original = root / "preexisting-replaced-parent-original"
+            preexisting_external = root / "preexisting-external-target"
+            preexisting_replaced.mkdir()
+            preexisting_sentinel = preexisting_replaced / "caller-sentinel"
+            preexisting_sentinel.write_text("caller data\n", encoding="utf-8")
+            preexisting_external.mkdir()
+            preexisting_payload: pathlib.Path
+            with self.assertRaisesRegex(
+                AssertionError, "release parent was replaced before cleanup"
+            ):
+                with _temporary_release_test_directories((preexisting_replaced,)) as (
+                    child,
+                ):
+                    preexisting_replaced.rename(preexisting_original)
+                    preexisting_external_child = preexisting_external / child.name
+                    preexisting_external_child.mkdir()
+                    preexisting_payload = (
+                        preexisting_external_child / "foreign-data"
+                    )
+                    preexisting_payload.write_text(
+                        "must survive cleanup\n", encoding="utf-8"
+                    )
+                    preexisting_replaced.symlink_to(
+                        preexisting_external, target_is_directory=True
+                    )
+            self.assertEqual(
+                preexisting_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertEqual(
+                (preexisting_original / preexisting_sentinel.name).read_text(
+                    encoding="utf-8"
+                ),
+                "caller data\n",
+            )
+            self.assertEqual(
+                list(preexisting_original.iterdir()),
+                [preexisting_original / preexisting_sentinel.name],
+            )
+            preexisting_replaced.unlink()
+            preexisting_payload.unlink()
+            preexisting_payload.parent.rmdir()
+            preexisting_external.rmdir()
+            (preexisting_original / preexisting_sentinel.name).unlink()
+            preexisting_original.rmdir()
+
+            child_replaced_parent = root / "child-replaced-parent"
+            child_replacement_payload: pathlib.Path
+            original_child: pathlib.Path
+            with self.assertRaises(ExceptionGroup) as child_replacement_cleanup:
+                with _temporary_release_test_directories(
+                    (child_replaced_parent,)
+                ) as (child,):
+                    original_child = child.with_name(f"{child.name}-original")
+                    child.rename(original_child)
+                    child.mkdir()
+                    child_replacement_payload = child / "foreign-data"
+                    child_replacement_payload.write_text(
+                        "must survive cleanup\n", encoding="utf-8"
+                    )
+            self.assertEqual(
+                child_replacement_cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(child_replacement_cleanup.exception.exceptions), 2)
+            child_replacement_error, child_parent_error = (
+                child_replacement_cleanup.exception.exceptions
+            )
+            self.assertIs(type(child_replacement_error), AssertionError)
+            self.assertIn(
+                "test-owned release child was replaced before cleanup",
+                str(child_replacement_error),
+            )
+            self.assertIs(type(child_parent_error), AssertionError)
+            self.assertEqual(
+                str(child_parent_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{child_replaced_parent}",
+            )
+            self.assertEqual(
+                child_replacement_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertTrue(original_child.is_dir())
+            child_replacement_payload.unlink()
+            child_replacement_payload.parent.rmdir()
+            original_child.rmdir()
+            child_replaced_parent.rmdir()
+
+    def test_release_test_child_cleanup_revalidates_after_clearing(self) -> None:
+        replacement_paths: list[pathlib.Path] = []
+
+        def replace_child_after_clear(
+            directory_fd: int, child_path: pathlib.Path
+        ) -> list[BaseException]:
+            self.assertEqual(os.listdir(directory_fd), [])
+            original_child = child_path.with_name(f"{child_path.name}-original")
+            child_path.rename(original_child)
+            child_path.mkdir()
+            replacement_payload = child_path / "foreign-data"
+            replacement_payload.write_text(
+                "must survive cleanup\n", encoding="utf-8"
+            )
+            replacement_paths.extend((original_child, replacement_payload))
+            return []
+
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = pathlib.Path(temporary) / "check-use-parent"
+            with mock.patch.object(
+                sys.modules[__name__],
+                "_clear_release_test_directory_contents",
+                side_effect=replace_child_after_clear,
+            ) as clear_contents:
+                with self.assertRaises(ExceptionGroup) as cleanup:
+                    with _temporary_release_test_directories((parent,)):
+                        pass
+            clear_contents.assert_called_once()
+            self.assertEqual(len(replacement_paths), 2)
+            original_child, replacement_payload = replacement_paths
+            self.assertEqual(
+                cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(cleanup.exception.exceptions), 2)
+            child_error, parent_error = cleanup.exception.exceptions
+            self.assertIs(type(child_error), AssertionError)
+            self.assertIn(
+                "test-owned release child was replaced before cleanup",
+                str(child_error),
+            )
+            self.assertIs(type(parent_error), AssertionError)
+            self.assertEqual(
+                str(parent_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{parent}",
+            )
+            self.assertEqual(
+                replacement_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertTrue(original_child.is_dir())
+            replacement_payload.unlink()
+            replacement_payload.parent.rmdir()
+            original_child.rmdir()
+            parent.rmdir()
+
+    def test_release_test_unexpected_cleanup_errors_still_close_resources(self) -> None:
+        descriptor_directory = pathlib.Path("/proc/self/fd")
+        if not descriptor_directory.is_dir():
+            descriptor_directory = pathlib.Path("/dev/fd")
+        self.assertTrue(descriptor_directory.is_dir())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = pathlib.Path(temporary) / "unexpected-cleanup-parent"
+            descriptor_count_before = len(os.listdir(descriptor_directory))
+            child: pathlib.Path
+            with mock.patch.object(
+                sys.modules[__name__],
+                "_clear_release_test_directory_contents",
+                side_effect=RuntimeError("synthetic unexpected cleanup failure"),
+            ):
+                with self.assertRaises(ExceptionGroup) as cleanup:
+                    with _temporary_release_test_directories((parent,)) as (
+                        child,
+                    ):
+                        raise ValueError("synthetic fixture body failure")
+            descriptor_count_after = len(os.listdir(descriptor_directory))
+            self.assertEqual(descriptor_count_after, descriptor_count_before)
+            self.assertEqual(
+                cleanup.exception.message,
+                "release test fixture operation and cleanup both failed",
+            )
+            self.assertEqual(len(cleanup.exception.exceptions), 3)
+            body_error, unexpected_error, parent_error = cleanup.exception.exceptions
+            self.assertIs(type(body_error), ValueError)
+            self.assertEqual(str(body_error), "synthetic fixture body failure")
+            self.assertIs(type(unexpected_error), RuntimeError)
+            self.assertEqual(
+                str(unexpected_error), "synthetic unexpected cleanup failure"
+            )
+            self.assertIs(type(parent_error), AssertionError)
+            self.assertEqual(
+                str(parent_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{parent}",
+            )
+            self.assertTrue(child.is_dir())
+            child.rmdir()
+            parent.rmdir()
+
+    def test_release_test_close_interrupts_do_not_skip_later_descriptors(self) -> None:
+        descriptor_directory = pathlib.Path("/proc/self/fd")
+        if not descriptor_directory.is_dir():
+            descriptor_directory = pathlib.Path("/dev/fd")
+        self.assertTrue(descriptor_directory.is_dir())
+
+        real_close = os.close
+        close_call_count = 0
+
+        def close_then_interrupt(directory_fd: int) -> None:
+            nonlocal close_call_count
+            real_close(directory_fd)
+            close_call_count += 1
+            if close_call_count == 1:
+                raise KeyboardInterrupt("synthetic close interruption")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            parents = (root / "close-device", root / "close-target")
+            descriptor_count_before = len(os.listdir(descriptor_directory))
+            with mock.patch.object(os, "close", side_effect=close_then_interrupt):
+                with self.assertRaises(BaseExceptionGroup) as cleanup:
+                    with _temporary_release_test_directories(parents):
+                        raise ValueError("synthetic fixture body failure")
+            descriptor_count_after = len(os.listdir(descriptor_directory))
+            self.assertEqual(descriptor_count_after, descriptor_count_before)
+            self.assertEqual(close_call_count, 4)
+            self.assertEqual(
+                cleanup.exception.message,
+                "release test fixture operation and cleanup both failed",
+            )
+            self.assertEqual(len(cleanup.exception.exceptions), 2)
+            body_error, close_error = cleanup.exception.exceptions
+            self.assertIs(type(body_error), ValueError)
+            self.assertEqual(str(body_error), "synthetic fixture body failure")
+            self.assertIs(type(close_error), KeyboardInterrupt)
+            self.assertEqual(str(close_error), "synthetic close interruption")
+            self.assertTrue(all(not os.path.lexists(parent) for parent in parents))
+
+    def test_release_test_directory_lock_serializes_processes(self) -> None:
+        worker = """
+import errno
+import fcntl
+import pathlib
+import sys
+import time
+
+from test_proof_to_byte_release import (
+    __file__ as fixture_module,
+    _temporary_release_test_directories,
+)
+
+parents = (pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]))
+attempting = pathlib.Path(sys.argv[3])
+blocked = pathlib.Path(sys.argv[4])
+entered = pathlib.Path(sys.argv[5])
+release = pathlib.Path(sys.argv[6])
+probe_required = sys.argv[7]
+if probe_required not in {"0", "1"}:
+    raise SystemExit("invalid lock probe mode")
+attempting.write_text("attempting\\n", encoding="utf-8")
+if probe_required == "1":
+    with pathlib.Path(fixture_module).resolve().open("rb") as probe_handle:
+        try:
+            fcntl.flock(probe_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            if exc.errno not in {errno.EACCES, errno.EAGAIN}:
+                raise
+        else:
+            fcntl.flock(probe_handle.fileno(), fcntl.LOCK_UN)
+            raise SystemExit("release fixture lock was not held")
+    blocked.write_text("blocked\\n", encoding="utf-8")
+with _temporary_release_test_directories(parents):
+    entered.write_text("entered\\n", encoding="utf-8")
+    deadline = time.monotonic() + 10
+    while not release.exists():
+        if time.monotonic() >= deadline:
+            raise SystemExit("timed out waiting for fixture release")
+        time.sleep(0.01)
+"""
+
+        def wait_for(path: pathlib.Path) -> None:
+            deadline = time.monotonic() + 10
+            while not path.exists():
+                if time.monotonic() >= deadline:
+                    self.fail(f"timed out waiting for subprocess marker: {path.name}")
+                time.sleep(0.01)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            parents = (root / "device-runs", root / "target")
+            attempting = (root / "first-attempting", root / "second-attempting")
+            second_blocked = root / "second-blocked"
+            entered = (root / "first-entered", root / "second-entered")
+            release = (root / "release-first", root / "release-second")
+            processes: list[subprocess.Popen[str]] = []
+            try:
+                first = subprocess.Popen(
+                    [
+                        "sh",
+                        str(ROOT / "artifact" / "python-run.sh"),
+                        "-c",
+                        worker,
+                        *(str(parent) for parent in parents),
+                        str(attempting[0]),
+                        str(second_blocked),
+                        str(entered[0]),
+                        str(release[0]),
+                        "0",
+                    ],
+                    cwd=ROOT,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                processes.append(first)
+                wait_for(attempting[0])
+                wait_for(entered[0])
+
+                second = subprocess.Popen(
+                    [
+                        "sh",
+                        str(ROOT / "artifact" / "python-run.sh"),
+                        "-c",
+                        worker,
+                        *(str(parent) for parent in parents),
+                        str(attempting[1]),
+                        str(second_blocked),
+                        str(entered[1]),
+                        str(release[1]),
+                        "1",
+                    ],
+                    cwd=ROOT,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                processes.append(second)
+                wait_for(attempting[1])
+                wait_for(second_blocked)
+                self.assertFalse(
+                    entered[1].exists(),
+                    "second process entered the locked fixture concurrently",
+                )
+
+                release[0].write_text("release\n", encoding="utf-8")
+                first_stdout, first_stderr = first.communicate(timeout=10)
+                self.assertEqual(first.returncode, 0, first_stderr or first_stdout)
+                wait_for(entered[1])
+                release[1].write_text("release\n", encoding="utf-8")
+                second_stdout, second_stderr = second.communicate(timeout=10)
+                self.assertEqual(second.returncode, 0, second_stderr or second_stdout)
+                self.assertTrue(
+                    all(not os.path.lexists(parent) for parent in parents)
+                )
+            finally:
+                for marker in release:
+                    marker.touch(exist_ok=True)
+                for process in processes:
+                    if process.poll() is None:
+                        process.kill()
+                    process.communicate()
 
     def test_required_tools_are_checked_before_proof_markers(self) -> None:
         environment = {
