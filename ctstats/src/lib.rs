@@ -52,7 +52,7 @@ mod tests {
     /// deterministic secret different from the valid one.
     #[test]
     fn mlkem_implicit_rejection_no_error_oracle() {
-        let (sk, pk) = MlKem768::generate([5u8; 64]);
+        let (sk, pk) = MlKem768::generate([5u8; 64]).unwrap();
         let kem = MlKem768;
         let mut ct = [0u8; ML_KEM_768_CT_LEN];
         let mut ss = [0u8; 32];
@@ -81,7 +81,7 @@ mod tests {
     /// error — a corrupted PQ ciphertext still yields a (different) secret.
     #[test]
     fn hybrid_decaps_no_error_on_invalid_ct() {
-        let (sk_pq, pk_pq) = MlKem768::generate([8u8; 64]);
+        let (sk_pq, pk_pq) = MlKem768::generate([8u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let (pq, trad) = (MlKem768, X25519);
         let kem =

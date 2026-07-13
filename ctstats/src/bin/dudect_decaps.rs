@@ -17,7 +17,7 @@ use q_periapt_ctstats::welch_t;
 use std::time::Instant;
 
 fn main() {
-    let (sk, pk) = MlKem768::generate([1u8; 64]);
+    let (sk, pk) = MlKem768::generate([1u8; 64]).unwrap();
     let kem = MlKem768;
     let mut ct = [0u8; ML_KEM_768_CT_LEN];
     let mut ss = [0u8; 32];

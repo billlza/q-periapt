@@ -72,7 +72,9 @@ pub trait HandshakeSuite {
     /// Signature length, bytes.
     const SIG_LEN: usize;
     /// Derive the PQ KEM key pair `(sk, pk)` from a 64-byte seed.
-    fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>);
+    fn pq_keypair(
+        seed: &[u8; PQ_KEYGEN_SEED_LEN],
+    ) -> Result<(Vec<u8>, Vec<u8>), q_periapt_core::Error>;
     /// Derive the signature key pair `(sk, vk)` from a 32-byte seed.
     fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>);
 }
@@ -88,11 +90,13 @@ impl HandshakeSuite for DefaultSuite {
     const PQ_PK_LEN: usize = ML_KEM_768_PK_LEN;
     const PQ_CT_LEN: usize = ML_KEM_768_CT_LEN;
     const SIG_LEN: usize = ML_DSA_65_SIG_LEN;
-    fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>) {
+    fn pq_keypair(
+        seed: &[u8; PQ_KEYGEN_SEED_LEN],
+    ) -> Result<(Vec<u8>, Vec<u8>), q_periapt_core::Error> {
         let mut seed32 = [0u8; SEED32_LEN];
         seed32.copy_from_slice(&seed[..SEED32_LEN]);
-        let (sk, pk) = MlKem768XWingSeed::generate(seed32);
-        (sk.to_vec(), pk.to_vec())
+        let (sk, pk) = MlKem768XWingSeed::generate(seed32)?;
+        Ok((sk.to_vec(), pk.to_vec()))
     }
     fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>) {
         let (sk, vk) = MlDsa65::generate(*seed);
@@ -111,9 +115,11 @@ impl HandshakeSuite for EnhancedSuite {
     const PQ_PK_LEN: usize = ML_KEM_1024_PK_LEN;
     const PQ_CT_LEN: usize = ML_KEM_1024_CT_LEN;
     const SIG_LEN: usize = ML_DSA_87_SIG_LEN;
-    fn pq_keypair(seed: &[u8; PQ_KEYGEN_SEED_LEN]) -> (Vec<u8>, Vec<u8>) {
-        let (sk, pk) = MlKem1024::generate(*seed);
-        (sk.to_vec(), pk.to_vec())
+    fn pq_keypair(
+        seed: &[u8; PQ_KEYGEN_SEED_LEN],
+    ) -> Result<(Vec<u8>, Vec<u8>), q_periapt_core::Error> {
+        let (sk, pk) = MlKem1024::generate(*seed)?;
+        Ok((sk.to_vec(), pk.to_vec()))
     }
     fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>) {
         let (sk, vk) = MlDsa87::generate(*seed);
@@ -199,40 +205,46 @@ impl ServerKeys {
         seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
         seed_x: [u8; SEED32_LEN],
         seed_sig: [u8; SEED32_LEN],
-    ) -> Self {
+    ) -> Result<Self, DemoError> {
         let seed_pq = ZeroizingBytes::from_bytes(seed_pq);
         let seed_x = ZeroizingBytes::from_bytes(seed_x);
         let seed_sig = ZeroizingBytes::from_bytes(seed_sig);
-        let (dk_pq, ek_pq) = Su::pq_keypair(seed_pq.as_bytes());
+        let (dk_pq, ek_pq) = Su::pq_keypair(seed_pq.as_bytes())?;
         let (sk_x, pk_x) = X25519::generate(*seed_x.as_bytes());
         let (sign_sk, verify_vk) = Su::sig_keypair(seed_sig.as_bytes());
-        Self {
+        Ok(Self {
             dk_pq,
             ek_pq,
             sk_x: sk_x.to_vec(),
             pk_x: pk_x.to_vec(),
             sign_sk,
             verify_vk,
-        }
+        })
     }
 
     /// Generate **default-suite** keys from fixed seeds (deterministic — tests/benches).
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DemoError::Crypto`] if deterministic primitive key generation fails.
     pub fn from_seeds(
         seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
         seed_x: [u8; SEED32_LEN],
         seed_sig: [u8; SEED32_LEN],
-    ) -> Self {
+    ) -> Result<Self, DemoError> {
         Self::from_seeds_for::<DefaultSuite>(seed_pq, seed_x, seed_sig)
     }
 
     /// Generate **enhanced-suite** (ML-KEM-1024 + ML-DSA-87) keys from fixed seeds.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DemoError::Crypto`] if deterministic primitive key generation fails.
     pub fn from_seeds_enhanced(
         seed_pq: [u8; PQ_KEYGEN_SEED_LEN],
         seed_x: [u8; SEED32_LEN],
         seed_sig: [u8; SEED32_LEN],
-    ) -> Self {
+    ) -> Result<Self, DemoError> {
         Self::from_seeds_for::<EnhancedSuite>(seed_pq, seed_x, seed_sig)
     }
 
@@ -244,11 +256,11 @@ impl ServerKeys {
             .and_then(|()| getrandom::fill(seed_x.as_mut_bytes()))
             .and_then(|()| getrandom::fill(seed_sig.as_mut_bytes()))
             .map_err(|_| DemoError::Crypto)?;
-        Ok(Self::from_seeds_for::<Su>(
+        Self::from_seeds_for::<Su>(
             *seed_pq.as_bytes(),
             *seed_x.as_bytes(),
             *seed_sig.as_bytes(),
-        ))
+        )
     }
 
     /// Generate **default-suite** keys from the OS CSPRNG.

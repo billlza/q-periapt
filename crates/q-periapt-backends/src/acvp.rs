@@ -1,7 +1,7 @@
 //! NIST ACVP ground-truth conformance for the full FIPS parameter family:
 //! ML-KEM-512/768/1024 (FIPS 203) and ML-DSA-44/65/87 (FIPS 204).
 //!
-//! Validates our libcrux backends against the **authoritative** vectors published by
+//! Validates the `mlkem-native` / `fips204` backends against the **authoritative** vectors published by
 //! NIST (ACVP-Server `gen-val/json-files`). For each ML-KEM parameter set: deterministic
 //! keygen from `(d, z)`, encapsulation from `(ek, m)`, and decapsulation — including the
 //! VAL cases with modified ciphertexts that exercise the FO implicit-rejection path
@@ -9,12 +9,12 @@
 //! set: deterministic keygen from ξ, plus the default external/pure/deterministic/
 //! empty-context sigGen/sigVer cases; the **broader signature modes** the backend's
 //! extended surface can reproduce — external/pure with **non-empty contexts** and
-//! **hedged** randomness, **HashML-DSA** with a SHAKE-128 pre-hash, and the **internal
-//! interface** (FIPS 204 Alg. 7/8, via the libcrux `acvp` feature; `externalMu = false`,
-//! deterministic + hedged) — are pinned separately
-//! (`acvp_ml_dsa_{44,65,87}_signature_modes`). Still out of scope: `externalMu = true`
-//! (libcrux has no μ-injection entry) and non-SHAKE128 pre-hash (libcrux wires only the
-//! SHAKE-128 variant). This is ground-truth conformance complementing the multi-backend
+//! **hedged** randomness and **HashML-DSA** with a SHAKE-128 pre-hash — are pinned
+//! separately (`acvp_ml_dsa_{44,65,87}_signature_modes`). The vendored files retain
+//! FIPS 204 internal-interface vectors as reference assets, but the production API does
+//! not expose that hazardous interface and the tests do not report those cases as backend
+//! passes. `externalMu = true` and non-SHAKE128 pre-hash remain outside the public API.
+//! This is ground-truth conformance complementing the multi-backend
 //! differential. Vectors are vendored under `vectors/acvp-ml-{kem-512,kem-768,kem-1024,
 //! dsa-44,dsa-65,dsa-87,dsa-44-modes,dsa-65-modes,dsa-87-modes}.json`.
 
@@ -80,7 +80,7 @@ fn acvp_ml_kem_768_conformance() {
         let mut seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
         seed[..HALF].copy_from_slice(&hex(&t.d));
         seed[HALF..].copy_from_slice(&hex(&t.z));
-        let (sk, pk) = MlKem768::generate(seed);
+        let (sk, pk) = MlKem768::generate(seed).unwrap();
         assert_eq!(&sk[..], hex(&t.dk).as_slice(), "ACVP keyGen dk mismatch");
         assert_eq!(&pk[..], hex(&t.ek).as_slice(), "ACVP keyGen ek mismatch");
     }
@@ -223,7 +223,7 @@ fn acvp_ml_kem_1024_conformance() {
         let mut seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
         seed[..HALF].copy_from_slice(&hex(&t.d));
         seed[HALF..].copy_from_slice(&hex(&t.z));
-        let (sk, pk) = MlKem1024::generate(seed);
+        let (sk, pk) = MlKem1024::generate(seed).unwrap();
         assert_eq!(
             &sk[..],
             hex(&t.dk).as_slice(),
@@ -319,15 +319,15 @@ fn acvp_ml_dsa_87_conformance() {
 //
 // Beyond the default external/pure/deterministic/empty-context mode above, these pin
 // the modes the backend's extended surface (sign_ctx/verify_ctx,
-// sign_pre_hashed_shake128/verify_pre_hashed_shake128, sign_internal/verify_internal)
+// sign_pre_hashed_shake128/verify_pre_hashed_shake128)
 // can reproduce against NIST:
 //   * external / pure — deterministic AND **hedged** (caller rnd), across **contexts**;
-//   * **HashML-DSA** with a SHAKE-128 pre-hash;
-//   * the **internal interface** (FIPS 204 Alg. 7/8, via the libcrux `acvp` feature) —
-//     deterministic + hedged, `externalMu = false`.
-// Still out of scope: `externalMu = true` (libcrux exposes no μ-injection entry) and
-// non-SHAKE128 pre-hash (libcrux wires only the SHAKE-128 variant) — documented, not
-// silently skipped.
+//   * **HashML-DSA** with a SHAKE-128 pre-hash.
+//
+// The vendored source files also contain FIPS 204 internal-interface cases. They are
+// counted below solely to detect accidental truncation of the reference assets. They
+// are deliberately not executed: production exposes only the external FIPS 204 API.
+// `externalMu = true` and non-SHAKE128 pre-hash are likewise outside that public API.
 
 #[derive(Deserialize)]
 struct ModeVectors {
@@ -340,9 +340,9 @@ struct ModeVectors {
     #[serde(rename = "prehash_shake128_sigVer")]
     ph_sig_ver: Vec<ExtSigVer>,
     #[serde(rename = "internal_sigGen")]
-    int_sig_gen: Vec<ExtSigGen>,
+    reference_internal_sig_gen: Vec<ExtSigGen>,
     #[serde(rename = "internal_sigVer")]
-    int_sig_ver: Vec<ExtSigVer>,
+    reference_internal_sig_ver: Vec<ExtSigVer>,
 }
 #[derive(Deserialize)]
 struct ExtSigGen {
@@ -422,30 +422,13 @@ macro_rules! check_dsa_modes {
                 "pre-hash SHAKE128 sigVer verdict mismatch"
             );
         }
-        // Internal interface (FIPS 204 Alg. 7/8): signs the message directly, no context.
-        for t in &v.int_sig_gen {
-            let mut sig = vec![0u8; $sig_len];
-            $backend
-                .sign_internal(&hex(&t.sk), &hex(&t.message), &hex(&t.rnd), &mut sig)
-                .unwrap();
-            assert_eq!(sig, hex(&t.signature), "internal-interface sigGen mismatch");
-        }
-        for t in &v.int_sig_ver {
-            let ok = $backend
-                .verify_internal(&hex(&t.pk), &hex(&t.message), &hex(&t.signature))
-                .is_ok();
-            assert_eq!(
-                ok, t.test_passed,
-                "internal-interface sigVer verdict mismatch"
-            );
-        }
         (
             v.ext_sig_gen.len(),
             v.ext_sig_ver.len(),
             v.ph_sig_gen.len(),
             v.ph_sig_ver.len(),
-            v.int_sig_gen.len(),
-            v.int_sig_ver.len(),
+            v.reference_internal_sig_gen.len(),
+            v.reference_internal_sig_ver.len(),
         )
     }};
 }
@@ -464,7 +447,11 @@ fn acvp_ml_dsa_65_signature_modes() {
         "external/pure det+hedged set incomplete"
     );
     assert!(pg >= 1 && pv >= 1, "expected SHAKE-128 pre-hash cases");
-    assert_eq!((ig, iv), (30, 15), "internal-interface set incomplete");
+    assert_eq!(
+        (ig, iv),
+        (30, 15),
+        "unwired internal-interface reference set incomplete"
+    );
 }
 
 #[test]
@@ -481,7 +468,11 @@ fn acvp_ml_dsa_87_signature_modes() {
         "external/pure det+hedged set incomplete"
     );
     assert!(pg >= 1 && pv >= 1, "expected SHAKE-128 pre-hash cases");
-    assert_eq!((ig, iv), (30, 15), "internal-interface set incomplete");
+    assert_eq!(
+        (ig, iv),
+        (30, 15),
+        "unwired internal-interface reference set incomplete"
+    );
 }
 
 // --- Lowest FIPS parameter sets: ML-KEM-512 (L1) + ML-DSA-44 (L2) -------------------
@@ -506,7 +497,7 @@ fn acvp_ml_kem_512_conformance() {
         let mut seed = [0u8; ML_KEM_512_KEYGEN_SEED_LEN];
         seed[..HALF].copy_from_slice(&hex(&t.d));
         seed[HALF..].copy_from_slice(&hex(&t.z));
-        let (sk, pk) = MlKem512::generate(seed);
+        let (sk, pk) = MlKem512::generate(seed).unwrap();
         assert_eq!(
             &sk[..],
             hex(&t.dk).as_slice(),

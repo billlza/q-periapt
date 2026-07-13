@@ -16,24 +16,30 @@ transition-vector corpus described in
   asserted against published reference values — **reproduces the FIPS 203
   reference output on these 3 happy-path vectors** (keygen/encaps/decaps). It is
   **not** itself a full ACVP / FIPS 203 validation — that breadth is provided by the
-  NIST ACVP test above.
+  NIST ACVP test below.
 - **NIST ACVP ground-truth conformance** ✅ — `q-periapt-backends/src/acvp.rs` validates
-  the libcrux backends against the authoritative NIST vectors (vendored under
+  the portable `mlkem-native` v1.2.0 (through
+  `q-periapt-mlkem-native-sys`) / `fips204` 0.4.6 adapters against the authoritative NIST
+  vectors (vendored under
   `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the **full FIPS
   parameter family** — **ML-KEM-512/768/1024** (25 keyGen, 25 encaps, 10 decaps incl.
   implicit-rejection, each) and **ML-DSA-44/65/87** (25 keyGen each + the
   deterministic/external/empty-context sigGen/sigVer cases, plus the **broader signature
   modes** the backend can reproduce — external/pure **hedged** + **non-empty context**
-  and **HashML-DSA SHAKE-128 pre-hash**) — byte-identical to NIST.
-  Direct ground truth, orthogonal to the differential.
+  and **HashML-DSA SHAKE-128 pre-hash**) — byte-identical to NIST. Vendored
+  internal-interface vectors remain explicit, unwired reference data and are not
+  counted as passing backend cases. Direct ground truth, orthogonal to the differential.
 - **Multi-backend differential (full KEM chain)** ✅ — `q-periapt-backends/src/differential.rs`
   cross-checks every component against an **independent** implementation on random
   inputs: **ML-KEM-512/768/1024** vs RustCrypto `ml-kem`, X25519 vs `orion`
   (+ the RFC 7748 §6.1 ground-truth vector), the full `HybridKem` reconstructed from
-  independent ML-KEM + X25519 + SHA3 (for **both** the default ML-KEM-768 and the
+  independent ML-KEM + X25519 while sharing production's RustCrypto SHA3 implementation
+  (for **both** the default ML-KEM-768 and the
   enhanced ML-KEM-1024 suites), and **ML-DSA-44/65/87** vs RustCrypto
   `ml-dsa` (byte-identical keygen + signatures + cross-verification + tamper rejection)
-  — all byte-identical. Orthogonal to fixed KATs.
+  — all byte-identical. The official X-Wing and separately encoded `ContextBound`
+  KATs provide the independent combiner check; the differential does not claim an
+  independent SHA3 implementation.
 - **Generative property tests** ✅ — `q-periapt-backends/src/proptests.rs` (proptest)
   holds the combiner/hybrid invariants over random inputs: determinism, the
   CompatXWing length guard + ContextBound non-empty-context guard, encoding

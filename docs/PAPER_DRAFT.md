@@ -8,6 +8,18 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
+> ABI 2 / `0.1.0-alpha.1` is a release-ready research-alpha source line intended
+> for coordinated Rust-crate publication. That release readiness is not a current
+> binary-package or production
+> claim and does not promote any historical measurement below.
+>
+> **Backend-migration note (2026-07-13).** The living artifact now uses portable
+> `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204` 0.4.6,
+> and `sha3` 0.10.9. Every former-provider package/device/
+> performance/binary-CT result below is historical predecessor evidence: the source
+> digest changed, so none is current ABI2 production-promotion evidence. Fresh same-source capture
+> and independent cryptographic/ABI review remain pending; no replacement result is
+> asserted in this authoring note.
 
 ---
 
@@ -20,7 +32,7 @@
 | `fig_kernel.pdf` | §3 | reduction tower: standard MAL-BIND-K-{CT,PK} plus the separately labeled syntactic K-CTX extension → CR(SHA3) via proved `encode_inj`; honest scope boxed |
 | `tbl_verif.pdf` | §4 (Table) | the six orthogonal verification methods (oracle / independence / what it catches) |
 | `tbl_substrate.pdf` | §5 (Table) | cross-substrate coverage: (a) ISA targets (byte-id `K`, binary-CT), (b) faces × OS |
-| `fig_ct.pdf` | §5 | historical older-source PQClean-HQC contrast (ML-KEM 0 vs HQC 193); current gate uses a synthetic planted leak |
+| `fig_ct.pdf` | §5 | historical older-source `libcrux` ML-KEM 0 vs PQClean-HQC 193 contrast; the intervening `fips203` gate failed on both ISAs, while the portable-`mlkem-native` gate retains a synthetic planted leak but has no fresh release-source capture yet |
 | `fig_netem.pdf` | §6 | historical netem result; fixed local cost becomes small relative to RTT, but it is not current production/device parity |
 | `fig_wire.pdf` | §6 | handshake wire budget (+2.27 KB ML-KEM keyshare) |
 
@@ -60,26 +72,27 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 > **alone** — no binding assumption on the component KEMs — and we **machine-check** this in
 > EasyCrypt (the injective encoding is a proved lemma, not an axiom; the KEM-aware game is
 > modeled for the implicit- and explicit-rejection games). The modeled combiner has one Rust
-> implementation whose pinned outputs are checked in the explicitly reported deterministic
-> conformance cells (four ISA targets executed, one only cross-compiled), while its native ABI 2
-> product adapters are checked for the same signed-policy/context semantics, round trip, rollback,
-> and failure atomicity without exposing caller-controlled seeds or raw combine operations. This is
-> verified by a
+> implementation with deterministic conformance harnesses and native ABI 2 product adapters that
+> exercise signed-policy/context semantics, round trip, rollback, and failure atomicity without
+> exposing caller-controlled seeds or raw combine operations. Predecessor source recorded four ISA
+> executions plus one cross-build; the backend-migrated source requires fresh execution before
+> those cells can be claimed. The artifact uses a
 > six-method conformance matrix and a CI-gated, self-validating
-> source→binary constant-time probe whose current hard gate requires zero for the real
-> libcrux ML-KEM secret path and a positive result for a synthetic planted secret-indexed
-> leak. Older-source PQClean-HQC runs independently produced positive counts, but that
-> retired backend is historical evidence rather than a current gate. We integrate the combiner into a production-stack TLS 1.3 rustls
-> demo/integration path (a `CryptoProvider`) and evaluate handshake tail latency under real `tc
-> netem`. We are explicit
+> source→binary constant-time probe whose migrated hard gate requires zero for every real
+> portable-`mlkem-native` ML-KEM-512/768/1024 secret path and a positive result for each synthetic planted secret-indexed
+> leak. The former `libcrux` zero result and older-source PQClean-HQC positive counts are
+> historical; a fresh two-ISA capture for the current source is pending. A production-stack TLS 1.3
+> rustls demo/integration path (a `CryptoProvider`) exists; its recorded `tc netem` evaluation is
+> historical predecessor-source evidence. We are explicit
 > about what is and is not novel: the binding *fact* is a known consequence of recent results
 > (CDM; Chempat); our contribution is the *conjunction* — an assumption-minimal, machine-checked
 > binding result tied by conformance — not mechanized refinement — to a heterogeneous implementation
 > surface, with reproducible gates that catch specific failure classes. A signed policy is resolved
 > to one closed suite/profile/key-format/version decision and its exact digest is committed by the
 > decision-controlled ContextBound path. A matched-backend, single-host performance gate accepts
-> only controlled runs bound to the live canonical source digest. The selected clean Apple matrix
-> covers one physical iPad and one distinct physical iPhone, while formal spec-to-Rust refinement
+> only controlled runs bound to the live canonical source digest. The recorded clean Apple matrix
+> covered one physical iPad and one distinct physical iPhone on predecessor source and is now stale;
+> a fresh same-source device/performance capture, formal spec-to-Rust refinement,
 > and cross-device/end-to-end performance parity remain pending.
 
 The concrete SHA3 staging owner uses explicit public/secret absorption without changing any
@@ -97,12 +110,25 @@ is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
 `publish = false` RustCrypto `hqc-kem 0.1.0-rc.0` HQC-v5/FIPS-207-draft shadow with no ABI or
 product-suite identity. Upstream says it tracks an IPD, but as of 2026-07-12 NIST
 still says FIPS 207 is coming soon and no official IPD is retrievable; freezing the
-eventual official text is a promotion gate. That source-graph change invalidated all pre-change
-Apple and performance proofs. Later clean-tree Apple schema-3 matrix and controlled-host
-matched-backend proofs passed on a successor source snapshot; currentness is authoritative only
-through `artifact/results.json` plus live verification. ABI 2 remains unpublished, and the
-unsuppressed upstream `proc-macro-error2` advisory through libcrux/hax remains a hard
-release blocker.
+eventual official text is a promotion gate. The later production migration to
+portable `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, pinned
+`fips204` 0.4.6, and `sha3` 0.10.9 removed both the intervening `fips203` path
+that failed the binary-CT gate and the earlier `libcrux`/hax/unsuppressed
+`proc-macro-error2` advisory path; `cargo audit --deny warnings`
+now passes without an ignore. It also changed the canonical source digest, making all
+recorded package, Apple, Android, matched-performance, and binary-CT proofs historical.
+The vendored ML-KEM trust anchors are upstream commit
+`0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit archive SHA-256
+`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`;
+the build enables only the portable C provider. RustSec covers the resolved Rust graph,
+not vendored C, and neither the upstream provider nor this Rust/C integration has a
+completed independent audit.
+Currentness is authoritative only through `artifact/results.json` plus live verification.
+ABI 2 is release-ready as a research-alpha source/Rust-crate line intended for
+coordinated registry publication. Fresh same-source
+package/device/performance evidence, independent cryptographic/C-FFI/ABI review,
+signed or transparency-backed provenance, and platform distribution signing remain
+requirements for production promotion or a public binary-package claim.
 
 ---
 
@@ -116,19 +142,23 @@ release blocker.
   machine-checked for the **implicit-rejection setting** over abstract Decaps.
   *(`formal/easycrypt/BindingViaCR.ec`; commits 787b3b1, a5b9159.)*
 - **C2 — Proof-to-byte cross-substrate conformance.** One implementation of the modeled combiner
-  produces pinned, byte-identical outputs in the reported deterministic Rust/WASM/ISA conformance
-  cells. The native ABI 2 C/Swift/Kotlin/Android product cells reuse that implementation but are
+  has harnesses for pinned, byte-identical outputs in deterministic Rust/WASM/ISA conformance
+  cells. Predecessor results are historical after the backend/source migration and must be
+  rerun before reporting current cells. The native ABI 2 C/Swift/Kotlin/Android product faces reuse that implementation but are
   intentionally tested by semantic product invariants rather than replaying caller-selected
-  randomness. Four ISA targets are executed and thumbv7em is only cross-compiled; the result is not
-  a face × OS × ISA Cartesian-product claim. It is verified
-  by a six-method conformance matrix (fixed KATs incl. X-Wing + RFC 7748; NIST ACVP; independent
+  randomness. The predecessor evidence executed four ISA targets and only cross-compiled
+  thumbv7em; it was not a face × OS × ISA Cartesian-product claim. The harness set comprises
+  a six-method conformance matrix (fixed KATs incl. X-Wing + RFC 7748; NIST ACVP; independent
   multi-backend differential; the EasyCrypt proof; cross-platform byte-identity; generative
   property tests). *(This is the structural answer to the prior "only Apple" rejection.)*
 - **C3 — CI-gated assurance that catches the deployment-failure classes.** (a) A **self-validating
-  source→binary constant-time probe** that runs real libcrux ML-KEM decapsulate under Memcheck
-  marking only the genuine secret and hard-gates zero against a positive synthetic planted-leak
-  control. The retired PQClean-HQC lane's 193/22,849 counts are historical corroboration, not a
-  current-source gate. (b) An **executable demonstration**
+  source→binary constant-time probe** that runs real portable-`mlkem-native`
+  ML-KEM-512/768/1024 decapsulation under Memcheck, marking only each genuine secret
+  and hard-gating zero against a positive synthetic planted-leak control. No fresh
+  migrated-backend capture is claimed yet; the intervening `fips203` provider failed
+  on both ISAs, while the former `libcrux` zero result and
+  retired PQClean-HQC lane's 193/22,849 counts are historical corroboration, not a current-source
+  gate. (b) An **executable demonstration**
   that a lean (X-Wing-shaped) combiner's MAL-BIND is *contingent on the component KEM's key
   serialization* (Schmieg expanded-dk), while ContextBound's is not. (c) **Two independent
   symbolic provers** (Tamarin, ProVerif) on the handshake, plus the EasyCrypt computational proof
@@ -177,9 +207,10 @@ release blocker.
   that the *seed* format fixes it — this is **Schmieg (eprint 2024/523)**.
 - The MAL-BIND-K-{CT,PK} notion lattice and monotonicity — **Cremers, Dax, Medinger (CCS 2024)**.
 - That CT analysis must mark only secret sub-fields (not the public key embedded in dk) — this is
-  **standard CT-harness practice (KyberSlash, TCHES 2025, §7.1.2)**; libcrux already
-  machine-checks secret-independence via its `libcrux-secrets`/hax typed discipline. We use this;
-  we did not discover it. The "5696→0" Memcheck contrast is corroboration, not a finding.
+  **standard CT-harness practice (KyberSlash, TCHES 2025, §7.1.2)**. The predecessor
+  `libcrux` implementation separately used `libcrux-secrets`/hax typed
+  secret-independence; that assurance does not transfer to `mlkem-native`. The historical
+  "5696→0" Memcheck contrast is provenance, not a current-backend finding.
 - That context commitment is desirable is related to **Bellare–Hoang context-committing AEAD
   (CMT-3)**. Our K-CTX game is nevertheless a self-defined syntactic extension for a
   context-parameterized KEM: CTX is an input, not a CDM transcript output, so it is outside the
@@ -249,30 +280,41 @@ release blocker.
   byte-identity · generative property tests.
 - The substrate matrix (Table): deterministic conformance and native product-workflow cells across
   the reported OS/ISA targets, with **per-cell honesty** (what is
-  verified locally vs. in CI; Windows-MSVC verified locally; binary-CT only on x86-64/aarch64;
-  riscv64/wasm32 = source-CT + attestation). Reproducible build attestations. The artifact now also
+  verified locally vs. in CI; Windows-MSVC evidence is historical; binary-CT tooling targets
+  x86-64/aarch64, but the migrated backend needs a fresh release-source capture;
+  riscv64/wasm32 have no current binary-CT or inherited source-CT claim). Reproducible build
+  attestations remain pending. The artifact now also
   has a separate Apple physical-device proof lane capable of source/artifact-bound iPad+iPhone
-  evidence. A clean schema-3 matrix has passed on distinct physical devices; its currentness must
-  still be established from the results manifest and live verifier, and historical/dirty diagnostics
-  do not close it. The Android ART runtime harness is also separate from package proof and requires a
-  current clean rerun before a release claim.
+  evidence. A clean schema-3 matrix passed on distinct physical devices for predecessor source,
+  but the backend migration made it historical; both lanes must be rerun and validated from the
+  results manifest. The Android ART runtime harness is also separate from package proof and requires
+  a current clean rerun before a release claim.
 
 ### §5 CI-gated assurance against the failure classes (C3)
-- **Binary-CT source→binary gap probe** (`ctstats/ct_decaps_gap`): marks only ŝ+z, runs real
-  libcrux decaps under Memcheck; aarch64 = 0 (no gap); self-validating via the `ek` positive
-  control (5696 flags on the embedded public key) + a planted-leak negative control. The
-  current hard gate uses that synthetic planted leak. The old `ct_hqc_gap` result (193 on
+- **Binary-CT source→binary gap probe** (`ctstats/ct_decaps_gap`): marks only each
+  parameter set's ŝ+z and runs real portable-`mlkem-native` decapsulation under
+  Memcheck, with a planted-leak positive control;
+  embedded-public-key and whole-dk observations are diagnostic because an expanded dk embeds
+  public `ek` and `H(ek)`. The former `libcrux` aarch64 zero/`ek`-5696 capture is historical
+  and does not transfer. `fips203` 0.4.3 then failed with 34,306 errors / 100 contexts
+  on x86-64 and 30,464 / 70 on aarch64 in
+  [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107);
+  those are historical failure counts, not current-provider evidence. A fresh
+  x86-64+aarch64 release-source pass is pending. The old
+  `ct_hqc_gap` result (193 on
   aarch64; 22,849 on x86-64) is retained only as historical evidence from the removed
   PQClean-HQC graph, not as a current CI/release result.
-- **Binding key-format coupling demo** (`binding_keyformat_separation.rs`): real libcrux; lean
+- **Binding key-format coupling demo** (`binding_keyformat_separation.rs`): release-graph portable `mlkem-native`; lean
   X-Wing-shaped combiner over expanded-dk loses MAL-BIND-K-PK (Schmieg z-substitution), ContextBound
   does not. Framed strictly as combiner robustness (see §4 boundary).
 - **Multi-prover symbolic** (Tamarin: 5 lemmas; ProVerif: 6 exact queries): authenticated context
   agreement plus hybrid handshake robustness (key survives break of EITHER component); lemma/query
   presence and full prover execution are hard-gated in CI, alongside
-  the EasyCrypt computational proof — which is a **hermetic hard gate**: a pinned EasyCrypt container
-  (`formal/Dockerfile`) re-checks `BindingViaCR.ec` + proof-dependency controls on every run, failing
-  CI if either breaks. Explicit countermodels, not tactic failures, carry necessity claims.
+  the EasyCrypt computational proof — a **containerized pinned-source hard gate**: the
+  base-image digest and EasyCrypt source revision are pinned, and `formal/Dockerfile`
+  re-checks `BindingViaCR.ec` + proof-dependency controls on every run. The apt/opam
+  solver and transitive graph remain floating, so this is not a bit-reproducible or
+  hermetic toolchain. Explicit countermodels, not tactic failures, carry necessity claims.
 
 ### §6 Production integration & evaluation (C4)
 - rustls CryptoProvider: the SupportedKxGroup/ActiveKeyExchange wiring; private-use group codes;
@@ -293,9 +335,10 @@ release blocker.
   **Historical interpretation only:** on this VM capture the fixed local cost was visible at RTT 0
   and the 20/50 ms cells were dominated by link/runtime noise; the extra bytes fit existing flights
   without another round-trip. The ContextBound/CompatXWing ordering was not stable enough here for a
-  parity claim. Use the later bare-metal capture as supporting host data. The matched Mac core
-  gate records live canonical-source-input freshness in the machine-readable manifest; iPad/iPhone energy
-  and optimized/end-to-end baselines remain pending.
+  parity claim. The later bare-metal capture is also predecessor-source supporting data, not
+  current release evidence. The matched Mac core gate records live canonical-source-input
+  freshness in the machine-readable manifest; a fresh migrated-backend capture, iPad/iPhone
+  energy, and optimized/end-to-end baselines remain pending.
 - Optional: ML-DSA-dominated wire-budget table (L3 5758 B vs L5 7940 B) from the demo `p99_bench`.
 
 ### §7 Related work
@@ -303,7 +346,9 @@ release blocker.
   Bellare–Hoang context-committing AEAD; eprint 2026/140 (public contexts in hybrid KEMs — cite
   precisely: it analyzes *when* public context is necessary/redundant, it does NOT define a
   key-binds-context KEM game).
-- Side-channel: KyberSlash (TCHES'25); ctgrind/TIMECOP/dudect; libcrux/HACL* + libcrux-secrets/hax.
+- Side-channel: KyberSlash (TCHES'25); ctgrind/TIMECOP/dudect; the predecessor
+  `libcrux`/HACL* + `libcrux-secrets`/hax assurance as historical related work,
+  not an inherited property of `mlkem-native`.
 - Hybrids in deployment: X-Wing (draft-connolly-cfrg-xwing-kem); TLS
   X25519MLKEM768; Signal PQXDH **plus its 2025 SPQR/ML-KEM-Braid Triple Ratchet**;
   Sesame multi-device session management; Apple PQ3. Do not repeat the obsolete
@@ -333,7 +378,10 @@ release blocker.
   labeled K-CTX syntactic extension using the same rejection skeleton, but over **abstract
   Decaps** — no FIPS-203 linkage, ss fields inert in the binding argument (proves nothing *about*
   ML-KEM's decaps); CR(SHA3) assumed; IND-CCA2 on paper; no spec↔impl linkage.
-- Binary-CT: only x86-64 + aarch64 have mature tooling; riscv64/wasm32 are source-CT + attestation.
+- Binary-CT: only x86-64 + aarch64 have configured tooling, and the migrated
+  portable-`mlkem-native` path still needs a fresh release-source capture;
+  the superseded `fips203` run is historical failure evidence; riscv64/wasm32 have no
+  current binary-CT or inherited source-CT claim.
 - Conformance ≠ certification (ACVP byte-identity is not CMVP).
 - No independent third-party audit; research-grade, do-not-deploy.
 - The rustls `SupportedKxGroup` path has a fixed protocol-domain label, not per-session K-CTX. Its
@@ -343,10 +391,12 @@ release blocker.
   trusted-caller values; the native ABI exports no raw crypto bypass, but decision APIs still only
   reduce accidental mixing and do not authorize hostile same-process code. An opaque
   in-process handle is also insufficient; a trusted service/process must own the key and state.
-- A clean-tree schema-3 matrix has passed on one physical iPad and one distinct physical iPhone;
-  the manifest-bound verifier, not this prose, determines whether it is current. The matched-backend Mac gate accepts
-  only controlled canonical-source-input proofs, but device energy, rustls end-to-end, clean baseline
-  history, and optimized-production parity remain unproved.
+- A clean-tree schema-3 matrix passed on one physical iPad and one distinct physical
+  iPhone for predecessor source; the backend migration made it stale. The manifest-bound
+  verifier, not this prose, determines currentness. The matched-backend Mac gate accepts
+  only controlled canonical-source-input proofs, but a fresh migrated-backend proof,
+  device energy, rustls end-to-end, clean baseline history, and optimized-production
+  parity remain unproved.
 - CI: the repo's gates are *configured*; report which have actually executed (note the no-remote
   history honestly, now that it is public on GitHub).
 - The artifact is not an asynchronous messaging protocol: no identity directory,
@@ -379,11 +429,11 @@ release blocker.
 |---|---|---|---|
 | C1a | Standard MAL-BIND-K-{CT,PK} ≤ CR(SHA3); encode_inj proved; **full CDM Figure 6** game (implicit + explicit rejection), over abstract Decaps | `formal/easycrypt/BindingViaCR.ec` (`malbind_kct_*`, `malbind_kpk_*`); explicit `K != bottom` countermodel; proof-dependency controls | Machine-checked; no spec↔Rust refinement |
 | C1b | Self-defined context-parameterized K-CTX syntactic extension ≤ CR(SHA3); not a CDM lattice node or monotonicity corollary | `formal/easycrypt/BindingViaCR.ec` (`malbind_kctx_*`, `omit_ctx_kctx_broken`); Tamarin/ProVerif authenticated-context models | Machine-checked at hash/game level; protocol meaning depends on authenticated context and trusted host |
-| C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | ✔ (prior commits) |
-| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; Windows-MSVC historical local; exact-nine-symbol C ABI contract; `artifact/embedding-readiness.sh`; separate device harnesses | Host ABI2 package implemented; clean iPad+iPhone product execution has a schema-3 proof lane; current Android, Linux-SONAME, Windows-PE, and signed release evidence remain pending |
-| C3a | source→binary CT: current ML-KEM-zero / synthetic-positive discriminator; retired PQClean-HQC 193 is historical | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Current gate uses planted control; HQC row is older-source provenance only |
-| C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (real libcrux) | ✔ (e525bef) |
-| C3c | Tamarin 5 lemmas + ProVerif 6 exact queries + EasyCrypt computational proof | `formal/{tamarin,proverif,easycrypt}` | Machine-checked in current local toolchain; new remote CI run still separate |
+| C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | Harnesses present; report current-source live results separately, because predecessor runs are historical |
+| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; Windows-MSVC historical local; exact-nine dynamic `q_periapt_*` C ABI contract (static archives constrain that public namespace but retain unsupported hidden bridge symbols); `artifact/embedding-readiness.sh`; separate device harnesses | ABI2 surface implemented; static embedding is a trusted same-process boundary; all recorded package/device evidence is stale after the backend migration; current Android, Apple, Linux-SONAME, Windows-PE, and signed production-promotion evidence remain pending |
+| C3a | source→binary CT: portable `mlkem-native` ML-KEM-512/768/1024 zero / synthetic-positive discriminator | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Gate migrated; `fips203` failed historically, former `libcrux` zero and PQClean-HQC 193 rows are predecessor evidence, and fresh x86-64+aarch64 capture is pending |
+| C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (release-graph portable `mlkem-native`) | Adapter migrated; report the live current-source result separately; predecessor commit result is historical |
+| C3c | Tamarin 5 lemmas + ProVerif 6 exact queries + EasyCrypt computational proof | `formal/{tamarin,proverif,easycrypt}` | Proof artifacts present; report fresh local and remote execution separately |
 | C4a | rustls TLS 1.3 handshake over the combiner | `crates/q-periapt-rustls/tests/handshake.rs` | ✔ (778aeec) |
 | C4b | historical netem measurements and repaired benchmark harness | `crates/q-periapt-rustls/examples/netem_bench.rs`, `paper/camera-ready-results.txt` | Supporting host data only; optimized-baseline/device parity pending |
 | C5 | signed policy → closed decision → policy/application-context bytes | `q-periapt-policy`, decision-controlled native/WASM tests | Native ABI2 raw crypto bypass removed; decision descriptor and WASM raw surface remain trusted-caller inputs |

@@ -23,7 +23,7 @@ fn write(dir: &Path, name: &str, bytes: &[u8]) {
 /// **self-checking the target's invariant**: decapsulation must never error (implicit
 /// rejection — no oracle), for valid, boundary, AND perturbed ciphertexts alike.
 fn write_mk(dir: &Path, name: &str, seed: [u8; 64], ct: &[u8]) {
-    let (sk, _pk) = MlKem768::generate(seed);
+    let (sk, _pk) = MlKem768::generate(seed).expect("deterministic ML-KEM key generation");
     let mut ss = [0u8; 32];
     assert!(
         MlKem768.decapsulate(&sk, ct, &mut ss).is_ok(),
@@ -37,7 +37,7 @@ fn write_mk(dir: &Path, name: &str, seed: [u8; 64], ct: &[u8]) {
 
 /// A real ML-KEM-768 ciphertext that decapsulates cleanly under `seed`'s key.
 fn valid_ct(seed: [u8; 64], rand: [u8; 32]) -> Vec<u8> {
-    let (_sk, pk) = MlKem768::generate(seed);
+    let (_sk, pk) = MlKem768::generate(seed).expect("deterministic ML-KEM key generation");
     let mut ct = vec![0u8; ML_KEM_768_CT_LEN];
     let mut ss = [0u8; 32];
     MlKem768

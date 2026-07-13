@@ -90,6 +90,6 @@ make prove      # prove all six queries and match every expected RESULT individu
 make check      # syntax/typing check only (fast, `-test`)
 ```
 
-Install ProVerif via OPAM (`opam install proverif`). On macOS the optional GUI dependency
+Install the CI-pinned ProVerif via OPAM (`opam install proverif.2.05`). On macOS the optional GUI dependency
 needs system libs first: `brew install gtk+ expat && opam install --assume-depexts
-proverif`. The CLI verifier (`proverif`) is all that `make prove` needs.
+proverif.2.05`. The CLI verifier (`proverif`) is all that `make prove` needs.

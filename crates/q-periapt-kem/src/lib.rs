@@ -126,11 +126,12 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     ///
     /// The FO-KEM (PQ) leg uses implicit rejection (see [`Kem`]): a cryptographically
     /// invalid ciphertext yields a pseudorandom secret rather than an error, so its failure path is
-    /// indistinguishable from success — there is no secret-dependent decapsulation oracle. The `?`
-    /// operators here propagate only *public* conditions: a buffer-length mismatch
-    /// ([`Error::InvalidLength`]), or — for the DH-style traditional leg — a low-order /
-    /// non-contributory key share ([`Error::InvalidKeyShare`]). Those depend solely on public
-    /// inputs the attacker already controls, so they are validity rejections, not an oracle.
+    /// indistinguishable from success — there is no secret-dependent decapsulation oracle. Public
+    /// input failures remain classifiable: a buffer-length mismatch ([`Error::InvalidLength`]), or
+    /// — for the DH-style traditional leg — a low-order/non-contributory key share
+    /// ([`Error::InvalidKeyShare`]). A fixed-length but malformed caller-supplied local expanded
+    /// ML-KEM key may instead produce opaque [`Error::Backend`]; that represents a local
+    /// key-storage/provider failure, not peer behavior or ciphertext validity.
     #[allow(clippy::too_many_arguments)]
     pub fn decapsulate(
         &self,

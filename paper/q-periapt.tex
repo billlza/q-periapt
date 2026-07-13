@@ -51,14 +51,16 @@ actually does. We present Q-Periapt, an assurance suite for PQ/T hybrid KEMs bui
 
 Its combiner, ContextBound, achieves \emph{combiner binding} (\mbox{MAL-BIND-K-CT} and
 \mbox{MAL-BIND-K-PK}) reducing to collision-resistance of SHA3 \emph{alone}---with no binding
-assumption on the component KEMs---machine-checked in EasyCrypt as a hermetic CI gate. The
+assumption on the component KEMs---machine-checked in EasyCrypt as a containerized,
+pinned-source hard CI gate. The
 \emph{modeled} combiner is implemented once in a Rust \code{no\_std} core. Its pinned output
-is checked in the deterministic OS/ISA conformance cells reported in this paper (four ISA targets
-executed---one under qemu-user---and one cross-compiled); native ABI~2 product adapters instead
-check signed-policy/context semantics, round trip, rollback, and failure atomicity without exposing
-caller-controlled seeds or raw combine operations. The evidence uses a six-method conformance matrix and a self-validating
-source$\to$binary constant-time probe that discriminates the clean ML-KEM path from a synthetic
-planted secret-indexed leak. A
+was checked on predecessor source in the deterministic OS/ISA conformance cells reported in this
+paper (four ISA targets executed---one under qemu-user---and one cross-compiled); the migrated source
+requires fresh execution. Native ABI~2 product adapters instead exercise signed-policy/context
+semantics, round trip, rollback, and failure atomicity without exposing caller-controlled seeds or
+raw combine operations. The artifact supplies a six-method conformance matrix and a self-validating
+source$\to$binary constant-time probe configured to discriminate a zero ML-KEM secret path from a
+synthetic planted secret-indexed leak; its migrated-backend result is pending. A
 machine-checked \emph{separation map} then pins down which combiner inputs are load-bearing, and
 where the lean X-Wing shape, instantiated over ML-KEM's expanded-\code{dk} serialization, is exposed
 while ContextBound is not---deployed seed-\code{dk} X-Wing is unaffected.
@@ -79,7 +81,16 @@ bytecode, and dispatches verifier source under isolated/no-site CPython with a f
 prefix; this is canonical source-input consistency after fixed generated-prefix exclusions, not a
 hermetic build-input, interpreter, or host attestation. Specification-to-
 implementation refinement, a current clean two-device Apple matrix, and cross-device/end-to-end
-performance parity remain explicitly pending.
+performance parity remain explicitly pending. The current research-alpha release graph uses portable
+\code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary, plus pinned
+\code{fips204}~0.4.6 and \code{sha3}~0.10.9. That migration changed the
+canonical source digest, so all recorded former-provider package, device, performance, and
+binary-CT results are historical predecessor evidence; no replacement timing, device, or
+binary-CT measurement is claimed here. The current-source local footprint capture reported below
+is a platform/toolchain-specific diagnostic, not release provenance.
+ABI~2 / \code{0.1.0-alpha.1} is a release-ready research-alpha source line intended
+for coordinated Rust-crate publication; no current multi-platform binary or production
+release is claimed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -162,25 +173,29 @@ reaches \mbox{MAL-BIND-K-\{CT,PK\}} (\cref{sec:sep}). Native X-Wing has no conte
 K-CTX is not a well-typed comparison; only a hypothetical context wrapper around that shape which
 ignores its context fails our local wrapper game.
 \item \textbf{C2 (\cref{sec:substrate}).} \emph{Proof-to-byte cross-substrate conformance}: one
-core implementation produces pinned bytes in the reported deterministic Rust/WASM/ISA cells,
-\emph{executed} on 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with
-by-construction identity on 1 more. Native ABI~2 C/Swift/Kotlin/Android cells reuse the same core
+core implementation has deterministic Rust/WASM/ISA harnesses; predecessor-source evidence
+\emph{executed} 4 ISAs (3 native $+$ riscv64 under qemu-user) and cross-compiled with
+by-construction identity on 1 more. The backend-migrated source must rerun those cells before they
+are reported as current. Native ABI~2 C/Swift/Kotlin/Android cells reuse the same core
 but test semantic product invariants rather than caller-selected randomness. The artifact keeps the hardware-dependent
 Apple check separate: a source-bound Xcode lane can run the Swift/C-ABI face on paired physical
 iOS/iPadOS devices; a separate Android lane runs the AAR/JNI face under ART. Device results are
 source-bound diagnostic evidence, not package-distribution claims, and are never inferred from a
 host package build.
 \item \textbf{C3 (\cref{sec:assurance}).} Reproducible assurance \emph{instruments} wired into CI
-(the EasyCrypt binding proof is re-checked as a \emph{hermetic hard gate} in a versioned container lane, as
+(the EasyCrypt binding proof is re-checked as a \emph{containerized pinned-source hard gate} in a versioned container lane, as
 are the constant-time/regression oracles; Tamarin/ProVerif lemma/query presence and full prover
 execution are hard-gated in CI, stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
-hard-gates a zero genuine-secret ML-KEM result against a positive synthetic planted-leak
-control; historical older-source PQClean-HQC runs provide an additional retired-backend contrast,
-not a current gate; an executable \emph{regression oracle} for the known dk-format binding
+requires a zero genuine-secret ML-KEM result against a positive synthetic planted-leak
+control. The portable-\code{mlkem-native} probes need a fresh x86-64/aarch64 capture;
+the intervening \code{fips203} provider failed on both ISAs, while former \code{libcrux}
+zero and older-source PQClean-HQC results are historical, not a current gate.
+An executable \emph{regression oracle} covers the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements as
 local runs.
 \item \textbf{C4 (\cref{sec:eval}).} A production-stack TLS~1.3 integration (rustls
-\code{CryptoProvider}, private-use group), evaluated under real \code{tc netem}.
+\code{CryptoProvider}, private-use group), with historical predecessor-source
+\code{tc netem} evaluation and no current-backend performance claim.
 \item \textbf{C5 (\cref{sec:substrate}).} A fail-closed policy-to-byte path: an ML-DSA-authenticated,
 strictly parsed, monotonic policy is atomically resolved to a closed suite/profile/key-format
 decision; the policy version and digest are carried in trusted state, and the digest is absorbed into
@@ -448,8 +463,11 @@ The combiner and its encoding live in a single dependency-free Rust \code{no\_st
 component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
 X25519, an extendable-output \code{Xof} trait for the hash), so the implementation under
 conformance test---the encoding and combiner---is the same code regardless of which third-party
-backend (libcrux ML-KEM, x25519-dalek, libcrux SHA3) is plugged in. Backend correctness,
-audit, and constant-time posture remain per implementation and ISA. This trait boundary is also where \emph{crypto-agility} lives:
+backend (portable \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
+plugged in; ML-DSA uses \code{fips204}~0.4.6. Backend correctness,
+audit, and constant-time posture remain per implementation and ISA. The ML-KEM source is
+commit- and archive-hash-pinned, but RustSec does not inspect vendored C and neither the
+provider nor this Rust/C integration has completed an independent audit. This trait boundary is also where \emph{crypto-agility} lives:
 \code{Kem::C2PRI} records the primitive property, while the separate, default-false
 \code{Kem::COMPAT\_XWING\_SAFE} capability records whether the exposed key format preserves
 X-Wing's seed-dk self-binding precondition. The lean profile requires both constants, so an
@@ -487,25 +505,24 @@ not interchangeable, evidence claims.
 
 \Cref{tab:verif} lists the six orthogonal methods (NIST ACVP vectors~\cite{acvp} among them) that answer this. They are deliberately
 heterogeneous in their oracle and in what they catch, so a defect that escapes one is caught by
-another. \Cref{tab:substrate} reports the substrate coverage with per-cell status: the
-byte-identical shared secret is \emph{run} natively on x86-64 and aarch64, on a WebAssembly runtime
-(wasm32), and under \code{qemu-user} emulation on riscv64---there the ContextBound and enhanced
-reference-vector KATs pass on the emulated riscv64 binary, reproducing the pinned bytes exactly. Only
-the bare-metal no\_std \code{thumbv7em} target is \emph{not} executed; there byte-identity follows by
-construction from the FIPS-deterministic encodings and identical source. Thus four of the five ISA
-targets are \emph{run} and one is only cross-compiled---this accounting is what makes the cross-substrate
-claim defensible.
+another. \Cref{tab:substrate} reports predecessor-source substrate coverage with per-cell status:
+the byte-identical shared secret was run natively on x86-64 and aarch64, on a WebAssembly runtime
+(wasm32), and under \code{qemu-user} emulation on riscv64. The bare-metal no\_std
+\code{thumbv7em} target was only cross-compiled. The backend migration invalidated those
+source-bound cells for release promotion; current-source execution must be reported separately.
 
-\emph{Footprint} (platform-dependent; regenerate per host with \code{paper/footprint.sh}, values
-in \code{paper/footprint.csv}). The stripped native ABI~2 shared library---including
+\emph{Current-source local footprint} (platform/toolchain-dependent; regenerate per
+host with \code{paper/footprint.sh}; exact rows in \code{paper/footprint.csv}). On
+Darwin~27.0.0 arm64 with Rust~1.96.0, \code{wasm-pack}~0.15.0, and Homebrew LLVM
+Clang~22.1.8, the stripped native ABI~2 shared library---including
 ML-KEM-768, X25519, the combiner, signed-policy ML-DSA-65 verification, and OS-random
-product entry points, with the former PQClean-HQC backend removed from the publishable graph---is
-$\approx$829\,KiB on macOS arm64 (committed in \code{footprint.csv}; Linux x86-64 is smaller and
-regenerated by the script, not committed here); the lean WebAssembly module is
-$\approx$202\,KiB via \code{wasm-pack\ --release} (the optional \code{signed-policy} feature, which
-links an ML-DSA verifier, grows it to $\approx$605\,KiB); and
+product entry points---is $667.8$\,KiB (683{,}800 bytes); the lean WebAssembly module is
+$97.7$\,KiB (100{,}034 bytes), and the optional \code{signed-policy} module is
+$332.6$\,KiB (340{,}625 bytes). These are local current-working-source diagnostics,
+not clean signed provenance, architecture-independent package sizes, or a cross-platform
+binary claim. Separately,
 the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target. This establishes
-buildability on that target, not runtime evidence from an embedded MCU.
+predecessor-source buildability on that target, not current package/runtime evidence from an embedded MCU.
 
 \begin{table*}[t]\centering\footnotesize
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.2}
@@ -515,7 +532,7 @@ buildability on that target, not runtime evidence from an embedded MCU.
 \textbf{Method} & \textbf{Reference / oracle} & \textbf{Independence} & \textbf{What it catches} \\
 \midrule
 Fixed KATs & X-Wing draft vectors; RFC 7748 & published vectors & combiner and X25519 spec-conformance regressions \\
-NIST ACVP & \emph{usnistgov} ACVP, full FIPS family & NIST ground truth & primitive non-conformance (FIPS 203/204/205) \\
+NIST ACVP & \emph{usnistgov} ACVP, wired FIPS parameter sets/modes & NIST ground truth & primitive non-conformance (FIPS 203/204/205); ML-DSA internal-interface vectors remain unwired reference data \\
 Multi-backend differential & RustCrypto \code{ml-kem}/\code{ml-dsa}; orion X25519 & independent re-implementations & implementation bugs (output must stay byte-identical) \\
 EasyCrypt proof & machine-checked; CR(SHA3) & formal (computational) & binding-design flaws in the combiner \\
 Cross-platform realization & deterministic vectors $+$ product invariants & evidence mode separated per cell & byte divergence in conformance cells; policy/context/state/failure drift in ABI~2 product cells \\
@@ -525,59 +542,67 @@ Generative property tests & proptest: 9 properties $\times$ 128 cases & randomiz
 \end{table*}
 
 \begin{table}[t]\centering\footnotesize
-\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.15}
-\caption{Cross-substrate coverage (\checkmark\ verified, CI or local).}\label{tab:substrate}
+\setlength{\tabcolsep}{1.8pt}\renewcommand{\arraystretch}{1.15}
+\caption{Historical predecessor-source cross-substrate coverage (\checkmark\ means verified on
+that source, not on the migrated release source). Every source-bound cell must be rerun.}\label{tab:substrate}
 \begin{tabular}{@{}l l c c c@{}}
 \multicolumn{5}{@{}l}{\emph{(a) ISA targets (Rust core; the byte-level claim)}}\\
 \toprule
 \textbf{ISA} & \textbf{runner} & \textbf{build} & \textbf{byte-id.\ \K} & \textbf{binary-CT} \\
 \midrule
-x86-64 & Linux, Win-MSVC & \checkmark & \checkmark\,(run) & \checkmark\ Memcheck \\
-aarch64 & Linux, macOS & \checkmark & \checkmark\,(run) & \checkmark\ Memcheck \\
-wasm32 & node & \checkmark & \checkmark\,(run) & source-CT \\
-riscv64 & qemu-user & \checkmark & \checkmark\,(run)$^\ddagger$ & source-CT \\
+x86-64 & Linux, Win-MSVC & \checkmark & \checkmark\,(run) & historical \\
+aarch64 & Linux, macOS & \checkmark & \checkmark\,(run) & historical \\
+wasm32 & node & \checkmark & \checkmark\,(run) & not checked \\
+riscv64 & qemu-user & \checkmark & \checkmark\,(run)$^\ddagger$ & not checked \\
 thumbv7em & bare-metal & \checkmark & by constr.$^\dagger$ & n/a \\
 \bottomrule
 \multicolumn{5}{@{}l}{\footnotesize $^\ddagger$ executed under \code{qemu-user} emulation (reference-vector KATs}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\ddagger$} reproduce pinned bytes); $^\dagger$ cross-compiled, identity by}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\dagger$} FIPS-deterministic encodings $+$ identical source.}\\[4pt]
-\multicolumn{5}{@{}l}{\emph{(b) native ABI~2 product workflow (current-source evidence)}}\\
+\multicolumn{5}{@{}l}{\emph{(b) native ABI~2 product workflow (historical predecessor source)}}\\
 \toprule
 \textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} & \textbf{device} \\
 \midrule
-C ABI & pending & \checkmark & pending & n/a \\
-Swift & n/a & \checkmark & n/a & iOS \checkmark \\
-Kotlin (JVM/FFM) & n/a & \checkmark & n/a & n/a \\
+C ABI & pending & historical & pending & n/a \\
+Swift & n/a & historical & n/a & iOS historical \\
+Kotlin (JVM/FFM) & n/a & historical & n/a & n/a \\
 Android/JNI & n/a & n/a & n/a & pending \\
 \bottomrule
-\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize A clean-tree schema-v3 matrix passes on one physical iPad and one distinct physical iPhone; currentness is manifest-bound and live-verified.}\\
+\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize A clean-tree schema-v3 matrix passed on one
+physical iPad and one distinct physical iPhone for predecessor source. The backend migration made
+it stale; both lanes and all packages require same-source reruns.}\\
 \end{tabular}
 \end{table}
 
 \section{CI-Gated Assurance}\label{sec:assurance}
 \subsection{A source\texorpdfstring{$\to$}{-to-}binary constant-time \emph{discriminator}}
-libcrux proves its ML-KEM secret-independent at the \emph{source} level (a typed discipline,
-machine-checked). The orthogonal \emph{binary}-level question---does the compiler reintroduce a
-secret-dependent branch on the genuine secret path?---is answered by a probe that marks only the
-genuinely-secret decapsulation-key sub-fields ($\hat s$, $z$) and runs the real libcrux
-\code{decapsulate} under Memcheck. The probe is \emph{self-validating}: a planted secret-indexed
-load is caught (harness sanity), and marking the embedded \emph{public} key flags 5696 reports
-(Memcheck demonstrably sees real branches in this binary). With only the genuine secret marked,
-the probe reports \textbf{zero} flags on aarch64: source-level secret-independence survives
-compilation. The current hard gate pairs that zero with a synthetic secret-indexed planted load
-that must report positive, making a vacuous always-zero harness fail. On an older source snapshot,
-the same framework run against the now-retired PQClean-HQC backend reported \textbf{193} flags on
-aarch64, localized to \code{vect\_set\_random\_fixed\_weight}, and $22{,}849$ on bare-metal
-x86-64. Those HQC counts are historical corroboration that per-backend constant-time gating is
-necessary; they are not current-source CI/release evidence. Their ISA-dependent magnitude
-($193$ versus $22{,}849$, while the public-key control was $5696$ versus $1778$) also shows why
-the load-bearing current signal is zero-versus-positive discrimination, not a raw count.
+The release-graph ML-KEM backend is now portable \code{mlkem-native}~v1.2.0 behind a
+dedicated safe Rust/C boundary. No source-level secret-independence result from a replaced
+provider transfers to this backend.
+The binary-level question---does the compiled path branch or index on the genuine secret?---is
+tested by a probe that marks only the genuinely-secret decapsulation-key sub-fields
+($\hat s$, $z$) for each parameter set and runs real \code{mlkem-native} decapsulation under Memcheck. The harness is
+self-validating: a synthetic planted secret-indexed load must report positive. Whole-dk and
+embedded-public-key observations are diagnostic only because an expanded FIPS-203 dk embeds public
+$ek$ and $H(ek)$ fields.
+
+No fresh migrated-backend binary-CT result is claimed in this paper. The former
+\code{libcrux} aarch64 zero and embedded-public-key 5696-report captures, together with the
+now-retired PQClean-HQC backend's \textbf{193} aarch64 and $22{,}849$ x86-64 counts, are historical
+predecessor-source evidence. The intervening \code{fips203}~0.4.3 provider also failed the
+corrected gate: 34,306 errors across 100 contexts on x86-64 and 30,464 across 70 contexts on
+aarch64 in CI run 29230650107\footnote{\url{https://github.com/billlza/q-periapt/actions/runs/29230650107}}.
+Those counts are historical \code{fips203} failure evidence,
+not a result for \code{mlkem-native}. Production promotion of the ABI~2 binary surface requires
+fresh x86-64 and aarch64 runs whose
+genuine-secret probes report zero and planted controls report positive.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_ct.pdf}
-\caption{Historical older-source contrast: the genuine ML-KEM secret yielded zero flags while
-the retired PQClean-HQC path's constant-weight sampler yielded 193. The current gate instead
-validates zero with a synthetic planted secret-indexed leak.}
+\caption{Historical predecessor-source contrast: the \code{libcrux} ML-KEM secret yielded zero
+flags while the retired PQClean-HQC path's constant-weight sampler yielded 193. The migrated
+portable-\code{mlkem-native} gate retains the synthetic planted control but requires a fresh
+two-ISA capture; the intervening \code{fips203} run failed and is historical.}
 \label{fig:ct}
 \end{figure}
 
@@ -697,7 +722,9 @@ $J/\mathsf{zof}$ injectivity---a strictly stronger idealization than the full co
 the map characterizes the \emph{shape}'s exposure field by field. We complement the proofs with an
 executable regression oracle that exercises both the expanded-\code{dk} break and its seed-\code{dk}
 \emph{negative control} (where $z$ re-derived from the keygen seed closes the substitution) against
-real libcrux as a CI-configured gate.
+the release-graph portable-\code{mlkem-native} adapter as a CI-configured gate. The predecessor
+\code{libcrux} result and failed \code{fips203} run are historical; the migrated test must be
+reported from the live release source.
 
 \subsection{Multi-prover assurance}
 Beyond the computational EasyCrypt proof, the server-authenticated hybrid handshake is modelled in
@@ -710,22 +737,32 @@ context agreement: matching accepted sessions agree on the explicit application 
 model establishes the analogous secrecy/authentication/context queries under a different abstraction
 (the classical leg as a second idealized KEM), giving an independent cross-check. The current
 inventories are five Tamarin lemmas and six individually checked ProVerif queries. The EasyCrypt
-binding proof is a \emph{hermetic hard CI gate}: a containerized EasyCrypt~r2026.06 lane re-checks
+binding proof is a \emph{containerized pinned-source hard CI gate}: a containerized
+EasyCrypt~r2026.06 lane re-checks
 \code{BindingViaCR.ec}, the explicit $\K\neq\bot$ probability-one countermodel, and the
 proof-dependency regression controls; CI fails if any stops holding (the no-\code{admit}/\code{sorry}
-grep is an additional always-on gate). Tamarin and ProVerif are gated on exact lemma/query inventories
+grep is an additional always-on gate). The base-image digest and EasyCrypt source revision are
+pinned, but the apt/opam solver and transitive package graph are not; this is not a bit-reproducible
+or hermetic toolchain. Tamarin and ProVerif are gated on exact lemma/query inventories
 and full \code{make prove}. Tool versions are recorded by the artifact; we do not claim every base
 image is immutable by digest.
 
 \section{Production Integration and Evaluation}\label{sec:eval}
+
+\paragraph*{Evidence currentness}
+Every committed timing value in this section was collected on predecessor
+\code{libcrux}-era source. The research-alpha release graph now uses portable
+\code{mlkem-native}/\code{fips204}/\code{sha3};
+the source digest changed, so these values remain historical study data and are not current ABI~2
+performance evidence. No migrated-backend replacement measurement is asserted.
 
 \subsection{Microbenchmarks}
 \Cref{tab:bench} reports a committed historical snapshot of primitive and hybrid costs (Criterion,
 point estimates, on an Apple-Silicon arm64 host). The data is
 \code{paper/microbench-arm64.csv}, regenerable with \code{cargo bench -p q-periapt-backends}. These
 numbers establish scale on one host, not current cross-version or cross-device performance parity. Two
-backend-specific observations matter for deployment. First, \emph{in our libcrux\,/\,x25519-dalek
-backend the post-quantum leg is not the bottleneck}:
+historical backend-specific observations matter for deployment. First, \emph{in the predecessor
+libcrux\,/\,x25519-dalek backend the post-quantum leg was not the bottleneck}:
 ML-KEM-768 encapsulation is $11.0\,\mu$s, roughly $8\times$ cheaper than X25519 encapsulation
 ($89.8\,\mu$s, an ephemeral keygen plus a Diffie--Hellman), so the classical X25519-as-KEM path
 dominates hybrid CPU here---a corrective to the assumption that PQ is the expensive part (a different
@@ -770,10 +807,13 @@ its path/hash/schema/source/pass summary, while the required domain verifier che
 artifacts, and freshness. This source text cannot self-promote a stale run. A passing snapshot
 closes only a single-host matched-core diagnostic for those bytes, not device energy, rustls
 end-to-end, or optimized production-X-Wing parity.
+The migrated harness identifies \code{mlkem-native}~v1.2.0 + \code{sha3}~0.10.9 +
+x25519-dalek~2.0.1; every previously recorded paired proof has a different source/backend identity
+and must be recollected.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
-\caption{Primitive and hybrid cost ($\mu$s; Criterion 60-sample point estimates, arm64 host) and
+\caption{Historical predecessor-source primitive and hybrid cost ($\mu$s; Criterion 60-sample point estimates, arm64 host) and
 key/ciphertext sizes (bytes). A single-host \emph{supporting} microbench (run-to-run variance
 $\sim 1\,\mu$s); the bare-metal time-to-session of \cref{tab:baremetal} is the primary
 measurement.}\label{tab:bench}
@@ -851,14 +891,15 @@ certificate/signature bytes are unchanged from the classical baseline) fits with
 flights, adds no round-trip, and is byte-identical in wire budget to the IANA standard. The two hybrids differ in \emph{two} independent ways, which the table separates: the
 combiner (ContextBound vs.\ concatenation), worth $+8.1\,\mu$s (the \code{bound}$-$\code{compat}
 delta, same ML-KEM implementation), and the ML-KEM implementation itself ($+62\,\mu$s between the
-\code{standard} row, on aws-lc-rs, and the \code{bound} row, on libcrux/ring)---an
+\code{standard} row, on aws-lc-rs, and the historical \code{bound} row, on libcrux/ring)---an
 implementation-not-combiner cost we do not optimize; isolating it would be the right job for an
 aws-lc-rs-backed ContextBound implementation, which we do not build---so we do not claim the
 $62\,\mu$s eliminated, only that it is backend-related. The binding upgrade ContextBound provides is
 the $+8.1\,\mu$s, not the $62$.
 
 \begin{table}[t]\centering\setlength{\tabcolsep}{4pt}
-\caption{Camera-ready \emph{time-to-session} on quiesced bare-metal hardware (AMD Ryzen~7~7700,
+\caption{Historical predecessor-source \emph{time-to-session} on quiesced bare-metal hardware
+(AMD Ryzen~7~7700,
 benchmark pinned to two selected cores, \code{performance} governor; median of the per-rep p50 and
 p99 over $20$ repetitions, RTT-0 column). At RTT~0 the per-group order resolves and ContextBound is
 $+8.1\,\mu$s over CompatXWing ($+8.4\,\mu$s at the p99). The tail claim is made at RTT~0, where the
@@ -893,7 +934,8 @@ is byte-insensitive and the tail is governed by transport, not by the combiner.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_netem.pdf}
-\caption{Time-to-session under real \code{tc netem} on the \emph{virtualized} host (mean of two
+\caption{Historical predecessor-source time-to-session under real \code{tc netem} on the
+\emph{virtualized} host (mean of two
 repetitions); the quiesced bare-metal numbers of \cref{tab:baremetal} supersede it quantitatively,
 and this figure is retained for the qualitative shape. (a) latency is RTT-dominated---the three
 curves coincide. (b) the overhead is the fixed local KEX-path overhead at RTT~0 ($\sim$190\,$\mu$s on this
@@ -914,7 +956,7 @@ preferable whenever (i) the application has a meaningful context (a protocol/rol
 channel binding) that the session key should commit to; or (ii) the deployment cannot guarantee that
 its component KEM will only ever be instantiated in the seed-dk form---in which case binding
 $pk_{\mathrm{pq}}$ and $ct_{\mathrm{pq}}$ directly removes the latent serialization dependence of
-\cref{sec:assurance}. In the committed single-host snapshot, that robustness adds under
+\cref{sec:assurance}. In the historical predecessor single-host snapshot, that robustness adds under
 $10\,\mu$s at the combiner layer; end-to-end invisibility and parity remain deployment-specific
 claims requiring current paired measurements.
 
@@ -971,11 +1013,12 @@ implementations were exploitable, underscoring that source-level constant-time a
 themselves settle the question for shipped binaries. The dudect/ctgrind discipline of marking
 secrets and checking for secret-dependent control flow~\cite{dudect,ctgrind}, realized over
 Valgrind/Memcheck~\cite{valgrind}, is the basis of our binary-CT gate. We build on, rather than
-re-do, the source-level guarantees of HACL*~\cite{hacl} and the libcrux ML-KEM
-verification~\cite{libcrux}: our probe \emph{corroborates} them dynamically and, crucially,
-the current gate discriminates the tested zero-result path from a synthetic planted leak. Historical
-older-source runs also discriminated it from the now-retired timing-leaky PQClean-HQC path; that
-dynamic result is not current-source evidence or a blanket verification of either dependency.
+re-do, the literature on HACL*~\cite{hacl} and predecessor libcrux ML-KEM
+verification~\cite{libcrux}. That source-level assurance and our former dynamic zero result are
+historical and do not transfer to \code{mlkem-native}. The migrated gate retains the synthetic planted
+leak, but its genuine-secret path needs fresh x86-64/aarch64 capture. Older-source runs also
+discriminated the former path from the now-retired timing-leaky PQClean-HQC path; those results are
+not current-source evidence or a blanket verification of any dependency.
 
 \paragraph*{Hybrids in deployment}
 Hybrid key exchange is being standardized and shipped: the IRTF combiner draft's
@@ -1001,7 +1044,7 @@ IND-CCA and constant-time guarantees---an axis (specification-to-binary) we expl
 ML-KEM satisfies \mbox{LEAK-BIND-K-PK} (in the ROM). Our EasyCrypt~\cite{easycrypt} development is complementary: it targets the \emph{hybrid
 combiner's} binding (the commitment-style MAL Figure-6 instantiation), cross-checked by
 independent symbolic models in Tamarin~\cite{tamarin} and ProVerif~\cite{proverif}; the EasyCrypt
-proof is hard-gated hermetically in CI, while the symbolic models are hard-gated on both
+proof is hard-gated in a pinned-source container in CI, while the symbolic models are hard-gated on both
 lemma/query presence and full prover execution.
 Signal reports a stronger implementation-linkage baseline for its stateful ratchet crate:
 ProVerif state-machine models plus hax-to-F* checks of core Rust pre/postconditions and panic freedom
@@ -1013,10 +1056,12 @@ The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it i
 ``zero KEM assumption'' that makes the result general, but it carries no FIPS-203 linkage, the
 shared-secret fields are inert in the argument, and CR(SHA3) and IND-CCA2 remain assumptions argued
 respectively in the model and on paper; there is no specification-to-implementation linkage proof.
-Binary-level constant-time tooling is mature only on x86-64 and aarch64; riscv64 and wasm32 are
-covered at source level plus upstream attestation. ACVP byte-identity is conformance, not CMVP
+Binary-level constant-time tooling is configured only on x86-64 and aarch64, and the migrated
+portable-\code{mlkem-native} path still needs fresh runs on both; the failed \code{fips203}
+run is historical, and riscv64 and wasm32 have no current binary-CT
+or inherited source-CT claim. ACVP byte-identity is conformance, not CMVP
 certification. The suite is research-grade and has not had an independent third-party audit. The
-primary netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
+historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
 earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
 retained as supporting context and labeled as such. The matched-backend host gate accepts only a
 controlled proof whose digest matches the live canonical source tree; its machine-readable manifest
@@ -1027,16 +1072,24 @@ combined PQXDH/Triple-Ratchet stack, PQ3, or other PQC implementations; device e
 stable clean-baseline evidence remain open. Current release attestation additionally requires a
 clean, source-bound Apple device matrix; a dirty-tree diagnostic or a prior device result is not such
 an attestation. Removing the PQClean dependency graph and tombstoning suite code~3 invalidated the
-pre-change Apple/performance proofs. Later clean-tree schema-v3 Apple matrix and controlled-host
-matched-backend proofs passed on a successor source snapshot; their currentness is determined only
-by the machine-readable manifest and live verifiers. Neither is distribution-signing, device-energy,
-or optimized-production parity evidence.
-ABI~2 remains unpublished; the unsuppressed upstream \code{proc-macro-error2} maintenance advisory
-in the libcrux/hax edge is still a release hard gate. The rustls integration uses a fixed protocol-domain context and an already parsed,
+pre-change Apple/performance proofs. A later predecessor snapshot recorded a clean-tree schema-v3
+Apple matrix and controlled-host matched-backend proof results, but the release-graph backend migration
+changed the source digest again; all recorded package, device, performance, and binary-CT evidence
+is therefore historical and must be regenerated. The migration removed the
+\code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
+without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
+ABI~2 is release-ready as a research-alpha source/Rust-crate line intended for
+coordinated registry publication. Production
+promotion or a public binary-package claim still requires such review, fresh
+release-bound two-ISA CT, same-source package/device/performance evidence, clean
+signed or transparency-backed provenance, and platform distribution signing. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
 the signed-policy authenticity claim. The C ABI assumes a trusted local caller for metadata and the
 forgeable decision descriptor, despite removing raw/deterministic cryptographic exports,
-and the former known-leaky PQClean-HQC adapter is removed rather than shipped as a fallback.
+and its exact-nine claim applies to the dynamic \code{q\_periapt\_*} export table.
+Static archives constrain that public namespace but retain unsupported hidden
+\code{qpn\_*} bridge link symbols; hidden visibility is not same-process access control.
+The former known-leaky PQClean-HQC adapter is removed rather than shipped as a fallback.
 Its numeric suite code is a permanent tombstone; the standalone HQC draft-candidate shadow has no
 ABI or product identity. Finally, policy signatures authenticate configuration bytes; decision descriptors,
 WASM raw inputs, and
@@ -1054,12 +1107,15 @@ and is not evidence for any claim in this paper.
 
 \section{Conclusion}\label{sec:concl}
 A PQ/T hybrid is only as safe as its weakest realization. We narrowed that gap with an
-assumption-minimal, machine-checked binding result tied by conformance evidence to one implementation
-across a heterogeneous deployment surface, guarded by reproducible gates (configured in CI)---a source$\to$binary
+assumption-minimal, machine-checked binding result and harnesses that tie it by conformance to one
+implementation across a heterogeneous deployment surface, guarded by reproducible gates
+(configured in CI)---a source$\to$binary
 constant-time discriminator, a binding key-format coupling demonstration, and multi-prover symbolic
 models---plus an atomic, authenticated policy-to-byte path. The artifact-specific contribution is
-the evaluated conjunction, not an exhaustive priority claim over any single fact; a machine-readable
-ledger keeps proved, tested, device-bound, and pending claims separate.
+the conjunction, not an exhaustive priority claim over any single fact; predecessor-source
+measurements remain historical, and the migrated backend requires fresh CT, conformance, package,
+device, and performance execution. A machine-readable ledger keeps proved, tested, device-bound,
+and pending claims separate.
 Future pairwise-protocol work will first build component-conformant PQXDH and Triple-Ratchet
 references plus a separately specified Sesame-compatible manager integration. It will then evaluate
 authenticated policy/context continuity, prekey accountability, crash/rollback invariants,
@@ -1076,7 +1132,8 @@ for a history-free anonymized export through the editor (public URL withheld for
 review). The development repository and raw local device directories are not themselves suitable
 review artifacts: the export must remove identity and publicly linkable history, then regenerate all
 source-bound proofs from the anonymous root snapshot. The resulting snapshot contains the committed
-measurements, inputs, and regeneration protocols; exact timing reproduction remains host- and
+historical measurements, inputs, and regeneration protocols; no committed predecessor result is
+current ABI~2 evidence, and exact timing reproduction remains host- and
 toolchain-dependent.
 
 \section{The Machine-Checked Kernel in Detail}\label{app:kernel}
@@ -1181,9 +1238,13 @@ $95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss 
 \cref{sec:eval}: the median is loss-insensitive, while the tail is governed by a per-loss TCP
 retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
-Footprint (platform-dependent, \code{paper/footprint.csv}): the stripped native ABI~2 library is
-$\approx$829\,KiB on macOS arm64 (signed-policy product build; Linux x86-64 must be regenerated
-on its own lane), the lean WebAssembly module $\approx$202\,KiB.
+Current-source local footprint (platform/toolchain-dependent,
+\code{paper/footprint.csv}): on Darwin~27.0.0 arm64 with Rust~1.96.0,
+\code{wasm-pack}~0.15.0, and Homebrew LLVM Clang~22.1.8, the stripped native ABI~2
+library is $667.8$\,KiB, lean WebAssembly is $97.7$\,KiB, and signed-policy
+WebAssembly is $332.6$\,KiB. These are local diagnostics rather than signed
+provenance or cross-platform package-size evidence; regenerate each claimed
+platform/toolchain from the selected source.
 
 \begin{table}[t]\centering\scriptsize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
@@ -1224,10 +1285,15 @@ The artifact ships a layered guide (\code{ARTIFACT.md}) in three tiers by cost a
 cross-crate differential, proptests, host-side FFI/WASM vectors), \code{cargo fmt --all --check}, and
 the no-\code{admit}/\code{sorry} proof grep. \emph{Tier~2 (\textasciitilde$1$\,h, the CI gates):}
 \code{clippy -D warnings}; the \code{slh-dsa} backend and separately bounded non-publishable HQC
-draft-candidate tests; the \emph{hermetic} EasyCrypt machine-check
+draft-candidate tests; the containerized, pinned-source EasyCrypt machine-check
 (\code{docker build -f formal/Dockerfile} then re-run \code{BindingViaCR.ec}, the explicit
-$\K\neq\bot$ countermodel, and proof-dependency controls); the C-ABI link smoke (\code{sh bindings/c/build-and-run.sh});
+$\K\neq\bot$ countermodel, and proof-dependency controls; the apt/opam solver and transitive graph
+remain non-hermetic); the C-ABI link smoke (\code{sh bindings/c/build-and-run.sh});
 the \code{wasm32} and \code{thumbv7em} cross-builds; and the Swift/Kotlin/WASM binding tests.
+The WASM provider build requires
+\code{CC\_wasm32\_unknown\_unknown} to be an absolute path to upstream LLVM Clang
+with the \code{wasm32} backend (Homebrew LLVM on macOS or \code{/usr/bin/clang-18}
+on Linux); Apple Clang is rejected.
 \emph{Tier~3 (hardware-dependent):} the bare-metal time-to-session
 (\code{sudo env QPERIAPT\_BARE\_METAL\_CONFIRMED=1 sh camera-ready-bare-metal.sh}; a frozen
 root-owned host-state launcher that runs all build and measured code in a clean, read-only snapshot

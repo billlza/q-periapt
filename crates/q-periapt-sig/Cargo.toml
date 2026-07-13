@@ -15,7 +15,7 @@ workspace = true
 
 [features]
 default = []
-# Concrete backends live in q-periapt-backends (libcrux ml-dsa, fips205 SLH-DSA), gated by
+# Concrete backends live in q-periapt-backends (fips204 ML-DSA, fips205 SLH-DSA), gated by
 # its `slh-dsa` feature; this crate is backend-agnostic and only defines the trait surface.
 
 [dependencies]

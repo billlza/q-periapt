@@ -279,8 +279,6 @@ def _is_declared_ephemeral_output(relative: str) -> bool:
         ".xcodeproj"
     ):
         return True
-    if relative == "fuzz/Cargo.lock":
-        return True
     if parts[0] == "sbom" and (pure.suffix == ".json" or relative.endswith(".cdx.json")):
         return True
     return False

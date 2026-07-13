@@ -95,6 +95,7 @@
           "artifact/claim_ledger.py",
           "artifact/apple_device_proof.py",
           "artifact/performance_gate.py",
+          "artifact/proof_to_byte_finalizer.py",
           "artifact/proof-to-byte.sh"
         ],
         "tests": [
@@ -119,6 +120,7 @@
           "artifact/apple_device_proof.py",
           "artifact/android_device_proof.py",
           "artifact/performance_gate.py",
+          "artifact/proof_to_byte_finalizer.py",
           "artifact/proof-to-byte.sh"
         ],
         "tests": [
@@ -129,7 +131,7 @@
           "artifact/test_proof_to_byte_release.py"
         ]
       },
-      "boundary": "Release-critical Git inspection uses a fixed /usr/bin/git, an explicit non-symlink .git directory and worktree, and a minimal environment that inherits no caller GIT_* or PATH state. It rejects assume-unchanged and skip-worktree index flags, requires the index tree to equal HEAD, hashes actual regular-file bytes and executable modes against Git object IDs without stat-cache shortcuts, and inventories ignored as well as visible untracked source inputs under a verifier-owned fixed ephemeral-output policy rather than trusting .git/info/exclude, core.excludesFile, or worktree .gitignore rules. Any untracked .gitignore outside an explicitly declared ephemeral-output prefix fails closed. A clean proof commit may be accepted at a clean successor only when ancestry holds and the commit diff is confined to artifact/results.json or paper/camera-ready-results.txt; the separately checked canonical source digest must remain equal. This closes environment redirection, hidden-index-flag, local-exclude, and manifest/proof self-reference bypasses. Fixed generated prefixes are not a hermetic build-input closure; isolated-checkout release builders remain pending. It does not make local .git objects a remote trust anchor or resist a privileged writer that can replace and restore the repository around every process boundary; signed or transparency-backed release provenance remains required."
+      "boundary": "Release-critical Git inspection uses a fixed /usr/bin/git, an explicit non-symlink .git directory and worktree, and a minimal environment that inherits no caller GIT_* or PATH state. It rejects assume-unchanged and skip-worktree index flags, requires the index tree to equal HEAD, hashes actual regular-file bytes and executable modes against Git object IDs without stat-cache shortcuts, and inventories ignored as well as visible untracked source inputs under a verifier-owned fixed ephemeral-output policy rather than trusting .git/info/exclude, core.excludesFile, or worktree .gitignore rules. Any untracked .gitignore outside an explicitly declared ephemeral-output prefix fails closed. A clean proof commit may be accepted at a clean successor only when ancestry holds and the commit diff is confined to artifact/results.json or paper/camera-ready-results.txt; the separately checked canonical source digest must remain equal. The finalizer requires provenance.snapshot_commit to name that exact source commit or allowed evidence-only ancestor and derives footprint_bytes from canonical paper/footprint.csv, rejecting metadata drift before and after domain verification. This closes environment redirection, hidden-index-flag, local-exclude, unbound-successor-metadata, duplicated-footprint, and manifest/proof self-reference bypasses. Fixed generated prefixes are not a hermetic build-input closure; isolated-checkout release builders remain pending. It does not make local .git objects a remote trust anchor or resist a privileged writer that can replace and restore the repository around every process boundary; signed or transparency-backed release provenance remains required."
     },
     {
       "id": "PYTHON-IMPORT-PROVENANCE",
@@ -159,7 +161,7 @@
         "tests": ["artifact/test_android_device_proof.py"],
         "data": ["artifact/results.json"]
       },
-      "boundary": "Schema v2 freezes tracked plus ignored and visible untracked canonical source inputs under the verifier-owned fixed ephemeral-output policy, except artifact/results.json and paper/camera-ready-results.txt. The digest is not a hermetic build-input closure: fixed generated prefixes can be consumed only under lane-specific artifact/hash checks, and an isolated-checkout release builder remains pending. The historical transcript is bound by a named hash in the manifest, but the manifest root is not recursively hashed; only clean committed/signed provenance or the evidence-only successor rule can bind that root. artifact/results.json selects an older dirty Android-emulator proof whose source digest predates the current canonical tree, so no current-source Android runtime claim is available. A fresh current-source run remains pending and would still be emulator evidence, not physical Android or clean release provenance."
+      "boundary": "Schema v2 freezes tracked plus ignored and visible untracked canonical source inputs under the verifier-owned fixed ephemeral-output policy, except artifact/results.json and paper/camera-ready-results.txt. The digest is not a hermetic build-input closure: fixed generated prefixes can be consumed only under lane-specific artifact/hash checks, and an isolated-checkout release builder remains pending. The historical transcript is bound by a named hash in the manifest, but the manifest root is not recursively hashed; only clean committed/signed provenance or the evidence-only successor rule can bind that root. artifact/results.json selects an older clean-tree Android-emulator proof whose source digest predates the current canonical tree, so no current-source Android runtime claim is available. A fresh current-source run remains pending and would still be emulator evidence, not physical Android or clean release provenance."
     },
     {
       "id": "PERFORMANCE-MATCHED-HOST-DIAGNOSTIC",
@@ -345,12 +347,18 @@
     {
       "id": "DEPENDENCY-AUDIT-CLEAN",
       "title": "All locked dependencies pass cargo-audit with warnings denied",
-      "status": "pending",
+      "status": "implementation_tested",
       "evidence": {
-        "configuration": [".cargo/audit.toml"],
-        "lockfile": ["Cargo.lock"]
+        "configuration": [".cargo/audit.toml", ".github/workflows/ci.yml"],
+        "lockfiles": ["Cargo.lock", "fuzz/Cargo.lock"],
+        "release_contract": [
+          "artifact/rust-publish-dry-run.sh",
+          "crates/q-periapt-mlkem-native-sys/vendor/INVENTORY.sha256",
+          "crates/q-periapt-mlkem-native-sys/vendor/LICENSE-INVENTORY.md",
+          "crates/q-periapt-mlkem-native-sys/vendor/PROVENANCE.md"
+        ]
       },
-      "boundary": "No advisory is suppressed. The unmaintained pqcrypto/PQClean HQC stack has been removed from the publishable workspace and root lockfile; the independent FIPS 207 draft-candidate shadow workspace is not a shipping dependency. The root lockfile still fails on proc-macro-error2 through released libcrux/hax tooling, so dependency audit remains a release blocker rather than a waived warning."
+      "boundary": "No advisory is suppressed. The publishable graph uses portable-only q-periapt-mlkem-native-sys over vendored mlkem-native v1.2.0 plus exact fips204/sha3 pins and no longer contains the fips203 or libcrux/hax/proc-macro-error2 paths. CI denies every cargo-audit warning over both committed workspace and detached fuzz-harness lockfiles. The ten-crate Rust publish contract applies every required downstream local patch, independently inspects the packaged sys .crate for the fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (the six upstream README files are excluded), pinned upstream license/provenance, forbidden paths and a portable-only build surface, then patches the sys crate into Cargo's normalized q-periapt-backends graph before auditing it. The mlkem-native trust anchors are upstream commit 0ba906cb14b1c241476134d7403a811b382ca498 and immutable GitHub commit archive SHA-256 f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677. The publish=false FIPS 207 draft-candidate shadow workspace remains outside the shipping graph and has its own audited lockfile gate. RustSec establishes only the absence of advisories known for the scanned Rust package graph at scan time; it does not inspect vendored C for vulnerabilities, undefined behavior, side channels, provenance or license correctness. This is not a third-party cryptographic, C/FFI or ABI audit, a maintenance guarantee, or registry/build provenance."
     }
   ]
 }

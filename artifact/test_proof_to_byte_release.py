@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
+import copy
+import dataclasses
+import errno
+import fcntl
 import hashlib
 import importlib._bootstrap_external
 import importlib.util
@@ -9,15 +14,19 @@ import json
 import os
 import pathlib
 import re
+import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from collections.abc import Iterator
 from unittest import mock
 
 from camera_ready_proof import EXPECTED_TOOLS
-from git_provenance import WorktreeInspection
+from git_provenance import WorktreeInspection, git_commit
 import proof_to_byte_finalizer
 
 
@@ -29,11 +38,500 @@ ARTIFACT_GUIDE = ROOT / "ARTIFACT.md"
 PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
+RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
+RUST_PUBLISH_CONTRACT_TESTS = ROOT / "artifact" / "test_rust_publish_contract.py"
 FINALIZER_SCRIPT = ROOT / "artifact" / "proof_to_byte_finalizer.py"
 XCODE27_GATE = ROOT / "artifact" / "apple-device-xcode27-gate.sh"
 TEST_COMMIT = "a" * 40
 TEST_SOURCE_SHA256 = "b" * 64
 TEST_MANIFEST_SHA256 = "c" * 64
+PINNED_CHECKOUT_ACTION = (
+    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
+)
+EXPECTED_CHECKOUT_STEP = (
+    f"      - uses: {PINNED_CHECKOUT_ACTION}\n"
+    "        with:\n"
+    "          persist-credentials: false\n"
+    "          fetch-depth: 0\n"
+)
+EXPECTED_CHECKOUT_PROVENANCE_STEP = (
+    "      - name: Verify checkout provenance\n"
+    "        env:\n"
+    "          EXPECTED_COMMIT: ${{ github.sha }}\n"
+    "        run: |\n"
+    "          actual_commit=$(git rev-parse --verify 'HEAD^{commit}')\n"
+    '          if [ "$actual_commit" != "$EXPECTED_COMMIT" ]; then\n'
+    '            echo "checked-out HEAD $actual_commit does not match GitHub commit $EXPECTED_COMMIT" >&2\n'
+    "            exit 1\n"
+    "          fi\n"
+)
+EXPECTED_PROOF_TO_BYTE_STEP = (
+    "      - name: Proof-to-byte manifest and canonical source binding\n"
+    "        env:\n"
+    "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
+    "        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh\n"
+)
+YAML_ALIAS = re.compile(
+    r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+"
+)
+
+
+_RELEASE_TEST_DIRECTORY_OPEN_FLAGS = (
+    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+)
+
+
+@dataclasses.dataclass(slots=True)
+class _ReleaseTestParentDirectory:
+    path: pathlib.Path
+    owned: bool
+    identity: tuple[int, int] | None = None
+    directory_fd: int | None = None
+
+
+@dataclasses.dataclass(slots=True)
+class _ReleaseTestChildDirectory:
+    parent: _ReleaseTestParentDirectory
+    name: str
+    identity: tuple[int, int] | None = None
+    directory_fd: int | None = None
+
+    @property
+    def path(self) -> pathlib.Path:
+        return self.parent.path / self.name
+
+
+def _release_test_directory_identity_from_state(
+    state: os.stat_result, path: pathlib.Path
+) -> tuple[int, int]:
+    if not stat.S_ISDIR(state.st_mode):
+        raise AssertionError(f"release test path must be a real directory: {path}")
+    return state.st_dev, state.st_ino
+
+
+def _release_test_directory_identity(path: pathlib.Path) -> tuple[int, int]:
+    return _release_test_directory_identity_from_state(path.lstat(), path)
+
+
+def _release_test_directory_identity_at(
+    parent: _ReleaseTestParentDirectory, name: str
+) -> tuple[int, int]:
+    if parent.directory_fd is None:
+        raise AssertionError(
+            f"release test parent has no anchored descriptor: {parent.path}"
+        )
+    state = os.stat(name, dir_fd=parent.directory_fd, follow_symlinks=False)
+    return _release_test_directory_identity_from_state(state, parent.path / name)
+
+
+def _clear_release_test_directory_contents(
+    directory_fd: int, display_path: pathlib.Path
+) -> list[BaseException]:
+    cleanup_errors: list[BaseException] = []
+    try:
+        with os.scandir(directory_fd) as entries:
+            entry_names = [entry.name for entry in entries]
+    except OSError as exc:
+        exc.add_note(f"while listing test-owned release directory: {display_path}")
+        return [exc]
+
+    for entry_name in entry_names:
+        entry_path = display_path / entry_name
+        try:
+            entry_fd = os.open(
+                entry_name,
+                _RELEASE_TEST_DIRECTORY_OPEN_FLAGS,
+                dir_fd=directory_fd,
+            )
+        except OSError as exc:
+            if exc.errno not in {errno.ELOOP, errno.ENOTDIR}:
+                exc.add_note(f"while opening test-owned release entry: {entry_path}")
+                cleanup_errors.append(exc)
+                continue
+            try:
+                os.unlink(entry_name, dir_fd=directory_fd)
+            except OSError as unlink_error:
+                unlink_error.add_note(
+                    f"while unlinking test-owned release entry: {entry_path}"
+                )
+                cleanup_errors.append(unlink_error)
+            continue
+
+        try:
+            entry_identity = _release_test_directory_identity_from_state(
+                os.fstat(entry_fd), entry_path
+            )
+            cleanup_errors.extend(
+                _clear_release_test_directory_contents(entry_fd, entry_path)
+            )
+            try:
+                actual_state = os.stat(
+                    entry_name, dir_fd=directory_fd, follow_symlinks=False
+                )
+                actual_identity = _release_test_directory_identity_from_state(
+                    actual_state, entry_path
+                )
+            except FileNotFoundError:
+                cleanup_errors.append(
+                    AssertionError(
+                        "test-owned release directory disappeared before removal: "
+                        f"{entry_path}"
+                    )
+                )
+                continue
+            except AssertionError as exc:
+                cleanup_error = AssertionError(
+                    "test-owned release directory was replaced before removal: "
+                    f"{entry_path}"
+                )
+                cleanup_error.__cause__ = exc
+                cleanup_errors.append(cleanup_error)
+                continue
+            except OSError as exc:
+                cleanup_errors.append(exc)
+                continue
+            if actual_identity != entry_identity:
+                cleanup_errors.append(
+                    AssertionError(
+                        "test-owned release directory was replaced before removal: "
+                        f"{entry_path}"
+                    )
+                )
+                continue
+            try:
+                os.rmdir(entry_name, dir_fd=directory_fd)
+            except OSError as exc:
+                exc.add_note(
+                    f"while removing test-owned release directory: {entry_path}"
+                )
+                cleanup_errors.append(exc)
+        finally:
+            try:
+                os.close(entry_fd)
+            except BaseException as exc:
+                exc.add_note(
+                    f"while closing test-owned release directory: {entry_path}"
+                )
+                cleanup_errors.append(exc)
+    return cleanup_errors
+
+
+@contextlib.contextmanager
+def _temporary_release_test_directories(
+    parents: tuple[pathlib.Path, ...],
+) -> Iterator[tuple[pathlib.Path, ...]]:
+    """Create isolated children under release roots without assuming ignored dirs exist.
+
+    Design invariants: every parent, child, and nested directory stays anchored by
+    an ``O_DIRECTORY | O_NOFOLLOW`` descriptor until its cleanup completes, which
+    prevents Linux inode-ABA reuse and path replacement from changing the deletion
+    target. Child contents are removed only relative to an anchored descriptor;
+    child roots use identity revalidation plus non-recursive ``rmdir``, and only
+    parents created by this helper may be removed. ``TemporaryDirectory`` or a
+    root-name ``rmtree`` would violate those replacement boundaries. Cleanup must
+    always attempt child clearing, child close, owned-parent removal, and parent
+    close in that order, preserving body and cleanup failures in an exception group.
+    """
+
+    # The lock is a stable, repo-scoped inode and leaves no worktree or /tmp lock
+    # artifact. It serializes create/use/cleanup across concurrent test processes.
+    with pathlib.Path(__file__).resolve().open("rb") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        parent_directories: list[_ReleaseTestParentDirectory] = []
+        child_directories: list[_ReleaseTestChildDirectory] = []
+
+        def cleanup_child_directories() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            for child in reversed(child_directories):
+                if (
+                    child.parent.directory_fd is None
+                    or child.identity is None
+                    or child.directory_fd is None
+                ):
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child could not be verified for cleanup: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                try:
+                    parent_state = os.fstat(child.parent.directory_fd)
+                    child_state = os.fstat(child.directory_fd)
+                except OSError as exc:
+                    exc.add_note(
+                        f"while verifying test-owned release child: {child.path}"
+                    )
+                    cleanup_errors.append(exc)
+                    continue
+                parent_identity = _release_test_directory_identity_from_state(
+                    parent_state, child.parent.path
+                )
+                if parent_identity != child.parent.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "release test parent descriptor identity changed: "
+                            f"{child.parent.path}"
+                        )
+                    )
+                    continue
+                child_identity = _release_test_directory_identity_from_state(
+                    child_state, child.path
+                )
+                if child_identity != child.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child descriptor identity changed: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                cleanup_errors.extend(
+                    _clear_release_test_directory_contents(
+                        child.directory_fd, child.path
+                    )
+                )
+                try:
+                    actual_identity = _release_test_directory_identity_at(
+                        child.parent, child.name
+                    )
+                except FileNotFoundError:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child disappeared before cleanup: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                except AssertionError as exc:
+                    cleanup_error = AssertionError(
+                        "test-owned release child was replaced before cleanup: "
+                        f"{child.path}"
+                    )
+                    cleanup_error.__cause__ = exc
+                    cleanup_errors.append(cleanup_error)
+                    continue
+                except OSError as exc:
+                    cleanup_errors.append(exc)
+                    continue
+                if actual_identity != child.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            "test-owned release child was replaced before cleanup: "
+                            f"{child.path}"
+                        )
+                    )
+                    continue
+                try:
+                    os.rmdir(child.name, dir_fd=child.parent.directory_fd)
+                except OSError as exc:
+                    exc.add_note(f"while removing test-owned release child: {child.path}")
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def close_child_descriptors() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            for child in reversed(child_directories):
+                if child.directory_fd is None:
+                    continue
+                try:
+                    os.close(child.directory_fd)
+                except BaseException as exc:
+                    exc.add_note(
+                        f"while closing test-owned release child descriptor: {child.path}"
+                    )
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def cleanup_parent_directories() -> list[Exception]:
+            cleanup_errors: list[Exception] = []
+            for parent in reversed(parent_directories):
+                if parent.directory_fd is None or parent.identity is None:
+                    if parent.owned:
+                        cleanup_errors.append(
+                            AssertionError(
+                                "test-owned release parent could not be verified for cleanup: "
+                                f"{parent.path}"
+                            )
+                        )
+                    continue
+                try:
+                    descriptor_state = os.fstat(parent.directory_fd)
+                except OSError as exc:
+                    exc.add_note(
+                        f"while verifying release parent descriptor: {parent.path}"
+                    )
+                    cleanup_errors.append(exc)
+                    continue
+                descriptor_identity = _release_test_directory_identity_from_state(
+                    descriptor_state, parent.path
+                )
+                if descriptor_identity != parent.identity:
+                    cleanup_errors.append(
+                        AssertionError(
+                            f"release parent descriptor identity changed: {parent.path}"
+                        )
+                    )
+                    continue
+                try:
+                    actual_identity = _release_test_directory_identity(parent.path)
+                except FileNotFoundError:
+                    qualifier = "test-owned " if parent.owned else ""
+                    cleanup_errors.append(
+                        AssertionError(
+                            f"{qualifier}release parent disappeared before cleanup: "
+                            f"{parent.path}"
+                        )
+                    )
+                    continue
+                except AssertionError as exc:
+                    qualifier = "test-owned " if parent.owned else ""
+                    cleanup_error = AssertionError(
+                        f"{qualifier}release parent was replaced before cleanup: "
+                        f"{parent.path}"
+                    )
+                    cleanup_error.__cause__ = exc
+                    cleanup_errors.append(cleanup_error)
+                    continue
+                except OSError as exc:
+                    cleanup_errors.append(exc)
+                    continue
+                if actual_identity != parent.identity:
+                    qualifier = "test-owned " if parent.owned else ""
+                    cleanup_errors.append(
+                        AssertionError(
+                            f"{qualifier}release parent was replaced before cleanup: "
+                            f"{parent.path}"
+                        )
+                    )
+                    continue
+                if not parent.owned:
+                    continue
+                try:
+                    parent.path.rmdir()
+                except OSError as exc:
+                    if exc.errno in {errno.ENOTEMPTY, errno.EEXIST}:
+                        cleanup_error = AssertionError(
+                            "test-owned release parent is not empty after cleanup: "
+                            f"{parent.path}"
+                        )
+                        cleanup_error.__cause__ = exc
+                        cleanup_errors.append(cleanup_error)
+                    else:
+                        cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def close_parent_descriptors() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            for parent in reversed(parent_directories):
+                if parent.directory_fd is None:
+                    continue
+                try:
+                    os.close(parent.directory_fd)
+                except BaseException as exc:
+                    exc.add_note(
+                        f"while closing release parent descriptor: {parent.path}"
+                    )
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        def cleanup_release_directories() -> list[BaseException]:
+            cleanup_errors: list[BaseException] = []
+            cleanup_phases = (
+                cleanup_child_directories,
+                close_child_descriptors,
+                cleanup_parent_directories,
+                close_parent_descriptors,
+            )
+            for cleanup_phase in cleanup_phases:
+                try:
+                    cleanup_errors.extend(cleanup_phase())
+                except BaseException as exc:
+                    cleanup_errors.append(exc)
+            return cleanup_errors
+
+        try:
+            for parent_path in parents:
+                try:
+                    parent_path.mkdir(mode=0o700)
+                except FileExistsError:
+                    parent_identity = _release_test_directory_identity(parent_path)
+                    parent = _ReleaseTestParentDirectory(
+                        path=parent_path,
+                        owned=False,
+                        identity=parent_identity,
+                    )
+                    parent_directories.append(parent)
+                else:
+                    parent = _ReleaseTestParentDirectory(
+                        path=parent_path, owned=True
+                    )
+                    parent_directories.append(parent)
+                    parent.identity = _release_test_directory_identity(parent_path)
+                parent.directory_fd = os.open(
+                    parent.path, _RELEASE_TEST_DIRECTORY_OPEN_FLAGS
+                )
+                descriptor_identity = _release_test_directory_identity_from_state(
+                    os.fstat(parent.directory_fd), parent.path
+                )
+                if descriptor_identity != parent.identity:
+                    raise AssertionError(
+                        f"release parent changed while acquiring ownership: {parent.path}"
+                    )
+
+            for parent in parent_directories:
+                if parent.directory_fd is None:
+                    raise AssertionError(
+                        f"release test parent has no anchored descriptor: {parent.path}"
+                    )
+                for _ in range(128):
+                    child_name = f".qperiapt-release-test-{secrets.token_hex(16)}"
+                    try:
+                        os.mkdir(child_name, mode=0o700, dir_fd=parent.directory_fd)
+                    except FileExistsError:
+                        continue
+                    break
+                else:
+                    raise FileExistsError(
+                        errno.EEXIST,
+                        "could not allocate a unique release test child directory",
+                        str(parent.path),
+                    )
+                child = _ReleaseTestChildDirectory(parent=parent, name=child_name)
+                child_directories.append(child)
+                child.identity = _release_test_directory_identity_at(parent, child_name)
+                child.directory_fd = os.open(
+                    child_name,
+                    _RELEASE_TEST_DIRECTORY_OPEN_FLAGS,
+                    dir_fd=parent.directory_fd,
+                )
+                descriptor_identity = _release_test_directory_identity_from_state(
+                    os.fstat(child.directory_fd), child.path
+                )
+                if descriptor_identity != child.identity:
+                    raise AssertionError(
+                        "release test child changed while acquiring ownership: "
+                        f"{child.path}"
+                    )
+
+            yield tuple(child.path for child in child_directories)
+        except BaseException as operation_error:
+            cleanup_errors = cleanup_release_directories()
+            if cleanup_errors:
+                raise BaseExceptionGroup(
+                    "release test fixture operation and cleanup both failed",
+                    [operation_error, *cleanup_errors],
+                ) from None
+            raise
+        else:
+            cleanup_errors = cleanup_release_directories()
+            if len(cleanup_errors) == 1:
+                raise cleanup_errors[0]
+            if cleanup_errors:
+                raise BaseExceptionGroup(
+                    "multiple release test fixture cleanups failed", cleanup_errors
+                )
+
 
 CONTINUITY_PROOF_INPUTS = {
     "continuity_context_spec_sha256": "docs/continuity/LIFECYCLE_CONTEXT_V1.md",
@@ -74,6 +572,76 @@ HQC_CANDIDATE_PROOF_INPUTS = {
 }
 
 
+def extract_ci_check_job(workflow: str) -> str:
+    check_match = re.search(
+        r"(?ms)^  check:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", workflow
+    )
+    if check_match is None:
+        raise ValueError("CI workflow has no check job")
+    return check_match.group("body")
+
+
+def repository_head() -> str:
+    commit = git_commit(ROOT)
+    if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise AssertionError(f"repository HEAD is not a 40-character commit: {commit}")
+    return commit
+
+
+def validate_ci_check_checkout(check_job: str) -> None:
+    if check_job.lower().count("actions/checkout@") != 1:
+        raise ValueError("CI check job must contain exactly one checkout action")
+    if YAML_ALIAS.search(check_job) is not None:
+        raise ValueError("CI check job must not use YAML aliases")
+
+    lines = check_job.splitlines(keepends=True)
+    checkout_starts = [
+        index
+        for index, line in enumerate(lines)
+        if line.lower().startswith("      - uses: actions/checkout@")
+    ]
+    if len(checkout_starts) != 1:
+        raise ValueError("CI check job must contain one explicit checkout step")
+
+    def step_end(start: int) -> int:
+        end = start + 1
+        while end < len(lines):
+            line = lines[end]
+            if line.startswith("      - ") or (
+                line.strip() and len(line) - len(line.lstrip(" ")) <= 6
+            ):
+                break
+            end += 1
+        return end
+
+    start = checkout_starts[0]
+    checkout_end = step_end(start)
+    checkout_step = "".join(lines[start:checkout_end])
+    if checkout_step != EXPECTED_CHECKOUT_STEP:
+        raise ValueError(
+            "CI check checkout must use the pinned action and exact hardened settings"
+        )
+    provenance_end = step_end(checkout_end)
+    provenance_step = "".join(lines[checkout_end:provenance_end])
+    if provenance_step != EXPECTED_CHECKOUT_PROVENANCE_STEP:
+        raise ValueError(
+            "CI check job must verify checkout provenance immediately after checkout"
+        )
+
+    proof_starts = [
+        index
+        for index, line in enumerate(lines)
+        if line
+        == "      - name: Proof-to-byte manifest and canonical source binding\n"
+    ]
+    if len(proof_starts) != 1:
+        raise ValueError("CI check job must contain one explicit proof-to-byte step")
+    proof_start = proof_starts[0]
+    proof_step = "".join(lines[proof_start : step_end(proof_start)])
+    if proof_step != EXPECTED_PROOF_TO_BYTE_STEP:
+        raise ValueError("CI proof-to-byte step differs from the audited fail-closed form")
+
+
 def format_marker(*states: int) -> str:
     state = proof_to_byte_finalizer.AttestationState.from_values(
         [str(value) for value in states]
@@ -110,10 +678,16 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
                 self.assertEqual(inputs.get(key), actual)
 
-    def test_publish_contract_rejects_shipping_or_research_hqc(self) -> None:
+    def test_publish_contract_fences_research_and_mlkem_provider(self) -> None:
         source = RUST_PUBLISH_SCRIPT.read_text(encoding="utf-8")
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         expected_hash = hashlib.sha256(RUST_PUBLISH_SCRIPT.read_bytes()).hexdigest()
+        expected_contract_hash = hashlib.sha256(
+            RUST_PUBLISH_CONTRACT.read_bytes()
+        ).hexdigest()
+        expected_contract_tests_hash = hashlib.sha256(
+            RUST_PUBLISH_CONTRACT_TESTS.read_bytes()
+        ).hexdigest()
         for token in (
             "pqcrypto-hqc",
             "pqcrypto-internals",
@@ -125,12 +699,32 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertIn(token, source)
         self.assertIn("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS", source)
         self.assertIn("RUST_BACKENDS_INSPECTION_PACKAGE_PASS", source)
-        self.assertIn("cargo package $ALLOW_DIRTY_ARG --locked --no-verify", source)
+        self.assertIn("cargo package $ALLOW_DIRTY_ARG --locked \\", source)
+        self.assertNotIn("--no-verify", source)
         self.assertIn("qperiapt-package-inspection.XXXXXX", source)
         self.assertIn("publishable q-periapt-backends exposes retired hqc feature", source)
+        self.assertIn(
+            'python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"',
+            source,
+        )
+        self.assertIn("mlkem_reference_dependencies", source)
+        self.assertIn("=0.2.3", source)
+        self.assertIn("RUST_MLKEM_PROVIDER_FENCE_PASS", source)
+        self.assertIn("resolved_mlkem_providers", source)
+        self.assertIn('"src/build_support.rs"', source)
+        self.assertIn("from rust_publish_contract import", source)
+        self.assertIn("validate_mlkem_native_build_surface", source)
         self.assertEqual(
             manifest["proof_to_byte_inputs"].get("rust_publish_dry_run_script_sha256"),
             expected_hash,
+        )
+        self.assertEqual(
+            manifest["proof_to_byte_inputs"].get("rust_publish_contract_sha256"),
+            expected_contract_hash,
+        )
+        self.assertEqual(
+            manifest["proof_to_byte_inputs"].get("rust_publish_contract_tests_sha256"),
+            expected_contract_tests_hash,
         )
 
     def test_continuity_diagnostic_is_scoped_fail_closed_and_non_release(self) -> None:
@@ -235,12 +829,15 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_finalizer_freezes_before_domains_and_rechecks_after_them(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        preflight = source.index("# Normalize every active caller-controlled option")
         freeze = source.index("proof_to_byte_finalizer.py freeze")
-        first_domain = source.index('if [ "$REQUIRE_CAMERA_READY" = "1" ]')
-        last_domain = source.index('if [ "$REQUIRE_PERFORMANCE" = "1" ]')
+        first_domain = source.index('test -f "$CAMERA_READY_TRANSCRIPT"')
+        last_domain = source.index('test -f "$PERFORMANCE_PROOF"')
         finalize = source.index("proof_to_byte_finalizer.py finalize")
+        self.assertLess(preflight, freeze)
         self.assertLess(freeze, first_domain)
         self.assertLess(last_domain, finalize)
+        self.assertIn('--expected-git-commit "$EXPECTED_GIT_COMMIT"', source)
         self.assertIn('--expected-git-commit "$FROZEN_GIT_COMMIT"', source)
         self.assertIn('--expected-source-sha256 "$FROZEN_SOURCE_TREE_SHA256"', source)
 
@@ -357,6 +954,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             environment = os.environ.copy()
             environment["PYTHONPATH"] = str(artifact)
             environment["QPERIAPT_TEST_PYC_SENTINEL"] = str(sentinel)
+            environment["GITHUB_SHA"] = TEST_COMMIT
             environment.pop("PYTHONPYCACHEPREFIX", None)
             control = subprocess.run(
                 [sys.executable, "-c", "import proof_manifest"],
@@ -510,6 +1108,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
                     "QPERIAPT_PYTHON_ENV_INITIALIZED": "1",
                     "QPERIAPT_PYTHON_BOOTSTRAP": str(hostile_bootstrap),
                     "QPERIAPT_SKIP_SMOKE": "invalid",
+                    "GITHUB_SHA": TEST_COMMIT,
                 }
             )
             guarded = subprocess.run(
@@ -533,43 +1132,1129 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
 
 class ProofToByteReleaseMarkerTests(unittest.TestCase):
-    def test_invalid_continuity_diagnostic_flag_fails_closed(self) -> None:
-        environment = os.environ.copy()
-        environment["QPERIAPT_SKIP_SMOKE"] = "1"
-        environment["QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC"] = "yes"
-        result = subprocess.run(
-            ["sh", str(PROOF_SCRIPT)],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-            env=environment,
+    def test_every_boolean_flag_fails_before_provenance_and_markers(self) -> None:
+        flags = (
+            "QPERIAPT_SKIP_SMOKE",
+            "QPERIAPT_REQUIRE_FORMAL",
+            "QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC",
+            "QPERIAPT_REQUIRE_APPLE_DEVICE",
+            "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX",
+            "QPERIAPT_REQUIRE_ANDROID_RUNTIME",
+            "QPERIAPT_REQUIRE_PERFORMANCE",
+            "QPERIAPT_REQUIRE_CAMERA_READY",
+            "QPERIAPT_REQUIRE_DEPENDENCY_AUDIT",
+            "QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF",
+            "QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF",
+            "QPERIAPT_ALLOW_DIRTY_PERFORMANCE_PROOF",
         )
-        self.assertEqual(result.returncode, 2)
-        self.assertIn(
-            "QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC must be 0 or 1",
-            result.stderr,
-        )
-        self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+        for flag in flags:
+            with self.subTest(flag=flag):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        flag: "yes",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn(f"{flag} must be 0 or 1", result.stderr)
+                self.assertEqual(result.stdout, "")
 
-    def test_invalid_dirty_android_override_fails_closed(self) -> None:
-        environment = os.environ.copy()
-        environment["QPERIAPT_SKIP_SMOKE"] = "1"
-        environment["QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF"] = "yes"
+    def test_active_configuration_preflight_fails_before_proof_markers(self) -> None:
+        outside = ROOT / "artifact" / "results.json"
+        cases = (
+            (
+                "apple modes are mutually exclusive",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                },
+                "are mutually exclusive",
+            ),
+            (
+                "camera bundle is required",
+                {"QPERIAPT_REQUIRE_CAMERA_READY": "1"},
+                "QPERIAPT_CAMERA_READY_BUNDLE must explicitly name",
+            ),
+            (
+                "camera max age is numeric",
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_MAX_AGE_SECONDS": "tomorrow",
+                },
+                "QPERIAPT_CAMERA_READY_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "camera freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_MAX_AGE_SECONDS": "2",
+                },
+                "fixes camera-ready freshness to 86400 seconds",
+            ),
+            (
+                "apple result directory is contained",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_RESULT_DIR": str(ROOT / "target"),
+                },
+                "QPERIAPT_DEVICE_RESULT_DIR must be under",
+            ),
+            (
+                "apple prefix is canonical",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_ARTIFACT_PREFIX": "../ipad",
+                },
+                "invalid QPERIAPT_DEVICE_ARTIFACT_PREFIX",
+            ),
+            (
+                "apple prefix cannot be explicitly empty",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_ARTIFACT_PREFIX": "",
+                },
+                "invalid QPERIAPT_DEVICE_ARTIFACT_PREFIX",
+            ),
+            (
+                "apple device type is recognized",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_EXPECT_DEVICE_TYPE": "Mac",
+                },
+                "invalid QPERIAPT_EXPECT_DEVICE_TYPE",
+            ),
+            (
+                "apple max age is bounded",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS": "0",
+                },
+                "QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "apple release freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes Apple proof freshness to 86400 seconds",
+            ),
+            (
+                "matrix proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                    "QPERIAPT_DEVICE_MATRIX_PROOF": str(outside),
+                },
+                "QPERIAPT_DEVICE_MATRIX_PROOF must be under",
+            ),
+            (
+                "android proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(outside),
+                },
+                "QPERIAPT_ANDROID_DEVICE_PROOF must be under",
+            ),
+            (
+                "android device kind is recognized",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
+                },
+                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+            ),
+            (
+                "android max age is bounded",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "604801",
+                },
+                "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "performance proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF": str(outside),
+                },
+                "QPERIAPT_PERFORMANCE_PROOF must be under",
+            ),
+            (
+                "performance max age is numeric",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "1.5",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "performance release freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes performance proof freshness to 86400 seconds",
+            ),
+            (
+                "later active gate fails before any gate starts",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes performance proof freshness to 86400 seconds",
+            ),
+            (
+                "freshness rejects non-ASCII digits",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "１２",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "freshness error is bounded",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "9" * 10_000,
+                },
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+        )
+        for label, overrides, expected_error in cases:
+            with self.subTest(label=label):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        "QPERIAPT_SKIP_SMOKE": "1",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                        **overrides,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn(expected_error, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertLess(len(result.stderr), 1024)
+
+        with _temporary_release_test_directories(
+            (ROOT / "artifact" / "device-runs", ROOT / "target")
+        ) as (device_temporary, target_temporary):
+            device_loop = device_temporary / "loop"
+            performance_loop = target_temporary / "loop"
+            device_loop.symlink_to(device_loop)
+            performance_loop.symlink_to(performance_loop)
+            loop_cases = (
+                (
+                    {
+                        "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                        "QPERIAPT_DEVICE_RESULT_DIR": str(device_loop),
+                    },
+                    "QPERIAPT_DEVICE_RESULT_DIR",
+                ),
+                (
+                    {
+                        "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                        "QPERIAPT_PERFORMANCE_PROOF": str(performance_loop),
+                    },
+                    "QPERIAPT_PERFORMANCE_PROOF",
+                ),
+            )
+            for overrides, expected_error in loop_cases:
+                with self.subTest(symlink_loop=expected_error):
+                    environment = {
+                        name: value
+                        for name, value in os.environ.items()
+                        if not name.startswith("QPERIAPT_")
+                    }
+                    environment.update(
+                        {
+                            "QPERIAPT_SKIP_SMOKE": "1",
+                            "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                            "GITHUB_SHA": TEST_COMMIT,
+                            **overrides,
+                        }
+                    )
+                    result = subprocess.run(
+                        ["sh", str(PROOF_SCRIPT)],
+                        cwd=ROOT,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                        env=environment,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn(expected_error, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_release_test_directories_have_safe_owned_lifecycles(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+
+            fresh = (root / "fresh-device", root / "fresh-target")
+            with _temporary_release_test_directories(fresh) as children:
+                self.assertTrue(all(child.is_dir() for child in children))
+            self.assertTrue(all(not os.path.lexists(parent) for parent in fresh))
+
+            preexisting = (root / "existing-device", root / "existing-target")
+            sentinels = []
+            for parent in preexisting:
+                parent.mkdir()
+                sentinel = parent / "sentinel"
+                sentinel.write_text("owned by caller\n", encoding="utf-8")
+                sentinels.append(sentinel)
+            with _temporary_release_test_directories(preexisting):
+                pass
+            self.assertTrue(all(parent.is_dir() for parent in preexisting))
+            self.assertTrue(all(sentinel.is_file() for sentinel in sentinels))
+
+            unsafe_target = root / "unsafe-target"
+            unsafe_target.mkdir()
+            unsafe_symlink = root / "unsafe-symlink"
+            unsafe_symlink.symlink_to(unsafe_target, target_is_directory=True)
+            with self.assertRaisesRegex(
+                AssertionError, "release test path must be a real directory"
+            ):
+                with _temporary_release_test_directories((unsafe_symlink,)):
+                    pass
+            self.assertEqual(list(unsafe_target.iterdir()), [])
+
+            unsafe_file = root / "unsafe-file"
+            unsafe_file.write_text("not a directory\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                AssertionError, "release test path must be a real directory"
+            ):
+                with _temporary_release_test_directories((unsafe_file,)):
+                    pass
+            self.assertEqual(
+                unsafe_file.read_text(encoding="utf-8"), "not a directory\n"
+            )
+
+            exceptional = (root / "exception-device", root / "exception-target")
+            with self.assertRaisesRegex(RuntimeError, "synthetic fixture failure"):
+                with _temporary_release_test_directories(exceptional):
+                    raise RuntimeError("synthetic fixture failure")
+            self.assertTrue(all(not os.path.lexists(parent) for parent in exceptional))
+
+            partial = (root / "partial-device", root / "partial-unsafe-target")
+            partial[1].write_text("owned by caller\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                AssertionError, "release test path must be a real directory"
+            ):
+                with _temporary_release_test_directories(partial):
+                    pass
+            self.assertFalse(os.path.lexists(partial[0]))
+            self.assertEqual(
+                partial[1].read_text(encoding="utf-8"), "owned by caller\n"
+            )
+
+            external_tree_target = root / "external-tree-target"
+            external_tree_target.mkdir()
+            external_tree_sentinel = external_tree_target / "sentinel"
+            external_tree_sentinel.write_text("external data\n", encoding="utf-8")
+            tree_parent = root / "tree-parent"
+            with _temporary_release_test_directories((tree_parent,)) as (child,):
+                nested = child / "nested"
+                nested.mkdir()
+                (nested / "fixture-data").write_text(
+                    "fixture data\n", encoding="utf-8"
+                )
+                (child / "external-link").symlink_to(
+                    external_tree_target, target_is_directory=True
+                )
+            self.assertFalse(os.path.lexists(tree_parent))
+            self.assertEqual(
+                external_tree_sentinel.read_text(encoding="utf-8"),
+                "external data\n",
+            )
+
+    def test_release_test_directory_cleanup_preserves_data_and_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+
+            contaminated = (root / "contaminated-device", root / "contaminated-target")
+            foreign_file = contaminated[1] / "foreign-file"
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent is not empty after cleanup"
+            ):
+                with _temporary_release_test_directories(contaminated):
+                    foreign_file.write_text("external data\n", encoding="utf-8")
+            self.assertFalse(os.path.lexists(contaminated[0]))
+            self.assertEqual(
+                foreign_file.read_text(encoding="utf-8"), "external data\n"
+            )
+            foreign_file.unlink()
+            contaminated[1].rmdir()
+
+            combined = (root / "combined-device", root / "combined-target")
+            combined_foreign_file = combined[1] / "foreign-file"
+            with self.assertRaises(ExceptionGroup) as raised:
+                with _temporary_release_test_directories(combined):
+                    combined_foreign_file.write_text(
+                        "external data\n", encoding="utf-8"
+                    )
+                    raise RuntimeError("synthetic fixture body failure")
+            self.assertEqual(
+                raised.exception.message,
+                "release test fixture operation and cleanup both failed",
+            )
+            self.assertEqual(len(raised.exception.exceptions), 2)
+            body_error, cleanup_error = raised.exception.exceptions
+            self.assertIs(type(body_error), RuntimeError)
+            self.assertEqual(str(body_error), "synthetic fixture body failure")
+            self.assertIs(type(cleanup_error), AssertionError)
+            self.assertEqual(
+                str(cleanup_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{combined[1]}",
+            )
+            self.assertFalse(os.path.lexists(combined[0]))
+            self.assertEqual(
+                combined_foreign_file.read_text(encoding="utf-8"), "external data\n"
+            )
+            combined_foreign_file.unlink()
+            combined[1].rmdir()
+
+            multiply_contaminated = (
+                root / "multiply-contaminated-device",
+                root / "multiply-contaminated-target",
+            )
+            multiply_foreign_files = tuple(
+                parent / "foreign-file" for parent in multiply_contaminated
+            )
+            with self.assertRaises(ExceptionGroup) as multiple_cleanup:
+                with _temporary_release_test_directories(multiply_contaminated):
+                    for foreign_file_path in multiply_foreign_files:
+                        foreign_file_path.write_text(
+                            "external data\n", encoding="utf-8"
+                        )
+            self.assertEqual(
+                multiple_cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(multiple_cleanup.exception.exceptions), 2)
+            for error, parent in zip(
+                multiple_cleanup.exception.exceptions,
+                reversed(multiply_contaminated),
+                strict=True,
+            ):
+                self.assertIs(type(error), AssertionError)
+                self.assertEqual(
+                    str(error),
+                    "test-owned release parent is not empty after cleanup: "
+                    f"{parent}",
+                )
+            for foreign_file_path, parent in zip(
+                multiply_foreign_files, multiply_contaminated, strict=True
+            ):
+                self.assertEqual(
+                    foreign_file_path.read_text(encoding="utf-8"),
+                    "external data\n",
+                )
+                foreign_file_path.unlink()
+                parent.rmdir()
+
+            vanished = root / "vanished-parent"
+            vanished_original = root / "vanished-parent-original"
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent disappeared before cleanup"
+            ):
+                with _temporary_release_test_directories((vanished,)):
+                    vanished.rename(vanished_original)
+            self.assertFalse(os.path.lexists(vanished))
+            self.assertEqual(list(vanished_original.iterdir()), [])
+            vanished_original.rmdir()
+
+            replaced = root / "replaced-parent"
+            replaced_original = root / "replaced-parent-original"
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent was replaced before cleanup"
+            ):
+                with _temporary_release_test_directories((replaced,)):
+                    replaced.rename(replaced_original)
+                    replaced.mkdir()
+            self.assertTrue(replaced.is_dir())
+            self.assertEqual(list(replaced_original.iterdir()), [])
+            replaced.rmdir()
+            replaced_original.rmdir()
+
+            aba_replaced = root / "aba-replaced-parent"
+            with self.assertRaises(ExceptionGroup) as aba_cleanup:
+                with _temporary_release_test_directories((aba_replaced,)) as (child,):
+                    child.rmdir()
+                    aba_replaced.rmdir()
+                    aba_replaced.mkdir()
+            self.assertEqual(
+                aba_cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(aba_cleanup.exception.exceptions), 2)
+            child_error, parent_error = aba_cleanup.exception.exceptions
+            self.assertIs(type(child_error), AssertionError)
+            self.assertIn(
+                "test-owned release child disappeared before cleanup", str(child_error)
+            )
+            self.assertIs(type(parent_error), AssertionError)
+            self.assertEqual(
+                str(parent_error),
+                "test-owned release parent was replaced before cleanup: "
+                f"{aba_replaced}",
+            )
+            self.assertTrue(aba_replaced.is_dir())
+            aba_replaced.rmdir()
+
+            symlink_replaced = root / "symlink-replaced-parent"
+            symlink_original = root / "symlink-replaced-parent-original"
+            external_target = root / "external-target"
+            external_target.mkdir()
+            external_payload: pathlib.Path
+            with self.assertRaisesRegex(
+                AssertionError, "test-owned release parent was replaced before cleanup"
+            ):
+                with _temporary_release_test_directories((symlink_replaced,)) as (
+                    child,
+                ):
+                    symlink_replaced.rename(symlink_original)
+                    external_child = external_target / child.name
+                    external_child.mkdir()
+                    external_payload = external_child / "foreign-data"
+                    external_payload.write_text(
+                        "must survive cleanup\n", encoding="utf-8"
+                    )
+                    symlink_replaced.symlink_to(
+                        external_target, target_is_directory=True
+                    )
+            self.assertEqual(
+                external_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertEqual(list(symlink_original.iterdir()), [])
+            symlink_replaced.unlink()
+            external_payload.unlink()
+            external_payload.parent.rmdir()
+            external_target.rmdir()
+            symlink_original.rmdir()
+
+            preexisting_replaced = root / "preexisting-replaced-parent"
+            preexisting_original = root / "preexisting-replaced-parent-original"
+            preexisting_external = root / "preexisting-external-target"
+            preexisting_replaced.mkdir()
+            preexisting_sentinel = preexisting_replaced / "caller-sentinel"
+            preexisting_sentinel.write_text("caller data\n", encoding="utf-8")
+            preexisting_external.mkdir()
+            preexisting_payload: pathlib.Path
+            with self.assertRaisesRegex(
+                AssertionError, "release parent was replaced before cleanup"
+            ):
+                with _temporary_release_test_directories((preexisting_replaced,)) as (
+                    child,
+                ):
+                    preexisting_replaced.rename(preexisting_original)
+                    preexisting_external_child = preexisting_external / child.name
+                    preexisting_external_child.mkdir()
+                    preexisting_payload = (
+                        preexisting_external_child / "foreign-data"
+                    )
+                    preexisting_payload.write_text(
+                        "must survive cleanup\n", encoding="utf-8"
+                    )
+                    preexisting_replaced.symlink_to(
+                        preexisting_external, target_is_directory=True
+                    )
+            self.assertEqual(
+                preexisting_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertEqual(
+                (preexisting_original / preexisting_sentinel.name).read_text(
+                    encoding="utf-8"
+                ),
+                "caller data\n",
+            )
+            self.assertEqual(
+                list(preexisting_original.iterdir()),
+                [preexisting_original / preexisting_sentinel.name],
+            )
+            preexisting_replaced.unlink()
+            preexisting_payload.unlink()
+            preexisting_payload.parent.rmdir()
+            preexisting_external.rmdir()
+            (preexisting_original / preexisting_sentinel.name).unlink()
+            preexisting_original.rmdir()
+
+            child_replaced_parent = root / "child-replaced-parent"
+            child_replacement_payload: pathlib.Path
+            original_child: pathlib.Path
+            with self.assertRaises(ExceptionGroup) as child_replacement_cleanup:
+                with _temporary_release_test_directories(
+                    (child_replaced_parent,)
+                ) as (child,):
+                    original_child = child.with_name(f"{child.name}-original")
+                    child.rename(original_child)
+                    child.mkdir()
+                    child_replacement_payload = child / "foreign-data"
+                    child_replacement_payload.write_text(
+                        "must survive cleanup\n", encoding="utf-8"
+                    )
+            self.assertEqual(
+                child_replacement_cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(child_replacement_cleanup.exception.exceptions), 2)
+            child_replacement_error, child_parent_error = (
+                child_replacement_cleanup.exception.exceptions
+            )
+            self.assertIs(type(child_replacement_error), AssertionError)
+            self.assertIn(
+                "test-owned release child was replaced before cleanup",
+                str(child_replacement_error),
+            )
+            self.assertIs(type(child_parent_error), AssertionError)
+            self.assertEqual(
+                str(child_parent_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{child_replaced_parent}",
+            )
+            self.assertEqual(
+                child_replacement_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertTrue(original_child.is_dir())
+            child_replacement_payload.unlink()
+            child_replacement_payload.parent.rmdir()
+            original_child.rmdir()
+            child_replaced_parent.rmdir()
+
+    def test_release_test_child_cleanup_revalidates_after_clearing(self) -> None:
+        replacement_paths: list[pathlib.Path] = []
+
+        def replace_child_after_clear(
+            directory_fd: int, child_path: pathlib.Path
+        ) -> list[BaseException]:
+            self.assertEqual(os.listdir(directory_fd), [])
+            original_child = child_path.with_name(f"{child_path.name}-original")
+            child_path.rename(original_child)
+            child_path.mkdir()
+            replacement_payload = child_path / "foreign-data"
+            replacement_payload.write_text(
+                "must survive cleanup\n", encoding="utf-8"
+            )
+            replacement_paths.extend((original_child, replacement_payload))
+            return []
+
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = pathlib.Path(temporary) / "check-use-parent"
+            with mock.patch.object(
+                sys.modules[__name__],
+                "_clear_release_test_directory_contents",
+                side_effect=replace_child_after_clear,
+            ) as clear_contents:
+                with self.assertRaises(ExceptionGroup) as cleanup:
+                    with _temporary_release_test_directories((parent,)):
+                        pass
+            clear_contents.assert_called_once()
+            self.assertEqual(len(replacement_paths), 2)
+            original_child, replacement_payload = replacement_paths
+            self.assertEqual(
+                cleanup.exception.message,
+                "multiple release test fixture cleanups failed",
+            )
+            self.assertEqual(len(cleanup.exception.exceptions), 2)
+            child_error, parent_error = cleanup.exception.exceptions
+            self.assertIs(type(child_error), AssertionError)
+            self.assertIn(
+                "test-owned release child was replaced before cleanup",
+                str(child_error),
+            )
+            self.assertIs(type(parent_error), AssertionError)
+            self.assertEqual(
+                str(parent_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{parent}",
+            )
+            self.assertEqual(
+                replacement_payload.read_text(encoding="utf-8"),
+                "must survive cleanup\n",
+            )
+            self.assertTrue(original_child.is_dir())
+            replacement_payload.unlink()
+            replacement_payload.parent.rmdir()
+            original_child.rmdir()
+            parent.rmdir()
+
+    def test_release_test_unexpected_cleanup_errors_still_close_resources(self) -> None:
+        descriptor_directory = pathlib.Path("/proc/self/fd")
+        if not descriptor_directory.is_dir():
+            descriptor_directory = pathlib.Path("/dev/fd")
+        self.assertTrue(descriptor_directory.is_dir())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = pathlib.Path(temporary) / "unexpected-cleanup-parent"
+            descriptor_count_before = len(os.listdir(descriptor_directory))
+            child: pathlib.Path
+            with mock.patch.object(
+                sys.modules[__name__],
+                "_clear_release_test_directory_contents",
+                side_effect=RuntimeError("synthetic unexpected cleanup failure"),
+            ):
+                with self.assertRaises(ExceptionGroup) as cleanup:
+                    with _temporary_release_test_directories((parent,)) as (
+                        child,
+                    ):
+                        raise ValueError("synthetic fixture body failure")
+            descriptor_count_after = len(os.listdir(descriptor_directory))
+            self.assertEqual(descriptor_count_after, descriptor_count_before)
+            self.assertEqual(
+                cleanup.exception.message,
+                "release test fixture operation and cleanup both failed",
+            )
+            self.assertEqual(len(cleanup.exception.exceptions), 3)
+            body_error, unexpected_error, parent_error = cleanup.exception.exceptions
+            self.assertIs(type(body_error), ValueError)
+            self.assertEqual(str(body_error), "synthetic fixture body failure")
+            self.assertIs(type(unexpected_error), RuntimeError)
+            self.assertEqual(
+                str(unexpected_error), "synthetic unexpected cleanup failure"
+            )
+            self.assertIs(type(parent_error), AssertionError)
+            self.assertEqual(
+                str(parent_error),
+                "test-owned release parent is not empty after cleanup: "
+                f"{parent}",
+            )
+            self.assertTrue(child.is_dir())
+            child.rmdir()
+            parent.rmdir()
+
+    def test_release_test_close_interrupts_do_not_skip_later_descriptors(self) -> None:
+        descriptor_directory = pathlib.Path("/proc/self/fd")
+        if not descriptor_directory.is_dir():
+            descriptor_directory = pathlib.Path("/dev/fd")
+        self.assertTrue(descriptor_directory.is_dir())
+
+        real_close = os.close
+        close_call_count = 0
+
+        def close_then_interrupt(directory_fd: int) -> None:
+            nonlocal close_call_count
+            real_close(directory_fd)
+            close_call_count += 1
+            if close_call_count == 1:
+                raise KeyboardInterrupt("synthetic close interruption")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            parents = (root / "close-device", root / "close-target")
+            descriptor_count_before = len(os.listdir(descriptor_directory))
+            with mock.patch.object(os, "close", side_effect=close_then_interrupt):
+                with self.assertRaises(BaseExceptionGroup) as cleanup:
+                    with _temporary_release_test_directories(parents):
+                        raise ValueError("synthetic fixture body failure")
+            descriptor_count_after = len(os.listdir(descriptor_directory))
+            self.assertEqual(descriptor_count_after, descriptor_count_before)
+            self.assertEqual(close_call_count, 4)
+            self.assertEqual(
+                cleanup.exception.message,
+                "release test fixture operation and cleanup both failed",
+            )
+            self.assertEqual(len(cleanup.exception.exceptions), 2)
+            body_error, close_error = cleanup.exception.exceptions
+            self.assertIs(type(body_error), ValueError)
+            self.assertEqual(str(body_error), "synthetic fixture body failure")
+            self.assertIs(type(close_error), KeyboardInterrupt)
+            self.assertEqual(str(close_error), "synthetic close interruption")
+            self.assertTrue(all(not os.path.lexists(parent) for parent in parents))
+
+    def test_release_test_directory_lock_serializes_processes(self) -> None:
+        worker = """
+import errno
+import fcntl
+import pathlib
+import sys
+import time
+
+from test_proof_to_byte_release import (
+    __file__ as fixture_module,
+    _temporary_release_test_directories,
+)
+
+parents = (pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]))
+attempting = pathlib.Path(sys.argv[3])
+blocked = pathlib.Path(sys.argv[4])
+entered = pathlib.Path(sys.argv[5])
+release = pathlib.Path(sys.argv[6])
+probe_required = sys.argv[7]
+if probe_required not in {"0", "1"}:
+    raise SystemExit("invalid lock probe mode")
+attempting.write_text("attempting\\n", encoding="utf-8")
+if probe_required == "1":
+    with pathlib.Path(fixture_module).resolve().open("rb") as probe_handle:
+        try:
+            fcntl.flock(probe_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            if exc.errno not in {errno.EACCES, errno.EAGAIN}:
+                raise
+        else:
+            fcntl.flock(probe_handle.fileno(), fcntl.LOCK_UN)
+            raise SystemExit("release fixture lock was not held")
+    blocked.write_text("blocked\\n", encoding="utf-8")
+with _temporary_release_test_directories(parents):
+    entered.write_text("entered\\n", encoding="utf-8")
+    deadline = time.monotonic() + 10
+    while not release.exists():
+        if time.monotonic() >= deadline:
+            raise SystemExit("timed out waiting for fixture release")
+        time.sleep(0.01)
+"""
+
+        def wait_for(path: pathlib.Path) -> None:
+            deadline = time.monotonic() + 10
+            while not path.exists():
+                if time.monotonic() >= deadline:
+                    self.fail(f"timed out waiting for subprocess marker: {path.name}")
+                time.sleep(0.01)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            parents = (root / "device-runs", root / "target")
+            attempting = (root / "first-attempting", root / "second-attempting")
+            second_blocked = root / "second-blocked"
+            entered = (root / "first-entered", root / "second-entered")
+            release = (root / "release-first", root / "release-second")
+            processes: list[subprocess.Popen[str]] = []
+            try:
+                first = subprocess.Popen(
+                    [
+                        "sh",
+                        str(ROOT / "artifact" / "python-run.sh"),
+                        "-c",
+                        worker,
+                        *(str(parent) for parent in parents),
+                        str(attempting[0]),
+                        str(second_blocked),
+                        str(entered[0]),
+                        str(release[0]),
+                        "0",
+                    ],
+                    cwd=ROOT,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                processes.append(first)
+                wait_for(attempting[0])
+                wait_for(entered[0])
+
+                second = subprocess.Popen(
+                    [
+                        "sh",
+                        str(ROOT / "artifact" / "python-run.sh"),
+                        "-c",
+                        worker,
+                        *(str(parent) for parent in parents),
+                        str(attempting[1]),
+                        str(second_blocked),
+                        str(entered[1]),
+                        str(release[1]),
+                        "1",
+                    ],
+                    cwd=ROOT,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                processes.append(second)
+                wait_for(attempting[1])
+                wait_for(second_blocked)
+                self.assertFalse(
+                    entered[1].exists(),
+                    "second process entered the locked fixture concurrently",
+                )
+
+                release[0].write_text("release\n", encoding="utf-8")
+                first_stdout, first_stderr = first.communicate(timeout=10)
+                self.assertEqual(first.returncode, 0, first_stderr or first_stdout)
+                wait_for(entered[1])
+                release[1].write_text("release\n", encoding="utf-8")
+                second_stdout, second_stderr = second.communicate(timeout=10)
+                self.assertEqual(second.returncode, 0, second_stderr or second_stdout)
+                self.assertTrue(
+                    all(not os.path.lexists(parent) for parent in parents)
+                )
+            finally:
+                for marker in release:
+                    marker.touch(exist_ok=True)
+                for process in processes:
+                    if process.poll() is None:
+                        process.kill()
+                    process.communicate()
+
+    def test_required_tools_are_checked_before_proof_markers(self) -> None:
+        environment = {
+            name: value
+            for name, value in os.environ.items()
+            if not name.startswith("QPERIAPT_")
+        }
+        environment.update(
+            {
+                "HOME": "",
+                "PATH": "/nonexistent",
+                "QPERIAPT_SKIP_SMOKE": "1",
+                "QPERIAPT_REQUIRE_FORMAL": "1",
+                "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                "GITHUB_SHA": TEST_COMMIT,
+            }
+        )
         result = subprocess.run(
-            ["sh", str(PROOF_SCRIPT)],
+            ["/bin/sh", str(PROOF_SCRIPT)],
             cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,
             env=environment,
         )
-        self.assertEqual(result.returncode, 2)
-        self.assertIn(
-            "QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF must be 0 or 1",
-            result.stderr,
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("required tool not found: make", result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_preflight_errors_escape_caller_controlled_values(self) -> None:
+        hostile_value = "invalid\n::warning::injected\x1b[31m"
+        cases = (
+            {
+                "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": hostile_value,
+            },
+            {
+                "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                "QPERIAPT_DEVICE_ARTIFACT_PREFIX": hostile_value,
+            },
+            {
+                "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                "QPERIAPT_EXPECT_DEVICE_TYPE": hostile_value,
+            },
+            {
+                "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": hostile_value,
+            },
         )
-        self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        "QPERIAPT_SKIP_SMOKE": "1",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                        **overrides,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("\n::warning::injected", result.stderr)
+                self.assertNotIn("\x1b", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertLess(len(result.stderr), 1024)
+
+        path_cases = (
+            (
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_TRANSCRIPT": "",
+                },
+                "QPERIAPT_CAMERA_READY_TRANSCRIPT",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": "",
+                },
+                "QPERIAPT_CAMERA_READY_BUNDLE",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_RESULT_DIR": "",
+                },
+                "QPERIAPT_DEVICE_RESULT_DIR",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                    "QPERIAPT_DEVICE_MATRIX_PROOF": "",
+                },
+                "QPERIAPT_DEVICE_MATRIX_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_DEVICE_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF": "",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF",
+            ),
+        )
+        hostile_paths = (
+            "invalid\n::warning::injected\x1b[31m",
+            "invalid\N{RIGHT-TO-LEFT OVERRIDE}path",
+            "x" * 10_000,
+        )
+        for template, expected_label in path_cases:
+            for hostile_path in hostile_paths:
+                with self.subTest(path=expected_label, hostile_path=hostile_path):
+                    overrides = {
+                        name: hostile_path if value == "" else value
+                        for name, value in template.items()
+                    }
+                    environment = {
+                        name: value
+                        for name, value in os.environ.items()
+                        if not name.startswith("QPERIAPT_")
+                    }
+                    environment.update(
+                        {
+                            "QPERIAPT_SKIP_SMOKE": "1",
+                            "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                            "GITHUB_SHA": TEST_COMMIT,
+                            **overrides,
+                        }
+                    )
+                    result = subprocess.run(
+                        ["sh", str(PROOF_SCRIPT)],
+                        cwd=ROOT,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                        env=environment,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn(
+                        f"{expected_label} must be a non-empty printable path of at most 4095 filesystem bytes",
+                        result.stderr,
+                    )
+                    self.assertNotIn("\n::warning::injected", result.stderr)
+                    self.assertNotIn("\x1b", result.stderr)
+                    self.assertNotIn("\N{RIGHT-TO-LEFT OVERRIDE}", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+                    self.assertLess(len(result.stderr), 1024)
+
+        empty_path_cases = (
+            (
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_TRANSCRIPT": "",
+                },
+                "QPERIAPT_CAMERA_READY_TRANSCRIPT",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_RESULT_DIR": "",
+                },
+                "QPERIAPT_DEVICE_RESULT_DIR",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                    "QPERIAPT_DEVICE_MATRIX_PROOF": "",
+                },
+                "QPERIAPT_DEVICE_MATRIX_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_DEVICE_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF": "",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF",
+            ),
+        )
+        for overrides, expected_label in empty_path_cases:
+            with self.subTest(empty_path=expected_label):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        "QPERIAPT_SKIP_SMOKE": "1",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                        **overrides,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{expected_label} must be a non-empty printable path of at most 4095 filesystem bytes",
+                    result.stderr,
+                )
+                self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
 
     def test_clean_complete_state_requires_real_dependency_audit_pass(self) -> None:
         marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
@@ -674,6 +2359,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             ),
             mock.patch.object(
                 proof_to_byte_finalizer,
+                "validate_release_metadata",
+                return_value=(TEST_COMMIT, "e" * 64),
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
                 "verify_claim_ledger",
                 return_value=TEST_SOURCE_SHA256,
             ),
@@ -701,6 +2391,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 proof_to_byte_finalizer,
                 "git_commit",
                 side_effect=[TEST_COMMIT, TEST_COMMIT],
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
+                "validate_release_metadata",
+                return_value=(TEST_COMMIT, "e" * 64),
             ),
             mock.patch.object(
                 proof_to_byte_finalizer,
@@ -732,6 +2427,11 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             ),
             mock.patch.object(
                 proof_to_byte_finalizer,
+                "validate_release_metadata",
+                return_value=(TEST_COMMIT, "e" * 64),
+            ),
+            mock.patch.object(
+                proof_to_byte_finalizer,
                 "verify_claim_ledger",
                 return_value=TEST_SOURCE_SHA256,
             ),
@@ -755,6 +2455,197 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     expected_dirty=False,
                 )
 
+    def test_release_metadata_binds_snapshot_commit_and_footprint_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            paper = root / "paper"
+            paper.mkdir()
+            footprint = paper / "footprint.csv"
+            footprint.write_text(
+                "# generated footprint\n"
+                "host,rustc,artifact,bytes,kib\n"
+                "Darwin 27.0.0 arm64,1.96.0,c-abi-cdylib-stripped,683800,667.8\n"
+                "Darwin 27.0.0 arm64,1.96.0,wasm-lean-default,100034,97.7\n"
+                "Darwin 27.0.0 arm64,1.96.0,wasm-signed-policy,340625,332.6\n",
+                encoding="utf-8",
+            )
+            expected, footprint_sha256 = proof_to_byte_finalizer._load_footprint_csv(
+                footprint
+            )
+            self.assertEqual(expected["platform"], "Darwin 27.0.0 arm64, rustc 1.96.0")
+            self.assertEqual(
+                expected["c_abi_cdylib_stripped"],
+                {"bytes": 683800, "kib": 667.8},
+            )
+            document = {
+                "provenance": {"snapshot_commit": TEST_COMMIT},
+                "footprint_bytes": expected,
+            }
+            manifest_snapshot = mock.Mock(value=document)
+            with (
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "load_results_manifest_snapshot",
+                    return_value=manifest_snapshot,
+                ),
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "require_commit_or_evidence_successor",
+                ) as require_successor,
+            ):
+                self.assertEqual(
+                    proof_to_byte_finalizer.validate_release_metadata(
+                        root,
+                        root / "artifact" / "results.json",
+                        TEST_MANIFEST_SHA256,
+                    ),
+                    (TEST_COMMIT, footprint_sha256),
+                )
+                require_successor.assert_called_once_with(root, TEST_COMMIT)
+
+                document["footprint_bytes"] = dict(expected)
+                document["footprint_bytes"]["wasm_lean_default"] = {
+                    "bytes": 100035,
+                    "kib": 97.7,
+                }
+                with self.assertRaisesRegex(
+                    proof_to_byte_finalizer.FinalizerError,
+                    "footprint_bytes differs",
+                ):
+                    proof_to_byte_finalizer.validate_release_metadata(
+                        root,
+                        root / "artifact" / "results.json",
+                        TEST_MANIFEST_SHA256,
+                    )
+
+    def test_footprint_csv_rejects_duplicate_and_inconsistent_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            footprint = pathlib.Path(temporary) / "footprint.csv"
+            footprint.write_text(
+                "host,rustc,artifact,bytes,kib\n"
+                "host,1.96.0,c-abi-cdylib-stripped,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,1024,1.0\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "unknown or duplicate artifact",
+            ):
+                proof_to_byte_finalizer._load_footprint_csv(footprint)
+
+            footprint.write_text(
+                "host,rustc,artifact,bytes,kib\n"
+                "host,1.96.0,c-abi-cdylib-stripped,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,1024,1.0\n"
+                "other,1.96.0,wasm-signed-policy,1024,1.0\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "share one host",
+            ):
+                proof_to_byte_finalizer._load_footprint_csv(footprint)
+
+    def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            footprint = pathlib.Path(temporary) / "footprint.csv"
+            trailing_rows = (
+                "host,1.96.0,wasm-lean-default,1024,1.0\n"
+                "host,1.96.0,wasm-signed-policy,1024,1.0\n"
+            )
+            cases = (
+                (
+                    "9" * 5000,
+                    "1.0",
+                    r"artifact 'c-abi-cdylib-stripped' field 'bytes' exceeds",
+                ),
+                (
+                    "1024",
+                    "1.1",
+                    r"artifact 'c-abi-cdylib-stripped' field 'kib' differs from bytes",
+                ),
+            )
+            for raw_bytes, raw_kib, message in cases:
+                with self.subTest(message=message):
+                    footprint.write_text(
+                        "host,rustc,artifact,bytes,kib\n"
+                        f"host,1.96.0,c-abi-cdylib-stripped,{raw_bytes},{raw_kib}\n"
+                        + trailing_rows,
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(
+                        proof_to_byte_finalizer.FinalizerError,
+                        message,
+                    ):
+                        proof_to_byte_finalizer._load_footprint_csv(footprint)
+
+    def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            paper = root / "paper"
+            paper.mkdir()
+            footprint = paper / "footprint.csv"
+            footprint.write_text(
+                "host,rustc,artifact,bytes,kib\n"
+                "host,1.96.0,c-abi-cdylib-stripped,1024,1.0\n"
+                "host,1.96.0,wasm-lean-default,2048,2.0\n"
+                "host,1.96.0,wasm-signed-policy,3072,3.0\n",
+                encoding="utf-8",
+            )
+            expected, _ = proof_to_byte_finalizer._load_footprint_csv(footprint)
+            document = {
+                "provenance": {"snapshot_commit": TEST_COMMIT},
+                "footprint_bytes": expected,
+            }
+            manifest_snapshot = mock.Mock(value=document)
+            with (
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "load_results_manifest_snapshot",
+                    return_value=manifest_snapshot,
+                ),
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "require_commit_or_evidence_successor",
+                ),
+            ):
+                invalid_cases = (
+                    (
+                        lambda value: value.update({"unexpected": {}}),
+                        "footprint_bytes fields differ.*extra=\\['unexpected'\\]",
+                    ),
+                    (
+                        lambda value: value["wasm_lean_default"].update(
+                            {"unexpected": 0}
+                        ),
+                        "entry 'wasm_lean_default' fields differ.*unexpected",
+                    ),
+                    (
+                        lambda value: value["wasm_lean_default"].update(
+                            {"bytes": True}
+                        ),
+                        "entry 'wasm_lean_default' field 'bytes' must be an integer",
+                    ),
+                    (
+                        lambda value: value["wasm_lean_default"].update({"kib": 2}),
+                        "entry 'wasm_lean_default' field 'kib' must be a finite JSON float",
+                    ),
+                )
+                for mutate, message in invalid_cases:
+                    with self.subTest(message=message):
+                        document["footprint_bytes"] = copy.deepcopy(expected)
+                        mutate(document["footprint_bytes"])
+                        with self.assertRaisesRegex(
+                            proof_to_byte_finalizer.FinalizerError,
+                            message,
+                        ):
+                            proof_to_byte_finalizer.validate_release_metadata(
+                                root,
+                                root / "artifact" / "results.json",
+                                TEST_MANIFEST_SHA256,
+                            )
+
     def test_audit_pass_state_is_set_only_after_warning_denied_command(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         initial = source.index("DEPENDENCY_AUDIT_PASSED=0")
@@ -771,6 +2662,242 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         self.assertIn("- run: cargo audit --deny warnings", workflow)
         self.assertNotIn("cargo audit --deny warnings ||", workflow)
         self.assertNotIn("cargo audit --ignore", workflow)
+
+    def test_ci_check_fetches_full_history_for_evidence_successors(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        validate_ci_check_checkout(extract_ci_check_job(workflow))
+
+    def test_ci_checkout_mutations_fail_closed(self) -> None:
+        check_job = extract_ci_check_job(CI_WORKFLOW.read_text(encoding="utf-8"))
+        mutations = {
+            "unpinned action": check_job.replace(
+                PINNED_CHECKOUT_ACTION,
+                "actions/checkout@main",
+                1,
+            ),
+            "ref override": check_job.replace(
+                "          fetch-depth: 0\n",
+                "          fetch-depth: 0\n          ref: deadbeef\n",
+                1,
+            ),
+            "repository override": check_job.replace(
+                "          fetch-depth: 0\n",
+                "          fetch-depth: 0\n          repository: other/project\n",
+                1,
+            ),
+            "duplicate with": check_job.replace(
+                "          fetch-depth: 0\n",
+                "          fetch-depth: 0\n        with:\n          ref: deadbeef\n",
+                1,
+            ),
+            "missing provenance check": check_job.replace(
+                EXPECTED_CHECKOUT_PROVENANCE_STEP,
+                "",
+                1,
+            ),
+            "non-blocking provenance check": check_job.replace(
+                EXPECTED_CHECKOUT_PROVENANCE_STEP,
+                EXPECTED_CHECKOUT_PROVENANCE_STEP
+                + "        continue-on-error: true\n",
+                1,
+            ),
+            "post-check provenance mutation": check_job.replace(
+                EXPECTED_CHECKOUT_PROVENANCE_STEP,
+                EXPECTED_CHECKOUT_PROVENANCE_STEP
+                + "          git checkout --detach HEAD^\n",
+                1,
+            ),
+            "non-blocking proof": check_job.replace(
+                EXPECTED_PROOF_TO_BYTE_STEP,
+                EXPECTED_PROOF_TO_BYTE_STEP + "        continue-on-error: true\n",
+                1,
+            ),
+            "conditional proof": check_job.replace(
+                EXPECTED_PROOF_TO_BYTE_STEP,
+                EXPECTED_PROOF_TO_BYTE_STEP + "        if: failure()\n",
+                1,
+            ),
+            "PR head instead of tested merge commit": check_job.replace(
+                EXPECTED_PROOF_TO_BYTE_STEP,
+                EXPECTED_PROOF_TO_BYTE_STEP.replace(
+                    "${{ github.sha }}",
+                    "${{ github.event.pull_request.head.sha }}",
+                ),
+                1,
+            ),
+            "numeric alias": check_job + "      - uses: *1\n",
+            "hyphen alias": check_job + "      - uses: *-foo\n",
+            "merge alias": check_job + "        <<: *checkout-settings\n",
+            "second checkout": check_job
+            + "      - uses: Actions/Checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n",
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label):
+                with self.assertRaises(ValueError):
+                    validate_ci_check_checkout(mutation)
+
+    def test_freeze_expected_commit_argument_is_optional_and_exact(self) -> None:
+        arguments = [
+            "freeze",
+            "--root",
+            str(ROOT),
+            "--ledger",
+            str(ROOT / "artifact" / "claim-ledger.json"),
+            "--manifest",
+            str(ROOT / "artifact" / "results.json"),
+            "--expected-manifest-sha256",
+            TEST_MANIFEST_SHA256,
+        ]
+        parser = proof_to_byte_finalizer.build_parser()
+        self.assertIsNone(parser.parse_args(arguments).expected_git_commit)
+        self.assertEqual(
+            parser.parse_args(
+                [*arguments, "--expected-git-commit", TEST_COMMIT]
+            ).expected_git_commit,
+            TEST_COMMIT,
+        )
+        snapshot = proof_to_byte_finalizer.SourceSnapshot(
+            commit=TEST_COMMIT,
+            source_sha256=TEST_SOURCE_SHA256,
+            manifest_sha256=TEST_MANIFEST_SHA256,
+            dirty=False,
+        )
+        for expected_commit, extra_arguments in (
+            (None, ()),
+            (TEST_COMMIT, ("--expected-git-commit", TEST_COMMIT)),
+        ):
+            with self.subTest(expected_commit=expected_commit):
+                parsed = parser.parse_args([*arguments, *extra_arguments])
+                with (
+                    mock.patch.object(
+                        proof_to_byte_finalizer,
+                        "capture_source_snapshot",
+                        return_value=snapshot,
+                    ) as capture,
+                    mock.patch("builtins.print") as output,
+                ):
+                    proof_to_byte_finalizer.run(parsed)
+                capture.assert_called_once_with(
+                    ROOT.resolve(),
+                    (ROOT / "artifact" / "claim-ledger.json").resolve(),
+                    (ROOT / "artifact" / "results.json").resolve(),
+                    TEST_MANIFEST_SHA256,
+                    expected_commit=expected_commit,
+                )
+                output.assert_called_once_with(
+                    f"{TEST_COMMIT}:{TEST_SOURCE_SHA256}:0"
+                )
+
+    def test_proof_to_byte_validates_explicit_expected_commit(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("GITHUB_SHA", source)
+
+        def run_with_expected_commit(value: str) -> subprocess.CompletedProcess[str]:
+            environment = {
+                name: current
+                for name, current in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            environment.update(
+                {
+                    "QPERIAPT_SKIP_SMOKE": "1",
+                    "QPERIAPT_EXPECTED_GIT_COMMIT": value,
+                    "GITHUB_SHA": TEST_COMMIT,
+                    "GIT_DIR": str(ROOT / "does-not-exist"),
+                    "GIT_WORK_TREE": str(ROOT / "does-not-exist"),
+                    "GIT_CONFIG_GLOBAL": str(ROOT / "does-not-exist"),
+                    "GIT_NO_REPLACE_OBJECTS": "0",
+                }
+            )
+            return subprocess.run(
+                ["sh", str(PROOF_SCRIPT)],
+                cwd=ROOT,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        for label, malformed in (
+            ("short", "0" * 39),
+            ("long", "0" * 41),
+            ("uppercase", "A" * 40),
+            ("non-hex", "g" * 40),
+        ):
+            with self.subTest(label=label):
+                result = run_with_expected_commit(malformed)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("exactly 40 lowercase hexadecimal", result.stderr)
+                self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+
+        result = run_with_expected_commit("0" * 40)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(
+            "checked-out Git commit does not match expected provenance",
+            result.stderr,
+        )
+        self.assertIn(f"got {repository_head()}", result.stderr)
+        self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            alternate = pathlib.Path(temporary) / "alternate-repository"
+            subprocess.run(
+                ["/usr/bin/git", "init", "-q", str(alternate)],
+                check=True,
+                capture_output=True,
+            )
+            (alternate / "fixture.txt").write_text("alternate\n", encoding="utf-8")
+            subprocess.run(
+                ["/usr/bin/git", "-C", str(alternate), "add", "fixture.txt"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [
+                    "/usr/bin/git",
+                    "-C",
+                    str(alternate),
+                    "-c",
+                    "user.name=Proof Test",
+                    "-c",
+                    "user.email=proof@example.invalid",
+                    "commit",
+                    "-qm",
+                    "alternate",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            alternate_head = git_commit(alternate)
+            self.assertNotEqual(alternate_head, repository_head())
+            environment = {
+                name: value
+                for name, value in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            environment.update(
+                {
+                    "QPERIAPT_SKIP_SMOKE": "1",
+                    "QPERIAPT_EXPECTED_GIT_COMMIT": alternate_head,
+                    "GITHUB_SHA": TEST_COMMIT,
+                    "GIT_DIR": str(alternate / ".git"),
+                    "GIT_WORK_TREE": str(alternate),
+                    "GIT_COMMON_DIR": str(alternate / ".git"),
+                    "GIT_OBJECT_DIRECTORY": str(alternate / ".git" / "objects"),
+                }
+            )
+            spoofed = subprocess.run(
+                ["sh", str(PROOF_SCRIPT)],
+                cwd=ROOT,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(spoofed.returncode, 2, spoofed.stderr)
+            self.assertIn(f"got {repository_head()}", spoofed.stderr)
+            self.assertIn(f"expected {alternate_head}", spoofed.stderr)
+            self.assertEqual(spoofed.stdout, "")
 
     def test_ci_discovers_every_artifact_python_test(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

@@ -1,6 +1,6 @@
 [package]
 name = "q-periapt-backends"
-description = "Third-party primitive backends (libcrux ML-KEM-768, x25519-dalek, sha3) wired into the q-periapt-core traits"
+description = "Third-party ML-KEM/ML-DSA/SLH-DSA, X25519, and SHA3 primitive backends wired into the q-periapt-core traits"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -22,19 +22,18 @@ slh-dsa = ["dep:fips205"]
 [dependencies]
 q-periapt-core = { version = "=0.1.0-alpha.1", path = "../q-periapt-core" }
 q-periapt-sig = { version = "=0.1.0-alpha.1", path = "../q-periapt-sig" }
-# ML-KEM-768: libcrux (HACL*-derived, constant-time; takes randomness as explicit
-# bytes — ideal for deterministic/KAT/no_std use).
-libcrux-ml-kem = "0.0.9"
-# ML-DSA-65 signatures (same verified family). The `acvp` feature exposes the FIPS 204
-# internal interface (ML-DSA.Sign_internal / Verify_internal, Algorithms 7/8) — additive
-# (no extra deps, no change to the external/pure path), so the backend can cover the NIST
-# ACVP internal-interface conformance vectors.
-libcrux-ml-dsa = { version = "0.0.9", features = ["acvp"] }
+# FIPS 203 ML-KEM through the repository-vendored, portable-only mlkem-native
+# integration. The safe facade accepts explicit seed/coins, keeping randomness
+# at the product boundary; the exact internal version pins the reviewed C tree.
+q-periapt-mlkem-native-sys = { version = "=0.1.0-alpha.1", path = "../q-periapt-mlkem-native-sys" }
+# FIPS 204 ML-DSA. As above, q-periapt supplies key-generation and signing
+# randomness explicitly, so the default OS-RNG feature is unnecessary here.
+fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
 # X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
 # `zeroize` makes StaticSecret wipe its scalar on drop (defense-in-depth for ephemeral secrets).
-x25519-dalek = { version = "2", default-features = false, features = ["static_secrets", "zeroize"] }
-# SHA3-256 / SHAKE-256 (libcrux, same verified family as the ML-KEM backend).
-libcrux-sha3 = "0.0.9"
+x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
+# SHA3-256 / SHAKE-256. `std` is not needed by the digest implementation.
+sha3 = { version = "=0.10.9", default-features = false }
 # --- optional backends (see [features]) ---
 # SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged) signing, KAT-able.
 fips205 = { version = "0.4.1", optional = true }
@@ -42,19 +41,18 @@ fips205 = { version = "0.4.1", optional = true }
 [dev-dependencies]
 # End-to-end hybrid KEM tests exercise the real backends through q-periapt-kem.
 q-periapt-kem = { version = "=0.1.0-alpha.1", path = "../q-periapt-kem" }
-# Combiner micro-benchmark (cargo bench). `sha3` (RustCrypto) provides the faithful
-# *streaming* X-Wing combiner baseline to compare our one-shot path against.
+# Combiner micro-benchmark (cargo bench). `sha3` provides the faithful
+# *streaming* X-Wing combiner baseline to compare our staged path against.
 criterion = "0.5"
-sha3 = "0.10"
-# Independent ML-KEM-768 (RustCrypto) for the multi-backend differential test; the
+# Independent RustCrypto ML-KEM for the multi-backend differential test; the
 # `deterministic` feature gives byte-exact keygen/encaps from explicit (d‖z, m).
-ml-kem = { version = "0.2.3", features = ["deterministic"] }
+ml-kem = { version = "=0.2.3", features = ["deterministic", "zeroize"] }
 # Independent X25519 (orion, pure-Rust, separate lineage from x25519-dalek) for the
 # X25519 + full-hybrid differential tests.
 orion = "0.17.10"
 # Independent ML-DSA (RustCrypto) for the signature-layer differential; FIPS 204
 # deterministic keygen/sign give byte-exact comparison + cross-verification.
-ml-dsa = "0.1.0-pre.2"
+ml-dsa = "=0.1.1"
 # Parse the vendored NIST ACVP conformance vectors (vectors/acvp-*.json).
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

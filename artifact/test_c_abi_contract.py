@@ -55,6 +55,19 @@ class CAbiContractTests(unittest.TestCase):
         library.write_bytes(b"fixture")
         return library
 
+    def _static_library(self, root: pathlib.Path, platform: str) -> pathlib.Path:
+        filename = self.contract.document["package"]["platforms"][platform][
+            "static_filename"
+        ]
+        library = root / filename
+        library.write_bytes(b"fixture")
+        return library
+
+    def _llvm_nm(self, root: pathlib.Path) -> pathlib.Path:
+        llvm_nm = root / "llvm-nm"
+        llvm_nm.write_bytes(b"fixture")
+        return llvm_nm
+
     def _nm_exports(self, *, underscore: bool = False, omit: str | None = None) -> str:
         names = sorted(self.contract.export_names - ({omit} if omit else set()))
         prefix = "_" if underscore else ""
@@ -220,6 +233,46 @@ class CAbiContractTests(unittest.TestCase):
                 self.contract, library, "macos", runner=runner
             )
 
+            def extra_export(command: list[str]) -> str:
+                if command[:2] == ["nm", "-gUj"]:
+                    return self._nm_exports(underscore=True) + "_qpn_mlkem_bridge_leak\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "extra=.*qpn_mlkem_bridge_leak"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "macos", runner=extra_export
+                )
+
+            def generic_extra(command: list[str]) -> str:
+                if command[:2] == ["nm", "-gUj"]:
+                    return self._nm_exports(underscore=True) + "_unexpected_export\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "extra=.*unexpected_export"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "macos", runner=generic_extra
+                )
+
+            def duplicate_export(command: list[str]) -> str:
+                if command[:2] == ["nm", "-gUj"]:
+                    return self._nm_exports(underscore=True) + "_q_periapt_version\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "defines export more than once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "macos", runner=duplicate_export
+                )
+
+            def malformed_export(command: list[str]) -> str:
+                if command[:2] == ["nm", "-gUj"]:
+                    return self._nm_exports(underscore=True) + "not one symbol\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "cannot parse nm"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "macos", runner=malformed_export
+                )
+
     def test_macos_wrong_install_name_or_version_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             library = self._library(pathlib.Path(temporary), "macos")
@@ -275,6 +328,36 @@ class CAbiContractTests(unittest.TestCase):
                 self.contract, library, "linux", runner=runner
             )
 
+            def extra_export(command: list[str]) -> str:
+                if command[0] == "nm":
+                    return runner(command) + "qpn_mlkem_bridge_leak T 0 0\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "extra=.*qpn_mlkem_bridge_leak"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "linux", runner=extra_export
+                )
+
+            def duplicate_export(command: list[str]) -> str:
+                if command[0] == "nm":
+                    return runner(command) + "q_periapt_version T 0 0\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "defines export more than once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "linux", runner=duplicate_export
+                )
+
+            def malformed_export(command: list[str]) -> str:
+                if command[0] == "nm":
+                    return runner(command) + "malformed\n"
+                return runner(command)
+
+            with self.assertRaisesRegex(CAbiContractError, "cannot parse nm"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, library, "linux", runner=malformed_export
+                )
+
             def wrong_soname(command: list[str]) -> str:
                 if command[0] == "nm":
                     return runner(command)
@@ -292,24 +375,101 @@ class CAbiContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             library = self._library(pathlib.Path(temporary), "windows")
 
-            def dumpbin(extra: str | None = None, omit: str | None = None):
+            def export_row(
+                ordinal: int, hint: str, rva: str, payload: str
+            ) -> str:
+                return f"{ordinal:>12}{hint:>5}{rva:>9}{payload}"
+
+            def dumpbin(
+                extra: str | None = None,
+                omit: str | None = None,
+                trailing_row: str | None = None,
+                *,
+                declared_functions: int | None = None,
+                declared_names: int | None = None,
+                hint_offset: int = 0,
+                internal_template: str | None = "{name}",
+                include_summary: bool = True,
+                ordinal_base: int = 1,
+                shared_first_ordinal: bool = False,
+                duplicate_hint: bool = False,
+                duplicate_summary: bool = False,
+            ):
                 names = sorted(self.contract.export_names - ({omit} if omit else set()))
                 if extra is not None:
                     names.append(extra)
 
                 def runner(command: list[str]) -> str:
                     self.assertEqual(command[0], "dumpbin")
-                    rows = ["ordinal hint RVA      name"]
-                    rows.extend(
-                        f"      {index}    0 00001000 {name}"
-                        for index, name in enumerate(names, start=1)
+                    row_total = len(names) + (1 if trailing_row is not None else 0)
+                    functions = (
+                        row_total
+                        if declared_functions is None
+                        else declared_functions
                     )
+                    named = row_total if declared_names is None else declared_names
+                    rows = [
+                        f"        {ordinal_base} ordinal base",
+                        f"        {functions} number of functions",
+                        f"        {named} number of names",
+                        "",
+                        "    ordinal hint RVA      name",
+                    ]
+                    for index, name in enumerate(names, start=1):
+                        ordinal = ordinal_base + index - 1
+                        if shared_first_ordinal and index == 2:
+                            ordinal = ordinal_base
+                        hint = index - 1 + hint_offset
+                        if duplicate_hint and index == 2:
+                            hint = 0
+                        payload = name
+                        if internal_template is not None:
+                            payload += " = " + internal_template.format(name=name)
+                        rows.append(
+                            export_row(
+                                ordinal,
+                                f"{hint:X}",
+                                "00001000",
+                                payload,
+                            )
+                        )
+                    if trailing_row is not None:
+                        rows.append(trailing_row)
+                    if include_summary:
+                        rows.extend(["", "  Summary", "", "        1000 .text"])
+                        if duplicate_summary:
+                            rows.extend(["", "  Summary"])
                     return "\n".join(rows) + "\n"
 
                 return runner
 
             c_abi_contract.verify_dynamic_library(
                 self.contract, library, "windows", runner=dumpbin()
+            )
+            for internal_template in (
+                None,
+                "_{name}",
+                "@ILT+640(_{name})",
+                "{name} (undecorated symbol annotation)",
+            ):
+                with self.subTest(internal_template=internal_template):
+                    c_abi_contract.verify_dynamic_library(
+                        self.contract,
+                        library,
+                        "windows",
+                        runner=dumpbin(internal_template=internal_template),
+                    )
+            c_abi_contract.verify_dynamic_library(
+                self.contract,
+                library,
+                "windows",
+                runner=dumpbin(declared_functions=12, ordinal_base=5),
+            )
+            c_abi_contract.verify_dynamic_library(
+                self.contract,
+                library,
+                "windows",
+                runner=dumpbin(shared_first_ordinal=True),
             )
             with self.assertRaisesRegex(CAbiContractError, "extra=.*q_periapt_surprise"):
                 c_abi_contract.verify_dynamic_library(
@@ -318,12 +478,325 @@ class CAbiContractTests(unittest.TestCase):
                     "windows",
                     runner=dumpbin(extra="q_periapt_surprise"),
                 )
+            with self.assertRaisesRegex(CAbiContractError, "extra=.*qpn_mlkem_bridge_leak"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(extra="qpn_mlkem_bridge_leak"),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "extra=.*unexpected_export"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(extra="unexpected_export"),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "defines export more than once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(extra="q_periapt_version"),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "ordinal-only export"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(
+                        trailing_row=export_row(10, "", "00002000", "[NONAME]"),
+                        declared_functions=10,
+                        declared_names=9,
+                    ),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "cannot parse dumpbin"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(trailing_row="malformed export row"),
+                )
+            for target in ("KERNEL32.Sleep", "NTDLL.#27"):
+                with self.subTest(forwarder=target), self.assertRaisesRegex(
+                    CAbiContractError, "forwarded export"
+                ):
+                    c_abi_contract.verify_dynamic_library(
+                        self.contract,
+                        library,
+                        "windows",
+                        runner=dumpbin(
+                            trailing_row=export_row(
+                                10,
+                                "9",
+                                "",
+                                "q_periapt_abi_version "
+                                f"(forwarded to {target})",
+                            )
+                        ),
+                    )
+            with self.assertRaisesRegex(CAbiContractError, "cannot parse dumpbin"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(
+                        trailing_row=export_row(
+                            10,
+                            "9",
+                            "00002000",
+                            "q_periapt_abi_version (forwarded to KERNEL32.Sleep)",
+                        )
+                    ),
+                )
+            for rva, payload in (
+                ("00000000", "unexpected_export = unexpected_export"),
+                ("", "unexpected_export = unexpected_export"),
+                ("00002000", "unexpected_export = internal = another"),
+            ):
+                with self.subTest(rva=rva, payload=payload), self.assertRaisesRegex(
+                    CAbiContractError, "cannot parse dumpbin"
+                ):
+                    c_abi_contract.verify_dynamic_library(
+                        self.contract,
+                        library,
+                        "windows",
+                        runner=dumpbin(
+                            trailing_row=export_row(10, "9", rva, payload)
+                        ),
+                    )
+            with self.assertRaisesRegex(CAbiContractError, "named-export count"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(declared_functions=9, declared_names=8),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "hints do not cover"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(hint_offset=1),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "hint more than once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(duplicate_hint=True),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "outside the declared"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(
+                        trailing_row=export_row(
+                            11,
+                            "9",
+                            "00002000",
+                            "unexpected_export = unexpected_export",
+                        )
+                    ),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "one Summary"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(include_summary=False),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "one Summary"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(duplicate_summary=True),
+                )
+
+            def missing_name_count(command: list[str]) -> str:
+                return dumpbin()(command).replace(
+                    "        9 number of names\n", "", 1
+                )
+
+            with self.assertRaisesRegex(CAbiContractError, "number of names exactly once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=missing_name_count,
+                )
             with self.assertRaisesRegex(CAbiContractError, "missing=.*q_periapt_encapsulate"):
                 c_abi_contract.verify_dynamic_library(
                     self.contract,
                     library,
                     "windows",
                     runner=dumpbin(omit="q_periapt_encapsulate"),
+                )
+
+    def test_static_library_reserved_namespace_is_exact_and_fail_closed(self) -> None:
+        for platform in ("macos", "linux", "windows"):
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                library = self._static_library(root, platform)
+                llvm_nm = self._llvm_nm(root)
+
+                def output(
+                    *,
+                    extra: str | None = None,
+                    omit: str | None = None,
+                    duplicate: str | None = None,
+                    malformed: str | None = None,
+                ) -> str:
+                    names = sorted(
+                        self.contract.export_names - ({omit} if omit else set())
+                    )
+                    if extra is not None:
+                        names.append(extra)
+                    if duplicate is not None:
+                        names.append(duplicate)
+                    lines = [
+                        "q_periapt_ffi_abi2.object.o:",
+                        "__rust_internal_symbol",
+                        "__ZN16q_periapt_policy10nist_level17h0123456789abcdefE",
+                        "qpn_mlkem_bridge_v1_2_0_768_decapsulate",
+                    ]
+                    prefix = "_" if platform == "macos" else ""
+                    lines.extend(f"{prefix}{name}" for name in names)
+                    if malformed is not None:
+                        lines.append(malformed)
+                    return "\n".join(lines) + "\n"
+
+                def runner(command: list[str]) -> str:
+                    self.assertEqual(
+                        command,
+                        [
+                            str(llvm_nm),
+                            "--defined-only",
+                            "--extern-only",
+                            "--just-symbol-name",
+                            str(library),
+                        ],
+                    )
+                    return output()
+
+                c_abi_contract.verify_static_library(
+                    self.contract,
+                    library,
+                    platform,
+                    llvm_nm,
+                    runner=runner,
+                )
+
+                cases = (
+                    (
+                        output(extra="q_periapt_surprise"),
+                        "extra=.*q_periapt_surprise",
+                    ),
+                    (
+                        output(omit="q_periapt_encapsulate"),
+                        "missing=.*q_periapt_encapsulate",
+                    ),
+                    (
+                        output(duplicate="q_periapt_version"),
+                        "defines reserved symbol more than once",
+                    ),
+                    (
+                        output(malformed="q_periapt_bad symbol"),
+                        "cannot parse llvm-nm static reserved-symbol row",
+                    ),
+                    (
+                        output(malformed="T q_periapt_surprise"),
+                        "cannot parse llvm-nm static reserved-symbol row",
+                    ),
+                    (
+                        output(malformed="archive.o: q_periapt_surprise"),
+                        "cannot parse llvm-nm static reserved-symbol row",
+                    ),
+                    (
+                        output(malformed="q_periapt_surprise:"),
+                        "cannot parse llvm-nm static reserved-symbol row",
+                    ),
+                )
+                for nm_output, message in cases:
+                    with self.subTest(platform=platform, message=message):
+                        with self.assertRaisesRegex(CAbiContractError, message):
+                            c_abi_contract.verify_static_library(
+                                self.contract,
+                                library,
+                                platform,
+                                llvm_nm,
+                                runner=lambda _command, value=nm_output: value,
+                            )
+
+                if platform == "macos":
+                    undecorated = output(
+                        omit="q_periapt_version",
+                        malformed="q_periapt_version",
+                    )
+                    with self.assertRaisesRegex(
+                        CAbiContractError,
+                        "undecorated reserved symbol on macos",
+                    ):
+                        c_abi_contract.verify_static_library(
+                            self.contract,
+                            library,
+                            platform,
+                            llvm_nm,
+                            runner=lambda _command, value=undecorated: value,
+                        )
+                else:
+                    decorated = output(
+                        omit="q_periapt_version",
+                        malformed="_q_periapt_version",
+                    )
+                    with self.assertRaisesRegex(
+                        CAbiContractError,
+                        f"decorated reserved symbol on {platform}",
+                    ):
+                        c_abi_contract.verify_static_library(
+                            self.contract,
+                            library,
+                            platform,
+                            llvm_nm,
+                            runner=lambda _command, value=decorated: value,
+                        )
+
+    def test_static_library_requires_expected_filename_absolute_nm_and_regular_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            llvm_nm = self._llvm_nm(root)
+            wrong = root / "libq_periapt_ffi.a"
+            wrong.write_bytes(b"fixture")
+            with self.assertRaisesRegex(CAbiContractError, "static-library filename differs"):
+                c_abi_contract.verify_static_library(
+                    self.contract,
+                    wrong,
+                    "linux",
+                    llvm_nm,
+                    runner=lambda _command: "",
+                )
+
+            library = self._static_library(root, "linux")
+            with self.assertRaisesRegex(CAbiContractError, "llvm-nm path must be absolute"):
+                c_abi_contract.verify_static_library(
+                    self.contract,
+                    library,
+                    "linux",
+                    pathlib.Path("llvm-nm"),
+                    runner=lambda _command: "",
+                )
+
+            symlink = root / "static-link.a"
+            symlink.symlink_to(library.name)
+            with self.assertRaisesRegex(CAbiContractError, "non-symlink regular file"):
+                c_abi_contract.verify_static_library(
+                    self.contract,
+                    symlink,
+                    "linux",
+                    llvm_nm,
+                    runner=lambda _command: "",
                 )
 
     def test_wrong_filename_unknown_platform_and_symlink_fail_closed(self) -> None:

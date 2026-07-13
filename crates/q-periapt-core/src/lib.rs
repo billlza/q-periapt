@@ -15,14 +15,16 @@
 //! Rationale: keep the security-critical *composition* logic — the hybrid KEM
 //! combiner and its transcript/context binding — tiny, primitive-agnostic and
 //! reviewable in isolation, decoupled from any backend or platform. Third-party
-//! backends (libcrux, RustCrypto, x25519-dalek, sha3) are
-//! wired in by the `q-periapt-kem` / `q-periapt-sig` crates.
+//! backends (`mlkem-native`, `fips204`, `x25519-dalek`, `sha3`) are wired in by
+//! `q-periapt-backends` behind the traits owned here and in the KEM/signature
+//! composition crates.
 //!
 //! ## Security notes
 //! - Error values are deliberately coarse and **must never** encode
-//!   secret-dependent information (e.g. *why* a decapsulation failed). The only
-//!   errors are *public* conditions (buffer lengths, policy). Failure paths are
-//!   designed to be indistinguishable — see `docs/COMBINER_SPEC.md`.
+//!   secret-dependent information (e.g. *why* a decapsulation failed). Variants
+//!   represent either public conditions (length, policy, public-key validity) or
+//!   an opaque internal backend failure. Correctly sized FO-KEM ciphertexts use
+//!   implicit rejection rather than an error oracle — see `docs/COMBINER_SPEC.md`.
 //! - The combiner constructions here are pinned by `docs/COMBINER_SPEC.md` and
 //!   `docs/BINDING_SECURITY.md`, validated by KATs, which are authoritative.
 //! - The constant-time helpers ([`ct_select32`], [`ct_eq`]) are best-effort in
@@ -45,7 +47,7 @@ pub const POLICY_CONTEXT_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-CONTEXT/v1";
 pub const XWING_LABEL: [u8; 6] = [0x5c, 0x2e, 0x2f, 0x2f, 0x5e, 0x5c];
 
 /// Coarse, side-channel-safe error type. Variants carry no secret information;
-/// every variant corresponds to a *publicly observable* condition.
+/// backend-internal failures remain opaque rather than exposing their cause.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -54,9 +56,10 @@ pub enum Error {
     /// A backend primitive reported an opaque failure.
     Backend,
     /// A supplied **public** key share is invalid and was rejected before keying — e.g. a
-    /// low-order / non-contributory X25519 point (which would force an all-zero DH secret). This is
-    /// a public-input validity failure, **not** a secret-dependent decapsulation oracle: an
-    /// FO-KEM's implicit rejection (ML-KEM) never produces this; only DH-style key shares do.
+    /// non-canonical ML-KEM encapsulation key or a low-order / non-contributory X25519 point (which
+    /// would force an all-zero DH secret). This is a public-input validity failure, **not** a
+    /// secret-dependent decapsulation oracle: an FO-KEM's ciphertext validity remains hidden by
+    /// implicit rejection.
     InvalidKeyShare,
     /// The active algorithm policy / profile combination is forbidden
     /// (e.g. a first-slot KEM lacking either required `CompatXWing` capability).
@@ -208,16 +211,21 @@ pub trait Xof256 {
 
 /// A key-encapsulation mechanism backend (for example ML-KEM or X25519-as-KEM).
 ///
-/// All methods **must** run in constant time with respect to secret inputs.
+/// Secret-bearing operations must avoid secret-dependent control flow and memory access.
+/// Algorithm-mandated rejection sampling (for example, an ML-DSA signer) requires a
+/// separately documented timing boundary and must not be represented as strict constant-time.
 ///
 /// **Failure contract.** A backend must never expose a *secret-dependent* decapsulation oracle:
 /// for an FO-KEM (ML-KEM), `decapsulate` **must** use implicit rejection — a cryptographically
 /// invalid ciphertext yields a pseudorandom secret, never an [`Error`], so the failure path is
 /// indistinguishable from success. Backends **may** return an [`Error`] only for **public** input
 /// conditions that an attacker already knows (a length mismatch via [`Error::InvalidLength`]; for a
-/// DH-style adapter such as X25519-as-KEM, a low-order / non-contributory key share via
-/// [`Error::InvalidKeyShare`]). Such checks depend only on public inputs, not on the secret key, so
-/// they are validity rejections, not an oracle.
+/// non-canonical KEM encapsulation key or, for a DH-style adapter such as X25519-as-KEM, a low-order
+/// / non-contributory key share via [`Error::InvalidKeyShare`]). Importing a caller-supplied local
+/// secret key may also return [`Error::Backend`] when its fixed-length encoding is malformed;
+/// callers must treat that as a configuration/key-storage failure, not as a ciphertext-validity
+/// signal. Such checks occur before output is written. They do not change the requirement that
+/// every correctly sized ML-KEM ciphertext follows implicit rejection and returns a shared secret.
 pub trait Kem {
     /// Stable algorithm identifier, e.g. `"ML-KEM-768"`.
     fn algorithm(&self) -> &'static str;

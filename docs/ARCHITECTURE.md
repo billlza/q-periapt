@@ -3,13 +3,18 @@
 Authoritative architecture document for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 
-> **Status: research-grade, not production.** Q-Periapt composes existing
+> **Status: release-ready ABI 2 research alpha, not production.** The intended
+> publication surface is source plus a planned coordinated set of Rust crates, not
+> current C/Swift/Android binary
+> bundles. Q-Periapt composes existing
 > standardized/ecosystem primitives (ML-KEM, X25519, ML-DSA, SLH-DSA) through
 > third-party backends. The known-leaky, unmaintained PQClean-HQC adapter has been
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
-> in a `publish = false` shadow crate with no suite code or ABI. It has **no third-party audit**, and it
-> depends on pre-1.0 / unaudited backends (e.g. `libcrux-ml-kem` 0.0.9, whose own
-> notice asks you to contact the maintainers before production use). **Do not
+> in a `publish = false` shadow crate with no suite code or ABI. It has **no third-party audit**, and
+> the release graph depends on the portable-only `q-periapt-mlkem-native-sys`
+> boundary over vendored `mlkem-native` v1.2.0 plus pinned pre-1.0 backends
+> (`fips204` 0.4.6 and `sha3` 0.10.9) that have not been independently audited for
+> this integration. **Do not
 > deploy.** The value proposition is *not* primitive or speed superiority — it is
 > auditable composition, crypto-agility, side-channel CI, machine-checked binding
 > proofs, deterministic byte identity in the explicitly tested conformance cells,
@@ -63,13 +68,17 @@ round-trip invariants, rollback rejection, and failure-output atomicity.
         │                         │
         └────────────┬────────────┘
                      ▼
+      q-periapt-mlkem-native-sys
+      private unsafe/C build boundary
+                     │
+                     ▼
             q-periapt-backends            q-periapt-policy
    third-party primitives wired            crypto-agility engine
    into the traits:                       (depends on -core + -sig):
-   • MlKem768  (libcrux, C2PRI)           • Policy / AuthenticatedPolicy
+   • MlKem768  (mlkem-native, C2PRI)      • Policy / AuthenticatedPolicy
    • X25519    (x25519-dalek)             • TrustedPolicyState (version + digest)
-   • Sha3_256Xof (libcrux-sha3)           • closed, atomic ResolvedSuite
-   • MlDsa65   (libcrux-ml-dsa)
+   • Sha3_256Xof (RustCrypto sha3)        • closed, atomic ResolvedSuite
+   • MlDsa65   (fips204)
    • [feature slh-dsa] SlhDsa*  (fips205)
                      │
    ┌─────────────────┼───────────────────┬───────────────────┐
@@ -79,14 +88,28 @@ round-trip invariants, rollback rejection, and failure-output atomicity.
  cdylib +                          migration scan)    Kotlin over Panama FFM —
  staticlib +                                          both consume the C ABI)
  cbindgen .h)
+
+   q-periapt-rustls                     q-periapt-tls-demo
+   rustls CryptoProvider/private-use    publish=false four-flight transport
+   groups; core + KEM + backends +      demo; core + KEM + signatures +
+   policy, with no FFI dependency       backends, with no rustls dependency
 ```
 
 The workspace members are listed in [`Cargo.toml`](../Cargo.toml):
-`q-periapt-core`, `-kem`, `-sig`, `-policy`, `-backends`, `-ffi`, `-wasm`,
+`q-periapt-core`, `-kem`, `-sig`, `-mlkem-native-sys`, `-policy`, `-backends`, `-ffi`, `-wasm`,
 `-tls-demo`, `-rustls`, `-cli`, `ctstats`, and the Continuity model. The independent
 [`research/hqc-fips207-candidate`](../research/hqc-fips207-candidate/) crate is
 explicitly excluded from the root workspace, has its own lockfile, is `publish = false`,
 and is not depended on by any product/publishable crate.
+
+The dependency direction is one-way. `q-periapt-mlkem-native-sys` owns only the
+portable C build/FFI safety boundary; `q-periapt-backends` adapts it and the other
+primitive providers to the core traits. `q-periapt-rustls` then depends directly on
+core/KEM/backends/policy to provide private-use TLS 1.3 groups; it does not route
+through the C ABI. The separate, non-publishable `q-periapt-tls-demo` depends on
+core/KEM/signature/backends for its custom four-flight transport experiment and does
+not depend on rustls. Neither integration reimplements a primitive or moves protocol
+logic into the sys crate.
 
 ---
 
@@ -135,7 +158,7 @@ or HPKE interoperability claim.
 
 | Trait | Method surface | Contract |
 |---|---|---|
-| `Kem` | `algorithm()`, `encapsulate()`, `decapsulate()`, `const C2PRI: bool`, `const COMPAT_XWING_SAFE: bool` | Constant-time w.r.t. secrets; `decapsulate` **must** use implicit rejection and must NOT return `Error` to signal an invalid ciphertext (only public conditions). `C2PRI` records the primitive property. `COMPAT_XWING_SAFE` records the additional API/key-format precondition. Both default to `false` and both are checked for the first slot omitted by `CompatXWing`. |
+| `Kem` | `algorithm()`, `encapsulate()`, `decapsulate()`, `const C2PRI: bool`, `const COMPAT_XWING_SAFE: bool` | Constant-time w.r.t. secrets; a correct-length FO-KEM ciphertext **must** use implicit rejection and must not return `Error` to signal cryptographic validity. Public malformed peer keys may be classified as `InvalidKeyShare`; local key/provider failures remain opaque `Backend` errors. `C2PRI` records the primitive property. `COMPAT_XWING_SAFE` records the additional API/key-format precondition. Both default to `false` and both are checked for the first slot omitted by `CompatXWing`. |
 | `Xof256` | `new()`, `reserve()`, `absorb()`, `absorb_public()`, `absorb_secret()`, `squeeze32()` | Incremental hash/XOF producing 32 bytes; constant-time w.r.t. absorbed data. Legacy `absorb` is conservatively unclassified/sensitive; explicit methods let a staging backend erase only secret ranges without changing hash bytes. |
 | `Signer` / `Verifier` | in `q-periapt-sig` (see §5) | — |
 
@@ -253,7 +276,8 @@ retains the inline extent so duplicate secret bytes are erased, and range exhaus
 metadata fails closed to a whole-buffer wipe. The legacy `absorb` also selects whole-buffer
 erasure. Reallocation copies are migrated before the old live allocation's secret ranges are
 wiped. This is an implementation hygiene/performance optimization, not a cryptographic claim:
-libcrux internals, registers, crash dumps, OS copies, and caller-owned buffers remain outside it.
+`mlkem-native`/`fips204`/`sha3` internals, registers, crash dumps, OS copies, and
+caller-owned buffers remain outside it.
 The `Xof256` contract therefore covers only secret-bearing storage the implementation owns and
 can still reach at Drop; primitive/callee temporaries are a separate backend-assurance boundary.
 
@@ -265,30 +289,58 @@ the side-channel assurance.
 ### 3.6 The `Error` type
 
 `Error` is deliberately coarse — `InvalidLength`, `Backend`, `InvalidKeyShare`,
-`PolicyDenied` — and `#[non_exhaustive]`. Every variant corresponds to a **publicly
-observable** condition (buffer length, public malformed DH/key-share input, policy).
-It **must never** encode secret-dependent information such as *why* an FO-KEM
-decapsulation failed; failure paths are designed to be indistinguishable.
+`PolicyDenied` — and `#[non_exhaustive]`. `InvalidLength`, `InvalidKeyShare`, and
+`PolicyDenied` classify public input or policy conditions. `Backend` is different:
+it is an opaque local decapsulation-key/provider/internal failure and must not expose
+whether local key material was malformed or which provider check failed. No variant
+encodes secret-dependent information such as *why* a correct-length FO-KEM
+ciphertext was rejected; such ciphertexts use deterministic implicit rejection and
+return a pseudorandom secret instead of an error.
 
 ---
 
 ## 4. Backends (`q-periapt-backends`)
 
-`crates/q-periapt-backends/src/lib.rs` is the **only publishable Q-Periapt crate**
-that touches real cryptographic primitives. Each release-graph backend is a zero-sized
-type implementing a core trait:
+`crates/q-periapt-backends/src/lib.rs` is the only publishable **high-level adapter**
+that maps real cryptographic primitives into the core traits. ML-KEM's separate
+`q-periapt-mlkem-native-sys` crate is the lower Rust/C safety and build boundary; it
+does not define suite, combiner, policy, or product-ABI semantics. Each release-graph
+backend is a zero-sized type implementing a core trait:
 
 | Backend | Primitive | Crate | Notes |
 |---|---|---|---|
-| `MlKem768` | ML-KEM-768 (FIPS 203) | `libcrux-ml-kem` 0.0.9 (HACL*-derived, constant-time) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Takes randomness as explicit bytes — deterministic / KAT-able / `no_std`. |
-| `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `libcrux-ml-kem` + `libcrux-sha3` | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; derives X-Wing's `(d||z)` key material from the 32-byte seed and is the only backend admitted to `CompatXWing`. |
+| `MlKem768` | ML-KEM-768 (FIPS 203) | `q-periapt-mlkem-native-sys` (`mlkem-native` v1.2.0 portable C) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Raw expanded-DK import checks the embedded public key's canonical encoding and its stored hash before decapsulation; malformed inputs fail without copying temporary output to the caller. Randomness remains explicit for deterministic conformance testing. No predecessor source-CT claim is inherited. |
+| `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `q-periapt-mlkem-native-sys` + `sha3` 0.10.9 | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; derives X-Wing's `(d||z)` key material from the 32-byte seed and is the only backend admitted to `CompatXWing`. |
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 2 | `Kem`, default-false first-slot capabilities; deterministic from a 32-byte scalar. Canonical X-Wing uses it in the absorbed traditional slot. |
-| `Sha3_256Xof` | SHA3-256 | `libcrux-sha3` 0.0.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
-| `MlDsa65` | ML-DSA-65 (FIPS 204) | `libcrux-ml-dsa` 0.0.9 | `Signer` + `Verifier`. |
+| `Sha3_256Xof` | SHA3-256 | RustCrypto `sha3` 0.10.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
+| `MlDsa65` | ML-DSA-65 (FIPS 204) | `fips204` 0.4.6 | `Signer` + `Verifier`; external/pure, context, hedged, and SHAKE-128 pre-hash modes are wired. The deprecated internal API is deliberately not exposed. Signing uses FIPS 204 rejection sampling and therefore has a documented variable-iteration boundary; verification is the ABI2 product path. |
 | `SlhDsaSha2_128s/192s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.4.1 | **feature `slh-dsa`** (off by default). |
 
-These backends are reused by `q-periapt-ffi`, `q-periapt-wasm`, the binding
-test-vector generator (`examples/refvec.rs`), and the X-Wing KAT.
+These backends are reused by `q-periapt-ffi`, `q-periapt-wasm`,
+`q-periapt-rustls`, the non-publishable `q-periapt-tls-demo`, the binding test-vector
+generator (`examples/refvec.rs`), and the X-Wing KAT.
+
+The sys crate compiles only upstream's portable C arithmetic/FIPS202 path; it does not
+enable optimized native backends or compile the bundled assembly translation unit.
+Its upstream trust anchors are v1.2.0 commit
+`0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit
+archive SHA-256
+`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
+The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
+`77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`.
+The safe facade concentrates fixed lengths, non-aliasing temporary arrays, return-code
+mapping and secret erasure around a private unsafe FFI module. Upstream CBMC/HOL-Light
+and constant-time test results retain their published scope; they are not a proof of
+this Rust wrapper, this compiler output, or arbitrary downstream builds. Neither the
+upstream provider nor this integration has completed an independent audit. RustSec
+does not inspect vendored C.
+
+Hidden bridge visibility limits dynamic-library export surfaces; it is not an
+access-control boundary for static linking. A `q-periapt-ffi` static consumer can
+deliberately declare and link the versioned `qpn_mlkem_bridge_*` implementation
+symbols that the safe adapter itself uses. They are absent from public headers,
+unsupported, and outside compatibility guarantees. Static embedding therefore
+assumes a trusted same-address-space consumer.
 
 HQC is deliberately outside that graph. The old `Hqc128/192/256` and `HqcAsKem`
 PQClean adapter was removed, along with the `hqc` feature. It had a known timing leak,
@@ -371,7 +423,7 @@ signed-policy-controlled OS-random workflow and its fail-closed controls.
 | Face | Crate / dir | Surface | Consistency check |
 |---|---|---|---|
 | **Rust core** | `q-periapt-core` / `-kem` | source of truth | `cargo test` (combiner KATs, X-Wing KAT) |
-| **C ABI** | `q-periapt-ffi` | ABI-major `cdylib` + `staticlib`; exact nine-symbol product contract; OS CSPRNG; `int32` status codes; every entry `catch_unwind`-wrapped | internal Rust KAT + semantic product C smoke + `c_abi_contract.py` |
+| **C ABI** | `q-periapt-ffi` | ABI-major `cdylib` + `staticlib`; exact-nine `q_periapt_*` dynamic export table for `cdylib`/DLL, while the static archive constrains only that public namespace and retains unsupported hidden `qpn_*` link internals; OS CSPRNG; `int32` status codes; every public entry `catch_unwind`-wrapped | internal Rust KAT + semantic product C smoke + `c_abi_contract.py` |
 | **WASM** | `q-periapt-wasm` | `wasm-bindgen`; JS supplies randomness as `Uint8Array` | `cargo test -p q-periapt-wasm`; CI builds `wasm32` |
 | **Swift** | `bindings/swift/` | links the ABI2 C `staticlib`; policy-controlled only | `swift test` + five-slice XCFramework consumer pass; physical-device proof remains source-bound |
 | **Kotlin** | `bindings/kotlin/` | Panama **FFM** over ABI2, JDK ≥ 22; policy-controlled only | `gradle test` on JDK 22+ |
@@ -380,6 +432,12 @@ signed-policy-controlled OS-random workflow and its fail-closed controls.
 WASM is a separate deterministic conformance-oriented binding and is not part of the
 native ABI2 package contract.
 
+At the rustls boundary, only `InvalidKeyShare` is translated to a peer-misbehavior
+error. `Backend`, `InvalidLength`, `PolicyDenied`, and future non-exhaustive variants
+become generic local TLS errors, so malformed local decapsulation-key material or a
+provider failure is never mislabeled as peer fault. Correct-length ML-KEM ciphertext
+mutation remains the implicit-rejection success path.
+
 ### 6.3 The C ABI in detail (`q-periapt-ffi`)
 
 `crates/q-periapt-ffi/src/lib.rs`. Fixed to the default suite ML-KEM-768 + X25519 +
@@ -387,14 +445,17 @@ SHA3-256. ABI conventions:
 
 - Every function returns an `int32` status: `Q_PERIAPT_OK` (0) or a negative error
   (`_ERR_NULL`, `_ERR_LENGTH`, `_ERR_POLICY`, `_ERR_PANIC`, `_ERR_INTERNAL`,
-  `_ERR_INVALID_KEYSHARE`, `_ERR_ALIASING`, `_ERR_ENTROPY`). Errors
-  encode **only public conditions** — never secret-dependent information.
+  `_ERR_INVALID_KEYSHARE`, `_ERR_ALIASING`, `_ERR_ENTROPY`). Public malformed
+  peer input is classifiable, but a local key/provider `Backend` failure maps to the
+  opaque `_ERR_INTERNAL`; no provider-specific or local-key diagnostic crosses the
+  ABI. No status reveals correct-length ML-KEM ciphertext validity.
 - Buffers are `(ptr, len)` pairs with validated lengths; length constants are
   emitted as numeric `#define`s and pinned to the backend by `const _: () = { assert! }`
   so they cannot silently drift.
-- `decapsulate` returns `Q_PERIAPT_OK` for any syntactically valid (correct-length)
-  ciphertext even if cryptographically invalid — implicit rejection yields a
-  pseudorandom secret, so there is **no decapsulation oracle**.
+- With valid local key material and otherwise valid public inputs, `decapsulate`
+  returns `Q_PERIAPT_OK` for any correct-length ciphertext even if cryptographically
+  invalid — implicit rejection yields a pseudorandom secret, so there is **no
+  decapsulation oracle**. Local key/provider failure remains opaque `_ERR_INTERNAL`.
 - Every entry point is wrapped in `catch_unwind`; a panic becomes `Q_PERIAPT_ERR_PANIC`
   rather than unwinding across the ABI (which would be UB).
 
@@ -402,24 +463,33 @@ The C header (`crates/q-periapt-ffi/include/q_periapt.h`) is generated by cbindg
 and is what Swift and Kotlin consume.
 
 The current working-tree contract reports `Q_PERIAPT_ABI_VERSION = 2` and package
-version `0.1.0-alpha.1`. It exposes exactly nine product symbols: five metadata/status
-functions, signed-policy resolution, atomic OS-CSPRNG key generation, OS-CSPRNG
-encapsulation, and decapsulation. Raw hybrid/combine, caller-provided deterministic
-seeds/coins, X-Wing, and the old `*_with_decision` names are forbidden exports.
+version `0.1.0-alpha.1`. Its `cdylib`/DLL exposes exactly nine dynamic
+`q_periapt_*` product symbols: five metadata/status functions, signed-policy
+resolution, atomic OS-CSPRNG key generation, OS-CSPRNG encapsulation, and
+decapsulation. Raw hybrid/combine, caller-provided deterministic seeds/coins,
+X-Wing, and the old `*_with_decision` names are forbidden public exports. The
+static archive guarantees the same exact-nine reserved public namespace, not a
+nine-symbol total archive: hidden versioned `qpn_*` implementation symbols remain
+linkable to a deliberately hostile same-process static consumer and are unsupported.
 All valid product outputs are cleared before validation/crypto and are committed from
 local temporaries only after success. The contract also freezes the 40-byte policy
 decision and 36-byte trusted policy state.
-This is an **unpublished ABI 2 candidate**, not a stable binary release. Continuity's
-abstract snapshot schema 3 is unrelated and is not part of this ABI. Before ABI 2
-can be published, all platform package identities, release-index cross-face semantics,
-dependency audit, clean provenance, same-source Apple matrix verification, and controlled-host
-performance verification must pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
+This is the release-ready **ABI 2 research-alpha source/crate contract**, intended
+for coordinated source-crate publication rather than a stable or
+production binary release. No current C archive, XCFramework, AAR, or device binary
+is implied by that release readiness. Continuity's abstract snapshot schema 3 is unrelated
+and is not part of this ABI. Before production promotion or a platform-binary claim,
+all claimed platform package identities, release-index cross-face semantics,
+dependency audit, clean signed or transparency-backed provenance, same-source Apple
+matrix verification, controlled-host performance verification, and independent
+cryptographic/C-FFI/ABI review must pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
 upgraded from a version alone; hosts require explicit authorized re-enrollment/reset.
-The HQC graph/tombstone change invalidated every pre-change Apple/performance proof. Later
-clean-tree Apple schema-3 matrix and controlled-host matched-backend proofs passed on a successor
-source snapshot. Their time-varying currentness is authoritative only through
-`artifact/results.json` and live verification; neither is a distribution-signing or device-energy
-claim.
+The backend/source migration changed the canonical source digest and invalidated all
+previous package, Apple-device, matched-performance, and binary-CT proofs, including
+the later clean-tree schema-3 matrix. Each release lane must be rebuilt or re-collected
+for the new source snapshot. Time-varying currentness is authoritative only through
+`artifact/results.json` and live verification; neither is a distribution-signing or
+device-energy claim.
 
 ### 6.4 X-Wing conformance KAT
 
@@ -429,8 +499,10 @@ encapsulation-coin split, and asserts the ML-KEM-768 public key, ciphertext, and
 shared secret against **3 official `draft-connolly-cfrg-xwing-kem` vectors**. This
 proves the combiner **reproduces the FIPS 203 reference output on those 3 happy-path
 vectors** byte-for-byte. (Beyond these, the full NIST ACVP set for ML-KEM-512/768/1024
-+ ML-DSA-44/65/87 also passes in `acvp.rs` — broad conformance to the published
-vectors, though not CMVP/CAVP certification.)
++ ML-DSA-44/65/87 external/pure, context, hedged, and SHAKE-128 pre-hash modes
+also passes in `acvp.rs` — broad conformance to the published vectors, though not
+CMVP/CAVP certification. Vendored internal-interface vectors are retained as
+unwired reference data and are not a backend pass.)
 
 ---
 
@@ -444,9 +516,14 @@ vectors, though not CMVP/CAVP certification.)
   from noisy shared CI and is **not** a merge gate; local runs retain its exit status.
 - **Binary-level (dataflow) constant-time** over our own composition code (`ct_eq`,
   `ct_select32`, the combiner) is a **HARD CI gate** (`constant-time` job: `ct_verify`
-  under Valgrind/Memcheck-TIMECOP, x86_64 + aarch64). That job also hard-gates the
-  corrected ŝ+z libcrux ML-KEM decapsulation gap probe: the genuine-secret path must
-  report zero and a synthetic planted secret-indexed load must report positive. The
+  under Valgrind/Memcheck-TIMECOP, x86_64 + aarch64). That job is configured to
+  hard-gate corrected ŝ+z ML-KEM-512/768/1024 shipped-provider decapsulation
+  probes: every genuine-secret path must report exact zero and each synthetic
+  planted secret-indexed control must report positive. The superseded `fips203`
+  provider failed this gate in [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107):
+  34,306 errors / 100 contexts on x86_64 and 30,464 / 70 on aarch64. Those are
+  historical failure counts, not current-provider results. Earlier `libcrux`
+  captures are historical too, so a fresh portable-`mlkem-native` two-ISA run for the release digest is required. The
   retired PQClean-HQC 193/22,849 counts are historical older-source evidence, not a
   live gate.
   Other component-primitive paths and riscv64/wasm32 binary-CT remain **TODO** (see
@@ -455,7 +532,9 @@ vectors, though not CMVP/CAVP certification.)
 So: do **not** read "side-channel-first" as "timing is gated." Structural failure-path
 indistinguishability **and** binary-level dataflow CT over our composition code are gated;
 the statistical `dudect` *timing* test and binary-CT over primitives other than the
-gated ML-KEM decapsulation path are local-only / pending. Real constant-time assurance is per-backend and tracked in
+ML-KEM decapsulation probe are local-only / pending. No source-CT or hax property
+from any replaced backend transfers to `mlkem-native`; real assurance is per backend,
+version, source digest, compiler, and ISA and is tracked in
 `docs/ROADMAP.md`.
 
 ---
@@ -534,12 +613,14 @@ robustness is argued on paper; there is **no spec↔impl linkage proof**. `X-BIN
 is structurally impossible for implicitly-rejecting ML-KEM and is **not** claimed.
 `ContextBound` is **not** "stronger binding than X-Wing" — both share the same MAL
 ceiling; the edge is **assumption-minimality / proof-coverage**, not a stronger bound.
-CI has formal hard gates: no-admits scanning, a hermetic EasyCrypt re-check plus
+CI has formal hard gates: no-admits scanning, a pinned-source EasyCrypt container re-check plus
 seven **proof-dependency regression controls**, and full Tamarin/ProVerif
 `make prove`. An edited tactic failing is not a necessity proof. Semantic necessity
 is attached only to explicit checked countermodels, including
 `kctx_without_nonbottom_broken` for removing `K != bottom`; the J-injectivity deletion
-control establishes only that the current reduction script depends on that fact.
+control establishes only that the current reduction script depends on that fact. The base image
+and EasyCrypt commit are immutable; apt/opam transitive inputs remain outside a hermetic,
+bit-reproducible closure.
 
 ---
 
@@ -565,7 +646,8 @@ q-periapt-core  (no deps; no_std; deny unsafe)
    │   └────────────── q-periapt-kem   (core)
    └──────── q-periapt-policy (core + sig)
 
-q-periapt-backends  → core + sig + libcrux* / x25519-dalek / [fips205]
+q-periapt-mlkem-native-sys → pinned vendored mlkem-native v1.2.0 portable C + cc (build only)
+q-periapt-backends  → core + sig + mlkem-native-sys / fips204 / sha3 / x25519-dalek / [fips205]
 q-periapt-ffi       → backends + kem + core            (C ABI)
 q-periapt-wasm      → backends + kem + core            (wasm-bindgen)
 q-periapt-cli       → serde_json (+ suite metadata)    (CBOM/SBOM/scan)

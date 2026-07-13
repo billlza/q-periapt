@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "harness_schema_version": 2,
-  "backend": "ML-KEM-768(seed-dk)+X25519/libcrux+x25519-dalek",
+  "backend": "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0+sha3+x25519-dalek",
   "schedule": "ABBA/BAAB",
   "corpus_size": 64,
   "iterations_per_sample": {

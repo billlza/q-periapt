@@ -37,6 +37,39 @@ if major < 22:
 '
 }
 
+require_wasm_clang() {
+	compiler=${CC_wasm32_unknown_unknown:-}
+	if [ -z "$compiler" ]; then
+		printf 'error: CC_wasm32_unknown_unknown must name an absolute upstream LLVM clang path with the wasm32 backend\n' >&2
+		exit 2
+	fi
+	case "$compiler" in
+		/*) ;;
+		*)
+			printf 'error: CC_wasm32_unknown_unknown must be an absolute path\n' >&2
+			exit 2
+			;;
+	esac
+	if [ ! -f "$compiler" ] || [ ! -x "$compiler" ]; then
+		printf 'error: CC_wasm32_unknown_unknown must identify an executable compiler file\n' >&2
+		exit 2
+	fi
+	compiler_version=$("$compiler" --version 2>&1) || {
+		printf 'error: CC_wasm32_unknown_unknown could not report its version\n' >&2
+		exit 2
+	}
+	if ! printf '%s\n' "$compiler_version" | grep -q 'clang version' || \
+		printf '%s\n' "$compiler_version" | grep -q 'Apple clang version'; then
+		printf 'error: CC_wasm32_unknown_unknown must select upstream LLVM clang, not Apple clang\n' >&2
+		exit 2
+	fi
+	if ! "$compiler" --print-targets 2>/dev/null | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'; then
+		printf 'error: CC_wasm32_unknown_unknown compiler has no wasm32 backend\n' >&2
+		exit 2
+	fi
+	printf 'wasm C compiler: %s\n' "$(printf '%s\n' "$compiler_version" | sed -n '1p')"
+}
+
 step() {
 	name=$1
 	shift
@@ -97,6 +130,7 @@ need gradle
 require_java_22
 need wasm-pack
 need node
+require_wasm_clang
 
 printf 'Q-Periapt embedding readiness gate\n'
 printf 'repo   : %s\n' "$ROOT"
@@ -113,7 +147,7 @@ trap cleanup EXIT INT TERM
 
 step "cargo metadata locked" sh -c "cargo metadata --locked --format-version 1 >/dev/null"
 step "rustfmt" cargo fmt --all --check
-step "clippy warnings denied" cargo clippy --workspace --all-targets -- -D warnings
+step "clippy warnings denied" cargo clippy --workspace --all-targets --locked -- -D warnings
 step "workspace tests locked" cargo test --workspace --locked
 run_android_proof_tests() {
 	PYTHONPATH=artifact python3 -m unittest artifact/test_android_device_proof.py

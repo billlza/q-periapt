@@ -15,7 +15,8 @@ fn hex(b: &[u8]) -> String {
 }
 
 fn main() {
-    let (sk_pq, pk_pq) = MlKem768::generate([0x11; 64]);
+    let (sk_pq, pk_pq) =
+        MlKem768::generate([0x11; 64]).expect("deterministic ML-KEM key generation");
     let (sk_trad, pk_trad) = X25519::generate([0x22; 32]);
     let suite_id = b"ML-KEM-768+X25519";
     let policy_version: u32 = 1;

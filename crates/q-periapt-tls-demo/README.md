@@ -24,19 +24,28 @@ SUITE=enhanced cargo run --release -p q-periapt-tls-demo --bin p99_bench -- boun
 
 ## What the numbers show
 
-Illustrative loopback run (one dev host; absolute numbers are machine-specific):
+Current-working-source illustrative loopback run on macOS 27 arm64 with Rust
+1.96.0, collected 2026-07-13 with 3,000 iterations per suite/profile (one
+development host; absolute numbers are machine-specific):
 
 | suite / profile           | p50     | p99     | wire / handshake |
 |---------------------------|---------|---------|------------------|
-| L3 `ContextBound`         | 826 µs  | 1879 µs | **5758 B** (4 flights) |
-| L3 `CompatXWing`          | 893 µs  | 2099 µs | **5758 B** (4 flights) |
-| L5 `ContextBound` (`SUITE=enhanced`) | ~1017 µs | ~1955 µs | **7940 B** (4 flights) |
+| L3 `ContextBound`         | 1152.8 µs | 2911.8 µs | **5758 B** (4 flights) |
+| L3 `CompatXWing`          | 1154.2 µs | 2893.7 µs | **5758 B** (4 flights) |
+| L5 `ContextBound` (`SUITE=enhanced`) | 1328.8 µs | 3129.1 µs | **7940 B** (4 flights) |
 
-Three observations, all supporting the thesis:
+These are current-source **local illustrative values**, not a controlled-host
+performance gate, production evidence, or a parity claim. The run was not bound to
+clean signed provenance and does not replace repeated, quiesced, source-bound
+collection under the repository performance budget. The wire sizes follow the fixed
+parameter formats and remain useful for explaining the transport shape. Three
+observations motivate the measurement methodology:
 
-1. **Combiner CPU is invisible.** The two L3 profiles move *identical* bytes and their
-   P99 differs only at noise level — even though `ContextBound` hashes ~2.5 KB more
-   in the combiner. The combiner-CPU choice does not move the tail.
+1. **The local L3 measurements are close, without proving parity.** The two L3
+   profiles move *identical* bytes and their illustrative p50/p99 values are close,
+   even though `ContextBound` hashes ~2.5 KB more in the combiner. Only repeated,
+   quiesced, source-bound controlled runs may decide whether the difference is noise
+   or a stable effect.
 2. **Bytes drive the tail.** Of the L3 suite's 5758 B, the server→client flight is
    **4597 B** — dominated by the **~3.3 KB ML-DSA-65 signature** (plus the 1184 B
    `ek`); the client→server flight is 1161 B (1088 B `ct` + 32 B `ct_X`). The PQ
@@ -48,9 +57,9 @@ Three observations, all supporting the thesis:
    signature** (plus the 1568 B `ek`). Same flight count, more bytes per flight — the
    exact axis the harness is built to surface, now at the NIST level-5 parameter set.
 
-Injecting `DELAY_US=500` per flight pushes p50 from ~0.8 ms to ~3.6 ms: with four
-flights, **flight count × RTT** dominates — another reason micro encap/decap
-benchmarks mis-rank designs.
+In an older predecessor-provider run, injecting `DELAY_US=500` per flight pushed p50 from
+~0.8 ms to ~3.6 ms: with four flights, **flight count × RTT** dominated. This is
+historical methodology evidence, not current-provider or production parity.
 
 ## What this is — and isn't
 

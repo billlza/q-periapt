@@ -45,13 +45,15 @@ not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
 make check   # runs `easycrypt BindingViaCR.ec`  (install EasyCrypt via opam first)
 ```
 
-### Hermetic check (the CI hard gate)
+### Pinned-source container check (the CI hard gate)
 
-CI does **not** rely on a best-effort opam install. The [`formal/Dockerfile`](../Dockerfile) pins the
-exact EasyCrypt the proofs check under (`r2026.06`, commit `50ae51d`) plus Why3 + Z3 + Alt-Ergo, and
-the `formal-hermetic` CI job re-runs the proof **and** its proof-dependency regression controls
-inside it as a **hard gate** — if `BindingViaCR.ec` stops checking, or an expected proof-script
-dependency changes, CI fails. Reproduce it locally:
+The [`formal/Dockerfile`](../Dockerfile) pins the base image manifest and the exact EasyCrypt commit
+the proofs check under (`r2026.06`, commit
+`50ae51d106dfb6611235f4a8bb7f46275d34a38d`). The `formal-easycrypt` CI job re-runs the proof
+**and** its proof-dependency regression controls inside that image as a **hard gate** — if
+`BindingViaCR.ec` stops checking, or an expected proof-script dependency changes, CI fails.
+Debian apt metadata and the transitive opam solver graph are not snapshot-pinned, so this is a
+pinned-source container gate, not a hermetic or bit-reproducible toolchain. Reproduce it locally:
 
 ```sh
 docker build -f formal/Dockerfile -t q-periapt-ec .

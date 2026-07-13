@@ -10,7 +10,7 @@ SRC     := handshake.spthy
 
 .PHONY: prove check
 prove:
-	$(TAMARIN) --prove $(SRC)
+	$(TAMARIN) --quit-on-warning --prove $(SRC)
 
 check:
-	$(TAMARIN) $(SRC)
+	$(TAMARIN) --quit-on-warning $(SRC)

@@ -1,5 +1,5 @@
 //! Paper artifact (matériel B): a *real, executable* reproduction of Schmieg's
-//! expanded-dk MAL-BIND-K-PK counterexample against **real libcrux ML-KEM-768**, used to
+//! expanded-dk MAL-BIND-K-PK counterexample against the shipped **mlkem-native ML-KEM-768**, used to
 //! demonstrate one combiner-design invariant — and nothing more.
 //!
 //! WHAT THIS IS NOT. We do **not** claim to discover any cryptographic fact here, and we do
@@ -20,7 +20,7 @@
 //! `CompatXWing`, which omits `ct_pq`/`pk_pq`) attains K-PK only **conditionally** — it relies
 //! on the component ML-KEM being self-binding, which holds only for the seed-dk format. When
 //! the same shape is instantiated over the FIPS-203 **expanded** dk (which X-Wing-the-scheme
-//! forbids, but which production libraries — libcrux here — consume and may cache/transport),
+//! forbids, but which production APIs — the expanded-key adapter here — consume and may cache/transport),
 //! Schmieg's break propagates straight through the omitted field. `ContextBound` absorbs
 //! `pk_pq` directly, so its K-PK reduces to SHA3 collision-resistance **regardless** of the
 //! component dk format.
@@ -68,8 +68,8 @@ fn input<'a>(
 #[test]
 fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
     // (1) Two honest ML-KEM-768 key pairs.
-    let (mut dk1, ek1) = MlKem768::generate([0x11; 64]);
-    let (mut dk2, ek2) = MlKem768::generate([0x22; 64]);
+    let (mut dk1, ek1) = MlKem768::generate([0x11; 64]).unwrap();
+    let (mut dk2, ek2) = MlKem768::generate([0x22; 64]).unwrap();
     assert_ne!(ek1, ek2, "distinct public keys");
 
     // (2) The attack (Schmieg 2024/523): equalize ONLY the implicit-rejection seed `z` across
@@ -87,7 +87,7 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
 
     // (3) A garbage ciphertext fails re-encryption ⇒ both keys take the implicit-rejection
     //     branch K = J(z ‖ c). Same z, same c ⇒ **same ML-KEM shared secret under two distinct
-    //     public keys** — Schmieg's MAL-BIND-K-PK precondition, on real libcrux.
+    //     public keys** — Schmieg's MAL-BIND-K-PK precondition, on the shipped backend.
     let ct_garbage = [0xab_u8; ML_KEM_768_CT_LEN];
     let mut ss1 = [0u8; 32];
     let mut ss2 = [0u8; 32];
@@ -146,7 +146,7 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
     );
 
     eprintln!(
-        "combiner dk-format-coupling witness (real libcrux ML-KEM-768):\n  \
+        "combiner dk-format-coupling witness (shipped mlkem-native ML-KEM-768):\n  \
          attack (Schmieg 2024/523): equal z, garbage ct -> same ML-KEM K under ek1 != ek2\n  \
          lean shape over expanded-dk (CompatXWing, omits pk_pq): K1 == K2  => K-PK collides\n  \
          full binding (ContextBound, binds pk_pq):               K1 != K2  => K-PK holds\n  \
@@ -165,7 +165,7 @@ fn seed_dk_keypair(seed32: [u8; 32]) -> ([u8; ML_KEM_768_SK_LEN], [u8; ML_KEM_76
     let mut xof = Shake256::default();
     xof.update(&seed32);
     xof.finalize_xof().read(&mut dz);
-    MlKem768::generate(dz)
+    MlKem768::generate(dz).unwrap()
 }
 
 /// SEED-DK NEGATIVE CONTROL — the executable counterpart to the EasyCrypt lemma
@@ -229,7 +229,7 @@ fn seed_dk_control_z_bound_to_key_closes_schmieg_vector() {
     );
 
     eprintln!(
-        "seed-dk negative control (real libcrux ML-KEM-768, z derived from a 32-byte seed):\n  \
+        "seed-dk negative control (shipped mlkem-native ML-KEM-768, z derived from a 32-byte seed):\n  \
          distinct seeds -> distinct z -> distinct implicit-rejection ss under ek1 != ek2\n  \
          Schmieg precondition ss1 == ss2 is UNREACHABLE -> the expanded-dk attack vector is closed\n  \
          even the lean shape (CompatXWing) is not collided by it; deployed seed-dk X-Wing is safe."

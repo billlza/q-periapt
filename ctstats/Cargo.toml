@@ -34,7 +34,7 @@ cc = "1"
 name = "ct_verify"
 required-features = ["valgrind"]
 
-# Source→binary CT gap probe over real libcrux ML-KEM decapsulate.
+# Binary dataflow probe over every shipped q-periapt-backends ML-KEM decapsulation wrapper.
 [[bin]]
 name = "ct_decaps_gap"
 required-features = ["valgrind"]

@@ -4,14 +4,13 @@
 //! # q-periapt-backends
 //!
 //! Third-party primitive backends wired into the `q-periapt-core` traits:
-//! - **ML-KEM** (FIPS 203) via `libcrux-ml-kem` (HACL*-derived, constant-time):
+//! - **ML-KEM** (FIPS 203) via the portable `mlkem-native` integration:
 //!   [`MlKem512`], [`MlKem768`], [`MlKem1024`] expose the FIPS-expanded decapsulation
 //!   key format and are therefore confined to `ContextBound`; [`MlKem768XWingSeed`]
 //!   exposes the X-Wing seed-derived key format and is the only ML-KEM backend here
 //!   marked `COMPAT_XWING_SAFE` for the byte-exact `CompatXWing` profile.
-//! - **ML-DSA** (FIPS 204) via `libcrux-ml-dsa`: [`MlDsa44`], [`MlDsa65`], [`MlDsa87`]
-//!   (the `impl_mldsa_modes!` surface also adds context/hedged + SHAKE-128 pre-hash +
-//!   internal-interface signing, for ACVP conformance).
+//! - **ML-DSA** (FIPS 204) via `fips204`: [`MlDsa44`], [`MlDsa65`], [`MlDsa87`]
+//!   with context/hedged and SHAKE-128 pre-hash support.
 //! - [`X25519`] — X25519 ECDH-as-KEM via `x25519-dalek`, deterministic from a 32-byte
 //!   scalar. It is the absorbed traditional slot in canonical X-Wing. If a caller
 //!   instead places it in the first slot whose ct/pk `CompatXWing` omits, the
@@ -20,20 +19,41 @@
 //! - Off by default (cargo feature): `slh-dsa` ⇒
 //!   `SlhDsaSha2_128s`/`_192s`/`_256s` (FIPS 205, via `fips205`).
 //!
-//! This is the only crate that touches real cryptographic primitives; the
-//! security-critical composition stays in the dependency-free `q-periapt-core`.
+//! This is the single high-level primitive-adapter crate. Native C and `unsafe`
+//! integration stay below it in `q-periapt-mlkem-native-sys`; security-critical
+//! composition stays in the dependency-free `q-periapt-core`.
 
-use libcrux_ml_dsa::{ml_dsa_44, ml_dsa_65, ml_dsa_87};
-use libcrux_ml_kem::{mlkem1024, mlkem512, mlkem768};
 use q_periapt_core::{Error, Kem, Xof256, ZeroizingBytes, SHARED_SECRET_LEN};
-use q_periapt_sig::{SigAlg, Signer, Verifier};
+use q_periapt_mlkem_native_sys::{
+    Error as NativeMlKemError, MlKem1024 as NativeMlKem1024, MlKem512 as NativeMlKem512,
+    MlKem768 as NativeMlKem768,
+};
+use sha3::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Digest, Sha3_256, Shake256,
+};
 use x25519_dalek::{PublicKey, StaticSecret};
+
+const _: [(); 64] = [(); q_periapt_mlkem_native_sys::KEY_GENERATION_SEED_LEN];
+const _: [(); 32] = [(); q_periapt_mlkem_native_sys::ENCAPSULATION_SEED_LEN];
+const _: [(); SHARED_SECRET_LEN] = [(); q_periapt_mlkem_native_sys::SHARED_SECRET_LEN];
+
+fn map_mlkem_error(error: NativeMlKemError) -> Error {
+    match error {
+        NativeMlKemError::InvalidPublicKey => Error::InvalidKeyShare,
+        NativeMlKemError::Aliasing
+        | NativeMlKemError::InvalidDecapsulationKey
+        | NativeMlKemError::KeyGenerationFailed
+        | NativeMlKemError::OutOfMemory
+        | NativeMlKemError::UnexpectedStatus(_) => Error::Backend,
+    }
+}
 
 #[cfg(test)]
 mod xwing_kat;
 
-// Multi-backend differential: libcrux ML-KEM-768 vs the independent RustCrypto
-// `ml-kem` implementation (byte-identical keygen/encaps/decaps under FIPS 203).
+// Multi-backend differential: mlkem-native vs the independent RustCrypto `ml-kem`
+// implementation (byte-identical keygen/encaps/decaps under FIPS 203).
 #[cfg(test)]
 mod differential;
 
@@ -59,6 +79,15 @@ mod slhdsa;
 #[cfg(feature = "slh-dsa")]
 pub use slhdsa::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s};
 
+mod mldsa;
+pub use mldsa::{
+    MlDsa44, MlDsa65, MlDsa87, ML_DSA_44_KEYGEN_SEED_LEN, ML_DSA_44_SIGN_RAND_LEN,
+    ML_DSA_44_SIG_LEN, ML_DSA_44_SK_LEN, ML_DSA_44_VK_LEN, ML_DSA_65_KEYGEN_SEED_LEN,
+    ML_DSA_65_SIGN_RAND_LEN, ML_DSA_65_SIG_LEN, ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN,
+    ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN, ML_DSA_87_SIG_LEN, ML_DSA_87_SK_LEN,
+    ML_DSA_87_VK_LEN,
+};
+
 // NIST ACVP (FIPS 205) ground-truth conformance vectors for SLH-DSA-SHA2-{128,192,256}s.
 #[cfg(all(test, feature = "slh-dsa"))]
 mod acvp_slhdsa;
@@ -78,6 +107,16 @@ fn to_arr<const N: usize>(s: &[u8]) -> Result<[u8; N], Error> {
 }
 
 #[inline]
+fn to_zeroizing<const N: usize>(s: &[u8]) -> Result<ZeroizingBytes<N>, Error> {
+    if s.len() != N {
+        return Err(Error::InvalidLength);
+    }
+    let mut owned = ZeroizingBytes::zeroed();
+    owned.as_mut_bytes().copy_from_slice(s);
+    Ok(owned)
+}
+
+#[inline]
 fn write_exact(dst: &mut [u8], src: &[u8]) -> Result<(), Error> {
     if dst.len() != src.len() {
         return Err(Error::InvalidLength);
@@ -86,21 +125,35 @@ fn write_exact(dst: &mut [u8], src: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-/// Declares an ML-KEM (FIPS 203) backend over a libcrux `mlkem{512,768,1024}`
-/// module: the public length constants, the unit struct, its seed-deterministic
+#[inline]
+fn sha3_256(data: &[u8]) -> [u8; SHARED_SECRET_LEN] {
+    Sha3_256::digest(data).into()
+}
+
+#[inline]
+fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
+    let mut state = Shake256::default();
+    Update::update(&mut state, data);
+    let mut reader = state.finalize_xof();
+    let mut output = [0u8; N];
+    XofReader::read(&mut reader, &mut output);
+    output
+}
+
+/// Declares an ML-KEM (FIPS 203) backend over an `mlkem-native` parameter type: the
+/// public length constants, the unit struct, its seed-deterministic
 /// `generate` associated fn, and the [`Kem`] impl. All parameter sets share this
-/// boilerplate (constant-time HACL*-derived primitive, C2PRI ⇒ ciphertext-binding),
-/// differing only in module, key/ciphertext types, and byte lengths — so they are
+/// boilerplate (validated expanded-key import, C2PRI ⇒ ciphertext-binding),
+/// differing only in module and byte lengths — so they are
 /// generated from one definition rather than hand-copied.
 macro_rules! mlkem_backend {
     (
-        $name:ident, $m:ident, $alg:literal,
+        $name:ident, $native:ident, $alg:literal,
         $pk_len:ident = $pk:literal,
         $sk_len:ident = $sk:literal,
         $ct_len:ident = $ct:literal,
         $seed_len:ident = $seed:literal,
         $rand_len:ident = $rand:literal,
-        $PkT:ident, $SkT:ident, $CtT:ident,
         $struct_doc:literal
     ) => {
         #[doc = concat!($alg, " encapsulation-key (public key) length, bytes.")]
@@ -114,6 +167,10 @@ macro_rules! mlkem_backend {
         #[doc = concat!($alg, " encapsulation randomness length, bytes.")]
         pub const $rand_len: usize = $rand;
 
+        const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];
+        const _: [(); $sk] = [(); $native::DECAPSULATION_KEY_LEN];
+        const _: [(); $ct] = [(); $native::CIPHERTEXT_LEN];
+
         #[doc = $struct_doc]
         #[derive(Clone, Copy, Debug, Default)]
         pub struct $name;
@@ -121,14 +178,24 @@ macro_rules! mlkem_backend {
         impl $name {
             /// Deterministically generate a key pair from a 64-byte seed.
             /// Returns `(decapsulation_key, encapsulation_key)`.
-            #[must_use]
-            pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $pk_len]) {
-                let kp = $m::generate_key_pair(seed);
-                let mut sk = [0u8; $sk_len];
-                let mut pk = [0u8; $pk_len];
-                sk.copy_from_slice(kp.private_key().as_slice());
-                pk.copy_from_slice(kp.public_key().as_slice());
-                (sk, pk)
+            ///
+            /// # Errors
+            ///
+            /// Returns [`Error::Backend`] if the pinned primitive cannot
+            /// complete deterministic key generation.
+            pub fn generate(
+                seed: [u8; $seed_len],
+            ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
+                let seed = ZeroizingBytes::from_bytes(seed);
+                let mut encapsulation_key = [0u8; $pk_len];
+                let mut decapsulation_key = ZeroizingBytes::<$sk_len>::zeroed();
+                $native::keypair_derand(
+                    seed.as_bytes(),
+                    &mut encapsulation_key,
+                    decapsulation_key.as_mut_bytes(),
+                )
+                .map_err(map_mlkem_error)?;
+                Ok((*decapsulation_key.as_bytes(), encapsulation_key))
             }
         }
 
@@ -151,21 +218,38 @@ macro_rules! mlkem_backend {
                 ct: &mut [u8],
                 ss: &mut [u8],
             ) -> Result<(), Error> {
-                let pk_arr = to_arr::<$pk_len>(pk)?;
-                let rand = to_arr::<$rand_len>(randomness)?;
-                let public = $m::$PkT::from(pk_arr);
-                let (ciphertext, shared) = $m::encapsulate(&public, rand);
-                write_exact(ct, ciphertext.as_slice())?;
-                write_exact(ss, shared.as_slice())
+                if ct.len() != $ct_len || ss.len() != SHARED_SECRET_LEN {
+                    return Err(Error::InvalidLength);
+                }
+                let public_key = to_arr::<$pk_len>(pk)?;
+                let randomness = to_zeroizing::<$rand_len>(randomness)?;
+                let mut ciphertext = [0u8; $ct_len];
+                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                $native::encapsulate_derand(
+                    &public_key,
+                    randomness.as_bytes(),
+                    &mut ciphertext,
+                    shared_secret.as_mut_bytes(),
+                )
+                .map_err(map_mlkem_error)?;
+                write_exact(ct, &ciphertext)?;
+                write_exact(ss, shared_secret.as_bytes())
             }
 
             fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-                let sk_arr = to_arr::<$sk_len>(sk)?;
-                let ct_arr = to_arr::<$ct_len>(ct)?;
-                let private = $m::$SkT::from(sk_arr);
-                let ciphertext = $m::$CtT::from(ct_arr);
-                let shared = $m::decapsulate(&private, &ciphertext);
-                write_exact(ss, shared.as_slice())
+                if ss.len() != SHARED_SECRET_LEN {
+                    return Err(Error::InvalidLength);
+                }
+                let decapsulation_key = to_zeroizing::<$sk_len>(sk)?;
+                let ciphertext = to_arr::<$ct_len>(ct)?;
+                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                $native::decapsulate(
+                    decapsulation_key.as_bytes(),
+                    &ciphertext,
+                    shared_secret.as_mut_bytes(),
+                )
+                .map_err(map_mlkem_error)?;
+                write_exact(ss, shared_secret.as_bytes())
             }
         }
     };
@@ -173,47 +257,38 @@ macro_rules! mlkem_backend {
 
 mlkem_backend!(
     MlKem768,
-    mlkem768,
+    NativeMlKem768,
     "ML-KEM-768",
     ML_KEM_768_PK_LEN = 1184,
     ML_KEM_768_SK_LEN = 2400,
     ML_KEM_768_CT_LEN = 1088,
     ML_KEM_768_KEYGEN_SEED_LEN = 64,
     ML_KEM_768_ENCAPS_RAND_LEN = 32,
-    MlKem768PublicKey,
-    MlKem768PrivateKey,
-    MlKem768Ciphertext,
-    "ML-KEM-768 backend (FIPS 203) via libcrux."
+    "ML-KEM-768 backend (FIPS 203) via the portable mlkem-native integration."
 );
 
 mlkem_backend!(
     MlKem1024,
-    mlkem1024,
+    NativeMlKem1024,
     "ML-KEM-1024",
     ML_KEM_1024_PK_LEN = 1568,
     ML_KEM_1024_SK_LEN = 3168,
     ML_KEM_1024_CT_LEN = 1568,
     ML_KEM_1024_KEYGEN_SEED_LEN = 64,
     ML_KEM_1024_ENCAPS_RAND_LEN = 32,
-    MlKem1024PublicKey,
-    MlKem1024PrivateKey,
-    MlKem1024Ciphertext,
-    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via libcrux — the enhanced-mode KEM."
+    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via the portable mlkem-native integration — the enhanced-mode KEM."
 );
 
 mlkem_backend!(
     MlKem512,
-    mlkem512,
+    NativeMlKem512,
     "ML-KEM-512",
     ML_KEM_512_PK_LEN = 800,
     ML_KEM_512_SK_LEN = 1632,
     ML_KEM_512_CT_LEN = 768,
     ML_KEM_512_KEYGEN_SEED_LEN = 64,
     ML_KEM_512_ENCAPS_RAND_LEN = 32,
-    MlKem512PublicKey,
-    MlKem512PrivateKey,
-    MlKem512Ciphertext,
-    "ML-KEM-512 backend (FIPS 203, NIST level 1) via libcrux — the smallest parameter set."
+    "ML-KEM-512 backend (FIPS 203, NIST level 1) via the portable mlkem-native integration — the smallest parameter set."
 );
 
 /// X-Wing seed decapsulation key length, bytes.
@@ -230,19 +305,23 @@ pub struct MlKem768XWingSeed;
 
 #[inline]
 fn mlkem768_xwing_dz(seed: [u8; ML_KEM_768_XWING_SEED_LEN]) -> [u8; ML_KEM_768_KEYGEN_SEED_LEN] {
-    libcrux_sha3::shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed)
+    shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed)
 }
 
 impl MlKem768XWingSeed {
     /// Deterministically generate a key pair from a 32-byte X-Wing seed.
     /// Returns `(seed_decapsulation_key, encapsulation_key)`.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Backend`] if expansion or deterministic ML-KEM key
+    /// generation fails.
     pub fn generate(
         seed: [u8; ML_KEM_768_XWING_SEED_LEN],
-    ) -> ([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]) {
-        let (expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+    ) -> Result<([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]), Error> {
+        let (expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed))?;
         let _expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
-        (seed, pk)
+        Ok((seed, pk))
     }
 }
 
@@ -266,7 +345,7 @@ impl Kem for MlKem768XWingSeed {
 
     fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
         let seed = to_arr::<ML_KEM_768_XWING_SEED_LEN>(sk)?;
-        let (expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed));
+        let (expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed))?;
         let expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
         MlKem768.decapsulate(expanded_sk.as_bytes(), ct, ss)
     }
@@ -340,9 +419,9 @@ const SHA3_XOF_INLINE_CAP: usize = 200;
 /// hot-path state dynamically allocated.
 const SHA3_XOF_SECRET_RANGE_CAP: usize = 4;
 
-/// SHA3-256-based [`Xof256`] for the combiner (fixed 32-byte output), via libcrux.
+/// SHA3-256-based [`Xof256`] for the combiner (fixed 32-byte output), via RustCrypto.
 ///
-/// libcrux exposes a one-shot SHA3-256 (`sha256`), so absorbed chunks are staged
+/// The digest backend exposes one-shot SHA3-256, so absorbed chunks are staged
 /// contiguously and hashed at finalize; SHA3-256 over the concatenation equals the
 /// incremental hash, so the digest is byte-identical to X-Wing. The hot path — the
 /// 134-byte single-block CompatXWing combiner — stages into a fixed inline buffer
@@ -599,296 +678,18 @@ impl Xof256 for Sha3_256Xof {
             let Some(staged) = self.inline.get(..self.inline_len) else {
                 self.wipe_and_abort();
             };
-            libcrux_sha3::sha256(staged)
+            sha3_256(staged)
         } else {
-            libcrux_sha3::sha256(&self.spill)
+            sha3_256(&self.spill)
         }
     }
 }
-
-/// Declares an ML-DSA (FIPS 204) backend over a libcrux `ml_dsa_{44,65,87}`
-/// module: the public length constants, the unit struct, its seed-deterministic
-/// `generate` associated fn, and the suite-default [`Signer`]/[`Verifier`] impls
-/// (external interface, pure, empty context). All parameter sets share this
-/// boilerplate, differing only in module, key/signature types, byte lengths, and
-/// [`SigAlg`] tag — so they are generated from one definition rather than
-/// hand-copied. The extended multi-mode conformance surface (context/hedged +
-/// SHAKE-128 pre-hash + internal interface) is layered on separately via
-/// [`impl_mldsa_modes!`].
-macro_rules! mldsa_backend {
-    (
-        $name:ident, $m:ident, $alg:expr,
-        $sk_len:ident = $sk:literal,
-        $vk_len:ident = $vk:literal,
-        $sig_len:ident = $sig:literal,
-        $seed_len:ident = $seed:literal,
-        $rand_len:ident = $rand:literal,
-        $alg_str:literal,
-        $SkT:ident, $VkT:ident, $SigT:ident,
-        $struct_doc:literal
-    ) => {
-        #[doc = concat!($alg_str, " signing-key length, bytes (FIPS 204).")]
-        pub const $sk_len: usize = $sk;
-        #[doc = concat!($alg_str, " verification-key length, bytes.")]
-        pub const $vk_len: usize = $vk;
-        #[doc = concat!($alg_str, " signature length, bytes.")]
-        pub const $sig_len: usize = $sig;
-        #[doc = concat!($alg_str, " key-generation seed length, bytes.")]
-        pub const $seed_len: usize = $seed;
-        #[doc = concat!($alg_str, " signing-randomness length, bytes.")]
-        pub const $rand_len: usize = $rand;
-
-        #[doc = $struct_doc]
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct $name;
-
-        impl $name {
-            /// Deterministically generate a key pair from a 32-byte seed.
-            /// Returns `(signing_key, verification_key)`.
-            #[must_use]
-            pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $vk_len]) {
-                let kp = $m::generate_key_pair(seed);
-                let mut sk = [0u8; $sk_len];
-                let mut vk = [0u8; $vk_len];
-                sk.copy_from_slice(kp.signing_key.as_slice());
-                vk.copy_from_slice(kp.verification_key.as_slice());
-                (sk, vk)
-            }
-        }
-
-        impl Signer for $name {
-            fn algorithm(&self) -> SigAlg {
-                $alg
-            }
-
-            fn sign(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                let sk_arr = to_arr::<$sk_len>(sk)?;
-                let rnd = to_arr::<$rand_len>(randomness)?;
-                let signing_key = $m::$SkT::new(sk_arr);
-                let sig = $m::sign(&signing_key, msg, b"", rnd).map_err(|_| Error::Backend)?;
-                write_exact(out_sig, sig.as_slice())?;
-                Ok(out_sig.len())
-            }
-        }
-
-        impl Verifier for $name {
-            fn algorithm(&self) -> SigAlg {
-                $alg
-            }
-
-            fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-                let vk_arr = to_arr::<$vk_len>(pk)?;
-                let sig_arr = to_arr::<$sig_len>(sig)?;
-                let vk = $m::$VkT::new(vk_arr);
-                let signature = $m::$SigT::new(sig_arr);
-                $m::verify(&vk, msg, b"", &signature).map_err(|_| Error::Backend)
-            }
-        }
-    };
-}
-
-mldsa_backend!(
-    MlDsa65,
-    ml_dsa_65,
-    SigAlg::MlDsa65,
-    ML_DSA_65_SK_LEN = 4032,
-    ML_DSA_65_VK_LEN = 1952,
-    ML_DSA_65_SIG_LEN = 3309,
-    ML_DSA_65_KEYGEN_SEED_LEN = 32,
-    ML_DSA_65_SIGN_RAND_LEN = 32,
-    "ML-DSA-65",
-    MLDSA65SigningKey,
-    MLDSA65VerificationKey,
-    MLDSA65Signature,
-    "ML-DSA-65 backend (FIPS 204) via libcrux."
-);
-
-mldsa_backend!(
-    MlDsa87,
-    ml_dsa_87,
-    SigAlg::MlDsa87,
-    ML_DSA_87_SK_LEN = 4896,
-    ML_DSA_87_VK_LEN = 2592,
-    ML_DSA_87_SIG_LEN = 4627,
-    ML_DSA_87_KEYGEN_SEED_LEN = 32,
-    ML_DSA_87_SIGN_RAND_LEN = 32,
-    "ML-DSA-87",
-    MLDSA87SigningKey,
-    MLDSA87VerificationKey,
-    MLDSA87Signature,
-    "ML-DSA-87 backend (FIPS 204, NIST level 5) via libcrux — the enhanced-mode signature."
-);
-
-mldsa_backend!(
-    MlDsa44,
-    ml_dsa_44,
-    SigAlg::MlDsa44,
-    ML_DSA_44_SK_LEN = 2560,
-    ML_DSA_44_VK_LEN = 1312,
-    ML_DSA_44_SIG_LEN = 2420,
-    ML_DSA_44_KEYGEN_SEED_LEN = 32,
-    ML_DSA_44_SIGN_RAND_LEN = 32,
-    "ML-DSA-44",
-    MLDSA44SigningKey,
-    MLDSA44VerificationKey,
-    MLDSA44Signature,
-    "ML-DSA-44 backend (FIPS 204, NIST level 2) via libcrux — the smallest ML-DSA."
-);
-
-/// Extended FIPS 204 conformance surface for an ML-DSA backend, beyond the suite's
-/// default mode (the [`Signer`]/[`Verifier`] impls fix external interface, pure,
-/// empty context). These wrap libcrux's fuller public API — external `ML-DSA.Sign`
-/// with explicit `context` and caller `randomness` (deterministic when zero, hedged
-/// otherwise), and `HashML-DSA` with a SHAKE128 pre-hash — so the multi-mode ACVP
-/// conformance vectors can be exercised. The hybrid suite itself does not use these
-/// methods. (libcrux does not publicly expose the internal interface or `externalMu`,
-/// nor `HashML-DSA` with hashes other than SHAKE128, so those ACVP modes are not
-/// covered here — see `acvp.rs`.)
-macro_rules! impl_mldsa_modes {
-    ($ty:ty, $m:ident, $sk_len:ident, $vk_len:ident, $sig_len:ident, $rnd_len:ident,
-     $SkT:ident, $VkT:ident, $SigT:ident) => {
-        impl $ty {
-            /// External `ML-DSA.Sign` with explicit `context` and caller `randomness`
-            /// (all-zero ⇒ deterministic, random ⇒ hedged).
-            pub fn sign_ctx(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                let sk_arr = to_arr::<$sk_len>(sk)?;
-                let rnd = to_arr::<$rnd_len>(randomness)?;
-                let signing_key = $m::$SkT::new(sk_arr);
-                let sig = $m::sign(&signing_key, msg, context, rnd).map_err(|_| Error::Backend)?;
-                write_exact(out_sig, sig.as_slice())?;
-                Ok(out_sig.len())
-            }
-
-            /// External `ML-DSA.Verify` with explicit `context`.
-            pub fn verify_ctx(
-                &self,
-                pk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                sig: &[u8],
-            ) -> Result<(), Error> {
-                let vk_arr = to_arr::<$vk_len>(pk)?;
-                let sig_arr = to_arr::<$sig_len>(sig)?;
-                let vk = $m::$VkT::new(vk_arr);
-                let signature = $m::$SigT::new(sig_arr);
-                $m::verify(&vk, msg, context, &signature).map_err(|_| Error::Backend)
-            }
-
-            /// `HashML-DSA` sign with a SHAKE128 pre-hash and explicit `context`.
-            pub fn sign_pre_hashed_shake128(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                let sk_arr = to_arr::<$sk_len>(sk)?;
-                let rnd = to_arr::<$rnd_len>(randomness)?;
-                let signing_key = $m::$SkT::new(sk_arr);
-                let sig = $m::sign_pre_hashed_shake128(&signing_key, msg, context, rnd)
-                    .map_err(|_| Error::Backend)?;
-                write_exact(out_sig, sig.as_slice())?;
-                Ok(out_sig.len())
-            }
-
-            /// `HashML-DSA` verify with a SHAKE128 pre-hash and explicit `context`.
-            pub fn verify_pre_hashed_shake128(
-                &self,
-                pk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                sig: &[u8],
-            ) -> Result<(), Error> {
-                let vk_arr = to_arr::<$vk_len>(pk)?;
-                let sig_arr = to_arr::<$sig_len>(sig)?;
-                let vk = $m::$VkT::new(vk_arr);
-                let signature = $m::$SigT::new(sig_arr);
-                $m::verify_pre_hashed_shake128(&vk, msg, context, &signature)
-                    .map_err(|_| Error::Backend)
-            }
-
-            /// Internal-interface `ML-DSA.Sign_internal` (FIPS 204 Alg. 7): signs the
-            /// already-domain-separated `msg` directly (no context prefix), with caller
-            /// `randomness` (zero ⇒ deterministic). Exposed by the libcrux `acvp` feature.
-            pub fn sign_internal(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                let sk_arr = to_arr::<$sk_len>(sk)?;
-                let rnd = to_arr::<$rnd_len>(randomness)?;
-                let signing_key = $m::$SkT::new(sk_arr);
-                let sig = $m::sign_internal(&signing_key, msg, rnd).map_err(|_| Error::Backend)?;
-                write_exact(out_sig, sig.as_slice())?;
-                Ok(out_sig.len())
-            }
-
-            /// Internal-interface `ML-DSA.Verify_internal` (FIPS 204 Alg. 8).
-            pub fn verify_internal(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-                let vk_arr = to_arr::<$vk_len>(pk)?;
-                let sig_arr = to_arr::<$sig_len>(sig)?;
-                let vk = $m::$VkT::new(vk_arr);
-                let signature = $m::$SigT::new(sig_arr);
-                $m::verify_internal(&vk, msg, &signature).map_err(|_| Error::Backend)
-            }
-        }
-    };
-}
-
-impl_mldsa_modes!(
-    MlDsa44,
-    ml_dsa_44,
-    ML_DSA_44_SK_LEN,
-    ML_DSA_44_VK_LEN,
-    ML_DSA_44_SIG_LEN,
-    ML_DSA_44_SIGN_RAND_LEN,
-    MLDSA44SigningKey,
-    MLDSA44VerificationKey,
-    MLDSA44Signature
-);
-impl_mldsa_modes!(
-    MlDsa65,
-    ml_dsa_65,
-    ML_DSA_65_SK_LEN,
-    ML_DSA_65_VK_LEN,
-    ML_DSA_65_SIG_LEN,
-    ML_DSA_65_SIGN_RAND_LEN,
-    MLDSA65SigningKey,
-    MLDSA65VerificationKey,
-    MLDSA65Signature
-);
-impl_mldsa_modes!(
-    MlDsa87,
-    ml_dsa_87,
-    ML_DSA_87_SK_LEN,
-    ML_DSA_87_VK_LEN,
-    ML_DSA_87_SIG_LEN,
-    ML_DSA_87_SIGN_RAND_LEN,
-    MLDSA87SigningKey,
-    MLDSA87VerificationKey,
-    MLDSA87Signature
-);
 
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use super::*;
+    use q_periapt_sig::{Signer, Verifier};
 
     #[test]
     fn sha3_256_known_answer() {
@@ -1074,7 +875,7 @@ mod tests {
 
     #[test]
     fn mlkem768_roundtrip() {
-        let (sk, pk) = MlKem768::generate([7u8; 64]);
+        let (sk, pk) = MlKem768::generate([7u8; 64]).unwrap();
         let kem = MlKem768;
         let mut ct = [0u8; ML_KEM_768_CT_LEN];
         let mut ss_e = [0u8; 32];
@@ -1132,7 +933,7 @@ mod tests {
         use q_periapt_core::Profile;
         use q_periapt_kem::HybridKem;
 
-        let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]);
+        let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let ctx = b"q-periapt/v1/test-transcript";
 
@@ -1173,7 +974,7 @@ mod tests {
         }
 
         {
-            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]);
+            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]).unwrap();
             let (pq, trad) = (MlKem768XWingSeed, X25519);
             let kem = HybridKem::<_, _, Sha3_256Xof>::new(
                 &pq,
@@ -1230,7 +1031,7 @@ mod tests {
         use q_periapt_core::Profile;
         use q_periapt_kem::HybridKem;
 
-        let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]);
+        let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
         let ctx = b"q-periapt/v1/enhanced-transcript";
 
@@ -1282,7 +1083,7 @@ mod tests {
     #[test]
     fn deterministic_encaps() {
         // Same randomness ⇒ identical ciphertext+secret (KAT precondition).
-        let (_sk, pk) = MlKem768::generate([1u8; 64]);
+        let (_sk, pk) = MlKem768::generate([1u8; 64]).unwrap();
         let kem = MlKem768;
         let (mut ct1, mut ss1) = ([0u8; ML_KEM_768_CT_LEN], [0u8; 32]);
         let (mut ct2, mut ss2) = ([0u8; ML_KEM_768_CT_LEN], [0u8; 32]);
@@ -1292,6 +1093,105 @@ mod tests {
             .unwrap();
         assert_eq!(ct1, ct2);
         assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn mlkem768_rejects_malformed_expanded_keys_without_partial_output() {
+        const EMBEDDED_EK_OFFSET: usize =
+            ML_KEM_768_SK_LEN - ML_KEM_768_PK_LEN - (2 * SHARED_SECRET_LEN);
+        const EMBEDDED_EK_HASH_OFFSET: usize = ML_KEM_768_SK_LEN - (2 * SHARED_SECRET_LEN);
+
+        let (sk, pk) = MlKem768::generate([0x31; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
+        let mut ct = [0u8; ML_KEM_768_CT_LEN];
+        let mut expected_secret = [0u8; SHARED_SECRET_LEN];
+        MlKem768
+            .encapsulate(
+                &pk,
+                &[0x42; ML_KEM_768_ENCAPS_RAND_LEN],
+                &mut ct,
+                &mut expected_secret,
+            )
+            .unwrap();
+
+        let mut bad_hash = sk;
+        bad_hash[EMBEDDED_EK_HASH_OFFSET] ^= 1;
+        let mut output = [0xA5; SHARED_SECRET_LEN];
+        assert_eq!(
+            MlKem768.decapsulate(&bad_hash, &ct, &mut output),
+            Err(Error::Backend),
+            "expanded key import must validate H(ek)"
+        );
+        assert_eq!(
+            output, [0xA5; SHARED_SECRET_LEN],
+            "failed key import must not partially overwrite the output"
+        );
+
+        let mut noncanonical_ek = sk;
+        noncanonical_ek[EMBEDDED_EK_OFFSET] = 0xFF;
+        noncanonical_ek[EMBEDDED_EK_OFFSET + 1] = 0x0F;
+        assert_eq!(
+            MlKem768.decapsulate(&noncanonical_ek, &ct, &mut output),
+            Err(Error::Backend),
+            "embedded ek coefficients outside the ML-KEM modulus must be rejected"
+        );
+        assert_eq!(output, [0xA5; SHARED_SECRET_LEN]);
+
+        let malformed = [0xFF; ML_KEM_768_SK_LEN];
+        let no_panic = std::panic::catch_unwind(|| {
+            let mut scratch = [0x5A; SHARED_SECRET_LEN];
+            let result = MlKem768.decapsulate(&malformed, &ct, &mut scratch);
+            (result, scratch)
+        });
+        let (result, scratch) = no_panic.expect("malformed fixed-length dk must not panic");
+        assert_eq!(result, Err(Error::Backend));
+        assert_eq!(scratch, [0x5A; SHARED_SECRET_LEN]);
+    }
+
+    #[test]
+    fn mlkem768_malformed_ciphertext_uses_deterministic_implicit_rejection() {
+        let (sk, pk) = MlKem768::generate([0x17; ML_KEM_768_KEYGEN_SEED_LEN]).unwrap();
+        let mut valid_ct = [0u8; ML_KEM_768_CT_LEN];
+        let mut valid_secret = [0u8; SHARED_SECRET_LEN];
+        MlKem768
+            .encapsulate(
+                &pk,
+                &[0x29; ML_KEM_768_ENCAPS_RAND_LEN],
+                &mut valid_ct,
+                &mut valid_secret,
+            )
+            .unwrap();
+
+        let mut malformed_ct = valid_ct;
+        malformed_ct[0] ^= 1;
+        let mut rejected_secret_a = [0u8; SHARED_SECRET_LEN];
+        let mut rejected_secret_b = [0u8; SHARED_SECRET_LEN];
+        MlKem768
+            .decapsulate(&sk, &malformed_ct, &mut rejected_secret_a)
+            .unwrap();
+        MlKem768
+            .decapsulate(&sk, &malformed_ct, &mut rejected_secret_b)
+            .unwrap();
+
+        assert_eq!(rejected_secret_a, rejected_secret_b);
+        assert_ne!(rejected_secret_a, valid_secret);
+    }
+
+    #[test]
+    fn mlkem768_rejects_malformed_public_key_atomically() {
+        let malformed_pk = [0xFF; ML_KEM_768_PK_LEN];
+        let mut ct = [0xA5; ML_KEM_768_CT_LEN];
+        let mut secret = [0x5A; SHARED_SECRET_LEN];
+        assert_eq!(
+            MlKem768.encapsulate(
+                &malformed_pk,
+                &[0x11; ML_KEM_768_ENCAPS_RAND_LEN],
+                &mut ct,
+                &mut secret,
+            ),
+            Err(Error::InvalidKeyShare)
+        );
+        assert_eq!(ct, [0xA5; ML_KEM_768_CT_LEN]);
+        assert_eq!(secret, [0x5A; SHARED_SECRET_LEN]);
     }
 
     #[test]
@@ -1309,5 +1209,119 @@ mod tests {
         let mut bad = sig;
         bad[0] ^= 0xFF;
         assert!(verifier.verify(&vk, msg, &bad).is_err());
+    }
+
+    #[test]
+    fn mldsa65_context_boundary_is_explicit_and_atomic() {
+        let (sk, vk) = MlDsa65::generate([0x36; ML_DSA_65_KEYGEN_SEED_LEN]);
+        let randomness = [0x47; ML_DSA_65_SIGN_RAND_LEN];
+        let context_255 = [0x58; 255];
+        let context_256 = [0x69; 256];
+        let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+
+        MlDsa65
+            .sign_ctx(
+                &sk,
+                b"context boundary",
+                &context_255,
+                &randomness,
+                &mut signature,
+            )
+            .unwrap();
+        MlDsa65
+            .verify_ctx(&vk, b"context boundary", &context_255, &signature)
+            .unwrap();
+
+        let mut untouched = [0xA5; ML_DSA_65_SIG_LEN];
+        assert_eq!(
+            MlDsa65.sign_ctx(
+                &sk,
+                b"context boundary",
+                &context_256,
+                &randomness,
+                &mut untouched,
+            ),
+            Err(Error::InvalidLength)
+        );
+        assert_eq!(untouched, [0xA5; ML_DSA_65_SIG_LEN]);
+        assert_eq!(
+            MlDsa65.verify_ctx(&vk, b"context boundary", &context_256, &signature),
+            Err(Error::InvalidLength)
+        );
+    }
+
+    #[test]
+    fn mldsa65_malformed_keys_fail_without_panics_or_partial_output() {
+        let (_valid_sk, valid_vk) = MlDsa65::generate([0x62; ML_DSA_65_KEYGEN_SEED_LEN]);
+        let malformed_sk = [0xFF; ML_DSA_65_SK_LEN];
+        let arbitrary_vk = [0xFF; ML_DSA_65_VK_LEN];
+        let randomness = [0x73; ML_DSA_65_SIGN_RAND_LEN];
+        let no_panic = std::panic::catch_unwind(|| {
+            let mut signature = [0xA5; ML_DSA_65_SIG_LEN];
+            let result = MlDsa65.sign(&malformed_sk, b"malformed key", &randomness, &mut signature);
+            (result, signature)
+        });
+        let (result, signature) = no_panic.expect("malformed fixed-length sk must not panic");
+        assert_eq!(result, Err(Error::Backend));
+        assert_eq!(signature, [0xA5; ML_DSA_65_SIG_LEN]);
+
+        let malformed_signature = [0xFF; ML_DSA_65_SIG_LEN];
+        let no_panic = std::panic::catch_unwind(|| {
+            MlDsa65.verify(&valid_vk, b"malformed signature", &malformed_signature)
+        });
+        assert_eq!(
+            no_panic.expect("malformed fixed-length signature must not panic"),
+            Err(Error::Backend)
+        );
+
+        // Every fixed-length ML-DSA public-key bit pattern is a canonical packed t1 value.
+        // It is therefore importable, but cannot validate an unrelated malformed signature.
+        assert_eq!(
+            MlDsa65.verify(&arbitrary_vk, b"arbitrary public key", &malformed_signature),
+            Err(Error::Backend)
+        );
+    }
+
+    #[test]
+    fn mldsa44_and_87_reject_noncanonical_small_secret_coefficients_atomically() {
+        let mut signature_44 = [0xA5; ML_DSA_44_SIG_LEN];
+        assert_eq!(
+            MlDsa44.sign(
+                &[0xFF; ML_DSA_44_SK_LEN],
+                b"non-canonical eta=2 key",
+                &[0x11; ML_DSA_44_SIGN_RAND_LEN],
+                &mut signature_44,
+            ),
+            Err(Error::Backend)
+        );
+        assert_eq!(signature_44, [0xA5; ML_DSA_44_SIG_LEN]);
+
+        let mut signature_87 = [0x5A; ML_DSA_87_SIG_LEN];
+        assert_eq!(
+            MlDsa87.sign(
+                &[0xFF; ML_DSA_87_SK_LEN],
+                b"non-canonical eta=2 key",
+                &[0x22; ML_DSA_87_SIGN_RAND_LEN],
+                &mut signature_87,
+            ),
+            Err(Error::Backend)
+        );
+        assert_eq!(signature_87, [0x5A; ML_DSA_87_SIG_LEN]);
+    }
+
+    #[test]
+    fn mldsa65_wrong_output_length_does_not_write() {
+        let (sk, _) = MlDsa65::generate([0x84; ML_DSA_65_KEYGEN_SEED_LEN]);
+        let mut short = [0xA5; ML_DSA_65_SIG_LEN - 1];
+        assert_eq!(
+            MlDsa65.sign(
+                &sk,
+                b"wrong output length",
+                &[0x95; ML_DSA_65_SIGN_RAND_LEN],
+                &mut short,
+            ),
+            Err(Error::InvalidLength)
+        );
+        assert_eq!(short, [0xA5; ML_DSA_65_SIG_LEN - 1]);
     }
 }

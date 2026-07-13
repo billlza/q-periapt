@@ -18,9 +18,11 @@
 
 ## 0. Scope and non-goals
 
-Q-Periapt does **not** implement any cryptographic primitive. ML-KEM-768, X25519,
-SHA3-256 and SHAKE256 come from third-party backends (libcrux / HACL\*-derived,
-x25519-dalek, fips205), each with a distinct conformance/audit/constant-time
+Q-Periapt does **not** implement any cryptographic primitive. ML-KEM, ML-DSA,
+SHA3/SHAKE, X25519, and optional SLH-DSA come from pinned third-party backends
+(portable `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204`
+0.4.6, `sha3` 0.10.9, x25519-dalek, and fips205),
+each with a distinct conformance/audit/constant-time
 boundary. The former timing-leaky, unmaintained PQClean-HQC adapter has been removed
 from the publishable/runtime graph. A RustCrypto HQC-v5/FIPS-207-draft candidate exists only in
 a standalone `publish = false` shadow crate and is outside this combiner's product
@@ -31,9 +33,10 @@ entire security-critical surface that Q-Periapt itself owns; it is deliberately
 tiny, `no_std`, `deny(unsafe_code)` (with the one documented `Secret::drop` wipe),
 and primitive-agnostic so it can be audited in isolation.
 
-This is **research-grade, not production**: there is no third-party audit, and the
-backends are pre-1.0 / unaudited (libcrux 0.0.9 asks you to contact maintainers
-before production use). Do not deploy.
+This is part of the release-ready ABI 2 **research alpha, not a production release**:
+there is no third-party cryptographic
+or ABI audit, and the backend integrations are pre-1.0 / unaudited for this suite.
+Do not deploy.
 
 This specification is also **not a session protocol**. It does not define identities,
 prekeys, offline initiation, AEAD messages, ratchets, persistence, multi-device
@@ -79,8 +82,8 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>)
 
 - Return: `Secret` on success, or `Error` (`InvalidLength` / `PolicyDenied` /
   `InvalidKeyShare` / `Backend`). `Error` is deliberately coarse and carries
-  **no** secret-dependent information; every variant is a publicly observable
-  condition (§5).
+  **no** secret-dependent ciphertext-validity information. Public input failures
+  are classifiable; local key/provider failures remain opaque (§5).
 
 The two profiles are domain-separated: `CompatXWing` is keyed by `XWING_LABEL`
 (`5c 2e 2f 2f 5e 5c` = ASCII `\.//^\`, 6 bytes; the `XWING_LABEL` const,
@@ -171,7 +174,8 @@ For each vector it reconstructs X-Wing's own key expansion
 [`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs)).
 
 Because the public-key, ciphertext and shared-secret assertions all pass against
-the published vectors, the test also exercises the libcrux ML-KEM-768 backend.
+the published vectors, the test also exercises the release-graph portable
+`mlkem-native` ML-KEM-768 backend.
 
 **Honest scope:** this reproduces the FIPS 203 reference output on those **three
 happy-path X-Wing draft vectors**. The broader ACVP vector suite is covered
@@ -382,18 +386,20 @@ test plus backend tests. A deliberately contradictory
 ## 5. Error and failure-path discipline
 
 The `Error` enum ([`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs))
-has a small, non-exhaustive set of public-condition variants:
+has a small, non-exhaustive set of variants:
 
 - `InvalidLength` — a `CompatXWing` field was not 32 bytes (§2.2), or a
   `ContextBound` `context` was empty (§3.4). Attacker-known buffer facts.
-- `Backend` — an opaque backend-primitive failure.
-- `InvalidKeyShare` — a public invalid/non-contributory DH-style key share such as
-  a low-order X25519 input.
+- `Backend` — an opaque local decapsulation-key/provider/internal failure. Its
+  diagnostic cause is not exposed to the caller.
+- `InvalidKeyShare` — a public invalid peer key, such as a noncanonical ML-KEM
+  encapsulation key or a low-order/non-contributory X25519 input.
 - `PolicyDenied` — a forbidden profile/KEM combination (§4).
 
 No variant encodes secret-dependent information — in particular, **none** signals
-"why a decapsulation failed." Component KEMs use **implicit rejection**: an invalid
-ciphertext yields a pseudorandom shared secret, not an error
+whether or why a correct-length FO-KEM ciphertext was invalid. Component KEMs use
+**implicit rejection**: such a ciphertext yields a deterministic pseudorandom shared
+secret, not an error
 (`HybridKem::decapsulate`,
 [`q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)), so the failure
 path is value- and control-flow-indistinguishable from success at the combiner
@@ -404,9 +410,15 @@ then select with a mask).
 
 **Side-channel CI posture (honest):** failure-path indistinguishability / implicit
 rejection **is** a hard CI gate (ctstats). Binary-level **dataflow** constant-time over this
-composition code (`ct_eq`/`ct_select32`/the combiner) **is** also a hard CI gate today
-(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64); extending it over the
-libcrux **primitive** paths and to riscv64/wasm32 is **TODO**. The dudect **timing** test is a
+composition code (`ct_eq`/`ct_select32`/the combiner) is configured as a hard CI gate
+(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64). The backend/source
+migration invalidated all prior CT captures; the shipped-provider ML-KEM-512/768/1024
+decapsulation probes and composition cells require a fresh same-source two-ISA pass.
+The superseded `fips203` 0.4.3 provider failed its historical two-ISA probe
+([run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107));
+its nonzero counts are not evidence about portable `mlkem-native`. No predecessor source-CT/hax
+claim is inherited. Extending binary CT over the other primitive paths and to
+riscv64/wasm32 is **TODO**. The dudect **timing** test is a
 local diagnostic, intentionally absent from noisy shared CI and not a merge gate. The portable `ct_*` helpers are
 best-effort in safe Rust; do not read this as "timing is gated." See
 [`docs/ROADMAP.md`](./ROADMAP.md) and [`docs/THREAT_MODEL.md`](./THREAT_MODEL.md).
