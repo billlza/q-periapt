@@ -11,7 +11,7 @@
 //!   roots, firmware, and long-term signatures, where large/slow signatures are
 //!   an acceptable trade for minimal assumptions.
 //!
-//! Backends (libcrux `ml-dsa` for ML-DSA, `fips205` for SLH-DSA) are wired into
+//! Backends (`fips204` for ML-DSA, `fips205` for SLH-DSA) are wired into
 //! `q-periapt-backends` behind cargo features; this crate defines the algorithm-agnostic
 //! trait surface that the policy layer and FFI build on. (RustCrypto `ml-dsa` appears only
 //! as a `[dev-dependencies]` differential cross-check, not as a shipped backend.)
@@ -63,7 +63,12 @@ impl SigAlg {
     }
 }
 
-/// Produces signatures. Implementations must be constant-time w.r.t. the key.
+/// Produces signatures.
+///
+/// Implementations must document their secret-dependent timing boundary. ML-DSA uses
+/// rejection sampling, so its signer does not have a strict fixed-time contract; callers
+/// must not expose signing as an attacker-amplifiable timing oracle. Verification operates
+/// only on public inputs and is the product ABI's policy-authentication path.
 pub trait Signer {
     /// Algorithm this signer implements.
     fn algorithm(&self) -> SigAlg;

@@ -125,19 +125,21 @@ bundles, UDIDs, or adb serials.
 | Face | Status | Boundary |
 |---|---|---|
 | Rust | Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io publish allow/deny list, package file lists, and patched `cargo publish --dry-run` for every publishable crate. | Crates are not uploaded; first public release still requires a clean tree, registry publish order, and release provenance for the actual crates.io versions. |
-| C ABI | Package `0.1.0-alpha.1` now has a frozen machine-readable ABI2 authority: nine exact product exports, status/constants, 40/36-byte layouts, forbidden raw/deterministic symbols, ABI-major header guard and platform identities. The host C product smoke proves signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | Public release remains blocked until the ABI2 C archive passes on every supported platform, release-index semantics bind every face, dependency audit is warning-clean, and clean signed provenance exists. Windows archive proof, full third-party license inventory and public install docs remain open. |
-| Swift | Current SwiftPM ABI2 product tests and the five-slice XCFramework isolated consumer pass on their recorded source. The selected clean-tree schema-3 matrix covers one physical iPad and one distinct physical iPhone, with source/artifact/run/device-family binding. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | Time-varying matrix currentness must pass the results-manifest-bound live verifier. Public URL/checksum, Apple distribution signing, and independent signed provenance remain required. |
-| Android | The four-ABI AAR uses ABI-major FFI/JNI names and the same nine-symbol native product workflow; export/SONAME/DT_NEEDED checks, Java/JNI warnings-as-errors, dex, signing and isolated consumer pass. | Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
+| C ABI | Package `0.1.0-alpha.1` has a frozen machine-readable ABI2 authority: nine exact product exports, status/constants, 40/36-byte layouts, forbidden raw/deterministic symbols, ABI-major header guard and platform identities. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | The backend/source migration invalidated recorded archives and smoke proofs. Public release remains blocked until every supported-platform archive and release index is rebuilt against one source digest, then independently reviewed and bound to clean signed provenance. Windows archive proof, full third-party license inventory and public install docs remain open. |
+| Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | The recorded XCFramework and clean-tree iPad+iPhone matrix are historical after the backend/source migration. Both package and physical-device lanes must be rerun against the release source. Public URL/checksum, Apple distribution signing, and independent signed provenance remain required. |
+| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. | The recorded AAR predates the backend/source migration and must be rebuilt. Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
 | Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path; the current machine has Temurin JDK 22.0.2. | The JDK 22+ test gate must pass on each release source; this is host JVM only and separate from Android. |
 | WASM | Deterministic Node/WASM conformance tests and version/fixed-suite metadata remain. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
 
 The retired PQClean-HQC adapter is absent from every package above. Numeric suite code
 `3` is a fail-closed tombstone, while `research/hqc-fips207-candidate` is a standalone
-`publish = false` shadow with no ABI/package identity. The same source change invalidated
-all earlier matched-performance proofs. A later controlled-host matched-backend proof passed the
-fixed non-regression budget; `artifact/results.json` and the live verifier determine currentness.
-ABI 2 remains unpublished, and the unsuppressed upstream `proc-macro-error2` advisory through
-libcrux/hax is still a hard release blocker.
+`publish = false` shadow with no ABI/package identity. The migration to `fips203`
+0.4.3, `fips204` 0.4.6, and `sha3` 0.10.9 changed the source digest and invalidated
+every previously recorded package, device, matched-performance, and binary-CT proof.
+The same migration removed the `libcrux`/hax `proc-macro-error2` advisory edge, and
+`cargo audit --deny warnings` now passes without an ignore. ABI 2 remains unpublished:
+fresh same-source evidence, independent cryptographic and ABI review, clean signed
+provenance, and distribution signing remain hard blockers.
 
 ## Apple Device Matrix
 
@@ -185,11 +187,11 @@ release artifact.
   complete multi-target publishing, dependency license inventory and install docs.
 - Swift product surface: publish the generated XCFramework package from a clean tree with public
   URL/checksum/provenance, and rerun the physical iPad+iPhone matrix against that same source state.
-- Android product surface: replace the historical, stale, pre-ABI2 emulator ART
+- Android product surface: rebuild the AAR for the migrated backend, then replace the historical, stale, pre-ABI2 emulator ART
   diagnostic with a current ABI2 runtime smoke, then promote it to clean release
   provenance, decide whether CI requires an emulator lane or whether physical Android devices are
-  the release gate, and add downstream SkyBridge target-level harnesses. The current
-  AAR/JNI package proof exists; no current-source ABI2 ART proof exists yet.
+  the release gate, and add downstream SkyBridge target-level harnesses. No
+  current-source AAR or ABI2 ART proof exists yet.
 - Downstream SkyBridge harness: one minimal integration test per target repository using the same
   shared vectors and policy files, so Q-Periapt proof does not get mistaken for downstream product
   proof.

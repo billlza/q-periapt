@@ -18,9 +18,10 @@
 
 ## 0. Scope and non-goals
 
-Q-Periapt does **not** implement any cryptographic primitive. ML-KEM-768, X25519,
-SHA3-256 and SHAKE256 come from third-party backends (libcrux / HACL\*-derived,
-x25519-dalek, fips205), each with a distinct conformance/audit/constant-time
+Q-Periapt does **not** implement any cryptographic primitive. ML-KEM, ML-DSA,
+SHA3/SHAKE, X25519, and optional SLH-DSA come from pinned third-party backends
+(`fips203` 0.4.3, `fips204` 0.4.6, `sha3` 0.10.9, x25519-dalek, and fips205),
+each with a distinct conformance/audit/constant-time
 boundary. The former timing-leaky, unmaintained PQClean-HQC adapter has been removed
 from the publishable/runtime graph. A RustCrypto HQC-v5/FIPS-207-draft candidate exists only in
 a standalone `publish = false` shadow crate and is outside this combiner's product
@@ -31,9 +32,9 @@ entire security-critical surface that Q-Periapt itself owns; it is deliberately
 tiny, `no_std`, `deny(unsafe_code)` (with the one documented `Secret::drop` wipe),
 and primitive-agnostic so it can be audited in isolation.
 
-This is **research-grade, not production**: there is no third-party audit, and the
-backends are pre-1.0 / unaudited (libcrux 0.0.9 asks you to contact maintainers
-before production use). Do not deploy.
+This is **research-grade, not production**: there is no third-party cryptographic
+or ABI audit, and the backend integrations are pre-1.0 / unaudited for this suite.
+Do not deploy.
 
 This specification is also **not a session protocol**. It does not define identities,
 prekeys, offline initiation, AEAD messages, ratchets, persistence, multi-device
@@ -171,7 +172,7 @@ For each vector it reconstructs X-Wing's own key expansion
 [`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs)).
 
 Because the public-key, ciphertext and shared-secret assertions all pass against
-the published vectors, the test also exercises the libcrux ML-KEM-768 backend.
+the published vectors, the test also exercises the production `fips203` ML-KEM-768 backend.
 
 **Honest scope:** this reproduces the FIPS 203 reference output on those **three
 happy-path X-Wing draft vectors**. The broader ACVP vector suite is covered
@@ -404,9 +405,12 @@ then select with a mask).
 
 **Side-channel CI posture (honest):** failure-path indistinguishability / implicit
 rejection **is** a hard CI gate (ctstats). Binary-level **dataflow** constant-time over this
-composition code (`ct_eq`/`ct_select32`/the combiner) **is** also a hard CI gate today
-(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64); extending it over the
-libcrux **primitive** paths and to riscv64/wasm32 is **TODO**. The dudect **timing** test is a
+composition code (`ct_eq`/`ct_select32`/the combiner) is configured as a hard CI gate
+(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64). The backend/source
+migration invalidated all prior CT captures; the new `fips203` decapsulation probe and
+composition cells require a fresh same-source two-ISA pass. No predecessor source-CT/hax
+claim is inherited. Extending binary CT over the other primitive paths and to
+riscv64/wasm32 is **TODO**. The dudect **timing** test is a
 local diagnostic, intentionally absent from noisy shared CI and not a merge gate. The portable `ct_*` helpers are
 best-effort in safe Rust; do not read this as "timing is gated." See
 [`docs/ROADMAP.md`](./ROADMAP.md) and [`docs/THREAT_MODEL.md`](./THREAT_MODEL.md).

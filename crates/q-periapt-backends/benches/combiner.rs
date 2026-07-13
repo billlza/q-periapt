@@ -11,7 +11,7 @@
 //! three paths below hash the identical 134-byte single-block input and produce
 //! byte-identical output (asserted at startup), so the only variable is cost:
 //!
-//!   * `ours_libcrux_inline_zero_alloc` — our combiner: libcrux one-shot SHA3-256
+//!   * `ours_sha3_inline_zero_alloc` — our combiner: RustCrypto SHA3-256
 //!     over a stack-staged single block, **no heap allocation**.
 //!   * `xwing_streaming_rustcrypto`     — the de-facto reference X-Wing combiner
 //!     shape: a streaming SHA3-256 sponge (RustCrypto `sha3`), 5 incremental
@@ -106,7 +106,7 @@ fn bench_compat(c: &mut Criterion) {
     assert_eq!(ours, stack_rc, "ours != stack one-shot combiner");
 
     let mut g = c.benchmark_group("compat_xwing_combiner_134B");
-    g.bench_function("ours_libcrux_inline_zero_alloc", |b| {
+    g.bench_function("ours_sha3_inline_zero_alloc", |b| {
         b.iter(|| {
             black_box(combine::<Sha3_256Xof>(Profile::CompatXWing, black_box(&input)).unwrap())
         });
@@ -162,7 +162,7 @@ fn bench_contextbound(c: &mut Criterion) {
         context: &ctx,
     };
     c.benchmark_group("contextbound_combiner_2.5KB")
-        .bench_function("ours_libcrux", |b| {
+        .bench_function("ours_sha3", |b| {
             b.iter(|| {
                 black_box(combine::<Sha3_256Xof>(Profile::ContextBound, black_box(&input)).unwrap())
             });

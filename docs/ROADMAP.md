@@ -40,8 +40,9 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
 - **We track standards; we do not set them.** X-Wing is an IETF draft, not a
   ratified standard.
 - **No completed third-party audit.** This is **research-grade, not
-  production**: backends are pre-1.0 / unaudited (e.g. `libcrux 0.0.9` asks you
-  to contact the maintainers before production use). **Do not deploy.**
+  production**: the pinned `fips203` 0.4.3, `fips204` 0.4.6, `sha3` 0.10.9,
+  x25519-dalek, and optional fips205 integrations have not been independently
+  audited as this suite or ABI. **Do not deploy.**
 
 **Where the genuine, defensible value is** — none of it is speed:
 
@@ -83,11 +84,12 @@ Every item below is grounded in code/commits in this repository.
 traits (`Kem`, `Xof256`, `Signer`/`Verifier`) to real implementations — no toy primitives in
 the shipped path:
 
-- **ML-KEM-768** and **ML-DSA-65/87** via `libcrux-ml-kem` / `libcrux-ml-dsa`
-  `0.0.9` (HACL\*-derived, constant-time; encapsulation coins passed explicitly
-  for determinism and `no_std`).
+- **ML-KEM-512/768/1024** via `fips203` 0.4.3 and **ML-DSA-44/65/87** via
+  `fips204` 0.4.6. Explicit seed/randomness inputs preserve deterministic
+  conformance testing, and checked key import fails rather than accepting malformed
+  expanded keys. No source-CT/hax assurance from the replaced backend is inherited.
 - **X25519** via `x25519-dalek` 2 (`default-features = false`, `static_secrets`).
-- **SHA3-256 / SHAKE-256** via `libcrux-sha3` (same verified family as the KEM).
+- **SHA3-256 / SHAKE-256** via RustCrypto `sha3` 0.10.9.
 - **SLH-DSA** (FIPS 205) via `fips205 0.4.1`, **off by default** behind the
   `slh-dsa` feature. The former `pqcrypto-hqc`/PQClean dependencies and `hqc` feature
   are removed rather than advisory-suppressed. `research/hqc-fips207-candidate`
@@ -179,7 +181,7 @@ zeroization.
   reducing only to two elementary `be8` facts (8-byte fixed width + injectivity)
   plus collision-resistance of SHA3. **0 admits / 0 sorry.**
 - **CI formal jobs** — a complete-token `! grep -rnEw 'admit|sorry'` **hard gate** (catches
-  a proof being stubbed out), `formal-hermetic` for the EasyCrypt re-check plus
+  a proof being stubbed out), `formal-easycrypt` for the pinned-source EasyCrypt re-check plus
   seven proof-dependency regression controls, and full Tamarin/ProVerif `make prove`
   gates. The hint-deletion controls document dependencies of the current proof
   scripts; they are not semantic necessity proofs. `kctx_without_nonbottom_broken`
@@ -251,15 +253,17 @@ cross-validates the primitives **and the full hybrid** against independent
 implementations on random `SHAKE-256(counter)` inputs (no RNG) — an assurance method
 orthogonal to KATs and the proof, catching integration/encoding bugs that 3 fixed
 vectors would miss:
-- **ML-KEM-512/768/1024** — our libcrux backends vs RustCrypto `ml-kem`
+- **ML-KEM-512/768/1024** — production `fips203` vs independent RustCrypto `ml-kem`
   (byte-identical keygen, encapsulation, decapsulation over 64 inputs each).
 - **X25519** — our `x25519-dalek` backend vs the independent `orion` implementation,
   plus the authoritative **RFC 7748 §6.1** ground-truth Diffie–Hellman vector.
 - **Hybrid CompatXWing** — our seed-dk `HybridKem` output reconstructed from
-  RustCrypto ML-KEM + orion X25519 + a RustCrypto SHA3 X-Wing combiner, byte-identical
-  for encaps and decaps. Expanded ML-KEM backends are also negatively tested as
+  independent RustCrypto ML-KEM + orion X25519 while using the same RustCrypto SHA3
+  implementation as production, byte-identical for encaps and decaps. Official X-Wing
+  and separately encoded `ContextBound` KATs protect the combiner independently.
+  Expanded ML-KEM backends are also negatively tested as
   rejected under `CompatXWing`.
-- **ML-DSA-44/65/87** — our libcrux signature backends vs RustCrypto `ml-dsa`:
+- **ML-DSA-44/65/87** — production `fips204` vs RustCrypto `ml-dsa`:
   byte-identical keygen + deterministic signatures (FIPS 204 external mode, rnd = 0), plus
   cross-verification (each implementation verifies the other's signature) and tamper
   rejection, for all three parameter sets (`differential.rs`).
@@ -269,21 +273,21 @@ check would be signature interoperability rather than byte-identity).
 
 ### 12. NIST ACVP ground-truth conformance
 [`crates/q-periapt-backends/src/acvp.rs`](../crates/q-periapt-backends/src/acvp.rs)
-validates the libcrux backends against the **authoritative** NIST ACVP vectors
+validates the `fips203`/`fips204` adapters against the **authoritative** NIST ACVP vectors
 (vendored under `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`):
 - **ML-KEM-512/768/1024 (FIPS 203)** — the full set each: keyGen `(d,z)→(dk,ek)`,
   encaps `(ek,m)→(c,k)`, and decaps `(dk,c)→k` including modified-ciphertext cases that
   exercise FO implicit rejection. All byte-identical to NIST.
 - **ML-DSA-44/65/87 (FIPS 204)** — keyGen `ξ→(sk,pk)`, plus sigGen/sigVer across the
   signature modes our backend exposes: external/pure (deterministic **and** hedged, with
-  non-empty contexts), HashML-DSA **SHAKE-128 pre-hash**, and the **internal interface**
-  (Alg. 7/8, `externalMu=false`) (`acvp_ml_dsa_*_signature_modes`).
+  non-empty contexts) and HashML-DSA **SHAKE-128 pre-hash**. The vendored internal
+  Alg. 7/8 vectors remain explicit, unwired reference data and are not counted as a pass.
 - **SLH-DSA-SHA2-{128,192,256}s (FIPS 205)** — keyGen/sigGen/sigVer under the `slh-dsa`
   feature (`acvp_slhdsa.rs`), deterministic keyGen via a seed-replay RNG.
 
 This is *direct* NIST ground truth, orthogonal to the differential (which compares
-against another implementation). Only `externalMu=true` and non-SHAKE128 pre-hash modes
-remain out of scope (not wired by libcrux 0.0.9).
+against another implementation). The internal interface, `externalMu=true`, and
+non-SHAKE128 pre-hash modes remain out of scope.
 
 ### 13. Generative property-based tests
 [`crates/q-periapt-backends/src/proptests.rs`](../crates/q-periapt-backends/src/proptests.rs)
@@ -310,10 +314,11 @@ are the gap between research-grade and audited/production.
    covered by both NIST ACVP and the RustCrypto differential, **and the enhanced suite
    ML-KEM-1024 + X25519 is instantiated end-to-end** as a real `HybridKem<MlKem1024,
    X25519, Sha3_256Xof>` with a pinned, independently-cross-checked KAT
-   (`enhanced_kat.rs`) — no longer just a policy allow-list string. Remaining: only the
-   libcrux-gated `externalMu=true` and non-SHAKE128 pre-hash ACVP modes — everything else
-   (ML-KEM-512/768/1024, ML-DSA-44/65/87 incl. contexts/hedged/SHAKE-128 pre-hash/internal
-   interface, and SLH-DSA) is now done (§12). Fixed `(suite_id, policy_version,
+   (`enhanced_kat.rs`) — no longer just a policy allow-list string. Remaining:
+   ML-DSA internal-interface, `externalMu=true`, and non-SHAKE128 pre-hash ACVP modes.
+   The vendored internal vectors are deliberately unwired reference data, not a pass.
+   ML-KEM-512/768/1024, ML-DSA-44/65/87 contexts/hedged/SHAKE-128 pre-hash modes,
+   and SLH-DSA are done (§12). Fixed `(suite_id, policy_version,
    components, context) → K` reference vectors for `ContextBound` now exist as an
    in-repo KAT (`crates/q-periapt-backends/src/contextbound_kat.rs`, independently
    cross-checked by a second SHA3 + a from-scratch encoder, and including a
@@ -332,8 +337,10 @@ are the gap between research-grade and audited/production.
    Binary-level **dataflow** constant-time is now a **hard gate** (the
    `constant-time` CI job runs `ct_verify` under Valgrind/Memcheck-TIMECOP) over the
    suite's own CT composition code — `ct_eq`, `ct_select32`, and the combiner. The
-   same x86_64+aarch64 job now hard-gates the corrected ŝ+z libcrux ML-KEM
-   decapsulation probe with positive/negative controls. Still TODO: other component
+   same x86_64+aarch64 job is configured to hard-gate the corrected ŝ+z `fips203`
+   ML-KEM decapsulation probe with positive/negative controls. The backend/source
+   migration invalidated the previous `libcrux` captures, so a fresh two-ISA pass
+   for the release digest is required. No source-CT/hax result transfers. Still TODO: other component
    primitive paths, riscv64/wasm32 binary-CT, and promoting a quiesced-hardware
    **timing** check to a gate (the
    statistical dudect test is still local-only, so *timing* is not yet gated).
@@ -357,9 +364,9 @@ are the gap between research-grade and audited/production.
    an isolated source-only launcher rather than trusting Git excludes, repository pyc, user-site,
    or caller `PYTHON*`. The Apple device matrix is also real proof when explicitly required
    (`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1`). The HQC graph/tombstone change invalidated the
-   earlier Apple evidence. A later clean-tree schema-3 matrix covered one physical iPad and one
-   distinct physical iPhone, but it is neither independent release provenance nor a Continuity
-   session-protocol result. Time-varying status lives only in the results manifest plus the live
+   earlier Apple evidence. The later clean-tree schema-3 matrix also predates the
+   backend/source-digest migration and is now historical, as are the recorded package,
+   performance, and CT proofs. Time-varying status lives only in the results manifest plus the live
    domain verifier; a source document cannot promote an older device digest. A current clean,
    same-commit schema-3 matrix remains required for release. This is still not a liboqs-style
    public distribution surface: Swift has a local XCFramework pre-publication gate but still needs
@@ -383,18 +390,17 @@ are the gap between research-grade and audited/production.
    dependency audit, clean signed source provenance, and live verification of same-source Apple
    matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
-   The HQC dependency-graph/tombstone change invalidated the pre-change Apple/performance proofs.
-   Later clean-tree Apple schema-3 matrix and controlled-host matched-backend proofs passed on a
-   successor source snapshot; `artifact/results.json` and the live verifiers are authoritative for
-   currentness. ABI 2 remains unpublished until every release-scoped gate passes.
+   The backend/source migration invalidated all prior package, Apple/performance, and
+   binary-CT proofs, including proofs collected after the HQC tombstone change.
+   `artifact/results.json` and the live verifiers are authoritative for currentness.
+   ABI 2 remains unpublished until every release-scoped gate passes.
 
-6. **Production hardening.** Backends are pre-1.0 / unaudited (`libcrux 0.0.9`
-   asks for maintainer contact before production). Current `cargo audit --deny warnings`
-   no longer reports the three retired PQClean-HQC advisories, but still reports the
-   upstream unmaintained `proc-macro-error2` dependency inherited through libcrux/hax.
-   `.cargo/audit.toml` has `ignore = []`: the advisory is not suppressed. Until the
-   upstream edge is maintained or removed, the dependency gate is not warning-clean
-   and Q-Periapt is **not for deployment**.
+6. **Production hardening.** Backends are pre-1.0 / unaudited for this integration.
+   The migration to `fips203`/`fips204`/`sha3` removed `libcrux`/hax and the
+   `proc-macro-error2` advisory edge. Current `cargo audit --deny warnings` passes
+   with `.cargo/audit.toml` still carrying `ignore = []`. This closes the dependency-
+   advisory gate only; independent cryptographic/code/ABI review, fresh per-source
+   CT and platform evidence, and signed distribution provenance remain mandatory.
 
 7. **Q-Periapt Continuity session research.** This is a separate, gated workstream,
    not an extension of the current theorem or `q-periapt-core`:
@@ -456,7 +462,7 @@ are the gap between research-grade and audited/production.
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; C/macOS, Swift XCFramework and Android AAR packages pass; Kotlin JDK22 and runtime/platform lanes remain pending** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; recorded C/macOS, Swift XCFramework, and Android AAR artifacts are historical after the backend/source migration and must be rebuilt; Kotlin JDK22 and runtime/platform lanes remain pending** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
@@ -475,19 +481,19 @@ are the gap between research-grade and audited/production.
 | ACVP ML-DSA signature modes: hedged + non-empty context + SHAKE-128 pre-hash (65 & 87) | **Done** |
 | Full FIPS family backends + ACVP + differential (ML-KEM-512/768/1024, ML-DSA-44/65/87) | **Done** |
 | SLH-DSA-SHA2-{128,192,256}s NIST ACVP conformance (FIPS 205, `slh-dsa` feature) | **Done** |
-| ACVP ML-DSA internal interface (FIPS 204 Alg. 7/8, `acvp` feature, ext-μ=false) | **Done** |
-| Remaining ACVP modes: `externalMu=true` (no libcrux μ-entry) / non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) | Pending |
+| ACVP ML-DSA internal interface (FIPS 204 Alg. 7/8) | **Pending; vendored vectors are retained as unwired reference data and are not a backend pass** |
+| Remaining ACVP modes: `externalMu=true` / non-SHAKE128 pre-hash | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; time-varying pass state is selected by `artifact/results.json` and checked by live verifiers** |
-| Physical Apple matrix proof (iPad + iPhone, stable-Xcode lane) | **Schema-3 clean-tree matrix passed on one physical iPad and one distinct physical iPhone; live source/proof freshness verification remains mandatory** |
+| Physical Apple matrix proof (iPad + iPhone, stable-Xcode lane) | **Harness/schema implemented; recorded clean-tree matrix is historical after the backend/source-digest migration and both physical lanes must be rerun** |
 | Strict evidence snapshots + selected-proof atomic manifest binding | **Implemented: duplicate/non-finite JSON and top-level hash/semantics A/B mixing fail closed; clean signed manifest provenance remains pending** |
 | Git/Python verifier-input provenance | **Implemented and negative-tested: local excludes, hidden index flags, ignored pyc, user-site/`.pth`, and caller `PYTHON*` fail closed; external interpreter/host attestation remains pending** |
-| Android AAR/JNI package proof | **Fresh four-ABI ABI2 package, symbol/SONAME/DT_NEEDED, Java/JNI `-Werror`, dex and isolated-consumer proof pass; ART runtime remains pending** |
+| Android AAR/JNI package proof | **Harness and semantic checks implemented; the recorded four-ABI package predates the backend/source-digest migration and must be rebuilt; ART runtime remains pending** |
 | Android ART runtime smoke | **Harness and schema-v2 verifier are implemented, but the selected dirty emulator proof predates the current canonical inputs and is stale; a fresh run, clean release provenance, and physical/CI policy remain pending** |
-| Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema2 semantic diagnostic index, cross-face ABI contract, destructive-path negative controls and isolated C consumers pass; clean release channel remains pending** |
-| C ABI 2 public release | **0.1.0-alpha.1 candidate implemented, not publishable: suite code 3 is tombstoned; the unsuppressed upstream proc-macro-error2 advisory, signed provenance, Linux/Windows package lanes, current ART runtime evidence, third-party audit, and public distribution signing remain required** |
+| Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema2 semantic diagnostic index and checks are implemented; the recorded component artifacts predate the backend/source migration and a new same-source index is required; clean release channel remains pending** |
+| C ABI 2 public release | **0.1.0-alpha.1 candidate implemented, not publishable: suite code 3 is tombstoned and the dependency advisory gate is clean, but same-source package/device/performance/CT evidence, signed provenance, Linux/Windows lanes, current ART runtime evidence, independent cryptographic/ABI audit, and public distribution signing remain required** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Pending; Rust, Swift, Android package pre-publication gates and local index present |
-| Binary-CT beyond the gated ML-KEM decap path + riscv64/wasm32 + timing as a hard gate | Pending |
+| Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
 | Independent third-party audit | Pending |
 | Production hardening | Pending |

@@ -48,7 +48,7 @@ production superiority.
 | [Signal SPQR / Triple Ratchet](https://signal.org/docs/specifications/doubleratchet/) + [ML-KEM Braid](https://signal.org/docs/specifications/mlkembraid/) | Ongoing hybrid FS/PCS | Sparse PQ continuous key agreement, bounded epoch/skipped-key state, dropped-message analysis, heterogeneous migration, public specifications | This removes the old comparison claim that Signal has only initial PQ protection. Q-Periapt has no comparable state machine or implementation-level proof. |
 | [Signal Sesame](https://signal.org/docs/specifications/sesame/) | Asynchronous multi-device session management | Per-device active/inactive sessions, convergence, retries, stale devices, bounded storage/error handling | Q-Periapt has no user/device/session graph, queue, retry, revocation, or recovery implementation. |
 | [Apple PQ3](https://security.apple.com/blog/imessage-pq3/) | Deployed messaging protocol with asynchronous establishment and ongoing PQ ratcheting | Pairwise per-device sessions, Contact Key Verification, hardware-backed classical device authentication, periodic PQ healing, protocol analysis, external review, huge deployment | Authentication remains classical against an active quantum attacker; cadence and platform infrastructure are product trade-offs. Q-Periapt still has no comparable ratchet, transparency service, audit, telemetry, or scale. |
-| [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current Rust/libcrux keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
+| [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current Rust `fips203`/`fips204` keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
 | Q-Periapt `CompatXWing` | Byte-exact X-Wing comparison profile | Three official-vector KATs; seed-`dk` guard | Intentionally ignores suite/version/context; native X-Wing has no context parameter, so the local K-CTX wrapper property is inapplicable. |
 | Q-Periapt `ContextBound` | Non-standard committing hybrid profile | Binds suite/version/all ct/pk/context; machine-checked reductions and countermodels | Research profile; no standards adoption, external audit, or formal spec-to-Rust refinement. |
 
@@ -161,8 +161,10 @@ KEM core and current paper must not absorb server/database/session responsibilit
 
 ### 2.7 Side channels are backend-and-architecture properties
 
-Q-Periapt’s ML-KEM-768 decapsulation has binary-level constant-time gates on x86_64 and
-aarch64, and implicit-rejection behavior is tested. This cannot be generalized to every
+Q-Periapt configures ML-KEM-768 decapsulation binary-level constant-time gates on x86_64 and
+aarch64, and implicit-rejection behavior is tested. The production migration to `fips203`
+invalidated the former backend captures; a fresh two-ISA pass for the release source is
+required, and no predecessor source-CT/hax claim transfers. This cannot be generalized to every
 primitive, feature, or ISA. The old HQC/PQClean backend was pre-standard, unaudited,
 known timing-leaky, and unmaintained; it has now been removed from the publishable and
 runtime-suite graph rather than carried as a hedge. Its 193/22,849 Memcheck counts are
@@ -321,7 +323,7 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Matched-backend core performance | optimized baseline | implementation-specific | raw schema v2/proof schema v4 gate fixes budget plus Cargo/Rustc executable identity, rejects Cargo/wrapper configuration, uses an offline fresh target, and records controlled pre-build/pre-run/post-run/post-analysis observations; mutable registry/sysroot/OS and collector honesty remain trusted |
 | End-to-end/device performance | optimized baseline | optimized deployed code | **pending**; rustls/backend, energy, and device gaps remain |
 
-## 4. Performance: the only acceptable claim today
+## 4. Performance: the only acceptable claim after fresh capture
 
 The paired harness removes the earlier backend comparison confound: both profiles use
 `MlKem768XWingSeed + X25519`, the same keys/coins/ciphertexts, a 64-case deterministic
@@ -363,8 +365,9 @@ host satisfies the power/thermal contract. The verifier, rather than the proof, 
 `artifact/performance-budgets.json` as the release policy. The machine-readable manifest carries the current proof
 summary and selected path/hash so updating this source document cannot self-promote a stale run;
 the required domain verifier, not manifest prose alone, checks the actual proof, artifacts, and
-freshness. The old single-call proof
-remains invalid and must not be cited.
+freshness. The backend/source migration invalidated all recorded performance proofs,
+including the later matched-backend capture; a fresh same-source controlled-host run
+is required. The old single-call proof also remains invalid and must not be cited.
 The fixed policy also pins Cargo/Rustc executable hashes, versions, and target. Collection selects
 one same-directory matching pair, rejects repository/ancestor/user Cargo configuration, clears
 caller compiler/wrapper/loader controls, fixes system-tool lookup, builds offline in a fresh private

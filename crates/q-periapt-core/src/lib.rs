@@ -15,7 +15,7 @@
 //! Rationale: keep the security-critical *composition* logic — the hybrid KEM
 //! combiner and its transcript/context binding — tiny, primitive-agnostic and
 //! reviewable in isolation, decoupled from any backend or platform. Third-party
-//! backends (libcrux, RustCrypto, x25519-dalek, sha3) are
+//! backends (`fips203`, `fips204`, `x25519-dalek`, `sha3`) are
 //! wired in by the `q-periapt-kem` / `q-periapt-sig` crates.
 //!
 //! ## Security notes
@@ -208,7 +208,9 @@ pub trait Xof256 {
 
 /// A key-encapsulation mechanism backend (for example ML-KEM or X25519-as-KEM).
 ///
-/// All methods **must** run in constant time with respect to secret inputs.
+/// Secret-bearing operations must avoid secret-dependent control flow and memory access.
+/// Algorithm-mandated rejection sampling (for example, an ML-DSA signer) requires a
+/// separately documented timing boundary and must not be represented as strict constant-time.
 ///
 /// **Failure contract.** A backend must never expose a *secret-dependent* decapsulation oracle:
 /// for an FO-KEM (ML-KEM), `decapsulate` **must** use implicit rejection — a cryptographically
@@ -216,8 +218,11 @@ pub trait Xof256 {
 /// indistinguishable from success. Backends **may** return an [`Error`] only for **public** input
 /// conditions that an attacker already knows (a length mismatch via [`Error::InvalidLength`]; for a
 /// DH-style adapter such as X25519-as-KEM, a low-order / non-contributory key share via
-/// [`Error::InvalidKeyShare`]). Such checks depend only on public inputs, not on the secret key, so
-/// they are validity rejections, not an oracle.
+/// [`Error::InvalidKeyShare`]). Importing a caller-supplied local secret key may also return
+/// [`Error::Backend`] when its fixed-length encoding is malformed; callers must treat that as a
+/// configuration/key-storage failure, not as a ciphertext-validity signal. Such checks occur before
+/// output is written. They do not change the requirement that every correctly sized ML-KEM
+/// ciphertext follows implicit rejection and returns a shared secret.
 pub trait Kem {
     /// Stable algorithm identifier, e.g. `"ML-KEM-768"`.
     fn algorithm(&self) -> &'static str;

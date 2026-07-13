@@ -24,7 +24,7 @@ fn unhex(s: &str) -> Vec<u8> {
 }
 
 fn shake256_96(seed: &[u8]) -> [u8; 96] {
-    libcrux_sha3::shake256::<96>(seed)
+    crate::shake256::<96>(seed)
 }
 
 #[test]

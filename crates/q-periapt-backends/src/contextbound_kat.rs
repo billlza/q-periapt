@@ -2,9 +2,9 @@
 //!
 //! CompatXWing is pinned byte-for-byte by the X-Wing draft KAT; this is the
 //! corresponding positive KAT for **ContextBound**. Each `(fields) -> K` vector is
-//! verified two independent ways: (1) against our `combine()` (libcrux SHA3 over the
-//! `absorb_lp` loop), and (2) against an INDEPENDENT recomputation — RustCrypto
-//! SHA3-256 over a hand-built canonical 8-byte big-endian length-prefixed encoding
+//! verified two structurally separate ways: (1) against our `combine()` (`sha3` over the
+//! `absorb_lp` loop), and (2) against a hand-written recomputation using the same
+//! SHA3-256 primitive crate over a canonical 8-byte big-endian length-prefixed encoding
 //! per `docs/COMBINER_SPEC.md` §3 / `docs/BINDING_SECURITY.md` §3.2. So the vectors
 //! validate the construction against the spec, not merely against itself, and pin it
 //! against silent encoding/field-order/domain changes.
@@ -27,9 +27,10 @@ fn lp(h: &mut Sha3_256, field: &[u8]) {
     h.update(field);
 }
 
-/// INDEPENDENT canonical recompute of the ContextBound key (spec §3.2), using a
-/// separate SHA3 implementation and a hand-written encoder — no shared code with the
-/// combiner beyond the `DOMAIN` constant and the field order it pins.
+/// Structurally separate canonical recompute of the ContextBound key (spec §3.2),
+/// using a hand-written encoder — no shared composition code with the combiner beyond
+/// the `DOMAIN` constant and the field order it pins. Primitive independence is supplied
+/// by the externally generated pinned vectors, not by this helper's shared `sha3` crate.
 #[allow(clippy::too_many_arguments)]
 fn independent_k(
     suite: &[u8],

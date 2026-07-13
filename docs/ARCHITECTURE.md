@@ -7,9 +7,10 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 > standardized/ecosystem primitives (ML-KEM, X25519, ML-DSA, SLH-DSA) through
 > third-party backends. The known-leaky, unmaintained PQClean-HQC adapter has been
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
-> in a `publish = false` shadow crate with no suite code or ABI. It has **no third-party audit**, and it
-> depends on pre-1.0 / unaudited backends (e.g. `libcrux-ml-kem` 0.0.9, whose own
-> notice asks you to contact the maintainers before production use). **Do not
+> in a `publish = false` shadow crate with no suite code or ABI. It has **no third-party audit**, and
+> the release graph depends on pinned pre-1.0 third-party backends (`fips203` 0.4.3,
+> `fips204` 0.4.6, and `sha3` 0.10.9) that have not been independently audited for
+> this integration. **Do not
 > deploy.** The value proposition is *not* primitive or speed superiority — it is
 > auditable composition, crypto-agility, side-channel CI, machine-checked binding
 > proofs, deterministic byte identity in the explicitly tested conformance cells,
@@ -66,10 +67,10 @@ round-trip invariants, rollback rejection, and failure-output atomicity.
             q-periapt-backends            q-periapt-policy
    third-party primitives wired            crypto-agility engine
    into the traits:                       (depends on -core + -sig):
-   • MlKem768  (libcrux, C2PRI)           • Policy / AuthenticatedPolicy
+   • MlKem768  (fips203, C2PRI)           • Policy / AuthenticatedPolicy
    • X25519    (x25519-dalek)             • TrustedPolicyState (version + digest)
-   • Sha3_256Xof (libcrux-sha3)           • closed, atomic ResolvedSuite
-   • MlDsa65   (libcrux-ml-dsa)
+   • Sha3_256Xof (RustCrypto sha3)        • closed, atomic ResolvedSuite
+   • MlDsa65   (fips204)
    • [feature slh-dsa] SlhDsa*  (fips205)
                      │
    ┌─────────────────┼───────────────────┬───────────────────┐
@@ -253,7 +254,8 @@ retains the inline extent so duplicate secret bytes are erased, and range exhaus
 metadata fails closed to a whole-buffer wipe. The legacy `absorb` also selects whole-buffer
 erasure. Reallocation copies are migrated before the old live allocation's secret ranges are
 wiped. This is an implementation hygiene/performance optimization, not a cryptographic claim:
-libcrux internals, registers, crash dumps, OS copies, and caller-owned buffers remain outside it.
+`fips203`/`fips204`/`sha3` internals, registers, crash dumps, OS copies, and
+caller-owned buffers remain outside it.
 The `Xof256` contract therefore covers only secret-bearing storage the implementation owns and
 can still reach at Drop; primitive/callee temporaries are a separate backend-assurance boundary.
 
@@ -280,11 +282,11 @@ type implementing a core trait:
 
 | Backend | Primitive | Crate | Notes |
 |---|---|---|---|
-| `MlKem768` | ML-KEM-768 (FIPS 203) | `libcrux-ml-kem` 0.0.9 (HACL*-derived, constant-time) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Takes randomness as explicit bytes — deterministic / KAT-able / `no_std`. |
-| `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `libcrux-ml-kem` + `libcrux-sha3` | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; derives X-Wing's `(d||z)` key material from the 32-byte seed and is the only backend admitted to `CompatXWing`. |
+| `MlKem768` | ML-KEM-768 (FIPS 203) | `fips203` 0.4.3 | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. The adapter imports fixed-size keys through the backend's checked decoder and passes randomness explicitly for deterministic conformance testing. No predecessor source-CT claim is inherited. |
+| `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `fips203` 0.4.3 + `sha3` 0.10.9 | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; derives X-Wing's `(d||z)` key material from the 32-byte seed and is the only backend admitted to `CompatXWing`. |
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 2 | `Kem`, default-false first-slot capabilities; deterministic from a 32-byte scalar. Canonical X-Wing uses it in the absorbed traditional slot. |
-| `Sha3_256Xof` | SHA3-256 | `libcrux-sha3` 0.0.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
-| `MlDsa65` | ML-DSA-65 (FIPS 204) | `libcrux-ml-dsa` 0.0.9 | `Signer` + `Verifier`. |
+| `Sha3_256Xof` | SHA3-256 | RustCrypto `sha3` 0.10.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
+| `MlDsa65` | ML-DSA-65 (FIPS 204) | `fips204` 0.4.6 | `Signer` + `Verifier`; external/pure, context, hedged, and SHAKE-128 pre-hash modes are wired. The deprecated internal API is deliberately not exposed. Signing uses FIPS 204 rejection sampling and therefore has a documented variable-iteration boundary; verification is the ABI2 product path. |
 | `SlhDsaSha2_128s/192s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.4.1 | **feature `slh-dsa`** (off by default). |
 
 These backends are reused by `q-periapt-ffi`, `q-periapt-wasm`, the binding
@@ -415,11 +417,12 @@ can be published, all platform package identities, release-index cross-face sema
 dependency audit, clean provenance, same-source Apple matrix verification, and controlled-host
 performance verification must pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
 upgraded from a version alone; hosts require explicit authorized re-enrollment/reset.
-The HQC graph/tombstone change invalidated every pre-change Apple/performance proof. Later
-clean-tree Apple schema-3 matrix and controlled-host matched-backend proofs passed on a successor
-source snapshot. Their time-varying currentness is authoritative only through
-`artifact/results.json` and live verification; neither is a distribution-signing or device-energy
-claim.
+The backend/source migration changed the canonical source digest and invalidated all
+previous package, Apple-device, matched-performance, and binary-CT proofs, including
+the later clean-tree schema-3 matrix. Each release lane must be rebuilt or re-collected
+for the new source snapshot. Time-varying currentness is authoritative only through
+`artifact/results.json` and live verification; neither is a distribution-signing or
+device-energy claim.
 
 ### 6.4 X-Wing conformance KAT
 
@@ -429,8 +432,10 @@ encapsulation-coin split, and asserts the ML-KEM-768 public key, ciphertext, and
 shared secret against **3 official `draft-connolly-cfrg-xwing-kem` vectors**. This
 proves the combiner **reproduces the FIPS 203 reference output on those 3 happy-path
 vectors** byte-for-byte. (Beyond these, the full NIST ACVP set for ML-KEM-512/768/1024
-+ ML-DSA-44/65/87 also passes in `acvp.rs` — broad conformance to the published
-vectors, though not CMVP/CAVP certification.)
++ ML-DSA-44/65/87 external/pure, context, hedged, and SHAKE-128 pre-hash modes
+also passes in `acvp.rs` — broad conformance to the published vectors, though not
+CMVP/CAVP certification. Vendored internal-interface vectors are retained as
+unwired reference data and are not a backend pass.)
 
 ---
 
@@ -444,9 +449,11 @@ vectors, though not CMVP/CAVP certification.)
   from noisy shared CI and is **not** a merge gate; local runs retain its exit status.
 - **Binary-level (dataflow) constant-time** over our own composition code (`ct_eq`,
   `ct_select32`, the combiner) is a **HARD CI gate** (`constant-time` job: `ct_verify`
-  under Valgrind/Memcheck-TIMECOP, x86_64 + aarch64). That job also hard-gates the
-  corrected ŝ+z libcrux ML-KEM decapsulation gap probe: the genuine-secret path must
-  report zero and a synthetic planted secret-indexed load must report positive. The
+  under Valgrind/Memcheck-TIMECOP, x86_64 + aarch64). That job is configured to
+  hard-gate the corrected ŝ+z `fips203` ML-KEM decapsulation gap probe: the
+  genuine-secret path must report zero and a synthetic planted secret-indexed load
+  must report positive. The backend/source migration invalidated earlier `libcrux`
+  captures, so a fresh two-ISA run for the release digest is required. The
   retired PQClean-HQC 193/22,849 counts are historical older-source evidence, not a
   live gate.
   Other component-primitive paths and riscv64/wasm32 binary-CT remain **TODO** (see
@@ -455,7 +462,9 @@ vectors, though not CMVP/CAVP certification.)
 So: do **not** read "side-channel-first" as "timing is gated." Structural failure-path
 indistinguishability **and** binary-level dataflow CT over our composition code are gated;
 the statistical `dudect` *timing* test and binary-CT over primitives other than the
-gated ML-KEM decapsulation path are local-only / pending. Real constant-time assurance is per-backend and tracked in
+ML-KEM decapsulation probe are local-only / pending. No source-CT or hax property
+from the replaced backend transfers to `fips203`; real assurance is per backend,
+version, source digest, compiler, and ISA and is tracked in
 `docs/ROADMAP.md`.
 
 ---
@@ -534,12 +543,14 @@ robustness is argued on paper; there is **no spec↔impl linkage proof**. `X-BIN
 is structurally impossible for implicitly-rejecting ML-KEM and is **not** claimed.
 `ContextBound` is **not** "stronger binding than X-Wing" — both share the same MAL
 ceiling; the edge is **assumption-minimality / proof-coverage**, not a stronger bound.
-CI has formal hard gates: no-admits scanning, a hermetic EasyCrypt re-check plus
+CI has formal hard gates: no-admits scanning, a pinned-source EasyCrypt container re-check plus
 seven **proof-dependency regression controls**, and full Tamarin/ProVerif
 `make prove`. An edited tactic failing is not a necessity proof. Semantic necessity
 is attached only to explicit checked countermodels, including
 `kctx_without_nonbottom_broken` for removing `K != bottom`; the J-injectivity deletion
-control establishes only that the current reduction script depends on that fact.
+control establishes only that the current reduction script depends on that fact. The base image
+and EasyCrypt commit are immutable; apt/opam transitive inputs remain outside a hermetic,
+bit-reproducible closure.
 
 ---
 
@@ -565,7 +576,7 @@ q-periapt-core  (no deps; no_std; deny unsafe)
    │   └────────────── q-periapt-kem   (core)
    └──────── q-periapt-policy (core + sig)
 
-q-periapt-backends  → core + sig + libcrux* / x25519-dalek / [fips205]
+q-periapt-backends  → core + sig + fips203 / fips204 / sha3 / x25519-dalek / [fips205]
 q-periapt-ffi       → backends + kem + core            (C ABI)
 q-periapt-wasm      → backends + kem + core            (wasm-bindgen)
 q-periapt-cli       → serde_json (+ suite metadata)    (CBOM/SBOM/scan)

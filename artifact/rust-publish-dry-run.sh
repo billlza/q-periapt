@@ -5,6 +5,7 @@
 # QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1; that proves only a dirty dry-run, never
 # release readiness.
 set -eu
+umask 077
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
@@ -32,6 +33,7 @@ need() {
 }
 
 need cargo
+need cargo-audit
 need git
 need python3
 
@@ -298,7 +300,7 @@ for crate in $PUBLISHABLE_CRATES; do
 	run_publish_dry_run "$crate"
 done
 
-PACKAGE_INSPECTION_TARGET=$(mktemp -d "$ROOT/target/qperiapt-package-inspection.XXXXXX")
+PACKAGE_INSPECTION_TARGET=$(mktemp -d /tmp/qperiapt-package-inspection.XXXXXX)
 if [ -z "$PACKAGE_INSPECTION_TARGET" ] || [ ! -d "$PACKAGE_INSPECTION_TARGET" ] || [ -L "$PACKAGE_INSPECTION_TARGET" ]; then
 	printf 'error: cannot create isolated package-inspection target directory\n' >&2
 	exit 1
@@ -311,12 +313,13 @@ cleanup_package_inspection() {
 trap cleanup_package_inspection 0 1 2 15
 
 # Cargo 1.96 no longer guarantees that `publish --dry-run` retains its archive.
-# Produce a fresh isolated archive after all nine dry-runs have verified.  The
-# no-verify flag avoids a redundant build; this command exists solely to inspect
-# Cargo's normalized manifest and exact packaged path set.
+# Produce and verify a fresh archive in an isolated target after all nine
+# dry-runs have passed. Verification intentionally leaves Cargo's exact
+# normalized package directory available for the independent resolved-graph
+# audit below; isolation guarantees there can be only one candidate directory.
 package_inspection_log="$PACKAGE_INSPECTION_TARGET/cargo-package.log"
 set +e
-cargo package $ALLOW_DIRTY_ARG --locked --no-verify \
+cargo package $ALLOW_DIRTY_ARG --locked \
 	--target-dir "$PACKAGE_INSPECTION_TARGET" \
 	--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
 	--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
@@ -383,5 +386,21 @@ with tarfile.open(archive, mode="r:gz") as packaged:
         raise SystemExit("error: packaged q-periapt-backends contains retired src/hqc.rs")
 print("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS")
 PY
+
+# Audit the graph Cargo resolves from the normalized publish manifest, not only
+# the workspace lockfile. Local patches stand in for the exact-version
+# q-periapt crates until the coordinated prerelease set exists on crates.io.
+set -- "$PACKAGE_INSPECTION_TARGET"/package/q-periapt-backends-*/Cargo.toml
+if [ "$#" -ne 1 ] || [ ! -f "$1" ] || [ -L "$1" ]; then
+	printf 'error: expected exactly one normalized q-periapt-backends package directory\n' >&2
+	exit 1
+fi
+NORMALIZED_BACKENDS_DIR=${1%/Cargo.toml}
+cargo generate-lockfile --manifest-path "$NORMALIZED_BACKENDS_DIR/Cargo.toml" \
+	--config "patch.crates-io.q-periapt-core.path=\"$ROOT/crates/q-periapt-core\"" \
+	--config "patch.crates-io.q-periapt-sig.path=\"$ROOT/crates/q-periapt-sig\"" \
+	--config "patch.crates-io.q-periapt-kem.path=\"$ROOT/crates/q-periapt-kem\""
+cargo audit --deny warnings --file "$NORMALIZED_BACKENDS_DIR/Cargo.lock"
+printf 'RUST_BACKENDS_NORMALIZED_AUDIT_PASS\n'
 
 printf 'RUST_PUBLISH_CONTRACT_PASS mode=%s\n' "$PATCHED_DRY_RUN_MODE"

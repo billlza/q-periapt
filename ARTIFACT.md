@@ -130,10 +130,11 @@ reports separate hax/F* implementation checks that this artifact does not yet ma
 
 Set `QPERIAPT_REQUIRE_DEPENDENCY_AUDIT=1` together with the other release requirements to execute
 `cargo audit --deny warnings`. Omitting that flag leaves the run scoped and cannot emit the release
-marker. Removing the retired PQClean-HQC release-graph dependencies clears their three maintenance
-advisories, but the current lockfile still fails this gate on the unsuppressed upstream
-`proc-macro-error2` maintenance advisory inherited through libcrux/hax. Release remains blocked
-until that dependency is maintained or removed, not ignored.
+marker. The production backend migration to pinned `fips203` 0.4.3, `fips204` 0.4.6,
+and `sha3` 0.10.9 removed the `libcrux`/hax edge and its unsuppressed
+`proc-macro-error2` advisory. The current lockfile passes `cargo audit --deny warnings`
+with no advisory ignore. That closes the dependency-advisory gate only; it is not a
+third-party cryptographic, side-channel, implementation, or ABI audit.
 
 The working tree's `Q_PERIAPT_ABI_VERSION = 2` / `0.1.0-alpha.1` is an unpublished
 candidate with a frozen nine-symbol machine contract. It removes raw/deterministic
@@ -143,14 +144,15 @@ publication: every platform package/index, dependency audit, clean provenance, a
 fresh device/performance proof must still pass. ABI1 needs explicit authorized
 re-enrollment/reset; a version alone cannot be converted into an exact-policy digest.
 The noncanonical Continuity research snapshot shape is unrelated and never a release substitute.
-The HQC dependency-graph/tombstone change also changed the canonical source-input digest, so every
-proof captured before it became stale even if its hardware run passed. A later clean-tree schema-3
-matrix covered one physical iPad and one distinct physical iPhone, and a controlled-host
-matched-backend proof passed the fixed non-regression budget. Time-varying currentness is
-authoritative only through `artifact/results.json` plus the required live domain verifiers; source
-prose cannot promote an old proof after another source change. These are local product-execution
-and single-host diagnostic results, not independent signed release provenance, device-energy
-evidence, or cross-implementation performance parity.
+The backend/source migration changed the canonical source-input digest. Consequently,
+the later clean-tree Apple schema-3 matrix, controlled-host matched-backend proof,
+package artifacts, and `libcrux` binary-CT captures are all historical even if they
+passed on their recorded source. Each release-scoped package/device/performance/CT lane
+must be rebuilt or re-collected against the new digest. Time-varying currentness is
+authoritative only through `artifact/results.json` plus the required live domain
+verifiers; source prose cannot promote an old proof after a source change. Even fresh
+local product-execution and single-host results will not substitute for independent
+signed release provenance, device-energy evidence, or cross-implementation performance parity.
 
 The expected per-step counts, toolchain, footprint sizes, and data-file pointers are pinned in
 [`artifact/results.json`](artifact/results.json) (every value measured, so drift is visible). A
@@ -175,7 +177,7 @@ KATs, NIST ACVP conformance, the independent-crate differential checks, and that
 EasyCrypt proof has no `admit`/`sorry`.
 
 The dk-format separation (Theorem 1, item 5) is witnessed by a runnable example — both the
-expanded-`dk` break and its seed-`dk` negative control, against real libcrux:
+expanded-`dk` break and its seed-`dk` negative control, against the production `fips203` backend:
 
 ```sh
 cargo run -p q-periapt-backends --example binding_dk_format_witness
@@ -189,7 +191,7 @@ seed, as deployed X-Wing mandates) the attack vector is closed. The same two che
 ## Tier 2 — ~1 hour, reproduce the CI gates
 
 Adds the optional SLH-DSA backend, the isolated HQC draft-candidate shadow gate, the
-**hermetic EasyCrypt machine-check**, the language bindings, and the cross-target builds.
+the **pinned-source EasyCrypt container check**, the language bindings, and the cross-target builds.
 Extra prerequisites are in parentheses.
 
 ```sh
@@ -198,7 +200,7 @@ cargo test -p q-periapt-backends --features slh-dsa                    # optiona
 bash research/hqc-fips207-candidate/scripts/verify.sh                  # independent publish=false HQC-v5/FIPS-207-draft gate
 cargo audit --deny warnings                                            # no advisory warning or ignore is release-safe
 
-# Hermetic binding proof (needs Docker). Builds the EasyCrypt r2026.06 toolchain image and re-checks
+# Pinned-source binding proof (needs Docker). Builds the exact-base/exact-EasyCrypt image and re-checks
 # the proof + seven proof-dependency regression controls as a HARD gate. These controls show that
 # the current scripts use named facts; they are not semantic necessity proofs. The checked
 # `kctx_without_nonbottom_broken` lemma is the explicit probability-one countermodel for omitting
@@ -217,7 +219,9 @@ Optional binding faces (each needs its own toolchain): `swift test --package-pat
 (Swift); `sh artifact/android-aar.sh` (Android AAR/JNI package proof, Android SDK/NDK + Rust Android
 targets); the Kotlin/Panama FFM tests (JDK ≥ 22 + gradle); `wasm-pack test --node
 crates/q-periapt-wasm` (wasm-pack + Node). The full GitHub Actions workflow in
-`.github/workflows/ci.yml` is the canonical list; `formal-hermetic` is the proof hard gate.
+`.github/workflows/ci.yml` is the canonical list; `formal-easycrypt` is the proof hard gate. Its
+base image and EasyCrypt source are immutable, but apt/opam transitive resolution is not a hermetic
+or bit-reproducible closure.
 
 ### Consumer embedding readiness gate
 
@@ -348,14 +352,17 @@ These produce the paper's primary network table and the binary constant-time dis
 - **Source→binary constant-time discriminator (§V-A).** Valgrind/Memcheck on **x86-64 or aarch64
   Linux** (native or a Linux container; not under nested emulation). `sh ctstats/scripts/ct-gap-probe.sh`
   via Docker, or build `ct_decaps_gap` with `--features valgrind` and run under `valgrind`.
-  The current hard gate requires the genuine ML-KEM secret probe to report zero and its synthetic
-  planted secret-indexed leak to report positive, so zero cannot pass vacuously. The committed
+  The current harness requires the genuine `fips203` ML-KEM secret probe to report zero and its
+  synthetic planted secret-indexed leak to report positive, so zero cannot pass vacuously. The
+  backend migration invalidated the prior `libcrux` capture; a fresh x86-64+aarch64 pass bound to
+  the release source digest is required before promotion. The committed
   PQClean-HQC counts (193 on aarch64 and 22,849 on x86-64) came from the retired backend and are
   historical older-source evidence only; `ct_hqc_gap` is no longer a current release gate.
-- **Symbolic provers.** `make` under `formal/tamarin/` and `formal/proverif/` (Tamarin 1.10 + maude;
-  ProVerif 2.05 via opam). The current inventories are five Tamarin lemmas and six exact ProVerif
-  queries, including authenticated context agreement. CI gates their presence and full
-  `make prove`; the ProVerif Makefile also matches each expected result independently.
+- **Symbolic provers.** `make` under `formal/tamarin/` and `formal/proverif/` (Tamarin 1.12.0 +
+  Maude 3.5.1; ProVerif 2.05 via opam). The current inventories are five Tamarin lemmas and six
+  exact ProVerif queries, including authenticated context agreement. CI gates their presence and
+  full `make prove`; Tamarin is invoked with `--quit-on-warning`, and the ProVerif Makefile matches
+  each expected result independently.
 - **Apple device binding smoke.** `sh artifact/apple-device-smoke.sh` runs the macOS native Swift
   binding tests, builds the Rust `aarch64-apple-ios` staticlib, builds a host-app runner for a
   physical iPhone/iPad, installs it, and accepts only an on-device

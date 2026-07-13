@@ -5,19 +5,24 @@
 //! and the EasyCrypt proof. FIPS 203 / RFC 7748 fix every byte encoding, so any
 //! divergence is a conformance or integration bug that 3 fixed X-Wing vectors miss:
 //!
-//! - **ML-KEM-512 / 768 / 1024** — our libcrux backends vs RustCrypto `ml-kem`
+//! - **ML-KEM-512 / 768 / 1024** — the production `fips203` backends vs RustCrypto `ml-kem`
 //!   (byte-identical keygen/encaps/decaps across the full FIPS 203 family).
 //! - **X25519** — our `x25519-dalek` backend vs the independent `orion` impl, plus
 //!   the authoritative RFC 7748 §6.1 ground-truth Diffie–Hellman vector.
 //! - **Hybrid CompatXWing** — our [`HybridKem`] reconstructed from RustCrypto ML-KEM
-//!   + orion X25519 + a RustCrypto SHA3 X-Wing combiner, for encaps **and** decaps.
-//! - **ML-DSA-44 / 65 / 87** — our libcrux signature backends vs RustCrypto `ml-dsa`
-//!   (byte-identical keygen + deterministic signatures, plus cross-verification + tamper
-//!   rejection, across the full FIPS 204 family).
+//!   together with orion X25519 and a separately written SHA3 X-Wing transcript, for
+//!   encaps **and** decaps. The transcript uses the same `sha3` crate as production, so
+//!   its independence is structural rather than implementation-level; the official X-Wing
+//!   KAT supplies the independent combiner oracle.
+//! - **ML-DSA-44 / 65 / 87** — the production `fips204` signature backends vs
+//!   RustCrypto `ml-dsa` (byte-identical verification keys + deterministic signatures,
+//!   plus cross-verification + tamper rejection across the full FIPS 204 family). Expanded
+//!   signing-key serialization is instead pinned by NIST ACVP; the differential deliberately
+//!   avoids RustCrypto's deprecated expanded-key export.
 //!
 //! Fully deterministic: per-iteration inputs are `SHAKE-256(counter)`, no RNG.
 
-#![allow(clippy::unwrap_used, clippy::indexing_slicing, deprecated)]
+#![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
 use crate::{
     MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, MlKem768XWingSeed, Sha3_256Xof,
@@ -28,8 +33,8 @@ use crate::{
     ML_KEM_768_KEYGEN_SEED_LEN, SHARED_SECRET_LEN, X25519, X25519_LEN,
 };
 use ml_dsa::{
-    EncodedSignature, ExpandedSigningKey, MlDsa44 as RcMlDsa44, MlDsa65 as RcMlDsa65,
-    MlDsa87 as RcMlDsa87, Seed, Signature,
+    EncodedSignature, Keypair as RcKeypair, MlDsa44 as RcMlDsa44, MlDsa65 as RcMlDsa65,
+    MlDsa87 as RcMlDsa87, Seed, Signature, Signer as RcSigner, SigningKey,
 };
 use ml_kem::kem::Decapsulate;
 use ml_kem::{
@@ -80,7 +85,7 @@ fn ml_kem_768_byte_identical_to_independent_rustcrypto() {
     for ctr in 0u32..64 {
         // Deterministic per-iteration inputs: SHAKE-256(counter) -> 96 bytes
         // = a 64-byte keygen seed (d‖z) + a 32-byte encapsulation message m.
-        let expand = libcrux_sha3::shake256::<96>(&ctr.to_le_bytes());
+        let expand = crate::shake256::<96>(&ctr.to_le_bytes());
         let mut seed = [0u8; ML_KEM_768_KEYGEN_SEED_LEN];
         seed.copy_from_slice(&expand[..ML_KEM_768_KEYGEN_SEED_LEN]);
         let m = &expand[ML_KEM_768_KEYGEN_SEED_LEN..];
@@ -121,13 +126,13 @@ fn ml_kem_768_byte_identical_to_independent_rustcrypto() {
     }
 }
 
-/// ML-KEM-1024 (the enhanced-mode KEM): our libcrux backend vs the independent
+/// ML-KEM-1024 (the enhanced-mode KEM): our `fips203` backend vs the independent
 /// RustCrypto `ml-kem`, byte-identical keygen + encaps + decaps over random `(d‖z, m)`.
 #[test]
 fn ml_kem_1024_byte_identical_to_independent_rustcrypto() {
     const HALF: usize = ML_KEM_1024_KEYGEN_SEED_LEN / 2;
     for ctr in 0u32..64 {
-        let expand = libcrux_sha3::shake256::<96>(&(ctr ^ 0x0401).to_le_bytes());
+        let expand = crate::shake256::<96>(&(ctr ^ 0x0401).to_le_bytes());
         let mut seed = [0u8; ML_KEM_1024_KEYGEN_SEED_LEN];
         seed.copy_from_slice(&expand[..ML_KEM_1024_KEYGEN_SEED_LEN]);
         let m = &expand[ML_KEM_1024_KEYGEN_SEED_LEN..];
@@ -162,7 +167,7 @@ fn ml_kem_1024_byte_identical_to_independent_rustcrypto() {
 #[test]
 fn x25519_byte_identical_to_independent_orion() {
     for ctr in 0u32..64 {
-        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0xA5A5).to_le_bytes());
+        let exp = crate::shake256::<64>(&(ctr ^ 0xA5A5).to_le_bytes());
         let a = &exp[..X25519_LEN]; // recipient scalar
         let eph = &exp[X25519_LEN..]; // ephemeral scalar
 
@@ -235,10 +240,10 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
     .unwrap();
 
     for ctr in 0u32..32 {
-        let exp = libcrux_sha3::shake256::<128>(&(ctr ^ 0x5A5A).to_le_bytes());
+        let exp = crate::shake256::<128>(&(ctr ^ 0x5A5A).to_le_bytes());
         let mut seed_pq = [0u8; 32];
         seed_pq.copy_from_slice(&exp[..32]);
-        let pq_seed = libcrux_sha3::shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed_pq);
+        let pq_seed = crate::shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed_pq);
         let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq);
         let x_seed = &exp[32..64];
         let (sk_trad, pk_trad) = X25519::generate(x_seed.try_into().unwrap());
@@ -313,8 +318,10 @@ fn expanded_mlkem_backends_are_rejected_with_compat_xwing() {
     .is_err());
 }
 
-/// Independent X-Wing combiner: SHA3-256(ss_pq‖ss_trad‖ct_trad‖pk_trad‖LABEL) via
-/// RustCrypto `sha3` (not our libcrux path), matching `CompatXWing`'s field order.
+/// Separately written X-Wing transcript:
+/// SHA3-256(ss_pq‖ss_trad‖ct_trad‖pk_trad‖LABEL), matching `CompatXWing`'s field order.
+/// It intentionally shares the `sha3` primitive crate with production; the independent
+/// primitive oracle for this transcript is the official X-Wing KAT.
 fn xwing_combine(ss_pq: &[u8], ss_trad: &[u8], ct_trad: &[u8], pk_trad: &[u8]) -> [u8; 32] {
     let mut h = Sha3_256::new();
     h.update(ss_pq);
@@ -325,7 +332,7 @@ fn xwing_combine(ss_pq: &[u8], ss_trad: &[u8], ct_trad: &[u8], pk_trad: &[u8]) -
     h.finalize().into()
 }
 
-/// Signature layer: our libcrux ML-DSA-65 backend vs the independent RustCrypto
+/// Signature layer: our `fips204` ML-DSA-65 backend vs the independent RustCrypto
 /// `ml-dsa`. FIPS 204 deterministic keygen (from ξ) and deterministic signing
 /// (rnd = 0, external `ML-DSA.Sign` with empty context — what our backend does) are
 /// fully specified, so conformant implementations agree byte-for-byte. Cross-
@@ -334,18 +341,15 @@ fn xwing_combine(ss_pq: &[u8], ss_trad: &[u8], ct_trad: &[u8], pk_trad: &[u8]) -
 #[test]
 fn ml_dsa_65_byte_identical_to_independent_rustcrypto() {
     for ctr in 0u32..16 {
-        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0x33CC).to_le_bytes());
+        let exp = crate::shake256::<64>(&(ctr ^ 0x33CC).to_le_bytes());
         let seed: [u8; ML_DSA_65_KEYGEN_SEED_LEN] =
             exp[..ML_DSA_65_KEYGEN_SEED_LEN].try_into().unwrap();
         let msg = &exp[ML_DSA_65_KEYGEN_SEED_LEN..];
 
-        // --- keygen: byte-identical signing + verifying keys ---
+        // --- keygen: byte-identical verification keys ---
         let (sk, vk) = MlDsa65::generate(seed);
-        let esk_rc =
-            ExpandedSigningKey::<RcMlDsa65>::from_seed(&Seed::try_from(&seed[..]).unwrap());
-        let sk_rc = esk_rc.to_expanded();
-        let vk_rc = esk_rc.verifying_key().encode();
-        assert_eq!(&sk_rc[..], &sk[..], "ml-dsa signing key diverged @ {ctr}");
+        let sk_rc = SigningKey::<RcMlDsa65>::from_seed(&Seed::try_from(&seed[..]).unwrap());
+        let vk_rc = sk_rc.verifying_key().encode();
         assert_eq!(&vk_rc[..], &vk[..], "ml-dsa verifying key diverged @ {ctr}");
 
         // --- deterministic signing: byte-identical signatures ---
@@ -353,7 +357,7 @@ fn ml_dsa_65_byte_identical_to_independent_rustcrypto() {
         MlDsa65
             .sign(&sk, msg, &[0u8; ML_DSA_65_SIGN_RAND_LEN], &mut sig)
             .unwrap();
-        let sig_rc = esk_rc.sign_deterministic(msg, b"").unwrap().encode();
+        let sig_rc = RcSigner::try_sign(&sk_rc, msg).unwrap().encode();
         assert_eq!(&sig_rc[..], &sig[..], "ml-dsa signature diverged @ {ctr}");
 
         // --- cross-verification (interoperability), both directions ---
@@ -362,7 +366,7 @@ fn ml_dsa_65_byte_identical_to_independent_rustcrypto() {
         )
         .unwrap();
         assert!(
-            esk_rc
+            sk_rc
                 .verifying_key()
                 .verify_with_context(msg, b"", &our_sig),
             "rustcrypto rejected our signature @ {ctr}"
@@ -381,29 +385,22 @@ fn ml_dsa_65_byte_identical_to_independent_rustcrypto() {
     }
 }
 
-/// ML-DSA-87 (the enhanced-mode signature, NIST level 5): our libcrux backend vs the
+/// ML-DSA-87 (the enhanced-mode signature, NIST level 5): our `fips204` backend vs the
 /// independent RustCrypto `ml-dsa`. Byte-identical deterministic keygen (from ξ) and
 /// deterministic signing (rnd = 0, external, empty context), plus cross-verification
 /// both directions and tamper rejection.
 #[test]
 fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
     for ctr in 0u32..16 {
-        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0x57AC).to_le_bytes());
+        let exp = crate::shake256::<64>(&(ctr ^ 0x57AC).to_le_bytes());
         let seed: [u8; ML_DSA_87_KEYGEN_SEED_LEN] =
             exp[..ML_DSA_87_KEYGEN_SEED_LEN].try_into().unwrap();
         let msg = &exp[ML_DSA_87_KEYGEN_SEED_LEN..];
 
-        // --- keygen: byte-identical signing + verifying keys ---
+        // --- keygen: byte-identical verification keys ---
         let (sk, vk) = MlDsa87::generate(seed);
-        let esk_rc =
-            ExpandedSigningKey::<RcMlDsa87>::from_seed(&Seed::try_from(&seed[..]).unwrap());
-        let sk_rc = esk_rc.to_expanded();
-        let vk_rc = esk_rc.verifying_key().encode();
-        assert_eq!(
-            &sk_rc[..],
-            &sk[..],
-            "ml-dsa-87 signing key diverged @ {ctr}"
-        );
+        let sk_rc = SigningKey::<RcMlDsa87>::from_seed(&Seed::try_from(&seed[..]).unwrap());
+        let vk_rc = sk_rc.verifying_key().encode();
         assert_eq!(
             &vk_rc[..],
             &vk[..],
@@ -415,7 +412,7 @@ fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
         MlDsa87
             .sign(&sk, msg, &[0u8; ML_DSA_87_SIGN_RAND_LEN], &mut sig)
             .unwrap();
-        let sig_rc = esk_rc.sign_deterministic(msg, b"").unwrap().encode();
+        let sig_rc = RcSigner::try_sign(&sk_rc, msg).unwrap().encode();
         assert_eq!(
             &sig_rc[..],
             &sig[..],
@@ -428,7 +425,7 @@ fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
         )
         .unwrap();
         assert!(
-            esk_rc
+            sk_rc
                 .verifying_key()
                 .verify_with_context(msg, b"", &our_sig),
             "rustcrypto rejected our ml-dsa-87 signature @ {ctr}"
@@ -447,13 +444,13 @@ fn ml_dsa_87_byte_identical_to_independent_rustcrypto() {
     }
 }
 
-/// ML-KEM-512 (NIST L1, the smallest set): our libcrux backend vs the independent
+/// ML-KEM-512 (NIST L1, the smallest set): our `fips203` backend vs the independent
 /// RustCrypto `ml-kem`, byte-identical keygen + encaps + decaps over random `(d‖z, m)`.
 #[test]
 fn ml_kem_512_byte_identical_to_independent_rustcrypto() {
     const HALF: usize = ML_KEM_512_KEYGEN_SEED_LEN / 2;
     for ctr in 0u32..64 {
-        let expand = libcrux_sha3::shake256::<96>(&(ctr ^ 0x0201).to_le_bytes());
+        let expand = crate::shake256::<96>(&(ctr ^ 0x0201).to_le_bytes());
         let mut seed = [0u8; ML_KEM_512_KEYGEN_SEED_LEN];
         seed.copy_from_slice(&expand[..ML_KEM_512_KEYGEN_SEED_LEN]);
         let m = &expand[ML_KEM_512_KEYGEN_SEED_LEN..];
@@ -483,27 +480,20 @@ fn ml_kem_512_byte_identical_to_independent_rustcrypto() {
     }
 }
 
-/// ML-DSA-44 (NIST L2, the smallest ML-DSA): our libcrux backend vs the independent
+/// ML-DSA-44 (NIST L2, the smallest ML-DSA): our `fips204` backend vs the independent
 /// RustCrypto `ml-dsa`. Byte-identical deterministic keygen + signing, cross-
 /// verification both directions, and tamper rejection.
 #[test]
 fn ml_dsa_44_byte_identical_to_independent_rustcrypto() {
     for ctr in 0u32..16 {
-        let exp = libcrux_sha3::shake256::<64>(&(ctr ^ 0x44AC).to_le_bytes());
+        let exp = crate::shake256::<64>(&(ctr ^ 0x44AC).to_le_bytes());
         let seed: [u8; ML_DSA_44_KEYGEN_SEED_LEN] =
             exp[..ML_DSA_44_KEYGEN_SEED_LEN].try_into().unwrap();
         let msg = &exp[ML_DSA_44_KEYGEN_SEED_LEN..];
 
         let (sk, vk) = MlDsa44::generate(seed);
-        let esk_rc =
-            ExpandedSigningKey::<RcMlDsa44>::from_seed(&Seed::try_from(&seed[..]).unwrap());
-        let sk_rc = esk_rc.to_expanded();
-        let vk_rc = esk_rc.verifying_key().encode();
-        assert_eq!(
-            &sk_rc[..],
-            &sk[..],
-            "ml-dsa-44 signing key diverged @ {ctr}"
-        );
+        let sk_rc = SigningKey::<RcMlDsa44>::from_seed(&Seed::try_from(&seed[..]).unwrap());
+        let vk_rc = sk_rc.verifying_key().encode();
         assert_eq!(
             &vk_rc[..],
             &vk[..],
@@ -514,7 +504,7 @@ fn ml_dsa_44_byte_identical_to_independent_rustcrypto() {
         MlDsa44
             .sign(&sk, msg, &[0u8; ML_DSA_44_SIGN_RAND_LEN], &mut sig)
             .unwrap();
-        let sig_rc = esk_rc.sign_deterministic(msg, b"").unwrap().encode();
+        let sig_rc = RcSigner::try_sign(&sk_rc, msg).unwrap().encode();
         assert_eq!(
             &sig_rc[..],
             &sig[..],
@@ -526,7 +516,7 @@ fn ml_dsa_44_byte_identical_to_independent_rustcrypto() {
         )
         .unwrap();
         assert!(
-            esk_rc
+            sk_rc
                 .verifying_key()
                 .verify_with_context(msg, b"", &our_sig),
             "rustcrypto rejected our ml-dsa-44 signature @ {ctr}"

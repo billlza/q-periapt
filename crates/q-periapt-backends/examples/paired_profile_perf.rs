@@ -23,7 +23,7 @@ use q_periapt_kem::HybridKem;
 use serde::Serialize;
 
 const SCHEMA_VERSION: u32 = 2;
-const BACKEND_ID: &str = "ML-KEM-768(seed-dk)+X25519/libcrux+x25519-dalek";
+const BACKEND_ID: &str = "ML-KEM-768(seed-dk)+X25519/fips203+sha3+x25519-dalek";
 const SCHEDULE: &str = "ABBA/BAAB";
 const CORPUS_SIZE: usize = 64;
 const SUITE_ID: &[u8] = b"ML-KEM-768+X25519";

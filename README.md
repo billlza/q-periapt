@@ -4,8 +4,9 @@
 
 > [!WARNING]
 > **Status: pre-1.0 research / doctoral-thesis project (v0.1.0-alpha.1, unpublished ABI 2 candidate). NOT audited,
-> NOT FIPS-validated — do not use in production yet.** Production-relevant reviewed
-> upstream implementations are wired for ML-KEM / ML-DSA / SHA3 via libcrux,
+> NOT FIPS-validated — do not use in production yet.** Pinned third-party
+> implementations are wired for ML-KEM via `fips203` 0.4.3,
+> ML-DSA via `fips204` 0.4.6, SHA3/SHAKE via `sha3` 0.10.9,
 > X25519 via x25519-dalek, and optional SLH-DSA via fips205. The former
 > `pqcrypto-hqc`/PQClean adapter has been removed from the publishable dependency and
 > runtime-suite graph. A separate `publish = false`
@@ -111,6 +112,9 @@ recomputes the former 256-pair estimator as a regression guard and applies every
 published numeric limit to both block scales; changing the primary estimator therefore
 cannot turn a former-scale failure green. Separately parameterized 64/256/256-pair
 stability windows retain the same 5% CV limit.
+The backend/source migration changes the canonical source digest, so every device,
+package, performance, and binary-CT result recorded before this migration is historical
+only and must be rebuilt or re-collected before release; the verifier will not promote it.
 The same policy pins the Cargo/Rustc executable hashes, versions, and target. Collection
 selects one same-directory matching pair, rejects repository/ancestor/user Cargo configuration,
 clears caller compiler/wrapper/loader controls, fixes system-tool lookup, and builds offline in a
@@ -149,7 +153,7 @@ production-X-Wing parity. We never claim a combiner speed win.
   is still a trusted-local descriptor, not an unforgeable capability: the host must
   pin the policy verification key and isolate untrusted native code.
 - **One auditable codebase across platforms** — a single Rust core means one
-  CT-verified, one fuzzed, one differential-tested implementation under C / WASM /
+  shared target for CT verification, fuzzing, and differential testing under C / WASM /
   Swift / Kotlin, reducing audit and implementation-bug surface. (Note: ML-KEM and
   X25519 are deterministic standardized primitives, so *any* conformant
   implementation interops across platforms — the win here is reduced audit
@@ -164,8 +168,10 @@ production-X-Wing parity. We never claim a combiner speed win.
   because source-level CT does not survive the compiler (clangover, KyberSlash) — is
   now a **hard CI gate** (`constant-time` job) over the suite's own CT composition
   code (`ct_eq`/`ct_select32`/the combiner). The same x86_64+aarch64 job also runs a
-  self-validating libcrux ML-KEM decapsulation gap probe with the corrected
-  ŝ `[0..1152]` + z `[2368..2400]` marking and requires zero reports. Other
+  self-validating `fips203` ML-KEM decapsulation gap probe with the corrected
+  ŝ `[0..1152]` + z `[2368..2400]` marking and requires zero reports. This
+  probe was migrated with the backend, so prior `libcrux` result logs are historical
+  and a fresh two-ISA run is required for the release source digest. Other
   primitive paths and riscv64/wasm32 binary-CT remain **TODO**. See
   [`ctstats/README.md`](ctstats/README.md) for the honest per-cell scope.
 - **Audit transparency** — a machine-checked combiner binding model is **done**
@@ -183,7 +189,8 @@ production-X-Wing parity. We never claim a combiner speed win.
 - **Combiner CPU speed** — more binding is strictly more hashing. `CompatXWing`
   targets byte compatibility; historical combiner-only measurements are not a
   current production parity claim. `ContextBound` is intentionally slower.
-- **Primitive performance** — it wires libcrux (ML-KEM / ML-DSA / SHA3),
+- **Primitive performance** — it wires `fips203` (ML-KEM), `fips204` (ML-DSA),
+  RustCrypto `sha3`,
   x25519-dalek, and fips205 (SLH-DSA). The isolated RustCrypto HQC candidate is a
   shadow comparison, not a product-graph primitive. There is
   no evidence of superiority over optimized AVX2 ML-KEM or FIPS-validated AWS-LC;
@@ -252,19 +259,19 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Dimension | Target | Today (v0.1.0-alpha.1 ABI 2 candidate) |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented shared secure-wipe block; builds `thumbv7em-none-eabihf`) |
-| Hybrid KEM | ML-KEM-768 + X25519, with independently bounded algorithm-diversity research | ✅ ML-KEM-768 (libcrux) + X25519 (x25519-dalek) are wired; real hybrid encap/decap round-trips under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend. The **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently cross-checked KAT) and is `ContextBound`-only. **ML-KEM-512** (L1) also has a verified backend, so the FIPS-203 family (512/768/1024) is ACVP + differential covered for agility. The old timing-leaky/unmaintained PQClean-HQC adapter and `hqc` feature are gone from the publishable graph; suite code `3` is tombstoned. RustCrypto `hqc-kem 0.1.0-rc.0` lives only in the `publish = false` HQC-v5/FIPS-207-draft shadow crate, with deterministic round-trip/size research tests but no product-suite, ABI, official-IPD-conformance, or final-standard claim. |
-| Combiner profiles | `CompatXWing` (byte-compatible control) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to a **real SHA3-256** (libcrux) backend; the matched-backend Mac gate enforces canonical-source-input and controlled-host freshness, while cross-device/end-to-end parity remains pending |
+| Hybrid KEM | ML-KEM-768 + X25519, with independently bounded algorithm-diversity research | ✅ ML-KEM-768 (`fips203` 0.4.3) + X25519 (x25519-dalek) are wired; real hybrid encap/decap round-trips under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend. The **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently cross-checked KAT) and is `ContextBound`-only. **ML-KEM-512** (L1) also has a verified backend, so the FIPS-203 family (512/768/1024) is ACVP + differential covered for agility. The old timing-leaky/unmaintained PQClean-HQC adapter and `hqc` feature are gone from the publishable graph; suite code `3` is tombstoned. RustCrypto `hqc-kem 0.1.0-rc.0` lives only in the `publish = false` HQC-v5/FIPS-207-draft shadow crate, with deterministic round-trip/size research tests but no product-suite, ABI, official-IPD-conformance, or final-standard claim. |
+| Combiner profiles | `CompatXWing` (byte-compatible control) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to **SHA3-256** through RustCrypto `sha3` 0.10.9; the matched-backend Mac gate enforces canonical-source-input and controlled-host freshness, but the backend migration invalidated the prior proof and a fresh same-source run is required |
 | Combiner safety guards | C2PRI + X-Wing-safe backend guards, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four absorbed fields are exactly 32 bytes; `HybridKem::new` rejects the omitted first-slot backend unless both `Kem::C2PRI` and `Kem::COMPAT_XWING_SAFE` are true, with contradictory third-party declarations failing closed as `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
-| Signatures | ML-DSA-44/65/87, SLH-DSA | ✅ the full FIPS-204 family **ML-DSA-44/65/87** (libcrux) wired & tested (NIST ACVP — incl. hedged / context / SHAKE-128 pre-hash modes — + RustCrypto differential each); ML-DSA-65 is the default, ML-DSA-87 the enhanced-mode (L5) signature; **SLH-DSA-SHA2-128s/192s/256s** (fips205) — with **NIST ACVP conformance** (`acvp_slhdsa.rs`) — behind the off-by-default `slh-dsa` feature |
+| Signatures | ML-DSA-44/65/87, SLH-DSA | ✅ the full FIPS-204 family **ML-DSA-44/65/87** (`fips204` 0.4.6) wired & tested (NIST ACVP — external/pure deterministic and hedged, non-empty context, and SHAKE-128 pre-hash modes — + an independent RustCrypto `ml-dsa` differential); ML-DSA-65 is the default, ML-DSA-87 the enhanced-mode (L5) signature. Vendored internal-interface vectors remain explicit, **unwired reference data** and are not claimed as backend conformance. **SLH-DSA-SHA2-128s/192s/256s** (fips205) — with **NIST ACVP conformance** (`acvp_slhdsa.rs`) — are behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade/equivocation state, atomic suite decision | ✅ `q-periapt-policy`: strict TOML loading (`Policy::from_toml`) + domain-separated signed-policy verification (`Policy::load_signed` / `load_signed_monotonic`); `(version, SHA3-256(exact bytes))` rollback/equivocation state; closed, private-field `ResolvedSuite` selected against concrete locally supported suites. Authentication, parsing, or resolution failure is returned as an error; there is no fallback-success API. |
-| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** over the whole KEM chain (`src/differential.rs`) — **ML-KEM-512/768/1024** vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed from independent ML-KEM + X25519 + SHA3; and **ML-DSA-44/65/87 vs RustCrypto `ml-dsa`** (byte-identical keygen + signatures, cross-verification both directions, tamper rejection) — all byte-identical on random inputs; **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) — the **full FIPS family**: ML-KEM-512/768/1024 (60 cases each, incl. implicit-rejection) + **ML-DSA-44/65/87** keygen/sig **across signature modes** — external/pure (deterministic + **hedged**, with **non-empty contexts**), **HashML-DSA SHAKE-128 pre-hash**, and the **internal interface** (FIPS 204 Alg. 7/8, `externalMu=false`, via the libcrux `acvp` feature) (`acvp_ml_dsa_*_signature_modes`); only `externalMu=true` (no μ-injection entry in libcrux) and non-SHAKE128 pre-hash (libcrux wires only SHAKE-128) remain out of scope; **SLH-DSA-SHA2-{128,192,256}s** (FIPS 205) also have NIST ACVP conformance under the `slh-dsa` feature (`acvp_slhdsa.rs` — deterministic keyGen via a seed-replay RNG, plus sigGen/sigVer); **property-based tests** (proptest, `src/proptests.rs`) hold the combiner + hybrid invariants — binding injectivity, determinism, domain separation, the guards, and KEM round-trip — over random inputs |
-| Side-channel CI | indistinguishability gate + binary-CT matrix; dudect local diagnostic | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); **dataflow constant-time** is a **hard gate** (`constant-time` job: `ct_verify` plus the self-validating libcrux ML-KEM decapsulation gap probe under Valgrind/Memcheck-TIMECOP). The corrected ŝ+z probe is required to report zero on x86_64 + aarch64; positive/negative controls make zero non-vacuous. Dudect timing is not run on shared CI and has no current gate; other primitive paths are not covered, and riscv64/wasm32 remain source-CT (see `docs/THREAT_MODEL.md` §5.2). |
-| Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | 🟡 CI `cross` builds the core/KEM across the declared ISA targets and `no_std` builds `thumbv7em-none-eabihf`. Linux and macOS lanes are current. A 2026-06 Windows run covered the then-current core/workspace and historical `slh-dsa,hqc` vectors, but that retired-HQC result is not current release-graph evidence and predates ABI2 packaging; current `q_periapt_ffi_abi2.dll`, import-library, and PE-export evidence remain pending. |
-| FFI / bindings | C ABI + Swift + Kotlin/JVM + Android AAR/JNI + WASM | 🟡 the unpublished **ABI 2** native product surface is reduced to nine exact C exports: metadata (5), signed-policy decision, OS-CSPRNG atomic key generation, OS-CSPRNG encapsulation, and decapsulation. The macOS C archive, five-slice Apple XCFramework, four-ABI Android AAR, and schema-2 diagnostic release index pass isolated-consumer and semantic validation on their recorded sources. Android JNI consumes rather than duplicates the contract. The selected clean-tree Apple schema-3 matrix covers one physical iPad and one distinct physical iPhone, and the selected matched-backend Mac proof passes the fixed non-regression budget; currentness is authoritative only through `artifact/results.json` plus the live domain verifiers. Neither result proves distribution signing, device energy, cross-platform performance, or parity with optimized production systems. Deterministic/X-Wing/combine checks remain internal Rust/WASM conformance evidence rather than a native product bypass. Kotlin requires JDK 22+; Android ART, Linux SONAME execution, and Windows PE packaging remain separate gates. Release remains blocked by the unsuppressed upstream `proc-macro-error2` maintenance advisory inherited through libcrux/hax, incomplete cross-platform runtime evidence, third-party audit, and public signing/attestation. |
+| KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** (`src/differential.rs`) — production `fips203` ML-KEM-512/768/1024 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed with independent ML-KEM/X25519 components while using the same RustCrypto SHA3 implementation; the independent official/reference KATs separately protect the combiner bytes. Production `fips204` ML-DSA-44/65/87 is compared with RustCrypto `ml-dsa` (byte-identical keygen + signatures, cross-verification both directions, tamper rejection). **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) for ML-KEM-512/768/1024 (60 cases each, incl. implicit rejection) and ML-DSA-44/65/87 external/pure deterministic + hedged, non-empty-context, and HashML-DSA SHAKE-128 pre-hash modes. Internal-interface vectors are retained but deliberately unwired and do not count as passing cases; `externalMu=true`, internal μ-entry, and non-SHAKE128 pre-hash modes remain out of scope. **SLH-DSA-SHA2-{128,192,256}s** (FIPS 205) also have NIST ACVP conformance under the `slh-dsa` feature. |
+| Side-channel CI | indistinguishability gate + binary-CT matrix; dudect local diagnostic | 🟡 failure-path indistinguishability / implicit rejection remains a **hard gate** (`ctstats/`); the `constant-time` job is configured to run `ct_verify` plus the self-validating `fips203` ML-KEM decapsulation gap probe under Valgrind/Memcheck-TIMECOP. The corrected ŝ+z probe requires zero reports on x86_64 + aarch64 and its planted controls must report positive. Backend/source changes invalidate the former `libcrux` CT logs, so a fresh two-ISA pass for the release digest is pending; no source-CT or hax assurance is inherited by the new backend. Dudect timing is local-only, other primitive paths are not covered, and riscv64/wasm32 remain unverified at binary level. |
+| Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | 🟡 CI `cross` builds the core/KEM across the declared ISA targets and `no_std` builds `thumbv7em-none-eabihf`. The backend migration changed the release source, so earlier Linux/macOS/Windows results do not constitute current release evidence. Fresh CI/package lanes are required, including `q_periapt_ffi_abi2.dll`, import-library, and PE-export evidence. |
+| FFI / bindings | C ABI + Swift + Kotlin/JVM + Android AAR/JNI + WASM | 🟡 the unpublished **ABI 2** native product surface is reduced to nine exact C exports: metadata (5), signed-policy decision, OS-CSPRNG atomic key generation, OS-CSPRNG encapsulation, and decapsulation. Previously recorded macOS C, Swift XCFramework, Android AAR, Apple-device, and matched-performance results are historical after the backend/source-digest migration; each package and runtime/performance proof must be regenerated and live-verified against the release source. Android JNI consumes rather than duplicates the contract. Deterministic/X-Wing/combine checks remain internal Rust/WASM conformance evidence rather than a native product bypass. The former `proc-macro-error2` advisory path was removed with `libcrux`/hax and `cargo audit --deny warnings` is now clean, without an ignore. Release is still blocked by incomplete same-source cross-platform/runtime evidence, independent cryptographic and ABI review, clean signed provenance, and public distribution signing/attestation. |
 | Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | 🟡 `q-periapt-tls-demo` workspace member: loopback server-authenticated hybrid handshake in **two suites** — default (ML-KEM-768 + X25519, ML-DSA-65) and enhanced **L5** (ML-KEM-1024 + X25519, ML-DSA-87) over one generic handshake core — + a report-only P99 bench in CI |
 | Asynchronous identity/prekeys/ratchet/multi-device | component-conformant PQXDH + Triple Ratchet/SPQR reference plus a separately specified Sesame-compatible manager, followed by Continuity research deltas | 🟡 G1 partial: selected source revisions, a non-normative exact version+digest lifecycle model, candidate role-ordered Bootstrap/RootTransition bytes, and a strict four-quadrant `PrekeySelectionV1` with independent Python full-byte correspondence/frozen SHA3 vectors are present; there is no manifest verifier, lease/consumption/tombstone state, context-advance API, credential/prekey/directory protocol, production session crate, outer wire decoder, persistent ratchet, recovery adapter, key transparency, FS/PCS, interoperability, or deployment claim |
 | Auditability tooling | CBOM / SBOM / migration scanner | 🟡 `q-periapt-cli` workspace member emitting CycloneDX CBOM/SBOM in CI |
-| Formal models | EasyCrypt combiner binding + Tamarin & ProVerif handshake models | ✅ EasyCrypt: `bind_le_cr` **machine-checked** as a generic transcript-projection collision bound; CT/PK instantiate standard X-BIND games and CTX is a separately labeled local wrapper projection. `encode_inj` is a **proved lemma**; **0 admits**. The hermetic gate re-runs `BindingViaCR.ec`, seven **proof-dependency regression controls**, and the non-normative Lifecycle/Prekey LP8 projection/omission diagnostics; none is a Rust refinement or protocol proof. Tactic failure is not called logical necessity. Semantic necessity is claimed only for checked countermodels, including the probability-one `K = bottom` context countermodel when the explicit-rejection wrapper game omits `K != bottom`. The symbolic handshake is checked by **Tamarin (5 lemmas)** and **ProVerif (6 exact queries)**, including authenticated context agreement as well as authentication and hybrid robustness. |
+| Formal models | EasyCrypt combiner binding + Tamarin & ProVerif handshake models | ✅ EasyCrypt: `bind_le_cr` **machine-checked** as a generic transcript-projection collision bound; CT/PK instantiate standard X-BIND games and CTX is a separately labeled local wrapper projection. `encode_inj` is a **proved lemma**; **0 admits**. The pinned-source container gate re-runs `BindingViaCR.ec`, seven **proof-dependency regression controls**, and the non-normative Lifecycle/Prekey LP8 projection/omission diagnostics; its apt/opam dependency closure is not bit-reproducible, and none of these checks is a Rust refinement or protocol proof. Tactic failure is not called logical necessity. Semantic necessity is claimed only for checked countermodels, including the probability-one `K = bottom` context countermodel when the explicit-rejection wrapper game omits `K != bottom`. The symbolic handshake is checked by **Tamarin (5 lemmas)** and **ProVerif (6 exact queries)**, including authenticated context agreement as well as authentication and hybrid robustness. |
 
 > The mechanized formal scope is deliberately bounded and stated honestly. The
 > machine-checked theorem establishes that the `ContextBound` combiner's standard
@@ -327,7 +334,7 @@ q-periapt/
 │   ├── q-periapt-core      # ✅ dependency-free no_std core: combiner + transcript binding + primitive traits
 │   ├── q-periapt-kem       # ✅ generic hybrid-KEM composition; CompatXWing-safe backend guard
 │   ├── q-periapt-sig       # ✅ signature trait surface: ML-DSA-65/87, SLH-DSA (roots/firmware/long-term)
-│   ├── q-periapt-backends  # ✅ publishable third-party backends (libcrux, x25519-dalek, optional fips205)
+│   ├── q-periapt-backends  # ✅ publishable third-party backends (fips203/fips204/sha3, x25519-dalek, optional fips205)
 │   ├── q-periapt-policy    # ✅ crypto-agility policy engine: TOML + signed-policy verification, no hardcoded algorithms
 │   ├── q-periapt-ffi       # 🟡 versioned pre-release C ABI (ABI 2 candidate; not published)
 │   ├── q-periapt-wasm      # 🟡 wasm-bindgen surface (pure-Rust backends only)
@@ -337,7 +344,7 @@ q-periapt/
 │   └── hqc-fips207-candidate # 🧪 publish=false RustCrypto RC shadow; no ABI/suite code
 ├── ctstats/          # ✅ indistinguishability hard gate + binary-CT probes; dudect local diagnostic
 ├── docs/             # BINDING_SECURITY.md, COMBINER_SPEC.md, ARCHITECTURE.md, ...; policy/default.policy.toml
-├── formal/           # ✅ EasyCrypt binding proof (hermetic re-check + proof-dependency controls and explicit countermodels) + Tamarin & ProVerif symbolic proofs
+├── formal/           # ✅ EasyCrypt binding proof (pinned-source container re-check + proof-dependency controls and explicit countermodels) + Tamarin & ProVerif symbolic proofs
 ├── tests/            # kat/ + differential/ (X-Wing KAT currently lives in q-periapt-backends)
 ├── bench/  fuzz/  sbom/   # harness scaffolds (combiner bench lives in q-periapt-backends/benches/)
 └── bindings/         # c/ + swift/ + kotlin/ (exercised in CI against a shared test vector)
@@ -365,8 +372,9 @@ This is a **research artifact for a doctoral thesis**, not a product.
 - **Not audited. Not FIPS-validated. Not production-ready.**
 - **What is real now** (each grounded in committed code — read it before relying on
   any of it):
-  - Real third-party backends are wired in `q-periapt-backends`: ML-KEM-768 / ML-DSA-65 /
-    SHA3-256 via libcrux and X25519 via x25519-dalek, with SLH-DSA (fips205) behind an
+  - Real third-party backends are wired in `q-periapt-backends`: ML-KEM-512/768/1024
+    via `fips203` 0.4.3, ML-DSA-44/65/87 via `fips204` 0.4.6, SHA3/SHAKE via
+    `sha3` 0.10.9, and X25519 via x25519-dalek, with SLH-DSA (fips205) behind an
     off-by-default feature. The former `pqcrypto-hqc` feature was retired rather than
     suppressing three maintenance advisories or carrying a known timing-leaky C path. The hybrid KEM round-trips under
     `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the
@@ -402,13 +410,14 @@ This is a **research artifact for a doctoral thesis**, not a product.
   **not** `Clone`/`Copy`, preventing implicit owner duplication. A caller can still
   copy bytes obtained through `as_bytes`; those copies are caller-managed. The core
   is `#![deny(unsafe_code)]` with that single, documented shared wipe block as the only `unsafe`.
-- **Still scaffolded / pending** (do not assume these are finished): extending
-  binary-level constant-time over the libcrux *primitive* paths + non-x86 (the dataflow
-  CT gate over our **composition** code is done); a production rustls `CryptoProvider`
-  over the FFI; and the libcrux-gated `externalMu=true` / non-SHAKE128 pre-hash ACVP
-  modes. **Done since earlier drafts** (no longer pending): the full NIST ACVP set
-  (ML-KEM-512/768/1024 + ML-DSA-44/65/87 incl. the hedged/context, SHAKE-128 pre-hash and
-  internal-interface signature modes + SLH-DSA), the multi-backend differentials, the
+- **Still scaffolded / pending** (do not assume these are finished): recapturing the
+  migrated `fips203` binary-CT cells on x86_64+aarch64, extending binary-level CT to
+  the other primitive paths and ISAs, a production rustls `CryptoProvider` over the
+  FFI, and ML-DSA `externalMu=true`, internal-interface, and non-SHAKE128 pre-hash
+  ACVP modes. The vendored internal vectors are reference data only and are not wired
+  to the production backend. **Done since earlier drafts** (no longer pending): the
+  NIST ACVP sets for ML-KEM-512/768/1024 and ML-DSA-44/65/87 external/context/hedged/
+  SHAKE-128 pre-hash modes, plus SLH-DSA; the multi-backend differentials; the
   `ContextBound` reference vectors, the cargo-fuzz targets, and **both** the Tamarin and
   ProVerif machine-checked handshake proofs (`formal/`).
 - **The former PQClean-HQC path is historical evidence, not a current gate or hedge**:
@@ -418,10 +427,10 @@ This is a **research artifact for a doctoral thesis**, not a product.
   constant-time gate validates itself with a synthetic planted secret-indexed leak.
   The separate HQC-v5/FIPS-207-draft RustCrypto shadow has its own research boundary and makes
   no binary-CT, production-readiness, ABI, or final-standard claim.
-- The wired backends are pre-release / unaudited to varying degrees (libcrux is
-  `0.0.9` / contact-maintainers-before-production; the others are likewise
-  unaudited). Versions are pinned and kept swappable for differential testing and
-  CVE mitigation.
+- The wired backends are pre-1.0 / unaudited for this integration to varying degrees.
+  Versions are pinned and kept swappable for differential testing and CVE mitigation.
+  A clean dependency-advisory scan is necessary but is not an independent cryptographic,
+  side-channel, or ABI audit.
 
 Use it to read, learn from, and critique the *composition and CI methodology*. Do
 not deploy it.

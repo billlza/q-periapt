@@ -5,7 +5,7 @@
 //! cargo run -p q-periapt-backends --example binding_dk_format_witness
 //! ```
 //!
-//! It prints both halves against **real libcrux ML-KEM-768**:
+//! It prints both halves against the shipped **fips203 ML-KEM-768** backend:
 //!   * EXPANDED-dk witness — Schmieg's free-`z` substitution makes two distinct public keys share
 //!     one ML-KEM shared secret, so the lean (X-Wing-shaped) `CompatXWing` combiner collides (loses
 //!     MAL-BIND-K-PK) while `ContextBound` — which binds `pk_pq` — does not.

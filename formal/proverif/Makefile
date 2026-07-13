@@ -3,9 +3,9 @@
 #   make check        # syntax/typing check only (fast; -test gives extra detail)
 #
 # Install ProVerif via OPAM (https://bblanche.gitlabpages.inria.fr/proverif/):
-#   opam install proverif             # CLI verifier (pulls lablgtk for the optional GUI)
+#   opam install proverif.2.05        # CLI verifier version used by CI
 # On macOS the lablgtk dependency needs gtk+/expat first:
-#   brew install gtk+ expat && opam install --assume-depexts proverif
+#   brew install gtk+ expat && opam install --assume-depexts proverif.2.05
 
 PROVERIF ?= proverif
 SRC      := handshake.pv

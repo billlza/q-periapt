@@ -2,7 +2,7 @@
 #
 # Design rule: the security-critical *composition* logic lives in `q-periapt-core`,
 # which is dependency-free and `no_std`. Third-party primitive backends
-# (libcrux, RustCrypto, x25519-dalek, sha3) are wired in
+# (fips203, fips204, x25519-dalek, sha3, and optional fips205) are wired in
 # behind traits in the higher crates so the core stays auditable in isolation.
 [workspace]
 resolver = "2"

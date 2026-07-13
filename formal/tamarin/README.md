@@ -17,7 +17,8 @@ The separate `publish = false` lifecycle model exercises opaque persistence/effe
 ordering only; it is not imported into this Tamarin theory and proves no session
 authentication, FS, PCS, or rollback property.
 
-> **STATUS: MACHINE-CHECKED.** ✅ `make prove` verifies all five lemmas (Tamarin 1.10.0).
+> **STATUS: CI HARD GATE.** `make prove` must verify all five lemmas with the workflow-pinned
+> Tamarin 1.12.0 / Maude 3.5.1 toolchain on the exact release commit.
 
 ## File: [`handshake.spthy`](handshake.spthy)
 

@@ -1,20 +1,14 @@
-//! Source→binary constant-time **gap probe** for ML-KEM-768 decapsulation.
+//! Binary dataflow probe for the shipped ML-KEM-768 decapsulation wrapper.
 //!
-//! libcrux proves its ML-KEM secret-independent at the *source* level (the `libcrux-secrets`
-//! typed discipline, machine-checked via hax/F*). This probe asks the orthogonal *binary*-level
-//! question: does the compiler, on a given ISA backend, reintroduce a secret-dependent
-//! branch/index/division on the **genuine secret** (ŝ + z) path despite that source guarantee?
+//! This is an empirical check of the optimized `fips203`-backed binary, not a source-level proof.
+//! It marks selected sub-fields of the FIPS-203 expanded decapsulation key and runs the public
+//! [`q_periapt_backends::MlKem768`] API under Valgrind/Memcheck. Run as
+//! `valgrind --track-origins=yes ct_decaps_gap <mode>`:
 //!
-//! It marks **only** the genuinely-secret sub-fields of the FIPS-203 expanded dk and runs the
-//! **real libcrux `decapsulate`** under Valgrind/Memcheck. Run as
-//! `valgrind --error-exitcode=1 --track-origins=yes ct_decaps_gap <mode>`:
-//!
-//!   probe    mark ŝ[0..1152] + z[2368..2400] only           → EXPECT 0 flags (no gap)
-//!   ek       mark ek[1152..2336] only                        → EXPECT ~30 q-branch flags
-//!            (attribution: the flags are on the embedded *public* key reduction)
-//!   wholedk  mark all 2400 bytes                             → EXPECT the ~5696/60 baseline
-//!   control  mark a byte + a *deliberate* secret branch      → EXPECT a flag (harness sanity:
-//!            if this is NOT caught, the gate is vacuous on this target)
+//!   probe    mark ŝ[0..1152] + z[2368..2400] only       → MUST report 0 errors
+//!   ek       mark embedded public ek[1152..2336] only      → diagnostic; no fixed count
+//!   wholedk  mark all 2400 bytes                           → diagnostic; no fixed count
+//!   control  plant a secret-indexed memory access          → MUST report >0 errors
 //!
 //! Outside Valgrind every `mark_secret` is a no-op, so the binary still builds/runs anywhere.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
@@ -27,7 +21,7 @@ use q_periapt_core::Kem;
 
 // FIPS-203 ML-KEM-768 expanded dk layout: dk_pke/ŝ(1152) ‖ ek(1184) ‖ H(ek)(32) ‖ z(32).
 const SHAT_END: usize = 1152; // ŝ / dk_pke      [0..1152]  (genuine secret)
-const EK_OFF: usize = 1152; //   ek               [1152..2336] (public — produces the q-branches)
+const EK_OFF: usize = 1152; //   ek               [1152..2336] (public)
 const EK_END: usize = 2336;
 const Z_OFF: usize = 2368; //    z                [2368..2400] (genuine secret)
 
@@ -58,6 +52,27 @@ fn main() {
     let mut ct_invalid = ct_valid;
     ct_invalid[0] ^= 0xFF;
 
+    // Fail closed if the fixture stops exercising both decapsulation outcomes.
+    // This preflight intentionally runs before any Valgrind secret marking: the
+    // comparisons validate harness coverage and must not become part of the
+    // secret-dataflow measurement itself.
+    let mut ss_valid_preflight = [0u8; 32];
+    MlKem768
+        .decapsulate(&dk, &ct_valid, &mut ss_valid_preflight)
+        .unwrap();
+    if ss_valid_preflight != ss_tmp {
+        eprintln!("fixture error: valid ciphertext did not reproduce the encapsulated secret");
+        std::process::exit(3);
+    }
+    let mut ss_invalid_preflight = [0u8; 32];
+    MlKem768
+        .decapsulate(&dk, &ct_invalid, &mut ss_invalid_preflight)
+        .unwrap();
+    if ss_invalid_preflight == ss_valid_preflight {
+        eprintln!("fixture error: invalid ciphertext did not exercise implicit rejection");
+        std::process::exit(3);
+    }
+
     let dk_marked = dk; // owned copy whose sub-ranges we mark secret
 
     if mode == "control" {
@@ -87,14 +102,18 @@ fn main() {
     match mode.as_str() {
         "wholedk" => mark_secret(&dk_marked[..]),
         "ek" => mark_secret(&dk_marked[EK_OFF..EK_END]),
-        _ => {
+        "probe" => {
             // probe: only the genuine secret sub-fields.
             mark_secret(&dk_marked[0..SHAT_END]);
             mark_secret(&dk_marked[Z_OFF..ML_KEM_768_SK_LEN]);
         }
+        _ => {
+            eprintln!("usage: ct_decaps_gap probe|ek|wholedk|control");
+            std::process::exit(2);
+        }
     }
 
-    // Real libcrux decapsulate over the marked dk, both branches.
+    // Exercise the shipped wrapper over the marked dk on valid and implicit-rejection paths.
     let mut ss = [0u8; 32];
     MlKem768
         .decapsulate(&dk_marked, &ct_valid, &mut ss)
@@ -107,7 +126,7 @@ fn main() {
     black_box(ss2);
 
     eprintln!(
-        "{mode}: ran real libcrux decapsulate (valid+invalid ct) over the marked dk; \
-         run under Memcheck to count secret-dependent branches"
+        "{mode}: ran the shipped fips203-backed decapsulation wrapper (valid+invalid ct) over \
+         the marked dk; run under Memcheck to inspect data-dependent control flow and indexing"
     );
 }

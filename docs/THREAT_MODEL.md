@@ -1,8 +1,9 @@
 # Threat Model — Q-Periapt PQ/T Hybrid Suite
 
 > **Status: research-grade, pre-1.0, NOT for production deployment.**
-> No third-party audit. Backends are unaudited / pre-1.0 (libcrux 0.0.9 explicitly
-> asks you to contact the maintainers before production use). This document is the
+> No third-party audit. The pinned `fips203` 0.4.3, `fips204` 0.4.6,
+> `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations are unaudited
+> as this suite and ABI. This document is the
 > authoritative statement of *what the design defends against and — equally
 > important — what it does not.* Every guarantee below is tagged as **ENFORCED**
 > (a CI gate or a compile-time/type-level invariant fails the build on regression),
@@ -73,7 +74,8 @@ corresponding guarantee fails:
   SHAKE-256.** This is the single primitive assumption under the binding proof.
 - **Each selected production backend correctly implements its primitive, and any
   constant-time claim is limited to the backend/ISA evidence actually checked.**
-  The libcrux ML-KEM/ML-DSA, x25519-dalek, and fips205 SLH-DSA integrations are
+  The `fips203` ML-KEM, `fips204` ML-DSA, RustCrypto SHA3, x25519-dalek, and
+  fips205 SLH-DSA integrations are
   third-party implementations and remain **unaudited for this use**. The known-leaky,
   unmaintained `pqcrypto-hqc` adapter was removed from the publishable/runtime graph.
   The standalone RustCrypto HQC-v5/FIPS-207-draft RC shadow has only its explicitly tested
@@ -123,12 +125,13 @@ no binding assumption on ML-KEM or X25519**.
 - **CI enforcement.** A `formal-proof` job
   ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) hard-gates on
   `! grep -rnEw 'admit|sorry' formal/easycrypt/` (catches complete proof-hole tokens);
-  `formal-hermetic` rebuilds the EasyCrypt toolchain image and re-checks
+  `formal-easycrypt` rebuilds the pinned-base, pinned-EasyCrypt image and re-checks
   `BindingViaCR.ec` plus seven proof-dependency regression controls. Those controls
   detect changes to the current tactic dependencies; they do not prove logical
   necessity. The explicit probability-one `kctx_without_nonbottom_broken`
   countermodel is the semantic evidence that `K != bottom` is load-bearing in the
-  explicit-rejection K-CTX game.
+  explicit-rejection K-CTX game. Apt/opam transitive inputs are not snapshot-pinned, so this
+  hard gate is not a hermetic or bit-reproducible toolchain proof.
 - **Implementation mirror.** The injective encoding is exercised by a negative KAT
   in [`q-periapt-core`](../crates/q-periapt-core/src/lib.rs)
   (`injective_encoding_prevents_boundary_collision`): two tuples that would collide
@@ -282,7 +285,8 @@ caller-context body separately from public transcript bytes and volatile-wipes e
 inline/heap copy on `Drop`; ordinary
 unclassified `absorb`, range exhaustion, or inconsistent metadata falls back to wiping the whole
 live staging buffer. This reduces needless public-byte wiping without weakening the prior default.
-It does not prove erasure of libcrux sponge/state temporaries, compiler/register copies, freed
+It does not prove erasure of `fips203`/`fips204`/`sha3` state temporaries,
+compiler/register copies, freed
 storage outside the controlled migration path, crash/hibernate images, or secrets misclassified
 as public by an external caller. Allocation/invariant failures synchronously wipe live staging
 before terminating because abort does not run Drop. The formal models do not model memory erasure.
@@ -299,13 +303,14 @@ The same dependency-free core runs across C ABI / WASM / Swift / Kotlin / Androi
 shared-vector, combiner and X-Wing byte equality remains Rust/WASM conformance evidence;
 native ABI2 intentionally does not export the raw seed/coins surface needed to replay it.
 C/Swift/Kotlin/Android product evidence instead checks the same signed-policy/OS-random
-workflow and fail-closed semantics; package proof is current for macOS C, Swift
-XCFramework, and Android AAR, while runtime/device and Linux/Windows package cells
-remain separately scoped.
+workflow and fail-closed semantics. The backend/source migration invalidated the
+previous macOS C, Swift XCFramework, Android AAR, and device proofs; fresh same-source
+package/runtime evidence is required, while Linux/Windows cells remain separately scoped.
 The X-Wing byte-exact KAT
 (`q-periapt-backends`) **reproduces the `draft-connolly-cfrg-xwing-kem` reference
-output on its 3 happy-path vectors**, and the **full NIST ACVP set** (ML-KEM-512/768/1024
-+ ML-DSA-44/65/87 + SLH-DSA) plus the `ContextBound` reference vectors now pass too —
+output on its 3 happy-path vectors**, and the NIST ACVP sets (ML-KEM-512/768/1024,
+ML-DSA-44/65/87 external/pure, context, hedged, and SHAKE-128 pre-hash modes, plus
+SLH-DSA) and the `ContextBound` reference vectors pass too —
 this is conformance to the published vectors, not certification (see
 [§5.5](#55-acvp-conformance-not-cmvp-certification)).
 
@@ -337,39 +342,25 @@ suite's **own** constant-time composition code — `ct_eq`, `ct_select32`, and t
 over secret shared secrets. A compiler-introduced secret-dependent branch *there* would fail
 the build on either arch (the emitted assembly differs per target, so each is an independent
 check), catching exactly the source→assembly gap that best-effort source-level CT cannot.
-The `constant-time` CI job runs the dataflow gate on x86_64 and aarch64
-(matrix `[ubuntu-latest, ubuntu-24.04-arm]`); the aarch64 leg is additionally exercised
-**locally** in a container
-([`ctstats/scripts/ct-in-container.sh`](../ctstats/scripts/ct-in-container.sh)), with a
-planted-secret-branch negative control confirming Memcheck catches leaks there.
-The same job now hard-gates the real libcrux ML-KEM decapsulation path. The initial
-investigation (marking the whole ML-KEM decapsulation key and running libcrux's
-`decapsulate`) and surfaced 5696 reports across 60 branches in the NEON `decapsulate`
-comparing 12-bit coefficients to q (3329) / q−1 — now **RESOLVED as benign**. Per FIPS 203
-the dk *embeds the public key* (`dk = dk_pke‖ek‖H(ek)‖z`); the flagged branches are the
-compiler's scalar lowering of libcrux's **public-key** deserialize-with-reduction
-(`deserialize_to_reduced_ring_element`/`cond_subtract_3329`, which libcrux documents "MUST NOT
-be used with secret inputs"), running on the embedded **public** key during FO re-encryption.
-The probe over-marked the whole dk (incl. `ek`). The genuine secret ŝ uses a reduction-free
-path (`deserialize_12`, no q-comparison), and no secret value (ŝ, z, m′, the implicit-rejection
-compare) reaches any data-dependent branch — a static-reachability fact in libcrux 0.0.9,
-source-proven and confirmed by a 3-lens adversarial review (details in
-[`ctstats/README.md`](../ctstats/README.md)). So **libcrux ML-KEM decaps is constant-time on
-the genuine secret**; the branch outcomes depend only on the (public) `ek`, i.e. zero marginal
-leakage. (Two earlier framings — "csel false positive" and "real secret-dependent branch" —
-were both retracted.) This **corroborates** — does not discover — what libcrux already
-machine-checks via its `libcrux-secrets`/hax typed secret-independence; the 5696-vs-0 Memcheck
-contrast is the expected before/after of correct vs. over-broad marking, per standard
-CT-harness practice (cf. KyberSlash §7.1.2). The original secret-only diagnostic used
-the wrong second range (`H(ek)`); the corrected probe now marks exactly ŝ
-`[0..1152]` + z `[2368..2400]`, includes a planted-leak negative control and embedded-
-public-key positive control, and reports zero on both x86_64 and aarch64. CI requires
-that zero result, so it is no longer pending. Other primitive backends remain outside
-this hard gate.
+The `constant-time` CI job is configured to run the dataflow gate on x86_64 and
+aarch64 (matrix `[ubuntu-latest, ubuntu-24.04-arm]`); the local container harness
+([`ctstats/scripts/ct-in-container.sh`](../ctstats/scripts/ct-in-container.sh)) includes
+a planted-secret-branch negative control so a zero result cannot pass vacuously.
+The same job now targets the production `fips203` ML-KEM decapsulation path. Its
+secret probe marks exactly ŝ `[0..1152]` + z `[2368..2400]`; the planted secret-indexed
+control must report positive, while embedded-public-key and whole-dk runs are diagnostic
+only because an expanded FIPS 203 dk contains public `ek` and `H(ek)` fields.
+
+The earlier 0-report `libcrux` captures and their hax/source-level argument are
+**historical predecessor evidence only**. They do not transfer to `fips203`, and the
+backend/source migration changed the canonical digest. A fresh x86_64+aarch64 capture
+must pass for the release source before the ML-KEM binary-CT cell can be promoted.
+There is currently no inherited source-CT attestation for the new backend. Other
+primitive backends remain outside this hard gate.
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
-test is currently a local diagnostic). Binary-CT tooling is mature on **x86_64-linux and aarch64-linux**
-(our composition-code check is configured for both); **riscv64 / wasm32** remain
-**source-CT + upstream-attestation only**.
+test is currently a local diagnostic). Binary-CT tooling is configured on
+**x86_64-linux and aarch64-linux**; **riscv64 / wasm32** remain unverified at the
+binary level and have no inherited source-CT claim.
 CT posture is **per-backend**, not universal — swapping a backend changes the
 guarantee. Known carve-out: **ML-DSA signing uses rejection sampling, so its
 iteration count is secret-dependent by design** — an auditable, documented exception,
@@ -382,21 +373,21 @@ proof is a strong internal artifact, not an external attestation.
 
 ### 5.4 Pre-1.0 / unaudited backends
 
-The cryptographic primitives come from external crates that are themselves pre-1.0
-or carry their own caveats — notably libcrux 0.0.9, which states it is research
-software and asks you to contact the maintainers before production use. Current
-After removal of the three PQClean-HQC advisory edges, `cargo audit --deny warnings`
-still reports the upstream unmaintained `proc-macro-error2` dependency inherited
-through libcrux/hax. `.cargo/audit.toml` has `ignore = []`, so it is not suppressed.
-This is an unresolved, visible release blocker; no warning-clean dependency claim is made.
+The cryptographic primitives come from external pre-1.0 crates and remain unaudited
+for this integration. Migrating the production path to `fips203` 0.4.3,
+`fips204` 0.4.6, and `sha3` 0.10.9 removed the `libcrux`/hax dependency edge and its
+`proc-macro-error2` advisory. `cargo audit --deny warnings` now passes while
+`.cargo/audit.toml` retains `ignore = []`. This is a warning-clean dependency scan,
+not an independent cryptographic, side-channel, implementation, or ABI audit.
 
 ### 5.5 ACVP conformance, not CMVP certification
 
-The backends pass the **full NIST ACVP conformance set** — ML-KEM-512/768/1024 and
-ML-DSA-44/65/87 (keyGen + the external/pure, hedged-context, SHAKE-128 pre-hash, and
-internal-interface signature modes), plus SLH-DSA-SHA2-{128,192,256}s — reproducing the
+The backends pass the NIST ACVP conformance sets for ML-KEM-512/768/1024 and
+ML-DSA-44/65/87 (keyGen + external/pure, hedged-context, and SHAKE-128 pre-hash
+signature modes), plus SLH-DSA-SHA2-{128,192,256}s — reproducing the
 authoritative vectors byte-for-byte (`q-periapt-backends/src/acvp.rs`,
-`acvp_slhdsa.rs`). **But passing ACVP vectors is conformance evidence, not a FIPS
+`acvp_slhdsa.rs`). Vendored internal-interface vectors remain explicit, unwired
+reference data and are not a backend pass. **Passing ACVP vectors is conformance evidence, not a FIPS
 validation.** There is no CMVP/CAVP certification, no validated cryptographic-module
 boundary, and no operational-environment accreditation. Do not read "passes the ACVP
 vectors" as "FIPS-validated."
@@ -429,11 +420,11 @@ against a published single-Mac non-regression budget. A proof counts as current 
 when its source digest matches the live canonical tree and the host satisfies the
 controlled-environment contract; `artifact/results.json` carries a path/hash/schema/source/pass
 summary, while the required performance verifier checks the selected proof and artifacts. The
-HQC graph/tombstone change changed that digest, so every pre-change proof became stale regardless
-of whether its older-source run passed. A later clean-tree schema-3 matrix covered one physical
-iPad and one distinct physical iPhone, and a controlled-host matched-backend proof passed the fixed
-non-regression budget. Their currentness is determined only by `artifact/results.json` plus live
-verification against the canonical tree. The
+backend/source migration changed that digest, so every recorded package, device,
+performance, and binary-CT proof is historical regardless of whether its older-source
+run passed. A fresh controlled-host proof and physical-device matrix must be collected
+against the release source. Currentness is determined only by `artifact/results.json`
+plus live verification against the canonical tree. The
 schema-v4 producer fixes Cargo/Rustc executable hashes, versions, and target; rejects repository/
 ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes system-tool
 lookup; and builds offline in a fresh private target. It still trusts the user-writable Cargo
@@ -564,9 +555,9 @@ full model and implementation exist, there is no session-protocol security claim
 | 4.4 | Core-owned combined-key storage zeroization | post-use exposure | volatile wipe + fence; core `Secret` is not `Clone` | **ENFORCED only for owned Rust storage**; binding/OS copies are caller-managed best effort |
 | 4.5 | Byte-identical output in reported deterministic host/ISA cells; semantic parity in native product cells | binding divergence / adapter drift | shared-vector conformance plus policy/round-trip/context/failure-atomicity product tests | **ENFORCED only in explicitly reported cells**; product randomness is not replay evidence, and neither result alone is a clean release attestation |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **LOCAL DIAGNOSTIC** (not run in shared CI; not gated) |
-| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (job `constant-time`); aarch64 also verified locally |
-| 5.2 | Binary-level CT — libcrux ML-KEM decapsulation | ADV-TIME | corrected ŝ+z Memcheck probe + planted-leak and embedded-public-key controls | **HARD GATE on x86_64+aarch64**; zero secret-dependent reports required |
+| 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (job `constant-time`); fresh release-source capture required |
+| 5.2 | Binary-level CT — `fips203` ML-KEM decapsulation | ADV-TIME | corrected ŝ+z Memcheck probe + planted-leak and embedded-public-key diagnostics | **CONFIGURED HARD GATE on x86_64+aarch64**; predecessor logs are historical and a fresh release-source pass is pending |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
-| 5.5 | NIST ACVP conformance (full FIPS family) | — | X-Wing KAT + full ACVP set (`acvp.rs`) | **CONFORMANCE DONE** — not CMVP-certified |
+| 5.5 | NIST ACVP conformance (wired FIPS modes) | — | X-Wing KAT + wired ACVP sets (`acvp.rs`) | **CONFORMANCE DONE for the stated modes**; internal-interface vectors are reference-only; not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |
 | 5.10 | Async identity/prekeys/ratchet/multi-device/recovery | directory, replay, compromise, rollback, DoS | Test-only model checks canonical role-ordered context admission, a strict four-quadrant prekey-selection record with atomic B21-B23 derivation, exact version+digest CAS, no-op-anchor rejection and abstract reconstruction; independent Python/Rust full-byte vectors and structural EasyCrypt diagnostics agree, but fields still enter through trusted genesis and there is no manifest verifier, lease/tombstone state, context-advance API, credential/prekey/directory authentication, ratchet, manager, or production protocol mechanism | **OUT OF SCOPE / G1 PARTIAL** |

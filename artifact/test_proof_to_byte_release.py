@@ -125,7 +125,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertIn(token, source)
         self.assertIn("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS", source)
         self.assertIn("RUST_BACKENDS_INSPECTION_PACKAGE_PASS", source)
-        self.assertIn("cargo package $ALLOW_DIRTY_ARG --locked --no-verify", source)
+        self.assertIn("cargo package $ALLOW_DIRTY_ARG --locked \\", source)
+        self.assertNotIn("--no-verify", source)
         self.assertIn("qperiapt-package-inspection.XXXXXX", source)
         self.assertIn("publishable q-periapt-backends exposes retired hqc feature", source)
         self.assertEqual(

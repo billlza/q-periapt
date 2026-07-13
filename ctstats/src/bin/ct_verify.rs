@@ -14,8 +14,8 @@
 //!
 //! Scope: the suite's own constant-time composition code — `ct_eq`, `ct_select32`
 //! (the implicit-rejection select primitives), and the combiner over secret shared
-//! secrets. The component primitives' constant-timeness is the backends' contract
-//! (libcrux ML-KEM is formally verified constant-time); here we check *our* glue.
+//! secrets. The shipped ML-KEM primitive wrapper is exercised separately by
+//! `ct_decaps_gap`; neither dynamic probe is a source-level proof.
 
 use core::ffi::c_void;
 use core::hint::black_box;
@@ -68,25 +68,14 @@ fn main() {
     };
     let _ = black_box(combine::<Sha3_256Xof>(Profile::ContextBound, &inp).map(|s| *s.as_bytes()));
 
-    // NOTE on primitive paths (RESOLVED — benign, 2026-06): an earlier probe marked the WHOLE
-    // 2400-byte ML-KEM-768 decapsulation key secret and ran libcrux's `decapsulate` under
-    // Memcheck, flagging 30 branches comparing 12-bit coefficients to q (0xd01) and q-1 (0xd00)
-    // in `neon::decapsulate`. These are NOT a secret-dependent timing leak. Per FIPS 203 the dk
-    // EMBEDS the public key (dk = dk_pke‖ek‖H(ek)‖z), and the flagged branches are the
-    // compiler's scalar lowering of libcrux's *public-key* deserialize-with-reduction
-    // (`deserialize_to_reduced_ring_element` / `cond_subtract_3329`, which the libcrux source
-    // documents "MUST NOT be used with secret inputs"). It runs only on the embedded PUBLIC key
-    // `ek` during FO re-encryption; the probe over-marked `ek` as secret. The GENUINE secret
-    // key ŝ takes a different, reduction-free path (`deserialize_to_uncompressed_ring_element`
-    // → `deserialize_12`, no q-comparison), and no secret value (ŝ, z, the decrypted m', the
-    // implicit-rejection compare) reaches any data-dependent branch — a static-reachability
-    // fact verified against the libcrux 0.0.9 source and an adversarial review. So libcrux
-    // ML-KEM decaps is constant-time on the genuine secret; the CT-correct marking is
-    // ŝ[0..1152] + z[2368..2400], NOT the whole dk (ek[1152..2336] and H(ek)[2336..2368] are
-    // public; ek is what produces the 60 q-branches). This corroborates libcrux's own
-    // compile-time secret-independence (libcrux-secrets/hax) — the 5696-vs-0 Memcheck contrast
-    // is the expected correct-vs-over-broad-marking before/after, per standard CT-harness
-    // practice (KyberSlash §7.1.2), not a finding. See ctstats/README.md
-    // "Primitive-path investigation".
+    // Primitive-path note: a FIPS 203 expanded decapsulation key contains both secrets and
+    // public material: dk = dk_pke/ŝ ‖ ek ‖ H(ek) ‖ z. The `ct_decaps_gap probe` mode therefore
+    // marks only ŝ[0..1152] and z[2368..2400]. Its `ek` and `wholedk` modes are diagnostics,
+    // not positive controls with fixed expected counts: backend key import and public-field
+    // validation may legitimately make either mode report zero or non-zero. The hard
+    // discriminator is instead backend-independent: the planted-secret control must report
+    // errors while the shipped wrapper's genuine-secret probe must report zero. Historical
+    // libcrux measurements do not describe the current fips203-backed binary. See
+    // ctstats/README.md "Shipped-backend binary dataflow probe".
     eprintln!("ct_verify: exercised the constant-time paths (no-op outside Valgrind)");
 }

@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
@@ -19,12 +22,14 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           components: rustfmt, clippy
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo install cbindgen --locked
+      - run: cargo install cbindgen --version 0.29.4 --locked
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
@@ -51,8 +56,11 @@ jobs:
   rust-publish-contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: sh artifact/rust-publish-dry-run.sh
 
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs,
@@ -61,8 +69,10 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - run: cargo test --workspace --locked
       - run: cargo test -p q-periapt-backends --features slh-dsa --locked
       # ABI2 C link smoke: cl.exe links a C consumer against q_periapt_ffi_abi2.dll.
@@ -72,11 +82,13 @@ jobs:
   no_std:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: thumbv7em-none-eabihf
-      - run: cargo build -p q-periapt-core --target thumbv7em-none-eabihf
+      - run: cargo build --locked -p q-periapt-core --target thumbv7em-none-eabihf
 
   # Cross-platform behavioural consistency: build the same code everywhere.
   cross:
@@ -90,11 +102,13 @@ jobs:
           - riscv64gc-unknown-linux-gnu    # RISC-V
           - wasm32-unknown-unknown         # WASM
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: ${{ matrix.target }}
-      - run: cargo build -p q-periapt-core -p q-periapt-kem --target ${{ matrix.target }}
+      - run: cargo build --locked -p q-periapt-core -p q-periapt-kem --target ${{ matrix.target }}
 
   # riscv64 byte-identity, EXECUTED under qemu-user (not just cross-compiled): the pinned
   # ContextBound / enhanced-suite reference-vector KATs must reproduce byte-for-byte on the
@@ -103,8 +117,10 @@ jobs:
   riscv64-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: riscv64gc-unknown-linux-gnu
       - run: sudo apt-get update && sudo apt-get install -y qemu-user-static gcc-riscv64-linux-gnu
@@ -122,8 +138,10 @@ jobs:
       matrix:
         toolchain: [stable, beta, nightly]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: ${{ matrix.toolchain }}
       # `+${{ matrix.toolchain }}` is REQUIRED: the root rust-toolchain.toml pins stable and
@@ -135,8 +153,10 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b39830659426cc462634adb474604619960ae92d # 1.85
       - run: cargo +1.85 build --workspace --locked
 
   # Side-channel gate: failure-path indistinguishability. Empirical dudect timing
@@ -145,8 +165,10 @@ jobs:
   sidechannel:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - name: Failure-path indistinguishability (hard gate)
         run: cargo test -p q-periapt-ctstats --locked
   # Dataflow constant-time HARD GATE (Valgrind/Memcheck TIMECOP). Secrets are marked
@@ -165,42 +187,56 @@ jobs:
         runner: [ubuntu-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - name: Install Valgrind (provides valgrind/memcheck.h for the shim)
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - name: Build the ct_verify harness (real Memcheck client requests)
-        run: cargo build --release -p q-periapt-ctstats --bin ct_verify --features valgrind
+        run: cargo build --locked --release -p q-periapt-ctstats --bin ct_verify --features valgrind
       - name: Memcheck — no secret-dependent control flow (hard gate)
         run: valgrind --error-exitcode=1 --leak-check=no --track-origins=yes ./target/release/ct_verify
-      - name: Build the source→binary CT gap probe (real libcrux ML-KEM decapsulate)
-        run: cargo build --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind
-      - name: Memcheck — source→binary CT gap probe (self-validating)
+      - name: Build the shipped-backend binary CT probes
+        run: cargo build --locked --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind
+      - name: Memcheck — shipped fips203 wrapper probe (self-validating)
         run: |
           BIN=./target/release/ct_decaps_gap
-          # Negative control: a planted secret-indexed load MUST be caught, else the gate is vacuous.
-          if valgrind --error-exitcode=1 --leak-check=no -q "$BIN" control >/dev/null 2>&1; then
-            echo "::error::negative control not caught — Memcheck gate is vacuous on ${{ matrix.runner }}"; exit 1
+          # Negative control: accept only Valgrind's dedicated sentinel plus a positive
+          # summary. A crash, tool startup failure, or unrelated exit must fail the gate.
+          set +e
+          valgrind --error-exitcode=99 --leak-check=no --track-origins=yes \
+            "$BIN" control >control.memcheck.log 2>&1
+          control_rc=$?
+          set -e
+          if [ "$control_rc" -ne 99 ] || ! grep -Eq 'ERROR SUMMARY: [1-9][0-9]* errors' control.memcheck.log; then
+            cat control.memcheck.log
+            echo "::error::negative control expected Valgrind sentinel 99 and a positive summary, got rc=$control_rc on ${{ matrix.runner }}"
+            exit 1
           fi
-          # Positive control: marking the embedded PUBLIC key (which drives the q-branches) MUST flag.
-          if valgrind --error-exitcode=1 --leak-check=no -q "$BIN" ek >/dev/null 2>&1; then
-            echo "::error::ek positive control did not flag — Memcheck not seeing real libcrux branches"; exit 1
-          fi
-          # HARD GATE: marking the GENUINE secret (ŝ+z) must yield ZERO secret-dependent branches,
-          # i.e. libcrux's source-level secret-independence survives compilation on this ISA.
+          rm -f control.memcheck.log
+          echo "negative control passed on ${{ matrix.runner }}"
+          # Embedded-public-key and whole-key over-marking are diagnostics only. Their counts
+          # legitimately depend on backend validation and compiler lowering.
+          valgrind --leak-check=no --track-origins=yes "$BIN" ek
+          valgrind --leak-check=no --track-origins=yes "$BIN" wholedk
+          # HARD GATE: marking the genuine secret ŝ+z must yield zero Memcheck-visible
+          # secret-dependent branches/indexes on the exercised valid and invalid paths.
           valgrind --error-exitcode=1 --leak-check=no --track-origins=yes "$BIN" probe
-          echo "source→binary CT gap probe: no gap on ${{ matrix.runner }}"
+          echo "shipped-backend binary CT probe passed on ${{ matrix.runner }}"
 
   # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
   transport:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - name: Loopback handshake (both profiles)
         run: cargo test -p q-periapt-tls-demo --locked
       - name: P99 harness (informational)
-        run: cargo run --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000
+        run: cargo run --locked --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000
 
   # Cross-platform bindings: each binding decapsulates the shared reference vector
   # (bindings/shared-test-vectors.json) and must reproduce the secret byte-for-byte.
@@ -209,14 +245,16 @@ jobs:
   bindings-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: wasm32-unknown-unknown
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "20"
-      - run: cargo install wasm-pack
+          node-version: "24"
+      - run: cargo install wasm-pack --version 0.15.0 --locked
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
       - run: wasm-pack test --node crates/q-periapt-wasm
 
@@ -225,23 +263,28 @@ jobs:
   fuzz:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo install cargo-fuzz
-      - run: cargo +nightly fuzz build --fuzz-dir fuzz
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@efcb852328a9f50117170cc43094fb6f09eaf1ae # nightly
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - run: cargo +nightly fetch --manifest-path fuzz/Cargo.toml --locked
+      - run: CARGO_NET_OFFLINE=true cargo +nightly fuzz build --fuzz-dir fuzz
 
   bindings-swift:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           # The release gate inspects Rust-produced archives with the matching
           # Rust LLVM version; Xcode llvm-nm may reject newer Rust bitcode.
           components: llvm-tools
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
-      - run: cargo build -p q-periapt-ffi --release
-      - run: cargo install cbindgen --locked
+      - run: cargo build --locked -p q-periapt-ffi --release
+      - run: cargo install cbindgen --version 0.29.4 --locked
       - name: Generated C/Swift header freshness
         run: |
           mkdir -p target
@@ -256,31 +299,35 @@ jobs:
   bindings-kotlin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
           java-version: "22" # java.lang.foreign (FFM) is stable in JDK 22+
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
           gradle-version: "9.2.1"
-      - run: cargo build -p q-periapt-ffi --release
+      - run: cargo build --locked -p q-periapt-ffi --release
       - run: gradle test --project-dir bindings/kotlin
 
   bindings-android-aar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi,i686-linux-android
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
           java-version: "22"
-      - uses: android-actions/setup-android@v3
-      - run: cargo install cbindgen --locked
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - run: cargo install cbindgen --version 0.29.4 --locked
       - name: Install pinned Android SDK/NDK inputs
         run: |
           yes | sdkmanager --licenses >/dev/null
@@ -296,14 +343,19 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
-      - run: cargo run -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
+      - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cyclonedx-boms
-          path: "*.cdx.json"
+          path: |
+            cbom.cdx.json
+            sbom.cdx.json
+          if-no-files-found: error
       - run: cargo install cargo-audit --version 0.22.2 --locked
       # Unconditional release gate over the complete root lockfile. No advisory
       # is ignored; an upstream-only warning intentionally keeps ABI 2 blocked.
@@ -313,8 +365,10 @@ jobs:
   pq-optional-backends:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           components: clippy
       - run: cargo clippy -p q-periapt-backends --features slh-dsa --all-targets --locked -- -D warnings
@@ -325,8 +379,10 @@ jobs:
   hqc-draft-candidate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           components: clippy
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf,aarch64-unknown-linux-gnu,x86_64-pc-windows-gnu
@@ -337,40 +393,46 @@ jobs:
   feature-fence:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
-      - run: cargo build -p q-periapt-wasm --target wasm32-unknown-unknown
-      - run: cargo build -p q-periapt-core --target thumbv7em-none-eabihf
+      - run: cargo build --locked -p q-periapt-wasm --target wasm32-unknown-unknown
+      - run: cargo build --locked -p q-periapt-core --target thumbv7em-none-eabihf
 
   # Formal proofs. The no-admits check is a reliable HARD GATE (catches a proof
-  # being stubbed out). The full EasyCrypt machine-check runs in the hermetic
+  # being stubbed out). The full EasyCrypt machine-check runs in the pinned-source
   # hard-gate job below. The binding theorem reduces only to be8 fixed-width /
   # injectivity + CR(H); see formal/.
   formal-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: No admits/sorry in the mechanized proofs (hard gate)
         run: "! grep -rnEw 'admit|sorry' --include='*.ec' formal/easycrypt/"
       # The FULL proof re-check (BindingViaCR.ec + seven proof-dependency regression controls
       # + the non-normative Lifecycle/Prekey canonical-projection diagnostics) runs as a HARD
-      # GATE in `formal-hermetic` below. Hint-deletion failures establish only dependencies of
+      # GATE in `formal-easycrypt` below. Hint-deletion failures establish only dependencies of
       # the current scripts; semantic necessity comes from explicit countermodels.
 
-  # Hermetic EasyCrypt proof check (HARD GATE). Builds the EasyCrypt r2026.06 toolchain image
-  # (formal/Dockerfile, layer-cached) and re-runs the binding proof, proof-dependency controls,
-  # and both Continuity canonical-projection diagnostics.
+  # Pinned-source EasyCrypt proof check (HARD GATE). The base image digest and EasyCrypt commit
+  # are immutable; apt/opam transitive inputs are not a bit-reproducible or hermetic closure.
+  # Re-runs the binding proof, proof-dependency controls, and both Continuity diagnostics.
   # `BindingViaCR.ec` also contains the explicit probability-one K!=bottom countermodel; do not
   # infer logical necessity merely from an edited tactic failing.
-  formal-hermetic:
+  formal-easycrypt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       - name: Build the pinned EasyCrypt image (layer-cached)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: formal/Dockerfile
@@ -393,7 +455,9 @@ jobs:
   tamarin-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: All five Tamarin lemmas present (hard gate)
         run: |
           for l in executable server_authentication authenticated_context_agreement hybrid_secrecy hybrid_robustness_authenticated; do
@@ -402,9 +466,37 @@ jobs:
       - name: Install Maude + Tamarin
         run: |
           sudo apt-get update
-          sudo apt-get install -y maude graphviz
-          curl -fsSL https://github.com/tamarin-prover/tamarin-prover/releases/download/1.10.0/tamarin-prover-1.10.0-linux64-ubuntu.tar.gz \
-            | sudo tar -xz -C /usr/local/bin tamarin-prover
+          sudo apt-get install -y graphviz unzip
+
+          MAUDE_ARCHIVE=$(mktemp)
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
+            --output "$MAUDE_ARCHIVE" \
+            https://github.com/maude-lang/Maude/releases/download/Maude3.5.1/Maude-3.5.1-linux-x86_64.zip
+          printf '%s  %s\n' \
+            72ed1ca87e3b3d0dfc6ee1436baf154bf04c45ff97d521bec040c5e8dfc8f92c \
+            "$MAUDE_ARCHIVE" | sha256sum --check --strict
+          sudo mkdir -p /opt/maude-3.5.1
+          sudo unzip -q "$MAUDE_ARCHIVE" -d /opt/maude-3.5.1
+          sudo chmod 0755 /opt/maude-3.5.1/maude
+          printf '%s\n' /opt/maude-3.5.1 >> "$GITHUB_PATH"
+          export PATH="/opt/maude-3.5.1:$PATH"
+          rm -f "$MAUDE_ARCHIVE"
+
+          TAMARIN_ARCHIVE=$(mktemp)
+          TAMARIN_DIR=$(mktemp -d)
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
+            --output "$TAMARIN_ARCHIVE" \
+            https://github.com/tamarin-prover/tamarin-prover/releases/download/1.12.0/tamarin-prover-1.12.0.x86_64_linux.bottle.tar.gz
+          printf '%s  %s\n' \
+            936631c692ce9fd4c797400eff32e47d6d09e371ca251250cceac15b93f71d99 \
+            "$TAMARIN_ARCHIVE" | sha256sum --check --strict
+          tar -xzf "$TAMARIN_ARCHIVE" -C "$TAMARIN_DIR" \
+            tamarin-prover/1.12.0/bin/tamarin-prover
+          sudo install -m 0755 \
+            "$TAMARIN_DIR/tamarin-prover/1.12.0/bin/tamarin-prover" \
+            /usr/local/bin/tamarin-prover
+          rm -rf "$TAMARIN_ARCHIVE" "$TAMARIN_DIR"
+          test "$(maude --version)" = "3.5.1"
           tamarin-prover --version
       - name: Machine-check the handshake model (make prove)
         run: make -C formal/tamarin prove
@@ -416,7 +508,9 @@ jobs:
   proverif-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Handshake events + six queries present (hard gate)
         run: |
           for e in ServerDone ClientFinish RevealSig RevealPQ RevealTrad; do
@@ -427,9 +521,19 @@ jobs:
       - name: Install ProVerif
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk2.0-dev opam pkg-config
-          opam init -y --disable-sandboxing
-          opam install -y proverif
+          sudo apt-get install -y libgtk2.0-dev ocaml pkg-config
+          OPAM_BIN=$(mktemp)
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
+            --output "$OPAM_BIN" \
+            https://github.com/ocaml/opam/releases/download/2.5.2/opam-2.5.2-x86_64-linux
+          printf '%s  %s\n' \
+            edfca2630c373b44b7ee1c2f81cd8dcf67468d0db57d6c02158de553ac63dbd4 \
+            "$OPAM_BIN" | sha256sum --check --strict
+          sudo install -m 0755 "$OPAM_BIN" /usr/local/bin/opam
+          rm -f "$OPAM_BIN"
+          test "$(opam --version)" = "2.5.2"
+          opam init -y --disable-sandboxing --no-setup
+          opam install -y proverif.2.05
       - name: Machine-check the handshake model (queries must hold)
         run: opam exec -- make -C formal/proverif prove
 
