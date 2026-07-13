@@ -345,13 +345,13 @@
     {
       "id": "DEPENDENCY-AUDIT-CLEAN",
       "title": "All locked dependencies pass cargo-audit with warnings denied",
-      "status": "verified",
+      "status": "implementation_tested",
       "evidence": {
         "configuration": [".cargo/audit.toml", ".github/workflows/ci.yml"],
-        "lockfile": ["Cargo.lock"],
+        "lockfiles": ["Cargo.lock", "fuzz/Cargo.lock"],
         "release_contract": ["artifact/rust-publish-dry-run.sh"]
       },
-      "boundary": "No advisory is suppressed. The publishable graph now uses exact fips203/fips204/sha3 pins and no longer contains the libcrux/hax/proc-macro-error2 advisory path. CI denies every cargo-audit warning over the committed workspace lockfile, and the Rust publish contract independently resolves and audits Cargo's normalized q-periapt-backends package manifest. The publish=false FIPS 207 draft-candidate shadow workspace remains outside the shipping graph. This establishes only the absence of advisories known to the RustSec database at scan time; it is not a third-party cryptographic or ABI audit, a maintenance guarantee, or registry/build provenance."
+      "boundary": "No advisory is suppressed. The publishable graph now uses exact fips203/fips204/sha3 pins and no longer contains the libcrux/hax/proc-macro-error2 advisory path. CI denies every cargo-audit warning over both committed workspace and detached fuzz-harness lockfiles, and the Rust publish contract independently resolves and audits Cargo's normalized q-periapt-backends package manifest. The publish=false FIPS 207 draft-candidate shadow workspace remains outside the shipping graph and has its own audited lockfile gate. This establishes only the absence of advisories known to the RustSec database at scan time; it is not a third-party cryptographic or ABI audit, a maintenance guarantee, or registry/build provenance."
     }
   ]
 }

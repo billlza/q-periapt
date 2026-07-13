@@ -357,9 +357,10 @@ jobs:
             sbom.cdx.json
           if-no-files-found: error
       - run: cargo install cargo-audit --version 0.22.2 --locked
-      # Unconditional release gate over the complete root lockfile. No advisory
-      # is ignored; an upstream-only warning intentionally keeps ABI 2 blocked.
+      # Unconditional release gates over the shipping workspace and detached
+      # fuzz-harness lockfiles. No advisory is ignored.
       - run: cargo audit --deny warnings
+      - run: cargo audit --deny warnings --file fuzz/Cargo.lock
 
   # Optional SLH-DSA backend (FIPS 205 via fips205).
   pq-optional-backends:
