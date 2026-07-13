@@ -467,12 +467,16 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$MAX_AGE_SECONDS" \
 				--expected-device-kind "$EXPECTED_KIND" \
+				--results-manifest "$RESULTS_MANIFEST" \
+				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
 				--allow-dirty-proof
 		else
 			python3 artifact/android_device_proof.py verify \
 				--root "$ROOT" \
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$MAX_AGE_SECONDS" \
+				--results-manifest "$RESULTS_MANIFEST" \
+				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
 				--allow-dirty-proof
 		fi
 	else
@@ -481,12 +485,16 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--root "$ROOT" \
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$MAX_AGE_SECONDS" \
-				--expected-device-kind "$EXPECTED_KIND"
+				--expected-device-kind "$EXPECTED_KIND" \
+				--results-manifest "$RESULTS_MANIFEST" \
+				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 		else
 			python3 artifact/android_device_proof.py verify \
 				--root "$ROOT" \
 				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$MAX_AGE_SECONDS"
+				--max-age-seconds "$MAX_AGE_SECONDS" \
+				--results-manifest "$RESULTS_MANIFEST" \
+				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 		fi
 		fi
 	ANDROID_RUNTIME_PASSED=1

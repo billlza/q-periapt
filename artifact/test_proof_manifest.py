@@ -129,11 +129,49 @@ class ProofManifestTests(unittest.TestCase):
             }
         )
 
+    def test_declared_current_android_requires_bound_passing_schema2_proof(self) -> None:
+        digest = "a" * 64
+        section = {
+            "current_source_status": "current_clean_tree_emulator_pass",
+            "proof_schema": 2,
+            "proof_source_tree_sha256": digest,
+            "proof_path": "target/android/proof.json",
+            "proof_sha256": "b" * 64,
+            "proof_generated_at": "2026-07-13T00:00:00Z",
+            "status": "pass",
+        }
+        manifest = {"proof_source_tree_sha256": digest, "android_device_runtime": section}
+        proof_manifest.validate_declared_currentness(manifest)
+
+        for field, bad_value, message in (
+            ("proof_path", "../proof.json", "selected-proof path"),
+            ("proof_sha256", "bad", "selected-proof SHA-256"),
+            ("proof_schema", 1, "requires proof schema 2"),
+            ("proof_source_tree_sha256", "c" * 64, "does not match"),
+            ("status", "fail", "passing proof"),
+            ("proof_generated_at", None, "generation time"),
+        ):
+            with self.subTest(field=field):
+                original = section[field]
+                section[field] = bad_value
+                with self.assertRaisesRegex(proof_manifest.ProofManifestError, message):
+                    proof_manifest.validate_declared_currentness(manifest)
+                section[field] = original
+
+    def test_noncurrent_android_does_not_require_current_proof_fields(self) -> None:
+        proof_manifest.validate_declared_currentness(
+            {
+                "proof_source_tree_sha256": "a" * 64,
+                "android_device_runtime": {"current_source_status": "stale_requires_rerun"},
+            }
+        )
+
     def test_unknown_currentness_statuses_fail_closed(self) -> None:
         for section, key in (
             ("performance", "current_source_status"),
             ("apple_device", "current_source_status"),
             ("apple_device", "matrix_source_status"),
+            ("android_device_runtime", "current_source_status"),
         ):
             with self.subTest(section=section, key=key), self.assertRaisesRegex(
                 proof_manifest.ProofManifestError,

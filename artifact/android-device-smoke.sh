@@ -1187,5 +1187,15 @@ payload = {
 proof.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 PY
 python3 -m json.tool "$PROOF_JSON" >/dev/null
+if [ "$ALLOW_DIRTY_ANDROID_DEVICE" = "1" ]; then
+	set -- --allow-dirty-proof
+else
+	set --
+fi
+PYTHONPATH=artifact python3 artifact/android_device_proof.py verify \
+	--root "$ROOT" \
+	--proof "$PROOF_JSON" \
+	--expected-device-kind "$DEVICE_KIND" \
+	"$@"
 printf 'Proof    : %s\n' "$PROOF_JSON"
 printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s\n' "$PROOF_JSON"

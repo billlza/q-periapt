@@ -257,12 +257,17 @@ class BoundVerifierWiringTests(unittest.TestCase):
         performance = (ROOT / "artifact" / "performance_gate.py").read_text(
             encoding="utf-8"
         )
+        android = (ROOT / "artifact" / "android_device_proof.py").read_text(
+            encoding="utf-8"
+        )
         marker = "PROOF_TO_BYTE_SELECTED_PROOF_MANIFEST_PASS"
         self.assertIn(marker, apple)
         self.assertIn(marker, performance)
+        self.assertIn(marker, android)
         self.assertIn('binding="apple_device"', apple)
         self.assertIn('binding="apple_matrix"', apple)
         self.assertIn('binding="performance"', performance)
+        self.assertIn('binding="android_runtime"', android)
 
     def test_release_policy_cannot_be_selected_by_evidence_or_environment(self) -> None:
         matrix_script = (ROOT / "artifact" / "apple-device-matrix.sh").read_text(

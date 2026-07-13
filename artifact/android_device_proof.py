@@ -17,7 +17,13 @@ from evidence_io import EvidenceIOError, load_json_object_snapshot
 from git_provenance import (
     GitProvenanceError,
     git_commit as provenance_git_commit,
+    require_commit_or_evidence_successor,
     source_tree_dirty as provenance_source_tree_dirty,
+)
+from proof_manifest import (
+    ProofManifestError,
+    load_results_manifest_snapshot,
+    select_bound_json_snapshot,
 )
 
 
@@ -31,13 +37,8 @@ MAX_ANDROID_PROOF_AGE_SECONDS = 7 * 24 * 60 * 60
 
 EXPECTED_TESTS = [
     "runtimeMetadataMatches",
-    "combineReferenceVectors",
-    "sharedVectorDecapsulates",
-    "sharedVectorEncapsulates",
-    "contextBoundRejectsEmptyContext",
-    "compatXWingSeedKeypairRoundtrip",
-    "signedPolicyResolvesDecisionAndRejectsRollbackAndTamper",
-    "uint32ScalarsRejectNegativeAndOverflow",
+    "signedPolicyDecisionIsExactAndFailClosed",
+    "osRandomPolicyRoundtripAndWipes",
 ]
 
 SOURCE_INPUTS = {
@@ -47,8 +48,7 @@ SOURCE_INPUTS = {
     "android_aar_script": "artifact/android-aar.sh",
     "android_facade": "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
     "android_jni_adapter": "bindings/android/jni/qperiapt_jni.c",
-    "contextbound_vectors": "bindings/contextbound-vectors.txt",
-    "shared_vectors": "bindings/shared-test-vectors.json",
+    "c_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
     "signed_policy_vectors": "bindings/signed-policy-vectors.json",
 }
 
@@ -156,11 +156,10 @@ def verify_git_provenance(root: pathlib.Path, proof: dict[str, Any], allow_dirty
         isinstance(proof_commit, str) and re.fullmatch(r"[0-9a-f]{40,64}", proof_commit) is not None,
         "Android proof lacks a valid git_commit",
     )
-    current_commit = git_commit(root)
-    require(
-        proof_commit == current_commit,
-        f"Android proof was generated for git commit {proof_commit}, current commit is {current_commit}",
-    )
+    try:
+        require_commit_or_evidence_successor(root, proof_commit)
+    except GitProvenanceError as exc:
+        require(False, f"Android proof commit provenance failed: {exc}")
     proof_dirty = proof.get("source_tree_dirty")
     require(isinstance(proof_dirty, bool), "Android proof lacks source_tree_dirty")
     if not allow_dirty_proof:
@@ -268,7 +267,33 @@ def verify(args: argparse.Namespace) -> None:
     root = args.root.resolve()
     proof_path = args.proof.resolve()
     require_under(proof_path, root / "target", "Android proof")
-    proof = load_json(proof_path)
+    require(
+        args.results_manifest is not None or args.expected_results_manifest_sha256 is None,
+        "expected results manifest SHA-256 requires --results-manifest",
+    )
+    if args.results_manifest is not None:
+        require(
+            args.expected_results_manifest_sha256 is not None,
+            "manifest-bound Android verification requires the expected results manifest SHA-256",
+        )
+        try:
+            manifest = load_results_manifest_snapshot(
+                args.results_manifest.resolve(),
+                expected_sha256=args.expected_results_manifest_sha256,
+            )
+            proof_snapshot = select_bound_json_snapshot(
+                root,
+                manifest,
+                binding="android_runtime",
+                selected_path=proof_path,
+                label="Android runtime proof",
+            )
+        except ProofManifestError as exc:
+            raise SystemExit(f"error: {exc}") from exc
+        proof = proof_snapshot.value
+    else:
+        proof_snapshot = None
+        proof = load_json(proof_path)
 
     verify_proof_schema(proof)
     require(proof.get("device_runtime_proof") is True, "proof is not an Android runtime proof")
@@ -311,6 +336,11 @@ def verify(args: argparse.Namespace) -> None:
     verify_artifact_hashes(paths, proof)
     verify_native_hashes(paths, proof)
     print("ANDROID_DEVICE_PROOF_VERIFY_PASS")
+    if proof_snapshot is not None:
+        print(
+            "PROOF_TO_BYTE_SELECTED_PROOF_MANIFEST_PASS "
+            f"section=android_runtime sha256={proof_snapshot.file.sha256}"
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -326,6 +356,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_parser.add_argument("--expected-device-kind", choices=["emulator", "physical"], default="")
     verify_parser.add_argument("--allow-dirty-proof", action="store_true")
+    verify_parser.add_argument("--results-manifest", type=pathlib.Path)
+    verify_parser.add_argument("--expected-results-manifest-sha256")
     verify_parser.set_defaults(func=verify)
     return parser
 

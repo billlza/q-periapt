@@ -26,6 +26,11 @@ APPLE_SOURCE_STATUSES = {
     "current_dirty_diagnostic_pass",
     "stale_requires_rerun",
 }
+ANDROID_SOURCE_STATUSES = {
+    "current_clean_tree_emulator_pass",
+    "current_clean_tree_physical_pass",
+    "stale_requires_rerun",
+}
 
 
 class ProofManifestError(ValueError):
@@ -49,6 +54,11 @@ BINDINGS = {
         section="apple_device",
         path_key="matrix_proof_path",
         hash_key="matrix_proof_sha256",
+    ),
+    "android_runtime": BindingSpec(
+        section="android_device_runtime",
+        path_key="proof_path",
+        hash_key="proof_sha256",
     ),
     "performance": BindingSpec(
         section="performance",
@@ -156,6 +166,27 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
             raise ProofManifestError("current Apple matrix requires a passing proof")
         if not isinstance(apple.get("matrix_generated_at"), str):
             raise ProofManifestError("current Apple matrix requires proof generation time")
+
+    android = manifest.get("android_device_runtime")
+    if isinstance(android, dict):
+        _validate_optional_status(
+            android,
+            "current_source_status",
+            ANDROID_SOURCE_STATUSES,
+        )
+    if isinstance(android, dict) and android.get("current_source_status") in {
+        "current_clean_tree_emulator_pass",
+        "current_clean_tree_physical_pass",
+    }:
+        _validate_binding_declaration(android, "android_runtime")
+        if android.get("proof_schema") != 2:
+            raise ProofManifestError("current Android runtime status requires proof schema 2")
+        if root_digest is None or android.get("proof_source_tree_sha256") != root_digest:
+            raise ProofManifestError("current Android runtime status does not match the manifest source digest")
+        if android.get("status") != "pass":
+            raise ProofManifestError("current Android runtime status requires a passing proof")
+        if not isinstance(android.get("proof_generated_at"), str):
+            raise ProofManifestError("current Android runtime status requires proof generation time")
 
 
 def load_results_manifest_snapshot(
