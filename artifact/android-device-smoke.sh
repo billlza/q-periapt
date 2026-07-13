@@ -1187,7 +1187,7 @@ payload = {
 proof.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 PY
 python3 -m json.tool "$PROOF_JSON" >/dev/null
-if [ "$ALLOW_DIRTY_ANDROID_DEVICE" = "1" ]; then
+if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
 	set -- --allow-dirty-proof
 else
 	set --

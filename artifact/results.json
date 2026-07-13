@@ -285,7 +285,7 @@
     "android_aar_script_sha256": "4b3b7ebe71e74ea7cafa91375daf7962921bfdd9fd69aa2449e312b29f58fd63",
     "android_device_proof_tests_sha256": "04a010f5173694cb396b657de42b0fad242b131363d363a2308d1a935eb4d03a",
     "android_device_proof_verifier_sha256": "470ac4c3f7eff1ca7e5781a4b2df2adee7134561836fa21f473f985bd64976f1",
-    "android_device_smoke_script_sha256": "accf435504a976695813021fda2fd11a6042de09dbce8a336a91b016bb4c7f2a",
+    "android_device_smoke_script_sha256": "34bb3fb701c04e65f1c73d452081638d7001afdbd157591f79edf4c064bb5d6e",
     "android_facade_sha256": "431432c5878c3beca03d9dec6a20cc209b6182e68e79b949e13a35f7ba554ebc",
     "android_jni_adapter_sha256": "1e474ad433bfc1aea96aea7bf6703b56244b689e59ecdbbb65986463c4dfcdad",
     "apple_device_matrix_script_sha256": "06690db86ab0b368a1718cd833aaa95b105fb41d66aa8221f0a9547b3ec60dcb",
@@ -373,7 +373,7 @@
     "swift_xcframework_script_sha256": "7f0bdd79930101c5b1948255a2dc306657459c7b73442962483ead8dbddcfee1",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "e12577cc45024bfbeb4546ba7b0566e45eb92c806246e7106bdf01ee368482ae",
+  "proof_source_tree_sha256": "e2d6a579ee64fb5270e2ed27254ee3dccfdfd3debe9c78ed6aa46dc83cb3eb29",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
