@@ -375,10 +375,25 @@ class CAbiContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             library = self._library(pathlib.Path(temporary), "windows")
 
+            def export_row(
+                ordinal: int, hint: str, rva: str, payload: str
+            ) -> str:
+                return f"{ordinal:>12}{hint:>5}{rva:>9}{payload}"
+
             def dumpbin(
                 extra: str | None = None,
                 omit: str | None = None,
                 trailing_row: str | None = None,
+                *,
+                declared_functions: int | None = None,
+                declared_names: int | None = None,
+                hint_offset: int = 0,
+                internal_template: str | None = "{name}",
+                include_summary: bool = True,
+                ordinal_base: int = 1,
+                shared_first_ordinal: bool = False,
+                duplicate_hint: bool = False,
+                duplicate_summary: bool = False,
             ):
                 names = sorted(self.contract.export_names - ({omit} if omit else set()))
                 if extra is not None:
@@ -386,19 +401,75 @@ class CAbiContractTests(unittest.TestCase):
 
                 def runner(command: list[str]) -> str:
                     self.assertEqual(command[0], "dumpbin")
-                    rows = ["ordinal hint RVA      name"]
-                    rows.extend(
-                        f"      {index}    0 00001000 {name}"
-                        for index, name in enumerate(names, start=1)
+                    row_total = len(names) + (1 if trailing_row is not None else 0)
+                    functions = (
+                        row_total
+                        if declared_functions is None
+                        else declared_functions
                     )
+                    named = row_total if declared_names is None else declared_names
+                    rows = [
+                        f"        {ordinal_base} ordinal base",
+                        f"        {functions} number of functions",
+                        f"        {named} number of names",
+                        "",
+                        "    ordinal hint RVA      name",
+                    ]
+                    for index, name in enumerate(names, start=1):
+                        ordinal = ordinal_base + index - 1
+                        if shared_first_ordinal and index == 2:
+                            ordinal = ordinal_base
+                        hint = index - 1 + hint_offset
+                        if duplicate_hint and index == 2:
+                            hint = 0
+                        payload = name
+                        if internal_template is not None:
+                            payload += " = " + internal_template.format(name=name)
+                        rows.append(
+                            export_row(
+                                ordinal,
+                                f"{hint:X}",
+                                "00001000",
+                                payload,
+                            )
+                        )
                     if trailing_row is not None:
                         rows.append(trailing_row)
+                    if include_summary:
+                        rows.extend(["", "  Summary", "", "        1000 .text"])
+                        if duplicate_summary:
+                            rows.extend(["", "  Summary"])
                     return "\n".join(rows) + "\n"
 
                 return runner
 
             c_abi_contract.verify_dynamic_library(
                 self.contract, library, "windows", runner=dumpbin()
+            )
+            for internal_template in (
+                None,
+                "_{name}",
+                "@ILT+640(_{name})",
+                "{name} (undecorated symbol annotation)",
+            ):
+                with self.subTest(internal_template=internal_template):
+                    c_abi_contract.verify_dynamic_library(
+                        self.contract,
+                        library,
+                        "windows",
+                        runner=dumpbin(internal_template=internal_template),
+                    )
+            c_abi_contract.verify_dynamic_library(
+                self.contract,
+                library,
+                "windows",
+                runner=dumpbin(declared_functions=12, ordinal_base=5),
+            )
+            c_abi_contract.verify_dynamic_library(
+                self.contract,
+                library,
+                "windows",
+                runner=dumpbin(shared_first_ordinal=True),
             )
             with self.assertRaisesRegex(CAbiContractError, "extra=.*q_periapt_surprise"):
                 c_abi_contract.verify_dynamic_library(
@@ -434,7 +505,9 @@ class CAbiContractTests(unittest.TestCase):
                     library,
                     "windows",
                     runner=dumpbin(
-                        trailing_row="     10    9 00002000 [NONAME]"
+                        trailing_row=export_row(10, "", "00002000", "[NONAME]"),
+                        declared_functions=10,
+                        declared_names=9,
                     ),
                 )
             with self.assertRaisesRegex(CAbiContractError, "cannot parse dumpbin"):
@@ -444,14 +517,115 @@ class CAbiContractTests(unittest.TestCase):
                     "windows",
                     runner=dumpbin(trailing_row="malformed export row"),
                 )
-            with self.assertRaisesRegex(CAbiContractError, "forwarded export"):
+            for target in ("KERNEL32.Sleep", "NTDLL.#27"):
+                with self.subTest(forwarder=target), self.assertRaisesRegex(
+                    CAbiContractError, "forwarded export"
+                ):
+                    c_abi_contract.verify_dynamic_library(
+                        self.contract,
+                        library,
+                        "windows",
+                        runner=dumpbin(
+                            trailing_row=export_row(
+                                10,
+                                "9",
+                                "",
+                                "q_periapt_abi_version "
+                                f"(forwarded to {target})",
+                            )
+                        ),
+                    )
+            with self.assertRaisesRegex(CAbiContractError, "cannot parse dumpbin"):
                 c_abi_contract.verify_dynamic_library(
                     self.contract,
                     library,
                     "windows",
                     runner=dumpbin(
-                        trailing_row="     10    9 00002000 q_periapt_abi_version = other.forwarder"
+                        trailing_row=export_row(
+                            10,
+                            "9",
+                            "00002000",
+                            "q_periapt_abi_version (forwarded to KERNEL32.Sleep)",
+                        )
                     ),
+                )
+            for rva, payload in (
+                ("00000000", "unexpected_export = unexpected_export"),
+                ("", "unexpected_export = unexpected_export"),
+                ("00002000", "unexpected_export = internal = another"),
+            ):
+                with self.subTest(rva=rva, payload=payload), self.assertRaisesRegex(
+                    CAbiContractError, "cannot parse dumpbin"
+                ):
+                    c_abi_contract.verify_dynamic_library(
+                        self.contract,
+                        library,
+                        "windows",
+                        runner=dumpbin(
+                            trailing_row=export_row(10, "9", rva, payload)
+                        ),
+                    )
+            with self.assertRaisesRegex(CAbiContractError, "named-export count"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(declared_functions=9, declared_names=8),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "hints do not cover"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(hint_offset=1),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "hint more than once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(duplicate_hint=True),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "outside the declared"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(
+                        trailing_row=export_row(
+                            11,
+                            "9",
+                            "00002000",
+                            "unexpected_export = unexpected_export",
+                        )
+                    ),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "one Summary"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(include_summary=False),
+                )
+            with self.assertRaisesRegex(CAbiContractError, "one Summary"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=dumpbin(duplicate_summary=True),
+                )
+
+            def missing_name_count(command: list[str]) -> str:
+                return dumpbin()(command).replace(
+                    "        9 number of names\n", "", 1
+                )
+
+            with self.assertRaisesRegex(CAbiContractError, "number of names exactly once"):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract,
+                    library,
+                    "windows",
+                    runner=missing_name_count,
                 )
             with self.assertRaisesRegex(CAbiContractError, "missing=.*q_periapt_encapsulate"):
                 c_abi_contract.verify_dynamic_library(

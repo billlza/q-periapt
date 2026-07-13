@@ -591,39 +591,138 @@ def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
             record(fields[0])
     elif platform == "windows":
         lines = output.splitlines()
-        header_index = next(
-            (
-                index
-                for index, line in enumerate(lines)
-                if re.fullmatch(
-                    r"\s*ordinal\s+hint\s+rva\s+name\s*", line, re.IGNORECASE
+        headers = [
+            (index, match)
+            for index, line in enumerate(lines)
+            if (
+                match := re.fullmatch(
+                    r"(?P<leading>\s*)(?P<ordinal>ordinal)(?P<gap1>\s+)"
+                    r"(?P<hint>hint)(?P<gap2>\s+)(?P<rva>rva)"
+                    r"(?P<gap3>\s+)(?P<name>name)\s*",
+                    line,
+                    re.IGNORECASE,
                 )
-            ),
-            None,
-        )
-        if header_index is None:
-            _fail("cannot locate dumpbin export-table header")
-        saw_row = False
-        for line in lines[header_index + 1 :]:
-            if not line.strip():
-                if saw_row:
-                    break
-                continue
-            match = re.fullmatch(
-                r"\s*\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(.+?)\s*", line
             )
-            if match is None:
+            is not None
+        ]
+        if not headers:
+            _fail("cannot locate dumpbin export-table header")
+        if len(headers) != 1:
+            _fail("dumpbin output contains more than one export-table header")
+        header_index, header_match = headers[0]
+
+        def declared_decimal(label: str) -> int:
+            matches = [
+                match
+                for line in lines[:header_index]
+                if (
+                    match := re.fullmatch(
+                        rf"\s*([0-9]+)\s+{label}\s*",
+                        line,
+                        re.IGNORECASE,
+                    )
+                )
+                is not None
+            ]
+            if len(matches) != 1:
+                _fail(f"dumpbin output must declare {label} exactly once")
+            return int(matches[0].group(1), 10)
+
+        ordinal_base = declared_decimal("ordinal base")
+        number_of_functions = declared_decimal("number of functions")
+        number_of_names = declared_decimal("number of names")
+        if not 1 <= ordinal_base <= 65535:
+            _fail(f"dumpbin export ordinal base is out of range: {ordinal_base}")
+        ordinal_limit = ordinal_base + number_of_functions
+        if ordinal_limit > 65536:
+            _fail(
+                "dumpbin export function table exceeds the ordinal range: "
+                f"base={ordinal_base}, functions={number_of_functions}"
+            )
+
+        summaries = [
+            index
+            for index, line in enumerate(lines[header_index + 1 :], header_index + 1)
+            if re.fullmatch(r"\s*Summary\s*", line, re.IGNORECASE) is not None
+        ]
+        if len(summaries) != 1:
+            _fail("dumpbin output must terminate the export table with one Summary")
+        summary_index = summaries[0]
+
+        ordinal_start = header_match.start("ordinal")
+        hint_start = header_match.start("hint")
+        rva_start = header_match.start("rva")
+        name_start = header_match.start("name")
+        hints: set[int] = set()
+        row_count = 0
+        for line in lines[header_index + 1 : summary_index]:
+            if not line.strip():
+                continue
+            padded = line.ljust(name_start)
+            if padded[:ordinal_start].strip():
                 _fail(f"cannot parse dumpbin export row: {line!r}")
-            saw_row = True
-            payload = match.group(1).split()
-            name = payload[0]
-            if name == "[NONAME]":
+            ordinal_text = padded[ordinal_start:hint_start].strip()
+            hint_text = padded[hint_start:rva_start].strip()
+            rva_text = padded[rva_start:name_start].strip()
+            payload = padded[name_start:].strip()
+            if re.fullmatch(r"[0-9]+", ordinal_text) is None or not payload:
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            ordinal = int(ordinal_text, 10)
+            if not ordinal_base <= ordinal < ordinal_limit:
+                _fail(
+                    "dumpbin export ordinal is outside the declared function table: "
+                    f"ordinal={ordinal}, base={ordinal_base}, "
+                    f"functions={number_of_functions}"
+                )
+
+            public_name = payload.split(maxsplit=1)[0]
+            if public_name == "[NONAME]":
                 _fail("dynamic library contains an ordinal-only export")
-            if len(payload) != 1:
-                if len(payload) >= 2 and payload[1] == "=":
-                    _fail(f"dynamic library contains a forwarded export: {name}")
+            if re.fullmatch(r"[0-9A-Fa-f]+", hint_text) is None:
                 _fail(f"cannot parse dumpbin export row: {line!r}")
+            hint = int(hint_text, 16)
+            if hint in hints:
+                _fail(f"dynamic library defines export hint more than once: {hint:X}")
+            hints.add(hint)
+
+            if not rva_text:
+                forwarder = re.fullmatch(
+                    r"(?P<name>\S+)\s+\(forwarded\s+to\s+"
+                    r"(?P<target>[^\s()]+\.[^\s()]+)\)",
+                    payload,
+                    re.IGNORECASE,
+                )
+                if forwarder is not None:
+                    _fail(
+                        "dynamic library contains a forwarded export: "
+                        f"{forwarder.group('name')} -> {forwarder.group('target')}"
+                    )
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            if (
+                re.fullmatch(r"[0-9A-Fa-f]{8}", rva_text) is None
+                or int(rva_text, 16) == 0
+            ):
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            if re.search(r"\(forwarded\s+to\b", payload, re.IGNORECASE) is not None:
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            direct = re.fullmatch(
+                r"(?P<name>\S+)(?:\s+=\s+(?P<internal>\S+)"
+                r"(?:\s+\([^\r\n]*\))?)?",
+                payload,
+            )
+            if direct is None:
+                _fail(f"cannot parse dumpbin export row: {line!r}")
+            name = direct.group("name")
             record(name)
+            row_count += 1
+
+        if row_count != number_of_names:
+            _fail(
+                "dumpbin named-export count differs from its table: "
+                f"rows={row_count}, declared={number_of_names}"
+            )
+        if hints and (min(hints) != 0 or max(hints) != number_of_names - 1):
+            _fail("dumpbin export hints do not cover the declared name table")
     else:
         _fail(f"unknown dynamic-library platform: {platform}")
     return frozenset(names)
