@@ -332,7 +332,7 @@
     "continuity_prekey_verifier_tests_sha256": "77e2c558ae48063ae39600e80efc9e2b0a2424a6a7e8226583f69ae147e28176",
     "easycrypt_binding_sha256": "56be8379973d6ef0602d7ee18384492f8963db25e29e38f2df63f9841ab30e68",
     "evidence_io_sha256": "e2fcd15faf6be182a6fcae67c8673273608b31a65628b361fb5cead597a120bf",
-    "evidence_io_tests_sha256": "89d76c15448aa9902d99038e4d59e4c90a8a770d6e495acfa50cd1fde481ea81",
+    "evidence_io_tests_sha256": "3868d861cd290c6b514e24442e8bf407b95e297f430281ed3313c90d1867d290",
     "git_provenance_sha256": "522f8b94eddda30fe3559a9246175d791d5248d8e227f2733bbed92907422a97",
     "git_provenance_tests_sha256": "9fbdd7e67732b59655f107ccf37f75fc9e7194b48c6b90a5fd0395c6cb8734b7",
     "hqc_candidate_adapter_sha256": "f3cce4d33365bd32bfae9fa0754b62d81748553b78d3aa770aa5692bfe2c26e4",
@@ -375,11 +375,11 @@
     "swift_xcframework_script_sha256": "94a8702ac4fd40dea61f644e8f96b1e1cb07549317a059a5408fb8b855398f2a",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "c21cc9de7511d50476460b3d2984b7b5f9dae8dbe4fdcde1e0f9a84f81608e98",
+  "proof_source_tree_sha256": "da7e255a3cc4d6b41556775da391d2e50585f8439540c1aa5f82580166bc04da",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "1b4d828835a70b0b014c562a767f19d1ea0ce470",
+    "snapshot_commit": "a38c2a5d3b1f706c02c13be4cfb53013635da2ce",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
@@ -390,7 +390,7 @@
   "rust_publish": {
     "boundary": "This section records a clean-tree pre-publication dry-run, not an upload or registry attestation. Any registry publication is independently evidenced by crates.io plus release provenance for the published versions; this section never asserts upload.",
     "command": "sh artifact/rust-publish-dry-run.sh",
-    "current_local_status": "Current 2026-07-14 clean-tree pre-publication contract passed at commit 1b4d828835a70b0b014c562a767f19d1ea0ce470 and canonical digest c21cc9de7511d50476460b3d2984b7b5f9dae8dbe4fdcde1e0f9a84f81608e98: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
+    "current_local_status": "Current 2026-07-14 clean-tree pre-publication contract passed at commit a38c2a5d3b1f706c02c13be4cfb53013635da2ce and canonical digest da7e255a3cc4d6b41556775da391d2e50585f8439540c1aa5f82580166bc04da: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
     "current_source_status": "current_clean_tree_prepublication_pass",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
@@ -457,7 +457,7 @@
   "swift_xcframework": {
     "boundary": "This clean-tree XCFramework contract is not a public Swift package release. Public distribution still requires a hosted XCFramework URL/checksum, Apple distribution signing, and independently verifiable release provenance; local Apple Development device proof is not a substitute.",
     "command": "QPERIAPT_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer sh artifact/swift-xcframework.sh",
-    "current_local_status": "Current 2026-07-14 clean-tree ABI2 pre-publication package contract at commit 1b4d828835a70b0b014c562a767f19d1ea0ce470 and canonical digest c21cc9de7511d50476460b3d2984b7b5f9dae8dbe4fdcde1e0f9a84f81608e98 used stable Xcode 26.6 to generate CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices. Every slice had the exact nine-symbol contract and ABI-major static identity, and the isolated binaryTarget consumer passed three signed-policy/fail-closed/OS-random product checks with no warnings. Archive SHA-256 is 501251df73c3ea13d7b932f5739bfb7cdb57ddadb6adc93a671ff34b60c706ae; manifest SHA-256 is f6a2b83c09d77e1704baaa5c42368564e59414fccdf8b2e7e95c2bb094d3f062. This remains a pre-publication artifact, not a hosted or signed public distribution.",
+    "current_local_status": "Current 2026-07-14 clean-tree ABI2 pre-publication package contract at commit a38c2a5d3b1f706c02c13be4cfb53013635da2ce and canonical digest da7e255a3cc4d6b41556775da391d2e50585f8439540c1aa5f82580166bc04da used stable Xcode 26.6 to generate CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices. Every slice had the exact nine-symbol contract and ABI-major static identity, and the isolated binaryTarget consumer passed three signed-policy/fail-closed/OS-random product checks with no warnings. Archive SHA-256 is 501251df73c3ea13d7b932f5739bfb7cdb57ddadb6adc93a671ff34b60c706ae; manifest SHA-256 is 60cb366c4171f2cf5a34addf26060abfeb2ff63fa15095ade1c37dbde3448f69. This remains a pre-publication artifact, not a hosted or signed public distribution.",
     "current_source_status": "current_clean_tree_prepublication_pass",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1 sh artifact/swift-xcframework.sh",
     "mode": "SwiftPM binaryTarget XCFramework pre-publication contract",
