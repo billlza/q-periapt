@@ -25,6 +25,16 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Verify checkout provenance
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          actual_commit=$(git rev-parse --verify 'HEAD^{commit}')
+          if [ "$actual_commit" != "$EXPECTED_COMMIT" ]; then
+            echo "checked-out HEAD $actual_commit does not match GitHub commit $EXPECTED_COMMIT" >&2
+            exit 1
+          fi
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           components: rustfmt, clippy, llvm-tools

@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn client_failure_before_connect_wakes_server_blocked_in_accept() {
+    fn client_failure_before_connect_wakes_server_blocked_in_accept() -> Result<(), String> {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         let cancelled = Arc::new(AtomicBool::new(false));
@@ -490,23 +490,6 @@ mod tests {
             result
         });
 
-        let (cleanup_tx, cleanup_rx) = std::sync::mpsc::sync_channel(0);
-        let cleanup = thread::spawn(move || {
-            match cleanup_rx.recv_timeout(Duration::from_secs(2)) {
-                Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    match TcpStream::connect_timeout(&addr, Duration::from_secs(1)) {
-                        Ok(_) => {}
-                        Err(error) if error.kind() == io::ErrorKind::ConnectionRefused => {}
-                        Err(error) => return Err(format!("test cleanup connect failed: {error}")),
-                    }
-                }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                    return Err("cleanup channel disconnected".to_owned());
-                }
-            }
-            Ok(())
-        });
-
         let started = Instant::now();
         let error = finish_client_failure(
             server,
@@ -515,14 +498,26 @@ mod tests {
             "intentional client setup failure before connect".to_owned(),
         );
         let detach_elapsed = started.elapsed();
-        cleanup_tx.send(()).unwrap();
-        cleanup.join().unwrap().unwrap();
-        server_done_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        match server_done_rx.try_recv() {
+            Ok(()) => {}
+            Err(std::sync::mpsc::TryRecvError::Empty) => {
+                let cleanup_wake = TcpStream::connect_timeout(&addr, WAKE_CONNECT_TIMEOUT);
+                if let Err(done_error) = server_done_rx.recv_timeout(SERVER_JOIN_TIMEOUT) {
+                    return Err(format!(
+                        "server did not finish after fallback cleanup wake {cleanup_wake:?}: {done_error}"
+                    ));
+                }
+            }
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                return Err("server completion channel disconnected".to_owned());
+            }
+        }
 
         assert_eq!(error, "intentional client setup failure before connect");
         assert!(
             detach_elapsed < Duration::from_secs(1),
             "client cancellation did not promptly wake accept: {detach_elapsed:?}"
         );
+        Ok(())
     }
 }

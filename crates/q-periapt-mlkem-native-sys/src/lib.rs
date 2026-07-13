@@ -15,6 +15,11 @@
 
 use core::fmt;
 
+#[cfg(test)]
+mod build_support;
+#[cfg(test)]
+mod build_support_tests;
+
 #[allow(unsafe_code)]
 mod raw;
 

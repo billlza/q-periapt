@@ -78,6 +78,33 @@ PY
 }
 
 need python3
+need git
+
+verify_github_checkout() {
+	expected_commit=${GITHUB_SHA:-}
+	if [ -z "$expected_commit" ]; then
+		return
+	fi
+	case "$expected_commit" in
+		*[!0-9a-f]*)
+			printf 'error: GITHUB_SHA must be exactly 40 lowercase hexadecimal characters\n' >&2
+			exit 2
+			;;
+	esac
+	if [ "${#expected_commit}" -ne 40 ]; then
+		printf 'error: GITHUB_SHA must be exactly 40 lowercase hexadecimal characters\n' >&2
+		exit 2
+	fi
+	actual_commit=$(git rev-parse --verify 'HEAD^{commit}') || exit 2
+	if [ "$actual_commit" != "$expected_commit" ]; then
+		printf 'error: checked-out HEAD %s does not match GITHUB_SHA %s\n' \
+			"$actual_commit" "$expected_commit" >&2
+		exit 1
+	fi
+	printf 'PROOF_TO_BYTE_GITHUB_CHECKOUT_PASS commit=%s\n' "$actual_commit"
+}
+
+verify_github_checkout
 
 bool_flag() {
 	name=$1
@@ -213,6 +240,8 @@ paths = {
     "hqc_candidate_tests_sha256": "research/hqc-fips207-candidate/tests/adapter.rs",
     "hqc_candidate_verify_sha256": "research/hqc-fips207-candidate/scripts/verify.sh",
     "rust_publish_dry_run_script_sha256": "artifact/rust-publish-dry-run.sh",
+    "rust_publish_contract_sha256": "artifact/rust_publish_contract.py",
+    "rust_publish_contract_tests_sha256": "artifact/test_rust_publish_contract.py",
     "c_package_script_sha256": "artifact/c-package.sh",
     "swift_xcframework_script_sha256": "artifact/swift-xcframework.sh",
     "local_release_index_script_sha256": "artifact/local-release-index.sh",

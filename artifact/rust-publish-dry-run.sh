@@ -492,6 +492,12 @@ import re
 import sys
 import tarfile
 
+from rust_publish_contract import (
+    RustPublishContractError,
+    validate_mlkem_native_build_surface,
+    validate_packaged_mlkem_native_local_sources,
+)
+
 metadata = json.loads(pathlib.Path(sys.argv[1]).read_text())
 packages = {pkg["name"]: pkg for pkg in metadata["packages"]}
 name = "q-periapt-mlkem-native-sys"
@@ -516,8 +522,14 @@ required_files = {
     "LICENSES/MIT.txt",
     "README.md",
     "build.rs",
+    "src/build_support.rs",
+    "src/build_support_tests.rs",
+    "src/lib.rs",
     "src/mlkem_bridge.c",
+    "src/mlkem_bridge.h",
     "src/mlkem_config.h",
+    "src/raw.rs",
+    "src/tests.rs",
     "vendor/INVENTORY.sha256",
     "vendor/LICENSE-INVENTORY.md",
     "vendor/LICENSE.mlkem-native",
@@ -582,6 +594,16 @@ with tarfile.open(archive, mode="r:gz") as packaged:
     missing = sorted(path for path in required_files if prefix + path not in names)
     if missing:
         raise SystemExit(f"error: sys crate archive is missing release files: {missing}")
+
+    packaged_local_sources = {
+        member.name.removeprefix(prefix)
+        for member in members
+        if member.isfile() and member.name.startswith(prefix + "src/")
+    }
+    try:
+        validate_packaged_mlkem_native_local_sources(packaged_local_sources)
+    except RustPublishContractError as source:
+        raise SystemExit(f"error: {source}") from source
 
     def read_file(relative: str) -> bytes:
         member = packaged.getmember(prefix + relative)
@@ -722,69 +744,20 @@ with tarfile.open(archive, mode="r:gz") as packaged:
             )
 
     build_rs = read_file("build.rs").decode("utf-8")
+    build_support = read_file("src/build_support.rs").decode("utf-8")
     bridge_c = read_file("src/mlkem_bridge.c").decode("utf-8")
+    bridge_h = read_file("src/mlkem_bridge.h").decode("utf-8")
     local_config = read_file("src/mlkem_config.h").decode("utf-8")
-    build_surface = "\n".join((build_rs, bridge_c, local_config))
-    config_selection = re.compile(
-        r'\.define\(\s*"MLK_CONFIG_FILE"\s*,\s*'
-        r'Some\(\s*"\\"mlkem_config\.h\\""\s*\)\s*\)'
-    )
-    if config_selection.search(build_rs) is None:
-        raise SystemExit(
-            "error: portable build does not select the packaged mlkem_config.h"
+    try:
+        validate_mlkem_native_build_surface(
+            build_rs=build_rs,
+            build_support=build_support,
+            bridge_c=bridge_c,
+            bridge_h=bridge_h,
+            local_config=local_config,
         )
-    source_files = re.findall(r'\.file\(\s*"([^"]+)"', build_rs)
-    if source_files != ["src/mlkem_bridge.c"] or re.search(r"\.files\s*\(", build_rs):
-        raise SystemExit(
-            "error: sys crate must compile exactly the single portable bridge translation unit: "
-            f"{source_files}"
-        )
-    if re.search(r'(?m)^\s*#\s*include\s*"mlkem_native\.c"\s*$', bridge_c) is None:
-        raise SystemExit("error: portable bridge does not include pinned mlkem_native.c")
-    required_guard_tokens = {
-        "MLK_CONFIG_USE_NATIVE_BACKEND_ARITH",
-        "MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202",
-        "MLK_CONFIG_ARITH_BACKEND_FILE",
-        "MLK_CONFIG_FIPS202_BACKEND_FILE",
-        "MLK_CONFIG_FIPS202_CUSTOM_HEADER",
-        "MLK_CONFIG_FIPS202X4_CUSTOM_HEADER",
-    }
-    missing_guard_tokens = sorted(
-        token for token in required_guard_tokens if token not in local_config
-    )
-    if missing_guard_tokens or "#error" not in local_config:
-        raise SystemExit(
-            "error: portable config lacks fail-fast native-backend guards: "
-            f"{missing_guard_tokens}"
-        )
-    native_enable_patterns = {
-        "C #define MLK_CONFIG_USE_NATIVE_BACKEND_*": re.compile(
-            r"(?m)^\s*#\s*define\s+MLK_CONFIG_USE_NATIVE_BACKEND_(?:ARITH|FIPS202)(?:\s|$)"
-        ),
-        "cc::Build::define MLK_CONFIG_USE_NATIVE_BACKEND_*": re.compile(
-            r"\.define\(\s*\"MLK_CONFIG_USE_NATIVE_BACKEND_(?:ARITH|FIPS202)\""
-        ),
-        "C #define MLK_CONFIG_*_BACKEND_FILE": re.compile(
-            r"(?m)^\s*#\s*define\s+MLK_CONFIG_(?:ARITH|FIPS202)_BACKEND_FILE(?:\s|$)"
-        ),
-        "cc::Build::define MLK_CONFIG_*_BACKEND_FILE": re.compile(
-            r"\.define\(\s*\"MLK_CONFIG_(?:ARITH|FIPS202)_BACKEND_FILE\""
-        ),
-        "assembly translation unit": re.compile(
-            r"(?i)#\s*include\s*[<\"][^>\"]+\.S[>\"]|"
-            r"\.files?\([^\n)]*\.S|mlkem_native_asm\.S"
-        ),
-        "prebuilt object": re.compile(r"\.object\("),
-        "native assembly symbol": re.compile(r"(?i)\b[a-z_][a-z0-9_]*_asm\s*\("),
-    }
-    enabled_native_shapes = sorted(
-        label for label, pattern in native_enable_patterns.items() if pattern.search(build_surface)
-    )
-    if enabled_native_shapes:
-        raise SystemExit(
-            "error: sys crate release build is not portable-only: "
-            f"{enabled_native_shapes}"
-        )
+    except RustPublishContractError as source:
+        raise SystemExit(f"error: {source}") from source
 
 print(
     "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS "

@@ -1,7 +1,4 @@
 /* SPDX-License-Identifier: Apache-2.0 OR MIT */
-#ifndef QPN_MLKEM_CONFIG_H
-#define QPN_MLKEM_CONFIG_H
-
 #if defined(MLK_CONFIG_USE_NATIVE_BACKEND_ARITH) || \
     defined(MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202) || \
     defined(MLK_CONFIG_ARITH_BACKEND_FILE) || \
@@ -10,6 +7,9 @@
     defined(MLK_CONFIG_FIPS202X4_CUSTOM_HEADER)
 #error External or native mlkem-native backends are not supported by this portable-only crate
 #endif
+
+#ifndef QPN_MLKEM_CONFIG_H
+#define QPN_MLKEM_CONFIG_H
 
 /* Keep every upstream KEM entry point local to the single compilation unit. */
 #define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v1_2_0_

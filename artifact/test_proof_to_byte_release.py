@@ -30,11 +30,40 @@ ARTIFACT_GUIDE = ROOT / "ARTIFACT.md"
 PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
+RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
+RUST_PUBLISH_CONTRACT_TESTS = ROOT / "artifact" / "test_rust_publish_contract.py"
 FINALIZER_SCRIPT = ROOT / "artifact" / "proof_to_byte_finalizer.py"
 XCODE27_GATE = ROOT / "artifact" / "apple-device-xcode27-gate.sh"
 TEST_COMMIT = "a" * 40
 TEST_SOURCE_SHA256 = "b" * 64
 TEST_MANIFEST_SHA256 = "c" * 64
+PINNED_CHECKOUT_ACTION = (
+    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
+)
+EXPECTED_CHECKOUT_STEP = (
+    f"      - uses: {PINNED_CHECKOUT_ACTION}\n"
+    "        with:\n"
+    "          persist-credentials: false\n"
+    "          fetch-depth: 0\n"
+)
+EXPECTED_CHECKOUT_PROVENANCE_STEP = (
+    "      - name: Verify checkout provenance\n"
+    "        env:\n"
+    "          EXPECTED_COMMIT: ${{ github.sha }}\n"
+    "        run: |\n"
+    "          actual_commit=$(git rev-parse --verify 'HEAD^{commit}')\n"
+    '          if [ "$actual_commit" != "$EXPECTED_COMMIT" ]; then\n'
+    '            echo "checked-out HEAD $actual_commit does not match GitHub commit $EXPECTED_COMMIT" >&2\n'
+    "            exit 1\n"
+    "          fi\n"
+)
+EXPECTED_PROOF_TO_BYTE_STEP = (
+    "      - name: Proof-to-byte manifest and canonical source binding\n"
+    "        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh\n"
+)
+YAML_ALIAS = re.compile(
+    r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+"
+)
 
 CONTINUITY_PROOF_INPUTS = {
     "continuity_context_spec_sha256": "docs/continuity/LIFECYCLE_CONTEXT_V1.md",
@@ -73,6 +102,69 @@ HQC_CANDIDATE_PROOF_INPUTS = {
     "hqc_candidate_tests_sha256": "research/hqc-fips207-candidate/tests/adapter.rs",
     "hqc_candidate_verify_sha256": "research/hqc-fips207-candidate/scripts/verify.sh",
 }
+
+
+def extract_ci_check_job(workflow: str) -> str:
+    check_match = re.search(
+        r"(?ms)^  check:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", workflow
+    )
+    if check_match is None:
+        raise ValueError("CI workflow has no check job")
+    return check_match.group("body")
+
+
+def validate_ci_check_checkout(check_job: str) -> None:
+    if check_job.lower().count("actions/checkout@") != 1:
+        raise ValueError("CI check job must contain exactly one checkout action")
+    if YAML_ALIAS.search(check_job) is not None:
+        raise ValueError("CI check job must not use YAML aliases")
+
+    lines = check_job.splitlines(keepends=True)
+    checkout_starts = [
+        index
+        for index, line in enumerate(lines)
+        if line.lower().startswith("      - uses: actions/checkout@")
+    ]
+    if len(checkout_starts) != 1:
+        raise ValueError("CI check job must contain one explicit checkout step")
+
+    def step_end(start: int) -> int:
+        end = start + 1
+        while end < len(lines):
+            line = lines[end]
+            if line.startswith("      - ") or (
+                line.strip() and len(line) - len(line.lstrip(" ")) <= 6
+            ):
+                break
+            end += 1
+        return end
+
+    start = checkout_starts[0]
+    checkout_end = step_end(start)
+    checkout_step = "".join(lines[start:checkout_end])
+    if checkout_step != EXPECTED_CHECKOUT_STEP:
+        raise ValueError(
+            "CI check checkout must use the pinned action and exact hardened settings"
+        )
+    provenance_end = step_end(checkout_end)
+    provenance_step = "".join(lines[checkout_end:provenance_end])
+    if provenance_step != EXPECTED_CHECKOUT_PROVENANCE_STEP:
+        raise ValueError(
+            "CI check job must verify checkout provenance immediately after checkout"
+        )
+
+    proof_starts = [
+        index
+        for index, line in enumerate(lines)
+        if line
+        == "      - name: Proof-to-byte manifest and canonical source binding\n"
+    ]
+    if len(proof_starts) != 1:
+        raise ValueError("CI check job must contain one explicit proof-to-byte step")
+    proof_start = proof_starts[0]
+    proof_step = "".join(lines[proof_start : step_end(proof_start)])
+    if proof_step != EXPECTED_PROOF_TO_BYTE_STEP:
+        raise ValueError("CI proof-to-byte step differs from the audited fail-closed form")
 
 
 def format_marker(*states: int) -> str:
@@ -115,6 +207,12 @@ class BoundVerifierWiringTests(unittest.TestCase):
         source = RUST_PUBLISH_SCRIPT.read_text(encoding="utf-8")
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         expected_hash = hashlib.sha256(RUST_PUBLISH_SCRIPT.read_bytes()).hexdigest()
+        expected_contract_hash = hashlib.sha256(
+            RUST_PUBLISH_CONTRACT.read_bytes()
+        ).hexdigest()
+        expected_contract_tests_hash = hashlib.sha256(
+            RUST_PUBLISH_CONTRACT_TESTS.read_bytes()
+        ).hexdigest()
         for token in (
             "pqcrypto-hqc",
             "pqcrypto-internals",
@@ -138,9 +236,20 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("=0.2.3", source)
         self.assertIn("RUST_MLKEM_PROVIDER_FENCE_PASS", source)
         self.assertIn("resolved_mlkem_providers", source)
+        self.assertIn('"src/build_support.rs"', source)
+        self.assertIn("from rust_publish_contract import", source)
+        self.assertIn("validate_mlkem_native_build_surface", source)
         self.assertEqual(
             manifest["proof_to_byte_inputs"].get("rust_publish_dry_run_script_sha256"),
             expected_hash,
+        )
+        self.assertEqual(
+            manifest["proof_to_byte_inputs"].get("rust_publish_contract_sha256"),
+            expected_contract_hash,
+        )
+        self.assertEqual(
+            manifest["proof_to_byte_inputs"].get("rust_publish_contract_tests_sha256"),
+            expected_contract_tests_hash,
         )
 
     def test_continuity_diagnostic_is_scoped_fail_closed_and_non_release(self) -> None:
@@ -987,6 +1096,99 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         self.assertIn("- run: cargo audit --deny warnings", workflow)
         self.assertNotIn("cargo audit --deny warnings ||", workflow)
         self.assertNotIn("cargo audit --ignore", workflow)
+
+    def test_ci_check_fetches_full_history_for_evidence_successors(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        validate_ci_check_checkout(extract_ci_check_job(workflow))
+
+    def test_ci_checkout_mutations_fail_closed(self) -> None:
+        check_job = extract_ci_check_job(CI_WORKFLOW.read_text(encoding="utf-8"))
+        mutations = {
+            "unpinned action": check_job.replace(
+                PINNED_CHECKOUT_ACTION,
+                "actions/checkout@main",
+                1,
+            ),
+            "ref override": check_job.replace(
+                "          fetch-depth: 0\n",
+                "          fetch-depth: 0\n          ref: deadbeef\n",
+                1,
+            ),
+            "repository override": check_job.replace(
+                "          fetch-depth: 0\n",
+                "          fetch-depth: 0\n          repository: other/project\n",
+                1,
+            ),
+            "duplicate with": check_job.replace(
+                "          fetch-depth: 0\n",
+                "          fetch-depth: 0\n        with:\n          ref: deadbeef\n",
+                1,
+            ),
+            "missing provenance check": check_job.replace(
+                EXPECTED_CHECKOUT_PROVENANCE_STEP,
+                "",
+                1,
+            ),
+            "non-blocking provenance check": check_job.replace(
+                EXPECTED_CHECKOUT_PROVENANCE_STEP,
+                EXPECTED_CHECKOUT_PROVENANCE_STEP
+                + "        continue-on-error: true\n",
+                1,
+            ),
+            "post-check provenance mutation": check_job.replace(
+                EXPECTED_CHECKOUT_PROVENANCE_STEP,
+                EXPECTED_CHECKOUT_PROVENANCE_STEP
+                + "          git checkout --detach HEAD^\n",
+                1,
+            ),
+            "non-blocking proof": check_job.replace(
+                EXPECTED_PROOF_TO_BYTE_STEP,
+                EXPECTED_PROOF_TO_BYTE_STEP + "        continue-on-error: true\n",
+                1,
+            ),
+            "conditional proof": check_job.replace(
+                EXPECTED_PROOF_TO_BYTE_STEP,
+                EXPECTED_PROOF_TO_BYTE_STEP + "        if: failure()\n",
+                1,
+            ),
+            "numeric alias": check_job + "      - uses: *1\n",
+            "hyphen alias": check_job + "      - uses: *-foo\n",
+            "merge alias": check_job + "        <<: *checkout-settings\n",
+            "second checkout": check_job
+            + "      - uses: Actions/Checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n",
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label):
+                with self.assertRaises(ValueError):
+                    validate_ci_check_checkout(mutation)
+
+    def test_proof_to_byte_validates_github_sha_and_checkout(self) -> None:
+        def run_with_github_sha(value: str) -> subprocess.CompletedProcess[str]:
+            environment = os.environ.copy()
+            environment["GITHUB_SHA"] = value
+            return subprocess.run(
+                ["sh", str(PROOF_SCRIPT)],
+                cwd=ROOT,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        for label, malformed in (
+            ("short", "0" * 39),
+            ("long", "0" * 41),
+            ("uppercase", "A" * 40),
+            ("non-hex", "g" * 40),
+        ):
+            with self.subTest(label=label):
+                result = run_with_github_sha(malformed)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("exactly 40 lowercase hexadecimal", result.stderr)
+
+        result = run_with_github_sha("0" * 40)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not match GITHUB_SHA", result.stderr)
 
     def test_ci_discovers_every_artifact_python_test(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
