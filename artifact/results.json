@@ -373,11 +373,11 @@
     "swift_xcframework_script_sha256": "7f0bdd79930101c5b1948255a2dc306657459c7b73442962483ead8dbddcfee1",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "56250dc1b6734cfc9964b74e778abbb13741d8ed235adbb20ad64a739ea48e7a",
+  "proof_source_tree_sha256": "0128a4c119ef73134c09fc6d47a0a3ce5d4a9cf8f5a22a2b64c8ac311544a03a",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "fa2107cc60971527568d84489d39d4758354416e",
+    "snapshot_commit": "45631efaf38a24dd5936f85d2037b1d0fb3df84f",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
