@@ -50,6 +50,14 @@ toolchain and a C compiler — no Docker, wasm-pack, Node, or device hardware.
 `proof-to-byte.sh` additionally validates the selected hashes in
 [`artifact/results.json`](artifact/results.json), verifies the claim ledger and canonical
 source-input digest, then runs the same host smoke unless `QPERIAPT_SKIP_SMOKE=1` is set. That
+entrypoint intentionally ignores ambient `GITHUB_SHA`. CI and release callers can bind the
+actual checkout explicitly with a 40-character lowercase hexadecimal
+`QPERIAPT_EXPECTED_GIT_COMMIT`; CI passes the step-scoped `${{ github.sha }}`, which is the tested
+synthetic merge commit for a pull request rather than `pull_request.head.sha`. The hardened
+source freeze validates this commitment before emitting any proof marker, and malformed or
+mismatched values fail with exit status 2.
+
+The canonical source
 digest covers tracked plus ignored and visible untracked canonical source inputs under a fixed,
 verifier-owned ephemeral-output policy, except the two named generated evidence files,
 `artifact/results.json` and `paper/camera-ready-results.txt`. Worktree `.gitignore`,

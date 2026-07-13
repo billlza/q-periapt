@@ -47,6 +47,8 @@ jobs:
       # verifiers cannot silently remain local-only because an explicit list drifted.
       - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
       - name: Proof-to-byte manifest and canonical source binding
+        env:
+          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
         run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh
       - name: Paired performance harness schema (shared-runner, no numeric claim)
         run: |

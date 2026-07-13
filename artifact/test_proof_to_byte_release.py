@@ -18,7 +18,7 @@ import unittest
 from unittest import mock
 
 from camera_ready_proof import EXPECTED_TOOLS
-from git_provenance import WorktreeInspection
+from git_provenance import WorktreeInspection, git_commit
 import proof_to_byte_finalizer
 
 
@@ -59,6 +59,8 @@ EXPECTED_CHECKOUT_PROVENANCE_STEP = (
 )
 EXPECTED_PROOF_TO_BYTE_STEP = (
     "      - name: Proof-to-byte manifest and canonical source binding\n"
+    "        env:\n"
+    "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
     "        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh\n"
 )
 YAML_ALIAS = re.compile(
@@ -111,6 +113,13 @@ def extract_ci_check_job(workflow: str) -> str:
     if check_match is None:
         raise ValueError("CI workflow has no check job")
     return check_match.group("body")
+
+
+def repository_head() -> str:
+    commit = git_commit(ROOT)
+    if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise AssertionError(f"repository HEAD is not a 40-character commit: {commit}")
+    return commit
 
 
 def validate_ci_check_checkout(check_job: str) -> None:
@@ -354,12 +363,15 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_finalizer_freezes_before_domains_and_rechecks_after_them(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        preflight = source.index("# Normalize every active caller-controlled option")
         freeze = source.index("proof_to_byte_finalizer.py freeze")
-        first_domain = source.index('if [ "$REQUIRE_CAMERA_READY" = "1" ]')
-        last_domain = source.index('if [ "$REQUIRE_PERFORMANCE" = "1" ]')
+        first_domain = source.index('test -f "$CAMERA_READY_TRANSCRIPT"')
+        last_domain = source.index('test -f "$PERFORMANCE_PROOF"')
         finalize = source.index("proof_to_byte_finalizer.py finalize")
+        self.assertLess(preflight, freeze)
         self.assertLess(freeze, first_domain)
         self.assertLess(last_domain, finalize)
+        self.assertIn('--expected-git-commit "$EXPECTED_GIT_COMMIT"', source)
         self.assertIn('--expected-git-commit "$FROZEN_GIT_COMMIT"', source)
         self.assertIn('--expected-source-sha256 "$FROZEN_SOURCE_TREE_SHA256"', source)
 
@@ -476,6 +488,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             environment = os.environ.copy()
             environment["PYTHONPATH"] = str(artifact)
             environment["QPERIAPT_TEST_PYC_SENTINEL"] = str(sentinel)
+            environment["GITHUB_SHA"] = TEST_COMMIT
             environment.pop("PYTHONPYCACHEPREFIX", None)
             control = subprocess.run(
                 [sys.executable, "-c", "import proof_manifest"],
@@ -629,6 +642,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
                     "QPERIAPT_PYTHON_ENV_INITIALIZED": "1",
                     "QPERIAPT_PYTHON_BOOTSTRAP": str(hostile_bootstrap),
                     "QPERIAPT_SKIP_SMOKE": "invalid",
+                    "GITHUB_SHA": TEST_COMMIT,
                 }
             )
             guarded = subprocess.run(
@@ -652,43 +666,530 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
 
 class ProofToByteReleaseMarkerTests(unittest.TestCase):
-    def test_invalid_continuity_diagnostic_flag_fails_closed(self) -> None:
-        environment = os.environ.copy()
-        environment["QPERIAPT_SKIP_SMOKE"] = "1"
-        environment["QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC"] = "yes"
-        result = subprocess.run(
-            ["sh", str(PROOF_SCRIPT)],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-            env=environment,
+    def test_every_boolean_flag_fails_before_provenance_and_markers(self) -> None:
+        flags = (
+            "QPERIAPT_SKIP_SMOKE",
+            "QPERIAPT_REQUIRE_FORMAL",
+            "QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC",
+            "QPERIAPT_REQUIRE_APPLE_DEVICE",
+            "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX",
+            "QPERIAPT_REQUIRE_ANDROID_RUNTIME",
+            "QPERIAPT_REQUIRE_PERFORMANCE",
+            "QPERIAPT_REQUIRE_CAMERA_READY",
+            "QPERIAPT_REQUIRE_DEPENDENCY_AUDIT",
+            "QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF",
+            "QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF",
+            "QPERIAPT_ALLOW_DIRTY_PERFORMANCE_PROOF",
         )
-        self.assertEqual(result.returncode, 2)
-        self.assertIn(
-            "QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC must be 0 or 1",
-            result.stderr,
-        )
-        self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+        for flag in flags:
+            with self.subTest(flag=flag):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        flag: "yes",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn(f"{flag} must be 0 or 1", result.stderr)
+                self.assertEqual(result.stdout, "")
 
-    def test_invalid_dirty_android_override_fails_closed(self) -> None:
-        environment = os.environ.copy()
-        environment["QPERIAPT_SKIP_SMOKE"] = "1"
-        environment["QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF"] = "yes"
+    def test_active_configuration_preflight_fails_before_proof_markers(self) -> None:
+        outside = ROOT / "artifact" / "results.json"
+        cases = (
+            (
+                "apple modes are mutually exclusive",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                },
+                "are mutually exclusive",
+            ),
+            (
+                "camera bundle is required",
+                {"QPERIAPT_REQUIRE_CAMERA_READY": "1"},
+                "QPERIAPT_CAMERA_READY_BUNDLE must explicitly name",
+            ),
+            (
+                "camera max age is numeric",
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_MAX_AGE_SECONDS": "tomorrow",
+                },
+                "QPERIAPT_CAMERA_READY_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "camera freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_MAX_AGE_SECONDS": "2",
+                },
+                "fixes camera-ready freshness to 86400 seconds",
+            ),
+            (
+                "apple result directory is contained",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_RESULT_DIR": str(ROOT / "target"),
+                },
+                "QPERIAPT_DEVICE_RESULT_DIR must be under",
+            ),
+            (
+                "apple prefix is canonical",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_ARTIFACT_PREFIX": "../ipad",
+                },
+                "invalid QPERIAPT_DEVICE_ARTIFACT_PREFIX",
+            ),
+            (
+                "apple prefix cannot be explicitly empty",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_ARTIFACT_PREFIX": "",
+                },
+                "invalid QPERIAPT_DEVICE_ARTIFACT_PREFIX",
+            ),
+            (
+                "apple device type is recognized",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_EXPECT_DEVICE_TYPE": "Mac",
+                },
+                "invalid QPERIAPT_EXPECT_DEVICE_TYPE",
+            ),
+            (
+                "apple max age is bounded",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS": "0",
+                },
+                "QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "apple release freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes Apple proof freshness to 86400 seconds",
+            ),
+            (
+                "matrix proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                    "QPERIAPT_DEVICE_MATRIX_PROOF": str(outside),
+                },
+                "QPERIAPT_DEVICE_MATRIX_PROOF must be under",
+            ),
+            (
+                "android proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(outside),
+                },
+                "QPERIAPT_ANDROID_DEVICE_PROOF must be under",
+            ),
+            (
+                "android device kind is recognized",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
+                },
+                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+            ),
+            (
+                "android max age is bounded",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "604801",
+                },
+                "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "performance proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF": str(outside),
+                },
+                "QPERIAPT_PERFORMANCE_PROOF must be under",
+            ),
+            (
+                "performance max age is numeric",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "1.5",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "performance release freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes performance proof freshness to 86400 seconds",
+            ),
+            (
+                "later active gate fails before any gate starts",
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes performance proof freshness to 86400 seconds",
+            ),
+            (
+                "freshness rejects non-ASCII digits",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "１２",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "freshness error is bounded",
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": "9" * 10_000,
+                },
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+        )
+        for label, overrides, expected_error in cases:
+            with self.subTest(label=label):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        "QPERIAPT_SKIP_SMOKE": "1",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                        **overrides,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn(expected_error, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertLess(len(result.stderr), 1024)
+
+        with (
+            tempfile.TemporaryDirectory(
+                dir=ROOT / "artifact" / "device-runs"
+            ) as device_temporary,
+            tempfile.TemporaryDirectory(dir=ROOT / "target") as target_temporary,
+        ):
+            device_loop = pathlib.Path(device_temporary) / "loop"
+            performance_loop = pathlib.Path(target_temporary) / "loop"
+            device_loop.symlink_to(device_loop)
+            performance_loop.symlink_to(performance_loop)
+            loop_cases = (
+                (
+                    {
+                        "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                        "QPERIAPT_DEVICE_RESULT_DIR": str(device_loop),
+                    },
+                    "QPERIAPT_DEVICE_RESULT_DIR",
+                ),
+                (
+                    {
+                        "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                        "QPERIAPT_PERFORMANCE_PROOF": str(performance_loop),
+                    },
+                    "QPERIAPT_PERFORMANCE_PROOF",
+                ),
+            )
+            for overrides, expected_error in loop_cases:
+                with self.subTest(symlink_loop=expected_error):
+                    environment = {
+                        name: value
+                        for name, value in os.environ.items()
+                        if not name.startswith("QPERIAPT_")
+                    }
+                    environment.update(
+                        {
+                            "QPERIAPT_SKIP_SMOKE": "1",
+                            "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                            "GITHUB_SHA": TEST_COMMIT,
+                            **overrides,
+                        }
+                    )
+                    result = subprocess.run(
+                        ["sh", str(PROOF_SCRIPT)],
+                        cwd=ROOT,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                        env=environment,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn(expected_error, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_required_tools_are_checked_before_proof_markers(self) -> None:
+        environment = {
+            name: value
+            for name, value in os.environ.items()
+            if not name.startswith("QPERIAPT_")
+        }
+        environment.update(
+            {
+                "HOME": "",
+                "PATH": "/nonexistent",
+                "QPERIAPT_SKIP_SMOKE": "1",
+                "QPERIAPT_REQUIRE_FORMAL": "1",
+                "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                "GITHUB_SHA": TEST_COMMIT,
+            }
+        )
         result = subprocess.run(
-            ["sh", str(PROOF_SCRIPT)],
+            ["/bin/sh", str(PROOF_SCRIPT)],
             cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,
             env=environment,
         )
-        self.assertEqual(result.returncode, 2)
-        self.assertIn(
-            "QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF must be 0 or 1",
-            result.stderr,
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("required tool not found: make", result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_preflight_errors_escape_caller_controlled_values(self) -> None:
+        hostile_value = "invalid\n::warning::injected\x1b[31m"
+        cases = (
+            {
+                "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                "QPERIAPT_PERFORMANCE_PROOF_MAX_AGE_SECONDS": hostile_value,
+            },
+            {
+                "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                "QPERIAPT_DEVICE_ARTIFACT_PREFIX": hostile_value,
+            },
+            {
+                "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                "QPERIAPT_EXPECT_DEVICE_TYPE": hostile_value,
+            },
+            {
+                "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": hostile_value,
+            },
         )
-        self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        "QPERIAPT_SKIP_SMOKE": "1",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                        **overrides,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("\n::warning::injected", result.stderr)
+                self.assertNotIn("\x1b", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertLess(len(result.stderr), 1024)
+
+        path_cases = (
+            (
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_TRANSCRIPT": "",
+                },
+                "QPERIAPT_CAMERA_READY_TRANSCRIPT",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": "",
+                },
+                "QPERIAPT_CAMERA_READY_BUNDLE",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_RESULT_DIR": "",
+                },
+                "QPERIAPT_DEVICE_RESULT_DIR",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                    "QPERIAPT_DEVICE_MATRIX_PROOF": "",
+                },
+                "QPERIAPT_DEVICE_MATRIX_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_DEVICE_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF": "",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF",
+            ),
+        )
+        hostile_paths = (
+            "invalid\n::warning::injected\x1b[31m",
+            "invalid\N{RIGHT-TO-LEFT OVERRIDE}path",
+            "x" * 10_000,
+        )
+        for template, expected_label in path_cases:
+            for hostile_path in hostile_paths:
+                with self.subTest(path=expected_label, hostile_path=hostile_path):
+                    overrides = {
+                        name: hostile_path if value == "" else value
+                        for name, value in template.items()
+                    }
+                    environment = {
+                        name: value
+                        for name, value in os.environ.items()
+                        if not name.startswith("QPERIAPT_")
+                    }
+                    environment.update(
+                        {
+                            "QPERIAPT_SKIP_SMOKE": "1",
+                            "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                            "GITHUB_SHA": TEST_COMMIT,
+                            **overrides,
+                        }
+                    )
+                    result = subprocess.run(
+                        ["sh", str(PROOF_SCRIPT)],
+                        cwd=ROOT,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                        env=environment,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn(
+                        f"{expected_label} must be a non-empty printable path of at most 4095 filesystem bytes",
+                        result.stderr,
+                    )
+                    self.assertNotIn("\n::warning::injected", result.stderr)
+                    self.assertNotIn("\x1b", result.stderr)
+                    self.assertNotIn("\N{RIGHT-TO-LEFT OVERRIDE}", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+                    self.assertLess(len(result.stderr), 1024)
+
+        empty_path_cases = (
+            (
+                {
+                    "QPERIAPT_REQUIRE_CAMERA_READY": "1",
+                    "QPERIAPT_CAMERA_READY_BUNDLE": str(ROOT / "target" / "bundle"),
+                    "QPERIAPT_CAMERA_READY_TRANSCRIPT": "",
+                },
+                "QPERIAPT_CAMERA_READY_TRANSCRIPT",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE": "1",
+                    "QPERIAPT_DEVICE_RESULT_DIR": "",
+                },
+                "QPERIAPT_DEVICE_RESULT_DIR",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX": "1",
+                    "QPERIAPT_DEVICE_MATRIX_PROOF": "",
+                },
+                "QPERIAPT_DEVICE_MATRIX_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_DEVICE_PROOF",
+            ),
+            (
+                {
+                    "QPERIAPT_REQUIRE_PERFORMANCE": "1",
+                    "QPERIAPT_PERFORMANCE_PROOF": "",
+                },
+                "QPERIAPT_PERFORMANCE_PROOF",
+            ),
+        )
+        for overrides, expected_label in empty_path_cases:
+            with self.subTest(empty_path=expected_label):
+                environment = {
+                    name: value
+                    for name, value in os.environ.items()
+                    if not name.startswith("QPERIAPT_")
+                }
+                environment.update(
+                    {
+                        "QPERIAPT_SKIP_SMOKE": "1",
+                        "QPERIAPT_EXPECTED_GIT_COMMIT": repository_head(),
+                        "GITHUB_SHA": TEST_COMMIT,
+                        **overrides,
+                    }
+                )
+                result = subprocess.run(
+                    ["sh", str(PROOF_SCRIPT)],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{expected_label} must be a non-empty printable path of at most 4095 filesystem bytes",
+                    result.stderr,
+                )
+                self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
 
     def test_clean_complete_state_requires_real_dependency_audit_pass(self) -> None:
         marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
@@ -1151,6 +1652,14 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 EXPECTED_PROOF_TO_BYTE_STEP + "        if: failure()\n",
                 1,
             ),
+            "PR head instead of tested merge commit": check_job.replace(
+                EXPECTED_PROOF_TO_BYTE_STEP,
+                EXPECTED_PROOF_TO_BYTE_STEP.replace(
+                    "${{ github.sha }}",
+                    "${{ github.event.pull_request.head.sha }}",
+                ),
+                1,
+            ),
             "numeric alias": check_job + "      - uses: *1\n",
             "hyphen alias": check_job + "      - uses: *-foo\n",
             "merge alias": check_job + "        <<: *checkout-settings\n",
@@ -1162,10 +1671,79 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_ci_check_checkout(mutation)
 
-    def test_proof_to_byte_validates_github_sha_and_checkout(self) -> None:
-        def run_with_github_sha(value: str) -> subprocess.CompletedProcess[str]:
-            environment = os.environ.copy()
-            environment["GITHUB_SHA"] = value
+    def test_freeze_expected_commit_argument_is_optional_and_exact(self) -> None:
+        arguments = [
+            "freeze",
+            "--root",
+            str(ROOT),
+            "--ledger",
+            str(ROOT / "artifact" / "claim-ledger.json"),
+            "--manifest",
+            str(ROOT / "artifact" / "results.json"),
+            "--expected-manifest-sha256",
+            TEST_MANIFEST_SHA256,
+        ]
+        parser = proof_to_byte_finalizer.build_parser()
+        self.assertIsNone(parser.parse_args(arguments).expected_git_commit)
+        self.assertEqual(
+            parser.parse_args(
+                [*arguments, "--expected-git-commit", TEST_COMMIT]
+            ).expected_git_commit,
+            TEST_COMMIT,
+        )
+        snapshot = proof_to_byte_finalizer.SourceSnapshot(
+            commit=TEST_COMMIT,
+            source_sha256=TEST_SOURCE_SHA256,
+            manifest_sha256=TEST_MANIFEST_SHA256,
+            dirty=False,
+        )
+        for expected_commit, extra_arguments in (
+            (None, ()),
+            (TEST_COMMIT, ("--expected-git-commit", TEST_COMMIT)),
+        ):
+            with self.subTest(expected_commit=expected_commit):
+                parsed = parser.parse_args([*arguments, *extra_arguments])
+                with (
+                    mock.patch.object(
+                        proof_to_byte_finalizer,
+                        "capture_source_snapshot",
+                        return_value=snapshot,
+                    ) as capture,
+                    mock.patch("builtins.print") as output,
+                ):
+                    proof_to_byte_finalizer.run(parsed)
+                capture.assert_called_once_with(
+                    ROOT.resolve(),
+                    (ROOT / "artifact" / "claim-ledger.json").resolve(),
+                    (ROOT / "artifact" / "results.json").resolve(),
+                    TEST_MANIFEST_SHA256,
+                    expected_commit=expected_commit,
+                )
+                output.assert_called_once_with(
+                    f"{TEST_COMMIT}:{TEST_SOURCE_SHA256}:0"
+                )
+
+    def test_proof_to_byte_validates_explicit_expected_commit(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("GITHUB_SHA", source)
+
+        def run_with_expected_commit(value: str) -> subprocess.CompletedProcess[str]:
+            environment = {
+                name: current
+                for name, current in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            environment.update(
+                {
+                    "QPERIAPT_SKIP_SMOKE": "1",
+                    "QPERIAPT_EXPECTED_GIT_COMMIT": value,
+                    "GITHUB_SHA": TEST_COMMIT,
+                    "GIT_DIR": str(ROOT / "does-not-exist"),
+                    "GIT_WORK_TREE": str(ROOT / "does-not-exist"),
+                    "GIT_CONFIG_GLOBAL": str(ROOT / "does-not-exist"),
+                    "GIT_NO_REPLACE_OBJECTS": "0",
+                }
+            )
             return subprocess.run(
                 ["sh", str(PROOF_SCRIPT)],
                 cwd=ROOT,
@@ -1182,13 +1760,79 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             ("non-hex", "g" * 40),
         ):
             with self.subTest(label=label):
-                result = run_with_github_sha(malformed)
+                result = run_with_expected_commit(malformed)
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("exactly 40 lowercase hexadecimal", result.stderr)
+                self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
 
-        result = run_with_github_sha("0" * 40)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("does not match GITHUB_SHA", result.stderr)
+        result = run_with_expected_commit("0" * 40)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(
+            "checked-out Git commit does not match expected provenance",
+            result.stderr,
+        )
+        self.assertIn(f"got {repository_head()}", result.stderr)
+        self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            alternate = pathlib.Path(temporary) / "alternate-repository"
+            subprocess.run(
+                ["/usr/bin/git", "init", "-q", str(alternate)],
+                check=True,
+                capture_output=True,
+            )
+            (alternate / "fixture.txt").write_text("alternate\n", encoding="utf-8")
+            subprocess.run(
+                ["/usr/bin/git", "-C", str(alternate), "add", "fixture.txt"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [
+                    "/usr/bin/git",
+                    "-C",
+                    str(alternate),
+                    "-c",
+                    "user.name=Proof Test",
+                    "-c",
+                    "user.email=proof@example.invalid",
+                    "commit",
+                    "-qm",
+                    "alternate",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            alternate_head = git_commit(alternate)
+            self.assertNotEqual(alternate_head, repository_head())
+            environment = {
+                name: value
+                for name, value in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            environment.update(
+                {
+                    "QPERIAPT_SKIP_SMOKE": "1",
+                    "QPERIAPT_EXPECTED_GIT_COMMIT": alternate_head,
+                    "GITHUB_SHA": TEST_COMMIT,
+                    "GIT_DIR": str(alternate / ".git"),
+                    "GIT_WORK_TREE": str(alternate),
+                    "GIT_COMMON_DIR": str(alternate / ".git"),
+                    "GIT_OBJECT_DIRECTORY": str(alternate / ".git" / "objects"),
+                }
+            )
+            spoofed = subprocess.run(
+                ["sh", str(PROOF_SCRIPT)],
+                cwd=ROOT,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(spoofed.returncode, 2, spoofed.stderr)
+            self.assertIn(f"got {repository_head()}", spoofed.stderr)
+            self.assertIn(f"expected {alternate_head}", spoofed.stderr)
+            self.assertEqual(spoofed.stdout, "")
 
     def test_ci_discovers_every_artifact_python_test(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

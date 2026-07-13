@@ -328,7 +328,7 @@ def capture_source_snapshot(
         commit_before = git_commit(root)
         if expected_commit is not None and commit_before != expected_commit:
             raise FinalizerError(
-                "Git commit changed during proof-to-byte run: "
+                "checked-out Git commit does not match expected provenance: "
                 f"got {commit_before}, expected {expected_commit}"
             )
         metadata_before = validate_release_metadata(
@@ -459,6 +459,7 @@ def build_parser() -> argparse.ArgumentParser:
     freeze.add_argument("--ledger", type=pathlib.Path, required=True)
     freeze.add_argument("--manifest", type=pathlib.Path, required=True)
     freeze.add_argument("--expected-manifest-sha256", required=True)
+    freeze.add_argument("--expected-git-commit")
 
     finalize = subparsers.add_parser("finalize")
     finalize.add_argument("--root", type=pathlib.Path, required=True)
@@ -480,6 +481,7 @@ def run(args: argparse.Namespace) -> None:
             args.ledger.resolve(),
             args.manifest.resolve(),
             args.expected_manifest_sha256,
+            expected_commit=args.expected_git_commit,
         )
         print(
             f"{snapshot.commit}:{snapshot.source_sha256}:{int(snapshot.dirty)}"
