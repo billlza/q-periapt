@@ -486,14 +486,13 @@ jobs:
           TAMARIN_DIR=$(mktemp -d)
           curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
             --output "$TAMARIN_ARCHIVE" \
-            https://github.com/tamarin-prover/tamarin-prover/releases/download/1.12.0/tamarin-prover-1.12.0.x86_64_linux.bottle.tar.gz
+            https://github.com/tamarin-prover/tamarin-prover/releases/download/1.12.0/tamarin-prover-1.12.0-linux64-ubuntu.tar.gz
           printf '%s  %s\n' \
-            936631c692ce9fd4c797400eff32e47d6d09e371ca251250cceac15b93f71d99 \
+            201be06f469e47cff554df6ca93db8366fc2c69d70c61fcbd1370a1074b469c6 \
             "$TAMARIN_ARCHIVE" | sha256sum --check --strict
-          tar -xzf "$TAMARIN_ARCHIVE" -C "$TAMARIN_DIR" \
-            tamarin-prover/1.12.0/bin/tamarin-prover
+          tar -xzf "$TAMARIN_ARCHIVE" -C "$TAMARIN_DIR" tamarin-prover
           sudo install -m 0755 \
-            "$TAMARIN_DIR/tamarin-prover/1.12.0/bin/tamarin-prover" \
+            "$TAMARIN_DIR/tamarin-prover" \
             /usr/local/bin/tamarin-prover
           rm -rf "$TAMARIN_ARCHIVE" "$TAMARIN_DIR"
           test "$(maude --version)" = "3.5.1"
