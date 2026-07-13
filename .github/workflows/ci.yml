@@ -87,8 +87,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - run: cargo test --workspace --locked
       - run: cargo test -p q-periapt-backends --features slh-dsa --locked
+      - name: Test Windows evidence I/O and ABI verifier
+        shell: pwsh
+        working-directory: artifact
+        run: |
+          python --version
+          python -I -S -c "import sys; raise SystemExit(0 if sys.implementation.name == 'cpython' and sys.version_info >= (3, 11) else 2)"
+          python -I -S -B -W error python_bootstrap.py -m unittest -v test_evidence_io test_c_abi_contract
       # ABI2 C link smoke: cl.exe links a C consumer against q_periapt_ffi_abi2.dll.
-      - run: bindings\c\build-and-run.bat
+      - name: Build and verify the Windows ABI2 C library
+        shell: cmd
+        run: bindings\c\build-and-run.bat
 
   # no_std build of the auditable core for an embedded target (must not pull std).
   no_std:
