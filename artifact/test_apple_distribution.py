@@ -1580,7 +1580,31 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertGreaterEqual(
             self.builder.count('--forbidden-build-prefix "$BUILD_HOME"'), 3
         )
-        self.assertIn("unset RUSTFLAGS\n          sh artifact/swift-xcframework.sh", self.workflow)
+        self.assertIn(
+            "unset RUSTFLAGS CARGO_INCREMENTAL\n"
+            "          sh artifact/swift-xcframework.sh",
+            self.workflow,
+        )
+        self.assertEqual(
+            self.workflow.count(
+                "cargo +stable install cbindgen --version 0.29.4 --locked"
+            ),
+            3,
+        )
+        self.assertNotIn("cargo install cbindgen", self.workflow)
+
+    def test_untrusted_configuration_preflight_precedes_platform_tool_probes(
+        self,
+    ) -> None:
+        tool_probe = self.builder.index("need cargo\n")
+        for marker in (
+            "rejects caller compiler/flag overrides",
+            "rejects ambient Cargo configuration files",
+            "QPERIAPT_SWIFT_XCFRAMEWORK_SKIP_VERIFY is not supported",
+            "credentialed Apple distribution never permits dirty diagnostic mode",
+        ):
+            with self.subTest(marker=marker):
+                self.assertLess(self.builder.index(marker), tool_probe)
 
     def test_caller_compiler_and_target_flag_overrides_fail_fast(self) -> None:
         script = self.root / "artifact/swift-xcframework.sh"

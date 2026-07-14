@@ -96,22 +96,7 @@ if path == target:
 PY
 }
 
-need cargo
-need cbindgen
-need git
-need lipo
-need python3
-need rustc
-need rustup
-need shasum
-need swift
-need xcodebuild
-need xcode-select
-need zip
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-	need codesign
-	need ditto
-	need openssl
 	if [ -z "${QPERIAPT_INTERNAL_APPLE_EXPECTED_TEAM_ID:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_IDENTITY_SHA1:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_CERTIFICATE_SHA256:-}" ] || \
@@ -249,11 +234,32 @@ if [ "${QPERIAPT_SWIFT_XCFRAMEWORK_SKIP_VERIFY:-0}" = "1" ]; then
 	printf 'error: QPERIAPT_SWIFT_XCFRAMEWORK_SKIP_VERIFY is not supported\n' >&2
 	exit 2
 fi
-
 if [ "$APPLE_RELEASE_MODE" = "1" ] && [ "${QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK:-0}" != "0" ]; then
 	printf 'error: credentialed Apple distribution never permits dirty diagnostic mode\n' >&2
 	exit 2
 fi
+
+# Validate caller-controlled configuration before probing platform tools. This
+# keeps the security preflight deterministic even on non-Apple CI hosts that
+# intentionally lack lipo, xcodebuild, and the other build-only executables.
+need cargo
+need cbindgen
+need git
+need lipo
+need python3
+need rustc
+need rustup
+need shasum
+need swift
+need xcodebuild
+need xcode-select
+need zip
+if [ "$APPLE_RELEASE_MODE" = "1" ]; then
+	need codesign
+	need ditto
+	need openssl
+fi
+
 if [ "${QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK:-0}" != "1" ]; then
 	if ! SOURCE_STATUS=$(release_git status --porcelain=v1); then
 		printf 'error: unable to inspect the Swift XCFramework source worktree\n' >&2
