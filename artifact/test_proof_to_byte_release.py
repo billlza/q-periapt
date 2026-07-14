@@ -790,20 +790,24 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 if path.name == "swift-xcframework-remote-consumer.sh":
                     source = path.read_text(encoding="utf-8")
                     self.assertNotIn(source_line, source)
-                    materialize = source.index(
-                        "for relative in $TRACKED_CONSUMER_INPUTS"
+                    artifact_materialize = source.index(
+                        "for relative in $ARTIFACT_INPUTS"
+                    )
+                    verifier_materialize = source.index(
+                        "for relative in $VERIFIER_INPUTS"
                     )
                     self_check = source.index(
                         'cmp "$ROOT/artifact/swift-xcframework-remote-consumer.sh"'
                     )
                     snapshot_helper = source.index(
-                        '. "$SOURCE_SNAPSHOT/artifact/python-env.sh"'
+                        '. "$VERIFIER_SNAPSHOT/artifact/python-env.sh"'
                     )
                     snapshot_dispatch = source.index('python3 "$@"')
                     first_snapshot_call = source.index(
-                        'snapshot_python - "$EFFECTIVE_URL"'
+                        'snapshot_python - "$effective_url"'
                     )
-                    self.assertLess(materialize, self_check)
+                    self.assertLess(artifact_materialize, verifier_materialize)
+                    self.assertLess(verifier_materialize, self_check)
                     self.assertLess(self_check, snapshot_helper)
                     self.assertLess(snapshot_helper, snapshot_dispatch)
                     self.assertLess(snapshot_dispatch, first_snapshot_call)
