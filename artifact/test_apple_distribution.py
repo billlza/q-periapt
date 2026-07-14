@@ -1746,6 +1746,15 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             self.release,
         )
         self.assertIn('EXPECTED_TEAM_ID="YKUPL7Z869"', self.release)
+        self.assertIn(
+            '--extract-certificates="$CERTIFICATE_PREFIX"',
+            self.builder,
+        )
+        self.assertIn(
+            '--extract-certificates="$RESUME_CERTIFICATE_PREFIX"',
+            self.builder,
+        )
+        self.assertNotIn('--extract-certificates "$CERTIFICATE_PREFIX"', self.builder)
 
     def test_workflow_has_no_unsafe_signing_or_credential_fallbacks(self) -> None:
         source = self.builder + self.release

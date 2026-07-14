@@ -463,7 +463,7 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 		"$XCFRAMEWORK"
 	codesign --verify --strict --verbose=4 "$XCFRAMEWORK"
 	codesign --display --verbose=4 \
-		--extract-certificates "$CERTIFICATE_PREFIX" \
+		--extract-certificates="$CERTIFICATE_PREFIX" \
 		"$XCFRAMEWORK" >"$CODESIGN_DISPLAY" 2>&1
 	test -f "${CERTIFICATE_PREFIX}0" || {
 		printf 'error: codesign did not extract the leaf signing certificate\n' >&2
@@ -623,7 +623,7 @@ else
 	ditto -x -k "$ZIP_PATH" "$RESUME_VERIFY"
 	codesign --verify --strict --verbose=4 "$RESUME_VERIFY/CQPeriapt.xcframework"
 	codesign --display --verbose=4 \
-		--extract-certificates "$RESUME_CERTIFICATE_PREFIX" \
+		--extract-certificates="$RESUME_CERTIFICATE_PREFIX" \
 		"$RESUME_VERIFY/CQPeriapt.xcframework" >"$RESUME_DISPLAY" 2>&1
 	test -f "${RESUME_CERTIFICATE_PREFIX}0" || {
 		printf 'error: resumed ZIP does not expose its leaf signing certificate\n' >&2
