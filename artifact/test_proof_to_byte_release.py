@@ -572,6 +572,7 @@ HQC_CANDIDATE_PROOF_INPUTS = {
 }
 
 APPLE_DISTRIBUTION_PROOF_INPUTS = {
+    "swift_xcframework_script_sha256": "artifact/swift-xcframework.sh",
     "swift_xcframework_release_script_sha256": "artifact/swift-xcframework-release.sh",
     "swift_xcframework_consumer_check_script_sha256": "artifact/swift-xcframework-consumer-check.sh",
     "swift_xcframework_remote_consumer_script_sha256": "artifact/swift-xcframework-remote-consumer.sh",

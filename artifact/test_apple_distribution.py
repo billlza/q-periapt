@@ -12,6 +12,7 @@ import copy
 import stat
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -23,6 +24,26 @@ import apple_distribution
 SOURCE_COMMIT = "ab" * 20
 TEAM_ID = "YKUPL7Z869"
 CDHASH = "0123456789abcdef0123456789abcdef01234567"
+
+
+def isolated_apple_preflight_environment(
+    **overrides: str,
+) -> dict[str, str]:
+    """Return the minimal trusted environment for Apple preflight subprocesses."""
+
+    home = os.environ.get("HOME")
+    if not home or not pathlib.Path(home).is_absolute():
+        raise RuntimeError("Apple preflight tests require an absolute HOME")
+    python = pathlib.Path(sys.executable).resolve(strict=True)
+    environment = {
+        "HOME": home,
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "QPERIAPT_PYTHON": str(python),
+    }
+    environment.update(overrides)
+    return environment
 
 
 def codesign_display(*, team_id: str = TEAM_ID, timestamp: bool = True) -> str:
@@ -321,34 +342,30 @@ class StaticArchiveTests(unittest.TestCase):
                 forbidden_build_prefixes=(private_prefix,),
             )
 
-    def test_accepts_synthetic_system_and_narrow_rust_upstream_paths(self) -> None:
+    def test_accepts_only_synthetic_and_system_build_paths(self) -> None:
         allowed = b"\x00".join(
             (
                 b"/__qperiapt__/cargo-home/registry/src/crate/src/lib.rs",
                 b"/System/Library/Frameworks/Security.framework/Security",
                 b"/dev/urandom",
                 b"/rustc/0123456789abcdef/library/core/src/lib.rs",
-                b"/Users/runner/work/rust/rust/build/aarch64-apple-darwin/"
-                b"stage1-std/aarch64-apple-darwin/dist/build/"
-                b"compiler_builtins-7be819c9f191cb18/out/lse_cas8.S",
-                b"/Users/runner/work/rust/rust/library/compiler-builtins/"
-                b"compiler-builtins",
             )
         )
         apple_distribution._validate_static_archive(
-            thin_archive(
-                allowed,
-                member_name=b"4134eb5fb31f69b6-lse_cas8.o",
-            ),
+            thin_archive(allowed),
             label="allowed",
         )
 
-    def test_rejects_unpinned_rust_upstream_build_path(self) -> None:
+    def test_rejects_every_rust_upstream_build_path(self) -> None:
         prefix = (
             b"/Users/runner/work/rust/rust/build/aarch64-apple-darwin/"
             b"stage1-std/aarch64-apple-darwin/dist/build/"
         )
         paths = (
+            prefix
+            + b"compiler_builtins-7be819c9f191cb18/out/lse_cas8.S",
+            prefix
+            + b"compiler_builtins-bbfabc7edd9dfc35/out/lse_cas8.S",
             prefix + b"compiler_builtins-deadbeef/out/lse_cas8.S",
             prefix + b"compiler_builtins-7be819c9f191cb18/outside/file.c",
             prefix
@@ -361,10 +378,14 @@ class StaticArchiveTests(unittest.TestCase):
                 apple_distribution.AppleDistributionError, "macos_user_home"
             ):
                 apple_distribution._validate_static_archive(
-                    thin_archive(path), label="unpinned-upstream"
+                    thin_archive(
+                        path,
+                        member_name=b"4134eb5fb31f69b6-lse_cas8.o",
+                    ),
+                    label="rust-upstream",
                 )
 
-    def test_rejects_pinned_upstream_path_in_an_unpinned_member(self) -> None:
+    def test_rejects_rust_upstream_path_in_an_application_member(self) -> None:
         path = (
             b"/Users/runner/work/rust/rust/library/compiler-builtins/"
             b"compiler-builtins"
@@ -952,9 +973,7 @@ class DistributionEvidenceTests(ZipFixture):
                     "forbidden_match_count": 0,
                 },
                 "synthetic_build_path_prefix": "/__qperiapt__/",
-                "allowed_upstream_toolchain_path_rules": [
-                    "rust_distributed_compiler_builtins_members_v1"
-                ],
+                "allowed_upstream_toolchain_path_rules": [],
             },
         )
         notarization = evidence["notarization"]
@@ -1249,6 +1268,10 @@ class ReleaseAssetVerificationTests(ZipFixture):
         return apple_distribution.verify_release_assets(**arguments)
 
     def test_accepts_exact_results_pinned_four_asset_set(self) -> None:
+        self.assertEqual(
+            apple_distribution.BUILD_PATH_HYGIENE_POLICY,
+            "qperiapt.apple_static_archive_build_paths.v2",
+        )
         verified = self.verify()
         self.assertEqual(verified["source_commit"], SOURCE_COMMIT)
         self.assertEqual(
@@ -1256,6 +1279,42 @@ class ReleaseAssetVerificationTests(ZipFixture):
             self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
         )
         self.assertEqual(len(verified), 6)
+
+    def test_rejects_path_hygiene_policy_downgrade_or_allowlist(self) -> None:
+        base_distribution = copy.deepcopy(self.distribution)
+        base_manifest = copy.deepcopy(self.manifest)
+        mutations = (
+            (
+                "distribution policy downgrade",
+                lambda: self.distribution["path_hygiene"].__setitem__(
+                    "policy", "qperiapt.apple_static_archive_build_paths.v1"
+                ),
+            ),
+            (
+                "distribution upstream allowlist",
+                lambda: self.distribution["path_hygiene"].__setitem__(
+                    "allowed_upstream_toolchain_path_rules",
+                    ["rust_distributed_compiler_builtins_members_v1"],
+                ),
+            ),
+            (
+                "manifest policy downgrade",
+                lambda: self.manifest["build_path_hygiene"].__setitem__(
+                    "policy", "qperiapt.apple_static_archive_build_paths.v1"
+                ),
+            ),
+        )
+        for label, mutate in mutations:
+            with self.subTest(label=label):
+                self.distribution = copy.deepcopy(base_distribution)
+                self.manifest = copy.deepcopy(base_manifest)
+                mutate()
+                self._publish()
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError,
+                    "path hygiene|build path hygiene",
+                ):
+                    self.verify()
 
     def test_rejects_tamper_and_wrong_caller_pin(self) -> None:
         with self.assertRaisesRegex(
@@ -1531,9 +1590,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             "GIT_CEILING_DIRECTORIES",
             "GIT_DISCOVERY_ACROSS_FILESYSTEM",
         )
-        environment = os.environ.copy()
-        for name in names:
-            environment.pop(name, None)
+        environment = isolated_apple_preflight_environment()
         for script in (
             self.root / "artifact/swift-xcframework.sh",
             self.root / "artifact/swift-xcframework-release.sh",
@@ -1570,8 +1627,59 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         for option in ("file", "macro", "debug"):
             self.assertIn(f'-f{{option}}-prefix-map=', self.builder)
         self.assertIn("CC_SHELL_ESCAPED_FLAGS=1", self.builder)
+        self.assertIn('LLVM_STRIP="$RUST_LLVM_TOOLS/llvm-strip"', self.builder)
+        self.assertIn('"$LLVM_NM" -g --defined-only "$1"', self.builder)
+        strip_command = (
+            '"$LLVM_STRIP" --strip-debug --enable-deterministic-archives '
+            '"$sanitized_archive"'
+        )
+        self.assertIn(strip_command, self.builder)
+        self.assertNotIn("--strip-all", self.builder)
+        build = self.builder.index(
+            'cargo build -p q-periapt-ffi --release --locked --target "$target"'
+        )
+        raw_abi_gate = self.builder.index(
+            'validate_abi2_exports "$built_archive"'
+        )
+        copy = self.builder.index('cp "$built_archive" "$sanitized_archive"')
+        strip = self.builder.index(strip_command)
+        scan = self.builder.index(
+            'validate_apple_static_archive_paths "$sanitized_archive"'
+        )
+        sanitized_abi_gate = self.builder.index(
+            'validate_abi2_exports "$sanitized_archive"'
+        )
+        lipo = self.builder.index("\nlipo -create ")
+        self.assertLess(build, strip)
+        self.assertLess(build, raw_abi_gate)
+        self.assertLess(raw_abi_gate, copy)
+        self.assertLess(copy, strip)
+        self.assertLess(strip, scan)
+        self.assertLess(scan, sanitized_abi_gate)
+        self.assertLess(sanitized_abi_gate, lipo)
+        self.assertLess(self.builder.index('LLVM_STRIP="$RUST_LLVM_TOOLS/llvm-strip"'), build)
+        assembly = self.builder[
+            self.builder.index("=== Assemble release slices ===") :
+            self.builder.index("PASS: release slices")
+        ]
+        for target in (
+            "aarch64-apple-darwin",
+            "x86_64-apple-darwin",
+            "aarch64-apple-ios",
+            "aarch64-apple-ios-sim",
+            "x86_64-apple-ios",
+        ):
+            self.assertIn(f"$SANITIZED_TARGET_ARCHIVES/{target}/", assembly)
+            self.assertNotIn(f"$ROOT/target/{target}/", assembly)
         self.assertGreaterEqual(
             self.builder.count("validate_apple_static_archive_paths"), 4
+        )
+        self.assertGreaterEqual(
+            self.builder.count(
+                'validate_apple_static_archive_paths "$lib"\n'
+                '\tvalidate_abi2_exports "$lib"'
+            ),
+            2,
         )
         final_archive_gate = self.builder.index(
             '"$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"'
@@ -1592,6 +1700,9 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             3,
         )
         self.assertNotIn("cargo install cbindgen", self.workflow)
+        self.assertNotIn(
+            "rust_distributed_compiler_builtins_members_v1", self.builder
+        )
 
     def test_untrusted_configuration_preflight_precedes_platform_tool_probes(
         self,
@@ -1608,97 +1719,10 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
 
     def test_caller_compiler_and_target_flag_overrides_fail_fast(self) -> None:
         script = self.root / "artifact/swift-xcframework.sh"
-        environment = os.environ.copy()
-        exact = {
-            "AR",
-            "ARFLAGS",
-            "CC",
-            "CC_SHELL_ESCAPED_FLAGS",
-            "CFLAGS",
-            "CPPFLAGS",
-            "CXX",
-            "CXXFLAGS",
-            "CARGO_BUILD_RUSTFLAGS",
-            "CARGO_BUILD_RUSTC",
-            "CARGO_BUILD_RUSTC_WRAPPER",
-            "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
-            "CARGO_BUILD_RUSTDOCFLAGS",
-            "CARGO_BUILD_BUILD_DIR",
-            "CARGO_BUILD_TARGET",
-            "CARGO_BUILD_TARGET_DIR",
-            "CARGO_ENCODED_RUSTDOCFLAGS",
-            "CARGO_ENCODED_RUSTFLAGS",
-            "CARGO_TARGET_DIR",
-            "CARGO_INCREMENTAL",
-            "CC_FORCE_DISABLE",
-            "COMPILER_PATH",
-            "CPATH",
-            "CPLUS_INCLUDE_PATH",
-            "CROSS_COMPILE",
-            "CRATE_CC_NO_DEFAULTS",
-            "C_INCLUDE_PATH",
-            "DEVELOPER_DIR",
-            "HOST_AR",
-            "HOST_ARFLAGS",
-            "HOST_CC",
-            "HOST_CFLAGS",
-            "HOST_CPPFLAGS",
-            "HOST_CXX",
-            "HOST_CXXFLAGS",
-            "HOST_RANLIB",
-            "HOST_RANLIBFLAGS",
-            "IPHONEOS_DEPLOYMENT_TARGET",
-            "GCC_EXEC_PREFIX",
-            "LD",
-            "LDFLAGS",
-            "LIBRARY_PATH",
-            "MACOSX_DEPLOYMENT_TARGET",
-            "OBJC_INCLUDE_PATH",
-            "RANLIB",
-            "RANLIBFLAGS",
-            "RUSTC",
-            "RUSTC_BOOTSTRAP",
-            "RUSTC_LINKER",
-            "RUSTC_WORKSPACE_WRAPPER",
-            "RUSTC_WRAPPER",
-            "RUSTDOCFLAGS",
-            "RUSTFLAGS",
-            "RUSTUP_TOOLCHAIN",
-            "SDKROOT",
-            "SOURCE_DATE_EPOCH",
-            "TARGET_AR",
-            "TARGET_ARFLAGS",
-            "TARGET_CC",
-            "TARGET_CFLAGS",
-            "TARGET_CPPFLAGS",
-            "TARGET_CXX",
-            "TARGET_CXXFLAGS",
-            "TARGET_RANLIB",
-            "TARGET_RANLIBFLAGS",
-            "TVOS_DEPLOYMENT_TARGET",
-            "WATCHOS_DEPLOYMENT_TARGET",
-            "XROS_DEPLOYMENT_TARGET",
-            "ZERO_AR_DATE",
-        }
-        compiler_prefixes = ("AR_", "CC_", "CFLAGS_", "CPPFLAGS_", "CXX_", "CXXFLAGS_")
-        compiler_suffixes = (
-            "_AR",
-            "_CC",
-            "_CFLAGS",
-            "_CPPFLAGS",
-            "_CXX",
-            "_CXXFLAGS",
-        )
-        for name in tuple(environment):
-            if (
-                name in exact
-                or name.startswith(compiler_prefixes)
-                or name.endswith(compiler_suffixes)
-                or name.startswith("CARGO_TARGET_")
-            ):
-                environment.pop(name)
+        environment = isolated_apple_preflight_environment()
         for name in (
             "RUSTFLAGS",
+            "CARGO_INCREMENTAL",
             "CFLAGS_aarch64_apple_ios",
             "CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS",
             "CARGO_BUILD_TARGET_DIR",
@@ -1730,14 +1754,9 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             (cargo_home / "config.toml").write_text(
                 '[build]\nrustflags = ["-C", "unexpected"]\n', encoding="utf-8"
             )
-            environment = os.environ.copy()
-            for name in (
-                "RUSTFLAGS",
-                "CARGO_ENCODED_RUSTFLAGS",
-                "CARGO_BUILD_RUSTFLAGS",
-            ):
-                environment.pop(name, None)
-            environment["CARGO_HOME"] = str(cargo_home)
+            environment = isolated_apple_preflight_environment(
+                CARGO_HOME=str(cargo_home)
+            )
             completed = subprocess.run(
                 ["/bin/sh", str(script)],
                 cwd=self.root,

@@ -35,7 +35,7 @@ MAX_ARCHIVE_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_ENTRY_BYTES = 64 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
-BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v1"
+BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v2"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
 RELEASE_VERSION = "0.1.0-alpha.2"
 RELEASE_TAG = f"v{RELEASE_VERSION}"
@@ -118,23 +118,6 @@ ZIP_END_OF_CENTRAL_DIRECTORY = struct.Struct("<IHHHHIIH")
 ZIP_LOCAL_FILE_SIGNATURE = 0x04034B50
 ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014B50
 ZIP_END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054B50
-_ALLOWED_RUST_DISTRIBUTION_BUILD_PATHS = (
-    re.compile(
-        rb"/Users/runner/work/rust/rust/build/aarch64-apple-darwin/"
-        rb"stage1-std/aarch64-apple-darwin/dist/build/"
-        rb"compiler_builtins-7be819c9f191cb18/out"
-        rb"(?:/lse_[A-Za-z0-9_]+\.S)?(?=[\x00\r\n\t ]|$)"
-    ),
-    re.compile(
-        rb"/Users/runner/work/rust/rust/library/compiler-builtins/"
-        rb"compiler-builtins(?=[\x00\r\n\t ]|$)"
-    ),
-)
-_ALLOWED_RUST_DISTRIBUTION_MEMBER_NAMES = (
-    re.compile(rb"4134eb5fb31f69b6-lse_[A-Za-z0-9_]+\.o"),
-    re.compile(rb"f3c5cc7ab326d4d0-[A-Za-z0-9_]+\.o"),
-    re.compile(rb"ad3ac4dcdcbf93cb-aarch64\.o"),
-)
 _PRIVATE_BUILD_PATH_PATTERNS = (
     (
         "macos_user_home",
@@ -507,15 +490,6 @@ def _expected_archive_entries(require_signature: bool) -> frozenset[str]:
     return frozenset(entries)
 
 
-def _allowed_rust_distribution_path_at(
-    data: bytes, offset: int, *, allow_upstream_toolchain_paths: bool
-) -> bool:
-    return allow_upstream_toolchain_paths and any(
-        pattern.match(data, offset) is not None
-        for pattern in _ALLOWED_RUST_DISTRIBUTION_BUILD_PATHS
-    )
-
-
 def _path_match_failure(*, category: str, label: str, offset: int) -> NoReturn:
     _fail(
         "static archive contains a forbidden private build path: "
@@ -594,7 +568,6 @@ def _validate_build_path_hygiene(
     *,
     label: str,
     forbidden_build_prefixes: tuple[str, ...] = (),
-    allow_upstream_toolchain_paths: bool = False,
 ) -> None:
     """Reject private build paths without disclosing their raw value in diagnostics."""
 
@@ -604,13 +577,7 @@ def _validate_build_path_hygiene(
             offset = data.find(prefix, start)
             if offset < 0:
                 break
-            if _has_path_boundary(
-                data, offset=offset, matched_length=len(prefix)
-            ) and not _allowed_rust_distribution_path_at(
-                data,
-                offset,
-                allow_upstream_toolchain_paths=allow_upstream_toolchain_paths,
-            ):
+            if _has_path_boundary(data, offset=offset, matched_length=len(prefix)):
                 _path_match_failure(
                     category="exact_build_prefix",
                     label=label,
@@ -642,12 +609,6 @@ def _validate_build_path_hygiene(
             if category == "windows_posix_unc_share" and data[
                 max(0, match.start() - 6) : match.start()
             ].lower().endswith((b"http:", b"https:")):
-                continue
-            if category == "macos_user_home" and _allowed_rust_distribution_path_at(
-                data,
-                match.start(),
-                allow_upstream_toolchain_paths=allow_upstream_toolchain_paths,
-            ):
                 continue
             _path_match_failure(
                 category=category,
@@ -712,13 +673,6 @@ def _parse_ar_member_name(
     return name, content
 
 
-def _is_pinned_rust_distribution_member(name: bytes) -> bool:
-    return any(
-        pattern.fullmatch(name) is not None
-        for pattern in _ALLOWED_RUST_DISTRIBUTION_MEMBER_NAMES
-    )
-
-
 def _validate_ar_archive(
     data: bytes, *, label: str, forbidden_build_prefixes: tuple[str, ...]
 ) -> None:
@@ -770,9 +724,6 @@ def _validate_ar_archive(
             member_payload,
             label=member_label,
             forbidden_build_prefixes=forbidden_build_prefixes,
-            allow_upstream_toolchain_paths=_is_pinned_rust_distribution_member(
-                member_name
-            ),
         )
         offset = payload_end
         if member_size % 2:
@@ -1452,9 +1403,7 @@ def build_static_xcframework_distribution_evidence(
                 "forbidden_match_count": 0,
             },
             "synthetic_build_path_prefix": SYNTHETIC_BUILD_PATH_PREFIX,
-            "allowed_upstream_toolchain_path_rules": [
-                "rust_distributed_compiler_builtins_members_v1"
-            ],
+            "allowed_upstream_toolchain_path_rules": [],
         },
         "origin_signature": signing_evidence,
         "notarization": {
@@ -1694,9 +1643,7 @@ def _validate_release_distribution_evidence(
                 "forbidden_match_count": 0,
             },
             "synthetic_build_path_prefix": SYNTHETIC_BUILD_PATH_PREFIX,
-            "allowed_upstream_toolchain_path_rules": [
-                "rust_distributed_compiler_builtins_members_v1"
-            ],
+            "allowed_upstream_toolchain_path_rules": [],
         },
         "Apple distribution path hygiene",
     )

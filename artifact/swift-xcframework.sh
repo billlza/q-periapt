@@ -326,9 +326,16 @@ if [ "$VERSION" != "0.1.0-alpha.2" ]; then
 	exit 1
 fi
 RUST_HOST=$(rustc -vV | awk '/^host: / { print $2 }')
-LLVM_NM="$(rustc --print sysroot)/lib/rustlib/$RUST_HOST/bin/llvm-nm"
+RUST_LLVM_TOOLS="$(rustc --print sysroot)/lib/rustlib/$RUST_HOST/bin"
+LLVM_NM="$RUST_LLVM_TOOLS/llvm-nm"
 if [ ! -x "$LLVM_NM" ]; then
 	printf 'error: Rust toolchain llvm-nm not found: %s\n' "$LLVM_NM" >&2
+	printf 'hint : rustup component add llvm-tools\n' >&2
+	exit 2
+fi
+LLVM_STRIP="$RUST_LLVM_TOOLS/llvm-strip"
+if [ ! -x "$LLVM_STRIP" ]; then
+	printf 'error: Rust toolchain llvm-strip not found: %s\n' "$LLVM_STRIP" >&2
 	printf 'hint : rustup component add llvm-tools\n' >&2
 	exit 2
 fi
@@ -540,11 +547,17 @@ validate_apple_xcframework_zip_paths() {
 	fi
 }
 
-tmp_header=$(mktemp "$ROOT/target/qperiapt-swift-xcframework-header.XXXXXX.h")
+SANITIZED_TARGET_ARCHIVES=
+tmp_header=
 
 # BEGIN_BUILD_TRAP_FUNCTIONS
 cleanup() {
-	rm -f "$tmp_header"
+	if [ -n "$tmp_header" ]; then
+		/bin/rm -f "$tmp_header"
+	fi
+	if [ -n "$SANITIZED_TARGET_ARCHIVES" ]; then
+		/bin/rm -rf "$SANITIZED_TARGET_ARCHIVES"
+	fi
 }
 cleanup_signal() {
 	signal_status=$1
@@ -556,6 +569,19 @@ cleanup_signal() {
 trap cleanup EXIT
 trap 'cleanup_signal 130' INT
 trap 'cleanup_signal 143' TERM
+
+if ! SANITIZED_TARGET_ARCHIVES=$(/usr/bin/mktemp -d "$ROOT/target/qperiapt-swift-xcframework-archives.XXXXXX"); then
+	printf 'error: cannot create the private Apple archive normalization directory\n' >&2
+	exit 2
+fi
+if ! /bin/chmod 0700 "$SANITIZED_TARGET_ARCHIVES"; then
+	printf 'error: cannot restrict the Apple archive normalization directory\n' >&2
+	exit 2
+fi
+if ! tmp_header=$(/usr/bin/mktemp "$ROOT/target/qperiapt-swift-xcframework-header.XXXXXX.h"); then
+	printf 'error: cannot create the temporary generated C header\n' >&2
+	exit 2
+fi
 
 installed_targets=$(rustup target list --installed)
 missing_targets=
@@ -585,6 +611,25 @@ cmp "$tmp_header" crates/q-periapt-ffi/include/q_periapt.h
 cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
 printf 'PASS: generated C header freshness\n'
 
+EXPECTED_FFI_EXPORTS='q_periapt_abi_version
+q_periapt_decapsulate
+q_periapt_decision_from_signed_policy
+q_periapt_encapsulate
+q_periapt_fixed_suite_id
+q_periapt_fixed_suite_id_len
+q_periapt_generate_keypair
+q_periapt_status_name
+q_periapt_version'
+
+validate_abi2_exports() {
+	ffi_exports=$("$LLVM_NM" -g --defined-only "$1" 2>/dev/null | awk '{print $NF}' | sed 's/^_//' | grep -E '^q_periapt_[a-z0-9_]+$' | LC_ALL=C sort -u)
+	if [ "$ffi_exports" != "$EXPECTED_FFI_EXPORTS" ]; then
+		printf 'error: Apple static archive differs from the exact ABI2 public q_periapt_* namespace allowlist: %s\n' "$1" >&2
+		printf 'actual public namespace symbols:\n%s\n' "$ffi_exports" >&2
+		exit 1
+	fi
+}
+
 printf '\n=== Build Apple static libraries ===\n'
 for target in $required_targets; do
 	cargo build -p q-periapt-ffi --release --locked --target "$target"
@@ -593,7 +638,14 @@ for target in $required_targets; do
 		printf 'error: missing static library for %s\n' "$target" >&2
 		exit 1
 	}
-	validate_apple_static_archive_paths "$built_archive"
+	validate_abi2_exports "$built_archive"
+	sanitized_target_dir="$SANITIZED_TARGET_ARCHIVES/$target"
+	mkdir -p "$sanitized_target_dir"
+	sanitized_archive="$sanitized_target_dir/libq_periapt_ffi_abi2.a"
+	cp "$built_archive" "$sanitized_archive"
+	"$LLVM_STRIP" --strip-debug --enable-deterministic-archives "$sanitized_archive"
+	validate_apple_static_archive_paths "$sanitized_archive"
+	validate_abi2_exports "$sanitized_archive"
 done
 
 rm -rf "$OUT_ROOT"
@@ -608,13 +660,13 @@ EOF
 
 printf '\n=== Assemble release slices ===\n'
 lipo -create \
-	"$ROOT/target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a" \
-	"$ROOT/target/x86_64-apple-darwin/release/libq_periapt_ffi_abi2.a" \
+	"$SANITIZED_TARGET_ARCHIVES/aarch64-apple-darwin/libq_periapt_ffi_abi2.a" \
+	"$SANITIZED_TARGET_ARCHIVES/x86_64-apple-darwin/libq_periapt_ffi_abi2.a" \
 	-output "$LIBS/macos/libq_periapt_ffi_abi2.a"
-cp "$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a"
+cp "$SANITIZED_TARGET_ARCHIVES/aarch64-apple-ios/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a"
 lipo -create \
-	"$ROOT/target/aarch64-apple-ios-sim/release/libq_periapt_ffi_abi2.a" \
-	"$ROOT/target/x86_64-apple-ios/release/libq_periapt_ffi_abi2.a" \
+	"$SANITIZED_TARGET_ARCHIVES/aarch64-apple-ios-sim/libq_periapt_ffi_abi2.a" \
+	"$SANITIZED_TARGET_ARCHIVES/x86_64-apple-ios/libq_periapt_ffi_abi2.a" \
 	-output "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"
 
 lipo "$LIBS/macos/libq_periapt_ffi_abi2.a" -verify_arch arm64 x86_64
@@ -622,23 +674,7 @@ lipo "$LIBS/ios/libq_periapt_ffi_abi2.a" -verify_arch arm64
 lipo "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a" -verify_arch arm64 x86_64
 for lib in "$LIBS/macos/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a" "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"; do
 	validate_apple_static_archive_paths "$lib"
-done
-EXPECTED_FFI_EXPORTS='q_periapt_abi_version
-q_periapt_decapsulate
-q_periapt_decision_from_signed_policy
-q_periapt_encapsulate
-q_periapt_fixed_suite_id
-q_periapt_fixed_suite_id_len
-q_periapt_generate_keypair
-q_periapt_status_name
-q_periapt_version'
-for lib in "$LIBS/macos/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a" "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"; do
-	ffi_exports=$("$LLVM_NM" -g "$lib" 2>/dev/null | awk '{print $NF}' | sed 's/^_//' | grep -E '^q_periapt_[a-z0-9_]+$' | LC_ALL=C sort -u)
-	if [ "$ffi_exports" != "$EXPECTED_FFI_EXPORTS" ]; then
-		printf 'error: Apple static slice differs from the exact ABI2 public q_periapt_* namespace allowlist: %s\n' "$lib" >&2
-		printf 'actual public namespace symbols:\n%s\n' "$ffi_exports" >&2
-		exit 1
-	fi
+	validate_abi2_exports "$lib"
 done
 printf 'PASS: release slices\n'
 
@@ -728,6 +764,7 @@ for lib in \
 	"$XCFRAMEWORK/ios-arm64/libq_periapt_ffi_abi2.a" \
 	"$XCFRAMEWORK/ios-arm64_x86_64-simulator/libq_periapt_ffi_abi2.a"; do
 	validate_apple_static_archive_paths "$lib"
+	validate_abi2_exports "$lib"
 done
 
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
@@ -1087,7 +1124,7 @@ manifest = {
         ),
     },
     "build_path_hygiene": {
-        "policy": "qperiapt.apple_static_archive_build_paths.v1",
+        "policy": "qperiapt.apple_static_archive_build_paths.v2",
         "artifact_scan": {
             "scope": "all_decompressed_regular_zip_entries",
             "forbidden_match_count": 0,
@@ -1141,15 +1178,13 @@ if apple_release_mode:
     }:
         raise SystemExit("error: Apple distribution evidence has unsafe notarization semantics")
     expected_path_hygiene = {
-        "policy": "qperiapt.apple_static_archive_build_paths.v1",
+        "policy": "qperiapt.apple_static_archive_build_paths.v2",
         "artifact_scan": {
             "scope": "all_decompressed_regular_zip_entries",
             "forbidden_match_count": 0,
         },
         "synthetic_build_path_prefix": "/__qperiapt__/",
-        "allowed_upstream_toolchain_path_rules": [
-            "rust_distributed_compiler_builtins_members_v1"
-        ],
+        "allowed_upstream_toolchain_path_rules": [],
     }
     if distribution.get("path_hygiene") != expected_path_hygiene:
         raise SystemExit("error: Apple distribution evidence path hygiene mismatch")
