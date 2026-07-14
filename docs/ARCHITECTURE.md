@@ -477,13 +477,15 @@ decision and 36-byte trusted policy state.
 This is the release-ready **ABI 2 research-alpha source/crate contract**, intended
 for coordinated source-crate publication rather than a stable or
 production binary release. No current C archive, XCFramework, AAR, or device binary is implied by
-that source readiness. A distinct Apple distribution adapter signs only the outer static
-XCFramework, submits its exact ZIP to Apple Notary Service, and records a hash-bound recovery state;
-an immutable prepared ledger exists before the only network submit, and UUID recovery never
-re-submits ambiguous bytes. Currentness remains an evidence fact in `artifact/results.json`, not an
-architectural assertion.
-That SDK submission is not an iOS-app notarization and does not replace the consuming app's signing,
-provisioning, or macOS notarization. Continuity's abstract snapshot schema 3 is unrelated
+that source readiness. A distinct Apple distribution adapter Developer ID-signs only the outer
+static XCFramework, enforces an exact static-only ZIP inventory, and binds the final ZIP, SwiftPM
+checksum, source commit, certificate, signature resources, and slice hashes in
+`APPLE_DISTRIBUTION.json`. The SDK payload contains no standalone executable or notarizable bundle,
+so its notarization applicability is explicitly `not_applicable_static_sdk_payload`; it is never
+reported as Apple Accepted or notarized. Currentness remains an evidence fact in
+`artifact/results.json`, not an architectural assertion.
+This SDK origin signature does not replace a consuming app's signing, provisioning, or macOS
+notarization. Continuity's abstract snapshot schema 3 is unrelated
 and is not part of this ABI. Before production promotion or a platform-binary claim,
 all claimed platform package identities, release-index cross-face semantics,
 dependency audit, clean signed or transparency-backed provenance, same-source Apple

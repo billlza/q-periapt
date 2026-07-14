@@ -322,8 +322,9 @@ native ABI2 intentionally does not export the raw seed/coins surface needed to r
 C/Swift/Kotlin/Android product evidence instead checks the same signed-policy/OS-random
 workflow and fail-closed semantics. The backend/source migration invalidated the previous macOS C,
 Swift XCFramework, Android AAR, and device proofs; each lane requires fresh same-source evidence.
-A Developer ID/notary-accepted XCFramework, when selected by `artifact/results.json`, covers only
-the submitted Apple SDK ZIP. It does not attest an iOS app, physical-device runtime behavior,
+A Developer ID-signed, exact-static-only XCFramework, when selected by `artifact/results.json`,
+covers only the hash-bound Apple SDK ZIP. The SDK contains no standalone executable or notarizable
+bundle and is explicitly not reported as notarized. It does not attest an iOS app, physical-device runtime behavior,
 Linux/Windows binaries, Android ART, or the source tag itself.
 The X-Wing byte-exact KAT
 (`q-periapt-backends`) **reproduces the `draft-connolly-cfrg-xwing-kem` reference

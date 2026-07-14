@@ -168,9 +168,10 @@ access control, and a same-process static consumer can deliberately call them. I
 raw/deterministic public product exports, uses OS randomness, major-isolates the
 binary/package identities, and rejects ABI1's four-byte state. Source/crate readiness does
 not attest current C archives, XCFrameworks, AARs, or device binaries. The Apple-only
-credentialed lane may separately produce a Developer ID-signed and Apple-Notary-submitted
-XCFramework ZIP; only `artifact/results.json` plus its public release evidence may call that
-asset current. It is neither a complete remote Swift package nor an iOS-app notarization. A
+credentialed lane may separately produce a Developer ID-signed, exact-static-only
+XCFramework ZIP whose payload has no notarizable executable or bundle; only
+`artifact/results.json` plus its public release evidence may call that
+asset current. It is neither a complete remote Swift package nor a final app. A
 proof-to-byte pass does not by itself authorize production promotion or platform-binary
 distribution: every claimed platform package/index, dependency audit, clean signed or
 transparency-backed provenance, and fresh same-source device/performance proof must
@@ -307,9 +308,11 @@ Android AAR. Release mode requires a clean tree. Set `QPERIAPT_ALLOW_DIRTY_RELEA
 diagnostic indexes; optional Apple/Android runtime evidence is included as sanitized proof summaries,
 never as copied raw device logs or profiles. Credentialed Apple distribution uses
 `artifact/swift-xcframework-release.sh`, builds from a fixed detached source commit, pins the
-Developer ID identity/certificate, submits the exact signed ZIP once, and persists a UUID/hash-bound
-private recovery state. A resume may only reuse that ZIP; it cannot rebuild, re-sign, re-zip, or
-submit again. The public `NOTARIZATION.json` contains no Keychain profile or raw notary log.
+Developer ID identity/certificate, verifies the exact static-only ZIP layout, and binds the final
+ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slice hashes in public
+`APPLE_DISTRIBUTION.json`. This SDK payload has no standalone executable or notarizable bundle, so
+notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
+product retains its own signing and notarization responsibility.
 The release-ready research alpha is not a full multi-platform binary or production release claim:
 an Apple XCFramework prerelease still needs public URL/checksum re-verification and a fresh
 device-matrix proof for production promotion, Android still needs

@@ -1,17 +1,11 @@
 #!/bin/sh
-# Build, Developer ID-sign, notarize, and verify the public SwiftPM XCFramework.
+# Build, Developer ID-sign, and verify the public static SwiftPM XCFramework.
 #
 # This is the only supported entry point for credentialed Apple distribution.
 # The ordinary swift-xcframework.sh path remains network-free and unsigned for CI.
 set -eu
 
 unset CDPATH
-# Capture the selected Keychain profile before any external command runs.  Unset
-# the destination first because POSIX shells preserve a variable's export
-# attribute across a plain assignment when the caller exported that name.
-unset NOTARY_KEYCHAIN_PROFILE
-NOTARY_KEYCHAIN_PROFILE=${QPERIAPT_NOTARY_KEYCHAIN_PROFILE:-}
-unset QPERIAPT_NOTARY_KEYCHAIN_PROFILE
 if [ "${GIT_DIR+x}" = "x" ] || \
 	[ "${GIT_WORK_TREE+x}" = "x" ] || \
 	[ "${GIT_COMMON_DIR+x}" = "x" ] || \
@@ -82,7 +76,6 @@ need git
 need python3
 need security
 need shasum
-need xcrun
 
 if [ "$#" -ne 0 ]; then
 	printf 'error: swift-xcframework-release.sh accepts no positional arguments\n' >&2
@@ -95,11 +88,7 @@ EXPECTED_IDENTITY_SHA1="2DA7764ED42B213AE04925B6261238B24C758FE1"
 EXPECTED_CERTIFICATE_SHA256="806673908A3DDCD558DCC8D3EF055085F1FFF100BDA0ACFB2E1315AFD652AC8D"
 
 if [ "${QPERIAPT_APPLE_RELEASE_CONFIRM:-}" != "$VERSION" ]; then
-	printf 'error: set QPERIAPT_APPLE_RELEASE_CONFIRM=%s to authorize this release submission\n' "$VERSION" >&2
-	exit 2
-fi
-if [ -z "$NOTARY_KEYCHAIN_PROFILE" ]; then
-	printf 'error: QPERIAPT_NOTARY_KEYCHAIN_PROFILE must name one pre-validated Keychain profile\n' >&2
+	printf 'error: set QPERIAPT_APPLE_RELEASE_CONFIRM=%s to authorize this signed release\n' "$VERSION" >&2
 	exit 2
 fi
 if [ "${QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK:-0}" != "0" ]; then
@@ -147,37 +136,18 @@ case "$identity_line" in
 		;;
 esac
 
-# Validate only the explicitly selected profile. Never enumerate Keychain items or
-# try another profile after authentication fails.
-xcrun notarytool history \
-	--keychain-profile "$NOTARY_KEYCHAIN_PROFILE" \
-	--output-format json >/dev/null
-
 RELEASES_ROOT="$ROOT/target/qperiapt-apple-release-worktrees"
 RELEASE_ROOT="$RELEASES_ROOT/$SOURCE_COMMIT"
 WORKTREE_ROOT="$RELEASE_ROOT/source"
-NOTARY_STATE_ROOT="$WORKTREE_ROOT/target/qperiapt-apple-notary-state"
 SOURCE_OUT="$WORKTREE_ROOT/target/qperiapt-swift-xcframework"
-RESUME_SUBMISSION_ID=${QPERIAPT_NOTARY_SUBMISSION_ID:-}
-if [ -n "$RESUME_SUBMISSION_ID" ]; then
-	if [ ! -e "$RELEASE_ROOT" ] || [ -L "$RELEASE_ROOT" ]; then
-		printf 'error: notary resume requires its real private Apple release root\n' >&2
-		exit 1
-	fi
-	if [ ! -d "$WORKTREE_ROOT" ] || [ ! -d "$NOTARY_STATE_ROOT" ]; then
-		printf 'error: notary resume requires the preserved detached worktree and durable state ledger\n' >&2
-		exit 1
-	fi
-else
-	if [ -e "$RELEASE_ROOT" ] || [ -L "$RELEASE_ROOT" ]; then
-		printf 'error: refusing a new notary attempt because this source already has a preserved worktree or state ledger\n' >&2
-		exit 1
-	fi
-	mkdir -p "$RELEASES_ROOT"
-	mkdir "$RELEASE_ROOT"
-	chmod 700 "$RELEASE_ROOT"
-	release_main_git worktree add --detach "$WORKTREE_ROOT" "$SOURCE_COMMIT"
+if [ -e "$RELEASE_ROOT" ] || [ -L "$RELEASE_ROOT" ]; then
+	printf 'error: refusing to replace the preserved signed release worktree for this source commit\n' >&2
+	exit 1
 fi
+mkdir -p "$RELEASES_ROOT"
+mkdir "$RELEASE_ROOT"
+chmod 700 "$RELEASE_ROOT"
+release_main_git worktree add --detach "$WORKTREE_ROOT" "$SOURCE_COMMIT"
 python3 - "$RELEASE_ROOT" <<'PY'
 import os
 import pathlib
@@ -233,9 +203,6 @@ QPERIAPT_INTERNAL_APPLE_IDENTITY_SHA1="$EXPECTED_IDENTITY_SHA1" \
 QPERIAPT_INTERNAL_APPLE_CERTIFICATE_SHA256="$EXPECTED_CERTIFICATE_SHA256" \
 QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT="$ROOT" \
 QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT="$SOURCE_COMMIT" \
-QPERIAPT_INTERNAL_NOTARY_KEYCHAIN_PROFILE="$NOTARY_KEYCHAIN_PROFILE" \
-QPERIAPT_INTERNAL_NOTARY_STATE_DIR="$NOTARY_STATE_ROOT" \
-QPERIAPT_INTERNAL_NOTARY_SUBMISSION_ID="$RESUME_SUBMISSION_ID" \
 QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR="$SOURCE_OUT" \
 sh "$WORKTREE_ROOT/artifact/swift-xcframework.sh"
 
@@ -246,7 +213,7 @@ if [ ! -d "$SOURCE_DIST" ]; then
 	printf 'error: detached release completed without its public distribution directory\n' >&2
 	exit 1
 fi
-for release_file in CQPeriapt.xcframework.zip NOTARIZATION.json MANIFEST.json SHA256SUMS; do
+for release_file in CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json SHA256SUMS; do
 	if [ ! -f "$SOURCE_DIST/$release_file" ] || [ -L "$SOURCE_DIST/$release_file" ]; then
 		printf 'error: detached release lacks required regular public file: %s\n' "$release_file" >&2
 		exit 1
@@ -262,7 +229,7 @@ fi
 		printf 'error: detached release checksum manifest must contain exactly three entries\n' >&2
 		exit 1
 	fi
-	for release_file in CQPeriapt.xcframework.zip NOTARIZATION.json MANIFEST.json; do
+	for release_file in CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json; do
 		if [ "$(awk -v name="$release_file" '$2 == name { count += 1 } END { print count + 0 }' SHA256SUMS)" -ne 1 ]; then
 			printf 'error: detached release checksum manifest lacks exactly one %s entry\n' "$release_file" >&2
 			exit 1
@@ -274,7 +241,7 @@ codesign --verify --strict --verbose=4 "$SOURCE_DIST/CQPeriapt.xcframework"
 rm -rf "$PUBLIC_OUT"
 mkdir -p "$PUBLIC_OUT"
 ditto "$SOURCE_DIST" "$PUBLIC_DIST"
-for release_file in CQPeriapt.xcframework.zip NOTARIZATION.json MANIFEST.json SHA256SUMS; do
+for release_file in CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json SHA256SUMS; do
 	cmp "$SOURCE_DIST/$release_file" "$PUBLIC_DIST/$release_file"
 done
 (

@@ -382,9 +382,10 @@ are the gap between research-grade and audited/production.
    same-commit schema-3 matrix remains required for production promotion or a
    platform-binary claim. This is still not a liboqs-style multi-platform distribution surface:
    Swift has both a credential-free XCFramework gate and a separately scoped detached-source
-   Developer ID/notary prerelease lane; `artifact/results.json` alone decides whether its public
+   Developer ID-signed static-SDK prerelease lane; `artifact/results.json` alone decides whether its public
    URL/checksum/provenance is current. The SDK ZIP is not a complete Git-URL Swift package and does
-   not notarize a consuming iOS app. Android has historical package/runtime evidence and still needs a current ABI2
+   not contain a notarizable executable/bundle; final consuming products retain their platform
+   signing, provisioning, and macOS notarization duties. Android has historical package/runtime evidence and still needs a current ABI2
    runtime proof, clean-tree release provenance, and an explicit CI-emulator or
    physical-device release policy; Rust now has a crates.io pre-publication contract
    (`artifact/rust-publish-dry-run.sh`) over the explicit ten-crate publish allow/deny list,
@@ -493,7 +494,7 @@ are the gap between research-grade and audited/production.
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID/notary XCFramework prerelease lane whose currentness is evidence-selected. C/macOS archives, Android AAR/ART, Kotlin JDK22, and runtime/platform lanes remain independent and pending or historical as recorded in results.json.** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. C/macOS archives, Android AAR/ART, Kotlin JDK22, and runtime/platform lanes remain independent and pending or historical as recorded in results.json.** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |

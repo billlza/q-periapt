@@ -88,6 +88,7 @@ done
 
 OUT="$ROOT/target/qperiapt-swift-remote-consumer"
 REMOTE_ZIP="$OUT/CQPeriapt.xcframework.zip"
+REMOTE_ZIP_PART="$OUT/CQPeriapt.xcframework.zip.part"
 REMOTE_EXTRACT="$OUT/extracted"
 CONSUMER="$OUT/consumer"
 LOG="$OUT/swift-url-binary-consumer.log"
@@ -97,21 +98,47 @@ mkdir -p \
 	"$CONSUMER/Sources/QPeriaptHybrid" \
 	"$CONSUMER/Sources/QPeriaptLinkProbe" \
 	"$CONSUMER/Tests/QPeriaptHybridBinaryConsumerTests/Resources"
-curl --fail --location --silent --show-error \
-	--proto '=https' --tlsv1.2 \
-	--output "$REMOTE_ZIP" "$URL"
-ACTUAL_SHA256=$(shasum -a 256 "$REMOTE_ZIP" | awk '{print $1}')
+cleanup_remote_part() {
+	rm -f "$REMOTE_ZIP_PART"
+}
+trap cleanup_remote_part EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+EFFECTIVE_URL=$(curl --fail --location --silent --show-error \
+	--proto '=https' --proto-redir '=https' --tlsv1.2 \
+	--output "$REMOTE_ZIP_PART" --write-out '%{url_effective}' "$URL")
+python3 - "$EFFECTIVE_URL" <<'PY'
+import sys
+import urllib.parse
+
+url = urllib.parse.urlsplit(sys.argv[1])
+allowed_hosts = {
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+}
+if url.scheme != "https" or url.hostname not in allowed_hosts:
+    raise SystemExit(f"error: release download redirected to an unapproved origin: {url.scheme}://{url.hostname}")
+if url.username is not None or url.password is not None or url.port not in (None, 443):
+    raise SystemExit("error: release download effective URL contains forbidden authority components")
+PY
+if [ ! -f "$REMOTE_ZIP_PART" ] || [ -L "$REMOTE_ZIP_PART" ]; then
+	printf 'error: remote download did not produce a regular temporary ZIP\n' >&2
+	exit 1
+fi
+ACTUAL_SHA256=$(shasum -a 256 "$REMOTE_ZIP_PART" | awk '{print $1}')
 if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
 	printf 'error: downloaded XCFramework ZIP SHA-256 does not match release evidence\n' >&2
 	exit 1
 fi
-ACTUAL_CHECKSUM=$(swift package compute-checksum "$REMOTE_ZIP")
+ACTUAL_CHECKSUM=$(swift package compute-checksum "$REMOTE_ZIP_PART")
 if [ "$ACTUAL_CHECKSUM" != "$CHECKSUM" ]; then
 	printf 'error: downloaded XCFramework SwiftPM checksum does not match release evidence\n' >&2
 	exit 1
 fi
 PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-	--artifact "$REMOTE_ZIP" --require-signature
+	--artifact "$REMOTE_ZIP_PART" --require-signature
+mv "$REMOTE_ZIP_PART" "$REMOTE_ZIP"
 ditto -x -k "$REMOTE_ZIP" "$REMOTE_EXTRACT"
 codesign --verify --strict --verbose=4 "$REMOTE_EXTRACT/CQPeriapt.xcframework"
 

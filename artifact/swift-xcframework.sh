@@ -2,18 +2,12 @@
 # Build and verify the SwiftPM binaryTarget/XCFramework release surface.
 #
 # Ordinary invocation is the credential-free pre-publication gate. The dedicated
-# swift-xcframework-release.sh wrapper may select the internal signed/notarized mode
+# swift-xcframework-release.sh wrapper may select the internal signed mode
 # from a fixed detached source commit. Both paths prove an isolated SwiftPM consumer
 # can import the wrapper without development linker flags or repo-local library paths.
 set -eu
 
 unset CDPATH
-# Capture and de-export the private profile before even the Python environment
-# bootstrap can start a child process.  The explicit unset also clears any
-# export attribute inherited for the local destination name.
-unset NOTARY_KEYCHAIN_PROFILE
-NOTARY_KEYCHAIN_PROFILE=${QPERIAPT_INTERNAL_NOTARY_KEYCHAIN_PROFILE:-}
-unset QPERIAPT_INTERNAL_NOTARY_KEYCHAIN_PROFILE
 if [ "${GIT_DIR+x}" = "x" ] || \
 	[ "${GIT_WORK_TREE+x}" = "x" ] || \
 	[ "${GIT_COMMON_DIR+x}" = "x" ] || \
@@ -117,13 +111,9 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	need codesign
 	need ditto
 	need openssl
-	need security
-	need xcrun
-		if [ -z "${QPERIAPT_INTERNAL_APPLE_EXPECTED_TEAM_ID:-}" ] || \
+	if [ -z "${QPERIAPT_INTERNAL_APPLE_EXPECTED_TEAM_ID:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_IDENTITY_SHA1:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_CERTIFICATE_SHA256:-}" ] || \
-			[ -z "$NOTARY_KEYCHAIN_PROFILE" ] || \
-			[ -z "${QPERIAPT_INTERNAL_NOTARY_STATE_DIR:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT:-}" ]; then
 			printf 'error: credentialed Apple release inputs are incomplete\n' >&2
@@ -229,44 +219,8 @@ SHA256SUMS="$DIST/SHA256SUMS"
 CONSUMER_LOG="$OUT_ROOT/swift-binary-consumer.log"
 APPLE_CONSUMER_EVIDENCE="$OUT_ROOT/apple-consumer-evidence"
 SIGNING_EVIDENCE="$WORK/apple-signing.json"
-if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-	NOTARY_WORK=$QPERIAPT_INTERNAL_NOTARY_STATE_DIR
-	require_under_target "$NOTARY_WORK" "QPERIAPT_INTERNAL_NOTARY_STATE_DIR"
-	python3 - "$OUT_ROOT" "$NOTARY_WORK" <<'PY'
-import pathlib
-import sys
-
-output = pathlib.Path(sys.argv[1]).resolve()
-state = pathlib.Path(sys.argv[2]).resolve()
-try:
-    state.relative_to(output)
-except ValueError:
-    pass
-else:
-    raise SystemExit("error: durable notary state must be outside the disposable build output")
-PY
-else
-	NOTARY_WORK="$OUT_ROOT/notary-private"
-fi
-NOTARIZATION="$DIST/NOTARIZATION.json"
-PREPARED_STATE="$NOTARY_WORK/prepared.json"
-SUBMISSION_STATE="$NOTARY_WORK/submission-state.json"
-SUBMIT_CAPTURE="$NOTARY_WORK/submit.capture.json"
-RESUME_SUBMISSION_ID=${QPERIAPT_INTERNAL_NOTARY_SUBMISSION_ID:-}
+APPLE_DISTRIBUTION="$DIST/APPLE_DISTRIBUTION.json"
 required_targets="aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios"
-
-if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-	if [ -z "$RESUME_SUBMISSION_ID" ] && [ -e "$NOTARY_WORK" ]; then
-		printf 'error: refusing a new submission because a durable notary state ledger already exists\n' >&2
-		exit 1
-	fi
-	if [ -n "$RESUME_SUBMISSION_ID" ] && [ ! -d "$NOTARY_WORK" ]; then
-		printf 'error: notary resume requires the preserved durable state ledger\n' >&2
-		exit 1
-	fi
-fi
-
-if [ -z "$RESUME_SUBMISSION_ID" ]; then
 mkdir -p "$ROOT/target"
 tmp_header=$(mktemp "$ROOT/target/qperiapt-swift-xcframework-header.XXXXXX.h")
 
@@ -502,7 +456,6 @@ test -f "$ZIP_PATH" || {
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
 		--artifact "$ZIP_PATH" --require-signature
-# BEGIN_NOTARY_RESUME_VALIDATION
 else
 	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
 		--artifact "$ZIP_PATH"
@@ -595,304 +548,25 @@ QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME="$APPLE_RELEASE_MODE" \
 sh artifact/swift-xcframework-consumer-check.sh \
 	"$CONSUMER" "$APPLE_CONSUMER_EVIDENCE" "$CONSUMER_XCFRAMEWORK"
 
-else
-	if [ "$APPLE_RELEASE_MODE" != "1" ]; then
-		printf 'error: notary UUID resume is available only in credentialed Apple release mode\n' >&2
-		exit 2
-	fi
-	assert_release_source_snapshot
-	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-submission-id \
-		--submission-id "$RESUME_SUBMISSION_ID" >/dev/null
-	for required_path in "$XCFRAMEWORK" "$ZIP_PATH" "$SIGNING_EVIDENCE" "$PREPARED_STATE" "$SUBMIT_CAPTURE" "$CONSUMER_LOG" "$APPLE_CONSUMER_EVIDENCE"; do
-		if [ ! -e "$required_path" ]; then
-			printf 'error: notary resume lacks preserved release input: %s\n' "$required_path" >&2
-			exit 1
-		fi
-	done
-
-	RESUME_WORK="$OUT_ROOT/resume-validation"
-	RESUME_VERIFY="$RESUME_WORK/zip-verify"
-	RESUME_DISPLAY="$RESUME_WORK/codesign-display.txt"
-	RESUME_CERTIFICATE_PREFIX="$RESUME_WORK/signing-certificate-"
-	RESUME_SIGNING_EVIDENCE="$RESUME_WORK/signing-evidence.json"
-	SUBMIT_CAPTURE_PARSE_ERROR="$RESUME_WORK/submit-capture-parse-error.txt"
-	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-		--artifact "$ZIP_PATH" --require-signature
-	rm -rf "$RESUME_WORK"
-	mkdir -p "$RESUME_VERIFY"
-	ditto -x -k "$ZIP_PATH" "$RESUME_VERIFY"
-	codesign --verify --strict --verbose=4 "$RESUME_VERIFY/CQPeriapt.xcframework"
-	codesign --display --verbose=4 \
-		--extract-certificates="$RESUME_CERTIFICATE_PREFIX" \
-		"$RESUME_VERIFY/CQPeriapt.xcframework" >"$RESUME_DISPLAY" 2>&1
-	test -f "${RESUME_CERTIFICATE_PREFIX}0" || {
-		printf 'error: resumed ZIP does not expose its leaf signing certificate\n' >&2
-		exit 1
-	}
-	chmod 600 "$RESUME_DISPLAY" "${RESUME_CERTIFICATE_PREFIX}"*
-	PYTHONPATH=artifact python3 artifact/apple_distribution.py signing-evidence \
-		--xcframework "$RESUME_VERIFY/CQPeriapt.xcframework" \
-		--codesign-display "$RESUME_DISPLAY" \
-		--certificate "${RESUME_CERTIFICATE_PREFIX}0" \
-		--expected-team-id "$QPERIAPT_INTERNAL_APPLE_EXPECTED_TEAM_ID" \
-		--expected-identity-sha1 "$QPERIAPT_INTERNAL_APPLE_IDENTITY_SHA1" \
-		--expected-certificate-sha256 "$QPERIAPT_INTERNAL_APPLE_CERTIFICATE_SHA256" \
-		--output "$RESUME_SIGNING_EVIDENCE"
-	cmp "$SIGNING_EVIDENCE" "$RESUME_SIGNING_EVIDENCE"
-	if grep -Eiq '(^|[^A-Za-z])(warning|error):' "$CONSUMER_LOG" || \
-		! grep -q 'Executed 3 tests, with 0 failures' "$CONSUMER_LOG"; then
-		printf 'error: preserved Swift binary consumer evidence is incomplete or warning-bearing\n' >&2
-		exit 1
-	fi
-	QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME=1 \
-	sh artifact/swift-xcframework-consumer-check.sh \
-		"$CONSUMER" "$APPLE_CONSUMER_EVIDENCE" "$RESUME_VERIFY/CQPeriapt.xcframework" \
-		--validate-only
-
-	if [ ! -e "$SUBMISSION_STATE" ]; then
-		set +e
-		CAPTURED_SUBMISSION_ID=$(PYTHONPATH=artifact python3 artifact/apple_distribution.py \
-			submission-id --submit "$SUBMIT_CAPTURE" 2>"$SUBMIT_CAPTURE_PARSE_ERROR")
-		capture_parse_rc=$?
-		set -e
-		chmod 600 "$SUBMIT_CAPTURE_PARSE_ERROR"
-		if [ "$capture_parse_rc" -eq 0 ]; then
-			if [ "$CAPTURED_SUBMISSION_ID" != "$RESUME_SUBMISSION_ID" ]; then
-				printf 'error: captured submit response UUID differs from the explicit resume UUID\n' >&2
-				exit 1
-			fi
-			PYTHONPATH=artifact python3 artifact/apple_distribution.py submission-state \
-				--prepared "$PREPARED_STATE" \
-				--artifact "$ZIP_PATH" \
-				--submit "$SUBMIT_CAPTURE" \
-				--signing-evidence "$SIGNING_EVIDENCE" \
-				--source-commit "$SOURCE_COMMIT" \
-				--output "$SUBMISSION_STATE"
-		else
-			PYTHONPATH=artifact python3 artifact/apple_distribution.py recover-submission-state \
-				--prepared "$PREPARED_STATE" \
-				--artifact "$ZIP_PATH" \
-				--submit-capture "$SUBMIT_CAPTURE" \
-				--signing-evidence "$SIGNING_EVIDENCE" \
-				--source-commit "$SOURCE_COMMIT" \
-				--submission-id "$RESUME_SUBMISSION_ID" \
-				--output "$SUBMISSION_STATE"
-		fi
-	fi
-	SUBMISSION_PROVENANCE=$(PYTHONPATH=artifact python3 artifact/apple_distribution.py \
-		submission-state-provenance --state "$SUBMISSION_STATE")
-	case "$SUBMISSION_PROVENANCE" in
-		notarytool_submit_response)
-			SUBMISSION_ID=$(PYTHONPATH=artifact python3 artifact/apple_distribution.py \
-				validate-submission-state \
-				--prepared "$PREPARED_STATE" \
-				--state "$SUBMISSION_STATE" \
-				--artifact "$ZIP_PATH" \
-				--submit "$SUBMIT_CAPTURE" \
-				--signing-evidence "$SIGNING_EVIDENCE" \
-				--submission-id "$RESUME_SUBMISSION_ID" \
-				--source-commit "$SOURCE_COMMIT")
-			;;
-		explicit_uuid_recovery)
-			SUBMISSION_ID=$(PYTHONPATH=artifact python3 artifact/apple_distribution.py \
-				validate-submission-state \
-				--prepared "$PREPARED_STATE" \
-				--state "$SUBMISSION_STATE" \
-				--artifact "$ZIP_PATH" \
-				--submit-capture "$SUBMIT_CAPTURE" \
-				--signing-evidence "$SIGNING_EVIDENCE" \
-				--submission-id "$RESUME_SUBMISSION_ID" \
-				--source-commit "$SOURCE_COMMIT")
-			;;
-		*)
-			printf 'error: unsupported notary submission provenance: %s\n' "$SUBMISSION_PROVENANCE" >&2
-			exit 1
-			;;
-	esac
-	SWIFTPM_CHECKSUM=$(swift package compute-checksum "$ZIP_PATH")
-	rm -f "$NOTARIZATION" "$MANIFEST" "$SHA256SUMS"
-	printf 'SWIFT_XCFRAMEWORK_NOTARY_RESUME_INPUT_PASS submission=%s\n' "$SUBMISSION_ID"
-fi
-# END_NOTARY_RESUME_VALIDATION
 
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-	printf '\n=== Apple notarization ===\n'
+	printf '\n=== Apple static SDK distribution evidence ===\n'
 	assert_release_source_snapshot
-	ZIP_SHA256_BEFORE=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
-	old_umask=$(umask)
-	umask 077
-	ACTIVE_SUBMISSION_ID=
-	NOTARY_ATTEMPT_PREPARED=0
-	NOTARY_COMPLETE=0
-# BEGIN_NOTARY_TRAP_FUNCTIONS
-	notary_release_cleanup() {
-		rc=$1
-		umask "$old_umask"
-		if [ -n "${tmp_header:-}" ]; then
-			rm -f "$tmp_header"
-		fi
-		if [ "$rc" -ne 0 ] && [ "$NOTARY_COMPLETE" -ne 1 ]; then
-			if [ -n "$ACTIVE_SUBMISSION_ID" ]; then
-				printf 'hint : resume only this preserved submission with QPERIAPT_NOTARY_SUBMISSION_ID=%s\n' \
-					"$ACTIVE_SUBMISSION_ID" >&2
-			elif [ "$NOTARY_ATTEMPT_PREPARED" -eq 1 ]; then
-				printf 'error: notary submission outcome may be uncertain; never submit this artifact again\n' >&2
-				printf 'hint : identify its UUID in Apple notary history, then resume with an explicit QPERIAPT_NOTARY_SUBMISSION_ID\n' >&2
-			fi
-		fi
-		trap - EXIT INT TERM
-		exit "$rc"
-	}
-	notary_release_exit() {
-		notary_release_cleanup "$?"
-	}
-	notary_release_signal() {
-		notary_release_cleanup "$1"
-	}
-	install_notary_release_traps() {
-		trap notary_release_exit EXIT
-		trap 'notary_release_signal 130' INT
-		trap 'notary_release_signal 143' TERM
-	}
-# END_NOTARY_TRAP_FUNCTIONS
-	if [ -n "$RESUME_SUBMISSION_ID" ]; then
-		# SUBMISSION_ID and every preserved byte were validated before this block.
-		NOTARY_ATTEMPT_PREPARED=1
-		ACTIVE_SUBMISSION_ID="$SUBMISSION_ID"
-		install_notary_release_traps
-	else
-		PYTHONPATH=artifact python3 artifact/apple_distribution.py sync-release-tree \
-			--anchor-root "$QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT" \
-			--repository-root "$ROOT" \
-			--root "$OUT_ROOT" \
-			--source-commit "$SOURCE_COMMIT"
-		mkdir "$NOTARY_WORK"
-		chmod 700 "$NOTARY_WORK"
-		PYTHONPATH=artifact python3 artifact/apple_distribution.py prepared-state \
-			--artifact "$ZIP_PATH" \
-			--signing-evidence "$SIGNING_EVIDENCE" \
-			--source-commit "$SOURCE_COMMIT" \
-			--output "$PREPARED_STATE"
-		PYTHONPATH=artifact python3 artifact/apple_distribution.py prepare-submit-capture \
-			--capture "$SUBMIT_CAPTURE"
-		NOTARY_ATTEMPT_PREPARED=1
-		install_notary_release_traps
-		assert_release_source_snapshot
-		set +e
-		(
-			umask 077
-			xcrun notarytool submit "$ZIP_PATH" \
-				--keychain-profile "$NOTARY_KEYCHAIN_PROFILE" \
-				--output-format json >>"$SUBMIT_CAPTURE"
-		)
-		submit_rc=$?
-		set -e
-		PYTHONPATH=artifact python3 artifact/apple_distribution.py finalize-submit-capture \
-			--capture "$SUBMIT_CAPTURE"
-		if [ "$submit_rc" -ne 0 ]; then
-			set +e
-			ACTIVE_SUBMISSION_ID=$(PYTHONPATH=artifact python3 artifact/apple_distribution.py \
-				submission-id --submit "$SUBMIT_CAPTURE" \
-				2>"$NOTARY_WORK/submit-capture-parse-error.txt")
-			capture_parse_rc=$?
-			set -e
-			chmod 600 "$NOTARY_WORK/submit-capture-parse-error.txt"
-			if [ "$capture_parse_rc" -ne 0 ]; then
-				ACTIVE_SUBMISSION_ID=
-			fi
-			printf 'error: notarytool submit returned a nonzero status after the durable attempt began (exit=%s)\n' \
-				"$submit_rc" >&2
-			exit 1
-		fi
-		SUBMISSION_ID=$(PYTHONPATH=artifact python3 artifact/apple_distribution.py \
-			submission-id --submit "$SUBMIT_CAPTURE")
-		ACTIVE_SUBMISSION_ID="$SUBMISSION_ID"
-		PYTHONPATH=artifact python3 artifact/apple_distribution.py submission-state \
-			--prepared "$PREPARED_STATE" \
-			--artifact "$ZIP_PATH" \
-			--submit "$SUBMIT_CAPTURE" \
-			--signing-evidence "$SIGNING_EVIDENCE" \
-			--source-commit "$SOURCE_COMMIT" \
-			--output "$SUBMISSION_STATE"
-		SUBMISSION_PROVENANCE=notarytool_submit_response
-		printf 'SWIFT_XCFRAMEWORK_NOTARY_SUBMITTED submission=%s\n' "$SUBMISSION_ID"
-	fi
-
-	TERMINAL_WORK=$(mktemp -d "$NOTARY_WORK/terminal.XXXXXX")
-	chmod 700 "$TERMINAL_WORK"
-	WAIT_JSON="$TERMINAL_WORK/wait.json"
-	INFO_JSON="$TERMINAL_WORK/info.json"
-	LOG_JSON="$TERMINAL_WORK/log.json"
-	set +e
-	xcrun notarytool wait "$SUBMISSION_ID" \
-		--keychain-profile "$NOTARY_KEYCHAIN_PROFILE" \
-		--timeout 30m \
-		--output-format json >"$WAIT_JSON"
-	wait_rc=$?
-	xcrun notarytool info "$SUBMISSION_ID" \
-		--keychain-profile "$NOTARY_KEYCHAIN_PROFILE" \
-		--output-format json >"$INFO_JSON"
-	info_rc=$?
-	xcrun notarytool log "$SUBMISSION_ID" "$LOG_JSON" \
-		--keychain-profile "$NOTARY_KEYCHAIN_PROFILE"
-	log_rc=$?
-	set -e
-	for terminal_evidence in "$WAIT_JSON" "$INFO_JSON" "$LOG_JSON"; do
-		if [ -e "$terminal_evidence" ]; then
-			chmod 600 "$terminal_evidence"
-		fi
-	done
-	if [ "$wait_rc" -ne 0 ] || [ "$info_rc" -ne 0 ] || [ "$log_rc" -ne 0 ]; then
-		printf 'error: notary submission %s did not yield complete terminal evidence (wait=%s info=%s log=%s)\n' \
-			"$SUBMISSION_ID" "$wait_rc" "$info_rc" "$log_rc" >&2
-		exit 1
-	fi
-
-	case "$SUBMISSION_PROVENANCE" in
-		notarytool_submit_response)
-			PYTHONPATH=artifact python3 artifact/apple_distribution.py notarization-evidence \
-				--artifact "$ZIP_PATH" \
-				--submission-id "$SUBMISSION_ID" \
-				--prepared "$PREPARED_STATE" \
-				--state "$SUBMISSION_STATE" \
-				--source-commit "$SOURCE_COMMIT" \
-				--submit "$SUBMIT_CAPTURE" \
-				--info "$INFO_JSON" \
-				--log "$LOG_JSON" \
-				--signing-evidence "$SIGNING_EVIDENCE" \
-				--output "$NOTARIZATION"
-			;;
-		explicit_uuid_recovery)
-			PYTHONPATH=artifact python3 artifact/apple_distribution.py notarization-evidence \
-				--artifact "$ZIP_PATH" \
-				--submission-id "$SUBMISSION_ID" \
-				--prepared "$PREPARED_STATE" \
-				--state "$SUBMISSION_STATE" \
-				--source-commit "$SOURCE_COMMIT" \
-				--submit-capture "$SUBMIT_CAPTURE" \
-				--info "$INFO_JSON" \
-				--log "$LOG_JSON" \
-				--signing-evidence "$SIGNING_EVIDENCE" \
-				--output "$NOTARIZATION"
-			;;
-		*)
-			printf 'error: unsupported notary evidence provenance: %s\n' "$SUBMISSION_PROVENANCE" >&2
-			exit 1
-			;;
-	esac
-	umask "$old_umask"
-	ZIP_SHA256_AFTER=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
-	if [ "$ZIP_SHA256_BEFORE" != "$ZIP_SHA256_AFTER" ]; then
-		printf 'error: XCFramework ZIP changed during notarization\n' >&2
-		exit 1
-	fi
+	PYTHONPATH=artifact python3 artifact/apple_distribution.py apple-distribution-evidence \
+		--artifact "$ZIP_PATH" \
+		--source-commit "$SOURCE_COMMIT" \
+		--swiftpm-checksum "$SWIFTPM_CHECKSUM" \
+		--signing-evidence "$SIGNING_EVIDENCE" \
+		--output "$APPLE_DISTRIBUTION"
+	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
+		--artifact "$ZIP_PATH" --require-signature
 	assert_release_source_snapshot
-	printf 'SWIFT_XCFRAMEWORK_NOTARIZATION_PASS submission=%s\n' "$SUBMISSION_ID"
+	printf 'SWIFT_XCFRAMEWORK_SIGNED_STATIC_DISTRIBUTION_PASS\n'
 fi
 
 printf '\n=== Release manifest ===\n'
 assert_release_source_snapshot
-python3 - "$ROOT" "$DIST" "$VERSION" "$SWIFTPM_CHECKSUM" "$required_targets" "$MANIFEST" "$APPLE_RELEASE_MODE" "$SIGNING_EVIDENCE" "$NOTARIZATION" "$SOURCE_COMMIT" "$CONSUMER_LOG" "$APPLE_CONSUMER_EVIDENCE" <<'PY'
+python3 - "$ROOT" "$DIST" "$VERSION" "$SWIFTPM_CHECKSUM" "$required_targets" "$MANIFEST" "$APPLE_RELEASE_MODE" "$APPLE_DISTRIBUTION" "$SOURCE_COMMIT" "$CONSUMER_LOG" "$APPLE_CONSUMER_EVIDENCE" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -907,11 +581,10 @@ swiftpm_checksum = sys.argv[4]
 targets = sys.argv[5].split()
 manifest_path = pathlib.Path(sys.argv[6]).resolve()
 apple_release_mode = sys.argv[7] == "1"
-signing_evidence_path = pathlib.Path(sys.argv[8]).resolve()
-notarization_path = pathlib.Path(sys.argv[9]).resolve()
-source_commit = sys.argv[10]
-consumer_log = pathlib.Path(sys.argv[11]).resolve()
-apple_consumer_evidence = pathlib.Path(sys.argv[12]).resolve()
+apple_distribution_path = pathlib.Path(sys.argv[8]).resolve()
+source_commit = sys.argv[9]
+consumer_log = pathlib.Path(sys.argv[10]).resolve()
+apple_consumer_evidence = pathlib.Path(sys.argv[11]).resolve()
 
 def sha(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -978,7 +651,7 @@ if len(export_names) != 9 or len(set(export_names)) != 9:
 exports_digest = hashlib.sha256(("\n".join(export_names) + "\n").encode("utf-8")).hexdigest()
 
 manifest = {
-    "schema_version": 2,
+    "schema_version": 3,
     "kind": "qperiapt.swift_xcframework_manifest",
     "package": "q-periapt-swift",
     "version": version,
@@ -1076,7 +749,8 @@ manifest = {
         "contains_device_udid": False,
         "requires_clean_tree_for_release": True,
         "distribution_signed": apple_release_mode,
-        "notarized": apple_release_mode,
+        "notarization_applicability": "not_applicable_static_sdk_payload",
+        "notarized": False,
         "stapled": False,
         "consumer_distribution_responsibilities": {
             "macos": {
@@ -1085,19 +759,37 @@ manifest = {
             },
             "ios": {
                 "requires_final_app_signing_and_provisioning": True,
-                "notarized_by_this_sdk_submission": False,
+                "sdk_notarization_applicable": False,
             },
         },
     },
 }
 if apple_release_mode:
-    signing_evidence = json.loads(signing_evidence_path.read_text(encoding="utf-8"))
-    notarization = json.loads(notarization_path.read_text(encoding="utf-8"))
-    manifest["distribution_signature"] = signing_evidence
-    manifest["notarization"] = notarization
-    manifest["artifacts"]["notarization_evidence"] = {
-        "path": "NOTARIZATION.json",
-        "sha256": sha(notarization_path),
+    distribution = json.loads(apple_distribution_path.read_text(encoding="utf-8"))
+    if distribution.get("kind") != "qperiapt.apple_static_xcframework_distribution":
+        raise SystemExit("error: Apple distribution evidence has the wrong kind")
+    if distribution.get("source_commit") != source_commit:
+        raise SystemExit("error: Apple distribution evidence source commit mismatch")
+    if distribution.get("artifact") != {
+        "path": "CQPeriapt.xcframework.zip",
+        "size": (dist / "CQPeriapt.xcframework.zip").stat().st_size,
+        "sha256": sha(dist / "CQPeriapt.xcframework.zip"),
+        "swiftpm_checksum": swiftpm_checksum,
+    }:
+        raise SystemExit("error: Apple distribution evidence artifact binding mismatch")
+    if distribution.get("notarization") != {
+        "applicability": "not_applicable_static_sdk_payload",
+        "submission_performed": False,
+        "ticket_expected": False,
+        "ticket_generated": False,
+        "notarized": False,
+        "stapled": False,
+        "reason_code": "static_xcframework_contains_no_standalone_executable_or_notarizable_bundle",
+    }:
+        raise SystemExit("error: Apple distribution evidence has unsafe notarization semantics")
+    manifest["artifacts"]["apple_distribution_evidence"] = {
+        "path": "APPLE_DISTRIBUTION.json",
+        "sha256": sha(apple_distribution_path),
     }
     manifest["consumer_verification"]["macos_dual_arch_runtime"] = {
         "executed_architectures": ["arm64", "x86_64"],
@@ -1123,7 +815,7 @@ PY
 	{
 		shasum -a 256 "CQPeriapt.xcframework.zip"
 		if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-			shasum -a 256 "NOTARIZATION.json"
+			shasum -a 256 "APPLE_DISTRIBUTION.json"
 		fi
 		shasum -a 256 "MANIFEST.json"
 	} >"$SHA256SUMS"
@@ -1151,9 +843,6 @@ if manifest["public_release_boundary"]["contains_raw_device_proof"]:
 print("SWIFT_XCFRAMEWORK_MANIFEST_PASS")
 PY
 
-if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-	assert_release_source_snapshot
-	NOTARY_COMPLETE=1
-fi
+assert_release_source_snapshot
 
 printf '\nSWIFT_XCFRAMEWORK_PACKAGE_PASS checksum=%s path=%s\n' "$SWIFTPM_CHECKSUM" "$ZIP_PATH"

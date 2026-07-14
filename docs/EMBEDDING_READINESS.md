@@ -37,11 +37,11 @@ release provenance.
 Credentialed Apple distribution is a separate lane: `artifact/swift-xcframework-release.sh`
 creates a detached worktree at one frozen source commit, Developer ID-signs only the outer
 XCFramework, validates warning-free final SwiftPM links and matching-architecture execution for
-both macOS `arm64` and `x86_64`, validates generic iOS device/simulator link consumers, and submits
-the exact ZIP to Apple Notary Service. A durable prepared ledger is written before the only submit;
-the validated release tree is synchronized before that ledger is created, and its UUID-bound
-recovery path reuses the original ZIP and never rebuilds, re-signs, re-zips, or submits a second
-archive. Public currentness is selected by `artifact/results.json`.
+both macOS `arm64` and `x86_64`, and validates generic iOS device/simulator link consumers. It then
+requires the exact static-only ZIP layout and emits hash-bound `APPLE_DISTRIBUTION.json` evidence.
+Because this payload has no standalone executable or notarizable bundle, notarization is recorded
+as not applicable, never as Accepted; the final consuming macOS product retains its own signing and
+notarization duty. Public currentness is selected by `artifact/results.json`.
 
 The Android AAR/JNI sub-gate also requires a clean worktree for release proof. During local
 diagnostics on an in-progress tree, set `QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1`; that mode proves local
@@ -144,7 +144,7 @@ bundles, UDIDs, or adb serials.
 |---|---|---|
 | Rust | The coordinated ten-crate set forms the release-ready `0.1.0-alpha.2` research-alpha source/crate line intended for crates.io publication. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and patched `cargo publish --dry-run`. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and portable-only build surface, then audits the normalized backend graph with the sys crate patched in. | Registry publication by itself does not establish independent signed provenance, audit the vendored C provider, or promote the crates to production. Those remain production-promotion requirements. |
 | C ABI | The release-ready research-alpha source/crate contract for `0.1.0-alpha.2` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | This release line includes no platform C archive. Before binary distribution or production promotion, every claimed platform archive and release index must be rebuilt against one source digest, independently reviewed, and bound to clean signed or transparency-backed provenance. Windows archive proof, full third-party license inventory and public install docs remain open. |
-| Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, credentialed Developer ID/notary lane, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | `artifact/results.json` decides whether a signed/notary-accepted public XCFramework is current. That Apple-only SDK ZIP is `binaryTarget` material, not a complete Git-URL Swift package or an iOS-app notarization. The consuming app retains signing/provisioning and, for macOS, notarization responsibilities. The physical iPad+iPhone evidence remains a separate same-source production gate. |
+| Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, credentialed Developer ID static-SDK lane, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | `artifact/results.json` decides whether a signed public XCFramework is current. Its exact static-only payload is not a notarizable executable/bundle and is explicitly recorded as not notarized. That Apple-only SDK ZIP is `binaryTarget` material, not a complete Git-URL Swift package. The consuming app retains signing/provisioning and, for macOS, notarization responsibilities. The physical iPad+iPhone evidence remains a separate same-source production gate. |
 | Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. | The recorded AAR predates the backend/source migration and must be rebuilt. Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
 | Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path; the current machine has Temurin JDK 22.0.2. | The JDK 22+ test gate must pass on each release source; this is host JVM only and separate from Android. |
 | WASM | Deterministic Node/WASM conformance tests and version/fixed-suite metadata remain. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
@@ -216,10 +216,10 @@ release artifact.
   host-authorized re-enrollment/reset, not an unverifiable synthetic migration. Then
   complete multi-target publishing, dependency license inventory and install docs.
 - Swift product surface: for each Apple SDK prerelease, publish and remotely re-download the exact
-  signed/notary-accepted XCFramework with URL/checksum/provenance, then verify a URL-based
+  signed static-only XCFramework with URL/checksum/provenance, then verify a URL-based
   `binaryTarget` consumer. The ZIP does not contain the Swift wrapper package; consumers must bind
   the wrapper to the same source commit. Rerun the physical iPad+iPhone matrix before production
-  promotion; SDK notarization does not replace device execution evidence.
+  promotion; the final macOS product's notarization does not replace device execution evidence.
 - Android product surface: rebuild the AAR for the migrated backend, then replace the historical, stale, pre-ABI2 emulator ART
   diagnostic with a current ABI2 runtime smoke, then promote it to clean release
   provenance, decide whether CI requires an emulator lane or whether physical Android devices are
