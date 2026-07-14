@@ -20,7 +20,12 @@ import zipfile
 import zlib
 from typing import Any, NoReturn
 
-from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot
+from evidence_io import (
+    EvidenceIOError,
+    load_json_object_snapshot,
+    parse_strict_json_bytes,
+    read_regular_snapshot,
+)
 
 
 MAX_TEXT_BYTES = 256 * 1024
@@ -32,6 +37,27 @@ MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
 BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v1"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
+RELEASE_VERSION = "0.1.0-alpha.2"
+RELEASE_TAG = f"v{RELEASE_VERSION}"
+RELEASE_URL = (
+    f"https://github.com/billlza/q-periapt/releases/tag/{RELEASE_TAG}"
+)
+XCFRAMEWORK_ZIP_NAME = "CQPeriapt.xcframework.zip"
+APPLE_DISTRIBUTION_NAME = "APPLE_DISTRIBUTION.json"
+MANIFEST_NAME = "MANIFEST.json"
+SHA256SUMS_NAME = "SHA256SUMS"
+RELEASE_CHECKSUM_MEMBERS = (
+    XCFRAMEWORK_ZIP_NAME,
+    APPLE_DISTRIBUTION_NAME,
+    MANIFEST_NAME,
+)
+EXPECTED_APPLE_TARGETS = (
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+    "x86_64-apple-ios",
+)
 EXPECTED_XCFRAMEWORK_LIBRARIES = frozenset(
     {
         "ios-arm64/libq_periapt_ffi_abi2.a",
@@ -254,6 +280,12 @@ def _require_git_commit(value: Any, label: str) -> str:
     return text
 
 
+def _require_object(value: Any, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        _fail(f"{label} must be a JSON object")
+    return value
+
+
 def _require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
     actual = set(value)
     if actual != expected:
@@ -261,6 +293,24 @@ def _require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -
             f"{label} fields differ from the release schema: "
             f"missing={sorted(expected - actual)} unknown={sorted(actual - expected)}"
         )
+
+
+def _require_exact_json(value: Any, expected: Any, label: str) -> None:
+    """Compare release semantics without allowing bool/int type confusion."""
+
+    if type(value) is not type(expected):
+        _fail(f"{label} has the wrong JSON type")
+    if isinstance(expected, dict):
+        _require_exact_keys(value, set(expected), label)
+        for key, expected_value in expected.items():
+            _require_exact_json(value[key], expected_value, f"{label}.{key}")
+    elif isinstance(expected, list):
+        if len(value) != len(expected):
+            _fail(f"{label} has the wrong list length")
+        for index, (item, expected_item) in enumerate(zip(value, expected, strict=True)):
+            _require_exact_json(item, expected_item, f"{label}[{index}]")
+    elif value != expected:
+        _fail(f"{label} has an unexpected value")
 
 
 def _json_bytes(value: dict[str, Any]) -> bytes:
@@ -1285,8 +1335,29 @@ def _validate_signing_evidence(evidence: dict[str, Any]) -> None:
     )
     if signature["identity_class"] != EXPECTED_IDENTITY_CLASS:
         _fail("signature identity class is not Developer ID Application")
-    if not TEAM_ID.fullmatch(_require_string(signature["team_id"], "signature Team ID")):
+    authority = _require_string(signature["authority"], "signature authority")
+    authority_chain = signature["authority_chain"]
+    if (
+        not isinstance(authority_chain, list)
+        or len(authority_chain) < 3
+        or any(not isinstance(item, str) or not item for item in authority_chain)
+        or authority_chain[0] != authority
+        or not authority.startswith(f"{EXPECTED_IDENTITY_CLASS}:")
+        or "Developer ID Certification Authority" not in authority_chain[1:]
+        or "Apple Root CA" not in authority_chain[1:]
+    ):
+        _fail("signature authority chain is not the exact Developer ID trust chain")
+    team_id = _require_string(signature["team_id"], "signature Team ID")
+    if not TEAM_ID.fullmatch(team_id):
         _fail("signature Team ID is invalid")
+    if team_id not in authority:
+        _fail("signature authority does not contain the declared Team ID")
+    if (
+        signature["identifier"] != "CQPeriapt"
+        or signature["format"] != "bundle"
+        or not _require_string(signature["secure_timestamp"], "signature timestamp")
+    ):
+        _fail("signature identifier, format, or timestamp is invalid")
     if not HEX_40.fullmatch(_require_string(signature["cdhash"], "signature CDHash")):
         _fail("signature CDHash is invalid")
     if signature["hardened_runtime"] is not False or signature["code_directory_flags"] != "none" or signature["strict_verification"] is not True:
@@ -1296,7 +1367,17 @@ def _validate_signing_evidence(evidence: dict[str, Any]) -> None:
         {"sha1", "sha256", "subject", "issuer", "serial", "notBefore", "notAfter"},
         "certificate evidence",
     )
+    if not HEX_40.fullmatch(_require_string(certificate["sha1"], "certificate SHA-1")):
+        _fail("certificate SHA-1 is invalid")
     _require_sha256(certificate["sha256"], "certificate SHA-256")
+    for key in ("subject", "issuer", "serial", "notBefore", "notAfter"):
+        _require_string(certificate[key], f"certificate {key}")
+    if (
+        EXPECTED_IDENTITY_CLASS not in certificate["subject"]
+        or team_id not in certificate["subject"]
+        or "Developer ID Certification Authority" not in certificate["issuer"]
+    ):
+        _fail("certificate identity does not match the Developer ID signature")
     _require_exact_keys(
         sealed, {"code_resources_sha256", "static_libraries"}, "sealed resources"
     )
@@ -1392,6 +1473,754 @@ def build_static_xcframework_distribution_evidence(
     }
 
 
+def _strict_json_object(data: bytes, *, label: str) -> dict[str, Any]:
+    value = parse_strict_json_bytes(data, label=label)
+    if not isinstance(value, dict):
+        _fail(f"{label} root must be a JSON object")
+    return value
+
+
+def _release_expectations_from_results(
+    results_manifest: pathlib.Path,
+) -> tuple[dict[str, Any], str]:
+    results_snapshot = load_json_object_snapshot(
+        results_manifest,
+        maximum=MAX_TEXT_BYTES,
+        label="trusted release results manifest",
+    )
+    swift_xcframework = _require_object(
+        results_snapshot.value.get("swift_xcframework"),
+        "trusted results swift_xcframework",
+    )
+    distribution = _require_object(
+        swift_xcframework.get("distribution"),
+        "trusted results Swift distribution",
+    )
+    _require_exact_keys(
+        distribution,
+        {
+            "apple_distribution_evidence_sha256",
+            "artifact_path",
+            "artifact_sha256",
+            "artifact_size",
+            "checksums_sha256",
+            "distribution_signed",
+            "immutable_release",
+            "manifest_sha256",
+            "notarization_applicability",
+            "notarized",
+            "origin_signature_certificate_sha256",
+            "origin_signature_identity_class",
+            "origin_signature_team_id",
+            "public_release",
+            "release_tag",
+            "release_url",
+            "remote_consumer_verified",
+            "remote_verification",
+            "source_commit",
+            "stapled",
+            "swiftpm_checksum",
+            "version",
+        },
+        "trusted results Swift distribution",
+    )
+    _require_exact_json(
+        distribution["artifact_path"],
+        XCFRAMEWORK_ZIP_NAME,
+        "trusted results artifact path",
+    )
+    _require_exact_json(
+        distribution["version"], RELEASE_VERSION, "trusted results release version"
+    )
+    _require_git_commit(distribution["source_commit"], "trusted results source commit")
+    if type(distribution["artifact_size"]) is not int or distribution["artifact_size"] <= 0:
+        _fail("trusted results artifact size must be a positive integer")
+    for key in (
+        "artifact_sha256",
+        "swiftpm_checksum",
+        "apple_distribution_evidence_sha256",
+        "manifest_sha256",
+        "checksums_sha256",
+        "origin_signature_certificate_sha256",
+    ):
+        _require_sha256(distribution[key], f"trusted results {key}")
+    _require_exact_json(
+        distribution["distribution_signed"], True, "trusted results signed state"
+    )
+    _require_exact_json(
+        distribution["immutable_release"],
+        True,
+        "trusted results immutable release state",
+    )
+    _require_exact_json(
+        distribution["release_tag"], RELEASE_TAG, "trusted results release tag"
+    )
+    _require_exact_json(
+        distribution["release_url"], RELEASE_URL, "trusted results release URL"
+    )
+    _require_exact_json(
+        distribution["notarization_applicability"],
+        "not_applicable_static_sdk_payload",
+        "trusted results notarization applicability",
+    )
+    _require_exact_json(
+        distribution["notarized"], False, "trusted results notarized state"
+    )
+    _require_exact_json(distribution["stapled"], False, "trusted results stapled state")
+    _require_exact_json(
+        distribution["origin_signature_identity_class"],
+        EXPECTED_IDENTITY_CLASS,
+        "trusted results signature identity class",
+    )
+    team_id = _require_string(
+        distribution["origin_signature_team_id"], "trusted results signature Team ID"
+    )
+    if not TEAM_ID.fullmatch(team_id):
+        _fail("trusted results signature Team ID is invalid")
+    for key in ("public_release", "remote_consumer_verified"):
+        if type(distribution[key]) is not bool:
+            _fail(f"trusted results {key} must be a boolean")
+    remote_verification = _require_object(
+        distribution["remote_verification"],
+        "trusted results remote verification",
+    )
+    _require_exact_keys(
+        remote_verification,
+        {"log_sha256", "verified_at", "verifier_commit"},
+        "trusted results remote verification",
+    )
+    if distribution["remote_consumer_verified"]:
+        if not distribution["public_release"]:
+            _fail("trusted remote verification requires a public release")
+        _require_sha256(
+            remote_verification["log_sha256"],
+            "trusted remote verification log SHA-256",
+        )
+        _require_git_commit(
+            remote_verification["verifier_commit"],
+            "trusted remote verifier commit",
+        )
+        verified_at = _require_string(
+            remote_verification["verified_at"],
+            "trusted remote verification time",
+        )
+        if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", verified_at) is None:
+            _fail("trusted remote verification time must be UTC RFC 3339 seconds")
+    elif any(value is not None for value in remote_verification.values()):
+        _fail("unverified remote release must not carry verification evidence")
+    if distribution["artifact_sha256"].lower() != distribution["swiftpm_checksum"].lower():
+        _fail("trusted results SwiftPM checksum differs from the artifact SHA-256")
+    return distribution, results_snapshot.file.sha256
+
+
+def _zip_regular_entry_hash(data: bytes, name: str) -> str:
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        return hashlib.sha256(archive.read(name)).hexdigest()
+
+
+def _validate_release_distribution_evidence(
+    evidence: dict[str, Any],
+    *,
+    artifact_size: int,
+    artifact_sha256: str,
+    swiftpm_checksum: str,
+    source_commit: str,
+    zip_data: bytes,
+    expected_team_id: str,
+    expected_certificate_sha256: str,
+) -> None:
+    _require_exact_keys(
+        evidence,
+        {
+            "schema_version",
+            "kind",
+            "source_commit",
+            "artifact",
+            "format",
+            "path_hygiene",
+            "origin_signature",
+            "notarization",
+            "consumer_responsibilities",
+        },
+        "Apple distribution evidence",
+    )
+    _require_exact_json(evidence["schema_version"], 2, "Apple distribution schema")
+    _require_exact_json(
+        evidence["kind"],
+        "qperiapt.apple_static_xcframework_distribution",
+        "Apple distribution kind",
+    )
+    if _require_git_commit(
+        evidence["source_commit"], "Apple distribution source commit"
+    ) != source_commit:
+        _fail("Apple distribution source commit does not match the expected release")
+
+    artifact = _require_object(evidence["artifact"], "Apple distribution artifact")
+    _require_exact_keys(
+        artifact, {"path", "size", "sha256", "swiftpm_checksum"}, "Apple artifact"
+    )
+    if artifact["path"] != XCFRAMEWORK_ZIP_NAME:
+        _fail("Apple distribution artifact path is not the fixed release ZIP name")
+    if type(artifact["size"]) is not int or artifact["size"] <= 0:
+        _fail("Apple distribution artifact size must be a positive integer")
+    if artifact["size"] != artifact_size:
+        _fail("Apple distribution artifact size does not match the release ZIP")
+    if _require_sha256(artifact["sha256"], "Apple artifact SHA-256") != artifact_sha256:
+        _fail("Apple distribution artifact SHA-256 does not match the release ZIP")
+    if (
+        _require_sha256(artifact["swiftpm_checksum"], "Apple SwiftPM checksum")
+        != swiftpm_checksum
+    ):
+        _fail("Apple distribution SwiftPM checksum does not match the release ZIP")
+
+    _require_exact_json(
+        evidence["format"],
+        {
+            "container": "xcframework",
+            "distribution": "swiftpm_remote_binary_target",
+            "linkage": "static",
+            "archive_entry_count": len(_expected_archive_entries(True)),
+            "static_archive_count": len(EXPECTED_XCFRAMEWORK_LIBRARIES),
+            "standalone_executable_count": 0,
+        },
+        "Apple distribution format",
+    )
+    _require_exact_json(
+        evidence["path_hygiene"],
+        {
+            "policy": BUILD_PATH_HYGIENE_POLICY,
+            "artifact_scan": {
+                "scope": "all_decompressed_regular_zip_entries",
+                "forbidden_match_count": 0,
+            },
+            "synthetic_build_path_prefix": SYNTHETIC_BUILD_PATH_PREFIX,
+            "allowed_upstream_toolchain_path_rules": [
+                "rust_distributed_compiler_builtins_members_v1"
+            ],
+        },
+        "Apple distribution path hygiene",
+    )
+    _require_exact_json(
+        evidence["notarization"],
+        {
+            "applicability": "not_applicable_static_sdk_payload",
+            "submission_performed": False,
+            "ticket_expected": False,
+            "ticket_generated": False,
+            "notarized": False,
+            "stapled": False,
+            "reason_code": (
+                "static_xcframework_contains_no_standalone_executable_or_"
+                "notarizable_bundle"
+            ),
+        },
+        "Apple distribution notarization",
+    )
+    _require_exact_json(
+        evidence["consumer_responsibilities"],
+        {
+            "macos_final_product": ["sign", "notarize"],
+            "ios_final_product": ["sign", "provision"],
+        },
+        "Apple distribution consumer responsibilities",
+    )
+
+    signing = _require_object(
+        evidence["origin_signature"], "Apple origin signature evidence"
+    )
+    _validate_signing_evidence(signing)
+    if signing["signature"]["team_id"] != expected_team_id:
+        _fail("Apple signature Team ID differs from the trusted release results")
+    if (
+        signing["certificate"]["sha256"].lower()
+        != expected_certificate_sha256.lower()
+    ):
+        _fail("Apple signing certificate differs from the trusted release results")
+    sealed = signing["sealed_resources"]
+    if sealed["static_libraries"] != _zip_static_library_hashes(zip_data):
+        _fail("release ZIP static library hashes differ from signing evidence")
+    code_resources_sha256 = _zip_regular_entry_hash(
+        zip_data, "CQPeriapt.xcframework/_CodeSignature/CodeResources"
+    )
+    if sealed["code_resources_sha256"].lower() != code_resources_sha256:
+        _fail("release ZIP CodeResources hash differs from signing evidence")
+
+
+def _validate_release_manifest(
+    manifest: dict[str, Any],
+    *,
+    artifact_sha256: str,
+    swiftpm_checksum: str,
+    apple_distribution_sha256: str,
+    source_commit: str,
+    zip_data: bytes,
+) -> None:
+    _require_exact_keys(
+        manifest,
+        {
+            "schema_version",
+            "kind",
+            "package",
+            "version",
+            "type",
+            "git_commit",
+            "git_dirty",
+            "targets",
+            "abi",
+            "artifacts",
+            "build_path_hygiene",
+            "public_release_boundary",
+            "source_inputs",
+            "toolchain",
+            "consumer_verification",
+        },
+        "Swift XCFramework manifest",
+    )
+    for value, expected, label in (
+        (manifest["schema_version"], 4, "manifest schema version"),
+        (manifest["kind"], "qperiapt.swift_xcframework_manifest", "manifest kind"),
+        (manifest["package"], "q-periapt-swift", "manifest package"),
+        (manifest["version"], RELEASE_VERSION, "manifest version"),
+        (
+            manifest["type"],
+            "swiftpm-binaryTarget-xcframework",
+            "manifest distribution type",
+        ),
+        (manifest["git_dirty"], False, "manifest git_dirty"),
+    ):
+        _require_exact_json(value, expected, label)
+    if _require_git_commit(manifest["git_commit"], "manifest Git commit") != source_commit:
+        _fail("manifest Git commit does not match the expected release")
+    _require_exact_json(
+        manifest["targets"], list(EXPECTED_APPLE_TARGETS), "manifest targets"
+    )
+
+    artifacts = _require_object(manifest["artifacts"], "manifest artifacts")
+    _require_exact_keys(
+        artifacts,
+        {
+            "xcframework_zip",
+            "xcframework_info_plist_sha256",
+            "apple_distribution_evidence",
+        },
+        "manifest artifacts",
+    )
+    zip_binding = _require_object(
+        artifacts["xcframework_zip"], "manifest XCFramework ZIP binding"
+    )
+    _require_exact_keys(
+        zip_binding, {"path", "sha256", "swiftpm_checksum"}, "manifest ZIP binding"
+    )
+    if zip_binding["path"] != XCFRAMEWORK_ZIP_NAME:
+        _fail("manifest ZIP path is not the fixed release ZIP name")
+    if _require_sha256(zip_binding["sha256"], "manifest ZIP SHA-256") != artifact_sha256:
+        _fail("manifest ZIP SHA-256 does not match the release ZIP")
+    if (
+        _require_sha256(zip_binding["swiftpm_checksum"], "manifest SwiftPM checksum")
+        != swiftpm_checksum
+    ):
+        _fail("manifest SwiftPM checksum does not match the release ZIP")
+    apple_binding = _require_object(
+        artifacts["apple_distribution_evidence"],
+        "manifest Apple distribution binding",
+    )
+    _require_exact_keys(
+        apple_binding, {"path", "sha256"}, "manifest Apple distribution binding"
+    )
+    if apple_binding["path"] != APPLE_DISTRIBUTION_NAME:
+        _fail("manifest Apple distribution path is not the fixed evidence name")
+    if (
+        _require_sha256(
+            apple_binding["sha256"], "manifest Apple distribution SHA-256"
+        )
+        != apple_distribution_sha256
+    ):
+        _fail("manifest Apple distribution SHA-256 does not match its evidence file")
+    info_plist_sha256 = _zip_regular_entry_hash(
+        zip_data, "CQPeriapt.xcframework/Info.plist"
+    )
+    if (
+        _require_sha256(
+            artifacts["xcframework_info_plist_sha256"],
+            "manifest XCFramework Info.plist SHA-256",
+        )
+        != info_plist_sha256
+    ):
+        _fail("manifest Info.plist SHA-256 does not match the release ZIP")
+
+    _require_exact_json(
+        manifest["build_path_hygiene"],
+        {
+            "policy": BUILD_PATH_HYGIENE_POLICY,
+            "artifact_scan": {
+                "scope": "all_decompressed_regular_zip_entries",
+                "forbidden_match_count": 0,
+            },
+            "synthetic_build_path_prefix": SYNTHETIC_BUILD_PATH_PREFIX,
+        },
+        "manifest build path hygiene",
+    )
+    _require_exact_json(
+        manifest["public_release_boundary"],
+        {
+            "consumer_distribution_responsibilities": {
+                "ios": {
+                    "requires_final_app_signing_and_provisioning": True,
+                    "sdk_notarization_applicable": False,
+                },
+                "macos": {
+                    "requires_final_app_notarization": True,
+                    "requires_final_app_signing": True,
+                },
+            },
+            "contains_device_udid": False,
+            "contains_mobileprovision": False,
+            "contains_raw_device_proof": False,
+            "distribution_signed": True,
+            "notarization_applicability": "not_applicable_static_sdk_payload",
+            "notarized": False,
+            "requires_clean_tree_for_release": True,
+            "stapled": False,
+        },
+        "manifest public release boundary",
+    )
+
+    abi = _require_object(manifest["abi"], "manifest ABI")
+    _require_exact_keys(
+        abi,
+        {
+            "contract_path",
+            "contract_sha256",
+            "export_count",
+            "exports_sha256",
+            "major",
+            "platform",
+            "runtime_identity",
+            "shared_filename",
+            "static_filename",
+        },
+        "manifest ABI",
+    )
+    _require_exact_json(abi["major"], 2, "manifest ABI major")
+    _require_exact_json(abi["platform"], "apple-xcframework", "manifest ABI platform")
+    _require_exact_json(
+        abi["contract_path"],
+        "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+        "manifest ABI contract path",
+    )
+    _require_sha256(abi["contract_sha256"], "manifest ABI contract SHA-256")
+    _require_sha256(abi["exports_sha256"], "manifest ABI exports SHA-256")
+    _require_exact_json(abi["export_count"], 9, "manifest ABI export count")
+    _require_exact_json(
+        abi["shared_filename"], "CQPeriapt.xcframework", "manifest ABI container"
+    )
+    _require_exact_json(
+        abi["static_filename"],
+        "libq_periapt_ffi_abi2.a",
+        "manifest ABI static filename",
+    )
+    _require_exact_json(
+        abi["runtime_identity"],
+        {
+            "container": "CQPeriapt.xcframework",
+            "linkage": "static",
+            "slice_library": "libq_periapt_ffi_abi2.a",
+            "targets": list(EXPECTED_APPLE_TARGETS),
+        },
+        "manifest ABI runtime identity",
+    )
+
+    source_inputs = _require_object(manifest["source_inputs"], "manifest source inputs")
+    expected_source_inputs = {
+        "apple_distribution_verifier_sha256",
+        "apple_release_script_sha256",
+        "binary_consumer_link_probe_sha256",
+        "binary_consumer_tests_sha256",
+        "c_abi_contract_sha256",
+        "consumer_check_script_sha256",
+        "q_periapt_header_sha256",
+        "script_sha256",
+        "signed_policy_vectors_sha256",
+        "swift_remote_consumer_script_sha256",
+        "swift_vendored_header_sha256",
+        "swift_wrapper_sha256",
+    }
+    _require_exact_keys(source_inputs, expected_source_inputs, "manifest source inputs")
+    for name, digest in source_inputs.items():
+        _require_sha256(digest, f"manifest source input {name}")
+    if source_inputs["c_abi_contract_sha256"].lower() != abi["contract_sha256"].lower():
+        _fail("manifest ABI contract hash differs from its source input hash")
+
+    toolchain = _require_object(manifest["toolchain"], "manifest toolchain")
+    _require_exact_keys(toolchain, {"rustc", "swift", "xcode"}, "manifest toolchain")
+    _require_string(toolchain["rustc"], "manifest rustc version")
+    _require_string(toolchain["swift"], "manifest Swift version")
+    if (
+        not isinstance(toolchain["xcode"], list)
+        or len(toolchain["xcode"]) != 2
+        or any(not isinstance(line, str) or not line for line in toolchain["xcode"])
+    ):
+        _fail("manifest Xcode version must contain exactly two non-empty lines")
+
+    consumer = _require_object(
+        manifest["consumer_verification"], "manifest consumer verification"
+    )
+    expected_consumer_keys = {
+        "macos_runtime_tests",
+        "macos_universal_link",
+        "ios_device_link",
+        "ios_simulator_link",
+        "macos_dual_arch_runtime",
+    }
+    _require_exact_keys(
+        consumer, expected_consumer_keys, "manifest consumer verification"
+    )
+    consumer_field_sets = {
+        "macos_runtime_tests": {
+            "executed",
+            "failures",
+            "log_sha256",
+            "warning_or_error_diagnostics",
+        },
+        "macos_universal_link": {
+            "architectures",
+            "deployment_target",
+            "logs_sha256",
+            "platform",
+            "warning_or_error_diagnostics",
+        },
+        "ios_device_link": {
+            "architectures",
+            "deployment_target",
+            "log_sha256",
+            "platform",
+            "warning_or_error_diagnostics",
+        },
+        "ios_simulator_link": {
+            "architectures",
+            "deployment_target",
+            "log_sha256",
+            "platform",
+            "warning_or_error_diagnostics",
+        },
+        "macos_dual_arch_runtime": {
+            "executed_architectures",
+            "log_sha256",
+            "warning_or_error_diagnostics",
+        },
+    }
+    for name, evidence in consumer.items():
+        evidence = _require_object(evidence, f"manifest consumer verification {name}")
+        _require_exact_keys(
+            evidence,
+            consumer_field_sets[name],
+            f"manifest consumer verification {name}",
+        )
+        diagnostics = evidence.get("warning_or_error_diagnostics")
+        if type(diagnostics) is not int or diagnostics != 0:
+            _fail(f"manifest consumer verification {name} contains diagnostics")
+        for key, value in evidence.items():
+            if key.endswith("sha256"):
+                if isinstance(value, dict):
+                    if not value:
+                        _fail(f"manifest consumer verification {name}.{key} is empty")
+                    for architecture, digest in value.items():
+                        _require_string(architecture, f"manifest {name} architecture")
+                        _require_sha256(digest, f"manifest {name}.{key}.{architecture}")
+                else:
+                    _require_sha256(value, f"manifest {name}.{key}")
+    runtime = consumer["macos_runtime_tests"]
+    executed = runtime.get("executed")
+    failures = runtime.get("failures")
+    if (
+        type(executed) is not int
+        or executed != 3
+        or type(failures) is not int
+        or failures != 0
+    ):
+        _fail("manifest macOS runtime tests are not the exact passing result")
+    _require_exact_json(
+        consumer["macos_universal_link"]["architectures"],
+        ["arm64", "x86_64"],
+        "manifest macOS link architectures",
+    )
+    _require_exact_json(
+        consumer["macos_universal_link"]["deployment_target"],
+        "13.0",
+        "manifest macOS deployment target",
+    )
+    _require_exact_json(
+        consumer["macos_universal_link"]["platform"],
+        "MACOS",
+        "manifest macOS platform",
+    )
+    _require_exact_json(
+        consumer["ios_device_link"]["architectures"],
+        ["arm64"],
+        "manifest iOS device architectures",
+    )
+    _require_exact_json(
+        consumer["ios_device_link"]["deployment_target"],
+        "16.0",
+        "manifest iOS device deployment target",
+    )
+    _require_exact_json(
+        consumer["ios_device_link"]["platform"],
+        "IOS",
+        "manifest iOS device platform",
+    )
+    _require_exact_json(
+        consumer["ios_simulator_link"]["architectures"],
+        ["arm64", "x86_64"],
+        "manifest iOS simulator architectures",
+    )
+    _require_exact_json(
+        consumer["ios_simulator_link"]["deployment_target"],
+        "16.0",
+        "manifest iOS simulator deployment target",
+    )
+    _require_exact_json(
+        consumer["ios_simulator_link"]["platform"],
+        "IOSSIMULATOR",
+        "manifest iOS simulator platform",
+    )
+    _require_exact_json(
+        consumer["macos_dual_arch_runtime"]["executed_architectures"],
+        ["arm64", "x86_64"],
+        "manifest macOS runtime architectures",
+    )
+
+
+def verify_release_assets(
+    *,
+    release_directory: pathlib.Path,
+    results_manifest: pathlib.Path,
+    expected_source_commit: str,
+    expected_zip_sha256: str,
+    expected_apple_distribution_sha256: str,
+    expected_manifest_sha256: str,
+    expected_sha256sums_sha256: str,
+    expected_swiftpm_checksum: str,
+) -> dict[str, str]:
+    """Verify one immutable, four-file Apple release set against trusted pins."""
+
+    trusted, results_sha256 = _release_expectations_from_results(results_manifest)
+    source_commit = _require_git_commit(
+        expected_source_commit, "expected Apple release source commit"
+    )
+    if source_commit != trusted["source_commit"]:
+        _fail("caller source commit differs from the trusted release results")
+    expected_hashes = {
+        XCFRAMEWORK_ZIP_NAME: _require_sha256(
+            expected_zip_sha256, "expected release ZIP SHA-256"
+        ),
+        APPLE_DISTRIBUTION_NAME: _require_sha256(
+            expected_apple_distribution_sha256,
+            "expected APPLE_DISTRIBUTION.json SHA-256",
+        ),
+        MANIFEST_NAME: _require_sha256(
+            expected_manifest_sha256, "expected MANIFEST.json SHA-256"
+        ),
+        SHA256SUMS_NAME: _require_sha256(
+            expected_sha256sums_sha256, "expected SHA256SUMS SHA-256"
+        ),
+    }
+    trusted_hashes = {
+        XCFRAMEWORK_ZIP_NAME: trusted["artifact_sha256"].lower(),
+        APPLE_DISTRIBUTION_NAME: trusted[
+            "apple_distribution_evidence_sha256"
+        ].lower(),
+        MANIFEST_NAME: trusted["manifest_sha256"].lower(),
+        SHA256SUMS_NAME: trusted["checksums_sha256"].lower(),
+    }
+    for name, expected_digest in expected_hashes.items():
+        if expected_digest != trusted_hashes[name]:
+            _fail(f"caller {name} SHA-256 differs from the trusted release results")
+    swiftpm_checksum = _require_sha256(
+        expected_swiftpm_checksum, "expected SwiftPM checksum"
+    )
+    if swiftpm_checksum != trusted["swiftpm_checksum"].lower():
+        _fail("caller SwiftPM checksum differs from the trusted release results")
+    if swiftpm_checksum != expected_hashes[XCFRAMEWORK_ZIP_NAME]:
+        _fail("expected SwiftPM checksum differs from the expected release ZIP SHA-256")
+
+    directory = pathlib.Path(release_directory)
+    snapshots = {
+        XCFRAMEWORK_ZIP_NAME: read_regular_snapshot(
+            directory / XCFRAMEWORK_ZIP_NAME,
+            maximum=MAX_ARTIFACT_BYTES,
+            label="release XCFramework ZIP",
+        ),
+        APPLE_DISTRIBUTION_NAME: read_regular_snapshot(
+            directory / APPLE_DISTRIBUTION_NAME,
+            maximum=MAX_TEXT_BYTES,
+            label="release Apple distribution evidence",
+        ),
+        MANIFEST_NAME: read_regular_snapshot(
+            directory / MANIFEST_NAME,
+            maximum=MAX_TEXT_BYTES,
+            label="release Swift XCFramework manifest",
+        ),
+        SHA256SUMS_NAME: read_regular_snapshot(
+            directory / SHA256SUMS_NAME,
+            maximum=MAX_TEXT_BYTES,
+            label="release SHA256SUMS",
+        ),
+    }
+    for name, snapshot in snapshots.items():
+        if snapshot.sha256 != trusted_hashes[name]:
+            _fail(f"{name} SHA-256 does not match its trusted release pin")
+
+    canonical_checksums = "".join(
+        f"{snapshots[name].sha256}  {name}\n" for name in RELEASE_CHECKSUM_MEMBERS
+    ).encode("ascii")
+    if snapshots[SHA256SUMS_NAME].data != canonical_checksums:
+        _fail(
+            "SHA256SUMS is not the exact canonical, unique three-asset checksum set"
+        )
+
+    zip_snapshot = snapshots[XCFRAMEWORK_ZIP_NAME]
+    if zip_snapshot.size != trusted["artifact_size"]:
+        _fail("release ZIP size does not match the trusted release results")
+    _validate_xcframework_zip_bytes(zip_snapshot.data, require_signature=True)
+    distribution = _strict_json_object(
+        snapshots[APPLE_DISTRIBUTION_NAME].data,
+        label="release Apple distribution evidence",
+    )
+    manifest = _strict_json_object(
+        snapshots[MANIFEST_NAME].data,
+        label="release Swift XCFramework manifest",
+    )
+    _validate_release_distribution_evidence(
+        distribution,
+        artifact_size=zip_snapshot.size,
+        artifact_sha256=zip_snapshot.sha256,
+        swiftpm_checksum=swiftpm_checksum,
+        source_commit=source_commit,
+        zip_data=zip_snapshot.data,
+        expected_team_id=trusted["origin_signature_team_id"],
+        expected_certificate_sha256=trusted[
+            "origin_signature_certificate_sha256"
+        ],
+    )
+    _validate_release_manifest(
+        manifest,
+        artifact_sha256=zip_snapshot.sha256,
+        swiftpm_checksum=swiftpm_checksum,
+        apple_distribution_sha256=snapshots[APPLE_DISTRIBUTION_NAME].sha256,
+        source_commit=source_commit,
+        zip_data=zip_snapshot.data,
+    )
+    return {
+        "source_commit": source_commit,
+        "zip_sha256": zip_snapshot.sha256,
+        "apple_distribution_sha256": snapshots[APPLE_DISTRIBUTION_NAME].sha256,
+        "manifest_sha256": snapshots[MANIFEST_NAME].sha256,
+        "sha256sums_sha256": snapshots[SHA256SUMS_NAME].sha256,
+        "results_sha256": results_sha256,
+    }
+
+
 def _command_validate_zip(args: argparse.Namespace) -> None:
     validate_xcframework_zip(
         args.artifact,
@@ -1443,6 +2272,23 @@ def _command_distribution_evidence(args: argparse.Namespace) -> None:
     _write_new_json(args.output, evidence)
 
 
+def _command_verify_release_assets(args: argparse.Namespace) -> None:
+    verified = verify_release_assets(
+        release_directory=args.release_directory,
+        results_manifest=args.results_manifest,
+        expected_source_commit=args.expected_source_commit,
+        expected_zip_sha256=args.expected_zip_sha256,
+        expected_apple_distribution_sha256=args.expected_apple_distribution_sha256,
+        expected_manifest_sha256=args.expected_manifest_sha256,
+        expected_sha256sums_sha256=args.expected_sha256sums_sha256,
+        expected_swiftpm_checksum=args.expected_swiftpm_checksum,
+    )
+    print(
+        "APPLE_RELEASE_ASSETS_PASS "
+        + " ".join(f"{name}={value}" for name, value in verified.items())
+    )
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1480,6 +2326,23 @@ def _parser() -> argparse.ArgumentParser:
     )
     distribution.add_argument("--output", type=pathlib.Path, required=True)
     distribution.set_defaults(handler=_command_distribution_evidence)
+
+    release_assets = subparsers.add_parser("verify-release-assets")
+    release_assets.add_argument(
+        "--release-directory", type=pathlib.Path, required=True
+    )
+    release_assets.add_argument(
+        "--results-manifest", type=pathlib.Path, required=True
+    )
+    release_assets.add_argument("--expected-source-commit", required=True)
+    release_assets.add_argument("--expected-zip-sha256", required=True)
+    release_assets.add_argument(
+        "--expected-apple-distribution-sha256", required=True
+    )
+    release_assets.add_argument("--expected-manifest-sha256", required=True)
+    release_assets.add_argument("--expected-sha256sums-sha256", required=True)
+    release_assets.add_argument("--expected-swiftpm-checksum", required=True)
+    release_assets.set_defaults(handler=_command_verify_release_assets)
     return parser
 
 

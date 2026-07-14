@@ -8,6 +8,7 @@ import io
 import json
 import os
 import pathlib
+import copy
 import stat
 import struct
 import subprocess
@@ -1010,6 +1011,430 @@ class DistributionEvidenceTests(ZipFixture):
                 del self.signing[field]
 
 
+class ReleaseAssetVerificationTests(ZipFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        library_hashes = self.write_archive(signed=True)
+        self.release = self.root / "release"
+        self.release.mkdir()
+        self.zip_path = self.release / apple_distribution.XCFRAMEWORK_ZIP_NAME
+        self.zip_path.write_bytes(self.archive.read_bytes())
+        self.signing = signing_evidence(library_hashes)
+        self.distribution = (
+            apple_distribution.build_static_xcframework_distribution_evidence(
+                artifact=self.zip_path,
+                source_commit=SOURCE_COMMIT,
+                swiftpm_checksum=hashlib.sha256(self.zip_path.read_bytes()).hexdigest(),
+                signing_evidence=self.signing,
+            )
+        )
+        self.manifest = self._manifest_fixture()
+        self.results = self.root / "results.json"
+        self._publish()
+
+    def _manifest_fixture(self) -> dict[str, object]:
+        digest = hashlib.sha256(self.zip_path.read_bytes()).hexdigest()
+        with zipfile.ZipFile(self.zip_path) as archive:
+            info_plist_sha256 = hashlib.sha256(
+                archive.read("CQPeriapt.xcframework/Info.plist")
+            ).hexdigest()
+        input_names = {
+            "apple_distribution_verifier_sha256",
+            "apple_release_script_sha256",
+            "binary_consumer_link_probe_sha256",
+            "binary_consumer_tests_sha256",
+            "c_abi_contract_sha256",
+            "consumer_check_script_sha256",
+            "q_periapt_header_sha256",
+            "script_sha256",
+            "signed_policy_vectors_sha256",
+            "swift_remote_consumer_script_sha256",
+            "swift_vendored_header_sha256",
+            "swift_wrapper_sha256",
+        }
+        source_inputs = {name: hashlib.sha256(name.encode()).hexdigest() for name in input_names}
+        contract_sha256 = source_inputs["c_abi_contract_sha256"]
+        return {
+            "schema_version": 4,
+            "kind": "qperiapt.swift_xcframework_manifest",
+            "package": "q-periapt-swift",
+            "version": apple_distribution.RELEASE_VERSION,
+            "type": "swiftpm-binaryTarget-xcframework",
+            "git_commit": SOURCE_COMMIT,
+            "git_dirty": False,
+            "targets": list(apple_distribution.EXPECTED_APPLE_TARGETS),
+            "abi": {
+                "contract_path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+                "contract_sha256": contract_sha256,
+                "export_count": 9,
+                "exports_sha256": "33" * 32,
+                "major": 2,
+                "platform": "apple-xcframework",
+                "runtime_identity": {
+                    "container": "CQPeriapt.xcframework",
+                    "linkage": "static",
+                    "slice_library": "libq_periapt_ffi_abi2.a",
+                    "targets": list(apple_distribution.EXPECTED_APPLE_TARGETS),
+                },
+                "shared_filename": "CQPeriapt.xcframework",
+                "static_filename": "libq_periapt_ffi_abi2.a",
+            },
+            "artifacts": {
+                "xcframework_zip": {
+                    "path": apple_distribution.XCFRAMEWORK_ZIP_NAME,
+                    "sha256": digest,
+                    "swiftpm_checksum": digest,
+                },
+                "xcframework_info_plist_sha256": info_plist_sha256,
+                "apple_distribution_evidence": {
+                    "path": apple_distribution.APPLE_DISTRIBUTION_NAME,
+                    "sha256": "00" * 32,
+                },
+            },
+            "build_path_hygiene": {
+                "artifact_scan": {
+                    "forbidden_match_count": 0,
+                    "scope": "all_decompressed_regular_zip_entries",
+                },
+                "policy": apple_distribution.BUILD_PATH_HYGIENE_POLICY,
+                "synthetic_build_path_prefix": apple_distribution.SYNTHETIC_BUILD_PATH_PREFIX,
+            },
+            "public_release_boundary": {
+                "consumer_distribution_responsibilities": {
+                    "ios": {
+                        "requires_final_app_signing_and_provisioning": True,
+                        "sdk_notarization_applicable": False,
+                    },
+                    "macos": {
+                        "requires_final_app_notarization": True,
+                        "requires_final_app_signing": True,
+                    },
+                },
+                "contains_device_udid": False,
+                "contains_mobileprovision": False,
+                "contains_raw_device_proof": False,
+                "distribution_signed": True,
+                "notarization_applicability": "not_applicable_static_sdk_payload",
+                "notarized": False,
+                "requires_clean_tree_for_release": True,
+                "stapled": False,
+            },
+            "source_inputs": source_inputs,
+            "toolchain": {
+                "rustc": "rustc fixture",
+                "swift": "swift fixture",
+                "xcode": ["Xcode fixture", "Build version fixture"],
+            },
+            "consumer_verification": {
+                "ios_device_link": {
+                    "architectures": ["arm64"],
+                    "deployment_target": "16.0",
+                    "log_sha256": "44" * 32,
+                    "platform": "IOS",
+                    "warning_or_error_diagnostics": 0,
+                },
+                "ios_simulator_link": {
+                    "architectures": ["arm64", "x86_64"],
+                    "deployment_target": "16.0",
+                    "log_sha256": "55" * 32,
+                    "platform": "IOSSIMULATOR",
+                    "warning_or_error_diagnostics": 0,
+                },
+                "macos_dual_arch_runtime": {
+                    "executed_architectures": ["arm64", "x86_64"],
+                    "log_sha256": "66" * 32,
+                    "warning_or_error_diagnostics": 0,
+                },
+                "macos_runtime_tests": {
+                    "executed": 3,
+                    "failures": 0,
+                    "log_sha256": "77" * 32,
+                    "warning_or_error_diagnostics": 0,
+                },
+                "macos_universal_link": {
+                    "architectures": ["arm64", "x86_64"],
+                    "deployment_target": "13.0",
+                    "logs_sha256": {"arm64": "88" * 32, "x86_64": "99" * 32},
+                    "platform": "MACOS",
+                    "warning_or_error_diagnostics": 0,
+                },
+            },
+        }
+
+    def _publish(self) -> None:
+        apple_path = self.release / apple_distribution.APPLE_DISTRIBUTION_NAME
+        manifest_path = self.release / apple_distribution.MANIFEST_NAME
+        apple_path.write_bytes(apple_distribution._json_bytes(self.distribution))
+        apple_sha256 = hashlib.sha256(apple_path.read_bytes()).hexdigest()
+        self.manifest["artifacts"]["apple_distribution_evidence"][
+            "sha256"
+        ] = apple_sha256
+        manifest_path.write_bytes(apple_distribution._json_bytes(self.manifest))
+        member_hashes = {
+            name: hashlib.sha256((self.release / name).read_bytes()).hexdigest()
+            for name in apple_distribution.RELEASE_CHECKSUM_MEMBERS
+        }
+        checksums = "".join(
+            f"{member_hashes[name]}  {name}\n"
+            for name in apple_distribution.RELEASE_CHECKSUM_MEMBERS
+        ).encode("ascii")
+        (self.release / apple_distribution.SHA256SUMS_NAME).write_bytes(checksums)
+        self.hashes = {
+            name: hashlib.sha256((self.release / name).read_bytes()).hexdigest()
+            for name in (
+                *apple_distribution.RELEASE_CHECKSUM_MEMBERS,
+                apple_distribution.SHA256SUMS_NAME,
+            )
+        }
+        certificate = self.distribution["origin_signature"]["certificate"]
+        signature = self.distribution["origin_signature"]["signature"]
+        trusted_distribution = {
+            "apple_distribution_evidence_sha256": self.hashes[
+                apple_distribution.APPLE_DISTRIBUTION_NAME
+            ],
+            "artifact_path": apple_distribution.XCFRAMEWORK_ZIP_NAME,
+            "artifact_sha256": self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
+            "artifact_size": self.zip_path.stat().st_size,
+            "checksums_sha256": self.hashes[apple_distribution.SHA256SUMS_NAME],
+            "distribution_signed": True,
+            "immutable_release": True,
+            "manifest_sha256": self.hashes[apple_distribution.MANIFEST_NAME],
+            "notarization_applicability": "not_applicable_static_sdk_payload",
+            "notarized": False,
+            "origin_signature_certificate_sha256": certificate["sha256"],
+            "origin_signature_identity_class": "Developer ID Application",
+            "origin_signature_team_id": signature["team_id"],
+            "public_release": False,
+            "release_tag": apple_distribution.RELEASE_TAG,
+            "release_url": apple_distribution.RELEASE_URL,
+            "remote_consumer_verified": False,
+            "remote_verification": {
+                "log_sha256": None,
+                "verified_at": None,
+                "verifier_commit": None,
+            },
+            "source_commit": SOURCE_COMMIT,
+            "stapled": False,
+            "swiftpm_checksum": self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
+            "version": apple_distribution.RELEASE_VERSION,
+        }
+        self.results.write_bytes(
+            apple_distribution._json_bytes(
+                {"swift_xcframework": {"distribution": trusted_distribution}}
+            )
+        )
+
+    def verify(self, **overrides: object) -> dict[str, str]:
+        arguments: dict[str, object] = {
+            "release_directory": self.release,
+            "results_manifest": self.results,
+            "expected_source_commit": SOURCE_COMMIT,
+            "expected_zip_sha256": self.hashes[
+                apple_distribution.XCFRAMEWORK_ZIP_NAME
+            ],
+            "expected_apple_distribution_sha256": self.hashes[
+                apple_distribution.APPLE_DISTRIBUTION_NAME
+            ],
+            "expected_manifest_sha256": self.hashes[
+                apple_distribution.MANIFEST_NAME
+            ],
+            "expected_sha256sums_sha256": self.hashes[
+                apple_distribution.SHA256SUMS_NAME
+            ],
+            "expected_swiftpm_checksum": self.hashes[
+                apple_distribution.XCFRAMEWORK_ZIP_NAME
+            ],
+        }
+        arguments.update(overrides)
+        return apple_distribution.verify_release_assets(**arguments)
+
+    def test_accepts_exact_results_pinned_four_asset_set(self) -> None:
+        verified = self.verify()
+        self.assertEqual(verified["source_commit"], SOURCE_COMMIT)
+        self.assertEqual(
+            verified["zip_sha256"],
+            self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
+        )
+        self.assertEqual(len(verified), 6)
+
+    def test_rejects_tamper_and_wrong_caller_pin(self) -> None:
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError, "caller.*differs"
+        ):
+            self.verify(expected_manifest_sha256="00" * 32)
+        apple_path = self.release / apple_distribution.APPLE_DISTRIBUTION_NAME
+        apple_path.write_bytes(apple_path.read_bytes() + b" ")
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError, "trusted release pin"
+        ):
+            self.verify()
+
+    def test_rejects_cross_release_mix_even_when_all_four_files_are_repinned(self) -> None:
+        mixed_zip = self.root / "mixed" / apple_distribution.XCFRAMEWORK_ZIP_NAME
+        mixed_zip.parent.mkdir()
+        self.write_archive(
+            signed=True,
+            file_override=(
+                "CQPeriapt.xcframework/_CodeSignature/CodeRequirements",
+                b"different-release",
+            ),
+        )
+        mixed_zip.write_bytes(self.archive.read_bytes())
+        mixed_digest = hashlib.sha256(mixed_zip.read_bytes()).hexdigest()
+        mixed_distribution = (
+            apple_distribution.build_static_xcframework_distribution_evidence(
+                artifact=mixed_zip,
+                source_commit=SOURCE_COMMIT,
+                swiftpm_checksum=mixed_digest,
+                signing_evidence=self.signing,
+            )
+        )
+        self.distribution = mixed_distribution
+        self._publish()
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "artifact (size|SHA-256).*release ZIP",
+        ):
+            self.verify()
+
+    def test_rejects_commit_size_checksum_and_evidence_hash_mismatch(self) -> None:
+        mutations = {
+            "wrong commit": lambda: self.distribution.__setitem__(
+                "source_commit", "cd" * 20
+            ),
+            "wrong size": lambda: self.distribution["artifact"].__setitem__(
+                "size", self.zip_path.stat().st_size + 1
+            ),
+            "wrong checksum": lambda: self.distribution["artifact"].__setitem__(
+                "swiftpm_checksum", "00" * 32
+            ),
+            "wrong evidence hash": lambda: self.manifest["artifacts"][
+                "apple_distribution_evidence"
+            ].__setitem__("sha256", "00" * 32),
+            "dirty manifest": lambda: self.manifest.__setitem__("git_dirty", True),
+        }
+        base_distribution = copy.deepcopy(self.distribution)
+        base_manifest = copy.deepcopy(self.manifest)
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                self.distribution = copy.deepcopy(base_distribution)
+                self.manifest = copy.deepcopy(base_manifest)
+                mutate()
+                self._publish()
+                if label == "wrong evidence hash":
+                    # Publish normally repairs this binding; corrupt it after Apple hash is known.
+                    self.manifest["artifacts"]["apple_distribution_evidence"][
+                        "sha256"
+                    ] = "00" * 32
+                    manifest_path = self.release / apple_distribution.MANIFEST_NAME
+                    manifest_path.write_bytes(
+                        apple_distribution._json_bytes(self.manifest)
+                    )
+                    self.hashes[apple_distribution.MANIFEST_NAME] = hashlib.sha256(
+                        manifest_path.read_bytes()
+                    ).hexdigest()
+                    results = json.loads(self.results.read_text(encoding="utf-8"))
+                    results["swift_xcframework"]["distribution"][
+                        "manifest_sha256"
+                    ] = self.hashes[apple_distribution.MANIFEST_NAME]
+                    self.results.write_bytes(apple_distribution._json_bytes(results))
+                with self.assertRaises(apple_distribution.AppleDistributionError):
+                    self.verify()
+
+    def test_rejects_missing_duplicate_and_extra_checksum_entries(self) -> None:
+        canonical = (
+            self.release / apple_distribution.SHA256SUMS_NAME
+        ).read_bytes().splitlines(keepends=True)
+        variants = {
+            "missing": b"".join(canonical[:-1]),
+            "duplicate": b"".join([*canonical, canonical[0]]),
+            "extra": b"".join([*canonical, b"00" * 32 + b"  EXTRA\n"]),
+        }
+        for label, payload in variants.items():
+            with self.subTest(label=label):
+                sums = self.release / apple_distribution.SHA256SUMS_NAME
+                sums.write_bytes(payload)
+                digest = hashlib.sha256(payload).hexdigest()
+                self.hashes[apple_distribution.SHA256SUMS_NAME] = digest
+                results = json.loads(self.results.read_text(encoding="utf-8"))
+                results["swift_xcframework"]["distribution"][
+                    "checksums_sha256"
+                ] = digest
+                self.results.write_bytes(apple_distribution._json_bytes(results))
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError, "canonical, unique"
+                ):
+                    self.verify()
+                self._publish()
+
+    def test_rejects_consumer_schema_missing_or_unknown_field(self) -> None:
+        base = copy.deepcopy(self.manifest)
+        for label, mutate in (
+            (
+                "unknown",
+                lambda value: value["consumer_verification"][
+                    "ios_device_link"
+                ].__setitem__("fallback", True),
+            ),
+            (
+                "missing",
+                lambda value: value["consumer_verification"][
+                    "ios_device_link"
+                ].pop("platform"),
+            ),
+        ):
+            with self.subTest(label=label):
+                self.manifest = copy.deepcopy(base)
+                mutate(self.manifest)
+                self._publish()
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError, "fields differ"
+                ):
+                    self.verify()
+
+    def test_rejects_results_type_confusion_and_unknown_distribution_field(self) -> None:
+        for label, key, value in (
+            ("size bool", "artifact_size", True),
+            ("signed int", "distribution_signed", 1),
+            ("unknown", "fallback", True),
+        ):
+            with self.subTest(label=label):
+                results = json.loads(self.results.read_text(encoding="utf-8"))
+                results["swift_xcframework"]["distribution"][key] = value
+                self.results.write_bytes(apple_distribution._json_bytes(results))
+                with self.assertRaises(apple_distribution.AppleDistributionError):
+                    self.verify()
+                self._publish()
+
+    def test_remote_verification_evidence_is_all_or_nothing(self) -> None:
+        results = json.loads(self.results.read_text(encoding="utf-8"))
+        distribution = results["swift_xcframework"]["distribution"]
+        distribution["remote_consumer_verified"] = True
+        distribution["remote_verification"] = {
+            "log_sha256": "11" * 32,
+            "verified_at": "2026-07-15T00:00:00Z",
+            "verifier_commit": "ab" * 20,
+        }
+        self.results.write_bytes(apple_distribution._json_bytes(results))
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "requires a public release",
+        ):
+            self.verify()
+
+        distribution["public_release"] = True
+        self.results.write_bytes(apple_distribution._json_bytes(results))
+        self.assertEqual(self.verify()["source_commit"], SOURCE_COMMIT)
+
+        distribution["remote_consumer_verified"] = False
+        self.results.write_bytes(apple_distribution._json_bytes(results))
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "must not carry verification evidence",
+        ):
+            self.verify()
+
+
 class AtomicEvidenceWriterTests(unittest.TestCase):
     def test_atomic_writer_never_replaces_existing_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -1337,22 +1762,34 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
     def test_remote_consumer_download_is_hash_pinned_and_atomic(self) -> None:
         self.assertIn("curl -q --fail --location", self.remote)
         self.assertIn("url_effective", self.remote)
-        self.assertIn("REMOTE_ZIP_PART", self.remote)
-        self.assertIn('mv "$REMOTE_ZIP_PART" "$REMOTE_ZIP"', self.remote)
+        self.assertIn('part="$destination.part"', self.remote)
         self.assertIn("swift package compute-checksum", self.remote)
         self.assertIn("codesign --verify --strict", self.remote)
         self.assertIn("release-assets.githubusercontent.com", self.remote)
+        for asset in (
+            "CQPeriapt.xcframework.zip",
+            "APPLE_DISTRIBUTION.json",
+            "MANIFEST.json",
+            "SHA256SUMS",
+        ):
+            with self.subTest(asset=asset):
+                self.assertIn(f'$RELEASE_BASE/{asset}', self.remote)
         self.assertIn('remote_git cat-file blob "$expected_blob"', self.remote)
         self.assertIn('remote_git cat-file -s "$expected_blob"', self.remote)
-        self.assertIn('remote_git ls-tree "$SOURCE_COMMIT"', self.remote)
+        self.assertIn('remote_git ls-tree "$commit"', self.remote)
         self.assertIn('remote_git hash-object --no-filters "$part"', self.remote)
         self.assertIn("MAX_SOURCE_BLOB_BYTES=4194304", self.remote)
         self.assertIn("set -C", self.remote)
-        self.assertIn('wc -c <"$part"', self.remote)
+        self.assertIn('/usr/bin/wc -c <"$part"', self.remote)
         self.assertIn('trap cleanup_remote_state EXIT', self.remote)
         self.assertLess(
             self.remote.index('trap cleanup_remote_state EXIT'),
             self.remote.index("materialize_source_input()"),
+        )
+        self.assertIn('[ -L "$ROOT/target" ]', self.remote)
+        self.assertLess(
+            self.remote.index('if [ ! -d "$ROOT/target" ]'),
+            self.remote.index('mkdir -m 700 "$LOCK_DIR"'),
         )
         for relative in (
             "artifact/swift-xcframework-remote-consumer.sh",
@@ -1361,19 +1798,28 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             "artifact/swift-xcframework-consumer-check.sh",
             "artifact/python-env.sh",
             "artifact/python_bootstrap.py",
+            "artifact/results.json",
             "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
         ):
             with self.subTest(relative=relative):
                 self.assertIn(relative, self.remote)
         self.assertIn(
-            'snapshot_python "$SOURCE_SNAPSHOT/artifact/apple_distribution.py" validate-zip',
+            'materialize_source_input "$ARTIFACT_SOURCE_COMMIT" "$ARTIFACT_SNAPSHOT"',
             self.remote,
         )
         self.assertIn(
-            'sh "$SOURCE_SNAPSHOT/artifact/swift-xcframework-consumer-check.sh"',
+            'materialize_source_input "$VERIFIER_COMMIT" "$VERIFIER_SNAPSHOT"',
             self.remote,
         )
-        self.assertIn('rm -rf "$SOURCE_SNAPSHOT"', self.remote)
+        self.assertIn("verify-release-assets", self.remote)
+        self.assertIn('--results-manifest "$VERIFIER_SNAPSHOT/artifact/results.json"', self.remote)
+        self.assertLess(
+            self.remote.index("# This gate precedes every URL consumer or extractor."),
+            self.remote.index(".binaryTarget"),
+        )
+        self.assertGreaterEqual(self.remote.count("verify_release_assets"), 4)
+        self.assertIn('rm -rf "$ARTIFACT_SNAPSHOT" "$VERIFIER_SNAPSHOT"', self.remote)
+        self.assertIn("artifact_source_commit=%s verifier_commit=%s", self.remote)
         self.assertNotIn("SOURCE_WORKTREE", self.remote)
         self.assertNotIn("qperiapt-apple-release-worktrees", self.remote)
         self.assertNotIn("--insecure", self.remote)
