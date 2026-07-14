@@ -106,6 +106,7 @@ need rustup
 need shasum
 need swift
 need xcodebuild
+need xcode-select
 need zip
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	need codesign
@@ -119,6 +120,129 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 			printf 'error: credentialed Apple release inputs are incomplete\n' >&2
 			exit 2
 		fi
+fi
+
+if ! PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
+import os
+import re
+
+exact = {
+    "AR",
+    "ARFLAGS",
+    "CC",
+    "CC_SHELL_ESCAPED_FLAGS",
+    "CFLAGS",
+    "CPPFLAGS",
+    "CXX",
+    "CXXFLAGS",
+    "CARGO_BUILD_RUSTFLAGS",
+    "CARGO_BUILD_RUSTC",
+    "CARGO_BUILD_RUSTC_WRAPPER",
+    "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+    "CARGO_BUILD_RUSTDOCFLAGS",
+    "CARGO_BUILD_BUILD_DIR",
+    "CARGO_BUILD_TARGET",
+    "CARGO_BUILD_TARGET_DIR",
+    "CARGO_ENCODED_RUSTDOCFLAGS",
+    "CARGO_ENCODED_RUSTFLAGS",
+    "CARGO_TARGET_DIR",
+    "CARGO_INCREMENTAL",
+    "CC_FORCE_DISABLE",
+    "COMPILER_PATH",
+    "CPATH",
+    "CPLUS_INCLUDE_PATH",
+    "CROSS_COMPILE",
+    "CRATE_CC_NO_DEFAULTS",
+    "C_INCLUDE_PATH",
+    "DEVELOPER_DIR",
+    "HOST_AR",
+    "HOST_ARFLAGS",
+    "HOST_CC",
+    "HOST_CFLAGS",
+    "HOST_CPPFLAGS",
+    "HOST_CXX",
+    "HOST_CXXFLAGS",
+    "HOST_RANLIB",
+    "HOST_RANLIBFLAGS",
+    "IPHONEOS_DEPLOYMENT_TARGET",
+    "GCC_EXEC_PREFIX",
+    "LD",
+    "LDFLAGS",
+    "LIBRARY_PATH",
+    "MACOSX_DEPLOYMENT_TARGET",
+    "OBJC_INCLUDE_PATH",
+    "RANLIB",
+    "RANLIBFLAGS",
+    "RUSTC",
+    "RUSTC_BOOTSTRAP",
+    "RUSTC_LINKER",
+    "RUSTC_WORKSPACE_WRAPPER",
+    "RUSTC_WRAPPER",
+    "RUSTDOCFLAGS",
+    "RUSTFLAGS",
+    "RUSTUP_TOOLCHAIN",
+    "SDKROOT",
+    "SOURCE_DATE_EPOCH",
+    "TARGET_AR",
+    "TARGET_ARFLAGS",
+    "TARGET_CC",
+    "TARGET_CFLAGS",
+    "TARGET_CPPFLAGS",
+    "TARGET_CXX",
+    "TARGET_CXXFLAGS",
+    "TARGET_RANLIB",
+    "TARGET_RANLIBFLAGS",
+    "TVOS_DEPLOYMENT_TARGET",
+    "WATCHOS_DEPLOYMENT_TARGET",
+    "XROS_DEPLOYMENT_TARGET",
+    "ZERO_AR_DATE",
+}
+target_override = re.compile(
+    r"^(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)_.+$|"
+    r"^CARGO_PROFILE_.+$|"
+    r"^CARGO_TARGET_.+_(?:LINKER|RUNNER|RUSTDOCFLAGS|RUSTFLAGS)$|"
+    r"^.+_(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)$"
+)
+rejected = sorted(
+    name for name in os.environ if name in exact or target_override.fullmatch(name)
+)
+if rejected:
+    raise SystemExit(
+        "error: Apple package tooling rejects caller compiler/flag overrides: "
+        + ", ".join(rejected)
+    )
+PY
+then
+	exit 2
+fi
+
+if [ -z "${HOME:-}" ]; then
+	printf 'error: Apple package tooling requires HOME to resolve Cargo configuration\n' >&2
+	exit 2
+fi
+if ! PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT" "${CARGO_HOME:-$HOME/.cargo}" <<'PY'
+import os
+import pathlib
+import sys
+
+source_root = pathlib.Path(sys.argv[1]).resolve(strict=True)
+cargo_home = pathlib.Path(sys.argv[2])
+if not cargo_home.is_absolute():
+    raise SystemExit("error: Cargo home must be absolute for Apple package tooling")
+candidates = {
+    cargo_home / "config",
+    cargo_home / "config.toml",
+}
+for directory in (source_root, *source_root.parents):
+    candidates.add(directory / ".cargo/config")
+    candidates.add(directory / ".cargo/config.toml")
+if any(os.path.lexists(candidate) for candidate in candidates):
+    raise SystemExit(
+        "error: Apple package tooling rejects ambient Cargo configuration files"
+    )
+PY
+then
+	exit 2
 fi
 
 if [ "${QPERIAPT_SWIFT_XCFRAMEWORK_SKIP_VERIFY:-0}" = "1" ]; then
@@ -222,6 +346,194 @@ SIGNING_EVIDENCE="$WORK/apple-signing.json"
 APPLE_DISTRIBUTION="$DIST/APPLE_DISTRIBUTION.json"
 required_targets="aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios"
 mkdir -p "$ROOT/target"
+
+canonical_build_directory() {
+	PYTHONDONTWRITEBYTECODE=1 python3 - "$1" "$2" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+label = sys.argv[2]
+if not path.is_absolute():
+    raise SystemExit(f"error: {label} must be an absolute directory")
+try:
+    resolved = path.resolve(strict=True)
+except OSError as exc:
+    raise SystemExit(f"error: cannot resolve {label}: {exc}") from exc
+if not resolved.is_dir():
+    raise SystemExit(f"error: {label} is not a directory")
+text = str(resolved)
+if (
+    not text.startswith("/")
+    or text == "/"
+    or "=" in text
+    or any(ord(character) < 32 or ord(character) == 127 for character in text)
+):
+    raise SystemExit(f"error: {label} is not a supported canonical build path")
+print(text)
+PY
+}
+
+normalized_build_directory() {
+	PYTHONDONTWRITEBYTECODE=1 python3 - "$1" "$2" <<'PY'
+import os
+import pathlib
+import posixpath
+import sys
+
+path = pathlib.Path(sys.argv[1])
+label = sys.argv[2]
+if not path.is_absolute():
+    raise SystemExit(f"error: {label} must be an absolute directory")
+text = posixpath.normpath(str(path))
+if (
+    text == "/"
+    or "=" in text
+    or any(ord(character) < 32 or ord(character) == 127 for character in text)
+    or not os.path.isdir(text)
+):
+    raise SystemExit(f"error: {label} is not a supported build directory")
+print(text)
+PY
+}
+
+BUILD_HOME_LEXICAL=$(normalized_build_directory "$HOME" "HOME")
+BUILD_HOME=$(canonical_build_directory "$BUILD_HOME_LEXICAL" "HOME")
+CARGO_HOME_LEXICAL=$(normalized_build_directory "${CARGO_HOME:-$BUILD_HOME_LEXICAL/.cargo}" "Cargo home")
+CARGO_HOME_PATH=$(canonical_build_directory "$CARGO_HOME_LEXICAL" "Cargo home")
+RUSTUP_HOME_LEXICAL=$(normalized_build_directory "${RUSTUP_HOME:-$BUILD_HOME_LEXICAL/.rustup}" "rustup home")
+RUSTUP_HOME_PATH=$(canonical_build_directory "$RUSTUP_HOME_LEXICAL" "rustup home")
+RUST_SYSROOT_LEXICAL=$(normalized_build_directory "$(rustc --print sysroot)" "Rust sysroot")
+RUST_SYSROOT=$(canonical_build_directory "$RUST_SYSROOT_LEXICAL" "Rust sysroot")
+XCODE_DEVELOPER_LEXICAL=$(normalized_build_directory "$(xcode-select -p)" "Xcode developer directory")
+XCODE_DEVELOPER=$(canonical_build_directory "$XCODE_DEVELOPER_LEXICAL" "Xcode developer directory")
+SOURCE_ROOT_LEXICAL=$(normalized_build_directory "$ROOT" "source root")
+SOURCE_ROOT=$(canonical_build_directory "$SOURCE_ROOT_LEXICAL" "source root")
+TARGET_ROOT_LEXICAL=$(normalized_build_directory "$ROOT/target" "Cargo target root")
+TARGET_ROOT=$(canonical_build_directory "$TARGET_ROOT_LEXICAL" "Cargo target root")
+TEMP_ROOT_LEXICAL=$(normalized_build_directory "${TMPDIR:-/tmp}" "temporary directory")
+TEMP_ROOT=$(canonical_build_directory "$TEMP_ROOT_LEXICAL" "temporary directory")
+
+rustflags_separator=$(printf '\037')
+CARGO_ENCODED_RUSTFLAGS="-Dwarnings"
+append_rust_path_remap() {
+	CARGO_ENCODED_RUSTFLAGS="${CARGO_ENCODED_RUSTFLAGS}${rustflags_separator}--remap-path-prefix=$1=$2"
+}
+append_rust_path_remap "$BUILD_HOME" "/__qperiapt__/build-home"
+append_rust_path_remap "$BUILD_HOME_LEXICAL" "/__qperiapt__/build-home"
+append_rust_path_remap "$CARGO_HOME_PATH" "/__qperiapt__/cargo-home"
+append_rust_path_remap "$CARGO_HOME_LEXICAL" "/__qperiapt__/cargo-home"
+append_rust_path_remap "$RUSTUP_HOME_PATH" "/__qperiapt__/rustup-home"
+append_rust_path_remap "$RUSTUP_HOME_LEXICAL" "/__qperiapt__/rustup-home"
+append_rust_path_remap "$XCODE_DEVELOPER" "/__qperiapt__/xcode-developer"
+append_rust_path_remap "$XCODE_DEVELOPER_LEXICAL" "/__qperiapt__/xcode-developer"
+append_rust_path_remap "$RUST_SYSROOT" "/__qperiapt__/rust-sysroot"
+append_rust_path_remap "$RUST_SYSROOT_LEXICAL" "/__qperiapt__/rust-sysroot"
+append_rust_path_remap "$SOURCE_ROOT" "/__qperiapt__/source"
+append_rust_path_remap "$SOURCE_ROOT_LEXICAL" "/__qperiapt__/source"
+append_rust_path_remap "$TARGET_ROOT" "/__qperiapt__/target"
+append_rust_path_remap "$TARGET_ROOT_LEXICAL" "/__qperiapt__/target"
+append_rust_path_remap "$TEMP_ROOT" "/__qperiapt__/temp"
+append_rust_path_remap "$TEMP_ROOT_LEXICAL" "/__qperiapt__/temp"
+export CARGO_ENCODED_RUSTFLAGS
+
+CFLAGS=$(PYTHONDONTWRITEBYTECODE=1 python3 - \
+	"$BUILD_HOME" "/__qperiapt__/build-home" \
+	"$BUILD_HOME_LEXICAL" "/__qperiapt__/build-home" \
+	"$CARGO_HOME_PATH" "/__qperiapt__/cargo-home" \
+	"$CARGO_HOME_LEXICAL" "/__qperiapt__/cargo-home" \
+	"$RUSTUP_HOME_PATH" "/__qperiapt__/rustup-home" \
+	"$RUSTUP_HOME_LEXICAL" "/__qperiapt__/rustup-home" \
+	"$XCODE_DEVELOPER" "/__qperiapt__/xcode-developer" \
+	"$XCODE_DEVELOPER_LEXICAL" "/__qperiapt__/xcode-developer" \
+	"$RUST_SYSROOT" "/__qperiapt__/rust-sysroot" \
+	"$RUST_SYSROOT_LEXICAL" "/__qperiapt__/rust-sysroot" \
+	"$SOURCE_ROOT" "/__qperiapt__/source" \
+	"$SOURCE_ROOT_LEXICAL" "/__qperiapt__/source" \
+	"$TARGET_ROOT" "/__qperiapt__/target" \
+	"$TARGET_ROOT_LEXICAL" "/__qperiapt__/target" \
+	"$TEMP_ROOT" "/__qperiapt__/temp" \
+	"$TEMP_ROOT_LEXICAL" "/__qperiapt__/temp" <<'PY'
+import shlex
+import sys
+
+arguments = sys.argv[1:]
+if len(arguments) % 2:
+    raise SystemExit("error: internal Clang path remap pairs are incomplete")
+flags = []
+for index in range(0, len(arguments), 2):
+    source, destination = arguments[index : index + 2]
+    for option in ("file", "macro", "debug"):
+        flags.append(f"-f{option}-prefix-map={source}={destination}")
+print(" ".join(shlex.quote(flag) for flag in flags))
+PY
+)
+CC_SHELL_ESCAPED_FLAGS=1
+export CFLAGS CC_SHELL_ESCAPED_FLAGS
+
+validate_apple_static_archive_paths() {
+	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-static-archive \
+		--artifact "$1" \
+		--forbidden-build-prefix "$BUILD_HOME_LEXICAL" \
+		--forbidden-build-prefix "$BUILD_HOME" \
+		--forbidden-build-prefix "$CARGO_HOME_LEXICAL" \
+		--forbidden-build-prefix "$CARGO_HOME_PATH" \
+		--forbidden-build-prefix "$RUSTUP_HOME_LEXICAL" \
+		--forbidden-build-prefix "$RUSTUP_HOME_PATH" \
+		--forbidden-build-prefix "$XCODE_DEVELOPER_LEXICAL" \
+		--forbidden-build-prefix "$XCODE_DEVELOPER" \
+		--forbidden-build-prefix "$RUST_SYSROOT_LEXICAL" \
+		--forbidden-build-prefix "$RUST_SYSROOT" \
+		--forbidden-build-prefix "$SOURCE_ROOT_LEXICAL" \
+		--forbidden-build-prefix "$SOURCE_ROOT" \
+		--forbidden-build-prefix "$TARGET_ROOT_LEXICAL" \
+		--forbidden-build-prefix "$TARGET_ROOT" \
+		--forbidden-build-prefix "$TEMP_ROOT_LEXICAL" \
+		--forbidden-build-prefix "$TEMP_ROOT"
+}
+
+validate_apple_xcframework_zip_paths() {
+	if [ "$1" = "signed" ]; then
+		PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
+			--artifact "$2" --require-signature \
+			--forbidden-build-prefix "$BUILD_HOME_LEXICAL" \
+			--forbidden-build-prefix "$BUILD_HOME" \
+			--forbidden-build-prefix "$CARGO_HOME_LEXICAL" \
+			--forbidden-build-prefix "$CARGO_HOME_PATH" \
+			--forbidden-build-prefix "$RUSTUP_HOME_LEXICAL" \
+			--forbidden-build-prefix "$RUSTUP_HOME_PATH" \
+			--forbidden-build-prefix "$XCODE_DEVELOPER_LEXICAL" \
+			--forbidden-build-prefix "$XCODE_DEVELOPER" \
+			--forbidden-build-prefix "$RUST_SYSROOT_LEXICAL" \
+			--forbidden-build-prefix "$RUST_SYSROOT" \
+			--forbidden-build-prefix "$SOURCE_ROOT_LEXICAL" \
+			--forbidden-build-prefix "$SOURCE_ROOT" \
+			--forbidden-build-prefix "$TARGET_ROOT_LEXICAL" \
+			--forbidden-build-prefix "$TARGET_ROOT" \
+			--forbidden-build-prefix "$TEMP_ROOT_LEXICAL" \
+			--forbidden-build-prefix "$TEMP_ROOT"
+	else
+		PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
+			--artifact "$2" \
+			--forbidden-build-prefix "$BUILD_HOME_LEXICAL" \
+			--forbidden-build-prefix "$BUILD_HOME" \
+			--forbidden-build-prefix "$CARGO_HOME_LEXICAL" \
+			--forbidden-build-prefix "$CARGO_HOME_PATH" \
+			--forbidden-build-prefix "$RUSTUP_HOME_LEXICAL" \
+			--forbidden-build-prefix "$RUSTUP_HOME_PATH" \
+			--forbidden-build-prefix "$XCODE_DEVELOPER_LEXICAL" \
+			--forbidden-build-prefix "$XCODE_DEVELOPER" \
+			--forbidden-build-prefix "$RUST_SYSROOT_LEXICAL" \
+			--forbidden-build-prefix "$RUST_SYSROOT" \
+			--forbidden-build-prefix "$SOURCE_ROOT_LEXICAL" \
+			--forbidden-build-prefix "$SOURCE_ROOT" \
+			--forbidden-build-prefix "$TARGET_ROOT_LEXICAL" \
+			--forbidden-build-prefix "$TARGET_ROOT" \
+			--forbidden-build-prefix "$TEMP_ROOT_LEXICAL" \
+			--forbidden-build-prefix "$TEMP_ROOT"
+	fi
+}
+
 tmp_header=$(mktemp "$ROOT/target/qperiapt-swift-xcframework-header.XXXXXX.h")
 
 # BEGIN_BUILD_TRAP_FUNCTIONS
@@ -270,10 +582,12 @@ printf 'PASS: generated C header freshness\n'
 printf '\n=== Build Apple static libraries ===\n'
 for target in $required_targets; do
 	cargo build -p q-periapt-ffi --release --locked --target "$target"
-	test -f "$ROOT/target/$target/release/libq_periapt_ffi_abi2.a" || {
+	built_archive="$ROOT/target/$target/release/libq_periapt_ffi_abi2.a"
+	test -f "$built_archive" || {
 		printf 'error: missing static library for %s\n' "$target" >&2
 		exit 1
 	}
+	validate_apple_static_archive_paths "$built_archive"
 done
 
 rm -rf "$OUT_ROOT"
@@ -300,6 +614,9 @@ lipo -create \
 lipo "$LIBS/macos/libq_periapt_ffi_abi2.a" -verify_arch arm64 x86_64
 lipo "$LIBS/ios/libq_periapt_ffi_abi2.a" -verify_arch arm64
 lipo "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a" -verify_arch arm64 x86_64
+for lib in "$LIBS/macos/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a" "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"; do
+	validate_apple_static_archive_paths "$lib"
+done
 EXPECTED_FFI_EXPORTS='q_periapt_abi_version
 q_periapt_decapsulate
 q_periapt_decision_from_signed_policy
@@ -400,6 +717,13 @@ for key, archs in required.items():
 print("SWIFT_XCFRAMEWORK_INFO_PASS")
 PY
 
+for lib in \
+	"$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a" \
+	"$XCFRAMEWORK/ios-arm64/libq_periapt_ffi_abi2.a" \
+	"$XCFRAMEWORK/ios-arm64_x86_64-simulator/libq_periapt_ffi_abi2.a"; do
+	validate_apple_static_archive_paths "$lib"
+done
+
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	printf '\n=== Developer ID-sign XCFramework ===\n'
 	assert_release_source_snapshot
@@ -454,11 +778,9 @@ test -f "$ZIP_PATH" || {
 	exit 1
 }
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
-	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-		--artifact "$ZIP_PATH" --require-signature
+	validate_apple_xcframework_zip_paths signed "$ZIP_PATH"
 else
-	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-		--artifact "$ZIP_PATH"
+	validate_apple_xcframework_zip_paths unsigned "$ZIP_PATH"
 fi
 
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
@@ -557,9 +879,24 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 		--source-commit "$SOURCE_COMMIT" \
 		--swiftpm-checksum "$SWIFTPM_CHECKSUM" \
 		--signing-evidence "$SIGNING_EVIDENCE" \
+		--forbidden-build-prefix "$BUILD_HOME_LEXICAL" \
+		--forbidden-build-prefix "$BUILD_HOME" \
+		--forbidden-build-prefix "$CARGO_HOME_LEXICAL" \
+		--forbidden-build-prefix "$CARGO_HOME_PATH" \
+		--forbidden-build-prefix "$RUSTUP_HOME_LEXICAL" \
+		--forbidden-build-prefix "$RUSTUP_HOME_PATH" \
+		--forbidden-build-prefix "$XCODE_DEVELOPER_LEXICAL" \
+		--forbidden-build-prefix "$XCODE_DEVELOPER" \
+		--forbidden-build-prefix "$RUST_SYSROOT_LEXICAL" \
+		--forbidden-build-prefix "$RUST_SYSROOT" \
+		--forbidden-build-prefix "$SOURCE_ROOT_LEXICAL" \
+		--forbidden-build-prefix "$SOURCE_ROOT" \
+		--forbidden-build-prefix "$TARGET_ROOT_LEXICAL" \
+		--forbidden-build-prefix "$TARGET_ROOT" \
+		--forbidden-build-prefix "$TEMP_ROOT_LEXICAL" \
+		--forbidden-build-prefix "$TEMP_ROOT" \
 		--output "$APPLE_DISTRIBUTION"
-	PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-		--artifact "$ZIP_PATH" --require-signature
+	validate_apple_xcframework_zip_paths signed "$ZIP_PATH"
 	assert_release_source_snapshot
 	printf 'SWIFT_XCFRAMEWORK_SIGNED_STATIC_DISTRIBUTION_PASS\n'
 fi
@@ -651,7 +988,7 @@ if len(export_names) != 9 or len(set(export_names)) != 9:
 exports_digest = hashlib.sha256(("\n".join(export_names) + "\n").encode("utf-8")).hexdigest()
 
 manifest = {
-    "schema_version": 3,
+    "schema_version": 4,
     "kind": "qperiapt.swift_xcframework_manifest",
     "package": "q-periapt-swift",
     "version": version,
@@ -743,6 +1080,14 @@ manifest = {
             / "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift"
         ),
     },
+    "build_path_hygiene": {
+        "policy": "qperiapt.apple_static_archive_build_paths.v1",
+        "artifact_scan": {
+            "scope": "all_decompressed_regular_zip_entries",
+            "forbidden_match_count": 0,
+        },
+        "synthetic_build_path_prefix": "/__qperiapt__/",
+    },
     "public_release_boundary": {
         "contains_raw_device_proof": False,
         "contains_mobileprovision": False,
@@ -766,6 +1111,8 @@ manifest = {
 }
 if apple_release_mode:
     distribution = json.loads(apple_distribution_path.read_text(encoding="utf-8"))
+    if distribution.get("schema_version") != 2:
+        raise SystemExit("error: Apple distribution evidence has the wrong schema")
     if distribution.get("kind") != "qperiapt.apple_static_xcframework_distribution":
         raise SystemExit("error: Apple distribution evidence has the wrong kind")
     if distribution.get("source_commit") != source_commit:
@@ -787,6 +1134,19 @@ if apple_release_mode:
         "reason_code": "static_xcframework_contains_no_standalone_executable_or_notarizable_bundle",
     }:
         raise SystemExit("error: Apple distribution evidence has unsafe notarization semantics")
+    expected_path_hygiene = {
+        "policy": "qperiapt.apple_static_archive_build_paths.v1",
+        "artifact_scan": {
+            "scope": "all_decompressed_regular_zip_entries",
+            "forbidden_match_count": 0,
+        },
+        "synthetic_build_path_prefix": "/__qperiapt__/",
+        "allowed_upstream_toolchain_path_rules": [
+            "rust_distributed_compiler_builtins_members_v1"
+        ],
+    }
+    if distribution.get("path_hygiene") != expected_path_hygiene:
+        raise SystemExit("error: Apple distribution evidence path hygiene mismatch")
     manifest["artifacts"]["apple_distribution_evidence"] = {
         "path": "APPLE_DISTRIBUTION.json",
         "sha256": sha(apple_distribution_path),

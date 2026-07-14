@@ -787,6 +787,27 @@ class BoundVerifierWiringTests(unittest.TestCase):
         for path in entrypoints:
             relative = path.relative_to(ROOT).as_posix()
             with self.subTest(entrypoint=relative):
+                if path.name == "swift-xcframework-remote-consumer.sh":
+                    source = path.read_text(encoding="utf-8")
+                    self.assertNotIn(source_line, source)
+                    materialize = source.index(
+                        "for relative in $TRACKED_CONSUMER_INPUTS"
+                    )
+                    self_check = source.index(
+                        'cmp "$ROOT/artifact/swift-xcframework-remote-consumer.sh"'
+                    )
+                    snapshot_helper = source.index(
+                        '. "$SOURCE_SNAPSHOT/artifact/python-env.sh"'
+                    )
+                    snapshot_dispatch = source.index('python3 "$@"')
+                    first_snapshot_call = source.index(
+                        'snapshot_python - "$EFFECTIVE_URL"'
+                    )
+                    self.assertLess(materialize, self_check)
+                    self.assertLess(self_check, snapshot_helper)
+                    self.assertLess(snapshot_helper, snapshot_dispatch)
+                    self.assertLess(snapshot_dispatch, first_snapshot_call)
+                    continue
                 lines = path.read_text(encoding="utf-8").splitlines()
                 executable_lines = [
                     (number, line)

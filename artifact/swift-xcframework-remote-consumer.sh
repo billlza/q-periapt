@@ -3,9 +3,47 @@
 set -eu
 
 unset CDPATH
+if [ "${GIT_DIR+x}" = "x" ] || \
+	[ "${GIT_WORK_TREE+x}" = "x" ] || \
+	[ "${GIT_COMMON_DIR+x}" = "x" ] || \
+	[ "${GIT_INDEX_FILE+x}" = "x" ] || \
+	[ "${GIT_OBJECT_DIRECTORY+x}" = "x" ] || \
+	[ "${GIT_ALTERNATE_OBJECT_DIRECTORIES+x}" = "x" ] || \
+	[ "${GIT_SHALLOW_FILE+x}" = "x" ] || \
+	[ "${GIT_NAMESPACE+x}" = "x" ] || \
+	[ "${GIT_REPLACE_REF_BASE+x}" = "x" ] || \
+	[ "${GIT_CONFIG_SYSTEM+x}" = "x" ] || \
+	[ "${GIT_CONFIG_GLOBAL+x}" = "x" ] || \
+	[ "${GIT_CONFIG_NOSYSTEM+x}" = "x" ] || \
+	[ "${GIT_CONFIG_COUNT+x}" = "x" ] || \
+	[ "${GIT_CONFIG_PARAMETERS+x}" = "x" ] || \
+	[ "${GIT_CEILING_DIRECTORIES+x}" = "x" ] || \
+	[ "${GIT_DISCOVERY_ACROSS_FILESYSTEM+x}" = "x" ]; then
+	printf 'error: remote consumer rejects Git repository/configuration environment overrides\n' >&2
+	exit 2
+fi
 ROOT=$(cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
-. "$ROOT/artifact/python-env.sh"
+
+remote_git() {
+	/usr/bin/env -i \
+		PATH=/usr/bin:/bin \
+		LC_ALL=C \
+		LANG=C \
+		GIT_CONFIG_NOSYSTEM=1 \
+		GIT_CONFIG_GLOBAL=/dev/null \
+		GIT_CONFIG_SYSTEM=/dev/null \
+		GIT_NO_REPLACE_OBJECTS=1 \
+		GIT_OPTIONAL_LOCKS=0 \
+		/usr/bin/git \
+		-c "safe.directory=$ROOT" \
+		-c core.fsmonitor=false \
+		-c core.hooksPath=/dev/null \
+		-c core.attributesFile=/dev/null \
+		-c core.excludesFile=/dev/null \
+		-C "$ROOT" \
+		"$@"
+}
 
 if [ "$#" -ne 0 ]; then
 	printf 'error: swift-xcframework-remote-consumer.sh accepts no positional arguments\n' >&2
@@ -20,11 +58,13 @@ need() {
 }
 
 need codesign
+need cmp
 need curl
 need ditto
 need git
 need shasum
 need swift
+need wc
 
 VERSION="0.1.0-alpha.2"
 EXPECTED_URL="https://github.com/billlza/q-periapt/releases/download/v$VERSION/CQPeriapt.xcframework.zip"
@@ -51,63 +91,129 @@ if [ "${#CHECKSUM}" -ne 64 ] || [ "${#EXPECTED_SHA256}" -ne 64 ] || \
 	printf 'error: remote consumer checksum, SHA-256, or source commit has the wrong length\n' >&2
 	exit 2
 fi
-if ! git cat-file -e "$SOURCE_COMMIT^{commit}"; then
+if ! remote_git cat-file -e "$SOURCE_COMMIT^{commit}"; then
 	printf 'error: source commit is not available in the local repository: %s\n' "$SOURCE_COMMIT" >&2
 	exit 2
 fi
 
-SOURCE_WORKTREE="$ROOT/target/qperiapt-apple-release-worktrees/$SOURCE_COMMIT/source"
-if [ ! -d "$SOURCE_WORKTREE" ]; then
-	printf 'error: preserved source worktree is missing for commit %s\n' "$SOURCE_COMMIT" >&2
-	exit 1
-fi
-if ! WORKTREE_COMMIT=$(git -C "$SOURCE_WORKTREE" rev-parse HEAD) || \
-	! WORKTREE_STATUS=$(git -C "$SOURCE_WORKTREE" status --porcelain=v1 --untracked-files=normal); then
-	printf 'error: cannot inspect the preserved source worktree\n' >&2
-	exit 1
-fi
-if [ "$WORKTREE_COMMIT" != "$SOURCE_COMMIT" ] || [ -n "$WORKTREE_STATUS" ]; then
-	printf 'error: preserved source worktree is not the exact clean source commit\n' >&2
-	exit 1
-fi
 TRACKED_CONSUMER_INPUTS='bindings/swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift
 bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift
 bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift
-bindings/signed-policy-vectors.json'
-for relative in $TRACKED_CONSUMER_INPUTS; do
-	if ! git -C "$SOURCE_WORKTREE" ls-files --error-unmatch -- "$relative" >/dev/null 2>&1; then
-		printf 'error: remote consumer input is not tracked by source commit: %s\n' "$relative" >&2
-		exit 1
-	fi
-	input="$SOURCE_WORKTREE/$relative"
-	if [ ! -f "$input" ] || [ -L "$input" ]; then
-		printf 'error: remote consumer input is not a regular non-symlink file: %s\n' "$relative" >&2
-		exit 1
-	fi
-done
+bindings/signed-policy-vectors.json
+artifact/swift-xcframework-remote-consumer.sh
+artifact/apple_distribution.py
+artifact/evidence_io.py
+artifact/swift-xcframework-consumer-check.sh
+artifact/python-env.sh
+artifact/python_bootstrap.py
+crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json'
 
 OUT="$ROOT/target/qperiapt-swift-remote-consumer"
+SOURCE_SNAPSHOT="$OUT/source-inputs"
+SNAPSHOT_TARGET="$SOURCE_SNAPSHOT/target"
 REMOTE_ZIP="$OUT/CQPeriapt.xcframework.zip"
 REMOTE_ZIP_PART="$OUT/CQPeriapt.xcframework.zip.part"
-REMOTE_EXTRACT="$OUT/extracted"
-CONSUMER="$OUT/consumer"
+REMOTE_EXTRACT="$SNAPSHOT_TARGET/extracted"
+CONSUMER="$SNAPSHOT_TARGET/consumer"
+APPLE_CONSUMER_EVIDENCE="$SNAPSHOT_TARGET/apple-consumer-evidence"
 LOG="$OUT/swift-url-binary-consumer.log"
+MAX_SOURCE_BLOB_BYTES=4194304
+
+cleanup_remote_state() {
+	rm -f "$REMOTE_ZIP_PART"
+	rm -rf "$SOURCE_SNAPSHOT"
+}
+trap cleanup_remote_state EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 rm -rf "$OUT"
+mkdir -p "$OUT"
+mkdir -m 700 "$SOURCE_SNAPSHOT"
 mkdir -p \
 	"$REMOTE_EXTRACT" \
 	"$CONSUMER/Sources/QPeriaptHybrid" \
 	"$CONSUMER/Sources/QPeriaptLinkProbe" \
 	"$CONSUMER/Tests/QPeriaptHybridBinaryConsumerTests/Resources"
-cleanup_remote_part() {
-	rm -f "$REMOTE_ZIP_PART"
+
+materialize_source_input() {
+	relative=$1
+	destination="$SOURCE_SNAPSHOT/$relative"
+	if ! entry=$(remote_git ls-tree "$SOURCE_COMMIT" -- "$relative"); then
+		printf 'error: cannot inspect remote consumer source input: %s\n' "$relative" >&2
+		exit 1
+	fi
+	tab=$(printf '\t')
+	IFS="$tab" read -r metadata tree_path <<EOF
+$entry
+EOF
+	IFS=' ' read -r object_mode object_type expected_blob extra <<EOF
+$metadata
+EOF
+	if [ "$object_mode" != "100644" ] || [ "$object_type" != "blob" ] || \
+		[ -z "$expected_blob" ] || [ -n "$extra" ] || [ "$tree_path" != "$relative" ]; then
+		printf 'error: remote consumer input is not one regular tracked file: %s\n' "$relative" >&2
+		exit 1
+	fi
+	if ! declared_size=$(remote_git cat-file -s "$expected_blob"); then
+		printf 'error: cannot inspect remote consumer input size: %s\n' "$relative" >&2
+		exit 1
+	fi
+	case "$declared_size" in
+		*[!0-9]*|'')
+			printf 'error: remote consumer input has a noncanonical blob size: %s\n' "$relative" >&2
+			exit 1
+			;;
+	esac
+	if [ "$declared_size" -le 0 ] || [ "$declared_size" -gt "$MAX_SOURCE_BLOB_BYTES" ]; then
+		printf 'error: remote consumer input blob size is outside the bounded contract: %s\n' "$relative" >&2
+		exit 1
+	fi
+	mkdir -p "$(dirname "$destination")"
+	part="$destination.part"
+	if ! (
+		umask 077
+		set -C
+		exec 3>"$part"
+		remote_git cat-file blob "$expected_blob" >&3
+	); then
+		printf 'error: cannot exclusively materialize remote consumer input: %s\n' "$relative" >&2
+		exit 1
+	fi
+	actual_size=$(wc -c <"$part" | tr -d '[:space:]')
+	if [ "$actual_size" != "$declared_size" ]; then
+		printf 'error: materialized remote consumer input size mismatch: %s\n' "$relative" >&2
+		exit 1
+	fi
+	actual_blob=$(remote_git hash-object --no-filters "$part")
+	if [ "$actual_blob" != "$expected_blob" ]; then
+		printf 'error: materialized remote consumer input hash mismatch: %s\n' "$relative" >&2
+		exit 1
+	fi
+	chmod 600 "$part"
+	mv "$part" "$destination"
 }
-trap cleanup_remote_part EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-EFFECTIVE_URL=$(curl --fail --location --silent --show-error \
+
+for relative in $TRACKED_CONSUMER_INPUTS; do
+	materialize_source_input "$relative"
+done
+if ! cmp "$ROOT/artifact/swift-xcframework-remote-consumer.sh" \
+	"$SOURCE_SNAPSHOT/artifact/swift-xcframework-remote-consumer.sh"; then
+	printf 'error: running remote consumer does not match the source commit verifier\n' >&2
+	exit 1
+fi
+snapshot_python() (
+	ROOT="$SOURCE_SNAPSHOT"
+	cd "$SOURCE_SNAPSHOT"
+	. "$SOURCE_SNAPSHOT/artifact/python-env.sh"
+	python3 "$@"
+)
+EFFECTIVE_URL=$(curl -q --fail --location --silent --show-error \
 	--proto '=https' --proto-redir '=https' --tlsv1.2 \
+	--connect-timeout 30 --max-time 900 --max-filesize 536870912 \
+	--speed-limit 1024 --speed-time 60 \
 	--output "$REMOTE_ZIP_PART" --write-out '%{url_effective}' "$URL")
-python3 - "$EFFECTIVE_URL" <<'PY'
+snapshot_python - "$EFFECTIVE_URL" <<'PY'
 import sys
 import urllib.parse
 
@@ -136,19 +242,19 @@ if [ "$ACTUAL_CHECKSUM" != "$CHECKSUM" ]; then
 	printf 'error: downloaded XCFramework SwiftPM checksum does not match release evidence\n' >&2
 	exit 1
 fi
-PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
+snapshot_python "$SOURCE_SNAPSHOT/artifact/apple_distribution.py" validate-zip \
 	--artifact "$REMOTE_ZIP_PART" --require-signature
 mv "$REMOTE_ZIP_PART" "$REMOTE_ZIP"
 ditto -x -k "$REMOTE_ZIP" "$REMOTE_EXTRACT"
 codesign --verify --strict --verbose=4 "$REMOTE_EXTRACT/CQPeriapt.xcframework"
 
-cp "$SOURCE_WORKTREE/bindings/swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift" \
+cp "$SOURCE_SNAPSHOT/bindings/swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift" \
 	"$CONSUMER/Sources/QPeriaptHybrid/QPeriaptHybrid.swift"
-cp "$SOURCE_WORKTREE/bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift" \
+cp "$SOURCE_SNAPSHOT/bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift" \
 	"$CONSUMER/Sources/QPeriaptLinkProbe/main.swift"
-cp "$SOURCE_WORKTREE/bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift" \
+cp "$SOURCE_SNAPSHOT/bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift" \
 	"$CONSUMER/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift"
-cp "$SOURCE_WORKTREE/bindings/signed-policy-vectors.json" \
+cp "$SOURCE_SNAPSHOT/bindings/signed-policy-vectors.json" \
 	"$CONSUMER/Tests/QPeriaptHybridBinaryConsumerTests/Resources/signed-policy-vectors.json"
 cat >"$CONSUMER/Package.swift" <<EOF
 // swift-tools-version:5.9
@@ -206,7 +312,12 @@ if ! grep -q 'Executed 3 tests, with 0 failures' "$LOG"; then
 	exit 1
 fi
 QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME=0 \
-sh artifact/swift-xcframework-consumer-check.sh \
-	"$CONSUMER" "$OUT/apple-consumer-evidence" "$REMOTE_EXTRACT/CQPeriapt.xcframework"
+sh "$SOURCE_SNAPSHOT/artifact/swift-xcframework-consumer-check.sh" \
+	"$CONSUMER" "$APPLE_CONSUMER_EVIDENCE" "$REMOTE_EXTRACT/CQPeriapt.xcframework"
+rm -rf "$SOURCE_SNAPSHOT"
+if [ -e "$SOURCE_SNAPSHOT" ] || [ -L "$SOURCE_SNAPSHOT" ]; then
+	printf 'error: remote consumer source snapshot cleanup was incomplete\n' >&2
+	exit 1
+fi
 printf 'SWIFT_REMOTE_BINARY_CONSUMER_PASS source_commit=%s sha256=%s checksum=%s\n' \
 	"$SOURCE_COMMIT" "$ACTUAL_SHA256" "$ACTUAL_CHECKSUM"

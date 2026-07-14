@@ -353,7 +353,10 @@ jobs:
           cmp target/qperiapt-ci-header.h crates/q-periapt-ffi/include/q_periapt.h
           cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
       - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
-      - run: sh artifact/swift-xcframework.sh
+      - name: Build deterministic Apple XCFramework
+        run: |
+          unset RUSTFLAGS
+          sh artifact/swift-xcframework.sh
 
   bindings-kotlin:
     runs-on: ubuntu-latest

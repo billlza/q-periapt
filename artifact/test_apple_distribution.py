@@ -47,13 +47,33 @@ def codesign_display(*, team_id: str = TEAM_ID, timestamp: bool = True) -> str:
     return "\n".join(lines) + "\n"
 
 
-def thin_archive(payload: bytes = b"object") -> bytes:
-    return apple_distribution.AR_MAGIC + payload
+def thin_archive(payload: bytes = b"object", *, member_name: bytes = b"member.o") -> bytes:
+    if len(member_name) <= 15:
+        name_field = member_name + b"/"
+        archive_payload = payload
+    else:
+        name_field = f"#1/{len(member_name)}".encode("ascii")
+        archive_payload = member_name + payload
+    header = b"".join(
+        (
+            name_field.ljust(16, b" "),
+            b"0".ljust(12, b" "),
+            b"0".ljust(6, b" "),
+            b"0".ljust(6, b" "),
+            b"100644".ljust(8, b" "),
+            str(len(archive_payload)).encode("ascii").ljust(10, b" "),
+            b"`\n",
+        )
+    )
+    padding = b"\n" if len(archive_payload) % 2 else b""
+    return apple_distribution.AR_MAGIC + header + archive_payload + padding
 
 
-def fat_static_archive() -> bytes:
-    first = thin_archive(b"x86_64")
-    second = thin_archive(b"arm64")
+def fat_static_archive(
+    first_payload: bytes = b"x86_64", second_payload: bytes = b"arm64"
+) -> bytes:
+    first = thin_archive(first_payload)
+    second = thin_archive(second_payload)
     header_size = 8 + 2 * 20
     first_offset = header_size
     second_offset = first_offset + len(first)
@@ -80,11 +100,15 @@ def write_zip_entry(
     data: bytes,
     *,
     mode: int,
+    create_system: int = 3,
+    extra: bytes = b"",
+    compression: int = zipfile.ZIP_DEFLATED,
 ) -> None:
     info = zipfile.ZipInfo(name, (2000, 1, 1, 0, 0, 0))
-    info.create_system = 3
+    info.create_system = create_system
     info.external_attr = mode << 16
-    info.compress_type = zipfile.ZIP_DEFLATED
+    info.compress_type = compression
+    info.extra = extra
     archive.writestr(info, data)
 
 
@@ -138,6 +162,28 @@ class StaticArchiveTests(unittest.TestCase):
                 b"\xcf\xfa\xed\xfe" + b"\x00" * 64, label="executable"
             )
 
+    def test_rejects_malformed_ar_headers_sizes_padding_and_trailing_bytes(self) -> None:
+        valid = thin_archive(b"odd")
+        malformed = []
+        malformed.append(apple_distribution.AR_MAGIC + b"truncated")
+        bad_terminator = bytearray(valid)
+        bad_terminator[66:68] = b"??"
+        malformed.append(bytes(bad_terminator))
+        bad_size = bytearray(valid)
+        bad_size[56:66] = b"9999999999"
+        malformed.append(bytes(bad_size))
+        bad_padding = bytearray(valid)
+        bad_padding[-1:] = b"X"
+        malformed.append(bytes(bad_padding))
+        malformed.append(valid + b"X")
+        for archive in malformed:
+            with self.subTest(size=len(archive)), self.assertRaises(
+                apple_distribution.AppleDistributionError
+            ):
+                apple_distribution._validate_static_archive(
+                    archive, label="malformed"
+                )
+
     def test_rejects_fat_container_with_non_archive_slice(self) -> None:
         data = bytearray(fat_static_archive())
         first_offset = struct.unpack_from(">I", data, 16)[0]
@@ -164,6 +210,199 @@ class StaticArchiveTests(unittest.TestCase):
         ):
             apple_distribution._validate_static_archive(bytes(overlap), label="fat")
 
+    def test_rejects_private_build_paths_without_echoing_them(self) -> None:
+        private_paths = (
+            b"/Users/alice/.cargo/registry/src/crate/src/lib.rs",
+            b"/Users/Alice Smith/project/src/lib.rs",
+            b"file:///home/alice/project/src/lib.rs",
+            b"/root/build/project/src/lib.rs",
+            b"/private/var/folders/ab/temp/object.o",
+            b"C:\\Users\\alice\\project\\source.c",
+            b"D:\\projects\\qperiapt\\source.rs",
+            b"D:\\Program Files\\qperiapt\\source.rs",
+            b"E:/repo/qperiapt/source.rs",
+            b"\\\\server\\private-share\\project\\source.c",
+            b"\\\\?\\UNC\\server\\private share\\project\\source.c",
+            b"//server/private-share/project/source.c",
+            b"file://server/private-share/project/source.c",
+            b"/c/Users/alice/project/source.c",
+            b"/d/projects/qperiapt/source.rs",
+        )
+        for private_path in private_paths:
+            with self.subTest(private_path=private_path):
+                with self.assertRaises(
+                    apple_distribution.AppleDistributionError
+                ) as captured:
+                    apple_distribution._validate_static_archive(
+                        thin_archive(private_path), label="private"
+                    )
+                message = str(captured.exception)
+                self.assertIn("forbidden private build path", message)
+                self.assertNotIn(private_path.decode("ascii"), message)
+                self.assertNotIn("match_sha256", message)
+
+    def test_rejects_generic_windows_paths_in_both_utf16_encodings(self) -> None:
+        private_paths = (
+            r"D:\projects\qperiapt\source.rs",
+            r"\\?\UNC\server\private share\project\source.c",
+            "E:/repo/qperiapt/source.rs",
+            "//server/private-share/project/source.c",
+            "file://server/private-share/project/source.c",
+            "/d/projects/qperiapt/source.rs",
+        )
+        for private_path in private_paths:
+            for encoding in ("utf-16-le", "utf-16-be"):
+                with self.subTest(private_path=private_path, encoding=encoding):
+                    with self.assertRaisesRegex(
+                        apple_distribution.AppleDistributionError,
+                        "utf16_.*absolute_path|utf16_.*share",
+                    ):
+                        apple_distribution._validate_static_archive(
+                            thin_archive(private_path.encode(encoding)),
+                            label="utf16-private",
+                        )
+
+    def test_does_not_treat_drive_like_noise_as_a_windows_path(self) -> None:
+        allowed = (
+            b"object-marker p:/! end",
+            b"binary-marker /H/P/8 end",
+            b"binary-marker /h/p/8 end",
+            b"http://www.apple.com/DTDs/PropertyList-1.0.dtd",
+            b"https://github.com/billlza/q-periapt/releases",
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd".encode("utf-16-le"),
+            "https://github.com/billlza/q-periapt/releases".encode("utf-16-be"),
+        )
+        for payload in allowed:
+            with self.subTest(payload=payload):
+                apple_distribution._validate_static_archive(
+                    thin_archive(payload), label="path-like-public-text"
+                )
+
+    def test_scans_ar_and_fat_container_metadata_outside_member_payloads(self) -> None:
+        ar_header = bytearray(thin_archive())
+        ar_header[8:24] = b"/Users/alice/".ljust(16, b" ")
+
+        fat_header = bytearray(fat_static_archive())
+        fat_header[8:24] = b"/Users/alice/".ljust(16, b" ")
+
+        fat_gap = bytearray(fat_static_archive())
+        second_offset = struct.unpack_from(">I", fat_gap, 36)[0]
+        gap = b"/Users/alice/"
+        fat_gap[second_offset:second_offset] = gap
+        struct.pack_into(">I", fat_gap, 36, second_offset + len(gap))
+
+        fat_trailing = fat_static_archive() + b"/Users/alice/"
+        for label, archive in (
+            ("ar-header", bytes(ar_header)),
+            ("fat-header", bytes(fat_header)),
+            ("fat-gap", bytes(fat_gap)),
+            ("fat-trailing", fat_trailing),
+        ):
+            with self.subTest(label=label), self.assertRaisesRegex(
+                apple_distribution.AppleDistributionError,
+                "forbidden private build path",
+            ):
+                apple_distribution._validate_static_archive(archive, label=label)
+
+    def test_rejects_dynamic_prefix_and_utf16_paths_in_fat_second_slice(self) -> None:
+        private_prefix = "/Volumes/private-builder/release"
+        private_path = f"{private_prefix}/source.rs"
+        data = fat_static_archive(
+            second_payload=private_path.encode("utf-16-le")
+        )
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "exact_build_prefix_utf-16-le",
+        ):
+            apple_distribution._validate_static_archive(
+                data,
+                label="fat-private",
+                forbidden_build_prefixes=(private_prefix,),
+            )
+
+    def test_accepts_synthetic_system_and_narrow_rust_upstream_paths(self) -> None:
+        allowed = b"\x00".join(
+            (
+                b"/__qperiapt__/cargo-home/registry/src/crate/src/lib.rs",
+                b"/System/Library/Frameworks/Security.framework/Security",
+                b"/dev/urandom",
+                b"/rustc/0123456789abcdef/library/core/src/lib.rs",
+                b"/Users/runner/work/rust/rust/build/aarch64-apple-darwin/"
+                b"stage1-std/aarch64-apple-darwin/dist/build/"
+                b"compiler_builtins-7be819c9f191cb18/out/lse_cas8.S",
+                b"/Users/runner/work/rust/rust/library/compiler-builtins/"
+                b"compiler-builtins",
+            )
+        )
+        apple_distribution._validate_static_archive(
+            thin_archive(
+                allowed,
+                member_name=b"4134eb5fb31f69b6-lse_cas8.o",
+            ),
+            label="allowed",
+        )
+
+    def test_rejects_unpinned_rust_upstream_build_path(self) -> None:
+        prefix = (
+            b"/Users/runner/work/rust/rust/build/aarch64-apple-darwin/"
+            b"stage1-std/aarch64-apple-darwin/dist/build/"
+        )
+        paths = (
+            prefix + b"compiler_builtins-deadbeef/out/lse_cas8.S",
+            prefix + b"compiler_builtins-7be819c9f191cb18/outside/file.c",
+            prefix
+            + b"compiler_builtins-7be819c9f191cb18/out/lse_cas8.S/extra",
+            b"/Users/runner/work/rust/rust/library/compiler-builtins/"
+            b"compiler-builtins/extra",
+        )
+        for path in paths:
+            with self.subTest(path=path), self.assertRaisesRegex(
+                apple_distribution.AppleDistributionError, "macos_user_home"
+            ):
+                apple_distribution._validate_static_archive(
+                    thin_archive(path), label="unpinned-upstream"
+                )
+
+    def test_rejects_pinned_upstream_path_in_an_unpinned_member(self) -> None:
+        path = (
+            b"/Users/runner/work/rust/rust/library/compiler-builtins/"
+            b"compiler-builtins"
+        )
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError, "macos_user_home"
+        ):
+            apple_distribution._validate_static_archive(
+                thin_archive(path, member_name=b"application-object.o"),
+                label="wrong-member",
+            )
+
+    def test_rejects_invalid_dynamic_prefix_contract(self) -> None:
+        for prefix in (
+            "relative",
+            "/",
+            "/path=ambiguous",
+            "/path\nline",
+            "/not//canonical",
+            "/not/../canonical",
+            "/trailing/",
+        ):
+            with self.subTest(prefix=prefix), self.assertRaisesRegex(
+                apple_distribution.AppleDistributionError,
+                "absolute canonical POSIX paths",
+            ):
+                apple_distribution._validate_static_archive(
+                    thin_archive(),
+                    label="invalid-prefix",
+                    forbidden_build_prefixes=(prefix,),
+                )
+
+    def test_dynamic_prefix_requires_a_path_boundary(self) -> None:
+        apple_distribution._validate_static_archive(
+            thin_archive(b"/Volumes/private-builder-release/source.rs"),
+            label="similar-prefix",
+            forbidden_build_prefixes=("/Volumes/private-builder",),
+        )
+
 
 class ZipFixture(unittest.TestCase):
     def setUp(self) -> None:
@@ -183,6 +422,10 @@ class ZipFixture(unittest.TestCase):
         executable_name: str | None = None,
         symlink_name: str | None = None,
         library_override: tuple[str, bytes] | None = None,
+        file_override: tuple[str, bytes] | None = None,
+        metadata_extra_name: str | None = None,
+        non_unix_origin_name: str | None = None,
+        compression: int = zipfile.ZIP_DEFLATED,
     ) -> dict[str, str]:
         entries = set(
             apple_distribution.EXPECTED_XCFRAMEWORK_DIRECTORIES
@@ -197,24 +440,41 @@ class ZipFixture(unittest.TestCase):
         with zipfile.ZipFile(self.archive, "w") as archive:
             for name in sorted(entries):
                 if name.endswith("/"):
-                    write_zip_entry(archive, name, b"", mode=stat.S_IFDIR | 0o755)
+                    write_zip_entry(
+                        archive,
+                        name,
+                        b"",
+                        mode=stat.S_IFDIR | 0o755,
+                        compression=compression,
+                    )
                     continue
                 relative = name.removeprefix("CQPeriapt.xcframework/")
                 if relative in apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES:
                     data = archive_bytes(relative)
                     if library_override and relative == library_override[0]:
                         data = library_override[1]
-                    library_hashes[relative] = hashlib.sha256(data).hexdigest()
                 elif name.endswith("CodeResources"):
                     data = b"sealed-resources"
                 else:
                     data = f"fixture:{name}".encode("utf-8")
+                if file_override and name == file_override[0]:
+                    data = file_override[1]
+                if relative in apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES:
+                    library_hashes[relative] = hashlib.sha256(data).hexdigest()
                 mode = stat.S_IFREG | (
                     0o755 if name == executable_name else 0o644
                 )
                 if name == symlink_name:
                     mode = stat.S_IFLNK | 0o777
-                write_zip_entry(archive, name, data, mode=mode)
+                write_zip_entry(
+                    archive,
+                    name,
+                    data,
+                    mode=mode,
+                    create_system=0 if name == non_unix_origin_name else 3,
+                    extra=b"\x01\x00\x00\x00" if name == metadata_extra_name else b"",
+                    compression=compression,
+                )
             if duplicate:
                 name = "CQPeriapt.xcframework/Info.plist"
                 write_zip_entry(
@@ -303,6 +563,203 @@ class ExactZipLayoutTests(ZipFixture):
             apple_distribution.validate_xcframework_zip(
                 self.archive, require_signature=True
             )
+
+    def test_rejects_private_path_inside_decompressed_static_zip_entry(self) -> None:
+        relative = sorted(apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES)[0]
+        private_path = b"/Users/alice/.cargo/registry/src/crate/src/lib.rs"
+        self.write_archive(
+            library_override=(relative, thin_archive(private_path))
+        )
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "forbidden private build path",
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_private_path_in_every_regular_entry_class(self) -> None:
+        names = (
+            "CQPeriapt.xcframework/Info.plist",
+            "CQPeriapt.xcframework/ios-arm64/Headers/q_periapt.h",
+            "CQPeriapt.xcframework/_CodeSignature/CodeResources",
+        )
+        for name in names:
+            with self.subTest(name=name):
+                self.write_archive(
+                    file_override=(name, b"/Users/alice/private/build-input")
+                )
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError,
+                    "forbidden private build path",
+                ):
+                    apple_distribution.validate_xcframework_zip(
+                        self.archive, require_signature=True
+                    )
+
+    def test_rejects_central_directory_extra_fields(self) -> None:
+        name = "CQPeriapt.xcframework/Info.plist"
+        self.write_archive(metadata_extra_name=name)
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "central directory metadata|extended",
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_non_unix_zip_origin_metadata(self) -> None:
+        name = "CQPeriapt.xcframework/Info.plist"
+        self.write_archive(non_unix_origin_name=name)
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "central directory metadata|Unix-origin",
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_nonzero_local_and_central_zip_flags(self) -> None:
+        self.write_archive()
+        payload = bytearray(self.archive.read_bytes())
+        for signature, flag_offset in ((b"PK\x03\x04", 6), (b"PK\x01\x02", 8)):
+            offset = 0
+            while True:
+                offset = payload.find(signature, offset)
+                if offset < 0:
+                    break
+                struct.pack_into("<H", payload, offset + flag_offset, 0x4000)
+                offset += len(signature)
+        self.archive.write_bytes(payload)
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError, "flagged|local header"
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_extra_data_present_only_in_a_local_header(self) -> None:
+        self.write_archive()
+        with zipfile.ZipFile(self.archive) as archive:
+            target = max(archive.infolist(), key=lambda info: info.header_offset)
+            self.assertIsNone(archive.testzip())
+        payload = bytearray(self.archive.read_bytes())
+        old_eocd = len(payload) - apple_distribution.ZIP_END_OF_CENTRAL_DIRECTORY.size
+        old_central_offset = struct.unpack_from("<I", payload, old_eocd + 16)[0]
+        name_length = struct.unpack_from("<H", payload, target.header_offset + 26)[0]
+        local_extra_length = struct.unpack_from(
+            "<H", payload, target.header_offset + 28
+        )[0]
+        self.assertEqual(local_extra_length, 0)
+        private_path = b"/Users/local-private/"
+        local_extra = struct.pack("<HH", 0xCAFE, len(private_path)) + private_path
+        insertion = target.header_offset + 30 + name_length
+        payload[insertion:insertion] = local_extra
+        struct.pack_into(
+            "<H", payload, target.header_offset + 28, len(local_extra)
+        )
+        new_eocd = old_eocd + len(local_extra)
+        struct.pack_into(
+            "<I", payload, new_eocd + 16, old_central_offset + len(local_extra)
+        )
+        self.archive.write_bytes(payload)
+        with zipfile.ZipFile(self.archive) as archive:
+            self.assertIsNone(archive.testzip())
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError, "local header"
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_prefixed_or_trailing_zip_container_data(self) -> None:
+        self.write_archive()
+        canonical = self.archive.read_bytes()
+        for payload in (b"prefix" + canonical, canonical + b"trailing"):
+            with self.subTest(kind=payload[:8]):
+                self.archive.write_bytes(payload)
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError,
+                    "prefixed|trailing|local records|central directory",
+                ):
+                    apple_distribution.validate_xcframework_zip(
+                        self.archive, require_signature=True
+                    )
+
+    def test_rejects_hidden_bytes_after_deflate_or_stored_entry_payload(self) -> None:
+        for compression in (zipfile.ZIP_DEFLATED, zipfile.ZIP_STORED):
+            with self.subTest(compression=compression):
+                self.write_archive(compression=compression)
+                with zipfile.ZipFile(self.archive) as archive:
+                    target = max(
+                        archive.infolist(), key=lambda info: info.header_offset
+                    )
+                    self.assertIsNone(archive.testzip())
+                payload = bytearray(self.archive.read_bytes())
+                old_eocd = (
+                    len(payload)
+                    - apple_distribution.ZIP_END_OF_CENTRAL_DIRECTORY.size
+                )
+                old_central_offset = struct.unpack_from(
+                    "<I", payload, old_eocd + 16
+                )[0]
+                hidden = b"/Users/local-private/"
+                payload[old_central_offset:old_central_offset] = hidden
+                local_compressed_size = struct.unpack_from(
+                    "<I", payload, target.header_offset + 18
+                )[0]
+                struct.pack_into(
+                    "<I",
+                    payload,
+                    target.header_offset + 18,
+                    local_compressed_size + len(hidden),
+                )
+                new_central_offset = old_central_offset + len(hidden)
+                central_cursor = new_central_offset
+                while central_cursor < old_eocd + len(hidden):
+                    self.assertEqual(
+                        struct.unpack_from("<I", payload, central_cursor)[0],
+                        apple_distribution.ZIP_CENTRAL_DIRECTORY_SIGNATURE,
+                    )
+                    name_length, extra_length, comment_length = struct.unpack_from(
+                        "<HHH", payload, central_cursor + 28
+                    )
+                    local_offset = struct.unpack_from(
+                        "<I", payload, central_cursor + 42
+                    )[0]
+                    if local_offset == target.header_offset:
+                        central_compressed_size = struct.unpack_from(
+                            "<I", payload, central_cursor + 20
+                        )[0]
+                        struct.pack_into(
+                            "<I",
+                            payload,
+                            central_cursor + 20,
+                            central_compressed_size + len(hidden),
+                        )
+                        break
+                    central_cursor += (
+                        apple_distribution.ZIP_CENTRAL_DIRECTORY_HEADER.size
+                        + name_length
+                        + extra_length
+                        + comment_length
+                    )
+                else:
+                    self.fail("target central directory entry not found")
+                new_eocd = old_eocd + len(hidden)
+                struct.pack_into(
+                    "<I", payload, new_eocd + 16, new_central_offset
+                )
+                self.archive.write_bytes(payload)
+                with zipfile.ZipFile(self.archive) as archive:
+                    self.assertIsNone(archive.testzip())
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError,
+                    "deflate stream|stored XCFramework ZIP entry",
+                ):
+                    apple_distribution.validate_xcframework_zip(
+                        self.archive, require_signature=True
+                    )
 
     def test_rejects_corrupt_zip(self) -> None:
         self.archive.write_bytes(b"not-a-zip")
@@ -477,6 +934,7 @@ class DistributionEvidenceTests(ZipFixture):
 
     def test_emits_honest_signed_static_sdk_semantics(self) -> None:
         evidence = self.build()
+        self.assertEqual(evidence["schema_version"], 2)
         self.assertEqual(
             evidence["kind"], "qperiapt.apple_static_xcframework_distribution"
         )
@@ -484,6 +942,20 @@ class DistributionEvidenceTests(ZipFixture):
         self.assertEqual(evidence["artifact"]["sha256"], self.digest)
         self.assertEqual(evidence["format"]["static_archive_count"], 3)
         self.assertEqual(evidence["format"]["standalone_executable_count"], 0)
+        self.assertEqual(
+            evidence["path_hygiene"],
+            {
+                "policy": apple_distribution.BUILD_PATH_HYGIENE_POLICY,
+                "artifact_scan": {
+                    "scope": "all_decompressed_regular_zip_entries",
+                    "forbidden_match_count": 0,
+                },
+                "synthetic_build_path_prefix": "/__qperiapt__/",
+                "allowed_upstream_toolchain_path_rules": [
+                    "rust_distributed_compiler_builtins_members_v1"
+                ],
+            },
+        )
         notarization = evidence["notarization"]
         self.assertEqual(
             notarization["applicability"],
@@ -580,6 +1052,9 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         cls.remote = (
             cls.root / "artifact/swift-xcframework-remote-consumer.sh"
         ).read_text(encoding="utf-8")
+        cls.workflow = (cls.root / ".github/workflows/ci.yml").read_text(
+            encoding="utf-8"
+        )
 
     def test_release_path_is_signing_only_and_has_no_notary_credentials(self) -> None:
         source = self.builder + self.release
@@ -607,7 +1082,8 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertIn('EXPECTED_TEAM_ID="YKUPL7Z869"', self.release)
         self.assertIn('codesign --timestamp', self.builder)
         self.assertIn('--extract-certificates="$CERTIFICATE_PREFIX"', self.builder)
-        self.assertNotIn("--force", source := self.builder + self.release)
+        source = self.builder + self.release
+        self.assertNotIn("codesign --force", source)
         self.assertNotIn("--deep", source)
         self.assertNotIn("--timestamp=none", source)
 
@@ -661,7 +1137,170 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertNotIn('"notarized": apple_release_mode', self.builder)
         self.assertIn('"notarized": False', self.builder)
         self.assertIn("not_applicable_static_sdk_payload", self.builder)
-        self.assertIn('"schema_version": 3', self.builder)
+        self.assertIn('"schema_version": 4', self.builder)
+
+    def test_compiler_path_remapping_and_archive_gates_precede_signing(self) -> None:
+        self.assertIn('CARGO_ENCODED_RUSTFLAGS="-Dwarnings"', self.builder)
+        self.assertIn("--remap-path-prefix=$1=$2", self.builder)
+        for option in ("file", "macro", "debug"):
+            self.assertIn(f'-f{{option}}-prefix-map=', self.builder)
+        self.assertIn("CC_SHELL_ESCAPED_FLAGS=1", self.builder)
+        self.assertGreaterEqual(
+            self.builder.count("validate_apple_static_archive_paths"), 4
+        )
+        final_archive_gate = self.builder.index(
+            '"$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"'
+        )
+        self.assertLess(final_archive_gate, self.builder.index("codesign --timestamp"))
+        self.assertGreaterEqual(
+            self.builder.count('--forbidden-build-prefix "$BUILD_HOME"'), 3
+        )
+        self.assertIn("unset RUSTFLAGS\n          sh artifact/swift-xcframework.sh", self.workflow)
+
+    def test_caller_compiler_and_target_flag_overrides_fail_fast(self) -> None:
+        script = self.root / "artifact/swift-xcframework.sh"
+        environment = os.environ.copy()
+        exact = {
+            "AR",
+            "ARFLAGS",
+            "CC",
+            "CC_SHELL_ESCAPED_FLAGS",
+            "CFLAGS",
+            "CPPFLAGS",
+            "CXX",
+            "CXXFLAGS",
+            "CARGO_BUILD_RUSTFLAGS",
+            "CARGO_BUILD_RUSTC",
+            "CARGO_BUILD_RUSTC_WRAPPER",
+            "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+            "CARGO_BUILD_RUSTDOCFLAGS",
+            "CARGO_BUILD_BUILD_DIR",
+            "CARGO_BUILD_TARGET",
+            "CARGO_BUILD_TARGET_DIR",
+            "CARGO_ENCODED_RUSTDOCFLAGS",
+            "CARGO_ENCODED_RUSTFLAGS",
+            "CARGO_TARGET_DIR",
+            "CARGO_INCREMENTAL",
+            "CC_FORCE_DISABLE",
+            "COMPILER_PATH",
+            "CPATH",
+            "CPLUS_INCLUDE_PATH",
+            "CROSS_COMPILE",
+            "CRATE_CC_NO_DEFAULTS",
+            "C_INCLUDE_PATH",
+            "DEVELOPER_DIR",
+            "HOST_AR",
+            "HOST_ARFLAGS",
+            "HOST_CC",
+            "HOST_CFLAGS",
+            "HOST_CPPFLAGS",
+            "HOST_CXX",
+            "HOST_CXXFLAGS",
+            "HOST_RANLIB",
+            "HOST_RANLIBFLAGS",
+            "IPHONEOS_DEPLOYMENT_TARGET",
+            "GCC_EXEC_PREFIX",
+            "LD",
+            "LDFLAGS",
+            "LIBRARY_PATH",
+            "MACOSX_DEPLOYMENT_TARGET",
+            "OBJC_INCLUDE_PATH",
+            "RANLIB",
+            "RANLIBFLAGS",
+            "RUSTC",
+            "RUSTC_BOOTSTRAP",
+            "RUSTC_LINKER",
+            "RUSTC_WORKSPACE_WRAPPER",
+            "RUSTC_WRAPPER",
+            "RUSTDOCFLAGS",
+            "RUSTFLAGS",
+            "RUSTUP_TOOLCHAIN",
+            "SDKROOT",
+            "SOURCE_DATE_EPOCH",
+            "TARGET_AR",
+            "TARGET_ARFLAGS",
+            "TARGET_CC",
+            "TARGET_CFLAGS",
+            "TARGET_CPPFLAGS",
+            "TARGET_CXX",
+            "TARGET_CXXFLAGS",
+            "TARGET_RANLIB",
+            "TARGET_RANLIBFLAGS",
+            "TVOS_DEPLOYMENT_TARGET",
+            "WATCHOS_DEPLOYMENT_TARGET",
+            "XROS_DEPLOYMENT_TARGET",
+            "ZERO_AR_DATE",
+        }
+        compiler_prefixes = ("AR_", "CC_", "CFLAGS_", "CPPFLAGS_", "CXX_", "CXXFLAGS_")
+        compiler_suffixes = (
+            "_AR",
+            "_CC",
+            "_CFLAGS",
+            "_CPPFLAGS",
+            "_CXX",
+            "_CXXFLAGS",
+        )
+        for name in tuple(environment):
+            if (
+                name in exact
+                or name.startswith(compiler_prefixes)
+                or name.endswith(compiler_suffixes)
+                or name.startswith("CARGO_TARGET_")
+            ):
+                environment.pop(name)
+        for name in (
+            "RUSTFLAGS",
+            "CFLAGS_aarch64_apple_ios",
+            "CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS",
+            "CARGO_BUILD_TARGET_DIR",
+            "CARGO_BUILD_BUILD_DIR",
+            "RUSTC_LINKER",
+            "CROSS_COMPILE",
+            "CPATH",
+        ):
+            with self.subTest(name=name):
+                overridden = environment | {name: "-Cunsafe-example"}
+                completed = subprocess.run(
+                    ["/bin/sh", str(script)],
+                    cwd=self.root,
+                    env=overridden,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(completed.returncode, 2, completed.stderr)
+                self.assertIn(
+                    "rejects caller compiler/flag overrides", completed.stderr
+                )
+                self.assertIn(name, completed.stderr)
+
+    def test_ambient_cargo_configuration_fails_before_build(self) -> None:
+        script = self.root / "artifact/swift-xcframework.sh"
+        with tempfile.TemporaryDirectory() as raw:
+            cargo_home = pathlib.Path(raw)
+            (cargo_home / "config.toml").write_text(
+                '[build]\nrustflags = ["-C", "unexpected"]\n', encoding="utf-8"
+            )
+            environment = os.environ.copy()
+            for name in (
+                "RUSTFLAGS",
+                "CARGO_ENCODED_RUSTFLAGS",
+                "CARGO_BUILD_RUSTFLAGS",
+            ):
+                environment.pop(name, None)
+            environment["CARGO_HOME"] = str(cargo_home)
+            completed = subprocess.run(
+                ["/bin/sh", str(script)],
+                cwd=self.root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn(
+                "rejects ambient Cargo configuration files", completed.stderr
+            )
 
     def test_wrapper_reverifies_all_public_assets_and_signature(self) -> None:
         for name in (
@@ -677,15 +1316,66 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             'codesign --verify --strict --verbose=4 "$PUBLIC_DIST/CQPeriapt.xcframework"',
             self.release,
         )
+        self.assertIn('release_worktree_python \\\n\t"$WORKTREE_ROOT/artifact/apple_distribution.py"', self.release)
+        self.assertNotIn('PYTHONPATH="$WORKTREE_ROOT/artifact"', self.release)
+        self.assertIn('worktree remove --force "$WORKTREE_ROOT"', self.release)
+        self.assertIn("source_worktree_cleaned=true", self.release)
+        self.assertIn(
+            "status --porcelain=v1 --untracked-files=normal", self.release
+        )
+        self.assertIn("refusing to force-remove a changed", self.release)
+        self.assertIn('COMPLETION_PENDING="$RELEASE_ROOT/completed.json.pending"', self.release)
+        self.assertIn('COMPLETION_LEDGER="$RELEASE_ROOT/completed.json"', self.release)
+        pending_write = self.release.index(
+            'python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST"'
+        )
+        cleanup = self.release.rindex("cleanup_owned_release_worktree")
+        ledger_rename = self.release.index("os.rename(pending, completed)")
+        self.assertLess(pending_write, cleanup)
+        self.assertLess(cleanup, ledger_rename)
 
     def test_remote_consumer_download_is_hash_pinned_and_atomic(self) -> None:
-        self.assertIn("curl --fail --location", self.remote)
+        self.assertIn("curl -q --fail --location", self.remote)
         self.assertIn("url_effective", self.remote)
         self.assertIn("REMOTE_ZIP_PART", self.remote)
         self.assertIn('mv "$REMOTE_ZIP_PART" "$REMOTE_ZIP"', self.remote)
         self.assertIn("swift package compute-checksum", self.remote)
         self.assertIn("codesign --verify --strict", self.remote)
         self.assertIn("release-assets.githubusercontent.com", self.remote)
+        self.assertIn('remote_git cat-file blob "$expected_blob"', self.remote)
+        self.assertIn('remote_git cat-file -s "$expected_blob"', self.remote)
+        self.assertIn('remote_git ls-tree "$SOURCE_COMMIT"', self.remote)
+        self.assertIn('remote_git hash-object --no-filters "$part"', self.remote)
+        self.assertIn("MAX_SOURCE_BLOB_BYTES=4194304", self.remote)
+        self.assertIn("set -C", self.remote)
+        self.assertIn('wc -c <"$part"', self.remote)
+        self.assertIn('trap cleanup_remote_state EXIT', self.remote)
+        self.assertLess(
+            self.remote.index('trap cleanup_remote_state EXIT'),
+            self.remote.index("materialize_source_input()"),
+        )
+        for relative in (
+            "artifact/swift-xcframework-remote-consumer.sh",
+            "artifact/apple_distribution.py",
+            "artifact/evidence_io.py",
+            "artifact/swift-xcframework-consumer-check.sh",
+            "artifact/python-env.sh",
+            "artifact/python_bootstrap.py",
+            "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+        ):
+            with self.subTest(relative=relative):
+                self.assertIn(relative, self.remote)
+        self.assertIn(
+            'snapshot_python "$SOURCE_SNAPSHOT/artifact/apple_distribution.py" validate-zip',
+            self.remote,
+        )
+        self.assertIn(
+            'sh "$SOURCE_SNAPSHOT/artifact/swift-xcframework-consumer-check.sh"',
+            self.remote,
+        )
+        self.assertIn('rm -rf "$SOURCE_SNAPSHOT"', self.remote)
+        self.assertNotIn("SOURCE_WORKTREE", self.remote)
+        self.assertNotIn("qperiapt-apple-release-worktrees", self.remote)
         self.assertNotIn("--insecure", self.remote)
 
 

@@ -62,6 +62,10 @@ release_worktree_git() {
 		"$@"
 }
 
+release_worktree_python() {
+	sh "$WORKTREE_ROOT/artifact/python-run.sh" "$@"
+}
+
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
 		printf 'error: required Apple release tool not found: %s\n' "$1" >&2
@@ -141,13 +145,99 @@ RELEASE_ROOT="$RELEASES_ROOT/$SOURCE_COMMIT"
 WORKTREE_ROOT="$RELEASE_ROOT/source"
 SOURCE_OUT="$WORKTREE_ROOT/target/qperiapt-swift-xcframework"
 if [ -e "$RELEASE_ROOT" ] || [ -L "$RELEASE_ROOT" ]; then
-	printf 'error: refusing to replace the preserved signed release worktree for this source commit\n' >&2
+	printf 'error: refusing to repeat or replace Apple release state for this source commit\n' >&2
 	exit 1
 fi
 mkdir -p "$RELEASES_ROOT"
 mkdir "$RELEASE_ROOT"
 chmod 700 "$RELEASE_ROOT"
+WORKTREE_CREATED=0
+RELEASE_COMPLETED=0
+WORKTREE_GIT_DIR=
+WORKTREE_ADMIN_NAME=
+
+cleanup_owned_release_worktree() {
+	if [ "$WORKTREE_CREATED" != "1" ]; then
+		return 0
+	fi
+	if ! cleanup_commit=$(release_worktree_git rev-parse HEAD) || \
+		! cleanup_toplevel=$(release_worktree_git rev-parse --show-toplevel) || \
+		! cleanup_common=$(release_worktree_git rev-parse --path-format=absolute --git-common-dir) || \
+		! cleanup_git_dir=$(release_worktree_git rev-parse --absolute-git-dir); then
+		printf 'error: cannot safely identify the wrapper-owned Apple release worktree during cleanup\n' >&2
+		return 1
+	fi
+	case "$cleanup_git_dir" in
+		"$ROOT/.git/worktrees/"?*) cleanup_admin=${cleanup_git_dir#"$ROOT/.git/worktrees/"} ;;
+		*)
+			printf 'error: wrapper-owned Apple release worktree has an unsafe Git admin path\n' >&2
+			return 1
+			;;
+	esac
+	case "$cleanup_admin" in
+		*/*|'')
+			printf 'error: wrapper-owned Apple release worktree admin name is invalid\n' >&2
+			return 1
+			;;
+	esac
+	if [ "$cleanup_commit" != "$SOURCE_COMMIT" ] || \
+		[ "$cleanup_toplevel" != "$WORKTREE_ROOT" ] || \
+		[ "$cleanup_common" != "$ROOT/.git" ] || \
+		{ [ -n "$WORKTREE_GIT_DIR" ] && [ "$cleanup_git_dir" != "$WORKTREE_GIT_DIR" ]; } || \
+		{ [ -n "$WORKTREE_ADMIN_NAME" ] && [ "$cleanup_admin" != "$WORKTREE_ADMIN_NAME" ]; }; then
+		printf 'error: wrapper-owned Apple release worktree identity changed before cleanup\n' >&2
+		return 1
+	fi
+	if ! cleanup_worktree_status=$(release_worktree_git status --porcelain=v1 --untracked-files=normal); then
+		printf 'error: cannot inspect the wrapper-owned Apple release worktree during cleanup\n' >&2
+		return 1
+	fi
+	if [ -n "$cleanup_worktree_status" ]; then
+		printf 'error: refusing to force-remove a changed wrapper-owned Apple release worktree\n' >&2
+		return 1
+	fi
+	if ! release_main_git worktree remove --force "$WORKTREE_ROOT"; then
+		printf 'error: cannot remove the wrapper-owned Apple release worktree\n' >&2
+		return 1
+	fi
+	if [ -e "$WORKTREE_ROOT" ] || [ -L "$WORKTREE_ROOT" ] || \
+		[ -e "$ROOT/.git/worktrees/$cleanup_admin" ] || \
+		[ -L "$ROOT/.git/worktrees/$cleanup_admin" ]; then
+		printf 'error: wrapper-owned Apple release worktree cleanup was incomplete\n' >&2
+		return 1
+	fi
+	if release_main_git worktree list --porcelain | grep -Fx "worktree $WORKTREE_ROOT" >/dev/null 2>&1; then
+		printf 'error: wrapper-owned Apple release worktree remains registered after cleanup\n' >&2
+		return 1
+	fi
+	WORKTREE_CREATED=0
+}
+
+cleanup_release_exit() {
+	exit_status=$?
+	trap - EXIT INT TERM
+	cleanup_status=0
+	cleanup_owned_release_worktree || cleanup_status=1
+	if [ "$RELEASE_COMPLETED" != "1" ] && \
+		{ [ -e "$RELEASE_ROOT" ] || [ -L "$RELEASE_ROOT" ]; }; then
+		if [ -d "$RELEASE_ROOT" ] && [ ! -L "$RELEASE_ROOT" ] && rmdir "$RELEASE_ROOT"; then
+			:
+		else
+			printf 'error: incomplete private Apple release root could not be cleaned\n' >&2
+			cleanup_status=1
+		fi
+	fi
+	if [ "$cleanup_status" -ne 0 ] && [ "$exit_status" -eq 0 ]; then
+		exit_status=1
+	fi
+	exit "$exit_status"
+}
+trap cleanup_release_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 release_main_git worktree add --detach "$WORKTREE_ROOT" "$SOURCE_COMMIT"
+WORKTREE_CREATED=1
 python3 - "$RELEASE_ROOT" <<'PY'
 import os
 import pathlib
@@ -249,7 +339,92 @@ done
 	shasum -c SHA256SUMS
 )
 codesign --verify --strict --verbose=4 "$PUBLIC_DIST/CQPeriapt.xcframework"
-if [ -f "$SOURCE_OUT/swift-binary-consumer.log" ]; then
-	cp "$SOURCE_OUT/swift-binary-consumer.log" "$PUBLIC_OUT/swift-binary-consumer.log"
+release_worktree_python \
+	"$WORKTREE_ROOT/artifact/apple_distribution.py" validate-zip \
+	--artifact "$PUBLIC_DIST/CQPeriapt.xcframework.zip" --require-signature
+if ! FINAL_WORKTREE_COMMIT=$(release_worktree_git rev-parse HEAD) || \
+	! FINAL_WORKTREE_TOPLEVEL=$(release_worktree_git rev-parse --show-toplevel) || \
+	! FINAL_WORKTREE_COMMON_GIT_DIR=$(release_worktree_git rev-parse --path-format=absolute --git-common-dir) || \
+	! FINAL_WORKTREE_GIT_DIR=$(release_worktree_git rev-parse --absolute-git-dir) || \
+	! FINAL_WORKTREE_STATUS=$(release_worktree_git status --porcelain=v1 --untracked-files=normal); then
+	printf 'error: unable to revalidate the detached release worktree before cleanup\n' >&2
+	exit 1
 fi
-printf 'APPLE_RELEASE_PUBLIC_COPY_PASS source_commit=%s path=%s\n' "$SOURCE_COMMIT" "$PUBLIC_DIST"
+if [ "$FINAL_WORKTREE_COMMIT" != "$SOURCE_COMMIT" ] || \
+	[ "$FINAL_WORKTREE_TOPLEVEL" != "$WORKTREE_ROOT" ] || \
+	[ "$FINAL_WORKTREE_COMMON_GIT_DIR" != "$ROOT/.git" ] || \
+	[ "$FINAL_WORKTREE_GIT_DIR" != "$WORKTREE_GIT_DIR" ] || \
+	[ "$FINAL_WORKTREE_GIT_DIR" != "$ROOT/.git/worktrees/$WORKTREE_ADMIN_NAME" ] || \
+	[ -n "$FINAL_WORKTREE_STATUS" ]; then
+	printf 'error: detached release worktree identity changed before cleanup\n' >&2
+	exit 1
+fi
+COMPLETION_PENDING="$RELEASE_ROOT/completed.json.pending"
+COMPLETION_LEDGER="$RELEASE_ROOT/completed.json"
+python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST" <<'PY'
+import hashlib
+import json
+import os
+import pathlib
+import sys
+
+ledger_path = pathlib.Path(sys.argv[1])
+source_commit = sys.argv[2]
+public_dist = pathlib.Path(sys.argv[3])
+names = (
+    "CQPeriapt.xcframework.zip",
+    "APPLE_DISTRIBUTION.json",
+    "MANIFEST.json",
+    "SHA256SUMS",
+)
+document = {
+    "schema_version": 1,
+    "kind": "qperiapt.apple_static_xcframework_release_completion",
+    "source_commit": source_commit,
+    "public_assets_sha256": {
+        name: hashlib.sha256((public_dist / name).read_bytes()).hexdigest()
+        for name in names
+    },
+}
+payload = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+descriptor = os.open(
+    ledger_path,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0),
+    0o600,
+)
+with os.fdopen(descriptor, "wb") as stream:
+    stream.write(payload)
+    stream.flush()
+    os.fsync(stream.fileno())
+directory = os.open(
+    ledger_path.parent,
+    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+)
+try:
+    os.fsync(directory)
+finally:
+    os.close(directory)
+PY
+cleanup_owned_release_worktree
+python3 - "$COMPLETION_PENDING" "$COMPLETION_LEDGER" <<'PY'
+import os
+import pathlib
+import sys
+
+pending = pathlib.Path(sys.argv[1])
+completed = pathlib.Path(sys.argv[2])
+if not pending.is_file() or pending.is_symlink() or os.path.lexists(completed):
+    raise SystemExit("error: Apple release completion ledger state is invalid")
+os.rename(pending, completed)
+directory = os.open(
+    completed.parent,
+    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+)
+try:
+    os.fsync(directory)
+finally:
+    os.close(directory)
+PY
+RELEASE_COMPLETED=1
+printf 'APPLE_RELEASE_PUBLIC_COPY_PASS source_commit=%s path=%s source_worktree_cleaned=true completion_ledger=true\n' \
+	"$SOURCE_COMMIT" "$PUBLIC_DIST"
