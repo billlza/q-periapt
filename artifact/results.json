@@ -293,7 +293,7 @@
     "apple_device_proof_verifier_sha256": "2d1d1f1b4f443182376595ec32bc846d5bf2dd813071f18b6f0b75a7c5863c7f",
     "apple_device_smoke_script_sha256": "46e0d2af16ffa44f3cadc7eab649f4ac01c2930437aba2a525787cb7459a4fd3",
     "apple_device_xcode27_gate_script_sha256": "8d0e243ab99518a012e649da124b1bcc88b5d10ae98b1a3871150d03a80618f1",
-    "apple_distribution_tests_sha256": "fa116d00e7faee6dadf09511ece5fc25143ec2d10e92a2fae4cdd02ccad3714a",
+    "apple_distribution_tests_sha256": "4b377a4bdd751185c78879183acf64cc87a2b39d8471fa7d132db3da8701d2f0",
     "apple_distribution_verifier_sha256": "f0a5aad2087604a3f550d740d2ec7bb05041cfe8523c57f62597f1793c520763",
     "c_package_script_sha256": "0eeb3b98faca4b6160f2fff148a2370dd2c74d2af3e964f56c539057aaa58a59",
     "c_smoke_sha256": "fa902212194d159a5ccf735d0c8551a3054a2796e6b1e1880019ea6cf0f99fbf",
@@ -379,14 +379,14 @@
     "swift_xcframework_consumer_check_script_sha256": "4fbe53853c029560171fee42bfdc0c9edeee97b5972368b851a98b9e8f2800b5",
     "swift_xcframework_release_script_sha256": "a2926211779da15f1a2d9235f31470c441f2cedc4c13bcccb8f3d32990821f42",
     "swift_xcframework_remote_consumer_script_sha256": "ee473923dbbcece6c8c18f76f8354638a92399ac5ee619fe75c4a1f6e075ab46",
-    "swift_xcframework_script_sha256": "1b415436e4f743f89c13488bed7c751516109b0f9a8d0945e6bde36c973a19dd",
+    "swift_xcframework_script_sha256": "34069657cf9db42d2fbb41cdd6d4fc4379dbd6eaffe1f0af7519fc58cb749837",
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e"
   },
-  "proof_source_tree_sha256": "db3975bd7d0b953a7793642bdc7ac5281ac6440ac73430c379b5b6598e524740",
+  "proof_source_tree_sha256": "14dbf2565240d5b562499dca5bdafb2bd9f43a1784d076fc30a494549671eda7",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "abe071a2005c092a8538d7c84d7a39e2be1689d3",
+    "snapshot_commit": "17485b767be3df426d5487e063369cc4ff211f11",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
@@ -397,7 +397,7 @@
   "rust_publish": {
     "boundary": "This section records a clean-tree pre-publication dry-run, not an upload or registry attestation. Any registry publication is independently evidenced by crates.io plus release provenance for the published versions; this section never asserts upload.",
     "command": "sh artifact/rust-publish-dry-run.sh",
-    "current_local_status": "Current 2026-07-15 clean-tree pre-publication contract passed for source commit abe071a2005c092a8538d7c84d7a39e2be1689d3 and canonical digest db3975bd7d0b953a7793642bdc7ac5281ac6440ac73430c379b5b6598e524740: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
+    "current_local_status": "Current 2026-07-15 clean-tree pre-publication contract passed for source commit 17485b767be3df426d5487e063369cc4ff211f11 and canonical digest 14dbf2565240d5b562499dca5bdafb2bd9f43a1784d076fc30a494549671eda7: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
     "current_source_status": "current_clean_tree_prepublication_pass",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
@@ -464,7 +464,7 @@
   "swift_xcframework": {
     "boundary": "This is a Developer ID-signed, Apple-only static XCFramework release candidate for SwiftPM binaryTarget consumption. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning. Public release is not complete until the exact ZIP is hosted and independently redownloaded and verified.",
     "command": "QPERIAPT_APPLE_RELEASE_CONFIRM=0.1.0-alpha.2 sh artifact/swift-xcframework-release.sh",
-    "current_local_status": "Current 2026-07-15 clean-tree ABI2 signed release candidate built from artifact source commit c62c1e694dc6b80a4160d24b1a29c30aa3cd94c4 used Xcode 26.6 and Rust 1.96.0 to generate CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices. Every slice exposed the exact nine-symbol ABI2 contract, all decompressed ZIP entries passed the build-path hygiene policy, the isolated binaryTarget consumer passed three product tests, and macOS universal plus iOS device/simulator link gates completed with zero warning/error diagnostics. The extracted XCFramework origin signature passed strict verification with the pinned Developer ID Application certificate and secure timestamp. The verifier source snapshot is commit abe071a2005c092a8538d7c84d7a39e2be1689d3 with canonical digest db3975bd7d0b953a7793642bdc7ac5281ac6440ac73430c379b5b6598e524740. The exact artifact is signed but is not yet hosted or remotely redownloaded, so this records a release candidate rather than a completed public release.",
+    "current_local_status": "Current 2026-07-15 clean-tree ABI2 signed release candidate built from artifact source commit c62c1e694dc6b80a4160d24b1a29c30aa3cd94c4 used Xcode 26.6 and Rust 1.96.0 to generate CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices. Every slice exposed the exact nine-symbol ABI2 contract, all decompressed ZIP entries passed the build-path hygiene policy, the isolated binaryTarget consumer passed three product tests, and macOS universal plus iOS device/simulator link gates completed with zero warning/error diagnostics. The extracted XCFramework origin signature passed strict verification with the pinned Developer ID Application certificate and secure timestamp. The verifier source snapshot is commit 17485b767be3df426d5487e063369cc4ff211f11 with canonical digest 14dbf2565240d5b562499dca5bdafb2bd9f43a1784d076fc30a494549671eda7. The exact artifact is signed but is not yet hosted or remotely redownloaded, so this records a release candidate rather than a completed public release.",
     "current_source_status": "current_clean_tree_signed_release_candidate_pass",
     "distribution": {
       "apple_distribution_evidence_sha256": "57b6a70ed204ec98ceacfe71c2beb6cd1c63af50f23f00c2f92abb60bb0a8c10",
