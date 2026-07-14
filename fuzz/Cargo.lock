@@ -204,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-backends"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "fips204",
  "q-periapt-core",
@@ -216,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-core"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 
 [[package]]
 name = "q-periapt-fuzz"
@@ -230,14 +230,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-mlkem-native-sys"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "q-periapt-sig"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "q-periapt-core",
 ]

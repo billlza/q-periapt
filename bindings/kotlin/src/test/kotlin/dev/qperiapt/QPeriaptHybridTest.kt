@@ -41,7 +41,7 @@ class QPeriaptHybridTest {
     @Test
     fun runtimeMetadataMatchesCompiledBinding() {
         assertEquals(QPeriaptHybrid.ABI_VERSION, QPeriaptHybrid.runtimeAbiVersion())
-        assertEquals("0.1.0-alpha.1", QPeriaptHybrid.runtimeVersion())
+        assertEquals("0.1.0-alpha.2", QPeriaptHybrid.runtimeVersion())
         assertContentEquals("ML-KEM-768+X25519".encodeToByteArray(), QPeriaptHybrid.fixedSuiteId())
         assertEquals("ML-KEM-768+X25519".length.toLong(), QPeriaptHybrid.fixedSuiteIdLen())
         assertEquals(65_536, QPeriaptHybrid.MAX_SIGNED_POLICY_BYTES)

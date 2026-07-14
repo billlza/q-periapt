@@ -198,7 +198,7 @@
       }
     },
     "rust_library_name": "q_periapt_ffi_abi2",
-    "semver": "0.1.0-alpha.1"
+    "semver": "0.1.0-alpha.2"
   },
   "schema": 1
 }

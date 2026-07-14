@@ -216,7 +216,7 @@ class ReleaseIndexTests(unittest.TestCase):
             target.mkdir()
             common = {
                 "channel": "release",
-                "version": "0.1.0-alpha.1",
+                "version": "0.1.0-alpha.2",
                 "commit": "a" * 40,
             }
             rejected = (
@@ -284,7 +284,7 @@ class ReleaseIndexTests(unittest.TestCase):
     def test_cross_face_core_semantics_must_match(self) -> None:
         trust_semantics = {
             "name": "fixture",
-            "version": "0.1.0-alpha.1",
+            "version": "0.1.0-alpha.2",
             "abi": {
                 "major": 2,
                 "contract_sha256": "a" * 64,

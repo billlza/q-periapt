@@ -24,7 +24,7 @@ members = [
 exclude = ["research/hqc-fips207-candidate"]
 
 [workspace.package]
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 # True floor: the resolved lock pulls clap 4.6 + hashbrown 0.17, which require 1.85.
 rust-version = "1.85"

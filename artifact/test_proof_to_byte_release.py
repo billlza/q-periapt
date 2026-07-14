@@ -571,6 +571,16 @@ HQC_CANDIDATE_PROOF_INPUTS = {
     "hqc_candidate_verify_sha256": "research/hqc-fips207-candidate/scripts/verify.sh",
 }
 
+APPLE_DISTRIBUTION_PROOF_INPUTS = {
+    "swift_xcframework_release_script_sha256": "artifact/swift-xcframework-release.sh",
+    "swift_xcframework_consumer_check_script_sha256": "artifact/swift-xcframework-consumer-check.sh",
+    "swift_xcframework_remote_consumer_script_sha256": "artifact/swift-xcframework-remote-consumer.sh",
+    "apple_distribution_verifier_sha256": "artifact/apple_distribution.py",
+    "apple_distribution_tests_sha256": "artifact/test_apple_distribution.py",
+    "swift_binary_consumer_link_probe_sha256": "bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift",
+    "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
+}
+
 
 def extract_ci_check_job(workflow: str) -> str:
     check_match = re.search(
@@ -673,6 +683,16 @@ class BoundVerifierWiringTests(unittest.TestCase):
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in HQC_CANDIDATE_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assertIn(f'"{key}": "{relative}"', source)
+                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                self.assertEqual(inputs.get(key), actual)
+
+    def test_proof_to_byte_names_every_apple_distribution_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        inputs = manifest["proof_to_byte_inputs"]
+        for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
             with self.subTest(key=key):
                 self.assertIn(f'"{key}": "{relative}"', source)
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()

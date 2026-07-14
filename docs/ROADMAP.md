@@ -5,9 +5,9 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /
 Swift / Kotlin / Android. Deterministic conformance cells are byte-identical;
 native ABI 2 product cells use OS randomness and are checked by semantic invariants.
-ABI 2 / `0.1.0-alpha.1` is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication; it is not a current multi-platform binary
-or production release.
+ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
+for coordinated Rust-crate publication plus a separately evidenced Apple XCFramework
+prerelease; it is not a current multi-platform binary or production release.
 
 This file is the single source of truth for *what is done* vs *what is pending*.
 Where a claim is subtle, it cross-references the authoritative spec
@@ -380,10 +380,11 @@ are the gap between research-grade and audited/production.
    performance, and CT proofs. Time-varying status lives only in the results manifest plus the live
    domain verifier; a source document cannot promote an older device digest. A current clean,
    same-commit schema-3 matrix remains required for production promotion or a
-   platform-binary claim. This is still not a liboqs-style
-   public distribution surface: Swift has a local XCFramework pre-publication gate but still needs
-   public URL/checksum/provenance; Android has current AAR/JNI package proof plus only a
-   historical, stale, pre-ABI2 emulator ART diagnostic, and still needs a current ABI2
+   platform-binary claim. This is still not a liboqs-style multi-platform distribution surface:
+   Swift has both a credential-free XCFramework gate and a separately scoped detached-source
+   Developer ID/notary prerelease lane; `artifact/results.json` alone decides whether its public
+   URL/checksum/provenance is current. The SDK ZIP is not a complete Git-URL Swift package and does
+   not notarize a consuming iOS app. Android has historical package/runtime evidence and still needs a current ABI2
    runtime proof, clean-tree release provenance, and an explicit CI-emulator or
    physical-device release policy; Rust now has a crates.io pre-publication contract
    (`artifact/rust-publish-dry-run.sh`) over the explicit ten-crate publish allow/deny list,
@@ -402,14 +403,15 @@ are the gap between research-grade and audited/production.
    KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves. The
    dependency-free CLI may upload independently but remains in the same ten-crate version set.
 
-   Package `0.1.0-alpha.1` is the release-ready research-alpha source/crate line and has a
+   Package `0.1.0-alpha.2` is the release-ready research-alpha source/crate line and has a
    frozen machine-readable C **ABI 2** contract: nine exact dynamic public exports
    (and the same exact reserved public namespace in static archives), OS-random key/encapsulation,
    ABI-major library/header/package identities, 40/36-byte layouts, and forbidden
    raw/deterministic symbols. ABI1 is an explicit hard cut—its version-only state is
    rejected and requires authorized re-enrollment/reset, not a synthetic migration.
-   No current prebuilt platform binary is claimed by that publication. Production
-   promotion and any platform-binary distribution remain blocked on all-platform
+   No current prebuilt platform binary is implied by the source publication; an Apple-only SDK
+   prerelease is an independent evidence-selected result. Production promotion and any
+   multi-platform distribution remain blocked on all-platform
    package/index verification, warning-clean dependency audit, clean signed or
    transparency-backed source provenance, independent cryptographic/C-FFI/ABI review,
    and live verification of same-source Apple matrix and controlled-host performance evidence.
@@ -491,7 +493,7 @@ are the gap between research-grade and audited/production.
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; recorded C/macOS, Swift XCFramework, and Android AAR artifacts are historical after the backend/source migration and must be rebuilt; Kotlin JDK22 and runtime/platform lanes remain pending** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID/notary XCFramework prerelease lane whose currentness is evidence-selected. C/macOS archives, Android AAR/ART, Kotlin JDK22, and runtime/platform lanes remain independent and pending or historical as recorded in results.json.** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
@@ -520,8 +522,8 @@ are the gap between research-grade and audited/production.
 | Android AAR/JNI package proof | **Harness and semantic checks implemented; the recorded four-ABI package predates the backend/source-digest migration and must be rebuilt; ART runtime remains pending** |
 | Android ART runtime smoke | **Harness and schema-v2 verifier are implemented, but the selected dirty emulator proof predates the current canonical inputs and is stale; a fresh run, clean release provenance, and physical/CI policy remain pending** |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema2 semantic diagnostic index and checks are implemented; the recorded component artifacts predate the backend/source migration and a new same-source index is required; clean release channel remains pending** |
-| C ABI 2 research-alpha release readiness | **The 0.1.0-alpha.1 source/crate contract is release-ready and intended for coordinated source-crate publication; no current prebuilt C/Swift/Android binary release is claimed. Same-source package/device/performance evidence, signed or transparency-backed provenance, Linux/Windows binary lanes, current ART runtime evidence, independent cryptographic/C-FFI/ABI audit, and platform distribution signing remain required for production promotion or binary publication.** |
-| liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Pending; Rust, Swift, Android package pre-publication gates and local index present |
+| C ABI 2 research-alpha release readiness | **The 0.1.0-alpha.2 source/crate contract is release-ready and intended for coordinated source-crate publication. A separately evidenced Apple XCFramework prerelease does not claim current C/Android binaries. Same-source device/performance evidence, signed or transparency-backed source provenance, Linux/Windows lanes, ART runtime, independent cryptographic/C-FFI/ABI audit, and non-Apple distribution signing remain required for production promotion.** |
+| liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; Apple XCFramework prerelease lane implemented, while a complete remote Swift package and Rust/C/Android multi-platform publication remain pending |
 | Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
 | Independent third-party audit | Pending |

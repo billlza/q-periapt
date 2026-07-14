@@ -8,10 +8,10 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.0-alpha.1` is a release-ready research-alpha source line intended
-> for coordinated Rust-crate publication. That release readiness is not a current
-> binary-package or production
-> claim and does not promote any historical measurement below.
+> ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
+> for coordinated Rust-crate publication and a separately gated Apple-only XCFramework research
+> prerelease. Any current Apple asset is a tag-scoped evidence fact in `artifact/results.json`; it
+> is not a multi-platform or production claim and does not promote historical measurements below.
 >
 > **Backend-migration note (2026-07-13).** The living artifact now uses portable
 > `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204` 0.4.6,
@@ -124,11 +124,11 @@ the build enables only the portable C provider. RustSec covers the resolved Rust
 not vendored C, and neither the upstream provider nor this Rust/C integration has a
 completed independent audit.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
-ABI 2 is release-ready as a research-alpha source/Rust-crate line intended for
-coordinated registry publication. Fresh same-source
+ABI 2 is release-ready as a research-alpha source/Rust-crate line intended for coordinated
+registry publication, with a separately scoped Apple XCFramework prerelease lane. Fresh same-source
 package/device/performance evidence, independent cryptographic/C-FFI/ABI review,
-signed or transparency-backed provenance, and platform distribution signing remain
-requirements for production promotion or a public binary-package claim.
+signed or transparency-backed source provenance, and all non-Apple platform distribution work
+remain requirements for production promotion or a multi-platform binary-package claim.
 
 ---
 

@@ -37,7 +37,7 @@ static int test_runtime_metadata(void) {
         printf("metadata: ABI mismatch\n");
         return 1;
     }
-    if (strcmp(q_periapt_version(), "0.1.0-alpha.1") != 0) {
+    if (strcmp(q_periapt_version(), "0.1.0-alpha.2") != 0) {
         printf("metadata: package version mismatch: %s\n", q_periapt_version());
         return 1;
     }

@@ -88,9 +88,9 @@ canonical source digest, so all recorded former-provider package, device, perfor
 binary-CT results are historical predecessor evidence; no replacement timing, device, or
 binary-CT measurement is claimed here. The current-source local footprint capture reported below
 is a platform/toolchain-specific diagnostic, not release provenance.
-ABI~2 / \code{0.1.0-alpha.1} is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication; no current multi-platform binary or production
-release is claimed.
+ABI~2 / \code{0.1.0-alpha.2} is a release-ready research-alpha source line intended
+for coordinated Rust-crate publication and a separately evidenced Apple XCFramework
+prerelease; no current multi-platform binary or production release is claimed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -1079,10 +1079,10 @@ is therefore historical and must be regenerated. The migration removed the
 \code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
 without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
 ABI~2 is release-ready as a research-alpha source/Rust-crate line intended for
-coordinated registry publication. Production
-promotion or a public binary-package claim still requires such review, fresh
+coordinated registry publication, with a separately scoped Apple SDK prerelease lane. Production
+promotion or a multi-platform binary-package claim still requires such review, fresh
 release-bound two-ISA CT, same-source package/device/performance evidence, clean
-signed or transparency-backed provenance, and platform distribution signing. The rustls integration uses a fixed protocol-domain context and an already parsed,
+signed or transparency-backed source provenance, and non-Apple platform distribution work. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
 the signed-policy authenticity claim. The C ABI assumes a trusted local caller for metadata and the
 forgeable decision descriptor, despite removing raw/deterministic cryptographic exports,
