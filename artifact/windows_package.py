@@ -1340,7 +1340,15 @@ def main() -> int:
                 label="rustc native-static-libs output",
             ).data
             libraries = parse_rustc_native_static_libraries(output)
-            print(json.dumps(libraries, separators=(",", ":")))
+            payload = (
+                json.dumps(libraries, separators=(",", ":")) + "\n"
+            ).encode("ascii")
+            written = sys.stdout.buffer.write(payload)
+            _require(
+                written == len(payload),
+                "cannot write the complete native static library contract",
+            )
+            sys.stdout.buffer.flush()
             return 0
         dependencies = inspect_dumpbin_dependencies(
             args.dumpbin,
