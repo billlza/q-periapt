@@ -401,13 +401,13 @@
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
     "windows_package_script_sha256": "e0cd79d8fa0db34a050545c0cc1f2cd50d2392b6aa4f9bb676301c71fdca60d6",
     "windows_package_tests_sha256": "0883346b2730cce4430a9af541cf3b428a6ffecd420dfbde5c7be8c029aa1741",
-    "windows_package_verifier_sha256": "652a7ecfd6e788e104db5cf69a6a832b05be5f09709a6afe91deb43a61fae550"
+    "windows_package_verifier_sha256": "99c5532fff5be566f3f5bc877bb3b955c90974571aabaccd267b111ef68c94bb"
   },
-  "proof_source_tree_sha256": "8b1c1266b247cd89a6af6efa609a2cbba7c45877a6cd265dfde5a2e71fe57b6e",
+  "proof_source_tree_sha256": "2059c61d232faa2fac812f580741e8830509a3134f13011de0687dabef96e0e7",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "5efd0631745ae96c5211b30efc731b1797134384",
+    "snapshot_commit": "a7474082f20c996e5b6669bc069f48aa6d8dd40f",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
