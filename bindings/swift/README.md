@@ -72,6 +72,54 @@ sh artifact/swift-xcframework.sh
 
 That release gate builds a universal macOS slice, iOS device slice, and iOS simulator slice into
 `target/qperiapt-swift-xcframework/.../CQPeriapt.xcframework.zip`, computes the SwiftPM checksum,
-and runs an isolated `binaryTarget(path:)` product consumer.
+executes three macOS tests through an isolated `binaryTarget(path:)` consumer, performs separate
+warning-free SwiftPM final links for the `arm64` and `x86_64` macOS triples, and performs final
+warning-free links of the same minimal executable for generic iOS device and simulator destinations.
+Those link probes verify the selected `.a` bytes against the exact XCFramework slices. The
+credentialed release lane also executes both macOS probes in their matching architecture execution
+modes; the iOS probes are compile/link evidence, not physical-device execution or an
+app-signing/provisioning result.
 The gate requires a clean worktree for release proof; use
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics.
+
+Credentialed Apple distribution is intentionally separate from that CI path:
+
+```sh
+QPERIAPT_APPLE_RELEASE_CONFIRM=0.1.0-alpha.2 \
+sh artifact/swift-xcframework-release.sh
+```
+
+It builds in a detached worktree pinned to one source commit, Developer ID-signs only the outer
+static XCFramework, verifies that signing did not alter the three `.a` slices, exercises an exact
+ZIP extraction through the isolated consumer, and requires a fixed 22-entry static-only archive:
+three static-library slices, their headers and metadata, plus the outer code-signature resources.
+Any extra executable, dynamic library, app, framework, bundle, script, symlink, special file, or
+unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the source commit, exact ZIP and
+SwiftPM hashes, certificate and signature resources, and all slice hashes. Because this SDK payload
+contains no standalone executable or notarizable bundle, notarization is explicitly recorded as
+not applicable and never as Accepted. The final consuming macOS product still requires its own
+signing and notarization; iOS products retain signing and provisioning duties.
+
+The release asset is an XCFramework for a SwiftPM binary target, not a complete remote Swift
+package. Use the exact URL and checksum from the tag's verified `MANIFEST.json`:
+
+```swift
+.binaryTarget(
+    name: "CQPeriapt",
+    url: "<exact GitHub release asset URL>",
+    checksum: "<MANIFEST.json artifacts.xcframework_zip.swiftpm_checksum>"
+)
+```
+
+The `QPeriaptHybrid` wrapper source must come from the same source commit recorded by that
+manifest. A release is accepted only after a URL-based consumer re-downloads the public asset,
+passes the same three macOS tests, and repeats both per-architecture macOS final links and the iOS
+device/simulator final-link probes through `artifact/swift-xcframework-remote-consumer.sh`, with the
+URL, SwiftPM checksum, ZIP SHA-256, and source commit supplied from verified release evidence.
+The Developer ID signature covers SDK origin and integrity. This exact static-only SDK payload has
+no notarizable executable or bundle and is explicitly `notarized=false` and `stapled=false`.
+Consuming iOS apps still require their own signing and provisioning, while consuming macOS apps
+require their own distribution signing and notarization. Published prerelease assets are immutable:
+a post-publication URL-consumer failure
+invalidates that prerelease and requires a new version; it must never be repaired by replacing the
+asset under the same tag.

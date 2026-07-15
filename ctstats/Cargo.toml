@@ -22,9 +22,9 @@ workspace = true
 valgrind = []
 
 [dependencies]
-q-periapt-core = { version = "=0.1.0-alpha.1", path = "../crates/q-periapt-core" }
-q-periapt-kem = { version = "=0.1.0-alpha.1", path = "../crates/q-periapt-kem" }
-q-periapt-backends = { version = "=0.1.0-alpha.1", path = "../crates/q-periapt-backends" }
+q-periapt-core = { version = "=0.1.0-alpha.2", path = "../crates/q-periapt-core" }
+q-periapt-kem = { version = "=0.1.0-alpha.2", path = "../crates/q-periapt-kem" }
+q-periapt-backends = { version = "=0.1.0-alpha.2", path = "../crates/q-periapt-backends" }
 
 [build-dependencies]
 cc = "1"

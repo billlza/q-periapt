@@ -17,12 +17,12 @@ workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-q-periapt-core = { version = "=0.1.0-alpha.1", path = "../q-periapt-core" }
-q-periapt-kem = { version = "=0.1.0-alpha.1", path = "../q-periapt-kem" }
-q-periapt-backends = { version = "=0.1.0-alpha.1", path = "../q-periapt-backends" }
+q-periapt-core = { version = "=0.1.0-alpha.2", path = "../q-periapt-core" }
+q-periapt-kem = { version = "=0.1.0-alpha.2", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "=0.1.0-alpha.2", path = "../q-periapt-backends" }
 # The signed-policy verification path pulls in an ML-DSA verifier; optional so the default module
 # stays lean (encap / decap / combine only).
-q-periapt-policy = { version = "=0.1.0-alpha.1", path = "../q-periapt-policy", optional = true }
+q-periapt-policy = { version = "=0.1.0-alpha.2", path = "../q-periapt-policy", optional = true }
 # Randomness is passed in by the JS caller (no getrandom/wasm entropy feature needed).
 wasm-bindgen = "0.2"
 
@@ -34,4 +34,4 @@ signed-policy = ["dep:q-periapt-policy"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
-q-periapt-sig = { version = "=0.1.0-alpha.1", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the profile test
+q-periapt-sig = { version = "=0.1.0-alpha.2", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the profile test

@@ -19,4 +19,4 @@ default = []
 # in q-periapt-backends; research candidates do not become product suites here.
 
 [dependencies]
-q-periapt-core = { version = "=0.1.0-alpha.1", path = "../q-periapt-core" }
+q-periapt-core = { version = "=0.1.0-alpha.2", path = "../q-periapt-core" }

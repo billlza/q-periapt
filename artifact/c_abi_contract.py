@@ -26,7 +26,7 @@ from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular
 CONTRACT_SCHEMA = 1
 CONTRACT_KIND = "qperiapt.c_abi_contract"
 ABI_MAJOR = 2
-PACKAGE_SEMVER = "0.1.0-alpha.1"
+PACKAGE_SEMVER = "0.1.0-alpha.2"
 HEADER_GUARD = "Q_PERIAPT_ABI2_H"
 MAX_CONTRACT_BYTES = 1024 * 1024
 MAX_HEADER_BYTES = 2 * 1024 * 1024

@@ -160,8 +160,8 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
-if [ "$VERSION" != "0.1.0-alpha.1" ]; then
-	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.0-alpha.1\n' "$VERSION" >&2
+if [ "$VERSION" != "0.1.0-alpha.2" ]; then
+	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.0-alpha.2\n' "$VERSION" >&2
 	exit 1
 fi
 AAR_DIST="$ROOT/target/qperiapt-android-aar/q-periapt-android-$VERSION"
@@ -297,7 +297,7 @@ public final class QPeriaptSmokeActivity extends Activity {
 
     private void runtimeMetadataMatches(List<String> passed) {
         expect(QPeriaptAndroid.runtimeAbiVersion() == QPeriaptAndroid.ABI_VERSION, "ABI mismatch");
-        expect("0.1.0-alpha.1".equals(QPeriaptAndroid.runtimeVersion()), "version mismatch");
+        expect("0.1.0-alpha.2".equals(QPeriaptAndroid.runtimeVersion()), "version mismatch");
         assertBytes("ML-KEM-768+X25519".getBytes(StandardCharsets.UTF_8), QPeriaptAndroid.fixedSuiteId(), "suite id");
         expect(QPeriaptAndroid.fixedSuiteIdLen() == "ML-KEM-768+X25519".length(), "suite len");
         expect(QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES == 65536, "signed policy limit");

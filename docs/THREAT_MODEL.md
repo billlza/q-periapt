@@ -1,9 +1,9 @@
 # Threat Model — Q-Periapt PQ/T Hybrid Suite
 
 > **Status: release-ready ABI 2 research alpha, pre-1.0, NOT for production deployment.**
-> The intended publication surface is source plus a planned coordinated set of Rust crates,
-> not attested
-> multi-platform binary bundles.
+> The intended publication surface is source plus a planned coordinated set of Rust crates and a
+> separately evidenced Apple-only XCFramework research prerelease, not an attested multi-platform
+> binary bundle.
 > No third-party audit. The portable-only `q-periapt-mlkem-native-sys` integration
 > over vendored `mlkem-native` v1.2.0, pinned `fips204` 0.4.6,
 > `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations are unaudited
@@ -320,9 +320,12 @@ The same dependency-free core runs across C ABI / WASM / Swift / Kotlin / Androi
 shared-vector, combiner and X-Wing byte equality remains Rust/WASM conformance evidence;
 native ABI2 intentionally does not export the raw seed/coins surface needed to replay it.
 C/Swift/Kotlin/Android product evidence instead checks the same signed-policy/OS-random
-workflow and fail-closed semantics. The backend/source migration invalidated the
-previous macOS C, Swift XCFramework, Android AAR, and device proofs; fresh same-source
-package/runtime evidence is required, while Linux/Windows cells remain separately scoped.
+workflow and fail-closed semantics. The backend/source migration invalidated the previous macOS C,
+Swift XCFramework, Android AAR, and device proofs; each lane requires fresh same-source evidence.
+A Developer ID-signed, exact-static-only XCFramework, when selected by `artifact/results.json`,
+covers only the hash-bound Apple SDK ZIP. The SDK contains no standalone executable or notarizable
+bundle and is explicitly not reported as notarized. It does not attest an iOS app, physical-device runtime behavior,
+Linux/Windows binaries, Android ART, or the source tag itself.
 The X-Wing byte-exact KAT
 (`q-periapt-backends`) **reproduces the `draft-connolly-cfrg-xwing-kem` reference
 output on its 3 happy-path vectors**, and the NIST ACVP sets (ML-KEM-512/768/1024,

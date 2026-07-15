@@ -159,14 +159,19 @@ The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 The upstream tag/commit is not a signed provenance statement, and neither upstream
 mlkem-native nor this Rust/C integration has completed an independent audit.
 
-ABI 2 / `0.1.0-alpha.1` is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication, with a frozen exact-nine dynamic `q_periapt_*` export
+ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
+for coordinated Rust-crate publication and a separately gated Apple XCFramework prerelease,
+with a frozen exact-nine dynamic `q_periapt_*` export
 contract. The static archive constrains that reserved public namespace but retains
 unsupported hidden `qpn_mlkem_bridge_*` link symbols; hidden visibility is not
 access control, and a same-process static consumer can deliberately call them. It removes
 raw/deterministic public product exports, uses OS randomness, major-isolates the
-binary/package identities, and rejects ABI1's four-byte state. This publication does
-not include or attest current C archives, XCFrameworks, AARs, or device binaries. A
+binary/package identities, and rejects ABI1's four-byte state. Source/crate readiness does
+not attest current C archives, XCFrameworks, AARs, or device binaries. The Apple-only
+credentialed lane may separately produce a Developer ID-signed, exact-static-only
+XCFramework ZIP whose payload has no notarizable executable or bundle; only
+`artifact/results.json` plus its public release evidence may call that
+asset current. It is neither a complete remote Swift package nor a final app. A
 proof-to-byte pass does not by itself authorize production promotion or platform-binary
 distribution: every claimed platform package/index, dependency audit, clean signed or
 transparency-backed provenance, and fresh same-source device/performance proof must
@@ -289,7 +294,8 @@ and a portable-only build surface. Cargo's normalized backend graph is generated
 with the sys crate patched in and audited separately, so Cargo versions that discard dry-run
 archives cannot skip the provider, retired-HQC/PQCrypto, inventory, license, or normalized-graph
 checks. The coordinated registry order is sys, core, KEM/signature traits, backends, policy, then
-the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set. The Swift XCFramework gate also requires a clean tree by default; set
+the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set. The ordinary
+Swift XCFramework gate also requires a clean tree by default; set
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics. Set
 `QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus `QPERIAPT_DEVICE_RESULT_DIR=<matrix-run-dir>` to also
 require a fresh iPad+iPhone matrix proof. Set `QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1` after
@@ -300,9 +306,16 @@ have produced artifacts, `sh artifact/local-release-index.sh` creates a local ha
 `target/qperiapt-local-release/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
 Android AAR. Release mode requires a clean tree. Set `QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1` only for
 diagnostic indexes; optional Apple/Android runtime evidence is included as sanitized proof summaries,
-never as copied raw device logs or profiles. The release-ready research alpha is not a
-full multi-platform binary or production release claim: Swift still needs an actual public XCFramework
-URL/checksum/provenance and fresh device-matrix proof for the same source state, Android still needs
+never as copied raw device logs or profiles. Credentialed Apple distribution uses
+`artifact/swift-xcframework-release.sh`, builds from a fixed detached source commit, pins the
+Developer ID identity/certificate, verifies the exact static-only ZIP layout, and binds the final
+ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slice hashes in public
+`APPLE_DISTRIBUTION.json`. This SDK payload has no standalone executable or notarizable bundle, so
+notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
+product retains its own signing and notarization responsibility.
+The release-ready research alpha is not a full multi-platform binary or production release claim:
+an Apple XCFramework prerelease still needs public URL/checksum re-verification and a fresh
+device-matrix proof for production promotion, Android still needs
 clean-tree release provenance plus CI/physical-device policy before a product-ready runtime claim,
 the planned registry crates still need independently verifiable signed or transparency-backed
 provenance before production promotion, and the C archive still needs multi-target publishing plus

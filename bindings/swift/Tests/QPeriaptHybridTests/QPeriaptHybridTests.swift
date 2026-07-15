@@ -27,7 +27,7 @@ final class QPeriaptHybridTests: XCTestCase {
 
     func testRuntimeMetadataMatchesCompiledHeader() throws {
         XCTAssertEqual(QPeriaptHybrid.runtimeAbiVersion, QPeriaptHybrid.abiVersion)
-        XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.1.0-alpha.1")
+        XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.1.0-alpha.2")
         XCTAssertEqual(QPeriaptHybrid.fixedSuiteId, Array("ML-KEM-768+X25519".utf8))
         XCTAssertEqual(QPeriaptHybrid.fixedSuiteIdLen, "ML-KEM-768+X25519".utf8.count)
         XCTAssertEqual(QPeriaptHybrid.maxSignedPolicyBytes, 65_536)
