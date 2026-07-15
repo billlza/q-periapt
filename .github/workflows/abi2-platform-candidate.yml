@@ -67,6 +67,19 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ needs.preflight.outputs.commit }}
+      - name: Provision hardened proof Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Verify hardened proof Python
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
         with:
           toolchain: 1.96.0
@@ -85,10 +98,12 @@ jobs:
       - name: Build and consume the native Linux package
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: sh artifact/c-package.sh
       - name: Reconsume only the candidate archive
         env:
           EXPECTED_TARGET: ${{ matrix.target }}
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           package="q-periapt-c-abi2-0.1.0-alpha.2-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
@@ -188,6 +203,19 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ needs.preflight.outputs.commit }}
+      - name: Provision hardened proof Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Verify hardened proof Python
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
         with:
           toolchain: 1.96.0
@@ -213,6 +241,7 @@ jobs:
       - name: Build and verify the four-ABI 16 KiB-compatible AAR
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
           QPERIAPT_ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
           QPERIAPT_ANDROID_PLATFORM: ${{ env.ANDROID_HOME }}/platforms/android-35
           QPERIAPT_ANDROID_BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/36.0.0

@@ -403,14 +403,19 @@ if resolved != [expected]:
 PY
 			;;
 		Linux)
-			ldd "$binary" >"$linkage"
-			if ! grep -F "$SHARED_LIB => $EXTRACTED/lib/$SHARED_LIB " \
-				"$linkage" >/dev/null 2>&1; then
+			if LANG=C LC_ALL=C ldd "$binary" >"$linkage" 2>&1; then
+				:
+			else
+				ldd_status=$?
 				cat "$linkage" >&2
-				printf 'error: dynamic consumer does not resolve %s from the extracted package\n' \
-					"$SHARED_LIB" >&2
+				printf 'error: ldd failed for dynamic consumer (exit %s)\n' \
+					"$ldd_status" >&2
 				exit 1
 			fi
+			python3 artifact/c_package_manifest.py verify-ldd \
+				--ldd-output "$linkage" \
+				--package-root "$EXTRACTED" \
+				--shared-filename "$SHARED_LIB"
 			;;
 	esac
 	if grep -F "$ROOT/target/release" "$linkage" >/dev/null 2>&1; then
@@ -429,7 +434,7 @@ inspect_static_linkage() {
 			otool -L "$binary" >"$linkage"
 			;;
 		Linux)
-			if ldd "$binary" >"$linkage" 2>&1; then
+			if LANG=C LC_ALL=C ldd "$binary" >"$linkage" 2>&1; then
 				:
 			else
 				ldd_status=$?
@@ -1383,6 +1388,7 @@ manifest = {
     "source_inputs_sha256": {
         "cargo_lock": sha256(root / "Cargo.lock"),
         "c_package_script": sha256(root / "artifact" / "c-package.sh"),
+        "c_package_manifest_verifier": sha256(root / "artifact" / "c_package_manifest.py"),
         "c_abi_contract_script": sha256(root / "artifact" / "c_abi_contract.py"),
         "deterministic_archive_script": sha256(root / "artifact" / "deterministic_archive.py"),
         "release_binary_scan_script": sha256(root / "artifact" / "release_binary_scan.py"),
@@ -1723,6 +1729,7 @@ for legacy in (
 expected_source_files = {
     "cargo_lock": "Cargo.lock",
     "c_package_script": "artifact/c-package.sh",
+    "c_package_manifest_verifier": "artifact/c_package_manifest.py",
     "c_abi_contract_script": "artifact/c_abi_contract.py",
     "deterministic_archive_script": "artifact/deterministic_archive.py",
     "release_binary_scan_script": "artifact/release_binary_scan.py",

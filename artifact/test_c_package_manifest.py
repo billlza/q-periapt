@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import shutil
 import tempfile
@@ -15,6 +16,8 @@ import third_party_licenses
 
 
 class CPackageManifestTests(unittest.TestCase):
+    SHARED_FILENAME = "libq_periapt_ffi.so.2"
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.repository = pathlib.Path(__file__).resolve().parent.parent
@@ -225,6 +228,151 @@ class CPackageManifestTests(unittest.TestCase):
                 expected_source_date_epoch=1_700_000_000,
             )
             self.assertEqual("linux", manifest["abi"]["platform"])
+
+    def _ldd_fixture(
+        self, root: pathlib.Path
+    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+        package = root / "package with spaces"
+        library = package / "lib" / self.SHARED_FILENAME
+        library.parent.mkdir(parents=True)
+        library.write_bytes(b"ELF fixture\n")
+        linkage = root / "ldd output.txt"
+        return package, library, linkage
+
+    def _write_ldd(self, linkage: pathlib.Path, mapping_lines: list[str]) -> None:
+        linkage.write_text(
+            "\n".join(
+                [
+                    "\tlinux-vdso.so.1 (0x00007fff00000000)",
+                    *mapping_lines,
+                    "\t/lib64/ld-linux-x86-64.so.2 (0x00007fff00001000)",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def test_ldd_linkage_accepts_direct_parent_normalization_and_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package, library, linkage = self._ldd_fixture(pathlib.Path(temporary))
+            candidates = {
+                "direct": library,
+                "parent-normalized": package
+                / "lib"
+                / ".."
+                / "lib"
+                / self.SHARED_FILENAME,
+                "spaces": library,
+            }
+            for label, candidate in candidates.items():
+                with self.subTest(label=label):
+                    self._write_ldd(
+                        linkage,
+                        [
+                            f"\t{self.SHARED_FILENAME} => {candidate} "
+                            "(0x00007fff00002000)"
+                        ],
+                    )
+                    resolved = c_package_manifest.verify_ldd_linkage(
+                        linkage,
+                        package,
+                        shared_filename=self.SHARED_FILENAME,
+                    )
+                    self.assertEqual(library.resolve(strict=True), resolved)
+
+    def test_ldd_linkage_fails_closed_for_every_ambiguous_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            package, library, linkage = self._ldd_fixture(root)
+            outside = root / "outside.so"
+            outside.write_bytes(b"outside\n")
+            missing = package / "lib" / "missing-library.so"
+            hardlink = root / "outside-hardlink.so"
+            os.link(library, hardlink)
+            direct = f"\t{self.SHARED_FILENAME} => {library} (0x00007fff00002000)"
+            parent_normalized = (
+                f"\t{self.SHARED_FILENAME} => "
+                f"{package / 'lib' / '..' / 'lib' / self.SHARED_FILENAME} "
+                "(0x00007fff00003000)"
+            )
+            cases = {
+                "missing": (
+                    ["\tlibc.so.6 => /lib/libc.so.6 (0x00007fff00004000)"],
+                    "exactly one",
+                ),
+                "duplicate": ([direct, parent_normalized], "exactly one"),
+                "not-found": (
+                    [f"\t{self.SHARED_FILENAME} => not found"],
+                    "did not find",
+                ),
+                "other-dependency-not-found": (
+                    [direct, "\tlibc.so.6 => not found"],
+                    "did not find dependency libc.so.6",
+                ),
+                "relative": (
+                    [
+                        f"\t{self.SHARED_FILENAME} => lib/{self.SHARED_FILENAME} "
+                        "(0x00007fff00002000)"
+                    ],
+                    "must be absolute",
+                ),
+                "absolute-missing": (
+                    [
+                        f"\t{self.SHARED_FILENAME} => {missing} "
+                        "(0x00007fff00002000)"
+                    ],
+                    "cannot resolve Linux ldd shared-library path",
+                ),
+                "outside": (
+                    [
+                        f"\t{self.SHARED_FILENAME} => {outside} "
+                        "(0x00007fff00002000)"
+                    ],
+                    "outside the package root",
+                ),
+                "outside-hardlink": (
+                    [
+                        f"\t{self.SHARED_FILENAME} => {hardlink} "
+                        "(0x00007fff00002000)"
+                    ],
+                    "outside the package root",
+                ),
+                "malformed-missing-address": (
+                    [f"\t{self.SHARED_FILENAME} => {library}"],
+                    "malformed",
+                ),
+                "malformed-address": (
+                    [f"\t{self.SHARED_FILENAME} => {library} (address)"],
+                    "malformed",
+                ),
+            }
+            for label, (lines, expected_error) in cases.items():
+                with self.subTest(label=label):
+                    self._write_ldd(linkage, lines)
+                    with self.assertRaisesRegex(
+                        c_package_manifest.CPackageManifestError,
+                        expected_error,
+                    ):
+                        c_package_manifest.verify_ldd_linkage(
+                            linkage,
+                            package,
+                            shared_filename=self.SHARED_FILENAME,
+                        )
+
+    def test_c_package_script_binds_and_invokes_ldd_verifier(self) -> None:
+        script = (self.repository / "artifact/c-package.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            '"c_package_manifest_verifier": sha256(root / "artifact" / "c_package_manifest.py")',
+            script,
+        )
+        self.assertIn(
+            '"c_package_manifest_verifier": "artifact/c_package_manifest.py"',
+            script,
+        )
+        self.assertIn('LANG=C LC_ALL=C ldd "$binary"', script)
+        self.assertIn("artifact/c_package_manifest.py verify-ldd", script)
 
     def test_forged_minimal_package_and_unsafe_needed_library_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

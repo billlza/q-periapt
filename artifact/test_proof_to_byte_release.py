@@ -37,6 +37,9 @@ CAMERA_SANDBOX_SCRIPT = ROOT / "artifact" / "camera-ready-sandbox.sh"
 ARTIFACT_GUIDE = ROOT / "ARTIFACT.md"
 PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "abi2-platform-candidate.yml"
+)
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
 RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
 RUST_PUBLISH_CONTRACT_TESTS = ROOT / "artifact" / "test_rust_publish_contract.py"
@@ -602,6 +605,7 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "package_bom_sha256": "artifact/package_bom.py",
     "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
+    "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "release_binary_scan_sha256": "artifact/release_binary_scan.py",
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
     "third_party_licenses_sha256": "artifact/third_party_licenses.py",
@@ -612,13 +616,29 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
 }
 
 
-def extract_ci_check_job(workflow: str) -> str:
-    check_match = re.search(
-        r"(?ms)^  check:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", workflow
+def extract_workflow_job(workflow: str, job_name: str) -> str:
+    job_match = re.search(
+        rf"(?ms)^  {re.escape(job_name)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+        workflow,
     )
-    if check_match is None:
-        raise ValueError("CI workflow has no check job")
-    return check_match.group("body")
+    if job_match is None:
+        raise ValueError(f"workflow has no {job_name!r} job")
+    return job_match.group("body")
+
+
+def extract_ci_check_job(workflow: str) -> str:
+    return extract_workflow_job(workflow, "check")
+
+
+def extract_named_workflow_step(job: str, step_name: str) -> str:
+    step_match = re.search(
+        rf"(?ms)^      - name: {re.escape(step_name)}\n"
+        r"(?P<body>.*?)(?=^      - (?:name:|uses:|run:)|\Z)",
+        job,
+    )
+    if step_match is None:
+        raise ValueError(f"workflow job has no {step_name!r} step")
+    return step_match.group(0)
 
 
 def repository_head() -> str:
@@ -2993,6 +3013,114 @@ with _temporary_release_test_directories(parents):
             self.assertIn(f"got {repository_head()}", spoofed.stderr)
             self.assertIn(f"expected {alternate_head}", spoofed.stderr)
             self.assertEqual(spoofed.stdout, "")
+
+    def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:
+        setup_action = (
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 "
+            "# v6.3.0"
+        )
+        binding = (
+            "          QPERIAPT_PYTHON: "
+            "${{ steps.proof_python.outputs.python-path }}\n"
+        )
+        provisioning = (
+            "      - name: Provision hardened proof Python\n"
+            "        id: proof_python\n"
+            f"        uses: {setup_action}\n"
+            "        with:\n"
+            '          python-version: "3.13.14"\n'
+            "          check-latest: false\n"
+            "          update-environment: false\n"
+        )
+        exact_version_check = (
+            '          "$QPERIAPT_PYTHON" -I -S -c \'import sys; '
+            "raise SystemExit(0 if sys.implementation.name == \"cpython\" and "
+            "sys.version_info[:3] == (3, 13, 14) else 2)\'\n"
+        )
+        cases = (
+            (
+                CI_WORKFLOW,
+                "abi2-linux-package",
+                (
+                    "Build, archive, extract, and consume the native Linux ABI2 SDK",
+                    "Verify the archive through the isolated public-consumer path",
+                ),
+                True,
+            ),
+            (
+                CI_WORKFLOW,
+                "bindings-android-aar",
+                ("Android AAR/JNI packaging proof",),
+                False,
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                "linux",
+                (
+                    "Build and consume the native Linux package",
+                    "Reconsume only the candidate archive",
+                ),
+                True,
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                "android",
+                ("Build and verify the four-ABI 16 KiB-compatible AAR",),
+                False,
+            ),
+        )
+        for workflow_path, job_name, package_steps, native_linux in cases:
+            with self.subTest(workflow=workflow_path.name, job=job_name):
+                workflow = workflow_path.read_text(encoding="utf-8")
+                job = extract_workflow_job(workflow, job_name)
+                self.assertEqual(job.count(setup_action), 1)
+                self.assertEqual(job.count("id: proof_python"), 1)
+                self.assertIn(provisioning, job)
+                self.assertNotIn("\n    env:", job)
+                self.assertNotIn("GITHUB_ENV", job)
+
+                setup_step = extract_named_workflow_step(
+                    job, "Provision hardened proof Python"
+                )
+                self.assertNotIn("continue-on-error:", setup_step)
+                self.assertNotRegex(setup_step, r"(?m)^        if:")
+                verification_step = extract_named_workflow_step(
+                    job, "Verify hardened proof Python"
+                )
+                self.assertNotIn("continue-on-error:", verification_step)
+                self.assertNotRegex(verification_step, r"(?m)^        if:")
+                self.assertEqual(verification_step.count(binding), 1)
+                self.assertIn(
+                    'case "$QPERIAPT_PYTHON" in /*) ;; *)', verification_step
+                )
+                self.assertIn(exact_version_check, verification_step)
+
+                setup_position = job.index(provisioning)
+                verification_position = job.index(verification_step)
+                expected_binding_count = 1
+                for package_step_name in package_steps:
+                    package_step = extract_named_workflow_step(job, package_step_name)
+                    self.assertNotIn("continue-on-error:", package_step)
+                    self.assertNotRegex(package_step, r"(?m)^        if:")
+                    self.assertEqual(package_step.count(binding), 1)
+                    self.assertLess(setup_position, job.index(package_step))
+                    self.assertLess(verification_position, job.index(package_step))
+                    expected_binding_count += 1
+                self.assertEqual(job.count(binding), expected_binding_count)
+
+                if native_linux:
+                    matrix_pairs = re.findall(
+                        r"(?m)^          - runner: ([^\n]+)\n"
+                        r"            target: ([^\n]+)$",
+                        job,
+                    )
+                    self.assertEqual(
+                        matrix_pairs,
+                        [
+                            ("ubuntu-22.04", "x86_64-unknown-linux-gnu"),
+                            ("ubuntu-22.04-arm", "aarch64-unknown-linux-gnu"),
+                        ],
+                    )
 
     def test_ci_discovers_every_artifact_python_test(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

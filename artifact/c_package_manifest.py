@@ -71,6 +71,7 @@ ABI_KEYS = frozenset(
 SOURCE_INPUT_PATHS = {
     "cargo_lock": "Cargo.lock",
     "c_package_script": "artifact/c-package.sh",
+    "c_package_manifest_verifier": "artifact/c_package_manifest.py",
     "c_abi_contract_script": "artifact/c_abi_contract.py",
     "deterministic_archive_script": "artifact/deterministic_archive.py",
     "release_binary_scan_script": "artifact/release_binary_scan.py",
@@ -93,9 +94,17 @@ SOURCE_INPUT_PATHS = {
 RUST_WORKSPACE_INPUTS = ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "crates")
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_FILE_BYTES = 512 * 1024 * 1024
+MAX_LDD_OUTPUT_BYTES = 1024 * 1024
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)+$")
+SHARED_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+LDD_MAPPING_RE = re.compile(
+    r"^(?P<name>\S+)\s+=>\s+(?P<target>.+)$"
+)
+LDD_RESOLVED_TARGET_RE = re.compile(
+    r"^(?P<path>.+)\s+\(0x[0-9A-Fa-f]+\)$"
+)
 
 
 class CPackageManifestError(ValueError):
@@ -137,10 +146,115 @@ def _root(path: pathlib.Path) -> pathlib.Path:
     try:
         metadata = path.lstat()
         resolved = path.resolve(strict=True)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         fail(f"cannot inspect C package root {path}: {exc}")
     require(stat.S_ISDIR(metadata.st_mode) and not path.is_symlink(), "C package root must be a non-symlink directory")
     return resolved
+
+
+def verify_ldd_linkage(
+    ldd_output: pathlib.Path,
+    package_root: pathlib.Path,
+    *,
+    shared_filename: str,
+) -> pathlib.Path:
+    """Verify one unique ``ldd`` SONAME mapping resolves inside the SDK.
+
+    ``ldd`` preserves non-canonical RUNPATH spellings on some systems.  The
+    loader path is therefore compared only after strict filesystem resolution,
+    while the resolved package root remains an independent containment bound.
+    """
+
+    require(
+        isinstance(shared_filename, str)
+        and SHARED_FILENAME_RE.fullmatch(shared_filename) is not None,
+        "Linux shared filename is malformed",
+    )
+    root = _root(pathlib.Path(package_root))
+    lib_directory = root / "lib"
+    expected_library = lib_directory / shared_filename
+    try:
+        lib_metadata = lib_directory.lstat()
+        expected_metadata = expected_library.lstat()
+        resolved_lib_directory = lib_directory.resolve(strict=True)
+        resolved_expected = expected_library.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        fail(f"cannot resolve expected Linux shared library: {exc}")
+    require(
+        stat.S_ISDIR(lib_metadata.st_mode) and not lib_directory.is_symlink(),
+        "Linux package lib path must be a non-symlink directory",
+    )
+    require(
+        stat.S_ISREG(expected_metadata.st_mode) and not expected_library.is_symlink(),
+        "Linux package shared library must be a non-symlink regular file",
+    )
+    require(
+        resolved_lib_directory.parent == root
+        and resolved_expected.parent == resolved_lib_directory,
+        "Linux package shared library escapes the package lib boundary",
+    )
+
+    try:
+        output = read_regular_snapshot(
+            pathlib.Path(ldd_output),
+            maximum=MAX_LDD_OUTPUT_BYTES,
+            label="Linux ldd output",
+        ).data.decode("utf-8", errors="strict")
+    except (EvidenceIOError, UnicodeDecodeError) as exc:
+        fail(f"Linux ldd output is invalid: {exc}")
+    require(output.endswith("\n"), "Linux ldd output must end with a newline")
+    require(
+        all(
+            character in {"\n", "\t"}
+            or (ord(character) >= 32 and ord(character) != 127)
+            for character in output
+        ),
+        "Linux ldd output contains a control character",
+    )
+
+    mappings: list[str] = []
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if "=>" not in line:
+            continue
+        mapping = LDD_MAPPING_RE.fullmatch(line)
+        require(mapping is not None, f"Linux ldd mapping is malformed: {line!r}")
+        name = mapping.group("name")
+        target = mapping.group("target")
+        if target == "not found":
+            fail(f"Linux ldd did not find dependency {name}")
+        resolved_target = LDD_RESOLVED_TARGET_RE.fullmatch(target)
+        require(
+            resolved_target is not None,
+            f"Linux ldd resolved mapping is malformed: {line!r}",
+        )
+        if name == shared_filename:
+            mappings.append(resolved_target.group("path"))
+
+    require(
+        len(mappings) == 1,
+        f"Linux ldd must contain exactly one {shared_filename} mapping; got {len(mappings)}",
+    )
+    raw_loaded_path = mappings[0]
+    require(
+        all(ord(character) >= 32 and ord(character) != 127 for character in raw_loaded_path),
+        "Linux ldd shared-library path contains a control character",
+    )
+    loaded_path = pathlib.Path(raw_loaded_path)
+    require(loaded_path.is_absolute(), "Linux ldd shared-library path must be absolute")
+    try:
+        resolved_loaded = loaded_path.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        fail(f"cannot resolve Linux ldd shared-library path: {exc}")
+    try:
+        resolved_loaded.relative_to(root)
+    except ValueError:
+        fail("Linux ldd shared-library path resolves outside the package root")
+    require(
+        resolved_loaded == resolved_expected,
+        "Linux ldd shared-library path does not resolve to the packaged library",
+    )
+    return resolved_loaded
 
 
 def _inventory(root: pathlib.Path) -> dict[str, pathlib.Path]:
@@ -394,6 +508,27 @@ def verify_package(
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["verify-ldd"]:
+        parser = argparse.ArgumentParser(
+            description="Verify one Linux ldd mapping against an extracted C SDK"
+        )
+        parser.add_argument("verify-ldd", help=argparse.SUPPRESS)
+        parser.add_argument("--ldd-output", required=True, type=pathlib.Path)
+        parser.add_argument("--package-root", required=True, type=pathlib.Path)
+        parser.add_argument("--shared-filename", required=True)
+        args = parser.parse_args(argv)
+        try:
+            library = verify_ldd_linkage(
+                args.ldd_output,
+                args.package_root,
+                shared_filename=args.shared_filename,
+            )
+        except (CPackageManifestError, OSError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(f"C_PACKAGE_LDD_VERIFY_PASS library={library}")
+        return 0
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package-root", required=True, type=pathlib.Path)
     parser.add_argument("--repository-root", required=True, type=pathlib.Path)

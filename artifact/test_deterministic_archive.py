@@ -13,6 +13,7 @@ import zipfile
 import zlib
 from unittest import mock
 
+import deterministic_archive
 from deterministic_archive import (
     ArchiveLimits,
     DeterministicArchiveError,
@@ -23,6 +24,10 @@ from deterministic_archive import (
     extract_tar_gz,
     extract_zip,
 )
+
+
+if os.name == "nt":
+    import ctypes
 
 
 MTIME = 1_700_000_000
@@ -53,16 +58,26 @@ def _tar_checksum(header: bytearray) -> None:
     header[148:156] = f"{sum(header):06o}\0 ".encode("ascii")
 
 
-def _replace_first_tar_name(data: bytes, name: bytes) -> bytes:
+def _replace_tar_name(data: bytes, offset: int, name: bytes) -> bytes:
     payload = bytearray(_gunzip(data))
     if len(name) > 99:
         raise AssertionError("test name is too long")
-    payload[0:100] = b"\0" * 100
-    payload[0 : len(name)] = name
-    header = bytearray(payload[:512])
+    if offset < 0 or offset % 512 or offset + 512 > len(payload):
+        raise AssertionError("test tar header offset is invalid")
+    payload[offset : offset + 100] = b"\0" * 100
+    payload[offset : offset + len(name)] = name
+    header = bytearray(payload[offset : offset + 512])
     _tar_checksum(header)
-    payload[:512] = header
+    payload[offset : offset + 512] = header
     return _gzip(bytes(payload))
+
+
+def _replace_zip_member_name(data: bytes, original: bytes, replacement: bytes) -> bytes:
+    if len(original) != len(replacement):
+        raise AssertionError("test ZIP replacement name must preserve length")
+    if data.count(original) != 2:
+        raise AssertionError("test ZIP member name must occur once locally and centrally")
+    return data.replace(original, replacement)
 
 
 def _zip_central_record(data: bytes, member_name: str) -> int:
@@ -90,6 +105,35 @@ class DeterministicArchiveTests(unittest.TestCase):
         (source / "lib/library.bin").write_bytes(b"\x00ABI2\xff")
         return source
 
+    def _assert_host_regular_release_file(self, path: pathlib.Path) -> None:
+        metadata = path.lstat()
+        self.assertTrue(stat.S_ISREG(metadata.st_mode))
+        self.assertFalse(path.is_symlink())
+        mode = stat.S_IMODE(metadata.st_mode)
+        self.assertTrue(mode & stat.S_IRUSR)
+        self.assertTrue(mode & stat.S_IWUSR)
+        self.assertEqual(
+            mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH),
+            0,
+        )
+        if os.name == "nt":
+            attributes = getattr(metadata, "st_file_attributes", 0)
+            self.assertEqual(attributes & 0x00000400, 0)
+            self.assertEqual(attributes & 0x00000001, 0)
+        else:
+            self.assertEqual(mode, 0o644)
+
+    def _assert_host_release_directory(self, path: pathlib.Path) -> None:
+        metadata = path.lstat()
+        self.assertTrue(stat.S_ISDIR(metadata.st_mode))
+        self.assertFalse(path.is_symlink())
+        if os.name == "nt":
+            attributes = getattr(metadata, "st_file_attributes", 0)
+            self.assertEqual(attributes & 0x00000400, 0)
+            self.assertEqual(attributes & 0x00000001, 0)
+        else:
+            self.assertEqual(stat.S_IMODE(metadata.st_mode), 0o755)
+
     def test_tar_and_zip_are_deterministic_and_extract_exact_tree(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
@@ -112,19 +156,21 @@ class DeterministicArchiveTests(unittest.TestCase):
 
             self.assertEqual(first_tar.read_bytes(), second_tar.read_bytes())
             self.assertEqual(first_zip.read_bytes(), second_zip.read_bytes())
-            self.assertEqual(stat.S_IMODE(first_tar.stat().st_mode), 0o644)
-            self.assertEqual(stat.S_IMODE(first_zip.stat().st_mode), 0o644)
+            self._assert_host_regular_release_file(first_tar)
+            self._assert_host_regular_release_file(first_zip)
             self.assertEqual(tar_audit.format, "tar.gz")
             self.assertEqual(zip_audit.format, "zip")
-            self.assertEqual(
-                [entry.path for entry in tar_audit.entries],
-                [
-                    "package",
-                    "package/README.md",
-                    "package/lib",
-                    "package/lib/library.bin",
-                ],
-            )
+            expected_paths_and_modes = [
+                ("package", 0o755),
+                ("package/README.md", 0o644),
+                ("package/lib", 0o755),
+                ("package/lib/library.bin", 0o644),
+            ]
+            for audit in (tar_audit, zip_audit):
+                self.assertEqual(
+                    [(entry.path, entry.mode) for entry in audit.entries],
+                    expected_paths_and_modes,
+                )
 
             tar_destination = root / "tar-extracted"
             zip_destination = root / "zip-extracted"
@@ -142,7 +188,10 @@ class DeterministicArchiveTests(unittest.TestCase):
                 mtime=MTIME,
                 expected_sha256=zip_audit.archive_sha256,
             )
-            for destination in (tar_destination, zip_destination):
+            for destination, audit in (
+                (tar_destination, tar_audit),
+                (zip_destination, zip_audit),
+            ):
                 self.assertEqual(
                     (destination / "package/README.md").read_text(encoding="utf-8"),
                     "release\n",
@@ -151,12 +200,20 @@ class DeterministicArchiveTests(unittest.TestCase):
                     (destination / "package/lib/library.bin").read_bytes(),
                     b"\x00ABI2\xff",
                 )
-                self.assertEqual(
-                    stat.S_IMODE((destination / "package/README.md").stat().st_mode),
-                    0o644,
-                )
+                for entry in audit.entries:
+                    extracted = destination.joinpath(
+                        *pathlib.PurePosixPath(entry.path).parts
+                    )
+                    self.assertEqual(
+                        extracted.stat().st_mtime_ns,
+                        MTIME * 1_000_000_000,
+                    )
+                    if entry.kind == "file":
+                        self._assert_host_regular_release_file(extracted)
+                    else:
+                        self._assert_host_release_directory(extracted)
 
-    def test_source_symlink_and_ambiguous_name_are_rejected(self) -> None:
+    def test_source_symlink_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             source = self._source(root)
@@ -167,23 +224,57 @@ class DeterministicArchiveTests(unittest.TestCase):
                 create_tar_gz(
                     source, root / "bad.tar.gz", root_name="package", mtime=MTIME
                 )
-            (source / "link").unlink()
-            (source / "bad\\name").write_bytes(b"bad")
-            with self.assertRaisesRegex(DeterministicArchiveError, "backslash"):
-                create_zip(
-                    source, root / "bad.zip", root_name="package", mtime=MTIME
-                )
-            (source / "bad\\name").unlink()
-            (source / "bad?name").write_bytes(b"bad")
-            with self.assertRaisesRegex(
-                DeterministicArchiveError, "Windows-invalid"
-            ):
-                create_tar_gz(
-                    source,
-                    root / "windows-invalid.tar.gz",
-                    root_name="package",
-                    mtime=MTIME,
-                )
+
+    def test_ambiguous_member_names_are_rejected_from_archive_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            source = root / "source"
+            source.mkdir()
+            (source / "safe").write_bytes(b"x")
+            archive = root / "package.tar.gz"
+            create_tar_gz(source, archive, root_name="package", mtime=MTIME)
+            original = archive.read_bytes()
+
+            cases = (
+                ("backslash", b"package/bad\\name", "backslash"),
+                ("windows-invalid", b"package/bad?name", "Windows-invalid"),
+            )
+            for label, member_name, error in cases:
+                with self.subTest(label=label):
+                    forged = root / f"{label}.tar.gz"
+                    forged.write_bytes(_replace_tar_name(original, 512, member_name))
+                    with self.assertRaisesRegex(DeterministicArchiveError, error):
+                        audit_tar_gz(
+                            forged,
+                            root_name="package",
+                            mtime=MTIME,
+                        )
+
+            zip_source = self._source(root / "zip-fixture")
+            zip_archive = root / "package.zip"
+            create_zip(zip_source, zip_archive, root_name="package", mtime=MTIME)
+            original_zip = zip_archive.read_bytes()
+            original_name = b"package/README.md"
+            zip_cases = (
+                ("zip-backslash", b"package/bad\\namex", "backslash"),
+                ("zip-windows-invalid", b"package/bad?namex", "Windows-invalid"),
+            )
+            for label, member_name, error in zip_cases:
+                with self.subTest(label=label):
+                    forged = root / f"{label}.zip"
+                    forged.write_bytes(
+                        _replace_zip_member_name(
+                            original_zip,
+                            original_name,
+                            member_name,
+                        )
+                    )
+                    with self.assertRaisesRegex(DeterministicArchiveError, error):
+                        audit_zip(
+                            forged,
+                            root_name="package",
+                            mtime=MTIME,
+                        )
 
     def test_existing_outputs_and_destinations_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -231,6 +322,38 @@ class DeterministicArchiveTests(unittest.TestCase):
                 extract_tar_gz(
                     archive, destination, root_name="package", mtime=MTIME
                 )
+            self.assertFalse(destination.exists())
+
+    def test_extraction_rejects_windows_reparse_ancestor_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            archive = root / "package.tar.gz"
+            create_tar_gz(
+                self._source(root), archive, root_name="package", mtime=MTIME
+            )
+            reparse_parent = root / "reparse-parent"
+            reparse_parent.mkdir()
+            destination = reparse_parent / "destination"
+            original_lstat = pathlib.Path.lstat
+
+            def reparse_lstat(
+                path: pathlib.Path, *args: object, **kwargs: object
+            ) -> object:
+                metadata = original_lstat(path, *args, **kwargs)
+                if path == reparse_parent:
+                    return mock.Mock(
+                        st_mode=metadata.st_mode,
+                        st_file_attributes=0x00000400,
+                    )
+                return metadata
+
+            with mock.patch.object(pathlib.Path, "lstat", reparse_lstat):
+                with self.assertRaisesRegex(
+                    DeterministicArchiveError, "parent chain.*non-reparse"
+                ):
+                    extract_tar_gz(
+                        archive, destination, root_name="package", mtime=MTIME
+                    )
             self.assertFalse(destination.exists())
 
     def test_canonical_destination_accepts_alias_only_above_its_anchor(self) -> None:
@@ -371,6 +494,54 @@ class DeterministicArchiveTests(unittest.TestCase):
             self.assertFalse(destination.exists())
             self.assertFalse(root.joinpath(f".destination.tmp-{os.getpid()}").exists())
 
+    def test_extraction_metadata_failure_cleans_staging_and_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            archive = root / "package.tar.gz"
+            create_tar_gz(
+                self._source(root), archive, root_name="package", mtime=MTIME
+            )
+            cases = (
+                (
+                    "file-os-error",
+                    "deterministic_archive._apply_open_file_metadata",
+                    OSError,
+                ),
+                (
+                    "file-not-implemented",
+                    "deterministic_archive._apply_open_file_metadata",
+                    NotImplementedError,
+                ),
+                (
+                    "directory-os-error",
+                    "deterministic_archive._apply_directory_metadata",
+                    OSError,
+                ),
+                (
+                    "directory-not-implemented",
+                    "deterministic_archive._apply_directory_metadata",
+                    NotImplementedError,
+                ),
+            )
+            for label, helper, error_type in cases:
+                with self.subTest(label=label):
+                    destination = root / f"destination-{label}"
+                    error = error_type("synthetic metadata failure")
+                    with mock.patch(helper, side_effect=error):
+                        with self.assertRaisesRegex(
+                            DeterministicArchiveError, "cannot extract archive"
+                        ) as captured:
+                            extract_tar_gz(
+                                archive,
+                                destination,
+                                root_name="package",
+                                mtime=MTIME,
+                            )
+                    self.assertIsInstance(captured.exception.__cause__, error_type)
+                    self.assertFalse(destination.exists())
+                    staging = root / f".{destination.name}.tmp-{os.getpid()}"
+                    self.assertFalse(staging.exists())
+
     def test_tar_rejects_trailing_concatenated_and_wrong_mtime_gzip(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
@@ -408,7 +579,7 @@ class DeterministicArchiveTests(unittest.TestCase):
             original = archive.read_bytes()
 
             traversal = root / "traversal.tar.gz"
-            traversal.write_bytes(_replace_first_tar_name(original, b".."))
+            traversal.write_bytes(_replace_tar_name(original, 0, b".."))
             with self.assertRaises(DeterministicArchiveError):
                 audit_tar_gz(traversal, root_name="package", mtime=MTIME)
 
@@ -668,6 +839,111 @@ class DeterministicArchiveTests(unittest.TestCase):
                 DeterministicArchiveError, "trailing data"
             ):
                 audit_zip(forged_path, root_name="package", mtime=MTIME)
+
+
+if os.name == "nt":
+
+    class WindowsMetadataHandleTests(unittest.TestCase):
+        def _file_information(self, attributes: int):
+            def populate(
+                _handle: object,
+                _information_class: object,
+                information_pointer: object,
+                _information_size: object,
+            ) -> int:
+                information = ctypes.cast(
+                    information_pointer,
+                    ctypes.POINTER(deterministic_archive._FileAttributeTagInfo),
+                ).contents
+                information.FileAttributes = attributes
+                information.ReparseTag = 0
+                return 1
+
+            return populate
+
+        def test_metadata_handle_validation_rejects_unsafe_object_kinds(self) -> None:
+            path = pathlib.Path(r"C:\release\fixture")
+            with mock.patch.object(
+                deterministic_archive,
+                "_GetFileType",
+                return_value=3,
+            ):
+                with self.assertRaisesRegex(OSError, "not a disk file"):
+                    deterministic_archive._windows_validate_metadata_handle(
+                        1,
+                        path=path,
+                        expected_directory=False,
+                    )
+
+            cases = (
+                (
+                    "reparse",
+                    deterministic_archive._FILE_ATTRIBUTE_REPARSE_POINT,
+                    False,
+                    "reparse point",
+                ),
+                (
+                    "directory-instead-of-file",
+                    deterministic_archive._FILE_ATTRIBUTE_DIRECTORY,
+                    False,
+                    "expected regular file",
+                ),
+                (
+                    "file-instead-of-directory",
+                    0,
+                    True,
+                    "expected directory",
+                ),
+                (
+                    "readonly",
+                    deterministic_archive._FILE_ATTRIBUTE_READONLY,
+                    False,
+                    "read-only",
+                ),
+            )
+            for label, attributes, expected_directory, error in cases:
+                with self.subTest(label=label):
+                    with mock.patch.object(
+                        deterministic_archive,
+                        "_GetFileType",
+                        return_value=deterministic_archive._FILE_TYPE_DISK,
+                    ), mock.patch.object(
+                        deterministic_archive,
+                        "_GetFileInformationByHandleEx",
+                        side_effect=self._file_information(attributes),
+                    ):
+                        with self.assertRaisesRegex(OSError, error):
+                            deterministic_archive._windows_validate_metadata_handle(
+                                1,
+                                path=path,
+                                expected_directory=expected_directory,
+                            )
+
+        def test_windows_metadata_api_failures_remain_observable(self) -> None:
+            path = pathlib.Path(r"C:\release\fixture")
+
+            def fail_with_access_denied(*_arguments: object) -> int:
+                ctypes.set_last_error(5)
+                return 0
+
+            with mock.patch.object(
+                deterministic_archive,
+                "_SetFileTime",
+                side_effect=fail_with_access_denied,
+            ):
+                with self.assertRaisesRegex(OSError, "deterministic timestamp"):
+                    deterministic_archive._windows_set_mtime(
+                        1,
+                        path=path,
+                        mtime=MTIME,
+                    )
+            with mock.patch.object(
+                deterministic_archive,
+                "_CloseHandle",
+                side_effect=fail_with_access_denied,
+            ):
+                with self.assertRaisesRegex(OSError, "close metadata handle"):
+                    deterministic_archive._windows_close_metadata_handle(1, path)
 
 
 if __name__ == "__main__":

@@ -9,8 +9,8 @@ successfully has one unambiguous interpretation on POSIX and Windows hosts.
 Callers must control the existing parent-directory chain against concurrent
 replacement and pass its canonical physical path when the operating system
 exposes an alias such as macOS ``/var``.  The implementation rejects every
-observed ancestor symlink and uses no-replace commits for the caller-visible
-archive or extraction target.
+observed ancestor symlink and Windows reparse point, and uses no-replace
+commits for the caller-visible archive or extraction target.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import binascii
 import datetime as dt
+import errno
 import hashlib
 import io
 import os
@@ -33,6 +34,12 @@ from dataclasses import dataclass
 from typing import Iterable, Literal, NoReturn
 
 from evidence_io import EvidenceIOError, read_regular_snapshot
+
+
+if os.name == "nt":
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
 
 
 _BLOCK_SIZE = 512
@@ -51,6 +58,73 @@ _WINDOWS_RESERVED = re.compile(
     r"(?:\..*)?$",
     re.IGNORECASE,
 )
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+
+
+if os.name == "nt":
+    _FILE_WRITE_ATTRIBUTES = 0x00000100
+    _FILE_READ_ATTRIBUTES = 0x00000080
+    _FILE_SHARE_READ = 0x00000001
+    _FILE_SHARE_WRITE = 0x00000002
+    _OPEN_EXISTING = 3
+    _FILE_ATTRIBUTE_READONLY = 0x00000001
+    _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
+    _FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+    _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+    _FILE_TYPE_DISK = 1
+    _FILE_ATTRIBUTE_TAG_INFO_CLASS = 9
+    _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+    _WINDOWS_EPOCH_OFFSET_SECONDS = 11_644_473_600
+    _WINDOWS_TICKS_PER_SECOND = 10_000_000
+
+    class _FileAttributeTagInfo(ctypes.Structure):
+        _fields_ = [
+            ("FileAttributes", wintypes.DWORD),
+            ("ReparseTag", wintypes.DWORD),
+        ]
+
+    if ctypes.sizeof(_FileAttributeTagInfo) != 8:
+        raise RuntimeError("unsupported Windows FILE_ATTRIBUTE_TAG_INFO layout")
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    _CreateFileW = _kernel32.CreateFileW
+    _CreateFileW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    _CreateFileW.restype = wintypes.HANDLE
+
+    _CloseHandle = _kernel32.CloseHandle
+    _CloseHandle.argtypes = [wintypes.HANDLE]
+    _CloseHandle.restype = wintypes.BOOL
+
+    _GetFileType = _kernel32.GetFileType
+    _GetFileType.argtypes = [wintypes.HANDLE]
+    _GetFileType.restype = wintypes.DWORD
+
+    _GetFileInformationByHandleEx = _kernel32.GetFileInformationByHandleEx
+    _GetFileInformationByHandleEx.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    ]
+    _GetFileInformationByHandleEx.restype = wintypes.BOOL
+
+    _SetFileTime = _kernel32.SetFileTime
+    _SetFileTime.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.FILETIME),
+        ctypes.POINTER(wintypes.FILETIME),
+        ctypes.POINTER(wintypes.FILETIME),
+    ]
+    _SetFileTime.restype = wintypes.BOOL
 
 
 class DeterministicArchiveError(ValueError):
@@ -303,10 +377,18 @@ def _validated_output_target(path: pathlib.Path, label: str) -> pathlib.Path:
                 _fail(f"{label} parent contains an ambiguous path component")
             current /= component
             metadata = current.lstat()
-            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            is_windows_reparse_point = bool(
+                getattr(metadata, "st_file_attributes", 0)
+                & _FILE_ATTRIBUTE_REPARSE_POINT
+            )
+            if (
+                stat.S_ISLNK(metadata.st_mode)
+                or is_windows_reparse_point
+                or not stat.S_ISDIR(metadata.st_mode)
+            ):
                 _fail(
-                    f"{label} parent chain must contain only non-symlink "
-                    f"directories: {current}"
+                    f"{label} parent chain must contain only non-symlink, "
+                    f"non-reparse directories: {current}"
                 )
     except DeterministicArchiveError:
         raise
@@ -315,6 +397,202 @@ def _validated_output_target(path: pathlib.Path, label: str) -> pathlib.Path:
             f"{label} parent chain is unavailable at {current}: {exc}"
         ) from exc
     return parent / raw.name
+
+
+if os.name == "nt":
+
+    def _windows_handle_value(handle: object) -> int | None:
+        value = getattr(handle, "value", handle)
+        return None if value is None else int(value)
+
+
+    def _windows_failure(operation: str) -> OSError:
+        error = ctypes.get_last_error()
+        detail = ctypes.FormatError(error).strip()
+        return OSError(error, f"{operation}: {detail} (WinError {error})")
+
+
+    def _windows_validate_metadata_handle(
+        handle: int,
+        *,
+        path: pathlib.Path,
+        expected_directory: bool,
+    ) -> None:
+        ctypes.set_last_error(0)
+        file_type = int(_GetFileType(wintypes.HANDLE(handle)))
+        if file_type == 0:
+            error = ctypes.get_last_error()
+            if error:
+                raise _windows_failure(
+                    f"cannot determine metadata handle type for {path}"
+                )
+        if file_type != _FILE_TYPE_DISK:
+            raise OSError(
+                errno.EINVAL,
+                f"metadata handle is not a disk file: {path} (type={file_type})",
+            )
+        information = _FileAttributeTagInfo()
+        if not _GetFileInformationByHandleEx(
+            wintypes.HANDLE(handle),
+            _FILE_ATTRIBUTE_TAG_INFO_CLASS,
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+        ):
+            raise _windows_failure(f"cannot inspect metadata handle for {path}")
+        attributes = int(information.FileAttributes)
+        if attributes & _FILE_ATTRIBUTE_REPARSE_POINT:
+            raise OSError(
+                errno.ELOOP,
+                f"metadata target must not be a Windows reparse point: {path}",
+            )
+        is_directory = bool(attributes & _FILE_ATTRIBUTE_DIRECTORY)
+        if is_directory is not expected_directory:
+            expected = "directory" if expected_directory else "regular file"
+            raise OSError(
+                errno.EINVAL,
+                f"metadata target is not the expected {expected}: {path}",
+            )
+        if attributes & _FILE_ATTRIBUTE_READONLY:
+            raise OSError(
+                errno.EPERM,
+                f"metadata target is unexpectedly read-only: {path}",
+            )
+
+
+    def _windows_set_mtime(
+        handle: int,
+        *,
+        path: pathlib.Path,
+        mtime: int,
+    ) -> None:
+        ticks = (
+            mtime + _WINDOWS_EPOCH_OFFSET_SECONDS
+        ) * _WINDOWS_TICKS_PER_SECOND
+        timestamp = wintypes.FILETIME()
+        timestamp.dwLowDateTime = ticks & 0xFFFFFFFF
+        timestamp.dwHighDateTime = ticks >> 32
+        if not _SetFileTime(
+            wintypes.HANDLE(handle),
+            None,
+            ctypes.byref(timestamp),
+            ctypes.byref(timestamp),
+        ):
+            raise _windows_failure(f"cannot set deterministic timestamp for {path}")
+
+
+    def _windows_apply_metadata(
+        handle: int,
+        *,
+        path: pathlib.Path,
+        expected_directory: bool,
+        mtime: int | None,
+    ) -> None:
+        _windows_validate_metadata_handle(
+            handle,
+            path=path,
+            expected_directory=expected_directory,
+        )
+        if mtime is not None:
+            _windows_set_mtime(handle, path=path, mtime=mtime)
+
+
+    def _windows_close_metadata_handle(handle: int, path: pathlib.Path) -> None:
+        if not _CloseHandle(wintypes.HANDLE(handle)):
+            raise _windows_failure(f"cannot close metadata handle for {path}")
+
+
+def _apply_open_file_metadata(
+    handle: io.BufferedWriter,
+    path: pathlib.Path,
+    *,
+    mode: int,
+    mtime: int | None,
+) -> None:
+    descriptor = handle.fileno()
+    if os.name == "nt":
+        try:
+            windows_handle = int(msvcrt.get_osfhandle(descriptor))
+        except OSError as exc:
+            raise OSError(
+                exc.errno,
+                f"cannot obtain Windows metadata handle for {path}: {exc}",
+            ) from exc
+        if windows_handle in {-1, -2}:
+            raise OSError(
+                errno.EBADF,
+                f"invalid Windows metadata handle for {path}: {windows_handle}",
+            )
+        _windows_apply_metadata(
+            windows_handle,
+            path=path,
+            expected_directory=False,
+            mtime=mtime,
+        )
+        return
+    os.fchmod(descriptor, mode)
+    if mtime is not None:
+        timestamp_ns = mtime * 1_000_000_000
+        os.utime(descriptor, ns=(timestamp_ns, timestamp_ns))
+
+
+def _apply_directory_metadata(path: pathlib.Path, *, mode: int, mtime: int) -> None:
+    if os.name == "nt":
+        raw_handle = _CreateFileW(
+            str(path),
+            _FILE_READ_ATTRIBUTES | _FILE_WRITE_ATTRIBUTES,
+            _FILE_SHARE_READ | _FILE_SHARE_WRITE,
+            None,
+            _OPEN_EXISTING,
+            _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT,
+            None,
+        )
+        handle = _windows_handle_value(raw_handle)
+        if handle in {None, _INVALID_HANDLE_VALUE}:
+            raise _windows_failure(f"cannot open directory metadata handle for {path}")
+        try:
+            _windows_apply_metadata(
+                handle,
+                path=path,
+                expected_directory=True,
+                mtime=mtime,
+            )
+        except BaseException as primary:
+            try:
+                _windows_close_metadata_handle(handle, path)
+            except BaseException as cleanup_error:
+                primary.add_note(f"metadata handle cleanup also failed: {cleanup_error}")
+            raise
+        _windows_close_metadata_handle(handle, path)
+        return
+
+    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+        raise NotImplementedError(
+            "platform lacks descriptor-safe directory metadata operations"
+        )
+    flags = (
+        os.O_RDONLY
+        | os.O_DIRECTORY
+        | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise OSError(
+                errno.ENOTDIR,
+                f"metadata target is not a directory: {path}",
+            )
+        os.fchmod(descriptor, mode)
+        timestamp_ns = mtime * 1_000_000_000
+        os.utime(descriptor, ns=(timestamp_ns, timestamp_ns))
+    except BaseException as primary:
+        try:
+            os.close(descriptor)
+        except BaseException as cleanup_error:
+            primary.add_note(f"metadata descriptor cleanup also failed: {cleanup_error}")
+        raise
+    os.close(descriptor)
 
 
 def _write_atomic(path: pathlib.Path, data: bytes) -> None:
@@ -330,7 +608,13 @@ def _write_atomic(path: pathlib.Path, data: bytes) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
-        os.chmod(temporary, 0o644)
+            _apply_open_file_metadata(
+                handle,
+                temporary,
+                mode=0o644,
+                mtime=None,
+            )
+            os.fsync(handle.fileno())
         # A hard-link commit is atomic and, unlike os.replace(), never clobbers
         # an output created by another process after the initial check.
         os.link(temporary, output)
@@ -1068,13 +1352,21 @@ def _extract_entries(
                     handle.write(entry.data)
                     handle.flush()
                     os.fsync(handle.fileno())
-                os.chmod(output, 0o644)
-                os.utime(output, (mtime, mtime), follow_symlinks=False)
+                    _apply_open_file_metadata(
+                        handle,
+                        output,
+                        mode=entry.mode,
+                        mtime=mtime,
+                    )
+                    os.fsync(handle.fileno())
         for entry in reversed(entries):
             if entry.kind == "directory":
                 output = staging.joinpath(*pathlib.PurePosixPath(entry.path).parts)
-                os.chmod(output, 0o755)
-                os.utime(output, (mtime, mtime), follow_symlinks=False)
+                _apply_directory_metadata(
+                    output,
+                    mode=entry.mode,
+                    mtime=mtime,
+                )
         # Claim the caller-visible destination atomically without replacing a
         # path created after the initial check.  The fully populated archive
         # root is then renamed into that empty wrapper in one operation.
@@ -1088,7 +1380,7 @@ def _extract_entries(
         )
         root_published = True
         staging.rmdir()
-    except OSError as exc:
+    except (OSError, NotImplementedError) as exc:
         cleanup_errors: list[str] = []
         try:
             shutil.rmtree(staging)
