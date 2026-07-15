@@ -1635,6 +1635,35 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         )
         self.assertIn(strip_command, self.builder)
         self.assertNotIn("--strip-all", self.builder)
+        self.assertNotIn(
+            '"$LLVM_STRIP" --strip-debug --enable-deterministic-archives '
+            '"$built_archive"',
+            self.builder,
+        )
+        scratch_init = self.builder.index(
+            "SANITIZED_TARGET_ARCHIVES=\ntmp_header="
+        )
+        cleanup_trap = self.builder.index("trap cleanup EXIT")
+        scratch_create = self.builder.index(
+            'SANITIZED_TARGET_ARCHIVES=$(/usr/bin/mktemp -d '
+            '"$ROOT/target/qperiapt-swift-xcframework-archives.XXXXXX")'
+        )
+        header_create = self.builder.index(
+            'tmp_header=$(/usr/bin/mktemp '
+            '"$ROOT/target/qperiapt-swift-xcframework-header.XXXXXX.h")'
+        )
+        self.assertLess(scratch_init, cleanup_trap)
+        self.assertLess(cleanup_trap, scratch_create)
+        self.assertLess(scratch_create, header_create)
+        self.assertIn(
+            '/bin/chmod 0700 "$SANITIZED_TARGET_ARCHIVES"', self.builder
+        )
+        self.assertIn(
+            '/bin/rm -rf "$SANITIZED_TARGET_ARCHIVES"', self.builder
+        )
+        self.assertNotIn(
+            '$OUT_ROOT/qperiapt-swift-xcframework-archives', self.builder
+        )
         build = self.builder.index(
             'cargo build -p q-periapt-ffi --release --locked --target "$target"'
         )
@@ -1703,6 +1732,80 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertNotIn(
             "rust_distributed_compiler_builtins_members_v1", self.builder
         )
+
+    def test_abi2_export_validator_propagates_nm_and_set_failures(self) -> None:
+        marker_start = "# BEGIN_ABI2_EXPORT_VALIDATOR"
+        marker_end = "# END_ABI2_EXPORT_VALIDATOR"
+        start = self.builder.index(marker_start)
+        end = self.builder.index(marker_end, start) + len(marker_end)
+        validator = self.builder[start:end]
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw)
+            fake_nm = root / "llvm-nm"
+            fake_nm.write_text(
+                """#!/bin/sh
+set -eu
+if [ "$#" -ne 3 ] || [ "$1" != "-g" ] || [ "$2" != "--defined-only" ]; then
+    exit 9
+fi
+mode=${FAKE_NM_MODE:-exact}
+for symbol in \
+    q_periapt_abi_version \
+    q_periapt_decapsulate \
+    q_periapt_decision_from_signed_policy \
+    q_periapt_encapsulate \
+    q_periapt_fixed_suite_id \
+    q_periapt_fixed_suite_id_len \
+    q_periapt_generate_keypair \
+    q_periapt_status_name \
+    q_periapt_version; do
+    if [ "$mode" = "missing" ] && [ "$symbol" = "q_periapt_version" ]; then
+        continue
+    fi
+    printf '0000000000000000 T _%s\n' "$symbol"
+done
+if [ "$mode" = "extra" ]; then
+    printf '0000000000000000 T _q_periapt_unexpected\n'
+fi
+if [ "$mode" = "error" ]; then
+    exit 7
+fi
+""",
+                encoding="utf-8",
+            )
+            fake_nm.chmod(0o755)
+            archive = root / "fixture.a"
+            archive.write_bytes(b"fixture")
+            harness = root / "harness.sh"
+            harness.write_text(
+                "#!/bin/sh\nset -eu\nLLVM_NM=$1\n"
+                + validator
+                + '\nvalidate_abi2_exports "$2"\n',
+                encoding="utf-8",
+            )
+            harness.chmod(0o755)
+            for mode, expected_status in (
+                ("exact", 0),
+                ("error", 1),
+                ("missing", 1),
+                ("extra", 1),
+            ):
+                with self.subTest(mode=mode):
+                    environment = isolated_apple_preflight_environment(
+                        FAKE_NM_MODE=mode
+                    )
+                    completed = subprocess.run(
+                        ["/bin/sh", str(harness), str(fake_nm), str(archive)],
+                        env=environment,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                    )
+                    self.assertEqual(
+                        completed.returncode, expected_status, completed.stderr
+                    )
+                    if expected_status:
+                        self.assertIn("Apple static archive", completed.stderr)
 
     def test_untrusted_configuration_preflight_precedes_platform_tool_probes(
         self,

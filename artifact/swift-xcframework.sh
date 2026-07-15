@@ -611,24 +611,51 @@ cmp "$tmp_header" crates/q-periapt-ffi/include/q_periapt.h
 cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
 printf 'PASS: generated C header freshness\n'
 
-EXPECTED_FFI_EXPORTS='q_periapt_abi_version
-q_periapt_decapsulate
-q_periapt_decision_from_signed_policy
-q_periapt_encapsulate
-q_periapt_fixed_suite_id
-q_periapt_fixed_suite_id_len
-q_periapt_generate_keypair
-q_periapt_status_name
-q_periapt_version'
-
+# BEGIN_ABI2_EXPORT_VALIDATOR
 validate_abi2_exports() {
-	ffi_exports=$("$LLVM_NM" -g --defined-only "$1" 2>/dev/null | awk '{print $NF}' | sed 's/^_//' | grep -E '^q_periapt_[a-z0-9_]+$' | LC_ALL=C sort -u)
-	if [ "$ffi_exports" != "$EXPECTED_FFI_EXPORTS" ]; then
-		printf 'error: Apple static archive differs from the exact ABI2 public q_periapt_* namespace allowlist: %s\n' "$1" >&2
-		printf 'actual public namespace symbols:\n%s\n' "$ffi_exports" >&2
+	if ! nm_output=$("$LLVM_NM" -g --defined-only "$1" 2>/dev/null); then
+		printf 'error: cannot inspect defined symbols in Apple static archive: %s\n' "$1" >&2
+		exit 1
+	fi
+	if ! printf '%s\n' "$nm_output" | awk '
+BEGIN {
+    required["q_periapt_abi_version"] = 1
+    required["q_periapt_decapsulate"] = 1
+    required["q_periapt_decision_from_signed_policy"] = 1
+    required["q_periapt_encapsulate"] = 1
+    required["q_periapt_fixed_suite_id"] = 1
+    required["q_periapt_fixed_suite_id_len"] = 1
+    required["q_periapt_generate_keypair"] = 1
+    required["q_periapt_status_name"] = 1
+    required["q_periapt_version"] = 1
+}
+{
+    symbol = $NF
+    sub(/^_/, "", symbol)
+    if (symbol ~ /^q_periapt_[a-z0-9_]+$/) {
+        observed[symbol] = 1
+    }
+}
+END {
+    mismatch = 0
+    for (symbol in required) {
+        if (!(symbol in observed)) {
+            mismatch = 1
+        }
+    }
+    for (symbol in observed) {
+        if (!(symbol in required)) {
+            mismatch = 1
+        }
+    }
+    exit mismatch
+}
+'; then
+		printf 'error: Apple static archive differs from the exact ABI2 defined-symbol allowlist: %s\n' "$1" >&2
 		exit 1
 	fi
 }
+# END_ABI2_EXPORT_VALIDATOR
 
 printf '\n=== Build Apple static libraries ===\n'
 for target in $required_targets; do
