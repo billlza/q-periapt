@@ -44,6 +44,7 @@ from evidence_io import (
 )
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_text
 from windows_package import (
+    SCHEMA_VERSION as WINDOWS_PACKAGE_SCHEMA_VERSION,
     WindowsPackageError,
     verify_package as verify_windows_package,
 )
@@ -383,7 +384,10 @@ def _windows_asset(
         verified_manifest == manifest,
         "Windows package verifier observed different manifest bytes",
     )
-    require(manifest.get("schema_version") == 2, "Windows manifest schema differs")
+    require(
+        manifest.get("schema_version") == WINDOWS_PACKAGE_SCHEMA_VERSION,
+        "Windows manifest schema differs",
+    )
     _validate_common_manifest(
         manifest,
         source=source,

@@ -9,6 +9,7 @@ from unittest import mock
 
 import android_device_proof
 import platform_distribution
+import windows_package
 from deterministic_archive import create_tar_gz, create_zip
 
 
@@ -57,6 +58,26 @@ class PlatformDistributionTests(unittest.TestCase):
             "contract_sha256": self.abi["contract_sha256"],
             "exports_sha256": self.abi["exports_sha256"],
             "export_count": self.abi["export_count"],
+        }
+
+    @staticmethod
+    def _windows_hardening() -> dict:
+        return {
+            "machine": "x86_64",
+            "dynamic_base": True,
+            "nx_compatible": True,
+            "high_entropy_va": True,
+            "linker_warnings_as_errors": True,
+            "base_relocations": {
+                "directory_present": True,
+                "dir64_count": 1,
+            },
+            "debug_directory": {
+                "entry_count": 1,
+                "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                "payload_kind": "empty",
+                "hash_bytes": 0,
+            },
         }
 
     def _android_manifest(self) -> tuple[dict, bytes]:
@@ -181,7 +202,7 @@ class PlatformDistributionTests(unittest.TestCase):
         package = self.root / "stage-windows"
         package.mkdir()
         manifest = {
-            "schema_version": 2,
+            "schema_version": windows_package.SCHEMA_VERSION,
             "kind": "qperiapt.windows_c_package_manifest",
             "package": package_name,
             "version": platform_distribution.PRODUCT_VERSION,
@@ -190,7 +211,12 @@ class PlatformDistributionTests(unittest.TestCase):
             "git_dirty": False,
             "target": target,
             "release_class": "unsigned_experimental_prerelease",
-            "authenticode": {"signed": False, "reason": "fixture"},
+            "authenticode": {
+                "signed": False,
+                "certificate_directory_present": False,
+                "reason": "fixture",
+            },
+            "hardening": self._windows_hardening(),
             "abi": self._abi_manifest(),
         }
         self._write_json(package / "MANIFEST.json", manifest)
@@ -225,6 +251,27 @@ class PlatformDistributionTests(unittest.TestCase):
     @staticmethod
     def _verified_manifest(package_root: pathlib.Path, *_args, **_kwargs) -> dict:
         return json.loads((package_root / "MANIFEST.json").read_text(encoding="utf-8"))
+
+    def _verified_windows_manifest(
+        self, package_root: pathlib.Path, *_args, **_kwargs
+    ) -> dict:
+        manifest = json.loads(
+            (package_root / "MANIFEST.json").read_text(encoding="utf-8")
+        )
+        expected_authenticode = {
+            "signed": False,
+            "certificate_directory_present": False,
+            "reason": "fixture",
+        }
+        if not (
+            manifest.get("schema_version") == windows_package.SCHEMA_VERSION
+            and manifest.get("hardening") == self._windows_hardening()
+            and manifest.get("authenticode") == expected_authenticode
+        ):
+            raise windows_package.WindowsPackageError(
+                "fixture Windows PE evidence differs"
+            )
+        return manifest
 
     @staticmethod
     def _verified_bundle_manifest(
@@ -267,7 +314,7 @@ class PlatformDistributionTests(unittest.TestCase):
             mock.patch.object(
                 platform_distribution,
                 "verify_windows_package",
-                side_effect=self._verified_manifest,
+                side_effect=self._verified_windows_manifest,
             ),
         )
 
@@ -335,6 +382,49 @@ class PlatformDistributionTests(unittest.TestCase):
         }
         self.assertEqual(first, second)
         self.assertEqual(first_bytes, second_bytes)
+
+    def test_windows_fixture_validator_rejects_schema_and_pe_evidence_drift(self) -> None:
+        package = self.root / "stage-windows"
+        manifest_path = package / "MANIFEST.json"
+        original = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            self._verified_windows_manifest(package),
+            original,
+        )
+        mutations = {
+            "schema": lambda value: value.__setitem__("schema_version", 2),
+            "dynamic base": lambda value: value["hardening"].__setitem__(
+                "dynamic_base", False
+            ),
+            "NX": lambda value: value["hardening"].__setitem__(
+                "nx_compatible", False
+            ),
+            "high entropy": lambda value: value["hardening"].__setitem__(
+                "high_entropy_va", False
+            ),
+            "link warnings": lambda value: value["hardening"].__setitem__(
+                "linker_warnings_as_errors", False
+            ),
+            "entry type": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("entry_type", "IMAGE_DEBUG_TYPE_CODEVIEW"),
+            "entry count": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("entry_count", 2),
+            "base relocations": lambda value: value["hardening"][
+                "base_relocations"
+            ].__setitem__("dir64_count", 0),
+            "certificate": lambda value: value["authenticode"].__setitem__(
+                "certificate_directory_present", True
+            ),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                changed = json.loads(json.dumps(original))
+                mutate(changed)
+                self._write_json(manifest_path, changed)
+                with self.assertRaises(windows_package.WindowsPackageError):
+                    self._verified_windows_manifest(package)
 
     def test_tampered_asset_or_checksum_fails_closed(self) -> None:
         output = self.root / "release"
@@ -440,7 +530,7 @@ class PlatformDistributionTests(unittest.TestCase):
             mock.patch.object(
                 platform_distribution,
                 "verify_windows_package",
-                side_effect=self._verified_manifest,
+                side_effect=self._verified_windows_manifest,
             ) as windows_verify,
         ):
             platform_distribution.assemble(
@@ -490,7 +580,7 @@ class PlatformDistributionTests(unittest.TestCase):
         with (
             mock.patch.object(platform_distribution, "_source_identity", return_value=self.source),
             mock.patch.object(platform_distribution, "verify_c_package", side_effect=self._verified_manifest),
-            mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_manifest),
+            mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_windows_manifest),
             self.assertRaisesRegex(
                 platform_distribution.PlatformDistributionError,
                 "Android runtime evidence bundle verification failed",
@@ -509,7 +599,7 @@ class PlatformDistributionTests(unittest.TestCase):
             android_mocks[0],
             android_mocks[1],
             android_mocks[2],
-            mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_manifest),
+            mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_windows_manifest),
             self.assertRaisesRegex(
                 platform_distribution.PlatformDistributionError,
                 "Linux x86_64-unknown-linux-gnu package verification failed",

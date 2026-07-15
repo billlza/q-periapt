@@ -142,7 +142,7 @@ if os.name == "nt":
     _CloseHandle.restype = wintypes.BOOL
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 KIND = "qperiapt.windows_c_package_manifest"
 TARGET = "x86_64-pc-windows-msvc"
 ABI_PLATFORM = "windows"
@@ -160,6 +160,22 @@ MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES = 1024 * 1024
 DUMPBIN_DEPENDENCY_HEADER = b"Image has the following dependencies:"
 DUMPBIN_SUMMARY_HEADER = b"Summary"
 FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+PE_MACHINE_AMD64 = 0x8664
+PE32_PLUS_MAGIC = 0x020B
+PE_FILE_RELOCS_STRIPPED = 0x0001
+PE_FILE_EXECUTABLE_IMAGE = 0x0002
+PE_FILE_DLL = 0x2000
+PE_HIGH_ENTROPY_VA = 0x0020
+PE_DYNAMIC_BASE = 0x0040
+PE_NX_COMPAT = 0x0100
+PE_DEBUG_TYPE_REPRO = 16
+PE_DEBUG_DIRECTORY_SIZE = 28
+PE_RELOCATION_TYPE_ABSOLUTE = 0
+PE_RELOCATION_TYPE_DIR64 = 10
+PE_MAX_SECTIONS = 96
+PE_UINT32_LIMIT = 1 << 32
+MAX_PE_RELOCATION_DIRECTORY_BYTES = 1024 * 1024
+MAX_PE_RELOCATION_ENTRIES = 65_536
 
 MANIFEST_KEYS = frozenset(
     {
@@ -667,6 +683,442 @@ def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
     return list(CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
 
 
+def _pe_uint(data: bytes, offset: int, size: int, label: str) -> int:
+    _require(
+        type(offset) is int
+        and type(size) is int
+        and offset >= 0
+        and size > 0
+        and offset + size <= len(data),
+        f"Windows PE {label} is truncated",
+    )
+    return int.from_bytes(data[offset : offset + size], "little")
+
+
+def _map_pe_rva(
+    data: bytes,
+    rva: int,
+    size: int,
+    *,
+    size_of_headers: int,
+    sections: list[tuple[int, int, int, int]],
+    label: str,
+) -> int:
+    """Map one complete RVA range to exactly one file-backed PE range."""
+
+    _require(
+        type(rva) is int
+        and type(size) is int
+        and rva > 0
+        and size > 0
+        and rva + size <= PE_UINT32_LIMIT,
+        f"Windows PE {label} RVA range is invalid",
+    )
+    end_rva = rva + size
+    candidates: list[int] = []
+    if rva < size_of_headers and end_rva <= size_of_headers:
+        _require(
+            end_rva <= len(data),
+            f"Windows PE {label} header range exceeds the file",
+        )
+        candidates.append(rva)
+
+    for virtual_address, virtual_size, raw_pointer, raw_size in sections:
+        virtual_extent = max(virtual_size, raw_size)
+        _require(
+            virtual_address + virtual_extent <= PE_UINT32_LIMIT,
+            "Windows PE section virtual range overflows 32 bits",
+        )
+        if not (
+            virtual_extent > 0
+            and virtual_address <= rva
+            and end_rva <= virtual_address + virtual_extent
+        ):
+            continue
+        relative = rva - virtual_address
+        _require(
+            relative + size <= raw_size,
+            f"Windows PE {label} is not completely file-backed",
+        )
+        file_offset = raw_pointer + relative
+        _require(
+            file_offset + size <= len(data),
+            f"Windows PE {label} file range is truncated",
+        )
+        candidates.append(file_offset)
+
+    _require(
+        len(candidates) == 1,
+        f"Windows PE {label} RVA must map to exactly one file range",
+    )
+    return candidates[0]
+
+
+def _parse_pe_base_relocations(
+    data: bytes,
+    directory_offset: int,
+    directory_size: int,
+    *,
+    size_of_headers: int,
+    sections: list[tuple[int, int, int, int]],
+) -> int:
+    """Validate every x64 base-relocation block and count real DIR64 entries."""
+
+    _require(
+        8 <= directory_size <= MAX_PE_RELOCATION_DIRECTORY_BYTES,
+        "Windows PE base-relocation directory size is invalid",
+    )
+    _require(
+        directory_offset + directory_size <= len(data),
+        "Windows PE base-relocation directory is truncated",
+    )
+    cursor = 0
+    total_entries = 0
+    dir64_count = 0
+    previous_page_rva = -1
+    while cursor < directory_size:
+        _require(
+            cursor % 4 == 0 and directory_size - cursor >= 8,
+            "Windows PE base-relocation block is truncated or misaligned",
+        )
+        block = directory_offset + cursor
+        page_rva = _pe_uint(data, block, 4, "base-relocation page RVA")
+        block_size = _pe_uint(data, block + 4, 4, "base-relocation block size")
+        _require(
+            page_rva > previous_page_rva
+            and page_rva % 0x1000 == 0
+            and page_rva < PE_UINT32_LIMIT,
+            "Windows PE base-relocation pages are not canonical",
+        )
+        _require(
+            block_size >= 8
+            and block_size % 4 == 0
+            and cursor + block_size <= directory_size,
+            "Windows PE base-relocation block size is invalid",
+        )
+        block_entries = (block_size - 8) // 2
+        _require(
+            total_entries + block_entries <= MAX_PE_RELOCATION_ENTRIES,
+            "Windows PE base-relocation entry count exceeds the policy limit",
+        )
+        total_entries += block_entries
+        previous_page_rva = page_rva
+        seen_offsets: set[int] = set()
+        absolute_padding_seen = False
+        for entry_offset in range(8, block_size, 2):
+            entry = _pe_uint(
+                data,
+                block + entry_offset,
+                2,
+                "base-relocation entry",
+            )
+            relocation_type = entry >> 12
+            offset_within_page = entry & 0x0FFF
+            if relocation_type == PE_RELOCATION_TYPE_ABSOLUTE:
+                _require(
+                    entry == 0
+                    and not absolute_padding_seen
+                    and entry_offset == block_size - 2,
+                    "Windows PE ABSOLUTE base-relocation padding differs",
+                )
+                absolute_padding_seen = True
+                continue
+            _require(
+                relocation_type == PE_RELOCATION_TYPE_DIR64,
+                "Windows PE contains a non-DIR64 base relocation",
+            )
+            target_rva = page_rva + offset_within_page
+            _require(
+                target_rva + 8 <= PE_UINT32_LIMIT
+                and offset_within_page not in seen_offsets,
+                "Windows PE DIR64 relocation target is invalid or duplicated",
+            )
+            target_offset = _map_pe_rva(
+                data,
+                target_rva,
+                8,
+                size_of_headers=size_of_headers,
+                sections=sections,
+                label="DIR64 relocation target",
+            )
+            _require(
+                target_offset + 8 <= directory_offset
+                or directory_offset + directory_size <= target_offset,
+                "Windows PE DIR64 relocation targets its relocation directory",
+            )
+            seen_offsets.add(offset_within_page)
+            dir64_count += 1
+        cursor += block_size
+    _require(
+        cursor == directory_size and dir64_count > 0,
+        "Windows PE contains no effective DIR64 base relocation",
+    )
+    return dir64_count
+
+
+def parse_windows_pe_evidence(data: bytes) -> dict[str, Any]:
+    """Parse the exact native x64 PE policy without trusting localized tools."""
+
+    _require(type(data) is bytes, "Windows PE evidence must be exact bytes")
+    _require(len(data) >= 64, "Windows PE DOS header is truncated")
+    _require(data[:2] == b"MZ", "Windows PE DOS signature differs")
+    pe_offset = _pe_uint(data, 0x3C, 4, "PE header offset")
+    _require(
+        pe_offset >= 64 and pe_offset % 4 == 0,
+        "Windows PE header offset is invalid",
+    )
+    _require(
+        pe_offset + 24 <= len(data),
+        "Windows PE signature or COFF header is truncated",
+    )
+    _require(data[pe_offset : pe_offset + 4] == b"PE\0\0", "Windows PE signature differs")
+
+    coff = pe_offset + 4
+    machine = _pe_uint(data, coff, 2, "machine")
+    number_of_sections = _pe_uint(data, coff + 2, 2, "section count")
+    pointer_to_symbols = _pe_uint(data, coff + 8, 4, "COFF symbol-table pointer")
+    number_of_symbols = _pe_uint(data, coff + 12, 4, "COFF symbol count")
+    optional_size = _pe_uint(data, coff + 16, 2, "optional-header size")
+    characteristics = _pe_uint(data, coff + 18, 2, "COFF characteristics")
+    _require(machine == PE_MACHINE_AMD64, "Windows PE machine is not x86_64")
+    _require(
+        1 <= number_of_sections <= PE_MAX_SECTIONS,
+        "Windows PE section count is invalid",
+    )
+    _require(
+        pointer_to_symbols == 0 and number_of_symbols == 0,
+        "Windows PE contains a deprecated COFF symbol table",
+    )
+    _require(
+        characteristics & PE_FILE_RELOCS_STRIPPED == 0,
+        "Windows PE strips the relocations required for ASLR",
+    )
+    _require(
+        characteristics & (PE_FILE_EXECUTABLE_IMAGE | PE_FILE_DLL)
+        == (PE_FILE_EXECUTABLE_IMAGE | PE_FILE_DLL),
+        "Windows PE is not an executable DLL image",
+    )
+
+    optional = coff + 20
+    optional_end = optional + optional_size
+    _require(optional_end <= len(data), "Windows PE optional header is truncated")
+    _require(
+        optional_size >= 168,
+        "Windows PE optional header cannot contain the debug directory",
+    )
+    _require(
+        _pe_uint(data, optional, 2, "optional-header magic") == PE32_PLUS_MAGIC,
+        "Windows PE is not PE32+",
+    )
+    size_of_headers = _pe_uint(data, optional + 60, 4, "SizeOfHeaders")
+    dll_characteristics = _pe_uint(
+        data, optional + 70, 2, "DLL characteristics"
+    )
+    required_dll_characteristics = PE_HIGH_ENTROPY_VA | PE_DYNAMIC_BASE | PE_NX_COMPAT
+    _require(
+        dll_characteristics & required_dll_characteristics
+        == required_dll_characteristics,
+        "Windows PE ASLR/NX/high-entropy hardening differs",
+    )
+    number_of_directories = _pe_uint(
+        data, optional + 108, 4, "data-directory count"
+    )
+    directory_capacity = (optional_size - 112) // 8
+    _require(
+        7 <= number_of_directories <= directory_capacity,
+        "Windows PE data-directory count is inconsistent with the optional header",
+    )
+
+    section_table = optional_end
+    section_table_end = section_table + number_of_sections * 40
+    _require(
+        section_table_end <= size_of_headers <= len(data),
+        "Windows PE section table or SizeOfHeaders is invalid",
+    )
+    sections: list[tuple[int, int, int, int]] = []
+    raw_ranges: list[tuple[int, int]] = []
+    for index in range(number_of_sections):
+        section = section_table + index * 40
+        virtual_size = _pe_uint(data, section + 8, 4, "section VirtualSize")
+        virtual_address = _pe_uint(data, section + 12, 4, "section VirtualAddress")
+        raw_size = _pe_uint(data, section + 16, 4, "section SizeOfRawData")
+        raw_pointer = _pe_uint(data, section + 20, 4, "section PointerToRawData")
+        if raw_size:
+            _require(
+                raw_pointer >= size_of_headers
+                and raw_pointer + raw_size <= len(data),
+                "Windows PE section raw range is invalid",
+            )
+            raw_ranges.append((raw_pointer, raw_pointer + raw_size))
+        sections.append((virtual_address, virtual_size, raw_pointer, raw_size))
+    for previous, current in zip(sorted(raw_ranges), sorted(raw_ranges)[1:]):
+        _require(
+            previous[1] <= current[0],
+            "Windows PE section raw ranges overlap",
+        )
+
+    relocation_directory = optional + 112 + 5 * 8
+    relocation_rva = _pe_uint(
+        data, relocation_directory, 4, "base-relocation directory RVA"
+    )
+    relocation_size = _pe_uint(
+        data, relocation_directory + 4, 4, "base-relocation directory size"
+    )
+    _require(
+        relocation_rva > 0 and relocation_size > 0,
+        "Windows PE base-relocation directory is missing",
+    )
+    relocation_offset = _map_pe_rva(
+        data,
+        relocation_rva,
+        relocation_size,
+        size_of_headers=size_of_headers,
+        sections=sections,
+        label="base-relocation directory",
+    )
+    dir64_count = _parse_pe_base_relocations(
+        data,
+        relocation_offset,
+        relocation_size,
+        size_of_headers=size_of_headers,
+        sections=sections,
+    )
+
+    certificate_directory = optional + 112 + 4 * 8
+    certificate_pointer = _pe_uint(
+        data, certificate_directory, 4, "certificate-table file pointer"
+    )
+    certificate_size = _pe_uint(
+        data, certificate_directory + 4, 4, "certificate-table size"
+    )
+    _require(
+        certificate_pointer == 0 and certificate_size == 0,
+        "unsigned Windows PE unexpectedly contains an Authenticode certificate table",
+    )
+
+    debug_directory = optional + 112 + 6 * 8
+    debug_rva = _pe_uint(data, debug_directory, 4, "debug-directory RVA")
+    debug_size = _pe_uint(data, debug_directory + 4, 4, "debug-directory size")
+    _require(
+        debug_size == PE_DEBUG_DIRECTORY_SIZE,
+        "Windows PE must contain exactly one debug-directory entry",
+    )
+    debug_offset = _map_pe_rva(
+        data,
+        debug_rva,
+        debug_size,
+        size_of_headers=size_of_headers,
+        sections=sections,
+        label="debug directory",
+    )
+    _require(
+        relocation_offset + relocation_size <= debug_offset
+        or debug_offset + debug_size <= relocation_offset,
+        "Windows PE debug and base-relocation directories overlap",
+    )
+    reserved = _pe_uint(data, debug_offset, 4, "debug entry Characteristics")
+    major_version = _pe_uint(data, debug_offset + 8, 2, "debug entry MajorVersion")
+    minor_version = _pe_uint(data, debug_offset + 10, 2, "debug entry MinorVersion")
+    debug_type = _pe_uint(data, debug_offset + 12, 4, "debug entry Type")
+    data_size = _pe_uint(data, debug_offset + 16, 4, "debug entry SizeOfData")
+    data_rva = _pe_uint(data, debug_offset + 20, 4, "debug entry AddressOfRawData")
+    data_pointer = _pe_uint(data, debug_offset + 24, 4, "debug entry PointerToRawData")
+    _require(
+        reserved == 0 and major_version == 0 and minor_version == 0,
+        "Windows PE REPRO entry reserved/version fields differ",
+    )
+    _require(
+        debug_type == PE_DEBUG_TYPE_REPRO,
+        "Windows PE debug directory is not REPRO-only",
+    )
+
+    if data_size == 0:
+        _require(
+            data_rva == 0 and data_pointer == 0,
+            "Windows PE empty REPRO entry has raw-data references",
+        )
+        payload_kind = "empty"
+        hash_bytes = 0
+    else:
+        _require(
+            data_size == 36 and data_rva > 0 and data_pointer > 0,
+            "Windows PE REPRO hash payload shape differs",
+        )
+        mapped_pointer = _map_pe_rva(
+            data,
+            data_rva,
+            data_size,
+            size_of_headers=size_of_headers,
+            sections=sections,
+            label="REPRO hash payload",
+        )
+        _require(
+            mapped_pointer == data_pointer,
+            "Windows PE REPRO hash RVA and file pointer differ",
+        )
+        _require(
+            data_pointer + data_size <= len(data),
+            "Windows PE REPRO hash payload is truncated",
+        )
+        _require(
+            data_pointer + data_size <= debug_offset
+            or debug_offset + debug_size <= data_pointer,
+            "Windows PE REPRO hash payload overlaps its directory entry",
+        )
+        _require(
+            data_pointer + data_size <= relocation_offset
+            or relocation_offset + relocation_size <= data_pointer,
+            "Windows PE REPRO hash payload overlaps base relocations",
+        )
+        hash_bytes = _pe_uint(data, data_pointer, 4, "REPRO hash length")
+        _require(
+            hash_bytes == 32 and hash_bytes + 4 == data_size,
+            "Windows PE REPRO hash length differs",
+        )
+        payload_kind = "length_prefixed_hash"
+
+    return {
+        "authenticode_certificate_directory_present": False,
+        "hardening": {
+            "machine": "x86_64",
+            "dynamic_base": True,
+            "nx_compatible": True,
+            "high_entropy_va": True,
+            "base_relocations": {
+                "directory_present": True,
+                "dir64_count": dir64_count,
+            },
+            "debug_directory": {
+                "entry_count": 1,
+                "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                "payload_kind": payload_kind,
+                "hash_bytes": hash_bytes,
+            },
+        },
+    }
+
+
+def inspect_windows_pe_evidence(
+    library: pathlib.Path,
+) -> tuple[dict[str, Any], str, int]:
+    """Read one stable DLL snapshot and return its PE evidence, digest, and size."""
+
+    dll = pathlib.Path(library)
+    _require(
+        dll.name == "q_periapt_ffi_abi2.dll",
+        "Windows DLL filename differs from the ABI contract",
+    )
+    try:
+        snapshot = read_regular_snapshot(
+            dll,
+            maximum=MAX_PACKAGE_FILE_BYTES,
+            label="Windows ABI2 DLL",
+        )
+    except EvidenceIOError as exc:
+        raise WindowsPackageError(str(exc)) from exc
+    return parse_windows_pe_evidence(snapshot.data), snapshot.sha256, snapshot.size
+
+
 def _regular_windows_tool(path: pathlib.Path) -> pathlib.Path:
     tool = pathlib.Path(path)
     _require(tool.is_absolute(), "dumpbin path must be absolute")
@@ -1036,6 +1488,9 @@ def create_manifest(
     _require(set(inventory) == expected_payload_files, f"Windows payload file set differs: missing={sorted(expected_payload_files - set(inventory))} extra={sorted(set(inventory) - expected_payload_files)}")
     _validate_boms(root, repository)
     contract_sha256, exports_sha256 = _validate_contracts(root, repository)
+    pe_evidence, pe_sha256, pe_size = inspect_windows_pe_evidence(
+        inventory["bin/q_periapt_ffi_abi2.dll"]
+    )
 
     forbidden = [str(repository), repository.as_posix()]
     entries: list[dict[str, Any]] = []
@@ -1044,6 +1499,11 @@ def create_manifest(
             scan = scan_release_file(path, forbidden_text=forbidden)
         except ReleaseBinaryScanError as exc:
             raise WindowsPackageError(str(exc)) from exc
+        if relative == "bin/q_periapt_ffi_abi2.dll":
+            _require(
+                scan.sha256 == pe_sha256 and scan.bytes == pe_size,
+                "Windows DLL changed between PE inspection and payload hashing",
+            )
         entries.append(
             {
                 "bytes": scan.bytes,
@@ -1068,6 +1528,9 @@ def create_manifest(
         "release_class": "unsigned_experimental_prerelease",
         "authenticode": {
             "signed": False,
+            "certificate_directory_present": pe_evidence[
+                "authenticode_certificate_directory_present"
+            ],
             "reason": "No trusted Windows Authenticode credential was available; integrity relies on GitHub immutable-release and artifact attestations.",
         },
         "abi": {
@@ -1081,12 +1544,8 @@ def create_manifest(
             "static_filename": "q_periapt_ffi_abi2_static.lib",
         },
         "hardening": {
-            "machine": "x86_64",
-            "dynamic_base": True,
-            "nx_compatible": True,
-            "high_entropy_va": True,
+            **pe_evidence["hardening"],
             "linker_warnings_as_errors": True,
-            "debug_directory_absent": True,
         },
         "native_dependencies": _normalize_dependencies(dependency_list),
         "third_party_rust": {
@@ -1155,6 +1614,9 @@ def verify_package(
     expected_all_files = expected_payload_files | {"MANIFEST.json", "SHA256SUMS"}
     inventory = _inventory(root)
     _require(set(inventory) == expected_all_files, f"Windows package file set differs: missing={sorted(expected_all_files - set(inventory))} extra={sorted(set(inventory) - expected_all_files)}")
+    pe_evidence, pe_sha256, pe_size = inspect_windows_pe_evidence(
+        inventory["bin/q_periapt_ffi_abi2.dll"]
+    )
     manifest = _load_json(inventory["MANIFEST.json"], "Windows MANIFEST.json")
     _require(
         read_regular_snapshot(
@@ -1196,15 +1658,14 @@ def verify_package(
     _require(manifest.get("release_class") == "unsigned_experimental_prerelease", "Windows release class is not explicit")
     _require(manifest.get("authenticode") == {
         "signed": False,
+        "certificate_directory_present": pe_evidence[
+            "authenticode_certificate_directory_present"
+        ],
         "reason": "No trusted Windows Authenticode credential was available; integrity relies on GitHub immutable-release and artifact attestations.",
     }, "Windows Authenticode boundary differs")
     _require(manifest.get("hardening") == {
-        "machine": "x86_64",
-        "dynamic_base": True,
-        "nx_compatible": True,
-        "high_entropy_va": True,
+        **pe_evidence["hardening"],
         "linker_warnings_as_errors": True,
-        "debug_directory_absent": True,
     }, "Windows hardening evidence differs")
     manifest_dependencies = manifest.get("native_dependencies")
     _require(isinstance(manifest_dependencies, list), "Windows native dependency list is missing")
@@ -1275,6 +1736,7 @@ def verify_package(
     file_entries = manifest.get("files")
     _require(isinstance(file_entries, list), "Windows manifest files list is missing")
     manifest_hashes: dict[str, str] = {}
+    manifest_sizes: dict[str, int] = {}
     manifest_paths: list[str] = []
     for entry in file_entries:
         _require(isinstance(entry, dict) and set(entry) == {"bytes", "mode", "path", "sha256", "type"}, "Windows manifest file entry shape differs")
@@ -1286,8 +1748,14 @@ def verify_package(
         _require(inventory[relative].stat().st_size == entry["bytes"], f"Windows package file size mismatch: {relative}")
         _require(_sha256(inventory[relative]) == entry["sha256"], f"Windows package file hash mismatch: {relative}")
         manifest_hashes[relative] = entry["sha256"]
+        manifest_sizes[relative] = entry["bytes"]
         manifest_paths.append(relative)
     _require(set(manifest_hashes) == expected_payload_files, "Windows manifest file set differs")
+    _require(
+        manifest_hashes["bin/q_periapt_ffi_abi2.dll"] == pe_sha256
+        and manifest_sizes["bin/q_periapt_ffi_abi2.dll"] == pe_size,
+        "Windows PE inspection snapshot differs from manifest DLL bytes",
+    )
     _require(manifest_paths == sorted(manifest_paths), "Windows manifest files are not canonically sorted")
     sums = _parse_sums(inventory["SHA256SUMS"], expected_payload_files)
     expected_sums = {**manifest_hashes, "MANIFEST.json": _sha256(inventory["MANIFEST.json"])}

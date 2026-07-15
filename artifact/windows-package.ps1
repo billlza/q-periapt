@@ -264,43 +264,10 @@ function Initialize-MsvcEnvironment {
             [System.Environment]::SetEnvironmentVariable($name, $value, "Process")
         }
     }
-    foreach ($tool in @("cl.exe", "dumpbin.exe", "cmake.exe", "ctest.exe")) {
+    foreach ($tool in @("cl.exe", "link.exe", "dumpbin.exe", "cmake.exe", "ctest.exe")) {
         [void] (Get-Command $tool -ErrorAction Stop)
     }
     return $installation
-}
-
-function Assert-PeHardening {
-    param(
-        [Parameter(Mandatory)] [string] $Library,
-        [Parameter(Mandatory)] [string] $Dumpbin
-    )
-
-    $headers = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/headers", $Library)).Stdout
-    $requirements = @{
-        "x64 PE machine" = '(?im)^\s*8664\s+machine\s+\(x64\)\s*$'
-        "dynamic base" = '(?im)^\s*Dynamic base\s*$'
-        "NX compatible" = '(?im)^\s*NX compatible\s*$'
-        "high entropy VA" = '(?im)^\s*High Entropy Virtual Addresses\s*$'
-    }
-    foreach ($entry in $requirements.GetEnumerator()) {
-        if (-not [regex]::IsMatch($headers, $entry.Value)) {
-            throw "PE hardening check failed ($($entry.Key)): $Library"
-        }
-    }
-    $debugDirectory = [regex]::Matches(
-        $headers,
-        '(?im)^\s*(?<rva>[0-9A-F]+)\s+\[\s*(?<size>[0-9A-F]+)\]\s+RVA\s+\[size\]\s+of Debug Directory\s*$'
-    )
-    if ($debugDirectory.Count -ne 1) {
-        throw "dumpbin must report exactly one debug-directory data entry"
-    }
-    if (
-        [Convert]::ToUInt64($debugDirectory[0].Groups["rva"].Value, 16) -ne 0 -or
-        [Convert]::ToUInt64($debugDirectory[0].Groups["size"].Value, 16) -ne 0
-    ) {
-        throw "release DLL contains a PE debug directory: $Library"
-    }
 }
 
 function Assert-ImportLibrary {
@@ -352,7 +319,6 @@ function Assert-NativePackage {
             throw "required extracted Windows library is missing: $path"
         }
     }
-    Assert-PeHardening -Library $dll -Dumpbin $Dumpbin
     Assert-ImportLibrary -ImportLibrary $importLibrary -Dumpbin $Dumpbin
     Invoke-PythonChecked -Arguments @(
         "artifact/c_abi_contract.py",
@@ -512,6 +478,10 @@ $Dumpbin = Resolve-TrustedToolchainFile `
     -Path (Get-Command "dumpbin.exe" -CommandType Application -ErrorAction Stop).Source `
     -TrustedRoot $MsvcInstallation `
     -ExpectedName "dumpbin.exe"
+$Linker = Resolve-TrustedToolchainFile `
+    -Path (Get-Command "link.exe" -CommandType Application -ErrorAction Stop).Source `
+    -TrustedRoot $MsvcInstallation `
+    -ExpectedName "link.exe"
 $RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--print", "sysroot")
 $RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
@@ -660,7 +630,8 @@ try {
     $env:CARGO_TARGET_DIR = $DynamicTarget
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
-        "-Cstrip=debuginfo", "-Clink-arg=/Brepro", "--remap-path-prefix=$Root=qperiapt-source"
+        "-Cstrip=debuginfo", "-Clinker=$Linker", "-Clink-arg=/Brepro",
+        "-Clink-arg=/WX", "--remap-path-prefix=$Root=qperiapt-source"
     )
     $env:CARGO_TARGET_DIR = $StaticTarget
     $staticBuild = Invoke-Captured -FilePath "cargo.exe" -Arguments @(
@@ -831,7 +802,6 @@ Use `find_package(QPeriaptABI2 2.0.0 EXACT CONFIG REQUIRED)` and link either
 Write-Utf8File -Path (Join-Path $PackageRoot "README.md") -Content $readmeTemplate.Replace("@VERSION@", $Version)
 
 $packagedDll = Join-Path $PackageRoot "bin/q_periapt_ffi_abi2.dll"
-Assert-PeHardening -Library $packagedDll -Dumpbin $Dumpbin
 Assert-ImportLibrary `
     -ImportLibrary (Join-Path $PackageRoot "lib/q_periapt_ffi_abi2.lib") `
     -Dumpbin $Dumpbin

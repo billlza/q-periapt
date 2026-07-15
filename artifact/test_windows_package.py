@@ -7,12 +7,14 @@ import pathlib
 import re
 import shutil
 import signal
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import tomllib
 import unittest
+from unittest import mock
 
 import third_party_licenses
 import windows_package
@@ -53,6 +55,90 @@ def _native_static_libraries_output(
             b"",
         )
     )
+
+
+def _windows_pe_fixture(*, hash_payload: bool = False) -> bytes:
+    """Build an independent minimal x64 PE32+ DLL fixture for parser tests."""
+
+    data = bytearray(0x400)
+    data[0:2] = b"MZ"
+    struct.pack_into("<I", data, 0x3C, 0x80)
+    data[0x80:0x84] = b"PE\0\0"
+    struct.pack_into(
+        "<HHIIIHH",
+        data,
+        0x84,
+        0x8664,
+        1,
+        0x11223344,
+        0,
+        0,
+        0xF0,
+        0x2022,
+    )
+    struct.pack_into("<H", data, 0x98, 0x20B)
+    struct.pack_into("<I", data, 0x98 + 32, 0x1000)
+    struct.pack_into("<I", data, 0x98 + 36, 0x200)
+    struct.pack_into("<I", data, 0x98 + 56, 0x2000)
+    struct.pack_into("<I", data, 0x98 + 60, 0x200)
+    struct.pack_into("<H", data, 0x98 + 68, 3)
+    struct.pack_into("<H", data, 0x98 + 70, 0x0160)
+    struct.pack_into("<I", data, 0x98 + 108, 16)
+    struct.pack_into("<II", data, 0x98 + 152, 0x1080, 12)
+    struct.pack_into("<II", data, 0x98 + 160, 0x1000, 28)
+    struct.pack_into(
+        "<8sIIIIIIHHI",
+        data,
+        0x188,
+        b".rdata\0\0",
+        0x200,
+        0x1000,
+        0x200,
+        0x200,
+        0,
+        0,
+        0,
+        0,
+        0x40000040,
+    )
+    struct.pack_into("<IIHH", data, 0x280, 0x1000, 12, 0xA100, 0)
+    if hash_payload:
+        struct.pack_into(
+            "<IIHHIIII",
+            data,
+            0x200,
+            0,
+            0x55667788,
+            0,
+            0,
+            16,
+            36,
+            0x1040,
+            0x240,
+        )
+        struct.pack_into("<I", data, 0x240, 32)
+        data[0x244:0x264] = bytes(range(32))
+    else:
+        struct.pack_into(
+            "<IIHHIIII",
+            data,
+            0x200,
+            0,
+            0x55667788,
+            0,
+            0,
+            16,
+            0,
+            0,
+            0,
+        )
+    return bytes(data)
+
+
+def _pack_pe(data: bytes, offset: int, format_: str, *values: int) -> bytes:
+    changed = bytearray(data)
+    struct.pack_into(format_, changed, offset, *values)
+    return bytes(changed)
 
 
 INHERITING_DESCENDANT_SCRIPT = """
@@ -111,6 +197,253 @@ def _kill_process_if_present(process_id: int) -> None:
         os.kill(process_id, signal.SIGKILL)
     except ProcessLookupError:
         pass
+
+
+class WindowsPeEvidenceTests(unittest.TestCase):
+    def test_accepts_only_the_two_explicit_repro_payload_shapes(self) -> None:
+        expected_common = {
+            "authenticode_certificate_directory_present": False,
+            "hardening": {
+                "machine": "x86_64",
+                "dynamic_base": True,
+                "nx_compatible": True,
+                "high_entropy_va": True,
+                "base_relocations": {
+                    "directory_present": True,
+                    "dir64_count": 1,
+                },
+                "debug_directory": {
+                    "entry_count": 1,
+                    "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                    "payload_kind": "empty",
+                    "hash_bytes": 0,
+                },
+            },
+        }
+        self.assertEqual(
+            windows_package.parse_windows_pe_evidence(_windows_pe_fixture()),
+            expected_common,
+        )
+
+        hashed = json.loads(json.dumps(expected_common))
+        hashed["hardening"]["debug_directory"].update(
+            {"payload_kind": "length_prefixed_hash", "hash_bytes": 32}
+        )
+        self.assertEqual(
+            windows_package.parse_windows_pe_evidence(
+                _windows_pe_fixture(hash_payload=True)
+            ),
+            hashed,
+        )
+
+    def test_rejects_truncated_headers_directories_sections_and_payloads(self) -> None:
+        empty = _windows_pe_fixture()
+        hashed = _windows_pe_fixture(hash_payload=True)
+        cases = {
+            "DOS": empty[:1],
+            "PE offset": empty[:0x3F],
+            "COFF": empty[:0x90],
+            "optional header": empty[:0x180],
+            "section table": empty[:0x1A0],
+            "debug entry": empty[:0x21B],
+            "section raw data": empty[:-1],
+            "hash payload": hashed[:0x263],
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_invalid_pe_identity_and_header_contracts(self) -> None:
+        valid = _windows_pe_fixture()
+        bad_mz = bytearray(valid)
+        bad_mz[:2] = b"NZ"
+        bad_signature = bytearray(valid)
+        bad_signature[0x80:0x84] = b"PX\0\0"
+        cases = {
+            "DOS signature": bytes(bad_mz),
+            "PE header before DOS header": _pack_pe(valid, 0x3C, "<I", 0x20),
+            "PE header outside file": _pack_pe(valid, 0x3C, "<I", 0xFFFFFFFC),
+            "PE signature": bytes(bad_signature),
+            "machine": _pack_pe(valid, 0x84, "<H", 0x014C),
+            "zero sections": _pack_pe(valid, 0x86, "<H", 0),
+            "too many sections": _pack_pe(valid, 0x86, "<H", 97),
+            "COFF symbols pointer": _pack_pe(valid, 0x8C, "<I", 0x300),
+            "COFF symbols count": _pack_pe(valid, 0x90, "<I", 1),
+            "optional header too short": _pack_pe(valid, 0x94, "<H", 0xA0),
+            "not PE32+": _pack_pe(valid, 0x98, "<H", 0x10B),
+            "not executable": _pack_pe(valid, 0x96, "<H", 0x2020),
+            "not DLL": _pack_pe(valid, 0x96, "<H", 0x0022),
+            "headers before section table": _pack_pe(valid, 0x98 + 60, "<I", 0x190),
+            "headers outside file": _pack_pe(valid, 0x98 + 60, "<I", 0x600),
+            "too few directories": _pack_pe(valid, 0x98 + 108, "<I", 6),
+            "directories exceed optional header": _pack_pe(
+                valid, 0x98 + 108, "<I", 17
+            ),
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_each_missing_hardening_bit_and_certificate_table(self) -> None:
+        valid = _windows_pe_fixture()
+        for label, value in (
+            ("high entropy VA", 0x0140),
+            ("dynamic base", 0x0120),
+            ("NX", 0x0060),
+        ):
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(
+                    _pack_pe(valid, 0x98 + 70, "<H", value)
+                )
+        for label, offset in (
+            ("certificate pointer", 0x98 + 144),
+            ("certificate size", 0x98 + 148),
+        ):
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(
+                    _pack_pe(valid, offset, "<I", 8)
+                )
+
+    def test_rejects_missing_malformed_or_ineffective_base_relocations(self) -> None:
+        valid = _windows_pe_fixture()
+        oversized_entries = bytearray(valid)
+        relocation_entry_count = 65_538
+        relocation_block_size = 8 + relocation_entry_count * 2
+        relocation_end = 0x280 + relocation_block_size
+        oversized_entries.extend(b"\0" * (relocation_end - len(oversized_entries)))
+        struct.pack_into("<I", oversized_entries, 0x188 + 8, len(oversized_entries) - 0x200)
+        struct.pack_into("<I", oversized_entries, 0x188 + 16, len(oversized_entries) - 0x200)
+        struct.pack_into("<I", oversized_entries, 0x98 + 156, relocation_block_size)
+        struct.pack_into("<I", oversized_entries, 0x284, relocation_block_size)
+        cases = {
+            "relocations stripped": _pack_pe(valid, 0x96, "<H", 0x2023),
+            "missing relocation RVA": _pack_pe(valid, 0x98 + 152, "<I", 0),
+            "missing relocation size": _pack_pe(valid, 0x98 + 156, "<I", 0),
+            "unmapped relocation directory": _pack_pe(
+                valid, 0x98 + 152, "<I", 0x3000
+            ),
+            "oversized relocation directory": _pack_pe(
+                valid, 0x98 + 156, "<I", 1024 * 1024 + 1
+            ),
+            "unaligned page": _pack_pe(valid, 0x280, "<I", 0x1001),
+            "empty block": _pack_pe(valid, 0x284, "<I", 8),
+            "misaligned block size": _pack_pe(valid, 0x284, "<I", 10),
+            "block exceeds directory": _pack_pe(valid, 0x284, "<I", 16),
+            "non-DIR64 relocation": _pack_pe(valid, 0x288, "<H", 0x3100),
+            "noncanonical padding": _pack_pe(valid, 0x28A, "<H", 1),
+            "DIR64 target outside section": _pack_pe(
+                valid, 0x288, "<H", 0xAFFF
+            ),
+            "duplicate DIR64 target": _pack_pe(valid, 0x28A, "<H", 0xA100),
+            "too many relocation entries": bytes(oversized_entries),
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_non_repro_reserved_and_multiple_debug_entries(self) -> None:
+        valid = _windows_pe_fixture()
+        cases = {
+            "missing debug directory": _pack_pe(valid, 0x98 + 164, "<I", 0),
+            "two debug entries": _pack_pe(valid, 0x98 + 164, "<I", 56),
+            "reserved field": _pack_pe(valid, 0x200, "<I", 1),
+            "major version": _pack_pe(valid, 0x208, "<H", 1),
+            "minor version": _pack_pe(valid, 0x20A, "<H", 1),
+        }
+        for debug_type in (0, 1, 2, 4, 17, 19, 20):
+            cases[f"debug type {debug_type}"] = _pack_pe(
+                valid, 0x20C, "<I", debug_type
+            )
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_unmapped_ambiguous_or_non_file_backed_rvas(self) -> None:
+        valid = _windows_pe_fixture()
+        zero_filled = _pack_pe(valid, 0x188 + 8, "<I", 0x400)
+        zero_filled = _pack_pe(zero_filled, 0x188 + 16, "<I", 0x100)
+        zero_filled = _pack_pe(zero_filled, 0x98 + 160, "<I", 0x1180)
+
+        ambiguous = bytearray(valid)
+        ambiguous.extend(b"\0" * 0x200)
+        struct.pack_into("<H", ambiguous, 0x86, 2)
+        struct.pack_into(
+            "<8sIIIIIIHHI",
+            ambiguous,
+            0x1B0,
+            b".other\0\0",
+            0x200,
+            0x1000,
+            0x200,
+            0x400,
+            0,
+            0,
+            0,
+            0,
+            0x40000040,
+        )
+        raw_overlap = bytearray(valid)
+        struct.pack_into("<H", raw_overlap, 0x86, 2)
+        struct.pack_into(
+            "<8sIIIIIIHHI",
+            raw_overlap,
+            0x1B0,
+            b".other\0\0",
+            0x100,
+            0x2000,
+            0x100,
+            0x300,
+            0,
+            0,
+            0,
+            0,
+            0x40000040,
+        )
+        cases = {
+            "unmapped directory": _pack_pe(valid, 0x98 + 160, "<I", 0x3000),
+            "zero-filled directory": zero_filled,
+            "directory crosses section": _pack_pe(
+                valid, 0x98 + 160, "<I", 0x11F0
+            ),
+            "ambiguous sections": bytes(ambiguous),
+            "section raw range outside file": _pack_pe(
+                valid, 0x188 + 20, "<I", 0x300
+            ),
+            "section raw range starts in headers": _pack_pe(
+                valid, 0x188 + 20, "<I", 0x100
+            ),
+            "section raw ranges overlap": bytes(raw_overlap),
+            "section virtual overflow": _pack_pe(
+                valid, 0x188 + 12, "<I", 0xFFFFFF80
+            ),
+            "debug RVA overflows 32 bits": _pack_pe(
+                valid, 0x98 + 160, "<I", 0xFFFFFFF0
+            ),
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_malformed_or_inconsistent_repro_payloads(self) -> None:
+        empty = _windows_pe_fixture()
+        hashed = _windows_pe_fixture(hash_payload=True)
+        overlap = _pack_pe(hashed, 0x214, "<I", 0x1010)
+        overlap = _pack_pe(overlap, 0x218, "<I", 0x210)
+        cases = {
+            "empty entry with RVA": _pack_pe(empty, 0x214, "<I", 0x1040),
+            "empty entry with pointer": _pack_pe(empty, 0x218, "<I", 0x240),
+            "unexpected payload size": _pack_pe(hashed, 0x210, "<I", 35),
+            "zero payload RVA": _pack_pe(hashed, 0x214, "<I", 0),
+            "zero payload pointer": _pack_pe(hashed, 0x218, "<I", 0),
+            "RVA/pointer mismatch": _pack_pe(hashed, 0x218, "<I", 0x244),
+            "unmapped payload RVA": _pack_pe(hashed, 0x214, "<I", 0x3000),
+            "payload pointer outside file": _pack_pe(hashed, 0x218, "<I", 0x500),
+            "hash length": _pack_pe(hashed, 0x240, "<I", 31),
+            "directory overlap": overlap,
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
 
 
 class RustcNativeStaticLibraryTests(unittest.TestCase):
@@ -634,14 +967,21 @@ class WindowsPackageManifestTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.repository_root = pathlib.Path(__file__).resolve().parent.parent
 
-    def _package(self, root: pathlib.Path) -> pathlib.Path:
+    def _package(
+        self, root: pathlib.Path, *, hash_repro_payload: bool = False
+    ) -> pathlib.Path:
         package = root / (
             "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
         )
         for relative in windows_package.EXPECTED_PAYLOAD_FILES:
             path = package / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(f"fixture:{relative}\n".encode())
+            if relative == "bin/q_periapt_ffi_abi2.dll":
+                path.write_bytes(
+                    _windows_pe_fixture(hash_payload=hash_repro_payload)
+                )
+            else:
+                path.write_bytes(f"fixture:{relative}\n".encode())
         license_relative = "THIRD_PARTY/rust/fixture-dependency-1.0.0/LICENSE"
         license_path = package / license_relative
         license_path.parent.mkdir(parents=True, exist_ok=True)
@@ -764,6 +1104,125 @@ class WindowsPackageManifestTests(unittest.TestCase):
                 verified["release_class"], "unsigned_experimental_prerelease"
             )
             self.assertFalse(verified["authenticode"]["signed"])
+            self.assertFalse(
+                verified["authenticode"]["certificate_directory_present"]
+            )
+            self.assertEqual(
+                verified["hardening"]["debug_directory"],
+                {
+                    "entry_count": 1,
+                    "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                    "payload_kind": "empty",
+                    "hash_bytes": 0,
+                },
+            )
+
+    def test_hash_repro_payload_is_bound_through_create_and_verify(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(
+                pathlib.Path(temporary), hash_repro_payload=True
+            )
+            created = self._create(package)
+            expected_debug = {
+                "entry_count": 1,
+                "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                "payload_kind": "length_prefixed_hash",
+                "hash_bytes": 32,
+            }
+            self.assertEqual(
+                created["hardening"]["debug_directory"], expected_debug
+            )
+            verified = windows_package.verify_package(package)
+            self.assertEqual(
+                verified["hardening"]["debug_directory"], expected_debug
+            )
+
+            self._rewrite_manifest(
+                package,
+                lambda value: value["hardening"]["debug_directory"].__setitem__(
+                    "hash_bytes", 31
+                ),
+            )
+            with self.assertRaisesRegex(
+                WindowsPackageError, "hardening evidence differs"
+            ):
+                windows_package.verify_package(package)
+
+    def test_create_rejects_dll_replacement_between_inspection_and_hashing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            dll = package / "bin/q_periapt_ffi_abi2.dll"
+            real_scan = windows_package.scan_release_file
+            replaced = False
+            resolved_dll = dll.resolve(strict=True)
+
+            def replace_before_scan(path, **kwargs):
+                nonlocal replaced
+                if pathlib.Path(path).resolve(strict=True) == resolved_dll and not replaced:
+                    replaced = True
+                    dll.write_bytes(_windows_pe_fixture(hash_payload=True))
+                return real_scan(path, **kwargs)
+
+            with (
+                mock.patch.object(
+                    windows_package,
+                    "scan_release_file",
+                    side_effect=replace_before_scan,
+                ),
+                self.assertRaisesRegex(WindowsPackageError, "changed between"),
+            ):
+                self._create(package)
+
+    def test_verify_rejects_dll_replacement_after_pe_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            self._create(package)
+            dll = package / "bin/q_periapt_ffi_abi2.dll"
+            replacement = _windows_pe_fixture(hash_payload=True)
+            replacement_sha256 = hashlib.sha256(replacement).hexdigest()
+
+            self._rewrite_manifest(
+                package,
+                lambda value: next(
+                    entry
+                    for entry in value["files"]
+                    if entry["path"] == "bin/q_periapt_ffi_abi2.dll"
+                ).__setitem__("sha256", replacement_sha256),
+            )
+            sums_path = package / "SHA256SUMS"
+            sums_path.write_text(
+                "".join(
+                    f"{replacement_sha256 if relative == 'bin/q_periapt_ffi_abi2.dll' else digest}  {relative}\n"
+                    for digest, relative in (
+                        line.split("  ", 1)
+                        for line in sums_path.read_text(encoding="ascii").splitlines()
+                    )
+                ),
+                encoding="ascii",
+            )
+
+            real_sha256 = windows_package._sha256
+            resolved_dll = dll.resolve(strict=True)
+            replaced = False
+
+            def replace_before_hash(path):
+                nonlocal replaced
+                if pathlib.Path(path).resolve(strict=True) == resolved_dll and not replaced:
+                    replaced = True
+                    dll.write_bytes(replacement)
+                return real_sha256(path)
+
+            with (
+                mock.patch.object(
+                    windows_package,
+                    "_sha256",
+                    side_effect=replace_before_hash,
+                ),
+                self.assertRaisesRegex(
+                    WindowsPackageError, "inspection snapshot differs"
+                ),
+            ):
+                windows_package.verify_package(package)
 
     def test_tampering_extra_files_and_symlinks_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -772,7 +1231,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             self._create(package)
 
             (package / "bin/q_periapt_ffi_abi2.dll").write_bytes(b"tampered")
-            with self.assertRaisesRegex(WindowsPackageError, "(?:size|hash) mismatch"):
+            with self.assertRaises(WindowsPackageError):
                 windows_package.verify_package(package)
 
             package = self._package(root / "extra")
@@ -846,6 +1305,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
 
     def test_manifest_identity_source_toolchain_and_schema_tampering_fail_closed(self) -> None:
         mutations = {
+            "schema": lambda value: value.__setitem__("schema_version", 2),
             "package": lambda value: value.__setitem__("package", "unrelated-package"),
             "generated_at": lambda value: value.__setitem__("generated_at", "not-a-time"),
             "source_date_epoch": lambda value: value.__setitem__("source_date_epoch", False),
@@ -855,6 +1315,21 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "dependency": lambda value: value.__setitem__("native_dependencies", ["evil.dll"]),
             "Unicode dependency spoof": lambda value: value.__setitem__(
                 "native_dependencies", ["KERNEL32.dll"]
+            ),
+            "hardening entry type": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("entry_type", "IMAGE_DEBUG_TYPE_CODEVIEW"),
+            "hardening entry count": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("entry_count", 2),
+            "hardening payload": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("payload_kind", "unverified"),
+            "base relocation count": lambda value: value["hardening"][
+                "base_relocations"
+            ].__setitem__("dir64_count", 0),
+            "certificate directory": lambda value: value["authenticode"].__setitem__(
+                "certificate_directory_present", True
             ),
         }
         with tempfile.TemporaryDirectory() as temporary:
@@ -922,6 +1397,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$env:CARGO_TERM_COLOR = "never"',
             '$env:CARGO_TERM_COLOR = $savedCargoTermColor',
             '$env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"',
+            '-ExpectedName "link.exe"',
+            '"-Clinker=$Linker"',
+            '"-Clink-arg=/Brepro"',
+            '"-Clink-arg=/WX"',
+            "Invoke-PythonChecked -Arguments $manifestArguments",
+            "Invoke-PythonChecked -Arguments $manifestVerificationArguments",
             '"parse-native-static-libraries"',
             '"--compiler-output", $nativeStaticLibrariesLog',
             "ConvertFrom-Json `",
@@ -937,10 +1418,37 @@ class WindowsPackageManifestTests(unittest.TestCase):
         for forbidden in (
             "function Get-DllDependencies",
             "function Get-NativeStaticLibraries",
+            "function Assert-PeHardening",
+            '"/headers"',
+            '"-Clink-arg=/WX:NO"',
             '"--dependency"',
             '"--expected-dependency"',
         ):
             self.assertNotIn(forbidden, script)
+        self.assertNotIn(
+            "debug_directory_absent",
+            (self.repository_root / "artifact/windows_package.py").read_text(
+                encoding="utf-8"
+            ),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/Brepro"'),
+            script.index('"-Clink-arg=/WX"'),
+        )
+        copied_dll = script.index("Copy-Item -LiteralPath $dynamicDll")
+        created_manifest = script.index(
+            "Invoke-PythonChecked -Arguments $manifestArguments"
+        )
+        created_archive = script.index(
+            '"artifact/deterministic_archive.py", "create-zip"'
+        )
+        self.assertLess(copied_dll, created_manifest)
+        self.assertLess(created_manifest, created_archive)
+        verification_arguments = script.index("$manifestVerificationArguments = @(")
+        invoked_verification = script.index(
+            "Invoke-PythonChecked -Arguments $manifestVerificationArguments"
+        )
+        self.assertLess(verification_arguments, invoked_verification)
         native_library_contract = re.search(
             r"\$expectedNativeStaticLibraries\s*=\s*\[string\[\]\]\s*@\("
             r"(?P<libraries>.*?)\n\s*\)",
