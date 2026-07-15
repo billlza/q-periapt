@@ -462,10 +462,10 @@
     ]
   },
   "swift_xcframework": {
-    "boundary": "This is a Developer ID-signed, Apple-only static XCFramework release candidate for SwiftPM binaryTarget consumption. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning. Public release is not complete until the exact ZIP is hosted and independently redownloaded and verified.",
+    "boundary": "This is a Developer ID-signed, Apple-only static XCFramework published as an immutable GitHub prerelease for SwiftPM binaryTarget consumption. The exact four-asset release passed GitHub release-attestation verification and an independent fresh remote consumer. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning.",
     "command": "QPERIAPT_APPLE_RELEASE_CONFIRM=0.1.0-alpha.2 sh artifact/swift-xcframework-release.sh",
-    "current_local_status": "Current 2026-07-15 clean-tree ABI2 signed release candidate built from artifact source commit f15917ee7daa7b07976ee147eb102d2afb468b76 used Xcode 26.6 and Rust 1.96.0 to generate CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices. Every raw, stripped, combined, and final slice exposed the exact nine-symbol ABI2 contract; all decompressed ZIP entries passed qperiapt.apple_static_archive_build_paths.v2 with zero upstream-path allowlist; the isolated binaryTarget consumer passed three product tests; and macOS universal plus iOS device/simulator link gates completed with zero warning/error diagnostics. The extracted XCFramework origin signature passed strict verification with the pinned Developer ID Application certificate and secure timestamp. The verifier source snapshot is commit f15917ee7daa7b07976ee147eb102d2afb468b76 with canonical digest 5b6be4ed55ae56bbeb027275389b9d05cd2ebbc4234256e34b9087ac7d3d0fd7. The exact artifact is signed but is not yet hosted or remotely redownloaded, so this records a release candidate rather than a completed public release.",
-    "current_source_status": "current_clean_tree_signed_release_candidate_pass",
+    "current_local_status": "Current 2026-07-15 public immutable ABI2 Apple prerelease built from artifact source commit f15917ee7daa7b07976ee147eb102d2afb468b76 used Xcode 26.6 and Rust 1.96.0 to generate CQPeriapt.xcframework.zip with macOS arm64+x86_64, iOS device arm64, and iOS simulator arm64+x86_64 slices. Every raw, stripped, combined, and final slice exposed the exact nine-symbol ABI2 contract; all decompressed ZIP entries passed qperiapt.apple_static_archive_build_paths.v2 with zero upstream-path allowlist; and the extracted XCFramework origin signature passed strict verification with the pinned Developer ID Application certificate and secure timestamp. GitHub published v0.1.0-alpha.2 as an immutable prerelease, generated a release attestation for the exact four assets, and verified every local asset against it. Verifier commit 31c30f8874a40cc5a41761290a655d9dea5f7f15 then downloaded all assets from the public release URL, revalidated hashes and signature, passed three SwiftPM binaryTarget product tests, linked macOS universal plus iOS device/simulator probes, and revalidated the assets after consumption with zero warning/error diagnostics. The remote verification completed at 2026-07-15T02:51:33Z with log SHA-256 3a5a7f23a474512f6677db2226767a77f26f1e08e06fdf19ef066a44ebfed69c.",
+    "current_source_status": "public_immutable_remote_consumer_pass",
     "distribution": {
       "apple_distribution_evidence_sha256": "697aa87da548ef60fa3e8333d827c9ccf6215bacf73d0afadb55583546f78ec3",
       "artifact_path": "CQPeriapt.xcframework.zip",
@@ -480,14 +480,14 @@
       "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
       "origin_signature_identity_class": "Developer ID Application",
       "origin_signature_team_id": "YKUPL7Z869",
-      "public_release": false,
+      "public_release": true,
       "release_tag": "v0.1.0-alpha.2",
       "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2",
-      "remote_consumer_verified": false,
+      "remote_consumer_verified": true,
       "remote_verification": {
-        "log_sha256": null,
-        "verified_at": null,
-        "verifier_commit": null
+        "log_sha256": "3a5a7f23a474512f6677db2226767a77f26f1e08e06fdf19ef066a44ebfed69c",
+        "verified_at": "2026-07-15T02:51:33Z",
+        "verifier_commit": "31c30f8874a40cc5a41761290a655d9dea5f7f15"
       },
       "source_commit": "f15917ee7daa7b07976ee147eb102d2afb468b76",
       "stapled": false,
@@ -495,7 +495,7 @@
       "version": "0.1.0-alpha.2"
     },
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1 sh artifact/swift-xcframework.sh",
-    "mode": "Developer ID-signed SwiftPM binaryTarget XCFramework release candidate",
+    "mode": "Developer ID-signed SwiftPM binaryTarget immutable GitHub prerelease",
     "targets": [
       "aarch64-apple-darwin",
       "x86_64-apple-darwin",
