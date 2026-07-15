@@ -63,11 +63,61 @@ need cargo
 need javac
 need keytool
 need python3
-need unzip
 
 if [ "${QPERIAPT_ANDROID_DEVICE_SKIP_VERIFY:-0}" = "1" ]; then
 	printf 'error: QPERIAPT_ANDROID_DEVICE_SKIP_VERIFY is not supported\n' >&2
 	exit 2
+fi
+
+ANDROID_RELEASE_MODE=${QPERIAPT_ANDROID_RELEASE_MODE:-0}
+case "$ANDROID_RELEASE_MODE" in
+	0 | 1) ;;
+	*)
+		printf 'error: QPERIAPT_ANDROID_RELEASE_MODE must be 0 or 1\n' >&2
+		exit 2
+		;;
+esac
+EXPECTED_DEVICE_ABI=${QPERIAPT_ANDROID_EXPECT_ABI:-}
+case "$EXPECTED_DEVICE_ABI" in
+	"" | arm64-v8a | x86_64 | armeabi-v7a | x86) ;;
+	*)
+		printf 'error: invalid QPERIAPT_ANDROID_EXPECT_ABI: %s\n' "$EXPECTED_DEVICE_ABI" >&2
+		exit 2
+		;;
+esac
+EXPECTED_PAGE_SIZE=${QPERIAPT_ANDROID_EXPECT_PAGE_SIZE:-}
+case "$EXPECTED_PAGE_SIZE" in
+	"" | 4096 | 16384) ;;
+	*)
+		printf 'error: QPERIAPT_ANDROID_EXPECT_PAGE_SIZE must be 4096 or 16384\n' >&2
+		exit 2
+		;;
+esac
+EXPECTED_DEVICE_SDK=${QPERIAPT_ANDROID_EXPECT_SDK:-}
+case "$EXPECTED_DEVICE_SDK" in
+	"" | [1-9] | [1-9][0-9] | [1-9][0-9][0-9]) ;;
+	*)
+		printf 'error: QPERIAPT_ANDROID_EXPECT_SDK must be a canonical integer between 1 and 999\n' >&2
+		exit 2
+		;;
+esac
+if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
+	if [ "$EXPECTED_PAGE_SIZE" != "16384" ]; then
+		printf 'error: Android release mode requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384\n' >&2
+		exit 2
+	fi
+	if [ -z "$EXPECTED_DEVICE_ABI" ]; then
+		printf 'error: Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_ABI\n' >&2
+		exit 2
+	fi
+	if [ "$EXPECTED_DEVICE_SDK" != "35" ]; then
+		printf 'error: Android release mode requires QPERIAPT_ANDROID_EXPECT_SDK=35\n' >&2
+		exit 2
+	fi
+	if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
+		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
+		exit 2
+	fi
 fi
 
 if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "1" ]; then
@@ -111,6 +161,22 @@ for tool in "$AAPT2" "$APKSIGNER" "$D8" "$ZIPALIGN"; do
 	fi
 done
 
+ANDROID_NDK=${QPERIAPT_ANDROID_NDK_HOME:-${ANDROID_NDK_HOME:-"$ANDROID_SDK/ndk/29.0.14206865"}}
+if [ ! -d "$ANDROID_NDK" ]; then
+	printf 'error: Android NDK r29 not found: %s\n' "$ANDROID_NDK" >&2
+	exit 2
+fi
+NDK_REVISION=$(PYTHONPATH=artifact python3 artifact/android_elf.py verify-ndk --ndk "$ANDROID_NDK")
+TOOLCHAIN=$(PYTHONPATH=artifact python3 artifact/android_elf.py find-toolchain --ndk "$ANDROID_NDK")
+LLVM_NM="$TOOLCHAIN/bin/llvm-nm"
+LLVM_READELF="$TOOLCHAIN/bin/llvm-readelf"
+for tool in "$LLVM_NM" "$LLVM_READELF"; do
+	if [ ! -x "$tool" ]; then
+		printf 'error: required NDK r29 LLVM verifier not executable: %s\n' "$tool" >&2
+		exit 2
+	fi
+done
+
 ADB=${QPERIAPT_ADB:-"$ANDROID_SDK/platform-tools/adb"}
 EMULATOR=${QPERIAPT_EMULATOR:-"$ANDROID_SDK/emulator/emulator"}
 if [ ! -x "$ADB" ]; then
@@ -131,6 +197,7 @@ PACKAGE="dev.qperiapt.androidsmoke"
 RESULT_TXT="$DIST/qperiapt-android-device-result.txt"
 RESULT_JSON="$DIST/qperiapt-android-device-result.json"
 PROOF_JSON="$DIST/qperiapt-android-device-proof.json"
+EVIDENCE_BUNDLE="$DIST/qperiapt-android-runtime-evidence-v1.zip"
 SOURCE_TREE_SHA256=$(python3 - "$ROOT" <<'PY'
 import pathlib
 import sys
@@ -141,12 +208,6 @@ root = pathlib.Path(sys.argv[1]).resolve()
 print(canonical_tree_digest(root, repository_paths(root)))
 PY
 )
-
-if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
-	QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1 sh artifact/android-aar.sh
-else
-	sh artifact/android-aar.sh
-fi
 
 VERSION=$(cargo metadata --locked --format-version 1 --no-deps | python3 -c '
 import json
@@ -164,56 +225,83 @@ if [ "$VERSION" != "0.1.0-alpha.2" ]; then
 	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.0-alpha.2\n' "$VERSION" >&2
 	exit 1
 fi
-AAR_DIST="$ROOT/target/qperiapt-android-aar/q-periapt-android-$VERSION"
-AAR_PATH="$AAR_DIST/q-periapt-android-$VERSION.aar"
-test -f "$AAR_PATH" || {
-	printf 'error: Android AAR was not built: %s\n' "$AAR_PATH" >&2
-	exit 1
-}
+
+EXISTING_AAR=${QPERIAPT_ANDROID_EXISTING_AAR:-}
+EXISTING_AAR_MANIFEST=${QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST:-}
+EXPECTED_AAR_SHA256=${QPERIAPT_ANDROID_EXPECTED_AAR_SHA256:-}
+EXPECTED_AAR_MANIFEST_SHA256=${QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256:-}
+USE_EXISTING_AAR=0
+if [ -n "$EXISTING_AAR" ] || [ -n "$EXISTING_AAR_MANIFEST" ] || [ -n "$EXPECTED_AAR_SHA256" ] || [ -n "$EXPECTED_AAR_MANIFEST_SHA256" ]; then
+	if [ -z "$EXISTING_AAR" ] || [ -z "$EXISTING_AAR_MANIFEST" ] || [ -z "$EXPECTED_AAR_SHA256" ] || [ -z "$EXPECTED_AAR_MANIFEST_SHA256" ]; then
+		printf 'error: existing-AAR mode requires QPERIAPT_ANDROID_EXISTING_AAR, QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST, QPERIAPT_ANDROID_EXPECTED_AAR_SHA256, and QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256 together\n' >&2
+		exit 2
+	fi
+	USE_EXISTING_AAR=1
+	AAR_PATH=$EXISTING_AAR
+	AAR_MANIFEST=$EXISTING_AAR_MANIFEST
+	require_under_target "$AAR_PATH" "QPERIAPT_ANDROID_EXISTING_AAR"
+	require_under_target "$AAR_MANIFEST" "QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST"
+else
+	if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
+		printf 'error: Android release mode requires an explicit hash-bound existing AAR and manifest; rebuilding or fallback is forbidden\n' >&2
+		exit 2
+	fi
+	if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
+		QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1 sh artifact/android-aar.sh
+	else
+		sh artifact/android-aar.sh
+	fi
+	AAR_DIST="$ROOT/target/qperiapt-android-aar/q-periapt-android-$VERSION"
+	AAR_PATH="$AAR_DIST/q-periapt-android-$VERSION.aar"
+	AAR_MANIFEST="$AAR_DIST/MANIFEST.json"
+fi
+
+python3 - "$OUT_ROOT" "$AAR_PATH" "$AAR_MANIFEST" <<'PY'
+import pathlib
+import sys
+
+output = pathlib.Path(sys.argv[1]).resolve()
+for raw_path in sys.argv[2:]:
+    path = pathlib.Path(raw_path).resolve()
+    try:
+        path.relative_to(output)
+    except ValueError:
+        continue
+    raise SystemExit(f"error: selected AAR input must not be inside the removable device-smoke output: {path}")
+PY
 
 rm -rf "$OUT_ROOT"
 mkdir -p "$WORK" "$DIST"
+safe_unzip_dir="$WORK/aar"
+
+set -- --manifest "$AAR_MANIFEST"
+if [ "$USE_EXISTING_AAR" = "1" ]; then
+	set -- "$@" \
+		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+		--expected-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256"
+fi
+if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
+	set -- "$@" --require-release-manifest
+fi
+PYTHONPATH=artifact python3 artifact/android_elf.py verify-aar \
+	--aar "$AAR_PATH" \
+	--llvm-nm "$LLVM_NM" \
+	--llvm-readelf "$LLVM_READELF" \
+	--forbid-text "$ROOT" \
+	--source-root "$ROOT" \
+	--extract-to "$safe_unzip_dir" \
+	"$@"
 
 printf 'Q-Periapt Android device runtime smoke\n'
 printf 'run-id   : %s\n' "$RUN_ID"
 printf 'aar      : %s\n' "$AAR_PATH"
+printf 'manifest : %s\n' "$AAR_MANIFEST"
+printf 'ndk-rev  : %s\n' "$NDK_REVISION"
+printf 'release  : %s\n' "$ANDROID_RELEASE_MODE"
 printf 'out      : %s\n' "$DIST"
 printf 'platform : %s\n' "$ANDROID_PLATFORM"
 printf 'buildtools: %s\n' "$ANDROID_BUILD_TOOLS"
 
-safe_unzip_dir="$WORK/aar"
-python3 - "$AAR_PATH" "$safe_unzip_dir" <<'PY'
-import pathlib
-import shutil
-import stat
-import sys
-import zipfile
-
-archive = pathlib.Path(sys.argv[1])
-dest = pathlib.Path(sys.argv[2])
-if dest.exists():
-    shutil.rmtree(dest)
-dest.mkdir(parents=True)
-with zipfile.ZipFile(archive) as zf:
-    seen = set()
-    for info in zf.infolist():
-        name = info.filename
-        if name in seen:
-            raise SystemExit(f"error: duplicate AAR entry: {name}")
-        seen.add(name)
-        parts = pathlib.PurePosixPath(name).parts
-        if name.startswith("/") or name.startswith("\\") or ".." in parts:
-            raise SystemExit(f"error: unsafe AAR entry: {name}")
-        mode = (info.external_attr >> 16) & 0o777777
-        if stat.S_ISLNK(mode) or stat.S_ISCHR(mode) or stat.S_ISBLK(mode) or stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode):
-            raise SystemExit(f"error: unsafe AAR file type for {name}: {oct(mode)}")
-        target = dest / pathlib.PurePosixPath(name)
-        if name.endswith("/"):
-            target.mkdir(parents=True, exist_ok=True)
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(zf.read(info))
-PY
 test -f "$safe_unzip_dir/classes.jar" || {
 	printf 'error: AAR missing classes.jar\n' >&2
 	exit 1
@@ -790,7 +878,7 @@ legacy = sorted(
 if legacy:
     raise SystemExit("error: smoke APK contains legacy ABI1 native names: " + ", ".join(legacy))
 PY
-"$ZIPALIGN" -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+"$ZIPALIGN" -f -P 16 4 "$UNSIGNED_APK" "$ALIGNED_APK"
 keytool -genkeypair \
 	-storetype PKCS12 \
 	-keystore "$KEYSTORE" \
@@ -809,7 +897,14 @@ keytool -genkeypair \
 	--key-pass pass:android \
 	--out "$SIGNED_APK" \
 	"$ALIGNED_APK"
-"$APKSIGNER" verify --min-sdk-version 23 --print-certs "$SIGNED_APK" >"$DIST/apksigner-verify.txt"
+(
+	cd "$DIST"
+	"$APKSIGNER" verify --min-sdk-version 23 --print-certs "$(basename "$SIGNED_APK")"
+) >"$DIST/apksigner-verify.txt"
+(
+	cd "$DIST"
+	"$ZIPALIGN" -c -P 16 -v 4 "$(basename "$SIGNED_APK")"
+) >"$DIST/zipalign-verify.txt"
 printf 'PASS: temporary Android smoke APK built and signed\n'
 
 adb_devices() {
@@ -961,10 +1056,47 @@ case "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" in
 		exit 2
 		;;
 esac
+DEVICE_ABI=$("$ADB" -s "$SERIAL" shell getprop ro.product.cpu.abi | tr -d '\r\n ')
+case "$DEVICE_ABI" in
+	arm64-v8a | x86_64 | armeabi-v7a | x86) ;;
+	*)
+		printf 'error: unsupported or missing Android primary ABI from device: %s\n' "$DEVICE_ABI" >&2
+		exit 1
+		;;
+esac
+PAGE_SIZE=$("$ADB" -s "$SERIAL" shell getconf PAGE_SIZE | tr -d '\r\n ')
+case "$PAGE_SIZE" in
+	4096 | 16384) ;;
+	*)
+		printf 'error: Android device PAGE_SIZE must be exactly 4096 or 16384, got %s\n' "$PAGE_SIZE" >&2
+		exit 1
+		;;
+esac
+DEVICE_SDK=$("$ADB" -s "$SERIAL" shell getprop ro.build.version.sdk | tr -d '\r\n ')
+case "$DEVICE_SDK" in
+	[1-9] | [1-9][0-9] | [1-9][0-9][0-9]) ;;
+	*)
+		printf 'error: Android device SDK must be a canonical integer between 1 and 999, got %s\n' "$DEVICE_SDK" >&2
+		exit 1
+		;;
+esac
+if [ -n "$EXPECTED_DEVICE_ABI" ] && [ "$DEVICE_ABI" != "$EXPECTED_DEVICE_ABI" ]; then
+	printf 'error: Android device ABI mismatch: expected %s, got %s\n' "$EXPECTED_DEVICE_ABI" "$DEVICE_ABI" >&2
+	exit 1
+fi
+if [ -n "$EXPECTED_PAGE_SIZE" ] && [ "$PAGE_SIZE" != "$EXPECTED_PAGE_SIZE" ]; then
+	printf 'error: Android device PAGE_SIZE mismatch: expected %s, got %s\n' "$EXPECTED_PAGE_SIZE" "$PAGE_SIZE" >&2
+	exit 1
+fi
+if [ -n "$EXPECTED_DEVICE_SDK" ] && [ "$DEVICE_SDK" != "$EXPECTED_DEVICE_SDK" ]; then
+	printf 'error: Android device SDK mismatch: expected %s, got %s\n' "$EXPECTED_DEVICE_SDK" "$DEVICE_SDK" >&2
+	exit 1
+fi
 printf 'serial   : sha256:%s\n' "$SERIAL_SHA256_PREFIX"
 printf 'kind     : %s\n' "$DEVICE_KIND"
-printf 'abi      : %s\n' "$("$ADB" -s "$SERIAL" shell getprop ro.product.cpu.abi | tr -d '\r')"
-printf 'sdk      : %s\n' "$("$ADB" -s "$SERIAL" shell getprop ro.build.version.sdk | tr -d '\r')"
+printf 'abi      : %s\n' "$DEVICE_ABI"
+printf 'page-size: %s\n' "$PAGE_SIZE"
+printf 'sdk      : %s\n' "$DEVICE_SDK"
 
 printf '\n=== Install and run Android runtime smoke ===\n'
 "$ADB" -s "$SERIAL" install -r "$SIGNED_APK" >"$DIST/adb-install.log"
@@ -1040,7 +1172,7 @@ PY
 printf 'PASS: Android runtime smoke returned run-bound marker\n'
 
 printf '\n=== Emit Android runtime proof ===\n'
-python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_DIST/MANIFEST.json" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$ADB" "$SOURCE_TREE_SHA256" <<'PY'
+python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$ADB" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -1069,6 +1201,13 @@ android_build_tools = pathlib.Path(sys.argv[13])
 aar_extract = pathlib.Path(sys.argv[14])
 adb = pathlib.Path(sys.argv[15])
 source_tree_sha256 = sys.argv[16]
+device_abi = sys.argv[17]
+page_size = int(sys.argv[18])
+device_sdk = int(sys.argv[19])
+ndk_revision = sys.argv[20]
+release_mode = sys.argv[21] == "1"
+apksigner = pathlib.Path(sys.argv[22]).resolve()
+zipalign = pathlib.Path(sys.argv[23]).resolve()
 
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -1085,6 +1224,16 @@ def getprop(name: str) -> str:
 
 def sha_text(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
+
+if getprop("ro.product.cpu.abi") != device_abi:
+    raise SystemExit("error: Android device ABI changed while producing runtime proof")
+if int(adb_text("shell", "getconf", "PAGE_SIZE")) != page_size:
+    raise SystemExit("error: Android device PAGE_SIZE changed while producing runtime proof")
+current_device_sdk = getprop("ro.build.version.sdk")
+if re.fullmatch(r"[1-9][0-9]{0,2}", current_device_sdk) is None:
+    raise SystemExit(f"error: Android device SDK became invalid while producing runtime proof: {current_device_sdk!r}")
+if int(current_device_sdk) != device_sdk:
+    raise SystemExit("error: Android device SDK changed while producing runtime proof")
 
 target_sdk_match = re.search(r"android-(\d+)", android_platform.name)
 if not target_sdk_match:
@@ -1113,6 +1262,10 @@ source_paths = {
     "android_device_proof": root / "artifact/android_device_proof.py",
     "proof_to_byte": root / "artifact/proof-to-byte.sh",
     "android_aar_script": root / "artifact/android-aar.sh",
+    "android_elf_verifier": root / "artifact/android_elf.py",
+    "release_binary_scan": root / "artifact/release_binary_scan.py",
+    "third_party_license_collector": root / "artifact/third_party_licenses.py",
+    "deterministic_archive": root / "artifact/deterministic_archive.py",
     "android_facade": root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
     "android_jni_adapter": root / "bindings/android/jni/qperiapt_jni.c",
     "c_abi_contract": root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
@@ -1123,13 +1276,14 @@ def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
 
 payload = {
-    "schema": 2,
+    "schema": 3,
     "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
     "git_commit": git_commit(root),
     "source_tree_dirty": source_tree_dirty(root),
     "proof_source_tree_sha256": source_tree_sha256,
     "device_runtime_proof": True,
     "package_only": False,
+    "release_candidate_mode": release_mode,
     "run_id": run_id,
     "package": "dev.qperiapt.androidsmoke",
     "paths": {
@@ -1137,6 +1291,7 @@ payload = {
         "aar_manifest": rel(aar_manifest),
         "smoke_apk": rel(apk),
         "apksigner_verify": rel(proof.parent / "apksigner-verify.txt"),
+        "zipalign_verify": rel(proof.parent / "zipalign-verify.txt"),
         "result_txt": rel(result_txt),
         "result_json": rel(result_json),
         "logcat": rel(logcat),
@@ -1147,17 +1302,22 @@ payload = {
         "raw_serial_recorded": False,
         "manufacturer": getprop("ro.product.manufacturer"),
         "model": getprop("ro.product.model"),
-        "abi": getprop("ro.product.cpu.abi"),
-        "sdk": getprop("ro.build.version.sdk"),
+        "abi": device_abi,
+        "page_size": page_size,
+        "sdk": device_sdk,
         "release": getprop("ro.build.version.release"),
         "fingerprint_sha256_prefix": sha_text(getprop("ro.build.fingerprint"))[:12],
     },
     "android": {
         "platform": android_platform.name,
         "build_tools": android_build_tools.name,
+        "ndk": ndk_revision,
+        "native_page_alignment": 16384,
         "min_sdk": 23,
         "target_sdk": int(target_sdk_match.group(1)),
         "adb_version": subprocess.check_output([str(adb), "version"], text=True).splitlines()[0],
+        "apksigner_sha256": sha256(apksigner),
+        "zipalign_sha256": sha256(zipalign),
     },
     "abi": {
         "major": 2,
@@ -1179,6 +1339,7 @@ payload = {
         "aar_manifest_sha256": sha256(aar_manifest),
         "smoke_apk_sha256": sha256(apk),
         "apksigner_verify_sha256": sha256(proof.parent / "apksigner-verify.txt"),
+        "zipalign_verify_sha256": sha256(proof.parent / "zipalign-verify.txt"),
         "logcat_sha256": sha256(logcat),
         "native": native,
     },
@@ -1192,10 +1353,26 @@ if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
 else
 	set --
 fi
+set -- "$@" --expected-device-abi "$DEVICE_ABI" --expected-page-size "$PAGE_SIZE" --expected-device-sdk "$DEVICE_SDK"
+if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
+	set -- "$@" --require-release-mode
+fi
 PYTHONPATH=artifact python3 artifact/android_device_proof.py verify \
 	--root "$ROOT" \
 	--proof "$PROOF_JSON" \
 	--expected-device-kind "$DEVICE_KIND" \
 	"$@"
+PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
+	--root "$ROOT" \
+	--proof "$PROOF_JSON" \
+	--output "$EVIDENCE_BUNDLE" \
+	--llvm-nm "$LLVM_NM" \
+	--llvm-readelf "$LLVM_READELF" \
+	--apksigner "$APKSIGNER" \
+	--zipalign "$ZIPALIGN" \
+	--forbid-text "$SERIAL" \
+	--expected-device-kind "$DEVICE_KIND" \
+	"$@"
 printf 'Proof    : %s\n' "$PROOF_JSON"
-printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s\n' "$PROOF_JSON"
+printf 'Bundle   : %s\n' "$EVIDENCE_BUNDLE"
+printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s bundle=%s\n' "$PROOF_JSON" "$EVIDENCE_BUNDLE"

@@ -582,6 +582,35 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
 }
 
+ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
+    "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
+    "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
+    "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
+    "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
+    "android_aar_script_sha256": "artifact/android-aar.sh",
+    "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
+    "android_device_proof_verifier_sha256": "artifact/android_device_proof.py",
+    "android_device_proof_tests_sha256": "artifact/test_android_device_proof.py",
+    "android_elf_verifier_sha256": "artifact/android_elf.py",
+    "android_elf_tests_sha256": "artifact/test_android_elf.py",
+    "c_package_script_sha256": "artifact/c-package.sh",
+    "c_package_manifest_verifier_sha256": "artifact/c_package_manifest.py",
+    "c_package_manifest_tests_sha256": "artifact/test_c_package_manifest.py",
+    "deterministic_archive_sha256": "artifact/deterministic_archive.py",
+    "deterministic_archive_tests_sha256": "artifact/test_deterministic_archive.py",
+    "package_bom_sha256": "artifact/package_bom.py",
+    "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
+    "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
+    "release_binary_scan_sha256": "artifact/release_binary_scan.py",
+    "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "third_party_licenses_sha256": "artifact/third_party_licenses.py",
+    "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
+    "windows_package_script_sha256": "artifact/windows-package.ps1",
+    "windows_package_verifier_sha256": "artifact/windows_package.py",
+    "windows_package_tests_sha256": "artifact/test_windows_package.py",
+}
+
 
 def extract_ci_check_job(workflow: str) -> str:
     check_match = re.search(
@@ -694,6 +723,18 @@ class BoundVerifierWiringTests(unittest.TestCase):
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assertIn(f'"{key}": "{relative}"', source)
+                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                self.assertEqual(inputs.get(key), actual)
+
+    def test_proof_to_byte_names_every_abi2_platform_release_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        inputs = manifest["proof_to_byte_inputs"]
+        for key, relative in ABI2_PLATFORM_RELEASE_PROOF_INPUTS.items():
             with self.subTest(key=key):
                 self.assertIn(f'"{key}": "{relative}"', source)
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
@@ -1324,6 +1365,14 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
                 },
                 "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+            ),
+            (
+                "android device ABI is recognized",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "mips64",
+                },
+                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI",
             ),
             (
                 "android max age is bounded",

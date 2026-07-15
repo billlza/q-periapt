@@ -1,0 +1,273 @@
+name: ABI2 platform release candidate
+
+on:
+  push:
+    tags:
+      - abi2-platforms-v0.1.0-alpha.2-r1
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: abi2-platforms-v0.1.0-alpha.2-r1
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  preflight:
+    runs-on: ubuntu-22.04
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: release
+        name: Bind the annotated one-off distribution tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_REF: refs/tags/abi2-platforms-v0.1.0-alpha.2-r1
+        run: |
+          test "$GITHUB_REF" = "$EXPECTED_REF"
+          test "$(git cat-file -t "$EXPECTED_REF")" = tag
+          commit=$(git rev-parse --verify "$EXPECTED_REF^{commit}")
+          test "$commit" = "$(git rev-parse --verify 'HEAD^{commit}')"
+          test "$commit" = "$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "$(jq -r '.package.semver' crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)" = "0.1.0-alpha.2"
+          test "$(jq -r '.abi.major' crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)" = "2"
+          ci_runs=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$commit&branch=main&event=push&status=success&per_page=10")
+          jq -e --arg commit "$commit" \
+            'any(.workflow_runs[]; .head_sha == $commit and .conclusion == "success")' \
+            <<<"$ci_runs" >/dev/null
+          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
+
+  linux:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.preflight.outputs.commit }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.96.0
+          components: llvm-tools
+      - name: Verify exact source and native host
+        env:
+          EXPECTED_COMMIT: ${{ needs.preflight.outputs.commit }}
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"
+          test "$(rustc --version)" = "rustc 1.96.0 (ac68faa20 2026-05-25)"
+      - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
+      - run: cargo +1.96.0 install cbindgen --version 0.29.4 --locked
+      - name: Build and consume the native Linux package
+        env:
+          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}
+        run: sh artifact/c-package.sh
+      - name: Reconsume only the candidate archive
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          package="q-periapt-c-abi2-0.1.0-alpha.2-$EXPECTED_TARGET"
+          archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
+          archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
+          manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
+          contract_sha256=$(sha256sum crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json | cut -d' ' -f1)
+          rm -rf \
+            target/release \
+            "target/qperiapt-c-abi2/$package" \
+            "target/qperiapt-c-abi2/verify-$package"
+          QPERIAPT_C_PACKAGE_VERIFY_ARCHIVE="$archive" \
+          QPERIAPT_C_PACKAGE_EXPECTED_SHA256="$archive_sha256" \
+          QPERIAPT_C_PACKAGE_EXPECTED_TARGET="$EXPECTED_TARGET" \
+          QPERIAPT_C_PACKAGE_EXPECTED_VERSION=0.1.0-alpha.2 \
+          QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256="$manifest_sha256" \
+          QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$contract_sha256" \
+            sh artifact/c-package.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-candidate-linux-${{ matrix.target }}
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.0-alpha.2-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  windows:
+    needs: preflight
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.preflight.outputs.commit }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.96.0
+          components: llvm-tools
+      - run: cargo +1.96.0 install cbindgen --version 0.29.4 --locked
+      - name: Verify exact source and toolchain
+        shell: pwsh
+        env:
+          EXPECTED_COMMIT: ${{ needs.preflight.outputs.commit }}
+        run: |
+          if ((git rev-parse --verify 'HEAD^{commit}') -ne $env:EXPECTED_COMMIT) { throw "checkout commit differs" }
+          if (git status --porcelain=v1 --untracked-files=all) { throw "checkout is dirty" }
+          $version = rustc --version
+          if ($version -ne "rustc 1.96.0 (ac68faa20 2026-05-25)") { throw "unexpected rustc: $version" }
+      - name: Test the Windows package trust boundary
+        shell: pwsh
+        working-directory: artifact
+        run: |
+          python -I -S -B -W error python_bootstrap.py -m unittest -v `
+            test_evidence_io test_c_abi_contract test_deterministic_archive `
+            test_release_binary_scan test_third_party_licenses test_windows_package
+      - name: Build, archive, extract, and consume the Windows SDK
+        shell: pwsh
+        env:
+          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}
+        run: artifact/windows-package.ps1
+      - name: Reconsume only the Windows candidate archive
+        shell: pwsh
+        run: |
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+          $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
+          $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
+          @(
+            "target/qperiapt-windows-dynamic",
+            "target/qperiapt-windows-static",
+            $packageRoot
+          ) | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force -ErrorAction SilentlyContinue }
+          artifact/windows-package.ps1 -Mode VerifyArchive `
+            -Archive $archive `
+            -ExpectedSha256 $archiveSha256 `
+            -ExpectedManifestSha256 $manifestSha256 `
+            -ExpectedContractSha256 $contractSha256 `
+            -ExpectedGitCommit $gitCommit `
+            -ExpectedGitTree $gitTree
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-candidate-windows-x86_64-msvc
+          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  android:
+    needs: preflight
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.preflight.outputs.commit }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.96.0
+          components: llvm-tools
+          targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi,i686-linux-android
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: "22"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - name: Verify exact source and toolchain
+        env:
+          EXPECTED_COMMIT: ${{ needs.preflight.outputs.commit }}
+        run: |
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "$(rustc --version)" = "rustc 1.96.0 (ac68faa20 2026-05-25)"
+      - run: cargo +1.96.0 install cbindgen --version 0.29.4 --locked
+      - name: Install pinned stable Android inputs
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-35" "build-tools;36.0.0" "ndk;29.0.14206865"
+      - name: Build and verify the four-ABI 16 KiB-compatible AAR
+        env:
+          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}
+          QPERIAPT_ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+          QPERIAPT_ANDROID_PLATFORM: ${{ env.ANDROID_HOME }}/platforms/android-35
+          QPERIAPT_ANDROID_BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/36.0.0
+        run: sh artifact/android-aar.sh
+      - name: Stage release-named Android assets
+        run: |
+          source=target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2
+          destination=target/abi2-platform-candidate
+          mkdir -p "$destination"
+          install -m 0644 "$source/q-periapt-android-0.1.0-alpha.2.aar" "$destination/"
+          install -m 0644 "$source/MANIFEST.json" "$destination/q-periapt-android-0.1.0-alpha.2-MANIFEST.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-candidate-android
+          path: target/abi2-platform-candidate/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  attest:
+    needs: [preflight, linux, windows, android]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+        with:
+          pattern: abi2-candidate-*
+          path: candidate
+          merge-multiple: true
+      - name: Validate the exact candidate asset set and checksums
+        run: |
+          test -f candidate/q-periapt-android-0.1.0-alpha.2.aar
+          test -f candidate/q-periapt-android-0.1.0-alpha.2-MANIFEST.json
+          test -f candidate/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz
+          test -f candidate/q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz
+          test -f candidate/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip
+          test "$(find candidate -type f | wc -l)" -eq 5
+          (cd candidate && sha256sum -- * | LC_ALL=C sort -k2 > CANDIDATE_SHA256SUMS)
+      - name: Generate GitHub build provenance attestations
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.0.0
+        with:
+          subject-path: |
+            candidate/q-periapt-android-0.1.0-alpha.2.aar
+            candidate/q-periapt-android-0.1.0-alpha.2-MANIFEST.json
+            candidate/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz
+            candidate/q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz
+            candidate/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip
+            candidate/CANDIDATE_SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-platform-release-candidate
+          path: candidate/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

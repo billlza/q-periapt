@@ -1722,13 +1722,28 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             "          sh artifact/swift-xcframework.sh",
             self.workflow,
         )
+        swift_job = self.workflow[
+            self.workflow.index("  bindings-swift:") :
+            self.workflow.index("  bindings-kotlin:")
+        ]
+        install_cbindgen = swift_job.index(
+            "cargo +stable install cbindgen --version 0.29.4 --locked"
+        )
+        verify_generated_headers = swift_job.index(
+            "- name: Generated C/Swift header freshness"
+        )
+        build_xcframework = swift_job.index(
+            "- name: Build deterministic Apple XCFramework"
+        )
+        self.assertLess(install_cbindgen, verify_generated_headers)
+        self.assertLess(verify_generated_headers, build_xcframework)
         self.assertEqual(
-            self.workflow.count(
+            swift_job.count(
                 "cargo +stable install cbindgen --version 0.29.4 --locked"
             ),
-            3,
+            1,
         )
-        self.assertNotIn("cargo install cbindgen", self.workflow)
+        self.assertNotIn("cargo install cbindgen", swift_job)
         self.assertNotIn(
             "rust_distributed_compiler_builtins_members_v1", self.builder
         )
