@@ -1107,6 +1107,11 @@ def _audit_zip_snapshot(
                 if data_end > central_offset:
                     _fail("ZIP local payload overlaps the central directory")
                 local_name = _decode_zip_name(data[name_start:name_end], flags)
+                local_is_directory = local_name.endswith("/")
+                canonical_name = _canonical_archive_path(
+                    local_name[:-1] if local_is_directory else local_name,
+                    "ZIP local member path",
+                )
                 expected_dos_time, expected_dos_date = _zip_dos_fields(info.date_time)
                 if (
                     local_name != info.filename
@@ -1120,10 +1125,9 @@ def _audit_zip_snapshot(
                     or mod_date != expected_dos_date
                 ):
                     _fail("ZIP local and central metadata differ")
-                is_directory = info.filename.endswith("/")
-                canonical_name = info.filename[:-1] if is_directory else info.filename
+                is_directory = local_is_directory
                 kind: Literal["directory", "file"] = "directory" if is_directory else "file"
-                registry.add(canonical_name, kind)
+                canonical_name = registry.add(canonical_name, kind)
                 expected_mode = (stat.S_IFDIR | 0o755) if is_directory else (stat.S_IFREG | 0o644)
                 if info.external_attr != expected_mode << 16:
                     _fail("ZIP member mode or file type is not canonical")
@@ -1246,6 +1250,11 @@ def _audit_zip_snapshot(
         if name_end > central_offset + central_size:
             _fail("ZIP central member name is truncated")
         central_name = _decode_zip_name(data[name_start:name_end], flags)
+        central_is_directory = central_name.endswith("/")
+        _canonical_archive_path(
+            central_name[:-1] if central_is_directory else central_name,
+            "ZIP central member path",
+        )
         expected_dos_time, expected_dos_date = _zip_dos_fields(info.date_time)
         if (
             central_name != info.filename

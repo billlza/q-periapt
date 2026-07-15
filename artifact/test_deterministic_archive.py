@@ -72,12 +72,57 @@ def _replace_tar_name(data: bytes, offset: int, name: bytes) -> bytes:
     return _gzip(bytes(payload))
 
 
-def _replace_zip_member_name(data: bytes, original: bytes, replacement: bytes) -> bytes:
+def _replace_zip_member_name(
+    data: bytes,
+    original: bytes,
+    replacement: bytes,
+    *,
+    replace_local: bool = True,
+    replace_central: bool = True,
+) -> bytes:
     if len(original) != len(replacement):
         raise AssertionError("test ZIP replacement name must preserve length")
-    if data.count(original) != 2:
-        raise AssertionError("test ZIP member name must occur once locally and centrally")
-    return data.replace(original, replacement)
+    if not replace_local and not replace_central:
+        raise AssertionError("test ZIP replacement must select at least one record")
+    central_offset = _zip_central_record(data, original.decode("ascii"))
+    central_size = struct.calcsize("<4s6H3L5H2L")
+    central_fields = struct.unpack_from("<4s6H3L5H2L", data, central_offset)
+    if central_fields[0] != b"PK\x01\x02":
+        raise AssertionError("test ZIP central signature is invalid")
+    central_name_length = central_fields[10]
+    local_offset = central_fields[16]
+    if central_name_length != len(original):
+        raise AssertionError("test ZIP central name length differs")
+    central_name_start = central_offset + central_size
+    central_name_end = central_name_start + central_name_length
+    if data[central_name_start:central_name_end] != original:
+        raise AssertionError("test ZIP central member name differs")
+
+    local_size = struct.calcsize("<4s5H3L2H")
+    local_fields = struct.unpack_from("<4s5H3L2H", data, local_offset)
+    if local_fields[0] != b"PK\x03\x04":
+        raise AssertionError("test ZIP local signature is invalid")
+    local_name_length = local_fields[9]
+    if local_name_length != len(original):
+        raise AssertionError("test ZIP local name length differs")
+    local_name_start = local_offset + local_size
+    local_name_end = local_name_start + local_name_length
+    if data[local_name_start:local_name_end] != original:
+        raise AssertionError("test ZIP local member name differs")
+
+    forged = bytearray(data)
+    if replace_local:
+        forged[local_name_start:local_name_end] = replacement
+    if replace_central:
+        forged[central_name_start:central_name_end] = replacement
+    expected_local = replacement if replace_local else original
+    expected_central = replacement if replace_central else original
+    if (
+        forged[local_name_start:local_name_end] != expected_local
+        or forged[central_name_start:central_name_end] != expected_central
+    ):
+        raise AssertionError("test ZIP member-name replacement failed")
+    return bytes(forged)
 
 
 def _zip_central_record(data: bytes, member_name: str) -> int:
@@ -269,12 +314,35 @@ class DeterministicArchiveTests(unittest.TestCase):
                             member_name,
                         )
                     )
-                    with self.assertRaisesRegex(DeterministicArchiveError, error):
-                        audit_zip(
-                            forged,
-                            root_name="package",
-                            mtime=MTIME,
-                        )
+                    # CPython normalizes backslashes in ZipInfo.filename on
+                    # Windows.  Simulate that behavior on every host so raw
+                    # member-name validation remains a portable regression gate.
+                    with mock.patch.object(zipfile.os, "sep", "\\"):
+                        with self.assertRaisesRegex(
+                            DeterministicArchiveError, error
+                        ):
+                            audit_zip(
+                                forged,
+                                root_name="package",
+                                mtime=MTIME,
+                            )
+
+            central_only = root / "zip-central-normalized-collision.zip"
+            central_only.write_bytes(
+                _replace_zip_member_name(
+                    original_zip,
+                    original_name,
+                    b"package\\README.md",
+                    replace_local=False,
+                )
+            )
+            with mock.patch.object(zipfile.os, "sep", "\\"):
+                with self.assertRaisesRegex(DeterministicArchiveError, "backslash"):
+                    audit_zip(
+                        central_only,
+                        root_name="package",
+                        mtime=MTIME,
+                    )
 
     def test_existing_outputs_and_destinations_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
