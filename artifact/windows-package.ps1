@@ -270,41 +270,6 @@ function Initialize-MsvcEnvironment {
     return $installation
 }
 
-function Get-NativeStaticLibraries {
-    param([Parameter(Mandatory)] [string] $CompilerOutput)
-
-    $matches = [regex]::Matches(
-        $CompilerOutput,
-        '(?m)^\s*(?:note:\s*)?native-static-libs:\s*(?<libraries>[^\r\n]+)\s*$'
-    )
-    if ($matches.Count -ne 1) {
-        throw "rustc must emit exactly one native-static-libs line; got $($matches.Count)"
-    }
-    $libraries = [System.Collections.Generic.List[string]]::new()
-    $seen = [System.Collections.Generic.HashSet[string]]::new(
-        [System.StringComparer]::OrdinalIgnoreCase
-    )
-    foreach ($token in ($matches[0].Groups["libraries"].Value -split '\s+')) {
-        if (-not $token) { continue }
-        $match = [regex]::Match($token, '^-l(?:dylib=)?(?<name>[A-Za-z0-9_.-]+)$')
-        if (-not $match.Success) {
-            throw "unsupported native-static-libs token: $token"
-        }
-        $library = $match.Groups["name"].Value
-        if (-not $library.EndsWith(".lib", [System.StringComparison]::OrdinalIgnoreCase)) {
-            $library += ".lib"
-        }
-        if (-not $seen.Add($library)) {
-            throw "duplicate native static library emitted by rustc: $library"
-        }
-        $libraries.Add($library)
-    }
-    if ($libraries.Count -eq 0) {
-        throw "rustc emitted an empty native-static-libs set"
-    }
-    return [string[]] $libraries
-}
-
 function Assert-PeHardening {
     param(
         [Parameter(Mandatory)] [string] $Library,
@@ -688,8 +653,10 @@ Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 
 $savedCargoTarget = $env:CARGO_TARGET_DIR
 $savedCFlags = $env:CFLAGS
+$savedCargoTermColor = $env:CARGO_TERM_COLOR
 try {
-    $env:CFLAGS = "/pathmap:$Root=qperiapt-source"
+    $env:CARGO_TERM_COLOR = "never"
+    $env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"
     $env:CARGO_TARGET_DIR = $DynamicTarget
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
@@ -700,13 +667,51 @@ try {
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
         "--print", "native-static-libs", "-Cstrip=debuginfo", "--remap-path-prefix=$Root=qperiapt-source"
     ) -Echo
-    $NativeStaticLibraries = @(
-        Get-NativeStaticLibraries -CompilerOutput ($staticBuild.Stdout + "`n" + $staticBuild.Stderr)
+    $nativeStaticLibrariesLog = Join-Path $OutRoot "native-static-libraries.txt"
+    Write-Utf8File `
+        -Path $nativeStaticLibrariesLog `
+        -Content ($staticBuild.Stdout + "`n" + $staticBuild.Stderr)
+    $nativeLibrariesJson = Get-TrimmedOutput -FilePath $Python -Arguments @(
+        "-I", "-S", "-B", "-W", "error", "artifact/python_bootstrap.py",
+        "artifact/windows_package.py", "parse-native-static-libraries",
+        "--compiler-output", $nativeStaticLibrariesLog
     )
+    $decodedNativeStaticLibraries = ConvertFrom-Json `
+        -InputObject $nativeLibrariesJson `
+        -NoEnumerate
+    if ($decodedNativeStaticLibraries -isnot [System.Array]) {
+        throw "Python verifier must emit a JSON array of native static libraries"
+    }
+    $expectedNativeStaticLibraries = [string[]] @(
+        "kernel32.lib",
+        "ntdll.lib",
+        "userenv.lib",
+        "ws2_32.lib",
+        "dbghelp.lib",
+        "msvcrt.lib"
+    )
+    if ($decodedNativeStaticLibraries.Count -ne $expectedNativeStaticLibraries.Count) {
+        throw "Python verifier emitted an unexpected native static library count"
+    }
+    for ($index = 0; $index -lt $expectedNativeStaticLibraries.Count; $index++) {
+        $library = $decodedNativeStaticLibraries[$index]
+        if ($library -isnot [string]) {
+            throw "Python verifier emitted a non-string native static library"
+        }
+        if (-not [string]::Equals(
+            $library,
+            $expectedNativeStaticLibraries[$index],
+            [System.StringComparison]::Ordinal
+        )) {
+            throw "Python verifier emitted an unexpected native static library"
+        }
+    }
+    $NativeStaticLibraries = [string[]] $decodedNativeStaticLibraries
 }
 finally {
     $env:CARGO_TARGET_DIR = $savedCargoTarget
     $env:CFLAGS = $savedCFlags
+    $env:CARGO_TERM_COLOR = $savedCargoTermColor
 }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 

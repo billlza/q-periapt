@@ -41,6 +41,20 @@ def _dumpbin_output(*dependencies: str) -> bytes:
     )
 
 
+def _native_static_libraries_output(
+    *tokens: str, newline: bytes = b"\n"
+) -> bytes:
+    return newline.join(
+        (
+            b"note: link against the following native artifacts when linking against this static library.",
+            b"",
+            b"note: native-static-libs: "
+            + " ".join(tokens).encode("ascii"),
+            b"",
+        )
+    )
+
+
 INHERITING_DESCENDANT_SCRIPT = """
 import os
 import pathlib
@@ -97,6 +111,109 @@ def _kill_process_if_present(process_id: int) -> None:
         os.kill(process_id, signal.SIGKILL)
     except ProcessLookupError:
         pass
+
+
+class RustcNativeStaticLibraryTests(unittest.TestCase):
+    RAW_TOKENS = windows_package.EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS
+    CANONICAL_LIBRARIES = list(
+        windows_package.CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES
+    )
+
+    def test_parser_accepts_only_the_exact_ordered_windows_contract(self) -> None:
+        for newline in (b"\n", b"\r\n"):
+            with self.subTest(newline=newline):
+                self.assertEqual(
+                    windows_package.parse_rustc_native_static_libraries(
+                        _native_static_libraries_output(
+                            *self.RAW_TOKENS, newline=newline
+                        )
+                    ),
+                    self.CANONICAL_LIBRARIES,
+                )
+
+    def test_parser_rejects_unsafe_ambiguous_or_changed_contracts(self) -> None:
+        exact = _native_static_libraries_output(*self.RAW_TOKENS)
+        changed_contracts = {
+            "missing marker": exact.replace(
+                b"native-static-libs:", b"native libraries:"
+            ),
+            "duplicate marker": exact + exact,
+            "missing token": _native_static_libraries_output(*self.RAW_TOKENS[:-1]),
+            "extra token": _native_static_libraries_output(
+                *self.RAW_TOKENS, "evil.lib"
+            ),
+            "reordered": _native_static_libraries_output(
+                self.RAW_TOKENS[1], self.RAW_TOKENS[0], *self.RAW_TOKENS[2:]
+            ),
+            "case change": _native_static_libraries_output(
+                "KERNEL32.lib", *self.RAW_TOKENS[1:]
+            ),
+            "defaultlib injection": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "/defaultlib:evil"
+            ),
+            "whole archive": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "/WHOLEARCHIVE:evil.lib"
+            ),
+            "path": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], r"C:\\evil.lib"
+            ),
+            "quoted": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], '"evil.lib"'
+            ),
+            "response file": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "@evil.rsp"
+            ),
+            "Unix flags": _native_static_libraries_output(
+                "-lkernel32", "-lntdll"
+            ),
+            "ANSI": exact.replace(b"note:", b"\x1b[92mnote\x1b[0m:", 1),
+            "incomplete escape": exact + b"\x1b[",
+            "NUL": exact + b"\0",
+            "non-ASCII": exact + b"\xff",
+            "oversized": b"x"
+            * (windows_package.MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES + 1),
+        }
+        for label, output in changed_contracts.items():
+            with self.subTest(label=label):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package.parse_rustc_native_static_libraries(output)
+
+    def test_parser_cli_emits_only_the_canonical_json_array(self) -> None:
+        repository = pathlib.Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as temporary:
+            compiler_output = pathlib.Path(temporary) / "native-static-libraries.txt"
+            compiler_output.write_bytes(
+                _native_static_libraries_output(*self.RAW_TOKENS)
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-W",
+                    "error",
+                    "artifact/python_bootstrap.py",
+                    "artifact/windows_package.py",
+                    "parse-native-static-libraries",
+                    "--compiler-output",
+                    str(compiler_output),
+                ],
+                cwd=repository,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stderr, b"")
+        self.assertEqual(json.loads(completed.stdout), self.CANONICAL_LIBRARIES)
+        self.assertEqual(
+            completed.stdout,
+            (json.dumps(self.CANONICAL_LIBRARIES, separators=(",", ":")) + "\n").encode(
+                "ascii"
+            ),
+        )
 
 
 class DumpbinDependencyTests(unittest.TestCase):
@@ -801,14 +918,41 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '-ExpectedName "dumpbin.exe"',
             '"--dumpbin", $Dumpbin',
             '"--sha256", $ExpectedArchiveSha256',
+            '$savedCargoTermColor = $env:CARGO_TERM_COLOR',
+            '$env:CARGO_TERM_COLOR = "never"',
+            '$env:CARGO_TERM_COLOR = $savedCargoTermColor',
+            '$env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"',
+            '"parse-native-static-libraries"',
+            '"--compiler-output", $nativeStaticLibrariesLog',
+            "ConvertFrom-Json `",
+            "-InputObject $nativeLibrariesJson `",
+            "-NoEnumerate",
+            "$decodedNativeStaticLibraries -isnot [System.Array]",
+            "$decodedNativeStaticLibraries.Count -ne $expectedNativeStaticLibraries.Count",
+            "$library -isnot [string]",
+            "[System.StringComparison]::Ordinal",
+            "$NativeStaticLibraries = [string[]] $decodedNativeStaticLibraries",
         ):
             self.assertIn(token, script)
         for forbidden in (
             "function Get-DllDependencies",
+            "function Get-NativeStaticLibraries",
             '"--dependency"',
             '"--expected-dependency"',
         ):
             self.assertNotIn(forbidden, script)
+        native_library_contract = re.search(
+            r"\$expectedNativeStaticLibraries\s*=\s*\[string\[\]\]\s*@\("
+            r"(?P<libraries>.*?)\n\s*\)",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(native_library_contract)
+        assert native_library_contract is not None
+        self.assertEqual(
+            re.findall(r'"([^"]+)"', native_library_contract.group("libraries")),
+            list(windows_package.CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES),
+        )
         self.assertRegex(
             script,
             re.compile(

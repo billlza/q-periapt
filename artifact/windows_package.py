@@ -156,6 +156,7 @@ TREE_RE = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_PACKAGE_FILE_BYTES = 512 * 1024 * 1024
 MAX_DUMPBIN_OUTPUT_BYTES = 1024 * 1024
+MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES = 1024 * 1024
 DUMPBIN_DEPENDENCY_HEADER = b"Image has the following dependencies:"
 DUMPBIN_SUMMARY_HEADER = b"Summary"
 FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
@@ -234,6 +235,22 @@ ALLOWED_DEPENDENCY_NAMES = frozenset(
         "api-ms-win-crt-time-l1-1-0.dll",
         "api-ms-win-crt-utility-l1-1-0.dll",
     )
+)
+EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS = (
+    "kernel32.lib",
+    "ntdll.lib",
+    "userenv.lib",
+    "ws2_32.lib",
+    "dbghelp.lib",
+    "/defaultlib:msvcrt",
+)
+CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
+    "kernel32.lib",
+    "ntdll.lib",
+    "userenv.lib",
+    "ws2_32.lib",
+    "dbghelp.lib",
+    "msvcrt.lib",
 )
 
 EXPECTED_PAYLOAD_FILES = frozenset(
@@ -607,6 +624,47 @@ def parse_dumpbin_dependents(output: bytes) -> list[str]:
         )
         dependencies.append(dependency)
     return _normalize_dependencies(dependencies)
+
+
+def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
+    """Parse and freeze rustc's ordered Windows static-link contract."""
+
+    _require(isinstance(output, bytes), "rustc native-static-libs output must be bytes")
+    _require(
+        len(output) <= MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES,
+        "rustc native-static-libs output exceeds the size limit",
+    )
+    _require(b"\0" not in output, "rustc native-static-libs output contains a NUL byte")
+    _require(
+        b"\x1b" not in output,
+        "rustc native-static-libs output contains an unsupported terminal escape",
+    )
+    try:
+        text = output.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise WindowsPackageError(
+            "rustc native-static-libs output is not portable ASCII"
+        ) from exc
+    marker = "native-static-libs:"
+    _require(
+        text.count(marker) == 1,
+        "rustc must emit exactly one native-static-libs marker",
+    )
+    matches = re.findall(
+        r"(?m)^\s*(?:note:\s*)?native-static-libs:\s*(\S(?:[^\r\n]*\S)?)\s*$",
+        text,
+        flags=re.ASCII,
+    )
+    _require(
+        len(matches) == 1,
+        "rustc must emit exactly one canonical native-static-libs line",
+    )
+    libraries = matches[0].split()
+    _require(
+        tuple(libraries) == EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS,
+        "rustc Windows native-static-libs contract differs",
+    )
+    return list(CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
 
 
 def _regular_windows_tool(path: pathlib.Path) -> pathlib.Path:
@@ -1247,6 +1305,10 @@ def verify_package(
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    native_libraries = subparsers.add_parser("parse-native-static-libraries")
+    native_libraries.add_argument(
+        "--compiler-output", required=True, type=pathlib.Path
+    )
     create = subparsers.add_parser("create")
     create.add_argument("--package-root", required=True, type=pathlib.Path)
     create.add_argument("--repository-root", required=True, type=pathlib.Path)
@@ -1271,6 +1333,15 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     try:
+        if args.command == "parse-native-static-libraries":
+            output = read_regular_snapshot(
+                args.compiler_output,
+                maximum=MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES,
+                label="rustc native-static-libs output",
+            ).data
+            libraries = parse_rustc_native_static_libraries(output)
+            print(json.dumps(libraries, separators=(",", ":")))
+            return 0
         dependencies = inspect_dumpbin_dependencies(
             args.dumpbin,
             args.package_root / "bin/q_periapt_ffi_abi2.dll",
