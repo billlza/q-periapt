@@ -147,24 +147,111 @@ function Write-Utf8File {
     )
 }
 
+function Resolve-TrustedToolchainFile {
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $TrustedRoot,
+        [Parameter(Mandatory)] [string] $ExpectedName
+    )
+
+    if (
+        -not [System.IO.Path]::IsPathFullyQualified($Path) -or
+        -not [System.IO.Path]::IsPathFullyQualified($TrustedRoot)
+    ) {
+        throw "trusted toolchain paths must be absolute"
+    }
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $fullTrustedRoot = [System.IO.Path]::GetFullPath($TrustedRoot)
+    $separators = [char[]] @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $trustedPrefix = $fullTrustedRoot.TrimEnd($separators) +
+        [System.IO.Path]::DirectorySeparatorChar
+    if (-not $fullPath.StartsWith(
+        $trustedPrefix,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "toolchain file is outside the trusted installation: $fullPath"
+    }
+    if (-not [System.IO.Path]::GetFileName($fullPath).Equals(
+        $ExpectedName,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "toolchain filename differs from the expected identity: $fullPath"
+    }
+
+    $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
+    if (-not $volumeRoot) {
+        throw "cannot determine the toolchain volume root: $fullPath"
+    }
+    $cursor = $volumeRoot
+    $relative = $fullPath.Substring($volumeRoot.Length)
+    $components = $relative.Split(
+        $separators,
+        [System.StringSplitOptions]::RemoveEmptyEntries
+    )
+    foreach ($component in $components) {
+        $cursor = Join-Path $cursor $component
+        $attributes = [System.IO.File]::GetAttributes($cursor)
+        if (
+            ($attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+        ) {
+            throw "toolchain path contains a reparse point: $cursor"
+        }
+    }
+    $leafAttributes = [System.IO.File]::GetAttributes($fullPath)
+    if (($leafAttributes -band [System.IO.FileAttributes]::Directory) -ne 0) {
+        throw "toolchain path is not a regular file: $fullPath"
+    }
+    return $fullPath
+}
+
 function Initialize-MsvcEnvironment {
     $vswhereCandidates = @(
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
-        "$env:ProgramFiles\Microsoft Visual Studio\Installer\vswhere.exe"
-    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+        @(
+            "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+            "$env:ProgramFiles\Microsoft Visual Studio\Installer\vswhere.exe"
+        ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+    )
     if ($vswhereCandidates.Count -ne 1) {
         throw "Visual Studio vswhere.exe must be available exactly once"
     }
-    $installation = Get-TrimmedOutput -FilePath $vswhereCandidates[0] -Arguments @(
+    $candidate = $vswhereCandidates[0]
+    $pathSeparators = [char[]] @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $programFilesRoots = @(
+        @(
+            $env:ProgramFiles,
+            ${env:ProgramFiles(x86)}
+        ) | Where-Object {
+            $_ -and $candidate.StartsWith(
+                [System.IO.Path]::GetFullPath($_).TrimEnd($pathSeparators) +
+                [System.IO.Path]::DirectorySeparatorChar,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        }
+    )
+    if ($programFilesRoots.Count -ne 1) {
+        throw "vswhere.exe must belong to exactly one Program Files root"
+    }
+    $vswhere = Resolve-TrustedToolchainFile `
+        -Path $candidate `
+        -TrustedRoot $programFilesRoots[0] `
+        -ExpectedName "vswhere.exe"
+    $installation = Get-TrimmedOutput -FilePath $vswhere -Arguments @(
         "-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"
     )
-    if (-not $installation) {
+    if (-not $installation -or -not [System.IO.Path]::IsPathFullyQualified($installation)) {
         throw "Visual Studio with the x64 MSVC toolchain is unavailable"
     }
-    $vcvars = Join-Path $installation "VC/Auxiliary/Build/vcvars64.bat"
-    if (-not (Test-Path -LiteralPath $vcvars -PathType Leaf)) {
-        throw "vcvars64.bat is unavailable: $vcvars"
-    }
+    $installation = [System.IO.Path]::GetFullPath($installation)
+    $vcvars = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $installation "VC/Auxiliary/Build/vcvars64.bat") `
+        -TrustedRoot $installation `
+        -ExpectedName "vcvars64.bat"
     $environmentLines = & $env:ComSpec /d /s /c "`"$vcvars`" >nul && set"
     if ($LASTEXITCODE -ne 0) {
         throw "vcvars64.bat failed with exit code $LASTEXITCODE"
@@ -180,6 +267,7 @@ function Initialize-MsvcEnvironment {
     foreach ($tool in @("cl.exe", "dumpbin.exe", "cmake.exe", "ctest.exe")) {
         [void] (Get-Command $tool -ErrorAction Stop)
     }
+    return $installation
 }
 
 function Get-NativeStaticLibraries {
@@ -217,53 +305,13 @@ function Get-NativeStaticLibraries {
     return [string[]] $libraries
 }
 
-function Get-DllDependencies {
-    param([Parameter(Mandatory)] [string] $Library)
-
-    $output = (Invoke-Captured -FilePath "dumpbin.exe" -Arguments @("/nologo", "/dependents", $Library)).Stdout
-    $dependencies = [System.Collections.Generic.List[string]]::new()
-    $seen = [System.Collections.Generic.HashSet[string]]::new(
-        [System.StringComparer]::OrdinalIgnoreCase
-    )
-    foreach ($line in ($output -split "`r?`n")) {
-        $match = [regex]::Match($line, '^\s*(?<name>[A-Za-z0-9._-]+\.dll)\s*$', 'IgnoreCase')
-        if ($match.Success) {
-            $name = $match.Groups["name"].Value
-            if (-not $seen.Add($name)) {
-                throw "dumpbin emitted a duplicate DLL dependency: $name"
-            }
-            $dependencies.Add($name)
-        }
-    }
-    if ($dependencies.Count -eq 0) {
-        throw "dumpbin did not emit any DLL dependencies for $Library"
-    }
-    $allowed = @(
-        '^ADVAPI32\.dll$',
-        '^bcrypt\.dll$',
-        '^KERNEL32\.dll$',
-        '^ntdll\.dll$',
-        '^USERENV\.dll$',
-        '^WS2_32\.dll$',
-        '^VCRUNTIME140(?:_1)?\.dll$',
-        '^ucrtbase\.dll$',
-        '^api-ms-win-crt-[A-Za-z0-9._-]+\.dll$'
-    )
-    foreach ($dependency in $dependencies) {
-        if (-not ($allowed | Where-Object { $dependency -match $_ })) {
-            throw "unexpected Windows DLL dependency: $dependency"
-        }
-        if ($dependency -match 'q_periapt_ffi(?:_abi1)?\.dll') {
-            throw "legacy or recursive Q-Periapt DLL dependency: $dependency"
-        }
-    }
-    return [string[]] ($dependencies | Sort-Object { $_.ToLowerInvariant() })
-}
-
 function Assert-PeHardening {
-    param([Parameter(Mandatory)] [string] $Library)
+    param(
+        [Parameter(Mandatory)] [string] $Library,
+        [Parameter(Mandatory)] [string] $Dumpbin
+    )
 
-    $headers = (Invoke-Captured -FilePath "dumpbin.exe" -Arguments @("/nologo", "/headers", $Library)).Stdout
+    $headers = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/headers", $Library)).Stdout
     $requirements = @{
         "x64 PE machine" = '(?im)^\s*8664\s+machine\s+\(x64\)\s*$'
         "dynamic base" = '(?im)^\s*Dynamic base\s*$'
@@ -291,9 +339,12 @@ function Assert-PeHardening {
 }
 
 function Assert-ImportLibrary {
-    param([Parameter(Mandatory)] [string] $ImportLibrary)
+    param(
+        [Parameter(Mandatory)] [string] $ImportLibrary,
+        [Parameter(Mandatory)] [string] $Dumpbin
+    )
 
-    $output = (Invoke-Captured -FilePath "dumpbin.exe" -Arguments @("/nologo", "/linkermember:1", $ImportLibrary)).Stdout
+    $output = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/linkermember:1", $ImportLibrary)).Stdout
     if ($output -notmatch '__IMPORT_DESCRIPTOR_q_periapt_ffi_abi2') {
         throw "import library is not bound to q_periapt_ffi_abi2.dll"
     }
@@ -322,6 +373,7 @@ function Assert-NativePackage {
     param(
         [Parameter(Mandatory)] [string] $Extracted,
         [Parameter(Mandatory)] [string] $LlvmNm,
+        [Parameter(Mandatory)] [string] $Dumpbin,
         [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
         [Parameter(Mandatory)] [string] $TrustedGitCommit,
         [Parameter(Mandatory)] [string] $TrustedGitTree
@@ -335,9 +387,8 @@ function Assert-NativePackage {
             throw "required extracted Windows library is missing: $path"
         }
     }
-    Assert-PeHardening -Library $dll
-    Assert-ImportLibrary -ImportLibrary $importLibrary
-    $dependencies = Get-DllDependencies -Library $dll
+    Assert-PeHardening -Library $dll -Dumpbin $Dumpbin
+    Assert-ImportLibrary -ImportLibrary $importLibrary -Dumpbin $Dumpbin
     Invoke-PythonChecked -Arguments @(
         "artifact/c_abi_contract.py",
         "--contract", (Join-Path $Extracted "share/q-periapt/abi/q-periapt-c-abi-v2.json"),
@@ -351,12 +402,10 @@ function Assert-NativePackage {
         "artifact/windows_package.py", "verify",
         "--package-root", $Extracted,
         "--repository-root", $Root,
+        "--dumpbin", $Dumpbin,
         "--expected-git-commit", $TrustedGitCommit,
         "--expected-git-tree", $TrustedGitTree
     )
-    foreach ($dependency in $dependencies) {
-        $manifestVerificationArguments += @("--expected-dependency", $dependency)
-    }
     Invoke-PythonChecked -Arguments $manifestVerificationArguments
 
     $ConsumerRoot = Join-Path $VerifyRoot "native-consumers"
@@ -395,7 +444,7 @@ function Assert-NativePackage {
     finally {
         $env:PATH = $savedPath
     }
-    $staticDependencies = (Invoke-Captured -FilePath "dumpbin.exe" -Arguments @("/nologo", "/dependents", $staticExe)).Stdout
+    $staticDependencies = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/dependents", $staticExe)).Stdout
     if ($staticDependencies -match '(?i)q_periapt_ffi_abi2\.dll') {
         throw "static consumer unexpectedly depends on q_periapt_ffi_abi2.dll"
     }
@@ -456,7 +505,6 @@ endif()
         "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
         "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF"
     )
-    return $dependencies
 }
 
 function Verify-WindowsArchive {
@@ -464,6 +512,7 @@ function Verify-WindowsArchive {
         [Parameter(Mandatory)] [string] $ArchivePath,
         [Parameter(Mandatory)] [string] $ExpectedArchiveSha256,
         [Parameter(Mandatory)] [string] $LlvmNm,
+        [Parameter(Mandatory)] [string] $Dumpbin,
         [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
         [Parameter(Mandatory)] [string] $TrustedGitCommit,
         [Parameter(Mandatory)] [string] $TrustedGitTree
@@ -486,13 +535,18 @@ function Verify-WindowsArchive {
     [void] (Assert-NativePackage `
         -Extracted $extracted `
         -LlvmNm $LlvmNm `
+        -Dumpbin $Dumpbin `
         -NativeStaticLibraries $NativeStaticLibraries `
         -TrustedGitCommit $TrustedGitCommit `
         -TrustedGitTree $TrustedGitTree)
     Write-Host "WINDOWS_C_ABI_PACKAGE_VERIFY_PASS"
 }
 
-Initialize-MsvcEnvironment
+$MsvcInstallation = Initialize-MsvcEnvironment
+$Dumpbin = Resolve-TrustedToolchainFile `
+    -Path (Get-Command "dumpbin.exe" -CommandType Application -ErrorAction Stop).Source `
+    -TrustedRoot $MsvcInstallation `
+    -ExpectedName "dumpbin.exe"
 $RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--print", "sysroot")
 $RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
@@ -557,6 +611,7 @@ if ($Mode -eq "VerifyArchive") {
         -ArchivePath ([System.IO.Path]::GetFullPath($Archive)) `
         -ExpectedArchiveSha256 $ExpectedSha256 `
         -LlvmNm $LlvmNm `
+        -Dumpbin $Dumpbin `
         -NativeStaticLibraries $nativeLibraries `
         -TrustedGitCommit $ExpectedGitCommit `
         -TrustedGitTree $ExpectedGitTree
@@ -645,7 +700,9 @@ try {
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
         "--print", "native-static-libs", "-Cstrip=debuginfo", "--remap-path-prefix=$Root=qperiapt-source"
     ) -Echo
-    $NativeStaticLibraries = Get-NativeStaticLibraries -CompilerOutput ($staticBuild.Stdout + "`n" + $staticBuild.Stderr)
+    $NativeStaticLibraries = @(
+        Get-NativeStaticLibraries -CompilerOutput ($staticBuild.Stdout + "`n" + $staticBuild.Stderr)
+    )
 }
 finally {
     $env:CARGO_TARGET_DIR = $savedCargoTarget
@@ -769,9 +826,10 @@ Use `find_package(QPeriaptABI2 2.0.0 EXACT CONFIG REQUIRED)` and link either
 Write-Utf8File -Path (Join-Path $PackageRoot "README.md") -Content $readmeTemplate.Replace("@VERSION@", $Version)
 
 $packagedDll = Join-Path $PackageRoot "bin/q_periapt_ffi_abi2.dll"
-Assert-PeHardening -Library $packagedDll
-Assert-ImportLibrary -ImportLibrary (Join-Path $PackageRoot "lib/q_periapt_ffi_abi2.lib")
-$Dependencies = Get-DllDependencies -Library $packagedDll
+Assert-PeHardening -Library $packagedDll -Dumpbin $Dumpbin
+Assert-ImportLibrary `
+    -ImportLibrary (Join-Path $PackageRoot "lib/q_periapt_ffi_abi2.lib") `
+    -Dumpbin $Dumpbin
 Invoke-PythonChecked -Arguments @(
     "artifact/c_abi_contract.py",
     "--contract", (Join-Path $PackageRoot "share/q-periapt/abi/q-periapt-c-abi-v2.json"),
@@ -782,8 +840,14 @@ Invoke-PythonChecked -Arguments @(
     "--platform", "windows"
 )
 $clHelp = (Invoke-Captured -FilePath "cl.exe" -Arguments @("/?")).Stdout
-$clVersion = ($clHelp -split "`r?`n" | Where-Object { $_ -match 'Microsoft.*Compiler' } | Select-Object -First 1).Trim()
-if (-not $clVersion) { throw "cannot determine the MSVC compiler version" }
+$clVersionLines = @(
+    $clHelp -split "`r?`n" | Where-Object { $_ -match 'Microsoft.*Compiler' }
+)
+if ($clVersionLines.Count -ne 1) {
+    throw "cl.exe must emit exactly one compiler-version line"
+}
+$clVersion = $clVersionLines[0].Trim()
+if (-not $clVersion) { throw "MSVC compiler version is empty" }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 $manifestArguments = @(
     "artifact/windows_package.py", "create",
@@ -796,11 +860,9 @@ $manifestArguments = @(
     "--source-date-epoch", $SourceDateEpochText,
     "--rustc", (Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--version")),
     "--cargo", (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("--version")),
-    "--cl", $clVersion
+    "--cl", $clVersion,
+    "--dumpbin", $Dumpbin
 )
-foreach ($dependency in $Dependencies) {
-    $manifestArguments += @("--dependency", $dependency)
-}
 Invoke-PythonChecked -Arguments $manifestArguments
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 
@@ -816,6 +878,7 @@ Verify-WindowsArchive `
     -ArchivePath $DefaultArchive `
     -ExpectedArchiveSha256 $builtArchiveSha256 `
     -LlvmNm $LlvmNm `
+    -Dumpbin $Dumpbin `
     -NativeStaticLibraries $NativeStaticLibraries `
     -TrustedGitCommit $GitCommit `
     -TrustedGitTree $GitTree

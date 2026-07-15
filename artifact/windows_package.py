@@ -7,10 +7,17 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import re
+import signal
 import stat
-from typing import Any, Iterable
+import subprocess
+import sys
+import threading
+import time
+from collections.abc import Callable
+from typing import Any, BinaryIO, Iterable
 
 from c_abi_contract import ABI_MAJOR, PACKAGE_SEMVER, load_contract
 from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot
@@ -26,6 +33,114 @@ from third_party_licenses import (
     verify as verify_third_party_licenses,
 )
 
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+
+    class _JobObjectBasicLimitInformation(ctypes.Structure):
+        _fields_ = [
+            ("PerProcessUserTimeLimit", ctypes.c_longlong),
+            ("PerJobUserTimeLimit", ctypes.c_longlong),
+            ("LimitFlags", wintypes.DWORD),
+            ("MinimumWorkingSetSize", ctypes.c_size_t),
+            ("MaximumWorkingSetSize", ctypes.c_size_t),
+            ("ActiveProcessLimit", wintypes.DWORD),
+            ("Affinity", ctypes.c_size_t),
+            ("PriorityClass", wintypes.DWORD),
+            ("SchedulingClass", wintypes.DWORD),
+        ]
+
+    class _IoCounters(ctypes.Structure):
+        _fields_ = [
+            ("ReadOperationCount", ctypes.c_ulonglong),
+            ("WriteOperationCount", ctypes.c_ulonglong),
+            ("OtherOperationCount", ctypes.c_ulonglong),
+            ("ReadTransferCount", ctypes.c_ulonglong),
+            ("WriteTransferCount", ctypes.c_ulonglong),
+            ("OtherTransferCount", ctypes.c_ulonglong),
+        ]
+
+    class _JobObjectExtendedLimitInformation(ctypes.Structure):
+        _fields_ = [
+            ("BasicLimitInformation", _JobObjectBasicLimitInformation),
+            ("IoInfo", _IoCounters),
+            ("ProcessMemoryLimit", ctypes.c_size_t),
+            ("JobMemoryLimit", ctypes.c_size_t),
+            ("PeakProcessMemoryUsed", ctypes.c_size_t),
+            ("PeakJobMemoryUsed", ctypes.c_size_t),
+        ]
+
+    class _ThreadEntry32(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD),
+            ("cntUsage", wintypes.DWORD),
+            ("th32ThreadID", wintypes.DWORD),
+            ("th32OwnerProcessID", wintypes.DWORD),
+            ("tpBasePri", wintypes.LONG),
+            ("tpDeltaPri", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD),
+        ]
+
+    _CREATE_SUSPENDED = 0x00000004
+    _TH32CS_SNAPTHREAD = 0x00000004
+    _THREAD_SUSPEND_RESUME = 0x0002
+    _ERROR_NO_MORE_FILES = 18
+    _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+    _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+    _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+    _PROCESS_TERMINATE = 0x0001
+    _PROCESS_SET_QUOTA = 0x0100
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    _CreateJobObjectW = _kernel32.CreateJobObjectW
+    _CreateJobObjectW.argtypes = [wintypes.LPVOID, wintypes.LPCWSTR]
+    _CreateJobObjectW.restype = wintypes.HANDLE
+
+    _SetInformationJobObject = _kernel32.SetInformationJobObject
+    _SetInformationJobObject.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    ]
+    _SetInformationJobObject.restype = wintypes.BOOL
+
+    _OpenProcess = _kernel32.OpenProcess
+    _OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    _OpenProcess.restype = wintypes.HANDLE
+
+    _AssignProcessToJobObject = _kernel32.AssignProcessToJobObject
+    _AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    _AssignProcessToJobObject.restype = wintypes.BOOL
+
+    _TerminateJobObject = _kernel32.TerminateJobObject
+    _TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+    _TerminateJobObject.restype = wintypes.BOOL
+
+    _CreateToolhelp32Snapshot = _kernel32.CreateToolhelp32Snapshot
+    _CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    _CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+
+    _Thread32First = _kernel32.Thread32First
+    _Thread32First.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ThreadEntry32)]
+    _Thread32First.restype = wintypes.BOOL
+
+    _Thread32Next = _kernel32.Thread32Next
+    _Thread32Next.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ThreadEntry32)]
+    _Thread32Next.restype = wintypes.BOOL
+
+    _OpenThread = _kernel32.OpenThread
+    _OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    _OpenThread.restype = wintypes.HANDLE
+
+    _ResumeThread = _kernel32.ResumeThread
+    _ResumeThread.argtypes = [wintypes.HANDLE]
+    _ResumeThread.restype = wintypes.DWORD
+
+    _CloseHandle = _kernel32.CloseHandle
+    _CloseHandle.argtypes = [wintypes.HANDLE]
+    _CloseHandle.restype = wintypes.BOOL
+
 
 SCHEMA_VERSION = 2
 KIND = "qperiapt.windows_c_package_manifest"
@@ -33,10 +148,17 @@ TARGET = "x86_64-pc-windows-msvc"
 ABI_PLATFORM = "windows"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
-SAFE_DEPENDENCY_RE = re.compile(r"^[A-Za-z0-9._-]+\.dll$", re.IGNORECASE)
+SAFE_DEPENDENCY_RE = re.compile(
+    r"^[A-Za-z0-9._-]+\.dll$",
+    re.IGNORECASE | re.ASCII,
+)
 TREE_RE = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_PACKAGE_FILE_BYTES = 512 * 1024 * 1024
+MAX_DUMPBIN_OUTPUT_BYTES = 1024 * 1024
+DUMPBIN_DEPENDENCY_HEADER = b"Image has the following dependencies:"
+DUMPBIN_SUMMARY_HEADER = b"Summary"
+FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
 
 MANIFEST_KEYS = frozenset(
     {
@@ -82,18 +204,35 @@ SOURCE_INPUT_PATHS = {
     "vendor_provenance": "crates/q-periapt-mlkem-native-sys/vendor/PROVENANCE.md",
 }
 RUST_WORKSPACE_INPUTS = ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "crates")
-ALLOWED_DEPENDENCY_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"ADVAPI32\.dll",
-        r"bcrypt\.dll",
-        r"KERNEL32\.dll",
-        r"ntdll\.dll",
-        r"USERENV\.dll",
-        r"WS2_32\.dll",
-        r"VCRUNTIME140(?:_1)?\.dll",
-        r"ucrtbase\.dll",
-        r"api-ms-win-crt-[A-Za-z0-9._-]+\.dll",
+ALLOWED_DEPENDENCY_NAMES = frozenset(
+    name.casefold()
+    for name in (
+        "ADVAPI32.dll",
+        "bcrypt.dll",
+        "bcryptprimitives.dll",
+        "KERNEL32.dll",
+        "ntdll.dll",
+        "USERENV.dll",
+        "WS2_32.dll",
+        "VCRUNTIME140.dll",
+        "VCRUNTIME140_1.dll",
+        "ucrtbase.dll",
+        "api-ms-win-core-synch-l1-2-0.dll",
+        "api-ms-win-crt-conio-l1-1-0.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-environment-l1-1-0.dll",
+        "api-ms-win-crt-filesystem-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-multibyte-l1-1-0.dll",
+        "api-ms-win-crt-process-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-time-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll",
     )
 )
 
@@ -130,6 +269,123 @@ class WindowsPackageError(ValueError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise WindowsPackageError(message)
+
+
+if os.name == "nt":
+
+    def _windows_api_error(operation: str) -> OSError:
+        code = ctypes.get_last_error()
+        return OSError(code, f"{operation}: {ctypes.FormatError(code).strip()}")
+
+
+    def _close_windows_handle(handle: int, label: str) -> None:
+        if not _CloseHandle(handle):
+            raise _windows_api_error(f"CloseHandle for {label} failed")
+
+
+    def _create_windows_kill_job() -> int:
+        _require(
+            ctypes.sizeof(_JobObjectBasicLimitInformation) == 64
+            and ctypes.sizeof(_IoCounters) == 48
+            and ctypes.sizeof(_JobObjectExtendedLimitInformation) == 144
+            and ctypes.sizeof(_ThreadEntry32) == 28,
+            "Windows job-object ctypes layout differs from the x64 ABI",
+        )
+        job = _CreateJobObjectW(None, None)
+        if not job:
+            raise _windows_api_error("CreateJobObjectW failed")
+        information = _JobObjectExtendedLimitInformation()
+        information.BasicLimitInformation.LimitFlags = (
+            _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        )
+        if not _SetInformationJobObject(
+            job,
+            _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+        ):
+            error = _windows_api_error("SetInformationJobObject failed")
+            try:
+                _close_windows_handle(job, "unconfigured job")
+            except OSError as close_error:
+                raise close_error from error
+            raise error
+        return int(job)
+
+
+    def _assign_process_to_windows_job(job: int, process_id: int) -> None:
+        process_handle = _OpenProcess(
+            _PROCESS_TERMINATE | _PROCESS_SET_QUOTA,
+            False,
+            process_id,
+        )
+        if not process_handle:
+            raise _windows_api_error("OpenProcess failed")
+        try:
+            if not _AssignProcessToJobObject(job, process_handle):
+                raise _windows_api_error("AssignProcessToJobObject failed")
+        finally:
+            _close_windows_handle(process_handle, "process")
+
+
+    def _resume_suspended_windows_process(process_id: int) -> None:
+        snapshot = _CreateToolhelp32Snapshot(_TH32CS_SNAPTHREAD, 0)
+        if snapshot == _INVALID_HANDLE_VALUE:
+            raise _windows_api_error("CreateToolhelp32Snapshot failed")
+        try:
+            entry = _ThreadEntry32()
+            entry.dwSize = ctypes.sizeof(entry)
+            if not _Thread32First(snapshot, ctypes.byref(entry)):
+                raise _windows_api_error("Thread32First failed")
+            thread_ids: list[int] = []
+            while True:
+                if entry.th32OwnerProcessID == process_id:
+                    thread_ids.append(int(entry.th32ThreadID))
+                entry.dwSize = ctypes.sizeof(entry)
+                ctypes.set_last_error(0)
+                if _Thread32Next(snapshot, ctypes.byref(entry)):
+                    continue
+                error_code = ctypes.get_last_error()
+                if error_code != _ERROR_NO_MORE_FILES:
+                    raise OSError(
+                        error_code,
+                        "Thread32Next failed: "
+                        f"{ctypes.FormatError(error_code).strip()}",
+                    )
+                break
+            _require(
+                len(thread_ids) == 1,
+                "suspended dumpbin process must have exactly one initial thread",
+            )
+            thread = _OpenThread(_THREAD_SUSPEND_RESUME, False, thread_ids[0])
+            if not thread:
+                raise _windows_api_error("OpenThread failed")
+            try:
+                previous_suspend_count = int(_ResumeThread(thread))
+                if previous_suspend_count == 0xFFFFFFFF:
+                    raise _windows_api_error("ResumeThread failed")
+                _require(
+                    previous_suspend_count == 1,
+                    "dumpbin initial thread suspend count differs",
+                )
+            finally:
+                _close_windows_handle(thread, "initial thread")
+        finally:
+            _close_windows_handle(snapshot, "thread snapshot")
+
+
+    def _terminate_and_close_windows_job(job: int) -> None:
+        termination_error = None
+        if not _TerminateJobObject(job, 1):
+            termination_error = _windows_api_error("TerminateJobObject failed")
+        try:
+            _close_windows_handle(job, "job")
+        except OSError as close_error:
+            if termination_error is not None:
+                raise close_error from termination_error
+            raise
+        if termination_error is not None:
+            raise termination_error
 
 
 def _sha256(path: pathlib.Path) -> str:
@@ -289,18 +545,388 @@ def _normalize_dependencies(dependencies: Iterable[str]) -> list[str]:
     for raw in dependencies:
         _require(isinstance(raw, str) and SAFE_DEPENDENCY_RE.fullmatch(raw) is not None, f"invalid Windows DLL dependency: {raw!r}")
         _require(
-            any(pattern.fullmatch(raw) is not None for pattern in ALLOWED_DEPENDENCY_PATTERNS),
-            f"unexpected Windows DLL dependency: {raw}",
+            re.fullmatch(r"q_periapt_ffi(?:_abi[12])?\.dll", raw, re.IGNORECASE)
+            is None,
+            f"legacy or recursive Q-Periapt DLL dependency: {raw}",
         )
         _require(
-            re.fullmatch(r"q_periapt_ffi(?:_abi1)?\.dll", raw, re.IGNORECASE) is None,
-            f"legacy or recursive Q-Periapt DLL dependency: {raw}",
+            raw.casefold() in ALLOWED_DEPENDENCY_NAMES,
+            f"unexpected Windows DLL dependency: {raw}",
         )
         key = raw.casefold()
         _require(key not in normalized, f"duplicate Windows DLL dependency: {raw}")
         normalized[key] = raw
     _require(normalized, "Windows DLL dependency set must not be empty")
     return [normalized[key] for key in sorted(normalized)]
+
+
+def parse_dumpbin_dependents(output: bytes) -> list[str]:
+    """Parse the one canonical dependency block without ignoring malformed imports."""
+
+    _require(isinstance(output, bytes), "dumpbin dependency output must be bytes")
+    _require(
+        len(output) <= MAX_DUMPBIN_OUTPUT_BYTES,
+        "dumpbin dependency output exceeds the size limit",
+    )
+    _require(b"\0" not in output, "dumpbin dependency output contains a NUL byte")
+    lines = output.splitlines()
+    dependency_headers = [
+        index
+        for index, line in enumerate(lines)
+        if line.strip().startswith(b"Image has the following ")
+        and line.strip().endswith(b"dependencies:")
+    ]
+    _require(
+        len(dependency_headers) == 1
+        and lines[dependency_headers[0]].strip() == DUMPBIN_DEPENDENCY_HEADER,
+        "dumpbin must emit exactly one canonical dependency header",
+    )
+    summaries = [
+        index
+        for index, line in enumerate(lines)
+        if line.strip() == DUMPBIN_SUMMARY_HEADER
+    ]
+    _require(
+        len(summaries) == 1 and dependency_headers[0] < summaries[0],
+        "dumpbin must emit exactly one Summary after the dependency block",
+    )
+    dependencies: list[str] = []
+    for raw_line in lines[dependency_headers[0] + 1 : summaries[0]]:
+        candidate = raw_line.strip(b" \t")
+        if not candidate:
+            continue
+        try:
+            dependency = candidate.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise WindowsPackageError(
+                "dumpbin dependency name is not portable ASCII"
+            ) from exc
+        _require(
+            SAFE_DEPENDENCY_RE.fullmatch(dependency) is not None,
+            f"invalid Windows DLL dependency: {dependency!r}",
+        )
+        dependencies.append(dependency)
+    return _normalize_dependencies(dependencies)
+
+
+def _regular_windows_tool(path: pathlib.Path) -> pathlib.Path:
+    tool = pathlib.Path(path)
+    _require(tool.is_absolute(), "dumpbin path must be absolute")
+    try:
+        metadata = tool.lstat()
+    except OSError as exc:
+        raise WindowsPackageError("cannot inspect the dumpbin executable") from exc
+    _require(
+        stat.S_ISREG(metadata.st_mode)
+        and not tool.is_symlink()
+        and not (
+            getattr(metadata, "st_file_attributes", 0)
+            & FILE_ATTRIBUTE_REPARSE_POINT
+        ),
+        "dumpbin must be a non-reparse regular file",
+    )
+    _require(tool.name.casefold() == "dumpbin.exe", "dumpbin executable name differs")
+    return tool
+
+
+def _read_bounded_process_stream(stream: BinaryIO) -> bytes:
+    """Drain a process pipe while retaining only enough bytes to prove overflow."""
+
+    retained = bytearray()
+    while True:
+        chunk = stream.read(64 * 1024)
+        if not chunk:
+            break
+        remaining = MAX_DUMPBIN_OUTPUT_BYTES + 1 - len(retained)
+        if remaining > 0:
+            retained.extend(chunk[:remaining])
+    return bytes(retained)
+
+
+def _run_bounded_process(
+    arguments: list[str],
+    *,
+    cwd: str,
+    stdin: int,
+    stdout: int,
+    stderr: int,
+    check: bool,
+    timeout: int,
+) -> subprocess.CompletedProcess[bytes]:
+    """Run dumpbin with concurrent, memory-bounded stdout and stderr capture."""
+
+    _require(stdin == subprocess.DEVNULL, "bounded process stdin contract differs")
+    _require(
+        stdout == subprocess.PIPE and stderr == subprocess.PIPE,
+        "bounded process output contract differs",
+    )
+    _require(check is False, "bounded process must return native failure evidence")
+    process: subprocess.Popen[bytes] | None = None
+    windows_job: int | None = None
+    windows_assigned = False
+    reader_streams: list[tuple[threading.Thread, BinaryIO]] = []
+    started_readers: list[threading.Thread] = []
+    timeout_error: subprocess.TimeoutExpired | None = None
+    returncode: int | None = None
+
+    try:
+        if os.name == "nt":
+            windows_job = _create_windows_kill_job()
+            process = subprocess.Popen(
+                arguments,
+                cwd=cwd,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+                bufsize=0,
+                creationflags=_CREATE_SUSPENDED,
+            )
+        else:
+            process = subprocess.Popen(
+                arguments,
+                cwd=cwd,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+                bufsize=0,
+                start_new_session=True,
+            )
+        run_deadline = time.monotonic() + timeout
+        _require(
+            process.stdout is not None and process.stderr is not None,
+            "bounded process pipes are unavailable",
+        )
+        if os.name == "nt":
+            _assign_process_to_windows_job(windows_job, process.pid)
+            windows_assigned = True
+
+        results: list[bytes | None] = [None, None]
+        failures: list[Exception | None] = [None, None]
+
+        def drain(index: int, stream: BinaryIO) -> None:
+            try:
+                results[index] = _read_bounded_process_stream(stream)
+            except Exception as exc:
+                failures[index] = exc
+
+        reader_streams = [
+            (
+                threading.Thread(
+                    target=drain,
+                    args=(0, process.stdout),
+                    daemon=True,
+                ),
+                process.stdout,
+            ),
+            (
+                threading.Thread(
+                    target=drain,
+                    args=(1, process.stderr),
+                    daemon=True,
+                ),
+                process.stderr,
+            ),
+        ]
+        for reader, _stream in reader_streams:
+            try:
+                reader.start()
+            except RuntimeError as exc:
+                raise WindowsPackageError(
+                    "cannot start bounded dumpbin output readers"
+                ) from exc
+            started_readers.append(reader)
+
+        if os.name == "nt":
+            _resume_suspended_windows_process(process.pid)
+
+        remaining = max(0.0, run_deadline - time.monotonic())
+        if remaining == 0:
+            timeout_error = subprocess.TimeoutExpired(arguments, timeout)
+        else:
+            try:
+                process.wait(timeout=remaining)
+            except subprocess.TimeoutExpired as exc:
+                timeout_error = exc
+        if timeout_error is None:
+            _require(
+                process.returncode is not None,
+                "dumpbin process status is unavailable",
+            )
+            returncode = process.returncode
+    finally:
+        cleanup_failures: list[Exception] = []
+        cleanup_deadline = time.monotonic() + 5.0
+        direct_cleanup_required = False
+
+        if os.name == "nt":
+            if windows_job is not None:
+                job = windows_job
+                windows_job = None
+                try:
+                    if windows_assigned:
+                        _terminate_and_close_windows_job(job)
+                    else:
+                        _close_windows_handle(job, "unassigned job")
+                except Exception as exc:
+                    cleanup_failures.append(exc)
+                    direct_cleanup_required = True
+            if process is not None and not windows_assigned:
+                direct_cleanup_required = True
+        elif process is not None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except OSError as exc:
+                cleanup_failures.append(exc)
+                direct_cleanup_required = True
+
+        if (
+            process is not None
+            and direct_cleanup_required
+            and process.poll() is None
+        ):
+            try:
+                process.kill()
+            except OSError as exc:
+                cleanup_failures.append(exc)
+
+        if process is not None and process.returncode is None:
+            remaining = max(0.0, cleanup_deadline - time.monotonic())
+            if remaining == 0:
+                cleanup_failures.append(
+                    WindowsPackageError(
+                        "dumpbin root process cleanup deadline expired"
+                    )
+                )
+            else:
+                try:
+                    process.wait(timeout=remaining)
+                except subprocess.TimeoutExpired as exc:
+                    cleanup_failures.append(exc)
+
+        for reader in started_readers:
+            remaining = max(0.0, cleanup_deadline - time.monotonic())
+            if remaining > 0:
+                reader.join(timeout=remaining)
+
+        started_reader_ids = {id(reader) for reader in started_readers}
+        for reader, stream in reader_streams:
+            if id(reader) in started_reader_ids and reader.is_alive():
+                cleanup_failures.append(
+                    WindowsPackageError(
+                        "dumpbin output pipe did not close after process-tree cleanup"
+                    )
+                )
+                continue
+            try:
+                stream.close()
+            except (OSError, ValueError) as exc:
+                cleanup_failures.append(exc)
+
+        if process is not None and not reader_streams:
+            for stream in (process.stdout, process.stderr):
+                if stream is None:
+                    continue
+                try:
+                    stream.close()
+                except (OSError, ValueError) as exc:
+                    cleanup_failures.append(exc)
+
+        if cleanup_failures:
+            first_cleanup_failure = cleanup_failures[0]
+            cleanup_error = WindowsPackageError(
+                "cannot clean up dumpbin process tree: "
+                f"{type(first_cleanup_failure).__name__}: {first_cleanup_failure}"
+            )
+            active_error = sys.exception()
+            if active_error is not None:
+                cleanup_error.add_note(
+                    "dumpbin operation also failed before cleanup: "
+                    f"{type(active_error).__name__}: {active_error}"
+                )
+            for additional_failure in cleanup_failures[1:]:
+                cleanup_error.add_note(
+                    "additional cleanup failure: "
+                    f"{type(additional_failure).__name__}: {additional_failure}"
+                )
+            raise cleanup_error from first_cleanup_failure
+
+    failure = next((failure for failure in failures if failure is not None), None)
+    if failure is not None:
+        raise WindowsPackageError("cannot read dumpbin process output") from failure
+    if timeout_error is not None:
+        raise timeout_error
+    captured_stdout, captured_stderr = results
+    _require(
+        captured_stdout is not None and captured_stderr is not None,
+        "dumpbin process output capture is incomplete",
+    )
+    _require(returncode is not None, "dumpbin process status is unavailable")
+    return subprocess.CompletedProcess(
+        arguments,
+        returncode,
+        captured_stdout,
+        captured_stderr,
+    )
+
+
+def inspect_dumpbin_dependencies(
+    dumpbin: pathlib.Path,
+    library: pathlib.Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[bytes]] = _run_bounded_process,
+) -> list[str]:
+    """Run an absolute dumpbin against the exact packaged DLL and parse fail-closed."""
+
+    tool = _regular_windows_tool(dumpbin)
+    dll = pathlib.Path(library)
+    _require(dll.is_absolute(), "Windows DLL path must be absolute")
+    try:
+        metadata = dll.lstat()
+    except OSError as exc:
+        raise WindowsPackageError("cannot inspect the Windows DLL") from exc
+    _require(
+        stat.S_ISREG(metadata.st_mode)
+        and not dll.is_symlink()
+        and not (
+            getattr(metadata, "st_file_attributes", 0)
+            & FILE_ATTRIBUTE_REPARSE_POINT
+        ),
+        "Windows DLL must be a non-reparse regular file",
+    )
+    _require(
+        dll.name == "q_periapt_ffi_abi2.dll",
+        "Windows DLL filename differs from the ABI contract",
+    )
+    try:
+        completed = runner(
+            [str(tool), "/nologo", "/dependents", str(dll)],
+            cwd=str(tool.parent),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise WindowsPackageError("dumpbin dependency inspection timed out") from exc
+    except OSError as exc:
+        raise WindowsPackageError("cannot execute dumpbin dependency inspection") from exc
+    _require(
+        type(completed.returncode) is int
+        and isinstance(completed.stdout, bytes)
+        and isinstance(completed.stderr, bytes),
+        "dumpbin runner returned malformed process evidence",
+    )
+    _require(
+        len(completed.stdout) <= MAX_DUMPBIN_OUTPUT_BYTES
+        and len(completed.stderr) <= MAX_DUMPBIN_OUTPUT_BYTES,
+        "dumpbin process output exceeds the size limit",
+    )
+    _require(completed.returncode == 0, "dumpbin dependency inspection failed")
+    _require(not completed.stderr, "dumpbin dependency inspection emitted diagnostics")
+    return parse_dumpbin_dependents(completed.stdout)
 
 
 def _source_hashes(repository_root: pathlib.Path) -> dict[str, str]:
@@ -632,11 +1258,11 @@ def _parse_args() -> argparse.Namespace:
     create.add_argument("--rustc", required=True)
     create.add_argument("--cargo", required=True)
     create.add_argument("--cl", required=True)
-    create.add_argument("--dependency", action="append", default=[])
+    create.add_argument("--dumpbin", required=True, type=pathlib.Path)
     verify = subparsers.add_parser("verify")
     verify.add_argument("--package-root", required=True, type=pathlib.Path)
     verify.add_argument("--repository-root", type=pathlib.Path)
-    verify.add_argument("--expected-dependency", action="append")
+    verify.add_argument("--dumpbin", required=True, type=pathlib.Path)
     verify.add_argument("--expected-git-commit")
     verify.add_argument("--expected-git-tree")
     return parser.parse_args()
@@ -645,6 +1271,10 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     try:
+        dependencies = inspect_dumpbin_dependencies(
+            args.dumpbin,
+            args.package_root / "bin/q_periapt_ffi_abi2.dll",
+        )
         if args.command == "create":
             result = create_manifest(
                 args.package_root,
@@ -657,13 +1287,13 @@ def main() -> int:
                 rustc=args.rustc,
                 cargo=args.cargo,
                 cl=args.cl,
-                dependencies=args.dependency,
+                dependencies=dependencies,
             )
         else:
             result = verify_package(
                 args.package_root,
                 repository_root=args.repository_root,
-                expected_dependencies=args.expected_dependency,
+                expected_dependencies=dependencies,
                 expected_git_commit=args.expected_git_commit,
                 expected_git_tree=args.expected_git_tree,
             )
