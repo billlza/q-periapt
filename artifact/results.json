@@ -364,8 +364,8 @@
     "performance_budgets_sha256": "a8185e673102c275cf6ec1e8e85a3cb32afe11b64dde527ba61d1ccac8c8cf45",
     "performance_gate_sha256": "6d45a1114f8f5bae706e8fd96e050b5418fd388d8c69eed14ab9befe70273a2e",
     "performance_gate_tests_sha256": "40c6159135ac526f90d101a272f59d2b584817ab0a761b3a8ce29cd7e995a112",
-    "platform_distribution_tests_sha256": "61a848518edccb7ebe08e900d6c02e5d7a9041fe0cf7b9ba5d41e84c2cd21102",
-    "platform_distribution_verifier_sha256": "f809469df1baa516ccce843ace98415274bb89295e139334b1dd901692710dc0",
+    "platform_distribution_tests_sha256": "25abb12b4a9b34d04e519c303a1535fdbc7c057f6257f4d1dfba479243eb1b7d",
+    "platform_distribution_verifier_sha256": "b2305c5fa22e50fdaac70ee0cf18938a4b53fee48c306220d5f711f55ef5a1a2",
     "proof_manifest_sha256": "5a4ee92aa7f32ff62163660aefc03982c9c2568eb4b2c638e1fca93aa9a36d49",
     "proof_manifest_tests_sha256": "edba7208c1fb20309d28453a2a6cb15155b22ab22e07d9316653ff69ba260af2",
     "proof_to_byte_finalizer_sha256": "6d60e5d8834617d125ef62505f5122e1f92ac58eed569302ac42a2b74301ecde",
@@ -399,15 +399,15 @@
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e",
     "third_party_licenses_sha256": "d623093c6aa38fb2428ccfa2d96565075fca5aadd883d1f2cf484039ceb26064",
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
-    "windows_package_script_sha256": "e0cd79d8fa0db34a050545c0cc1f2cd50d2392b6aa4f9bb676301c71fdca60d6",
-    "windows_package_tests_sha256": "0883346b2730cce4430a9af541cf3b428a6ffecd420dfbde5c7be8c029aa1741",
-    "windows_package_verifier_sha256": "99c5532fff5be566f3f5bc877bb3b955c90974571aabaccd267b111ef68c94bb"
+    "windows_package_script_sha256": "fb1ca7f7c2a1bc986b12ede15b3c8e42da11e0dff1c21c0711ff546d93d8071d",
+    "windows_package_tests_sha256": "2dafadf1ae237b951a322731f0a600f9967e39c6fd64dca8285d8e6ba012f0bf",
+    "windows_package_verifier_sha256": "041adae33f4e69d577a2426226a3675536f7d06bfbca6b8a20e618108aaf31c1"
   },
-  "proof_source_tree_sha256": "2059c61d232faa2fac812f580741e8830509a3134f13011de0687dabef96e0e7",
+  "proof_source_tree_sha256": "559b1d3a079b124f5922adc0d9e014e1c0a4b2e1546a260dcd5bf66ea1dbd99b",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "a7474082f20c996e5b6669bc069f48aa6d8dd40f",
+    "snapshot_commit": "100ec2670598930fda658a67a74dd9514ed085b9",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
