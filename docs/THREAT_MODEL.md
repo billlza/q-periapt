@@ -490,10 +490,12 @@ per semantic/hash decision. Matrix membership, device-ID commitment recomputatio
 verifier policy. This closes selected-proof and Apple-auxiliary A/B hash-versus-semantics mixing and policy
 self-selection. Clean provenance additionally ignores caller Git environment, rejects
 assume-unchanged/skip-worktree, compares HEAD/index to actual tracked bytes and modes, and
-enumerates ignored plus visible untracked inputs under a fixed output policy rather than Git
-exclude files. Untracked `.gitignore` files outside fixed ephemeral outputs fail closed.
-This is a canonical source-input inventory after fixed generated-prefix exclusions, not a
-hermetic build-input closure: tracked code can still read those output prefixes. Release-grade
+enumerates ignored plus visible untracked inputs under a fixed verifier-owned non-input policy
+rather than Git exclude files. That policy excludes only exact untracked regular `.DS_Store`
+files and explicitly enumerated generated-output locations; lookalikes and special files remain
+inputs. Untracked `.gitignore` files outside fixed ephemeral outputs fail closed. This is a
+canonical source-input inventory after explicit non-input exclusions, not a hermetic build-input
+closure: tracked code can still read generated-output locations. Release-grade
 closure requires an isolated checkout, unique fresh lane outputs, and hashes for every generated
 artifact later consumed.
 Proof/package/device Python entrypoints

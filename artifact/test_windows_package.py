@@ -49,7 +49,10 @@ import time
 
 os.write(1, b"descendant-stdout\\n")
 os.write(2, b"descendant-stderr\\n")
-pathlib.Path(sys.argv[1]).write_text(str(os.getpid()), encoding="ascii")
+marker = pathlib.Path(sys.argv[1])
+temporary_marker = marker.with_name(f".{marker.name}.{os.getpid()}.tmp")
+temporary_marker.write_text(str(os.getpid()), encoding="ascii")
+os.replace(temporary_marker, marker)
 time.sleep(30)
 """
 
@@ -355,6 +358,10 @@ class DumpbinDependencyTests(unittest.TestCase):
                 self.assertEqual(completed.stderr, b"descendant-stderr\n")
                 self.assertLess(time.monotonic() - started, 10)
                 child_pid = int(marker.read_text(encoding="ascii"))
+                self.assertGreater(child_pid, 0)
+                self.assertFalse(
+                    marker.with_name(f".{marker.name}.{child_pid}.tmp").exists()
+                )
 
                 if os.name != "nt":
                     self.assertTrue(
@@ -392,6 +399,10 @@ class DumpbinDependencyTests(unittest.TestCase):
                     )
                 self.assertLess(time.monotonic() - started, 10)
                 child_pid = int(marker.read_text(encoding="ascii"))
+                self.assertGreater(child_pid, 0)
+                self.assertFalse(
+                    marker.with_name(f".{marker.name}.{child_pid}.tmp").exists()
+                )
 
                 if os.name != "nt":
                     self.assertTrue(
