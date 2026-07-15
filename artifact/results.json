@@ -399,15 +399,15 @@
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e",
     "third_party_licenses_sha256": "d623093c6aa38fb2428ccfa2d96565075fca5aadd883d1f2cf484039ceb26064",
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
-    "windows_package_script_sha256": "74689ff9a74d03e40d5f2d4a9d50e7d551eb2e9f386ba9aadd9a98ab889d98d5",
-    "windows_package_tests_sha256": "8a37db82e7dba7c66181e70311f6dbbb765fa6ce7550ce178d87405e9fe475da",
-    "windows_package_verifier_sha256": "818f4ab7842be5d2e163f7fcffe6c5db71d7d98f55f68ab0a27182dec3340503"
+    "windows_package_script_sha256": "3765cac5d4ccd07112f16784e841ba10d0bca111c7c380d0f54e47d345af41dd",
+    "windows_package_tests_sha256": "637ba6033b248a840aad1831bb3e441187733ad0939c4b49912f144683ecffd5",
+    "windows_package_verifier_sha256": "3e3cb56dfdb8144b25b8862ff18495a812064bbd99ba7b55c9756ed74c2c2b8c"
   },
-  "proof_source_tree_sha256": "1688505f0689c8d81e7436149de5c11801cad535715f5699e0bfca401378c093",
+  "proof_source_tree_sha256": "54c8f439807cc874408903a59c94286773a7e79db5c40a12a70c60b9856043a1",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "661e0a4786a8efb7b081bf954a640ce80ae82155",
+    "snapshot_commit": "95aac5c17eeddca4d77504f08ed6d2e8a1c9005e",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
