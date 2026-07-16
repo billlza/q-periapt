@@ -880,9 +880,13 @@ def verify_rustc_linker_invocation(
         for index, argument in enumerate(folded_arguments)
         if argument.startswith(("/opt", "-opt"))
     ]
+    # Optimized Rust MSVC links emit ICF automatically. The release script
+    # deliberately appends NOICF after disabling debug output, so accepting
+    # this exact order proves the final linker state without hiding a changed
+    # compiler default or permitting an earlier NOICF to be overridden.
     _require(
         [argument for _index, argument in opt_options]
-        == ["/opt:ref,noicf", "/opt:ref,noicf"],
+        == ["/opt:ref,icf", "/opt:ref,noicf"],
         "rustc linker optimization option contract differs",
     )
     automatic_debug_index = debug_options[0][0]
