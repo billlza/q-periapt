@@ -399,16 +399,16 @@
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e",
     "third_party_licenses_sha256": "d623093c6aa38fb2428ccfa2d96565075fca5aadd883d1f2cf484039ceb26064",
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
-    "windows_package_script_sha256": "0daae624b0afb842631eebb7b23959e4e3d74f28de19429983668fae765336e8",
-    "windows_package_tests_sha256": "1c7cb216fae13187a032856c62f547f61434f237da2ff899c2f92269987ff2e5",
+    "windows_package_script_sha256": "0f4ad8899040692c524d4236b510572badad7a9bd0d650e5996f9862c45abef4",
+    "windows_package_tests_sha256": "da65b2970cdb05bcf4576edb86e8c0c7c70836bedd62e85542e8221bf2a105a6",
     "windows_package_verifier_sha256": "2bf72ad5010665d4f59d117139272d662307cb4614c3ac706d78b3e22972d0ae",
-    "windows_toolchain_tests_sha256": "e3aa66111f695cdbe4ce72418f66d26f0faa6f2e493b609d300885959258cd9f"
+    "windows_toolchain_tests_sha256": "d98c48c3df0479eeed45a163488a122a671882fcc9a2638515e89e3c09461612"
   },
-  "proof_source_tree_sha256": "7a858fa9e7da8379a97c848041d405023424d601eefa06288d37811950d6677a",
+  "proof_source_tree_sha256": "5457f9d01b287f898eb8918401cffa2192fce94888d72dd3dbaa28cbe47ed480",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "7aca7747cf913d19ef1c421cda3422caab8356c8",
+    "snapshot_commit": "df8ff19f402d5bbbadc0e84e90a8e92fad3adb3c",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
