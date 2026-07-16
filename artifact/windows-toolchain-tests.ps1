@@ -374,6 +374,7 @@ try {
         -MsvcInstallation $installation `
         -ExpectedBin $resolved.Bin `
         -ExpectedLinker $resolved.Linker `
+        -RustToolsSearchDirectory $rustBin `
         -RustApplicationDirectory $rustApplicationDirectory `
         -SystemDirectory $systemDirectory `
         -WindowsDirectory $windowsDirectory `
@@ -387,9 +388,9 @@ try {
         throw "trusted MSVC linker fingerprint differs"
     }
     foreach ($invalidSearch in @(
-        @("relative-app", $systemDirectory, $windowsDirectory),
-        @((Join-Path $TestRoot "missing-app"), $systemDirectory, $windowsDirectory),
-        @($rustApplicationDirectory, $rustApplicationDirectory, $windowsDirectory)
+        @("relative-tools", $rustApplicationDirectory, $systemDirectory, $windowsDirectory),
+        @((Join-Path $TestRoot "missing-tools"), $rustApplicationDirectory, $systemDirectory, $windowsDirectory),
+        @($rustBin, $rustBin, $systemDirectory, $windowsDirectory)
     )) {
         Assert-Fails `
             -Label "invalid bare linker search directory" `
@@ -398,12 +399,14 @@ try {
             Assert-BareMsvcLinkerSearchBoundary `
                 -TrustedBin $resolved.Bin `
                 -Linker $resolved.Linker `
-                -RustApplicationDirectory $invalidSearch[0] `
-                -SystemDirectory $invalidSearch[1] `
-                -WindowsDirectory $invalidSearch[2]
+                -RustToolsSearchDirectory $invalidSearch[0] `
+                -RustApplicationDirectory $invalidSearch[1] `
+                -SystemDirectory $invalidSearch[2] `
+                -WindowsDirectory $invalidSearch[3]
         }
     }
     foreach ($shadowDirectory in @(
+        $rustBin,
         $rustApplicationDirectory,
         $systemDirectory,
         $windowsDirectory
@@ -417,13 +420,14 @@ try {
             Assert-BareMsvcLinkerSearchBoundary `
                 -TrustedBin $resolved.Bin `
                 -Linker $resolved.Linker `
+                -RustToolsSearchDirectory $rustBin `
                 -RustApplicationDirectory $rustApplicationDirectory `
                 -SystemDirectory $systemDirectory `
                 -WindowsDirectory $windowsDirectory
         }
         Remove-Item -LiteralPath $shadowLinker -Force
     }
-    $directoryShadow = Join-Path $rustApplicationDirectory "link.exe"
+    $directoryShadow = Join-Path $rustBin "link.exe"
     New-Item -ItemType Directory -Path $directoryShadow | Out-Null
     Assert-Fails `
         -Label "directory bare linker provider" `
@@ -432,11 +436,30 @@ try {
         Assert-BareMsvcLinkerSearchBoundary `
             -TrustedBin $resolved.Bin `
             -Linker $resolved.Linker `
+            -RustToolsSearchDirectory $rustBin `
             -RustApplicationDirectory $rustApplicationDirectory `
             -SystemDirectory $systemDirectory `
             -WindowsDirectory $windowsDirectory
     }
     Remove-Item -LiteralPath $directoryShadow -Recurse -Force
+
+    $reparseTarget = Join-Path $TestRoot "linker-reparse-target"
+    New-Item -ItemType Directory -Path $reparseTarget | Out-Null
+    $reparseShadow = Join-Path $rustBin "link.exe"
+    New-Item -ItemType Junction -Path $reparseShadow -Target $reparseTarget | Out-Null
+    Assert-Fails `
+        -Label "reparse-point bare linker provider" `
+        -ExpectedMessage "untrusted higher-priority provider" `
+        -Action {
+        Assert-BareMsvcLinkerSearchBoundary `
+            -TrustedBin $resolved.Bin `
+            -Linker $resolved.Linker `
+            -RustToolsSearchDirectory $rustBin `
+            -RustApplicationDirectory $rustApplicationDirectory `
+            -SystemDirectory $systemDirectory `
+            -WindowsDirectory $windowsDirectory
+    }
+    Remove-Item -LiteralPath $reparseShadow -Force
 
     $normalizedPath = $env:PATH
     $env:PATH = @($decoy, $bin) -join [System.IO.Path]::PathSeparator
@@ -448,6 +471,7 @@ try {
             -MsvcInstallation $installation `
             -ExpectedBin $resolved.Bin `
             -ExpectedLinker $resolved.Linker `
+            -RustToolsSearchDirectory $rustBin `
             -RustApplicationDirectory $rustApplicationDirectory `
             -SystemDirectory $systemDirectory `
             -WindowsDirectory $windowsDirectory
@@ -482,6 +506,7 @@ try {
             -MsvcInstallation $installation `
             -ExpectedBin $resolved.Bin `
             -ExpectedLinker $resolved.Linker `
+            -RustToolsSearchDirectory $rustBin `
             -RustApplicationDirectory $rustApplicationDirectory `
             -SystemDirectory $systemDirectory `
             -WindowsDirectory $windowsDirectory

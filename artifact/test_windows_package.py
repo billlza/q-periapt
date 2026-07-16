@@ -2053,6 +2053,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$RustLlvmTools = Resolve-TrustedRustLlvmTools',
             '$LlvmAr = $RustLlvmTools.Ar',
             '$LlvmNm = $RustLlvmTools.Nm',
+            '-RustToolsSearchDirectory $RustLlvmTools.Bin',
             'rustc 1.97.0 (2d8144b78 2026-07-07)',
             'cargo 1.97.0 (c980f4866 2026-06-30)',
             '$ManifestRustcVersion -cne $RustcVersion',
@@ -2194,6 +2195,10 @@ class WindowsPackageManifestTests(unittest.TestCase):
             script.index('"verify-linker-invocation"'),
         )
         self.assertEqual(script.count('"-Clinker=link.exe"'), 1)
+        self.assertEqual(
+            script.count("-RustToolsSearchDirectory $RustLlvmTools.Bin"),
+            2,
+        )
         fingerprint_before = script.index(
             "$linkerFingerprintBefore = Get-TrustedMsvcLinkerFingerprint"
         )
@@ -2400,6 +2405,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertIn("Set-TrustedMsvcPath", toolchain_test)
         self.assertIn("different Visual Studio installation", toolchain_test)
         self.assertIn("non-file PATH linker", toolchain_test)
+        self.assertIn("reparse-point bare linker provider", toolchain_test)
+        self.assertIn("-RustToolsSearchDirectory $rustBin", toolchain_test)
         for name in (
             '"CL"',
             '"LINK"',

@@ -9,7 +9,7 @@ release line.
 Android and GNU/Linux native code in this revision is built with the source-pinned
 Rust 1.96.1 patch release. Windows is built with the exact Rust 1.97.0 stable
 toolchain because it contains the upstream MSVC informational-output classifier
-fix required to retain strict `linker_messages` enforcement while producing the
+fix required to retain strict `linker-messages` enforcement while producing the
 DLL import library. Each platform checks and records its exact rustc and Cargo
 identity. This bounded Windows build-input difference is removed at the next
 normal release after the common toolchain has passed the full platform matrix.

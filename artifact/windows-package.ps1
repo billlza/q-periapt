@@ -614,6 +614,7 @@ function Assert-BareMsvcLinkerSearchBoundary {
     param(
         [Parameter(Mandatory)] [string] $TrustedBin,
         [Parameter(Mandatory)] [string] $Linker,
+        [Parameter(Mandatory)] [string] $RustToolsSearchDirectory,
         [Parameter(Mandatory)] [string] $RustApplicationDirectory,
         [Parameter(Mandatory)] [string] $SystemDirectory,
         [Parameter(Mandatory)] [string] $WindowsDirectory
@@ -625,6 +626,7 @@ function Assert-BareMsvcLinkerSearchBoundary {
         [System.StringComparer]::OrdinalIgnoreCase
     )
     foreach ($directory in @(
+        $RustToolsSearchDirectory,
         $RustApplicationDirectory,
         $SystemDirectory,
         $WindowsDirectory
@@ -657,6 +659,7 @@ function Get-TrustedMsvcLinkerFingerprint {
         [Parameter(Mandatory)] [string] $MsvcInstallation,
         [Parameter(Mandatory)] [string] $ExpectedBin,
         [Parameter(Mandatory)] [string] $ExpectedLinker,
+        [Parameter(Mandatory)] [string] $RustToolsSearchDirectory,
         [Parameter(Mandatory)] [string] $RustApplicationDirectory,
         [Parameter(Mandatory)] [string] $SystemDirectory,
         [Parameter(Mandatory)] [string] $WindowsDirectory,
@@ -682,6 +685,7 @@ function Get-TrustedMsvcLinkerFingerprint {
     Assert-BareMsvcLinkerSearchBoundary `
         -TrustedBin $resolved.Bin `
         -Linker $resolved.Linker `
+        -RustToolsSearchDirectory $RustToolsSearchDirectory `
         -RustApplicationDirectory $RustApplicationDirectory `
         -SystemDirectory $SystemDirectory `
         -WindowsDirectory $WindowsDirectory
@@ -1205,6 +1209,7 @@ try {
         -MsvcInstallation $MsvcInstallation `
         -ExpectedBin $MsvcTools.Bin `
         -ExpectedLinker $Linker `
+        -RustToolsSearchDirectory $RustLlvmTools.Bin `
         -RustApplicationDirectory $RustApplicationDirectory `
         -SystemDirectory $SystemDirectory `
         -WindowsDirectory $WindowsDirectory `
@@ -1221,6 +1226,7 @@ try {
         -MsvcInstallation $MsvcInstallation `
         -ExpectedBin $MsvcTools.Bin `
         -ExpectedLinker $Linker `
+        -RustToolsSearchDirectory $RustLlvmTools.Bin `
         -RustApplicationDirectory $RustApplicationDirectory `
         -SystemDirectory $SystemDirectory `
         -WindowsDirectory $WindowsDirectory
