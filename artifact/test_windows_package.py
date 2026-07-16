@@ -684,6 +684,275 @@ class RustcLinkerInvocationTests(unittest.TestCase):
         )
 
 
+class MsvcVersionProbeTests(unittest.TestCase):
+    @staticmethod
+    def _probe_output(
+        short: bytes = b"1950",
+        full: bytes = b"195035717",
+        revision: bytes = b"0",
+        target: bytes = b"100",
+    ) -> bytes:
+        return (
+            b"QPERIAPT_MSVC_VERSION "
+            + short
+            + b" "
+            + full
+            + b" "
+            + revision
+            + b" "
+            + target
+            + b"\r\n"
+        )
+
+    def test_parser_accepts_current_version_families_and_is_canonical(self) -> None:
+        cases = (
+            (b"1944", b"194435222", b"0", "MSVC 19.44.35222.0"),
+            (b"1950", b"195035717", b"0", "MSVC 19.50.35717.0"),
+            (b"1951", b"195135730", b"1", "MSVC 19.51.35730.1"),
+            (b"1952", b"195235740", b"4294967295", "MSVC 19.52.35740.4294967295"),
+        )
+        for short, full, revision, expected in cases:
+            with self.subTest(short=short):
+                output = (
+                    b"\n\t "
+                    + self._probe_output(short, full, revision).rstrip(b"\r\n")
+                    + b" \r\n"
+                )
+                self.assertEqual(
+                    windows_package.parse_msvc_version_probe(output),
+                    expected,
+                )
+
+    def test_parser_rejects_noncanonical_ambiguous_or_inconsistent_output(self) -> None:
+        valid = self._probe_output()
+        cases: dict[str, object] = {
+            "non-bytes": "text",
+            "empty": b"",
+            "whitespace": b" \r\n\t",
+            "duplicate": valid + valid,
+            "banner": b"Microsoft compiler\r\n" + valid,
+            "suffix": valid + b"unexpected\r\n",
+            "macro remains": b"QPERIAPT_MSVC_VERSION _MSC_VER 195035717 0 100\n",
+            "wrong marker case": valid.replace(b"QPERIAPT", b"qperiapt"),
+            "Unicode digit": valid.replace(b"1950", "１９５０".encode("utf-8")),
+            "NUL": valid + b"\0",
+            "escape": valid + b"\x1b",
+            "short width": self._probe_output(short=b"950"),
+            "full width": self._probe_output(full=b"19503571"),
+            "version mismatch": self._probe_output(full=b"195135717"),
+            "negative revision": self._probe_output(revision=b"-1"),
+            "signed revision": self._probe_output(revision=b"+1"),
+            "leading-zero revision": self._probe_output(revision=b"01"),
+            "revision overflow": self._probe_output(revision=b"4294967296"),
+            "decimal revision overflow": self._probe_output(revision=b"9999999999"),
+            "wrong architecture": self._probe_output(target=b"101"),
+            "oversized": b"x" * (
+                windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1
+            ),
+        }
+        for label, output in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package.parse_msvc_version_probe(output)
+
+    def test_bounded_runner_honors_the_smaller_probe_output_limit(self) -> None:
+        limit = windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES
+        emitted = limit + 64 * 1024
+        script = (
+            "import os;"
+            f"os.write(1, b'x' * {emitted});"
+            f"os.write(2, b'y' * {emitted})"
+        )
+        completed = windows_package._run_bounded_process(
+            [sys.executable, "-I", "-S", "-c", script],
+            cwd=str(pathlib.Path.cwd()),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+            output_limit=limit,
+        )
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(len(completed.stdout), limit + 1)
+        self.assertEqual(len(completed.stderr), limit + 1)
+
+        for invalid_limit in (
+            False,
+            0,
+            windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1,
+        ):
+            with self.subTest(invalid_limit=invalid_limit):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package._run_bounded_process(
+                        [sys.executable, "-I", "-S", "-c", "pass"],
+                        cwd=str(pathlib.Path.cwd()),
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        check=False,
+                        timeout=30,
+                        output_limit=invalid_limit,
+                    )
+
+    def test_inspector_binds_exact_tool_probe_command_and_process_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            compiler = root / "cl.exe"
+            probe = root / "msvc-version-probe.c"
+            compiler.write_bytes(b"fixture tool")
+            probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+            calls: list[tuple[list[str], dict[str, object]]] = []
+
+            def runner(
+                arguments: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                calls.append((arguments, kwargs))
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    self._probe_output(),
+                    b"",
+                )
+
+            self.assertEqual(
+                windows_package.inspect_msvc_version(
+                    compiler,
+                    probe,
+                    runner=runner,
+                ),
+                "MSVC 19.50.35717.0",
+            )
+            self.assertEqual(len(calls), 1)
+            arguments, kwargs = calls[0]
+            self.assertEqual(
+                arguments,
+                [
+                    str(compiler),
+                    "/nologo",
+                    "/EP",
+                    "/TC",
+                    "/X",
+                    "/WX",
+                    str(probe),
+                ],
+            )
+            self.assertEqual(
+                kwargs,
+                {
+                    "cwd": str(root),
+                    "stdin": subprocess.DEVNULL,
+                    "stdout": subprocess.PIPE,
+                    "stderr": subprocess.PIPE,
+                    "check": False,
+                    "timeout": 30,
+                    "output_limit": windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES,
+                },
+            )
+
+    def test_inspector_rejects_process_failures_and_malformed_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            compiler = root / "cl.exe"
+            probe = root / "msvc-version-probe.c"
+            compiler.write_bytes(b"fixture tool")
+            probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+            valid = self._probe_output()
+            completed_cases = {
+                "nonzero": subprocess.CompletedProcess([], 1, valid, b"failed"),
+                "stderr": subprocess.CompletedProcess([], 0, valid, b"warning"),
+                "boolean return code": subprocess.CompletedProcess([], True, valid, b""),
+                "text stdout": subprocess.CompletedProcess([], 0, "text", b""),
+                "text stderr": subprocess.CompletedProcess([], 0, valid, "text"),
+                "oversized stdout": subprocess.CompletedProcess(
+                    [],
+                    0,
+                    b"x" * (windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1),
+                    b"",
+                ),
+                "oversized stderr": subprocess.CompletedProcess(
+                    [],
+                    0,
+                    valid,
+                    b"x" * (windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1),
+                ),
+                "malformed stdout": subprocess.CompletedProcess([], 0, b"bad", b""),
+            }
+            for label, completed in completed_cases.items():
+                with self.subTest(label=label):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_msvc_version(
+                            compiler,
+                            probe,
+                            runner=lambda *args, completed=completed, **kwargs: completed,
+                        )
+
+            def timeout_runner(*args: object, **kwargs: object):
+                raise subprocess.TimeoutExpired("cl.exe", 30)
+
+            def os_error_runner(*args: object, **kwargs: object):
+                raise OSError("cannot start")
+
+            for label, runner in (
+                ("timeout", timeout_runner),
+                ("os error", os_error_runner),
+            ):
+                with self.subTest(label=label):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_msvc_version(
+                            compiler,
+                            probe,
+                            runner=runner,
+                        )
+
+    def test_inspector_rejects_untrusted_tool_or_probe_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            compiler = root / "cl.exe"
+            wrong_tool = root / "other.exe"
+            probe = root / "msvc-version-probe.c"
+            wrong_probe = root / "other.c"
+            for path in (compiler, wrong_tool):
+                path.write_bytes(b"fixture tool")
+            for path in (probe, wrong_probe):
+                path.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+
+            cases = (
+                (pathlib.Path("cl.exe"), probe),
+                (wrong_tool, probe),
+                (compiler, pathlib.Path("msvc-version-probe.c")),
+                (compiler, wrong_probe),
+            )
+            for tool_path, probe_path in cases:
+                with self.subTest(tool=tool_path, probe=probe_path):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_msvc_version(tool_path, probe_path)
+
+            probe.write_bytes(b"QPERIAPT_MSVC_VERSION 1950 195035717 0 100\n")
+            with self.assertRaisesRegex(WindowsPackageError, "frozen contract"):
+                windows_package.inspect_msvc_version(compiler, probe)
+
+            probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+
+            def mutate_probe(
+                arguments: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                probe.write_bytes(b"tampered\n")
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    self._probe_output(),
+                    b"",
+                )
+
+            with self.assertRaises(WindowsPackageError):
+                windows_package.inspect_msvc_version(
+                    compiler,
+                    probe,
+                    runner=mutate_probe,
+                )
+
+
 class DumpbinDependencyTests(unittest.TestCase):
     def test_parser_accepts_only_the_canonical_nonempty_dependency_block(self) -> None:
         self.assertEqual(
@@ -1098,6 +1367,20 @@ class DumpbinDependencyTests(unittest.TestCase):
 
 
 class WindowsPackageManifestTests(unittest.TestCase):
+    INVALID_MSVC_VERSIONS = (
+        None,
+        "",
+        "x" * (windows_package.MAX_MSVC_VERSION_CHARS + 1),
+        "MSVC 19.44.35222.0\n",
+        "MSVC 19.44.35222.0\0",
+        "MSVC １９.44.35222.0",
+        "MSVC 19.44.35222.0 extra",
+        "MSVC 19.44.03522.0",
+        "MSVC 19.44.35222.01",
+        "MSVC 19.44.35222.4294967296",
+        "MSVC 19.44.35222.9999999999",
+    )
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.repository_root = pathlib.Path(__file__).resolve().parent.parent
@@ -1213,7 +1496,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             source_date_epoch=1_700_000_000,
             rustc="rustc fixture",
             cargo="cargo fixture",
-            cl="Microsoft C/C++ fixture",
+            cl="MSVC 19.44.35222.0",
             dependencies=["KERNEL32.dll", "bcrypt.dll"],
         )
 
@@ -1405,7 +1688,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     source_date_epoch=1_700_000_000,
                     rustc="rustc fixture",
                     cargo="cargo fixture",
-                    cl="Microsoft C/C++ fixture",
+                    cl="MSVC 19.44.35222.0",
                     dependencies=["..\\malicious.dll"],
                 )
             with self.assertRaisesRegex(WindowsPackageError, "git commit"):
@@ -1419,9 +1702,36 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     source_date_epoch=1_700_000_000,
                     rustc="rustc fixture",
                     cargo="cargo fixture",
-                    cl="Microsoft C/C++ fixture",
+                    cl="MSVC 19.44.35222.0",
                     dependencies=["KERNEL32.dll"],
                 )
+
+    def test_create_rejects_noncanonical_msvc_versions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            for value in self.INVALID_MSVC_VERSIONS:
+                with self.subTest(value=value):
+                    with self.assertRaisesRegex(
+                        WindowsPackageError,
+                        "cl version is malformed",
+                    ):
+                        windows_package.create_manifest(
+                            package,
+                            self.repository_root,
+                            package_name=package.name,
+                            version="0.1.0-alpha.2",
+                            git_commit="a" * 40,
+                            git_tree="b" * 40,
+                            source_date_epoch=1_700_000_000,
+                            rustc="rustc fixture",
+                            cargo="cargo fixture",
+                            cl=value,
+                            dependencies=["KERNEL32.dll"],
+                        )
+            windows_package._validate_msvc_version(
+                "MSVC 19.52.35740.4294967295",
+                "boundary version",
+            )
 
     @staticmethod
     def _rewrite_manifest(package: pathlib.Path, mutate) -> None:
@@ -1437,6 +1747,30 @@ class WindowsPackageManifestTests(unittest.TestCase):
                 digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
             lines.append(f"{digest}  {relative}\n")
         sums_path.write_text("".join(lines), encoding="ascii")
+
+    def test_verify_rejects_noncanonical_msvc_versions_after_rehash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            original = self._package(root / "original")
+            self._create(original)
+            for index, value in enumerate(self.INVALID_MSVC_VERSIONS):
+                with self.subTest(value=value):
+                    package = root / f"tampered-{index}" / original.name
+                    shutil.copytree(original, package)
+                    self._rewrite_manifest(
+                        package,
+                        lambda manifest, value=value: manifest["toolchain"].__setitem__(
+                            "cl", value
+                        ),
+                    )
+                    with self.assertRaisesRegex(
+                        WindowsPackageError,
+                        "Windows cl version is malformed",
+                    ):
+                        windows_package.verify_package(
+                            package,
+                            repository_root=self.repository_root,
+                        )
 
     def test_manifest_identity_source_toolchain_and_schema_tampering_fail_closed(self) -> None:
         mutations = {
@@ -1551,6 +1885,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$LlvmNm = $RustLlvmTools.Nm',
             '-ExpectedName "llvm-ar.exe"',
             '-ExpectedName "llvm-nm.exe"',
+            '$MsvcVersionProbe = Join-Path $Root "artifact/msvc-version-probe.c"',
+            '"artifact/windows_package.py", "inspect-msvc-version"',
+            '"--cl", $Cl',
+            '"--probe", $MsvcVersionProbe',
+            '$clVersionResult.Stderr.Length -ne 0',
+            '$clVersion = $clVersionResult.Stdout.Trim()',
             '$env:RUSTFLAGS = "-D warnings"',
             '$env:CARGO_INCREMENTAL = "0"',
             '"-DQPeriaptABI2_DIR=$Extracted/lib/cmake/QPeriaptABI2"',
@@ -1615,6 +1955,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '(Get-Command "dumpbin.exe"',
             '(Get-Command "cl.exe"',
             '-FilePath "cl.exe"',
+            '@("/?")',
+            '"/HELP"',
+            '"/Bv"',
+            "Microsoft.*Compiler",
+            "FileVersionInfo",
+            "$clHelp",
             "Select-Object -First",
             '"CFLAGS_x86_64-pc-windows-msvc"',
             '"CFLAGS_x86_64_pc_windows_msvc"',
@@ -1627,6 +1973,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
             (self.repository_root / "artifact/windows_package.py").read_text(
                 encoding="utf-8"
             ),
+        )
+        self.assertEqual(
+            (
+                self.repository_root / "artifact/msvc-version-probe.c"
+            ).read_bytes(),
+            windows_package.MSVC_VERSION_PROBE_SOURCE,
         )
         self.assertLess(
             script.index('"-Clink-arg=/Brepro"'),

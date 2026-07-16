@@ -466,6 +466,7 @@ paths = {
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
     "third_party_licenses_sha256": "artifact/third_party_licenses.py",
     "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
+    "windows_msvc_version_probe_sha256": "artifact/msvc-version-probe.c",
     "windows_package_script_sha256": "artifact/windows-package.ps1",
     "windows_package_verifier_sha256": "artifact/windows_package.py",
     "windows_package_tests_sha256": "artifact/test_windows_package.py",

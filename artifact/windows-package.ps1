@@ -39,6 +39,7 @@ $Header = Join-Path $Root "crates/q-periapt-ffi/include/q_periapt.h"
 $Contract = Join-Path $Root "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
 $Fixture = Join-Path $Root "bindings/c/signed_policy_fixture.h"
 $Smoke = Join-Path $Root "bindings/c/smoke.c"
+$MsvcVersionProbe = Join-Path $Root "artifact/msvc-version-probe.c"
 $Python = (Get-Command python -ErrorAction Stop).Source
 
 function Invoke-Captured {
@@ -1224,15 +1225,19 @@ Invoke-PythonChecked -Arguments @(
     "--llvm-nm", $LlvmNm,
     "--platform", "windows"
 )
-$clHelp = (Invoke-Captured -FilePath $Cl -Arguments @("/?")).Stdout
-$clVersionLines = @(
-    $clHelp -split "`r?`n" | Where-Object { $_ -match 'Microsoft.*Compiler' }
+$clVersionResult = Invoke-Captured -FilePath $Python -Arguments @(
+    "-I", "-S", "-B", "-W", "error", "artifact/python_bootstrap.py",
+    "artifact/windows_package.py", "inspect-msvc-version",
+    "--cl", $Cl,
+    "--probe", $MsvcVersionProbe
 )
-if ($clVersionLines.Count -ne 1) {
-    throw "cl.exe must emit exactly one compiler-version line"
+if ($clVersionResult.Stderr.Length -ne 0) {
+    throw "MSVC compiler version inspector emitted diagnostics"
 }
-$clVersion = $clVersionLines[0].Trim()
-if (-not $clVersion) { throw "MSVC compiler version is empty" }
+$clVersion = $clVersionResult.Stdout.Trim()
+if ($clVersion -cnotmatch '^MSVC [1-9][0-9]\.[0-9]{2}\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,9})$') {
+    throw "MSVC compiler version inspector returned a malformed contract"
+}
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 $manifestArguments = @(
     "artifact/windows_package.py", "create",

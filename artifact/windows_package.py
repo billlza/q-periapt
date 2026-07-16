@@ -21,7 +21,12 @@ from collections.abc import Callable
 from typing import Any, BinaryIO, Iterable
 
 from c_abi_contract import ABI_MAJOR, PACKAGE_SEMVER, load_contract
-from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot
+from evidence_io import (
+    EvidenceIOError,
+    FileSnapshot,
+    load_json_object_snapshot,
+    read_regular_snapshot,
+)
 from package_bom import (
     EXPECTED_CRYPTO_ASSETS,
     PackageBomError,
@@ -154,9 +159,35 @@ SAFE_DEPENDENCY_RE = re.compile(
     re.IGNORECASE | re.ASCII,
 )
 TREE_RE = re.compile(r"^[0-9a-f]{40,64}$")
+MSVC_VERSION_RE = re.compile(
+    r"^MSVC (?P<major>[1-9][0-9])\.(?P<minor>[0-9]{2})\."
+    r"(?P<build>0|[1-9][0-9]{0,4})\."
+    r"(?P<revision>0|[1-9][0-9]{0,9})$",
+    re.ASCII,
+)
+MSVC_VERSION_PROBE_RE = re.compile(
+    rb"[ \t\r\n]*QPERIAPT_MSVC_VERSION[ \t]+"
+    rb"(?P<short>[1-9][0-9]{3})[ \t]+"
+    rb"(?P<full>[0-9]{9})[ \t]+"
+    rb"(?P<revision>0|[1-9][0-9]{0,9})[ \t]+100[ \t\r\n]*"
+)
+MSVC_VERSION_PROBE_SOURCE = (
+    b"#if !defined(_MSC_VER) || !defined(_MSC_FULL_VER) || "
+    b"!defined(_MSC_BUILD)\n"
+    b"#error QPERIAPT_MSVC_VERSION_MACROS_UNAVAILABLE\n"
+    b"#endif\n"
+    b"#if !defined(_M_X64) || defined(_M_ARM64EC) || "
+    b"defined(_M_ARM64) || \\\n"
+    b"    defined(_M_ARM) || defined(_M_IX86)\n"
+    b"#error QPERIAPT_MSVC_X64_REQUIRED\n"
+    b"#endif\n"
+    b"QPERIAPT_MSVC_VERSION _MSC_VER _MSC_FULL_VER _MSC_BUILD _M_X64\n"
+)
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_PACKAGE_FILE_BYTES = 512 * 1024 * 1024
 MAX_DUMPBIN_OUTPUT_BYTES = 1024 * 1024
+MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES = 512
+MAX_MSVC_VERSION_CHARS = 64
 MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES = 1024 * 1024
 MAX_RUSTC_LINK_ARGUMENTS_BYTES = 4 * 1024 * 1024
 DUMPBIN_DEPENDENCY_HEADER = b"Image has the following dependencies:"
@@ -210,6 +241,7 @@ SOURCE_INPUT_PATHS = {
     "signed_policy_fixture": "bindings/c/signed_policy_fixture.h",
     "smoke_consumer": "bindings/c/smoke.c",
     "windows_package_script": "artifact/windows-package.ps1",
+    "windows_msvc_version_probe": "artifact/msvc-version-probe.c",
     "windows_toolchain_tests": "artifact/windows-toolchain-tests.ps1",
     "windows_manifest_script": "artifact/windows_package.py",
     "deterministic_archive_script": "artifact/deterministic_archive.py",
@@ -310,6 +342,20 @@ def _require(condition: bool, message: str) -> None:
         raise WindowsPackageError(message)
 
 
+def _validate_msvc_version(value: object, label: str) -> None:
+    if (
+        type(value) is not str
+        or not 0 < len(value) <= MAX_MSVC_VERSION_CHARS
+    ):
+        raise WindowsPackageError(f"{label} is malformed")
+    match = MSVC_VERSION_RE.fullmatch(value)
+    _require(
+        match is not None
+        and int(match.group("revision"), 10) < PE_UINT32_LIMIT,
+        f"{label} is malformed",
+    )
+
+
 if os.name == "nt":
 
     def _windows_api_error(operation: str) -> OSError:
@@ -394,7 +440,7 @@ if os.name == "nt":
                 break
             _require(
                 len(thread_ids) == 1,
-                "suspended dumpbin process must have exactly one initial thread",
+                "suspended native-tool process must have exactly one initial thread",
             )
             thread = _OpenThread(_THREAD_SUSPEND_RESUME, False, thread_ids[0])
             if not thread:
@@ -405,7 +451,7 @@ if os.name == "nt":
                     raise _windows_api_error("ResumeThread failed")
                 _require(
                     previous_suspend_count == 1,
-                    "dumpbin initial thread suspend count differs",
+                    "native-tool initial thread suspend count differs",
                 )
             finally:
                 _close_windows_handle(thread, "initial thread")
@@ -1236,13 +1282,18 @@ def inspect_windows_pe_evidence(
     return parse_windows_pe_evidence(snapshot.data), snapshot.sha256, snapshot.size
 
 
-def _regular_windows_tool(path: pathlib.Path) -> pathlib.Path:
+def _regular_windows_tool(
+    path: pathlib.Path,
+    *,
+    expected_name: str,
+    label: str,
+) -> pathlib.Path:
     tool = pathlib.Path(path)
-    _require(tool.is_absolute(), "dumpbin path must be absolute")
+    _require(tool.is_absolute(), f"{label} path must be absolute")
     try:
         metadata = tool.lstat()
     except OSError as exc:
-        raise WindowsPackageError("cannot inspect the dumpbin executable") from exc
+        raise WindowsPackageError(f"cannot inspect the {label} executable") from exc
     _require(
         stat.S_ISREG(metadata.st_mode)
         and not tool.is_symlink()
@@ -1250,13 +1301,16 @@ def _regular_windows_tool(path: pathlib.Path) -> pathlib.Path:
             getattr(metadata, "st_file_attributes", 0)
             & FILE_ATTRIBUTE_REPARSE_POINT
         ),
-        "dumpbin must be a non-reparse regular file",
+        f"{label} must be a non-reparse regular file",
     )
-    _require(tool.name.casefold() == "dumpbin.exe", "dumpbin executable name differs")
+    _require(
+        tool.name.casefold() == expected_name.casefold(),
+        f"{label} executable name differs",
+    )
     return tool
 
 
-def _read_bounded_process_stream(stream: BinaryIO) -> bytes:
+def _read_bounded_process_stream(stream: BinaryIO, maximum: int) -> bytes:
     """Drain a process pipe while retaining only enough bytes to prove overflow."""
 
     retained = bytearray()
@@ -1264,7 +1318,7 @@ def _read_bounded_process_stream(stream: BinaryIO) -> bytes:
         chunk = stream.read(64 * 1024)
         if not chunk:
             break
-        remaining = MAX_DUMPBIN_OUTPUT_BYTES + 1 - len(retained)
+        remaining = maximum + 1 - len(retained)
         if remaining > 0:
             retained.extend(chunk[:remaining])
     return bytes(retained)
@@ -1279,8 +1333,9 @@ def _run_bounded_process(
     stderr: int,
     check: bool,
     timeout: int,
+    output_limit: int = MAX_DUMPBIN_OUTPUT_BYTES,
 ) -> subprocess.CompletedProcess[bytes]:
-    """Run dumpbin with concurrent, memory-bounded stdout and stderr capture."""
+    """Run a native tool with concurrent, bounded capture and tree cleanup."""
 
     _require(stdin == subprocess.DEVNULL, "bounded process stdin contract differs")
     _require(
@@ -1288,6 +1343,10 @@ def _run_bounded_process(
         "bounded process output contract differs",
     )
     _require(check is False, "bounded process must return native failure evidence")
+    _require(
+        type(output_limit) is int and 0 < output_limit <= MAX_DUMPBIN_OUTPUT_BYTES,
+        "bounded process output limit is invalid",
+    )
     process: subprocess.Popen[bytes] | None = None
     windows_job: int | None = None
     windows_assigned = False
@@ -1332,7 +1391,7 @@ def _run_bounded_process(
 
         def drain(index: int, stream: BinaryIO) -> None:
             try:
-                results[index] = _read_bounded_process_stream(stream)
+                results[index] = _read_bounded_process_stream(stream, output_limit)
             except Exception as exc:
                 failures[index] = exc
 
@@ -1359,7 +1418,7 @@ def _run_bounded_process(
                 reader.start()
             except RuntimeError as exc:
                 raise WindowsPackageError(
-                    "cannot start bounded dumpbin output readers"
+                    "cannot start bounded native-tool output readers"
                 ) from exc
             started_readers.append(reader)
 
@@ -1377,7 +1436,7 @@ def _run_bounded_process(
         if timeout_error is None:
             _require(
                 process.returncode is not None,
-                "dumpbin process status is unavailable",
+                "native-tool process status is unavailable",
             )
             returncode = process.returncode
     finally:
@@ -1423,7 +1482,7 @@ def _run_bounded_process(
             if remaining == 0:
                 cleanup_failures.append(
                     WindowsPackageError(
-                        "dumpbin root process cleanup deadline expired"
+                        "native-tool root process cleanup deadline expired"
                     )
                 )
             else:
@@ -1442,7 +1501,7 @@ def _run_bounded_process(
             if id(reader) in started_reader_ids and reader.is_alive():
                 cleanup_failures.append(
                     WindowsPackageError(
-                        "dumpbin output pipe did not close after process-tree cleanup"
+                        "native-tool output pipe did not close after process-tree cleanup"
                     )
                 )
                 continue
@@ -1463,13 +1522,13 @@ def _run_bounded_process(
         if cleanup_failures:
             first_cleanup_failure = cleanup_failures[0]
             cleanup_error = WindowsPackageError(
-                "cannot clean up dumpbin process tree: "
+                "cannot clean up native-tool process tree: "
                 f"{type(first_cleanup_failure).__name__}: {first_cleanup_failure}"
             )
             active_error = sys.exception()
             if active_error is not None:
                 cleanup_error.add_note(
-                    "dumpbin operation also failed before cleanup: "
+                    "native-tool operation also failed before cleanup: "
                     f"{type(active_error).__name__}: {active_error}"
                 )
             for additional_failure in cleanup_failures[1:]:
@@ -1481,21 +1540,135 @@ def _run_bounded_process(
 
     failure = next((failure for failure in failures if failure is not None), None)
     if failure is not None:
-        raise WindowsPackageError("cannot read dumpbin process output") from failure
+        raise WindowsPackageError("cannot read native-tool process output") from failure
     if timeout_error is not None:
         raise timeout_error
     captured_stdout, captured_stderr = results
     _require(
         captured_stdout is not None and captured_stderr is not None,
-        "dumpbin process output capture is incomplete",
+        "native-tool process output capture is incomplete",
     )
-    _require(returncode is not None, "dumpbin process status is unavailable")
+    _require(returncode is not None, "native-tool process status is unavailable")
     return subprocess.CompletedProcess(
         arguments,
         returncode,
         captured_stdout,
         captured_stderr,
     )
+
+
+def parse_msvc_version_probe(output: bytes) -> str:
+    """Parse one exact, ASCII-only MSVC version and x64 identity record."""
+
+    if (
+        type(output) is not bytes
+        or len(output) > MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES
+    ):
+        raise WindowsPackageError("MSVC compiler version probe output is malformed")
+    match = MSVC_VERSION_PROBE_RE.fullmatch(output)
+    if match is None:
+        raise WindowsPackageError("MSVC compiler version probe output is malformed")
+    short_version = match.group("short")
+    full_version = match.group("full")
+    revision = int(match.group("revision"), 10)
+    _require(
+        full_version[:4] == short_version,
+        "MSVC compiler version macros are inconsistent",
+    )
+    _require(
+        revision < PE_UINT32_LIMIT,
+        "MSVC compiler revision is out of range",
+    )
+    major = int(short_version[:2], 10)
+    minor = int(short_version[2:], 10)
+    build = int(full_version[4:], 10)
+    return f"MSVC {major:02d}.{minor:02d}.{build}.{revision}"
+
+
+def _read_frozen_msvc_version_probe(probe: pathlib.Path) -> FileSnapshot:
+    probe_path = pathlib.Path(probe)
+    _require(probe_path.is_absolute(), "MSVC version probe path must be absolute")
+    _require(
+        probe_path.name == "msvc-version-probe.c",
+        "MSVC version probe filename differs",
+    )
+    try:
+        snapshot = read_regular_snapshot(
+            probe_path,
+            maximum=len(MSVC_VERSION_PROBE_SOURCE),
+            label="MSVC version probe",
+        )
+    except EvidenceIOError as exc:
+        raise WindowsPackageError(str(exc)) from exc
+    _require(
+        snapshot.data == MSVC_VERSION_PROBE_SOURCE,
+        "MSVC version probe source differs from the frozen contract",
+    )
+    return snapshot
+
+
+def inspect_msvc_version(
+    compiler: pathlib.Path,
+    probe: pathlib.Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[bytes]] = _run_bounded_process,
+) -> str:
+    """Run the resolved MSVC compiler against the frozen macro probe."""
+
+    tool = _regular_windows_tool(
+        compiler,
+        expected_name="cl.exe",
+        label="MSVC compiler",
+    )
+    probe_path = pathlib.Path(probe)
+    probe_snapshot = _read_frozen_msvc_version_probe(probe_path)
+    try:
+        completed = runner(
+            [
+                str(tool),
+                "/nologo",
+                "/EP",
+                "/TC",
+                "/X",
+                "/WX",
+                str(probe_path),
+            ],
+            cwd=str(tool.parent),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+            output_limit=MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise WindowsPackageError("MSVC compiler version probe timed out") from exc
+    except OSError as exc:
+        raise WindowsPackageError("cannot execute MSVC compiler version probe") from exc
+    _require(
+        type(completed.returncode) is int
+        and type(completed.stdout) is bytes
+        and type(completed.stderr) is bytes,
+        "MSVC compiler version runner returned malformed process evidence",
+    )
+    _require(
+        len(completed.stdout) <= MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES
+        and len(completed.stderr) <= MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES,
+        "MSVC compiler version probe output exceeds the size limit",
+    )
+    _require(completed.returncode == 0, "MSVC compiler version probe failed")
+    _require(
+        not completed.stderr,
+        "MSVC compiler version probe emitted diagnostics",
+    )
+    version = parse_msvc_version_probe(completed.stdout)
+    final_probe_snapshot = _read_frozen_msvc_version_probe(probe_path)
+    _require(
+        final_probe_snapshot.sha256 == probe_snapshot.sha256
+        and final_probe_snapshot.size == probe_snapshot.size,
+        "MSVC version probe changed during compiler inspection",
+    )
+    return version
 
 
 def inspect_dumpbin_dependencies(
@@ -1506,7 +1679,11 @@ def inspect_dumpbin_dependencies(
 ) -> list[str]:
     """Run an absolute dumpbin against the exact packaged DLL and parse fail-closed."""
 
-    tool = _regular_windows_tool(dumpbin)
+    tool = _regular_windows_tool(
+        dumpbin,
+        expected_name="dumpbin.exe",
+        label="dumpbin",
+    )
     dll = pathlib.Path(library)
     _require(dll.is_absolute(), "Windows DLL path must be absolute")
     try:
@@ -1596,8 +1773,9 @@ def create_manifest(
     _require(type(source_date_epoch) is int, "source date epoch must be an integer")
     _require(version == PACKAGE_SEMVER, f"Windows package version must be {PACKAGE_SEMVER}")
     _require(package_name == f"q-periapt-c-abi2-{version}-{TARGET}", "Windows package name differs from release contract")
-    for label, value in (("rustc", rustc), ("cargo", cargo), ("cl", cl)):
+    for label, value in (("rustc", rustc), ("cargo", cargo)):
         _require(isinstance(value, str) and value and "\n" not in value and "\r" not in value, f"{label} version is malformed")
+    _validate_msvc_version(cl, "cl version")
 
     third_party, third_party_files = _third_party_rust_files(root)
     expected_payload_files = EXPECTED_PAYLOAD_FILES | third_party_files
@@ -1812,7 +1990,8 @@ def verify_package(
         isinstance(toolchain, dict) and set(toolchain) == {"cargo", "cl", "rustc"},
         "Windows toolchain fields differ",
     )
-    for label, value in toolchain.items():
+    for label in ("cargo", "rustc"):
+        value = toolchain[label]
         _require(
             isinstance(value, str)
             and value
@@ -1820,6 +1999,7 @@ def verify_package(
             and "\r" not in value,
             f"Windows {label} version is malformed",
         )
+    _validate_msvc_version(toolchain["cl"], "Windows cl version")
     source_inputs = manifest.get("source_inputs_sha256")
     _require(
         isinstance(source_inputs, dict)
@@ -1899,6 +2079,9 @@ def _parse_args() -> argparse.Namespace:
         "--link-arguments", required=True, type=pathlib.Path
     )
     linker_invocation.add_argument("--expected-linker", required=True)
+    msvc_version = subparsers.add_parser("inspect-msvc-version")
+    msvc_version.add_argument("--cl", required=True, type=pathlib.Path)
+    msvc_version.add_argument("--probe", required=True, type=pathlib.Path)
     create = subparsers.add_parser("create")
     create.add_argument("--package-root", required=True, type=pathlib.Path)
     create.add_argument("--repository-root", required=True, type=pathlib.Path)
@@ -1948,6 +2131,16 @@ def main() -> int:
             ).data
             verify_rustc_linker_invocation(output, args.expected_linker)
             print("WINDOWS_RUST_LINKER_INVOCATION_PASS")
+            return 0
+        if args.command == "inspect-msvc-version":
+            version = inspect_msvc_version(args.cl, args.probe)
+            payload = (version + "\n").encode("ascii")
+            written = sys.stdout.buffer.write(payload)
+            _require(
+                written == len(payload),
+                "cannot write the complete MSVC compiler version",
+            )
+            sys.stdout.buffer.flush()
             return 0
         dependencies = inspect_dumpbin_dependencies(
             args.dumpbin,
