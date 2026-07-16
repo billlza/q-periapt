@@ -956,7 +956,16 @@ class DistributionEvidenceTests(ZipFixture):
 
     def test_emits_honest_signed_static_sdk_semantics(self) -> None:
         evidence = self.build()
-        self.assertEqual(evidence["schema_version"], 2)
+        self.assertEqual(evidence["schema_version"], 3)
+        self.assertEqual(
+            evidence["release_identity"],
+            {
+                "product_version": "0.1.0-alpha.2",
+                "revision": "r1",
+                "tag": "v0.1.0-alpha.2-r1",
+                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+            },
+        )
         self.assertEqual(
             evidence["kind"], "qperiapt.apple_static_xcframework_distribution"
         )
@@ -1074,10 +1083,16 @@ class ReleaseAssetVerificationTests(ZipFixture):
         source_inputs = {name: hashlib.sha256(name.encode()).hexdigest() for name in input_names}
         contract_sha256 = source_inputs["c_abi_contract_sha256"]
         return {
-            "schema_version": 4,
+            "schema_version": 5,
             "kind": "qperiapt.swift_xcframework_manifest",
             "package": "q-periapt-swift",
-            "version": apple_distribution.RELEASE_VERSION,
+            "version": apple_distribution.PRODUCT_VERSION,
+            "release_identity": {
+                "product_version": apple_distribution.PRODUCT_VERSION,
+                "revision": apple_distribution.RELEASE_REVISION,
+                "tag": apple_distribution.RELEASE_TAG,
+                "url": apple_distribution.RELEASE_URL,
+            },
             "type": "swiftpm-binaryTarget-xcframework",
             "git_commit": SOURCE_COMMIT,
             "git_dirty": False,
@@ -1140,9 +1155,11 @@ class ReleaseAssetVerificationTests(ZipFixture):
             },
             "source_inputs": source_inputs,
             "toolchain": {
-                "rustc": "rustc fixture",
-                "swift": "swift fixture",
-                "xcode": ["Xcode fixture", "Build version fixture"],
+                "cargo": apple_distribution.EXPECTED_CARGO_VERSION,
+                "rust_host": apple_distribution.EXPECTED_RUST_HOST,
+                "rustc": apple_distribution.EXPECTED_RUSTC_VERSION,
+                "swift": apple_distribution.EXPECTED_SWIFT_VERSION,
+                "xcode": list(apple_distribution.EXPECTED_XCODE_VERSION),
             },
             "consumer_verification": {
                 "ios_device_link": {
@@ -1216,7 +1233,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "artifact_size": self.zip_path.stat().st_size,
             "checksums_sha256": self.hashes[apple_distribution.SHA256SUMS_NAME],
             "distribution_signed": True,
-            "immutable_release": True,
+            "immutable_release": False,
             "manifest_sha256": self.hashes[apple_distribution.MANIFEST_NAME],
             "notarization_applicability": "not_applicable_static_sdk_payload",
             "notarized": False,
@@ -1224,6 +1241,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "origin_signature_identity_class": "Developer ID Application",
             "origin_signature_team_id": signature["team_id"],
             "public_release": False,
+            "release_revision": apple_distribution.RELEASE_REVISION,
             "release_tag": apple_distribution.RELEASE_TAG,
             "release_url": apple_distribution.RELEASE_URL,
             "remote_consumer_verified": False,
@@ -1235,7 +1253,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "source_commit": SOURCE_COMMIT,
             "stapled": False,
             "swiftpm_checksum": self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
-            "version": apple_distribution.RELEASE_VERSION,
+            "version": apple_distribution.PRODUCT_VERSION,
         }
         self.results.write_bytes(
             apple_distribution._json_bytes(
@@ -1279,6 +1297,87 @@ class ReleaseAssetVerificationTests(ZipFixture):
             self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
         )
         self.assertEqual(len(verified), 6)
+
+    def test_rejects_release_identity_and_toolchain_drift(self) -> None:
+        base_distribution = copy.deepcopy(self.distribution)
+        base_manifest = copy.deepcopy(self.manifest)
+        mutations = (
+            (
+                "distribution old tag",
+                lambda: self.distribution["release_identity"].__setitem__(
+                    "tag", "v0.1.0-alpha.2"
+                ),
+            ),
+            (
+                "manifest old revision",
+                lambda: self.manifest["release_identity"].__setitem__(
+                    "revision", ""
+                ),
+            ),
+            (
+                "old rustc",
+                lambda: self.manifest["toolchain"].__setitem__(
+                    "rustc", "rustc 1.96.0 (ac68faa20 2026-05-25)"
+                ),
+            ),
+            (
+                "old cargo",
+                lambda: self.manifest["toolchain"].__setitem__(
+                    "cargo", "cargo 1.96.0 (30a34c682 2026-05-25)"
+                ),
+            ),
+            (
+                "wrong host",
+                lambda: self.manifest["toolchain"].__setitem__(
+                    "rust_host", "x86_64-apple-darwin"
+                ),
+            ),
+            (
+                "extra toolchain field",
+                lambda: self.manifest["toolchain"].__setitem__(
+                    "fallback", True
+                ),
+            ),
+        )
+        for label, mutate in mutations:
+            with self.subTest(label=label):
+                self.distribution = copy.deepcopy(base_distribution)
+                self.manifest = copy.deepcopy(base_manifest)
+                mutate()
+                self._publish()
+                with self.assertRaises(apple_distribution.AppleDistributionError):
+                    self.verify()
+
+    def test_results_release_identity_and_publication_state_are_exact(self) -> None:
+        for key, value in (
+            ("release_revision", "r2"),
+            ("release_tag", "v0.1.0-alpha.2"),
+            (
+                "release_url",
+                "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2",
+            ),
+        ):
+            with self.subTest(key=key):
+                results = json.loads(self.results.read_text(encoding="utf-8"))
+                results["swift_xcframework"]["distribution"][key] = value
+                self.results.write_bytes(apple_distribution._json_bytes(results))
+                with self.assertRaises(apple_distribution.AppleDistributionError):
+                    self.verify()
+                self._publish()
+
+        for public, immutable in ((True, False), (False, True)):
+            with self.subTest(public=public, immutable=immutable):
+                results = json.loads(self.results.read_text(encoding="utf-8"))
+                distribution = results["swift_xcframework"]["distribution"]
+                distribution["public_release"] = public
+                distribution["immutable_release"] = immutable
+                self.results.write_bytes(apple_distribution._json_bytes(results))
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError,
+                    "must advance together",
+                ):
+                    self.verify()
+                self._publish()
 
     def test_rejects_path_hygiene_policy_downgrade_or_allowlist(self) -> None:
         base_distribution = copy.deepcopy(self.distribution)
@@ -1477,11 +1576,12 @@ class ReleaseAssetVerificationTests(ZipFixture):
         self.results.write_bytes(apple_distribution._json_bytes(results))
         with self.assertRaisesRegex(
             apple_distribution.AppleDistributionError,
-            "requires a public release",
+            "requires a public immutable release",
         ):
             self.verify()
 
         distribution["public_release"] = True
+        distribution["immutable_release"] = True
         self.results.write_bytes(apple_distribution._json_bytes(results))
         self.assertEqual(self.verify()["source_commit"], SOURCE_COMMIT)
 
@@ -1619,7 +1719,66 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertNotIn('"notarized": apple_release_mode', self.builder)
         self.assertIn('"notarized": False', self.builder)
         self.assertIn("not_applicable_static_sdk_payload", self.builder)
-        self.assertIn('"schema_version": 4', self.builder)
+        self.assertIn('"schema_version": 5', self.builder)
+
+    def test_release_revision_and_toolchain_are_exactly_bound(self) -> None:
+        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.0-alpha.2")
+        self.assertEqual(apple_distribution.RELEASE_REVISION, "r1")
+        self.assertEqual(
+            apple_distribution.RELEASE_TAG, "v0.1.0-alpha.2-r1"
+        )
+        self.assertEqual(
+            apple_distribution.RELEASE_URL,
+            "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+        )
+        for exact in (
+            apple_distribution.EXPECTED_RUSTC_VERSION,
+            apple_distribution.EXPECTED_CARGO_VERSION,
+            apple_distribution.EXPECTED_RUST_HOST,
+            apple_distribution.EXPECTED_SWIFT_VERSION,
+            *apple_distribution.EXPECTED_XCODE_VERSION,
+        ):
+            self.assertIn(exact, self.builder)
+        self.assertIn('"release_identity": {', self.builder)
+        self.assertIn('"cargo": cargo_version', self.builder)
+        self.assertIn('"rust_host": rust_host', self.builder)
+        first_toolchain_check = self.builder.index(
+            'if [ "$RUSTC_VERSION" != "$EXPECTED_RUSTC_VERSION" ]'
+        )
+        self.assertLess(first_toolchain_check, self.builder.index("cargo metadata"))
+        self.assertLess(first_toolchain_check, self.builder.index("cargo build"))
+        self.assertLess(
+            self.builder.rindex("assert_toolchain_snapshot"),
+            self.builder.index("SWIFT_XCFRAMEWORK_PACKAGE_PASS"),
+        )
+
+    def test_signed_release_authorization_is_revision_and_commit_specific(self) -> None:
+        self.assertIn('RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"', self.release)
+        self.assertIn(
+            '[ "${QPERIAPT_APPLE_RELEASE_CONFIRM:-}" != "$RELEASE_TAG" ]',
+            self.release,
+        )
+        self.assertIn(
+            "AUTHORIZED_SOURCE_COMMIT=${QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT:-}",
+            self.release,
+        )
+        authorization = self.release.index(
+            '[ "$AUTHORIZED_SOURCE_COMMIT" != "$SOURCE_COMMIT" ]'
+        )
+        identity_probe = self.release.index("security find-identity")
+        self.assertLess(authorization, identity_probe)
+        self.assertIn(
+            'QPERIAPT_INTERNAL_APPLE_RELEASE_TAG="$RELEASE_TAG"', self.release
+        )
+        self.assertIn('"release_identity": {', self.release)
+
+    def test_remote_consumer_is_fixed_to_the_r1_release(self) -> None:
+        self.assertIn('RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"', self.remote)
+        self.assertIn(
+            'RELEASE_BASE="https://github.com/billlza/q-periapt/releases/download/$RELEASE_TAG"',
+            self.remote,
+        )
+        self.assertNotIn("releases/download/v$VERSION", self.remote)
 
     def test_compiler_path_remapping_and_archive_gates_precede_signing(self) -> None:
         self.assertIn('CARGO_ENCODED_RUSTFLAGS="-Dwarnings"', self.builder)

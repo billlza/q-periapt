@@ -85,7 +85,8 @@ The gate requires a clean worktree for release proof; use
 Credentialed Apple distribution is intentionally separate from that CI path:
 
 ```sh
-QPERIAPT_APPLE_RELEASE_CONFIRM=0.1.0-alpha.2 \
+QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0-alpha.2-r1 \
+QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')" \
 sh artifact/swift-xcframework-release.sh
 ```
 
@@ -94,8 +95,10 @@ static XCFramework, verifies that signing did not alter the three `.a` slices, e
 ZIP extraction through the isolated consumer, and requires a fixed 22-entry static-only archive:
 three static-library slices, their headers and metadata, plus the outer code-signature resources.
 Any extra executable, dynamic library, app, framework, bundle, script, symlink, special file, or
-unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the source commit, exact ZIP and
-SwiftPM hashes, certificate and signature resources, and all slice hashes. Because this SDK payload
+unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.0-alpha.2-r1` release
+identity, source commit, ZIP and SwiftPM hashes, certificate and signature resources, and all
+slice hashes; `MANIFEST.json` additionally binds the exact Rust/Cargo, Swift, Xcode, and host
+toolchain identities. Because this SDK payload
 contains no standalone executable or notarizable bundle, notarization is explicitly recorded as
 not applicable and never as Accepted. The final consuming macOS product still requires its own
 signing and notarization; iOS products retain signing and provisioning duties.

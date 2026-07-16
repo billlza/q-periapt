@@ -37,11 +37,21 @@ MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
 BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v2"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
-RELEASE_VERSION = "0.1.0-alpha.2"
-RELEASE_TAG = f"v{RELEASE_VERSION}"
+PRODUCT_VERSION = "0.1.0-alpha.2"
+RELEASE_REVISION = "r1"
+RELEASE_TAG = f"v{PRODUCT_VERSION}-{RELEASE_REVISION}"
 RELEASE_URL = (
     f"https://github.com/billlza/q-periapt/releases/tag/{RELEASE_TAG}"
 )
+EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RUST_HOST = "aarch64-apple-darwin"
+EXPECTED_SWIFT_VERSION = (
+    "swift-driver version: 1.148.6 Apple Swift version 6.3.3 "
+    "(swiftlang-6.3.3.1.3 clang-2100.1.1.101) "
+    "Target: arm64-apple-macosx28.0"
+)
+EXPECTED_XCODE_VERSION = ("Xcode 26.6", "Build version 17F113")
 XCFRAMEWORK_ZIP_NAME = "CQPeriapt.xcframework.zip"
 APPLE_DISTRIBUTION_NAME = "APPLE_DISTRIBUTION.json"
 MANIFEST_NAME = "MANIFEST.json"
@@ -1379,9 +1389,15 @@ def build_static_xcframework_distribution_evidence(
     if zip_libraries != sealed_libraries:
         _fail("signed ZIP static library hashes differ from signing evidence")
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "kind": "qperiapt.apple_static_xcframework_distribution",
         "source_commit": source_commit,
+        "release_identity": {
+            "product_version": PRODUCT_VERSION,
+            "revision": RELEASE_REVISION,
+            "tag": RELEASE_TAG,
+            "url": RELEASE_URL,
+        },
         "artifact": {
             "path": pathlib.Path(artifact).name,
             "size": artifact_size,
@@ -1462,6 +1478,7 @@ def _release_expectations_from_results(
             "origin_signature_identity_class",
             "origin_signature_team_id",
             "public_release",
+            "release_revision",
             "release_tag",
             "release_url",
             "remote_consumer_verified",
@@ -1479,7 +1496,12 @@ def _release_expectations_from_results(
         "trusted results artifact path",
     )
     _require_exact_json(
-        distribution["version"], RELEASE_VERSION, "trusted results release version"
+        distribution["version"], PRODUCT_VERSION, "trusted results product version"
+    )
+    _require_exact_json(
+        distribution["release_revision"],
+        RELEASE_REVISION,
+        "trusted results release revision",
     )
     _require_git_commit(distribution["source_commit"], "trusted results source commit")
     if type(distribution["artifact_size"]) is not int or distribution["artifact_size"] <= 0:
@@ -1495,11 +1517,6 @@ def _release_expectations_from_results(
         _require_sha256(distribution[key], f"trusted results {key}")
     _require_exact_json(
         distribution["distribution_signed"], True, "trusted results signed state"
-    )
-    _require_exact_json(
-        distribution["immutable_release"],
-        True,
-        "trusted results immutable release state",
     )
     _require_exact_json(
         distribution["release_tag"], RELEASE_TAG, "trusted results release tag"
@@ -1526,9 +1543,13 @@ def _release_expectations_from_results(
     )
     if not TEAM_ID.fullmatch(team_id):
         _fail("trusted results signature Team ID is invalid")
-    for key in ("public_release", "remote_consumer_verified"):
+    for key in ("public_release", "immutable_release", "remote_consumer_verified"):
         if type(distribution[key]) is not bool:
             _fail(f"trusted results {key} must be a boolean")
+    if distribution["public_release"] != distribution["immutable_release"]:
+        _fail(
+            "trusted results public and immutable release states must advance together"
+        )
     remote_verification = _require_object(
         distribution["remote_verification"],
         "trusted results remote verification",
@@ -1539,8 +1560,8 @@ def _release_expectations_from_results(
         "trusted results remote verification",
     )
     if distribution["remote_consumer_verified"]:
-        if not distribution["public_release"]:
-            _fail("trusted remote verification requires a public release")
+        if not distribution["public_release"] or not distribution["immutable_release"]:
+            _fail("trusted remote verification requires a public immutable release")
         _require_sha256(
             remote_verification["log_sha256"],
             "trusted remote verification log SHA-256",
@@ -1584,6 +1605,7 @@ def _validate_release_distribution_evidence(
             "schema_version",
             "kind",
             "source_commit",
+            "release_identity",
             "artifact",
             "format",
             "path_hygiene",
@@ -1593,7 +1615,7 @@ def _validate_release_distribution_evidence(
         },
         "Apple distribution evidence",
     )
-    _require_exact_json(evidence["schema_version"], 2, "Apple distribution schema")
+    _require_exact_json(evidence["schema_version"], 3, "Apple distribution schema")
     _require_exact_json(
         evidence["kind"],
         "qperiapt.apple_static_xcframework_distribution",
@@ -1603,6 +1625,16 @@ def _validate_release_distribution_evidence(
         evidence["source_commit"], "Apple distribution source commit"
     ) != source_commit:
         _fail("Apple distribution source commit does not match the expected release")
+    _require_exact_json(
+        evidence["release_identity"],
+        {
+            "product_version": PRODUCT_VERSION,
+            "revision": RELEASE_REVISION,
+            "tag": RELEASE_TAG,
+            "url": RELEASE_URL,
+        },
+        "Apple distribution release identity",
+    )
 
     artifact = _require_object(evidence["artifact"], "Apple distribution artifact")
     _require_exact_keys(
@@ -1709,6 +1741,7 @@ def _validate_release_manifest(
             "kind",
             "package",
             "version",
+            "release_identity",
             "type",
             "git_commit",
             "git_dirty",
@@ -1724,10 +1757,10 @@ def _validate_release_manifest(
         "Swift XCFramework manifest",
     )
     for value, expected, label in (
-        (manifest["schema_version"], 4, "manifest schema version"),
+        (manifest["schema_version"], 5, "manifest schema version"),
         (manifest["kind"], "qperiapt.swift_xcframework_manifest", "manifest kind"),
         (manifest["package"], "q-periapt-swift", "manifest package"),
-        (manifest["version"], RELEASE_VERSION, "manifest version"),
+        (manifest["version"], PRODUCT_VERSION, "manifest product version"),
         (
             manifest["type"],
             "swiftpm-binaryTarget-xcframework",
@@ -1736,6 +1769,16 @@ def _validate_release_manifest(
         (manifest["git_dirty"], False, "manifest git_dirty"),
     ):
         _require_exact_json(value, expected, label)
+    _require_exact_json(
+        manifest["release_identity"],
+        {
+            "product_version": PRODUCT_VERSION,
+            "revision": RELEASE_REVISION,
+            "tag": RELEASE_TAG,
+            "url": RELEASE_URL,
+        },
+        "manifest release identity",
+    )
     if _require_git_commit(manifest["git_commit"], "manifest Git commit") != source_commit:
         _fail("manifest Git commit does not match the expected release")
     _require_exact_json(
@@ -1899,15 +1942,26 @@ def _validate_release_manifest(
         _fail("manifest ABI contract hash differs from its source input hash")
 
     toolchain = _require_object(manifest["toolchain"], "manifest toolchain")
-    _require_exact_keys(toolchain, {"rustc", "swift", "xcode"}, "manifest toolchain")
-    _require_string(toolchain["rustc"], "manifest rustc version")
-    _require_string(toolchain["swift"], "manifest Swift version")
-    if (
-        not isinstance(toolchain["xcode"], list)
-        or len(toolchain["xcode"]) != 2
-        or any(not isinstance(line, str) or not line for line in toolchain["xcode"])
-    ):
-        _fail("manifest Xcode version must contain exactly two non-empty lines")
+    _require_exact_keys(
+        toolchain,
+        {"cargo", "rust_host", "rustc", "swift", "xcode"},
+        "manifest toolchain",
+    )
+    _require_exact_json(
+        toolchain["rustc"], EXPECTED_RUSTC_VERSION, "manifest rustc version"
+    )
+    _require_exact_json(
+        toolchain["cargo"], EXPECTED_CARGO_VERSION, "manifest Cargo version"
+    )
+    _require_exact_json(
+        toolchain["rust_host"], EXPECTED_RUST_HOST, "manifest Rust host"
+    )
+    _require_exact_json(
+        toolchain["swift"], EXPECTED_SWIFT_VERSION, "manifest Swift version"
+    )
+    _require_exact_json(
+        toolchain["xcode"], list(EXPECTED_XCODE_VERSION), "manifest Xcode version"
+    )
 
     consumer = _require_object(
         manifest["consumer_verification"], "manifest consumer verification"
