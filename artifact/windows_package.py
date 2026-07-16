@@ -208,6 +208,7 @@ PE_DYNAMIC_BASE = 0x0040
 PE_NX_COMPAT = 0x0100
 PE_DEBUG_TYPE_REPRO = 16
 PE_DEBUG_DIRECTORY_SIZE = 28
+MAX_PE_DEBUG_DIAGNOSTIC_ENTRIES = 4
 PE_RELOCATION_TYPE_ABSOLUTE = 0
 PE_RELOCATION_TYPE_DIR64 = 10
 PE_MAX_SECTIONS = 96
@@ -1232,10 +1233,39 @@ def parse_windows_pe_evidence(data: bytes) -> dict[str, Any]:
     debug_directory = optional + 112 + 6 * 8
     debug_rva = _pe_uint(data, debug_directory, 4, "debug-directory RVA")
     debug_size = _pe_uint(data, debug_directory + 4, 4, "debug-directory size")
+    diagnostic = ""
+    diagnostic_count = debug_size // PE_DEBUG_DIRECTORY_SIZE
+    if (
+        debug_size != PE_DEBUG_DIRECTORY_SIZE
+        and debug_size % PE_DEBUG_DIRECTORY_SIZE == 0
+        and 2 <= diagnostic_count <= MAX_PE_DEBUG_DIAGNOSTIC_ENTRIES
+    ):
+        diagnostic_offset = _map_pe_rva(
+            data,
+            debug_rva,
+            debug_size,
+            size_of_headers=size_of_headers,
+            sections=sections,
+            label="debug directory diagnostic",
+        )
+        _require(
+            relocation_offset + relocation_size <= diagnostic_offset
+            or diagnostic_offset + debug_size <= relocation_offset,
+            "Windows PE debug and base-relocation directories overlap",
+        )
+        entries: list[str] = []
+        for index in range(diagnostic_count):
+            entry = diagnostic_offset + index * PE_DEBUG_DIRECTORY_SIZE
+            entry_type = _pe_uint(data, entry + 12, 4, "debug entry Type")
+            data_size = _pe_uint(data, entry + 16, 4, "debug entry SizeOfData")
+            entries.append(
+                f"{index}:type={entry_type},size_of_data={data_size}"
+            )
+        diagnostic = "; entries=[" + ";".join(entries) + "]"
     _require(
         debug_size == PE_DEBUG_DIRECTORY_SIZE,
         "Windows PE must contain exactly one debug-directory entry "
-        f"(observed size {debug_size} bytes)",
+        f"(observed size {debug_size} bytes{diagnostic})",
     )
     debug_offset = _map_pe_rva(
         data,

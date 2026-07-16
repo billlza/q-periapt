@@ -369,14 +369,55 @@ class WindowsPeEvidenceTests(unittest.TestCase):
             "major version": _pack_pe(valid, 0x208, "<H", 1),
             "minor version": _pack_pe(valid, 0x20A, "<H", 1),
         }
-        for debug_size in (0, 56):
+        for debug_size in (0, 29, 57, 140, 0xFFFFFFFF):
             with self.subTest(debug_size=debug_size), self.assertRaisesRegex(
                 WindowsPackageError,
                 rf"observed size {debug_size} bytes",
-            ):
+            ) as captured:
                 windows_package.parse_windows_pe_evidence(
                     _pack_pe(valid, 0x98 + 164, "<I", debug_size)
                 )
+            self.assertNotIn("entries=[", str(captured.exception))
+
+        two_entries = _pack_pe(valid, 0x98 + 164, "<I", 56)
+        two_entries = _pack_pe(two_entries, 0x20C, "<I", 2)
+        two_entries = _pack_pe(two_entries, 0x210, "<I", 35)
+        two_entries = _pack_pe(two_entries, 0x228, "<I", 16)
+        two_entries = _pack_pe(two_entries, 0x22C, "<I", 0)
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=2,size_of_data=35;1:type=16,size_of_data=0\]",
+        ):
+            windows_package.parse_windows_pe_evidence(two_entries)
+
+        reversed_entries = _pack_pe(two_entries, 0x20C, "<I", 16)
+        reversed_entries = _pack_pe(reversed_entries, 0x210, "<I", 36)
+        reversed_entries = _pack_pe(reversed_entries, 0x228, "<I", 2)
+        reversed_entries = _pack_pe(reversed_entries, 0x22C, "<I", 35)
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=16,size_of_data=36;1:type=2,size_of_data=35\]",
+        ):
+            windows_package.parse_windows_pe_evidence(reversed_entries)
+
+        four_entries = _pack_pe(valid, 0x98 + 164, "<I", 112)
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=16,size_of_data=0;"
+            r"1:type=0,size_of_data=0;2:type=0,size_of_data=0;"
+            r"3:type=0,size_of_data=0\]",
+        ):
+            windows_package.parse_windows_pe_evidence(four_entries)
+
+        diagnostic_overlap = _pack_pe(valid, 0x98 + 160, "<I", 0x1080)
+        diagnostic_overlap = _pack_pe(
+            diagnostic_overlap, 0x98 + 164, "<I", 56
+        )
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            "debug and base-relocation directories overlap",
+        ):
+            windows_package.parse_windows_pe_evidence(diagnostic_overlap)
         for debug_type in (0, 1, 2, 4, 17, 19, 20):
             cases[f"debug type {debug_type}"] = _pack_pe(
                 valid, 0x20C, "<I", debug_type
