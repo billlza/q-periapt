@@ -82,12 +82,16 @@ class PlatformDistributionTests(unittest.TestCase):
 
     def _android_manifest(self) -> tuple[dict, bytes]:
         manifest = {
-            "schema_version": 3,
+            "schema_version": platform_distribution.ANDROID_MANIFEST_SCHEMA_VERSION,
             "kind": "qperiapt.android_aar_manifest",
             "package": platform_distribution.ANDROID_AAR,
             "version": platform_distribution.PRODUCT_VERSION,
             "generated_at": "2023-11-14T22:13:20Z",
             "source_date_epoch": self.source.source_date_epoch,
+            "toolchain": {
+                "cargo": platform_distribution.ANDROID_EXPECTED_CARGO_VERSION,
+                "rustc": platform_distribution.ANDROID_EXPECTED_RUSTC_VERSION,
+            },
             "git_commit": self.source.commit,
             "git_dirty": False,
             "package_only": True,

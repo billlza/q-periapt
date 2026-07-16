@@ -16,6 +16,7 @@ import unittest
 import warnings
 import zipfile
 
+import android_elf
 from claim_ledger import canonical_tree_digest, repository_paths
 from git_provenance import run_git_text
 from android_elf import (
@@ -252,7 +253,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
             for abi in REQUIRED_ABIS
         }
         payload: dict[str, object] = {
-            "schema_version": 3,
+            "schema_version": android_elf.MANIFEST_SCHEMA_VERSION,
             "kind": "qperiapt.android_aar_manifest",
             "package": aar.name,
             "version": "0.1.0-alpha.2",
@@ -269,6 +270,10 @@ class AndroidElfVerifierTests(unittest.TestCase):
             "package_only": True,
             "device_runtime_proof": False,
             "boundary": "AAR/JNI packaging proof only; Android emulator or physical-device instrumentation is required before claiming Android runtime readiness.",
+            "toolchain": {
+                "cargo": android_elf.EXPECTED_CARGO_VERSION,
+                "rustc": android_elf.EXPECTED_RUSTC_VERSION,
+            },
             "third_party": {
                 "rust": {
                     "covered_targets": [
@@ -369,6 +374,19 @@ class AndroidElfVerifierTests(unittest.TestCase):
             AndroidVerificationError, "Android metadata fields differ"
         ):
             verify_payload(extra_android_field)
+
+        for field, value in (
+            ("rustc", "rustc 1.96.0 (ac68faa20 2026-05-25)"),
+            ("cargo", "cargo 1.96.0 (30a34c682 2026-05-25)"),
+        ):
+            with self.subTest(toolchain_field=field):
+                wrong_toolchain = copy.deepcopy(payload)
+                wrong_toolchain["toolchain"][field] = value
+                with self.assertRaisesRegex(
+                    AndroidVerificationError,
+                    f"{field} version differs from the canonical release toolchain",
+                ):
+                    verify_payload(wrong_toolchain)
 
         extra_native_field = copy.deepcopy(payload)
         extra_native_field["artifacts"]["native"]["arm64-v8a"]["signed"] = True

@@ -36,6 +36,19 @@ if [ "$VERIFY_ONLY" = "0" ]; then
 	need git
 fi
 
+RUSTC_VERSION=$(rustc --version)
+if [ "$RUSTC_VERSION" != "rustc 1.96.1 (31fca3adb 2026-06-26)" ]; then
+	printf 'error: C release package requires rustc 1.96.1: %s\n' "$RUSTC_VERSION" >&2
+	exit 2
+fi
+if [ "$VERIFY_ONLY" = "0" ]; then
+	CARGO_VERSION=$(cargo --version)
+	if [ "$CARGO_VERSION" != "cargo 1.96.1 (356927216 2026-06-26)" ]; then
+		printf 'error: C release package requires cargo 1.96.1: %s\n' "$CARGO_VERSION" >&2
+		exit 2
+	fi
+fi
+
 if [ "${QPERIAPT_C_PACKAGE_SKIP_VERIFY:-0}" = "1" ]; then
 	printf 'error: QPERIAPT_C_PACKAGE_SKIP_VERIFY is not supported by the release archive proof gate\n' >&2
 	exit 2

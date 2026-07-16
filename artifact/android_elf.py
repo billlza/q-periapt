@@ -69,6 +69,9 @@ MIN_LOAD_ALIGNMENT = 0x4000
 MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_ENTRY_BYTES = 128 * 1024 * 1024
 MAX_CLASSES_JAR_BYTES = 16 * 1024 * 1024
+MANIFEST_SCHEMA_VERSION = 4
+EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,12 +104,14 @@ MANIFEST_FIELDS = frozenset(
         "package_only",
         "device_runtime_proof",
         "boundary",
+        "toolchain",
         "third_party",
         "abi",
         "android",
         "artifacts",
     }
 )
+MANIFEST_TOOLCHAIN_FIELDS = frozenset({"cargo", "rustc"})
 MANIFEST_ABI_FIELDS = frozenset(
     {
         "major",
@@ -769,7 +774,10 @@ def verify_manifest(
         "Android AAR manifest bytes are not canonical JSON",
     )
     exact_object(manifest, MANIFEST_FIELDS, "Android AAR manifest")
-    require(manifest.get("schema_version") == 3, "Android AAR manifest schema must be 3")
+    require(
+        manifest.get("schema_version") == MANIFEST_SCHEMA_VERSION,
+        f"Android AAR manifest schema must be {MANIFEST_SCHEMA_VERSION}",
+    )
     require(manifest.get("kind") == "qperiapt.android_aar_manifest", "unexpected Android AAR manifest kind")
     require(manifest.get("package") == aar_path.name, "Android AAR manifest package filename mismatch")
     require(manifest.get("version") == "0.1.0-alpha.2", "Android AAR manifest version mismatch")
@@ -784,6 +792,19 @@ def verify_manifest(
         manifest,
         source_root=source_root,
         require_release=require_release,
+    )
+    toolchain = exact_object(
+        manifest.get("toolchain"),
+        MANIFEST_TOOLCHAIN_FIELDS,
+        "Android AAR manifest toolchain",
+    )
+    require(
+        toolchain.get("rustc") == EXPECTED_RUSTC_VERSION,
+        "Android AAR manifest rustc version differs from the canonical release toolchain",
+    )
+    require(
+        toolchain.get("cargo") == EXPECTED_CARGO_VERSION,
+        "Android AAR manifest cargo version differs from the canonical release toolchain",
     )
     inventory = audit_third_party_license_entries(entries)
     third_party = manifest.get("third_party")

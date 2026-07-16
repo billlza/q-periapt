@@ -257,6 +257,16 @@ if [ -n "$missing_targets" ]; then
 	printf 'hint : rustup target add%s\n' "$missing_targets" >&2
 	exit 2
 fi
+RUSTC_VERSION=$(rustc --version)
+CARGO_VERSION=$(cargo --version)
+if [ "$RUSTC_VERSION" != "rustc 1.96.1 (31fca3adb 2026-06-26)" ]; then
+	printf 'error: Android release package requires rustc 1.96.1: %s\n' "$RUSTC_VERSION" >&2
+	exit 2
+fi
+if [ "$CARGO_VERSION" != "cargo 1.96.1 (356927216 2026-06-26)" ]; then
+	printf 'error: Android release package requires cargo 1.96.1: %s\n' "$CARGO_VERSION" >&2
+	exit 2
+fi
 
 OUT_ROOT=${QPERIAPT_ANDROID_AAR_OUT_DIR:-"$ROOT/target/qperiapt-android-aar"}
 require_under_target "$OUT_ROOT" "QPERIAPT_ANDROID_AAR_OUT_DIR"
@@ -291,7 +301,8 @@ printf 'ndk      : %s\n' "$ANDROID_NDK"
 printf 'ndk-rev  : %s\n' "$NDK_REVISION"
 printf 'platform : %s\n' "$ANDROID_PLATFORM"
 printf 'buildtools: %s\n' "$ANDROID_BUILD_TOOLS"
-printf 'rustc    : %s\n' "$(rustc --version)"
+printf 'rustc    : %s\n' "$RUSTC_VERSION"
+printf 'cargo    : %s\n' "$CARGO_VERSION"
 printf 'javac    : %s\n' "$(javac -version 2>&1)"
 
 printf '\n=== Generated C header freshness ===\n'
@@ -587,7 +598,13 @@ printf 'PASS: isolated Java consumer compile\n'
 
 assert_source_snapshot
 printf '\n=== Emit manifest and checksums ===\n'
-python3 - "$ROOT" "$STAGE" "$AAR_PATH" "$CLASSES_JAR" "$MANIFEST" "$SHA256SUMS" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$VERSION" "$NDK_REVISION" "$SOURCE_COMMIT" "$SOURCE_DIRTY" "$SOURCE_COMMIT_EPOCH" "$SOURCE_TREE_SHA256" <<'PY'
+CURRENT_RUSTC_VERSION=$(rustc --version)
+CURRENT_CARGO_VERSION=$(cargo --version)
+if [ "$CURRENT_RUSTC_VERSION" != "$RUSTC_VERSION" ] || [ "$CURRENT_CARGO_VERSION" != "$CARGO_VERSION" ]; then
+	printf 'error: Android Rust toolchain changed during release package construction\n' >&2
+	exit 2
+fi
+python3 - "$ROOT" "$STAGE" "$AAR_PATH" "$CLASSES_JAR" "$MANIFEST" "$SHA256SUMS" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$VERSION" "$NDK_REVISION" "$SOURCE_COMMIT" "$SOURCE_DIRTY" "$SOURCE_COMMIT_EPOCH" "$SOURCE_TREE_SHA256" "$CURRENT_RUSTC_VERSION" "$CURRENT_CARGO_VERSION" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -608,6 +625,8 @@ source_commit = sys.argv[11]
 source_dirty = sys.argv[12] == "1"
 source_date_epoch = int(sys.argv[13])
 source_tree_sha256 = sys.argv[14]
+rustc_version = sys.argv[15]
+cargo_version = sys.argv[16]
 
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -636,7 +655,7 @@ if len(export_names) != 9 or len(set(export_names)) != 9:
     raise SystemExit("error: Android manifest requires the exact 9-symbol ABI2 export set")
 exports_digest = hashlib.sha256(("\n".join(export_names) + "\n").encode("utf-8")).hexdigest()
 payload = {
-    "schema_version": 3,
+    "schema_version": 4,
     "kind": "qperiapt.android_aar_manifest",
     "package": aar.name,
     "version": version,
@@ -651,6 +670,10 @@ payload = {
     "package_only": True,
     "device_runtime_proof": False,
     "boundary": "AAR/JNI packaging proof only; Android emulator or physical-device instrumentation is required before claiming Android runtime readiness.",
+    "toolchain": {
+        "cargo": cargo_version,
+        "rustc": rustc_version,
+    },
     "third_party": {
         "rust": {
             "covered_targets": [

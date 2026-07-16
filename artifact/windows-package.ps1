@@ -843,6 +843,14 @@ $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$'
 if (-not $RustHostMatch.Success) {
     throw "cannot determine the Rust host triple"
 }
+$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--version")
+if ($RustcVersion -cne "rustc 1.96.1 (31fca3adb 2026-06-26)") {
+    throw "Windows release package requires rustc 1.96.1: $RustcVersion"
+}
+$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("--version")
+if ($CargoVersion -cne "cargo 1.96.1 (356927216 2026-06-26)") {
+    throw "Windows release package requires cargo 1.96.1: $CargoVersion"
+}
 $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustSysroot $RustSysroot `
     -RustHost $RustHostMatch.Groups['host'].Value
@@ -1015,7 +1023,9 @@ try {
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
         "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
-        "-Clink-arg=/Brepro", "-Clink-arg=/WX", "-Dlinker-messages",
+        "-Clink-arg=/Brepro", "-Clink-arg=/WX",
+        "-Clink-arg=/DEBUG:NONE", "-Clink-arg=/OPT:REF,NOICF",
+        "-Dlinker-messages",
         "--remap-path-prefix=$Root=qperiapt-source"
     )
     Invoke-PythonChecked -Arguments @(
@@ -1094,6 +1104,18 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "expected Rust Windows build output is missing: $path"
     }
+}
+$unexpectedPdbs = @(
+    Get-ChildItem `
+        -LiteralPath (Join-Path $DynamicTarget "release") `
+        -Filter "q_periapt_ffi_abi2*.pdb" `
+        -File `
+        -Recurse `
+        -Force `
+        -ErrorAction Stop
+)
+if ($unexpectedPdbs.Count -ne 0) {
+    throw "Windows release DLL build unexpectedly generated a q_periapt_ffi_abi2 PDB"
 }
 
 $directories = @(
@@ -1239,6 +1261,11 @@ if ($clVersion -cnotmatch '^MSVC [1-9][0-9]\.[0-9]{2}\.(0|[1-9][0-9]{0,4})\.(0|[
     throw "MSVC compiler version inspector returned a malformed contract"
 }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
+$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--version")
+$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("--version")
+if ($ManifestRustcVersion -cne $RustcVersion -or $ManifestCargoVersion -cne $CargoVersion) {
+    throw "Windows Rust toolchain changed during release package construction"
+}
 $manifestArguments = @(
     "artifact/windows_package.py", "create",
     "--package-root", $PackageRoot,
@@ -1248,8 +1275,8 @@ $manifestArguments = @(
     "--git-commit", $GitCommit,
     "--git-tree", $GitTree,
     "--source-date-epoch", $SourceDateEpochText,
-    "--rustc", (Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--version")),
-    "--cargo", (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("--version")),
+    "--rustc", $ManifestRustcVersion,
+    "--cargo", $ManifestCargoVersion,
     "--cl", $clVersion,
     "--dumpbin", $Dumpbin
 )

@@ -1727,7 +1727,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             self.workflow.index("  bindings-kotlin:")
         ]
         install_cbindgen = swift_job.index(
-            "cargo +stable install cbindgen --version 0.29.4 --locked"
+            "cargo install cbindgen --version 0.29.4 --locked"
         )
         verify_generated_headers = swift_job.index(
             "- name: Generated C/Swift header freshness"
@@ -1739,11 +1739,12 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertLess(verify_generated_headers, build_xcframework)
         self.assertEqual(
             swift_job.count(
-                "cargo +stable install cbindgen --version 0.29.4 --locked"
+                "cargo install cbindgen --version 0.29.4 --locked"
             ),
             1,
         )
-        self.assertNotIn("cargo install cbindgen", swift_job)
+        self.assertNotIn("cargo +stable install cbindgen", swift_job)
+        self.assertIn("          toolchain: 1.96.1\n", swift_job)
         self.assertNotIn(
             "rust_distributed_compiler_builtins_members_v1", self.builder
         )

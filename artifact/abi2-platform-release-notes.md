@@ -6,6 +6,10 @@ distribution revision exists because the immutable Apple `v0.1.0-alpha.2` releas
 cannot be rewritten. The next normal release returns all platforms to one SemVer
 release line.
 
+All Android, GNU/Linux, and Windows native code in this revision is built with
+the source-pinned Rust 1.96.1 patch release. The exact rustc and Cargo identities
+are checked before compilation and embedded in each platform package manifest.
+
 ## Assets and tested scope
 
 - Android: one AAR containing `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`
@@ -24,9 +28,12 @@ release line.
   ABI-major headers, exact-version CMake config, ABI contract, SBOM/CBOM, license
   material, and `/W4 /WX` native-consumer validation in the attested candidate CI.
 
-The Apple XCFramework remains available from the immutable
+The immutable Apple
 [`v0.1.0-alpha.2`](https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2)
-release; it is not duplicated or altered here.
+release was built with Rust 1.96.0. It remains available only as historical,
+attested evidence and must not be treated as the patched-toolchain Apple build.
+The separately signed Apple revision `v0.1.0-alpha.2-r1`, rebuilt with Rust
+1.96.1, supersedes it for testing and integration.
 
 ## Integrity and trust boundary
 

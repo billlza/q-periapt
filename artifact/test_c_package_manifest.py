@@ -175,8 +175,8 @@ class CPackageManifestTests(unittest.TestCase):
             "git_commit": "a" * 40,
             "git_dirty": False,
             "diagnostic_only": False,
-            "rustc": "rustc fixture",
-            "cargo": "cargo fixture",
+            "rustc": c_package_manifest.EXPECTED_RUSTC_VERSION,
+            "cargo": c_package_manifest.EXPECTED_CARGO_VERSION,
             "platform_compatibility": {
                 "target": target,
                 "elf_class": "ELF64",
@@ -373,6 +373,8 @@ class CPackageManifestTests(unittest.TestCase):
         )
         self.assertIn('LANG=C LC_ALL=C ldd "$binary"', script)
         self.assertIn("artifact/c_package_manifest.py verify-ldd", script)
+        self.assertIn(c_package_manifest.EXPECTED_RUSTC_VERSION, script)
+        self.assertIn(c_package_manifest.EXPECTED_CARGO_VERSION, script)
 
     def test_forged_minimal_package_and_unsafe_needed_library_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -411,6 +413,38 @@ class CPackageManifestTests(unittest.TestCase):
                     self.repository,
                     expected_target="x86_64-unknown-linux-gnu",
                 )
+
+            for field, value in (
+                ("rustc", "rustc 1.96.0 (ac68faa20 2026-05-25)"),
+                ("cargo", "cargo 1.96.0 (30a34c682 2026-05-25)"),
+            ):
+                with self.subTest(toolchain_field=field):
+                    package = self._package(root / f"wrong-{field}")
+                    manifest_path = package / "MANIFEST.json"
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    manifest[field] = value
+                    manifest_path.write_bytes(
+                        c_package_manifest.canonical_json(manifest)
+                    )
+                    sums_path = package / "SHA256SUMS"
+                    lines = []
+                    for line in sums_path.read_text(encoding="ascii").splitlines():
+                        digest, relative = line.split("  ", 1)
+                        if relative == "MANIFEST.json":
+                            digest = hashlib.sha256(
+                                manifest_path.read_bytes()
+                            ).hexdigest()
+                        lines.append(f"{digest}  {relative}\n")
+                    sums_path.write_text("".join(lines), encoding="ascii")
+                    with self.assertRaisesRegex(
+                        c_package_manifest.CPackageManifestError,
+                        f"{field} version differs from the canonical release toolchain",
+                    ):
+                        c_package_manifest.verify_package(
+                            package,
+                            self.repository,
+                            expected_target="x86_64-unknown-linux-gnu",
+                        )
 
 
 if __name__ == "__main__":

@@ -311,6 +311,8 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
 
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
 REQUIRED_MSVC_LINK_ARGUMENTS = ("/brepro", "/nologo", "/wx")
+EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
 
 EXPECTED_PAYLOAD_FILES = frozenset(
     {
@@ -847,6 +849,48 @@ def verify_rustc_linker_invocation(
     _require(
         "/wx:no" not in folded_arguments,
         "rustc linker command disables warnings-as-errors",
+    )
+
+    debug_options = [
+        (index, argument)
+        for index, argument in enumerate(folded_arguments)
+        if argument.startswith(("/debug", "-debug"))
+    ]
+    _require(
+        [argument for _index, argument in debug_options]
+        == ["/debug", "/debug:none"],
+        "rustc linker command must contain one automatic /DEBUG followed by one /DEBUG:NONE",
+    )
+    pdb_options = [
+        (index, argument)
+        for index, argument in enumerate(folded_arguments)
+        if argument.startswith(("/pdb", "-pdb"))
+    ]
+    _require(
+        [argument for _index, argument in pdb_options]
+        == ["/pdbaltpath:%_pdb%"],
+        "rustc linker PDB option contract differs",
+    )
+    opt_options = [
+        (index, argument)
+        for index, argument in enumerate(folded_arguments)
+        if argument.startswith(("/opt", "-opt"))
+    ]
+    _require(
+        [argument for _index, argument in opt_options]
+        == ["/opt:ref,noicf", "/opt:ref,noicf"],
+        "rustc linker optimization option contract differs",
+    )
+    automatic_debug_index = debug_options[0][0]
+    disabled_debug_index = debug_options[1][0]
+    pdb_altpath_index = pdb_options[0][0]
+    _require(
+        opt_options[0][0]
+        < automatic_debug_index
+        < pdb_altpath_index
+        < disabled_debug_index
+        < opt_options[1][0],
+        "rustc linker debug/PDB/optimization options are not ordered fail-closed",
     )
     return arguments
 
@@ -1778,8 +1822,14 @@ def create_manifest(
     _require(type(source_date_epoch) is int, "source date epoch must be an integer")
     _require(version == PACKAGE_SEMVER, f"Windows package version must be {PACKAGE_SEMVER}")
     _require(package_name == f"q-periapt-c-abi2-{version}-{TARGET}", "Windows package name differs from release contract")
-    for label, value in (("rustc", rustc), ("cargo", cargo)):
-        _require(isinstance(value, str) and value and "\n" not in value and "\r" not in value, f"{label} version is malformed")
+    _require(
+        rustc == EXPECTED_RUSTC_VERSION,
+        "Windows rustc version differs from the canonical release toolchain",
+    )
+    _require(
+        cargo == EXPECTED_CARGO_VERSION,
+        "Windows cargo version differs from the canonical release toolchain",
+    )
     _validate_msvc_version(cl, "cl version")
 
     third_party, third_party_files = _third_party_rust_files(root)
@@ -1995,15 +2045,14 @@ def verify_package(
         isinstance(toolchain, dict) and set(toolchain) == {"cargo", "cl", "rustc"},
         "Windows toolchain fields differ",
     )
-    for label in ("cargo", "rustc"):
-        value = toolchain[label]
-        _require(
-            isinstance(value, str)
-            and value
-            and "\n" not in value
-            and "\r" not in value,
-            f"Windows {label} version is malformed",
-        )
+    _require(
+        toolchain["rustc"] == EXPECTED_RUSTC_VERSION,
+        "Windows manifest rustc version differs from the canonical release toolchain",
+    )
+    _require(
+        toolchain["cargo"] == EXPECTED_CARGO_VERSION,
+        "Windows manifest cargo version differs from the canonical release toolchain",
+    )
     _validate_msvc_version(toolchain["cl"], "Windows cl version")
     source_inputs = manifest.get("source_inputs_sha256")
     _require(

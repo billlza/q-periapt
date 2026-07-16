@@ -99,6 +99,8 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)+$")
 SHARED_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
 LDD_MAPPING_RE = re.compile(
     r"^(?P<name>\S+)\s+=>\s+(?P<target>.+)$"
 )
@@ -393,9 +395,14 @@ def verify_package(
     if expected_commit is not None:
         require(manifest["git_commit"] == expected_commit, "C package commit differs from release source")
     require(manifest["git_dirty"] is False and manifest["diagnostic_only"] is False, "C package is not clean release evidence")
-    for key in ("rustc", "cargo"):
-        value = manifest[key]
-        require(isinstance(value, str) and value and "\n" not in value and "\r" not in value, f"C package {key} version is malformed")
+    require(
+        manifest["rustc"] == EXPECTED_RUSTC_VERSION,
+        "C package rustc version differs from the canonical release toolchain",
+    )
+    require(
+        manifest["cargo"] == EXPECTED_CARGO_VERSION,
+        "C package cargo version differs from the canonical release toolchain",
+    )
 
     abi = manifest["abi"]
     require(isinstance(abi, dict) and set(abi) == ABI_KEYS, "C package ABI fields differ")

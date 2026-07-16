@@ -62,8 +62,13 @@ def _rustc_link_arguments_output(
     program: str = r"C:\Program Files\Microsoft Visual Studio\VC\Tools\MSVC\14.50.12345\bin\Hostx64\x64\link.exe",
     arguments: tuple[str, ...] = (
         "/NOLOGO",
+        "/OPT:REF,NOICF",
+        "/DEBUG",
+        "/PDBALTPATH:%_PDB%",
         "/Brepro",
         "/WX",
+        "/DEBUG:NONE",
+        "/OPT:REF,NOICF",
         r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
     ),
 ) -> bytes:
@@ -580,8 +585,13 @@ class RustcLinkerInvocationTests(unittest.TestCase):
             arguments,
             [
                 "/NOLOGO",
+                "/OPT:REF,NOICF",
+                "/DEBUG",
+                "/PDBALTPATH:%_PDB%",
                 "/Brepro",
                 "/WX",
+                "/DEBUG:NONE",
+                "/OPT:REF,NOICF",
                 r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
             ],
         )
@@ -597,13 +607,99 @@ class RustcLinkerInvocationTests(unittest.TestCase):
                 program=r"C:\Trusted\lld-link.exe"
             ),
             "missing Brepro": _rustc_link_arguments_output(
-                arguments=("/NOLOGO", "/WX", "/OUT:output.dll")
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/OPT:REF,NOICF", "/OUT:output.dll",
+                )
             ),
             "duplicate WX": _rustc_link_arguments_output(
-                arguments=("/NOLOGO", "/Brepro", "/WX", "/wx")
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/wx",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
             ),
             "warnings disabled": _rustc_link_arguments_output(
-                arguments=("/NOLOGO", "/Brepro", "/WX", "/WX:NO")
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/WX:NO",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing automatic debug": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/PDBALTPATH:%_PDB%",
+                    "/Brepro", "/WX", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing debug none": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/OPT:REF,NOICF",
+                )
+            ),
+            "debug full": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG:FULL",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "debug fastlink": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG:FASTLINK",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "dash debug spelling": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "-DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "debug modes reversed": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG:NONE",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/DEBUG",
+                    "/OPT:REF,NOICF",
+                )
+            ),
+            "duplicate debug none": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing PDB altpath": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG", "/Brepro",
+                    "/WX", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "changed PDB altpath": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:C:\\private\\build.pdb", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing trailing optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/DEBUG:NONE",
+                )
+            ),
+            "changed trailing optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/DEBUG:NONE",
+                    "/OPT:NOREF,NOICF",
+                )
             ),
             "unexpected Unix env prefix": b'env -u LIBRARY_PATH LC_ALL="C" '
             + valid,
@@ -1539,8 +1635,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             git_commit="a" * 40,
             git_tree="b" * 40,
             source_date_epoch=1_700_000_000,
-            rustc="rustc fixture",
-            cargo="cargo fixture",
+            rustc=windows_package.EXPECTED_RUSTC_VERSION,
+            cargo=windows_package.EXPECTED_CARGO_VERSION,
             cl="MSVC 19.44.35222.0",
             dependencies=["KERNEL32.dll", "bcrypt.dll"],
         )
@@ -1731,8 +1827,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     git_commit="a" * 40,
                     git_tree="b" * 40,
                     source_date_epoch=1_700_000_000,
-                    rustc="rustc fixture",
-                    cargo="cargo fixture",
+                    rustc=windows_package.EXPECTED_RUSTC_VERSION,
+                    cargo=windows_package.EXPECTED_CARGO_VERSION,
                     cl="MSVC 19.44.35222.0",
                     dependencies=["..\\malicious.dll"],
                 )
@@ -1745,8 +1841,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     git_commit="not-a-commit",
                     git_tree="b" * 40,
                     source_date_epoch=1_700_000_000,
-                    rustc="rustc fixture",
-                    cargo="cargo fixture",
+                    rustc=windows_package.EXPECTED_RUSTC_VERSION,
+                    cargo=windows_package.EXPECTED_CARGO_VERSION,
                     cl="MSVC 19.44.35222.0",
                     dependencies=["KERNEL32.dll"],
                 )
@@ -1768,8 +1864,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
                             git_commit="a" * 40,
                             git_tree="b" * 40,
                             source_date_epoch=1_700_000_000,
-                            rustc="rustc fixture",
-                            cargo="cargo fixture",
+                            rustc=windows_package.EXPECTED_RUSTC_VERSION,
+                            cargo=windows_package.EXPECTED_CARGO_VERSION,
                             cl=value,
                             dependencies=["KERNEL32.dll"],
                         )
@@ -1824,6 +1920,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "generated_at": lambda value: value.__setitem__("generated_at", "not-a-time"),
             "source_date_epoch": lambda value: value.__setitem__("source_date_epoch", False),
             "toolchain": lambda value: value.__setitem__("toolchain", {}),
+            "rustc toolchain": lambda value: value["toolchain"].__setitem__(
+                "rustc", "rustc 1.96.0 (ac68faa20 2026-05-25)"
+            ),
+            "cargo toolchain": lambda value: value["toolchain"].__setitem__(
+                "cargo", "cargo 1.96.0 (30a34c682 2026-05-25)"
+            ),
             "source inputs": lambda value: value.__setitem__("source_inputs_sha256", {}),
             "fields": lambda value: value.__setitem__("unexpected", True),
             "dependency": lambda value: value.__setitem__("native_dependencies", ["evil.dll"]),
@@ -1928,6 +2030,11 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$RustLlvmTools = Resolve-TrustedRustLlvmTools',
             '$LlvmAr = $RustLlvmTools.Ar',
             '$LlvmNm = $RustLlvmTools.Nm',
+            'rustc 1.96.1 (31fca3adb 2026-06-26)',
+            'cargo 1.96.1 (356927216 2026-06-26)',
+            '$ManifestRustcVersion -cne $RustcVersion',
+            '$ManifestCargoVersion -cne $CargoVersion',
+            'Windows Rust toolchain changed during release package construction',
             '-ExpectedName "llvm-ar.exe"',
             '-ExpectedName "llvm-nm.exe"',
             '$MsvcVersionProbe = Join-Path $Root "artifact/msvc-version-probe.c"',
@@ -1960,6 +2067,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"--print", "link-args=$linkArgumentsLog"',
             '"-Clink-arg=/Brepro"',
             '"-Clink-arg=/WX"',
+            '"-Clink-arg=/DEBUG:NONE"',
+            '"-Clink-arg=/OPT:REF,NOICF"',
             '"-Dlinker-messages"',
             '"verify-linker-invocation"',
             '"--link-arguments", $linkArgumentsLog',
@@ -1976,6 +2085,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "$library -isnot [string]",
             "[System.StringComparison]::Ordinal",
             "$NativeStaticLibraries = [string[]] $decodedNativeStaticLibraries",
+            '-Filter "q_periapt_ffi_abi2*.pdb"',
+            "Windows release DLL build unexpectedly generated a q_periapt_ffi_abi2 PDB",
         ):
             self.assertIn(token, script)
         for forbidden in (
@@ -2028,6 +2139,14 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertLess(
             script.index('"-Clink-arg=/Brepro"'),
             script.index('"-Clink-arg=/WX"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/WX"'),
+            script.index('"-Clink-arg=/DEBUG:NONE"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/DEBUG:NONE"'),
+            script.index('"-Clink-arg=/OPT:REF,NOICF"'),
         )
         self.assertLess(
             script.index('"link-args=$linkArgumentsLog"'),

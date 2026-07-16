@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 from collections.abc import Iterator
 from unittest import mock
@@ -39,6 +40,13 @@ PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
     ROOT / ".github" / "workflows" / "abi2-platform-candidate.yml"
+)
+RUST_TOOLCHAIN_FILE = ROOT / "rust-toolchain.toml"
+CANONICAL_RUST_TOOLCHAIN = "1.96.1"
+CANONICAL_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+CANONICAL_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+PINNED_CANONICAL_RUST_ACTION = (
+    "dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30"
 )
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
 RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
@@ -641,6 +649,17 @@ def extract_named_workflow_step(job: str, step_name: str) -> str:
     if step_match is None:
         raise ValueError(f"workflow job has no {step_name!r} step")
     return step_match.group(0)
+
+
+def extract_action_steps(workflow: str, action: str) -> list[str]:
+    return [
+        match.group(0)
+        for match in re.finditer(
+            rf"(?ms)^      - uses: {re.escape(action)}[^\n]*\n"
+            r".*?(?=^      - |^  [A-Za-z0-9_-]+:\n|\Z)",
+            workflow,
+        )
+    ]
 
 
 def repository_head() -> str:
@@ -2784,19 +2803,82 @@ with _temporary_release_test_directories(parents):
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         validate_ci_check_checkout(extract_ci_check_job(workflow))
 
+    def test_canonical_rust_toolchain_is_source_pinned_and_provisioned(self) -> None:
+        document = tomllib.loads(RUST_TOOLCHAIN_FILE.read_text(encoding="utf-8"))
+        self.assertEqual(
+            document,
+            {
+                "toolchain": {
+                    "channel": CANONICAL_RUST_TOOLCHAIN,
+                    "profile": "minimal",
+                    "components": ["rustfmt", "clippy"],
+                }
+            },
+        )
+        self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
+
+        workflows = (
+            (CI_WORKFLOW, 19),
+            (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3),
+        )
+        for path, expected_count in workflows:
+            with self.subTest(workflow=path.name):
+                source = path.read_text(encoding="utf-8")
+                steps = extract_action_steps(source, PINNED_CANONICAL_RUST_ACTION)
+                self.assertEqual(len(steps), expected_count)
+                for step in steps:
+                    self.assertEqual(
+                        step.count(
+                            f"          toolchain: {CANONICAL_RUST_TOOLCHAIN}\n"
+                        ),
+                        1,
+                    )
+                self.assertNotIn("cargo +stable", source)
+                self.assertNotIn("toolchain: stable", source)
+                self.assertNotIn("RUSTUP_TOOLCHAIN", source)
+                self.assertNotIn("rustup override", source)
+                self.assertNotIn("rustup default", source)
+
+        ci = CI_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            "cargo +${{ matrix.toolchain }} test --workspace --locked",
+            extract_workflow_job(ci, "cross-compiler"),
+        )
+        self.assertIn(
+            "cargo +1.85 build --workspace --locked",
+            extract_workflow_job(ci, "msrv"),
+        )
+        fuzz = extract_workflow_job(ci, "fuzz")
+        self.assertIn("cargo +nightly fetch", fuzz)
+        self.assertIn("cargo +nightly fuzz build", fuzz)
+
     def test_pretag_windows_2022_package_gate_matches_candidate_substrate(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         job = extract_workflow_job(workflow, "abi2-windows-package-2022")
         self.assertIn("    runs-on: windows-2022\n", job)
         self.assertIn("          fetch-depth: 0\n", job)
-        self.assertIn("          toolchain: 1.96.0\n", job)
+        self.assertIn("          toolchain: 1.96.1\n", job)
         self.assertIn("          components: llvm-tools\n", job)
         self.assertIn(
-            "cargo +1.96.0 install cbindgen --version 0.29.4 --locked",
+            "cargo install cbindgen --version 0.29.4 --locked",
             job,
         )
         self.assertNotIn("continue-on-error:", job)
         self.assertNotRegex(job, r"(?m)^    if:")
+
+        pretag_toolchain = extract_named_workflow_step(
+            job, "Verify exact Windows 2022 source and toolchain"
+        )
+        for token in (
+            "rustc --version",
+            CANONICAL_RUSTC_VERSION,
+            "cargo --version",
+            CANONICAL_CARGO_VERSION,
+            "host: x86_64-pc-windows-msvc",
+        ):
+            self.assertIn(token, pretag_toolchain)
+        self.assertNotIn("rustc +", pretag_toolchain)
+        self.assertNotIn("cargo +", pretag_toolchain)
 
         trust = extract_named_workflow_step(
             job, "Test Windows 2022 package trust boundary"
@@ -2826,12 +2908,54 @@ with _temporary_release_test_directories(parents):
         candidate = ABI2_PLATFORM_CANDIDATE_WORKFLOW.read_text(encoding="utf-8")
         candidate_windows = extract_workflow_job(candidate, "windows")
         self.assertIn("    runs-on: windows-2022\n", candidate_windows)
-        self.assertIn("          toolchain: 1.96.0\n", candidate_windows)
+        self.assertIn("          toolchain: 1.96.1\n", candidate_windows)
         self.assertIn("          components: llvm-tools\n", candidate_windows)
         self.assertIn(
-            "cargo +1.96.0 install cbindgen --version 0.29.4 --locked",
+            "cargo install cbindgen --version 0.29.4 --locked",
             candidate_windows,
         )
+        candidate_windows_toolchain = extract_named_workflow_step(
+            candidate_windows, "Verify exact source and toolchain"
+        )
+        for token in (
+            "rustc --version",
+            CANONICAL_RUSTC_VERSION,
+            "cargo --version",
+            CANONICAL_CARGO_VERSION,
+            "host: x86_64-pc-windows-msvc",
+        ):
+            self.assertIn(token, candidate_windows_toolchain)
+        self.assertNotIn("rustc +", candidate_windows_toolchain)
+        self.assertNotIn("cargo +", candidate_windows_toolchain)
+
+        candidate_linux = extract_workflow_job(candidate, "linux")
+        candidate_linux_toolchain = extract_named_workflow_step(
+            candidate_linux, "Verify exact source and native host"
+        )
+        for token in (
+            "rustc -vV",
+            '"$EXPECTED_TARGET"',
+            CANONICAL_RUSTC_VERSION,
+            CANONICAL_CARGO_VERSION,
+        ):
+            self.assertIn(token, candidate_linux_toolchain)
+        self.assertNotIn("rustc +", candidate_linux_toolchain)
+        self.assertNotIn("cargo +", candidate_linux_toolchain)
+
+        candidate_android = extract_workflow_job(candidate, "android")
+        candidate_android_toolchain = extract_named_workflow_step(
+            candidate_android, "Verify exact source and toolchain"
+        )
+        for token in (
+            "test \"$(rustc -vV | sed -n 's/^host: //p')\" = \"x86_64-unknown-linux-gnu\"",
+            CANONICAL_RUSTC_VERSION,
+            CANONICAL_CARGO_VERSION,
+            "rustup target list --installed",
+            "aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android",
+        ):
+            self.assertIn(token, candidate_android_toolchain)
+        self.assertNotIn("rustc +", candidate_android_toolchain)
+        self.assertNotIn("cargo +", candidate_android_toolchain)
         candidate_build = extract_named_workflow_step(
             candidate_windows, "Build, archive, extract, and consume the Windows SDK"
         )

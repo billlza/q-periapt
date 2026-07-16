@@ -24,6 +24,11 @@ from android_device_proof import (
     verify_proof_freshness,
     verify_runtime_bundle,
 )
+from android_elf import (
+    EXPECTED_CARGO_VERSION as ANDROID_EXPECTED_CARGO_VERSION,
+    EXPECTED_RUSTC_VERSION as ANDROID_EXPECTED_RUSTC_VERSION,
+    MANIFEST_SCHEMA_VERSION as ANDROID_MANIFEST_SCHEMA_VERSION,
+)
 from c_package_manifest import (
     CPackageManifestError,
     verify_package as verify_c_package,
@@ -432,7 +437,10 @@ def _android_assets(
         files[ANDROID_MANIFEST],
         "Android AAR MANIFEST.json",
     )
-    require(aar_manifest.get("schema_version") == 3, "Android AAR manifest schema differs")
+    require(
+        aar_manifest.get("schema_version") == ANDROID_MANIFEST_SCHEMA_VERSION,
+        "Android AAR manifest schema differs",
+    )
     _validate_common_manifest(
         aar_manifest,
         source=source,
@@ -445,6 +453,14 @@ def _android_assets(
     require(
         aar_manifest.get("source_date_epoch") == source.source_date_epoch,
         "Android AAR source epoch differs",
+    )
+    require(
+        aar_manifest.get("toolchain")
+        == {
+            "cargo": ANDROID_EXPECTED_CARGO_VERSION,
+            "rustc": ANDROID_EXPECTED_RUSTC_VERSION,
+        },
+        "Android AAR Rust toolchain evidence differs",
     )
     android = aar_manifest.get("android")
     require(
