@@ -336,6 +336,31 @@ function Resolve-TrustedToolchainFile {
     return $fullPath
 }
 
+function Resolve-TrustedCommandProcessor {
+    param([Parameter(Mandatory)] [string] $SystemDirectory)
+
+    if (-not [System.IO.Path]::IsPathFullyQualified($SystemDirectory)) {
+        throw "Windows system directory must be absolute"
+    }
+    $fullSystemDirectory = [System.IO.Path]::GetFullPath($SystemDirectory)
+    $commandProcessor = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $fullSystemDirectory "cmd.exe") `
+        -TrustedRoot $fullSystemDirectory `
+        -ExpectedName "cmd.exe"
+    if ($env:ComSpec) {
+        if (
+            -not [System.IO.Path]::IsPathFullyQualified($env:ComSpec) -or
+            -not [System.IO.Path]::GetFullPath($env:ComSpec).Equals(
+                $commandProcessor,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw "ComSpec does not identify the trusted Windows command processor"
+        }
+    }
+    return $commandProcessor
+}
+
 function Resolve-TrustedMsvcX64Tools {
     param([Parameter(Mandatory)] [string] $MsvcInstallation)
 
@@ -346,11 +371,15 @@ function Resolve-TrustedMsvcX64Tools {
         throw "vcvars64 must select the x64 host and x64 target toolchain"
     }
     if (
+        -not $env:VSINSTALLDIR -or
+        -not $env:VCINSTALLDIR -or
         -not $env:VCToolsInstallDir -or
         -not [System.IO.Path]::IsPathFullyQualified($MsvcInstallation) -or
+        -not [System.IO.Path]::IsPathFullyQualified($env:VSINSTALLDIR) -or
+        -not [System.IO.Path]::IsPathFullyQualified($env:VCINSTALLDIR) -or
         -not [System.IO.Path]::IsPathFullyQualified($env:VCToolsInstallDir)
     ) {
-        throw "MSVC installation and VCToolsInstallDir must be absolute"
+        throw "MSVC installation directories must all be absolute"
     }
     $separators = [char[]] @(
         [System.IO.Path]::DirectorySeparatorChar,
@@ -359,6 +388,27 @@ function Resolve-TrustedMsvcX64Tools {
     $fullInstallation = [System.IO.Path]::GetFullPath($MsvcInstallation).TrimEnd(
         $separators
     )
+    $vsInstallation = [System.IO.Path]::GetFullPath(
+        $env:VSINSTALLDIR
+    ).TrimEnd($separators)
+    $vcInstallation = [System.IO.Path]::GetFullPath(
+        $env:VCINSTALLDIR
+    ).TrimEnd($separators)
+    $expectedVcInstallation = [System.IO.Path]::GetFullPath(
+        (Join-Path $fullInstallation "VC")
+    ).TrimEnd($separators)
+    if (
+        -not $vsInstallation.Equals(
+            $fullInstallation,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        -not $vcInstallation.Equals(
+            $expectedVcInstallation,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "vcvars64 selected a different Visual Studio installation"
+    }
     $versionsRoot = [System.IO.Path]::GetFullPath(
         (Join-Path $fullInstallation "VC/Tools/MSVC")
     ).TrimEnd($separators)
@@ -405,7 +455,84 @@ function Resolve-TrustedMsvcX64Tools {
     }
 }
 
+function Set-TrustedMsvcPath {
+    param(
+        [Parameter(Mandatory)] [string] $TrustedBin,
+        [Parameter(Mandatory)] [string] $Linker
+    )
+
+    if (
+        -not [System.IO.Path]::IsPathFullyQualified($TrustedBin) -or
+        -not [System.IO.Path]::IsPathFullyQualified($Linker) -or
+        -not [System.IO.Path]::GetFileName($Linker).Equals(
+            "link.exe",
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "trusted MSVC PATH inputs must be absolute and name link.exe"
+    }
+    $fullTrustedBin = [System.IO.Path]::GetFullPath($TrustedBin)
+    $fullLinker = [System.IO.Path]::GetFullPath($Linker)
+    if (
+        -not [System.IO.Path]::GetDirectoryName($fullLinker).Equals(
+            $fullTrustedBin,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        -not (Test-Path -LiteralPath $fullLinker -PathType Leaf)
+    ) {
+        throw "trusted link.exe must be a file directly inside the MSVC bin directory"
+    }
+    if (-not $env:PATH) {
+        throw "PATH is unavailable for deterministic MSVC linker selection"
+    }
+
+    $seen = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    [void] $seen.Add($fullTrustedBin)
+    $retained = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in $env:PATH.Split([System.IO.Path]::PathSeparator)) {
+        if (-not $entry -or -not [System.IO.Path]::IsPathFullyQualified($entry)) {
+            throw "PATH contains an empty or relative MSVC linker search directory"
+        }
+        $fullEntry = [System.IO.Path]::GetFullPath($entry)
+        $candidate = Join-Path $fullEntry "link.exe"
+        if (Test-Path -LiteralPath $candidate) {
+            if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                throw "MSVC linker search resolved link.exe to a non-file path"
+            }
+            # The trusted directory is prepended exactly once below. Every
+            # other link.exe provider is removed instead of becoming a hidden
+            # fallback candidate.
+            continue
+        }
+        if ($seen.Add($fullEntry)) { [void] $retained.Add($fullEntry) }
+    }
+    $env:PATH = (@($fullTrustedBin) + @($retained)) -join (
+        [System.IO.Path]::PathSeparator
+    )
+    $linkerCandidates = @(
+        foreach ($entry in $env:PATH.Split([System.IO.Path]::PathSeparator)) {
+            $candidate = Join-Path $entry "link.exe"
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                [System.IO.Path]::GetFullPath($candidate)
+            }
+        }
+    )
+    if (
+        $linkerCandidates.Count -ne 1 -or
+        -not $linkerCandidates[0].Equals(
+            $fullLinker,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "controlled PATH does not resolve only the trusted MSVC linker"
+    }
+}
+
 function Initialize-MsvcEnvironment {
+    $commandProcessor = Resolve-TrustedCommandProcessor `
+        -SystemDirectory ([System.Environment]::SystemDirectory)
     $vswhereCandidates = @(
         @(
             "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
@@ -450,7 +577,7 @@ function Initialize-MsvcEnvironment {
         -Path (Join-Path $installation "VC/Auxiliary/Build/vcvars64.bat") `
         -TrustedRoot $installation `
         -ExpectedName "vcvars64.bat"
-    $environmentLines = & $env:ComSpec /d /s /c "`"$vcvars`" >nul && set"
+    $environmentLines = & $commandProcessor /d /s /c "`"$vcvars`" >nul && set"
     if ($LASTEXITCODE -ne 0) {
         throw "vcvars64.bat failed with exit code $LASTEXITCODE"
     }
@@ -684,7 +811,7 @@ $Cl = $MsvcTools.Cl
 $Dumpbin = $MsvcTools.Dumpbin
 $Librarian = $MsvcTools.Librarian
 $Linker = $MsvcTools.Linker
-$env:PATH = $MsvcTools.Bin + [System.IO.Path]::PathSeparator + $env:PATH
+[void] (Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker)
 $RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--print", "sysroot")
 $RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
@@ -858,10 +985,17 @@ try {
         )
     }
     $env:CARGO_TARGET_DIR = $DynamicTarget
+    $linkArgumentsLog = Join-Path $OutRoot "dynamic-link-arguments.txt"
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
-        "-Cstrip=debuginfo", "-Clinker=$Linker", "-Clink-arg=/Brepro",
-        "-Clink-arg=/WX", "--remap-path-prefix=$Root=qperiapt-source"
+        "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
+        "-Clink-arg=/Brepro", "-Clink-arg=/WX", "-Dlinker-messages",
+        "--remap-path-prefix=$Root=qperiapt-source"
+    )
+    Invoke-PythonChecked -Arguments @(
+        "artifact/windows_package.py", "verify-linker-invocation",
+        "--link-arguments", $linkArgumentsLog,
+        "--expected-linker", $Linker
     )
     $env:CARGO_TARGET_DIR = $StaticTarget
     $staticBuild = Invoke-Captured -FilePath "cargo.exe" -Arguments @(

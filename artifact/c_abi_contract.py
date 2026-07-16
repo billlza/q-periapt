@@ -263,6 +263,10 @@ _VERSION_RE = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]
 _LLVM_NM_ARCHIVE_MEMBER_HEADING_RE = re.compile(
     r"[A-Za-z0-9_][A-Za-z0-9_.+-]*\.(?:o|obj):"
 )
+_LLVM_NM_WINDOWS_IMPORT_MEMBER_HEADING_RE = re.compile(
+    r"[A-Za-z0-9_][A-Za-z0-9_.+-]*\.dll:",
+    re.IGNORECASE | re.ASCII,
+)
 
 
 class CAbiContractError(ValueError):
@@ -731,14 +735,16 @@ def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
 def _static_reserved_exports(output: str, platform: str) -> frozenset[str]:
     """Parse the defined external ``q_periapt_*`` namespace from llvm-nm.
 
-    ``--just-symbol-name`` still emits archive-member headings. LLVM prints the
-    member's object filename followed by one colon; only that exact form is
-    ignored. Every other non-empty line must be one whitespace-free symbol
-    token, so malformed output cannot hide an ABI name. Mach-O must use exactly
-    one leading underscore for reserved exports. Linux and Windows must use the
-    undecorated canonical spelling; because this verifier has no architecture
-    input, decorated 32-bit COFF spellings fail closed and are outside this ABI
-    2 release scope.
+    ``--just-symbol-name`` still emits archive-member headings. LLVM prints an
+    object filename followed by one colon; Windows COFF raw-dylib members also
+    use a strict ASCII ``*.dll:`` heading. The latter is accepted only on
+    Windows and never for either reserved-prefix spelling. Every other
+    non-empty line must be one whitespace-free symbol token, so malformed
+    output cannot hide an ABI name. Mach-O must use exactly one leading
+    underscore for reserved exports. Linux and Windows must use the undecorated
+    canonical spelling; because this verifier has no architecture input,
+    decorated 32-bit COFF spellings fail closed and are outside this ABI 2
+    release scope.
     """
 
     names: set[str] = set()
@@ -746,6 +752,13 @@ def _static_reserved_exports(output: str, platform: str) -> frozenset[str]:
         if raw_line == "":
             continue
         if _LLVM_NM_ARCHIVE_MEMBER_HEADING_RE.fullmatch(raw_line) is not None:
+            continue
+        if (
+            platform == "windows"
+            and _LLVM_NM_WINDOWS_IMPORT_MEMBER_HEADING_RE.fullmatch(raw_line)
+            is not None
+            and not raw_line.lower().startswith(("q_periapt_", "_q_periapt_"))
+        ):
             continue
         if re.fullmatch(r"\S+", raw_line) is None or raw_line.endswith(":"):
             _fail(f"cannot parse llvm-nm static reserved-symbol row: {raw_line!r}")

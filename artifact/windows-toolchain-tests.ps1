@@ -25,7 +25,9 @@ foreach ($functionName in @(
     "Assert-TrustedBuildEnvironment",
     "Assert-NoAmbientCargoConfiguration",
     "Resolve-TrustedToolchainFile",
-    "Resolve-TrustedMsvcX64Tools"
+    "Resolve-TrustedCommandProcessor",
+    "Resolve-TrustedMsvcX64Tools",
+    "Set-TrustedMsvcPath"
 )) {
     $definitions = @($ast.FindAll(
         {
@@ -134,8 +136,11 @@ $TestRoot = Join-Path $TargetRoot (
 )
 $savedHostArch = $env:VSCMD_ARG_HOST_ARCH
 $savedTargetArch = $env:VSCMD_ARG_TGT_ARCH
+$savedVsInstall = $env:VSINSTALLDIR
+$savedVcInstall = $env:VCINSTALLDIR
 $savedToolsInstall = $env:VCToolsInstallDir
 $savedPath = $env:PATH
+$savedComSpec = $env:ComSpec
 $savedRustFlags = $env:RUSTFLAGS
 $savedCargoIncremental = $env:CARGO_INCREMENTAL
 $savedCargoHome = $env:CARGO_HOME
@@ -176,6 +181,34 @@ try {
     Assert-RejectsEnvironmentOverride -Name "CARGO_INCREMENTAL" -Value "1"
 
     New-Item -ItemType Directory -Path $TestRoot | Out-Null
+    $systemDirectory = Join-Path $TestRoot "Windows/System32"
+    $commandProcessor = Join-Path $systemDirectory "cmd.exe"
+    Write-FixtureTool -Path $commandProcessor
+    $env:ComSpec = $commandProcessor
+    $resolvedCommandProcessor = Resolve-TrustedCommandProcessor `
+        -SystemDirectory $systemDirectory
+    if (-not $resolvedCommandProcessor.Equals(
+        [System.IO.Path]::GetFullPath($commandProcessor),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "resolved command processor differs"
+    }
+    $env:ComSpec = Join-Path $TestRoot "Outside/cmd.exe"
+    Assert-Fails `
+        -Label "untrusted ComSpec" `
+        -ExpectedMessage "ComSpec does not identify" `
+        -Action {
+        Resolve-TrustedCommandProcessor -SystemDirectory $systemDirectory
+    }
+    $env:ComSpec = "relative-cmd.exe"
+    Assert-Fails `
+        -Label "relative ComSpec" `
+        -ExpectedMessage "ComSpec does not identify" `
+        -Action {
+        Resolve-TrustedCommandProcessor -SystemDirectory $systemDirectory
+    }
+    $env:ComSpec = $commandProcessor
+
     $cargoSource = Join-Path $TestRoot "cargo-source"
     $cargoHome = Join-Path $TestRoot "cargo-home"
     New-Item -ItemType Directory -Path $cargoSource, $cargoHome | Out-Null
@@ -221,10 +254,61 @@ try {
 
     $env:VSCMD_ARG_HOST_ARCH = "x64"
     $env:VSCMD_ARG_TGT_ARCH = "x64"
+    $env:VSINSTALLDIR = $installation + [System.IO.Path]::DirectorySeparatorChar
+    $env:VCINSTALLDIR = (Join-Path $installation "VC") + `
+        [System.IO.Path]::DirectorySeparatorChar
     $env:VCToolsInstallDir = $versionRoot + [System.IO.Path]::DirectorySeparatorChar
-    $env:PATH = ""
+    $env:PATH = $bin
     $resolved = Resolve-TrustedMsvcX64Tools -MsvcInstallation $installation
     Assert-ResolvedTools -Tools $resolved -Bin $bin
+
+    $harmless = Join-Path $TestRoot "harmless-bin"
+    $decoy = Join-Path $TestRoot "decoy-bin"
+    New-Item -ItemType Directory -Path $harmless, $decoy | Out-Null
+    Write-FixtureTool -Path (Join-Path $decoy "link.exe")
+    $env:PATH = @($decoy, $harmless, $bin, $harmless) -join (
+        [System.IO.Path]::PathSeparator
+    )
+    Set-TrustedMsvcPath -TrustedBin $bin -Linker $resolved.Linker
+    $controlledPath = @($env:PATH.Split([System.IO.Path]::PathSeparator))
+    if (
+        $controlledPath.Count -ne 2 -or
+        -not $controlledPath[0].Equals(
+            [System.IO.Path]::GetFullPath($bin),
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        -not $controlledPath[1].Equals(
+            [System.IO.Path]::GetFullPath($harmless),
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "controlled MSVC PATH differs"
+    }
+
+    foreach ($invalidPath in @(
+        "relative-bin",
+        ($harmless + [System.IO.Path]::PathSeparator)
+    )) {
+        $env:PATH = $invalidPath
+        Assert-Fails `
+            -Label "invalid MSVC PATH entry" `
+            -ExpectedMessage "empty or relative MSVC linker search directory" `
+            -Action {
+            Set-TrustedMsvcPath -TrustedBin $bin -Linker $resolved.Linker
+        }
+    }
+    $nonFileProvider = Join-Path $TestRoot "non-file-provider"
+    New-Item -ItemType Directory -Path (
+        Join-Path $nonFileProvider "link.exe"
+    ) -Force | Out-Null
+    $env:PATH = $nonFileProvider
+    Assert-Fails `
+        -Label "non-file PATH linker" `
+        -ExpectedMessage "link.exe to a non-file path" `
+        -Action {
+        Set-TrustedMsvcPath -TrustedBin $bin -Linker $resolved.Linker
+    }
+    $env:PATH = $bin
 
     $env:VSCMD_ARG_HOST_ARCH = "x86"
     Assert-Fails `
@@ -243,6 +327,24 @@ try {
         Resolve-TrustedMsvcX64Tools -MsvcInstallation $installation
     }
     $env:VSCMD_ARG_TGT_ARCH = "x64"
+
+    $env:VSINSTALLDIR = Join-Path $TestRoot "OtherVisualStudio"
+    Assert-Fails `
+        -Label "different Visual Studio installation" `
+        -ExpectedMessage "selected a different Visual Studio installation" `
+        -Action {
+        Resolve-TrustedMsvcX64Tools -MsvcInstallation $installation
+    }
+    $env:VSINSTALLDIR = $installation
+
+    $env:VCINSTALLDIR = Join-Path $installation "OtherVC"
+    Assert-Fails `
+        -Label "different VC installation" `
+        -ExpectedMessage "selected a different Visual Studio installation" `
+        -Action {
+        Resolve-TrustedMsvcX64Tools -MsvcInstallation $installation
+    }
+    $env:VCINSTALLDIR = Join-Path $installation "VC"
 
     $outsideVersion = Join-Path $TestRoot "Outside/VC/Tools/MSVC/14.50.12345"
     $env:VCToolsInstallDir = $outsideVersion
@@ -314,9 +416,18 @@ finally {
         "VSCMD_ARG_TGT_ARCH", $savedTargetArch, "Process"
     )
     [System.Environment]::SetEnvironmentVariable(
+        "VSINSTALLDIR", $savedVsInstall, "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
+        "VCINSTALLDIR", $savedVcInstall, "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
         "VCToolsInstallDir", $savedToolsInstall, "Process"
     )
     [System.Environment]::SetEnvironmentVariable("PATH", $savedPath, "Process")
+    [System.Environment]::SetEnvironmentVariable(
+        "ComSpec", $savedComSpec, "Process"
+    )
     [System.Environment]::SetEnvironmentVariable(
         "RUSTFLAGS", $savedRustFlags, "Process"
     )

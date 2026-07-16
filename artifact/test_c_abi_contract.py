@@ -662,6 +662,14 @@ class CAbiContractTests(unittest.TestCase):
                         "__ZN16q_periapt_policy10nist_level17h0123456789abcdefE",
                         "qpn_mlkem_bridge_v1_2_0_768_decapsulate",
                     ]
+                    if platform == "windows":
+                        lines.extend(
+                            (
+                                "bcryptprimitives.dll:",
+                                "__imp_BCryptGenRandom",
+                                "BCRYPTPRIMITIVES.DLL:",
+                            )
+                        )
                     prefix = "_" if platform == "macos" else ""
                     lines.extend(f"{prefix}{name}" for name in names)
                     if malformed is not None:
@@ -688,6 +696,14 @@ class CAbiContractTests(unittest.TestCase):
                     llvm_nm,
                     runner=runner,
                 )
+                if platform == "windows":
+                    c_abi_contract.verify_static_library(
+                        self.contract,
+                        library,
+                        platform,
+                        llvm_nm,
+                        runner=lambda _command: output().replace("\n", "\r\n"),
+                    )
 
                 cases = (
                     (
@@ -729,6 +745,69 @@ class CAbiContractTests(unittest.TestCase):
                                 llvm_nm,
                                 runner=lambda _command, value=nm_output: value,
                             )
+
+                if platform != "windows":
+                    windows_import_heading = output(
+                        malformed="bcryptprimitives.dll:"
+                    )
+                    with self.assertRaisesRegex(
+                        CAbiContractError,
+                        "cannot parse llvm-nm static reserved-symbol row",
+                    ):
+                        c_abi_contract.verify_static_library(
+                            self.contract,
+                            library,
+                            platform,
+                            llvm_nm,
+                            runner=lambda _command, value=windows_import_heading: value,
+                        )
+                else:
+                    malformed_import_headings = (
+                        "q_periapt_surprise.dll:",
+                        "Q_PERIAPT_SURPRISE.DLL:",
+                        "_q_periapt_surprise.dll:",
+                        "_Q_PERIAPT_SURPRISE.DLL:",
+                        r"outside\bcryptprimitives.dll:",
+                        "bcryptprimitives.dll::",
+                        " bcryptprimitives.dll:",
+                        "bcryptprimitives.dll: ",
+                        "bcryptprimitives.dll: __imp_BCryptGenRandom",
+                        "ſystem.dll:",
+                        "Kernel32.dll:",
+                    )
+                    for malformed_heading in malformed_import_headings:
+                        with self.subTest(malformed_heading=malformed_heading):
+                            malformed_import_heading = output(
+                                malformed=malformed_heading
+                            )
+                            with self.assertRaisesRegex(
+                                CAbiContractError,
+                                "cannot parse llvm-nm static reserved-symbol row",
+                            ):
+                                c_abi_contract.verify_static_library(
+                                    self.contract,
+                                    library,
+                                    platform,
+                                    llvm_nm,
+                                    runner=lambda _command, value=(
+                                        malformed_import_heading
+                                    ): value,
+                                )
+
+                    import_heading_with_extra = output(
+                        extra="q_periapt_surprise"
+                    )
+                    with self.assertRaisesRegex(
+                        CAbiContractError,
+                        "extra=.*q_periapt_surprise",
+                    ):
+                        c_abi_contract.verify_static_library(
+                            self.contract,
+                            library,
+                            platform,
+                            llvm_nm,
+                            runner=lambda _command: import_heading_with_extra,
+                        )
 
                 if platform == "macos":
                     undecorated = output(

@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import ntpath
 import os
 import pathlib
 import re
@@ -157,6 +158,7 @@ MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_PACKAGE_FILE_BYTES = 512 * 1024 * 1024
 MAX_DUMPBIN_OUTPUT_BYTES = 1024 * 1024
 MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES = 1024 * 1024
+MAX_RUSTC_LINK_ARGUMENTS_BYTES = 4 * 1024 * 1024
 DUMPBIN_DEPENDENCY_HEADER = b"Image has the following dependencies:"
 DUMPBIN_SUMMARY_HEADER = b"Summary"
 FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
@@ -269,6 +271,10 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
     "dbghelp.lib",
     "msvcrt.lib",
 )
+
+RUST_DEBUG_ENVIRONMENT_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*", re.ASCII)
+WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
+REQUIRED_MSVC_LINK_ARGUMENTS = ("/brepro", "/nologo", "/wx")
 
 EXPECTED_PAYLOAD_FILES = frozenset(
     {
@@ -682,6 +688,145 @@ def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
         "rustc Windows native-static-libs contract differs",
     )
     return list(CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
+
+
+def _decode_rust_debug_string(
+    command: str,
+    offset: int,
+    *,
+    label: str,
+) -> tuple[str, int]:
+    _require(
+        offset < len(command) and command[offset] == '"',
+        f"rustc linker command {label} is not a quoted string",
+    )
+    try:
+        value, end = json.JSONDecoder().raw_decode(command, offset)
+    except json.JSONDecodeError as exc:
+        raise WindowsPackageError(
+            f"rustc linker command {label} has unsupported escaping"
+        ) from exc
+    _require(
+        isinstance(value, str) and "\0" not in value,
+        f"rustc linker command {label} is malformed",
+    )
+    return value, end
+
+
+def _parse_rust_debug_command(output: bytes) -> tuple[str, list[str]]:
+    """Parse rustc's bounded ``--print link-args`` command representation."""
+
+    _require(isinstance(output, bytes), "rustc link-args output must be bytes")
+    _require(
+        len(output) <= MAX_RUSTC_LINK_ARGUMENTS_BYTES,
+        "rustc link-args output exceeds the size limit",
+    )
+    _require(b"\0" not in output, "rustc link-args output contains a NUL byte")
+    _require(
+        output.endswith(b"\n")
+        and output.count(b"\n") == 1
+        and b"\r" not in output,
+        "rustc link-args output must contain exactly one LF-terminated command",
+    )
+    try:
+        command = output[:-1].decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise WindowsPackageError("rustc link-args output is not UTF-8") from exc
+
+    _require(command.startswith("env "), "rustc linker command must start with env")
+    offset = len("env ")
+    while True:
+        if command.startswith("-u ", offset):
+            offset += len("-u ")
+            match = RUST_DEBUG_ENVIRONMENT_NAME_RE.match(command, offset)
+            _require(match is not None, "rustc linker command has an invalid removed environment name")
+            assert match is not None
+            offset = match.end()
+            _require(
+                offset < len(command) and command[offset] == " ",
+                "rustc linker command ends inside a removed environment entry",
+            )
+            offset += 1
+            continue
+
+        match = RUST_DEBUG_ENVIRONMENT_NAME_RE.match(command, offset)
+        if match is not None and command.startswith('="', match.end()):
+            offset = match.end() + 1
+            _, offset = _decode_rust_debug_string(
+                command,
+                offset,
+                label="environment value",
+            )
+            _require(
+                offset < len(command) and command[offset] == " ",
+                "rustc linker command ends inside an environment entry",
+            )
+            offset += 1
+            continue
+        break
+
+    program, offset = _decode_rust_debug_string(
+        command,
+        offset,
+        label="program",
+    )
+    arguments: list[str] = []
+    while offset < len(command):
+        _require(
+            command[offset] == " ",
+            "rustc linker command tokens are not separated canonically",
+        )
+        argument, offset = _decode_rust_debug_string(
+            command,
+            offset + 1,
+            label="argument",
+        )
+        arguments.append(argument)
+    _require(arguments, "rustc linker command has no arguments")
+    return program, arguments
+
+
+def _canonical_windows_linker_path(value: str, *, label: str) -> str:
+    _require(
+        isinstance(value, str)
+        and "\0" not in value
+        and WINDOWS_DRIVE_ABSOLUTE_RE.match(value) is not None,
+        f"{label} must be an absolute Windows drive path",
+    )
+    normalized = ntpath.normpath(value.replace("/", "\\"))
+    _require(
+        ntpath.basename(normalized).casefold() == "link.exe",
+        f"{label} must name link.exe",
+    )
+    return ntpath.normcase(normalized)
+
+
+def verify_rustc_linker_invocation(
+    output: bytes,
+    expected_linker: str,
+) -> list[str]:
+    """Bind one successful rustc link to the selected absolute MSVC linker."""
+
+    program, arguments = _parse_rust_debug_command(output)
+    _require(
+        _canonical_windows_linker_path(program, label="rustc linker program")
+        == _canonical_windows_linker_path(
+            expected_linker,
+            label="expected MSVC linker",
+        ),
+        "rustc executed a different MSVC linker",
+    )
+    folded_arguments = [argument.casefold() for argument in arguments]
+    for required in REQUIRED_MSVC_LINK_ARGUMENTS:
+        _require(
+            folded_arguments.count(required) == 1,
+            f"rustc linker command must contain exactly one {required} argument",
+        )
+    _require(
+        "/wx:no" not in folded_arguments,
+        "rustc linker command disables warnings-as-errors",
+    )
+    return arguments
 
 
 def _pe_uint(data: bytes, offset: int, size: int, label: str) -> int:
@@ -1778,6 +1923,11 @@ def _parse_args() -> argparse.Namespace:
     native_libraries.add_argument(
         "--compiler-output", required=True, type=pathlib.Path
     )
+    linker_invocation = subparsers.add_parser("verify-linker-invocation")
+    linker_invocation.add_argument(
+        "--link-arguments", required=True, type=pathlib.Path
+    )
+    linker_invocation.add_argument("--expected-linker", required=True)
     create = subparsers.add_parser("create")
     create.add_argument("--package-root", required=True, type=pathlib.Path)
     create.add_argument("--repository-root", required=True, type=pathlib.Path)
@@ -1818,6 +1968,15 @@ def main() -> int:
                 "cannot write the complete native static library contract",
             )
             sys.stdout.buffer.flush()
+            return 0
+        if args.command == "verify-linker-invocation":
+            output = read_regular_snapshot(
+                args.link_arguments,
+                maximum=MAX_RUSTC_LINK_ARGUMENTS_BYTES,
+                label="rustc link-args output",
+            ).data
+            verify_rustc_linker_invocation(output, args.expected_linker)
+            print("WINDOWS_RUST_LINKER_INVOCATION_PASS")
             return 0
         dependencies = inspect_dumpbin_dependencies(
             args.dumpbin,
