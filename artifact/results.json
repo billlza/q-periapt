@@ -404,11 +404,11 @@
     "windows_package_verifier_sha256": "2bf72ad5010665d4f59d117139272d662307cb4614c3ac706d78b3e22972d0ae",
     "windows_toolchain_tests_sha256": "d98c48c3df0479eeed45a163488a122a671882fcc9a2638515e89e3c09461612"
   },
-  "proof_source_tree_sha256": "4007cdf98a62cfc4a466d600de488ec97641d7931157e1e316a68c7fab499d77",
+  "proof_source_tree_sha256": "ccb54a08495a343cbda0b0b1c7dd421c3ba6496cdd4bf8b1d4b47c6519393391",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "f04e80073a7a20df74d71cb2b46f60bd9db2b2c0",
+    "snapshot_commit": "bf8b6b8af5b1ac83705db24f39a0e9ca11e07045",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
