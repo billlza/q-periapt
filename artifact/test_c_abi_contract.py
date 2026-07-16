@@ -1240,6 +1240,7 @@ class CAbiContractTests(unittest.TestCase):
                             "--defined-only",
                             "--extern-only",
                             "--no-demangle",
+                            "--quiet",
                             "--print-file-name",
                             "--just-symbol-name",
                         ],

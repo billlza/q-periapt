@@ -1382,6 +1382,7 @@ def verify_static_library(
                 "--defined-only",
                 "--extern-only",
                 "--no-demangle",
+                "--quiet",
                 "--print-file-name",
                 "--just-symbol-name",
                 archive_argument,
