@@ -12,15 +12,26 @@ public contract.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import hashlib
 import json
+import os
 import pathlib
 import re
+import secrets
 import stat
 import subprocess
+import tempfile
+import threading
 from dataclasses import dataclass
-from typing import Any, Callable, NoReturn
+from typing import Any, BinaryIO, Callable, Iterator, NoReturn
 
-from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot
+from evidence_io import (
+    EvidenceIOError,
+    FileSnapshot,
+    load_json_object_snapshot,
+    read_regular_snapshot,
+)
 
 
 CONTRACT_SCHEMA = 1
@@ -30,6 +41,18 @@ PACKAGE_SEMVER = "0.1.0-alpha.2"
 HEADER_GUARD = "Q_PERIAPT_ABI2_H"
 MAX_CONTRACT_BYTES = 1024 * 1024
 MAX_HEADER_BYTES = 2 * 1024 * 1024
+MAX_STATIC_LIBRARY_BYTES = 512 * 1024 * 1024
+MAX_INSPECTOR_STDOUT_BYTES = 16 * 1024 * 1024
+MAX_INSPECTOR_STDERR_BYTES = 1024 * 1024
+MAX_LLVM_NM_ROW_CHARS = 16 * 1024
+MAX_LLVM_NM_MEMBER_CHARS = 8 * 1024
+MAX_LLVM_NM_SYMBOL_CHARS = 8 * 1024
+MAX_DYNAMIC_ROW_CHARS = 16 * 1024
+MAX_DYNAMIC_EXPORT_CHARS = 8 * 1024
+INSPECTOR_TIMEOUT_SECONDS = 120.0
+INSPECTOR_TERMINATION_SECONDS = 5.0
+INSPECTOR_READER_JOIN_SECONDS = 5.0
+INSPECTOR_PIPE_CHUNK_BYTES = 64 * 1024
 
 EXPECTED_STATUS_CODES = {
     "Q_PERIAPT_OK": 0,
@@ -260,15 +283,6 @@ _DECLARATION_RE = re.compile(
 )
 _FUNCTION_TOKEN_RE = re.compile(r"\b(q_periapt_[A-Za-z0-9_]+)\s*\(")
 _VERSION_RE = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
-_LLVM_NM_ARCHIVE_MEMBER_HEADING_RE = re.compile(
-    r"[A-Za-z0-9_][A-Za-z0-9_.+-]*\.(?:o|obj):"
-)
-_LLVM_NM_WINDOWS_IMPORT_MEMBER_HEADING_RE = re.compile(
-    r"[A-Za-z0-9_][A-Za-z0-9_.+-]*\.dll:",
-    re.IGNORECASE | re.ASCII,
-)
-
-
 class CAbiContractError(ValueError):
     """The contract, header, or packaged library violates the frozen ABI."""
 
@@ -544,20 +558,219 @@ def verify_header(contract: CAbiContract, header_path: pathlib.Path) -> None:
         )
 
 
-def _default_runner(command: list[str]) -> str:
+@dataclass(slots=True)
+class _BoundedPipeCapture:
+    label: str
+    limit: int
+    data: bytearray
+    overflow: bool = False
+    error_type: str | None = None
+
+
+def _capture_inspector_pipe(
+    stream: BinaryIO,
+    capture: _BoundedPipeCapture,
+    request_kill: Callable[[], None],
+) -> None:
+    """Drain one child pipe without allowing output-driven memory growth."""
+
     try:
-        completed = subprocess.run(
+        while True:
+            read_size = min(
+                INSPECTOR_PIPE_CHUNK_BYTES,
+                capture.limit + 1 - len(capture.data),
+            )
+            chunk = stream.read(max(1, read_size))
+            if not chunk:
+                break
+            available = capture.limit - len(capture.data)
+            if len(chunk) > available:
+                if available > 0:
+                    capture.data.extend(chunk[:available])
+                capture.overflow = True
+                request_kill()
+                break
+            capture.data.extend(chunk)
+    except (OSError, ValueError) as exc:
+        capture.error_type = type(exc).__name__
+        request_kill()
+    finally:
+        try:
+            stream.close()
+        except (OSError, ValueError) as exc:
+            if capture.error_type is None:
+                capture.error_type = type(exc).__name__
+                request_kill()
+
+
+def _capture_descriptor(capture: _BoundedPipeCapture) -> str:
+    return (
+        f"{capture.label}_bytes={len(capture.data)}, "
+        f"{capture.label}_sha256={hashlib.sha256(capture.data).hexdigest()}"
+    )
+
+
+def _default_runner(command: list[str]) -> str:
+    """Run an ABI inspector with hard time, output, and diagnostic bounds."""
+
+    if not command or not command[0]:
+        _fail("cannot inspect ABI library: inspection command is empty")
+    try:
+        process = subprocess.Popen(
             command,
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="strict",
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
         )
-    except (OSError, UnicodeError, subprocess.CalledProcessError) as exc:
-        detail = getattr(exc, "stderr", None) or getattr(exc, "stdout", None) or str(exc)
-        raise CAbiContractError(f"cannot inspect ABI library with {command[0]}: {detail}") from exc
-    return completed.stdout
+    except (OSError, ValueError) as exc:
+        raise CAbiContractError(
+            "cannot inspect ABI library: inspection process could not start "
+            f"({type(exc).__name__})"
+        ) from None
+
+    if process.stdout is None or process.stderr is None:
+        with contextlib.suppress(OSError):
+            process.kill()
+        with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+            process.wait(timeout=INSPECTOR_TERMINATION_SECONDS)
+        _fail("cannot inspect ABI library: inspection pipes were not created")
+
+    termination_errors: list[str] = []
+    termination_lock = threading.Lock()
+
+    def request_kill() -> None:
+        try:
+            process.kill()
+        except OSError as exc:
+            if process.poll() is None:
+                with termination_lock:
+                    termination_errors.append(type(exc).__name__)
+
+    captures = (
+        _BoundedPipeCapture(
+            "stdout",
+            MAX_INSPECTOR_STDOUT_BYTES,
+            bytearray(),
+        ),
+        _BoundedPipeCapture(
+            "stderr",
+            MAX_INSPECTOR_STDERR_BYTES,
+            bytearray(),
+        ),
+    )
+    streams = (process.stdout, process.stderr)
+    threads = [
+        threading.Thread(
+            target=_capture_inspector_pipe,
+            args=(stream, capture, request_kill),
+            name=f"qperiapt-inspector-{capture.label}",
+            daemon=True,
+        )
+        for stream, capture in zip(streams, captures, strict=True)
+    ]
+    started_threads: list[threading.Thread] = []
+    thread_start_error: str | None = None
+    for thread in threads:
+        try:
+            thread.start()
+            started_threads.append(thread)
+        except RuntimeError as exc:
+            thread_start_error = type(exc).__name__
+            request_kill()
+            break
+
+    timed_out = False
+    wait_error: str | None = None
+    try:
+        process.wait(
+            timeout=(
+                INSPECTOR_TERMINATION_SECONDS
+                if thread_start_error is not None
+                else INSPECTOR_TIMEOUT_SECONDS
+            )
+        )
+    except subprocess.TimeoutExpired:
+        timed_out = thread_start_error is None
+        request_kill()
+        try:
+            process.wait(timeout=INSPECTOR_TERMINATION_SECONDS)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            wait_error = type(exc).__name__
+    except OSError as exc:
+        wait_error = type(exc).__name__
+        request_kill()
+
+    for thread in started_threads:
+        thread.join(INSPECTOR_READER_JOIN_SECONDS)
+    reader_stuck = any(thread.is_alive() for thread in started_threads)
+    if reader_stuck:
+        request_kill()
+        for stream in streams:
+            with contextlib.suppress(OSError, ValueError):
+                stream.close()
+        for thread in started_threads:
+            thread.join(INSPECTOR_TERMINATION_SECONDS)
+
+    for thread, stream in zip(threads, streams, strict=True):
+        if thread not in started_threads:
+            with contextlib.suppress(OSError, ValueError):
+                stream.close()
+
+    stdout_capture, stderr_capture = captures
+    if thread_start_error is not None:
+        _fail(
+            "cannot inspect ABI library: output reader could not start "
+            f"({thread_start_error})"
+        )
+    if reader_stuck or any(thread.is_alive() for thread in started_threads):
+        _fail("cannot inspect ABI library: output reader did not terminate")
+    if wait_error is not None:
+        _fail(
+            "cannot inspect ABI library: inspection process did not terminate "
+            f"({wait_error})"
+        )
+    if termination_errors:
+        _fail(
+            "cannot inspect ABI library: inspection process termination failed "
+            f"({','.join(sorted(set(termination_errors)))})"
+        )
+    if timed_out:
+        _fail(
+            "cannot inspect ABI library: inspection process exceeded "
+            f"{INSPECTOR_TIMEOUT_SECONDS:g}-second timeout"
+        )
+    for capture in captures:
+        if capture.error_type is not None:
+            _fail(
+                f"cannot inspect ABI library: {capture.label} reader failed "
+                f"({capture.error_type})"
+            )
+        if capture.overflow:
+            _fail(
+                f"cannot inspect ABI library: {capture.label} exceeded "
+                f"{capture.limit}-byte limit"
+            )
+    if process.returncode != 0:
+        _fail(
+            "cannot inspect ABI library: inspection process failed: "
+            f"exit_code={process.returncode}, "
+            f"{_capture_descriptor(stdout_capture)}, "
+            f"{_capture_descriptor(stderr_capture)}"
+        )
+    if stderr_capture.data:
+        _fail(
+            "cannot inspect ABI library: inspection process emitted diagnostics: "
+            f"{_capture_descriptor(stderr_capture)}"
+        )
+    try:
+        return bytes(stdout_capture.data).decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        invalid_offset = exc.start
+        raise CAbiContractError(
+            "cannot inspect ABI library: stdout is not strict UTF-8: "
+            f"offset={invalid_offset}, {_capture_descriptor(stdout_capture)}"
+        ) from None
 
 
 def _require_regular_library(path: pathlib.Path) -> None:
@@ -569,32 +782,256 @@ def _require_regular_library(path: pathlib.Path) -> None:
         _fail(f"ABI library must be a non-symlink regular file: {path}")
 
 
+def _read_static_library_snapshot(
+    path: pathlib.Path, label: str
+) -> FileSnapshot:
+    try:
+        return read_regular_snapshot(
+            path,
+            maximum=MAX_STATIC_LIBRARY_BYTES,
+            label=label,
+        )
+    except EvidenceIOError as exc:
+        raise CAbiContractError(str(exc)) from exc
+
+
+def _write_private_snapshot(path: pathlib.Path, data: bytes) -> None:
+    flags = (
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    descriptor = os.open(path, flags, 0o600)
+    primary_error: BaseException | None = None
+    try:
+        if os.name != "nt":
+            os.fchmod(descriptor, 0o600)
+        remaining = memoryview(data)
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written <= 0:
+                raise OSError("private static-library snapshot write made no progress")
+            remaining = remaining[written:]
+        os.fsync(descriptor)
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        try:
+            os.close(descriptor)
+        except BaseException as cleanup_error:
+            if primary_error is not None:
+                primary_error.add_note(
+                    f"closing the private static-library snapshot also failed: {cleanup_error}"
+                )
+            else:
+                raise
+
+
+def _require_matching_static_snapshot(
+    reference_size: int,
+    reference_sha256: str,
+    observed: FileSnapshot,
+    label: str,
+) -> None:
+    if (
+        observed.size != reference_size
+        or observed.sha256 != reference_sha256
+    ):
+        _fail(f"{label} changed during static-library verification")
+
+
+@contextlib.contextmanager
+def _authenticated_static_archive(
+    path: pathlib.Path,
+) -> Iterator[pathlib.Path]:
+    """Yield an unpredictable byte-identical path that authenticates nm rows.
+
+    llvm-nm does not escape newlines in archive member or symbol names. A
+    256-bit path generated only after the source bytes are snapshotted prevents
+    those fixed archive bytes from pre-forging a second accepted prefix. The
+    llvm-nm executable and same-user host environment remain trusted.
+    """
+
+    original = _read_static_library_snapshot(path, "static ABI library")
+    reference_size = original.size
+    reference_sha256 = original.sha256
+    original_data = original.data
+    del original
+    token = secrets.token_hex(32)
+    body_error: BaseException | None = None
+    try:
+        with tempfile.TemporaryDirectory(prefix="qperiapt-c-abi-") as temporary:
+            private_root = pathlib.Path(temporary)
+            os.chmod(private_root, 0o700)
+            root_metadata = private_root.lstat()
+            if (
+                stat.S_ISLNK(root_metadata.st_mode)
+                or not stat.S_ISDIR(root_metadata.st_mode)
+                or (
+                    os.name != "nt"
+                    and stat.S_IMODE(root_metadata.st_mode) & 0o077
+                )
+            ):
+                _fail("private static-library inspection directory is not isolated")
+            authenticated = private_root / f"archive-{token}{path.suffix}"
+            _write_private_snapshot(authenticated, original_data)
+            original_data = b""
+            copied = _read_static_library_snapshot(
+                authenticated, "private static ABI library snapshot"
+            )
+            _require_matching_static_snapshot(
+                reference_size,
+                reference_sha256,
+                copied,
+                "private static ABI library snapshot",
+            )
+            del copied
+            try:
+                yield authenticated
+            except BaseException as exc:
+                body_error = exc
+                raise
+            finally:
+                try:
+                    copied_after = _read_static_library_snapshot(
+                        authenticated, "private static ABI library snapshot"
+                    )
+                    _require_matching_static_snapshot(
+                        reference_size,
+                        reference_sha256,
+                        copied_after,
+                        "private static ABI library snapshot",
+                    )
+                    del copied_after
+                except BaseException as verification_error:
+                    if body_error is not None:
+                        body_error.add_note(
+                            "post-inspection private snapshot verification also failed: "
+                            f"{verification_error}"
+                        )
+                    else:
+                        raise
+    except (OSError, EvidenceIOError) as exc:
+        raise CAbiContractError(
+            f"cannot prepare authenticated static-library inspection: {exc}"
+        ) from exc
+    finally:
+        original_data = b""
+        try:
+            original_after = _read_static_library_snapshot(
+                path, "static ABI library"
+            )
+            _require_matching_static_snapshot(
+                reference_size,
+                reference_sha256,
+                original_after,
+                "static ABI library",
+            )
+            del original_after
+        except BaseException as verification_error:
+            if body_error is not None:
+                body_error.add_note(
+                    "post-inspection source snapshot verification also failed: "
+                    f"{verification_error}"
+                )
+            else:
+                raise
+
+
+def _row_descriptor(line_number: int, raw_line: str) -> str:
+    encoded = raw_line.encode("utf-8", errors="surrogatepass")
+    return (
+        f"row={line_number}, chars={len(raw_line)}, "
+        f"sha256={hashlib.sha256(encoded).hexdigest()}"
+    )
+
+
+def _bounded_row_descriptor(
+    label: str,
+    line_number: int,
+    raw_line: str,
+    maximum: int,
+) -> str:
+    descriptor = _row_descriptor(line_number, raw_line)
+    if len(raw_line) > maximum:
+        _fail(
+            f"{label} row exceeds the character limit: "
+            f"{descriptor}, limit={maximum}"
+        )
+    return descriptor
+
+
+def _ordered_text_sha256(values: list[str]) -> str:
+    digest = hashlib.sha256()
+    for value in values:
+        encoded = value.encode("utf-8", errors="surrogatepass")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    return digest.hexdigest()
+
+
 def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
     """Parse every defined dynamic export emitted by the platform tool."""
 
     names: set[str] = set()
 
-    def record(name: str) -> None:
+    def record(name: str, descriptor: str) -> None:
+        if (
+            not name
+            or "\x00" in name
+            or len(name) > MAX_DYNAMIC_EXPORT_CHARS
+        ):
+            _fail(f"cannot parse dynamic-export symbol: {descriptor}")
         if name in names:
-            _fail(f"dynamic library defines export more than once: {name}")
+            _fail(
+                "dynamic library defines export more than once: "
+                f"{descriptor}"
+            )
         names.add(name)
 
     if platform == "macos":
-        candidates = [line.strip() for line in output.splitlines() if line.strip()]
-        if any(len(candidate.split()) != 1 for candidate in candidates):
-            _fail("cannot parse nm dynamic-export row")
-        for candidate in candidates:
-            record(candidate[1:] if candidate.startswith("_") else candidate)
-    elif platform == "linux":
-        for line in output.splitlines():
+        for line_number, line in enumerate(output.splitlines(), start=1):
             if not line.strip():
                 continue
+            descriptor = _bounded_row_descriptor(
+                "nm dynamic-export",
+                line_number,
+                line,
+                MAX_DYNAMIC_ROW_CHARS,
+            )
+            candidate = line.strip()
+            if len(candidate.split()) != 1:
+                _fail(f"cannot parse nm dynamic-export row: {descriptor}")
+            record(
+                candidate[1:] if candidate.startswith("_") else candidate,
+                descriptor,
+            )
+    elif platform == "linux":
+        for line_number, line in enumerate(output.splitlines(), start=1):
+            if not line.strip():
+                continue
+            descriptor = _bounded_row_descriptor(
+                "nm dynamic-export",
+                line_number,
+                line,
+                MAX_DYNAMIC_ROW_CHARS,
+            )
             fields = line.split()
             if len(fields) not in {3, 4} or len(fields[1]) != 1:
-                _fail(f"cannot parse nm dynamic-export row: {line!r}")
-            record(fields[0])
+                _fail(f"cannot parse nm dynamic-export row: {descriptor}")
+            record(fields[0], descriptor)
     elif platform == "windows":
         lines = output.splitlines()
+        for line_number, line in enumerate(lines, start=1):
+            _bounded_row_descriptor(
+                "dumpbin",
+                line_number,
+                line,
+                MAX_DYNAMIC_ROW_CHARS,
+            )
         headers = [
             (index, match)
             for index, line in enumerate(lines)
@@ -630,11 +1067,16 @@ def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
             ]
             if len(matches) != 1:
                 _fail(f"dumpbin output must declare {label} exactly once")
-            return int(matches[0].group(1), 10)
+            decimal = matches[0].group(1)
+            if len(decimal) > 5:
+                _fail(f"dumpbin {label} exceeds the supported integer range")
+            return int(decimal, 10)
 
         ordinal_base = declared_decimal("ordinal base")
         number_of_functions = declared_decimal("number of functions")
         number_of_names = declared_decimal("number of names")
+        if number_of_names > number_of_functions:
+            _fail("dumpbin named-export count exceeds its function count")
         if not 1 <= ordinal_base <= 65535:
             _fail(f"dumpbin export ordinal base is out of range: {ordinal_base}")
         ordinal_limit = ordinal_base + number_of_functions
@@ -659,34 +1101,45 @@ def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
         name_start = header_match.start("name")
         hints: set[int] = set()
         row_count = 0
-        for line in lines[header_index + 1 : summary_index]:
+        for line_index in range(header_index + 1, summary_index):
+            line = lines[line_index]
             if not line.strip():
                 continue
+            descriptor = _row_descriptor(line_index + 1, line)
             padded = line.ljust(name_start)
             if padded[:ordinal_start].strip():
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             ordinal_text = padded[ordinal_start:hint_start].strip()
             hint_text = padded[hint_start:rva_start].strip()
             rva_text = padded[rva_start:name_start].strip()
             payload = padded[name_start:].strip()
-            if re.fullmatch(r"[0-9]+", ordinal_text) is None or not payload:
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+            if (
+                re.fullmatch(r"[0-9]{1,5}", ordinal_text) is None
+                or not payload
+            ):
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             ordinal = int(ordinal_text, 10)
             if not ordinal_base <= ordinal < ordinal_limit:
                 _fail(
                     "dumpbin export ordinal is outside the declared function table: "
                     f"ordinal={ordinal}, base={ordinal_base}, "
-                    f"functions={number_of_functions}"
+                    f"functions={number_of_functions}, {descriptor}"
                 )
 
             public_name = payload.split(maxsplit=1)[0]
             if public_name == "[NONAME]":
-                _fail("dynamic library contains an ordinal-only export")
-            if re.fullmatch(r"[0-9A-Fa-f]+", hint_text) is None:
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+                _fail(
+                    "dynamic library contains an ordinal-only export: "
+                    f"{descriptor}"
+                )
+            if re.fullmatch(r"[0-9A-Fa-f]{1,4}", hint_text) is None:
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             hint = int(hint_text, 16)
             if hint in hints:
-                _fail(f"dynamic library defines export hint more than once: {hint:X}")
+                _fail(
+                    "dynamic library defines export hint more than once: "
+                    f"hint={hint:X}, {descriptor}"
+                )
             hints.add(hint)
 
             if not rva_text:
@@ -699,25 +1152,25 @@ def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
                 if forwarder is not None:
                     _fail(
                         "dynamic library contains a forwarded export: "
-                        f"{forwarder.group('name')} -> {forwarder.group('target')}"
+                        f"{descriptor}"
                     )
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             if (
                 re.fullmatch(r"[0-9A-Fa-f]{8}", rva_text) is None
                 or int(rva_text, 16) == 0
             ):
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             if re.search(r"\(forwarded\s+to\b", payload, re.IGNORECASE) is not None:
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             direct = re.fullmatch(
                 r"(?P<name>\S+)(?:\s+=\s+(?P<internal>\S+)"
                 r"(?:\s+\([^\r\n]*\))?)?",
                 payload,
             )
             if direct is None:
-                _fail(f"cannot parse dumpbin export row: {line!r}")
+                _fail(f"cannot parse dumpbin export row: {descriptor}")
             name = direct.group("name")
-            record(name)
+            record(name, descriptor)
             row_count += 1
 
         if row_count != number_of_names:
@@ -732,42 +1185,51 @@ def _dynamic_exports(output: str, platform: str) -> frozenset[str]:
     return frozenset(names)
 
 
-def _static_reserved_exports(output: str, platform: str) -> frozenset[str]:
+def _static_reserved_exports(
+    output: str, platform: str, archive_argument: str
+) -> frozenset[str]:
     """Parse the defined external ``q_periapt_*`` namespace from llvm-nm.
 
-    ``--just-symbol-name`` still emits archive-member headings. LLVM prints an
-    object filename followed by one colon; Windows COFF raw-dylib members also
-    use a strict ASCII ``*.dll:`` heading. The latter is accepted only on
-    Windows and never for either reserved-prefix spelling. Every other
-    non-empty line must be one whitespace-free symbol token, so malformed
-    output cannot hide an ABI name. Mach-O must use exactly one leading
-    underscore for reserved exports. Linux and Windows must use the undecorated
-    canonical spelling; because this verifier has no architecture input,
-    decorated 32-bit COFF spellings fail closed and are outside this ABI 2
-    release scope.
+    ``--print-file-name --just-symbol-name`` emits one line per symbol as
+    ``<archive>:<member>: <symbol>``. The archive argument contains a 256-bit
+    value generated after the inspected bytes were snapshotted, so member or
+    symbol newlines cannot forge a second authenticated row. Split on the first
+    ``: `` after that exact prefix so a crafted symbol containing the delimiter
+    cannot be mistaken for member provenance. Every symbol must be one
+    whitespace-free token. Mach-O must use exactly one leading underscore for
+    reserved exports. Linux and Windows must use the undecorated canonical
+    spelling; because this verifier has no architecture input, decorated 32-bit
+    COFF spellings fail closed and are outside this ABI 2 release scope.
     """
 
+    archive_prefix = f"{archive_argument}:"
     names: set[str] = set()
-    for raw_line in output.splitlines():
-        if raw_line == "":
-            continue
-        if _LLVM_NM_ARCHIVE_MEMBER_HEADING_RE.fullmatch(raw_line) is not None:
-            continue
+    for line_number, raw_line in enumerate(output.splitlines(), start=1):
+        descriptor = _bounded_row_descriptor(
+            "llvm-nm static reserved-symbol",
+            line_number,
+            raw_line,
+            MAX_LLVM_NM_ROW_CHARS,
+        )
+        if not raw_line.startswith(archive_prefix):
+            _fail(f"cannot parse llvm-nm static reserved-symbol row: {descriptor}")
+        member_name, separator, candidate = raw_line[len(archive_prefix) :].partition(
+            ": "
+        )
         if (
-            platform == "windows"
-            and _LLVM_NM_WINDOWS_IMPORT_MEMBER_HEADING_RE.fullmatch(raw_line)
-            is not None
-            and not raw_line.lower().startswith(("q_periapt_", "_q_periapt_"))
+            separator == ""
+            or member_name == ""
+            or len(member_name) > MAX_LLVM_NM_MEMBER_CHARS
+            or len(candidate) > MAX_LLVM_NM_SYMBOL_CHARS
+            or "\x00" in member_name
+            or re.fullmatch(r"\S+", candidate) is None
         ):
-            continue
-        if re.fullmatch(r"\S+", raw_line) is None or raw_line.endswith(":"):
-            _fail(f"cannot parse llvm-nm static reserved-symbol row: {raw_line!r}")
-        candidate = raw_line
+            _fail(f"cannot parse llvm-nm static reserved-symbol row: {descriptor}")
         if platform == "macos":
             if candidate.startswith("q_periapt_"):
                 _fail(
                     "static library contains an undecorated reserved symbol on macos; "
-                    f"Mach-O requires _q_periapt_* spelling: {candidate}"
+                    f"Mach-O requires _q_periapt_* spelling: {descriptor}"
                 )
             normalized = (
                 candidate[1:] if candidate.startswith("_q_periapt_") else candidate
@@ -777,17 +1239,25 @@ def _static_reserved_exports(output: str, platform: str) -> frozenset[str]:
                 _fail(
                     f"static library contains a decorated reserved symbol on {platform}; "
                     "this verifier requires canonical undecorated q_periapt_* spelling "
-                    f"and excludes 32-bit COFF: {candidate}"
+                    f"and excludes 32-bit COFF: {descriptor}"
                 )
             normalized = candidate
         if not normalized.startswith("q_periapt_"):
             continue
         if re.fullmatch(r"q_periapt_[a-z0-9_]+", normalized) is None:
-            _fail(f"cannot parse llvm-nm static reserved-symbol row: {raw_line!r}")
+            _fail(f"cannot parse llvm-nm static reserved-symbol row: {descriptor}")
         if normalized in names:
-            _fail(f"static library defines reserved symbol more than once: {normalized}")
+            _fail(
+                "static library defines reserved symbol more than once: "
+                f"{descriptor}"
+            )
         names.add(normalized)
     return frozenset(names)
+
+
+def _symbol_set_sha256(names: set[str] | frozenset[str]) -> str:
+    canonical = b"\x00".join(name.encode("utf-8") for name in sorted(names))
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _verify_macos_identity(
@@ -797,7 +1267,9 @@ def _verify_macos_identity(
     install_names = [line.strip() for line in install_output.splitlines()[1:] if line.strip()]
     if install_names != [identity["install_name"]]:
         _fail(
-            f"macOS install name differs: {install_names} != {[identity['install_name']]}"
+            "macOS install name differs: "
+            f"observed_count={len(install_names)}, "
+            f"observed_sha256={_ordered_text_sha256(install_names)}"
         )
 
     linkage_output = runner(["otool", "-L", str(path)])
@@ -813,7 +1285,12 @@ def _verify_macos_identity(
     ]
     expected = [(identity["compatibility_version"], identity["current_version"])]
     if identities != expected:
-        _fail(f"macOS compatibility/current versions differ: {identities} != {expected}")
+        observed_versions = ["\x00".join(pair) for pair in identities]
+        _fail(
+            "macOS compatibility/current versions differ: "
+            f"observed_count={len(observed_versions)}, "
+            f"observed_sha256={_ordered_text_sha256(observed_versions)}"
+        )
 
 
 def _verify_linux_identity(
@@ -822,7 +1299,11 @@ def _verify_linux_identity(
     dynamic = runner(["readelf", "-d", str(path)])
     sonames = re.findall(r"\(SONAME\).*?\[([^\]]+)\]", dynamic)
     if sonames != [identity["soname"]]:
-        _fail(f"Linux SONAME differs: {sonames} != {[identity['soname']]}")
+        _fail(
+            "Linux SONAME differs: "
+            f"observed_count={len(sonames)}, "
+            f"observed_sha256={_ordered_text_sha256(sonames)}"
+        )
 
 
 def verify_dynamic_library(
@@ -857,11 +1338,14 @@ def verify_dynamic_library(
     exports = _dynamic_exports(exports_output, platform)
     if exports != contract.export_names:
         missing = sorted(contract.export_names - exports)
-        extra = sorted(exports - contract.export_names)
-        forbidden = sorted(exports & set(contract.document["abi"]["forbidden_exports"]))
+        extra = exports - contract.export_names
+        forbidden = exports & set(contract.document["abi"]["forbidden_exports"])
         _fail(
             "dynamic-library exports differ from contract: "
-            f"missing={missing}, extra={extra}, forbidden={forbidden}"
+            f"missing={missing}, "
+            f"extra_count={len(extra)}, extra_sha256={_symbol_set_sha256(extra)}, "
+            f"forbidden_count={len(forbidden)}, "
+            f"forbidden_sha256={_symbol_set_sha256(forbidden)}"
         )
 
 
@@ -890,23 +1374,30 @@ def verify_static_library(
     if not nm_path.is_absolute():
         _fail(f"llvm-nm path must be absolute: {nm_path}")
     _require_regular_library(nm_path)
-    output = runner(
-        [
-            str(nm_path),
-            "--defined-only",
-            "--extern-only",
-            "--just-symbol-name",
-            str(path),
-        ]
-    )
-    exports = _static_reserved_exports(output, platform)
+    with _authenticated_static_archive(path) as authenticated_archive:
+        archive_argument = str(authenticated_archive)
+        output = runner(
+            [
+                str(nm_path),
+                "--defined-only",
+                "--extern-only",
+                "--no-demangle",
+                "--print-file-name",
+                "--just-symbol-name",
+                archive_argument,
+            ]
+        )
+        exports = _static_reserved_exports(output, platform, archive_argument)
     if exports != contract.export_names:
         missing = sorted(contract.export_names - exports)
-        extra = sorted(exports - contract.export_names)
-        forbidden = sorted(exports & set(contract.document["abi"]["forbidden_exports"]))
+        extra = exports - contract.export_names
+        forbidden = exports & set(contract.document["abi"]["forbidden_exports"])
         _fail(
             "static-library reserved exports differ from contract: "
-            f"missing={missing}, extra={extra}, forbidden={forbidden}"
+            f"missing={missing}, "
+            f"extra_count={len(extra)}, extra_sha256={_symbol_set_sha256(extra)}, "
+            f"forbidden_count={len(forbidden)}, "
+            f"forbidden_sha256={_symbol_set_sha256(forbidden)}"
         )
 
 
