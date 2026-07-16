@@ -2784,6 +2784,92 @@ with _temporary_release_test_directories(parents):
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         validate_ci_check_checkout(extract_ci_check_job(workflow))
 
+    def test_pretag_windows_2022_package_gate_matches_candidate_substrate(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        job = extract_workflow_job(workflow, "abi2-windows-package-2022")
+        self.assertIn("    runs-on: windows-2022\n", job)
+        self.assertIn("          fetch-depth: 0\n", job)
+        self.assertIn("          toolchain: 1.96.0\n", job)
+        self.assertIn("          components: llvm-tools\n", job)
+        self.assertIn(
+            "cargo +1.96.0 install cbindgen --version 0.29.4 --locked",
+            job,
+        )
+        self.assertNotIn("continue-on-error:", job)
+        self.assertNotRegex(job, r"(?m)^    if:")
+
+        trust = extract_named_workflow_step(
+            job, "Test Windows 2022 package trust boundary"
+        )
+        self.assertIn("test_windows_package", trust)
+        self.assertIn("./windows-toolchain-tests.ps1", trust)
+        build = extract_named_workflow_step(
+            job, "Build, archive, extract, and consume the Windows 2022 SDK"
+        )
+        self.assertIn("QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}", build)
+        self.assertIn("run: artifact/windows-package.ps1", build)
+        verify = extract_named_workflow_step(
+            job, "Reconsume only the Windows 2022 candidate archive"
+        )
+        self.assertIn("-Mode VerifyArchive", verify)
+        self.assertIn("-ExpectedGitCommit $gitCommit", verify)
+        self.assertIn("-ExpectedGitTree $gitTree", verify)
+        self.assertNotIn("SilentlyContinue", verify)
+
+        latest = extract_workflow_job(workflow, "windows")
+        latest_verify = extract_named_workflow_step(
+            latest, "Reconsume only the Windows candidate archive"
+        )
+        self.assertNotIn("SilentlyContinue", latest_verify)
+        self.assertIn("-ErrorAction Stop", latest_verify)
+
+        candidate = ABI2_PLATFORM_CANDIDATE_WORKFLOW.read_text(encoding="utf-8")
+        candidate_windows = extract_workflow_job(candidate, "windows")
+        self.assertIn("    runs-on: windows-2022\n", candidate_windows)
+        self.assertIn("          toolchain: 1.96.0\n", candidate_windows)
+        self.assertIn("          components: llvm-tools\n", candidate_windows)
+        self.assertIn(
+            "cargo +1.96.0 install cbindgen --version 0.29.4 --locked",
+            candidate_windows,
+        )
+        candidate_build = extract_named_workflow_step(
+            candidate_windows, "Build, archive, extract, and consume the Windows SDK"
+        )
+        self.assertIn(
+            "QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}",
+            candidate_build,
+        )
+        self.assertIn("run: artifact/windows-package.ps1", candidate_build)
+        candidate_verify = extract_named_workflow_step(
+            candidate_windows, "Reconsume only the Windows candidate archive"
+        )
+        self.assertNotIn("SilentlyContinue", candidate_verify)
+        self.assertIn("-ErrorAction Stop", candidate_verify)
+        self.assertIn("-Mode VerifyArchive", candidate_verify)
+        self.assertIn("-ExpectedGitCommit $gitCommit", candidate_verify)
+        self.assertIn("-ExpectedGitTree $gitTree", candidate_verify)
+        preflight = extract_workflow_job(candidate, "preflight")
+        self.assertIn(
+            "actions/workflows/ci.yml/runs?head_sha=$commit&branch=main&event=push&status=success",
+            preflight,
+        )
+        self.assertIn('jq -e --arg commit "$commit"', preflight)
+        self.assertIn(
+            "any(.workflow_runs[]; .head_sha == $commit and .conclusion == \"success\")",
+            preflight,
+        )
+        self.assertIn('<<<"$ci_runs"', preflight)
+        for job_name in ("linux", "windows", "android"):
+            with self.subTest(candidate_job=job_name):
+                self.assertIn(
+                    "    needs: preflight\n",
+                    extract_workflow_job(candidate, job_name),
+                )
+        self.assertIn(
+            "    needs: [preflight, linux, windows, android]\n",
+            extract_workflow_job(candidate, "attest"),
+        )
+
     def test_ci_checkout_mutations_fail_closed(self) -> None:
         check_job = extract_ci_check_job(CI_WORKFLOW.read_text(encoding="utf-8"))
         mutations = {

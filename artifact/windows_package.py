@@ -183,6 +183,11 @@ MSVC_VERSION_PROBE_SOURCE = (
     b"#endif\n"
     b"QPERIAPT_MSVC_VERSION _MSC_VER _MSC_FULL_VER _MSC_BUILD _M_X64\n"
 )
+MSVC_VERSION_PROBE_FILENAME = "msvc-version-probe.c"
+# With /EP, supported MSVC toolchains reserve stdout for preprocessed bytes and
+# emit this one fixed source-progress record on stderr. This is an exact
+# protocol record, not a license to ignore compiler diagnostics.
+MSVC_VERSION_PROBE_STDERR = MSVC_VERSION_PROBE_FILENAME.encode("ascii") + b"\r\n"
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_PACKAGE_FILE_BYTES = 512 * 1024 * 1024
 MAX_DUMPBIN_OUTPUT_BYTES = 1024 * 1024
@@ -1589,7 +1594,7 @@ def _read_frozen_msvc_version_probe(probe: pathlib.Path) -> FileSnapshot:
     probe_path = pathlib.Path(probe)
     _require(probe_path.is_absolute(), "MSVC version probe path must be absolute")
     _require(
-        probe_path.name == "msvc-version-probe.c",
+        probe_path.name == MSVC_VERSION_PROBE_FILENAME,
         "MSVC version probe filename differs",
     )
     try:
@@ -1658,8 +1663,8 @@ def inspect_msvc_version(
     )
     _require(completed.returncode == 0, "MSVC compiler version probe failed")
     _require(
-        not completed.stderr,
-        "MSVC compiler version probe emitted diagnostics",
+        completed.stderr == MSVC_VERSION_PROBE_STDERR,
+        "MSVC compiler version probe stderr differs from the frozen contract",
     )
     version = parse_msvc_version_probe(completed.stdout)
     final_probe_snapshot = _read_frozen_msvc_version_probe(probe_path)

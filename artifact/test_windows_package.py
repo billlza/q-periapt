@@ -803,6 +803,11 @@ class MsvcVersionProbeTests(unittest.TestCase):
             compiler.write_bytes(b"fixture tool")
             probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
             calls: list[tuple[list[str], dict[str, object]]] = []
+            self.assertEqual(
+                windows_package.MSVC_VERSION_PROBE_STDERR,
+                windows_package.MSVC_VERSION_PROBE_FILENAME.encode("ascii")
+                + b"\r\n",
+            )
 
             def runner(
                 arguments: list[str], **kwargs: object
@@ -812,7 +817,7 @@ class MsvcVersionProbeTests(unittest.TestCase):
                     arguments,
                     0,
                     self._probe_output(),
-                    b"",
+                    windows_package.MSVC_VERSION_PROBE_STDERR,
                 )
 
             self.assertEqual(
@@ -858,17 +863,55 @@ class MsvcVersionProbeTests(unittest.TestCase):
             compiler.write_bytes(b"fixture tool")
             probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
             valid = self._probe_output()
+            progress = windows_package.MSVC_VERSION_PROBE_STDERR
+            stderr_variants = {
+                "empty": b"",
+                "LF only": b"msvc-version-probe.c\n",
+                "no newline": b"msvc-version-probe.c",
+                "CR only": b"msvc-version-probe.c\r",
+                "leading whitespace": b" " + progress,
+                "trailing whitespace": progress + b" ",
+                "extra CRLF": progress + b"\r\n",
+                "duplicate": progress + progress,
+                "case change": b"MSVC-version-probe.c\r\n",
+                "absolute path": b"C:\\source\\msvc-version-probe.c\r\n",
+                "relative path": b"artifact\\msvc-version-probe.c\r\n",
+                "forward slash path": b"artifact/msvc-version-probe.c\r\n",
+                "UTF-8 BOM": b"\xef\xbb\xbf" + progress,
+                "UTF-16": "msvc-version-probe.c\r\n".encode("utf-16-le"),
+                "Unicode confusable": "msvc-versiοn-probe.c\r\n".encode("utf-8"),
+                "NUL": progress + b"\0",
+                "escape": b"\x1b" + progress,
+                "banner": b"Microsoft C/C++ compiler\r\n" + progress,
+                "D9002 warning": progress + b"cl : warning D9002\r\n",
+                "C warning": progress + b"probe.c(1): warning C4000\r\n",
+                "localized warning": progress + "警告\r\n".encode("utf-8"),
+            }
+            for label, stderr in stderr_variants.items():
+                with self.subTest(stderr=label):
+                    with self.assertRaisesRegex(
+                        WindowsPackageError,
+                        "stderr differs from the frozen contract",
+                    ):
+                        windows_package.inspect_msvc_version(
+                            compiler,
+                            probe,
+                            runner=lambda *args, stderr_bytes=stderr, **kwargs: (
+                                subprocess.CompletedProcess([], 0, valid, stderr_bytes)
+                            ),
+                        )
             completed_cases = {
-                "nonzero": subprocess.CompletedProcess([], 1, valid, b"failed"),
-                "stderr": subprocess.CompletedProcess([], 0, valid, b"warning"),
-                "boolean return code": subprocess.CompletedProcess([], True, valid, b""),
-                "text stdout": subprocess.CompletedProcess([], 0, "text", b""),
+                "nonzero": subprocess.CompletedProcess([], 1, valid, progress),
+                "boolean return code": subprocess.CompletedProcess(
+                    [], True, valid, progress
+                ),
+                "text stdout": subprocess.CompletedProcess([], 0, "text", progress),
                 "text stderr": subprocess.CompletedProcess([], 0, valid, "text"),
                 "oversized stdout": subprocess.CompletedProcess(
                     [],
                     0,
                     b"x" * (windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1),
-                    b"",
+                    progress,
                 ),
                 "oversized stderr": subprocess.CompletedProcess(
                     [],
@@ -876,7 +919,9 @@ class MsvcVersionProbeTests(unittest.TestCase):
                     valid,
                     b"x" * (windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1),
                 ),
-                "malformed stdout": subprocess.CompletedProcess([], 0, b"bad", b""),
+                "malformed stdout": subprocess.CompletedProcess(
+                    [], 0, b"bad", progress
+                ),
             }
             for label, completed in completed_cases.items():
                 with self.subTest(label=label):
@@ -942,7 +987,7 @@ class MsvcVersionProbeTests(unittest.TestCase):
                     arguments,
                     0,
                     self._probe_output(),
-                    b"",
+                    windows_package.MSVC_VERSION_PROBE_STDERR,
                 )
 
             with self.assertRaises(WindowsPackageError):

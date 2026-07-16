@@ -117,11 +117,15 @@ jobs:
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
           $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
-          @(
+          foreach ($path in @(
             "target/qperiapt-windows-dynamic",
             "target/qperiapt-windows-static",
             $packageRoot
-          ) | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force -ErrorAction SilentlyContinue }
+          )) {
+            if (Test-Path -LiteralPath $path) {
+              Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+            }
+          }
 
           $wrongSha256 = "0" * 64
           foreach ($wrongArguments in @(
@@ -155,6 +159,70 @@ jobs:
           name: abi2-windows-x86_64-msvc
           path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip
           if-no-files-found: error
+
+  # Pre-tag package gate on the same Windows generation used by the immutable
+  # release-candidate workflow. Keeping this separate from the broad
+  # windows-latest job preserves both explicit toolchain identities.
+  abi2-windows-package-2022:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.96.0
+          components: llvm-tools
+      - run: cargo +1.96.0 install cbindgen --version 0.29.4 --locked
+      - name: Verify exact Windows 2022 source and toolchain
+        shell: pwsh
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          if ((git rev-parse --verify 'HEAD^{commit}') -ne $env:EXPECTED_COMMIT) { throw "checkout commit differs" }
+          if (git status --porcelain=v1 --untracked-files=all) { throw "checkout is dirty" }
+          $version = rustc --version
+          if ($version -ne "rustc 1.96.0 (ac68faa20 2026-05-25)") { throw "unexpected rustc: $version" }
+      - name: Test Windows 2022 package trust boundary
+        shell: pwsh
+        working-directory: artifact
+        run: |
+          python -I -S -B -W error python_bootstrap.py -m unittest -v `
+            test_evidence_io test_c_abi_contract test_deterministic_archive `
+            test_release_binary_scan test_third_party_licenses test_windows_package
+          ./windows-toolchain-tests.ps1
+      - name: Build, archive, extract, and consume the Windows 2022 SDK
+        shell: pwsh
+        env:
+          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
+        run: artifact/windows-package.ps1
+      - name: Reconsume only the Windows 2022 candidate archive
+        shell: pwsh
+        run: |
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+          $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
+          $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
+          foreach ($path in @(
+            "target/qperiapt-windows-dynamic",
+            "target/qperiapt-windows-static",
+            $packageRoot
+          )) {
+            if (Test-Path -LiteralPath $path) {
+              Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+            }
+          }
+          artifact/windows-package.ps1 -Mode VerifyArchive `
+            -Archive $archive `
+            -ExpectedSha256 $archiveSha256 `
+            -ExpectedManifestSha256 $manifestSha256 `
+            -ExpectedContractSha256 $contractSha256 `
+            -ExpectedGitCommit $gitCommit `
+            -ExpectedGitTree $gitTree
 
   # Public Linux packages are produced and consumed on their native GNU hosts.
   # Cross-compilation alone cannot validate the loader, GLIBC floor, pkg-config,
