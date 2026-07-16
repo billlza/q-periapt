@@ -311,8 +311,8 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
 
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
 REQUIRED_MSVC_LINK_ARGUMENTS = ("/brepro", "/nologo", "/wx")
-EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
+EXPECTED_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
 
 EXPECTED_PAYLOAD_FILES = frozenset(
     {
@@ -817,7 +817,11 @@ def _canonical_windows_linker_path(value: str, *, label: str) -> str:
         and WINDOWS_DRIVE_ABSOLUTE_RE.match(value) is not None,
         f"{label} must be an absolute Windows drive path",
     )
-    normalized = ntpath.normpath(value.replace("/", "\\"))
+    normalized = ntpath.normpath(value)
+    _require(
+        value == normalized,
+        f"{label} must be a canonical backslash-separated path",
+    )
     _require(
         ntpath.basename(normalized).casefold() == "link.exe",
         f"{label} must name link.exe",
@@ -829,16 +833,16 @@ def verify_rustc_linker_invocation(
     output: bytes,
     expected_linker: str,
 ) -> list[str]:
-    """Bind one successful rustc link to the selected absolute MSVC linker."""
+    """Validate the link-args half of the PowerShell-enforced linker proof."""
 
     program, arguments = _parse_windows_rust_debug_command(output)
     _require(
-        _canonical_windows_linker_path(program, label="rustc linker program")
-        == _canonical_windows_linker_path(
-            expected_linker,
-            label="expected MSVC linker",
-        ),
-        "rustc executed a different MSVC linker",
+        program == "link.exe",
+        "rustc linker program must be the exact bare link.exe name",
+    )
+    _canonical_windows_linker_path(
+        expected_linker,
+        label="expected MSVC linker",
     )
     folded_arguments = [argument.casefold() for argument in arguments]
     for required in REQUIRED_MSVC_LINK_ARGUMENTS:

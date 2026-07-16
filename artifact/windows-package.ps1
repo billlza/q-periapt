@@ -481,7 +481,7 @@ function Resolve-TrustedRustLlvmTools {
     }
 }
 
-function Set-TrustedMsvcPath {
+function Assert-TrustedMsvcPath {
     param(
         [Parameter(Mandatory)] [string] $TrustedBin,
         [Parameter(Mandatory)] [string] $Linker
@@ -499,15 +499,85 @@ function Set-TrustedMsvcPath {
     }
     $fullTrustedBin = [System.IO.Path]::GetFullPath($TrustedBin)
     $fullLinker = [System.IO.Path]::GetFullPath($Linker)
+    $resolvedLinker = Resolve-TrustedToolchainFile `
+        -Path $fullLinker `
+        -TrustedRoot $fullTrustedBin `
+        -ExpectedName "link.exe"
     if (
+        -not $resolvedLinker.Equals(
+            $fullLinker,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
         -not [System.IO.Path]::GetDirectoryName($fullLinker).Equals(
             $fullTrustedBin,
             [System.StringComparison]::OrdinalIgnoreCase
-        ) -or
-        -not (Test-Path -LiteralPath $fullLinker -PathType Leaf)
+        )
     ) {
         throw "trusted link.exe must be a file directly inside the MSVC bin directory"
     }
+    if (-not $env:PATH) {
+        throw "PATH is unavailable for deterministic MSVC linker selection"
+    }
+
+    $entries = @($env:PATH.Split([System.IO.Path]::PathSeparator))
+    $seen = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $linkerCandidates = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in $entries) {
+        if (-not $entry -or -not [System.IO.Path]::IsPathFullyQualified($entry)) {
+            throw "PATH contains an empty or relative MSVC linker search directory"
+        }
+        $fullEntry = [System.IO.Path]::GetFullPath($entry)
+        if (-not $seen.Add($fullEntry)) {
+            throw "controlled PATH contains a duplicate directory"
+        }
+        $candidate = Join-Path $fullEntry "link.exe"
+        if (Test-Path -LiteralPath $candidate) {
+            if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                throw "MSVC linker search resolved link.exe to a non-file path"
+            }
+            [void] $linkerCandidates.Add(
+                [System.IO.Path]::GetFullPath($candidate)
+            )
+        }
+    }
+    if (
+        -not [System.IO.Path]::GetFullPath($entries[0]).Equals(
+            $fullTrustedBin,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        $linkerCandidates.Count -ne 1 -or
+        -not $linkerCandidates[0].Equals(
+            $fullLinker,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "controlled PATH does not resolve only the trusted MSVC linker"
+    }
+}
+
+function Set-TrustedMsvcPath {
+    param(
+        [Parameter(Mandatory)] [string] $TrustedBin,
+        [Parameter(Mandatory)] [string] $Linker
+    )
+
+    if (
+        -not [System.IO.Path]::IsPathFullyQualified($TrustedBin) -or
+        -not [System.IO.Path]::IsPathFullyQualified($Linker) -or
+        -not [System.IO.Path]::GetFileName($Linker).Equals(
+            "link.exe",
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "trusted MSVC PATH inputs must be absolute and name link.exe"
+    }
+    $fullTrustedBin = [System.IO.Path]::GetFullPath($TrustedBin)
+    $fullLinker = Resolve-TrustedToolchainFile `
+        -Path ([System.IO.Path]::GetFullPath($Linker)) `
+        -TrustedRoot $fullTrustedBin `
+        -ExpectedName "link.exe"
     if (-not $env:PATH) {
         throw "PATH is unavailable for deterministic MSVC linker selection"
     }
@@ -537,22 +607,122 @@ function Set-TrustedMsvcPath {
     $env:PATH = (@($fullTrustedBin) + @($retained)) -join (
         [System.IO.Path]::PathSeparator
     )
-    $linkerCandidates = @(
-        foreach ($entry in $env:PATH.Split([System.IO.Path]::PathSeparator)) {
-            $candidate = Join-Path $entry "link.exe"
-            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-                [System.IO.Path]::GetFullPath($candidate)
-            }
-        }
+    Assert-TrustedMsvcPath -TrustedBin $fullTrustedBin -Linker $fullLinker
+}
+
+function Assert-BareMsvcLinkerSearchBoundary {
+    param(
+        [Parameter(Mandatory)] [string] $TrustedBin,
+        [Parameter(Mandatory)] [string] $Linker,
+        [Parameter(Mandatory)] [string] $RustApplicationDirectory,
+        [Parameter(Mandatory)] [string] $SystemDirectory,
+        [Parameter(Mandatory)] [string] $WindowsDirectory
     )
+
+    Assert-TrustedMsvcPath -TrustedBin $TrustedBin -Linker $Linker
+    $fullLinker = [System.IO.Path]::GetFullPath($Linker)
+    $seen = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($directory in @(
+        $RustApplicationDirectory,
+        $SystemDirectory,
+        $WindowsDirectory
+    )) {
+        if (-not [System.IO.Path]::IsPathFullyQualified($directory)) {
+            throw "bare MSVC linker search directory must be absolute"
+        }
+        $fullDirectory = [System.IO.Path]::GetFullPath($directory)
+        if (
+            -not (Test-Path -LiteralPath $fullDirectory -PathType Container) -or
+            -not $seen.Add($fullDirectory)
+        ) {
+            throw "bare MSVC linker search directory is missing or duplicated"
+        }
+        $candidate = Join-Path $fullDirectory "link.exe"
+        if (
+            (Test-Path -LiteralPath $candidate) -and
+            -not [System.IO.Path]::GetFullPath($candidate).Equals(
+                $fullLinker,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw "bare link.exe search has an untrusted higher-priority provider"
+        }
+    }
+}
+
+function Get-TrustedMsvcLinkerFingerprint {
+    param(
+        [Parameter(Mandatory)] [string] $MsvcInstallation,
+        [Parameter(Mandatory)] [string] $ExpectedBin,
+        [Parameter(Mandatory)] [string] $ExpectedLinker,
+        [Parameter(Mandatory)] [string] $RustApplicationDirectory,
+        [Parameter(Mandatory)] [string] $SystemDirectory,
+        [Parameter(Mandatory)] [string] $WindowsDirectory,
+        [switch] $NormalizePath
+    )
+
+    $resolved = Resolve-TrustedMsvcX64Tools -MsvcInstallation $MsvcInstallation
     if (
-        $linkerCandidates.Count -ne 1 -or
-        -not $linkerCandidates[0].Equals(
-            $fullLinker,
+        -not $resolved.Bin.Equals(
+            $ExpectedBin,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        -not $resolved.Linker.Equals(
+            $ExpectedLinker,
             [System.StringComparison]::OrdinalIgnoreCase
         )
     ) {
-        throw "controlled PATH does not resolve only the trusted MSVC linker"
+        throw "MSVC linker identity changed during the release build"
+    }
+    if ($NormalizePath) {
+        Set-TrustedMsvcPath -TrustedBin $resolved.Bin -Linker $resolved.Linker
+    }
+    Assert-BareMsvcLinkerSearchBoundary `
+        -TrustedBin $resolved.Bin `
+        -Linker $resolved.Linker `
+        -RustApplicationDirectory $RustApplicationDirectory `
+        -SystemDirectory $SystemDirectory `
+        -WindowsDirectory $WindowsDirectory
+    $item = Get-Item -LiteralPath $resolved.Linker -Force
+    return [pscustomobject] @{
+        Path = $resolved.Linker
+        Sha256 = (Get-FileHash -LiteralPath $resolved.Linker -Algorithm SHA256).Hash
+        Length = [int64] $item.Length
+        LastWriteTimeUtcTicks = [int64] $item.LastWriteTimeUtc.Ticks
+        PathEnvironment = $env:PATH
+    }
+}
+
+function Assert-MsvcLinkerFingerprintUnchanged {
+    param(
+        [Parameter(Mandatory)] [pscustomobject] $Before,
+        [Parameter(Mandatory)] [pscustomobject] $After
+    )
+
+    foreach ($property in @(
+        "Path",
+        "Sha256",
+        "Length",
+        "LastWriteTimeUtcTicks",
+        "PathEnvironment"
+    )) {
+        if (
+            $null -eq $Before.PSObject.Properties[$property] -or
+            $null -eq $After.PSObject.Properties[$property]
+        ) {
+            throw "MSVC linker fingerprint is incomplete"
+        }
+    }
+    if (
+        $After.Path -cne $Before.Path -or
+        $After.Sha256 -cne $Before.Sha256 -or
+        $After.Length -ne $Before.Length -or
+        $After.LastWriteTimeUtcTicks -ne $Before.LastWriteTimeUtcTicks -or
+        $After.PathEnvironment -cne $Before.PathEnvironment
+    ) {
+        throw "MSVC linker file or search path changed during the release build"
     }
 }
 
@@ -837,19 +1007,30 @@ $Cl = $MsvcTools.Cl
 $Dumpbin = $MsvcTools.Dumpbin
 $Linker = $MsvcTools.Linker
 [void] (Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker)
-$RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--print", "sysroot")
-$RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("-vV")
+$RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--print", "sysroot")
+$RustApplicationDirectory = [System.IO.Path]::GetFullPath(
+    (Join-Path $RustSysroot "bin")
+)
+$SystemDirectory = [System.IO.Path]::GetFullPath(
+    [System.Environment]::SystemDirectory
+)
+$WindowsDirectory = [System.IO.Path]::GetFullPath(
+    [System.Environment]::GetFolderPath(
+        [System.Environment+SpecialFolder]::Windows
+    )
+)
+$RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
 if (-not $RustHostMatch.Success) {
     throw "cannot determine the Rust host triple"
 }
-$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--version")
-if ($RustcVersion -cne "rustc 1.96.1 (31fca3adb 2026-06-26)") {
-    throw "Windows release package requires rustc 1.96.1: $RustcVersion"
+$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--version")
+if ($RustcVersion -cne "rustc 1.97.0 (2d8144b78 2026-07-07)") {
+    throw "Windows release package requires rustc 1.97.0: $RustcVersion"
 }
-$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("--version")
-if ($CargoVersion -cne "cargo 1.96.1 (356927216 2026-06-26)") {
-    throw "Windows release package requires cargo 1.96.1: $CargoVersion"
+$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "--version")
+if ($CargoVersion -cne "cargo 1.97.0 (c980f4866 2026-06-30)") {
+    throw "Windows release package requires cargo 1.97.0: $CargoVersion"
 }
 $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustSysroot $RustSysroot `
@@ -954,7 +1135,7 @@ if ($SourceDateEpochText -notmatch '^(0|[1-9][0-9]*)$') {
     throw "source commit timestamp is malformed: $SourceDateEpochText"
 }
 $SourceDateEpoch = [int64] $SourceDateEpochText
-$metadata = (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("metadata", "--locked", "--format-version", "1", "--no-deps")) | ConvertFrom-Json
+$metadata = (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "metadata", "--locked", "--format-version", "1", "--no-deps")) | ConvertFrom-Json
 $ffiPackage = @($metadata.packages | Where-Object { $_.name -eq "q-periapt-ffi" })
 if ($ffiPackage.Count -ne 1 -or $ffiPackage[0].version -ne $Version) {
     throw "q-periapt-ffi package version must be $Version"
@@ -1020,14 +1201,32 @@ try {
     }
     $env:CARGO_TARGET_DIR = $DynamicTarget
     $linkArgumentsLog = Join-Path $OutRoot "dynamic-link-arguments.txt"
+    $linkerFingerprintBefore = Get-TrustedMsvcLinkerFingerprint `
+        -MsvcInstallation $MsvcInstallation `
+        -ExpectedBin $MsvcTools.Bin `
+        -ExpectedLinker $Linker `
+        -RustApplicationDirectory $RustApplicationDirectory `
+        -SystemDirectory $SystemDirectory `
+        -WindowsDirectory $WindowsDirectory `
+        -NormalizePath
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
-        "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
+        "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
+        "-Clinker=link.exe", "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
         "-Clink-arg=/Brepro", "-Clink-arg=/WX",
         "-Clink-arg=/DEBUG:NONE", "-Clink-arg=/OPT:REF,NOICF",
         "-Dlinker-messages",
         "--remap-path-prefix=$Root=qperiapt-source"
     )
+    $linkerFingerprintAfter = Get-TrustedMsvcLinkerFingerprint `
+        -MsvcInstallation $MsvcInstallation `
+        -ExpectedBin $MsvcTools.Bin `
+        -ExpectedLinker $Linker `
+        -RustApplicationDirectory $RustApplicationDirectory `
+        -SystemDirectory $SystemDirectory `
+        -WindowsDirectory $WindowsDirectory
+    Assert-MsvcLinkerFingerprintUnchanged `
+        -Before $linkerFingerprintBefore `
+        -After $linkerFingerprintAfter
     Invoke-PythonChecked -Arguments @(
         "artifact/windows_package.py", "verify-linker-invocation",
         "--link-arguments", $linkArgumentsLog,
@@ -1035,7 +1234,7 @@ try {
     )
     $env:CARGO_TARGET_DIR = $StaticTarget
     $staticBuild = Invoke-Captured -FilePath "cargo.exe" -Arguments @(
-        "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
+        "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
         "--print", "native-static-libs", "-Cstrip=debuginfo", "--remap-path-prefix=$Root=qperiapt-source"
     ) -Echo
     $nativeStaticLibrariesLog = Join-Path $OutRoot "native-static-libraries.txt"
@@ -1145,11 +1344,11 @@ try {
     $env:RUSTFLAGS = "-D warnings"
     $env:CARGO_INCREMENTAL = "0"
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
+        "+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
         "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json")
     )
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
+        "+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
         "sbom", "--lock", "Cargo.lock", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/sbom.cdx.json")
     )
 }
@@ -1261,8 +1460,8 @@ if ($clVersion -cnotmatch '^MSVC [1-9][0-9]\.[0-9]{2}\.(0|[1-9][0-9]{0,4})\.(0|[
     throw "MSVC compiler version inspector returned a malformed contract"
 }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
-$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--version")
-$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("--version")
+$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--version")
+$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "--version")
 if ($ManifestRustcVersion -cne $RustcVersion -or $ManifestCargoVersion -cne $CargoVersion) {
     throw "Windows Rust toolchain changed during release package construction"
 }

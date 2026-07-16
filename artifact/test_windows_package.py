@@ -59,7 +59,7 @@ def _native_static_libraries_output(
 
 def _rustc_link_arguments_output(
     *,
-    program: str = r"C:\Program Files\Microsoft Visual Studio\VC\Tools\MSVC\14.50.12345\bin\Hostx64\x64\link.exe",
+    program: str = "link.exe",
     arguments: tuple[str, ...] = (
         "/NOLOGO",
         "/OPT:REF,NOICF",
@@ -600,11 +600,15 @@ class RustcLinkerInvocationTests(unittest.TestCase):
         valid = _rustc_link_arguments_output()
         cases = {
             "different linker": _rustc_link_arguments_output(
-                program=r"C:\Other\link.exe"
+                program="other.exe"
             ),
-            "relative linker": _rustc_link_arguments_output(program="link.exe"),
+            "absolute linker": _rustc_link_arguments_output(
+                program=self.EXPECTED_LINKER
+            ),
+            "different case": _rustc_link_arguments_output(program="LINK.EXE"),
+            "relative path": _rustc_link_arguments_output(program=r".\link.exe"),
             "wrong executable": _rustc_link_arguments_output(
-                program=r"C:\Trusted\lld-link.exe"
+                program="lld-link.exe"
             ),
             "missing Brepro": _rustc_link_arguments_output(
                 arguments=(
@@ -714,13 +718,13 @@ class RustcLinkerInvocationTests(unittest.TestCase):
             "NUL": valid[:-1] + b"\0\n",
             "invalid UTF-8": valid[:-1] + b"\xff\n",
             "unquoted program": valid.replace(
-                json.dumps(self.EXPECTED_LINKER).encode("ascii"),
+                b'"link.exe"',
                 b"link.exe",
                 1,
             ),
             "unquoted argument": valid.replace(b'"/NOLOGO"', b"/NOLOGO", 1),
             "escaped program letter": valid.replace(
-                b'"C:', b'"\\u0043:', 1
+                b'"link.exe"', b'"\\u006cink.exe"', 1
             ),
             "escaped hardening letter": valid.replace(
                 b'"/WX"', b'"/\\u0057X"', 1
@@ -743,6 +747,21 @@ class RustcLinkerInvocationTests(unittest.TestCase):
             "expected MSVC linker must be an absolute Windows drive path",
         ):
             windows_package.verify_rustc_linker_invocation(valid, "link.exe")
+        invalid_expected_linkers = {
+            "UNC path": r"\\server\share\link.exe",
+            "drive relative": r"C:trusted\link.exe",
+            "dot segments": r"C:\Trusted\..\Trusted\link.exe",
+            "forward slash": r"C:/Trusted/link.exe",
+            "wrong executable": r"C:\Trusted\lld-link.exe",
+        }
+        for label, expected_linker in invalid_expected_linkers.items():
+            with self.subTest(expected_linker=label), self.assertRaises(
+                WindowsPackageError
+            ):
+                windows_package.verify_rustc_linker_invocation(
+                    valid,
+                    expected_linker,
+                )
 
     def test_cli_verifies_one_regular_link_argument_snapshot(self) -> None:
         repository = pathlib.Path(__file__).resolve().parent.parent
@@ -2008,7 +2027,11 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "function Resolve-TrustedCommandProcessor",
             "function Resolve-TrustedMsvcX64Tools",
             "function Resolve-TrustedRustLlvmTools",
+            "function Assert-TrustedMsvcPath",
             "function Set-TrustedMsvcPath",
+            "function Assert-BareMsvcLinkerSearchBoundary",
+            "function Get-TrustedMsvcLinkerFingerprint",
+            "function Assert-MsvcLinkerFingerprintUnchanged",
             "[System.IO.FileAttributes]::ReparsePoint",
             "-SystemDirectory ([System.Environment]::SystemDirectory)",
             "$environmentLines = & $commandProcessor",
@@ -2030,8 +2053,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$RustLlvmTools = Resolve-TrustedRustLlvmTools',
             '$LlvmAr = $RustLlvmTools.Ar',
             '$LlvmNm = $RustLlvmTools.Nm',
-            'rustc 1.96.1 (31fca3adb 2026-06-26)',
-            'cargo 1.96.1 (356927216 2026-06-26)',
+            'rustc 1.97.0 (2d8144b78 2026-07-07)',
+            'cargo 1.97.0 (c980f4866 2026-06-30)',
             '$ManifestRustcVersion -cne $RustcVersion',
             '$ManifestCargoVersion -cne $CargoVersion',
             'Windows Rust toolchain changed during release package construction',
@@ -2065,6 +2088,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "$env:AR = $LlvmAr",
             "$env:AR = $savedAr",
             '"--print", "link-args=$linkArgumentsLog"',
+            '"-Clinker=link.exe"',
             '"-Clink-arg=/Brepro"',
             '"-Clink-arg=/WX"',
             '"-Clink-arg=/DEBUG:NONE"',
@@ -2096,11 +2120,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"/headers"',
             '"-Clink-arg=/WX:NO"',
             "/WX:NO",
-            "-Clinker=",
             "Resolve-TrustedRustLinkerCommand",
             "$RustLinkerCommand",
             '"-A", "linker-messages"',
             '"-Alinker-messages"',
+            '"-A", "linker-info"',
+            '"-Alinker-info"',
             '"--cap-lints"',
             '"--dependency"',
             '"--expected-dependency"',
@@ -2124,6 +2149,18 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '-ExpectedName "lib.exe"',
         ):
             self.assertNotIn(forbidden, script)
+        rustup_tool_invocations = list(
+            re.finditer(
+                r'-FilePath "(?:cargo|rustc)\.exe" -Arguments @\(',
+                script,
+            )
+        )
+        self.assertEqual(len(rustup_tool_invocations), 11)
+        for invocation in rustup_tool_invocations:
+            self.assertTrue(
+                script[invocation.end() :].lstrip().startswith('"+1.97.0"'),
+                "every Windows release rustc/cargo invocation must select 1.97.0",
+            )
         self.assertNotIn(
             "debug_directory_absent",
             (self.repository_root / "artifact/windows_package.py").read_text(
@@ -2135,6 +2172,10 @@ class WindowsPackageManifestTests(unittest.TestCase):
                 self.repository_root / "artifact/msvc-version-probe.c"
             ).read_bytes(),
             windows_package.MSVC_VERSION_PROBE_SOURCE,
+        )
+        self.assertLess(
+            script.index('"-Clinker=link.exe"'),
+            script.index('"--print", "link-args=$linkArgumentsLog"'),
         )
         self.assertLess(
             script.index('"-Clink-arg=/Brepro"'),
@@ -2152,6 +2193,43 @@ class WindowsPackageManifestTests(unittest.TestCase):
             script.index('"link-args=$linkArgumentsLog"'),
             script.index('"verify-linker-invocation"'),
         )
+        self.assertEqual(script.count('"-Clinker=link.exe"'), 1)
+        fingerprint_before = script.index(
+            "$linkerFingerprintBefore = Get-TrustedMsvcLinkerFingerprint"
+        )
+        dynamic_build = script.index(
+            'Invoke-Checked -FilePath "cargo.exe"',
+            fingerprint_before,
+        )
+        fingerprint_after = script.index(
+            "$linkerFingerprintAfter = Get-TrustedMsvcLinkerFingerprint",
+            dynamic_build,
+        )
+        fingerprint_assertion = script.index(
+            "Assert-MsvcLinkerFingerprintUnchanged",
+            fingerprint_after,
+        )
+        link_arguments_verify = script.index(
+            '"artifact/windows_package.py", "verify-linker-invocation"',
+            fingerprint_assertion,
+        )
+        manifest_create = script.index(
+            "Invoke-PythonChecked -Arguments $manifestArguments",
+            link_arguments_verify,
+        )
+        archive_create = script.index(
+            '"artifact/deterministic_archive.py", "create-zip"',
+            manifest_create,
+        )
+        self.assertLess(
+            fingerprint_before,
+            dynamic_build,
+        )
+        self.assertLess(dynamic_build, fingerprint_after)
+        self.assertLess(fingerprint_after, fingerprint_assertion)
+        self.assertLess(fingerprint_assertion, link_arguments_verify)
+        self.assertLess(link_arguments_verify, manifest_create)
+        self.assertLess(manifest_create, archive_create)
         target_compiler_environment = re.search(
             r"\$targetCompilerEnvironment = @\{(?P<body>.*?)\n\}",
             script,
@@ -2265,7 +2343,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             self.assertIn(f'-Path (Join-Path $bin "{tool}")', resolver_body)
         rust_llvm_resolver = re.search(
             r"function Resolve-TrustedRustLlvmTools \{(?P<body>.*?)\n\}"
-            r"\n\nfunction Set-TrustedMsvcPath",
+            r"\n\nfunction Assert-TrustedMsvcPath",
             script,
             flags=re.DOTALL,
         )
@@ -2284,9 +2362,24 @@ class WindowsPackageManifestTests(unittest.TestCase):
             2,
             rust_llvm_resolver_body.count("Resolve-TrustedToolchainFile `"),
         )
+        path_assertion = re.search(
+            r"function Assert-TrustedMsvcPath \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Set-TrustedMsvcPath",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(path_assertion)
+        assert path_assertion is not None
+        path_assertion_body = path_assertion.group("body")
+        self.assertIn("$linkerCandidates.Count -ne 1", path_assertion_body)
+        self.assertIn(
+            "controlled PATH does not resolve only",
+            path_assertion_body,
+        )
+        self.assertNotIn("$env:PATH =", path_assertion_body)
         path_binding = re.search(
             r"function Set-TrustedMsvcPath \{(?P<body>.*?)\n\}"
-            r"\n\nfunction Initialize-MsvcEnvironment",
+            r"\n\nfunction Assert-BareMsvcLinkerSearchBoundary",
             script,
             flags=re.DOTALL,
         )
@@ -2294,8 +2387,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
         assert path_binding is not None
         path_binding_body = path_binding.group("body")
         self.assertIn("other link.exe provider is removed", path_binding_body)
-        self.assertIn("$linkerCandidates.Count -ne 1", path_binding_body)
-        self.assertIn("controlled PATH does not resolve only", path_binding_body)
+        self.assertIn("$env:PATH =", path_binding_body)
+        self.assertIn("Assert-TrustedMsvcPath", path_binding_body)
         self.assertGreaterEqual(script.count("-Cl $Cl `"), 3)
         self.assertEqual(2, script.count("Invoke-Checked -FilePath $Cl"))
         toolchain_test = (

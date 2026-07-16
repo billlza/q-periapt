@@ -28,7 +28,11 @@ foreach ($functionName in @(
     "Resolve-TrustedCommandProcessor",
     "Resolve-TrustedMsvcX64Tools",
     "Resolve-TrustedRustLlvmTools",
-    "Set-TrustedMsvcPath"
+    "Assert-TrustedMsvcPath",
+    "Set-TrustedMsvcPath",
+    "Assert-BareMsvcLinkerSearchBoundary",
+    "Get-TrustedMsvcLinkerFingerprint",
+    "Assert-MsvcLinkerFingerprintUnchanged"
 )) {
     $definitions = @($ast.FindAll(
         {
@@ -362,6 +366,127 @@ try {
         Set-TrustedMsvcPath -TrustedBin $bin -Linker $resolved.Linker
     }
     $env:PATH = $bin
+
+    $rustApplicationDirectory = Join-Path $rustSysroot "bin"
+    $windowsDirectory = Join-Path $TestRoot "Windows"
+    New-Item -ItemType Directory -Path $rustApplicationDirectory -Force | Out-Null
+    $linkerFingerprint = Get-TrustedMsvcLinkerFingerprint `
+        -MsvcInstallation $installation `
+        -ExpectedBin $resolved.Bin `
+        -ExpectedLinker $resolved.Linker `
+        -RustApplicationDirectory $rustApplicationDirectory `
+        -SystemDirectory $systemDirectory `
+        -WindowsDirectory $windowsDirectory `
+        -NormalizePath
+    if (
+        $linkerFingerprint.Path -cne $resolved.Linker -or
+        $linkerFingerprint.Length -ne 1 -or
+        $linkerFingerprint.Sha256 -cnotmatch '^[0-9A-F]{64}$' -or
+        $linkerFingerprint.LastWriteTimeUtcTicks -le 0
+    ) {
+        throw "trusted MSVC linker fingerprint differs"
+    }
+    foreach ($invalidSearch in @(
+        @("relative-app", $systemDirectory, $windowsDirectory),
+        @((Join-Path $TestRoot "missing-app"), $systemDirectory, $windowsDirectory),
+        @($rustApplicationDirectory, $rustApplicationDirectory, $windowsDirectory)
+    )) {
+        Assert-Fails `
+            -Label "invalid bare linker search directory" `
+            -ExpectedMessage "bare MSVC linker search directory" `
+            -Action {
+            Assert-BareMsvcLinkerSearchBoundary `
+                -TrustedBin $resolved.Bin `
+                -Linker $resolved.Linker `
+                -RustApplicationDirectory $invalidSearch[0] `
+                -SystemDirectory $invalidSearch[1] `
+                -WindowsDirectory $invalidSearch[2]
+        }
+    }
+    foreach ($shadowDirectory in @(
+        $rustApplicationDirectory,
+        $systemDirectory,
+        $windowsDirectory
+    )) {
+        $shadowLinker = Join-Path $shadowDirectory "link.exe"
+        Write-FixtureTool -Path $shadowLinker
+        Assert-Fails `
+            -Label "higher-priority bare linker provider" `
+            -ExpectedMessage "untrusted higher-priority provider" `
+            -Action {
+            Assert-BareMsvcLinkerSearchBoundary `
+                -TrustedBin $resolved.Bin `
+                -Linker $resolved.Linker `
+                -RustApplicationDirectory $rustApplicationDirectory `
+                -SystemDirectory $systemDirectory `
+                -WindowsDirectory $windowsDirectory
+        }
+        Remove-Item -LiteralPath $shadowLinker -Force
+    }
+    $directoryShadow = Join-Path $rustApplicationDirectory "link.exe"
+    New-Item -ItemType Directory -Path $directoryShadow | Out-Null
+    Assert-Fails `
+        -Label "directory bare linker provider" `
+        -ExpectedMessage "untrusted higher-priority provider" `
+        -Action {
+        Assert-BareMsvcLinkerSearchBoundary `
+            -TrustedBin $resolved.Bin `
+            -Linker $resolved.Linker `
+            -RustApplicationDirectory $rustApplicationDirectory `
+            -SystemDirectory $systemDirectory `
+            -WindowsDirectory $windowsDirectory
+    }
+    Remove-Item -LiteralPath $directoryShadow -Recurse -Force
+
+    $normalizedPath = $env:PATH
+    $env:PATH = @($decoy, $bin) -join [System.IO.Path]::PathSeparator
+    Assert-Fails `
+        -Label "post-build PATH mutation" `
+        -ExpectedMessage "controlled PATH does not resolve only" `
+        -Action {
+        Get-TrustedMsvcLinkerFingerprint `
+            -MsvcInstallation $installation `
+            -ExpectedBin $resolved.Bin `
+            -ExpectedLinker $resolved.Linker `
+            -RustApplicationDirectory $rustApplicationDirectory `
+            -SystemDirectory $systemDirectory `
+            -WindowsDirectory $windowsDirectory
+    }
+    if ($env:PATH -cne (@($decoy, $bin) -join [System.IO.Path]::PathSeparator)) {
+        throw "post-build PATH assertion mutated PATH"
+    }
+    $env:PATH = $normalizedPath
+
+    $modifiedFingerprint = [pscustomobject] @{
+        Path = $linkerFingerprint.Path
+        Sha256 = $linkerFingerprint.Sha256
+        Length = $linkerFingerprint.Length
+        LastWriteTimeUtcTicks = $linkerFingerprint.LastWriteTimeUtcTicks + 1
+        PathEnvironment = $linkerFingerprint.PathEnvironment
+    }
+    Assert-Fails `
+        -Label "linker fingerprint mutation" `
+        -ExpectedMessage "file or search path changed" `
+        -Action {
+        Assert-MsvcLinkerFingerprintUnchanged `
+            -Before $linkerFingerprint `
+            -After $modifiedFingerprint
+    }
+
+    Remove-Item -LiteralPath $resolved.Linker -Force
+    Assert-Fails `
+        -Label "deleted trusted linker before post-check" `
+        -ExpectedMessage "toolchain path is not a regular file" `
+        -Action {
+        Get-TrustedMsvcLinkerFingerprint `
+            -MsvcInstallation $installation `
+            -ExpectedBin $resolved.Bin `
+            -ExpectedLinker $resolved.Linker `
+            -RustApplicationDirectory $rustApplicationDirectory `
+            -SystemDirectory $systemDirectory `
+            -WindowsDirectory $windowsDirectory
+    }
+    Write-FixtureTool -Path $resolved.Linker
 
     $env:VSCMD_ARG_HOST_ARCH = "x86"
     Assert-Fails `
