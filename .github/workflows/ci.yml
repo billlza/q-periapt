@@ -99,6 +99,7 @@ jobs:
           python -I -S -B -W error python_bootstrap.py -m unittest -v `
             test_evidence_io test_c_abi_contract test_deterministic_archive `
             test_release_binary_scan test_third_party_licenses test_windows_package
+          ./windows-toolchain-tests.ps1
       # ABI2 C link smoke: cl.exe links a C consumer against q_periapt_ffi_abi2.dll.
       - name: Build and verify the Windows ABI2 C library
         shell: cmd

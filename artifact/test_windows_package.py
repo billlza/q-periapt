@@ -1386,18 +1386,47 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "$ExpectedContractSha256",
             "$ExpectedGitCommit",
             "$ExpectedGitTree",
+            "function Assert-TrustedBuildEnvironment",
+            "function Assert-NoAmbientCargoConfiguration",
             "function Resolve-TrustedToolchainFile",
+            "function Resolve-TrustedMsvcX64Tools",
             "[System.IO.FileAttributes]::ReparsePoint",
             "$MsvcInstallation = Initialize-MsvcEnvironment",
-            '-TrustedRoot $MsvcInstallation',
+            '$env:VSCMD_ARG_HOST_ARCH -cne "x64"',
+            '$env:VSCMD_ARG_TGT_ARCH -cne "x64"',
+            "$env:VCToolsInstallDir",
+            '"bin/Hostx64/x64"',
+            '-ExpectedName "cl.exe"',
+            '-ExpectedName "link.exe"',
             '-ExpectedName "dumpbin.exe"',
+            '-ExpectedName "lib.exe"',
+            "$MsvcTools = Resolve-TrustedMsvcX64Tools",
+            "$Cl = $MsvcTools.Cl",
+            "$Dumpbin = $MsvcTools.Dumpbin",
+            "$Librarian = $MsvcTools.Librarian",
+            "$Linker = $MsvcTools.Linker",
+            "$env:PATH = $MsvcTools.Bin + [System.IO.Path]::PathSeparator + $env:PATH",
+            '$env:RUSTFLAGS = "-D warnings"',
+            '$env:CARGO_INCREMENTAL = "0"',
+            '"-DQPeriaptABI2_DIR=$Extracted/lib/cmake/QPeriaptABI2"',
             '"--dumpbin", $Dumpbin',
             '"--sha256", $ExpectedArchiveSha256',
             '$savedCargoTermColor = $env:CARGO_TERM_COLOR',
+            '$savedRustFlags = $env:RUSTFLAGS',
+            '$savedCargoIncremental = $env:CARGO_INCREMENTAL',
+            '$savedBomRustFlags = $env:RUSTFLAGS',
+            '$savedBomCargoIncremental = $env:CARGO_INCREMENTAL',
             '$env:CARGO_TERM_COLOR = "never"',
             '$env:CARGO_TERM_COLOR = $savedCargoTermColor',
+            '$env:RUSTFLAGS = $savedRustFlags',
+            '$env:CARGO_INCREMENTAL = $savedCargoIncremental',
+            '$env:RUSTFLAGS = $savedBomRustFlags',
+            '$env:CARGO_INCREMENTAL = $savedBomCargoIncremental',
+            "$env:CC = $Cl",
+            "$env:CC = $savedCc",
             '$env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"',
-            '-ExpectedName "link.exe"',
+            "$env:AR = $Librarian",
+            "$env:AR = $savedAr",
             '"-Clinker=$Linker"',
             '"-Clink-arg=/Brepro"',
             '"-Clink-arg=/WX"',
@@ -1423,6 +1452,16 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"-Clink-arg=/WX:NO"',
             '"--dependency"',
             '"--expected-dependency"',
+            '$Linker = Resolve-TrustedToolchainFile',
+            '$Dumpbin = Resolve-TrustedToolchainFile',
+            "function Resolve-TrustedToolchainCommand",
+            '(Get-Command "link.exe"',
+            '(Get-Command "dumpbin.exe"',
+            '(Get-Command "cl.exe"',
+            '-FilePath "cl.exe"',
+            "Select-Object -First",
+            '"CFLAGS_x86_64-pc-windows-msvc"',
+            '"CFLAGS_x86_64_pc_windows_msvc"',
         ):
             self.assertNotIn(forbidden, script)
         self.assertNotIn(
@@ -1449,6 +1488,113 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "Invoke-PythonChecked -Arguments $manifestVerificationArguments"
         )
         self.assertLess(verification_arguments, invoked_verification)
+        environment_guard = re.search(
+            r"function Assert-TrustedBuildEnvironment \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-NoAmbientCargoConfiguration",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(environment_guard)
+        assert environment_guard is not None
+        environment_guard_body = environment_guard.group("body")
+        for name in (
+            '"CL"',
+            '"_CL_"',
+            '"LINK"',
+            '"RUSTC"',
+            '"RUSTC_WRAPPER"',
+            '"RUSTC_WORKSPACE_WRAPPER"',
+            '"CARGO_BUILD_RUSTC"',
+            '"CARGO_BUILD_RUSTC_WRAPPER"',
+            '"CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER"',
+            '"CARGO_BUILD_INCREMENTAL"',
+            '"CARGO_ENCODED_RUSTFLAGS"',
+            '"CMAKE_C_COMPILER_LAUNCHER"',
+            '"CMAKE_C_LINKER_LAUNCHER"',
+            '"CMAKE_CROSSCOMPILING_EMULATOR"',
+            '"CMAKE_PROJECT_INCLUDE"',
+            '"CMAKE_TEST_LAUNCHER"',
+            '"QPeriaptABI2_ROOT"',
+            '"GIT_DIR"',
+        ):
+            self.assertIn(name, environment_guard_body)
+        self.assertIn('^CARGO_PROFILE_.+$', environment_guard_body)
+        self.assertIn(
+            '^CARGO_TARGET_.+_(?:AR|LINKER|RUNNER|RUSTDOCFLAGS|RUSTFLAGS)$',
+            environment_guard_body,
+        )
+        self.assertEqual(
+            2,
+            len(re.findall(r"(?m)^Assert-TrustedBuildEnvironment$", script)),
+        )
+        self.assertLess(
+            script.index("Assert-TrustedBuildEnvironment"),
+            script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
+        )
+        cargo_configuration_guard = re.search(
+            r"function Assert-NoAmbientCargoConfiguration \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Resolve-TrustedToolchainFile",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(cargo_configuration_guard)
+        assert cargo_configuration_guard is not None
+        cargo_configuration_body = cargo_configuration_guard.group("body")
+        self.assertIn('$env:CARGO_HOME', cargo_configuration_body)
+        self.assertIn('@("config", "config.toml")', cargo_configuration_body)
+        self.assertIn('Join-Path $directory.FullName ".cargo/$name"', cargo_configuration_body)
+        self.assertIn("Test-Path -LiteralPath $candidate", cargo_configuration_body)
+        self.assertLess(
+            script.index("Assert-NoAmbientCargoConfiguration -SourceRoot $Root"),
+            script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
+        )
+        resolver = re.search(
+            r"function Resolve-TrustedMsvcX64Tools \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Initialize-MsvcEnvironment",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(resolver)
+        assert resolver is not None
+        resolver_body = resolver.group("body")
+        self.assertEqual(4, resolver_body.count("Resolve-TrustedToolchainFile `"))
+        self.assertIn("$vcToolsParent.FullName.Equals(", resolver_body)
+        self.assertIn("[System.StringComparison]::OrdinalIgnoreCase", resolver_body)
+        self.assertIn("$vcToolsVersion -cnotmatch", resolver_body)
+        for tool in ("cl.exe", "link.exe", "dumpbin.exe", "lib.exe"):
+            self.assertIn(f'-Path (Join-Path $bin "{tool}")', resolver_body)
+        self.assertGreaterEqual(script.count("-Cl $Cl `"), 3)
+        self.assertEqual(2, script.count("Invoke-Checked -FilePath $Cl"))
+        toolchain_test = (
+            self.repository_root / "artifact/windows-toolchain-tests.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn("WINDOWS_MSVC_TOOLCHAIN_RESOLVER_PASS", toolchain_test)
+        self.assertIn("Assert-RejectsEnvironmentOverride", toolchain_test)
+        for name in (
+            '"CL"',
+            '"LINK"',
+            '"RUSTC_WRAPPER"',
+            '"CARGO_BUILD_RUSTC_WRAPPER"',
+            '"CARGO_BUILD_INCREMENTAL"',
+            '"CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_AR"',
+            '"CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER"',
+            '"CARGO_PROFILE_RELEASE_LTO"',
+            '"CMAKE_C_COMPILER_LAUNCHER"',
+            '"CMAKE_CROSSCOMPILING_EMULATOR"',
+            '"CMAKE_PROJECT_INCLUDE"',
+            '"CMAKE_TEST_LAUNCHER"',
+            '"QPeriaptABI2_ROOT"',
+            '"GIT_DIR"',
+        ):
+            self.assertIn(name, toolchain_test)
+        for workflow in (
+            ".github/workflows/ci.yml",
+            ".github/workflows/abi2-platform-candidate.yml",
+        ):
+            self.assertIn(
+                "./windows-toolchain-tests.ps1",
+                (self.repository_root / workflow).read_text(encoding="utf-8"),
+            )
         native_library_contract = re.search(
             r"\$expectedNativeStaticLibraries\s*=\s*\[string\[\]\]\s*@\("
             r"(?P<libraries>.*?)\n\s*\)",

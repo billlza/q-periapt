@@ -159,6 +159,7 @@ jobs:
           python -I -S -B -W error python_bootstrap.py -m unittest -v `
             test_evidence_io test_c_abi_contract test_deterministic_archive `
             test_release_binary_scan test_third_party_licenses test_windows_package
+          ./windows-toolchain-tests.ps1
       - name: Build, archive, extract, and consume the Windows SDK
         shell: pwsh
         env:

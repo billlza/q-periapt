@@ -469,6 +469,7 @@ paths = {
     "windows_package_script_sha256": "artifact/windows-package.ps1",
     "windows_package_verifier_sha256": "artifact/windows_package.py",
     "windows_package_tests_sha256": "artifact/test_windows_package.py",
+    "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
     "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
     "swift_xcframework_script_sha256": "artifact/swift-xcframework.sh",

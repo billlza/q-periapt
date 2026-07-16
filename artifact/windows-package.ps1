@@ -147,6 +147,132 @@ function Write-Utf8File {
     )
 }
 
+function Assert-TrustedBuildEnvironment {
+    $exactOverrides = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($name in @(
+        "AR", "ARFLAGS", "CC", "CC_SHELL_ESCAPED_FLAGS", "CFLAGS",
+        "CPPFLAGS", "CXX", "CXXFLAGS", "CL", "_CL_", "LINK", "_LINK_",
+        "CARGO_BUILD_BUILD_DIR", "CARGO_BUILD_RUSTC",
+        "CARGO_BUILD_INCREMENTAL",
+        "CARGO_BUILD_RUSTC_WRAPPER", "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+        "CARGO_BUILD_RUSTDOC", "CARGO_BUILD_RUSTDOCFLAGS",
+        "CARGO_BUILD_RUSTFLAGS", "CARGO_BUILD_TARGET",
+        "CARGO_BUILD_TARGET_DIR", "CARGO_ENCODED_RUSTDOCFLAGS",
+        "CARGO_ENCODED_RUSTFLAGS", "CARGO_TARGET_DIR", "CC_FORCE_DISABLE",
+        "COMPILER_PATH", "CPATH", "CPLUS_INCLUDE_PATH", "CROSS_COMPILE",
+        "CRATE_CC_NO_DEFAULTS", "C_INCLUDE_PATH", "GCC_EXEC_PREFIX",
+        "HOST_AR", "HOST_ARFLAGS", "HOST_CC", "HOST_CFLAGS",
+        "HOST_CPPFLAGS", "HOST_CXX", "HOST_CXXFLAGS", "HOST_RANLIB",
+        "HOST_RANLIBFLAGS", "LD", "LDFLAGS", "LIBRARY_PATH",
+        "OBJC_INCLUDE_PATH", "RANLIB", "RANLIBFLAGS", "RUSTC",
+        "RUSTC_BOOTSTRAP", "RUSTC_LINKER", "RUSTC_WORKSPACE_WRAPPER",
+        "RUSTC_WRAPPER", "RUSTDOC", "RUSTDOCFLAGS", "RUSTUP_TOOLCHAIN",
+        "SOURCE_DATE_EPOCH", "TARGET_AR", "TARGET_ARFLAGS", "TARGET_CC",
+        "TARGET_CFLAGS", "TARGET_CPPFLAGS", "TARGET_CXX", "TARGET_CXXFLAGS",
+        "TARGET_RANLIB", "TARGET_RANLIBFLAGS", "ZERO_AR_DATE",
+        "CMAKE_C_COMPILER_LAUNCHER", "CMAKE_C_LINKER_LAUNCHER",
+        "CMAKE_CROSSCOMPILING_EMULATOR", "CMAKE_GENERATOR",
+        "CMAKE_GENERATOR_INSTANCE",
+        "CMAKE_GENERATOR_PLATFORM", "CMAKE_GENERATOR_TOOLSET",
+        "CMAKE_MODULE_PATH", "CMAKE_PREFIX_PATH", "CMAKE_PROGRAM_PATH",
+        "CMAKE_PROJECT_INCLUDE", "CMAKE_PROJECT_INCLUDE_BEFORE",
+        "CMAKE_PROJECT_TOP_LEVEL_INCLUDES", "CMAKE_TEST_LAUNCHER",
+        "CMAKE_TOOLCHAIN_FILE",
+        "CMAKE_USER_MAKE_RULES_OVERRIDE", "CMAKE_USER_MAKE_RULES_OVERRIDE_C",
+        "QPeriaptABI2_ROOT",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CEILING_DIRECTORIES",
+        "GIT_COMMON_DIR", "GIT_CONFIG_COUNT", "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_SYSTEM",
+        "GIT_DIR", "GIT_DISCOVERY_ACROSS_FILESYSTEM", "GIT_INDEX_FILE",
+        "GIT_NAMESPACE", "GIT_OBJECT_DIRECTORY", "GIT_REPLACE_REF_BASE",
+        "GIT_SHALLOW_FILE", "GIT_WORK_TREE"
+    )) {
+        [void] $exactOverrides.Add($name)
+    }
+    $pattern = [regex]::new(
+        '^(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)_.+$|' +
+        '^.+_(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)$|' +
+        '^CARGO_PROFILE_.+$|' +
+        '^CARGO_TARGET_.+_(?:AR|LINKER|RUNNER|RUSTDOCFLAGS|RUSTFLAGS)$|' +
+        '^GIT_CONFIG_(?:KEY|VALUE)_[0-9]+$',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor
+            [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    $rejected = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in [System.Environment]::GetEnvironmentVariables(
+        "Process"
+    ).GetEnumerator()) {
+        $name = [string] $entry.Key
+        $value = [string] $entry.Value
+        if ([string]::Equals(
+            $name,
+            "RUSTFLAGS",
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+            if ($value -cne "-D warnings") { [void] $rejected.Add($name) }
+            continue
+        }
+        if ([string]::Equals(
+            $name,
+            "CARGO_INCREMENTAL",
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+            if ($value -cne "0") { [void] $rejected.Add($name) }
+            continue
+        }
+        if ($exactOverrides.Contains($name) -or $pattern.IsMatch($name)) {
+            [void] $rejected.Add($name)
+        }
+    }
+    if ($rejected.Count -ne 0) {
+        $names = @($rejected | Sort-Object -Unique) -join ", "
+        throw "Windows package tooling rejects caller build/provenance overrides: $names"
+    }
+}
+
+function Assert-NoAmbientCargoConfiguration {
+    param([Parameter(Mandatory)] [string] $SourceRoot)
+
+    if (-not [System.IO.Path]::IsPathFullyQualified($SourceRoot)) {
+        throw "Windows package source root must be absolute"
+    }
+    $cargoHomeText = $env:CARGO_HOME
+    if (-not $cargoHomeText) {
+        $home = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
+        if (-not $home) {
+            throw "Windows package tooling requires CARGO_HOME or a user home"
+        }
+        $cargoHomeText = Join-Path $home ".cargo"
+    }
+    if (-not [System.IO.Path]::IsPathFullyQualified($cargoHomeText)) {
+        throw "Cargo home must be absolute for Windows package tooling"
+    }
+
+    $candidates = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $cargoHome = [System.IO.Path]::GetFullPath($cargoHomeText)
+    foreach ($name in @("config", "config.toml")) {
+        [void] $candidates.Add((Join-Path $cargoHome $name))
+    }
+    $directory = [System.IO.DirectoryInfo]::new(
+        [System.IO.Path]::GetFullPath($SourceRoot)
+    )
+    while ($null -ne $directory) {
+        foreach ($name in @("config", "config.toml")) {
+            [void] $candidates.Add((Join-Path $directory.FullName ".cargo/$name"))
+        }
+        $directory = $directory.Parent
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            throw "Windows package tooling rejects ambient Cargo configuration files"
+        }
+    }
+}
+
 function Resolve-TrustedToolchainFile {
     param(
         [Parameter(Mandatory)] [string] $Path,
@@ -180,6 +306,9 @@ function Resolve-TrustedToolchainFile {
     )) {
         throw "toolchain filename differs from the expected identity: $fullPath"
     }
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+        throw "toolchain path is not a regular file: $fullPath"
+    }
 
     $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
     if (-not $volumeRoot) {
@@ -205,6 +334,75 @@ function Resolve-TrustedToolchainFile {
         throw "toolchain path is not a regular file: $fullPath"
     }
     return $fullPath
+}
+
+function Resolve-TrustedMsvcX64Tools {
+    param([Parameter(Mandatory)] [string] $MsvcInstallation)
+
+    if (
+        $env:VSCMD_ARG_HOST_ARCH -cne "x64" -or
+        $env:VSCMD_ARG_TGT_ARCH -cne "x64"
+    ) {
+        throw "vcvars64 must select the x64 host and x64 target toolchain"
+    }
+    if (
+        -not $env:VCToolsInstallDir -or
+        -not [System.IO.Path]::IsPathFullyQualified($MsvcInstallation) -or
+        -not [System.IO.Path]::IsPathFullyQualified($env:VCToolsInstallDir)
+    ) {
+        throw "MSVC installation and VCToolsInstallDir must be absolute"
+    }
+    $separators = [char[]] @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $fullInstallation = [System.IO.Path]::GetFullPath($MsvcInstallation).TrimEnd(
+        $separators
+    )
+    $versionsRoot = [System.IO.Path]::GetFullPath(
+        (Join-Path $fullInstallation "VC/Tools/MSVC")
+    ).TrimEnd($separators)
+    $vcTools = [System.IO.Path]::GetFullPath(
+        $env:VCToolsInstallDir
+    ).TrimEnd($separators)
+    $vcToolsParent = [System.IO.Directory]::GetParent($vcTools)
+    $vcToolsVersion = [System.IO.Path]::GetFileName($vcTools)
+    if (
+        $null -eq $vcToolsParent -or
+        -not $vcToolsParent.FullName.Equals(
+            $versionsRoot,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        $vcToolsVersion -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$'
+    ) {
+        throw "VCToolsInstallDir is not one version directly below the trusted MSVC tools root"
+    }
+    $bin = [System.IO.Path]::GetFullPath(
+        (Join-Path $vcTools "bin/Hostx64/x64")
+    )
+    $cl = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $bin "cl.exe") `
+        -TrustedRoot $bin `
+        -ExpectedName "cl.exe"
+    $linker = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $bin "link.exe") `
+        -TrustedRoot $bin `
+        -ExpectedName "link.exe"
+    $dumpbin = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $bin "dumpbin.exe") `
+        -TrustedRoot $bin `
+        -ExpectedName "dumpbin.exe"
+    $librarian = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $bin "lib.exe") `
+        -TrustedRoot $bin `
+        -ExpectedName "lib.exe"
+    return [pscustomobject] @{
+        Bin = $bin
+        Cl = $cl
+        Dumpbin = $dumpbin
+        Librarian = $librarian
+        Linker = $linker
+    }
 }
 
 function Initialize-MsvcEnvironment {
@@ -264,7 +462,7 @@ function Initialize-MsvcEnvironment {
             [System.Environment]::SetEnvironmentVariable($name, $value, "Process")
         }
     }
-    foreach ($tool in @("cl.exe", "link.exe", "dumpbin.exe", "cmake.exe", "ctest.exe")) {
+    foreach ($tool in @("cmake.exe", "ctest.exe")) {
         [void] (Get-Command $tool -ErrorAction Stop)
     }
     return $installation
@@ -304,6 +502,7 @@ function Assert-ImportLibrary {
 function Assert-NativePackage {
     param(
         [Parameter(Mandatory)] [string] $Extracted,
+        [Parameter(Mandatory)] [string] $Cl,
         [Parameter(Mandatory)] [string] $LlvmNm,
         [Parameter(Mandatory)] [string] $Dumpbin,
         [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
@@ -343,7 +542,7 @@ function Assert-NativePackage {
     New-Item -ItemType Directory -Path $ConsumerRoot -Force | Out-Null
     $dynamicExe = Join-Path $ConsumerRoot "dynamic-smoke.exe"
     $staticExe = Join-Path $ConsumerRoot "static-smoke.exe"
-    Invoke-Checked -FilePath "cl.exe" -Arguments @(
+    Invoke-Checked -FilePath $Cl -Arguments @(
         "/nologo", "/std:c11", "/W4", "/WX", "/utf-8",
         (Join-Path $Extracted "share/q-periapt/smoke.c"),
         "/I$Extracted\include\qperiapt\abi2",
@@ -366,7 +565,7 @@ function Assert-NativePackage {
         "/Fe:$staticExe", "/Fo:$ConsumerRoot\static-smoke.obj",
         "/link", "/WX", $staticLibrary
     ) + $NativeStaticLibraries
-    Invoke-Checked -FilePath "cl.exe" -Arguments $staticArguments
+    Invoke-Checked -FilePath $Cl -Arguments $staticArguments
     $savedPath = $env:PATH
     try {
         $env:PATH = "$env:SystemRoot\System32"
@@ -412,6 +611,7 @@ add_test(NAME static-smoke COMMAND static-smoke)
     Invoke-Checked -FilePath "cmake.exe" -Arguments @(
         "-S", $cmakeSource, "-B", $cmakeBuild, "-A", "x64",
         "-DCMAKE_PREFIX_PATH=$Extracted",
+        "-DQPeriaptABI2_DIR=$Extracted/lib/cmake/QPeriaptABI2",
         "-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON",
         "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
         "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF"
@@ -442,6 +642,7 @@ function Verify-WindowsArchive {
     param(
         [Parameter(Mandatory)] [string] $ArchivePath,
         [Parameter(Mandatory)] [string] $ExpectedArchiveSha256,
+        [Parameter(Mandatory)] [string] $Cl,
         [Parameter(Mandatory)] [string] $LlvmNm,
         [Parameter(Mandatory)] [string] $Dumpbin,
         [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
@@ -465,6 +666,7 @@ function Verify-WindowsArchive {
     )
     [void] (Assert-NativePackage `
         -Extracted $extracted `
+        -Cl $Cl `
         -LlvmNm $LlvmNm `
         -Dumpbin $Dumpbin `
         -NativeStaticLibraries $NativeStaticLibraries `
@@ -473,15 +675,16 @@ function Verify-WindowsArchive {
     Write-Host "WINDOWS_C_ABI_PACKAGE_VERIFY_PASS"
 }
 
+Assert-TrustedBuildEnvironment
+Assert-NoAmbientCargoConfiguration -SourceRoot $Root
 $MsvcInstallation = Initialize-MsvcEnvironment
-$Dumpbin = Resolve-TrustedToolchainFile `
-    -Path (Get-Command "dumpbin.exe" -CommandType Application -ErrorAction Stop).Source `
-    -TrustedRoot $MsvcInstallation `
-    -ExpectedName "dumpbin.exe"
-$Linker = Resolve-TrustedToolchainFile `
-    -Path (Get-Command "link.exe" -CommandType Application -ErrorAction Stop).Source `
-    -TrustedRoot $MsvcInstallation `
-    -ExpectedName "link.exe"
+Assert-TrustedBuildEnvironment
+$MsvcTools = Resolve-TrustedMsvcX64Tools -MsvcInstallation $MsvcInstallation
+$Cl = $MsvcTools.Cl
+$Dumpbin = $MsvcTools.Dumpbin
+$Librarian = $MsvcTools.Librarian
+$Linker = $MsvcTools.Linker
+$env:PATH = $MsvcTools.Bin + [System.IO.Path]::PathSeparator + $env:PATH
 $RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--print", "sysroot")
 $RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
@@ -545,6 +748,7 @@ if ($Mode -eq "VerifyArchive") {
     Verify-WindowsArchive `
         -ArchivePath ([System.IO.Path]::GetFullPath($Archive)) `
         -ExpectedArchiveSha256 $ExpectedSha256 `
+        -Cl $Cl `
         -LlvmNm $LlvmNm `
         -Dumpbin $Dumpbin `
         -NativeStaticLibraries $nativeLibraries `
@@ -622,11 +826,37 @@ if (
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 
 $savedCargoTarget = $env:CARGO_TARGET_DIR
+$savedRustFlags = $env:RUSTFLAGS
+$savedCargoIncremental = $env:CARGO_INCREMENTAL
+$savedCc = $env:CC
 $savedCFlags = $env:CFLAGS
+$savedAr = $env:AR
 $savedCargoTermColor = $env:CARGO_TERM_COLOR
+$targetCompilerEnvironment = @{
+    "AR_x86_64-pc-windows-msvc" = $Librarian
+    "AR_x86_64_pc_windows_msvc" = $Librarian
+    "CC_x86_64-pc-windows-msvc" = $Cl
+    "CC_x86_64_pc_windows_msvc" = $Cl
+}
+$savedTargetCompilerEnvironment = @{}
+foreach ($name in $targetCompilerEnvironment.Keys) {
+    $savedTargetCompilerEnvironment[$name] =
+        [System.Environment]::GetEnvironmentVariable($name, "Process")
+}
 try {
+    $env:RUSTFLAGS = "-D warnings"
+    $env:CARGO_INCREMENTAL = "0"
     $env:CARGO_TERM_COLOR = "never"
+    $env:CC = $Cl
     $env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"
+    $env:AR = $Librarian
+    foreach ($name in $targetCompilerEnvironment.Keys) {
+        [System.Environment]::SetEnvironmentVariable(
+            $name,
+            $targetCompilerEnvironment[$name],
+            "Process"
+        )
+    }
     $env:CARGO_TARGET_DIR = $DynamicTarget
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
         "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
@@ -681,8 +911,19 @@ try {
 }
 finally {
     $env:CARGO_TARGET_DIR = $savedCargoTarget
+    $env:RUSTFLAGS = $savedRustFlags
+    $env:CARGO_INCREMENTAL = $savedCargoIncremental
+    $env:CC = $savedCc
     $env:CFLAGS = $savedCFlags
+    $env:AR = $savedAr
     $env:CARGO_TERM_COLOR = $savedCargoTermColor
+    foreach ($name in $savedTargetCompilerEnvironment.Keys) {
+        [System.Environment]::SetEnvironmentVariable(
+            $name,
+            $savedTargetCompilerEnvironment[$name],
+            "Process"
+        )
+    }
 }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 
@@ -716,14 +957,24 @@ Copy-Item -LiteralPath (Join-Path $Root "LICENSES/MIT.txt") -Destination (Join-P
 foreach ($name in @("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md")) {
     Copy-Item -LiteralPath (Join-Path $Root "crates/q-periapt-mlkem-native-sys/vendor/$name") -Destination (Join-Path $PackageRoot "THIRD_PARTY/mlkem-native/$name")
 }
-Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-    "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
-    "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json")
-)
-Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-    "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
-    "sbom", "--lock", "Cargo.lock", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/sbom.cdx.json")
-)
+$savedBomRustFlags = $env:RUSTFLAGS
+$savedBomCargoIncremental = $env:CARGO_INCREMENTAL
+try {
+    $env:RUSTFLAGS = "-D warnings"
+    $env:CARGO_INCREMENTAL = "0"
+    Invoke-Checked -FilePath "cargo.exe" -Arguments @(
+        "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
+        "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json")
+    )
+    Invoke-Checked -FilePath "cargo.exe" -Arguments @(
+        "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
+        "sbom", "--lock", "Cargo.lock", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/sbom.cdx.json")
+    )
+}
+finally {
+    $env:RUSTFLAGS = $savedBomRustFlags
+    $env:CARGO_INCREMENTAL = $savedBomCargoIncremental
+}
 Invoke-PythonChecked -Arguments @(
     "artifact/third_party_licenses.py", "create",
     "--root", $Root,
@@ -814,7 +1065,7 @@ Invoke-PythonChecked -Arguments @(
     "--llvm-nm", $LlvmNm,
     "--platform", "windows"
 )
-$clHelp = (Invoke-Captured -FilePath "cl.exe" -Arguments @("/?")).Stdout
+$clHelp = (Invoke-Captured -FilePath $Cl -Arguments @("/?")).Stdout
 $clVersionLines = @(
     $clHelp -split "`r?`n" | Where-Object { $_ -match 'Microsoft.*Compiler' }
 )
@@ -852,6 +1103,7 @@ $builtArchiveSha256 = (Get-FileHash -LiteralPath $DefaultArchive -Algorithm SHA2
 Verify-WindowsArchive `
     -ArchivePath $DefaultArchive `
     -ExpectedArchiveSha256 $builtArchiveSha256 `
+    -Cl $Cl `
     -LlvmNm $LlvmNm `
     -Dumpbin $Dumpbin `
     -NativeStaticLibraries $NativeStaticLibraries `

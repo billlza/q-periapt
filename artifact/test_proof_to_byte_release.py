@@ -613,6 +613,7 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "windows_package_script_sha256": "artifact/windows-package.ps1",
     "windows_package_verifier_sha256": "artifact/windows_package.py",
     "windows_package_tests_sha256": "artifact/test_windows_package.py",
+    "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
 }
 
 

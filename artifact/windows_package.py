@@ -208,6 +208,7 @@ SOURCE_INPUT_PATHS = {
     "signed_policy_fixture": "bindings/c/signed_policy_fixture.h",
     "smoke_consumer": "bindings/c/smoke.c",
     "windows_package_script": "artifact/windows-package.ps1",
+    "windows_toolchain_tests": "artifact/windows-toolchain-tests.ps1",
     "windows_manifest_script": "artifact/windows_package.py",
     "deterministic_archive_script": "artifact/deterministic_archive.py",
     "evidence_io_script": "artifact/evidence_io.py",
