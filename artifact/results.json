@@ -399,16 +399,16 @@
     "tamarin_model_sha256": "887c41bb226c3aab9c21863ec3bce6846d8b1f21675890ed848c9629c88a0f0e",
     "third_party_licenses_sha256": "d623093c6aa38fb2428ccfa2d96565075fca5aadd883d1f2cf484039ceb26064",
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
-    "windows_package_script_sha256": "d19bdf06cb0e0b45ca2c212f83fac63a9ee49a3e6bd508467e032ee22c140cd4",
-    "windows_package_tests_sha256": "6db6394fcaf4ec78b82f003c453aa9098a0776db03a78ea5a470b71c5f3d6941",
-    "windows_package_verifier_sha256": "77fb2d4ec14397980ca9a03c1628fdcaee3549e340914f3edd12c7592a05244e",
-    "windows_toolchain_tests_sha256": "41f86c45a6a4be9d647b377f0c9ef511980ce0cc050a3fd523c4e10ee1f293f0"
+    "windows_package_script_sha256": "0daae624b0afb842631eebb7b23959e4e3d74f28de19429983668fae765336e8",
+    "windows_package_tests_sha256": "2a1e4f2bd2c5ce3fc908683252f3fdcb5760ad7a366d2149ca4f8cbab1f0781b",
+    "windows_package_verifier_sha256": "aa382e3f3af0e373b4478e3c0a2724228a7c2a89c59c2ce7102acca0965004a6",
+    "windows_toolchain_tests_sha256": "e3aa66111f695cdbe4ce72418f66d26f0faa6f2e493b609d300885959258cd9f"
   },
-  "proof_source_tree_sha256": "ff19bd11d08f62a02954b0c3e7ebdc2f9ce3ed540c9b3263fc5b1754fde7d09f",
+  "proof_source_tree_sha256": "1c32ec0ab179a53aa506f852a3521cab9af26a1ff7df07c3121821704d3036c0",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "67f664dc1bfb769a7a0d4989cf14978550fabaa3",
+    "snapshot_commit": "6fef03eb4b5ae9624e6e8223b5d187c6723d3ae0",
     "toolchain": {
       "cargo": "1.96.0",
       "minimum_cargo": "1.85",
