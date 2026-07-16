@@ -420,8 +420,8 @@
   "rust_publish": {
     "boundary": "This section records a clean-tree pre-publication dry-run, not an upload or registry attestation. Any registry publication is independently evidenced by crates.io plus release provenance for the published versions; this section never asserts upload.",
     "command": "sh artifact/rust-publish-dry-run.sh",
-    "current_local_status": "Historical 2026-07-16 clean-tree pre-publication contract passed at execution commit 372897c273c0956355176af2f06a4617ca00043a for source snapshot 33a4a5a743b43aab1e6c87a7bcc5c86b5f330718 and canonical digest c02abf213fcb018aa79191b1b9c021ba1c77efd12a1eadd01bdb6139a376647e using Rust/Cargo 1.96.1. The Windows package manifest path-scan binding changed afterward, so a new clean-tree dry-run is required before publication; this historical result does not assert an upload or registry attestation.",
-    "current_source_status": "stale_requires_rerun",
+    "current_local_status": "Current 2026-07-17 clean-tree pre-publication contract passed at execution commit 69b01be09f91433dacda983ac0363f7bcbfcf4a3 for source snapshot ce8b8a9d391405eccea2e33e8e8648cdcb1f8084 and canonical digest 21ee72cb91f2d8f8cdd4a16104cb5602fa1c72631ffc902c3991185d8b63c7e2 using Rust/Cargo 1.96.1: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
+    "current_source_status": "current_clean_tree_prepublication_pass",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
     "nonpublishable_crates": [
