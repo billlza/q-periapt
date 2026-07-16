@@ -310,7 +310,7 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
 )
 
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
-REQUIRED_MSVC_LINK_ARGUMENTS = ("/brepro", "/nologo", "/wx")
+REQUIRED_MSVC_LINK_ARGUMENTS = ("/nologo", "/wx")
 EXPECTED_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
 EXPECTED_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
 
@@ -854,6 +854,15 @@ def verify_rustc_linker_invocation(
         "/wx:no" not in folded_arguments,
         "rustc linker command disables warnings-as-errors",
     )
+    repro_options = [
+        (index, argument)
+        for index, argument in enumerate(folded_arguments)
+        if argument.startswith(("/brepro", "-brepro"))
+    ]
+    _require(
+        [argument for _index, argument in repro_options] == ["/brepro"],
+        "rustc linker reproducible-build option contract differs",
+    )
 
     debug_options = [
         (index, argument)
@@ -892,13 +901,17 @@ def verify_rustc_linker_invocation(
     automatic_debug_index = debug_options[0][0]
     disabled_debug_index = debug_options[1][0]
     pdb_altpath_index = pdb_options[0][0]
+    warnings_as_errors_index = folded_arguments.index("/wx")
+    reproducible_link_index = repro_options[0][0]
     _require(
         opt_options[0][0]
         < automatic_debug_index
         < pdb_altpath_index
+        < warnings_as_errors_index
         < disabled_debug_index
+        < reproducible_link_index
         < opt_options[1][0],
-        "rustc linker debug/PDB/optimization options are not ordered fail-closed",
+        "rustc linker debug/PDB/repro/optimization options are not ordered fail-closed",
     )
     return arguments
 
@@ -1221,7 +1234,8 @@ def parse_windows_pe_evidence(data: bytes) -> dict[str, Any]:
     debug_size = _pe_uint(data, debug_directory + 4, 4, "debug-directory size")
     _require(
         debug_size == PE_DEBUG_DIRECTORY_SIZE,
-        "Windows PE must contain exactly one debug-directory entry",
+        "Windows PE must contain exactly one debug-directory entry "
+        f"(observed size {debug_size} bytes)",
     )
     debug_offset = _map_pe_rva(
         data,

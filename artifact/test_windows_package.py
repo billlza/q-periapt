@@ -65,9 +65,9 @@ def _rustc_link_arguments_output(
         "/OPT:REF,ICF",
         "/DEBUG",
         "/PDBALTPATH:%_PDB%",
-        "/Brepro",
         "/WX",
         "/DEBUG:NONE",
+        "/Brepro",
         "/OPT:REF,NOICF",
         r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
     ),
@@ -365,12 +365,18 @@ class WindowsPeEvidenceTests(unittest.TestCase):
     def test_rejects_non_repro_reserved_and_multiple_debug_entries(self) -> None:
         valid = _windows_pe_fixture()
         cases = {
-            "missing debug directory": _pack_pe(valid, 0x98 + 164, "<I", 0),
-            "two debug entries": _pack_pe(valid, 0x98 + 164, "<I", 56),
             "reserved field": _pack_pe(valid, 0x200, "<I", 1),
             "major version": _pack_pe(valid, 0x208, "<H", 1),
             "minor version": _pack_pe(valid, 0x20A, "<H", 1),
         }
+        for debug_size in (0, 56):
+            with self.subTest(debug_size=debug_size), self.assertRaisesRegex(
+                WindowsPackageError,
+                rf"observed size {debug_size} bytes",
+            ):
+                windows_package.parse_windows_pe_evidence(
+                    _pack_pe(valid, 0x98 + 164, "<I", debug_size)
+                )
         for debug_type in (0, 1, 2, 4, 17, 19, 20):
             cases[f"debug type {debug_type}"] = _pack_pe(
                 valid, 0x20C, "<I", debug_type
@@ -588,9 +594,9 @@ class RustcLinkerInvocationTests(unittest.TestCase):
                 "/OPT:REF,ICF",
                 "/DEBUG",
                 "/PDBALTPATH:%_PDB%",
-                "/Brepro",
                 "/WX",
                 "/DEBUG:NONE",
+                "/Brepro",
                 "/OPT:REF,NOICF",
                 r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
             ],
@@ -617,168 +623,230 @@ class RustcLinkerInvocationTests(unittest.TestCase):
                     "/OPT:REF,NOICF", "/OUT:output.dll",
                 )
             ),
+            "duplicate Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/Brepro", "/OPT:REF,NOICF",
+                )
+            ),
+            "dash Brepro spelling": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "-Brepro", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro value": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro:yes", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro prefix": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Breprofoo", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro before debug none": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro after final optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/OPT:REF,NOICF", "/Brepro",
+                )
+            ),
+            "debug re-enabled after Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/DEBUG", "/OPT:REF,NOICF",
+                )
+            ),
+            "PDB option after Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/PDB:output.pdb", "/OPT:REF,NOICF",
+                )
+            ),
+            "PDBSTRIPPED after Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/PDBSTRIPPED:public.pdb", "/OPT:REF,NOICF",
+                )
+            ),
             "duplicate WX": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/wx",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/wx", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "warnings disabled": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/WX:NO",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/WX:NO", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "missing automatic debug": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/PDBALTPATH:%_PDB%",
-                    "/Brepro", "/WX", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/WX", "/DEBUG:NONE", "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "missing debug none": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "debug full": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG:FULL",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "debug fastlink": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG:FASTLINK",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "dash debug spelling": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "-DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "debug modes reversed": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG:NONE",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG", "/Brepro",
                     "/OPT:REF,NOICF",
                 )
             ),
             "duplicate debug none": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/DEBUG:NONE", "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "missing PDB altpath": _rustc_link_arguments_output(
                 arguments=(
-                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG", "/Brepro",
-                    "/WX", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG", "/WX",
+                    "/DEBUG:NONE", "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "changed PDB altpath": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:C:\\private\\build.pdb", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:C:\\private\\build.pdb", "/WX",
+                    "/DEBUG:NONE", "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "missing trailing optimization": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/DEBUG:NONE",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE", "/Brepro",
                 )
             ),
             "changed trailing optimization": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX", "/DEBUG:NONE",
-                    "/OPT:NOREF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:NOREF,NOICF",
                 )
             ),
             "changed automatic optimization": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "missing automatic optimization": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/DEBUG", "/PDBALTPATH:%_PDB%",
-                    "/Brepro", "/WX", "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/WX", "/DEBUG:NONE", "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "extra automatic optimization": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "optimization modes reversed": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,ICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,ICF",
                 )
             ),
             "trailing optimization enables ICF": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,ICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,ICF",
                 )
             ),
             "duplicate trailing optimization": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF", "/OPT:REF,NOICF",
                 )
             ),
             "ICF appended after the explicit override": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF", "/OPT:REF,ICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF", "/OPT:REF,ICF",
                 )
             ),
             "NOREF appended after the explicit override": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF", "/OPT:NOREF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF", "/OPT:NOREF,NOICF",
                 )
             ),
             "automatic ICF iteration count": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF=2", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "automatic optimization suboptions reordered": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:ICF,REF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:REF,NOICF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
                 )
             ),
             "trailing optimization suboptions reordered": _rustc_link_arguments_output(
                 arguments=(
                     "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
-                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
-                    "/DEBUG:NONE", "/OPT:NOICF,REF",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:NOICF,REF",
                 )
             ),
             "unexpected Unix env prefix": b'env -u LIBRARY_PATH LC_ALL="C" '
@@ -2255,15 +2323,15 @@ class WindowsPackageManifestTests(unittest.TestCase):
             script.index('"--print", "link-args=$linkArgumentsLog"'),
         )
         self.assertLess(
+            script.index('"-Clink-arg=/WX"'),
+            script.index('"-Clink-arg=/DEBUG:NONE"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/DEBUG:NONE"'),
             script.index('"-Clink-arg=/Brepro"'),
-            script.index('"-Clink-arg=/WX"'),
         )
         self.assertLess(
-            script.index('"-Clink-arg=/WX"'),
-            script.index('"-Clink-arg=/DEBUG:NONE"'),
-        )
-        self.assertLess(
-            script.index('"-Clink-arg=/DEBUG:NONE"'),
+            script.index('"-Clink-arg=/Brepro"'),
             script.index('"-Clink-arg=/OPT:REF,NOICF"'),
         )
         self.assertLess(
