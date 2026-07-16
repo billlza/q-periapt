@@ -671,7 +671,8 @@ class RustcLinkerInvocationTests(unittest.TestCase):
         self.assertEqual(completed.stderr, b"")
         self.assertEqual(
             completed.stdout,
-            b"WINDOWS_RUST_LINKER_INVOCATION_PASS\n",
+            b"WINDOWS_RUST_LINKER_INVOCATION_PASS"
+            + os.linesep.encode("ascii"),
         )
 
 
