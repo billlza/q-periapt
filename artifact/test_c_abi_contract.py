@@ -734,6 +734,15 @@ class CAbiContractTests(unittest.TestCase):
                         output(malformed="q_periapt_surprise:"),
                         "cannot parse llvm-nm static reserved-symbol row",
                     ),
+                    (
+                        output(
+                            malformed=(
+                                r"D:\a\q-periapt\q-periapt\target\static\out"
+                                r"\ea708c7824d36062-mlkem_bridge.o:"
+                            )
+                        ),
+                        "cannot parse llvm-nm static reserved-symbol row",
+                    ),
                 )
                 for nm_output, message in cases:
                     with self.subTest(platform=platform, message=message):

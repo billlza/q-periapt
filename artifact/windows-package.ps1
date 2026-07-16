@@ -442,16 +442,41 @@ function Resolve-TrustedMsvcX64Tools {
         -Path (Join-Path $bin "dumpbin.exe") `
         -TrustedRoot $bin `
         -ExpectedName "dumpbin.exe"
-    $librarian = Resolve-TrustedToolchainFile `
-        -Path (Join-Path $bin "lib.exe") `
-        -TrustedRoot $bin `
-        -ExpectedName "lib.exe"
     return [pscustomobject] @{
         Bin = $bin
         Cl = $cl
         Dumpbin = $dumpbin
-        Librarian = $librarian
         Linker = $linker
+    }
+}
+
+function Resolve-TrustedRustLlvmTools {
+    param(
+        [Parameter(Mandatory)] [string] $RustSysroot,
+        [Parameter(Mandatory)] [string] $RustHost
+    )
+
+    if ($RustHost -cne "x86_64-pc-windows-msvc") {
+        throw "Rust host must be exactly x86_64-pc-windows-msvc"
+    }
+    if (-not [System.IO.Path]::IsPathFullyQualified($RustSysroot)) {
+        throw "Rust sysroot must be absolute"
+    }
+    $llvmToolsRoot = [System.IO.Path]::GetFullPath(
+        (Join-Path $RustSysroot "lib/rustlib/$RustHost/bin")
+    )
+    $llvmAr = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $llvmToolsRoot "llvm-ar.exe") `
+        -TrustedRoot $llvmToolsRoot `
+        -ExpectedName "llvm-ar.exe"
+    $llvmNm = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $llvmToolsRoot "llvm-nm.exe") `
+        -TrustedRoot $llvmToolsRoot `
+        -ExpectedName "llvm-nm.exe"
+    return [pscustomobject] @{
+        Bin = $llvmToolsRoot
+        Ar = $llvmAr
+        Nm = $llvmNm
     }
 }
 
@@ -809,7 +834,6 @@ Assert-TrustedBuildEnvironment
 $MsvcTools = Resolve-TrustedMsvcX64Tools -MsvcInstallation $MsvcInstallation
 $Cl = $MsvcTools.Cl
 $Dumpbin = $MsvcTools.Dumpbin
-$Librarian = $MsvcTools.Librarian
 $Linker = $MsvcTools.Linker
 [void] (Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker)
 $RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("--print", "sysroot")
@@ -818,10 +842,11 @@ $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$'
 if (-not $RustHostMatch.Success) {
     throw "cannot determine the Rust host triple"
 }
-$LlvmNm = Join-Path $RustSysroot "lib/rustlib/$($RustHostMatch.Groups['host'].Value)/bin/llvm-nm.exe"
-if (-not (Test-Path -LiteralPath $LlvmNm -PathType Leaf)) {
-    throw "matching Rust llvm-nm.exe is unavailable: $LlvmNm"
-}
+$RustLlvmTools = Resolve-TrustedRustLlvmTools `
+    -RustSysroot $RustSysroot `
+    -RustHost $RustHostMatch.Groups['host'].Value
+$LlvmAr = $RustLlvmTools.Ar
+$LlvmNm = $RustLlvmTools.Nm
 
 if ($Mode -eq "VerifyArchive") {
     if (-not $Archive) {
@@ -960,8 +985,8 @@ $savedCFlags = $env:CFLAGS
 $savedAr = $env:AR
 $savedCargoTermColor = $env:CARGO_TERM_COLOR
 $targetCompilerEnvironment = @{
-    "AR_x86_64-pc-windows-msvc" = $Librarian
-    "AR_x86_64_pc_windows_msvc" = $Librarian
+    "AR_x86_64-pc-windows-msvc" = $LlvmAr
+    "AR_x86_64_pc_windows_msvc" = $LlvmAr
     "CC_x86_64-pc-windows-msvc" = $Cl
     "CC_x86_64_pc_windows_msvc" = $Cl
 }
@@ -976,7 +1001,7 @@ try {
     $env:CARGO_TERM_COLOR = "never"
     $env:CC = $Cl
     $env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"
-    $env:AR = $Librarian
+    $env:AR = $LlvmAr
     foreach ($name in $targetCompilerEnvironment.Keys) {
         [System.Environment]::SetEnvironmentVariable(
             $name,

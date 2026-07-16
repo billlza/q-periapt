@@ -1526,6 +1526,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "function Resolve-TrustedToolchainFile",
             "function Resolve-TrustedCommandProcessor",
             "function Resolve-TrustedMsvcX64Tools",
+            "function Resolve-TrustedRustLlvmTools",
             "function Set-TrustedMsvcPath",
             "[System.IO.FileAttributes]::ReparsePoint",
             "-SystemDirectory ([System.Environment]::SystemDirectory)",
@@ -1540,13 +1541,16 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '-ExpectedName "cl.exe"',
             '-ExpectedName "link.exe"',
             '-ExpectedName "dumpbin.exe"',
-            '-ExpectedName "lib.exe"',
             "$MsvcTools = Resolve-TrustedMsvcX64Tools",
             "$Cl = $MsvcTools.Cl",
             "$Dumpbin = $MsvcTools.Dumpbin",
-            "$Librarian = $MsvcTools.Librarian",
             "$Linker = $MsvcTools.Linker",
             "Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker",
+            '$RustLlvmTools = Resolve-TrustedRustLlvmTools',
+            '$LlvmAr = $RustLlvmTools.Ar',
+            '$LlvmNm = $RustLlvmTools.Nm',
+            '-ExpectedName "llvm-ar.exe"',
+            '-ExpectedName "llvm-nm.exe"',
             '$env:RUSTFLAGS = "-D warnings"',
             '$env:CARGO_INCREMENTAL = "0"',
             '"-DQPeriaptABI2_DIR=$Extracted/lib/cmake/QPeriaptABI2"',
@@ -1566,7 +1570,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "$env:CC = $Cl",
             "$env:CC = $savedCc",
             '$env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"',
-            "$env:AR = $Librarian",
+            "$env:AR = $LlvmAr",
             "$env:AR = $savedAr",
             '"--print", "link-args=$linkArgumentsLog"',
             '"-Clink-arg=/Brepro"',
@@ -1614,6 +1618,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "Select-Object -First",
             '"CFLAGS_x86_64-pc-windows-msvc"',
             '"CFLAGS_x86_64_pc_windows_msvc"',
+            "$Librarian",
+            '-ExpectedName "lib.exe"',
         ):
             self.assertNotIn(forbidden, script)
         self.assertNotIn(
@@ -1629,6 +1635,26 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertLess(
             script.index('"link-args=$linkArgumentsLog"'),
             script.index('"verify-linker-invocation"'),
+        )
+        target_compiler_environment = re.search(
+            r"\$targetCompilerEnvironment = @\{(?P<body>.*?)\n\}",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(target_compiler_environment)
+        assert target_compiler_environment is not None
+        target_compiler_environment_body = target_compiler_environment.group("body")
+        self.assertIn(
+            '"AR_x86_64-pc-windows-msvc" = $LlvmAr',
+            target_compiler_environment_body,
+        )
+        self.assertIn(
+            '"AR_x86_64_pc_windows_msvc" = $LlvmAr',
+            target_compiler_environment_body,
+        )
+        self.assertLess(
+            script.index('$RustLlvmTools = Resolve-TrustedRustLlvmTools'),
+            script.index('$targetCompilerEnvironment = @{'),
         )
         copied_dll = script.index("Copy-Item -LiteralPath $dynamicDll")
         created_manifest = script.index(
@@ -1706,21 +1732,42 @@ class WindowsPackageManifestTests(unittest.TestCase):
         )
         resolver = re.search(
             r"function Resolve-TrustedMsvcX64Tools \{(?P<body>.*?)\n\}"
-            r"\n\nfunction Set-TrustedMsvcPath",
+            r"\n\nfunction Resolve-TrustedRustLlvmTools",
             script,
             flags=re.DOTALL,
         )
         self.assertIsNotNone(resolver)
         assert resolver is not None
         resolver_body = resolver.group("body")
-        self.assertEqual(4, resolver_body.count("Resolve-TrustedToolchainFile `"))
+        self.assertEqual(3, resolver_body.count("Resolve-TrustedToolchainFile `"))
         self.assertIn("$vcToolsParent.FullName.Equals(", resolver_body)
         self.assertIn("$vsInstallation.Equals(", resolver_body)
         self.assertIn("$vcInstallation.Equals(", resolver_body)
         self.assertIn("[System.StringComparison]::OrdinalIgnoreCase", resolver_body)
         self.assertIn("$vcToolsVersion -cnotmatch", resolver_body)
-        for tool in ("cl.exe", "link.exe", "dumpbin.exe", "lib.exe"):
+        for tool in ("cl.exe", "link.exe", "dumpbin.exe"):
             self.assertIn(f'-Path (Join-Path $bin "{tool}")', resolver_body)
+        rust_llvm_resolver = re.search(
+            r"function Resolve-TrustedRustLlvmTools \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Set-TrustedMsvcPath",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(rust_llvm_resolver)
+        assert rust_llvm_resolver is not None
+        rust_llvm_resolver_body = rust_llvm_resolver.group("body")
+        self.assertIn(
+            '$RustHost -cne "x86_64-pc-windows-msvc"',
+            rust_llvm_resolver_body,
+        )
+        self.assertIn(
+            "-not [System.IO.Path]::IsPathFullyQualified($RustSysroot)",
+            rust_llvm_resolver_body,
+        )
+        self.assertEqual(
+            2,
+            rust_llvm_resolver_body.count("Resolve-TrustedToolchainFile `"),
+        )
         path_binding = re.search(
             r"function Set-TrustedMsvcPath \{(?P<body>.*?)\n\}"
             r"\n\nfunction Initialize-MsvcEnvironment",

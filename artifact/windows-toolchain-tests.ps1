@@ -27,6 +27,7 @@ foreach ($functionName in @(
     "Resolve-TrustedToolchainFile",
     "Resolve-TrustedCommandProcessor",
     "Resolve-TrustedMsvcX64Tools",
+    "Resolve-TrustedRustLlvmTools",
     "Set-TrustedMsvcPath"
 )) {
     $definitions = @($ast.FindAll(
@@ -106,7 +107,6 @@ function Assert-ResolvedTools {
     $expected = @{
         Cl = "cl.exe"
         Dumpbin = "dumpbin.exe"
-        Librarian = "lib.exe"
         Linker = "link.exe"
     }
     if (-not $Tools.Bin.Equals(
@@ -165,6 +165,10 @@ try {
         "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_AR",
         "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER",
         "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS",
+        "AR_x86_64-pc-windows-msvc",
+        "AR_x86_64_pc_windows_msvc",
+        "ARFLAGS_x86_64-pc-windows-msvc",
+        "RANLIB_x86_64-pc-windows-msvc",
         "CC_x86_64-pc-windows-msvc",
         "CARGO_PROFILE_RELEASE_LTO",
         "CMAKE_C_COMPILER_LAUNCHER",
@@ -181,6 +185,55 @@ try {
     Assert-RejectsEnvironmentOverride -Name "CARGO_INCREMENTAL" -Value "1"
 
     New-Item -ItemType Directory -Path $TestRoot | Out-Null
+    $rustSysroot = Join-Path $TestRoot "rust-sysroot"
+    $rustHost = "x86_64-pc-windows-msvc"
+    $rustBin = Join-Path $rustSysroot "lib/rustlib/$rustHost/bin"
+    $llvmAr = Join-Path $rustBin "llvm-ar.exe"
+    $llvmNm = Join-Path $rustBin "llvm-nm.exe"
+    Write-FixtureTool -Path $llvmAr
+    Write-FixtureTool -Path $llvmNm
+    $rustTools = Resolve-TrustedRustLlvmTools `
+        -RustSysroot $rustSysroot `
+        -RustHost $rustHost
+    foreach ($entry in @{
+        Ar = $llvmAr
+        Bin = $rustBin
+        Nm = $llvmNm
+    }.GetEnumerator()) {
+        if (-not $rustTools.($entry.Key).Equals(
+            [System.IO.Path]::GetFullPath($entry.Value),
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+            throw "resolved Rust LLVM tool differs: $($entry.Key)"
+        }
+    }
+    Assert-Fails `
+        -Label "wrong Rust host" `
+        -ExpectedMessage "Rust host must be exactly" `
+        -Action {
+        Resolve-TrustedRustLlvmTools `
+            -RustSysroot $rustSysroot `
+            -RustHost "aarch64-pc-windows-msvc"
+    }
+    Assert-Fails `
+        -Label "relative Rust sysroot" `
+        -ExpectedMessage "Rust sysroot must be absolute" `
+        -Action {
+        Resolve-TrustedRustLlvmTools `
+            -RustSysroot "relative-rust-sysroot" `
+            -RustHost $rustHost
+    }
+    Remove-Item -LiteralPath $llvmAr
+    Assert-Fails `
+        -Label "missing Rust llvm-ar" `
+        -ExpectedMessage "toolchain path is not a regular file" `
+        -Action {
+        Resolve-TrustedRustLlvmTools `
+            -RustSysroot $rustSysroot `
+            -RustHost $rustHost
+    }
+    Write-FixtureTool -Path $llvmAr
+
     $systemDirectory = Join-Path $TestRoot "Windows/System32"
     $commandProcessor = Join-Path $systemDirectory "cmd.exe"
     Write-FixtureTool -Path $commandProcessor
@@ -248,7 +301,7 @@ try {
     $versionsRoot = Join-Path $installation "VC/Tools/MSVC"
     $versionRoot = Join-Path $versionsRoot "14.50.12345"
     $bin = Join-Path $versionRoot "bin/Hostx64/x64"
-    foreach ($name in @("cl.exe", "link.exe", "dumpbin.exe", "lib.exe")) {
+    foreach ($name in @("cl.exe", "link.exe", "dumpbin.exe")) {
         Write-FixtureTool -Path (Join-Path $bin $name)
     }
 
