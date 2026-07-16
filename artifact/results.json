@@ -401,15 +401,15 @@
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
     "windows_msvc_version_probe_sha256": "8cda4fc324ee17b560c874085cf0dbf99dcae428cc5d5b7a432b9db024232145",
     "windows_package_script_sha256": "5e499650105815ff470486cddeb69b0ace17d44d344be290f8f339fd2b1c73ea",
-    "windows_package_tests_sha256": "9ca4d3188b1ac09f4aefe5a718376711d947dcd04c9fd8edb62c4f7633fb38f9",
-    "windows_package_verifier_sha256": "50fcc8950bf2eda371b519582af9250573ef7324c4e509803a9daacf2705d8da",
+    "windows_package_tests_sha256": "a4166afd2a62107886399856871534960aa3556d0ec864eadae410ff63a09094",
+    "windows_package_verifier_sha256": "e81d75ccc0209df80046a1d3cd6d0078d1a873acb63ba4f91ae53cea6186a7f1",
     "windows_toolchain_tests_sha256": "cd73807ac19a548715df4f4af1a3504907e2937e6efb01e58fc3ccb4c7e3b060"
   },
-  "proof_source_tree_sha256": "3243931f42a076e78d0645d52ecedfdea79ec0db243e52d57c1df3aba8dee6ce",
+  "proof_source_tree_sha256": "002e891480ef3f1ad44b037602f937dac59267f035b1bb8562499b8fd8e77d22",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "62254daf00a12317fb839b1ec8e7d4ba6238f4c1",
+    "snapshot_commit": "6c4b2c70697ebec505bb1b2f3305b594ecc3169c",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
@@ -420,8 +420,8 @@
   "rust_publish": {
     "boundary": "This section records a clean-tree pre-publication dry-run, not an upload or registry attestation. Any registry publication is independently evidenced by crates.io plus release provenance for the published versions; this section never asserts upload.",
     "command": "sh artifact/rust-publish-dry-run.sh",
-    "current_local_status": "Current 2026-07-16 clean-tree pre-publication contract passed at execution commit 105cf728d877dbf9d40ae5e5d04a286d1d191f8e for source snapshot 62254daf00a12317fb839b1ec8e7d4ba6238f4c1 and canonical digest 3243931f42a076e78d0645d52ecedfdea79ec0db243e52d57c1df3aba8dee6ce using Rust/Cargo 1.96.1: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
-    "current_source_status": "current_clean_tree_prepublication_pass",
+    "current_local_status": "Historical 2026-07-16 clean-tree pre-publication contract passed at execution commit 105cf728d877dbf9d40ae5e5d04a286d1d191f8e for source snapshot 62254daf00a12317fb839b1ec8e7d4ba6238f4c1 and canonical digest 3243931f42a076e78d0645d52ecedfdea79ec0db243e52d57c1df3aba8dee6ce using Rust/Cargo 1.96.1. The Windows PE verifier changed afterward, so a new clean-tree dry-run is required before publication; this historical result does not assert an upload or registry attestation.",
+    "current_source_status": "stale_requires_rerun",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
     "nonpublishable_crates": [
