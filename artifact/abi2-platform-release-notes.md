@@ -31,6 +31,8 @@ normal release after the common toolchain has passed the full platform matrix.
 - Windows: an x64 MSVC SDK ZIP with DLL, import library, separate static library,
   ABI-major headers, exact-version CMake config, ABI contract, SBOM/CBOM, license
   material, and `/W4 /WX` native-consumer validation in the attested candidate CI.
+  The PE gate requires one REPRO debug entry and rejects CodeView, PDB checksum,
+  and COFF-group analysis metadata; the package contains no PDB.
 
 The immutable Apple
 [`v0.1.0-alpha.2`](https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2)

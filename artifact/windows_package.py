@@ -864,6 +864,23 @@ def verify_rustc_linker_invocation(
         [argument for _index, argument in repro_options] == ["/brepro"],
         "rustc linker reproducible-build option contract differs",
     )
+    coff_group_options = [
+        (index, argument)
+        for index, argument in enumerate(folded_arguments)
+        if argument.startswith(
+            (
+                "/nocoffgrpinfo",
+                "-nocoffgrpinfo",
+                "/coffgrpinfo",
+                "-coffgrpinfo",
+            )
+        )
+    ]
+    _require(
+        [argument for _index, argument in coff_group_options]
+        == ["/nocoffgrpinfo"],
+        "rustc linker COFF-group metadata option contract differs",
+    )
 
     debug_options = [
         (index, argument)
@@ -904,6 +921,7 @@ def verify_rustc_linker_invocation(
     pdb_altpath_index = pdb_options[0][0]
     warnings_as_errors_index = folded_arguments.index("/wx")
     reproducible_link_index = repro_options[0][0]
+    no_coff_group_info_index = coff_group_options[0][0]
     _require(
         opt_options[0][0]
         < automatic_debug_index
@@ -911,8 +929,9 @@ def verify_rustc_linker_invocation(
         < warnings_as_errors_index
         < disabled_debug_index
         < reproducible_link_index
+        < no_coff_group_info_index
         < opt_options[1][0],
-        "rustc linker debug/PDB/repro/optimization options are not ordered fail-closed",
+        "rustc linker debug/PDB/repro/COFF-group/optimization options are not ordered fail-closed",
     )
     return arguments
 

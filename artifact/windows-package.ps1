@@ -1218,7 +1218,8 @@ try {
         "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
         "-Clinker=link.exe", "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
         "-Clink-arg=/WX", "-Clink-arg=/DEBUG:NONE",
-        "-Clink-arg=/Brepro", "-Clink-arg=/OPT:REF,NOICF",
+        "-Clink-arg=/Brepro", "-Clink-arg=/NOCOFFGRPINFO",
+        "-Clink-arg=/OPT:REF,NOICF",
         "-Dlinker-messages",
         "--remap-path-prefix=$Root=qperiapt-source"
     )
