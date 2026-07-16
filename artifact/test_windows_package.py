@@ -2463,7 +2463,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$compilerRootScanArguments.Add("artifact/release_binary_scan.py")',
             '@("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")',
             'Get-ReleaseProducerRoots',
-            'Windows package producer scan roots must contain only printable ASCII',
+            'Windows package producer scan root must contain only printable ASCII',
             '$compilerRootScanArguments.Add("--forbid-windows-path")',
             '$manifestArguments += @(',
             '$manifestVerificationArguments += @(',
@@ -2801,6 +2801,15 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "must use canonical path components",
             producer_roots_body,
         )
+        self.assertIn(
+            "[System.IO.Path]::IsPathFullyQualified($windowsPath)",
+            producer_roots_body,
+        )
+        self.assertIn("Label = \"source root\"", producer_roots_body)
+        self.assertIn(": $label", producer_roots_body)
+        self.assertIn("$roots.Add($rawPath)", producer_roots_body)
+        self.assertIn("$roots.Add($fullPath)", producer_roots_body)
+        self.assertNotIn("$comparableInput", producer_roots_body)
         resolver = re.search(
             r"function Resolve-TrustedMsvcX64Tools \{(?P<body>.*?)\n\}"
             r"\n\nfunction Resolve-TrustedRustLlvmTools",

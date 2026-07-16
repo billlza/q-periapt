@@ -39,9 +39,11 @@ normal release after the common toolchain has passed the full platform matrix.
   size/digest entries are scanned again against the actual checkout, toolchain,
   user-home, and temporary producer roots. The extracted archive is independently
   rechecked with the same roots. Matching is ASCII case-insensitive across mixed
-  Windows separators and MSYS drive spellings; release producer roots containing
-  non-ASCII text, device/namespace prefixes, or noncanonical path components fail
-  closed rather than weakening this contract.
+  Windows separators and MSYS drive spellings. Both the validated raw spelling
+  and its resolved full-path spelling are scanned, so runner-specific aliases do
+  not create a provenance blind spot. Release producer roots containing non-ASCII
+  text, device/namespace prefixes, or noncanonical path components fail closed
+  rather than weakening this contract.
 
 The immutable Apple
 [`v0.1.0-alpha.2`](https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2)

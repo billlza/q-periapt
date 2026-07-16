@@ -395,14 +395,14 @@ function Get-ReleaseProducerRoots {
         [Parameter(Mandatory)] [string] $MsvcInstallation
     )
 
-    $candidates = [System.Collections.Generic.List[string]]::new()
-    foreach ($path in @(
-        $SourceRoot,
-        $CargoHome,
-        $RustSysroot,
-        $MsvcInstallation
+    $candidates = [System.Collections.Generic.List[object]]::new()
+    foreach ($candidate in @(
+        [pscustomobject] @{ Label = "source root"; Path = $SourceRoot },
+        [pscustomobject] @{ Label = "Cargo home"; Path = $CargoHome },
+        [pscustomobject] @{ Label = "Rust sysroot"; Path = $RustSysroot },
+        [pscustomobject] @{ Label = "MSVC installation"; Path = $MsvcInstallation }
     )) {
-        [void] $candidates.Add($path)
+        [void] $candidates.Add($candidate)
     }
     foreach ($name in @("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")) {
         $path = [System.Environment]::GetEnvironmentVariable($name, "Process")
@@ -410,7 +410,9 @@ function Get-ReleaseProducerRoots {
         if (-not [System.IO.Path]::IsPathFullyQualified($path)) {
             throw "Windows package producer path $name must be absolute"
         }
-        [void] $candidates.Add($path)
+        [void] $candidates.Add(
+            [pscustomobject] @{ Label = $name; Path = $path }
+        )
     }
 
     $separators = [char[]] @(
@@ -420,12 +422,14 @@ function Get-ReleaseProducerRoots {
     $roots = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase
     )
-    foreach ($path in $candidates) {
+    foreach ($candidate in $candidates) {
+        $label = [string] $candidate.Label
+        $path = [string] $candidate.Path
         if (
             $path.Length -gt 32767 -or
             $path -cnotmatch '^[\x20-\x7e]+$'
         ) {
-            throw "Windows package producer scan roots must contain only printable ASCII"
+            throw "Windows package producer scan root must contain only printable ASCII: $label"
         }
         $windowsPath = $path.Replace('/', '\')
         if (
@@ -442,26 +446,14 @@ function Get-ReleaseProducerRoots {
                 [System.StringComparison]::Ordinal
             )
         ) {
-            throw "Windows package producer scan roots must not use a device or namespace prefix"
+            throw "Windows package producer scan root must not use a device or namespace prefix: $label"
         }
-        try {
-            $fullPath = [System.IO.Path]::GetFullPath($windowsPath).TrimEnd(
-                $separators
-            )
-        }
-        catch {
-            throw "Windows package producer scan root cannot be canonicalized"
-        }
-        $comparableInput = $windowsPath.TrimEnd($separators)
-        if (-not $comparableInput.Equals(
-            $fullPath,
-            [System.StringComparison]::OrdinalIgnoreCase
-        )) {
-            throw "Windows package producer scan roots must use canonical path components"
+        if (-not [System.IO.Path]::IsPathFullyQualified($windowsPath)) {
+            throw "Windows package producer scan root must be absolute: $label"
         }
         $pathRoot = [System.IO.Path]::GetPathRoot($windowsPath)
         if (-not $pathRoot) {
-            throw "Windows package producer scan root cannot be canonicalized"
+            throw "Windows package producer scan root cannot be canonicalized: $label"
         }
         $components = [System.Collections.Generic.List[string]]::new()
         $trimmedPathRoot = $pathRoot.TrimEnd($separators)
@@ -477,13 +469,13 @@ function Get-ReleaseProducerRoots {
                 -not $uncRootComponents[0] -or
                 -not $uncRootComponents[1]
             ) {
-                throw "Windows package producer scan root must use a canonical UNC root"
+                throw "Windows package producer scan root must use a canonical UNC root: $label"
             }
             foreach ($component in $uncRootComponents) {
                 [void] $components.Add($component)
             }
         }
-        $relativeText = $windowsPath.Substring($pathRoot.Length).Trim(
+        $relativeText = $windowsPath.Substring($pathRoot.Length).TrimEnd(
             $separators
         )
         if ($relativeText.Length -gt 0) {
@@ -506,8 +498,25 @@ function Get-ReleaseProducerRoots {
                 ) -or
                 $component -match '[<>:"|?*]'
             ) {
-                throw "Windows package producer scan roots must use canonical path components"
+                throw "Windows package producer scan root must use canonical path components: $label"
             }
+        }
+        # The raw spelling has now passed the alias-sensitive checks.  Let
+        # GetFullPath normalize only benign drive/UNC spelling details; the
+        # Python scanner independently requires the resulting canonical path.
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath($windowsPath).TrimEnd(
+                $separators
+            )
+        }
+        catch {
+            throw "Windows package producer scan root cannot be canonicalized: $label"
+        }
+        if (
+            $fullPath.Length -gt 32767 -or
+            $fullPath -cnotmatch '^[\x20-\x7e]+$'
+        ) {
+            throw "Windows package resolved producer scan root must contain only printable ASCII: $label"
         }
         $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
         if (
@@ -517,8 +526,10 @@ function Get-ReleaseProducerRoots {
                 [System.StringComparison]::OrdinalIgnoreCase
             )
         ) {
-            throw "Windows package producer scan root cannot be a volume root"
+            throw "Windows package producer scan root cannot be a volume root: $label"
         }
+        $rawPath = $windowsPath.TrimEnd($separators)
+        [void] $roots.Add($rawPath)
         [void] $roots.Add($fullPath)
     }
     return [string[]] @($roots | Sort-Object -CaseSensitive)

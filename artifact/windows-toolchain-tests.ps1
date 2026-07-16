@@ -582,20 +582,44 @@ try {
         -CargoHome $remapCargoHome `
         -RustSysroot $remapRustSysroot `
         -MsvcInstallation $installation)
-    foreach ($expectedRoot in @(
+    $producerCandidates = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidate in @(
         $remapSource,
         $remapCargoHome,
         $remapRustSysroot,
         $installation
     )) {
-        $fullExpectedRoot = [System.IO.Path]::GetFullPath($expectedRoot)
-        if (-not ($producerRoots | Where-Object {
-            $_.Equals(
-                $fullExpectedRoot,
-                [System.StringComparison]::OrdinalIgnoreCase
-            )
-        })) {
-            throw "release producer roots omitted a required build root"
+        [void] $producerCandidates.Add($candidate)
+    }
+    foreach ($name in @("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")) {
+        $candidate = [System.Environment]::GetEnvironmentVariable(
+            $name,
+            "Process"
+        )
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            [void] $producerCandidates.Add($candidate)
+        }
+    }
+    $producerRootSeparators = [char[]] @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    foreach ($candidate in $producerCandidates) {
+        $rawExpectedRoot = $candidate.Replace('/', '\').TrimEnd(
+            $producerRootSeparators
+        )
+        $fullExpectedRoot = [System.IO.Path]::GetFullPath(
+            $rawExpectedRoot
+        ).TrimEnd($producerRootSeparators)
+        foreach ($expectedRoot in @($rawExpectedRoot, $fullExpectedRoot)) {
+            if (-not ($producerRoots | Where-Object {
+                $_.Equals(
+                    $expectedRoot,
+                    [System.StringComparison]::OrdinalIgnoreCase
+                )
+            })) {
+                throw "release producer roots omitted a raw or resolved build root"
+            }
         }
     }
     Assert-Fails `
