@@ -32,7 +32,12 @@ normal release after the common toolchain has passed the full platform matrix.
   ABI-major headers, exact-version CMake config, ABI contract, SBOM/CBOM, license
   material, and `/W4 /WX` native-consumer validation in the attested candidate CI.
   The PE gate requires one REPRO debug entry and rejects CodeView, PDB checksum,
-  and COFF-group analysis metadata; the package contains no PDB.
+  and COFF-group analysis metadata; the package contains no PDB. Every Rust
+  compiler invocation contributing to the DLL and libraries receives separator-safe
+  source, Cargo-home, and sysroot remappings. Before packaging, those three native
+  outputs are also scanned
+  fail-closed against the actual checkout, toolchain, user-home, and temporary
+  producer roots; those paths are not accepted in the native release outputs.
 
 The immutable Apple
 [`v0.1.0-alpha.2`](https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2)

@@ -9,6 +9,7 @@ if (-not $IsWindows) {
 }
 
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$Python = (Get-Command python -ErrorAction Stop).Source
 $ProductionScript = Join-Path $PSScriptRoot "windows-package.ps1"
 $tokens = $null
 $parseErrors = $null
@@ -22,8 +23,13 @@ if ($parseErrors.Count -ne 0) {
 }
 
 foreach ($functionName in @(
+    "Invoke-Captured",
+    "Invoke-Checked",
+    "Invoke-PythonChecked",
     "Assert-TrustedBuildEnvironment",
+    "Resolve-CargoHome",
     "Assert-NoAmbientCargoConfiguration",
+    "New-EncodedReleaseRustFlags",
     "Resolve-TrustedToolchainFile",
     "Resolve-TrustedCommandProcessor",
     "Resolve-TrustedMsvcX64Tools",
@@ -146,8 +152,11 @@ $savedToolsInstall = $env:VCToolsInstallDir
 $savedPath = $env:PATH
 $savedComSpec = $env:ComSpec
 $savedRustFlags = $env:RUSTFLAGS
+$savedCargoEncodedRustFlags = $env:CARGO_ENCODED_RUSTFLAGS
 $savedCargoIncremental = $env:CARGO_INCREMENTAL
 $savedCargoHome = $env:CARGO_HOME
+$savedUserProfile = $env:USERPROFILE
+$savedHome = $env:HOME
 
 try {
     $env:RUSTFLAGS = "-D warnings"
@@ -189,6 +198,139 @@ try {
     Assert-RejectsEnvironmentOverride -Name "CARGO_INCREMENTAL" -Value "1"
 
     New-Item -ItemType Directory -Path $TestRoot | Out-Null
+    $redactedRoot = Join-Path $TestRoot "private-producer-root-sentinel"
+    New-Item -ItemType Directory -Path $redactedRoot | Out-Null
+    $redactedSentinel = [System.IO.Path]::GetFullPath($redactedRoot)
+    $redactedSuccessFixture = Join-Path $redactedRoot "success.bin"
+    [System.IO.File]::WriteAllBytes(
+        $redactedSuccessFixture,
+        [System.Text.Encoding]::UTF8.GetBytes("safe payload")
+    )
+    $originalConsoleOut = [Console]::Out
+    $originalConsoleError = [Console]::Error
+    $successConsoleOut = [System.IO.StringWriter]::new()
+    $successConsoleError = [System.IO.StringWriter]::new()
+    try {
+        [Console]::SetOut($successConsoleOut)
+        [Console]::SetError($successConsoleError)
+        Invoke-PythonChecked `
+            -Arguments @(
+                "artifact/release_binary_scan.py",
+                $redactedSuccessFixture,
+                "--forbid-text",
+                $redactedSentinel
+            ) `
+            -RedactArguments
+    }
+    finally {
+        [Console]::SetOut($originalConsoleOut)
+        [Console]::SetError($originalConsoleError)
+    }
+    $successConsoleText = $successConsoleOut.ToString() +
+        $successConsoleError.ToString()
+    $successConsoleOut.Dispose()
+    $successConsoleError.Dispose()
+    if ($successConsoleText.Length -ne 0) {
+        throw "redacted successful scanner invocation emitted output"
+    }
+
+    $redactedScanFixture = Join-Path $redactedRoot "failure.bin"
+    [System.IO.File]::WriteAllText(
+        $redactedScanFixture,
+        "prefix$redactedSentinel`nsuffix",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $redactedFailureObserved = $false
+    $failureConsoleOut = [System.IO.StringWriter]::new()
+    $failureConsoleError = [System.IO.StringWriter]::new()
+    try {
+        [Console]::SetOut($failureConsoleOut)
+        [Console]::SetError($failureConsoleError)
+        try {
+            Invoke-PythonChecked `
+                -Arguments @(
+                    "artifact/release_binary_scan.py",
+                    $redactedScanFixture,
+                    "--forbid-text",
+                    $redactedSentinel
+                ) `
+                -RedactArguments
+        }
+        catch {
+            $redactedFailureObserved = $true
+            if (-not $_.Exception.Message.Contains(
+                "<redacted invocation and output>",
+                [System.StringComparison]::Ordinal
+            )) {
+                throw "redacted scanner failure omitted its redaction marker"
+            }
+            if ($_.Exception.Message.Contains(
+                $redactedSentinel,
+                [System.StringComparison]::Ordinal
+            )) {
+                throw "redacted scanner failure disclosed a forbidden root"
+            }
+        }
+    }
+    finally {
+        [Console]::SetOut($originalConsoleOut)
+        [Console]::SetError($originalConsoleError)
+    }
+    $failureConsoleText = $failureConsoleOut.ToString() +
+        $failureConsoleError.ToString()
+    $failureConsoleOut.Dispose()
+    $failureConsoleError.Dispose()
+    if (-not $redactedFailureObserved) {
+        throw "redacted scanner failure fixture unexpectedly passed"
+    }
+    if ($failureConsoleText.Length -ne 0) {
+        throw "redacted failing scanner invocation emitted output"
+    }
+
+    $missingExecutable = Join-Path $redactedRoot "missing-executable.exe"
+    $startFailureConsoleOut = [System.IO.StringWriter]::new()
+    $startFailureConsoleError = [System.IO.StringWriter]::new()
+    $redactedStartFailureObserved = $false
+    try {
+        [Console]::SetOut($startFailureConsoleOut)
+        [Console]::SetError($startFailureConsoleError)
+        try {
+            [void] (Invoke-Captured `
+                -FilePath $missingExecutable `
+                -Arguments @($redactedSentinel) `
+                -Echo `
+                -RedactArguments)
+        }
+        catch {
+            $redactedStartFailureObserved = $true
+            if (-not $_.Exception.Message.Contains(
+                "<redacted invocation and output>",
+                [System.StringComparison]::Ordinal
+            )) {
+                throw "redacted start failure omitted its redaction marker"
+            }
+            if ($_.Exception.Message.Contains(
+                $redactedSentinel,
+                [System.StringComparison]::Ordinal
+            )) {
+                throw "redacted start failure disclosed a forbidden root"
+            }
+        }
+    }
+    finally {
+        [Console]::SetOut($originalConsoleOut)
+        [Console]::SetError($originalConsoleError)
+    }
+    $startFailureConsoleText = $startFailureConsoleOut.ToString() +
+        $startFailureConsoleError.ToString()
+    $startFailureConsoleOut.Dispose()
+    $startFailureConsoleError.Dispose()
+    if (-not $redactedStartFailureObserved) {
+        throw "redacted missing-executable fixture unexpectedly passed"
+    }
+    if ($startFailureConsoleText.Length -ne 0) {
+        throw "redacted start failure emitted output"
+    }
     $rustSysroot = Join-Path $TestRoot "rust-sysroot"
     $rustHost = "x86_64-pc-windows-msvc"
     $rustBin = Join-Path $rustSysroot "lib/rustlib/$rustHost/bin"
@@ -270,7 +412,16 @@ try {
     $cargoHome = Join-Path $TestRoot "cargo-home"
     New-Item -ItemType Directory -Path $cargoSource, $cargoHome | Out-Null
     $env:CARGO_HOME = $cargoHome
-    Assert-NoAmbientCargoConfiguration -SourceRoot $cargoSource
+    $resolvedCargoHome = Resolve-CargoHome
+    if (-not $resolvedCargoHome.Equals(
+        [System.IO.Path]::GetFullPath($cargoHome),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "resolved Cargo home differs"
+    }
+    Assert-NoAmbientCargoConfiguration `
+        -SourceRoot $cargoSource `
+        -CargoHome $resolvedCargoHome
 
     $cargoHomeConfig = Join-Path $cargoHome "config.toml"
     Write-FixtureTool -Path $cargoHomeConfig
@@ -278,7 +429,9 @@ try {
         -Label "Cargo home configuration" `
         -ExpectedMessage "rejects ambient Cargo configuration files" `
         -Action {
-        Assert-NoAmbientCargoConfiguration -SourceRoot $cargoSource
+        Assert-NoAmbientCargoConfiguration `
+            -SourceRoot $cargoSource `
+            -CargoHome $resolvedCargoHome
     }
     Remove-Item -LiteralPath $cargoHomeConfig
 
@@ -288,7 +441,9 @@ try {
         -Label "source ancestor Cargo configuration" `
         -ExpectedMessage "rejects ambient Cargo configuration files" `
         -Action {
-        Assert-NoAmbientCargoConfiguration -SourceRoot $cargoSource
+        Assert-NoAmbientCargoConfiguration `
+            -SourceRoot $cargoSource `
+            -CargoHome $resolvedCargoHome
     }
     Remove-Item -LiteralPath (Join-Path $cargoSource ".cargo") -Recurse
 
@@ -297,9 +452,121 @@ try {
         -Label "relative Cargo home" `
         -ExpectedMessage "Cargo home must be absolute" `
         -Action {
-        Assert-NoAmbientCargoConfiguration -SourceRoot $cargoSource
+        Resolve-CargoHome
     }
     $env:CARGO_HOME = $cargoHome
+
+    $fallbackHome = Join-Path $TestRoot "fallback user home"
+    $fallbackCargoHome = Join-Path $fallbackHome ".cargo"
+    New-Item -ItemType Directory -Path $fallbackCargoHome -Force | Out-Null
+    $env:CARGO_HOME = $null
+    $env:USERPROFILE = $fallbackHome
+    $env:HOME = $null
+    $resolvedFallbackCargoHome = Resolve-CargoHome
+    if (-not $resolvedFallbackCargoHome.Equals(
+        [System.IO.Path]::GetFullPath($fallbackCargoHome),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "USERPROFILE Cargo home fallback differs"
+    }
+    $env:USERPROFILE = $null
+    $env:HOME = $fallbackHome
+    $resolvedHomeFallbackCargoHome = Resolve-CargoHome
+    if (-not $resolvedHomeFallbackCargoHome.Equals(
+        [System.IO.Path]::GetFullPath($fallbackCargoHome),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "HOME Cargo home fallback differs"
+    }
+    $env:USERPROFILE = $null
+    $env:HOME = $null
+    Assert-Fails `
+        -Label "missing Cargo and user home" `
+        -ExpectedMessage "requires CARGO_HOME or a user home" `
+        -Action {
+        Resolve-CargoHome
+    }
+    $env:CARGO_HOME = $cargoHome
+    $env:USERPROFILE = $savedUserProfile
+    $env:HOME = $savedHome
+
+    $remapSource = Join-Path $TestRoot "remap=source"
+    $remapCargoHome = Join-Path $TestRoot "remap cargo home"
+    $remapRustSysroot = Join-Path $TestRoot "remap rust sysroot"
+    New-Item `
+        -ItemType Directory `
+        -Path $remapSource, $remapCargoHome, $remapRustSysroot `
+        -Force | Out-Null
+    $encodedRustFlags = New-EncodedReleaseRustFlags `
+        -SourceRoot $remapSource `
+        -CargoHome $remapCargoHome `
+        -RustSysroot $remapRustSysroot
+    $actualRustFlags = [string[]] $encodedRustFlags.Split([char] 0x1f)
+    $expectedRustFlags = [System.Collections.Generic.List[string]]::new()
+    [void] $expectedRustFlags.Add("-D")
+    [void] $expectedRustFlags.Add("warnings")
+    foreach ($mapping in @(
+        @($remapSource, "qperiapt-source"),
+        @($remapCargoHome, "qperiapt-cargo-home"),
+        @($remapRustSysroot, "qperiapt-rust-sysroot")
+    )) {
+        $nativePath = [System.IO.Path]::GetFullPath($mapping[0])
+        [void] $expectedRustFlags.Add(
+            "--remap-path-prefix=$nativePath=$($mapping[1])"
+        )
+        $portablePath = $nativePath.Replace('\', '/')
+        if ($portablePath -cne $nativePath) {
+            [void] $expectedRustFlags.Add(
+                "--remap-path-prefix=$portablePath=$($mapping[1])"
+            )
+        }
+    }
+    if ($actualRustFlags.Count -ne $expectedRustFlags.Count) {
+        throw "encoded release Rust flag count differs"
+    }
+    for ($index = 0; $index -lt $expectedRustFlags.Count; $index++) {
+        if ($actualRustFlags[$index] -cne $expectedRustFlags[$index]) {
+            throw "encoded release Rust flag differs at index $index"
+        }
+    }
+    Assert-Fails `
+        -Label "relative Rust remap source" `
+        -ExpectedMessage "source root must be absolute" `
+        -Action {
+        New-EncodedReleaseRustFlags `
+            -SourceRoot "relative-source" `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot
+    }
+    Assert-Fails `
+        -Label "missing Rust remap Cargo home" `
+        -ExpectedMessage "Cargo home must be an existing directory" `
+        -Action {
+        New-EncodedReleaseRustFlags `
+            -SourceRoot $remapSource `
+            -CargoHome (Join-Path $TestRoot "missing-cargo-home") `
+            -RustSysroot $remapRustSysroot
+    }
+    $nestedRemapRoot = Join-Path $remapSource "nested"
+    New-Item -ItemType Directory -Path $nestedRemapRoot | Out-Null
+    Assert-Fails `
+        -Label "overlapping Rust remap roots" `
+        -ExpectedMessage "must be distinct and non-overlapping" `
+        -Action {
+        New-EncodedReleaseRustFlags `
+            -SourceRoot $remapSource `
+            -CargoHome $nestedRemapRoot `
+            -RustSysroot $remapRustSysroot
+    }
+    Assert-Fails `
+        -Label "volume Rust remap root" `
+        -ExpectedMessage "cannot be a volume root" `
+        -Action {
+        New-EncodedReleaseRustFlags `
+            -SourceRoot ([System.IO.Path]::GetPathRoot($remapSource)) `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot
+    }
 
     $installation = Join-Path $TestRoot "VisualStudio"
     $versionsRoot = Join-Path $installation "VC/Tools/MSVC"
@@ -635,10 +902,19 @@ finally {
         "RUSTFLAGS", $savedRustFlags, "Process"
     )
     [System.Environment]::SetEnvironmentVariable(
+        "CARGO_ENCODED_RUSTFLAGS", $savedCargoEncodedRustFlags, "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
         "CARGO_INCREMENTAL", $savedCargoIncremental, "Process"
     )
     [System.Environment]::SetEnvironmentVariable(
         "CARGO_HOME", $savedCargoHome, "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
+        "USERPROFILE", $savedUserProfile, "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
+        "HOME", $savedHome, "Process"
     )
     if (Test-Path -LiteralPath $TestRoot) {
         Remove-Item -LiteralPath $TestRoot -Recurse -Force

@@ -2282,8 +2282,11 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "$ExpectedContractSha256",
             "$ExpectedGitCommit",
             "$ExpectedGitTree",
+            "function Invoke-Captured",
             "function Assert-TrustedBuildEnvironment",
+            "function Resolve-CargoHome",
             "function Assert-NoAmbientCargoConfiguration",
+            "function New-EncodedReleaseRustFlags",
             "function Resolve-TrustedToolchainFile",
             "function Resolve-TrustedCommandProcessor",
             "function Resolve-TrustedMsvcX64Tools",
@@ -2334,13 +2337,20 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"--dumpbin", $Dumpbin',
             '"--sha256", $ExpectedArchiveSha256',
             '$savedCargoTermColor = $env:CARGO_TERM_COLOR',
-            '$savedRustFlags = $env:RUSTFLAGS',
+            '$savedCargoHome = [System.Environment]::GetEnvironmentVariable("CARGO_HOME", "Process")',
+            '$savedRustFlags = [System.Environment]::GetEnvironmentVariable("RUSTFLAGS", "Process")',
+            '$savedCargoEncodedRustFlags = [System.Environment]::GetEnvironmentVariable(',
             '$savedCargoIncremental = $env:CARGO_INCREMENTAL',
             '$savedBomRustFlags = $env:RUSTFLAGS',
             '$savedBomCargoIncremental = $env:CARGO_INCREMENTAL',
             '$env:CARGO_TERM_COLOR = "never"',
             '$env:CARGO_TERM_COLOR = $savedCargoTermColor',
-            '$env:RUSTFLAGS = $savedRustFlags',
+            '[System.Environment]::SetEnvironmentVariable("RUSTFLAGS", $null, "Process")',
+            '$CargoHome,',
+            '$savedCargoHome,',
+            '"CARGO_ENCODED_RUSTFLAGS",',
+            '$EncodedReleaseRustFlags,',
+            '$savedCargoEncodedRustFlags,',
             '$env:CARGO_INCREMENTAL = $savedCargoIncremental',
             '$env:RUSTFLAGS = $savedBomRustFlags',
             '$env:CARGO_INCREMENTAL = $savedBomCargoIncremental',
@@ -2374,6 +2384,18 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "$NativeStaticLibraries = [string[]] $decodedNativeStaticLibraries",
             '-Filter "q_periapt_ffi_abi2*.pdb"',
             "Windows release DLL build unexpectedly generated a q_periapt_ffi_abi2 PDB",
+            '$EncodedReleaseRustFlags = New-EncodedReleaseRustFlags',
+            '"--remap-path-prefix=$($mapping.Source)=$($mapping.Target)"',
+            '"--remap-path-prefix=$portableSource=$($mapping.Target)"',
+            'return [string]::Join([char] 0x1f, [string[]] $arguments)',
+            '$compilerRootScanArguments.Add("artifact/release_binary_scan.py")',
+            '@("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")',
+            '$compilerRootScanArguments.Add("--forbid-text")',
+            '<redacted invocation and output>',
+            '-RedactArguments:$RedactArguments',
+            'if ($Echo -and -not $RedactArguments)',
+            'throw [System.InvalidOperationException]::new(',
+            'Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"',
         ):
             self.assertIn(token, script)
         for forbidden in (
@@ -2408,6 +2430,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "Select-Object -First",
             '"CFLAGS_x86_64-pc-windows-msvc"',
             '"CFLAGS_x86_64_pc_windows_msvc"',
+            '"--remap-path-prefix=$Root=qperiapt-source"',
             "$Librarian",
             '-ExpectedName "lib.exe"',
         ):
@@ -2466,6 +2489,16 @@ class WindowsPackageManifestTests(unittest.TestCase):
             script.count("-RustToolsSearchDirectory $RustLlvmTools.Bin"),
             2,
         )
+        encoded_flags = script.index(
+            '"CARGO_ENCODED_RUSTFLAGS",\n'
+            "        $EncodedReleaseRustFlags,"
+        )
+        canonical_cargo_home = script.rindex(
+            '"CARGO_HOME",\n'
+            "        $CargoHome,",
+            0,
+            encoded_flags,
+        )
         fingerprint_before = script.index(
             "$linkerFingerprintBefore = Get-TrustedMsvcLinkerFingerprint"
         )
@@ -2481,6 +2514,20 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "Assert-MsvcLinkerFingerprintUnchanged",
             fingerprint_after,
         )
+        static_build = script.index(
+            '$staticBuild = Invoke-Captured -FilePath "cargo.exe"',
+            fingerprint_assertion,
+        )
+        encoded_flags_restore = script.index(
+            '"CARGO_ENCODED_RUSTFLAGS",\n'
+            "        $savedCargoEncodedRustFlags,",
+            static_build,
+        )
+        cargo_home_restore = script.index(
+            '"CARGO_HOME",\n'
+            "        $savedCargoHome,",
+            static_build,
+        )
         link_arguments_verify = script.index(
             '"artifact/windows_package.py", "verify-linker-invocation"',
             fingerprint_assertion,
@@ -2493,12 +2540,14 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"artifact/deterministic_archive.py", "create-zip"',
             manifest_create,
         )
-        self.assertLess(
-            fingerprint_before,
-            dynamic_build,
-        )
+        self.assertLess(canonical_cargo_home, encoded_flags)
+        self.assertLess(encoded_flags, fingerprint_before)
+        self.assertLess(fingerprint_before, dynamic_build)
         self.assertLess(dynamic_build, fingerprint_after)
         self.assertLess(fingerprint_after, fingerprint_assertion)
+        self.assertLess(fingerprint_assertion, static_build)
+        self.assertLess(static_build, cargo_home_restore)
+        self.assertLess(static_build, encoded_flags_restore)
         self.assertLess(fingerprint_assertion, link_arguments_verify)
         self.assertLess(link_arguments_verify, manifest_create)
         self.assertLess(manifest_create, archive_create)
@@ -2522,6 +2571,11 @@ class WindowsPackageManifestTests(unittest.TestCase):
             script.index('$RustLlvmTools = Resolve-TrustedRustLlvmTools'),
             script.index('$targetCompilerEnvironment = @{'),
         )
+        producer_root_scan = script.index(
+            "Invoke-PythonChecked `\n"
+            "    -Arguments ([string[]] $compilerRootScanArguments) `\n"
+            "    -RedactArguments"
+        )
         copied_dll = script.index("Copy-Item -LiteralPath $dynamicDll")
         created_manifest = script.index(
             "Invoke-PythonChecked -Arguments $manifestArguments"
@@ -2529,6 +2583,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         created_archive = script.index(
             '"artifact/deterministic_archive.py", "create-zip"'
         )
+        self.assertLess(producer_root_scan, copied_dll)
         self.assertLess(copied_dll, created_manifest)
         self.assertLess(created_manifest, created_archive)
         verification_arguments = script.index("$manifestVerificationArguments = @(")
@@ -2538,7 +2593,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertLess(verification_arguments, invoked_verification)
         environment_guard = re.search(
             r"function Assert-TrustedBuildEnvironment \{(?P<body>.*?)\n\}"
-            r"\n\nfunction Assert-NoAmbientCargoConfiguration",
+            r"\n\nfunction Resolve-CargoHome",
             script,
             flags=re.DOTALL,
         )
@@ -2579,23 +2634,62 @@ class WindowsPackageManifestTests(unittest.TestCase):
             script.index("Assert-TrustedBuildEnvironment"),
             script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
         )
+        cargo_home_resolver = re.search(
+            r"function Resolve-CargoHome \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-NoAmbientCargoConfiguration",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(cargo_home_resolver)
+        assert cargo_home_resolver is not None
+        cargo_home_resolver_body = cargo_home_resolver.group("body")
+        self.assertIn('$env:CARGO_HOME', cargo_home_resolver_body)
+        self.assertIn('$env:USERPROFILE', cargo_home_resolver_body)
+        self.assertIn('$env:HOME', cargo_home_resolver_body)
+        self.assertIn(
+            'Test-Path -LiteralPath $cargoHome -PathType Container',
+            cargo_home_resolver_body,
+        )
         cargo_configuration_guard = re.search(
             r"function Assert-NoAmbientCargoConfiguration \{(?P<body>.*?)\n\}"
-            r"\n\nfunction Resolve-TrustedToolchainFile",
+            r"\n\nfunction New-EncodedReleaseRustFlags",
             script,
             flags=re.DOTALL,
         )
         self.assertIsNotNone(cargo_configuration_guard)
         assert cargo_configuration_guard is not None
         cargo_configuration_body = cargo_configuration_guard.group("body")
-        self.assertIn('$env:CARGO_HOME', cargo_configuration_body)
+        self.assertNotIn('$env:CARGO_HOME', cargo_configuration_body)
+        self.assertIn('$CargoHome', cargo_configuration_body)
         self.assertIn('@("config", "config.toml")', cargo_configuration_body)
         self.assertIn('Join-Path $directory.FullName ".cargo/$name"', cargo_configuration_body)
         self.assertIn("Test-Path -LiteralPath $candidate", cargo_configuration_body)
         self.assertLess(
-            script.index("Assert-NoAmbientCargoConfiguration -SourceRoot $Root"),
+            script.index(
+                "Assert-NoAmbientCargoConfiguration -SourceRoot $Root -CargoHome $CargoHome"
+            ),
             script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
         )
+        encoded_release_flags = re.search(
+            r"function New-EncodedReleaseRustFlags \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Resolve-TrustedToolchainFile",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(encoded_release_flags)
+        assert encoded_release_flags is not None
+        encoded_release_flags_body = encoded_release_flags.group("body")
+        for destination in (
+            "qperiapt-source",
+            "qperiapt-cargo-home",
+            "qperiapt-rust-sysroot",
+        ):
+            self.assertIn(destination, encoded_release_flags_body)
+        self.assertIn("$mapping.Source.Replace('\\', '/')", encoded_release_flags_body)
+        self.assertIn('[void] $arguments.Add("-D")', encoded_release_flags_body)
+        self.assertIn('[void] $arguments.Add("warnings")', encoded_release_flags_body)
+        self.assertIn("must be distinct and non-overlapping", encoded_release_flags_body)
+        self.assertNotIn("USERPROFILE", encoded_release_flags_body)
         resolver = re.search(
             r"function Resolve-TrustedMsvcX64Tools \{(?P<body>.*?)\n\}"
             r"\n\nfunction Resolve-TrustedRustLlvmTools",

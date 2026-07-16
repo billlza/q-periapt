@@ -46,21 +46,23 @@ function Invoke-Captured {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
         [Parameter(Mandatory)] [string[]] $Arguments,
-        [switch] $Echo
+        [switch] $Echo,
+        [switch] $RedactArguments
     )
 
-    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = $FilePath
-    $startInfo.WorkingDirectory = $Root
-    $startInfo.UseShellExecute = $false
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-    foreach ($argument in $Arguments) {
-        [void] $startInfo.ArgumentList.Add($argument)
-    }
-    $process = [System.Diagnostics.Process]::new()
-    $process.StartInfo = $startInfo
+    $process = $null
     try {
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = $FilePath
+        $startInfo.WorkingDirectory = $Root
+        $startInfo.UseShellExecute = $false
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        foreach ($argument in $Arguments) {
+            [void] $startInfo.ArgumentList.Add($argument)
+        }
+        $process = [System.Diagnostics.Process]::new()
+        $process.StartInfo = $startInfo
         if (-not $process.Start()) {
             throw "failed to start native command: $FilePath"
         }
@@ -69,11 +71,14 @@ function Invoke-Captured {
         $process.WaitForExit()
         $stdout = $stdoutTask.GetAwaiter().GetResult()
         $stderr = $stderrTask.GetAwaiter().GetResult()
-        if ($Echo) {
+        if ($Echo -and -not $RedactArguments) {
             if ($stdout.Length -gt 0) { [Console]::Out.Write($stdout) }
             if ($stderr.Length -gt 0) { [Console]::Error.Write($stderr) }
         }
         if ($process.ExitCode -ne 0) {
+            if ($RedactArguments) {
+                throw "native command failed ($($process.ExitCode)): <redacted invocation and output>"
+            }
             $detail = ($stderr + "`n" + $stdout).Trim()
             throw "native command failed ($($process.ExitCode)): $FilePath $($Arguments -join ' ')`n$detail"
         }
@@ -82,26 +87,47 @@ function Invoke-Captured {
             Stderr = $stderr
         }
     }
+    catch {
+        if ($RedactArguments) {
+            throw [System.InvalidOperationException]::new(
+                "native command failed: <redacted invocation and output>"
+            )
+        }
+        throw
+    }
     finally {
-        $process.Dispose()
+        if ($null -ne $process) {
+            $process.Dispose()
+        }
     }
 }
 
 function Invoke-Checked {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
-        [Parameter(Mandatory)] [string[]] $Arguments
+        [Parameter(Mandatory)] [string[]] $Arguments,
+        [switch] $RedactArguments
     )
-    [void] (Invoke-Captured -FilePath $FilePath -Arguments $Arguments -Echo)
+    [void] (Invoke-Captured `
+        -FilePath $FilePath `
+        -Arguments $Arguments `
+        -Echo `
+        -RedactArguments:$RedactArguments)
 }
 
 function Invoke-PythonChecked {
-    param([Parameter(Mandatory)] [string[]] $Arguments)
+    param(
+        [Parameter(Mandatory)] [string[]] $Arguments,
+        [switch] $RedactArguments
+    )
 
     $invocationArguments = @(
         "-I", "-S", "-B", "-W", "error", "artifact/python_bootstrap.py"
     ) + $Arguments
-    Invoke-Checked -FilePath $Python -Arguments $invocationArguments
+    Invoke-Checked `
+        -FilePath $Python `
+        -Arguments $invocationArguments `
+        -RedactArguments:$RedactArguments
 }
 
 function Get-TrimmedOutput {
@@ -233,12 +259,7 @@ function Assert-TrustedBuildEnvironment {
     }
 }
 
-function Assert-NoAmbientCargoConfiguration {
-    param([Parameter(Mandatory)] [string] $SourceRoot)
-
-    if (-not [System.IO.Path]::IsPathFullyQualified($SourceRoot)) {
-        throw "Windows package source root must be absolute"
-    }
+function Resolve-CargoHome {
     $cargoHomeText = $env:CARGO_HOME
     if (-not $cargoHomeText) {
         $home = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
@@ -250,13 +271,32 @@ function Assert-NoAmbientCargoConfiguration {
     if (-not [System.IO.Path]::IsPathFullyQualified($cargoHomeText)) {
         throw "Cargo home must be absolute for Windows package tooling"
     }
+    $cargoHome = [System.IO.Path]::GetFullPath($cargoHomeText)
+    if (-not (Test-Path -LiteralPath $cargoHome -PathType Container)) {
+        throw "Cargo home must be an existing directory for Windows package tooling"
+    }
+    return $cargoHome
+}
+
+function Assert-NoAmbientCargoConfiguration {
+    param(
+        [Parameter(Mandatory)] [string] $SourceRoot,
+        [Parameter(Mandatory)] [string] $CargoHome
+    )
+
+    if (-not [System.IO.Path]::IsPathFullyQualified($SourceRoot)) {
+        throw "Windows package source root must be absolute"
+    }
+    if (-not [System.IO.Path]::IsPathFullyQualified($CargoHome)) {
+        throw "Cargo home must be absolute for Windows package tooling"
+    }
 
     $candidates = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase
     )
-    $cargoHome = [System.IO.Path]::GetFullPath($cargoHomeText)
+    $cargoHomePath = [System.IO.Path]::GetFullPath($CargoHome)
     foreach ($name in @("config", "config.toml")) {
-        [void] $candidates.Add((Join-Path $cargoHome $name))
+        [void] $candidates.Add((Join-Path $cargoHomePath $name))
     }
     $directory = [System.IO.DirectoryInfo]::new(
         [System.IO.Path]::GetFullPath($SourceRoot)
@@ -272,6 +312,79 @@ function Assert-NoAmbientCargoConfiguration {
             throw "Windows package tooling rejects ambient Cargo configuration files"
         }
     }
+}
+
+function New-EncodedReleaseRustFlags {
+    param(
+        [Parameter(Mandatory)] [string] $SourceRoot,
+        [Parameter(Mandatory)] [string] $CargoHome,
+        [Parameter(Mandatory)] [string] $RustSysroot
+    )
+
+    $mappings = @(
+        [pscustomobject] @{ Label = "source root"; Source = $SourceRoot; Target = "qperiapt-source" },
+        [pscustomobject] @{ Label = "Cargo home"; Source = $CargoHome; Target = "qperiapt-cargo-home" },
+        [pscustomobject] @{ Label = "Rust sysroot"; Source = $RustSysroot; Target = "qperiapt-rust-sysroot" }
+    )
+    $separators = [char[]] @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    foreach ($mapping in $mappings) {
+        if (-not [System.IO.Path]::IsPathFullyQualified($mapping.Source)) {
+            throw "Windows release Rust remap $($mapping.Label) must be absolute"
+        }
+        $mapping.Source = [System.IO.Path]::GetFullPath($mapping.Source)
+        if (-not (Test-Path -LiteralPath $mapping.Source -PathType Container)) {
+            throw "Windows release Rust remap $($mapping.Label) must be an existing directory"
+        }
+        if ($mapping.Source.IndexOf([char] 0x1f) -ge 0) {
+            throw "Windows release Rust remap $($mapping.Label) contains the encoded flag separator"
+        }
+        # rustc deliberately permits '=' inside FROM and separates at the final
+        # '='; each fixed Target above contains no '='.
+        $volumeRoot = [System.IO.Path]::GetPathRoot($mapping.Source)
+        if (
+            -not $volumeRoot -or
+            $mapping.Source.TrimEnd($separators).Equals(
+                $volumeRoot.TrimEnd($separators),
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw "Windows release Rust remap $($mapping.Label) cannot be a volume root"
+        }
+    }
+    for ($leftIndex = 0; $leftIndex -lt $mappings.Count; $leftIndex++) {
+        for ($rightIndex = $leftIndex + 1; $rightIndex -lt $mappings.Count; $rightIndex++) {
+            $left = $mappings[$leftIndex].Source.TrimEnd($separators)
+            $right = $mappings[$rightIndex].Source.TrimEnd($separators)
+            $leftPrefix = $left + [System.IO.Path]::DirectorySeparatorChar
+            $rightPrefix = $right + [System.IO.Path]::DirectorySeparatorChar
+            if (
+                $left.Equals($right, [System.StringComparison]::OrdinalIgnoreCase) -or
+                $left.StartsWith($rightPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+                $right.StartsWith($leftPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+            ) {
+                throw "Windows release Rust remap roots must be distinct and non-overlapping"
+            }
+        }
+    }
+
+    $arguments = [System.Collections.Generic.List[string]]::new()
+    [void] $arguments.Add("-D")
+    [void] $arguments.Add("warnings")
+    foreach ($mapping in $mappings) {
+        [void] $arguments.Add(
+            "--remap-path-prefix=$($mapping.Source)=$($mapping.Target)"
+        )
+        $portableSource = $mapping.Source.Replace('\', '/')
+        if ($portableSource -cne $mapping.Source) {
+            [void] $arguments.Add(
+                "--remap-path-prefix=$portableSource=$($mapping.Target)"
+            )
+        }
+    }
+    return [string]::Join([char] 0x1f, [string[]] $arguments)
 }
 
 function Resolve-TrustedToolchainFile {
@@ -1003,7 +1116,8 @@ function Verify-WindowsArchive {
 }
 
 Assert-TrustedBuildEnvironment
-Assert-NoAmbientCargoConfiguration -SourceRoot $Root
+$CargoHome = Resolve-CargoHome
+Assert-NoAmbientCargoConfiguration -SourceRoot $Root -CargoHome $CargoHome
 $MsvcInstallation = Initialize-MsvcEnvironment
 Assert-TrustedBuildEnvironment
 $MsvcTools = Resolve-TrustedMsvcX64Tools -MsvcInstallation $MsvcInstallation
@@ -1011,7 +1125,14 @@ $Cl = $MsvcTools.Cl
 $Dumpbin = $MsvcTools.Dumpbin
 $Linker = $MsvcTools.Linker
 [void] (Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker)
-$RustSysroot = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--print", "sysroot")
+$RustSysrootText = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--print", "sysroot")
+if (-not [System.IO.Path]::IsPathFullyQualified($RustSysrootText)) {
+    throw "Rust sysroot must be absolute"
+}
+$RustSysroot = [System.IO.Path]::GetFullPath($RustSysrootText)
+if (-not (Test-Path -LiteralPath $RustSysroot -PathType Container)) {
+    throw "Rust sysroot must be an existing directory"
+}
 $RustApplicationDirectory = [System.IO.Path]::GetFullPath(
     (Join-Path $RustSysroot "bin")
 )
@@ -1103,6 +1224,11 @@ if ($Mode -eq "VerifyArchive") {
     exit 0
 }
 
+$EncodedReleaseRustFlags = New-EncodedReleaseRustFlags `
+    -SourceRoot $Root `
+    -CargoHome $CargoHome `
+    -RustSysroot $RustSysroot
+
 if ($Archive) {
     throw "-Archive is only valid in VerifyArchive mode"
 }
@@ -1172,7 +1298,12 @@ if (
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 
 $savedCargoTarget = $env:CARGO_TARGET_DIR
-$savedRustFlags = $env:RUSTFLAGS
+$savedCargoHome = [System.Environment]::GetEnvironmentVariable("CARGO_HOME", "Process")
+$savedRustFlags = [System.Environment]::GetEnvironmentVariable("RUSTFLAGS", "Process")
+$savedCargoEncodedRustFlags = [System.Environment]::GetEnvironmentVariable(
+    "CARGO_ENCODED_RUSTFLAGS",
+    "Process"
+)
 $savedCargoIncremental = $env:CARGO_INCREMENTAL
 $savedCc = $env:CC
 $savedCFlags = $env:CFLAGS
@@ -1190,7 +1321,17 @@ foreach ($name in $targetCompilerEnvironment.Keys) {
         [System.Environment]::GetEnvironmentVariable($name, "Process")
 }
 try {
-    $env:RUSTFLAGS = "-D warnings"
+    [System.Environment]::SetEnvironmentVariable(
+        "CARGO_HOME",
+        $CargoHome,
+        "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable("RUSTFLAGS", $null, "Process")
+    [System.Environment]::SetEnvironmentVariable(
+        "CARGO_ENCODED_RUSTFLAGS",
+        $EncodedReleaseRustFlags,
+        "Process"
+    )
     $env:CARGO_INCREMENTAL = "0"
     $env:CARGO_TERM_COLOR = "never"
     $env:CC = $Cl
@@ -1220,8 +1361,7 @@ try {
         "-Clink-arg=/WX", "-Clink-arg=/DEBUG:NONE",
         "-Clink-arg=/Brepro", "-Clink-arg=/NOCOFFGRPINFO",
         "-Clink-arg=/OPT:REF,NOICF",
-        "-Dlinker-messages",
-        "--remap-path-prefix=$Root=qperiapt-source"
+        "-Dlinker-messages"
     )
     $linkerFingerprintAfter = Get-TrustedMsvcLinkerFingerprint `
         -MsvcInstallation $MsvcInstallation `
@@ -1242,7 +1382,7 @@ try {
     $env:CARGO_TARGET_DIR = $StaticTarget
     $staticBuild = Invoke-Captured -FilePath "cargo.exe" -Arguments @(
         "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
-        "--print", "native-static-libs", "-Cstrip=debuginfo", "--remap-path-prefix=$Root=qperiapt-source"
+        "--print", "native-static-libs", "-Cstrip=debuginfo"
     ) -Echo
     $nativeStaticLibrariesLog = Join-Path $OutRoot "native-static-libraries.txt"
     Write-Utf8File `
@@ -1287,7 +1427,21 @@ try {
 }
 finally {
     $env:CARGO_TARGET_DIR = $savedCargoTarget
-    $env:RUSTFLAGS = $savedRustFlags
+    [System.Environment]::SetEnvironmentVariable(
+        "CARGO_HOME",
+        $savedCargoHome,
+        "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
+        "RUSTFLAGS",
+        $savedRustFlags,
+        "Process"
+    )
+    [System.Environment]::SetEnvironmentVariable(
+        "CARGO_ENCODED_RUSTFLAGS",
+        $savedCargoEncodedRustFlags,
+        "Process"
+    )
     $env:CARGO_INCREMENTAL = $savedCargoIncremental
     $env:CC = $savedCc
     $env:CFLAGS = $savedCFlags
@@ -1311,6 +1465,61 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
         throw "expected Rust Windows build output is missing: $path"
     }
 }
+$compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
+[void] $compilerRootScanArguments.Add("artifact/release_binary_scan.py")
+foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
+    [void] $compilerRootScanArguments.Add($path)
+}
+$producerRoots = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::Ordinal
+)
+$producerRootCandidates = [System.Collections.Generic.List[string]]::new()
+foreach ($path in @($Root, $CargoHome, $RustSysroot, $MsvcInstallation)) {
+    [void] $producerRootCandidates.Add($path)
+}
+foreach ($name in @("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")) {
+    $path = [System.Environment]::GetEnvironmentVariable($name, "Process")
+    if (-not $path) { continue }
+    if (-not [System.IO.Path]::IsPathFullyQualified($path)) {
+        throw "Windows package producer path $name must be absolute"
+    }
+    [void] $producerRootCandidates.Add($path)
+}
+$producerRootSeparators = [char[]] @(
+    [System.IO.Path]::DirectorySeparatorChar,
+    [System.IO.Path]::AltDirectorySeparatorChar
+)
+foreach ($path in $producerRootCandidates) {
+    $fullPath = [System.IO.Path]::GetFullPath($path).TrimEnd(
+        $producerRootSeparators
+    )
+    $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
+    if (
+        -not $volumeRoot -or
+        $fullPath.Equals(
+            $volumeRoot.TrimEnd($producerRootSeparators),
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "Windows package producer scan root cannot be a volume root"
+    }
+    [void] $producerRoots.Add($fullPath)
+}
+$forbiddenProducerRoots = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::Ordinal
+)
+foreach ($path in $producerRoots) {
+    [void] $forbiddenProducerRoots.Add($path)
+    [void] $forbiddenProducerRoots.Add($path.Replace('\', '/'))
+}
+foreach ($path in @($forbiddenProducerRoots | Sort-Object -CaseSensitive)) {
+    [void] $compilerRootScanArguments.Add("--forbid-text")
+    [void] $compilerRootScanArguments.Add($path)
+}
+Invoke-PythonChecked `
+    -Arguments ([string[]] $compilerRootScanArguments) `
+    -RedactArguments
+Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"
 $unexpectedPdbs = @(
     Get-ChildItem `
         -LiteralPath (Join-Path $DynamicTarget "release") `

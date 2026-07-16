@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import io
+import json
 import pathlib
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from unittest import mock
 
 import release_binary_scan
@@ -206,6 +210,59 @@ class ReleaseBinaryScanTests(unittest.TestCase):
                 scan_release_file(secret_path)
             self.assertIn("GitHub token", str(captured.exception))
             self.assertNotIn(secret.decode(), str(captured.exception))
+
+    def test_caller_forbidden_producer_root_is_rejected_in_every_supported_encoding(self) -> None:
+        producer_root = r"C:\Build Roots\cargo-home"
+        encodings = ("utf-8", "utf-16-le", "utf-16-be")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            for encoding in encodings:
+                with self.subTest(encoding=encoding):
+                    path = root / f"producer-root-{encoding}.bin"
+                    path.write_bytes(
+                        b"prefix" + producer_root.encode(encoding) + b"suffix"
+                    )
+                    with self.assertRaises(ReleaseBinaryScanError) as captured:
+                        scan_release_file(path, forbidden_text=[producer_root])
+                    message = str(captured.exception)
+                    self.assertIn("caller-forbidden text 0", message)
+                    self.assertNotIn(producer_root, message)
+
+    def test_cli_scans_multiple_files_with_repeated_forbidden_roots(self) -> None:
+        roots = (r"C:\Build Roots\cargo-home", r"D:\Toolchains\rust")
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            first = directory / "first.bin"
+            second = directory / "second.bin"
+            first.write_bytes(b"first-safe-payload")
+            second.write_bytes(b"second-safe-payload")
+            arguments = [
+                "release_binary_scan.py",
+                str(first),
+                str(second),
+                "--forbid-text",
+                roots[0],
+                "--forbid-text",
+                roots[1],
+            ]
+            stdout = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stdout(stdout):
+                self.assertEqual(release_binary_scan.main(), 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["status"], "pass")
+            self.assertEqual(
+                [entry["path"] for entry in payload["files"]],
+                [str(first), str(second)],
+            )
+
+            second.write_bytes(b"prefix" + roots[1].encode() + b"suffix")
+            with mock.patch.object(sys, "argv", arguments), self.assertRaises(
+                SystemExit
+            ) as captured:
+                release_binary_scan.main()
+            message = str(captured.exception)
+            self.assertIn("caller-forbidden text 1", message)
+            self.assertNotIn(roots[1], message)
 
     def test_credentials_are_rejected_in_both_utf16_encodings_and_alignments(self) -> None:
         cases = {
