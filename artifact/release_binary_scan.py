@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import ntpath
 import pathlib
 import re
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from evidence_io import EvidenceIOError, read_regular_snapshot
 
 
 MAX_RELEASE_FILE_BYTES = 512 * 1024 * 1024
+MAX_FORBIDDEN_WINDOWS_PATH_CHARS = 32_767
 
 
 class ReleaseBinaryScanError(ValueError):
@@ -174,6 +176,99 @@ def _literal_encodings(text: str) -> tuple[bytes, bytes, bytes]:
 def _find_literal(data: bytes, text: str) -> int | None:
     offsets = [offset for encoded in _literal_encodings(text) if (offset := data.find(encoded)) >= 0]
     return min(offsets) if offsets else None
+
+
+def _normalize_forbidden_windows_path(text: str, index: int) -> str:
+    if (
+        not isinstance(text, str)
+        or not text
+        or len(text) > MAX_FORBIDDEN_WINDOWS_PATH_CHARS
+        or not text.isascii()
+        or not text.isprintable()
+        or "\x00" in text
+    ):
+        raise ReleaseBinaryScanError(
+            f"forbidden Windows path {index} must be non-empty printable ASCII "
+            f"of at most {MAX_FORBIDDEN_WINDOWS_PATH_CHARS} characters"
+        )
+    windows_text = text.replace("/", "\\")
+    if windows_text.startswith(("\\\\?\\", "\\\\.\\", "\\??\\")):
+        raise ReleaseBinaryScanError(
+            f"forbidden Windows path {index} must not use a device or namespace prefix"
+        )
+    normalized = ntpath.normpath(text)
+    drive, tail = ntpath.splitdrive(normalized)
+    if not drive or tail in ("", "\\", "/") or not ntpath.isabs(normalized):
+        raise ReleaseBinaryScanError(
+            f"forbidden Windows path {index} must be an absolute non-volume-root path"
+        )
+    comparable_input = windows_text.rstrip("\\")
+    comparable_normalized = normalized.replace("/", "\\").rstrip("\\")
+    if re.fullmatch(r"[A-Za-z]:", drive, re.ASCII) is not None:
+        root_components: list[str] = []
+    elif drive.startswith("\\\\"):
+        root_components = drive[2:].split("\\")
+        if len(root_components) != 2 or any(not value for value in root_components):
+            raise ReleaseBinaryScanError(
+                f"forbidden Windows path {index} must use a canonical UNC root"
+            )
+    else:
+        raise ReleaseBinaryScanError(
+            f"forbidden Windows path {index} must use an ordinary drive or UNC root"
+        )
+    components = root_components + [
+        component for component in tail.split("\\") if component
+    ]
+    if (
+        ntpath.normcase(comparable_input)
+        != ntpath.normcase(comparable_normalized)
+        or any(
+            component in (".", "..")
+            or component.endswith(".")
+            or component.endswith(" ")
+            or any(character in '<>:"|?*' for character in component)
+            for component in components
+        )
+    ):
+        raise ReleaseBinaryScanError(
+            f"forbidden Windows path {index} must use canonical path components"
+        )
+    return normalized
+
+
+def _windows_path_spellings(path: str) -> tuple[str, ...]:
+    spellings = [path]
+    drive, tail = ntpath.splitdrive(path)
+    if re.fullmatch(r"[A-Za-z]:", drive, re.ASCII) is not None:
+        tail_without_separator = tail.lstrip("\\/")
+        spellings.append(f"/{drive[0]}/{tail_without_separator}")
+    return tuple(spellings)
+
+
+def _windows_path_pattern(path: str, encoding: str) -> re.Pattern[bytes]:
+    pieces: list[bytes] = []
+    for character in path:
+        if character in "\\/":
+            pieces.append(
+                b"(?:"
+                + re.escape("\\".encode(encoding))
+                + b"|"
+                + re.escape("/".encode(encoding))
+                + b")"
+            )
+        else:
+            pieces.append(re.escape(character.encode(encoding)))
+    return re.compile(b"".join(pieces), re.IGNORECASE | re.ASCII)
+
+
+def _find_windows_path(data: bytes, path: str) -> int | None:
+    matches: list[int] = []
+    for spelling in _windows_path_spellings(path):
+        for encoding in ("utf-8", "utf-16-le", "utf-16-be"):
+            match = _windows_path_pattern(spelling, encoding).search(data)
+            if match is not None:
+                matches.append(match.start())
+    return min(matches) if matches else None
 
 
 def _first_credential_match(data: bytes) -> tuple[str, int] | None:
@@ -338,6 +433,7 @@ def scan_release_file(
     path: pathlib.Path,
     *,
     forbidden_text: Iterable[str] = (),
+    forbidden_windows_paths: Iterable[str] = (),
     maximum: int = MAX_RELEASE_FILE_BYTES,
 ) -> ScanResult:
     """Scan the exact regular-file snapshot used for the returned digest."""
@@ -362,6 +458,15 @@ def scan_release_file(
         if offset is not None:
             raise ReleaseBinaryScanError(
                 f"release binary contains {label} at byte offset {offset}: {snapshot.path}"
+            )
+
+    for index, text in enumerate(forbidden_windows_paths):
+        normalized = _normalize_forbidden_windows_path(text, index)
+        offset = _find_windows_path(snapshot.data, normalized)
+        if offset is not None:
+            raise ReleaseBinaryScanError(
+                "release binary contains caller-forbidden Windows path "
+                f"{index} at byte offset {offset}: {snapshot.path}"
             )
 
     sensitive = _first_sensitive_match(snapshot.data)
@@ -401,6 +506,15 @@ def _parse_args() -> argparse.Namespace:
         default=[],
         help="additional exact text forbidden in UTF-8, UTF-16LE, and UTF-16BE",
     )
+    parser.add_argument(
+        "--forbid-windows-path",
+        action="append",
+        default=[],
+        help=(
+            "additional absolute ASCII Windows path forbidden case-insensitively "
+            "with native, portable, and MSYS drive separators"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -408,7 +522,11 @@ def main() -> int:
     args = _parse_args()
     try:
         results = [
-            scan_release_file(path, forbidden_text=args.forbid_text)
+            scan_release_file(
+                path,
+                forbidden_text=args.forbid_text,
+                forbidden_windows_paths=args.forbid_windows_path,
+            )
             for path in args.files
         ]
     except ReleaseBinaryScanError as exc:

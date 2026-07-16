@@ -1882,12 +1882,14 @@ def create_manifest(
     cargo: str,
     cl: str,
     dependencies: Iterable[str],
+    forbidden_windows_paths: Iterable[str] = (),
 ) -> dict[str, Any]:
     """Create deterministic MANIFEST.json and SHA256SUMS after every native gate passed."""
 
     root = _validate_package_root(package_root)
     repository = pathlib.Path(repository_root).resolve(strict=True)
     dependency_list = list(dependencies)
+    windows_path_list = list(forbidden_windows_paths)
     _require(COMMIT_RE.fullmatch(git_commit) is not None, "git commit must be 40 lowercase hexadecimal digits")
     _require(TREE_RE.fullmatch(git_tree) is not None, "git tree must be 40 to 64 lowercase hexadecimal digits")
     _require(type(source_date_epoch) is int, "source date epoch must be an integer")
@@ -1917,7 +1919,11 @@ def create_manifest(
     entries: list[dict[str, Any]] = []
     for relative, path in sorted(inventory.items()):
         try:
-            scan = scan_release_file(path, forbidden_text=forbidden)
+            scan = scan_release_file(
+                path,
+                forbidden_text=forbidden,
+                forbidden_windows_paths=windows_path_list,
+            )
         except ReleaseBinaryScanError as exc:
             raise WindowsPackageError(str(exc)) from exc
         if relative == "bin/q_periapt_ffi_abi2.dll":
@@ -1995,6 +2001,7 @@ def create_manifest(
         expected_dependencies=dependency_list,
         expected_git_commit=git_commit,
         expected_git_tree=git_tree,
+        forbidden_windows_paths=windows_path_list,
     )
     return payload
 
@@ -2026,10 +2033,12 @@ def verify_package(
     expected_dependencies: Iterable[str] | None = None,
     expected_git_commit: str | None = None,
     expected_git_tree: str | None = None,
+    forbidden_windows_paths: Iterable[str] = (),
 ) -> dict[str, Any]:
     """Verify the complete extracted package without trusting archive metadata."""
 
     root = _validate_package_root(package_root)
+    windows_path_list = list(forbidden_windows_paths)
     third_party, third_party_files = _third_party_rust_files(root)
     expected_payload_files = EXPECTED_PAYLOAD_FILES | third_party_files
     expected_all_files = expected_payload_files | {"MANIFEST.json", "SHA256SUMS"}
@@ -2155,6 +2164,7 @@ def verify_package(
         "static_filename": "q_periapt_ffi_abi2_static.lib",
     }, "Windows manifest ABI identity differs")
 
+    forbidden = [str(repository), repository.as_posix()] if repository is not None else []
     file_entries = manifest.get("files")
     _require(isinstance(file_entries, list), "Windows manifest files list is missing")
     manifest_hashes: dict[str, str] = {}
@@ -2167,10 +2177,18 @@ def verify_package(
         _require(entry["mode"] == "0o644" and entry["type"] == "file", f"Windows manifest file metadata differs: {relative}")
         _require(type(entry["bytes"]) is int and entry["bytes"] >= 0, f"Windows manifest file size differs: {relative}")
         _require(SHA256_RE.fullmatch(entry["sha256"]) is not None, f"Windows manifest file digest is malformed: {relative}")
-        _require(inventory[relative].stat().st_size == entry["bytes"], f"Windows package file size mismatch: {relative}")
-        _require(_sha256(inventory[relative]) == entry["sha256"], f"Windows package file hash mismatch: {relative}")
-        manifest_hashes[relative] = entry["sha256"]
-        manifest_sizes[relative] = entry["bytes"]
+        try:
+            scan = scan_release_file(
+                inventory[relative],
+                forbidden_text=forbidden,
+                forbidden_windows_paths=windows_path_list,
+            )
+        except ReleaseBinaryScanError as exc:
+            raise WindowsPackageError(str(exc)) from exc
+        _require(scan.bytes == entry["bytes"], f"Windows package file size mismatch: {relative}")
+        _require(scan.sha256 == entry["sha256"], f"Windows package file hash mismatch: {relative}")
+        manifest_hashes[relative] = scan.sha256
+        manifest_sizes[relative] = scan.bytes
         manifest_paths.append(relative)
     _require(set(manifest_hashes) == expected_payload_files, "Windows manifest file set differs")
     _require(
@@ -2183,10 +2201,13 @@ def verify_package(
     expected_sums = {**manifest_hashes, "MANIFEST.json": _sha256(inventory["MANIFEST.json"])}
     _require(sums == expected_sums, "Windows SHA256SUMS differs from package bytes")
     _validate_boms(root, repository)
-    forbidden = [str(repository), repository.as_posix()] if repository is not None else []
-    for path in inventory.values():
+    for relative in ("MANIFEST.json", "SHA256SUMS"):
         try:
-            scan_release_file(path, forbidden_text=forbidden)
+            scan_release_file(
+                inventory[relative],
+                forbidden_text=forbidden,
+                forbidden_windows_paths=windows_path_list,
+            )
         except ReleaseBinaryScanError as exc:
             raise WindowsPackageError(str(exc)) from exc
     return manifest
@@ -2225,6 +2246,12 @@ def _parse_args() -> argparse.Namespace:
     verify.add_argument("--dumpbin", required=True, type=pathlib.Path)
     verify.add_argument("--expected-git-commit")
     verify.add_argument("--expected-git-tree")
+    for command in (create, verify):
+        command.add_argument(
+            "--forbid-windows-path",
+            action="append",
+            default=[],
+        )
     return parser.parse_args()
 
 
@@ -2284,6 +2311,7 @@ def main() -> int:
                 cargo=args.cargo,
                 cl=args.cl,
                 dependencies=dependencies,
+                forbidden_windows_paths=args.forbid_windows_path,
             )
         else:
             result = verify_package(
@@ -2292,6 +2320,7 @@ def main() -> int:
                 expected_dependencies=dependencies,
                 expected_git_commit=args.expected_git_commit,
                 expected_git_tree=args.expected_git_tree,
+                forbidden_windows_paths=args.forbid_windows_path,
             )
     except (OSError, ValueError, WindowsPackageError) as exc:
         raise SystemExit(f"error: {exc}") from exc

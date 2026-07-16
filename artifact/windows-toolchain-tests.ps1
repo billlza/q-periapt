@@ -30,6 +30,7 @@ foreach ($functionName in @(
     "Resolve-CargoHome",
     "Assert-NoAmbientCargoConfiguration",
     "New-EncodedReleaseRustFlags",
+    "Get-ReleaseProducerRoots",
     "Resolve-TrustedToolchainFile",
     "Resolve-TrustedCommandProcessor",
     "Resolve-TrustedMsvcX64Tools",
@@ -217,7 +218,7 @@ try {
             -Arguments @(
                 "artifact/release_binary_scan.py",
                 $redactedSuccessFixture,
-                "--forbid-text",
+                "--forbid-windows-path",
                 $redactedSentinel
             ) `
             -RedactArguments
@@ -237,7 +238,7 @@ try {
     $redactedScanFixture = Join-Path $redactedRoot "failure.bin"
     [System.IO.File]::WriteAllText(
         $redactedScanFixture,
-        "prefix$redactedSentinel`nsuffix",
+        "prefix$($redactedSentinel.Replace('\', '/').ToLowerInvariant())`nsuffix",
         [System.Text.UTF8Encoding]::new($false)
     )
     $redactedFailureObserved = $false
@@ -251,7 +252,7 @@ try {
                 -Arguments @(
                     "artifact/release_binary_scan.py",
                     $redactedScanFixture,
-                    "--forbid-text",
+                    "--forbid-windows-path",
                     $redactedSentinel
                 ) `
                 -RedactArguments
@@ -574,6 +575,94 @@ try {
     $bin = Join-Path $versionRoot "bin/Hostx64/x64"
     foreach ($name in @("cl.exe", "link.exe", "dumpbin.exe")) {
         Write-FixtureTool -Path (Join-Path $bin $name)
+    }
+
+    $producerRoots = [string[]] @(Get-ReleaseProducerRoots `
+        -SourceRoot $remapSource `
+        -CargoHome $remapCargoHome `
+        -RustSysroot $remapRustSysroot `
+        -MsvcInstallation $installation)
+    foreach ($expectedRoot in @(
+        $remapSource,
+        $remapCargoHome,
+        $remapRustSysroot,
+        $installation
+    )) {
+        $fullExpectedRoot = [System.IO.Path]::GetFullPath($expectedRoot)
+        if (-not ($producerRoots | Where-Object {
+            $_.Equals(
+                $fullExpectedRoot,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        })) {
+            throw "release producer roots omitted a required build root"
+        }
+    }
+    Assert-Fails `
+        -Label "non-ASCII release producer root" `
+        -ExpectedMessage "must contain only printable ASCII" `
+        -Action {
+        Get-ReleaseProducerRoots `
+            -SourceRoot (Join-Path $TestRoot "路径") `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot `
+            -MsvcInstallation $installation
+    }
+    Assert-Fails `
+        -Label "noncanonical release producer root" `
+        -ExpectedMessage "must use canonical path components" `
+        -Action {
+        Get-ReleaseProducerRoots `
+            -SourceRoot ($remapSource + "\child\..\canonical") `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot `
+            -MsvcInstallation $installation
+    }
+    Assert-Fails `
+        -Label "namespace release producer root" `
+        -ExpectedMessage "must not use a device or namespace prefix" `
+        -Action {
+        Get-ReleaseProducerRoots `
+            -SourceRoot "\\?\$remapSource" `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot `
+            -MsvcInstallation $installation
+    }
+    Assert-Fails `
+        -Label "trailing-dot release producer root" `
+        -ExpectedMessage "must use canonical path components" `
+        -Action {
+        Get-ReleaseProducerRoots `
+            -SourceRoot ($remapSource + "\trailing.") `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot `
+            -MsvcInstallation $installation
+    }
+    foreach ($uncRoot in @(
+        '\\server.\share\Build',
+        '\\server\share.\Build',
+        '\\server\share \Build'
+    )) {
+        Assert-Fails `
+            -Label "noncanonical UNC release producer root" `
+            -ExpectedMessage "must use canonical path components" `
+            -Action {
+            Get-ReleaseProducerRoots `
+                -SourceRoot $uncRoot `
+                -CargoHome $remapCargoHome `
+                -RustSysroot $remapRustSysroot `
+                -MsvcInstallation $installation
+        }
+    }
+    Assert-Fails `
+        -Label "volume release producer root" `
+        -ExpectedMessage "cannot be a volume root" `
+        -Action {
+        Get-ReleaseProducerRoots `
+            -SourceRoot ([System.IO.Path]::GetPathRoot($remapSource)) `
+            -CargoHome $remapCargoHome `
+            -RustSysroot $remapRustSysroot `
+            -MsvcInstallation $installation
     }
 
     $env:VSCMD_ARG_HOST_ARCH = "x64"

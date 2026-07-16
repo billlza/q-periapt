@@ -1906,7 +1906,12 @@ class WindowsPackageManifestTests(unittest.TestCase):
         )
         return package
 
-    def _create(self, package: pathlib.Path) -> dict:
+    def _create(
+        self,
+        package: pathlib.Path,
+        *,
+        forbidden_windows_paths: tuple[str, ...] = (),
+    ) -> dict:
         return windows_package.create_manifest(
             package,
             self.repository_root,
@@ -1919,6 +1924,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             cargo=windows_package.EXPECTED_CARGO_VERSION,
             cl="MSVC 19.44.35222.0",
             dependencies=["KERNEL32.dll", "bcrypt.dll"],
+            forbidden_windows_paths=forbidden_windows_paths,
         )
 
     def test_create_and_verify_are_deterministic_and_strict(self) -> None:
@@ -2012,6 +2018,72 @@ class WindowsPackageManifestTests(unittest.TestCase):
             ):
                 self._create(package)
 
+    def test_create_rejects_payload_replacement_after_scanned_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            static_library = package / "lib/q_periapt_ffi_abi2_static.lib"
+            replacement = b"x" * len(static_library.read_bytes())
+            resolved_static_library = static_library.resolve(strict=True)
+            real_scan = windows_package.scan_release_file
+            replaced = False
+
+            def replace_after_scan(path, **kwargs):
+                nonlocal replaced
+                result = real_scan(path, **kwargs)
+                if (
+                    pathlib.Path(path).resolve(strict=True)
+                    == resolved_static_library
+                    and not replaced
+                ):
+                    replaced = True
+                    static_library.write_bytes(replacement)
+                return result
+
+            with (
+                mock.patch.object(
+                    windows_package,
+                    "scan_release_file",
+                    side_effect=replace_after_scan,
+                ),
+                self.assertRaisesRegex(WindowsPackageError, "file hash mismatch"),
+            ):
+                self._create(package)
+
+    def test_create_and_verify_scan_payload_with_windows_path_semantics(self) -> None:
+        producer_root = r"C:\Build Roots\cargo-home"
+        forbidden = (producer_root,)
+        contaminated = b"fixture:/c/build roots/CARGO-HOME/registry"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            package = self._package(root / "create")
+            static_library = package / "lib/q_periapt_ffi_abi2_static.lib"
+            static_library.write_bytes(contaminated)
+            with self.assertRaisesRegex(
+                WindowsPackageError,
+                "caller-forbidden Windows path 0",
+            ):
+                self._create(
+                    package,
+                    forbidden_windows_paths=forbidden,
+                )
+
+            package = self._package(root / "verify")
+            self._create(
+                package,
+                forbidden_windows_paths=forbidden,
+            )
+            static_library = package / "lib/q_periapt_ffi_abi2_static.lib"
+            static_library.write_bytes(contaminated)
+            with self.assertRaisesRegex(
+                WindowsPackageError,
+                "caller-forbidden Windows path 0",
+            ):
+                windows_package.verify_package(
+                    package,
+                    repository_root=self.repository_root,
+                    forbidden_windows_paths=forbidden,
+                )
+
     def test_verify_rejects_dll_replacement_after_pe_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             package = self._package(pathlib.Path(temporary))
@@ -2040,22 +2112,22 @@ class WindowsPackageManifestTests(unittest.TestCase):
                 encoding="ascii",
             )
 
-            real_sha256 = windows_package._sha256
+            real_scan = windows_package.scan_release_file
             resolved_dll = dll.resolve(strict=True)
             replaced = False
 
-            def replace_before_hash(path):
+            def replace_before_scan(path, **kwargs):
                 nonlocal replaced
                 if pathlib.Path(path).resolve(strict=True) == resolved_dll and not replaced:
                     replaced = True
                     dll.write_bytes(replacement)
-                return real_sha256(path)
+                return real_scan(path, **kwargs)
 
             with (
                 mock.patch.object(
                     windows_package,
-                    "_sha256",
-                    side_effect=replace_before_hash,
+                    "scan_release_file",
+                    side_effect=replace_before_scan,
                 ),
                 self.assertRaisesRegex(
                     WindowsPackageError, "inspection snapshot differs"
@@ -2370,8 +2442,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"verify-linker-invocation"',
             '"--link-arguments", $linkArgumentsLog',
             '"--expected-linker", $Linker',
-            "Invoke-PythonChecked -Arguments $manifestArguments",
-            "Invoke-PythonChecked -Arguments $manifestVerificationArguments",
+            "-Arguments ([string[]] $manifestArguments)",
+            "-Arguments ([string[]] $manifestVerificationArguments)",
             '"parse-native-static-libraries"',
             '"--compiler-output", $nativeStaticLibrariesLog',
             "ConvertFrom-Json `",
@@ -2390,7 +2462,15 @@ class WindowsPackageManifestTests(unittest.TestCase):
             'return [string]::Join([char] 0x1f, [string[]] $arguments)',
             '$compilerRootScanArguments.Add("artifact/release_binary_scan.py")',
             '@("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")',
-            '$compilerRootScanArguments.Add("--forbid-text")',
+            'Get-ReleaseProducerRoots',
+            'Windows package producer scan roots must contain only printable ASCII',
+            '$compilerRootScanArguments.Add("--forbid-windows-path")',
+            '$manifestArguments += @(',
+            '$manifestVerificationArguments += @(',
+            '"--forbid-windows-path"',
+            '-ProducerRoots $ProducerRoots',
+            'Write-Host "WINDOWS_PACKAGE_MANIFEST_CREATE_PASS"',
+            'Write-Host "WINDOWS_PACKAGE_MANIFEST_VERIFY_PASS"',
             '<redacted invocation and output>',
             '-RedactArguments:$RedactArguments',
             'if ($Echo -and -not $RedactArguments)',
@@ -2533,7 +2613,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             fingerprint_assertion,
         )
         manifest_create = script.index(
-            "Invoke-PythonChecked -Arguments $manifestArguments",
+            "-Arguments ([string[]] $manifestArguments)",
             link_arguments_verify,
         )
         archive_create = script.index(
@@ -2578,7 +2658,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         )
         copied_dll = script.index("Copy-Item -LiteralPath $dynamicDll")
         created_manifest = script.index(
-            "Invoke-PythonChecked -Arguments $manifestArguments"
+            "-Arguments ([string[]] $manifestArguments)"
         )
         created_archive = script.index(
             '"artifact/deterministic_archive.py", "create-zip"'
@@ -2588,7 +2668,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertLess(created_manifest, created_archive)
         verification_arguments = script.index("$manifestVerificationArguments = @(")
         invoked_verification = script.index(
-            "Invoke-PythonChecked -Arguments $manifestVerificationArguments"
+            "-Arguments ([string[]] $manifestVerificationArguments)"
         )
         self.assertLess(verification_arguments, invoked_verification)
         environment_guard = re.search(
@@ -2646,6 +2726,10 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertIn('$env:CARGO_HOME', cargo_home_resolver_body)
         self.assertIn('$env:USERPROFILE', cargo_home_resolver_body)
         self.assertIn('$env:HOME', cargo_home_resolver_body)
+        self.assertIn('$userHome =', cargo_home_resolver_body)
+        self.assertIsNone(
+            re.search(r"(?im)^\s*\$home\s*=", cargo_home_resolver_body)
+        )
         self.assertIn(
             'Test-Path -LiteralPath $cargoHome -PathType Container',
             cargo_home_resolver_body,
@@ -2672,7 +2756,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         )
         encoded_release_flags = re.search(
             r"function New-EncodedReleaseRustFlags \{(?P<body>.*?)\n\}"
-            r"\n\nfunction Resolve-TrustedToolchainFile",
+            r"\n\nfunction Get-ReleaseProducerRoots",
             script,
             flags=re.DOTALL,
         )
@@ -2690,6 +2774,33 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertIn('[void] $arguments.Add("warnings")', encoded_release_flags_body)
         self.assertIn("must be distinct and non-overlapping", encoded_release_flags_body)
         self.assertNotIn("USERPROFILE", encoded_release_flags_body)
+        producer_roots = re.search(
+            r"function Get-ReleaseProducerRoots \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Resolve-TrustedToolchainFile",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(producer_roots)
+        assert producer_roots is not None
+        producer_roots_body = producer_roots.group("body")
+        self.assertIn(
+            '@("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")',
+            producer_roots_body,
+        )
+        self.assertIn(
+            "[System.StringComparer]::OrdinalIgnoreCase",
+            producer_roots_body,
+        )
+        self.assertIn("^[\\x20-\\x7e]+$", producer_roots_body)
+        self.assertIn("cannot be a volume root", producer_roots_body)
+        self.assertIn(
+            "must not use a device or namespace prefix",
+            producer_roots_body,
+        )
+        self.assertIn(
+            "must use canonical path components",
+            producer_roots_body,
+        )
         resolver = re.search(
             r"function Resolve-TrustedMsvcX64Tools \{(?P<body>.*?)\n\}"
             r"\n\nfunction Resolve-TrustedRustLlvmTools",

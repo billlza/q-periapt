@@ -228,6 +228,51 @@ class ReleaseBinaryScanTests(unittest.TestCase):
                     self.assertIn("caller-forbidden text 0", message)
                     self.assertNotIn(producer_root, message)
 
+    def test_forbidden_windows_path_covers_case_separators_and_msys_spelling(self) -> None:
+        producer_root = r"C:\Build Roots\cargo-home"
+        spellings = (
+            r"c:\build roots\CARGO-HOME\registry",
+            "c:/BUILD ROOTS/cargo-home/registry",
+            r"C:\build roots/cargo-HOME\registry",
+            "/c/BUILD ROOTS/Cargo-Home/registry",
+        )
+        encodings = ("utf-8", "utf-16-le", "utf-16-be")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            for spelling in spellings:
+                for encoding in encodings:
+                    with self.subTest(spelling=spelling, encoding=encoding):
+                        path = root / f"windows-path-{len(spelling)}-{encoding}.bin"
+                        path.write_bytes(
+                            b"prefix" + spelling.encode(encoding) + b"suffix"
+                        )
+                        with self.assertRaises(ReleaseBinaryScanError) as captured:
+                            scan_release_file(
+                                path,
+                                forbidden_windows_paths=[producer_root],
+                            )
+                        message = str(captured.exception)
+                        self.assertIn(
+                            "caller-forbidden Windows path 0",
+                            message,
+                        )
+                        self.assertNotIn(producer_root, message)
+
+    def test_forbidden_unc_path_covers_case_and_mixed_separators(self) -> None:
+        producer_root = r"\\BuildServer\Artifacts\cargo-home"
+        payload = "//buildserver/ARTIFACTS\\CARGO-HOME/registry"
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "unc-root.bin"
+            path.write_bytes(payload.encode("utf-16-le"))
+            with self.assertRaisesRegex(
+                ReleaseBinaryScanError,
+                "caller-forbidden Windows path 0",
+            ):
+                scan_release_file(
+                    path,
+                    forbidden_windows_paths=[producer_root],
+                )
+
     def test_cli_scans_multiple_files_with_repeated_forbidden_roots(self) -> None:
         roots = (r"C:\Build Roots\cargo-home", r"D:\Toolchains\rust")
         with tempfile.TemporaryDirectory() as temporary:
@@ -240,9 +285,9 @@ class ReleaseBinaryScanTests(unittest.TestCase):
                 "release_binary_scan.py",
                 str(first),
                 str(second),
-                "--forbid-text",
+                "--forbid-windows-path",
                 roots[0],
-                "--forbid-text",
+                "--forbid-windows-path",
                 roots[1],
             ]
             stdout = io.StringIO()
@@ -255,13 +300,13 @@ class ReleaseBinaryScanTests(unittest.TestCase):
                 [str(first), str(second)],
             )
 
-            second.write_bytes(b"prefix" + roots[1].encode() + b"suffix")
+            second.write_bytes(b"prefix/d/toolchains/RUST/suffix")
             with mock.patch.object(sys, "argv", arguments), self.assertRaises(
                 SystemExit
             ) as captured:
                 release_binary_scan.main()
             message = str(captured.exception)
-            self.assertIn("caller-forbidden text 1", message)
+            self.assertIn("caller-forbidden Windows path 1", message)
             self.assertNotIn(roots[1], message)
 
     def test_credentials_are_rejected_in_both_utf16_encodings_and_alignments(self) -> None:
@@ -377,6 +422,33 @@ class ReleaseBinaryScanTests(unittest.TestCase):
                     ReleaseBinaryScanError
                 ):
                     scan_release_file(path, forbidden_text=[value])
+
+    def test_invalid_forbidden_windows_paths_fail_closed(self) -> None:
+        invalid = (
+            "",
+            "relative\\root",
+            "C:\\",
+            "\\\\server\\share\\",
+            "C:\\non-ascii-路径",
+            r"C:\Build\foo\..\temp",
+            r"C:\Build\temp.",
+            r"\\?\C:\Build\temp",
+            r"\\?\UNC\server\share\temp",
+            r"\??\C:\Build\temp",
+            r"\\server.\share\Build",
+            r"\\server\share.\Build",
+            "\\\\server\\share \\Build",
+            r"\\server\share\Build:stream",
+            "C:\\" + "x" * release_binary_scan.MAX_FORBIDDEN_WINDOWS_PATH_CHARS,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "library.bin"
+            path.write_bytes(b"clean")
+            for value in invalid:
+                with self.subTest(value=value), self.assertRaises(
+                    ReleaseBinaryScanError
+                ):
+                    scan_release_file(path, forbidden_windows_paths=[value])
 
 
 if __name__ == "__main__":

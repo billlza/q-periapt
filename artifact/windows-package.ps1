@@ -262,11 +262,11 @@ function Assert-TrustedBuildEnvironment {
 function Resolve-CargoHome {
     $cargoHomeText = $env:CARGO_HOME
     if (-not $cargoHomeText) {
-        $home = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
-        if (-not $home) {
+        $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
+        if (-not $userHome) {
             throw "Windows package tooling requires CARGO_HOME or a user home"
         }
-        $cargoHomeText = Join-Path $home ".cargo"
+        $cargoHomeText = Join-Path $userHome ".cargo"
     }
     if (-not [System.IO.Path]::IsPathFullyQualified($cargoHomeText)) {
         throw "Cargo home must be absolute for Windows package tooling"
@@ -385,6 +385,143 @@ function New-EncodedReleaseRustFlags {
         }
     }
     return [string]::Join([char] 0x1f, [string[]] $arguments)
+}
+
+function Get-ReleaseProducerRoots {
+    param(
+        [Parameter(Mandatory)] [string] $SourceRoot,
+        [Parameter(Mandatory)] [string] $CargoHome,
+        [Parameter(Mandatory)] [string] $RustSysroot,
+        [Parameter(Mandatory)] [string] $MsvcInstallation
+    )
+
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    foreach ($path in @(
+        $SourceRoot,
+        $CargoHome,
+        $RustSysroot,
+        $MsvcInstallation
+    )) {
+        [void] $candidates.Add($path)
+    }
+    foreach ($name in @("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")) {
+        $path = [System.Environment]::GetEnvironmentVariable($name, "Process")
+        if (-not $path) { continue }
+        if (-not [System.IO.Path]::IsPathFullyQualified($path)) {
+            throw "Windows package producer path $name must be absolute"
+        }
+        [void] $candidates.Add($path)
+    }
+
+    $separators = [char[]] @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $roots = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($path in $candidates) {
+        if (
+            $path.Length -gt 32767 -or
+            $path -cnotmatch '^[\x20-\x7e]+$'
+        ) {
+            throw "Windows package producer scan roots must contain only printable ASCII"
+        }
+        $windowsPath = $path.Replace('/', '\')
+        if (
+            $windowsPath.StartsWith(
+                '\\?\',
+                [System.StringComparison]::Ordinal
+            ) -or
+            $windowsPath.StartsWith(
+                '\\.\',
+                [System.StringComparison]::Ordinal
+            ) -or
+            $windowsPath.StartsWith(
+                '\??\',
+                [System.StringComparison]::Ordinal
+            )
+        ) {
+            throw "Windows package producer scan roots must not use a device or namespace prefix"
+        }
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath($windowsPath).TrimEnd(
+                $separators
+            )
+        }
+        catch {
+            throw "Windows package producer scan root cannot be canonicalized"
+        }
+        $comparableInput = $windowsPath.TrimEnd($separators)
+        if (-not $comparableInput.Equals(
+            $fullPath,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+            throw "Windows package producer scan roots must use canonical path components"
+        }
+        $pathRoot = [System.IO.Path]::GetPathRoot($windowsPath)
+        if (-not $pathRoot) {
+            throw "Windows package producer scan root cannot be canonicalized"
+        }
+        $components = [System.Collections.Generic.List[string]]::new()
+        $trimmedPathRoot = $pathRoot.TrimEnd($separators)
+        if ($trimmedPathRoot.StartsWith(
+            '\\',
+            [System.StringComparison]::Ordinal
+        )) {
+            $uncRootComponents = [string[]] @(
+                $trimmedPathRoot.Substring(2).Split('\')
+            )
+            if (
+                $uncRootComponents.Count -ne 2 -or
+                -not $uncRootComponents[0] -or
+                -not $uncRootComponents[1]
+            ) {
+                throw "Windows package producer scan root must use a canonical UNC root"
+            }
+            foreach ($component in $uncRootComponents) {
+                [void] $components.Add($component)
+            }
+        }
+        $relativeText = $windowsPath.Substring($pathRoot.Length).Trim(
+            $separators
+        )
+        if ($relativeText.Length -gt 0) {
+            foreach ($component in @($relativeText.Split('\'))) {
+                [void] $components.Add($component)
+            }
+        }
+        foreach ($component in $components) {
+            if (
+                $component.Length -eq 0 -or
+                $component -ceq '.' -or
+                $component -ceq '..' -or
+                $component.EndsWith(
+                    '.',
+                    [System.StringComparison]::Ordinal
+                ) -or
+                $component.EndsWith(
+                    ' ',
+                    [System.StringComparison]::Ordinal
+                ) -or
+                $component -match '[<>:"|?*]'
+            ) {
+                throw "Windows package producer scan roots must use canonical path components"
+            }
+        }
+        $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
+        if (
+            -not $volumeRoot -or
+            $fullPath.Equals(
+                $volumeRoot.TrimEnd($separators),
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw "Windows package producer scan root cannot be a volume root"
+        }
+        [void] $roots.Add($fullPath)
+    }
+    return [string[]] @($roots | Sort-Object -CaseSensitive)
 }
 
 function Resolve-TrustedToolchainFile {
@@ -946,6 +1083,7 @@ function Assert-NativePackage {
         [Parameter(Mandatory)] [string] $LlvmNm,
         [Parameter(Mandatory)] [string] $Dumpbin,
         [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
+        [Parameter(Mandatory)] [string[]] $ProducerRoots,
         [Parameter(Mandatory)] [string] $TrustedGitCommit,
         [Parameter(Mandatory)] [string] $TrustedGitTree
     )
@@ -976,7 +1114,16 @@ function Assert-NativePackage {
         "--expected-git-commit", $TrustedGitCommit,
         "--expected-git-tree", $TrustedGitTree
     )
-    Invoke-PythonChecked -Arguments $manifestVerificationArguments
+    foreach ($path in $ProducerRoots) {
+        $manifestVerificationArguments += @(
+            "--forbid-windows-path",
+            $path
+        )
+    }
+    Invoke-PythonChecked `
+        -Arguments ([string[]] $manifestVerificationArguments) `
+        -RedactArguments
+    Write-Host "WINDOWS_PACKAGE_MANIFEST_VERIFY_PASS"
 
     $ConsumerRoot = Join-Path $VerifyRoot "native-consumers"
     New-Item -ItemType Directory -Path $ConsumerRoot -Force | Out-Null
@@ -1086,6 +1233,7 @@ function Verify-WindowsArchive {
         [Parameter(Mandatory)] [string] $LlvmNm,
         [Parameter(Mandatory)] [string] $Dumpbin,
         [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
+        [Parameter(Mandatory)] [string[]] $ProducerRoots,
         [Parameter(Mandatory)] [string] $TrustedGitCommit,
         [Parameter(Mandatory)] [string] $TrustedGitTree
     )
@@ -1110,6 +1258,7 @@ function Verify-WindowsArchive {
         -LlvmNm $LlvmNm `
         -Dumpbin $Dumpbin `
         -NativeStaticLibraries $NativeStaticLibraries `
+        -ProducerRoots $ProducerRoots `
         -TrustedGitCommit $TrustedGitCommit `
         -TrustedGitTree $TrustedGitTree)
     Write-Host "WINDOWS_C_ABI_PACKAGE_VERIFY_PASS"
@@ -1162,6 +1311,11 @@ $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustHost $RustHostMatch.Groups['host'].Value
 $LlvmAr = $RustLlvmTools.Ar
 $LlvmNm = $RustLlvmTools.Nm
+$ProducerRoots = Get-ReleaseProducerRoots `
+    -SourceRoot $Root `
+    -CargoHome $CargoHome `
+    -RustSysroot $RustSysroot `
+    -MsvcInstallation $MsvcInstallation
 
 if ($Mode -eq "VerifyArchive") {
     if (-not $Archive) {
@@ -1219,6 +1373,7 @@ if ($Mode -eq "VerifyArchive") {
         -LlvmNm $LlvmNm `
         -Dumpbin $Dumpbin `
         -NativeStaticLibraries $nativeLibraries `
+        -ProducerRoots $ProducerRoots `
         -TrustedGitCommit $ExpectedGitCommit `
         -TrustedGitTree $ExpectedGitTree
     exit 0
@@ -1470,50 +1625,8 @@ $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
 foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
     [void] $compilerRootScanArguments.Add($path)
 }
-$producerRoots = [System.Collections.Generic.HashSet[string]]::new(
-    [System.StringComparer]::Ordinal
-)
-$producerRootCandidates = [System.Collections.Generic.List[string]]::new()
-foreach ($path in @($Root, $CargoHome, $RustSysroot, $MsvcInstallation)) {
-    [void] $producerRootCandidates.Add($path)
-}
-foreach ($name in @("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")) {
-    $path = [System.Environment]::GetEnvironmentVariable($name, "Process")
-    if (-not $path) { continue }
-    if (-not [System.IO.Path]::IsPathFullyQualified($path)) {
-        throw "Windows package producer path $name must be absolute"
-    }
-    [void] $producerRootCandidates.Add($path)
-}
-$producerRootSeparators = [char[]] @(
-    [System.IO.Path]::DirectorySeparatorChar,
-    [System.IO.Path]::AltDirectorySeparatorChar
-)
-foreach ($path in $producerRootCandidates) {
-    $fullPath = [System.IO.Path]::GetFullPath($path).TrimEnd(
-        $producerRootSeparators
-    )
-    $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
-    if (
-        -not $volumeRoot -or
-        $fullPath.Equals(
-            $volumeRoot.TrimEnd($producerRootSeparators),
-            [System.StringComparison]::OrdinalIgnoreCase
-        )
-    ) {
-        throw "Windows package producer scan root cannot be a volume root"
-    }
-    [void] $producerRoots.Add($fullPath)
-}
-$forbiddenProducerRoots = [System.Collections.Generic.HashSet[string]]::new(
-    [System.StringComparer]::Ordinal
-)
-foreach ($path in $producerRoots) {
-    [void] $forbiddenProducerRoots.Add($path)
-    [void] $forbiddenProducerRoots.Add($path.Replace('\', '/'))
-}
-foreach ($path in @($forbiddenProducerRoots | Sort-Object -CaseSensitive)) {
-    [void] $compilerRootScanArguments.Add("--forbid-text")
+foreach ($path in $ProducerRoots) {
+    [void] $compilerRootScanArguments.Add("--forbid-windows-path")
     [void] $compilerRootScanArguments.Add($path)
 }
 Invoke-PythonChecked `
@@ -1695,7 +1808,16 @@ $manifestArguments = @(
     "--cl", $clVersion,
     "--dumpbin", $Dumpbin
 )
-Invoke-PythonChecked -Arguments $manifestArguments
+foreach ($path in $ProducerRoots) {
+    $manifestArguments += @(
+        "--forbid-windows-path",
+        $path
+    )
+}
+Invoke-PythonChecked `
+    -Arguments ([string[]] $manifestArguments) `
+    -RedactArguments
+Write-Host "WINDOWS_PACKAGE_MANIFEST_CREATE_PASS"
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
 
 Invoke-PythonChecked -Arguments @(
@@ -1713,6 +1835,7 @@ Verify-WindowsArchive `
     -LlvmNm $LlvmNm `
     -Dumpbin $Dumpbin `
     -NativeStaticLibraries $NativeStaticLibraries `
+    -ProducerRoots $ProducerRoots `
     -TrustedGitCommit $GitCommit `
     -TrustedGitTree $GitTree
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree

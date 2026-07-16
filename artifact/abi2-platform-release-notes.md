@@ -34,10 +34,14 @@ normal release after the common toolchain has passed the full platform matrix.
   The PE gate requires one REPRO debug entry and rejects CodeView, PDB checksum,
   and COFF-group analysis metadata; the package contains no PDB. Every Rust
   compiler invocation contributing to the DLL and libraries receives separator-safe
-  source, Cargo-home, and sysroot remappings. Before packaging, those three native
-  outputs are also scanned
-  fail-closed against the actual checkout, toolchain, user-home, and temporary
-  producer roots; those paths are not accepted in the native release outputs.
+  source, Cargo-home, and sysroot remappings. The three native build outputs are
+  scanned before copying, and the package payload snapshots used for manifest
+  size/digest entries are scanned again against the actual checkout, toolchain,
+  user-home, and temporary producer roots. The extracted archive is independently
+  rechecked with the same roots. Matching is ASCII case-insensitive across mixed
+  Windows separators and MSYS drive spellings; release producer roots containing
+  non-ASCII text, device/namespace prefixes, or noncanonical path components fail
+  closed rather than weakening this contract.
 
 The immutable Apple
 [`v0.1.0-alpha.2`](https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2)
