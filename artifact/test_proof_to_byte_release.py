@@ -41,6 +41,7 @@ CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
     ROOT / ".github" / "workflows" / "abi2-platform-candidate.yml"
 )
+WINDOWS_C_SMOKE_SCRIPT = ROOT / "bindings" / "c" / "build-and-run.bat"
 RUST_TOOLCHAIN_FILE = ROOT / "rust-toolchain.toml"
 CANONICAL_RUST_TOOLCHAIN = "1.96.1"
 CANONICAL_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
@@ -2932,6 +2933,15 @@ with _temporary_release_test_directories(parents):
         self.assertIn(
             f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} test --workspace --locked",
             latest,
+        )
+        windows_c_smoke = WINDOWS_C_SMOKE_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} build -p q-periapt-ffi --release --locked",
+            windows_c_smoke,
+        )
+        self.assertNotIn(
+            "cargo build -p q-periapt-ffi",
+            windows_c_smoke,
         )
         latest_verify = extract_named_workflow_step(
             latest, "Reconsume only the Windows candidate archive"
