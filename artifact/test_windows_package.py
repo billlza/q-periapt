@@ -67,12 +67,7 @@ def _rustc_link_arguments_output(
         r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
     ),
 ) -> bytes:
-    prefix = (
-        'env -u LIBRARY_PATH LC_ALL="C" '
-        'PATH="C:\\\\Program Files\\\\Microsoft Visual Studio" '
-        'VSLANG="1033" '
-    )
-    command = prefix + json.dumps(program)
+    command = json.dumps(program)
     if arguments:
         command += " " + " ".join(json.dumps(value) for value in arguments)
     return (command + "\n").encode("utf-8")
@@ -610,7 +605,14 @@ class RustcLinkerInvocationTests(unittest.TestCase):
             "warnings disabled": _rustc_link_arguments_output(
                 arguments=("/NOLOGO", "/Brepro", "/WX", "/WX:NO")
             ),
-            "missing env": valid.removeprefix(b"env "),
+            "unexpected Unix env prefix": b'env -u LIBRARY_PATH LC_ALL="C" '
+            + valid,
+            "unexpected environment assignment": b'PATH="C:\\\\Trusted" '
+            + valid,
+            "leading whitespace": b" " + valid,
+            "trailing whitespace": valid[:-1] + b" \n",
+            "no arguments": _rustc_link_arguments_output(arguments=()),
+            "unquoted trailing token": valid[:-1] + b" unquoted\n",
             "CRLF": valid[:-1] + b"\r\n",
             "two commands": valid + valid,
             "NUL": valid[:-1] + b"\0\n",
@@ -621,8 +623,14 @@ class RustcLinkerInvocationTests(unittest.TestCase):
                 1,
             ),
             "unquoted argument": valid.replace(b'"/NOLOGO"', b"/NOLOGO", 1),
-            "invalid environment name": valid.replace(
-                b'LC_ALL="C"', b'LC-ALL="C"', 1
+            "escaped program letter": valid.replace(
+                b'"C:', b'"\\u0043:', 1
+            ),
+            "escaped hardening letter": valid.replace(
+                b'"/WX"', b'"/\\u0057X"', 1
+            ),
+            "escaped hardening slash": valid.replace(
+                b'"/WX"', b'"\\/WX"', 1
             ),
             "oversized": b"x"
             * (windows_package.MAX_RUSTC_LINK_ARGUMENTS_BYTES + 1),

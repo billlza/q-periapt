@@ -272,7 +272,6 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
     "msvcrt.lib",
 )
 
-RUST_DEBUG_ENVIRONMENT_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*", re.ASCII)
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
 REQUIRED_MSVC_LINK_ARGUMENTS = ("/brepro", "/nologo", "/wx")
 
@@ -710,11 +709,15 @@ def _decode_rust_debug_string(
         isinstance(value, str) and "\0" not in value,
         f"rustc linker command {label} is malformed",
     )
+    _require(
+        command[offset:end] == json.dumps(value, ensure_ascii=False),
+        f"rustc linker command {label} is not encoded canonically",
+    )
     return value, end
 
 
-def _parse_rust_debug_command(output: bytes) -> tuple[str, list[str]]:
-    """Parse rustc's bounded ``--print link-args`` command representation."""
+def _parse_windows_rust_debug_command(output: bytes) -> tuple[str, list[str]]:
+    """Parse Windows rustc's bounded ``--print link-args`` representation."""
 
     _require(isinstance(output, bytes), "rustc link-args output must be bytes")
     _require(
@@ -733,41 +736,9 @@ def _parse_rust_debug_command(output: bytes) -> tuple[str, list[str]]:
     except UnicodeDecodeError as exc:
         raise WindowsPackageError("rustc link-args output is not UTF-8") from exc
 
-    _require(command.startswith("env "), "rustc linker command must start with env")
-    offset = len("env ")
-    while True:
-        if command.startswith("-u ", offset):
-            offset += len("-u ")
-            match = RUST_DEBUG_ENVIRONMENT_NAME_RE.match(command, offset)
-            _require(match is not None, "rustc linker command has an invalid removed environment name")
-            assert match is not None
-            offset = match.end()
-            _require(
-                offset < len(command) and command[offset] == " ",
-                "rustc linker command ends inside a removed environment entry",
-            )
-            offset += 1
-            continue
-
-        match = RUST_DEBUG_ENVIRONMENT_NAME_RE.match(command, offset)
-        if match is not None and command.startswith('="', match.end()):
-            offset = match.end() + 1
-            _, offset = _decode_rust_debug_string(
-                command,
-                offset,
-                label="environment value",
-            )
-            _require(
-                offset < len(command) and command[offset] == " ",
-                "rustc linker command ends inside an environment entry",
-            )
-            offset += 1
-            continue
-        break
-
     program, offset = _decode_rust_debug_string(
         command,
-        offset,
+        0,
         label="program",
     )
     arguments: list[str] = []
@@ -807,7 +778,7 @@ def verify_rustc_linker_invocation(
 ) -> list[str]:
     """Bind one successful rustc link to the selected absolute MSVC linker."""
 
-    program, arguments = _parse_rust_debug_command(output)
+    program, arguments = _parse_windows_rust_debug_command(output)
     _require(
         _canonical_windows_linker_path(program, label="rustc linker program")
         == _canonical_windows_linker_path(
