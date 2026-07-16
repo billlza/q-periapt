@@ -284,8 +284,8 @@
   "proof_to_byte_inputs": {
     "abi2_platform_candidate_verifier_script_sha256": "6061d134f4744adf5018f78d007d7269c51580547e4f946e815b8fb4db7fc281",
     "abi2_platform_candidate_verifier_tests_sha256": "ea1aaf45baee8531e7a51aec43dc4ce5af6c0be9e689c01697693839fd7052fa",
-    "abi2_platform_candidate_workflow_sha256": "866ebd6900baef4ca99cd48f6bd13b44248a9a0b92e5d4b3602fc361bbce05f3",
-    "abi2_platform_release_notes_sha256": "545cff735c603acddcac408b906548d74be129eac73d13266ec5d8da38ee753d",
+    "abi2_platform_candidate_workflow_sha256": "0e5e4618304361b061290baf0c068112288ec326f68631f4cbcc9b09acd4b5c9",
+    "abi2_platform_release_notes_sha256": "7168707cf4a7485d764b67355063bdf19c8ff938239d744e9bd6a9b1665a9f51",
     "android_aar_script_sha256": "cb7484cfd73d680f7d4de8b6d4a3d6b042c9490971cd5a9d6a0e55ad0072bf0d",
     "android_device_proof_tests_sha256": "043c0a330c386e25b72cd6c4bf77d5cf5d1084eac2d87ff7b1b3cc54fb86e02c",
     "android_device_proof_verifier_sha256": "ed0044e70a989447d2ff7220ab6294c99a36ae1af49bd479176e18f80543b0bf",
@@ -310,7 +310,7 @@
     "camera_ready_proof_tests_sha256": "f4e513a1113146bfc99c4f62002b2b7e8de9612d724abb154cbbed6bd349a6cd",
     "camera_ready_proof_verifier_sha256": "b966c7e36e3dc4a0ecdbef4ac49e1e847093514d8bbec09760fa90e07a66c6af",
     "camera_ready_sandbox_script_sha256": "4158068d33a5ce183ad03974113f61898bcb963bda23576b8cdfeb7d581493d8",
-    "ci_workflow_sha256": "e6dc97bb2c195fda1901d9ed25779801315653c0e7fda0633787f2756be379d8",
+    "ci_workflow_sha256": "7ac05081a6055ebfe6e886718f930e6ad6557782ed5961e54ac3d055758f42c3",
     "claim_ledger_sha256": "ad6418a09b2a131b62352b57e6e685791cd46fa57b3408e05e156b9218a2d6c7",
     "claim_ledger_tests_sha256": "2b6597b3d8c951fbb441c33808acee96431950997ab7ea5424de5bc922e420ae",
     "claim_ledger_verifier_sha256": "4ed8f09c4ac682cecd1b4a1b6f116c23f72c62e891e1c5bddb545582e43c06eb",
@@ -369,7 +369,7 @@
     "proof_manifest_sha256": "5a4ee92aa7f32ff62163660aefc03982c9c2568eb4b2c638e1fca93aa9a36d49",
     "proof_manifest_tests_sha256": "edba7208c1fb20309d28453a2a6cb15155b22ab22e07d9316653ff69ba260af2",
     "proof_to_byte_finalizer_sha256": "6d60e5d8834617d125ef62505f5122e1f92ac58eed569302ac42a2b74301ecde",
-    "proof_to_byte_release_tests_sha256": "c25429e5fb974ea6cfa1ac351d00ca90962087bc33501c7b3063159bf6af548c",
+    "proof_to_byte_release_tests_sha256": "e0d500187daafcc38066802677f6e058eb0b62ef4ebc54d90bbfdd20479a10d8",
     "proof_to_byte_script_sha256": "4ccb17076d6513b0051042679f3b1bca9a0aa9ee364c00930f3af66124aa0a5b",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
     "python_bootstrap_sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
@@ -400,16 +400,16 @@
     "third_party_licenses_sha256": "d623093c6aa38fb2428ccfa2d96565075fca5aadd883d1f2cf484039ceb26064",
     "third_party_licenses_tests_sha256": "71280ccd31d8af4716d378854fb5eee04deb9203db7faec83d5276349d50d40f",
     "windows_msvc_version_probe_sha256": "8cda4fc324ee17b560c874085cf0dbf99dcae428cc5d5b7a432b9db024232145",
-    "windows_package_script_sha256": "27dd8e1cb1ee63c9b01526c67812be24469c80f45e6bf8dbb971e925d1c7c073",
-    "windows_package_tests_sha256": "db3bd945e1d9f6a71fd23b2cc4e03ae05bac2a432be98139ace561e929e5332c",
-    "windows_package_verifier_sha256": "133f7338f0ab1a59c0964440d2085e2fca38acf5a7cff5208032f9565c0e78a0",
-    "windows_toolchain_tests_sha256": "d98c48c3df0479eeed45a163488a122a671882fcc9a2638515e89e3c09461612"
+    "windows_package_script_sha256": "8fb9e8c3de0c0d7c7f8a37c4f4feff3fe008b2a14c631d3fd34e18d71f22f92e",
+    "windows_package_tests_sha256": "e7bbde26e54802bbc31c9eb69c5537f0f70e5eb1b78578f8ac24253d54f93974",
+    "windows_package_verifier_sha256": "44201261bf0ecef040c43830dee742bae94d21a65e7fee6bec3ca4831be819f4",
+    "windows_toolchain_tests_sha256": "cd73807ac19a548715df4f4af1a3504907e2937e6efb01e58fc3ccb4c7e3b060"
   },
-  "proof_source_tree_sha256": "394863ddeef04966fbb77b66919ffa77ecfebf558f0fd728fdf3943145282fad",
+  "proof_source_tree_sha256": "e2d15c23f7730da5a0f5ac915d72a977210665dfa0284c7854f726abc3dfcdba",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "5664fd86a617f92b620ea37e7692d3417d0e307d",
+    "snapshot_commit": "198fc41b201919cc0ca902089be6e257a7ea9acf",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
@@ -420,8 +420,8 @@
   "rust_publish": {
     "boundary": "This section records a clean-tree pre-publication dry-run, not an upload or registry attestation. Any registry publication is independently evidenced by crates.io plus release provenance for the published versions; this section never asserts upload.",
     "command": "sh artifact/rust-publish-dry-run.sh",
-    "current_local_status": "Current 2026-07-16 clean-tree pre-publication contract passed at execution commit 2d3ea93c4cfc33ba051a439943c36b64aef22d04 for source snapshot 5664fd86a617f92b620ea37e7692d3417d0e307d and canonical digest 394863ddeef04966fbb77b66919ffa77ecfebf558f0fd728fdf3943145282fad using Rust/Cargo 1.96.1: locked metadata, package file-list denylist, patched cargo publish --dry-run for all ten publishable crates, exact q-periapt-mlkem-native-sys local-source and vendored inventories, whole-file build-surface hashes, active portable-only guards, and a fresh isolated q-periapt-backends normalized dependency graph audit passed. The backend archive contained no retired HQC/PQCrypto dependency, feature, or source path. Cargo emitted only its mandatory dry-run terminal notice that upload was aborted; this section does not assert an upload or registry attestation.",
-    "current_source_status": "current_clean_tree_prepublication_pass",
+    "current_local_status": "Historical 2026-07-16 clean-tree pre-publication contract passed at execution commit 2d3ea93c4cfc33ba051a439943c36b64aef22d04 for source snapshot 5664fd86a617f92b620ea37e7692d3417d0e307d and canonical digest 394863ddeef04966fbb77b66919ffa77ecfebf558f0fd728fdf3943145282fad using Rust/Cargo 1.96.1. The source changed afterward, so a new clean-tree dry-run is required before publication; this historical result does not assert an upload or registry attestation.",
+    "current_source_status": "stale_requires_rerun",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 sh artifact/rust-publish-dry-run.sh",
     "mode": "patched cargo publish --dry-run pre-publication contract",
     "nonpublishable_crates": [
