@@ -3,14 +3,14 @@ name: ABI2 platform release candidate
 on:
   push:
     tags:
-      - abi2-platforms-v0.1.0-alpha.2-r1
+      - abi2-platforms-v0.1.0-alpha.2-r2
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: abi2-platforms-v0.1.0-alpha.2-r1
+  group: abi2-platforms-v0.1.0-alpha.2-r2
   cancel-in-progress: false
 
 env:
@@ -33,7 +33,7 @@ jobs:
         name: Bind the annotated one-off distribution tag
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_REF: refs/tags/abi2-platforms-v0.1.0-alpha.2-r1
+          EXPECTED_REF: refs/tags/abi2-platforms-v0.1.0-alpha.2-r2
         run: |
           test "$GITHUB_REF" = "$EXPECTED_REF"
           test "$(git cat-file -t "$EXPECTED_REF")" = tag
@@ -285,6 +285,18 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.preflight.outputs.commit }}
+      - name: Provision hardened proof Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
         with:
           pattern: abi2-candidate-*
@@ -299,6 +311,38 @@ jobs:
           test -f candidate/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip
           test "$(find candidate -type f | wc -l)" -eq 5
           (cd candidate && sha256sum -- * | LC_ALL=C sort -k2 > CANDIDATE_SHA256SUMS)
+      - name: Independently verify both Linux candidate archives
+        env:
+          EXPECTED_COMMIT: ${{ needs.preflight.outputs.commit }}
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=no)"
+          source_epoch=$(git show -s --format=%ct "$EXPECTED_COMMIT")
+          case "$source_epoch" in ''|*[!0-9]*) echo "release source epoch is malformed" >&2; exit 2 ;; esac
+          verify_root="$GITHUB_WORKSPACE/target/abi2-platform-candidate-reverify"
+          rm -rf "$verify_root"
+          mkdir -p "$verify_root"
+          trap 'rm -rf "$verify_root"' EXIT HUP INT TERM
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            package="q-periapt-c-abi2-0.1.0-alpha.2-$target"
+            destination="$verify_root/$target"
+            sh artifact/python-run.sh artifact/deterministic_archive.py extract-tar-gz \
+              --archive "$GITHUB_WORKSPACE/candidate/$package.tar.gz" \
+              --destination "$destination" \
+              --root "$package" \
+              --mtime "$source_epoch"
+            sh artifact/python-run.sh artifact/c_package_manifest.py \
+              --package-root "$destination/$package" \
+              --repository-root "$GITHUB_WORKSPACE" \
+              --expected-target "$target" \
+              --expected-commit "$EXPECTED_COMMIT" \
+              --expected-source-date-epoch "$source_epoch"
+          done
+          rm -rf "$verify_root"
+          trap - EXIT HUP INT TERM
       - name: Generate GitHub build provenance attestations
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.0.0
         with:

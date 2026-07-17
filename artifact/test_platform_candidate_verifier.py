@@ -26,6 +26,9 @@ class PlatformCandidateVerifierTests(unittest.TestCase):
         cls.repository = pathlib.Path(__file__).resolve().parent.parent
         cls.production_script = cls.repository / "artifact/verify-platform-candidate.sh"
         cls.script = cls.production_script.read_text(encoding="utf-8")
+        cls.workflow = (
+            cls.repository / ".github/workflows/abi2-platform-candidate.yml"
+        ).read_text(encoding="utf-8")
 
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -154,6 +157,40 @@ esac
         self.assertIn("refs/remotes/origin/main^{commit}", self.script)
         self.assertIn("git status --porcelain=v1 --untracked-files=all", self.script)
 
+    def test_platform_release_revision_converges_on_r2(self) -> None:
+        release_tag = "abi2-platforms-v0.1.0-alpha.2-r2"
+        self.assertIn(f"RELEASE_TAG={release_tag}", self.script)
+        self.assertIn(f"- {release_tag}", self.workflow)
+        self.assertIn(f"group: {release_tag}", self.workflow)
+        self.assertIn(f"EXPECTED_REF: refs/tags/{release_tag}", self.workflow)
+        self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r1", self.script)
+        self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r1", self.workflow)
+
+    def test_attestation_job_reverifies_both_linux_archives(self) -> None:
+        self.assertIn(
+            "Independently verify both Linux candidate archives", self.workflow
+        )
+        self.assertIn(
+            "for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu",
+            self.workflow,
+        )
+        self.assertIn(
+            "sh artifact/python-run.sh artifact/deterministic_archive.py extract-tar-gz",
+            self.workflow,
+        )
+        self.assertIn(
+            "sh artifact/python-run.sh artifact/c_package_manifest.py",
+            self.workflow,
+        )
+        self.assertIn('--expected-commit "$EXPECTED_COMMIT"', self.workflow)
+        self.assertIn(
+            '--expected-source-date-epoch "$source_epoch"', self.workflow
+        )
+        self.assertLess(
+            self.workflow.index("Independently verify both Linux candidate archives"),
+            self.workflow.index("Generate GitHub build provenance attestations"),
+        )
+
     def test_exact_candidate_assets_and_checksum_attestation_are_named(self) -> None:
         for asset in (*self.ASSETS, "CANDIDATE_SHA256SUMS"):
             self.assertGreaterEqual(self.script.count(asset), 2)
@@ -186,7 +223,7 @@ esac
                     "--signer-digest",
                     self.COMMIT,
                     "--source-ref",
-                    "refs/tags/abi2-platforms-v0.1.0-alpha.2-r1",
+                    "refs/tags/abi2-platforms-v0.1.0-alpha.2-r2",
                     "--source-digest",
                     self.COMMIT,
                     "--deny-self-hosted-runners",

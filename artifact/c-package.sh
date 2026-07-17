@@ -1260,6 +1260,8 @@ import pathlib
 import subprocess
 import sys
 
+from c_package_manifest import CPackageManifestError, rust_workspace_source_digest
+
 root = pathlib.Path(sys.argv[1]).resolve()
 package_dir = pathlib.Path(sys.argv[2]).resolve()
 package_name = sys.argv[3]
@@ -1300,28 +1302,6 @@ for path in sorted(p for p in package_dir.rglob("*") if p.is_file() and p.name n
         "sha256": sha256(path),
         "bytes": st.st_size,
     })
-
-def tree_hash(rels: tuple[str, ...]) -> str:
-    hasher = hashlib.sha256()
-    seen = False
-    for rel in rels:
-        base = root / rel
-        if base.is_file():
-            candidates = [base]
-        elif base.is_dir():
-            candidates = sorted(p for p in base.rglob("*") if p.is_file())
-        else:
-            raise SystemExit(f"error: source input missing: {base}")
-        for candidate in candidates:
-            seen = True
-            rel_name = candidate.resolve().relative_to(root).as_posix()
-            hasher.update(rel_name.encode("utf-8"))
-            hasher.update(b"\0")
-            hasher.update(hashlib.sha256(candidate.read_bytes()).digest())
-            hasher.update(b"\0")
-    if not seen:
-        raise SystemExit("error: source tree hash had no inputs")
-    return hasher.hexdigest()
 
 source_contract_rel = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
 embedded_contract_rel = "share/q-periapt/abi/q-periapt-c-abi-v2.json"
@@ -1373,6 +1353,13 @@ elif linux_max_glibc_version != "not-applicable":
 elif linux_needed_libraries != "not-applicable":
     raise SystemExit("error: non-Linux package unexpectedly carries DT_NEEDED libraries")
 
+try:
+    workspace_source_digest = rust_workspace_source_digest(root)
+except CPackageManifestError as exc:
+    raise SystemExit(
+        f"error: cannot compute Rust workspace source digest: {exc}"
+    ) from exc
+
 manifest = {
     "schema_version": 2,
     "package": package_name,
@@ -1421,7 +1408,7 @@ manifest = {
         "qperiapt_cli_lib": sha256(root / "crates" / "q-periapt-cli" / "src" / "lib.rs"),
         "qperiapt_cli_main": sha256(root / "crates" / "q-periapt-cli" / "src" / "main.rs"),
         "ffi_header": sha256(root / "crates" / "q-periapt-ffi" / "include" / "q_periapt.h"),
-        "rust_workspace_build_inputs": tree_hash(("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "crates")),
+        "rust_workspace_build_inputs": workspace_source_digest,
     },
     "files": entries,
 }
@@ -1481,6 +1468,14 @@ python3 artifact/third_party_licenses.py verify \
 	--package-root "$EXTRACTED" \
 	--expected-target "$HOST"
 scan_release_tree "$EXTRACTED"
+if [ "$VERIFY_ONLY" = "0" ] && [ "$SOURCE_DIRTY" = "0" ] && [ "$PLATFORM" = "linux" ]; then
+	python3 artifact/c_package_manifest.py \
+		--package-root "$EXTRACTED" \
+		--repository-root "$ROOT" \
+		--expected-target "$HOST" \
+		--expected-commit "$SOURCE_COMMIT" \
+		--expected-source-date-epoch "$SOURCE_DATE_EPOCH"
+fi
 if [ "$VERIFY_ONLY" = "1" ]; then
 	LINUX_MAX_GLIBC_VERSION=not-applicable
 	LINUX_NEEDED_LIBRARIES=not-applicable
@@ -1501,6 +1496,8 @@ import pathlib
 import re
 import stat
 import sys
+
+from c_package_manifest import rust_workspace_source_digest
 
 repo_root = pathlib.Path(sys.argv[1]).resolve()
 root = pathlib.Path(sys.argv[2]).resolve()
@@ -1776,6 +1773,12 @@ for key, digest in source_inputs.items():
 for key, rel in expected_source_files.items():
     if not verify_only:
         require(source_inputs[key] == sha256(repo_root / rel), f"MANIFEST source input hash mismatch for {rel}")
+if not verify_only:
+    require(
+        source_inputs["rust_workspace_build_inputs"]
+        == rust_workspace_source_digest(repo_root),
+        "MANIFEST Rust workspace source digest mismatch",
+    )
 require(
     source_inputs["third_party_rust_license_inventory"]
     == sha256(root / "THIRD_PARTY/rust/INVENTORY.json"),

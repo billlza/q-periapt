@@ -1,9 +1,11 @@
-# Q-Periapt ABI 2 platform distribution — 0.1.0-alpha.2-r1
+# Q-Periapt ABI 2 platform distribution — 0.1.0-alpha.2-r2
 
 This immutable prerelease extends the existing ABI 2 alpha to Android, GNU/Linux,
-and Windows without changing the ABI or product version. The one-off `r1`
-distribution revision exists because the immutable Apple `v0.1.0-alpha.2` release
-cannot be rewritten. The next normal release returns all platforms to one SemVer
+and Windows without changing the ABI or product version. The `r2` distribution
+revision supersedes an unpublished `r1` platform candidate whose Linux source
+closure digest used a noncanonical ordering. No `r1` platform release was
+published. Every `r2` candidate asset is rebuilt from the corrected source-bound
+verification path. The next normal release returns all platforms to one SemVer
 release line.
 
 Android and GNU/Linux native code in this revision is built with the source-pinned
@@ -65,8 +67,8 @@ and any downloaded release asset with:
 ### Release consumers
 
 ```sh
-gh release verify abi2-platforms-v0.1.0-alpha.2-r1 --repo billlza/q-periapt
-gh release verify-asset abi2-platforms-v0.1.0-alpha.2-r1 ./PATH_TO_ASSET \
+gh release verify abi2-platforms-v0.1.0-alpha.2-r2 --repo billlza/q-periapt
+gh release verify-asset abi2-platforms-v0.1.0-alpha.2-r2 ./PATH_TO_ASSET \
   --repo billlza/q-periapt
 ```
 
@@ -77,7 +79,7 @@ checksum manifest (six attested subjects total) before adding locally generated
 Android runtime evidence and assembling the final release:
 
 ```sh
-TAG_COMMIT=$(git rev-list -n 1 abi2-platforms-v0.1.0-alpha.2-r1)
+TAG_COMMIT=$(git rev-list -n 1 abi2-platforms-v0.1.0-alpha.2-r2)
 CANDIDATE_DIR=$(cd ./candidate && pwd -P)
 sh artifact/verify-platform-candidate.sh "$CANDIDATE_DIR" "$TAG_COMMIT"
 
@@ -86,7 +88,7 @@ gh attestation verify ./CI_BUILT_ASSET \
   --repo billlza/q-periapt \
   --signer-workflow billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml \
   --signer-digest "$TAG_COMMIT" \
-  --source-ref refs/tags/abi2-platforms-v0.1.0-alpha.2-r1 \
+  --source-ref refs/tags/abi2-platforms-v0.1.0-alpha.2-r2 \
   --source-digest "$TAG_COMMIT" \
   --deny-self-hosted-runners
 ```

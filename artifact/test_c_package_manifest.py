@@ -158,7 +158,7 @@ class CPackageManifestTests(unittest.TestCase):
             ).sha256
             for key, relative in c_package_manifest.SOURCE_INPUT_PATHS.items()
         }
-        source_inputs["rust_workspace_build_inputs"] = c_package_manifest._source_tree_hash(
+        source_inputs["rust_workspace_build_inputs"] = c_package_manifest.rust_workspace_source_digest(
             self.repository
         )
         source_inputs["third_party_rust_license_inventory"] = hashlib.sha256(
@@ -228,6 +228,26 @@ class CPackageManifestTests(unittest.TestCase):
                 expected_source_date_epoch=1_700_000_000,
             )
             self.assertEqual("linux", manifest["abi"]["platform"])
+
+    def test_rust_workspace_source_digest_uses_global_path_order(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = pathlib.Path(temporary)
+            files = {
+                "Cargo.toml": b"workspace\n",
+                "Cargo.lock": b"lock\n",
+                "rust-toolchain.toml": b"toolchain\n",
+                "crates/z.txt": b"z\n",
+                "crates/a.txt": b"a\n",
+            }
+            for relative, data in files.items():
+                path = repository / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+
+            self.assertEqual(
+                "aee8ccfff9727ca5fef63a9853f5cc121450519ae08d9d83c8919e66b4c5b1f2",
+                c_package_manifest.rust_workspace_source_digest(repository),
+            )
 
     def _ldd_fixture(
         self, root: pathlib.Path
@@ -373,6 +393,26 @@ class CPackageManifestTests(unittest.TestCase):
         )
         self.assertIn('LANG=C LC_ALL=C ldd "$binary"', script)
         self.assertIn("artifact/c_package_manifest.py verify-ldd", script)
+        self.assertIn(
+            "from c_package_manifest import CPackageManifestError, rust_workspace_source_digest",
+            script,
+        )
+        self.assertIn(
+            '"rust_workspace_build_inputs": workspace_source_digest', script
+        )
+        self.assertNotIn("def tree_hash(", script)
+        self.assertIn(
+            'if [ "$VERIFY_ONLY" = "0" ] && [ "$SOURCE_DIRTY" = "0" ] && [ "$PLATFORM" = "linux" ]; then',
+            script,
+        )
+        for argument in (
+            '--package-root "$EXTRACTED"',
+            '--repository-root "$ROOT"',
+            '--expected-target "$HOST"',
+            '--expected-commit "$SOURCE_COMMIT"',
+            '--expected-source-date-epoch "$SOURCE_DATE_EPOCH"',
+        ):
+            self.assertIn(argument, script)
         self.assertIn(c_package_manifest.EXPECTED_RUSTC_VERSION, script)
         self.assertIn(c_package_manifest.EXPECTED_CARGO_VERSION, script)
 
