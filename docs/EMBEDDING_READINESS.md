@@ -142,10 +142,10 @@ bundles, UDIDs, or adb serials.
 
 | Face | Status | Boundary |
 |---|---|---|
-| Rust | The coordinated ten-crate set forms the release-ready `0.1.0-alpha.2` research-alpha source/crate line intended for crates.io publication. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and patched `cargo publish --dry-run`. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and portable-only build surface, then audits the normalized backend graph with the sys crate patched in. | Registry publication by itself does not establish independent signed provenance, audit the vendored C provider, or promote the crates to production. Those remain production-promotion requirements. |
-| C ABI | The release-ready research-alpha source/crate contract for `0.1.0-alpha.2` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | This release line includes no platform C archive. Before binary distribution or production promotion, every claimed platform archive and release index must be rebuilt against one source digest, independently reviewed, and bound to clean signed or transparency-backed provenance. Windows archive proof, full third-party license inventory and public install docs remain open. |
+| Rust | The coordinated ten-crate set forms the release-ready `0.1.0-alpha.2` research-alpha source/crate line intended for crates.io publication; **no crate has been uploaded to crates.io yet**. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and patched `cargo publish --dry-run`. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and portable-only build surface, then audits the normalized backend graph with the sys crate patched in. | Registry publication by itself does not establish independent signed provenance, audit the vendored C provider, or promote the crates to production. Those remain production-promotion requirements. |
+| C ABI | The release-ready research-alpha source/crate contract for `0.1.0-alpha.2` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | Published platform C archives exist: `abi2-platforms-v0.1.0-alpha.2-r2` ships Linux x86_64+aarch64 SDK tars (GLIBC 2.35 ceiling, SONAME, pkg-config/CMake, SBOM/CBOM, licenses) and an **unsigned experimental** Windows x64 MSVC SDK ZIP, all validated by attested candidate-CI native consumers and bound to `PLATFORM_DISTRIBUTION.json`/`SHA256SUMS`. Production promotion still needs independent review, clean signed or transparency-backed source provenance, Windows Authenticode, and deb/rpm/MSIX registry packaging. |
 | Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, credentialed Developer ID static-SDK lane, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | `artifact/results.json` decides whether a signed public XCFramework is current. Its exact static-only payload is not a notarizable executable/bundle and is explicitly recorded as not notarized. That Apple-only SDK ZIP is `binaryTarget` material, not a complete Git-URL Swift package. The consuming app retains signing/provisioning and, for macOS, notarization responsibilities. The physical iPad+iPhone evidence remains a separate same-source production gate. |
-| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. | The recorded AAR predates the backend/source migration and must be rebuilt. Fresh ABI2 ART runtime proof is pending; the previous emulator proof is historical. Clean provenance, a CI-emulator/physical policy and downstream SkyBridge harnesses remain required. |
+| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. The rebuilt source-bound AAR (16 KiB load alignment, stable NDK r29, Rust 1.96.1) is published in `abi2-platforms-v0.1.0-alpha.2-r2` together with an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. | A current-source ART rerun on the live tree is still pending (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`); the physical-vs-CI-emulator release policy, Maven Central publication, physical-device coverage, and downstream SkyBridge harnesses remain required. |
 | Kotlin | Panama FFM source is migrated to ABI2 and requires an absolute ABI-major library path; the current machine has Temurin JDK 22.0.2. | The JDK 22+ test gate must pass on each release source; this is host JVM only and separate from Android. |
 | WASM | Deterministic Node/WASM conformance tests and version/fixed-suite metadata remain. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
 
@@ -162,11 +162,15 @@ and immutable GitHub commit archive SHA-256
 `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
 `cargo audit --deny warnings` passes without an ignore for the Rust graph; it does
 not inspect vendored C. ABI 2 is release-ready as a research-alpha source/Rust-crate
-line intended for coordinated registry publication, with a separately scoped Apple SDK
-prerelease lane. Fresh same-source device/performance evidence, independent cryptographic,
-C/FFI and ABI review, clean signed or transparency-backed source provenance, and every
-non-Apple platform distribution lane remain hard requirements for production promotion
-or a multi-platform binary-package claim.
+line intended for coordinated registry publication (not yet on crates.io). Its
+published binary surface consists of two immutable, attested GitHub research
+prereleases: the Apple `v0.1.0-alpha.2-r1` XCFramework and the
+`abi2-platforms-v0.1.0-alpha.2-r2` Android/Linux/Windows packages
+(see `artifact/abi2-platform-release-notes.md` for scope, verification, and explicit
+non-goals). Fresh same-source device/performance evidence, independent cryptographic,
+C/FFI and ABI review, clean signed or transparency-backed source provenance,
+registry publication (crates.io/Maven/deb/rpm/MSIX), and Windows Authenticode
+remain hard requirements for production promotion.
 
 ## Apple Device Matrix
 
@@ -210,21 +214,25 @@ release artifact.
   version-coordinated. A dirty diagnostic run is not release proof, and registry
   packages still need independently verifiable signed or transparency-backed
   provenance before production promotion.
-- C ABI product surface: finish and verify `.so.2`, `.2.dylib`, ABI-major Windows,
-  exact CMake/pkg-config, manifest/index semantics and platform compatibility negatives.
-  ABI1 uses a deliberate hard cut—four-byte state is rejected and requires explicit
-  host-authorized re-enrollment/reset, not an unverifiable synthetic migration. Then
-  complete multi-target publishing, dependency license inventory and install docs.
+- C ABI product surface: the `.so.2` (Linux x86_64/aarch64) and ABI-major Windows
+  archives with exact CMake/pkg-config are published in
+  `abi2-platforms-v0.1.0-alpha.2-r2`; `.2.dylib` remains a host-gate artifact outside
+  the published platform set. ABI1 uses a deliberate hard cut—four-byte state is
+  rejected and requires explicit host-authorized re-enrollment/reset, not an
+  unverifiable synthetic migration. Remaining: deb/rpm/MSIX registry packaging,
+  Windows Authenticode, and public install docs beyond the release notes.
 - Swift product surface: for each Apple SDK prerelease, publish and remotely re-download the exact
   signed static-only XCFramework with URL/checksum/provenance, then verify a URL-based
   `binaryTarget` consumer. The ZIP does not contain the Swift wrapper package; consumers must bind
   the wrapper to the same source commit. Rerun the physical iPad+iPhone matrix before production
   promotion; the final macOS product's notarization does not replace device execution evidence.
-- Android product surface: rebuild the AAR for the migrated backend, then replace the historical, stale, pre-ABI2 emulator ART
-  diagnostic with a current ABI2 runtime smoke, then promote it to clean release
-  provenance, decide whether CI requires an emulator lane or whether physical Android devices are
-  the release gate, and add downstream SkyBridge target-level harnesses. No
-  current-source AAR or ABI2 ART proof exists yet.
+- Android product surface: the migrated-backend AAR is rebuilt and published in
+  `abi2-platforms-v0.1.0-alpha.2-r2` with an API 35 / 16 KiB-page emulator
+  runtime-evidence bundle executed on the exact public AAR. Remaining: rerun the ABI2
+  ART smoke against the live source tree whenever it advances past the release tag
+  (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`), decide whether CI requires an emulator
+  lane or whether physical Android devices are the release gate, publish to Maven
+  Central, and add downstream SkyBridge target-level harnesses.
 - Downstream SkyBridge harness: one minimal integration test per target repository using the same
   shared vectors and policy files, so Q-Periapt proof does not get mistaken for downstream product
   proof.

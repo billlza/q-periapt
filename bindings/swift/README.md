@@ -126,3 +126,9 @@ require their own distribution signing and notarization. Published prerelease as
 a post-publication URL-consumer failure
 invalidates that prerelease and requires a new version; it must never be repaired by replacing the
 asset under the same tag.
+
+The current Apple revision is `v0.1.0-alpha.2-r1` (Rust 1.96.1). The earlier
+`v0.1.0-alpha.2` release was built with Rust 1.96.0; it remains available only as
+historical, attested evidence and must not be consumed as the patched-toolchain
+Apple build. Non-Apple platform packages (Android AAR, Linux/Windows C SDKs) live
+in the separate `abi2-platforms-v0.1.0-alpha.2-r2` prerelease.

@@ -109,5 +109,20 @@ the Mach-O dynamic exports and install-name/current/compatibility identity; Linu
 verification checks ELF dynamic exports and SONAME. Static verification separately
 checks that the public `q_periapt_*` namespace is exact-nine; it does not claim that
 the archive has only nine total link symbols or that internal bridge symbols are
-physically inaccessible. Windows ABI 2 still requires its Windows CI/native
-packaging lane.
+physically inaccessible.
+
+## Published SDK archives
+
+Beyond the local host gate, prebuilt C SDK archives are published in the immutable
+`abi2-platforms-v0.1.0-alpha.2-r2` GitHub prerelease: Linux x86_64 and aarch64
+tarballs (GLIBC 2.35 ceiling, fixed system-library dependency set) and a Windows
+x64 MSVC ZIP with DLL, import library, and separate static library. Each carries
+ABI-major headers, exact-version pkg-config (Linux) and CMake configs, the frozen
+ABI contract, SBOM/CBOM, and license material, and was validated by `/W4 /WX` or
+warnings-as-errors native consumers in the attested candidate CI. The Windows
+archive is an **unsigned experimental prerelease** (no Authenticode); Windows
+consumers must select `/MD` (`MultiThreadedDLL`) to match the static library's
+frozen `msvcrt` contract. Verify assets with `gh release verify-asset` against
+`PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
+[`../../artifact/abi2-platform-release-notes.md`](../../artifact/abi2-platform-release-notes.md).
+deb/rpm/MSIX registry packaging is explicitly not claimed.

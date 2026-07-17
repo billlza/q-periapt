@@ -52,7 +52,7 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ logic verified + builds wasm32 | `cargo test -p q-periapt-wasm`; CI builds `wasm32` |
 | **Kotlin** (`kotlin/`) | 🟡 source migrated; JDK 22 verification required | `gradle test` (Panama FFM, JDK ≥22) |
-| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR/package verified; ART runtime pending | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
+| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.0-alpha.2-r2` with API 35 / 16 KiB-page emulator runtime evidence; current-source ART rerun pending | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
 Kotlin needs a JDK ≥22 (stable FFM):
 
@@ -71,3 +71,14 @@ sh artifact/android-aar.sh
 This proves package shape, Android ELF slices, JNI symbols, dex conversion, and an
 isolated Java consumer compile. It is not Android runtime proof until an emulator
 or physical device runs instrumentation against the AAR.
+
+## Published binary prereleases
+
+Prebuilt research-prerelease binaries for these faces are published as immutable,
+attested GitHub releases: the Apple XCFramework in `v0.1.0-alpha.2-r1` and the
+Android AAR plus Linux/Windows C SDK archives in `abi2-platforms-v0.1.0-alpha.2-r2`.
+Verify tags and assets with `gh release verify` / `gh release verify-asset` and check
+`SHA256SUMS` plus the `APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json`
+manifests; scope and explicit non-goals (no crates.io/Maven/deb/rpm/MSIX, no
+Authenticode, no physical-device claim) are in
+[`../artifact/abi2-platform-release-notes.md`](../artifact/abi2-platform-release-notes.md).

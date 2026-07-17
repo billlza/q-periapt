@@ -89,8 +89,10 @@ binary-CT results are historical predecessor evidence; no replacement timing, de
 binary-CT measurement is claimed here. The current-source local footprint capture reported below
 is a platform/toolchain-specific diagnostic, not release provenance.
 ABI~2 / \code{0.1.0-alpha.2} is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication and a separately evidenced Apple XCFramework
-prerelease; no current multi-platform binary or production release is claimed.
+for coordinated Rust-crate publication, with immutable, attestation-bound GitHub research
+prereleases covering an Apple XCFramework revision and an Android/Linux/Windows platform
+distribution; no registry publication, code-signing beyond the Apple lane, physical-device
+coverage, or production release is claimed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -513,12 +515,12 @@ source-bound cells for release promotion; current-source execution must be repor
 
 \emph{Current-source local footprint} (platform/toolchain-dependent; regenerate per
 host with \code{paper/footprint.sh}; exact rows in \code{paper/footprint.csv}). On
-Darwin~27.0.0 arm64 with Rust~1.96.0, \code{wasm-pack}~0.15.0, and Homebrew LLVM
+Darwin~27.0.0 arm64 with Rust~1.96.1, \code{wasm-pack}~0.15.0, and Homebrew LLVM
 Clang~22.1.8, the stripped native ABI~2 shared library---including
 ML-KEM-768, X25519, the combiner, signed-policy ML-DSA-65 verification, and OS-random
 product entry points---is $667.8$\,KiB (683{,}800 bytes); the lean WebAssembly module is
 $97.7$\,KiB (100{,}034 bytes), and the optional \code{signed-policy} module is
-$332.6$\,KiB (340{,}625 bytes). These are local current-working-source diagnostics,
+$332.3$\,KiB (340{,}298 bytes). These are local current-working-source diagnostics,
 not clean signed provenance, architecture-independent package sizes, or a cross-platform
 binary claim. Separately,
 the dependency-free core cross-compiles to the bare-metal \code{thumbv7em} target. This establishes
@@ -559,18 +561,23 @@ thumbv7em & bare-metal & \checkmark & by constr.$^\dagger$ & n/a \\
 \multicolumn{5}{@{}l}{\footnotesize $^\ddagger$ executed under \code{qemu-user} emulation (reference-vector KATs}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\ddagger$} reproduce pinned bytes); $^\dagger$ cross-compiled, identity by}\\[-2pt]
 \multicolumn{5}{@{}l}{\footnotesize \phantom{$^\dagger$} FIPS-deterministic encodings $+$ identical source.}\\[4pt]
-\multicolumn{5}{@{}l}{\emph{(b) native ABI~2 product workflow (historical predecessor source)}}\\
+\multicolumn{5}{@{}l}{\emph{(b) native ABI~2 product workflow (release receipts / device evidence)}}\\
 \toprule
 \textbf{Face} & \textbf{Linux} & \textbf{macOS} & \textbf{Windows} & \textbf{device} \\
 \midrule
-C ABI & pending & historical & pending & n/a \\
-Swift & n/a & historical & n/a & iOS historical \\
+C ABI & released$^{\mathsection}$ & historical & released$^{\mathsection}$ & n/a \\
+Swift & n/a & released$^{\mathsection}$ & n/a & iOS historical \\
 Kotlin (JVM/FFM) & n/a & historical & n/a & n/a \\
-Android/JNI & n/a & n/a & n/a & pending \\
+Android/JNI & n/a & n/a & n/a & emulator$^{\mathsection}$ \\
 \bottomrule
-\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize A clean-tree schema-v3 matrix passed on one
-physical iPad and one distinct physical iPhone for predecessor source. The backend migration made
-it stale; both lanes and all packages require same-source reruns.}\\
+\multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize $^{\mathsection}$\,``released'' denotes the
+immutable, attestation-bound GitHub \emph{research prereleases}: the Apple XCFramework revision
+and the Android AAR (with API~35 / 16\,KiB-page emulator runtime evidence) plus Linux
+x86\_64/aarch64 and unsigned experimental Windows x64 MSVC SDK archives, each validated by
+attested candidate-CI native consumers and bound to machine-checked release receipts. A clean-tree
+schema-v3 physical iPad+iPhone matrix passed for predecessor source only; the backend migration
+made it stale, and both physical lanes still require same-source reruns. No registry
+publication or physical-Android coverage is claimed.}\\
 \end{tabular}
 \end{table}
 
@@ -1079,10 +1086,13 @@ is therefore historical and must be regenerated. The migration removed the
 \code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
 without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
 ABI~2 is release-ready as a research-alpha source/Rust-crate line intended for
-coordinated registry publication, with a separately scoped Apple SDK prerelease lane. Production
-promotion or a multi-platform binary-package claim still requires such review, fresh
-release-bound two-ISA CT, same-source package/device/performance evidence, clean
-signed or transparency-backed source provenance, and non-Apple platform distribution work. The rustls integration uses a fixed protocol-domain context and an already parsed,
+coordinated registry publication (not yet on crates.io). Its published binary surface consists of
+immutable, attestation-bound GitHub research prereleases: an Apple Developer~ID-signed XCFramework
+revision and a platform distribution carrying the Android AAR with API~35 / 16\,KiB-page emulator
+runtime evidence, Linux x86\_64/aarch64 SDK archives, and an unsigned experimental Windows x64 MSVC
+SDK. Production promotion still requires such review, fresh
+release-bound two-ISA CT, same-source device/performance evidence, clean
+signed or transparency-backed source provenance, registry publication, and Windows Authenticode. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
 the signed-policy authenticity claim. The C ABI assumes a trusted local caller for metadata and the
 forgeable decision descriptor, despite removing raw/deterministic cryptographic exports,
@@ -1135,6 +1145,17 @@ source-bound proofs from the anonymous root snapshot. The resulting snapshot con
 historical measurements, inputs, and regeneration protocols; no committed predecessor result is
 current ABI~2 evidence, and exact timing reproduction remains host- and
 toolchain-dependent.
+
+Independently of the review export, the research-alpha binaries are published as immutable
+GitHub prereleases bound to annotated tags, per-asset SHA-256 manifests, and GitHub
+immutable-release and build-provenance attestations: an Apple Developer~ID-signed static
+XCFramework revision, and one platform distribution containing the four-ABI Android AAR with an
+API~35 / 16\,KiB-page emulator runtime-evidence bundle, GNU/Linux x86\_64 and aarch64 SDK
+archives, and an unsigned experimental Windows x64 MSVC SDK. Machine-checked publication
+receipts are recorded in the repository evidence manifest and enforced by a fail-closed release
+contract. These remain research prereleases: no registry (crates.io, Maven Central,
+deb/rpm/MSIX) publication, Windows Authenticode, physical-Android coverage, independent
+certification, or FIPS validation is claimed.
 
 \section{The Machine-Checked Kernel in Detail}\label{app:kernel}
 \Cref{tab:lemmas} inventories the EasyCrypt development. Of the named results, all are fully
@@ -1239,10 +1260,10 @@ $95\%$ confidence intervals (arm64 host). \Cref{tab:loss} gives the jitter/loss 
 retransmission timeout and is, at $150$ samples, statistically indistinguishable across the three
 groups---hence we report it as ``RTO-dominated, transport-bound'' rather than as a per-group claim.
 Current-source local footprint (platform/toolchain-dependent,
-\code{paper/footprint.csv}): on Darwin~27.0.0 arm64 with Rust~1.96.0,
+\code{paper/footprint.csv}): on Darwin~27.0.0 arm64 with Rust~1.96.1,
 \code{wasm-pack}~0.15.0, and Homebrew LLVM Clang~22.1.8, the stripped native ABI~2
 library is $667.8$\,KiB, lean WebAssembly is $97.7$\,KiB, and signed-policy
-WebAssembly is $332.6$\,KiB. These are local diagnostics rather than signed
+WebAssembly is $332.3$\,KiB. These are local diagnostics rather than signed
 provenance or cross-platform package-size evidence; regenerate each claimed
 platform/toolchain from the selected source.
 
