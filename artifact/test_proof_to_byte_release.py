@@ -15,6 +15,7 @@ import os
 import pathlib
 import re
 import secrets
+import shlex
 import shutil
 import stat
 import subprocess
@@ -743,6 +744,102 @@ def format_marker(*states: int) -> str:
 
 
 class BoundVerifierWiringTests(unittest.TestCase):
+    def test_android_release_gate_binds_every_verifier_argument(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        gate_start = source.index(
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n'
+            '\ttest -f "$ANDROID_PROOF"'
+        )
+        gate_end = source.index(
+            '\nif [ "$REQUIRE_PERFORMANCE" = "1" ]; then', gate_start
+        )
+        gate_lines = source[gate_start:gate_end].splitlines()
+
+        commands: list[list[str]] = []
+        command_spans: list[tuple[int, int]] = []
+        command_prefix = "python3 artifact/android_device_proof.py verify \\"
+        for index, line in enumerate(gate_lines):
+            if line.strip() != command_prefix:
+                continue
+            fragments = [command_prefix.removesuffix(" \\")]
+            cursor = index + 1
+            while cursor < len(gate_lines):
+                fragment = gate_lines[cursor].strip()
+                continued = fragment.endswith("\\")
+                fragments.append(fragment[:-1].rstrip() if continued else fragment)
+                if not continued:
+                    break
+                cursor += 1
+            else:
+                self.fail("Android verifier command has no terminating argument")
+            commands.append(shlex.split(" ".join(fragments)))
+            command_spans.append((index, cursor))
+
+        base = [
+            "python3",
+            "artifact/android_device_proof.py",
+            "verify",
+            "--root",
+            "$ROOT",
+            "--proof",
+            "$ANDROID_PROOF",
+            "--max-age-seconds",
+            "$ANDROID_MAX_AGE_SECONDS",
+        ]
+        expected_kind = ["--expected-device-kind", "$EXPECTED_KIND"]
+        release_contract = [
+            "--expected-device-abi",
+            "$EXPECTED_ANDROID_DEVICE_ABI",
+            "--expected-page-size",
+            "16384",
+            "--expected-device-sdk",
+            "35",
+            "--require-release-mode",
+            "--results-manifest",
+            "$RESULTS_MANIFEST",
+            "--expected-results-manifest-sha256",
+            "$RESULTS_MANIFEST_SHA256",
+        ]
+        allow_dirty = ["--allow-dirty-proof"]
+        self.assertEqual(
+            commands,
+            [
+                [*base, *expected_kind, *release_contract, *allow_dirty],
+                [*base, *release_contract, *allow_dirty],
+                [*base, *expected_kind, *release_contract],
+                [*base, *release_contract],
+            ],
+        )
+
+        scaffold_lines = gate_lines.copy()
+        for start, end in reversed(command_spans):
+            indentation = scaffold_lines[start][
+                : len(scaffold_lines[start]) - len(scaffold_lines[start].lstrip())
+            ]
+            scaffold_lines[start : end + 1] = [f"{indentation}<ANDROID_VERIFY>"]
+        branch_start = scaffold_lines.index(
+            '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then'
+        )
+        pass_marker = scaffold_lines.index("\tANDROID_RUNTIME_PASSED=1")
+        self.assertEqual(
+            scaffold_lines[branch_start:pass_marker],
+            [
+                '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then',
+                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\telse",
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\tfi",
+                "\telse",
+                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\telse",
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\tfi",
+                "\tfi",
+            ],
+        )
+
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))

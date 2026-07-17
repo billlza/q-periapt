@@ -671,6 +671,7 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--expected-device-kind "$EXPECTED_KIND" \
 				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
 				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
 				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
@@ -682,6 +683,7 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
 				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
 				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
 				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
@@ -696,6 +698,7 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--expected-device-kind "$EXPECTED_KIND" \
 				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
 				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
 				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
@@ -706,11 +709,12 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
 				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
 				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
 				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 		fi
-		fi
+	fi
 	ANDROID_RUNTIME_PASSED=1
 	printf 'PROOF_TO_BYTE_ANDROID_RUNTIME_PASS\n'
 fi

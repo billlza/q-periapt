@@ -292,6 +292,38 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             require_release_mode=True,
         )
 
+    def test_device_kind_matches_explicit_expectation(self) -> None:
+        proof = complete_proof_shape()
+        proof["release_candidate_mode"] = True
+        for actual_kind, other_kind in (
+            ("emulator", "physical"),
+            ("physical", "emulator"),
+        ):
+            with self.subTest(actual_kind=actual_kind):
+                proof["device"]["kind"] = actual_kind
+                android_device_proof.verify_device_metadata(
+                    proof,
+                    expected_device_kind=actual_kind,
+                    expected_device_abi="arm64-v8a",
+                    expected_page_size=16384,
+                    expected_device_sdk=35,
+                    require_release_mode=True,
+                )
+                with self.assertRaisesRegex(
+                    SystemExit,
+                    re.escape(
+                        f"expected Android device kind {other_kind}, got {actual_kind}"
+                    ),
+                ):
+                    android_device_proof.verify_device_metadata(
+                        proof,
+                        expected_device_kind=other_kind,
+                        expected_device_abi="arm64-v8a",
+                        expected_page_size=16384,
+                        expected_device_sdk=35,
+                        require_release_mode=True,
+                    )
+
     def test_release_device_metadata_rejects_4k_device(self) -> None:
         proof = {
             "release_candidate_mode": True,
