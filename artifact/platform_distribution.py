@@ -58,8 +58,8 @@ from windows_package import (
 SCHEMA_VERSION = 1
 KIND = "qperiapt.abi2_platform_distribution"
 PRODUCT_VERSION = PACKAGE_SEMVER
-DISTRIBUTION_REVISION = "r1"
-RELEASE_TAG = "abi2-platforms-v0.1.0-alpha.2-r1"
+DISTRIBUTION_REVISION = "r2"
+RELEASE_TAG = "abi2-platforms-v0.1.0-alpha.2-r2"
 RELEASE_MANIFEST = "PLATFORM_DISTRIBUTION.json"
 RELEASE_SUMS = "SHA256SUMS"
 ANDROID_AAR = "q-periapt-android-0.1.0-alpha.2.aar"

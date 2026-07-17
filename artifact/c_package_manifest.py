@@ -277,20 +277,63 @@ def _inventory(root: pathlib.Path) -> dict[str, pathlib.Path]:
     return files
 
 
-def _source_tree_hash(repository: pathlib.Path) -> str:
+def rust_workspace_source_digest(repository: pathlib.Path) -> str:
+    """Return the canonical schema-2 Rust workspace source digest."""
+
+    original_repository = pathlib.Path(repository)
+    try:
+        repository_metadata = original_repository.lstat()
+        repository = original_repository.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        fail(f"cannot inspect Rust workspace repository root: {exc}")
+    require(
+        stat.S_ISDIR(repository_metadata.st_mode)
+        and not original_repository.is_symlink(),
+        "Rust workspace repository root must be a non-symlink directory",
+    )
     candidates: dict[str, pathlib.Path] = {}
     for relative in RUST_WORKSPACE_INPUTS:
         source = repository / relative
-        require(source.exists() and not source.is_symlink(), f"source-tree input is missing or unsafe: {relative}")
-        if source.is_file():
+        try:
+            source_metadata = source.lstat()
+        except OSError as exc:
+            fail(f"cannot inspect Rust workspace source input {relative}: {exc}")
+        require(
+            not source.is_symlink(),
+            f"Rust workspace source input is a symlink: {relative}",
+        )
+        if stat.S_ISREG(source_metadata.st_mode):
+            require(relative not in candidates, f"duplicate Rust workspace source path: {relative}")
             candidates[relative] = source
-        else:
-            for path in sorted(source.rglob("*"), key=lambda item: item.as_posix()):
+            continue
+        require(
+            stat.S_ISDIR(source_metadata.st_mode),
+            f"Rust workspace source input has unsupported type: {relative}",
+        )
+        try:
+            descendants = sorted(source.rglob("*"), key=lambda item: item.as_posix())
+        except OSError as exc:
+            fail(f"cannot enumerate Rust workspace source input {relative}: {exc}")
+        for path in descendants:
+            try:
                 metadata = path.lstat()
-                require(not path.is_symlink(), f"source-tree input contains symlink: {path}")
-                require(stat.S_ISDIR(metadata.st_mode) or stat.S_ISREG(metadata.st_mode), f"source-tree input has unsupported entry: {path}")
-                if stat.S_ISREG(metadata.st_mode):
-                    candidates[path.relative_to(repository).as_posix()] = path
+            except OSError as exc:
+                fail(f"cannot inspect Rust workspace source entry {path}: {exc}")
+            require(
+                not path.is_symlink(),
+                f"Rust workspace source input contains symlink: {path}",
+            )
+            require(
+                stat.S_ISDIR(metadata.st_mode) or stat.S_ISREG(metadata.st_mode),
+                f"Rust workspace source input has unsupported entry: {path}",
+            )
+            if stat.S_ISREG(metadata.st_mode):
+                relative_path = path.relative_to(repository).as_posix()
+                require(
+                    relative_path not in candidates,
+                    f"duplicate Rust workspace source path: {relative_path}",
+                )
+                candidates[relative_path] = path
     require(bool(candidates), "Rust workspace build-input closure is empty")
     digest = hashlib.sha256()
     for relative, path in sorted(candidates.items()):
@@ -497,7 +540,7 @@ def verify_package(
         require(isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None, f"C package source-input digest is malformed: {key}")
     for key, relative in SOURCE_INPUT_PATHS.items():
         require(source_inputs[key] == _snapshot(repository / relative, f"source input {relative}").sha256, f"C package source-input digest differs: {relative}")
-    require(source_inputs["rust_workspace_build_inputs"] == _source_tree_hash(repository), "C package Rust workspace source digest differs")
+    require(source_inputs["rust_workspace_build_inputs"] == rust_workspace_source_digest(repository), "C package Rust workspace source digest differs")
     require(source_inputs["third_party_rust_license_inventory"] == _snapshot(root.joinpath(*THIRD_PARTY_INVENTORY_RELATIVE.parts), "third-party Rust inventory").sha256, "C package third-party inventory source digest differs")
 
     _validate_licenses(root, repository)

@@ -13,7 +13,7 @@ fi
 
 CANDIDATE_DIR=$1
 EXPECTED_COMMIT=$2
-RELEASE_TAG=abi2-platforms-v0.1.0-alpha.2-r1
+RELEASE_TAG=abi2-platforms-v0.1.0-alpha.2-r2
 RELEASE_REF=refs/tags/$RELEASE_TAG
 REPOSITORY=billlza/q-periapt
 SIGNER_WORKFLOW=billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml

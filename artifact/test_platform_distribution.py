@@ -367,6 +367,10 @@ class PlatformDistributionTests(unittest.TestCase):
         first_output = self.root / "release-first"
         first = self._assemble(first_output)
         self.assertEqual(6, len(first["assets"]))
+        self.assertEqual("r2", first["distribution_revision"])
+        self.assertEqual(
+            "abi2-platforms-v0.1.0-alpha.2-r2", first["release_tag"]
+        )
         self.assertFalse(
             next(
                 asset
