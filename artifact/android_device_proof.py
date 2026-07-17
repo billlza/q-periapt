@@ -47,10 +47,11 @@ from proof_manifest import (
     load_results_manifest_snapshot,
     select_bound_json_snapshot,
 )
+from platform_release_contract import ANDROID_DEVICE_PROOF_SCHEMA_VERSION
 from release_binary_scan import ReleaseBinaryScanError, scan_release_file
 
 
-PROOF_SCHEMA_VERSION = 3
+PROOF_SCHEMA_VERSION = ANDROID_DEVICE_PROOF_SCHEMA_VERSION
 RESULT_SCHEMA_VERSION = 1
 PASS_MARKER = "QPERIAPT_ANDROID_DEVICE_PASS"
 FAIL_MARKER = "QPERIAPT_ANDROID_DEVICE_FAIL"

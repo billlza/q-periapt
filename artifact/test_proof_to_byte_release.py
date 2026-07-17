@@ -39,6 +39,9 @@ CAMERA_SANDBOX_SCRIPT = ROOT / "artifact" / "camera-ready-sandbox.sh"
 ARTIFACT_GUIDE = ROOT / "ARTIFACT.md"
 PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+CODEQL_WORKFLOW = ROOT / ".github" / "workflows" / "codeql.yml"
+DEPENDABOT_CONFIG = ROOT / ".github" / "dependabot.yml"
+SECURITY_POLICY = ROOT / "SECURITY.md"
 ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
     ROOT / ".github" / "workflows" / "abi2-platform-candidate.yml"
 )
@@ -600,6 +603,8 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
 
 ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "codeql_workflow_sha256": ".github/workflows/codeql.yml",
+    "dependabot_config_sha256": ".github/dependabot.yml",
     "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
     "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
     "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
@@ -618,9 +623,12 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "package_bom_sha256": "artifact/package_bom.py",
     "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
+    "platform_release_contract_sha256": "artifact/platform_release_contract.py",
+    "platform_release_contract_tests_sha256": "artifact/test_platform_release_contract.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "release_binary_scan_sha256": "artifact/release_binary_scan.py",
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "security_policy_sha256": "SECURITY.md",
     "third_party_licenses_sha256": "artifact/third_party_licenses.py",
     "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
     "windows_msvc_version_probe_sha256": "artifact/msvc-version-probe.c",
@@ -744,6 +752,88 @@ def format_marker(*states: int) -> str:
 
 
 class BoundVerifierWiringTests(unittest.TestCase):
+    def test_every_workflow_action_is_full_sha_pinned(self) -> None:
+        action_ref = re.compile(
+            r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+            r"(?:/[A-Za-z0-9_.-]+)*@([0-9a-f]{40})$"
+        )
+        workflows = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
+        self.assertTrue(workflows)
+        action_count = 0
+        for workflow in workflows:
+            source = workflow.read_text(encoding="utf-8")
+            references = re.findall(r"(?m)^\s*-?\s*uses:\s*([^\s#]+)", source)
+            self.assertTrue(references, workflow.relative_to(ROOT))
+            for reference in references:
+                with self.subTest(
+                    workflow=workflow.relative_to(ROOT), reference=reference
+                ):
+                    self.assertIsNotNone(action_ref.fullmatch(reference))
+                action_count += 1
+        self.assertGreater(action_count, 20)
+
+    def test_codeql_covers_all_detected_languages_with_real_builds(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("continue-on-error:", source)
+        self.assertNotIn("id-token:", source)
+        self.assertIn("security-events: write", source)
+        matrix_entries = re.findall(
+            r"(?m)^          - language: ([a-z-]+)\n"
+            r"            build_mode: ([a-z]+)\n"
+            r"            runner: ([a-z-]+)$",
+            source,
+        )
+        self.assertEqual(
+            matrix_entries,
+            [
+                ("actions", "none", "ubuntu-latest"),
+                ("c-cpp", "none", "ubuntu-latest"),
+                ("java-kotlin", "manual", "ubuntu-latest"),
+                ("python", "none", "ubuntu-latest"),
+                ("rust", "none", "ubuntu-latest"),
+                ("swift", "manual", "macos-latest"),
+            ],
+        )
+        self.assertIn(
+            "gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail",
+            source,
+        )
+        self.assertIn(
+            "swift test --package-path bindings/swift -Xlinker "
+            "-L${{ github.workspace }}/target/release",
+            source,
+        )
+        self.assertEqual(source.count("cargo build --locked -p q-periapt-ffi --release"), 2)
+        self.assertIn("queries: security-extended", source)
+        self.assertIn("threat-models: [local]", source)
+
+    def test_dependency_monitoring_and_private_reporting_policy_are_explicit(self) -> None:
+        dependabot = DEPENDABOT_CONFIG.read_text(encoding="utf-8")
+        configured = re.findall(
+            r"(?m)^  - package-ecosystem: ([a-z-]+)\n"
+            r"    directory: ([^\n]+)$",
+            dependabot,
+        )
+        self.assertEqual(
+            configured,
+            [
+                ("cargo", "/"),
+                ("cargo", "/fuzz"),
+                ("cargo", "/research/hqc-fips207-candidate"),
+                ("gradle", "/bindings/kotlin"),
+                ("swift", "/bindings/swift"),
+                ("docker", "/formal"),
+                ("github-actions", "/"),
+            ],
+        )
+        self.assertNotIn("target-branch:", dependabot)
+        self.assertNotIn("ignore:", dependabot)
+        self.assertNotIn("groups:", dependabot)
+        policy = SECURITY_POLICY.read_text(encoding="utf-8")
+        self.assertIn("Report a vulnerability", policy)
+        self.assertIn("unsigned experimental prerelease", policy)
+        self.assertIn("do not provide Authenticode publisher identity", policy)
+
     def test_android_release_gate_binds_every_verifier_argument(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         gate_start = source.index(
