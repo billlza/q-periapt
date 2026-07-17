@@ -574,10 +574,10 @@
     ]
   },
   "swift_xcframework": {
-    "boundary": "This is the public immutable Developer ID-signed Apple-only static XCFramework prerelease for SwiftPM binaryTarget consumption. GitHub release attestation and the exact four public asset digests have been verified; a fresh remote URL consumer verification is recorded separately only after it runs against this committed publication state. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning.",
+    "boundary": "This is the public immutable Developer ID-signed Apple-only static XCFramework prerelease for SwiftPM binaryTarget consumption. GitHub release attestation and the exact four public asset digests have been verified, and a fresh remote URL consumer verification ran against the committed publication state recorded below. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning.",
     "command": "QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0-alpha.2-r1 QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT=5664fd86a617f92b620ea37e7692d3417d0e307d sh artifact/swift-xcframework-release.sh",
-    "current_local_status": "The 2026-07-17 public immutable r1 prerelease was built from source commit 5664fd86a617f92b620ea37e7692d3417d0e307d with Rust 1.96.1, Cargo 1.96.1, Xcode 26.6, and Swift 6.3.3. All five Apple Rust targets, exact nine-symbol ABI2 exports, schema-3 distribution identity, schema-5 manifest toolchain identity, static-archive path hygiene, strict Developer ID signature, deterministic ZIP, three isolated SwiftPM product tests, macOS universal link/runtime, and iOS device/simulator links passed. The exact four published assets match the pinned hashes, GitHub reports the release immutable, and its release attestation verifies. Fresh remote URL consumer verification remains a distinct post-publication observation until recorded below.",
-    "current_source_status": "public_immutable_release_pending_remote_verification",
+    "current_local_status": "The 2026-07-17 public immutable r1 prerelease was built from source commit 5664fd86a617f92b620ea37e7692d3417d0e307d with Rust 1.96.1, Cargo 1.96.1, Xcode 26.6, and Swift 6.3.3. All five Apple Rust targets, exact nine-symbol ABI2 exports, schema-3 distribution identity, schema-5 manifest toolchain identity, static-archive path hygiene, strict Developer ID signature, deterministic ZIP, three isolated SwiftPM product tests, macOS universal link/runtime, and iOS device/simulator links passed. The exact four published assets match the pinned hashes, GitHub reports the release immutable, and its release attestation verifies. A fresh remote URL consumer at verifier commit d93a7cab2e00ce1036f6b218eef01bb889cb60a9 redownloaded and reverified all four assets, executed exactly three passing XCTest cases, and passed macOS universal plus iOS device/simulator link checks.",
+    "current_source_status": "public_immutable_remote_consumer_verified",
     "distribution": {
       "apple_distribution_evidence_sha256": "5d92029803d66864b1b964ccb539f6e613a97be57b084cc845e178cbcb2b415b",
       "artifact_path": "CQPeriapt.xcframework.zip",
@@ -596,11 +596,11 @@
       "release_revision": "r1",
       "release_tag": "v0.1.0-alpha.2-r1",
       "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
-      "remote_consumer_verified": false,
+      "remote_consumer_verified": true,
       "remote_verification": {
-        "log_sha256": null,
-        "verified_at": null,
-        "verifier_commit": null
+        "log_sha256": "a6bfd03d1f9c558d99929ced8e2580c02bb7ea61dd395984c1fcb87be5c14d38",
+        "verified_at": "2026-07-17T05:25:50Z",
+        "verifier_commit": "d93a7cab2e00ce1036f6b218eef01bb889cb60a9"
       },
       "source_commit": "5664fd86a617f92b620ea37e7692d3417d0e307d",
       "stapled": false,
