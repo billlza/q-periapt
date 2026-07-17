@@ -162,6 +162,53 @@ $savedHome = $env:HOME
 try {
     $env:RUSTFLAGS = "-D warnings"
     $env:CARGO_INCREMENTAL = "0"
+
+    $whoami = Join-Path ([System.Environment]::SystemDirectory) "whoami.exe"
+    $where = Join-Path ([System.Environment]::SystemDirectory) "where.exe"
+    foreach ($executable in @($whoami, $where)) {
+        if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "required zero-argument process fixture is unavailable"
+        }
+    }
+    Invoke-Checked `
+        -FilePath $whoami `
+        -Arguments ([string[]] @()) `
+        -RedactArguments
+    Invoke-Checked `
+        -FilePath $whoami `
+        -Arguments @("/user") `
+        -RedactArguments
+    foreach ($functionName in @("Invoke-Captured", "Invoke-Checked")) {
+        foreach ($invalidArguments in @($null, "")) {
+            $rejectedInvalidArguments = $false
+            try {
+                [void] (& $functionName `
+                    -FilePath $whoami `
+                    -Arguments $invalidArguments `
+                    -RedactArguments)
+            }
+            catch {
+                $rejectedInvalidArguments = $true
+                if ($_.Exception.GetType().FullName -cne
+                    "System.Management.Automation.ParameterBindingValidationException") {
+                    throw "invalid process arguments failed outside parameter binding"
+                }
+            }
+            if (-not $rejectedInvalidArguments) {
+                throw "invalid process arguments unexpectedly passed parameter binding"
+            }
+        }
+    }
+    Assert-Fails `
+        -Label "zero-argument native command nonzero exit" `
+        -ExpectedMessage "<redacted invocation and output>" `
+        -Action {
+        Invoke-Checked `
+            -FilePath $where `
+            -Arguments ([string[]] @()) `
+            -RedactArguments
+    }
+
     Assert-TrustedBuildEnvironment
     foreach ($name in @(
         "CL",

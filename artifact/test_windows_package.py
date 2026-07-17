@@ -2710,6 +2710,43 @@ class WindowsPackageManifestTests(unittest.TestCase):
             2,
             len(re.findall(r"(?m)^Assert-TrustedBuildEnvironment$", script)),
         )
+        invoke_captured = re.search(
+            r"function Invoke-Captured \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Invoke-Checked",
+            script,
+            flags=re.DOTALL,
+        )
+        invoke_checked = re.search(
+            r"function Invoke-Checked \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Invoke-PythonChecked",
+            script,
+            flags=re.DOTALL,
+        )
+        for process_wrapper in (invoke_captured, invoke_checked):
+            self.assertIsNotNone(process_wrapper)
+            assert process_wrapper is not None
+            wrapper_body = process_wrapper.group("body")
+            self.assertRegex(
+                wrapper_body,
+                r"\[Parameter\(Mandatory\)\]\s*"
+                r"\[AllowEmptyCollection\(\)\]\s*"
+                r"\[string\[\]\] \$Arguments",
+            )
+            self.assertNotIn("[AllowNull()]", wrapper_body)
+            self.assertNotIn("[AllowEmptyString()]", wrapper_body)
+        self.assertEqual(2, script.count("[AllowEmptyCollection()]"))
+        self.assertEqual(
+            1,
+            script.count(
+                "Invoke-Checked -FilePath $dynamicExe -Arguments @()"
+            ),
+        )
+        self.assertEqual(
+            1,
+            script.count(
+                "Invoke-Checked -FilePath $staticExe -Arguments @()"
+            ),
+        )
         self.assertLess(
             script.index("Assert-TrustedBuildEnvironment"),
             script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
@@ -2884,6 +2921,13 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertIn("Assert-RejectsEnvironmentOverride", toolchain_test)
         self.assertIn("Resolve-TrustedCommandProcessor", toolchain_test)
         self.assertIn("Set-TrustedMsvcPath", toolchain_test)
+        self.assertIn('"whoami.exe"', toolchain_test)
+        self.assertIn('"where.exe"', toolchain_test)
+        self.assertIn("-Arguments ([string[]] @())", toolchain_test)
+        self.assertIn(
+            "ParameterBindingValidationException",
+            toolchain_test,
+        )
         self.assertIn("different Visual Studio installation", toolchain_test)
         self.assertIn("non-file PATH linker", toolchain_test)
         self.assertIn("reparse-point bare linker provider", toolchain_test)

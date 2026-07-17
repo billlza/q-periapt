@@ -45,7 +45,9 @@ $Python = (Get-Command python -ErrorAction Stop).Source
 function Invoke-Captured {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
-        [Parameter(Mandatory)] [string[]] $Arguments,
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [string[]] $Arguments,
         [switch] $Echo,
         [switch] $RedactArguments
     )
@@ -105,7 +107,9 @@ function Invoke-Captured {
 function Invoke-Checked {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
-        [Parameter(Mandatory)] [string[]] $Arguments,
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [string[]] $Arguments,
         [switch] $RedactArguments
     )
     [void] (Invoke-Captured `
