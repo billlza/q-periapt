@@ -417,6 +417,95 @@
     }
   },
   "purpose": "Expected-result manifest so a reviewer can detect data drift. Selected hashes and the canonical execution-input digest are checked before execution. That digest excludes only artifact/results.json and paper/camera-ready-results.txt to avoid self-reference. The transcript and selected proofs are bound by named path/hash fields in this manifest; the manifest root itself must be bound by clean committed or signed release provenance. Formal, package, and device evidence remain separately scoped.",
+  "release_publications": {
+    "platform_r2": {
+      "boundary": "This is a repository-local observation receipt for the public immutable ABI 2 Android, GNU/Linux, and Windows prerelease. The trust roots are the annotated release tag, GitHub release attestation, the exact downloaded asset hashes, SHA256SUMS, and PLATFORM_DISTRIBUTION.json; this receipt is a results-only historical index and is not an input to the package producer or verifier. Six CI candidate subjects have build provenance attestations. The locally assembled Android runtime bundle, PLATFORM_DISTRIBUTION.json, and final SHA256SUMS are covered by the final release attestation and manifest/hash chain, not CI build provenance. Android runtime coverage is an API 35 arm64-v8a 16 KiB emulator, not a physical device. Windows remains an unsigned experimental prerelease without Authenticode publisher identity.",
+      "identity": {
+        "distribution_revision": "r2",
+        "product_version": "0.1.0-alpha.2",
+        "release_tag": "abi2-platforms-v0.1.0-alpha.2-r2",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.0-alpha.2-r2"
+      },
+      "observation": {
+        "android_runtime_evidence": {
+          "bundle_manifest_sha256": "3d64bdc325d6207134b347ce003b0307a85640c9dad068cbd4dff1915e59cc14",
+          "bundle_sha256": "7c4246103d58bac661fc8018d0cc160aa07eee99b831e7a90f35f049dc5d71cf",
+          "device_abi": "arm64-v8a",
+          "device_kind": "emulator",
+          "device_sdk": 35,
+          "page_size": 16384,
+          "proof_schema": 3,
+          "proof_sha256": "5cb1b775914141238270c88e1a7214e0d2dcb0e72ab32385283fec5b54ecdbad",
+          "tested_aar_sha256": "fb0f18496eefb7aee38ac4fecae77a9de666f107251839c4d73f3c24a6620d7d"
+        },
+        "assets": [
+          {
+            "bytes": 4470,
+            "name": "PLATFORM_DISTRIBUTION.json",
+            "sha256": "8c7ce16c38f71c0b0a572cdb96669481f5929843eb41ad31aa4b10e1ee961dbb"
+          },
+          {
+            "bytes": 813,
+            "name": "SHA256SUMS",
+            "sha256": "b00bb9b93782679241077a4f97af8c983871d12024721452150924cfd79ec729"
+          },
+          {
+            "bytes": 3094070,
+            "name": "q-periapt-android-0.1.0-alpha.2-16k-runtime-evidence.zip",
+            "sha256": "7c4246103d58bac661fc8018d0cc160aa07eee99b831e7a90f35f049dc5d71cf"
+          },
+          {
+            "bytes": 3934,
+            "name": "q-periapt-android-0.1.0-alpha.2-MANIFEST.json",
+            "sha256": "9026705524a7df8fb6dbaf545f060d27e9e97a32321fd43a25d8b2f5bd57fdec"
+          },
+          {
+            "bytes": 3535331,
+            "name": "q-periapt-android-0.1.0-alpha.2.aar",
+            "sha256": "fb0f18496eefb7aee38ac4fecae77a9de666f107251839c4d73f3c24a6620d7d"
+          },
+          {
+            "bytes": 1367909,
+            "name": "q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz",
+            "sha256": "930fa378402ae8b9bdf611674dde81b91eebb088a19a3124f7c935c65b0617f5"
+          },
+          {
+            "bytes": 1713826,
+            "name": "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip",
+            "sha256": "6d0336d28f06cb9693ffec1bec86fe106b774c9bd8f082747c072e86786eff8f"
+          },
+          {
+            "bytes": 1413633,
+            "name": "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz",
+            "sha256": "8f38b40aebd2efd1b6d5b007f0bd633f822d16a1f5869f3642147d7a651f906f"
+          }
+        ],
+        "candidate_attestation": {
+          "source_ref": "refs/tags/abi2-platforms-v0.1.0-alpha.2-r2",
+          "verified_subject_count": 6,
+          "workflow_run_id": 29555221955
+        },
+        "deep_distribution_verified": true,
+        "fresh_download_verified": true,
+        "immutable": true,
+        "observed_at": "2026-07-17T05:01:55Z",
+        "platform_distribution_manifest_sha256": "8c7ce16c38f71c0b0a572cdb96669481f5929843eb41ad31aa4b10e1ee961dbb",
+        "published_at": "2026-07-17T04:49:05Z",
+        "release_asset_verification_count": 8,
+        "release_attestation": {
+          "sha256": "3bc7950fb33e875b4279c116a94890b8742538fbfeae5c5d58be9fe0ca396b94",
+          "verified_subject_count": 9
+        },
+        "sha256s_sha256": "b00bb9b93782679241077a4f97af8c983871d12024721452150924cfd79ec729",
+        "source_tree_sha256": "7d1224619ab9992e3e10a6be61351835146473bbbc03c661ce8b5b0825078416",
+        "tag_commit": "5d1598f0ebf9c61e150e55ff398e457ca11f4629",
+        "tag_object": "01f120c8072c6b98d8d837a03b8599b3f373e90f",
+        "tag_tree": "e07b37df132032f0586412c43c6c58741723d6f3",
+        "verifier_commit": "5d1598f0ebf9c61e150e55ff398e457ca11f4629"
+      },
+      "status": "observed_public_immutable_fresh_download_verified"
+    }
+  },
   "rust_publish": {
     "boundary": "This section records a clean-tree pre-publication dry-run, not an upload or registry attestation. Any registry publication is independently evidenced by crates.io plus release provenance for the published versions; this section never asserts upload.",
     "command": "sh artifact/rust-publish-dry-run.sh",
@@ -485,10 +574,10 @@
     ]
   },
   "swift_xcframework": {
-    "boundary": "This is the current Developer ID-signed Apple-only static XCFramework release candidate for SwiftPM binaryTarget consumption. It is not yet a public or immutable GitHub release and has no remote-consumer claim. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning.",
+    "boundary": "This is the public immutable Developer ID-signed Apple-only static XCFramework prerelease for SwiftPM binaryTarget consumption. GitHub release attestation and the exact four public asset digests have been verified; a fresh remote URL consumer verification is recorded separately only after it runs against this committed publication state. The static SDK payload has no standalone executable or notarizable bundle, so SDK notarization and stapling are not applicable; the final consuming macOS app still requires its own signing and notarization, and the final iOS app requires signing and provisioning.",
     "command": "QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0-alpha.2-r1 QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT=5664fd86a617f92b620ea37e7692d3417d0e307d sh artifact/swift-xcframework-release.sh",
-    "current_local_status": "Current 2026-07-16 clean-tree signed r1 candidate built from source commit 5664fd86a617f92b620ea37e7692d3417d0e307d with Rust 1.96.1, Cargo 1.96.1, Xcode 26.6, and Swift 6.3.3. All five Apple Rust targets, exact nine-symbol ABI2 exports, schema-3 distribution identity, schema-5 manifest toolchain identity, static-archive path hygiene, strict Developer ID signature, deterministic ZIP, three isolated SwiftPM product tests, macOS universal link/runtime, and iOS device/simulator links passed. The exact four local assets and completion ledger agree. Public tag creation, immutable publication, GitHub attestation, fresh redownload, and remote consumer verification remain pending and are not represented as complete.",
-    "current_source_status": "signed_local_candidate_pending_publication",
+    "current_local_status": "The 2026-07-17 public immutable r1 prerelease was built from source commit 5664fd86a617f92b620ea37e7692d3417d0e307d with Rust 1.96.1, Cargo 1.96.1, Xcode 26.6, and Swift 6.3.3. All five Apple Rust targets, exact nine-symbol ABI2 exports, schema-3 distribution identity, schema-5 manifest toolchain identity, static-archive path hygiene, strict Developer ID signature, deterministic ZIP, three isolated SwiftPM product tests, macOS universal link/runtime, and iOS device/simulator links passed. The exact four published assets match the pinned hashes, GitHub reports the release immutable, and its release attestation verifies. Fresh remote URL consumer verification remains a distinct post-publication observation until recorded below.",
+    "current_source_status": "public_immutable_release_pending_remote_verification",
     "distribution": {
       "apple_distribution_evidence_sha256": "5d92029803d66864b1b964ccb539f6e613a97be57b084cc845e178cbcb2b415b",
       "artifact_path": "CQPeriapt.xcframework.zip",
@@ -496,14 +585,14 @@
       "artifact_size": 33325898,
       "checksums_sha256": "253a5888eb0f4eaae301ce2b7d59e1554369c4eeaa594f5939cdd6b9b0874e98",
       "distribution_signed": true,
-      "immutable_release": false,
+      "immutable_release": true,
       "manifest_sha256": "0eafcf6989fe40835e9f2550098d1165d958b6bbe27373ba5ead9ee1a1757439",
       "notarization_applicability": "not_applicable_static_sdk_payload",
       "notarized": false,
       "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
       "origin_signature_identity_class": "Developer ID Application",
       "origin_signature_team_id": "YKUPL7Z869",
-      "public_release": false,
+      "public_release": true,
       "release_revision": "r1",
       "release_tag": "v0.1.0-alpha.2-r1",
       "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
