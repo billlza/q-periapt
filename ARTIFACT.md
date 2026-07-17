@@ -57,10 +57,11 @@ synthetic merge commit for a pull request rather than `pull_request.head.sha`. T
 source freeze validates this commitment before emitting any proof marker, and malformed or
 mismatched values fail with exit status 2.
 
-The canonical source
-digest covers tracked plus ignored and visible untracked canonical source inputs under a fixed,
-verifier-owned ephemeral-output policy, except the two named generated evidence files,
-`artifact/results.json` and `paper/camera-ready-results.txt`. Worktree `.gitignore`,
+The canonical source digest covers tracked plus ignored and visible untracked canonical source
+inputs under a fixed, verifier-owned non-input policy: exact untracked regular files whose
+basename is `.DS_Store`, plus explicitly enumerated generated-output locations. It also excludes
+the two named generated evidence files, `artifact/results.json` and
+`paper/camera-ready-results.txt`. Worktree `.gitignore`,
 `.git/info/exclude`, and `core.excludesFile` cannot remove an input; any untracked `.gitignore`
 outside a fixed ephemeral-output prefix fails closed. The transcript is
 bound by its exact named hash in the manifest. When Apple-device, Apple-matrix, or performance
@@ -82,8 +83,9 @@ order, and repository-only script execution. Repository `.pyc`/`.pyo` files fail
 when ignored. This blocks adjacent forged bytecode and user-site/`.pth` startup injection; it does
 not attest the interpreter, standard library, dynamic libraries, OS, or privileged host. The
 camera-ready lane is separate: it uses fixed `/usr/bin/python3 -I -S` from its root-owned,
-read-only Git archive. The canonical digest is a source-input commitment after fixed generated
-prefixes are removed, not a hermetic proof that no build ever reads those prefixes; release-grade
+read-only Git archive. The canonical digest is a source-input commitment after explicit non-input
+exclusions are removed, not a hermetic proof that no build ever reads generated-output locations;
+release-grade
 source-to-binary closure still requires an isolated checkout and fresh per-lane output roots. The
 manifest root itself is intentionally outside the
 non-self-referential digest and **must** be bound by clean committed/signed release provenance

@@ -303,6 +303,72 @@ class GitProvenanceTests(unittest.TestCase):
         inspection = git_provenance.inspect_worktree(self.root)
         self.assertFalse(inspection.dirty, inspection.reasons)
 
+    def test_untracked_finder_metadata_is_a_fixed_policy_non_input(self) -> None:
+        baseline_paths = git_provenance.repository_paths(self.root)
+        metadata_paths = (
+            self.root / ".DS_Store",
+            self.root / "nested" / ".DS_Store",
+        )
+        for path in metadata_paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"Finder metadata\n")
+
+        paths = git_provenance.repository_paths(self.root)
+        self.assertEqual(paths, baseline_paths)
+        for path in metadata_paths:
+            self.assertNotIn(path.relative_to(self.root).as_posix(), paths)
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertFalse(inspection.dirty, inspection.reasons)
+
+    def test_finder_metadata_symlink_remains_an_untracked_input(self) -> None:
+        metadata = self.root / ".DS_Store"
+        metadata.symlink_to(self.tracked.name)
+
+        self.assertIn(".DS_Store", git_provenance.repository_paths(self.root))
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertTrue(inspection.dirty, inspection.reasons)
+        self.assertTrue(
+            any("untracked source-input paths" in reason for reason in inspection.reasons),
+            inspection.reasons,
+        )
+
+    def test_tracked_finder_metadata_remains_a_source_input(self) -> None:
+        metadata = self.root / ".DS_Store"
+        metadata.write_bytes(b"committed metadata\n")
+        self._git(self.root, "add", "-f", ".DS_Store")
+        self._git(self.root, "commit", "-qm", "track metadata fixture")
+
+        self.assertIn(".DS_Store", git_provenance.repository_paths(self.root))
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertFalse(inspection.dirty, inspection.reasons)
+
+        metadata.write_bytes(b"changed metadata\n")
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertTrue(inspection.dirty, inspection.reasons)
+        self.assertTrue(
+            any("tracked bytes differ" in reason for reason in inspection.reasons),
+            inspection.reasons,
+        )
+
+    def test_finder_metadata_policy_does_not_exclude_lookalikes(self) -> None:
+        lookalikes = {
+            ".DS_Store.json": "source metadata\n",
+            "lower/.ds_store": "lowercase source\n",
+            "upper/.DS_STORE": "uppercase source\n",
+            "appledouble/._.DS_Store": "AppleDouble source\n",
+            "nested/.DS_Store/payload.rs": "pub const VALUE: u8 = 7;\n",
+        }
+        for relative, content in lookalikes.items():
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+        paths = git_provenance.repository_paths(self.root)
+        for relative in lookalikes:
+            self.assertIn(relative, paths)
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertTrue(inspection.dirty, inspection.reasons)
+
     def test_untracked_fuzz_lockfile_is_a_source_input(self) -> None:
         lockfile = self.root / "fuzz" / "Cargo.lock"
         lockfile.parent.mkdir()

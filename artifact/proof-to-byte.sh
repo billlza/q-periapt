@@ -258,6 +258,7 @@ fi
 ANDROID_PROOF=
 ANDROID_MAX_AGE_SECONDS=
 EXPECTED_KIND=
+EXPECTED_ANDROID_DEVICE_ABI=
 if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 	if [ "${QPERIAPT_ANDROID_DEVICE_PROOF+x}" = "x" ]; then
 		ANDROID_DEVICE_PROOF=$QPERIAPT_ANDROID_DEVICE_PROOF
@@ -276,6 +277,14 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 		"" | emulator | physical) ;;
 		*)
 			printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND\n' >&2
+			exit 2
+			;;
+	esac
+	EXPECTED_ANDROID_DEVICE_ABI=${QPERIAPT_ANDROID_EXPECT_DEVICE_ABI:-arm64-v8a}
+	case "$EXPECTED_ANDROID_DEVICE_ABI" in
+		arm64-v8a | armeabi-v7a | x86 | x86_64) ;;
+		*)
+			printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI\n' >&2
 			exit 2
 			;;
 	esac
@@ -392,6 +401,11 @@ paths = {
     "proof_to_byte_script_sha256": "artifact/proof-to-byte.sh",
     "proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
+    "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
+    "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
+    "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
+    "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
     "evidence_io_sha256": "artifact/evidence_io.py",
     "evidence_io_tests_sha256": "artifact/test_evidence_io.py",
     "git_provenance_sha256": "artifact/git_provenance.py",
@@ -443,6 +457,22 @@ paths = {
     "rust_publish_contract_sha256": "artifact/rust_publish_contract.py",
     "rust_publish_contract_tests_sha256": "artifact/test_rust_publish_contract.py",
     "c_package_script_sha256": "artifact/c-package.sh",
+    "c_package_manifest_verifier_sha256": "artifact/c_package_manifest.py",
+    "c_package_manifest_tests_sha256": "artifact/test_c_package_manifest.py",
+    "deterministic_archive_sha256": "artifact/deterministic_archive.py",
+    "deterministic_archive_tests_sha256": "artifact/test_deterministic_archive.py",
+    "package_bom_sha256": "artifact/package_bom.py",
+    "release_binary_scan_sha256": "artifact/release_binary_scan.py",
+    "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "third_party_licenses_sha256": "artifact/third_party_licenses.py",
+    "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
+    "windows_msvc_version_probe_sha256": "artifact/msvc-version-probe.c",
+    "windows_package_script_sha256": "artifact/windows-package.ps1",
+    "windows_package_verifier_sha256": "artifact/windows_package.py",
+    "windows_package_tests_sha256": "artifact/test_windows_package.py",
+    "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
+    "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
+    "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
     "swift_xcframework_script_sha256": "artifact/swift-xcframework.sh",
     "swift_xcframework_release_script_sha256": "artifact/swift-xcframework-release.sh",
     "swift_xcframework_consumer_check_script_sha256": "artifact/swift-xcframework-consumer-check.sh",
@@ -464,6 +494,8 @@ paths = {
     "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
     "android_device_proof_verifier_sha256": "artifact/android_device_proof.py",
     "android_device_proof_tests_sha256": "artifact/test_android_device_proof.py",
+    "android_elf_verifier_sha256": "artifact/android_elf.py",
+    "android_elf_tests_sha256": "artifact/test_android_elf.py",
     "performance_gate_sha256": "artifact/performance_gate.py",
     "performance_gate_tests_sha256": "artifact/test_performance_gate.py",
     "performance_budgets_sha256": "artifact/performance-budgets.json",
@@ -637,6 +669,10 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
 				--expected-device-kind "$EXPECTED_KIND" \
+				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
+				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
+				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
 				--allow-dirty-proof
@@ -645,6 +681,10 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--root "$ROOT" \
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
+				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
+				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
+				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
 				--allow-dirty-proof
@@ -656,6 +696,10 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
 				--expected-device-kind "$EXPECTED_KIND" \
+				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
+				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
+				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 		else
@@ -663,10 +707,14 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 				--root "$ROOT" \
 				--proof "$ANDROID_PROOF" \
 				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
+				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
+				--expected-page-size 16384 \
+				--expected-device-sdk 35 \
+				--require-release-mode \
 				--results-manifest "$RESULTS_MANIFEST" \
 				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 		fi
-		fi
+	fi
 	ANDROID_RUNTIME_PASSED=1
 	printf 'PROOF_TO_BYTE_ANDROID_RUNTIME_PASS\n'
 fi

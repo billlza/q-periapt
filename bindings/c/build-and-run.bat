@@ -6,8 +6,8 @@ REM works even when cl.exe is not on PATH). Run from anywhere:  bindings\c\build
 setlocal enabledelayedexpansion
 cd /d "%~dp0\..\.."
 
-echo [1/4] cargo build -p q-periapt-ffi --release
-cargo build -p q-periapt-ffi --release --locked || exit /b 1
+echo [1/4] cargo +1.97.0 build -p q-periapt-ffi --release
+cargo +1.97.0 build -p q-periapt-ffi --release --locked || exit /b 1
 
 echo [2/4] locate MSVC (vswhere -^> vcvars64)
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"

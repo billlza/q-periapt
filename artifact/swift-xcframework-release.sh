@@ -86,13 +86,15 @@ if [ "$#" -ne 0 ]; then
 	exit 2
 fi
 
-VERSION="0.1.0-alpha.2"
+PRODUCT_VERSION="0.1.0-alpha.2"
+RELEASE_REVISION="r1"
+RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"
 EXPECTED_TEAM_ID="YKUPL7Z869"
 EXPECTED_IDENTITY_SHA1="2DA7764ED42B213AE04925B6261238B24C758FE1"
 EXPECTED_CERTIFICATE_SHA256="806673908A3DDCD558DCC8D3EF055085F1FFF100BDA0ACFB2E1315AFD652AC8D"
 
-if [ "${QPERIAPT_APPLE_RELEASE_CONFIRM:-}" != "$VERSION" ]; then
-	printf 'error: set QPERIAPT_APPLE_RELEASE_CONFIRM=%s to authorize this signed release\n' "$VERSION" >&2
+if [ "${QPERIAPT_APPLE_RELEASE_CONFIRM:-}" != "$RELEASE_TAG" ]; then
+	printf 'error: set QPERIAPT_APPLE_RELEASE_CONFIRM=%s to authorize this signed release\n' "$RELEASE_TAG" >&2
 	exit 2
 fi
 if [ "${QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK:-0}" != "0" ]; then
@@ -119,6 +121,18 @@ case "$SOURCE_COMMIT" in
 esac
 if [ "${#SOURCE_COMMIT}" -ne 40 ]; then
 	printf 'error: Apple release source commit must contain 40 hexadecimal digits\n' >&2
+	exit 2
+fi
+AUTHORIZED_SOURCE_COMMIT=${QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT:-}
+case "$AUTHORIZED_SOURCE_COMMIT" in
+	*[!0-9a-f]*|'')
+		printf 'error: QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT must be a canonical Git commit\n' >&2
+		exit 2
+		;;
+esac
+if [ "${#AUTHORIZED_SOURCE_COMMIT}" -ne 40 ] || \
+		[ "$AUTHORIZED_SOURCE_COMMIT" != "$SOURCE_COMMIT" ]; then
+	printf 'error: authorized Apple release source commit differs from clean HEAD\n' >&2
 	exit 2
 fi
 
@@ -293,12 +307,13 @@ QPERIAPT_INTERNAL_APPLE_IDENTITY_SHA1="$EXPECTED_IDENTITY_SHA1" \
 QPERIAPT_INTERNAL_APPLE_CERTIFICATE_SHA256="$EXPECTED_CERTIFICATE_SHA256" \
 QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT="$ROOT" \
 QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT="$SOURCE_COMMIT" \
+QPERIAPT_INTERNAL_APPLE_RELEASE_TAG="$RELEASE_TAG" \
 QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR="$SOURCE_OUT" \
 sh "$WORKTREE_ROOT/artifact/swift-xcframework.sh"
 
-SOURCE_DIST="$SOURCE_OUT/q-periapt-swift-$VERSION"
+SOURCE_DIST="$SOURCE_OUT/q-periapt-swift-$PRODUCT_VERSION"
 PUBLIC_OUT="$ROOT/target/qperiapt-swift-xcframework"
-PUBLIC_DIST="$PUBLIC_OUT/q-periapt-swift-$VERSION"
+PUBLIC_DIST="$PUBLIC_OUT/q-periapt-swift-$PRODUCT_VERSION"
 if [ ! -d "$SOURCE_DIST" ]; then
 	printf 'error: detached release completed without its public distribution directory\n' >&2
 	exit 1
@@ -361,7 +376,7 @@ if [ "$FINAL_WORKTREE_COMMIT" != "$SOURCE_COMMIT" ] || \
 fi
 COMPLETION_PENDING="$RELEASE_ROOT/completed.json.pending"
 COMPLETION_LEDGER="$RELEASE_ROOT/completed.json"
-python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST" <<'PY'
+python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST" "$PRODUCT_VERSION" "$RELEASE_REVISION" "$RELEASE_TAG" <<'PY'
 import hashlib
 import json
 import os
@@ -371,6 +386,9 @@ import sys
 ledger_path = pathlib.Path(sys.argv[1])
 source_commit = sys.argv[2]
 public_dist = pathlib.Path(sys.argv[3])
+product_version = sys.argv[4]
+release_revision = sys.argv[5]
+release_tag = sys.argv[6]
 names = (
     "CQPeriapt.xcframework.zip",
     "APPLE_DISTRIBUTION.json",
@@ -378,9 +396,14 @@ names = (
     "SHA256SUMS",
 )
 document = {
-    "schema_version": 1,
+    "schema_version": 2,
     "kind": "qperiapt.apple_static_xcframework_release_completion",
     "source_commit": source_commit,
+    "release_identity": {
+        "product_version": product_version,
+        "revision": release_revision,
+        "tag": release_tag,
+    },
     "public_assets_sha256": {
         name: hashlib.sha256((public_dist / name).read_bytes()).hexdigest()
         for name in names

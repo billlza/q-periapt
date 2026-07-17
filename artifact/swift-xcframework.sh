@@ -57,6 +57,16 @@ if [ "$#" -ne 0 ]; then
 fi
 
 APPLE_RELEASE_MODE=${QPERIAPT_INTERNAL_APPLE_RELEASE_MODE:-0}
+EXPECTED_PRODUCT_VERSION="0.1.0-alpha.2"
+RELEASE_REVISION="r1"
+RELEASE_TAG="v$EXPECTED_PRODUCT_VERSION-$RELEASE_REVISION"
+RELEASE_URL="https://github.com/billlza/q-periapt/releases/tag/$RELEASE_TAG"
+EXPECTED_RUSTC_VERSION="rustc 1.96.1 (31fca3adb 2026-06-26)"
+EXPECTED_CARGO_VERSION="cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RELEASE_RUST_HOST="aarch64-apple-darwin"
+EXPECTED_SWIFT_VERSION="swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101) Target: arm64-apple-macosx28.0"
+EXPECTED_XCODE_VERSION='Xcode 26.6
+Build version 17F113'
 case "$APPLE_RELEASE_MODE" in
 	0) ;;
 	1)
@@ -101,10 +111,15 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 			[ -z "${QPERIAPT_INTERNAL_APPLE_IDENTITY_SHA1:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_CERTIFICATE_SHA256:-}" ] || \
 			[ -z "${QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT:-}" ] || \
-			[ -z "${QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT:-}" ]; then
+			[ -z "${QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT:-}" ] || \
+			[ -z "${QPERIAPT_INTERNAL_APPLE_RELEASE_TAG:-}" ]; then
 			printf 'error: credentialed Apple release inputs are incomplete\n' >&2
 			exit 2
 		fi
+	if [ "$QPERIAPT_INTERNAL_APPLE_RELEASE_TAG" != "$RELEASE_TAG" ]; then
+		printf 'error: credentialed Apple release tag differs from the fixed revision\n' >&2
+		exit 2
+	fi
 fi
 
 if ! PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
@@ -260,6 +275,52 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	need openssl
 fi
 
+RUSTC_VERSION=$(rustc --version)
+CARGO_VERSION=$(cargo --version)
+RUST_HOST=$(rustc -vV | awk '/^host: / { print $2 }')
+SWIFT_VERSION=$(swift --version 2>&1 | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+XCODE_VERSION=$(xcodebuild -version)
+if [ "$RUSTC_VERSION" != "$EXPECTED_RUSTC_VERSION" ]; then
+	printf 'error: Swift release requires the exact Rust compiler: %s\n' "$RUSTC_VERSION" >&2
+	exit 2
+fi
+if [ "$CARGO_VERSION" != "$EXPECTED_CARGO_VERSION" ]; then
+	printf 'error: Swift release requires the exact Cargo version: %s\n' "$CARGO_VERSION" >&2
+	exit 2
+fi
+case "$RUST_HOST" in
+	aarch64-apple-darwin | x86_64-apple-darwin) ;;
+	*)
+		printf 'error: Swift release requires an Apple Rust host: %s\n' "$RUST_HOST" >&2
+		exit 2
+		;;
+esac
+if [ "$APPLE_RELEASE_MODE" = "1" ]; then
+	if [ "$RUST_HOST" != "$EXPECTED_RELEASE_RUST_HOST" ]; then
+		printf 'error: signed Apple release requires Rust host %s\n' "$EXPECTED_RELEASE_RUST_HOST" >&2
+		exit 2
+	fi
+	if [ "$SWIFT_VERSION" != "$EXPECTED_SWIFT_VERSION" ]; then
+		printf 'error: signed Apple release requires the fixed Swift toolchain\n' >&2
+		exit 2
+	fi
+	if [ "$XCODE_VERSION" != "$EXPECTED_XCODE_VERSION" ]; then
+		printf 'error: signed Apple release requires the fixed Xcode toolchain\n' >&2
+		exit 2
+	fi
+fi
+
+assert_toolchain_snapshot() {
+	if [ "$(rustc --version)" != "$RUSTC_VERSION" ] || \
+			[ "$(cargo --version)" != "$CARGO_VERSION" ] || \
+			[ "$(rustc -vV | awk '/^host: / { print $2 }')" != "$RUST_HOST" ] || \
+			[ "$(swift --version 2>&1 | tr '\n' ' ' | sed 's/[[:space:]]*$//')" != "$SWIFT_VERSION" ] || \
+			[ "$(xcodebuild -version)" != "$XCODE_VERSION" ]; then
+		printf 'error: Apple release toolchain changed during package construction\n' >&2
+		exit 2
+	fi
+}
+
 if [ "${QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK:-0}" != "1" ]; then
 	if ! SOURCE_STATUS=$(release_git status --porcelain=v1); then
 		printf 'error: unable to inspect the Swift XCFramework source worktree\n' >&2
@@ -309,7 +370,7 @@ assert_release_source_snapshot() {
 }
 assert_release_source_snapshot
 
-VERSION=$(cargo metadata --locked --format-version 1 --no-deps | python3 -c '
+PRODUCT_VERSION=$(cargo metadata --locked --format-version 1 --no-deps | python3 -c '
 import json
 import sys
 
@@ -321,11 +382,10 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
-if [ "$VERSION" != "0.1.0-alpha.2" ]; then
-	printf 'error: Swift ABI2 package version mismatch: got %s, expected 0.1.0-alpha.2\n' "$VERSION" >&2
+if [ "$PRODUCT_VERSION" != "$EXPECTED_PRODUCT_VERSION" ]; then
+	printf 'error: Swift ABI2 package version mismatch: got %s, expected %s\n' "$PRODUCT_VERSION" "$EXPECTED_PRODUCT_VERSION" >&2
 	exit 1
 fi
-RUST_HOST=$(rustc -vV | awk '/^host: / { print $2 }')
 RUST_LLVM_TOOLS="$(rustc --print sysroot)/lib/rustlib/$RUST_HOST/bin"
 LLVM_NM="$RUST_LLVM_TOOLS/llvm-nm"
 if [ ! -x "$LLVM_NM" ]; then
@@ -343,7 +403,7 @@ fi
 OUT_ROOT=${QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR:-"$ROOT/target/qperiapt-swift-xcframework"}
 require_under_target "$OUT_ROOT" "QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR"
 
-PACKAGE_NAME="q-periapt-swift-$VERSION"
+PACKAGE_NAME="q-periapt-swift-$PRODUCT_VERSION"
 WORK="$OUT_ROOT/work"
 DIST="$OUT_ROOT/$PACKAGE_NAME"
 HEADERS="$WORK/Headers"
@@ -597,7 +657,7 @@ if [ -n "$missing_targets" ]; then
 fi
 
 printf 'Q-Periapt Swift XCFramework package\n'
-printf 'version : %s\n' "$VERSION"
+printf 'version : %s\n' "$PRODUCT_VERSION"
 printf 'out     : %s\n' "$DIST"
 printf 'rustc   : %s\n' "$(rustc --version)"
 printf 'swift   : %s\n' "$(swift --version 2>&1 | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
@@ -973,7 +1033,8 @@ fi
 
 printf '\n=== Release manifest ===\n'
 assert_release_source_snapshot
-python3 - "$ROOT" "$DIST" "$VERSION" "$SWIFTPM_CHECKSUM" "$required_targets" "$MANIFEST" "$APPLE_RELEASE_MODE" "$APPLE_DISTRIBUTION" "$SOURCE_COMMIT" "$CONSUMER_LOG" "$APPLE_CONSUMER_EVIDENCE" <<'PY'
+assert_toolchain_snapshot
+python3 - "$ROOT" "$DIST" "$PRODUCT_VERSION" "$RELEASE_REVISION" "$RELEASE_TAG" "$RELEASE_URL" "$SWIFTPM_CHECKSUM" "$required_targets" "$MANIFEST" "$APPLE_RELEASE_MODE" "$APPLE_DISTRIBUTION" "$SOURCE_COMMIT" "$CONSUMER_LOG" "$APPLE_CONSUMER_EVIDENCE" "$RUSTC_VERSION" "$CARGO_VERSION" "$RUST_HOST" "$SWIFT_VERSION" "$XCODE_VERSION" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -984,14 +1045,22 @@ import sys
 root = pathlib.Path(sys.argv[1]).resolve()
 dist = pathlib.Path(sys.argv[2]).resolve()
 version = sys.argv[3]
-swiftpm_checksum = sys.argv[4]
-targets = sys.argv[5].split()
-manifest_path = pathlib.Path(sys.argv[6]).resolve()
-apple_release_mode = sys.argv[7] == "1"
-apple_distribution_path = pathlib.Path(sys.argv[8]).resolve()
-source_commit = sys.argv[9]
-consumer_log = pathlib.Path(sys.argv[10]).resolve()
-apple_consumer_evidence = pathlib.Path(sys.argv[11]).resolve()
+release_revision = sys.argv[4]
+release_tag = sys.argv[5]
+release_url = sys.argv[6]
+swiftpm_checksum = sys.argv[7]
+targets = sys.argv[8].split()
+manifest_path = pathlib.Path(sys.argv[9]).resolve()
+apple_release_mode = sys.argv[10] == "1"
+apple_distribution_path = pathlib.Path(sys.argv[11]).resolve()
+source_commit = sys.argv[12]
+consumer_log = pathlib.Path(sys.argv[13]).resolve()
+apple_consumer_evidence = pathlib.Path(sys.argv[14]).resolve()
+rustc_version = sys.argv[15]
+cargo_version = sys.argv[16]
+rust_host = sys.argv[17]
+swift_version = sys.argv[18]
+xcode_version = sys.argv[19]
 
 def sha(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -1058,17 +1127,25 @@ if len(export_names) != 9 or len(set(export_names)) != 9:
 exports_digest = hashlib.sha256(("\n".join(export_names) + "\n").encode("utf-8")).hexdigest()
 
 manifest = {
-    "schema_version": 4,
+    "schema_version": 5,
     "kind": "qperiapt.swift_xcframework_manifest",
     "package": "q-periapt-swift",
     "version": version,
+    "release_identity": {
+        "product_version": version,
+        "revision": release_revision,
+        "tag": release_tag,
+        "url": release_url,
+    },
     "type": "swiftpm-binaryTarget-xcframework",
     "git_commit": source_commit,
     "git_dirty": git_dirty,
     "toolchain": {
-        "rustc": run(["rustc", "--version"]),
-        "swift": run(["swift", "--version"]).replace("\n", " "),
-        "xcode": run(["xcodebuild", "-version"]).splitlines(),
+        "cargo": cargo_version,
+        "rust_host": rust_host,
+        "rustc": rustc_version,
+        "swift": swift_version,
+        "xcode": xcode_version.splitlines(),
     },
     "targets": targets,
     "abi": {
@@ -1181,12 +1258,14 @@ manifest = {
 }
 if apple_release_mode:
     distribution = json.loads(apple_distribution_path.read_text(encoding="utf-8"))
-    if distribution.get("schema_version") != 2:
+    if distribution.get("schema_version") != 3:
         raise SystemExit("error: Apple distribution evidence has the wrong schema")
     if distribution.get("kind") != "qperiapt.apple_static_xcframework_distribution":
         raise SystemExit("error: Apple distribution evidence has the wrong kind")
     if distribution.get("source_commit") != source_commit:
         raise SystemExit("error: Apple distribution evidence source commit mismatch")
+    if distribution.get("release_identity") != manifest["release_identity"]:
+        raise SystemExit("error: Apple distribution evidence release identity mismatch")
     if distribution.get("artifact") != {
         "path": "CQPeriapt.xcframework.zip",
         "size": (dist / "CQPeriapt.xcframework.zip").stat().st_size,
@@ -1237,6 +1316,7 @@ if apple_release_mode:
     )
 manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
+assert_toolchain_snapshot
 
 (
 	cd "$DIST"
@@ -1272,5 +1352,6 @@ print("SWIFT_XCFRAMEWORK_MANIFEST_PASS")
 PY
 
 assert_release_source_snapshot
+assert_toolchain_snapshot
 
 printf '\nSWIFT_XCFRAMEWORK_PACKAGE_PASS checksum=%s path=%s\n' "$SWIFTPM_CHECKSUM" "$ZIP_PATH"

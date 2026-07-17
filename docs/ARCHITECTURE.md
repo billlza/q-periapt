@@ -847,7 +847,9 @@ logs, plists, linkage output and binaries are likewise snapshotted once per veri
 `artifact/git_provenance.py` is the separate repository-truth leaf: it fixes Git and its
 environment, rejects hidden index flags, compares HEAD, index and actual tracked
 bytes/modes without stat-cache shortcuts, and inventories ignored as well as visible
-untracked inputs using a verifier-owned fixed ephemeral-output policy. Local/global Git
+untracked inputs using a verifier-owned fixed non-input policy. The only host-metadata exception
+is an exact untracked, non-symlink regular `.DS_Store` file; lookalikes and special objects remain
+inputs. Other exclusions are explicitly enumerated generated-output locations. Local/global Git
 excludes cannot hide an input; any untracked `.gitignore` outside fixed ephemeral outputs and any
 repository Python bytecode cache fail closed. `artifact/python-env.sh` and the source-only
 `artifact/python_bootstrap.py` form a sibling runtime-provenance leaf. Every covered shell
@@ -861,7 +863,7 @@ rejects repository/ancestor/user Cargo configuration and caller compiler/wrapper
 uses system-only tool lookup plus a fresh private target, and rechecks the two executables. It still
 trusts the user-writable Cargo registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and
 collector source-to-binary honesty, so it is not a hermetic producer attestation. Likewise, fixed
-generated-output prefixes are outside the canonical source-input inventory and can still be read by
+declared generated-output locations are outside the canonical source-input inventory and can still be read by
 a build; release-grade closure requires an isolated checkout, unique lane outputs, and hashes for
 every generated artifact later consumed. The
 shell remains an orchestrator and pins one results-manifest digest across subprocesses;

@@ -15,12 +15,14 @@ import os
 import pathlib
 import re
 import secrets
+import shlex
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 from collections.abc import Iterator
 from unittest import mock
@@ -37,6 +39,20 @@ CAMERA_SANDBOX_SCRIPT = ROOT / "artifact" / "camera-ready-sandbox.sh"
 ARTIFACT_GUIDE = ROOT / "ARTIFACT.md"
 PAPER_SOURCE = ROOT / "paper" / "q-periapt.tex"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "abi2-platform-candidate.yml"
+)
+WINDOWS_C_SMOKE_SCRIPT = ROOT / "bindings" / "c" / "build-and-run.bat"
+RUST_TOOLCHAIN_FILE = ROOT / "rust-toolchain.toml"
+CANONICAL_RUST_TOOLCHAIN = "1.96.1"
+CANONICAL_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+CANONICAL_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+WINDOWS_RELEASE_RUST_TOOLCHAIN = "1.97.0"
+WINDOWS_RELEASE_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
+WINDOWS_RELEASE_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
+PINNED_CANONICAL_RUST_ACTION = (
+    "dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30"
+)
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
 RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
 RUST_PUBLISH_CONTRACT_TESTS = ROOT / "artifact" / "test_rust_publish_contract.py"
@@ -582,14 +598,73 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
 }
 
+ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
+    "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
+    "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
+    "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
+    "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
+    "android_aar_script_sha256": "artifact/android-aar.sh",
+    "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
+    "android_device_proof_verifier_sha256": "artifact/android_device_proof.py",
+    "android_device_proof_tests_sha256": "artifact/test_android_device_proof.py",
+    "android_elf_verifier_sha256": "artifact/android_elf.py",
+    "android_elf_tests_sha256": "artifact/test_android_elf.py",
+    "c_package_script_sha256": "artifact/c-package.sh",
+    "c_package_manifest_verifier_sha256": "artifact/c_package_manifest.py",
+    "c_package_manifest_tests_sha256": "artifact/test_c_package_manifest.py",
+    "deterministic_archive_sha256": "artifact/deterministic_archive.py",
+    "deterministic_archive_tests_sha256": "artifact/test_deterministic_archive.py",
+    "package_bom_sha256": "artifact/package_bom.py",
+    "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
+    "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
+    "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
+    "release_binary_scan_sha256": "artifact/release_binary_scan.py",
+    "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "third_party_licenses_sha256": "artifact/third_party_licenses.py",
+    "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
+    "windows_msvc_version_probe_sha256": "artifact/msvc-version-probe.c",
+    "windows_package_script_sha256": "artifact/windows-package.ps1",
+    "windows_package_verifier_sha256": "artifact/windows_package.py",
+    "windows_package_tests_sha256": "artifact/test_windows_package.py",
+    "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
+}
+
+
+def extract_workflow_job(workflow: str, job_name: str) -> str:
+    job_match = re.search(
+        rf"(?ms)^  {re.escape(job_name)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+        workflow,
+    )
+    if job_match is None:
+        raise ValueError(f"workflow has no {job_name!r} job")
+    return job_match.group("body")
+
 
 def extract_ci_check_job(workflow: str) -> str:
-    check_match = re.search(
-        r"(?ms)^  check:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", workflow
+    return extract_workflow_job(workflow, "check")
+
+
+def extract_named_workflow_step(job: str, step_name: str) -> str:
+    step_match = re.search(
+        rf"(?ms)^      - name: {re.escape(step_name)}\n"
+        r"(?P<body>.*?)(?=^      - (?:name:|uses:|run:)|\Z)",
+        job,
     )
-    if check_match is None:
-        raise ValueError("CI workflow has no check job")
-    return check_match.group("body")
+    if step_match is None:
+        raise ValueError(f"workflow job has no {step_name!r} step")
+    return step_match.group(0)
+
+
+def extract_action_steps(workflow: str, action: str) -> list[str]:
+    return [
+        match.group(0)
+        for match in re.finditer(
+            rf"(?ms)^      - uses: {re.escape(action)}[^\n]*\n"
+            r".*?(?=^      - |^  [A-Za-z0-9_-]+:\n|\Z)",
+            workflow,
+        )
+    ]
 
 
 def repository_head() -> str:
@@ -669,6 +744,102 @@ def format_marker(*states: int) -> str:
 
 
 class BoundVerifierWiringTests(unittest.TestCase):
+    def test_android_release_gate_binds_every_verifier_argument(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        gate_start = source.index(
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n'
+            '\ttest -f "$ANDROID_PROOF"'
+        )
+        gate_end = source.index(
+            '\nif [ "$REQUIRE_PERFORMANCE" = "1" ]; then', gate_start
+        )
+        gate_lines = source[gate_start:gate_end].splitlines()
+
+        commands: list[list[str]] = []
+        command_spans: list[tuple[int, int]] = []
+        command_prefix = "python3 artifact/android_device_proof.py verify \\"
+        for index, line in enumerate(gate_lines):
+            if line.strip() != command_prefix:
+                continue
+            fragments = [command_prefix.removesuffix(" \\")]
+            cursor = index + 1
+            while cursor < len(gate_lines):
+                fragment = gate_lines[cursor].strip()
+                continued = fragment.endswith("\\")
+                fragments.append(fragment[:-1].rstrip() if continued else fragment)
+                if not continued:
+                    break
+                cursor += 1
+            else:
+                self.fail("Android verifier command has no terminating argument")
+            commands.append(shlex.split(" ".join(fragments)))
+            command_spans.append((index, cursor))
+
+        base = [
+            "python3",
+            "artifact/android_device_proof.py",
+            "verify",
+            "--root",
+            "$ROOT",
+            "--proof",
+            "$ANDROID_PROOF",
+            "--max-age-seconds",
+            "$ANDROID_MAX_AGE_SECONDS",
+        ]
+        expected_kind = ["--expected-device-kind", "$EXPECTED_KIND"]
+        release_contract = [
+            "--expected-device-abi",
+            "$EXPECTED_ANDROID_DEVICE_ABI",
+            "--expected-page-size",
+            "16384",
+            "--expected-device-sdk",
+            "35",
+            "--require-release-mode",
+            "--results-manifest",
+            "$RESULTS_MANIFEST",
+            "--expected-results-manifest-sha256",
+            "$RESULTS_MANIFEST_SHA256",
+        ]
+        allow_dirty = ["--allow-dirty-proof"]
+        self.assertEqual(
+            commands,
+            [
+                [*base, *expected_kind, *release_contract, *allow_dirty],
+                [*base, *release_contract, *allow_dirty],
+                [*base, *expected_kind, *release_contract],
+                [*base, *release_contract],
+            ],
+        )
+
+        scaffold_lines = gate_lines.copy()
+        for start, end in reversed(command_spans):
+            indentation = scaffold_lines[start][
+                : len(scaffold_lines[start]) - len(scaffold_lines[start].lstrip())
+            ]
+            scaffold_lines[start : end + 1] = [f"{indentation}<ANDROID_VERIFY>"]
+        branch_start = scaffold_lines.index(
+            '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then'
+        )
+        pass_marker = scaffold_lines.index("\tANDROID_RUNTIME_PASSED=1")
+        self.assertEqual(
+            scaffold_lines[branch_start:pass_marker],
+            [
+                '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then',
+                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\telse",
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\tfi",
+                "\telse",
+                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\telse",
+                "\t\t\t<ANDROID_VERIFY>",
+                "\t\tfi",
+                "\tfi",
+            ],
+        )
+
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
@@ -694,6 +865,18 @@ class BoundVerifierWiringTests(unittest.TestCase):
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assertIn(f'"{key}": "{relative}"', source)
+                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                self.assertEqual(inputs.get(key), actual)
+
+    def test_proof_to_byte_names_every_abi2_platform_release_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        inputs = manifest["proof_to_byte_inputs"]
+        for key, relative in ABI2_PLATFORM_RELEASE_PROOF_INPUTS.items():
             with self.subTest(key=key):
                 self.assertIn(f'"{key}": "{relative}"', source)
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
@@ -1324,6 +1507,14 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
                 },
                 "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+            ),
+            (
+                "android device ABI is recognized",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "mips64",
+                },
+                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI",
             ),
             (
                 "android max age is bounded",
@@ -2713,6 +2904,237 @@ with _temporary_release_test_directories(parents):
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         validate_ci_check_checkout(extract_ci_check_job(workflow))
 
+    def test_canonical_rust_toolchain_is_source_pinned_and_provisioned(self) -> None:
+        document = tomllib.loads(RUST_TOOLCHAIN_FILE.read_text(encoding="utf-8"))
+        self.assertEqual(
+            document,
+            {
+                "toolchain": {
+                    "channel": CANONICAL_RUST_TOOLCHAIN,
+                    "profile": "minimal",
+                    "components": ["rustfmt", "clippy"],
+                }
+            },
+        )
+        self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
+
+        workflows = (
+            (CI_WORKFLOW, 19, 2),
+            (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
+        )
+        for path, expected_count, windows_count in workflows:
+            with self.subTest(workflow=path.name):
+                source = path.read_text(encoding="utf-8")
+                steps = extract_action_steps(source, PINNED_CANONICAL_RUST_ACTION)
+                self.assertEqual(len(steps), expected_count)
+                canonical = f"          toolchain: {CANONICAL_RUST_TOOLCHAIN}\n"
+                windows = f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n"
+                self.assertEqual(
+                    sum(step.count(canonical) for step in steps),
+                    expected_count - windows_count,
+                )
+                self.assertEqual(sum(step.count(windows) for step in steps), windows_count)
+                for step in steps:
+                    self.assertEqual(step.count(canonical) + step.count(windows), 1)
+                self.assertNotIn("cargo +stable", source)
+                self.assertNotIn("toolchain: stable", source)
+                self.assertNotIn("RUSTUP_TOOLCHAIN", source)
+                self.assertNotIn("rustup override", source)
+                self.assertNotIn("rustup default", source)
+
+        windows_jobs = (
+            (CI_WORKFLOW, ("windows", "abi2-windows-package-2022")),
+            (ABI2_PLATFORM_CANDIDATE_WORKFLOW, ("windows",)),
+        )
+        for path, names in windows_jobs:
+            source = path.read_text(encoding="utf-8")
+            for name in names:
+                with self.subTest(workflow=path.name, windows_job=name):
+                    job = extract_workflow_job(source, name)
+                    steps = extract_action_steps(
+                        job,
+                        PINNED_CANONICAL_RUST_ACTION,
+                    )
+                    self.assertEqual(len(steps), 1)
+                    self.assertEqual(
+                        steps[0].count(
+                            f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n"
+                        ),
+                        1,
+                    )
+
+        ci = CI_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            "cargo +${{ matrix.toolchain }} test --workspace --locked",
+            extract_workflow_job(ci, "cross-compiler"),
+        )
+        self.assertIn(
+            "cargo +1.85 build --workspace --locked",
+            extract_workflow_job(ci, "msrv"),
+        )
+        fuzz = extract_workflow_job(ci, "fuzz")
+        self.assertIn("cargo +nightly fetch", fuzz)
+        self.assertIn("cargo +nightly fuzz build", fuzz)
+
+    def test_pretag_windows_2022_package_gate_matches_candidate_substrate(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        job = extract_workflow_job(workflow, "abi2-windows-package-2022")
+        self.assertIn("    runs-on: windows-2022\n", job)
+        self.assertIn("          fetch-depth: 0\n", job)
+        self.assertIn(f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n", job)
+        self.assertIn("          components: llvm-tools\n", job)
+        self.assertIn(
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} install cbindgen --version 0.29.4 --locked",
+            job,
+        )
+        self.assertNotIn("continue-on-error:", job)
+        self.assertNotRegex(job, r"(?m)^    if:")
+
+        pretag_toolchain = extract_named_workflow_step(
+            job, "Verify exact Windows 2022 source and toolchain"
+        )
+        for token in (
+            f"rustc +{WINDOWS_RELEASE_RUST_TOOLCHAIN} --version",
+            WINDOWS_RELEASE_RUSTC_VERSION,
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} --version",
+            WINDOWS_RELEASE_CARGO_VERSION,
+            "host: x86_64-pc-windows-msvc",
+        ):
+            self.assertIn(token, pretag_toolchain)
+        self.assertNotIn("rustc --version", pretag_toolchain)
+        self.assertNotIn("cargo --version", pretag_toolchain)
+
+        trust = extract_named_workflow_step(
+            job, "Test Windows 2022 package trust boundary"
+        )
+        self.assertIn("test_windows_package", trust)
+        self.assertIn("./windows-toolchain-tests.ps1", trust)
+        build = extract_named_workflow_step(
+            job, "Build, archive, extract, and consume the Windows 2022 SDK"
+        )
+        self.assertIn("QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}", build)
+        self.assertIn("run: artifact/windows-package.ps1", build)
+        verify = extract_named_workflow_step(
+            job, "Reconsume only the Windows 2022 candidate archive"
+        )
+        self.assertIn("-Mode VerifyArchive", verify)
+        self.assertIn("-ExpectedGitCommit $gitCommit", verify)
+        self.assertIn("-ExpectedGitTree $gitTree", verify)
+        self.assertNotIn("SilentlyContinue", verify)
+
+        latest = extract_workflow_job(workflow, "windows")
+        self.assertIn(
+            f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n",
+            latest,
+        )
+        self.assertIn(
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} test --workspace --locked",
+            latest,
+        )
+        windows_c_smoke = WINDOWS_C_SMOKE_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} build -p q-periapt-ffi --release --locked",
+            windows_c_smoke,
+        )
+        self.assertNotIn(
+            "cargo build -p q-periapt-ffi",
+            windows_c_smoke,
+        )
+        latest_verify = extract_named_workflow_step(
+            latest, "Reconsume only the Windows candidate archive"
+        )
+        self.assertNotIn("SilentlyContinue", latest_verify)
+        self.assertIn("-ErrorAction Stop", latest_verify)
+
+        candidate = ABI2_PLATFORM_CANDIDATE_WORKFLOW.read_text(encoding="utf-8")
+        candidate_windows = extract_workflow_job(candidate, "windows")
+        self.assertIn("    runs-on: windows-2022\n", candidate_windows)
+        self.assertIn(f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n", candidate_windows)
+        self.assertIn("          components: llvm-tools\n", candidate_windows)
+        self.assertIn(
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} install cbindgen --version 0.29.4 --locked",
+            candidate_windows,
+        )
+        candidate_windows_toolchain = extract_named_workflow_step(
+            candidate_windows, "Verify exact source and toolchain"
+        )
+        for token in (
+            f"rustc +{WINDOWS_RELEASE_RUST_TOOLCHAIN} --version",
+            WINDOWS_RELEASE_RUSTC_VERSION,
+            f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} --version",
+            WINDOWS_RELEASE_CARGO_VERSION,
+            "host: x86_64-pc-windows-msvc",
+        ):
+            self.assertIn(token, candidate_windows_toolchain)
+        self.assertNotIn("rustc --version", candidate_windows_toolchain)
+        self.assertNotIn("cargo --version", candidate_windows_toolchain)
+
+        candidate_linux = extract_workflow_job(candidate, "linux")
+        candidate_linux_toolchain = extract_named_workflow_step(
+            candidate_linux, "Verify exact source and native host"
+        )
+        for token in (
+            "rustc -vV",
+            '"$EXPECTED_TARGET"',
+            CANONICAL_RUSTC_VERSION,
+            CANONICAL_CARGO_VERSION,
+        ):
+            self.assertIn(token, candidate_linux_toolchain)
+        self.assertNotIn("rustc +", candidate_linux_toolchain)
+        self.assertNotIn("cargo +", candidate_linux_toolchain)
+
+        candidate_android = extract_workflow_job(candidate, "android")
+        candidate_android_toolchain = extract_named_workflow_step(
+            candidate_android, "Verify exact source and toolchain"
+        )
+        for token in (
+            "test \"$(rustc -vV | sed -n 's/^host: //p')\" = \"x86_64-unknown-linux-gnu\"",
+            CANONICAL_RUSTC_VERSION,
+            CANONICAL_CARGO_VERSION,
+            "rustup target list --installed",
+            "aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android",
+        ):
+            self.assertIn(token, candidate_android_toolchain)
+        self.assertNotIn("rustc +", candidate_android_toolchain)
+        self.assertNotIn("cargo +", candidate_android_toolchain)
+        candidate_build = extract_named_workflow_step(
+            candidate_windows, "Build, archive, extract, and consume the Windows SDK"
+        )
+        self.assertIn(
+            "QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}",
+            candidate_build,
+        )
+        self.assertIn("run: artifact/windows-package.ps1", candidate_build)
+        candidate_verify = extract_named_workflow_step(
+            candidate_windows, "Reconsume only the Windows candidate archive"
+        )
+        self.assertNotIn("SilentlyContinue", candidate_verify)
+        self.assertIn("-ErrorAction Stop", candidate_verify)
+        self.assertIn("-Mode VerifyArchive", candidate_verify)
+        self.assertIn("-ExpectedGitCommit $gitCommit", candidate_verify)
+        self.assertIn("-ExpectedGitTree $gitTree", candidate_verify)
+        preflight = extract_workflow_job(candidate, "preflight")
+        self.assertIn(
+            "actions/workflows/ci.yml/runs?head_sha=$commit&branch=main&event=push&status=success",
+            preflight,
+        )
+        self.assertIn('jq -e --arg commit "$commit"', preflight)
+        self.assertIn(
+            "any(.workflow_runs[]; .head_sha == $commit and .conclusion == \"success\")",
+            preflight,
+        )
+        self.assertIn('<<<"$ci_runs"', preflight)
+        for job_name in ("linux", "windows", "android"):
+            with self.subTest(candidate_job=job_name):
+                self.assertIn(
+                    "    needs: preflight\n",
+                    extract_workflow_job(candidate, job_name),
+                )
+        self.assertIn(
+            "    needs: [preflight, linux, windows, android]\n",
+            extract_workflow_job(candidate, "attest"),
+        )
+
     def test_ci_checkout_mutations_fail_closed(self) -> None:
         check_job = extract_ci_check_job(CI_WORKFLOW.read_text(encoding="utf-8"))
         mutations = {
@@ -2944,6 +3366,114 @@ with _temporary_release_test_directories(parents):
             self.assertIn(f"got {repository_head()}", spoofed.stderr)
             self.assertIn(f"expected {alternate_head}", spoofed.stderr)
             self.assertEqual(spoofed.stdout, "")
+
+    def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:
+        setup_action = (
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 "
+            "# v6.3.0"
+        )
+        binding = (
+            "          QPERIAPT_PYTHON: "
+            "${{ steps.proof_python.outputs.python-path }}\n"
+        )
+        provisioning = (
+            "      - name: Provision hardened proof Python\n"
+            "        id: proof_python\n"
+            f"        uses: {setup_action}\n"
+            "        with:\n"
+            '          python-version: "3.13.14"\n'
+            "          check-latest: false\n"
+            "          update-environment: false\n"
+        )
+        exact_version_check = (
+            '          "$QPERIAPT_PYTHON" -I -S -c \'import sys; '
+            "raise SystemExit(0 if sys.implementation.name == \"cpython\" and "
+            "sys.version_info[:3] == (3, 13, 14) else 2)\'\n"
+        )
+        cases = (
+            (
+                CI_WORKFLOW,
+                "abi2-linux-package",
+                (
+                    "Build, archive, extract, and consume the native Linux ABI2 SDK",
+                    "Verify the archive through the isolated public-consumer path",
+                ),
+                True,
+            ),
+            (
+                CI_WORKFLOW,
+                "bindings-android-aar",
+                ("Android AAR/JNI packaging proof",),
+                False,
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                "linux",
+                (
+                    "Build and consume the native Linux package",
+                    "Reconsume only the candidate archive",
+                ),
+                True,
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                "android",
+                ("Build and verify the four-ABI 16 KiB-compatible AAR",),
+                False,
+            ),
+        )
+        for workflow_path, job_name, package_steps, native_linux in cases:
+            with self.subTest(workflow=workflow_path.name, job=job_name):
+                workflow = workflow_path.read_text(encoding="utf-8")
+                job = extract_workflow_job(workflow, job_name)
+                self.assertEqual(job.count(setup_action), 1)
+                self.assertEqual(job.count("id: proof_python"), 1)
+                self.assertIn(provisioning, job)
+                self.assertNotIn("\n    env:", job)
+                self.assertNotIn("GITHUB_ENV", job)
+
+                setup_step = extract_named_workflow_step(
+                    job, "Provision hardened proof Python"
+                )
+                self.assertNotIn("continue-on-error:", setup_step)
+                self.assertNotRegex(setup_step, r"(?m)^        if:")
+                verification_step = extract_named_workflow_step(
+                    job, "Verify hardened proof Python"
+                )
+                self.assertNotIn("continue-on-error:", verification_step)
+                self.assertNotRegex(verification_step, r"(?m)^        if:")
+                self.assertEqual(verification_step.count(binding), 1)
+                self.assertIn(
+                    'case "$QPERIAPT_PYTHON" in /*) ;; *)', verification_step
+                )
+                self.assertIn(exact_version_check, verification_step)
+
+                setup_position = job.index(provisioning)
+                verification_position = job.index(verification_step)
+                expected_binding_count = 1
+                for package_step_name in package_steps:
+                    package_step = extract_named_workflow_step(job, package_step_name)
+                    self.assertNotIn("continue-on-error:", package_step)
+                    self.assertNotRegex(package_step, r"(?m)^        if:")
+                    self.assertEqual(package_step.count(binding), 1)
+                    self.assertLess(setup_position, job.index(package_step))
+                    self.assertLess(verification_position, job.index(package_step))
+                    expected_binding_count += 1
+                self.assertEqual(job.count(binding), expected_binding_count)
+
+                if native_linux:
+                    matrix_pairs = re.findall(
+                        r"(?m)^          - runner: ([^\n]+)\n"
+                        r"            target: ([^\n]+)$",
+                        job,
+                    )
+                    self.assertEqual(
+                        matrix_pairs,
+                        [
+                            ("ubuntu-22.04", "x86_64-unknown-linux-gnu"),
+                            ("ubuntu-22.04-arm", "aarch64-unknown-linux-gnu"),
+                        ],
+                    )
 
     def test_ci_discovers_every_artifact_python_test(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

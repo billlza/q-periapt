@@ -1,0 +1,3176 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import pathlib
+import re
+import shutil
+import signal
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+import unittest
+from unittest import mock
+
+import third_party_licenses
+import windows_package
+from windows_package import WindowsPackageError
+
+
+def _dumpbin_output(*dependencies: str) -> bytes:
+    dependency_lines = b"".join(
+        f"    {dependency}\r\n".encode("ascii") for dependency in dependencies
+    )
+    return (
+        b"Microsoft (R) COFF/PE Dumper Version 14.44.35211.0\r\n"
+        b"Copyright (C) Microsoft Corporation.  All rights reserved.\r\n"
+        b"\r\n"
+        b"Dump of file q_periapt_ffi_abi2.dll\r\n"
+        b"\r\n"
+        b"File Type: DLL\r\n"
+        b"\r\n"
+        b"  Image has the following dependencies:\r\n"
+        b"\r\n"
+        + dependency_lines
+        + b"\r\n"
+        b"  Summary\r\n"
+        b"\r\n"
+        b"        1000 .data\r\n"
+    )
+
+
+def _native_static_libraries_output(
+    *tokens: str, newline: bytes = b"\n"
+) -> bytes:
+    return newline.join(
+        (
+            b"note: link against the following native artifacts when linking against this static library.",
+            b"",
+            b"note: native-static-libs: "
+            + " ".join(tokens).encode("ascii"),
+            b"",
+        )
+    )
+
+
+def _rustc_link_arguments_output(
+    *,
+    program: str = "link.exe",
+    arguments: tuple[str, ...] = (
+        "/NOLOGO",
+        "/OPT:REF,ICF",
+        "/DEBUG",
+        "/PDBALTPATH:%_PDB%",
+        "/WX",
+        "/DEBUG:NONE",
+        "/Brepro",
+        "/NOCOFFGRPINFO",
+        "/OPT:REF,NOICF",
+        r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
+    ),
+) -> bytes:
+    command = json.dumps(program)
+    if arguments:
+        command += " " + " ".join(json.dumps(value) for value in arguments)
+    return (command + "\n").encode("utf-8")
+
+
+def _windows_pe_fixture(*, hash_payload: bool = False) -> bytes:
+    """Build an independent minimal x64 PE32+ DLL fixture for parser tests."""
+
+    data = bytearray(0x400)
+    data[0:2] = b"MZ"
+    struct.pack_into("<I", data, 0x3C, 0x80)
+    data[0x80:0x84] = b"PE\0\0"
+    struct.pack_into(
+        "<HHIIIHH",
+        data,
+        0x84,
+        0x8664,
+        1,
+        0x11223344,
+        0,
+        0,
+        0xF0,
+        0x2022,
+    )
+    struct.pack_into("<H", data, 0x98, 0x20B)
+    struct.pack_into("<I", data, 0x98 + 32, 0x1000)
+    struct.pack_into("<I", data, 0x98 + 36, 0x200)
+    struct.pack_into("<I", data, 0x98 + 56, 0x2000)
+    struct.pack_into("<I", data, 0x98 + 60, 0x200)
+    struct.pack_into("<H", data, 0x98 + 68, 3)
+    struct.pack_into("<H", data, 0x98 + 70, 0x0160)
+    struct.pack_into("<I", data, 0x98 + 108, 16)
+    struct.pack_into("<II", data, 0x98 + 152, 0x1080, 12)
+    struct.pack_into("<II", data, 0x98 + 160, 0x1000, 28)
+    struct.pack_into(
+        "<8sIIIIIIHHI",
+        data,
+        0x188,
+        b".rdata\0\0",
+        0x200,
+        0x1000,
+        0x200,
+        0x200,
+        0,
+        0,
+        0,
+        0,
+        0x40000040,
+    )
+    struct.pack_into("<IIHH", data, 0x280, 0x1000, 12, 0xA100, 0)
+    if hash_payload:
+        struct.pack_into(
+            "<IIHHIIII",
+            data,
+            0x200,
+            0,
+            0x55667788,
+            0,
+            0,
+            16,
+            36,
+            0x1040,
+            0x240,
+        )
+        struct.pack_into("<I", data, 0x240, 32)
+        data[0x244:0x264] = bytes(range(32))
+    else:
+        struct.pack_into(
+            "<IIHHIIII",
+            data,
+            0x200,
+            0,
+            0x55667788,
+            0,
+            0,
+            16,
+            0,
+            0,
+            0,
+        )
+    return bytes(data)
+
+
+def _pack_pe(data: bytes, offset: int, format_: str, *values: int) -> bytes:
+    changed = bytearray(data)
+    struct.pack_into(format_, changed, offset, *values)
+    return bytes(changed)
+
+
+INHERITING_DESCENDANT_SCRIPT = """
+import os
+import pathlib
+import sys
+import time
+
+os.write(1, b"descendant-stdout\\n")
+os.write(2, b"descendant-stderr\\n")
+marker = pathlib.Path(sys.argv[1])
+temporary_marker = marker.with_name(f".{marker.name}.{os.getpid()}.tmp")
+temporary_marker.write_text(str(os.getpid()), encoding="ascii")
+os.replace(temporary_marker, marker)
+time.sleep(30)
+"""
+
+INHERITING_PARENT_SCRIPT = """
+import pathlib
+import subprocess
+import sys
+import time
+
+marker = pathlib.Path(sys.argv[1])
+subprocess.Popen(
+    [sys.executable, "-I", "-S", "-c", sys.argv[2], str(marker)],
+    stdout=sys.stdout.buffer,
+    stderr=sys.stderr.buffer,
+)
+deadline = time.monotonic() + 5
+while not marker.is_file():
+    if time.monotonic() >= deadline:
+        raise SystemExit(3)
+    time.sleep(0.01)
+if sys.argv[3] == "hold":
+    time.sleep(30)
+elif sys.argv[3] != "exit":
+    raise SystemExit(4)
+"""
+
+
+def _wait_for_process_exit(process_id: int, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            os.kill(process_id, 0)
+        except ProcessLookupError:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+def _kill_process_if_present(process_id: int) -> None:
+    try:
+        os.kill(process_id, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+class WindowsPeEvidenceTests(unittest.TestCase):
+    def test_accepts_only_the_two_explicit_repro_payload_shapes(self) -> None:
+        expected_common = {
+            "authenticode_certificate_directory_present": False,
+            "hardening": {
+                "machine": "x86_64",
+                "dynamic_base": True,
+                "nx_compatible": True,
+                "high_entropy_va": True,
+                "base_relocations": {
+                    "directory_present": True,
+                    "dir64_count": 1,
+                },
+                "debug_directory": {
+                    "entry_count": 1,
+                    "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                    "payload_kind": "empty",
+                    "hash_bytes": 0,
+                },
+            },
+        }
+        self.assertEqual(
+            windows_package.parse_windows_pe_evidence(_windows_pe_fixture()),
+            expected_common,
+        )
+
+        hashed = json.loads(json.dumps(expected_common))
+        hashed["hardening"]["debug_directory"].update(
+            {"payload_kind": "length_prefixed_hash", "hash_bytes": 32}
+        )
+        self.assertEqual(
+            windows_package.parse_windows_pe_evidence(
+                _windows_pe_fixture(hash_payload=True)
+            ),
+            hashed,
+        )
+
+    def test_rejects_truncated_headers_directories_sections_and_payloads(self) -> None:
+        empty = _windows_pe_fixture()
+        hashed = _windows_pe_fixture(hash_payload=True)
+        cases = {
+            "DOS": empty[:1],
+            "PE offset": empty[:0x3F],
+            "COFF": empty[:0x90],
+            "optional header": empty[:0x180],
+            "section table": empty[:0x1A0],
+            "debug entry": empty[:0x21B],
+            "section raw data": empty[:-1],
+            "hash payload": hashed[:0x263],
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_invalid_pe_identity_and_header_contracts(self) -> None:
+        valid = _windows_pe_fixture()
+        bad_mz = bytearray(valid)
+        bad_mz[:2] = b"NZ"
+        bad_signature = bytearray(valid)
+        bad_signature[0x80:0x84] = b"PX\0\0"
+        cases = {
+            "DOS signature": bytes(bad_mz),
+            "PE header before DOS header": _pack_pe(valid, 0x3C, "<I", 0x20),
+            "PE header outside file": _pack_pe(valid, 0x3C, "<I", 0xFFFFFFFC),
+            "PE signature": bytes(bad_signature),
+            "machine": _pack_pe(valid, 0x84, "<H", 0x014C),
+            "zero sections": _pack_pe(valid, 0x86, "<H", 0),
+            "too many sections": _pack_pe(valid, 0x86, "<H", 97),
+            "COFF symbols pointer": _pack_pe(valid, 0x8C, "<I", 0x300),
+            "COFF symbols count": _pack_pe(valid, 0x90, "<I", 1),
+            "optional header too short": _pack_pe(valid, 0x94, "<H", 0xA0),
+            "not PE32+": _pack_pe(valid, 0x98, "<H", 0x10B),
+            "not executable": _pack_pe(valid, 0x96, "<H", 0x2020),
+            "not DLL": _pack_pe(valid, 0x96, "<H", 0x0022),
+            "headers before section table": _pack_pe(valid, 0x98 + 60, "<I", 0x190),
+            "headers outside file": _pack_pe(valid, 0x98 + 60, "<I", 0x600),
+            "too few directories": _pack_pe(valid, 0x98 + 108, "<I", 6),
+            "directories exceed optional header": _pack_pe(
+                valid, 0x98 + 108, "<I", 17
+            ),
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_each_missing_hardening_bit_and_certificate_table(self) -> None:
+        valid = _windows_pe_fixture()
+        for label, value in (
+            ("high entropy VA", 0x0140),
+            ("dynamic base", 0x0120),
+            ("NX", 0x0060),
+        ):
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(
+                    _pack_pe(valid, 0x98 + 70, "<H", value)
+                )
+        for label, offset in (
+            ("certificate pointer", 0x98 + 144),
+            ("certificate size", 0x98 + 148),
+        ):
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(
+                    _pack_pe(valid, offset, "<I", 8)
+                )
+
+    def test_rejects_missing_malformed_or_ineffective_base_relocations(self) -> None:
+        valid = _windows_pe_fixture()
+        oversized_entries = bytearray(valid)
+        relocation_entry_count = 65_538
+        relocation_block_size = 8 + relocation_entry_count * 2
+        relocation_end = 0x280 + relocation_block_size
+        oversized_entries.extend(b"\0" * (relocation_end - len(oversized_entries)))
+        struct.pack_into("<I", oversized_entries, 0x188 + 8, len(oversized_entries) - 0x200)
+        struct.pack_into("<I", oversized_entries, 0x188 + 16, len(oversized_entries) - 0x200)
+        struct.pack_into("<I", oversized_entries, 0x98 + 156, relocation_block_size)
+        struct.pack_into("<I", oversized_entries, 0x284, relocation_block_size)
+        cases = {
+            "relocations stripped": _pack_pe(valid, 0x96, "<H", 0x2023),
+            "missing relocation RVA": _pack_pe(valid, 0x98 + 152, "<I", 0),
+            "missing relocation size": _pack_pe(valid, 0x98 + 156, "<I", 0),
+            "unmapped relocation directory": _pack_pe(
+                valid, 0x98 + 152, "<I", 0x3000
+            ),
+            "oversized relocation directory": _pack_pe(
+                valid, 0x98 + 156, "<I", 1024 * 1024 + 1
+            ),
+            "unaligned page": _pack_pe(valid, 0x280, "<I", 0x1001),
+            "empty block": _pack_pe(valid, 0x284, "<I", 8),
+            "misaligned block size": _pack_pe(valid, 0x284, "<I", 10),
+            "block exceeds directory": _pack_pe(valid, 0x284, "<I", 16),
+            "non-DIR64 relocation": _pack_pe(valid, 0x288, "<H", 0x3100),
+            "noncanonical padding": _pack_pe(valid, 0x28A, "<H", 1),
+            "DIR64 target outside section": _pack_pe(
+                valid, 0x288, "<H", 0xAFFF
+            ),
+            "duplicate DIR64 target": _pack_pe(valid, 0x28A, "<H", 0xA100),
+            "too many relocation entries": bytes(oversized_entries),
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_non_repro_reserved_and_multiple_debug_entries(self) -> None:
+        valid = _windows_pe_fixture()
+        cases = {
+            "reserved field": _pack_pe(valid, 0x200, "<I", 1),
+            "major version": _pack_pe(valid, 0x208, "<H", 1),
+            "minor version": _pack_pe(valid, 0x20A, "<H", 1),
+        }
+        for debug_size in (0, 29, 57, 140, 0xFFFFFFFF):
+            with self.subTest(debug_size=debug_size), self.assertRaisesRegex(
+                WindowsPackageError,
+                rf"observed size {debug_size} bytes",
+            ) as captured:
+                windows_package.parse_windows_pe_evidence(
+                    _pack_pe(valid, 0x98 + 164, "<I", debug_size)
+                )
+            self.assertNotIn("entries=[", str(captured.exception))
+
+        two_entries = _pack_pe(valid, 0x98 + 164, "<I", 56)
+        two_entries = _pack_pe(two_entries, 0x20C, "<I", 2)
+        two_entries = _pack_pe(two_entries, 0x210, "<I", 35)
+        two_entries = _pack_pe(two_entries, 0x228, "<I", 16)
+        two_entries = _pack_pe(two_entries, 0x22C, "<I", 0)
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=2,size_of_data=35;1:type=16,size_of_data=0\]",
+        ):
+            windows_package.parse_windows_pe_evidence(two_entries)
+
+        pogo_and_repro_entries = _pack_pe(two_entries, 0x20C, "<I", 13)
+        pogo_and_repro_entries = _pack_pe(
+            pogo_and_repro_entries, 0x210, "<I", 772
+        )
+        pogo_and_repro_entries = _pack_pe(
+            pogo_and_repro_entries, 0x22C, "<I", 36
+        )
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=13,size_of_data=772;1:type=16,size_of_data=36\]",
+        ):
+            windows_package.parse_windows_pe_evidence(pogo_and_repro_entries)
+
+        reversed_entries = _pack_pe(two_entries, 0x20C, "<I", 16)
+        reversed_entries = _pack_pe(reversed_entries, 0x210, "<I", 36)
+        reversed_entries = _pack_pe(reversed_entries, 0x228, "<I", 2)
+        reversed_entries = _pack_pe(reversed_entries, 0x22C, "<I", 35)
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=16,size_of_data=36;1:type=2,size_of_data=35\]",
+        ):
+            windows_package.parse_windows_pe_evidence(reversed_entries)
+
+        four_entries = _pack_pe(valid, 0x98 + 164, "<I", 112)
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            r"entries=\[0:type=16,size_of_data=0;"
+            r"1:type=0,size_of_data=0;2:type=0,size_of_data=0;"
+            r"3:type=0,size_of_data=0\]",
+        ):
+            windows_package.parse_windows_pe_evidence(four_entries)
+
+        diagnostic_overlap = _pack_pe(valid, 0x98 + 160, "<I", 0x1080)
+        diagnostic_overlap = _pack_pe(
+            diagnostic_overlap, 0x98 + 164, "<I", 56
+        )
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            "debug and base-relocation directories overlap",
+        ):
+            windows_package.parse_windows_pe_evidence(diagnostic_overlap)
+        for debug_type in (0, 1, 2, 4, 17, 19, 20):
+            cases[f"debug type {debug_type}"] = _pack_pe(
+                valid, 0x20C, "<I", debug_type
+            )
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_unmapped_ambiguous_or_non_file_backed_rvas(self) -> None:
+        valid = _windows_pe_fixture()
+        zero_filled = _pack_pe(valid, 0x188 + 8, "<I", 0x400)
+        zero_filled = _pack_pe(zero_filled, 0x188 + 16, "<I", 0x100)
+        zero_filled = _pack_pe(zero_filled, 0x98 + 160, "<I", 0x1180)
+
+        ambiguous = bytearray(valid)
+        ambiguous.extend(b"\0" * 0x200)
+        struct.pack_into("<H", ambiguous, 0x86, 2)
+        struct.pack_into(
+            "<8sIIIIIIHHI",
+            ambiguous,
+            0x1B0,
+            b".other\0\0",
+            0x200,
+            0x1000,
+            0x200,
+            0x400,
+            0,
+            0,
+            0,
+            0,
+            0x40000040,
+        )
+        raw_overlap = bytearray(valid)
+        struct.pack_into("<H", raw_overlap, 0x86, 2)
+        struct.pack_into(
+            "<8sIIIIIIHHI",
+            raw_overlap,
+            0x1B0,
+            b".other\0\0",
+            0x100,
+            0x2000,
+            0x100,
+            0x300,
+            0,
+            0,
+            0,
+            0,
+            0x40000040,
+        )
+        cases = {
+            "unmapped directory": _pack_pe(valid, 0x98 + 160, "<I", 0x3000),
+            "zero-filled directory": zero_filled,
+            "directory crosses section": _pack_pe(
+                valid, 0x98 + 160, "<I", 0x11F0
+            ),
+            "ambiguous sections": bytes(ambiguous),
+            "section raw range outside file": _pack_pe(
+                valid, 0x188 + 20, "<I", 0x300
+            ),
+            "section raw range starts in headers": _pack_pe(
+                valid, 0x188 + 20, "<I", 0x100
+            ),
+            "section raw ranges overlap": bytes(raw_overlap),
+            "section virtual overflow": _pack_pe(
+                valid, 0x188 + 12, "<I", 0xFFFFFF80
+            ),
+            "debug RVA overflows 32 bits": _pack_pe(
+                valid, 0x98 + 160, "<I", 0xFFFFFFF0
+            ),
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+    def test_rejects_malformed_or_inconsistent_repro_payloads(self) -> None:
+        empty = _windows_pe_fixture()
+        hashed = _windows_pe_fixture(hash_payload=True)
+        overlap = _pack_pe(hashed, 0x214, "<I", 0x1010)
+        overlap = _pack_pe(overlap, 0x218, "<I", 0x210)
+        cases = {
+            "empty entry with RVA": _pack_pe(empty, 0x214, "<I", 0x1040),
+            "empty entry with pointer": _pack_pe(empty, 0x218, "<I", 0x240),
+            "unexpected payload size": _pack_pe(hashed, 0x210, "<I", 35),
+            "zero payload RVA": _pack_pe(hashed, 0x214, "<I", 0),
+            "zero payload pointer": _pack_pe(hashed, 0x218, "<I", 0),
+            "RVA/pointer mismatch": _pack_pe(hashed, 0x218, "<I", 0x244),
+            "unmapped payload RVA": _pack_pe(hashed, 0x214, "<I", 0x3000),
+            "payload pointer outside file": _pack_pe(hashed, 0x218, "<I", 0x500),
+            "hash length": _pack_pe(hashed, 0x240, "<I", 31),
+            "directory overlap": overlap,
+        }
+        for label, data in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.parse_windows_pe_evidence(data)
+
+
+class RustcNativeStaticLibraryTests(unittest.TestCase):
+    RAW_TOKENS = windows_package.EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS
+    CANONICAL_LIBRARIES = list(
+        windows_package.CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES
+    )
+
+    def test_parser_accepts_only_the_exact_ordered_windows_contract(self) -> None:
+        self.assertEqual(
+            self.RAW_TOKENS,
+            (
+                "kernel32.lib",
+                "ntdll.lib",
+                "userenv.lib",
+                "ws2_32.lib",
+                "dbghelp.lib",
+                "/defaultlib:msvcrt",
+            ),
+        )
+        self.assertEqual(
+            self.CANONICAL_LIBRARIES,
+            [
+                "kernel32.lib",
+                "ntdll.lib",
+                "userenv.lib",
+                "ws2_32.lib",
+                "dbghelp.lib",
+                "msvcrt.lib",
+            ],
+        )
+        for newline in (b"\n", b"\r\n"):
+            with self.subTest(newline=newline):
+                self.assertEqual(
+                    windows_package.parse_rustc_native_static_libraries(
+                        _native_static_libraries_output(
+                            *self.RAW_TOKENS, newline=newline
+                        )
+                    ),
+                    self.CANONICAL_LIBRARIES,
+                )
+
+    def test_parser_rejects_unsafe_ambiguous_or_changed_contracts(self) -> None:
+        exact = _native_static_libraries_output(*self.RAW_TOKENS)
+        changed_contracts = {
+            "missing marker": exact.replace(
+                b"native-static-libs:", b"native libraries:"
+            ),
+            "duplicate marker": exact + exact,
+            "missing token": _native_static_libraries_output(*self.RAW_TOKENS[:-1]),
+            "extra token": _native_static_libraries_output(
+                *self.RAW_TOKENS, "evil.lib"
+            ),
+            "reordered": _native_static_libraries_output(
+                self.RAW_TOKENS[1], self.RAW_TOKENS[0], *self.RAW_TOKENS[2:]
+            ),
+            "case change": _native_static_libraries_output(
+                "KERNEL32.lib", *self.RAW_TOKENS[1:]
+            ),
+            "defaultlib injection": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "/defaultlib:evil"
+            ),
+            "static CRT": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "/defaultlib:libcmt"
+            ),
+            "whole archive": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "/WHOLEARCHIVE:evil.lib"
+            ),
+            "path": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], r"C:\\evil.lib"
+            ),
+            "quoted": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], '"evil.lib"'
+            ),
+            "response file": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "@evil.rsp"
+            ),
+            "Unix flags": _native_static_libraries_output(
+                "-lkernel32", "-lntdll"
+            ),
+            "ANSI": exact.replace(b"note:", b"\x1b[92mnote\x1b[0m:", 1),
+            "incomplete escape": exact + b"\x1b[",
+            "NUL": exact + b"\0",
+            "non-ASCII": exact + b"\xff",
+            "oversized": b"x"
+            * (windows_package.MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES + 1),
+        }
+        for label, output in changed_contracts.items():
+            with self.subTest(label=label):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package.parse_rustc_native_static_libraries(output)
+
+    def test_parser_cli_emits_only_the_canonical_json_array(self) -> None:
+        repository = pathlib.Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as temporary:
+            compiler_output = pathlib.Path(temporary) / "native-static-libraries.txt"
+            compiler_output.write_bytes(
+                _native_static_libraries_output(*self.RAW_TOKENS)
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-W",
+                    "error",
+                    "artifact/python_bootstrap.py",
+                    "artifact/windows_package.py",
+                    "parse-native-static-libraries",
+                    "--compiler-output",
+                    str(compiler_output),
+                ],
+                cwd=repository,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stderr, b"")
+        self.assertEqual(json.loads(completed.stdout), self.CANONICAL_LIBRARIES)
+        self.assertEqual(
+            completed.stdout,
+            (json.dumps(self.CANONICAL_LIBRARIES, separators=(",", ":")) + "\n").encode(
+                "ascii"
+            ),
+        )
+
+
+class RustcLinkerInvocationTests(unittest.TestCase):
+    EXPECTED_LINKER = (
+        r"C:\Program Files\Microsoft Visual Studio\VC\Tools\MSVC\14.50.12345"
+        r"\bin\Hostx64\x64\link.exe"
+    )
+
+    def test_accepts_the_exact_default_msvc_linker_and_hardening_contract(self) -> None:
+        arguments = windows_package.verify_rustc_linker_invocation(
+            _rustc_link_arguments_output(),
+            self.EXPECTED_LINKER.lower(),
+        )
+        self.assertEqual(
+            arguments,
+            [
+                "/NOLOGO",
+                "/OPT:REF,ICF",
+                "/DEBUG",
+                "/PDBALTPATH:%_PDB%",
+                "/WX",
+                "/DEBUG:NONE",
+                "/Brepro",
+                "/NOCOFFGRPINFO",
+                "/OPT:REF,NOICF",
+                r"/OUT:C:\build\q_periapt_ffi_abi2.dll",
+            ],
+        )
+
+    def test_rejects_changed_program_command_shape_or_hardening(self) -> None:
+        valid = _rustc_link_arguments_output()
+        cases = {
+            "different linker": _rustc_link_arguments_output(
+                program="other.exe"
+            ),
+            "absolute linker": _rustc_link_arguments_output(
+                program=self.EXPECTED_LINKER
+            ),
+            "different case": _rustc_link_arguments_output(program="LINK.EXE"),
+            "relative path": _rustc_link_arguments_output(program=r".\link.exe"),
+            "wrong executable": _rustc_link_arguments_output(
+                program="lld-link.exe"
+            ),
+            "missing Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/NOCOFFGRPINFO", "/OPT:REF,NOICF", "/OUT:output.dll",
+                )
+            ),
+            "duplicate Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "dash Brepro spelling": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "-Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro value": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro:yes", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro prefix": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Breprofoo", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro before debug none": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/Brepro", "/WX",
+                    "/DEBUG:NONE", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "Brepro after final optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/NOCOFFGRPINFO", "/OPT:REF,NOICF", "/Brepro",
+                )
+            ),
+            "debug re-enabled after Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/DEBUG", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "PDB option after Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/PDB:output.pdb", "/NOCOFFGRPINFO",
+                    "/OPT:REF,NOICF",
+                )
+            ),
+            "PDBSTRIPPED after Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/PDBSTRIPPED:public.pdb", "/NOCOFFGRPINFO",
+                    "/OPT:REF,NOICF",
+                )
+            ),
+            "missing COFF-group suppression": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF",
+                )
+            ),
+            "duplicate COFF-group suppression": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/NOCOFFGRPINFO",
+                    "/OPT:REF,NOICF",
+                )
+            ),
+            "dash COFF-group suppression": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "-NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "valued COFF-group suppression": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO:YES", "/OPT:REF,NOICF",
+                )
+            ),
+            "prefixed COFF-group suppression": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFOEXTRA", "/OPT:REF,NOICF",
+                )
+            ),
+            "positive COFF-group option": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/COFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "COFF-group suppression before Brepro": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/NOCOFFGRPINFO", "/Brepro", "/OPT:REF,NOICF",
+                )
+            ),
+            "COFF-group suppression after final optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/OPT:REF,NOICF", "/NOCOFFGRPINFO",
+                )
+            ),
+            "duplicate WX": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/wx", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "warnings disabled": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/WX:NO", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing automatic debug": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/PDBALTPATH:%_PDB%",
+                    "/WX", "/DEBUG:NONE", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing debug none": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "debug full": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG:FULL",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "debug fastlink": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG:FASTLINK",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "dash debug spelling": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "-DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "debug modes reversed": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG:NONE",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG", "/Brepro",
+                    "/NOCOFFGRPINFO",
+                    "/OPT:REF,NOICF",
+                )
+            ),
+            "duplicate debug none": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/DEBUG:NONE", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing PDB altpath": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG", "/WX",
+                    "/DEBUG:NONE", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "changed PDB altpath": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:C:\\private\\build.pdb", "/WX",
+                    "/DEBUG:NONE", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing trailing optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE", "/Brepro",
+                    "/NOCOFFGRPINFO",
+                )
+            ),
+            "changed trailing optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:NOREF,NOICF",
+                )
+            ),
+            "changed automatic optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "missing automatic optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/DEBUG", "/PDBALTPATH:%_PDB%",
+                    "/WX", "/DEBUG:NONE", "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "extra automatic optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "optimization modes reversed": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,NOICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,ICF",
+                )
+            ),
+            "trailing optimization enables ICF": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,ICF",
+                )
+            ),
+            "duplicate trailing optimization": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF", "/OPT:REF,NOICF",
+                )
+            ),
+            "ICF appended after the explicit override": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF", "/OPT:REF,ICF",
+                )
+            ),
+            "NOREF appended after the explicit override": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF", "/OPT:NOREF,NOICF",
+                )
+            ),
+            "automatic ICF iteration count": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF=2", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "automatic optimization suboptions reordered": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:ICF,REF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:REF,NOICF",
+                )
+            ),
+            "trailing optimization suboptions reordered": _rustc_link_arguments_output(
+                arguments=(
+                    "/NOLOGO", "/OPT:REF,ICF", "/DEBUG",
+                    "/PDBALTPATH:%_PDB%", "/WX", "/DEBUG:NONE",
+                    "/Brepro", "/NOCOFFGRPINFO", "/OPT:NOICF,REF",
+                )
+            ),
+            "unexpected Unix env prefix": b'env -u LIBRARY_PATH LC_ALL="C" '
+            + valid,
+            "unexpected environment assignment": b'PATH="C:\\\\Trusted" '
+            + valid,
+            "leading whitespace": b" " + valid,
+            "trailing whitespace": valid[:-1] + b" \n",
+            "no arguments": _rustc_link_arguments_output(arguments=()),
+            "unquoted trailing token": valid[:-1] + b" unquoted\n",
+            "CRLF": valid[:-1] + b"\r\n",
+            "two commands": valid + valid,
+            "NUL": valid[:-1] + b"\0\n",
+            "invalid UTF-8": valid[:-1] + b"\xff\n",
+            "unquoted program": valid.replace(
+                b'"link.exe"',
+                b"link.exe",
+                1,
+            ),
+            "unquoted argument": valid.replace(b'"/NOLOGO"', b"/NOLOGO", 1),
+            "escaped program letter": valid.replace(
+                b'"link.exe"', b'"\\u006cink.exe"', 1
+            ),
+            "escaped hardening letter": valid.replace(
+                b'"/WX"', b'"/\\u0057X"', 1
+            ),
+            "escaped hardening slash": valid.replace(
+                b'"/WX"', b'"\\/WX"', 1
+            ),
+            "oversized": b"x"
+            * (windows_package.MAX_RUSTC_LINK_ARGUMENTS_BYTES + 1),
+        }
+        for label, output in cases.items():
+            with self.subTest(label=label), self.assertRaises(WindowsPackageError):
+                windows_package.verify_rustc_linker_invocation(
+                    output,
+                    self.EXPECTED_LINKER,
+                )
+
+        with self.assertRaisesRegex(
+            WindowsPackageError,
+            "expected MSVC linker must be an absolute Windows drive path",
+        ):
+            windows_package.verify_rustc_linker_invocation(valid, "link.exe")
+        invalid_expected_linkers = {
+            "UNC path": r"\\server\share\link.exe",
+            "drive relative": r"C:trusted\link.exe",
+            "dot segments": r"C:\Trusted\..\Trusted\link.exe",
+            "forward slash": r"C:/Trusted/link.exe",
+            "wrong executable": r"C:\Trusted\lld-link.exe",
+        }
+        for label, expected_linker in invalid_expected_linkers.items():
+            with self.subTest(expected_linker=label), self.assertRaises(
+                WindowsPackageError
+            ):
+                windows_package.verify_rustc_linker_invocation(
+                    valid,
+                    expected_linker,
+                )
+
+    def test_cli_verifies_one_regular_link_argument_snapshot(self) -> None:
+        repository = pathlib.Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as temporary:
+            link_arguments = pathlib.Path(temporary) / "link-arguments.txt"
+            link_arguments.write_bytes(_rustc_link_arguments_output())
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-W",
+                    "error",
+                    "artifact/python_bootstrap.py",
+                    "artifact/windows_package.py",
+                    "verify-linker-invocation",
+                    "--link-arguments",
+                    str(link_arguments),
+                    "--expected-linker",
+                    self.EXPECTED_LINKER,
+                ],
+                cwd=repository,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stderr, b"")
+        self.assertEqual(
+            completed.stdout,
+            b"WINDOWS_RUST_LINKER_INVOCATION_PASS"
+            + os.linesep.encode("ascii"),
+        )
+
+
+class MsvcVersionProbeTests(unittest.TestCase):
+    @staticmethod
+    def _probe_output(
+        short: bytes = b"1950",
+        full: bytes = b"195035717",
+        revision: bytes = b"0",
+        target: bytes = b"100",
+    ) -> bytes:
+        return (
+            b"QPERIAPT_MSVC_VERSION "
+            + short
+            + b" "
+            + full
+            + b" "
+            + revision
+            + b" "
+            + target
+            + b"\r\n"
+        )
+
+    def test_parser_accepts_current_version_families_and_is_canonical(self) -> None:
+        cases = (
+            (b"1944", b"194435222", b"0", "MSVC 19.44.35222.0"),
+            (b"1950", b"195035717", b"0", "MSVC 19.50.35717.0"),
+            (b"1951", b"195135730", b"1", "MSVC 19.51.35730.1"),
+            (b"1952", b"195235740", b"4294967295", "MSVC 19.52.35740.4294967295"),
+        )
+        for short, full, revision, expected in cases:
+            with self.subTest(short=short):
+                output = (
+                    b"\n\t "
+                    + self._probe_output(short, full, revision).rstrip(b"\r\n")
+                    + b" \r\n"
+                )
+                self.assertEqual(
+                    windows_package.parse_msvc_version_probe(output),
+                    expected,
+                )
+
+    def test_parser_rejects_noncanonical_ambiguous_or_inconsistent_output(self) -> None:
+        valid = self._probe_output()
+        cases: dict[str, object] = {
+            "non-bytes": "text",
+            "empty": b"",
+            "whitespace": b" \r\n\t",
+            "duplicate": valid + valid,
+            "banner": b"Microsoft compiler\r\n" + valid,
+            "suffix": valid + b"unexpected\r\n",
+            "macro remains": b"QPERIAPT_MSVC_VERSION _MSC_VER 195035717 0 100\n",
+            "wrong marker case": valid.replace(b"QPERIAPT", b"qperiapt"),
+            "Unicode digit": valid.replace(b"1950", "１９５０".encode("utf-8")),
+            "NUL": valid + b"\0",
+            "escape": valid + b"\x1b",
+            "short width": self._probe_output(short=b"950"),
+            "full width": self._probe_output(full=b"19503571"),
+            "version mismatch": self._probe_output(full=b"195135717"),
+            "negative revision": self._probe_output(revision=b"-1"),
+            "signed revision": self._probe_output(revision=b"+1"),
+            "leading-zero revision": self._probe_output(revision=b"01"),
+            "revision overflow": self._probe_output(revision=b"4294967296"),
+            "decimal revision overflow": self._probe_output(revision=b"9999999999"),
+            "wrong architecture": self._probe_output(target=b"101"),
+            "oversized": b"x" * (
+                windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1
+            ),
+        }
+        for label, output in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package.parse_msvc_version_probe(output)
+
+    def test_bounded_runner_honors_the_smaller_probe_output_limit(self) -> None:
+        limit = windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES
+        emitted = limit + 64 * 1024
+        script = (
+            "import os;"
+            f"os.write(1, b'x' * {emitted});"
+            f"os.write(2, b'y' * {emitted})"
+        )
+        completed = windows_package._run_bounded_process(
+            [sys.executable, "-I", "-S", "-c", script],
+            cwd=str(pathlib.Path.cwd()),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+            output_limit=limit,
+        )
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(len(completed.stdout), limit + 1)
+        self.assertEqual(len(completed.stderr), limit + 1)
+
+        for invalid_limit in (
+            False,
+            0,
+            windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1,
+        ):
+            with self.subTest(invalid_limit=invalid_limit):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package._run_bounded_process(
+                        [sys.executable, "-I", "-S", "-c", "pass"],
+                        cwd=str(pathlib.Path.cwd()),
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        check=False,
+                        timeout=30,
+                        output_limit=invalid_limit,
+                    )
+
+    def test_inspector_binds_exact_tool_probe_command_and_process_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            compiler = root / "cl.exe"
+            probe = root / "msvc-version-probe.c"
+            compiler.write_bytes(b"fixture tool")
+            probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+            calls: list[tuple[list[str], dict[str, object]]] = []
+            self.assertEqual(
+                windows_package.MSVC_VERSION_PROBE_STDERR,
+                windows_package.MSVC_VERSION_PROBE_FILENAME.encode("ascii")
+                + b"\r\n",
+            )
+
+            def runner(
+                arguments: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                calls.append((arguments, kwargs))
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    self._probe_output(),
+                    windows_package.MSVC_VERSION_PROBE_STDERR,
+                )
+
+            self.assertEqual(
+                windows_package.inspect_msvc_version(
+                    compiler,
+                    probe,
+                    runner=runner,
+                ),
+                "MSVC 19.50.35717.0",
+            )
+            self.assertEqual(len(calls), 1)
+            arguments, kwargs = calls[0]
+            self.assertEqual(
+                arguments,
+                [
+                    str(compiler),
+                    "/nologo",
+                    "/EP",
+                    "/TC",
+                    "/X",
+                    "/WX",
+                    str(probe),
+                ],
+            )
+            self.assertEqual(
+                kwargs,
+                {
+                    "cwd": str(root),
+                    "stdin": subprocess.DEVNULL,
+                    "stdout": subprocess.PIPE,
+                    "stderr": subprocess.PIPE,
+                    "check": False,
+                    "timeout": 30,
+                    "output_limit": windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES,
+                },
+            )
+
+    def test_inspector_rejects_process_failures_and_malformed_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            compiler = root / "cl.exe"
+            probe = root / "msvc-version-probe.c"
+            compiler.write_bytes(b"fixture tool")
+            probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+            valid = self._probe_output()
+            progress = windows_package.MSVC_VERSION_PROBE_STDERR
+            stderr_variants = {
+                "empty": b"",
+                "LF only": b"msvc-version-probe.c\n",
+                "no newline": b"msvc-version-probe.c",
+                "CR only": b"msvc-version-probe.c\r",
+                "leading whitespace": b" " + progress,
+                "trailing whitespace": progress + b" ",
+                "extra CRLF": progress + b"\r\n",
+                "duplicate": progress + progress,
+                "case change": b"MSVC-version-probe.c\r\n",
+                "absolute path": b"C:\\source\\msvc-version-probe.c\r\n",
+                "relative path": b"artifact\\msvc-version-probe.c\r\n",
+                "forward slash path": b"artifact/msvc-version-probe.c\r\n",
+                "UTF-8 BOM": b"\xef\xbb\xbf" + progress,
+                "UTF-16": "msvc-version-probe.c\r\n".encode("utf-16-le"),
+                "Unicode confusable": "msvc-versiοn-probe.c\r\n".encode("utf-8"),
+                "NUL": progress + b"\0",
+                "escape": b"\x1b" + progress,
+                "banner": b"Microsoft C/C++ compiler\r\n" + progress,
+                "D9002 warning": progress + b"cl : warning D9002\r\n",
+                "C warning": progress + b"probe.c(1): warning C4000\r\n",
+                "localized warning": progress + "警告\r\n".encode("utf-8"),
+            }
+            for label, stderr in stderr_variants.items():
+                with self.subTest(stderr=label):
+                    with self.assertRaisesRegex(
+                        WindowsPackageError,
+                        "stderr differs from the frozen contract",
+                    ):
+                        windows_package.inspect_msvc_version(
+                            compiler,
+                            probe,
+                            runner=lambda *args, stderr_bytes=stderr, **kwargs: (
+                                subprocess.CompletedProcess([], 0, valid, stderr_bytes)
+                            ),
+                        )
+            completed_cases = {
+                "nonzero": subprocess.CompletedProcess([], 1, valid, progress),
+                "boolean return code": subprocess.CompletedProcess(
+                    [], True, valid, progress
+                ),
+                "text stdout": subprocess.CompletedProcess([], 0, "text", progress),
+                "text stderr": subprocess.CompletedProcess([], 0, valid, "text"),
+                "oversized stdout": subprocess.CompletedProcess(
+                    [],
+                    0,
+                    b"x" * (windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1),
+                    progress,
+                ),
+                "oversized stderr": subprocess.CompletedProcess(
+                    [],
+                    0,
+                    valid,
+                    b"x" * (windows_package.MAX_MSVC_VERSION_PROBE_OUTPUT_BYTES + 1),
+                ),
+                "malformed stdout": subprocess.CompletedProcess(
+                    [], 0, b"bad", progress
+                ),
+            }
+            for label, completed in completed_cases.items():
+                with self.subTest(label=label):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_msvc_version(
+                            compiler,
+                            probe,
+                            runner=lambda *args, completed=completed, **kwargs: completed,
+                        )
+
+            def timeout_runner(*args: object, **kwargs: object):
+                raise subprocess.TimeoutExpired("cl.exe", 30)
+
+            def os_error_runner(*args: object, **kwargs: object):
+                raise OSError("cannot start")
+
+            for label, runner in (
+                ("timeout", timeout_runner),
+                ("os error", os_error_runner),
+            ):
+                with self.subTest(label=label):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_msvc_version(
+                            compiler,
+                            probe,
+                            runner=runner,
+                        )
+
+    def test_inspector_rejects_untrusted_tool_or_probe_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            compiler = root / "cl.exe"
+            wrong_tool = root / "other.exe"
+            probe = root / "msvc-version-probe.c"
+            wrong_probe = root / "other.c"
+            for path in (compiler, wrong_tool):
+                path.write_bytes(b"fixture tool")
+            for path in (probe, wrong_probe):
+                path.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+
+            cases = (
+                (pathlib.Path("cl.exe"), probe),
+                (wrong_tool, probe),
+                (compiler, pathlib.Path("msvc-version-probe.c")),
+                (compiler, wrong_probe),
+            )
+            for tool_path, probe_path in cases:
+                with self.subTest(tool=tool_path, probe=probe_path):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_msvc_version(tool_path, probe_path)
+
+            probe.write_bytes(b"QPERIAPT_MSVC_VERSION 1950 195035717 0 100\n")
+            with self.assertRaisesRegex(WindowsPackageError, "frozen contract"):
+                windows_package.inspect_msvc_version(compiler, probe)
+
+            probe.write_bytes(windows_package.MSVC_VERSION_PROBE_SOURCE)
+
+            def mutate_probe(
+                arguments: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                probe.write_bytes(b"tampered\n")
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    self._probe_output(),
+                    windows_package.MSVC_VERSION_PROBE_STDERR,
+                )
+
+            with self.assertRaises(WindowsPackageError):
+                windows_package.inspect_msvc_version(
+                    compiler,
+                    probe,
+                    runner=mutate_probe,
+                )
+
+
+class DumpbinDependencyTests(unittest.TestCase):
+    def test_parser_accepts_only_the_canonical_nonempty_dependency_block(self) -> None:
+        self.assertEqual(
+            windows_package.parse_dumpbin_dependents(
+                _dumpbin_output("KERNEL32.dll", "bcrypt.dll")
+            ),
+            ["bcrypt.dll", "KERNEL32.dll"],
+        )
+        self.assertEqual(
+            windows_package.parse_dumpbin_dependents(
+                _dumpbin_output(
+                    "WS2_32.dll",
+                    "bcryptprimitives.dll",
+                    "api-ms-win-core-synch-l1-2-0.dll",
+                    "api-ms-win-crt-runtime-l1-1-0.dll",
+                )
+            ),
+            [
+                "api-ms-win-core-synch-l1-2-0.dll",
+                "api-ms-win-crt-runtime-l1-1-0.dll",
+                "bcryptprimitives.dll",
+                "WS2_32.dll",
+            ],
+        )
+
+    def test_ucrt_allowlist_is_the_exact_fifteen_contract_set(self) -> None:
+        expected = {
+            f"api-ms-win-crt-{family}-l1-1-0.dll"
+            for family in (
+                "conio",
+                "convert",
+                "environment",
+                "filesystem",
+                "heap",
+                "locale",
+                "math",
+                "multibyte",
+                "private",
+                "process",
+                "runtime",
+                "stdio",
+                "string",
+                "time",
+                "utility",
+            )
+        }
+        actual = {
+            name
+            for name in windows_package.ALLOWED_DEPENDENCY_NAMES
+            if name.startswith("api-ms-win-crt-")
+        }
+        self.assertEqual(actual, expected)
+
+    def test_manifest_dependency_normalization_rejects_unicode_casefold_spoofs(
+        self,
+    ) -> None:
+        for dependency in ("KERNEL32.dll", "UſERENV.dll"):
+            with self.subTest(dependency=dependency):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package._normalize_dependencies([dependency])
+
+    def test_parser_rejects_missing_duplicate_or_ambiguous_sections(self) -> None:
+        canonical = _dumpbin_output("KERNEL32.dll")
+        cases = {
+            "missing dependency header": canonical.replace(
+                b"Image has the following dependencies:", b"Dependencies:"
+            ),
+            "duplicate dependency header": canonical.replace(
+                b"  Summary",
+                b"  Image has the following dependencies:\r\n\r\n  Summary",
+            ),
+            "delay-load section": canonical.replace(
+                b"  Summary",
+                b"  Image has the following delay load dependencies:\r\n\r\n"
+                b"    USER32.dll\r\n\r\n  Summary",
+            ),
+            "missing summary": canonical.replace(b"  Summary", b"  Totals"),
+            "duplicate summary": canonical.replace(
+                b"  Summary", b"  Summary\r\n\r\n  Summary"
+            ),
+            "summary before dependency block": canonical.replace(
+                b"  Image has the following dependencies:",
+                b"  Summary\r\n\r\n  Image has the following dependencies:",
+            ),
+        }
+        for label, output in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package.parse_dumpbin_dependents(output)
+
+    def test_parser_rejects_every_malformed_or_unapproved_import(self) -> None:
+        cases = {
+            "empty": _dumpbin_output(),
+            "path": _dumpbin_output(r"C:\\evil.dll"),
+            "space": _dumpbin_output("evil name.dll"),
+            "punctuation": _dumpbin_output("evil!.dll"),
+            "trailing data": _dumpbin_output("KERNEL32.dll extra"),
+            "non-ascii": _dumpbin_output("KERNEL32.dll").replace(
+                b"KERNEL32.dll", b"KERNEL32.d\xffll"
+            ),
+            "unknown": _dumpbin_output("evil.dll"),
+            "unversioned API set": _dumpbin_output("api-ms-win-crt-evil.dll"),
+            "well-shaped unknown API set": _dumpbin_output(
+                "api-ms-win-crt-evil-l1-1-0.dll"
+            ),
+            "well-shaped fake API version": _dumpbin_output(
+                "api-ms-win-crt-runtime-l1-1-1.dll"
+            ),
+            "well-shaped fake core API version": _dumpbin_output(
+                "api-ms-win-core-synch-l1-2-1.dll"
+            ),
+            "well-shaped absurd API set": _dumpbin_output(
+                "api-ms-win-crt----l999-999-999.dll"
+            ),
+            "API set underscore": _dumpbin_output(
+                "api-ms-win-crt-bad_name-l1-1-0.dll"
+            ),
+            "API set dot": _dumpbin_output("api-ms-win-crt-bad.name-l1-1-0.dll"),
+            "API set bad version": _dumpbin_output(
+                "api-ms-win-crt-runtime-l1-1.dll"
+            ),
+            "duplicate": _dumpbin_output("KERNEL32.dll", "kernel32.DLL"),
+            "unversioned legacy recursion": _dumpbin_output("q_periapt_ffi.dll"),
+            "ABI1 legacy recursion": _dumpbin_output("q_periapt_ffi_abi1.dll"),
+            "ABI2 recursion": _dumpbin_output("q_periapt_ffi_abi2.dll"),
+            "nul": _dumpbin_output("KERNEL32.dll") + b"\0",
+            "oversized": b"x" * (windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1),
+        }
+        for label, output in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(WindowsPackageError):
+                    windows_package.parse_dumpbin_dependents(output)
+
+    def test_inspector_binds_exact_absolute_tool_dll_and_process_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tool_root = root / "trusted-msvc"
+            package_root = root / "package"
+            tool_root.mkdir()
+            package_root.mkdir()
+            dumpbin = tool_root / "dumpbin.exe"
+            library = package_root / "q_periapt_ffi_abi2.dll"
+            dumpbin.write_bytes(b"fixture tool")
+            library.write_bytes(b"fixture dll")
+            calls: list[tuple[list[str], dict[str, object]]] = []
+
+            def runner(
+                arguments: list[str], **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                calls.append((arguments, kwargs))
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    _dumpbin_output("KERNEL32.dll", "bcrypt.dll"),
+                    b"",
+                )
+
+            self.assertEqual(
+                windows_package.inspect_dumpbin_dependencies(
+                    dumpbin, library, runner=runner
+                ),
+                ["bcrypt.dll", "KERNEL32.dll"],
+            )
+            self.assertEqual(len(calls), 1)
+            arguments, kwargs = calls[0]
+            self.assertEqual(
+                arguments,
+                [
+                    str(dumpbin),
+                    "/nologo",
+                    "/dependents",
+                    str(library),
+                ],
+            )
+            self.assertEqual(
+                kwargs,
+                {
+                    "cwd": str(tool_root),
+                    "stdin": subprocess.DEVNULL,
+                    "stdout": subprocess.PIPE,
+                    "stderr": subprocess.PIPE,
+                    "check": False,
+                    "timeout": 30,
+                },
+            )
+
+    def test_process_capture_is_memory_bounded_while_draining_both_pipes(self) -> None:
+        emitted = windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 64 * 1024
+        script = (
+            "import os;"
+            f"os.write(1, b'x' * {emitted});"
+            f"os.write(2, b'y' * {emitted})"
+        )
+        completed = windows_package._run_bounded_process(
+            [sys.executable, "-I", "-S", "-c", script],
+            cwd=str(pathlib.Path.cwd()),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=30,
+        )
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(
+            len(completed.stdout), windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1
+        )
+        self.assertEqual(
+            len(completed.stderr), windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1
+        )
+
+    def test_process_capture_reaps_a_timed_out_process_after_draining_pipes(self) -> None:
+        script = (
+            "import os,time;"
+            "os.write(1,b'stdout-before-timeout');"
+            "os.write(2,b'stderr-before-timeout');"
+            "time.sleep(30)"
+        )
+        started = time.monotonic()
+        with self.assertRaises(subprocess.TimeoutExpired):
+            windows_package._run_bounded_process(
+                [sys.executable, "-I", "-S", "-c", script],
+                cwd=str(pathlib.Path.cwd()),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=1,
+            )
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_process_capture_terminates_descendants_that_inherit_pipes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            marker = pathlib.Path(temporary) / "descendant.pid"
+            child_pid: int | None = None
+            try:
+                started = time.monotonic()
+                completed = windows_package._run_bounded_process(
+                    [
+                        sys.executable,
+                        "-I",
+                        "-S",
+                        "-c",
+                        INHERITING_PARENT_SCRIPT,
+                        str(marker),
+                        INHERITING_DESCENDANT_SCRIPT,
+                        "exit",
+                    ],
+                    cwd=str(pathlib.Path.cwd()),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                    timeout=5,
+                )
+                self.assertEqual(completed.returncode, 0)
+                self.assertEqual(completed.stdout, b"descendant-stdout\n")
+                self.assertEqual(completed.stderr, b"descendant-stderr\n")
+                self.assertLess(time.monotonic() - started, 10)
+                child_pid = int(marker.read_text(encoding="ascii"))
+                self.assertGreater(child_pid, 0)
+                self.assertFalse(
+                    marker.with_name(f".{marker.name}.{child_pid}.tmp").exists()
+                )
+
+                if os.name != "nt":
+                    self.assertTrue(
+                        _wait_for_process_exit(child_pid),
+                        "descendant process survived process-group cleanup",
+                    )
+            finally:
+                if os.name != "nt" and child_pid is not None:
+                    _kill_process_if_present(child_pid)
+
+    def test_process_capture_times_out_and_reaps_an_inheriting_descendant(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            marker = pathlib.Path(temporary) / "timed-out-descendant.pid"
+            child_pid: int | None = None
+            try:
+                started = time.monotonic()
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    windows_package._run_bounded_process(
+                        [
+                            sys.executable,
+                            "-I",
+                            "-S",
+                            "-c",
+                            INHERITING_PARENT_SCRIPT,
+                            str(marker),
+                            INHERITING_DESCENDANT_SCRIPT,
+                            "hold",
+                        ],
+                        cwd=str(pathlib.Path.cwd()),
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        check=False,
+                        timeout=1,
+                    )
+                self.assertLess(time.monotonic() - started, 10)
+                child_pid = int(marker.read_text(encoding="ascii"))
+                self.assertGreater(child_pid, 0)
+                self.assertFalse(
+                    marker.with_name(f".{marker.name}.{child_pid}.tmp").exists()
+                )
+
+                if os.name != "nt":
+                    self.assertTrue(
+                        _wait_for_process_exit(child_pid),
+                        "timed-out descendant survived process-group cleanup",
+                    )
+            finally:
+                if os.name != "nt" and child_pid is not None:
+                    _kill_process_if_present(child_pid)
+
+    def test_inspector_rejects_process_failures_and_malformed_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            dumpbin = root / "dumpbin.exe"
+            library = root / "q_periapt_ffi_abi2.dll"
+            dumpbin.write_bytes(b"fixture tool")
+            library.write_bytes(b"fixture dll")
+            valid = _dumpbin_output("KERNEL32.dll")
+            completed_cases = {
+                "nonzero": subprocess.CompletedProcess([], 1, valid, b"failed"),
+                "stderr": subprocess.CompletedProcess([], 0, valid, b"diagnostic"),
+                "boolean return code": subprocess.CompletedProcess([], True, valid, b""),
+                "text stdout": subprocess.CompletedProcess([], 0, "text", b""),
+                "text stderr": subprocess.CompletedProcess([], 0, valid, "text"),
+                "oversized stdout": subprocess.CompletedProcess(
+                    [],
+                    0,
+                    b"x" * (windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1),
+                    b"",
+                ),
+                "oversized stderr": subprocess.CompletedProcess(
+                    [],
+                    0,
+                    valid,
+                    b"x" * (windows_package.MAX_DUMPBIN_OUTPUT_BYTES + 1),
+                ),
+            }
+            for label, completed in completed_cases.items():
+                with self.subTest(label=label):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_dumpbin_dependencies(
+                            dumpbin,
+                            library,
+                            runner=lambda *args, completed=completed, **kwargs: completed,
+                        )
+
+            def timeout_runner(
+                *args: object, **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                raise subprocess.TimeoutExpired("dumpbin.exe", 30)
+
+            def os_error_runner(
+                *args: object, **kwargs: object
+            ) -> subprocess.CompletedProcess[bytes]:
+                raise OSError("cannot start")
+
+            for label, runner in (
+                ("timeout", timeout_runner),
+                ("os error", os_error_runner),
+            ):
+                with self.subTest(label=label):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_dumpbin_dependencies(
+                            dumpbin, library, runner=runner
+                        )
+
+    def test_inspector_rejects_untrusted_tool_and_library_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            dumpbin = root / "dumpbin.exe"
+            wrong_tool = root / "other.exe"
+            library = root / "q_periapt_ffi_abi2.dll"
+            wrong_library = root / "other.dll"
+            for path in (dumpbin, wrong_tool, library, wrong_library):
+                path.write_bytes(b"fixture")
+
+            cases = (
+                (pathlib.Path("dumpbin.exe"), library),
+                (wrong_tool, library),
+                (dumpbin, pathlib.Path("q_periapt_ffi_abi2.dll")),
+                (dumpbin, wrong_library),
+            )
+            for tool_path, library_path in cases:
+                with self.subTest(tool=tool_path, library=library_path):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_dumpbin_dependencies(
+                            tool_path, library_path
+                        )
+
+            tool_link = root / "tool-link" / "dumpbin.exe"
+            library_link = root / "library-link" / "q_periapt_ffi_abi2.dll"
+            tool_link.parent.mkdir()
+            library_link.parent.mkdir()
+            try:
+                tool_link.symlink_to(dumpbin)
+                library_link.symlink_to(library)
+            except (OSError, NotImplementedError):
+                self.skipTest("file symlinks unavailable")
+            for tool_path, library_path in (
+                (tool_link, library),
+                (dumpbin, library_link),
+            ):
+                with self.subTest(tool=tool_path, library=library_path):
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.inspect_dumpbin_dependencies(
+                            tool_path, library_path
+                        )
+
+
+class WindowsPackageManifestTests(unittest.TestCase):
+    INVALID_MSVC_VERSIONS = (
+        None,
+        "",
+        "x" * (windows_package.MAX_MSVC_VERSION_CHARS + 1),
+        "MSVC 19.44.35222.0\n",
+        "MSVC 19.44.35222.0\0",
+        "MSVC １９.44.35222.0",
+        "MSVC 19.44.35222.0 extra",
+        "MSVC 19.44.03522.0",
+        "MSVC 19.44.35222.01",
+        "MSVC 19.44.35222.4294967296",
+        "MSVC 19.44.35222.9999999999",
+    )
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.repository_root = pathlib.Path(__file__).resolve().parent.parent
+
+    def _package(
+        self, root: pathlib.Path, *, hash_repro_payload: bool = False
+    ) -> pathlib.Path:
+        package = root / (
+            "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+        )
+        for relative in windows_package.EXPECTED_PAYLOAD_FILES:
+            path = package / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if relative == "bin/q_periapt_ffi_abi2.dll":
+                path.write_bytes(
+                    _windows_pe_fixture(hash_payload=hash_repro_payload)
+                )
+            else:
+                path.write_bytes(f"fixture:{relative}\n".encode())
+        license_relative = "THIRD_PARTY/rust/fixture-dependency-1.0.0/LICENSE"
+        license_path = package / license_relative
+        license_path.parent.mkdir(parents=True, exist_ok=True)
+        license_path.write_text("fixture dependency license\n", encoding="utf-8")
+        license_bytes = license_path.read_bytes()
+        inventory = {
+            "schema_version": third_party_licenses.SCHEMA_VERSION,
+            "kind": third_party_licenses.KIND,
+            "root_package": third_party_licenses.ROOT_PACKAGE,
+            "target": windows_package.TARGET,
+            "packages": [
+                {
+                    "checksum": "b" * 64,
+                    "license_expression": "MIT",
+                    "name": "fixture-dependency",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index",
+                    "version": "1.0.0",
+                    "license_files": [
+                        {
+                            "bytes": len(license_bytes),
+                            "path": license_relative,
+                            "sha256": hashlib.sha256(license_bytes).hexdigest(),
+                        }
+                    ],
+                }
+            ],
+        }
+        inventory_path = package / third_party_licenses.INVENTORY_RELATIVE
+        inventory_path.write_bytes(third_party_licenses.canonical_json(inventory))
+        shutil.copy2(
+            self.repository_root
+            / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+            package / "share/q-periapt/abi/q-periapt-c-abi-v2.json",
+        )
+        crypto_components = []
+        for name in sorted(windows_package.EXPECTED_CRYPTO_ASSETS):
+            crypto_components.append(
+                {
+                    "type": "cryptographic-asset",
+                    "bom-ref": f"crypto:{name}",
+                    "name": name,
+                    "cryptoProperties": {
+                        "assetType": "algorithm",
+                        "algorithmProperties": {
+                            "primitive": "fixture",
+                            "parameterSetIdentifier": name,
+                            "cryptoFunctions": ["other"],
+                            "nistQuantumSecurityLevel": 0,
+                        },
+                    },
+                }
+            )
+        lock = tomllib.loads(
+            (self.repository_root / "Cargo.lock").read_text(encoding="utf-8")
+        )
+        sbom_components = []
+        for entry in lock["package"]:
+            purl = f"pkg:cargo/{entry['name']}@{entry['version']}"
+            sbom_components.append(
+                {
+                    "type": "library",
+                    "bom-ref": purl,
+                    "name": entry["name"],
+                    "version": entry["version"],
+                    "purl": purl,
+                }
+            )
+        common = {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.6",
+            "version": 1,
+            "metadata": {"component": {"name": "q-periapt-hybrid-suite"}},
+        }
+        (package / "share/q-periapt/bom/cbom.cdx.json").write_text(
+            json.dumps({**common, "components": crypto_components}, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
+        (package / "share/q-periapt/bom/sbom.cdx.json").write_text(
+            json.dumps({**common, "components": sbom_components}, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
+        return package
+
+    def _create(
+        self,
+        package: pathlib.Path,
+        *,
+        forbidden_windows_paths: tuple[str, ...] = (),
+    ) -> dict:
+        return windows_package.create_manifest(
+            package,
+            self.repository_root,
+            package_name=package.name,
+            version="0.1.0-alpha.2",
+            git_commit="a" * 40,
+            git_tree="b" * 40,
+            source_date_epoch=1_700_000_000,
+            rustc=windows_package.EXPECTED_RUSTC_VERSION,
+            cargo=windows_package.EXPECTED_CARGO_VERSION,
+            cl="MSVC 19.44.35222.0",
+            dependencies=["KERNEL32.dll", "bcrypt.dll"],
+            forbidden_windows_paths=forbidden_windows_paths,
+        )
+
+    def test_create_and_verify_are_deterministic_and_strict(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            first = self._create(package)
+            first_manifest = (package / "MANIFEST.json").read_bytes()
+            first_sums = (package / "SHA256SUMS").read_bytes()
+
+            (package / "MANIFEST.json").unlink()
+            (package / "SHA256SUMS").unlink()
+            second = self._create(package)
+
+            self.assertEqual(first, second)
+            self.assertEqual(first_manifest, (package / "MANIFEST.json").read_bytes())
+            self.assertEqual(first_sums, (package / "SHA256SUMS").read_bytes())
+            verified = windows_package.verify_package(
+                package, repository_root=self.repository_root
+            )
+            self.assertEqual(verified["target"], windows_package.TARGET)
+            self.assertEqual(
+                verified["release_class"], "unsigned_experimental_prerelease"
+            )
+            self.assertFalse(verified["authenticode"]["signed"])
+            self.assertFalse(
+                verified["authenticode"]["certificate_directory_present"]
+            )
+            self.assertEqual(
+                verified["hardening"]["debug_directory"],
+                {
+                    "entry_count": 1,
+                    "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                    "payload_kind": "empty",
+                    "hash_bytes": 0,
+                },
+            )
+
+    def test_hash_repro_payload_is_bound_through_create_and_verify(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(
+                pathlib.Path(temporary), hash_repro_payload=True
+            )
+            created = self._create(package)
+            expected_debug = {
+                "entry_count": 1,
+                "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
+                "payload_kind": "length_prefixed_hash",
+                "hash_bytes": 32,
+            }
+            self.assertEqual(
+                created["hardening"]["debug_directory"], expected_debug
+            )
+            verified = windows_package.verify_package(package)
+            self.assertEqual(
+                verified["hardening"]["debug_directory"], expected_debug
+            )
+
+            self._rewrite_manifest(
+                package,
+                lambda value: value["hardening"]["debug_directory"].__setitem__(
+                    "hash_bytes", 31
+                ),
+            )
+            with self.assertRaisesRegex(
+                WindowsPackageError, "hardening evidence differs"
+            ):
+                windows_package.verify_package(package)
+
+    def test_create_rejects_dll_replacement_between_inspection_and_hashing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            dll = package / "bin/q_periapt_ffi_abi2.dll"
+            real_scan = windows_package.scan_release_file
+            replaced = False
+            resolved_dll = dll.resolve(strict=True)
+
+            def replace_before_scan(path, **kwargs):
+                nonlocal replaced
+                if pathlib.Path(path).resolve(strict=True) == resolved_dll and not replaced:
+                    replaced = True
+                    dll.write_bytes(_windows_pe_fixture(hash_payload=True))
+                return real_scan(path, **kwargs)
+
+            with (
+                mock.patch.object(
+                    windows_package,
+                    "scan_release_file",
+                    side_effect=replace_before_scan,
+                ),
+                self.assertRaisesRegex(WindowsPackageError, "changed between"),
+            ):
+                self._create(package)
+
+    def test_create_rejects_payload_replacement_after_scanned_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            static_library = package / "lib/q_periapt_ffi_abi2_static.lib"
+            replacement = b"x" * len(static_library.read_bytes())
+            resolved_static_library = static_library.resolve(strict=True)
+            real_scan = windows_package.scan_release_file
+            replaced = False
+
+            def replace_after_scan(path, **kwargs):
+                nonlocal replaced
+                result = real_scan(path, **kwargs)
+                if (
+                    pathlib.Path(path).resolve(strict=True)
+                    == resolved_static_library
+                    and not replaced
+                ):
+                    replaced = True
+                    static_library.write_bytes(replacement)
+                return result
+
+            with (
+                mock.patch.object(
+                    windows_package,
+                    "scan_release_file",
+                    side_effect=replace_after_scan,
+                ),
+                self.assertRaisesRegex(WindowsPackageError, "file hash mismatch"),
+            ):
+                self._create(package)
+
+    def test_create_and_verify_scan_payload_with_windows_path_semantics(self) -> None:
+        producer_root = r"C:\Build Roots\cargo-home"
+        forbidden = (producer_root,)
+        contaminated = b"fixture:/c/build roots/CARGO-HOME/registry"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            package = self._package(root / "create")
+            static_library = package / "lib/q_periapt_ffi_abi2_static.lib"
+            static_library.write_bytes(contaminated)
+            with self.assertRaisesRegex(
+                WindowsPackageError,
+                "caller-forbidden Windows path 0",
+            ):
+                self._create(
+                    package,
+                    forbidden_windows_paths=forbidden,
+                )
+
+            package = self._package(root / "verify")
+            self._create(
+                package,
+                forbidden_windows_paths=forbidden,
+            )
+            static_library = package / "lib/q_periapt_ffi_abi2_static.lib"
+            static_library.write_bytes(contaminated)
+            with self.assertRaisesRegex(
+                WindowsPackageError,
+                "caller-forbidden Windows path 0",
+            ):
+                windows_package.verify_package(
+                    package,
+                    repository_root=self.repository_root,
+                    forbidden_windows_paths=forbidden,
+                )
+
+    def test_verify_rejects_dll_replacement_after_pe_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            self._create(package)
+            dll = package / "bin/q_periapt_ffi_abi2.dll"
+            replacement = _windows_pe_fixture(hash_payload=True)
+            replacement_sha256 = hashlib.sha256(replacement).hexdigest()
+
+            self._rewrite_manifest(
+                package,
+                lambda value: next(
+                    entry
+                    for entry in value["files"]
+                    if entry["path"] == "bin/q_periapt_ffi_abi2.dll"
+                ).__setitem__("sha256", replacement_sha256),
+            )
+            sums_path = package / "SHA256SUMS"
+            sums_path.write_text(
+                "".join(
+                    f"{replacement_sha256 if relative == 'bin/q_periapt_ffi_abi2.dll' else digest}  {relative}\n"
+                    for digest, relative in (
+                        line.split("  ", 1)
+                        for line in sums_path.read_text(encoding="ascii").splitlines()
+                    )
+                ),
+                encoding="ascii",
+            )
+
+            real_scan = windows_package.scan_release_file
+            resolved_dll = dll.resolve(strict=True)
+            replaced = False
+
+            def replace_before_scan(path, **kwargs):
+                nonlocal replaced
+                if pathlib.Path(path).resolve(strict=True) == resolved_dll and not replaced:
+                    replaced = True
+                    dll.write_bytes(replacement)
+                return real_scan(path, **kwargs)
+
+            with (
+                mock.patch.object(
+                    windows_package,
+                    "scan_release_file",
+                    side_effect=replace_before_scan,
+                ),
+                self.assertRaisesRegex(
+                    WindowsPackageError, "inspection snapshot differs"
+                ),
+            ):
+                windows_package.verify_package(package)
+
+    def test_tampering_extra_files_and_symlinks_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            package = self._package(root)
+            self._create(package)
+
+            (package / "bin/q_periapt_ffi_abi2.dll").write_bytes(b"tampered")
+            with self.assertRaises(WindowsPackageError):
+                windows_package.verify_package(package)
+
+            package = self._package(root / "extra")
+            (package / "unexpected.txt").write_text("unexpected", encoding="utf-8")
+            with self.assertRaisesRegex(WindowsPackageError, "file set differs"):
+                self._create(package)
+
+            package = self._package(root / "symlink")
+            target = package / "LICENSE"
+            target.unlink()
+            target.symlink_to(self.repository_root / "LICENSE")
+            with self.assertRaisesRegex(WindowsPackageError, "symlink"):
+                self._create(package)
+
+            real_package = self._package(root / "root-link-target")
+            self._create(real_package)
+            package_link = root / "package-root-link"
+            try:
+                package_link.symlink_to(real_package, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlinks unavailable")
+            with self.assertRaisesRegex(WindowsPackageError, "root must be a non-symlink"):
+                windows_package.verify_package(package_link)
+
+    def test_invalid_dependencies_and_source_metadata_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            with self.assertRaisesRegex(WindowsPackageError, "invalid Windows"):
+                windows_package.create_manifest(
+                    package,
+                    self.repository_root,
+                    package_name=package.name,
+                    version="0.1.0-alpha.2",
+                    git_commit="a" * 40,
+                    git_tree="b" * 40,
+                    source_date_epoch=1_700_000_000,
+                    rustc=windows_package.EXPECTED_RUSTC_VERSION,
+                    cargo=windows_package.EXPECTED_CARGO_VERSION,
+                    cl="MSVC 19.44.35222.0",
+                    dependencies=["..\\malicious.dll"],
+                )
+            with self.assertRaisesRegex(WindowsPackageError, "git commit"):
+                windows_package.create_manifest(
+                    package,
+                    self.repository_root,
+                    package_name=package.name,
+                    version="0.1.0-alpha.2",
+                    git_commit="not-a-commit",
+                    git_tree="b" * 40,
+                    source_date_epoch=1_700_000_000,
+                    rustc=windows_package.EXPECTED_RUSTC_VERSION,
+                    cargo=windows_package.EXPECTED_CARGO_VERSION,
+                    cl="MSVC 19.44.35222.0",
+                    dependencies=["KERNEL32.dll"],
+                )
+
+    def test_create_rejects_noncanonical_msvc_versions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            for value in self.INVALID_MSVC_VERSIONS:
+                with self.subTest(value=value):
+                    with self.assertRaisesRegex(
+                        WindowsPackageError,
+                        "cl version is malformed",
+                    ):
+                        windows_package.create_manifest(
+                            package,
+                            self.repository_root,
+                            package_name=package.name,
+                            version="0.1.0-alpha.2",
+                            git_commit="a" * 40,
+                            git_tree="b" * 40,
+                            source_date_epoch=1_700_000_000,
+                            rustc=windows_package.EXPECTED_RUSTC_VERSION,
+                            cargo=windows_package.EXPECTED_CARGO_VERSION,
+                            cl=value,
+                            dependencies=["KERNEL32.dll"],
+                        )
+            windows_package._validate_msvc_version(
+                "MSVC 19.52.35740.4294967295",
+                "boundary version",
+            )
+
+    @staticmethod
+    def _rewrite_manifest(package: pathlib.Path, mutate) -> None:
+        manifest_path = package / "MANIFEST.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        mutate(manifest)
+        manifest_path.write_bytes(windows_package._canonical_json(manifest))
+        sums_path = package / "SHA256SUMS"
+        lines = []
+        for line in sums_path.read_text(encoding="ascii").splitlines():
+            digest, relative = line.split("  ", 1)
+            if relative == "MANIFEST.json":
+                digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+            lines.append(f"{digest}  {relative}\n")
+        sums_path.write_text("".join(lines), encoding="ascii")
+
+    def test_verify_rejects_noncanonical_msvc_versions_after_rehash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            original = self._package(root / "original")
+            self._create(original)
+            for index, value in enumerate(self.INVALID_MSVC_VERSIONS):
+                with self.subTest(value=value):
+                    package = root / f"tampered-{index}" / original.name
+                    shutil.copytree(original, package)
+                    self._rewrite_manifest(
+                        package,
+                        lambda manifest, value=value: manifest["toolchain"].__setitem__(
+                            "cl", value
+                        ),
+                    )
+                    with self.assertRaisesRegex(
+                        WindowsPackageError,
+                        "Windows cl version is malformed",
+                    ):
+                        windows_package.verify_package(
+                            package,
+                            repository_root=self.repository_root,
+                        )
+
+    def test_manifest_identity_source_toolchain_and_schema_tampering_fail_closed(self) -> None:
+        mutations = {
+            "schema": lambda value: value.__setitem__("schema_version", 2),
+            "package": lambda value: value.__setitem__("package", "unrelated-package"),
+            "generated_at": lambda value: value.__setitem__("generated_at", "not-a-time"),
+            "source_date_epoch": lambda value: value.__setitem__("source_date_epoch", False),
+            "toolchain": lambda value: value.__setitem__("toolchain", {}),
+            "rustc toolchain": lambda value: value["toolchain"].__setitem__(
+                "rustc", "rustc 1.96.0 (ac68faa20 2026-05-25)"
+            ),
+            "cargo toolchain": lambda value: value["toolchain"].__setitem__(
+                "cargo", "cargo 1.96.0 (30a34c682 2026-05-25)"
+            ),
+            "source inputs": lambda value: value.__setitem__("source_inputs_sha256", {}),
+            "fields": lambda value: value.__setitem__("unexpected", True),
+            "dependency": lambda value: value.__setitem__("native_dependencies", ["evil.dll"]),
+            "Unicode dependency spoof": lambda value: value.__setitem__(
+                "native_dependencies", ["KERNEL32.dll"]
+            ),
+            "hardening entry type": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("entry_type", "IMAGE_DEBUG_TYPE_CODEVIEW"),
+            "hardening entry count": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("entry_count", 2),
+            "hardening payload": lambda value: value["hardening"][
+                "debug_directory"
+            ].__setitem__("payload_kind", "unverified"),
+            "base relocation count": lambda value: value["hardening"][
+                "base_relocations"
+            ].__setitem__("dir64_count", 0),
+            "certificate directory": lambda value: value["authenticode"].__setitem__(
+                "certificate_directory_present", True
+            ),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            original = self._package(root / "original")
+            self._create(original)
+            for label, mutation in mutations.items():
+                with self.subTest(label=label):
+                    package = root / f"tampered-{label.replace(' ', '-')}" / original.name
+                    shutil.copytree(original, package)
+                    self._rewrite_manifest(package, mutation)
+                    with self.assertRaises(WindowsPackageError):
+                        windows_package.verify_package(
+                            package, repository_root=self.repository_root
+                        )
+
+    def test_native_dependency_evidence_and_complete_sbom_are_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            package = self._package(root / "package")
+            self._create(package)
+            with self.assertRaisesRegex(
+                WindowsPackageError, "dependencies differ from native dumpbin",
+            ):
+                windows_package.verify_package(
+                    package,
+                    repository_root=self.repository_root,
+                    expected_dependencies=["KERNEL32.dll"],
+                )
+
+            invalid = self._package(root / "invalid-bom")
+            sbom_path = invalid / "share/q-periapt/bom/sbom.cdx.json"
+            sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
+            sbom["components"].pop()
+            sbom_path.write_text(json.dumps(sbom, sort_keys=True) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                WindowsPackageError, "SBOM components do not match Cargo.lock",
+            ):
+                self._create(invalid)
+
+    def test_powershell_release_wiring_preserves_source_and_external_trust_roots(self) -> None:
+        script = (self.repository_root / "artifact/windows-package.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertGreaterEqual(
+            script.count(
+                "Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree"
+            ),
+            5,
+        )
+        for token in (
+            "$ExpectedSha256",
+            "$ExpectedManifestSha256",
+            "$ExpectedContractSha256",
+            "$ExpectedGitCommit",
+            "$ExpectedGitTree",
+            "function Invoke-Captured",
+            "function Assert-TrustedBuildEnvironment",
+            "function Resolve-CargoHome",
+            "function Assert-NoAmbientCargoConfiguration",
+            "function New-EncodedReleaseRustFlags",
+            "function Resolve-TrustedToolchainFile",
+            "function Resolve-TrustedCommandProcessor",
+            "function Resolve-TrustedMsvcX64Tools",
+            "function Resolve-TrustedRustLlvmTools",
+            "function Assert-TrustedMsvcPath",
+            "function Set-TrustedMsvcPath",
+            "function Assert-BareMsvcLinkerSearchBoundary",
+            "function Get-TrustedMsvcLinkerFingerprint",
+            "function Assert-MsvcLinkerFingerprintUnchanged",
+            "[System.IO.FileAttributes]::ReparsePoint",
+            "-SystemDirectory ([System.Environment]::SystemDirectory)",
+            "$environmentLines = & $commandProcessor",
+            "$MsvcInstallation = Initialize-MsvcEnvironment",
+            '$env:VSCMD_ARG_HOST_ARCH -cne "x64"',
+            '$env:VSCMD_ARG_TGT_ARCH -cne "x64"',
+            "$env:VSINSTALLDIR",
+            "$env:VCINSTALLDIR",
+            "$env:VCToolsInstallDir",
+            '"bin/Hostx64/x64"',
+            '-ExpectedName "cl.exe"',
+            '-ExpectedName "link.exe"',
+            '-ExpectedName "dumpbin.exe"',
+            "$MsvcTools = Resolve-TrustedMsvcX64Tools",
+            "$Cl = $MsvcTools.Cl",
+            "$Dumpbin = $MsvcTools.Dumpbin",
+            "$Linker = $MsvcTools.Linker",
+            "Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker",
+            '$RustLlvmTools = Resolve-TrustedRustLlvmTools',
+            '$LlvmAr = $RustLlvmTools.Ar',
+            '$LlvmNm = $RustLlvmTools.Nm',
+            '-RustToolsSearchDirectory $RustLlvmTools.Bin',
+            'rustc 1.97.0 (2d8144b78 2026-07-07)',
+            'cargo 1.97.0 (c980f4866 2026-06-30)',
+            '$ManifestRustcVersion -cne $RustcVersion',
+            '$ManifestCargoVersion -cne $CargoVersion',
+            'Windows Rust toolchain changed during release package construction',
+            '-ExpectedName "llvm-ar.exe"',
+            '-ExpectedName "llvm-nm.exe"',
+            '$MsvcVersionProbe = Join-Path $Root "artifact/msvc-version-probe.c"',
+            '"artifact/windows_package.py", "inspect-msvc-version"',
+            '"--cl", $Cl',
+            '"--probe", $MsvcVersionProbe',
+            '$clVersionResult.Stderr.Length -ne 0',
+            '$clVersion = $clVersionResult.Stdout.Trim()',
+            '$env:RUSTFLAGS = "-D warnings"',
+            '$env:CARGO_INCREMENTAL = "0"',
+            '"-DQPeriaptABI2_DIR=$Extracted/lib/cmake/QPeriaptABI2"',
+            '"--dumpbin", $Dumpbin',
+            '"--sha256", $ExpectedArchiveSha256',
+            '$savedCargoTermColor = $env:CARGO_TERM_COLOR',
+            '$savedCargoHome = [System.Environment]::GetEnvironmentVariable("CARGO_HOME", "Process")',
+            '$savedRustFlags = [System.Environment]::GetEnvironmentVariable("RUSTFLAGS", "Process")',
+            '$savedCargoEncodedRustFlags = [System.Environment]::GetEnvironmentVariable(',
+            '$savedCargoIncremental = $env:CARGO_INCREMENTAL',
+            '$savedBomRustFlags = $env:RUSTFLAGS',
+            '$savedBomCargoIncremental = $env:CARGO_INCREMENTAL',
+            '$env:CARGO_TERM_COLOR = "never"',
+            '$env:CARGO_TERM_COLOR = $savedCargoTermColor',
+            '[System.Environment]::SetEnvironmentVariable("RUSTFLAGS", $null, "Process")',
+            '$CargoHome,',
+            '$savedCargoHome,',
+            '"CARGO_ENCODED_RUSTFLAGS",',
+            '$EncodedReleaseRustFlags,',
+            '$savedCargoEncodedRustFlags,',
+            '$env:CARGO_INCREMENTAL = $savedCargoIncremental',
+            '$env:RUSTFLAGS = $savedBomRustFlags',
+            '$env:CARGO_INCREMENTAL = $savedBomCargoIncremental',
+            "$env:CC = $Cl",
+            "$env:CC = $savedCc",
+            '$env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"',
+            "$env:AR = $LlvmAr",
+            "$env:AR = $savedAr",
+            '"--print", "link-args=$linkArgumentsLog"',
+            '"-Clinker=link.exe"',
+            '"-Clink-arg=/Brepro"',
+            '"-Clink-arg=/WX"',
+            '"-Clink-arg=/DEBUG:NONE"',
+            '"-Clink-arg=/NOCOFFGRPINFO"',
+            '"-Clink-arg=/OPT:REF,NOICF"',
+            '"-Dlinker-messages"',
+            '"verify-linker-invocation"',
+            '"--link-arguments", $linkArgumentsLog',
+            '"--expected-linker", $Linker',
+            "-Arguments ([string[]] $manifestArguments)",
+            "-Arguments ([string[]] $manifestVerificationArguments)",
+            '"parse-native-static-libraries"',
+            '"--compiler-output", $nativeStaticLibrariesLog',
+            "ConvertFrom-Json `",
+            "-InputObject $nativeLibrariesJson `",
+            "-NoEnumerate",
+            "$decodedNativeStaticLibraries -isnot [System.Array]",
+            "$decodedNativeStaticLibraries.Count -ne $expectedNativeStaticLibraries.Count",
+            "$library -isnot [string]",
+            "[System.StringComparison]::Ordinal",
+            "$NativeStaticLibraries = [string[]] $decodedNativeStaticLibraries",
+            '-Filter "q_periapt_ffi_abi2*.pdb"',
+            "Windows release DLL build unexpectedly generated a q_periapt_ffi_abi2 PDB",
+            '$EncodedReleaseRustFlags = New-EncodedReleaseRustFlags',
+            '"--remap-path-prefix=$($mapping.Source)=$($mapping.Target)"',
+            '"--remap-path-prefix=$portableSource=$($mapping.Target)"',
+            'return [string]::Join([char] 0x1f, [string[]] $arguments)',
+            '$compilerRootScanArguments.Add("artifact/release_binary_scan.py")',
+            '@("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")',
+            'Get-ReleaseProducerRoots',
+            'Windows package producer scan root must contain only printable ASCII',
+            '$compilerRootScanArguments.Add("--forbid-windows-path")',
+            '$manifestArguments += @(',
+            '$manifestVerificationArguments += @(',
+            '"--forbid-windows-path"',
+            '-ProducerRoots $ProducerRoots',
+            'Write-Host "WINDOWS_PACKAGE_MANIFEST_CREATE_PASS"',
+            'Write-Host "WINDOWS_PACKAGE_MANIFEST_VERIFY_PASS"',
+            '<redacted invocation and output>',
+            '-RedactArguments:$RedactArguments',
+            'if ($Echo -and -not $RedactArguments)',
+            'throw [System.InvalidOperationException]::new(',
+            'Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"',
+        ):
+            self.assertIn(token, script)
+        for forbidden in (
+            "function Get-DllDependencies",
+            "function Get-NativeStaticLibraries",
+            "function Assert-PeHardening",
+            '"/headers"',
+            '"-Clink-arg=/WX:NO"',
+            "/WX:NO",
+            "Resolve-TrustedRustLinkerCommand",
+            "$RustLinkerCommand",
+            '"-A", "linker-messages"',
+            '"-Alinker-messages"',
+            '"-A", "linker-info"',
+            '"-Alinker-info"',
+            '"--cap-lints"',
+            '"--dependency"',
+            '"--expected-dependency"',
+            '$Linker = Resolve-TrustedToolchainFile',
+            '$Dumpbin = Resolve-TrustedToolchainFile',
+            "function Resolve-TrustedToolchainCommand",
+            '(Get-Command "link.exe"',
+            '(Get-Command "dumpbin.exe"',
+            '(Get-Command "cl.exe"',
+            '-FilePath "cl.exe"',
+            '@("/?")',
+            '"/HELP"',
+            '"/Bv"',
+            "Microsoft.*Compiler",
+            "FileVersionInfo",
+            "$clHelp",
+            "Select-Object -First",
+            '"CFLAGS_x86_64-pc-windows-msvc"',
+            '"CFLAGS_x86_64_pc_windows_msvc"',
+            '"--remap-path-prefix=$Root=qperiapt-source"',
+            "$Librarian",
+            '-ExpectedName "lib.exe"',
+        ):
+            self.assertNotIn(forbidden, script)
+        rustup_tool_invocations = list(
+            re.finditer(
+                r'-FilePath "(?:cargo|rustc)\.exe" -Arguments @\(',
+                script,
+            )
+        )
+        self.assertEqual(len(rustup_tool_invocations), 11)
+        for invocation in rustup_tool_invocations:
+            self.assertTrue(
+                script[invocation.end() :].lstrip().startswith('"+1.97.0"'),
+                "every Windows release rustc/cargo invocation must select 1.97.0",
+            )
+        self.assertNotIn(
+            "debug_directory_absent",
+            (self.repository_root / "artifact/windows_package.py").read_text(
+                encoding="utf-8"
+            ),
+        )
+        self.assertEqual(
+            (
+                self.repository_root / "artifact/msvc-version-probe.c"
+            ).read_bytes(),
+            windows_package.MSVC_VERSION_PROBE_SOURCE,
+        )
+        self.assertLess(
+            script.index('"-Clinker=link.exe"'),
+            script.index('"--print", "link-args=$linkArgumentsLog"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/WX"'),
+            script.index('"-Clink-arg=/DEBUG:NONE"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/DEBUG:NONE"'),
+            script.index('"-Clink-arg=/Brepro"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/Brepro"'),
+            script.index('"-Clink-arg=/NOCOFFGRPINFO"'),
+        )
+        self.assertLess(
+            script.index('"-Clink-arg=/NOCOFFGRPINFO"'),
+            script.index('"-Clink-arg=/OPT:REF,NOICF"'),
+        )
+        self.assertEqual(script.count('"-Clink-arg=/NOCOFFGRPINFO"'), 1)
+        self.assertLess(
+            script.index('"link-args=$linkArgumentsLog"'),
+            script.index('"verify-linker-invocation"'),
+        )
+        self.assertEqual(script.count('"-Clinker=link.exe"'), 1)
+        self.assertEqual(
+            script.count("-RustToolsSearchDirectory $RustLlvmTools.Bin"),
+            2,
+        )
+        encoded_flags = script.index(
+            '"CARGO_ENCODED_RUSTFLAGS",\n'
+            "        $EncodedReleaseRustFlags,"
+        )
+        canonical_cargo_home = script.rindex(
+            '"CARGO_HOME",\n'
+            "        $CargoHome,",
+            0,
+            encoded_flags,
+        )
+        fingerprint_before = script.index(
+            "$linkerFingerprintBefore = Get-TrustedMsvcLinkerFingerprint"
+        )
+        dynamic_build = script.index(
+            'Invoke-Checked -FilePath "cargo.exe"',
+            fingerprint_before,
+        )
+        fingerprint_after = script.index(
+            "$linkerFingerprintAfter = Get-TrustedMsvcLinkerFingerprint",
+            dynamic_build,
+        )
+        fingerprint_assertion = script.index(
+            "Assert-MsvcLinkerFingerprintUnchanged",
+            fingerprint_after,
+        )
+        static_build = script.index(
+            '$staticBuild = Invoke-Captured -FilePath "cargo.exe"',
+            fingerprint_assertion,
+        )
+        encoded_flags_restore = script.index(
+            '"CARGO_ENCODED_RUSTFLAGS",\n'
+            "        $savedCargoEncodedRustFlags,",
+            static_build,
+        )
+        cargo_home_restore = script.index(
+            '"CARGO_HOME",\n'
+            "        $savedCargoHome,",
+            static_build,
+        )
+        link_arguments_verify = script.index(
+            '"artifact/windows_package.py", "verify-linker-invocation"',
+            fingerprint_assertion,
+        )
+        manifest_create = script.index(
+            "-Arguments ([string[]] $manifestArguments)",
+            link_arguments_verify,
+        )
+        archive_create = script.index(
+            '"artifact/deterministic_archive.py", "create-zip"',
+            manifest_create,
+        )
+        self.assertLess(canonical_cargo_home, encoded_flags)
+        self.assertLess(encoded_flags, fingerprint_before)
+        self.assertLess(fingerprint_before, dynamic_build)
+        self.assertLess(dynamic_build, fingerprint_after)
+        self.assertLess(fingerprint_after, fingerprint_assertion)
+        self.assertLess(fingerprint_assertion, static_build)
+        self.assertLess(static_build, cargo_home_restore)
+        self.assertLess(static_build, encoded_flags_restore)
+        self.assertLess(fingerprint_assertion, link_arguments_verify)
+        self.assertLess(link_arguments_verify, manifest_create)
+        self.assertLess(manifest_create, archive_create)
+        target_compiler_environment = re.search(
+            r"\$targetCompilerEnvironment = @\{(?P<body>.*?)\n\}",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(target_compiler_environment)
+        assert target_compiler_environment is not None
+        target_compiler_environment_body = target_compiler_environment.group("body")
+        self.assertIn(
+            '"AR_x86_64-pc-windows-msvc" = $LlvmAr',
+            target_compiler_environment_body,
+        )
+        self.assertIn(
+            '"AR_x86_64_pc_windows_msvc" = $LlvmAr',
+            target_compiler_environment_body,
+        )
+        self.assertLess(
+            script.index('$RustLlvmTools = Resolve-TrustedRustLlvmTools'),
+            script.index('$targetCompilerEnvironment = @{'),
+        )
+        producer_root_scan = script.index(
+            "Invoke-PythonChecked `\n"
+            "    -Arguments ([string[]] $compilerRootScanArguments) `\n"
+            "    -RedactArguments"
+        )
+        copied_dll = script.index("Copy-Item -LiteralPath $dynamicDll")
+        created_manifest = script.index(
+            "-Arguments ([string[]] $manifestArguments)"
+        )
+        created_archive = script.index(
+            '"artifact/deterministic_archive.py", "create-zip"'
+        )
+        self.assertLess(producer_root_scan, copied_dll)
+        self.assertLess(copied_dll, created_manifest)
+        self.assertLess(created_manifest, created_archive)
+        verification_arguments = script.index("$manifestVerificationArguments = @(")
+        invoked_verification = script.index(
+            "-Arguments ([string[]] $manifestVerificationArguments)"
+        )
+        self.assertLess(verification_arguments, invoked_verification)
+        environment_guard = re.search(
+            r"function Assert-TrustedBuildEnvironment \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Resolve-CargoHome",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(environment_guard)
+        assert environment_guard is not None
+        environment_guard_body = environment_guard.group("body")
+        for name in (
+            '"CL"',
+            '"_CL_"',
+            '"LINK"',
+            '"RUSTC"',
+            '"RUSTC_WRAPPER"',
+            '"RUSTC_WORKSPACE_WRAPPER"',
+            '"CARGO_BUILD_RUSTC"',
+            '"CARGO_BUILD_RUSTC_WRAPPER"',
+            '"CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER"',
+            '"CARGO_BUILD_INCREMENTAL"',
+            '"CARGO_ENCODED_RUSTFLAGS"',
+            '"CMAKE_C_COMPILER_LAUNCHER"',
+            '"CMAKE_C_LINKER_LAUNCHER"',
+            '"CMAKE_CROSSCOMPILING_EMULATOR"',
+            '"CMAKE_PROJECT_INCLUDE"',
+            '"CMAKE_TEST_LAUNCHER"',
+            '"QPeriaptABI2_ROOT"',
+            '"GIT_DIR"',
+        ):
+            self.assertIn(name, environment_guard_body)
+        self.assertIn('^CARGO_PROFILE_.+$', environment_guard_body)
+        self.assertIn(
+            '^CARGO_TARGET_.+_(?:AR|LINKER|RUNNER|RUSTDOCFLAGS|RUSTFLAGS)$',
+            environment_guard_body,
+        )
+        self.assertEqual(
+            2,
+            len(re.findall(r"(?m)^Assert-TrustedBuildEnvironment$", script)),
+        )
+        invoke_captured = re.search(
+            r"function Invoke-Captured \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Invoke-Checked",
+            script,
+            flags=re.DOTALL,
+        )
+        invoke_checked = re.search(
+            r"function Invoke-Checked \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Invoke-PythonChecked",
+            script,
+            flags=re.DOTALL,
+        )
+        for process_wrapper in (invoke_captured, invoke_checked):
+            self.assertIsNotNone(process_wrapper)
+            assert process_wrapper is not None
+            wrapper_body = process_wrapper.group("body")
+            self.assertRegex(
+                wrapper_body,
+                r"\[Parameter\(Mandatory\)\]\s*"
+                r"\[AllowEmptyCollection\(\)\]\s*"
+                r"\[string\[\]\] \$Arguments",
+            )
+            self.assertNotIn("[AllowNull()]", wrapper_body)
+            self.assertNotIn("[AllowEmptyString()]", wrapper_body)
+        self.assertEqual(2, script.count("[AllowEmptyCollection()]"))
+        self.assertEqual(
+            1,
+            script.count(
+                "Invoke-Checked -FilePath $dynamicExe -Arguments @()"
+            ),
+        )
+        self.assertEqual(
+            1,
+            script.count(
+                "Invoke-Checked -FilePath $staticExe -Arguments @()"
+            ),
+        )
+        self.assertLess(
+            script.index("Assert-TrustedBuildEnvironment"),
+            script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
+        )
+        cargo_home_resolver = re.search(
+            r"function Resolve-CargoHome \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-NoAmbientCargoConfiguration",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(cargo_home_resolver)
+        assert cargo_home_resolver is not None
+        cargo_home_resolver_body = cargo_home_resolver.group("body")
+        self.assertIn('$env:CARGO_HOME', cargo_home_resolver_body)
+        self.assertIn('$env:USERPROFILE', cargo_home_resolver_body)
+        self.assertIn('$env:HOME', cargo_home_resolver_body)
+        self.assertIn('$userHome =', cargo_home_resolver_body)
+        self.assertIsNone(
+            re.search(r"(?im)^\s*\$home\s*=", cargo_home_resolver_body)
+        )
+        self.assertIn(
+            'Test-Path -LiteralPath $cargoHome -PathType Container',
+            cargo_home_resolver_body,
+        )
+        cargo_configuration_guard = re.search(
+            r"function Assert-NoAmbientCargoConfiguration \{(?P<body>.*?)\n\}"
+            r"\n\nfunction New-EncodedReleaseRustFlags",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(cargo_configuration_guard)
+        assert cargo_configuration_guard is not None
+        cargo_configuration_body = cargo_configuration_guard.group("body")
+        self.assertNotIn('$env:CARGO_HOME', cargo_configuration_body)
+        self.assertIn('$CargoHome', cargo_configuration_body)
+        self.assertIn('@("config", "config.toml")', cargo_configuration_body)
+        self.assertIn('Join-Path $directory.FullName ".cargo/$name"', cargo_configuration_body)
+        self.assertIn("Test-Path -LiteralPath $candidate", cargo_configuration_body)
+        self.assertLess(
+            script.index(
+                "Assert-NoAmbientCargoConfiguration -SourceRoot $Root -CargoHome $CargoHome"
+            ),
+            script.index("$MsvcInstallation = Initialize-MsvcEnvironment"),
+        )
+        encoded_release_flags = re.search(
+            r"function New-EncodedReleaseRustFlags \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Get-ReleaseProducerRoots",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(encoded_release_flags)
+        assert encoded_release_flags is not None
+        encoded_release_flags_body = encoded_release_flags.group("body")
+        for destination in (
+            "qperiapt-source",
+            "qperiapt-cargo-home",
+            "qperiapt-rust-sysroot",
+        ):
+            self.assertIn(destination, encoded_release_flags_body)
+        self.assertIn("$mapping.Source.Replace('\\', '/')", encoded_release_flags_body)
+        self.assertIn('[void] $arguments.Add("-D")', encoded_release_flags_body)
+        self.assertIn('[void] $arguments.Add("warnings")', encoded_release_flags_body)
+        self.assertIn("must be distinct and non-overlapping", encoded_release_flags_body)
+        self.assertNotIn("USERPROFILE", encoded_release_flags_body)
+        producer_roots = re.search(
+            r"function Get-ReleaseProducerRoots \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Resolve-TrustedToolchainFile",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(producer_roots)
+        assert producer_roots is not None
+        producer_roots_body = producer_roots.group("body")
+        self.assertIn(
+            '@("USERPROFILE", "HOME", "RUSTUP_HOME", "TEMP", "TMP")',
+            producer_roots_body,
+        )
+        self.assertIn(
+            "[System.StringComparer]::OrdinalIgnoreCase",
+            producer_roots_body,
+        )
+        self.assertIn("^[\\x20-\\x7e]+$", producer_roots_body)
+        self.assertIn("cannot be a volume root", producer_roots_body)
+        self.assertIn(
+            "must not use a device or namespace prefix",
+            producer_roots_body,
+        )
+        self.assertIn(
+            "must use canonical path components",
+            producer_roots_body,
+        )
+        self.assertIn(
+            "[System.IO.Path]::IsPathFullyQualified($windowsPath)",
+            producer_roots_body,
+        )
+        self.assertIn("Label = \"source root\"", producer_roots_body)
+        self.assertIn(": $label", producer_roots_body)
+        self.assertIn("$roots.Add($rawPath)", producer_roots_body)
+        self.assertIn("$roots.Add($fullPath)", producer_roots_body)
+        self.assertNotIn("$comparableInput", producer_roots_body)
+        resolver = re.search(
+            r"function Resolve-TrustedMsvcX64Tools \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Resolve-TrustedRustLlvmTools",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(resolver)
+        assert resolver is not None
+        resolver_body = resolver.group("body")
+        self.assertEqual(3, resolver_body.count("Resolve-TrustedToolchainFile `"))
+        self.assertIn("$vcToolsParent.FullName.Equals(", resolver_body)
+        self.assertIn("$vsInstallation.Equals(", resolver_body)
+        self.assertIn("$vcInstallation.Equals(", resolver_body)
+        self.assertIn("[System.StringComparison]::OrdinalIgnoreCase", resolver_body)
+        self.assertIn("$vcToolsVersion -cnotmatch", resolver_body)
+        for tool in ("cl.exe", "link.exe", "dumpbin.exe"):
+            self.assertIn(f'-Path (Join-Path $bin "{tool}")', resolver_body)
+        rust_llvm_resolver = re.search(
+            r"function Resolve-TrustedRustLlvmTools \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-TrustedMsvcPath",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(rust_llvm_resolver)
+        assert rust_llvm_resolver is not None
+        rust_llvm_resolver_body = rust_llvm_resolver.group("body")
+        self.assertIn(
+            '$RustHost -cne "x86_64-pc-windows-msvc"',
+            rust_llvm_resolver_body,
+        )
+        self.assertIn(
+            "-not [System.IO.Path]::IsPathFullyQualified($RustSysroot)",
+            rust_llvm_resolver_body,
+        )
+        self.assertEqual(
+            2,
+            rust_llvm_resolver_body.count("Resolve-TrustedToolchainFile `"),
+        )
+        path_assertion = re.search(
+            r"function Assert-TrustedMsvcPath \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Set-TrustedMsvcPath",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(path_assertion)
+        assert path_assertion is not None
+        path_assertion_body = path_assertion.group("body")
+        self.assertIn("$linkerCandidates.Count -ne 1", path_assertion_body)
+        self.assertIn(
+            "controlled PATH does not resolve only",
+            path_assertion_body,
+        )
+        self.assertNotIn("$env:PATH =", path_assertion_body)
+        path_binding = re.search(
+            r"function Set-TrustedMsvcPath \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-BareMsvcLinkerSearchBoundary",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(path_binding)
+        assert path_binding is not None
+        path_binding_body = path_binding.group("body")
+        self.assertIn("other link.exe provider is removed", path_binding_body)
+        self.assertIn("$env:PATH =", path_binding_body)
+        self.assertIn("Assert-TrustedMsvcPath", path_binding_body)
+        self.assertGreaterEqual(script.count("-Cl $Cl `"), 3)
+        self.assertEqual(2, script.count("Invoke-Checked -FilePath $Cl"))
+        toolchain_test = (
+            self.repository_root / "artifact/windows-toolchain-tests.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn("WINDOWS_MSVC_TOOLCHAIN_RESOLVER_PASS", toolchain_test)
+        self.assertIn("Assert-RejectsEnvironmentOverride", toolchain_test)
+        self.assertIn("Resolve-TrustedCommandProcessor", toolchain_test)
+        self.assertIn("Set-TrustedMsvcPath", toolchain_test)
+        self.assertIn('"whoami.exe"', toolchain_test)
+        self.assertIn('"where.exe"', toolchain_test)
+        self.assertIn("-Arguments ([string[]] @())", toolchain_test)
+        self.assertIn(
+            "ParameterBindingValidationException",
+            toolchain_test,
+        )
+        self.assertIn("different Visual Studio installation", toolchain_test)
+        self.assertIn("non-file PATH linker", toolchain_test)
+        self.assertIn("reparse-point bare linker provider", toolchain_test)
+        self.assertIn("-RustToolsSearchDirectory $rustBin", toolchain_test)
+        for name in (
+            '"CL"',
+            '"LINK"',
+            '"RUSTC_WRAPPER"',
+            '"CARGO_BUILD_RUSTC_WRAPPER"',
+            '"CARGO_BUILD_INCREMENTAL"',
+            '"CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_AR"',
+            '"CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER"',
+            '"CARGO_PROFILE_RELEASE_LTO"',
+            '"CMAKE_C_COMPILER_LAUNCHER"',
+            '"CMAKE_CROSSCOMPILING_EMULATOR"',
+            '"CMAKE_PROJECT_INCLUDE"',
+            '"CMAKE_TEST_LAUNCHER"',
+            '"QPeriaptABI2_ROOT"',
+            '"GIT_DIR"',
+        ):
+            self.assertIn(name, toolchain_test)
+        for workflow in (
+            ".github/workflows/ci.yml",
+            ".github/workflows/abi2-platform-candidate.yml",
+        ):
+            self.assertIn(
+                "./windows-toolchain-tests.ps1",
+                (self.repository_root / workflow).read_text(encoding="utf-8"),
+            )
+        native_library_contract = re.search(
+            r"\$expectedNativeStaticLibraries\s*=\s*\[string\[\]\]\s*@\("
+            r"(?P<libraries>.*?)\n\s*\)",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(native_library_contract)
+        assert native_library_contract is not None
+        self.assertEqual(
+            re.findall(r'"([^"]+)"', native_library_contract.group("libraries")),
+            list(windows_package.CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES),
+        )
+        self.assertRegex(
+            script,
+            re.compile(
+                r"\$vswhereCandidates\s*=\s*@\(\s*@\(.*?\)\s*\|\s*"
+                r"Where-Object\s*\{.*?\}\s*\)",
+                re.DOTALL,
+            ),
+        )
+        stdout_read = script.index("$process.StandardOutput.ReadToEndAsync()")
+        stderr_read = script.index("$process.StandardError.ReadToEndAsync()")
+        wait = script.index("$process.WaitForExit()")
+        self.assertLess(stdout_read, wait)
+        self.assertLess(stderr_read, wait)
+
+    def test_windows_consumers_freeze_the_dynamic_msvc_runtime_contract(self) -> None:
+        script = (
+            self.repository_root / "artifact/windows-package.ps1"
+        ).read_text(encoding="utf-8")
+        native_package = re.search(
+            r"function Assert-NativePackage \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Verify-WindowsArchive",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(native_package)
+        assert native_package is not None
+        native_body = native_package.group("body")
+        dynamic_arguments = re.search(
+            r"Invoke-Checked -FilePath \$Cl -Arguments @\("
+            r"(?P<arguments>.*?)\n\s*\)",
+            native_body,
+            flags=re.DOTALL,
+        )
+        static_arguments = re.search(
+            r"\$staticArguments = @\((?P<arguments>.*?)\n\s*\)"
+            r" \+ \$NativeStaticLibraries",
+            native_body,
+            flags=re.DOTALL,
+        )
+        for consumer_arguments in (dynamic_arguments, static_arguments):
+            self.assertIsNotNone(consumer_arguments)
+            assert consumer_arguments is not None
+            arguments = consumer_arguments.group("arguments")
+            self.assertEqual(arguments.count('"/MD"'), 1)
+            self.assertLess(arguments.index('"/MD"'), arguments.index('"/link"'))
+            self.assertEqual(arguments.count('"/WX"'), 2)
+            folded_arguments = arguments.casefold()
+            for forbidden in (
+                '"/mt"',
+                '"/mtd"',
+                '"/mdd"',
+                '"/nodefaultlib',
+                '"/ignore:4098"',
+                '"/wx:no"',
+            ):
+                self.assertNotIn(forbidden, folded_arguments)
+
+        cmake_consumer = re.search(
+            r"\$cmakeLists = @'\n(?P<body>.*?)\n'@\.Replace",
+            native_body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(cmake_consumer)
+        assert cmake_consumer is not None
+        cmake_body = cmake_consumer.group("body")
+        self.assertIn("cmake_policy(SET CMP0091 NEW)", cmake_body)
+        self.assertIn(
+            'QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY STREQUAL "MultiThreadedDLL"',
+            cmake_body,
+        )
+        self.assertRegex(
+            cmake_body,
+            r"set_property\(TARGET dynamic-smoke PROPERTY\s+"
+            r'MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"\)',
+        )
+        self.assertRegex(
+            cmake_body,
+            r"set_property\(TARGET static-smoke PROPERTY\s+"
+            r'MSVC_RUNTIME_LIBRARY "\$\{QPeriaptABI2_'
+            r'STATIC_MSVC_RUNTIME_LIBRARY\}"\)',
+        )
+
+        package_config = re.search(
+            r"\$configTemplate = @'\n(?P<body>.*?)\n'@",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(package_config)
+        assert package_config is not None
+        self.assertEqual(
+            package_config.group("body").count(
+                'set(QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")'
+            ),
+            1,
+        )
+        readme_template = re.search(
+            r"\$readmeTemplate = @'\n(?P<body>.*?)\n'@",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(readme_template)
+        assert readme_template is not None
+        readme_body = " ".join(readme_template.group("body").split())
+        for documentation in (
+            "Static consumers must compile with `/MD`",
+            "`MultiThreadedDLL`",
+            "`QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY`",
+            "does not modify a consuming target automatically",
+            "Do not mix `/MT`/LIBCMT",
+            "must not be freed",
+            "buffers remain caller-owned",
+        ):
+            self.assertIn(documentation, readme_body)
+
+        negative_crt = re.search(
+            r"function Assert-IncompatibleStaticCrtRejected \{"
+            r"(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-NativePackage",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(negative_crt)
+        assert negative_crt is not None
+        negative_crt_body = negative_crt.group("body")
+        self.assertIn('foreach ($runtime in @("/MT", "/MTd"))', negative_crt_body)
+        negative_arguments = re.search(
+            r"\$negativeArguments = @\((?P<arguments>.*?)\n\s*\)"
+            r" \+ \$NativeStaticLibraries",
+            negative_crt_body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(negative_arguments)
+        assert negative_arguments is not None
+        negative_argument_body = negative_arguments.group("arguments")
+        self.assertEqual(negative_argument_body.count('"/WX"'), 2)
+        self.assertLess(
+            negative_argument_body.index("$runtime"),
+            negative_argument_body.index('"/link"'),
+        )
+        self.assertLess(
+            negative_argument_body.index('"/link"'),
+            negative_argument_body.index("$StaticLibrary"),
+        )
+        self.assertIn("Invoke-Captured `", negative_crt_body)
+        self.assertNotIn("Invoke-Checked `", negative_crt_body)
+        self.assertNotIn("-Echo", negative_crt_body)
+        self.assertIn('"LNK4098"', negative_crt_body)
+        self.assertIn('"LNK1218"', negative_crt_body)
+        self.assertIn("Test-Path -LiteralPath $negativeExe -PathType Leaf", negative_crt_body)
+        self.assertIn(
+            "WINDOWS_INCOMPATIBLE_STATIC_CRT_REJECTION_PASS",
+            negative_crt_body,
+        )
+        negative_crt_call = "Assert-IncompatibleStaticCrtRejected `"
+        self.assertEqual(native_body.count(negative_crt_call), 1)
+        self.assertRegex(
+            native_body,
+            r"Assert-IncompatibleStaticCrtRejected\s+`\s*"
+            r"-Extracted \$Extracted\s+`\s*"
+            r"-Cl \$Cl\s+`\s*"
+            r"-StaticLibrary \$staticLibrary\s+`\s*"
+            r"-NativeStaticLibraries \$NativeStaticLibraries\s+`\s*"
+            r"-ConsumerRoot \$ConsumerRoot",
+        )
+        self.assertLess(
+            native_body.index("Invoke-Checked -FilePath $staticExe -Arguments @()"),
+            native_body.index(negative_crt_call),
+        )
+        self.assertLess(
+            native_body.index(negative_crt_call),
+            native_body.index("$cmakeSource ="),
+        )
+
+        folded_native_body = (native_body + negative_crt_body).casefold()
+        for suppression in ("/nodefaultlib", "/ignore:4098", "/wx:no"):
+            self.assertNotIn(suppression, folded_native_body)
+
+
+if __name__ == "__main__":
+    unittest.main()

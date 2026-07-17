@@ -251,15 +251,20 @@ def _repository_python_cache_paths(root: pathlib.Path) -> list[str]:
     return _decode_nul_paths(raw, "repository Python bytecode-cache inventory")
 
 
-def _is_declared_ephemeral_output(relative: str) -> bool:
-    """Apply the fixed, verifier-owned output policy without consulting Git ignores."""
-
+def _canonical_untracked_path(relative: str) -> pathlib.PurePosixPath:
     pure = pathlib.PurePosixPath(relative)
     if pure.is_absolute() or ".." in pure.parts or pure.as_posix() != relative:
         raise GitProvenanceError(f"untracked path is not canonical: {relative}")
-    parts = pure.parts
-    if not parts:
+    if not pure.parts:
         raise GitProvenanceError("untracked source-input path is empty")
+    return pure
+
+
+def _is_declared_ephemeral_output(relative: str) -> bool:
+    """Apply the fixed, verifier-owned output policy without consulting Git ignores."""
+
+    pure = _canonical_untracked_path(relative)
+    parts = pure.parts
     if parts[0] in {"target", "tmp"}:
         return True
     fixed_prefixes = (
@@ -284,14 +289,40 @@ def _is_declared_ephemeral_output(relative: str) -> bool:
     return False
 
 
+def _is_untracked_finder_metadata_file(root: pathlib.Path, relative: str) -> bool:
+    """Identify only Finder's exact, ordinary metadata file as a non-input."""
+
+    pure = _canonical_untracked_path(relative)
+    if pure.name != ".DS_Store":
+        return False
+    path = root.joinpath(*pure.parts)
+    try:
+        metadata = path.lstat()
+    except OSError as exc:
+        raise GitProvenanceError(
+            f"cannot inspect untracked Finder metadata path {relative}: {exc}"
+        ) from exc
+    # Finder writes this opaque filesystem metadata opportunistically at any
+    # directory depth. Requiring a real regular file prevents an exact-name
+    # symlink or other special object from escaping the untracked-input gate.
+    return stat.S_ISREG(metadata.st_mode)
+
+
 def _untracked_execution_input_paths(root: pathlib.Path) -> list[str]:
     # With no --exclude/--ignored option, Git reports ignored files too.  Only
-    # the verifier-owned policy above may remove a path from the source digest.
+    # the verifier-owned policies below may remove a path from the source digest.
     paths = _decode_nul_paths(
         run_git_bytes(root, ["ls-files", "--others", "-z"]),
         "untracked source-input inventory",
     )
-    return [path for path in paths if not _is_declared_ephemeral_output(path)]
+    source_inputs: list[str] = []
+    for path in paths:
+        if _is_declared_ephemeral_output(path):
+            continue
+        if _is_untracked_finder_metadata_file(root, path):
+            continue
+        source_inputs.append(path)
+    return source_inputs
 
 
 def _parse_index(root: pathlib.Path) -> dict[str, tuple[str, str]]:
