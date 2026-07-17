@@ -1091,6 +1091,51 @@ function Assert-ImportLibrary {
     }
 }
 
+function Assert-IncompatibleStaticCrtRejected {
+    param(
+        [Parameter(Mandatory)] [string] $Extracted,
+        [Parameter(Mandatory)] [string] $Cl,
+        [Parameter(Mandatory)] [string] $StaticLibrary,
+        [Parameter(Mandatory)] [string[]] $NativeStaticLibraries,
+        [Parameter(Mandatory)] [string] $ConsumerRoot
+    )
+
+    foreach ($runtime in @("/MT", "/MTd")) {
+        $runtimeLabel = $runtime.Substring(1).ToLowerInvariant()
+        $negativeExe = Join-Path $ConsumerRoot "static-smoke-$runtimeLabel.exe"
+        $negativeObject = Join-Path $ConsumerRoot "static-smoke-$runtimeLabel.obj"
+        $negativeArguments = @(
+            "/nologo", "/std:c11", "/W4", "/WX", "/utf-8", $runtime,
+            (Join-Path $Extracted "share/q-periapt/smoke.c"),
+            "/I$Extracted\include\qperiapt\abi2",
+            "/Fe:$negativeExe", "/Fo:$negativeObject",
+            "/link", "/WX", $StaticLibrary
+        ) + $NativeStaticLibraries
+        $failure = $null
+        try {
+            [void] (Invoke-Captured `
+                -FilePath $Cl `
+                -Arguments $negativeArguments)
+        }
+        catch {
+            $failure = $_.Exception.Message
+        }
+        if ($null -eq $failure) {
+            throw "incompatible static CRT unexpectedly linked: $runtime"
+        }
+        if (
+            -not $failure.Contains("LNK4098", [System.StringComparison]::Ordinal) -or
+            -not $failure.Contains("LNK1218", [System.StringComparison]::Ordinal)
+        ) {
+            throw "incompatible static CRT failed outside the expected linker contract: $runtime"
+        }
+        if (Test-Path -LiteralPath $negativeExe -PathType Leaf) {
+            throw "incompatible static CRT produced an executable: $runtime"
+        }
+    }
+    Write-Host "WINDOWS_INCOMPATIBLE_STATIC_CRT_REJECTION_PASS"
+}
+
 function Assert-NativePackage {
     param(
         [Parameter(Mandatory)] [string] $Extracted,
@@ -1145,7 +1190,7 @@ function Assert-NativePackage {
     $dynamicExe = Join-Path $ConsumerRoot "dynamic-smoke.exe"
     $staticExe = Join-Path $ConsumerRoot "static-smoke.exe"
     Invoke-Checked -FilePath $Cl -Arguments @(
-        "/nologo", "/std:c11", "/W4", "/WX", "/utf-8",
+        "/nologo", "/std:c11", "/W4", "/WX", "/utf-8", "/MD",
         (Join-Path $Extracted "share/q-periapt/smoke.c"),
         "/I$Extracted\include\qperiapt\abi2",
         "/Fe:$dynamicExe", "/Fo:$ConsumerRoot\dynamic-smoke.obj",
@@ -1161,7 +1206,7 @@ function Assert-NativePackage {
     }
 
     $staticArguments = @(
-        "/nologo", "/std:c11", "/W4", "/WX", "/utf-8",
+        "/nologo", "/std:c11", "/W4", "/WX", "/utf-8", "/MD",
         (Join-Path $Extracted "share/q-periapt/smoke.c"),
         "/I$Extracted\include\qperiapt\abi2",
         "/Fe:$staticExe", "/Fo:$ConsumerRoot\static-smoke.obj",
@@ -1180,6 +1225,12 @@ function Assert-NativePackage {
     if ($staticDependencies -match '(?i)q_periapt_ffi_abi2\.dll') {
         throw "static consumer unexpectedly depends on q_periapt_ffi_abi2.dll"
     }
+    Assert-IncompatibleStaticCrtRejected `
+        -Extracted $Extracted `
+        -Cl $Cl `
+        -StaticLibrary $staticLibrary `
+        -NativeStaticLibraries $NativeStaticLibraries `
+        -ConsumerRoot $ConsumerRoot
 
     $cmakeSource = Join-Path $VerifyRoot "cmake-consumer-source"
     $cmakeBuild = Join-Path $VerifyRoot "cmake-consumer-build"
@@ -1187,12 +1238,18 @@ function Assert-NativePackage {
     Copy-Item -LiteralPath (Join-Path $Extracted "share/q-periapt/smoke.c") -Destination (Join-Path $cmakeSource "smoke.c")
     $cmakeLists = @'
 cmake_minimum_required(VERSION 3.20)
+cmake_policy(SET CMP0091 NEW)
 project(QPeriaptWindowsConsumer C)
 find_package(QPeriaptABI2 2.0.0 EXACT CONFIG REQUIRED)
 if(NOT QPeriaptABI2_RELEASE_VERSION STREQUAL "@VERSION@")
   message(FATAL_ERROR "QPeriapt release version mismatch")
 endif()
+if(NOT QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY STREQUAL "MultiThreadedDLL")
+  message(FATAL_ERROR "QPeriapt static MSVC runtime contract mismatch")
+endif()
 add_executable(dynamic-smoke smoke.c)
+set_property(TARGET dynamic-smoke PROPERTY
+  MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 target_compile_features(dynamic-smoke PRIVATE c_std_11)
 target_compile_options(dynamic-smoke PRIVATE /W4 /WX)
 target_link_options(dynamic-smoke PRIVATE /WX)
@@ -1201,6 +1258,8 @@ add_custom_command(TARGET dynamic-smoke POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:QPeriaptABI2::qperiapt>" "$<TARGET_FILE_DIR:dynamic-smoke>")
 add_executable(static-smoke smoke.c)
+set_property(TARGET static-smoke PROPERTY
+  MSVC_RUNTIME_LIBRARY "${QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY}")
 target_compile_features(static-smoke PRIVATE c_std_11)
 target_compile_options(static-smoke PRIVATE /W4 /WX)
 target_link_options(static-smoke PRIVATE /WX)
@@ -1719,6 +1778,7 @@ get_filename_component(_QPERIAPT_ABI2_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../..
 set(QPeriaptABI2_VERSION "2.0.0")
 set(QPeriaptABI2_ABI_MAJOR "2")
 set(QPeriaptABI2_RELEASE_VERSION "@VERSION@")
+set(QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 set(QPeriaptABI2_INCLUDE_DIR "${_QPERIAPT_ABI2_PREFIX}/include/qperiapt/abi2")
 set(QPeriaptABI2_LIBRARY "${_QPERIAPT_ABI2_PREFIX}/bin/q_periapt_ffi_abi2.dll")
 set(QPeriaptABI2_IMPORT_LIBRARY "${_QPERIAPT_ABI2_PREFIX}/lib/q_periapt_ffi_abi2.lib")
@@ -1774,6 +1834,15 @@ GitHub immutable-release/artifact attestations with Authenticode trust.
 
 Use `find_package(QPeriaptABI2 2.0.0 EXACT CONFIG REQUIRED)` and link either
 `QPeriaptABI2::qperiapt` or `QPeriaptABI2::qperiapt_static`.
+
+The static library is built against the dynamically linked MSVC runtime.
+Static consumers must compile with `/MD`, represented by CMake's
+`MultiThreadedDLL` value exported as declarative
+`QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY` contract metadata. The package does
+not modify a consuming target automatically; apply that value to its
+`MSVC_RUNTIME_LIBRARY` property. Do not mix `/MT`/LIBCMT with this static
+library. Metadata strings returned by the ABI are library-owned static storage
+and must not be freed; all operation buffers remain caller-owned.
 '@
 Write-Utf8File -Path (Join-Path $PackageRoot "README.md") -Content $readmeTemplate.Replace("@VERSION@", $Version)
 

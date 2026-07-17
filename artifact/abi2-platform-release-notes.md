@@ -43,7 +43,10 @@ normal release after the common toolchain has passed the full platform matrix.
   and its resolved full-path spelling are scanned, so runner-specific aliases do
   not create a provenance blind spot. Release producer roots containing non-ASCII
   text, device/namespace prefixes, or noncanonical path components fail closed
-  rather than weakening this contract.
+  rather than weakening this contract. Direct and CMake release consumers
+  explicitly select `/MD` (`MultiThreadedDLL`) to match the Rust static
+  library's frozen `msvcrt` contract; `/MT`/LIBCMT is not compatible with that
+  static artifact and linker warnings remain fatal.
 
 The immutable Apple
 [`v0.1.0-alpha.2`](https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2)

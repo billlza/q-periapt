@@ -535,6 +535,28 @@ class RustcNativeStaticLibraryTests(unittest.TestCase):
     )
 
     def test_parser_accepts_only_the_exact_ordered_windows_contract(self) -> None:
+        self.assertEqual(
+            self.RAW_TOKENS,
+            (
+                "kernel32.lib",
+                "ntdll.lib",
+                "userenv.lib",
+                "ws2_32.lib",
+                "dbghelp.lib",
+                "/defaultlib:msvcrt",
+            ),
+        )
+        self.assertEqual(
+            self.CANONICAL_LIBRARIES,
+            [
+                "kernel32.lib",
+                "ntdll.lib",
+                "userenv.lib",
+                "ws2_32.lib",
+                "dbghelp.lib",
+                "msvcrt.lib",
+            ],
+        )
         for newline in (b"\n", b"\r\n"):
             with self.subTest(newline=newline):
                 self.assertEqual(
@@ -565,6 +587,9 @@ class RustcNativeStaticLibraryTests(unittest.TestCase):
             ),
             "defaultlib injection": _native_static_libraries_output(
                 *self.RAW_TOKENS[:-1], "/defaultlib:evil"
+            ),
+            "static CRT": _native_static_libraries_output(
+                *self.RAW_TOKENS[:-1], "/defaultlib:libcmt"
             ),
             "whole archive": _native_static_libraries_output(
                 *self.RAW_TOKENS[:-1], "/WHOLEARCHIVE:evil.lib"
@@ -2982,6 +3007,169 @@ class WindowsPackageManifestTests(unittest.TestCase):
         wait = script.index("$process.WaitForExit()")
         self.assertLess(stdout_read, wait)
         self.assertLess(stderr_read, wait)
+
+    def test_windows_consumers_freeze_the_dynamic_msvc_runtime_contract(self) -> None:
+        script = (
+            self.repository_root / "artifact/windows-package.ps1"
+        ).read_text(encoding="utf-8")
+        native_package = re.search(
+            r"function Assert-NativePackage \{(?P<body>.*?)\n\}"
+            r"\n\nfunction Verify-WindowsArchive",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(native_package)
+        assert native_package is not None
+        native_body = native_package.group("body")
+        dynamic_arguments = re.search(
+            r"Invoke-Checked -FilePath \$Cl -Arguments @\("
+            r"(?P<arguments>.*?)\n\s*\)",
+            native_body,
+            flags=re.DOTALL,
+        )
+        static_arguments = re.search(
+            r"\$staticArguments = @\((?P<arguments>.*?)\n\s*\)"
+            r" \+ \$NativeStaticLibraries",
+            native_body,
+            flags=re.DOTALL,
+        )
+        for consumer_arguments in (dynamic_arguments, static_arguments):
+            self.assertIsNotNone(consumer_arguments)
+            assert consumer_arguments is not None
+            arguments = consumer_arguments.group("arguments")
+            self.assertEqual(arguments.count('"/MD"'), 1)
+            self.assertLess(arguments.index('"/MD"'), arguments.index('"/link"'))
+            self.assertEqual(arguments.count('"/WX"'), 2)
+            folded_arguments = arguments.casefold()
+            for forbidden in (
+                '"/mt"',
+                '"/mtd"',
+                '"/mdd"',
+                '"/nodefaultlib',
+                '"/ignore:4098"',
+                '"/wx:no"',
+            ):
+                self.assertNotIn(forbidden, folded_arguments)
+
+        cmake_consumer = re.search(
+            r"\$cmakeLists = @'\n(?P<body>.*?)\n'@\.Replace",
+            native_body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(cmake_consumer)
+        assert cmake_consumer is not None
+        cmake_body = cmake_consumer.group("body")
+        self.assertIn("cmake_policy(SET CMP0091 NEW)", cmake_body)
+        self.assertIn(
+            'QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY STREQUAL "MultiThreadedDLL"',
+            cmake_body,
+        )
+        self.assertRegex(
+            cmake_body,
+            r"set_property\(TARGET dynamic-smoke PROPERTY\s+"
+            r'MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"\)',
+        )
+        self.assertRegex(
+            cmake_body,
+            r"set_property\(TARGET static-smoke PROPERTY\s+"
+            r'MSVC_RUNTIME_LIBRARY "\$\{QPeriaptABI2_'
+            r'STATIC_MSVC_RUNTIME_LIBRARY\}"\)',
+        )
+
+        package_config = re.search(
+            r"\$configTemplate = @'\n(?P<body>.*?)\n'@",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(package_config)
+        assert package_config is not None
+        self.assertEqual(
+            package_config.group("body").count(
+                'set(QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")'
+            ),
+            1,
+        )
+        readme_template = re.search(
+            r"\$readmeTemplate = @'\n(?P<body>.*?)\n'@",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(readme_template)
+        assert readme_template is not None
+        readme_body = " ".join(readme_template.group("body").split())
+        for documentation in (
+            "Static consumers must compile with `/MD`",
+            "`MultiThreadedDLL`",
+            "`QPeriaptABI2_STATIC_MSVC_RUNTIME_LIBRARY`",
+            "does not modify a consuming target automatically",
+            "Do not mix `/MT`/LIBCMT",
+            "must not be freed",
+            "buffers remain caller-owned",
+        ):
+            self.assertIn(documentation, readme_body)
+
+        negative_crt = re.search(
+            r"function Assert-IncompatibleStaticCrtRejected \{"
+            r"(?P<body>.*?)\n\}"
+            r"\n\nfunction Assert-NativePackage",
+            script,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(negative_crt)
+        assert negative_crt is not None
+        negative_crt_body = negative_crt.group("body")
+        self.assertIn('foreach ($runtime in @("/MT", "/MTd"))', negative_crt_body)
+        negative_arguments = re.search(
+            r"\$negativeArguments = @\((?P<arguments>.*?)\n\s*\)"
+            r" \+ \$NativeStaticLibraries",
+            negative_crt_body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(negative_arguments)
+        assert negative_arguments is not None
+        negative_argument_body = negative_arguments.group("arguments")
+        self.assertEqual(negative_argument_body.count('"/WX"'), 2)
+        self.assertLess(
+            negative_argument_body.index("$runtime"),
+            negative_argument_body.index('"/link"'),
+        )
+        self.assertLess(
+            negative_argument_body.index('"/link"'),
+            negative_argument_body.index("$StaticLibrary"),
+        )
+        self.assertIn("Invoke-Captured `", negative_crt_body)
+        self.assertNotIn("Invoke-Checked `", negative_crt_body)
+        self.assertNotIn("-Echo", negative_crt_body)
+        self.assertIn('"LNK4098"', negative_crt_body)
+        self.assertIn('"LNK1218"', negative_crt_body)
+        self.assertIn("Test-Path -LiteralPath $negativeExe -PathType Leaf", negative_crt_body)
+        self.assertIn(
+            "WINDOWS_INCOMPATIBLE_STATIC_CRT_REJECTION_PASS",
+            negative_crt_body,
+        )
+        negative_crt_call = "Assert-IncompatibleStaticCrtRejected `"
+        self.assertEqual(native_body.count(negative_crt_call), 1)
+        self.assertRegex(
+            native_body,
+            r"Assert-IncompatibleStaticCrtRejected\s+`\s*"
+            r"-Extracted \$Extracted\s+`\s*"
+            r"-Cl \$Cl\s+`\s*"
+            r"-StaticLibrary \$staticLibrary\s+`\s*"
+            r"-NativeStaticLibraries \$NativeStaticLibraries\s+`\s*"
+            r"-ConsumerRoot \$ConsumerRoot",
+        )
+        self.assertLess(
+            native_body.index("Invoke-Checked -FilePath $staticExe -Arguments @()"),
+            native_body.index(negative_crt_call),
+        )
+        self.assertLess(
+            native_body.index(negative_crt_call),
+            native_body.index("$cmakeSource ="),
+        )
+
+        folded_native_body = (native_body + negative_crt_body).casefold()
+        for suppression in ("/nodefaultlib", "/ignore:4098", "/wx:no"):
+            self.assertNotIn(suppression, folded_native_body)
 
 
 if __name__ == "__main__":
