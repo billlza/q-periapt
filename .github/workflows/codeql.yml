@@ -1,0 +1,113 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build_mode: none
+            runner: ubuntu-latest
+          - language: c-cpp
+            build_mode: none
+            runner: ubuntu-latest
+          - language: java-kotlin
+            build_mode: manual
+            runner: ubuntu-latest
+          - language: python
+            build_mode: none
+            runner: ubuntu-latest
+          - language: rust
+            build_mode: none
+            runner: ubuntu-latest
+          - language: swift
+            build_mode: manual
+            runner: macos-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up canonical Rust toolchain
+        if: matrix.language == 'java-kotlin' || matrix.language == 'swift'
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.96.1
+
+      - name: Set up Java 22
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: "22"
+
+      - name: Set up Gradle 9.2.1
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          gradle-version: "9.2.1"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          build-mode: ${{ matrix.build_mode }}
+          config: |
+            threat-models: [local]
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Build Kotlin binding
+        if: matrix.language == 'java-kotlin'
+        run: |
+          cargo build --locked -p q-periapt-ffi --release
+          gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail
+
+      - name: Build Swift binding
+        if: matrix.language == 'swift'
+        # The CodeQL Swift extractor may drive the SwiftPM build for a
+        # different architecture than the runner host (observed: an
+        # x86_64-apple-macosx SwiftPM triple on an arm64 runner). Provide a
+        # universal *static* library only, so whichever slice the tracer
+        # selects links hermetically and the XCTest binary carries no runtime
+        # dylib dependency.
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo build --locked -p q-periapt-ffi --release --target aarch64-apple-darwin
+          cargo build --locked -p q-periapt-ffi --release --target x86_64-apple-darwin
+          mkdir -p target/release
+          rm -f target/release/libq_periapt_ffi_abi2.a target/release/libq_periapt_ffi_abi2.dylib
+          lipo -create \
+            target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a \
+            target/x86_64-apple-darwin/release/libq_periapt_ffi_abi2.a \
+            -output target/release/libq_periapt_ffi_abi2.a
+          lipo -info target/release/libq_periapt_ffi_abi2.a
+          swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          category: /language:${{ matrix.language }}

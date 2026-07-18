@@ -64,3 +64,19 @@ QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh
 
 Clean-tree runtime proof is the release contract. `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1`
 and `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` are only for local diagnostics.
+
+## Published AAR prerelease
+
+A prebuilt research-prerelease AAR is published in the immutable
+`abi2-platforms-v0.1.0-alpha.2-r2` GitHub release: one AAR containing `arm64-v8a`,
+`armeabi-v7a`, `x86`, and `x86_64` JNI libraries built with stable NDK r29 and
+Rust 1.96.1. Every ELF has 16 KiB load alignment, the exact nine-symbol ABI 2
+export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
+release also binds a runtime-evidence bundle that executed the exact public AAR on
+the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
+16 KiB pages. Verify the AAR and its manifest with `gh release verify-asset`
+against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
+[`../../artifact/abi2-platform-release-notes.md`](../../artifact/abi2-platform-release-notes.md).
+Maven Central publication and physical-device coverage are explicitly not claimed,
+and the published emulator evidence does not replace the clean-tree runtime proof
+required for a source tree that has advanced past the release tag.

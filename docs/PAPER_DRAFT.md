@@ -9,9 +9,13 @@
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
 > ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-> for coordinated Rust-crate publication and a separately gated Apple-only XCFramework research
-> prerelease. Any current Apple asset is a tag-scoped evidence fact in `artifact/results.json`; it
-> is not a multi-platform or production claim and does not promote historical measurements below.
+> for coordinated Rust-crate publication (not yet on crates.io), with two published immutable
+> GitHub research prereleases: the Apple XCFramework `v0.1.0-alpha.2-r1` (Rust 1.96.1;
+> the earlier `v0.1.0-alpha.2` on 1.96.0 is superseded) and the
+> `abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR + API 35 / 16 KiB-page
+> emulator runtime evidence; Linux x86_64+aarch64 SDKs; unsigned experimental Windows x64 MSVC SDK
+> on Rust 1.97.0). Tag-scoped receipts live in `artifact/results.json`. These are attested research
+> prereleases, not a production claim, and they do not promote historical measurements below.
 >
 > **Backend-migration note (2026-07-13).** The living artifact now uses portable
 > `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204` 0.4.6,
@@ -125,10 +129,12 @@ not vendored C, and neither the upstream provider nor this Rust/C integration ha
 completed independent audit.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
 ABI 2 is release-ready as a research-alpha source/Rust-crate line intended for coordinated
-registry publication, with a separately scoped Apple XCFramework prerelease lane. Fresh same-source
-package/device/performance evidence, independent cryptographic/C-FFI/ABI review,
-signed or transparency-backed source provenance, and all non-Apple platform distribution work
-remain requirements for production promotion or a multi-platform binary-package claim.
+registry publication (not yet on crates.io). Its published binary surface is two immutable,
+attested GitHub research prereleases: the Apple `v0.1.0-alpha.2-r1` XCFramework and the
+`abi2-platforms-v0.1.0-alpha.2-r2` Android/Linux/Windows packages. Fresh same-source
+device/performance evidence, independent cryptographic/C-FFI/ABI review,
+signed or transparency-backed source provenance, registry publication, and Windows
+Authenticode remain requirements for production promotion.
 
 ---
 
@@ -399,6 +405,11 @@ remain requirements for production promotion or a multi-platform binary-package 
   parity remain unproved.
 - CI: the repo's gates are *configured*; report which have actually executed (note the no-remote
   history honestly, now that it is public on GitHub).
+- Distribution: the published artifacts are immutable GitHub *research prereleases* only
+  (Apple XCFramework r1; Android/Linux/Windows platform packages r2, Windows unsigned
+  experimental). No crates.io/Maven/deb/rpm/MSIX registry publication, Authenticode,
+  physical-Android coverage, or store distribution is claimed; do not let the artifact
+  paragraph imply otherwise.
 - The artifact is not an asynchronous messaging protocol: no identity directory,
   prekeys, ongoing ratchet, multi-device state, recovery, or key transparency. Apple
   PQ3 and Signal's public PQXDH/SPQR/Triple-Ratchet components plus Sesame manager remain ahead on
@@ -430,7 +441,7 @@ remain requirements for production promotion or a multi-platform binary-package 
 | C1a | Standard MAL-BIND-K-{CT,PK} ≤ CR(SHA3); encode_inj proved; **full CDM Figure 6** game (implicit + explicit rejection), over abstract Decaps | `formal/easycrypt/BindingViaCR.ec` (`malbind_kct_*`, `malbind_kpk_*`); explicit `K != bottom` countermodel; proof-dependency controls | Machine-checked; no spec↔Rust refinement |
 | C1b | Self-defined context-parameterized K-CTX syntactic extension ≤ CR(SHA3); not a CDM lattice node or monotonicity corollary | `formal/easycrypt/BindingViaCR.ec` (`malbind_kctx_*`, `omit_ctx_kctx_broken`); Tamarin/ProVerif authenticated-context models | Machine-checked at hash/game level; protocol meaning depends on authenticated context and trusted host |
 | C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | Harnesses present; report current-source live results separately, because predecessor runs are historical |
-| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; Windows-MSVC historical local; exact-nine dynamic `q_periapt_*` C ABI contract (static archives constrain that public namespace but retain unsupported hidden bridge symbols); `artifact/embedding-readiness.sh`; separate device harnesses | ABI2 surface implemented; static embedding is a trusted same-process boundary; all recorded package/device evidence is stale after the backend migration; current Android, Apple, Linux-SONAME, Windows-PE, and signed production-promotion evidence remain pending |
+| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; exact-nine dynamic `q_periapt_*` C ABI contract (static archives constrain that public namespace but retain unsupported hidden bridge symbols); `artifact/embedding-readiness.sh`; separate device harnesses; published release receipts in `artifact/results.json` | ABI2 surface implemented; static embedding is a trusted same-process boundary. Published attested prereleases now cover Apple XCFramework (r1), Android AAR + emulator runtime evidence, Linux-SONAME SDKs, and Windows-PE SDK (r2, unsigned experimental). Current-source (post-tag) device/performance reruns, physical-device coverage, and signed production-promotion evidence remain pending |
 | C3a | source→binary CT: portable `mlkem-native` ML-KEM-512/768/1024 zero / synthetic-positive discriminator | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Gate migrated; `fips203` failed historically, former `libcrux` zero and PQClean-HQC 193 rows are predecessor evidence, and fresh x86-64+aarch64 capture is pending |
 | C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (release-graph portable `mlkem-native`) | Adapter migrated; report the live current-source result separately; predecessor commit result is historical |
 | C3c | Tamarin 5 lemmas + ProVerif 6 exact queries + EasyCrypt computational proof | `formal/{tamarin,proverif,easycrypt}` | Proof artifacts present; report fresh local and remote execution separately |

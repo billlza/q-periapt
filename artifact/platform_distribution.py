@@ -33,7 +33,7 @@ from c_package_manifest import (
     CPackageManifestError,
     verify_package as verify_c_package,
 )
-from c_abi_contract import ABI_MAJOR, PACKAGE_SEMVER, load_contract
+from c_abi_contract import ABI_MAJOR, load_contract
 from claim_ledger import canonical_tree_digest, repository_paths
 from deterministic_archive import (
     ArchiveLimits,
@@ -48,6 +48,23 @@ from evidence_io import (
     read_regular_snapshot,
 )
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_text
+from platform_release_contract import (
+    ANDROID_AAR,
+    ANDROID_MANIFEST,
+    ANDROID_RUNTIME_BUNDLE,
+    DISTRIBUTION_REVISION,
+    LINUX_AARCH64,
+    LINUX_X86_64,
+    PLATFORM_DISTRIBUTION_KIND as KIND,
+    PLATFORM_DISTRIBUTION_SCHEMA_VERSION as SCHEMA_VERSION,
+    PLATFORM_INPUT_ASSETS as INPUT_ASSETS,
+    PLATFORM_RELEASE_FILES as RELEASE_FILES,
+    PRODUCT_VERSION,
+    RELEASE_MANIFEST,
+    RELEASE_SUMS,
+    RELEASE_TAG,
+    WINDOWS_X86_64,
+)
 from windows_package import (
     SCHEMA_VERSION as WINDOWS_PACKAGE_SCHEMA_VERSION,
     WindowsPackageError,
@@ -55,38 +72,6 @@ from windows_package import (
 )
 
 
-SCHEMA_VERSION = 1
-KIND = "qperiapt.abi2_platform_distribution"
-PRODUCT_VERSION = PACKAGE_SEMVER
-DISTRIBUTION_REVISION = "r2"
-RELEASE_TAG = "abi2-platforms-v0.1.0-alpha.2-r2"
-RELEASE_MANIFEST = "PLATFORM_DISTRIBUTION.json"
-RELEASE_SUMS = "SHA256SUMS"
-ANDROID_AAR = "q-periapt-android-0.1.0-alpha.2.aar"
-ANDROID_MANIFEST = "q-periapt-android-0.1.0-alpha.2-MANIFEST.json"
-ANDROID_RUNTIME_BUNDLE = (
-    "q-periapt-android-0.1.0-alpha.2-16k-runtime-evidence.zip"
-)
-LINUX_X86_64 = (
-    "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz"
-)
-LINUX_AARCH64 = (
-    "q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz"
-)
-WINDOWS_X86_64 = (
-    "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip"
-)
-INPUT_ASSETS = frozenset(
-    {
-        ANDROID_AAR,
-        ANDROID_MANIFEST,
-        ANDROID_RUNTIME_BUNDLE,
-        LINUX_X86_64,
-        LINUX_AARCH64,
-        WINDOWS_X86_64,
-    }
-)
-RELEASE_FILES = INPUT_ASSETS | {RELEASE_MANIFEST, RELEASE_SUMS}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 MAX_ASSET_BYTES = 512 * 1024 * 1024

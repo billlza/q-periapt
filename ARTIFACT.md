@@ -121,7 +121,8 @@ explicitly local Apple/core-scoped `PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS`; o
 scoped `PROOF_TO_BYTE_RUN_FINISHED ...` summary (or `PROOF_TO_BYTE_RELEASE_NOT_ATTESTED` for a dirty
 diagnostic run). Android runtime remains an independently gated proof until its physical-vs-emulator
 release policy is decided; no distribution, notarization, or generic all-platform release marker
-exists. The local-candidate marker does not accept an Apple Development profile as distribution
+exists in the proof-to-byte state machine (published GitHub prereleases are recorded separately
+as release receipts in `artifact/results.json`, not as proof-to-byte markers). The local-candidate marker does not accept an Apple Development profile as distribution
 provenance. Neither a package build nor historical device evidence is promoted to current release
 proof.
 The wrapper freezes the exact starting commit, canonical source digest, manifest digest, and dirty
@@ -162,15 +163,27 @@ The upstream tag/commit is not a signed provenance statement, and neither upstre
 mlkem-native nor this Rust/C integration has completed an independent audit.
 
 ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication and a separately gated Apple XCFramework prerelease,
-with a frozen exact-nine dynamic `q_periapt_*` export
+for coordinated Rust-crate publication (not yet uploaded to crates.io), with two
+published immutable GitHub research prereleases: the Apple XCFramework revision
+`v0.1.0-alpha.2-r1` (Rust 1.96.1; the earlier `v0.1.0-alpha.2` Apple build on
+Rust 1.96.0 is superseded, historical attested evidence) and the
+`abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR plus API 35 /
+16 KiB-page emulator runtime evidence, GNU/Linux x86_64+aarch64 SDK archives, and an
+unsigned experimental Windows x64 MSVC SDK built with Rust 1.97.0 as a bounded,
+documented toolchain difference). Machine-checked publication receipts live in
+`artifact/results.json` (`release_publications`, `swift_xcframework.distribution`)
+under `artifact/platform_release_contract.py`; scope, verification commands, and
+explicit non-goals are in `artifact/abi2-platform-release-notes.md`. The line has a
+frozen exact-nine dynamic `q_periapt_*` export
 contract. The static archive constrains that reserved public namespace but retains
 unsupported hidden `qpn_mlkem_bridge_*` link symbols; hidden visibility is not
 access control, and a same-process static consumer can deliberately call them. It removes
 raw/deterministic public product exports, uses OS randomness, major-isolates the
-binary/package identities, and rejects ABI1's four-byte state. Source/crate readiness does
-not attest current C archives, XCFrameworks, AARs, or device binaries. The Apple-only
-credentialed lane may separately produce a Developer ID-signed, exact-static-only
+binary/package identities, and rejects ABI1's four-byte state. Source/crate readiness by
+itself does not attest platform binaries; the published archives above are attested by
+their own release receipts, distribution manifests, `SHA256SUMS`, annotated tags, and
+GitHub immutable-release/build-provenance attestations. The Apple-only
+credentialed lane separately produces the Developer ID-signed, exact-static-only
 XCFramework ZIP whose payload has no notarizable executable or bundle; only
 `artifact/results.json` plus its public release evidence may call that
 asset current. It is neither a complete remote Swift package nor a final app. A
@@ -315,14 +328,17 @@ ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slic
 `APPLE_DISTRIBUTION.json`. This SDK payload has no standalone executable or notarizable bundle, so
 notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
 product retains its own signing and notarization responsibility.
-The release-ready research alpha is not a full multi-platform binary or production release claim:
-an Apple XCFramework prerelease still needs public URL/checksum re-verification and a fresh
-device-matrix proof for production promotion, Android still needs
-clean-tree release provenance plus CI/physical-device policy before a product-ready runtime claim,
-the planned registry crates still need independently verifiable signed or transparency-backed
-provenance before production promotion, and the C archive still needs multi-target publishing plus
-Windows archive shape and full third-party dependency license inventory beyond the current
-Cargo.lock-derived SBOM.
+The published research prereleases are not a production release claim. The Apple
+`v0.1.0-alpha.2-r1` XCFramework and the `abi2-platforms-v0.1.0-alpha.2-r2` Android
+AAR / Linux x86_64+aarch64 / Windows x64 MSVC SDK archives are immutable, attested,
+remote-consumer-verified GitHub prereleases; the r2 packages carry exact-version
+pkg-config/CMake configs, ABI contracts, SBOM/CBOM, and license material. What still
+separates them from production promotion: a fresh same-source Apple device matrix,
+a current-source Android emulator rerun plus a physical-device policy, Windows
+Authenticode signing (the r2 Windows archive is deliberately unsigned experimental),
+crates.io/Maven/deb/rpm/MSIX registry publication with independently verifiable
+signed or transparency-backed provenance, and independent cryptographic/C-FFI/ABI
+review. None of these is silently represented as done.
 
 ## Tier 3 — hardware-dependent measurements
 
@@ -536,8 +552,11 @@ These produce the paper's primary network table and the binary constant-time dis
   device/host energy claim requires a separate calibrated energy lane with explicit hardware,
   duration, power, thermal, and selection-bias controls.
 - **Footprint (platform-dependent).** `sh paper/footprint.sh` writes `paper/footprint.csv` for the
-  host it runs on (cdylib + WASM module sizes). The committed rows are a current-source
-  Darwin 27.0.0 arm64 local capture with Rust 1.96.0, `wasm-pack` 0.15.0, and
+  host it runs on (cdylib + WASM module sizes). The committed rows are a
+  Darwin 27.0.0 arm64 local capture with Rust 1.96.1 (the same patch release the
+  Apple r1 and r2 Android/Linux packages pin; the r2 Windows package pins 1.97.0),
+  `wasm-pack` 0.15.0, and
   Homebrew LLVM Clang 22.1.8: 667.8 KiB stripped C ABI, 97.7 KiB lean WASM, and
-  332.6 KiB signed-policy WASM. They are platform/toolchain-specific diagnostics,
-  not signed provenance or a cross-platform binary-size claim.
+  332.3 KiB signed-policy WASM. They are platform/toolchain-specific local diagnostics,
+  not signed provenance, a cross-platform binary-size claim, or a description of any
+  published release binary.

@@ -129,11 +129,11 @@ class ProofManifestTests(unittest.TestCase):
             }
         )
 
-    def test_declared_current_android_requires_bound_passing_schema2_proof(self) -> None:
+    def test_declared_current_android_requires_bound_passing_schema3_proof(self) -> None:
         digest = "a" * 64
         section = {
             "current_source_status": "current_clean_tree_emulator_pass",
-            "proof_schema": 2,
+            "proof_schema": 3,
             "proof_source_tree_sha256": digest,
             "proof_path": "target/android/proof.json",
             "proof_sha256": "b" * 64,
@@ -146,7 +146,7 @@ class ProofManifestTests(unittest.TestCase):
         for field, bad_value, message in (
             ("proof_path", "../proof.json", "selected-proof path"),
             ("proof_sha256", "bad", "selected-proof SHA-256"),
-            ("proof_schema", 1, "requires proof schema 2"),
+            ("proof_schema", 2, "requires proof schema 3"),
             ("proof_source_tree_sha256", "c" * 64, "does not match"),
             ("status", "fail", "passing proof"),
             ("proof_generated_at", None, "generation time"),

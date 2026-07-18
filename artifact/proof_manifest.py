@@ -13,6 +13,11 @@ from evidence_io import (
     JsonObjectSnapshot,
     load_json_object_snapshot,
 )
+from platform_release_contract import (
+    ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+    PlatformReleaseContractError,
+    validate_release_publications,
+)
 
 
 MAX_RESULTS_MANIFEST_BYTES = 4 * 1024 * 1024
@@ -179,14 +184,22 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
         "current_clean_tree_physical_pass",
     }:
         _validate_binding_declaration(android, "android_runtime")
-        if android.get("proof_schema") != 2:
-            raise ProofManifestError("current Android runtime status requires proof schema 2")
+        if android.get("proof_schema") != ANDROID_DEVICE_PROOF_SCHEMA_VERSION:
+            raise ProofManifestError(
+                "current Android runtime status requires proof schema "
+                f"{ANDROID_DEVICE_PROOF_SCHEMA_VERSION}"
+            )
         if root_digest is None or android.get("proof_source_tree_sha256") != root_digest:
             raise ProofManifestError("current Android runtime status does not match the manifest source digest")
         if android.get("status") != "pass":
             raise ProofManifestError("current Android runtime status requires a passing proof")
         if not isinstance(android.get("proof_generated_at"), str):
             raise ProofManifestError("current Android runtime status requires proof generation time")
+
+    try:
+        validate_release_publications(manifest)
+    except PlatformReleaseContractError as exc:
+        raise ProofManifestError(str(exc)) from exc
 
 
 def load_results_manifest_snapshot(
