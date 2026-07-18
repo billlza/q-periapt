@@ -6,6 +6,7 @@
 # ART, and accepts only a run-bound PASS marker copied back from the app-private
 # files directory.
 set -eu
+umask 077
 
 unset CDPATH
 ROOT=$(cd -- "$(dirname "$0")/.." && pwd) || exit 2
@@ -272,6 +273,7 @@ PY
 
 rm -rf "$OUT_ROOT"
 mkdir -p "$WORK" "$DIST"
+chmod 700 "$WORK" "$DIST"
 safe_unzip_dir="$WORK/aar"
 
 set -- --manifest "$AAR_MANIFEST"
@@ -750,6 +752,95 @@ ALIGNED_APK="$WORK/aligned.apk"
 SIGNED_APK="$DIST/qperiapt-android-smoke.apk"
 KEYSTORE="$WORK/qperiapt-android-smoke.p12"
 EXPECTED_MARKER="QPERIAPT_ANDROID_DEVICE_PASS run-id=$RUN_ID tests=3"
+
+emulator_process_active() {
+	if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+		return 1
+	fi
+	if emulator_process_state=$(/bin/ps -o stat= -p "$EMULATOR_PID" 2>/dev/null); then
+		case "$emulator_process_state" in
+			"" | *Z*) return 1 ;;
+		esac
+	fi
+	return 0
+}
+
+stop_emulator_process() {
+	if [ -z "${EMULATOR_PID:-}" ]; then
+		printf 'error: emulator cleanup lacks the child process identifier\n' >&2
+		return 1
+	fi
+
+	cleanup_wait_count=0
+	while emulator_process_active && [ "$cleanup_wait_count" -lt 15 ]; do
+		sleep 1
+		cleanup_wait_count=$((cleanup_wait_count + 1))
+	done
+	if emulator_process_active; then
+		if ! kill -TERM "$EMULATOR_PID" 2>/dev/null && emulator_process_active; then
+			printf 'error: failed to terminate the temporary Android emulator\n' >&2
+			return 1
+		fi
+		cleanup_wait_count=0
+		while emulator_process_active && [ "$cleanup_wait_count" -lt 5 ]; do
+			sleep 1
+			cleanup_wait_count=$((cleanup_wait_count + 1))
+		done
+	fi
+	if emulator_process_active; then
+		if ! kill -KILL "$EMULATOR_PID" 2>/dev/null; then
+			printf 'error: failed to kill the unresponsive temporary Android emulator\n' >&2
+			return 1
+		fi
+	fi
+
+	if wait "$EMULATOR_PID" >/dev/null 2>&1; then
+		emulator_wait_status=0
+	else
+		emulator_wait_status=$?
+	fi
+	case "$emulator_wait_status" in
+		0 | 129 | 130 | 137 | 143) return 0 ;;
+		*)
+			printf 'error: temporary Android emulator exited unexpectedly with status %s\n' "$emulator_wait_status" >&2
+			return 1
+			;;
+	esac
+}
+
+cleanup_runtime() {
+	cleanup_status=0
+	if [ -n "${KEYSTORE:-}" ] && [ -e "$KEYSTORE" ]; then
+		if ! rm -f -- "$KEYSTORE"; then
+			printf 'error: failed to remove temporary Android smoke keystore: %s\n' "$KEYSTORE" >&2
+			cleanup_status=1
+		fi
+	fi
+	if [ "${EMULATOR_STARTED:-0}" = "1" ] && [ "${QPERIAPT_ANDROID_KEEP_EMULATOR:-0}" != "1" ]; then
+		if [ -n "${ADB:-}" ] && [ -n "${SERIAL:-}" ] && ! "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1; then
+			printf 'error: failed to request shutdown of the temporary Android emulator\n' >&2
+			cleanup_status=1
+		fi
+		stop_emulator_process || cleanup_status=1
+	fi
+	return "$cleanup_status"
+}
+
+cleanup_exit() {
+	status=$?
+	trap - EXIT HUP INT TERM
+	cleanup_status=0
+	cleanup_runtime || cleanup_status=$?
+	if [ "$status" -eq 0 ] && [ "$cleanup_status" -ne 0 ]; then
+		status=$cleanup_status
+	fi
+	exit "$status"
+}
+
+trap cleanup_exit EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 TARGET_SDK=$(python3 - "$ANDROID_PLATFORM" <<'PY'
 import pathlib
 import re
@@ -897,6 +988,8 @@ keytool -genkeypair \
 	--key-pass pass:android \
 	--out "$SIGNED_APK" \
 	"$ALIGNED_APK"
+rm -f -- "$KEYSTORE"
+KEYSTORE=
 (
 	cd "$DIST"
 	"$APKSIGNER" verify --min-sdk-version 23 --print-certs "$(basename "$SIGNED_APK")"
@@ -922,6 +1015,10 @@ for line in sys.stdin:
         digest = hashlib.sha256(serial.encode("utf-8")).hexdigest()[:12]
         print(f"sha256:{digest}")
 '
+}
+
+capture_app_logcat() {
+	"$ADB" -s "$SERIAL" logcat -d -v tag -s 'QPeriaptSmoke:*' '*:S'
 }
 
 select_serial_or_empty() {
@@ -994,8 +1091,9 @@ if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]; then
 		i=$((i + 1))
 	done
 	if [ -z "$SERIAL" ]; then
-		"$EMULATOR" -accel-check >"$DIST/emulator-accel-check.log" 2>&1 || :
-		kill "$EMULATOR_PID" >/dev/null 2>&1 || :
+		if ! "$EMULATOR" -accel-check >"$DIST/emulator-accel-check.log" 2>&1; then
+			printf 'note: emulator acceleration diagnostic also failed; see %s\n' "$DIST/emulator-accel-check.log" >&2
+		fi
 		printf 'error: emulator did not appear in adb devices within 90 seconds\n' >&2
 		exit 1
 	fi
@@ -1012,16 +1110,6 @@ import sys
 print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
-
-cleanup_emulator() {
-	if [ "${EMULATOR_STARTED:-0}" = "1" ] && [ "${QPERIAPT_ANDROID_KEEP_EMULATOR:-0}" != "1" ]; then
-		"$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1 || :
-		if [ -n "${EMULATOR_PID:-}" ]; then
-			wait "$EMULATOR_PID" >/dev/null 2>&1 || :
-		fi
-	fi
-}
-trap cleanup_emulator EXIT INT TERM
 
 "$ADB" -s "$SERIAL" wait-for-device
 i=0
@@ -1117,7 +1205,7 @@ while [ "$i" -lt 90 ]; do
 		if grep -F "QPERIAPT_ANDROID_DEVICE_FAIL run-id=$RUN_ID" "$RESULT_TXT.tmp" >/dev/null 2>&1; then
 			mv "$RESULT_TXT.tmp" "$RESULT_TXT"
 			"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" >"$RESULT_JSON" 2>"$DIST/result-json-read.err"
-			"$ADB" -s "$SERIAL" logcat -d >"$DIST/logcat.txt"
+			capture_app_logcat >"$DIST/logcat.txt"
 			printf 'error: Android runtime smoke reported failure; see %s and %s\n' "$RESULT_JSON" "$DIST/logcat.txt" >&2
 			exit 1
 		fi
@@ -1127,12 +1215,12 @@ while [ "$i" -lt 90 ]; do
 done
 rm -f "$RESULT_TXT.tmp"
 test -f "$RESULT_TXT" || {
-	"$ADB" -s "$SERIAL" logcat -d >"$DIST/logcat.txt"
+	capture_app_logcat >"$DIST/logcat.txt"
 	printf 'error: did not receive Android runtime PASS marker within 90 seconds; see %s\n' "$DIST/logcat.txt" >&2
 	exit 1
 }
 "$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" >"$RESULT_JSON"
-"$ADB" -s "$SERIAL" logcat -d >"$DIST/logcat.txt"
+capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
 	printf 'error: Android logcat contains a runtime failure marker; see %s\n' "$DIST/logcat.txt" >&2
 	exit 1

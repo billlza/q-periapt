@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import pathlib
@@ -1102,6 +1103,26 @@ class PerformanceGateTests(unittest.TestCase):
                 target,
                 private,
             )
+
+    def test_collection_resource_limits_fail_closed(self) -> None:
+        parse_samples = performance_gate.bounded_positive_int(
+            performance_gate.MAX_COLLECTION_SAMPLES, "samples"
+        )
+        parse_warmup = performance_gate.bounded_positive_int(
+            performance_gate.MAX_COLLECTION_WARMUP_MS, "warmup-ms"
+        )
+        self.assertEqual(
+            parse_samples(str(performance_gate.MAX_COLLECTION_SAMPLES)),
+            performance_gate.MAX_COLLECTION_SAMPLES,
+        )
+        self.assertEqual(
+            parse_warmup(str(performance_gate.MAX_COLLECTION_WARMUP_MS)),
+            performance_gate.MAX_COLLECTION_WARMUP_MS,
+        )
+        with self.assertRaisesRegex(argparse.ArgumentTypeError, "must not exceed"):
+            parse_samples(str(performance_gate.MAX_COLLECTION_SAMPLES + 1))
+        with self.assertRaisesRegex(argparse.ArgumentTypeError, "must not exceed"):
+            parse_warmup(str(performance_gate.MAX_COLLECTION_WARMUP_MS + 1))
 
 
 if __name__ == "__main__":

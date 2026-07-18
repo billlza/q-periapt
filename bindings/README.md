@@ -1,15 +1,16 @@
 # Language bindings
 
 One Rust core (`q-periapt-ffi`, the C ABI), current runtime-tested faces **C**,
-**WASM**, and **Swift**, a source-migrated **Kotlin/JVM** face awaiting JDK 22,
+**WASM**, **Swift**, and **Kotlin/JVM** (JDK 22),
 plus a package-tested **Android AAR/JNI** surface.
 The native ABI 2 product property is *one policy-controlled implementation across
 platforms*: C, Swift, and Kotlin consume the same exact-nine dynamic
 `q_periapt_*` contract; Android's JNI adapter consumes that native contract without
 reimplementing cryptography. Static archives constrain the same reserved public
 namespace but retain unsupported hidden bridge link symbols, so static embedding is
-a trusted same-address-space boundary rather than access control. All public faces
-reject raw/deterministic product bypasses. Byte-exact KATs remain in the Rust test layer.
+a trusted same-address-space boundary rather than access control. Native product faces
+reject raw/deterministic bypasses; WASM remains an explicitly separate deterministic,
+caller-randomness conformance surface. Byte-exact KATs remain in the Rust test layer.
 
 These bindings expose the implemented KEM/policy surface only. They do not expose
 identity directories, prekeys, ratchet state, message encryption, multi-device
@@ -50,11 +51,11 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **Rust core** | ✅ source of truth | `cargo test` (combiner KATs, X-Wing KAT) |
 | **C ABI** (`q-periapt-ffi`) | ✅ host product smoke + contract verified | `bindings/c/smoke.c`; `artifact/c_abi_contract.py` |
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
-| **WASM** (`q-periapt-wasm`) | ✅ logic verified + builds wasm32 | `cargo test -p q-periapt-wasm`; CI builds `wasm32` |
-| **Kotlin** (`kotlin/`) | 🟡 source migrated; JDK 22 verification required | `gradle test` (Panama FFM, JDK ≥22) |
+| **WASM** (`q-periapt-wasm`) | ✅ lean and signed-policy faces execute on Node/WASM | `wasm-pack test --node` for default and `--features signed-policy`; CI also builds `wasm32` |
+| **Kotlin** (`kotlin/`) | ✅ current-source JDK 22 host verification | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
 | **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.0-alpha.2-r2` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
-Kotlin needs a JDK ≥22 (stable FFM):
+Kotlin uses a JDK ≥22 (stable FFM); the same warning-failing command is a CI gate:
 
 ```sh
 cargo build -p q-periapt-ffi --release

@@ -377,9 +377,10 @@ The earlier 0-report `libcrux` captures and their hax/source-level argument are
 failed the corrected gate in [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107):
 34,306 errors / 100 contexts on x86_64 and 30,464 / 70 on aarch64. Those are
 historical `fips203` failure counts; they do not transfer to `mlkem-native`. The
-backend/source migration changed the canonical digest. A fresh x86_64+aarch64 capture
-must pass for the release source before the ML-KEM binary-CT cell can be promoted.
-There is currently no inherited source-CT attestation for the new backend. Other
+backend/source migration changed the canonical digest. The current main CI source now
+passes the x86_64+aarch64 ML-KEM binary-CT cells; future source changes still require
+their own run and immutable release receipts remain separately scoped. No result is
+inherited from the former provider. Other
 primitive backends remain outside this hard gate.
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
 test is currently a local diagnostic). Binary-CT tooling is configured on
@@ -586,7 +587,7 @@ full model and implementation exist, there is no session-protocol security claim
 | 4.5 | Byte-identical output in reported deterministic host/ISA cells; semantic parity in native product cells | binding divergence / adapter drift | shared-vector conformance plus policy/round-trip/context/failure-atomicity product tests | **ENFORCED only in explicitly reported cells**; product randomness is not replay evidence, and neither result alone is a clean release attestation |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **LOCAL DIAGNOSTIC** (not run in shared CI; not gated) |
 | 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (job `constant-time`); fresh release-source capture required |
-| 5.2 | Binary-level CT — portable `mlkem-native` ML-KEM-512/768/1024 decapsulation | ADV-TIME | parameter-specific ŝ+z Memcheck probes + planted-leak and embedded-public-key diagnostics | **CONFIGURED HARD GATE on x86_64+aarch64**; `fips203` failed historically and a fresh current-provider release-source pass is pending |
+| 5.2 | Binary-level CT — portable `mlkem-native` ML-KEM-512/768/1024 decapsulation | ADV-TIME | parameter-specific ŝ+z Memcheck probes + planted-leak and embedded-public-key diagnostics | **HARD GATE PASSING on current main x86_64+aarch64 CI**; each future source revision must pass independently |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
 | 5.5 | NIST ACVP conformance (wired FIPS modes) | — | X-Wing KAT + wired ACVP sets (`acvp.rs`) | **CONFORMANCE DONE for the stated modes**; internal-interface vectors are reference-only; not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |

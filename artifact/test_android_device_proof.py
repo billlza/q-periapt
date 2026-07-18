@@ -580,6 +580,80 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertIn('"sdk": device_sdk', producer)
         self.assertIn('--expected-device-sdk "$DEVICE_SDK"', producer)
 
+    def test_temporary_keystore_is_private_and_cleaned_on_every_exit(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("umask 077", producer)
+        self.assertIn('chmod 700 "$WORK" "$DIST"', producer)
+        keystore_assignment = producer.index(
+            'KEYSTORE="$WORK/qperiapt-android-smoke.p12"'
+        )
+        exit_trap = producer.index("trap cleanup_exit EXIT")
+        keytool = producer.index("keytool -genkeypair")
+        signer = producer.index('"$APKSIGNER" sign')
+        eager_removal = producer.index('rm -f -- "$KEYSTORE"', signer)
+        self.assertLess(keystore_assignment, exit_trap)
+        self.assertLess(exit_trap, keytool)
+        self.assertLess(keytool, eager_removal)
+        self.assertIn('rm -f -- "$KEYSTORE"', producer[keystore_assignment:keytool])
+        self.assertIn("stop_emulator_process()", producer)
+        self.assertIn('"$cleanup_wait_count" -lt 15', producer)
+        self.assertIn('"$cleanup_wait_count" -lt 5', producer)
+        self.assertNotIn("|| :", producer)
+        self.assertNotIn("|| true", producer)
+        self.assertNotIn("qperiapt-android-smoke.p12", "\n".join(android_device_proof.BUNDLE_FILE_PATHS.values()))
+
+    def test_producer_captures_only_the_smoke_log_tag(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("capture_app_logcat()", producer)
+        self.assertIn("logcat -d -v tag -s 'QPeriaptSmoke:*' '*:S'", producer)
+        self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)
+
+    def test_result_verifier_rejects_unrelated_logcat_data(self) -> None:
+        run_id = "a" * 32
+        result_txt = self.root / "result.txt"
+        result_json = self.root / "result.json"
+        logcat = self.root / "logcat.txt"
+        result_txt.write_text(
+            android_device_proof.expected_marker(run_id) + "\n", encoding="utf-8"
+        )
+        result_json.write_text(
+            '{"schema":1,"status":"pass","run_id":"'
+            + run_id
+            + '","test_count":3,"passed_tests":['
+            '"runtimeMetadataMatches",'
+            '"signedPolicyDecisionIsExactAndFailClosed",'
+            '"osRandomPolicyRoundtripAndWipes"]}\n',
+            encoding="utf-8",
+        )
+        paths = {
+            "result_txt": result_txt,
+            "result_json": result_json,
+            "logcat": logcat,
+        }
+        logcat.write_text("I/QPeriaptSmoke: verified\n", encoding="utf-8")
+        android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "--------- beginning of main\nI/QPeriaptSmoke( 123): verified\n",
+            encoding="utf-8",
+        )
+        android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "I/QPeriaptSmoke: verified\nI/OtherApplication: private data\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "outside the QPeriaptSmoke tag"):
+            android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "I/OtherApplication: mentions QPeriaptSmoke but is unrelated\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "outside the QPeriaptSmoke tag"):
+            android_device_proof.verify_result_files(paths, run_id)
+
     def test_private_directory_canonicalization_accepts_only_aliases_above_leaf(self) -> None:
         physical_parent = self.root / "physical-parent"
         private_directory = physical_parent / "private"

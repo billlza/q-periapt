@@ -82,7 +82,7 @@
       "evidence": {
         "harness": ["artifact/apple-device-smoke.sh", "artifact/apple_device_proof.py"]
       },
-      "boundary": "Matrix schema v3 fixes release policy to exactly one ipad-labelled iPad proof and one iphone-labelled iPhone proof, with verifier-recomputed distinct device commitments, run ids, and child proof paths. Release freshness is fixed at 86400 seconds and each child profile must record a minimum-validity policy of at least 30 days. Historical schema-v2 or dirty-device diagnostics do not satisfy this claim; fresh clean, same-commit physical proofs are required."
+      "boundary": "Matrix schema v4 fixes release policy to exactly one ipad-labelled schema-v3 iPad proof over wired transport and one iphone-labelled schema-v3 iPhone proof over localNetwork transport, with verifier-recomputed distinct device commitments, run ids, and child proof paths. The capture rechecks device type and transport around install, launch, and result retrieval. Release freshness is fixed at 86400 seconds and each child profile must record a minimum-validity policy of at least 30 days. Historical schemas or dirty-device diagnostics do not satisfy this claim; fresh clean, same-commit physical proofs are required."
     },
     {
       "id": "EVIDENCE-SNAPSHOT-INTEGRITY",

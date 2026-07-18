@@ -15,6 +15,7 @@ import platform
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import tarfile
 from typing import Any
@@ -39,6 +40,14 @@ POINTER_KIND = "qperiapt.local_release_index.pointer"
 HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
 MAX_TAR_MEMBERS = 8192
 MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
+TRUSTED_TOOL_CANDIDATES = {
+    "cc": ((pathlib.Path("/usr/bin/cc"), pathlib.Path("/usr")),),
+    "pkg-config": (
+        (pathlib.Path("/usr/bin/pkg-config"), pathlib.Path("/usr")),
+        (pathlib.Path("/opt/homebrew/bin/pkg-config"), pathlib.Path("/opt/homebrew")),
+        (pathlib.Path("/usr/local/bin/pkg-config"), pathlib.Path("/usr/local")),
+    ),
+}
 
 
 def load_json(path: pathlib.Path) -> dict[str, Any]:
@@ -174,9 +183,41 @@ def find_c_package_root(extract_root: pathlib.Path) -> pathlib.Path:
 
 
 def need_tool(name: str) -> str:
-    path = shutil.which(name)
-    require(path is not None, f"required tool not found: {name}")
-    return path
+    candidates = TRUSTED_TOOL_CANDIDATES.get(name)
+    require(candidates is not None, f"unsupported required tool: {name}")
+    for candidate, trusted_root in candidates:
+        if not os.path.lexists(candidate):
+            continue
+        try:
+            resolved = candidate.resolve(strict=True)
+            resolved_metadata = resolved.lstat()
+            resolved_trusted_root = trusted_root.resolve(strict=True)
+        except OSError as exc:
+            raise SystemExit(
+                f"error: cannot authenticate required tool {name}: {exc}"
+            ) from exc
+        require(
+            resolved.is_relative_to(resolved_trusted_root),
+            f"required tool resolves outside its trusted installation root: {resolved}",
+        )
+        require(
+            stat.S_ISREG(resolved_metadata.st_mode),
+            f"required tool is not a regular file: {resolved}",
+        )
+        require(
+            os.access(resolved, os.X_OK),
+            f"required tool is not executable: {resolved}",
+        )
+        return str(resolved)
+    raise SystemExit(f"error: required trusted tool not found: {name}")
+
+
+def tool_environment() -> dict[str, str]:
+    return {
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LC_ALL": "C",
+        "LANG": "C",
+    }
 
 
 def run_cmd(
@@ -198,18 +239,102 @@ def run_cmd(
     return proc.stdout
 
 
-def pkg_config(package_root: pathlib.Path, package: str, static: bool) -> list[str]:
-    env = os.environ.copy()
+def _normalized_flag_path(raw: str, package_root: pathlib.Path, label: str) -> pathlib.Path:
+    path = pathlib.Path(raw)
+    require(path.is_absolute(), f"{label} path must be absolute: {raw}")
+    normalized = normalized_absolute(path)
+    require_under(normalized, package_root, label)
+    require_no_symlink_components(normalized, package_root, label)
+    return normalized
+
+
+def validate_pkg_config_flags(
+    package_root: pathlib.Path,
+    flags: list[str],
+    *,
+    static: bool,
+) -> list[str]:
+    include_dir = normalized_absolute(package_root / "include/qperiapt/abi2")
+    library_dir = normalized_absolute(package_root / "lib")
+    expected_library_names = (
+        {"libq_periapt_ffi_abi2.a"}
+        if static
+        else {"libq_periapt_ffi.so.2", "libq_periapt_ffi.2.dylib"}
+    )
+    allowed_system_libraries = {
+        "-ldl",
+        "-lgcc_s",
+        "-liconv",
+        "-lc",
+        "-lm",
+        "-lpthread",
+        "-lrt",
+        "-lutil",
+    }
+    saw_include = False
+    saw_library = False
+    saw_rpath = False
+    validated: list[str] = []
+    for flag in flags:
+        require(flag and "\x00" not in flag and "\n" not in flag and "\r" not in flag, "pkg-config emitted a malformed flag")
+        if flag.startswith("-I"):
+            require(not saw_include, "pkg-config emitted duplicate include flags")
+            path = _normalized_flag_path(flag[2:], package_root, "pkg-config include")
+            require(path == include_dir, f"pkg-config include path differs: {path}")
+            validated.append(f"-I{path}")
+            saw_include = True
+            continue
+        if flag.startswith("-Wl,-rpath,"):
+            require(not static, "static pkg-config flags must not contain rpath")
+            require(not saw_rpath, "pkg-config emitted duplicate rpath flags")
+            path = _normalized_flag_path(
+                flag.removeprefix("-Wl,-rpath,"), package_root, "pkg-config rpath"
+            )
+            require(path == library_dir, f"pkg-config rpath differs: {path}")
+            validated.append(f"-Wl,-rpath,{path}")
+            saw_rpath = True
+            continue
+        if flag in allowed_system_libraries:
+            require(static, f"dynamic pkg-config flags contain unexpected system library: {flag}")
+            validated.append(flag)
+            continue
+        path = _normalized_flag_path(flag, package_root, "pkg-config library")
+        require(not saw_library, "pkg-config emitted duplicate package libraries")
+        require(path.parent == library_dir, f"pkg-config library escapes package lib directory: {path}")
+        require(path.name in expected_library_names, f"pkg-config library name is unsupported: {path.name}")
+        require(path.is_file() and not path.is_symlink(), f"pkg-config library is not a regular file: {path}")
+        validated.append(str(path))
+        saw_library = True
+    require(saw_include, "pkg-config did not emit the canonical include directory")
+    require(saw_library, "pkg-config did not emit the canonical package library")
+    require(saw_rpath is not static, "pkg-config rpath presence differs from linkage mode")
+    return validated
+
+
+def pkg_config(
+    package_root: pathlib.Path,
+    package: str,
+    static: bool,
+    pkg_config_tool: str,
+) -> list[str]:
+    env = tool_environment()
     env["PKG_CONFIG_PATH"] = str(package_root / "lib/pkgconfig")
-    args = ["pkg-config", "--cflags", "--libs"]
+    env["PKG_CONFIG_LIBDIR"] = env["PKG_CONFIG_PATH"]
+    env["PKG_CONFIG_SYSTEM_INCLUDE_PATH"] = ""
+    env["PKG_CONFIG_SYSTEM_LIBRARY_PATH"] = ""
+    args = [pkg_config_tool, "--cflags", "--libs"]
     if static:
         args.append("--static")
     args.append(package)
-    return shlex.split(run_cmd(args, cwd=package_root, env=env))
+    return validate_pkg_config_flags(
+        package_root,
+        shlex.split(run_cmd(args, cwd=package_root, env=env)),
+        static=static,
+    )
 
 
 def runtime_env(package_root: pathlib.Path) -> dict[str, str]:
-    env = os.environ.copy()
+    env = tool_environment()
     lib_dir = str(package_root / "lib")
     for key in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
         old = env.get(key)
@@ -236,7 +361,7 @@ def compile_and_run_c_smoke(
         "-o",
         str(out),
     ]
-    run_cmd(cmd, cwd=package_root)
+    run_cmd(cmd, cwd=package_root, env=tool_environment())
     output = run_cmd([str(out)], cwd=package_root, env=runtime_env(package_root))
     require("ALL PASS" in output, f"C {label} smoke did not print ALL PASS")
 
@@ -264,7 +389,7 @@ def smoke_c_archive(
     package_root = find_c_package_root(work / "extract")
     verify_sha256s(package_root)
     cc = need_tool("cc")
-    need_tool("pkg-config")
+    pkg_config_tool = need_tool("pkg-config")
     system = platform.system()
     require(system in {"Darwin", "Linux"}, f"C consumer supports Darwin/Linux, got {system}")
     compile_and_run_c_smoke(
@@ -272,14 +397,24 @@ def smoke_c_archive(
         work,
         cc,
         "dynamic",
-        pkg_config(package_root, "qperiapt-abi2", static=False),
+        pkg_config(
+            package_root,
+            "qperiapt-abi2",
+            static=False,
+            pkg_config_tool=pkg_config_tool,
+        ),
     )
     compile_and_run_c_smoke(
         package_root,
         work,
         cc,
         "static",
-        pkg_config(package_root, "qperiapt-abi2-static", static=True),
+        pkg_config(
+            package_root,
+            "qperiapt-abi2-static",
+            static=True,
+            pkg_config_tool=pkg_config_tool,
+        ),
     )
     require_under(work, root / "target", "release consumer smoke output")
 

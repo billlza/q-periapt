@@ -35,11 +35,12 @@ from proof_manifest import (
     select_bound_json_snapshot,
 )
 
-SCHEMA_VERSION = 2
-MATRIX_SCHEMA_VERSION = 3
+SCHEMA_VERSION = 3
+MATRIX_SCHEMA_VERSION = 4
 MAX_APPLE_PROOF_BYTES = 4 * 1024 * 1024
 MAX_APPLE_ARTIFACT_BYTES = 128 * 1024 * 1024
 REQUIRED_MATRIX_LABEL_TO_TYPE = {"ipad": "iPad", "iphone": "iPhone"}
+REQUIRED_MATRIX_LABEL_TO_TRANSPORT = {"ipad": "wired", "iphone": "localNetwork"}
 REQUIRED_MATRIX_TYPES = ("iPad", "iPhone")
 PASS_MARKER = "QPERIAPT_DEVICE_PASS"
 FAIL_MARKER = "QPERIAPT_DEVICE_FAIL"
@@ -117,6 +118,7 @@ MATRIX_ENTRY_FIELDS = {
     "proof",
     "proof_sha256",
     "run_id",
+    "transport",
 }
 
 
@@ -572,7 +574,11 @@ def artifact_hashes(paths: dict[str, pathlib.Path]) -> dict[str, str]:
     return {name: sha256_file(path) for name, path in paths.items()}
 
 
-def load_device_metadata(device_id: str, expected_device_type: str) -> dict[str, Any]:
+def load_device_metadata(
+    device_id: str,
+    expected_device_type: str,
+    expected_transport: str = "",
+) -> dict[str, Any]:
     try:
         raw = subprocess.check_output(
             ["xcrun", "devicectl", "device", "info", "details", "--device", device_id, "--json-output", "-"],
@@ -612,6 +618,16 @@ def load_device_metadata(device_id: str, expected_device_type: str) -> dict[str,
         f"selected device {device_id} is not connected ({readiness}); "
         "devicectl 'available (paired)' is not accepted as runnable device proof",
     )
+    transport = connection.get("transportType")
+    require(
+        transport in {"wired", "localNetwork"},
+        f"selected device {device_id} has unsupported transport ({readiness})",
+    )
+    if expected_transport:
+        require(
+            transport == expected_transport,
+            f"selected device {device_id} transport {transport} does not match expected {expected_transport}",
+        )
     require(developer_mode_enabled(state), f"selected device {device_id} does not have Developer Mode enabled")
     software = props.get("software", {})
     return {
@@ -624,6 +640,7 @@ def load_device_metadata(device_id: str, expected_device_type: str) -> dict[str,
         "boot_state": state.get("bootState"),
         "connection_state": connection.get("state"),
         "pairing_state": connection.get("pairingState"),
+        "transport": transport,
         "developer_mode_enabled": True,
     }
 
@@ -658,7 +675,11 @@ def emit(args: argparse.Namespace) -> None:
     require_clean_build_log(build_log)
     require_marker(launch_log, "device launch log", args.run_id)
     require_marker(device_result, "device result marker", args.run_id)
-    device_metadata = load_device_metadata(args.device_id, args.expected_device_type)
+    device_metadata = load_device_metadata(
+        args.device_id,
+        args.expected_device_type,
+        args.expected_transport,
+    )
     device_metadata["label"] = args.device_label
 
     profile = validate_profile(
@@ -749,6 +770,7 @@ def verify_proof_snapshot(
     device_result: pathlib.Path,
     max_age_seconds: int,
     expected_device_type: str = "",
+    expected_transport: str = "",
     allow_dirty_proof: bool = False,
 ) -> dict[str, Any]:
     proof_path = proof_snapshot.file.path
@@ -902,6 +924,7 @@ def verify_proof_snapshot(
             "pairing_state",
             "product_type",
             "type",
+            "transport",
         },
         "Apple device metadata",
     )
@@ -911,6 +934,15 @@ def verify_proof_snapshot(
     require(device.get("boot_state") == "booted", "proof device was not booted")
     require(device.get("connection_state") == "connected", "proof device was not connected")
     require(device.get("pairing_state") == "paired", "proof device was not paired")
+    require(
+        device.get("transport") in {"wired", "localNetwork"},
+        "proof device transport is unsupported",
+    )
+    if expected_transport:
+        require(
+            device.get("transport") == expected_transport,
+            f"proof device transport {device.get('transport')} does not match expected {expected_transport}",
+        )
     require(device.get("developer_mode_enabled") is True, "proof device did not have Developer Mode enabled")
 
     linkage = proof.get("linkage")
@@ -956,6 +988,7 @@ def verify_proof(
     device_result: pathlib.Path,
     max_age_seconds: int,
     expected_device_type: str = "",
+    expected_transport: str = "",
     allow_dirty_proof: bool = False,
 ) -> dict[str, Any]:
     """Standalone producer-time verification without results-manifest binding."""
@@ -969,6 +1002,7 @@ def verify_proof(
         device_result,
         max_age_seconds,
         expected_device_type,
+        expected_transport,
         allow_dirty_proof,
     )
 
@@ -1045,6 +1079,7 @@ def verify(args: argparse.Namespace) -> None:
         rooted_lexical_path(root, args.device_result),
         args.max_age_seconds,
         args.expected_device_type,
+        args.expected_transport,
         args.allow_dirty_proof,
     )
     print("APPLE_DEVICE_PROOF_JSON_PASS")
@@ -1056,7 +1091,11 @@ def verify(args: argparse.Namespace) -> None:
 
 
 def inspect_device(args: argparse.Namespace) -> None:
-    metadata = load_device_metadata(args.device_id, args.expected_device_type)
+    metadata = load_device_metadata(
+        args.device_id,
+        args.expected_device_type,
+        args.expected_transport,
+    )
     print(json.dumps(metadata, sort_keys=True))
 
 
@@ -1134,6 +1173,7 @@ def emit_matrix(args: argparse.Namespace) -> None:
             device_result,
             max_age_seconds,
             expected_device_type=REQUIRED_MATRIX_LABEL_TO_TYPE[label],
+            expected_transport=REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label],
             allow_dirty_proof=args.allow_dirty_proof,
         )
         device = proof["device"]
@@ -1165,6 +1205,7 @@ def emit_matrix(args: argparse.Namespace) -> None:
             "marketing_name": device.get("marketing_name"),
             "os_version": device.get("os_version"),
             "os_build": device.get("os_build"),
+            "transport": device.get("transport"),
             "device_id_sha256": device_hash,
             "run_id": run_id,
             "proof": rel_to(proof_path, matrix_root),
@@ -1263,6 +1304,10 @@ def verify_matrix_snapshot(
             device_type == REQUIRED_MATRIX_LABEL_TO_TYPE[label],
             f"matrix label {label} requires {REQUIRED_MATRIX_LABEL_TO_TYPE[label]}, got {device_type}",
         )
+        require(
+            entry.get("transport") == REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label],
+            f"matrix label {label} requires {REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label]} transport",
+        )
         seen_types.add(device_type)
         require(entry.get("prefix") == label, f"matrix prefix for {label} must equal its label")
         proof_path = matrix_artifact_path(matrix_root, entry, "proof", label)
@@ -1281,6 +1326,7 @@ def verify_matrix_snapshot(
             device_result,
             max_age_seconds,
             expected_device_type=device_type,
+            expected_transport=REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label],
             allow_dirty_proof=allow_dirty_proof,
         )
         child_device = child.get("device")
@@ -1292,6 +1338,7 @@ def verify_matrix_snapshot(
             ("marketing_name", child_device.get("marketing_name")),
             ("os_version", child_device.get("os_version")),
             ("os_build", child_device.get("os_build")),
+            ("transport", child_device.get("transport")),
             ("device_id_sha256", child.get("device_id_sha256")),
             ("run_id", child.get("run_id")),
         ):
@@ -1356,6 +1403,7 @@ def main() -> None:
     emit_parser.add_argument("--run-id", required=True)
     emit_parser.add_argument("--device-label", default="")
     emit_parser.add_argument("--expected-device-type", choices=["", "iPad", "iPhone"], default="")
+    emit_parser.add_argument("--expected-transport", choices=["", "wired", "localNetwork"], default="")
     emit_parser.add_argument("--expected-team", default="")
     emit_parser.add_argument("--min-profile-valid-days", type=int, default=30)
     emit_parser.add_argument("--staticlib", required=True)
@@ -1380,6 +1428,7 @@ def main() -> None:
     verify_parser.add_argument("--device-result", required=True)
     verify_parser.add_argument("--max-age-seconds", type=int, default=86400)
     verify_parser.add_argument("--expected-device-type", choices=["", "iPad", "iPhone"], default="")
+    verify_parser.add_argument("--expected-transport", choices=["", "wired", "localNetwork"], default="")
     verify_parser.add_argument("--allow-dirty-proof", action="store_true")
     verify_parser.add_argument("--results-manifest", default="")
     verify_parser.add_argument("--expected-results-manifest-sha256", default="")
@@ -1388,6 +1437,7 @@ def main() -> None:
     inspect_device_parser = sub.add_parser("inspect-device")
     inspect_device_parser.add_argument("--device-id", required=True)
     inspect_device_parser.add_argument("--expected-device-type", choices=["", "iPad", "iPhone"], default="")
+    inspect_device_parser.add_argument("--expected-transport", choices=["", "wired", "localNetwork"], default="")
     inspect_device_parser.set_defaults(func=inspect_device)
 
     freeze_source_parser = sub.add_parser("freeze-source")

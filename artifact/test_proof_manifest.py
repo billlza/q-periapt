@@ -67,15 +67,16 @@ class ProofManifestTests(unittest.TestCase):
                     proof_manifest.validate_declared_currentness(manifest)
                 section[field] = original
 
-    def test_declared_current_apple_requires_bound_passing_schema2_attempt(self) -> None:
+    def test_declared_current_apple_requires_bound_passing_schema3_attempt(self) -> None:
         digest = "a" * 64
         section = {
-            "current_source_status": "current_dirty_diagnostic_pass",
-            "current_dirty_proof_schema": 2,
+            "current_source_status": "current_clean_tree_physical_pass",
+            "current_proof_schema": 3,
             "proof_source_tree_sha256": digest,
-            "current_dirty_proof_path": "artifact/device-runs/ipad/proof.json",
-            "current_dirty_proof_sha256": "b" * 64,
-            "current_dirty_proof_generated_at": "2026-07-11T00:00:00Z",
+            "current_proof_path": "artifact/device-runs/ipad/proof.json",
+            "current_proof_sha256": "b" * 64,
+            "current_proof_generated_at": "2026-07-11T00:00:00Z",
+            "current_proof_source_tree_dirty": False,
             "current_attempt": {"status": "pass", "proof_emitted": True},
         }
         manifest = {"proof_source_tree_sha256": digest, "apple_device": section}
@@ -86,16 +87,36 @@ class ProofManifestTests(unittest.TestCase):
         ):
             proof_manifest.validate_declared_currentness(manifest)
 
+    def test_current_apple_status_rejects_mismatched_cleanliness(self) -> None:
+        digest = "a" * 64
+        section = {
+            "current_source_status": "current_dirty_diagnostic_pass",
+            "current_proof_schema": 3,
+            "proof_source_tree_sha256": digest,
+            "current_proof_path": "artifact/device-runs/ipad/proof.json",
+            "current_proof_sha256": "b" * 64,
+            "current_proof_generated_at": "2026-07-11T00:00:00Z",
+            "current_proof_source_tree_dirty": False,
+            "current_attempt": {"status": "pass", "proof_emitted": True},
+        }
+        with self.assertRaisesRegex(
+            proof_manifest.ProofManifestError, "inconsistent source-tree cleanliness"
+        ):
+            proof_manifest.validate_declared_currentness(
+                {"proof_source_tree_sha256": digest, "apple_device": section}
+            )
+
     def test_declared_current_apple_matrix_requires_bound_passing_schema3_proof(self) -> None:
         digest = "a" * 64
         section = {
-            "matrix_source_status": "current_dirty_diagnostic_pass",
-            "matrix_proof_schema": 3,
+            "matrix_source_status": "current_clean_tree_physical_pass",
+            "matrix_proof_schema": 4,
             "proof_source_tree_sha256": digest,
             "matrix_proof_path": "artifact/device-runs/matrix/apple-device-matrix-proof.json",
             "matrix_proof_sha256": "b" * 64,
             "matrix_generated_at": "2026-07-11T00:00:00Z",
             "matrix_status": "pass",
+            "matrix_source_tree_dirty": False,
         }
         manifest = {"proof_source_tree_sha256": digest, "apple_device": section}
         proof_manifest.validate_declared_currentness(manifest)
@@ -103,7 +124,7 @@ class ProofManifestTests(unittest.TestCase):
         for field, bad_value, message in (
             ("matrix_proof_path", "../proof.json", "selected-proof path"),
             ("matrix_proof_sha256", "bad", "selected-proof SHA-256"),
-            ("matrix_proof_schema", 2, "requires proof schema 3"),
+            ("matrix_proof_schema", 3, "requires proof schema 4"),
             ("proof_source_tree_sha256", "c" * 64, "does not match"),
             ("matrix_status", "fail", "passing proof"),
             ("matrix_generated_at", None, "generation time"),

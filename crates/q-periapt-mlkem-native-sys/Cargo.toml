@@ -9,6 +9,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
+build = "build.rs"
 links = "q_periapt_mlkem_native"
 include = [
     "/Cargo.toml",

@@ -156,10 +156,11 @@ misuse resistance from deterministic conformance:
   policy-controlled product ABI; the static archive constrains only that public
   namespace and retains unsupported hidden bridge link symbols, so it assumes a
   trusted same-process consumer. Raw deterministic KAT helpers remain private Rust tests.
-- **WASM** — `q-periapt-wasm`, run on a real Node runtime via `wasm-pack test`
-  (CI `bindings-wasm`).
+- **WASM** — `q-periapt-wasm`; both the lean default and opt-in signed-policy
+  surfaces run on a real Node runtime via `wasm-pack test` (CI `bindings-wasm`).
 - **Swift** — `bindings/swift` over ABI2; host product test passes.
-- **Kotlin** — `bindings/kotlin` via Panama FFM, JDK 22+; current-source rerun required.
+- **Kotlin** — `bindings/kotlin` via Panama FFM; the current-source JDK 22 lane
+  compiles, loads the ABI-major native library, and runs with warnings treated as failures.
 - **Android** — `bindings/android` via JNI over the same C ABI. `artifact/android-aar.sh`
   builds and audits a deterministic ABI2 four-ABI AAR and compiles an isolated
   Java consumer (CI `bindings-android-aar`). The published r2 AAR ships with an
@@ -513,7 +514,7 @@ are the gap between research-grade and audited/production.
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The published r2 platform prerelease covers the Android AAR and Linux/Windows C SDK archives; Kotlin JDK22 and current-source runtime lanes remain independent and pending or historical as recorded in results.json.** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The published r2 platform prerelease covers the Android AAR and Linux/Windows C SDK archives. Kotlin JDK 22 host tests are current CI gates; Apple/Android physical runtime and immutable release evidence remain independently source-bound as recorded in results.json.** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |

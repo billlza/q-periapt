@@ -19,7 +19,7 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable
 
 try:
     import pwd
@@ -67,6 +67,10 @@ PRODUCTION_BUDGET_RELATIVE = pathlib.PurePosixPath("artifact/performance-budgets
 MAX_PERFORMANCE_PROOF_BYTES = 4 * 1024 * 1024
 MAX_PERFORMANCE_BUDGET_BYTES = 1024 * 1024
 MAX_PERFORMANCE_RAW_BYTES = 128 * 1024 * 1024
+# The harness emits six JSONL sample records for each requested sample.  This
+# cap keeps the producer below the independent 128 MiB raw-evidence bound.
+MAX_COLLECTION_SAMPLES = 100_000
+MAX_COLLECTION_WARMUP_MS = 60_000
 
 
 class GateError(ValueError):
@@ -1536,6 +1540,18 @@ def positive_int(raw: str) -> int:
     return value
 
 
+def bounded_positive_int(maximum: int, label: str) -> Callable[[str], int]:
+    def parse(raw: str) -> int:
+        value = positive_int(raw)
+        if value > maximum:
+            raise argparse.ArgumentTypeError(
+                f"{label} must not exceed {maximum}: {raw}"
+            )
+        return value
+
+    return parse
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1544,8 +1560,16 @@ def main() -> int:
     collect_parser.add_argument("--root", type=pathlib.Path, required=True)
     collect_parser.add_argument("--raw", type=pathlib.Path, required=True)
     collect_parser.add_argument("--proof", type=pathlib.Path, required=True)
-    collect_parser.add_argument("--samples", type=positive_int, default=20_480)
-    collect_parser.add_argument("--warmup-ms", type=positive_int, default=5_000)
+    collect_parser.add_argument(
+        "--samples",
+        type=bounded_positive_int(MAX_COLLECTION_SAMPLES, "samples"),
+        default=20_480,
+    )
+    collect_parser.add_argument(
+        "--warmup-ms",
+        type=bounded_positive_int(MAX_COLLECTION_WARMUP_MS, "warmup-ms"),
+        default=5_000,
+    )
     collect_parser.add_argument("--allow-dirty", action="store_true")
     collect_parser.add_argument("--allow-uncontrolled", action="store_true")
 

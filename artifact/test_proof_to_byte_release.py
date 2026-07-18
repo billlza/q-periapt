@@ -54,7 +54,7 @@ WINDOWS_RELEASE_RUST_TOOLCHAIN = "1.97.0"
 WINDOWS_RELEASE_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
 WINDOWS_RELEASE_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
 PINNED_CANONICAL_RUST_ACTION = (
-    "dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30"
+    "dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c"
 )
 RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
 RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
@@ -628,6 +628,8 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "release_binary_scan_sha256": "artifact/release_binary_scan.py",
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
+    "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "security_policy_sha256": "SECURITY.md",
     "third_party_licenses_sha256": "artifact/third_party_licenses.py",
     "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
@@ -3015,6 +3017,21 @@ with _temporary_release_test_directories(parents):
         self.assertIn("- run: cargo audit --deny warnings", workflow)
         self.assertNotIn("cargo audit --deny warnings ||", workflow)
         self.assertNotIn("cargo audit --ignore", workflow)
+
+    def test_ci_runs_lean_and_signed_policy_wasm_node_suites(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        wasm_job = extract_workflow_job(workflow, "bindings-wasm")
+        self.assertEqual(
+            wasm_job.count("wasm-pack test --node crates/q-periapt-wasm\n"),
+            1,
+        )
+        self.assertEqual(
+            wasm_job.count(
+                "wasm-pack test --node crates/q-periapt-wasm --features signed-policy\n"
+            ),
+            1,
+        )
+        self.assertNotIn("continue-on-error", wasm_job)
 
     def test_ci_check_fetches_full_history_for_evidence_successors(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

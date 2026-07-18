@@ -61,6 +61,17 @@ RUNNER_OPEN_FILES_MAX = 4096
 HEX_32 = r"[0-9a-f]{32}"
 HEX_40 = r"[0-9a-f]{40}"
 HEX_64 = r"[0-9a-f]{64}"
+MAX_HOST_UNAME_CHARS = 512
+HOST_UNAME_PREFIX = "Linux "
+HOST_UNAME_SUFFIX = " x86_64"
+HOST_UNAME_INNER_MAX = (
+    MAX_HOST_UNAME_CHARS - len(HOST_UNAME_PREFIX) - len(HOST_UNAME_SUFFIX)
+)
+HOST_UNAME_PATTERN = (
+    re.escape(HOST_UNAME_PREFIX)
+    + rf"[^\r\n]{{1,{HOST_UNAME_INNER_MAX}}}"
+    + re.escape(HOST_UNAME_SUFFIX)
+)
 GROUP_ORDER = ("classical", "standard", "bound", "compat")
 GROUPS = set(GROUP_ORDER)
 EXPECTED_TOOLS = {
@@ -524,7 +535,7 @@ def _parse_transcript(text: str) -> TranscriptEvidence:
         raise TranscriptError("transcript contains an error line")
 
     host_pattern = re.compile(
-        r"host : (?P<uname>Linux .+ x86_64)    date: "
+        rf"host : (?P<uname>{HOST_UNAME_PATTERN})    date: "
         r"(?P<date>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}Z)"
     )
     host = _unique_match(host_pattern.pattern, lines, "native Linux host line")
@@ -1051,7 +1062,7 @@ def _capture_metadata_bytes(
     cargo_seed_manifest_data: bytes,
     lock_data: bytes,
 ) -> bytes:
-    if re.fullmatch(r"Linux .+ x86_64", host_uname) is None:
+    if re.fullmatch(HOST_UNAME_PATTERN, host_uname) is None:
         raise TranscriptError("capture host uname is invalid")
     if not cpu or "\n" in cpu or "\r" in cpu:
         raise TranscriptError("capture CPU name is invalid")

@@ -196,6 +196,7 @@ LOG_FATAL_PATTERNS = (
     "SIGSEGV",
     "signal 11",
 )
+LOGCAT_APP_LINE = re.compile(r"^[VDIWEF]/QPeriaptSmoke(?:\(\s*[0-9]+\))?:")
 
 
 def require(condition: bool, message: str) -> None:
@@ -496,6 +497,14 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
     require(result.get("passed_tests") == EXPECTED_TESTS, "Android result passed_tests mismatch")
 
     logcat = read_text(paths["logcat"])
+    for line in logcat.splitlines():
+        if not line:
+            continue
+        require(
+            line.startswith("--------- beginning of ")
+            or LOGCAT_APP_LINE.match(line) is not None,
+            "Android logcat contains data outside the QPeriaptSmoke tag filter",
+        )
     for pattern in LOG_FATAL_PATTERNS:
         require(pattern not in logcat, f"Android logcat contains runtime failure marker: {pattern}")
 

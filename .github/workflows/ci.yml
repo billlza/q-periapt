@@ -35,7 +35,7 @@ jobs:
             echo "checked-out HEAD $actual_commit does not match GitHub commit $EXPECTED_COMMIT" >&2
             exit 1
           fi
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           components: rustfmt, clippy, llvm-tools
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
       - run: cargo install cargo-audit --version 0.22.2 --locked
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # Windows release 1.97.0
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # Windows release 1.97.0
         with:
           toolchain: 1.97.0
           components: llvm-tools
@@ -174,7 +174,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
           toolchain: 1.97.0
           components: llvm-tools
@@ -263,7 +263,7 @@ jobs:
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
           "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           components: llvm-tools
@@ -330,7 +330,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           targets: thumbv7em-none-eabihf
@@ -352,7 +352,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           targets: ${{ matrix.target }}
@@ -383,7 +383,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           targets: riscv64gc-unknown-linux-gnu
@@ -432,7 +432,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
       - name: Failure-path indistinguishability (hard gate)
@@ -456,7 +456,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
       - name: Install Valgrind (provides valgrind/memcheck.h for the shim)
@@ -514,7 +514,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
       - name: Loopback handshake (both profiles)
@@ -532,7 +532,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           targets: wasm32-unknown-unknown
@@ -549,7 +549,10 @@ jobs:
           echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
       - run: cargo install wasm-pack --version 0.15.0 --locked
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
-      - run: wasm-pack test --node crates/q-periapt-wasm
+      - name: Test lean WebAssembly face on Node
+        run: wasm-pack test --node crates/q-periapt-wasm
+      - name: Test signed-policy WebAssembly face on Node
+        run: wasm-pack test --node crates/q-periapt-wasm --features signed-policy
 
   # Robustness fuzzing (nightly + libFuzzer). The fuzz crate is detached from the
   # workspace; this compiles every target. (Time-boxed runs are done locally.)
@@ -570,7 +573,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           # The release gate inspects Rust-produced archives with the matching
@@ -599,7 +602,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -610,7 +613,7 @@ jobs:
         with:
           gradle-version: "9.2.1"
       - run: cargo build --locked -p q-periapt-ffi --release
-      - run: gradle test --project-dir bindings/kotlin
+      - run: gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail
 
   bindings-android-aar:
     runs-on: ubuntu-latest
@@ -631,7 +634,7 @@ jobs:
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
           "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi,i686-linux-android
@@ -678,7 +681,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
       - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
@@ -703,7 +706,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           components: clippy
@@ -718,7 +721,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           components: clippy
@@ -733,7 +736,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf

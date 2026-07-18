@@ -28,6 +28,7 @@ PERFORMANCE_SOURCE_STATUSES = {
     "stale_requires_rerun",
 }
 APPLE_SOURCE_STATUSES = {
+    "current_clean_tree_physical_pass",
     "current_dirty_diagnostic_pass",
     "stale_requires_rerun",
 }
@@ -52,8 +53,8 @@ class BindingSpec:
 BINDINGS = {
     "apple_device": BindingSpec(
         section="apple_device",
-        path_key="current_dirty_proof_path",
-        hash_key="current_dirty_proof_sha256",
+        path_key="current_proof_path",
+        hash_key="current_proof_sha256",
     ),
     "apple_matrix": BindingSpec(
         section="apple_device",
@@ -149,28 +150,40 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
             "matrix_source_status",
             APPLE_SOURCE_STATUSES,
         )
-    if isinstance(apple, dict) and apple.get("current_source_status") == "current_dirty_diagnostic_pass":
+    if isinstance(apple, dict) and apple.get("current_source_status") in {
+        "current_clean_tree_physical_pass",
+        "current_dirty_diagnostic_pass",
+    }:
         _validate_binding_declaration(apple, "apple_device")
-        if apple.get("current_dirty_proof_schema") != 2:
-            raise ProofManifestError("current Apple diagnostic requires proof schema 2")
+        if apple.get("current_proof_schema") != 3:
+            raise ProofManifestError("current Apple device status requires proof schema 3")
         if root_digest is None or apple.get("proof_source_tree_sha256") != root_digest:
-            raise ProofManifestError("current Apple diagnostic does not match the manifest source digest")
+            raise ProofManifestError("current Apple device status does not match the manifest source digest")
         attempt = apple.get("current_attempt")
         if not isinstance(attempt, dict) or attempt.get("status") != "pass" or attempt.get("proof_emitted") is not True:
-            raise ProofManifestError("current Apple diagnostic requires a passing emitted-proof attempt")
-        if not isinstance(apple.get("current_dirty_proof_generated_at"), str):
-            raise ProofManifestError("current Apple diagnostic requires proof generation time")
+            raise ProofManifestError("current Apple device status requires a passing emitted-proof attempt")
+        if not isinstance(apple.get("current_proof_generated_at"), str):
+            raise ProofManifestError("current Apple device status requires proof generation time")
+        expected_dirty = apple.get("current_source_status") == "current_dirty_diagnostic_pass"
+        if apple.get("current_proof_source_tree_dirty") is not expected_dirty:
+            raise ProofManifestError("current Apple device status has inconsistent source-tree cleanliness")
 
-    if isinstance(apple, dict) and apple.get("matrix_source_status") == "current_dirty_diagnostic_pass":
+    if isinstance(apple, dict) and apple.get("matrix_source_status") in {
+        "current_clean_tree_physical_pass",
+        "current_dirty_diagnostic_pass",
+    }:
         _validate_binding_declaration(apple, "apple_matrix")
-        if apple.get("matrix_proof_schema") != 3:
-            raise ProofManifestError("current Apple matrix requires proof schema 3")
+        if apple.get("matrix_proof_schema") != 4:
+            raise ProofManifestError("current Apple matrix requires proof schema 4")
         if root_digest is None or apple.get("proof_source_tree_sha256") != root_digest:
             raise ProofManifestError("current Apple matrix does not match the manifest source digest")
         if apple.get("matrix_status") != "pass":
             raise ProofManifestError("current Apple matrix requires a passing proof")
         if not isinstance(apple.get("matrix_generated_at"), str):
             raise ProofManifestError("current Apple matrix requires proof generation time")
+        expected_dirty = apple.get("matrix_source_status") == "current_dirty_diagnostic_pass"
+        if apple.get("matrix_source_tree_dirty") is not expected_dirty:
+            raise ProofManifestError("current Apple matrix has inconsistent source-tree cleanliness")
 
     android = manifest.get("android_device_runtime")
     if isinstance(android, dict):

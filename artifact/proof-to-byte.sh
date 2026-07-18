@@ -199,6 +199,7 @@ DEVICE_RESULT_DIR=
 APPLE_DEVICE_MAX_AGE_SECONDS=
 DEVICE_ARTIFACT_PREFIX=
 EXPECTED_DEVICE_TYPE=
+EXPECTED_DEVICE_TRANSPORT=
 LOG=
 DEVICE_RESULT=
 BUILD_LOG=
@@ -225,6 +226,7 @@ if [ "$REQUIRE_APPLE_DEVICE" = "1" ]; then
 		DEVICE_ARTIFACT_PREFIX=ipad
 	fi
 	EXPECTED_DEVICE_TYPE=${QPERIAPT_EXPECT_DEVICE_TYPE:-}
+	EXPECTED_DEVICE_TRANSPORT=${QPERIAPT_EXPECT_DEVICE_TRANSPORT:-}
 	case "$DEVICE_ARTIFACT_PREFIX" in
 		*[!A-Za-z0-9._-]* | "")
 			printf 'error: invalid QPERIAPT_DEVICE_ARTIFACT_PREFIX\n' >&2
@@ -235,6 +237,13 @@ if [ "$REQUIRE_APPLE_DEVICE" = "1" ]; then
 		"" | iPad | iPhone) ;;
 		*)
 			printf 'error: invalid QPERIAPT_EXPECT_DEVICE_TYPE\n' >&2
+			exit 2
+			;;
+	esac
+	case "$EXPECTED_DEVICE_TRANSPORT" in
+		"" | wired | localNetwork) ;;
+		*)
+			printf 'error: invalid QPERIAPT_EXPECT_DEVICE_TRANSPORT\n' >&2
 			exit 2
 			;;
 	esac
@@ -490,6 +499,7 @@ paths = {
     "release_index_verifier_sha256": "artifact/release_index.py",
     "local_release_consumer_smoke_script_sha256": "artifact/local-release-consumer-smoke.sh",
     "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
+    "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "apple_device_smoke_script_sha256": "artifact/apple-device-smoke.sh",
     "apple_device_matrix_script_sha256": "artifact/apple-device-matrix.sh",
     "apple_device_xcode27_gate_script_sha256": "artifact/apple-device-xcode27-gate.sh",
@@ -616,6 +626,7 @@ if [ "$REQUIRE_APPLE_DEVICE" = "1" ]; then
 			--device-result "$DEVICE_RESULT" \
 			--max-age-seconds "$APPLE_DEVICE_MAX_AGE_SECONDS" \
 			--expected-device-type "$EXPECTED_DEVICE_TYPE" \
+			--expected-transport "$EXPECTED_DEVICE_TRANSPORT" \
 			--results-manifest "$RESULTS_MANIFEST" \
 			--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
 			--allow-dirty-proof
@@ -628,6 +639,7 @@ if [ "$REQUIRE_APPLE_DEVICE" = "1" ]; then
 			--device-result "$DEVICE_RESULT" \
 			--max-age-seconds "$APPLE_DEVICE_MAX_AGE_SECONDS" \
 			--expected-device-type "$EXPECTED_DEVICE_TYPE" \
+			--expected-transport "$EXPECTED_DEVICE_TRANSPORT" \
 			--results-manifest "$RESULTS_MANIFEST" \
 			--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 	fi
