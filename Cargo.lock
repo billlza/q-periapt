@@ -508,7 +508,7 @@ checksum = "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15"
 dependencies = [
  "rand_core 0.6.4",
  "sha2",
- "sha3",
+ "sha3 0.10.9",
  "zeroize",
 ]
 
@@ -520,7 +520,7 @@ checksum = "2f5626bf5534df4ebdbd2536465d7eaa8a9dc2cdeb7e036e0ecf291dcc80ffb6"
 dependencies = [
  "rand_core 0.6.4",
  "sha2",
- "sha3",
+ "sha3 0.10.9",
  "zeroize",
 ]
 
@@ -810,7 +810,7 @@ dependencies = [
  "hybrid-array 0.2.3",
  "kem",
  "rand_core 0.6.4",
- "sha3",
+ "sha3 0.10.9",
  "zeroize",
 ]
 
@@ -996,7 +996,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_json",
- "sha3",
+ "sha3 0.12.0",
  "x25519-dalek",
 ]
 
@@ -1050,7 +1050,7 @@ name = "q-periapt-mlkem-native-sys"
 version = "0.1.0-alpha.2"
 dependencies = [
  "cc",
- "sha3",
+ "sha3 0.12.0",
 ]
 
 [[package]]
@@ -1061,7 +1061,7 @@ dependencies = [
  "q-periapt-core",
  "q-periapt-sig",
  "serde",
- "sha3",
+ "sha3 0.12.0",
  "toml",
 ]
 
@@ -1428,6 +1428,17 @@ checksum = "77fd7028345d415a4034cf8777cd4f8ab1851274233b45f84e3d955502d93874"
 dependencies = [
  "digest 0.10.7",
  "keccak 0.1.6",
+]
+
+[[package]]
+name = "sha3"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc9bad02c26382724b2d2692c6f179285e4b54eeecd7968f52a50059c3c11759"
+dependencies = [
+ "digest 0.11.3",
+ "keccak 0.2.0",
+ "sponge-cursor",
 ]
 
 [[package]]
