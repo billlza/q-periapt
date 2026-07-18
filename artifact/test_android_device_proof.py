@@ -604,7 +604,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertNotIn("|| true", producer)
         self.assertNotIn("qperiapt-android-smoke.p12", "\n".join(android_device_proof.BUNDLE_FILE_PATHS.values()))
 
-    def test_android_release_entrypoints_default_to_stable_api_35(self) -> None:
+    def test_android_release_entrypoints_default_to_stable_sdk_contract(self) -> None:
         artifact = pathlib.Path(__file__).resolve().parent
         for name in ("android-aar.sh", "android-device-smoke.sh"):
             with self.subTest(entrypoint=name):
@@ -615,6 +615,14 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                 )
                 self.assertNotIn(
                     'ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-$(choose_highest_child',
+                    source,
+                )
+                self.assertIn(
+                    'ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}',
+                    source,
+                )
+                self.assertNotIn(
+                    'ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-$(choose_highest_child',
                     source,
                 )
 

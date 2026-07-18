@@ -20,28 +20,6 @@ need() {
 	fi
 }
 
-choose_highest_child() {
-	python3 - "$1" "$2" <<'PY'
-import pathlib
-import re
-import sys
-
-base = pathlib.Path(sys.argv[1])
-kind = sys.argv[2]
-if not base.is_dir():
-    raise SystemExit(f"error: missing {kind} directory: {base}")
-
-def key(path: pathlib.Path):
-    nums = [int(part) for part in re.findall(r"\d+", path.name)]
-    return (nums, path.name)
-
-candidates = sorted((p for p in base.iterdir() if p.is_dir()), key=key)
-if not candidates:
-    raise SystemExit(f"error: no {kind} candidates under {base}")
-print(candidates[-1])
-PY
-}
-
 require_under_target() {
 	python3 - "$ROOT" "$1" "$2" <<'PY'
 import pathlib
@@ -150,7 +128,7 @@ if [ ! -f "$ANDROID_JAR" ]; then
 	exit 2
 fi
 
-ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-$(choose_highest_child "$ANDROID_SDK/build-tools" "Android build-tools")}
+ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}
 AAPT2="$ANDROID_BUILD_TOOLS/aapt2"
 APKSIGNER="$ANDROID_BUILD_TOOLS/apksigner"
 D8="$ANDROID_BUILD_TOOLS/d8"
