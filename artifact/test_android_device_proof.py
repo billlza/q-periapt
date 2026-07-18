@@ -473,6 +473,15 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                 require_release_mode=True,
             )
         proof["android"]["ndk"] = "29.0.14206865"
+        proof["android"]["build_tools"] = "35.0.0"
+        with self.assertRaisesRegex(SystemExit, "must use build-tools 36.0.0"):
+            android_device_proof.verify_device_metadata(
+                proof,
+                expected_device_abi="arm64-v8a",
+                expected_page_size=16384,
+                expected_device_sdk=35,
+                require_release_mode=True,
+            )
         proof["android"]["build_tools"] = "not-a-version"
         with self.assertRaisesRegex(SystemExit, "invalid build-tools metadata"):
             android_device_proof.verify_device_metadata(proof)
@@ -628,6 +637,15 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
 
         producer = (artifact / "android-device-smoke.sh").read_text(encoding="utf-8")
         self.assertIn("\n\t\t-no-snapshot \\\n", producer)
+        self.assertIn("ANDROID_RELEASE_BUILD_TOOLS=36.0.0", producer)
+        self.assertIn(
+            'ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}',
+            producer,
+        )
+        self.assertIn(
+            'if [ "$ANDROID_RELEASE_MODE" = "1" ] && [ "$ANDROID_BUILD_TOOLS" != "$EXPECTED_RELEASE_BUILD_TOOLS" ]; then',
+            producer,
+        )
 
     def test_producer_captures_only_the_smoke_log_tag(self) -> None:
         producer = (

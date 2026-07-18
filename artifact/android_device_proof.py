@@ -61,6 +61,7 @@ MAX_ANDROID_PROOF_AGE_SECONDS = 7 * 24 * 60 * 60
 MAX_EVIDENCE_FILE_BYTES = 512 * 1024 * 1024
 MAX_ANDROID_SDK = 999
 ANDROID_RELEASE_SDK = 35
+ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
 BUNDLE_SCHEMA_VERSION = 1
 BUNDLE_KIND = "qperiapt.android_runtime_evidence_bundle"
 BUNDLE_ROOT_NAME = "qperiapt-android-runtime-evidence-v1"
@@ -689,6 +690,10 @@ def verify_device_metadata(
         require(
             ndk == "29.0.14206865",
             "Android release proof must use NDK 29.0.14206865",
+        )
+        require(
+            build_tools == ANDROID_RELEASE_BUILD_TOOLS,
+            f"Android release proof must use build-tools {ANDROID_RELEASE_BUILD_TOOLS}",
         )
         require(
             target_sdk == ANDROID_RELEASE_SDK,
