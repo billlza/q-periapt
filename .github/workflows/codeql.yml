@@ -88,8 +88,23 @@ jobs:
 
       - name: Build Swift binding
         if: matrix.language == 'swift'
+        # The CodeQL Swift extractor may drive the SwiftPM build for a
+        # different architecture than the runner host (observed: an
+        # x86_64-apple-macosx SwiftPM triple on an arm64 runner). Provide a
+        # universal *static* library only, so whichever slice the tracer
+        # selects links hermetically and the XCTest binary carries no runtime
+        # dylib dependency.
         run: |
-          cargo build --locked -p q-periapt-ffi --release
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo build --locked -p q-periapt-ffi --release --target aarch64-apple-darwin
+          cargo build --locked -p q-periapt-ffi --release --target x86_64-apple-darwin
+          mkdir -p target/release
+          rm -f target/release/libq_periapt_ffi_abi2.a target/release/libq_periapt_ffi_abi2.dylib
+          lipo -create \
+            target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a \
+            target/x86_64-apple-darwin/release/libq_periapt_ffi_abi2.a \
+            -output target/release/libq_periapt_ffi_abi2.a
+          lipo -info target/release/libq_periapt_ffi_abi2.a
           swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
 
       - name: Analyze

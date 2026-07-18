@@ -803,7 +803,33 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "-L${{ github.workspace }}/target/release",
             source,
         )
-        self.assertEqual(source.count("cargo build --locked -p q-periapt-ffi --release"), 2)
+        # Kotlin builds the host library once; Swift builds both Apple
+        # architectures and merges a universal static archive so the CodeQL
+        # tracer links whichever slice its SwiftPM triple selects.
+        self.assertEqual(
+            len(
+                re.findall(
+                    r"(?m)cargo build --locked -p q-periapt-ffi --release$", source
+                )
+            ),
+            1,
+        )
+        self.assertEqual(
+            source.count(
+                "cargo build --locked -p q-periapt-ffi --release "
+                "--target aarch64-apple-darwin"
+            ),
+            1,
+        )
+        self.assertEqual(
+            source.count(
+                "cargo build --locked -p q-periapt-ffi --release "
+                "--target x86_64-apple-darwin"
+            ),
+            1,
+        )
+        self.assertIn("lipo -create", source)
+        self.assertIn("lipo -info target/release/libq_periapt_ffi_abi2.a", source)
         self.assertIn("queries: security-extended", source)
         self.assertIn("threat-models: [local]", source)
 
