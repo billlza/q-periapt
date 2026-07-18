@@ -993,7 +993,7 @@ dependencies = [
  "q-periapt-kem",
  "q-periapt-mlkem-native-sys",
  "q-periapt-sig",
- "rand_core 0.6.4",
+ "rand_core 0.10.1",
  "serde",
  "serde_json",
  "sha3",
