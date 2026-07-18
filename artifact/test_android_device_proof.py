@@ -613,6 +613,71 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertNotIn("|| true", producer)
         self.assertNotIn("qperiapt-android-smoke.p12", "\n".join(android_device_proof.BUNDLE_FILE_PATHS.values()))
 
+    def test_temporary_app_and_booted_avd_are_bound_and_cleaned(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        trap_index = producer.index("trap cleanup_exit EXIT")
+        install_index = producer.index('"$ADB" -s "$SERIAL" install -r')
+        installed_index = producer.index("APP_INSTALLED=1", install_index)
+        uninstall_index = producer.index(
+            '"$ADB" -s "$SERIAL" uninstall "$PACKAGE"', installed_index
+        )
+        cleared_index = producer.index("APP_INSTALLED=0", uninstall_index)
+        cleanup_index = producer.index('if [ "${APP_INSTALLED:-0}" = "1" ]; then')
+        emulator_cleanup_index = producer.index(
+            'if [ "${EMULATOR_STARTED:-0}" = "1" ]', cleanup_index
+        )
+        boot_loop_index = producer.index('while [ "$i" -lt 90 ]; do')
+        child_liveness_index = producer.index(
+            "if ! emulator_process_active; then", boot_loop_index
+        )
+        bound_serial_index = producer.index(
+            '"$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state', boot_loop_index
+        )
+        self.assertLess(producer.index("APP_INSTALLED=0"), trap_index)
+        self.assertLess(install_index, installed_index)
+        self.assertLess(installed_index, uninstall_index)
+        self.assertLess(uninstall_index, cleared_index)
+        self.assertLess(cleanup_index, emulator_cleanup_index)
+        self.assertLess(child_liveness_index, bound_serial_index)
+        self.assertIn("adb-uninstall-cleanup.log", producer[cleanup_index:emulator_cleanup_index])
+        self.assertIn(
+            "refusing to boot a proof AVD while another adb device is already online",
+            producer,
+        )
+        self.assertIn(
+            'ANDROID_EMULATOR_PORT=${QPERIAPT_ANDROID_EMULATOR_PORT:-5584}',
+            producer,
+        )
+        self.assertIn('ANDROID_BOOT_AVD=${QPERIAPT_ANDROID_BOOT_AVD:-0}', producer)
+        self.assertIn(
+            'ANDROID_KEEP_EMULATOR=${QPERIAPT_ANDROID_KEEP_EMULATOR:-0}', producer
+        )
+        self.assertIn(
+            'EXPECTED_DEVICE_KIND=${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}', producer
+        )
+        self.assertIn(
+            "Android release emulator proof requires QPERIAPT_ANDROID_BOOT_AVD=1",
+            producer,
+        )
+        self.assertIn(
+            "Android release emulator proof must use the script-started cold-boot AVD",
+            producer,
+        )
+        self.assertIn(
+            "Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+            producer,
+        )
+        self.assertIn('EXPECTED_EMULATOR_SERIAL="emulator-$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn('-port "$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn('SERIAL=$EXPECTED_EMULATOR_SERIAL', producer)
+        self.assertIn("temporary Android emulator exited before its bound adb serial", producer)
+        self.assertNotIn(
+            'if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]',
+            producer,
+        )
+
     def test_android_release_entrypoints_default_to_stable_sdk_contract(self) -> None:
         artifact = pathlib.Path(__file__).resolve().parent
         for name in ("android-aar.sh", "android-device-smoke.sh"):

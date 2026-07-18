@@ -57,6 +57,25 @@ case "$ANDROID_RELEASE_MODE" in
 		exit 2
 		;;
 esac
+ANDROID_BOOT_AVD=${QPERIAPT_ANDROID_BOOT_AVD:-0}
+ANDROID_KEEP_EMULATOR=${QPERIAPT_ANDROID_KEEP_EMULATOR:-0}
+for boolean_value in "$ANDROID_BOOT_AVD" "$ANDROID_KEEP_EMULATOR"; do
+	case "$boolean_value" in
+		0 | 1) ;;
+		*)
+			printf 'error: QPERIAPT_ANDROID_BOOT_AVD and QPERIAPT_ANDROID_KEEP_EMULATOR must be 0 or 1\n' >&2
+			exit 2
+			;;
+	esac
+done
+EXPECTED_DEVICE_KIND=${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}
+case "$EXPECTED_DEVICE_KIND" in
+	any | emulator | physical) ;;
+	*)
+		printf 'error: QPERIAPT_ANDROID_EXPECT_DEVICE_KIND must be any, emulator, or physical\n' >&2
+		exit 2
+		;;
+esac
 EXPECTED_DEVICE_ABI=${QPERIAPT_ANDROID_EXPECT_ABI:-}
 case "$EXPECTED_DEVICE_ABI" in
 	"" | arm64-v8a | x86_64 | armeabi-v7a | x86) ;;
@@ -98,6 +117,24 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
 		exit 2
 	fi
+	case "$EXPECTED_DEVICE_KIND" in
+		emulator)
+			if [ "$ANDROID_BOOT_AVD" != "1" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_BOOT_AVD=1\n' >&2
+				exit 2
+			fi
+			;;
+		physical)
+			if [ "$ANDROID_BOOT_AVD" != "0" ]; then
+				printf 'error: Android release physical-device proof cannot boot an AVD\n' >&2
+				exit 2
+			fi
+			;;
+		any)
+			printf 'error: Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_DEVICE_KIND\n' >&2
+			exit 2
+			;;
+	esac
 fi
 
 if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "1" ]; then
@@ -800,7 +837,18 @@ cleanup_runtime() {
 			cleanup_status=1
 		fi
 	fi
-	if [ "${EMULATOR_STARTED:-0}" = "1" ] && [ "${QPERIAPT_ANDROID_KEEP_EMULATOR:-0}" != "1" ]; then
+	if [ "${APP_INSTALLED:-0}" = "1" ]; then
+		if [ -z "${ADB:-}" ] || [ -z "${SERIAL:-}" ]; then
+			printf 'error: installed Android smoke app cleanup lacks adb or device identity\n' >&2
+			cleanup_status=1
+		elif ! "$ADB" -s "$SERIAL" uninstall "$PACKAGE" >"$DIST/adb-uninstall-cleanup.log" 2>&1; then
+			printf 'error: failed to uninstall the temporary Android smoke app during cleanup\n' >&2
+			cleanup_status=1
+		else
+			APP_INSTALLED=0
+		fi
+	fi
+	if [ "${EMULATOR_STARTED:-0}" = "1" ] && [ "$ANDROID_KEEP_EMULATOR" != "1" ]; then
 		if [ -n "${ADB:-}" ] && [ -n "${SERIAL:-}" ] && ! "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1; then
 			printf 'error: failed to request shutdown of the temporary Android emulator\n' >&2
 			cleanup_status=1
@@ -821,6 +869,7 @@ cleanup_exit() {
 	exit "$status"
 }
 
+APP_INSTALLED=0
 trap cleanup_exit EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -1046,11 +1095,28 @@ printf '\n=== Select Android runtime device ===\n'
 "$ADB" start-server >/dev/null
 EMULATOR_STARTED=0
 SERIAL=$(select_serial_or_empty)
-if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]; then
+if [ "$ANDROID_BOOT_AVD" = "1" ]; then
+	if [ -n "$SERIAL" ]; then
+		printf 'error: refusing to boot a proof AVD while another adb device is already online\n' >&2
+		exit 2
+	fi
 	if [ -z "${QPERIAPT_ANDROID_AVD:-}" ]; then
 		printf 'error: QPERIAPT_ANDROID_AVD is required when QPERIAPT_ANDROID_BOOT_AVD=1\n' >&2
 		exit 2
 	fi
+	ANDROID_EMULATOR_PORT=${QPERIAPT_ANDROID_EMULATOR_PORT:-5584}
+	case "$ANDROID_EMULATOR_PORT" in
+		[1-9][0-9][0-9][0-9]) ;;
+		*)
+			printf 'error: QPERIAPT_ANDROID_EMULATOR_PORT must be an even integer from 5554 through 5584\n' >&2
+			exit 2
+			;;
+	esac
+	if [ "$ANDROID_EMULATOR_PORT" -lt 5554 ] || [ "$ANDROID_EMULATOR_PORT" -gt 5584 ] || [ $((ANDROID_EMULATOR_PORT % 2)) -ne 0 ]; then
+		printf 'error: QPERIAPT_ANDROID_EMULATOR_PORT must be an even integer from 5554 through 5584\n' >&2
+		exit 2
+	fi
+	EXPECTED_EMULATOR_SERIAL="emulator-$ANDROID_EMULATOR_PORT"
 	if [ ! -x "$EMULATOR" ]; then
 		printf 'error: Android emulator not found: %s\n' "$EMULATOR" >&2
 		exit 2
@@ -1058,6 +1124,7 @@ if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]; then
 	printf 'boot-avd : %s\n' "$QPERIAPT_ANDROID_AVD"
 	"$EMULATOR" \
 		-avd "$QPERIAPT_ANDROID_AVD" \
+		-port "$ANDROID_EMULATOR_PORT" \
 		-no-snapshot \
 		-no-window \
 		-no-audio \
@@ -1068,8 +1135,12 @@ if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]; then
 	EMULATOR_STARTED=1
 	i=0
 	while [ "$i" -lt 90 ]; do
-		SERIAL=$(select_serial_or_empty)
-		if [ -n "$SERIAL" ]; then
+		if ! emulator_process_active; then
+			printf 'error: temporary Android emulator exited before its bound adb serial became available\n' >&2
+			exit 1
+		fi
+		if "$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state 2>/dev/null | grep -Fx device >/dev/null 2>&1; then
+			SERIAL=$EXPECTED_EMULATOR_SERIAL
 			break
 		fi
 		sleep 1
@@ -1116,17 +1187,17 @@ if [ "$qemu" = "1" ]; then
 else
 	DEVICE_KIND=physical
 fi
-case "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" in
+if [ "$ANDROID_RELEASE_MODE" = "1" ] && [ "$DEVICE_KIND" = "emulator" ] && [ "$EMULATOR_STARTED" != "1" ]; then
+	printf 'error: Android release emulator proof must use the script-started cold-boot AVD\n' >&2
+	exit 2
+fi
+case "$EXPECTED_DEVICE_KIND" in
 	any) ;;
 	emulator | physical)
-		if [ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND}" != "$DEVICE_KIND" ]; then
-			printf 'error: Android device kind mismatch: expected %s, got %s\n' "$QPERIAPT_ANDROID_EXPECT_DEVICE_KIND" "$DEVICE_KIND" >&2
+		if [ "$EXPECTED_DEVICE_KIND" != "$DEVICE_KIND" ]; then
+			printf 'error: Android device kind mismatch: expected %s, got %s\n' "$EXPECTED_DEVICE_KIND" "$DEVICE_KIND" >&2
 			exit 1
 		fi
-		;;
-	*)
-		printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: %s\n' "$QPERIAPT_ANDROID_EXPECT_DEVICE_KIND" >&2
-		exit 2
 		;;
 esac
 DEVICE_ABI=$("$ADB" -s "$SERIAL" shell getprop ro.product.cpu.abi | tr -d '\r\n ')
@@ -1173,6 +1244,7 @@ printf 'sdk      : %s\n' "$DEVICE_SDK"
 
 printf '\n=== Install and run Android runtime smoke ===\n'
 "$ADB" -s "$SERIAL" install -r "$SIGNED_APK" >"$DIST/adb-install.log"
+APP_INSTALLED=1
 "$ADB" -s "$SERIAL" logcat -c
 "$ADB" -s "$SERIAL" shell am force-stop "$PACKAGE" >"$DIST/adb-force-stop.log"
 "$ADB" -s "$SERIAL" shell am start -W -n "$PACKAGE/.QPeriaptSmokeActivity" --es qperiapt_run_id "$RUN_ID" >"$DIST/adb-start.log"
@@ -1211,6 +1283,7 @@ if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|Unsa
 	exit 1
 fi
 "$ADB" -s "$SERIAL" uninstall "$PACKAGE" >"$DIST/adb-uninstall.log"
+APP_INSTALLED=0
 
 PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'
 import pathlib
