@@ -19,7 +19,7 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable
 
 try:
     import pwd
@@ -50,7 +50,7 @@ from proof_manifest import (
 
 PROOF_SCHEMA_VERSION = 4
 HARNESS_SCHEMA_VERSION = 2
-BUDGET_SCHEMA_VERSION = 4
+BUDGET_SCHEMA_VERSION = 5
 OPERATIONS = ("combine", "encapsulate", "decapsulate")
 PROFILES = ("ContextBound", "CompatXWing")
 EXPECTED_ITERATIONS_PER_SAMPLE = {
@@ -61,12 +61,17 @@ EXPECTED_ITERATIONS_PER_SAMPLE = {
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 HEX_RE = re.compile(r"^(?:[0-9a-f]{2})+$")
+RUSTUP_TOOLCHAIN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 MAX_EXACT_ELAPSED_NS_TOTAL = 1 << 53
 PRODUCTION_BUDGET_RELATIVE = pathlib.PurePosixPath("artifact/performance-budgets.json")
 MAX_PERFORMANCE_PROOF_BYTES = 4 * 1024 * 1024
 MAX_PERFORMANCE_BUDGET_BYTES = 1024 * 1024
 MAX_PERFORMANCE_RAW_BYTES = 128 * 1024 * 1024
+# The harness emits six JSONL sample records for each requested sample.  This
+# cap keeps the producer below the independent 128 MiB raw-evidence bound.
+MAX_COLLECTION_SAMPLES = 100_000
+MAX_COLLECTION_WARMUP_MS = 60_000
 
 
 class GateError(ValueError):
@@ -566,6 +571,7 @@ def validate_toolchain_policy(value: Any) -> dict[str, str]:
         "cargo_version",
         "rustc_sha256",
         "rustc_version",
+        "rustup_toolchain",
         "target",
     }
     _strict_keys(value, expected, "performance toolchain policy")
@@ -574,6 +580,10 @@ def validate_toolchain_policy(value: Any) -> dict[str, str]:
         require(isinstance(item, str) and bool(item), f"toolchain policy {field} is missing")
     for field in ("cargo_sha256", "rustc_sha256"):
         require(SHA256_RE.fullmatch(value[field]) is not None, f"toolchain policy {field} is malformed")
+    require(
+        RUSTUP_TOOLCHAIN_RE.fullmatch(value["rustup_toolchain"]) is not None,
+        "toolchain policy rustup_toolchain is malformed",
+    )
     require("/" not in value["target"] and "\\" not in value["target"], "toolchain target is malformed")
     return value
 
@@ -839,47 +849,75 @@ def verified_toolchain(
 ) -> tuple[dict[str, str], pathlib.Path, pathlib.Path]:
     policy = validate_toolchain_policy(budget.get("toolchain"))
     account_home = account_home_directory()
-    candidate_directories: set[pathlib.Path] = set()
-    for name in ("cargo", "rustc"):
-        selected = shutil.which(name)
-        if selected is not None:
-            candidate_directories.add(pathlib.Path(selected).absolute().parent)
-    rustup_toolchains = account_home / ".rustup" / "toolchains"
-    if rustup_toolchains.is_dir():
-        try:
-            toolchain_directories = list(rustup_toolchains.iterdir())
-        except OSError as exc:
-            raise GateError(f"cannot enumerate Rust toolchains: {exc}") from exc
-        candidate_directories.update(
-            path / "bin"
-            for path in toolchain_directories
-            if path.is_dir() and not path.is_symlink()
-        )
-
-    matches: list[dict[str, pathlib.Path]] = []
-    for directory in sorted(candidate_directories):
-        pair: dict[str, pathlib.Path] = {}
-        for name in ("cargo", "rustc"):
-            candidate = directory / name
-            if (
-                not candidate.is_file()
-                or candidate.is_symlink()
-                or not os.access(candidate, os.X_OK)
-            ):
-                break
-            resolved = candidate.resolve(strict=True)
-            if sha256_file(resolved) != policy[f"{name}_sha256"]:
-                break
-            pair[name] = resolved
-        if set(pair) == {"cargo", "rustc"}:
-            matches.append(pair)
-
+    rustup_home = account_home / ".rustup"
     require(
-        len(matches) == 1,
-        "expected exactly one same-directory cargo/rustc pair matching the "
-        f"performance toolchain policy, found {len(matches)}",
+        rustup_home.is_dir() and not rustup_home.is_symlink(),
+        "performance rustup home is missing or unsafe",
     )
-    resolved = matches[0]
+    rustup_toolchains = rustup_home / "toolchains"
+    require(
+        rustup_toolchains.is_dir() and not rustup_toolchains.is_symlink(),
+        "performance rustup toolchain root is missing or unsafe",
+    )
+    selected_toolchain = rustup_toolchains / policy["rustup_toolchain"]
+    require(
+        selected_toolchain.is_dir() and not selected_toolchain.is_symlink(),
+        "pinned performance rustup toolchain is missing or unsafe",
+    )
+    selected_bin = selected_toolchain / "bin"
+    require(
+        selected_bin.is_dir() and not selected_bin.is_symlink(),
+        "pinned performance rustup toolchain bin directory is missing or unsafe",
+    )
+    try:
+        resolved_rustup_home = rustup_home.resolve(strict=True)
+        resolved_toolchains = rustup_toolchains.resolve(strict=True)
+        resolved_toolchain = selected_toolchain.resolve(strict=True)
+        resolved_bin = selected_bin.resolve(strict=True)
+    except OSError as exc:
+        raise GateError(f"cannot resolve pinned performance rustup toolchain: {exc}") from exc
+    require(
+        resolved_rustup_home.parent == account_home,
+        "performance rustup home escaped the trusted account home",
+    )
+    require(
+        resolved_toolchains.parent == resolved_rustup_home,
+        "performance rustup toolchain root escaped the trusted rustup home",
+    )
+    require(
+        resolved_toolchain.parent == resolved_toolchains,
+        "pinned performance rustup toolchain escaped its trusted root",
+    )
+    require(
+        resolved_bin.parent == resolved_toolchain,
+        "pinned performance rustup toolchain bin directory escaped its trusted root",
+    )
+
+    resolved: dict[str, pathlib.Path] = {}
+    for name in ("cargo", "rustc"):
+        candidate = selected_bin / name
+        require(
+            candidate.is_file()
+            and not candidate.is_symlink()
+            and os.access(candidate, os.X_OK),
+            f"pinned performance {name} executable is missing or unsafe",
+        )
+        try:
+            resolved_candidate = candidate.resolve(strict=True)
+            candidate_sha256 = sha256_file(resolved_candidate)
+        except OSError as exc:
+            raise GateError(
+                f"cannot inspect pinned performance {name} executable: {exc}"
+            ) from exc
+        require(
+            resolved_candidate.parent == resolved_bin,
+            f"pinned performance {name} executable escaped its trusted toolchain",
+        )
+        require(
+            candidate_sha256 == policy[f"{name}_sha256"],
+            f"pinned performance {name} executable differs from toolchain policy",
+        )
+        resolved[name] = resolved_candidate
     command_environment = {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "LC_ALL": "C",
@@ -1536,6 +1574,18 @@ def positive_int(raw: str) -> int:
     return value
 
 
+def bounded_positive_int(maximum: int, label: str) -> Callable[[str], int]:
+    def parse(raw: str) -> int:
+        value = positive_int(raw)
+        if value > maximum:
+            raise argparse.ArgumentTypeError(
+                f"{label} must not exceed {maximum}: {raw}"
+            )
+        return value
+
+    return parse
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1544,8 +1594,16 @@ def main() -> int:
     collect_parser.add_argument("--root", type=pathlib.Path, required=True)
     collect_parser.add_argument("--raw", type=pathlib.Path, required=True)
     collect_parser.add_argument("--proof", type=pathlib.Path, required=True)
-    collect_parser.add_argument("--samples", type=positive_int, default=20_480)
-    collect_parser.add_argument("--warmup-ms", type=positive_int, default=5_000)
+    collect_parser.add_argument(
+        "--samples",
+        type=bounded_positive_int(MAX_COLLECTION_SAMPLES, "samples"),
+        default=20_480,
+    )
+    collect_parser.add_argument(
+        "--warmup-ms",
+        type=bounded_positive_int(MAX_COLLECTION_WARMUP_MS, "warmup-ms"),
+        default=5_000,
+    )
     collect_parser.add_argument("--allow-dirty", action="store_true")
     collect_parser.add_argument("--allow-uncontrolled", action="store_true")
 

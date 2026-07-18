@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import pathlib
 import tempfile
 import types
 import unittest
+from typing import Protocol
 from unittest import mock
 
 import performance_gate
+
+
+class CommandOutput(Protocol):
+    def __call__(
+        self,
+        args: list[str],
+        cwd: pathlib.Path,
+        *,
+        environment: dict[str, str] | None = None,
+    ) -> str: ...
 
 
 class PerformanceGateTests(unittest.TestCase):
@@ -17,7 +29,7 @@ class PerformanceGateTests(unittest.TestCase):
         self.root = pathlib.Path(self.temp.name)
         self.raw = self.root / "raw.jsonl"
         self.budget = {
-            "schema_version": 4,
+            "schema_version": 5,
             "harness_schema_version": 2,
             "backend": "matched-test-backend",
             "schedule": "ABBA/BAAB",
@@ -44,6 +56,7 @@ class PerformanceGateTests(unittest.TestCase):
                 "cargo_version": "cargo test",
                 "rustc_sha256": "2" * 64,
                 "rustc_version": "rustc test",
+                "rustup_toolchain": "test-pinned",
                 "target": "test-target",
             },
             "operations": {
@@ -165,6 +178,46 @@ class PerformanceGateTests(unittest.TestCase):
             "ac_power": True,
             "controlled": True,
         }
+
+    def synthetic_rustup_toolchain(
+        self, account_home: pathlib.Path, name: str = "pinned"
+    ) -> tuple[
+        pathlib.Path,
+        pathlib.Path,
+        dict[str, str],
+        CommandOutput,
+    ]:
+        tool_bin = account_home / ".rustup" / "toolchains" / name / "bin"
+        tool_bin.mkdir(parents=True)
+        cargo = tool_bin / "cargo"
+        rustc = tool_bin / "rustc"
+        for path, content in ((cargo, b"cargo"), (rustc, b"rustc")):
+            path.write_bytes(content)
+            path.chmod(0o700)
+        cargo = cargo.resolve()
+        rustc = rustc.resolve()
+        policy = {
+            "cargo_sha256": hashlib.sha256(b"cargo").hexdigest(),
+            "cargo_version": "cargo pinned",
+            "rustc_sha256": hashlib.sha256(b"rustc").hexdigest(),
+            "rustc_version": "rustc pinned",
+            "rustup_toolchain": name,
+            "target": "aarch64-test-target",
+        }
+
+        def command_output(
+            args: list[str], _cwd: pathlib.Path, *, environment: dict[str, str] | None = None
+        ) -> str:
+            del environment
+            if args == [str(cargo), "--version"]:
+                return "cargo pinned"
+            if args == [str(rustc), "--version"]:
+                return "rustc pinned"
+            if args == [str(rustc), "-vV"]:
+                return "host: aarch64-test-target"
+            self.fail(f"unexpected command: {args}")
+
+        return cargo, rustc, policy, command_output
 
     def make_synthetic_proof(self, *, manifest_bound: bool) -> dict[str, object]:
         target = self.root / "target" / "performance"
@@ -970,14 +1023,17 @@ class PerformanceGateTests(unittest.TestCase):
         self.assertNotIn("/", target)
         self.assertNotIn("\\", target)
 
-    def test_toolchain_policy_rejects_path_injected_executable_before_running(self) -> None:
+    def test_toolchain_policy_ignores_path_injected_executable_before_running(self) -> None:
         fake_cargo = self.root / "cargo"
         fake_rustc = self.root / "rustc"
         for path in (fake_cargo, fake_rustc):
             path.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
             path.chmod(0o700)
         account_home = self.root / "account"
-        account_home.mkdir()
+        cargo, rustc, policy, command_output = self.synthetic_rustup_toolchain(
+            account_home, "test-pinned"
+        )
+        self.budget["toolchain"] = policy
         account = types.SimpleNamespace(pw_dir=str(account_home))
         with (
             mock.patch.object(
@@ -986,46 +1042,49 @@ class PerformanceGateTests(unittest.TestCase):
                 side_effect=lambda name: str(
                     fake_cargo if name == "cargo" else fake_rustc
                 ),
+            ) as which,
+            mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
+            mock.patch.object(
+                performance_gate,
+                "run_line",
+                side_effect=command_output,
             ),
+        ):
+            _identity, selected_cargo, selected_rustc = performance_gate.verified_toolchain(
+                self.root, self.budget
+            )
+        which.assert_not_called()
+        self.assertEqual(selected_cargo, cargo)
+        self.assertEqual(selected_rustc, rustc)
+
+    def test_toolchain_policy_rejects_rustup_parent_symlink(self) -> None:
+        account_home = self.root / "account"
+        account_home.mkdir()
+        outside_rustup = self.root / "outside-rustup"
+        tool_bin = outside_rustup / "toolchains" / "test-pinned" / "bin"
+        tool_bin.mkdir(parents=True)
+        for name, content in (("cargo", b"cargo"), ("rustc", b"rustc")):
+            path = tool_bin / name
+            path.write_bytes(content)
+            path.chmod(0o700)
+        (account_home / ".rustup").symlink_to(outside_rustup, target_is_directory=True)
+        account = types.SimpleNamespace(pw_dir=str(account_home))
+        with (
             mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
             self.assertRaisesRegex(
                 performance_gate.GateError,
-                "exactly one same-directory cargo/rustc pair",
+                "performance rustup home is missing or unsafe",
             ),
         ):
             performance_gate.verified_toolchain(self.root, self.budget)
 
     def test_toolchain_policy_selects_same_directory_hash_matched_pair(self) -> None:
         account_home = self.root / "account"
-        tool_bin = account_home / ".rustup" / "toolchains" / "pinned" / "bin"
-        tool_bin.mkdir(parents=True)
-        cargo = tool_bin / "cargo"
-        rustc = tool_bin / "rustc"
-        for path, content in ((cargo, b"cargo"), (rustc, b"rustc")):
-            path.write_bytes(content)
-            path.chmod(0o700)
-        cargo = cargo.resolve()
-        rustc = rustc.resolve()
-        self.budget["toolchain"] = {
-            "cargo_sha256": hashlib.sha256(b"cargo").hexdigest(),
-            "cargo_version": "cargo pinned",
-            "rustc_sha256": hashlib.sha256(b"rustc").hexdigest(),
-            "rustc_version": "rustc pinned",
-            "target": "aarch64-test-target",
-        }
+        cargo, rustc, policy, command_output = self.synthetic_rustup_toolchain(
+            account_home
+        )
+        self.budget["toolchain"] = policy
         account = types.SimpleNamespace(pw_dir=str(account_home))
-
-        def command_output(
-            args: list[str], _cwd: pathlib.Path, *, environment: dict[str, str] | None = None
-        ) -> str:
-            del environment
-            if args == [str(cargo), "--version"]:
-                return "cargo pinned"
-            if args == [str(rustc), "--version"]:
-                return "rustc pinned"
-            if args == [str(rustc), "-vV"]:
-                return "host: aarch64-test-target"
-            self.fail(f"unexpected command: {args}")
 
         with (
             mock.patch.object(performance_gate.shutil, "which", return_value=None),
@@ -1038,6 +1097,143 @@ class PerformanceGateTests(unittest.TestCase):
         self.assertEqual(selected_cargo, cargo)
         self.assertEqual(selected_rustc, rustc)
         self.assertEqual(identity["target"], "aarch64-test-target")
+
+    def test_toolchain_policy_ignores_identical_unselected_rustup_alias(self) -> None:
+        account_home = self.root / "account"
+        toolchains = account_home / ".rustup" / "toolchains"
+        cargo, rustc, policy, command_output = self.synthetic_rustup_toolchain(
+            account_home
+        )
+        self.budget["toolchain"] = policy
+        stable_bin = toolchains / "stable-aarch64-test-target" / "bin"
+        stable_bin.mkdir(parents=True)
+        for name, content in (("cargo", b"cargo"), ("rustc", b"rustc")):
+            path = stable_bin / name
+            path.write_bytes(content)
+            path.chmod(0o700)
+        account = types.SimpleNamespace(pw_dir=str(account_home))
+
+        with (
+            mock.patch.object(performance_gate.shutil, "which", return_value=None),
+            mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
+            mock.patch.object(performance_gate, "run_line", side_effect=command_output),
+        ):
+            identity, selected_cargo, selected_rustc = performance_gate.verified_toolchain(
+                self.root, self.budget
+            )
+        self.assertEqual(selected_cargo, cargo)
+        self.assertEqual(selected_rustc, rustc)
+        self.assertEqual(identity["cargo_path"], str(cargo))
+
+    def test_toolchain_policy_rejects_unsafe_rustup_toolchain_name(self) -> None:
+        self.budget["toolchain"]["rustup_toolchain"] = "../outside"
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "toolchain policy rustup_toolchain is malformed",
+        ):
+            performance_gate.validate_toolchain_policy(self.budget["toolchain"])
+
+    def test_toolchain_policy_rejects_selected_executable_symlink(self) -> None:
+        account_home = self.root / "account"
+        cargo, _rustc, policy, _command_output = self.synthetic_rustup_toolchain(
+            account_home
+        )
+        cargo.unlink()
+        outside_cargo = self.root / "outside-cargo"
+        outside_cargo.write_bytes(b"cargo")
+        outside_cargo.chmod(0o700)
+        cargo.symlink_to(outside_cargo)
+        self.budget["toolchain"] = policy
+        account = types.SimpleNamespace(pw_dir=str(account_home))
+        with (
+            mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
+            self.assertRaisesRegex(
+                performance_gate.GateError,
+                "pinned performance cargo executable is missing or unsafe",
+            ),
+        ):
+            performance_gate.verified_toolchain(self.root, self.budget)
+
+    def test_toolchain_policy_rejects_hash_mismatch(self) -> None:
+        account_home = self.root / "account"
+        cargo, _rustc, policy, _command_output = self.synthetic_rustup_toolchain(
+            account_home
+        )
+        cargo.write_bytes(b"changed cargo")
+        self.budget["toolchain"] = policy
+        account = types.SimpleNamespace(pw_dir=str(account_home))
+        with (
+            mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
+            self.assertRaisesRegex(
+                performance_gate.GateError,
+                "pinned performance cargo executable differs from toolchain policy",
+            ),
+        ):
+            performance_gate.verified_toolchain(self.root, self.budget)
+
+    def test_toolchain_policy_reports_candidate_disappearance(self) -> None:
+        account_home = self.root / "account"
+        _cargo, _rustc, policy, _command_output = self.synthetic_rustup_toolchain(
+            account_home
+        )
+        self.budget["toolchain"] = policy
+        account = types.SimpleNamespace(pw_dir=str(account_home))
+        with (
+            mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
+            mock.patch.object(
+                performance_gate,
+                "sha256_file",
+                side_effect=FileNotFoundError("toolchain changed"),
+            ),
+            self.assertRaisesRegex(
+                performance_gate.GateError,
+                "cannot inspect pinned performance cargo executable",
+            ),
+        ):
+            performance_gate.verified_toolchain(self.root, self.budget)
+
+    def test_toolchain_policy_rejects_version_and_target_mismatch(self) -> None:
+        account_home = self.root / "account"
+        cargo, rustc, policy, command_output = self.synthetic_rustup_toolchain(
+            account_home
+        )
+        self.budget["toolchain"] = policy
+        account = types.SimpleNamespace(pw_dir=str(account_home))
+
+        def wrong_cargo_version(
+            args: list[str], cwd: pathlib.Path, *, environment: dict[str, str] | None = None
+        ) -> str:
+            if args == [str(cargo), "--version"]:
+                return "cargo wrong"
+            return command_output(args, cwd, environment=environment)
+
+        def wrong_rustc_version(
+            args: list[str], cwd: pathlib.Path, *, environment: dict[str, str] | None = None
+        ) -> str:
+            if args == [str(rustc), "--version"]:
+                return "rustc wrong"
+            return command_output(args, cwd, environment=environment)
+
+        def wrong_target(
+            args: list[str], cwd: pathlib.Path, *, environment: dict[str, str] | None = None
+        ) -> str:
+            if args == [str(rustc), "-vV"]:
+                return "host: wrong-target"
+            return command_output(args, cwd, environment=environment)
+
+        cases = (
+            (wrong_cargo_version, "cargo version differs from performance policy"),
+            (wrong_rustc_version, "rustc version differs from performance policy"),
+            (wrong_target, "rustc target differs from performance policy"),
+        )
+        for output, message in cases:
+            with (
+                self.subTest(message=message),
+                mock.patch.object(performance_gate.pwd, "getpwuid", return_value=account),
+                mock.patch.object(performance_gate, "run_line", side_effect=output),
+                self.assertRaisesRegex(performance_gate.GateError, message),
+            ):
+                performance_gate.verified_toolchain(self.root, self.budget)
 
     def test_hardened_cargo_environment_does_not_inherit_injection_controls(self) -> None:
         account_home = self.root / "account"
@@ -1102,6 +1298,26 @@ class PerformanceGateTests(unittest.TestCase):
                 target,
                 private,
             )
+
+    def test_collection_resource_limits_fail_closed(self) -> None:
+        parse_samples = performance_gate.bounded_positive_int(
+            performance_gate.MAX_COLLECTION_SAMPLES, "samples"
+        )
+        parse_warmup = performance_gate.bounded_positive_int(
+            performance_gate.MAX_COLLECTION_WARMUP_MS, "warmup-ms"
+        )
+        self.assertEqual(
+            parse_samples(str(performance_gate.MAX_COLLECTION_SAMPLES)),
+            performance_gate.MAX_COLLECTION_SAMPLES,
+        )
+        self.assertEqual(
+            parse_warmup(str(performance_gate.MAX_COLLECTION_WARMUP_MS)),
+            performance_gate.MAX_COLLECTION_WARMUP_MS,
+        )
+        with self.assertRaisesRegex(argparse.ArgumentTypeError, "must not exceed"):
+            parse_samples(str(performance_gate.MAX_COLLECTION_SAMPLES + 1))
+        with self.assertRaisesRegex(argparse.ArgumentTypeError, "must not exceed"):
+            parse_warmup(str(performance_gate.MAX_COLLECTION_WARMUP_MS + 1))
 
 
 if __name__ == "__main__":

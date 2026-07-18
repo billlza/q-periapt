@@ -35,7 +35,7 @@ wasm-pack build crates/q-periapt-wasm --target web
 
 ## Current-source local footprint (platform/toolchain-specific)
 
-On Darwin 27.0.0 arm64, the current working source built with Rust 1.96.0,
+On Darwin 27.0.0 arm64, the current working source built with Rust 1.96.1,
 `wasm-pack` 0.15.0, and Homebrew LLVM Clang 22.1.8 measured **97.7 KiB**
 (100,034 bytes) for the lean default module (`encapsulate` / `decapsulate` /
 `combine` / keygen only):
@@ -46,7 +46,7 @@ wasm-pack build crates/q-periapt-wasm --release --target web
 
 The optional signed-policy path (`decision_from_signed_policy`, behind the
 off-by-default `signed-policy` feature) links an ML-DSA verifier and measured
-**332.6 KiB** (340,625 bytes) in the same run:
+**332.3 KiB** (340,298 bytes) in the same run:
 
 ```sh
 wasm-pack build crates/q-periapt-wasm --release --target web -- --features signed-policy

@@ -1,7 +1,8 @@
 //! Generates `bindings/contextbound-vectors.txt` — one vector per line:
 //! `<profile> <input_hex> <k_hex>`, where `input` is the nine-field 8-byte-BE
-//! length-prefixed transport consumed by `q_periapt_combine`. Every binding face
-//! feeds `input` to its `combine` wrapper and must reproduce `k` byte-for-byte.
+//! length-prefixed transport consumed by the internal Rust combiner. The vector is
+//! conformance evidence only: ABI2 product bindings deliberately do not export
+//! `q_periapt_combine` or expose a deterministic product bypass.
 //!
 //! Run: `cargo run -p q-periapt-ffi --example gen_combine_vectors > bindings/contextbound-vectors.txt`
 

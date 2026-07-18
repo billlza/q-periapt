@@ -37,28 +37,6 @@ if path == target:
 PY
 }
 
-choose_highest_child() {
-	python3 - "$1" "$2" <<'PY'
-import pathlib
-import re
-import sys
-
-base = pathlib.Path(sys.argv[1])
-kind = sys.argv[2]
-if not base.is_dir():
-    raise SystemExit(f"error: missing {kind} directory: {base}")
-
-def key(path: pathlib.Path):
-    nums = [int(part) for part in re.findall(r"\d+", path.name)]
-    return (nums, path.name)
-
-candidates = sorted((p for p in base.iterdir() if p.is_dir()), key=key)
-if not candidates:
-    raise SystemExit(f"error: no {kind} candidates under {base}")
-print(candidates[-1])
-PY
-}
-
 need cargo
 need cbindgen
 need file
@@ -193,14 +171,14 @@ if [ ! -d "$ANDROID_NDK" ]; then
 fi
 NDK_REVISION=$(PYTHONPATH=artifact python3 artifact/android_elf.py verify-ndk --ndk "$ANDROID_NDK")
 
-ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-$(choose_highest_child "$ANDROID_SDK/platforms" "Android platform")}
+ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-"$ANDROID_SDK/platforms/android-35"}
 ANDROID_JAR="$ANDROID_PLATFORM/android.jar"
 if [ ! -f "$ANDROID_JAR" ]; then
 	printf 'error: Android platform is missing android.jar: %s\n' "$ANDROID_PLATFORM" >&2
 	exit 2
 fi
 
-ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-$(choose_highest_child "$ANDROID_SDK/build-tools" "Android build-tools")}
+ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}
 D8="$ANDROID_BUILD_TOOLS/d8"
 if [ ! -x "$D8" ]; then
 	printf 'error: Android build-tools d8 not found: %s\n' "$D8" >&2

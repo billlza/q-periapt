@@ -33,10 +33,10 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
-    def test_schema_v2_is_required(self) -> None:
-        with self.assertRaisesRegex(SystemExit, "Apple device proof schema must be 2"):
-            apple_device_proof.verify_proof_schema({"schema_version": 1}, "Apple device proof")
-        apple_device_proof.verify_proof_schema({"schema_version": 2}, "Apple device proof")
+    def test_schema_v3_is_required(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "Apple device proof schema must be 3"):
+            apple_device_proof.verify_proof_schema({"schema_version": 2}, "Apple device proof")
+        apple_device_proof.verify_proof_schema({"schema_version": 3}, "Apple device proof")
 
     def test_matching_canonical_source_tree_digest_passes(self) -> None:
         digest = apple_device_proof.current_source_tree_digest(self.root)
@@ -236,6 +236,26 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         self.assertNotIn('cat "$BUILD_LOG"', script)
         self.assertNotIn('cat "$LOG"', script)
 
+    def test_smoke_script_rechecks_device_route_around_runtime_actions(self) -> None:
+        script = (pathlib.Path(__file__).parent / "apple-device-smoke.sh").read_text(
+            encoding="utf-8"
+        )
+        install = script.index("device install app")
+        launch = script.index("device process launch")
+        copy = script.index("device copy from")
+        emit = script.index("apple_device_proof.py emit")
+        self.assertGreater(script.rfind("assert_device_route", 0, install), 0)
+        self.assertGreater(script.rfind("assert_device_route", install, launch), install)
+        self.assertGreater(script.rfind("assert_device_route", launch, copy), launch)
+        self.assertGreater(script.rfind("assert_device_route", copy, emit), copy)
+        self.assertGreaterEqual(script.count("assert_device_route"), 7)
+        self.assertGreaterEqual(
+            script.count('--expected-device-type "$EXPECTED_DEVICE_TYPE"'), 4
+        )
+        self.assertGreaterEqual(
+            script.count('--expected-transport "$EXPECTED_DEVICE_TRANSPORT"'), 4
+        )
+
     def test_emit_rejects_binary_replacements_after_install_freeze(self) -> None:
         executable = self.root / "target" / "app" / "QPeriaptDeviceRunner"
         staticlib = self.root / "target" / "libq_periapt_ffi_abi2.a"
@@ -305,6 +325,7 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
 
     def child(self, label: str) -> dict[str, object]:
         device_type = apple_device_proof.REQUIRED_MATRIX_LABEL_TO_TYPE[label]
+        transport = apple_device_proof.REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label]
         return {
             "git_commit": "a" * 40,
             "proof_source_tree_sha256": "b" * 64,
@@ -318,6 +339,7 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
                 "marketing_name": f"device-{label}",
                 "os_version": "27.0",
                 "os_build": f"build-{label}",
+                "transport": transport,
             },
         }
 
@@ -332,6 +354,7 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
             "marketing_name": device["marketing_name"],
             "os_version": device["os_version"],
             "os_build": device["os_build"],
+            "transport": device["transport"],
             "device_id_sha256": child["device_id_sha256"],
             "run_id": child["run_id"],
             "proof": f"{label}/{label}-device-proof.json",
@@ -443,16 +466,22 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit, "exactly iPad and iPhone"):
                     self.verify_fixture(snapshot, child_snapshots, children)
 
-    def test_matrix_rejects_schema_v2_and_duplicate_physical_device(self) -> None:
+    def test_matrix_rejects_old_schema_and_duplicate_physical_device(self) -> None:
         snapshot, child_snapshots, children = self.matrix_snapshot()
-        snapshot.value["schema_version"] = 2
-        with self.assertRaisesRegex(SystemExit, "schema must be 3"):
+        snapshot.value["schema_version"] = 3
+        with self.assertRaisesRegex(SystemExit, "schema must be 4"):
             self.verify_fixture(snapshot, child_snapshots, children)
 
         snapshot, child_snapshots, children = self.matrix_snapshot(
             duplicate_device=True
         )
         with self.assertRaisesRegex(SystemExit, "distinct physical devices"):
+            self.verify_fixture(snapshot, child_snapshots, children)
+
+    def test_matrix_rejects_wrong_transport_for_label(self) -> None:
+        snapshot, child_snapshots, children = self.matrix_snapshot()
+        snapshot.value["devices"][0]["transport"] = "localNetwork"
+        with self.assertRaisesRegex(SystemExit, "requires wired transport"):
             self.verify_fixture(snapshot, child_snapshots, children)
 
 

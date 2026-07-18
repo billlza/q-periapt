@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "harness_schema_version": 2,
   "backend": "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0+sha3+x25519-dalek",
   "schedule": "ABBA/BAAB",
@@ -26,6 +26,7 @@
     "cargo_version": "cargo 1.96.0 (30a34c682 2026-05-25)",
     "rustc_sha256": "c5922366bfe3d6d028a65d626f4e629b3adad066995cf0b60c8a4b617bba5ffe",
     "rustc_version": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+    "rustup_toolchain": "1.96.0-aarch64-apple-darwin",
     "target": "aarch64-apple-darwin"
   },
   "operations": {

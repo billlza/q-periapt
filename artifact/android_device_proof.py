@@ -61,6 +61,7 @@ MAX_ANDROID_PROOF_AGE_SECONDS = 7 * 24 * 60 * 60
 MAX_EVIDENCE_FILE_BYTES = 512 * 1024 * 1024
 MAX_ANDROID_SDK = 999
 ANDROID_RELEASE_SDK = 35
+ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
 BUNDLE_SCHEMA_VERSION = 1
 BUNDLE_KIND = "qperiapt.android_runtime_evidence_bundle"
 BUNDLE_ROOT_NAME = "qperiapt-android-runtime-evidence-v1"
@@ -196,6 +197,7 @@ LOG_FATAL_PATTERNS = (
     "SIGSEGV",
     "signal 11",
 )
+LOGCAT_APP_LINE = re.compile(r"^[VDIWEF]/QPeriaptSmoke(?:\(\s*[0-9]+\))?:")
 
 
 def require(condition: bool, message: str) -> None:
@@ -496,6 +498,14 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
     require(result.get("passed_tests") == EXPECTED_TESTS, "Android result passed_tests mismatch")
 
     logcat = read_text(paths["logcat"])
+    for line in logcat.splitlines():
+        if not line:
+            continue
+        require(
+            line.startswith("--------- beginning of ")
+            or LOGCAT_APP_LINE.match(line) is not None,
+            "Android logcat contains data outside the QPeriaptSmoke tag filter",
+        )
     for pattern in LOG_FATAL_PATTERNS:
         require(pattern not in logcat, f"Android logcat contains runtime failure marker: {pattern}")
 
@@ -680,6 +690,10 @@ def verify_device_metadata(
         require(
             ndk == "29.0.14206865",
             "Android release proof must use NDK 29.0.14206865",
+        )
+        require(
+            build_tools == ANDROID_RELEASE_BUILD_TOOLS,
+            f"Android release proof must use build-tools {ANDROID_RELEASE_BUILD_TOOLS}",
         )
         require(
             target_sdk == ANDROID_RELEASE_SDK,

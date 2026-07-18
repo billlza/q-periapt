@@ -4,9 +4,10 @@ Authoritative architecture document for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 
 > **Status: release-ready ABI 2 research alpha, not production.** The intended
-> publication surface is source plus a planned coordinated set of Rust crates and an optional,
-> separately evidenced Apple XCFramework research prerelease—not a current C/Swift/Android
-> multi-platform bundle. Q-Periapt composes existing
+> publication surface is source plus a coordinated set of Rust crates. Immutable
+> research prereleases currently cover the separately evidenced Apple XCFramework
+> and Android/Linux/Windows platform SDKs; registry publication and production
+> promotion remain incomplete. Q-Periapt composes existing
 > standardized/ecosystem primitives (ML-KEM, X25519, ML-DSA, SLH-DSA) through
 > third-party backends. The known-leaky, unmaintained PQClean-HQC adapter has been
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
@@ -424,10 +425,10 @@ signed-policy-controlled OS-random workflow and its fail-closed controls.
 |---|---|---|---|
 | **Rust core** | `q-periapt-core` / `-kem` | source of truth | `cargo test` (combiner KATs, X-Wing KAT) |
 | **C ABI** | `q-periapt-ffi` | ABI-major `cdylib` + `staticlib`; exact-nine `q_periapt_*` dynamic export table for `cdylib`/DLL, while the static archive constrains only that public namespace and retains unsupported hidden `qpn_*` link internals; OS CSPRNG; `int32` status codes; every public entry `catch_unwind`-wrapped | internal Rust KAT + semantic product C smoke + `c_abi_contract.py` |
-| **WASM** | `q-periapt-wasm` | `wasm-bindgen`; JS supplies randomness as `Uint8Array` | `cargo test -p q-periapt-wasm`; CI builds `wasm32` |
+| **WASM** | `q-periapt-wasm` | `wasm-bindgen`; JS supplies randomness as `Uint8Array` | default + signed-policy `wasm-pack test --node`; CI builds `wasm32` |
 | **Swift** | `bindings/swift/` | links the ABI2 C `staticlib`; policy-controlled only | `swift test` + five-slice XCFramework consumer pass; physical-device proof remains source-bound |
 | **Kotlin** | `bindings/kotlin/` | Panama **FFM** over ABI2, JDK ≥ 22; policy-controlled only | `gradle test` on JDK 22+ |
-| **Android** | `bindings/android/` | JNI over ABI2; policy-controlled only | AAR build + physical ART device proof |
+| **Android** | `bindings/android/` | JNI over ABI2; policy-controlled only | four-ABI AAR build + API 35 arm64 16 KiB emulator ART proof; physical proof remains separate |
 
 WASM is a separate deterministic conformance-oriented binding and is not part of the
 native ABI2 package contract.

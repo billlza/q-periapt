@@ -93,6 +93,7 @@ data = parse_strict_json_bytes(raw, label="devicectl device list")
 if not isinstance(data, dict):
     raise SystemExit("error: devicectl device list root is not an object")
 matches = {"ipad": [], "iphone": []}
+expected_transport = {"ipad": "wired", "iphone": "localNetwork"}
 for dev in data.get("result", {}).get("devices", []):
     props = dev.get("properties", {})
     hardware = props.get("hardware", {})
@@ -103,13 +104,13 @@ for dev in data.get("result", {}).get("devices", []):
     if state.get("bootState") != "booted" or connection.get("state") != "connected":
         continue
     udid = hardware.get("udid")
-    if hardware.get("deviceType") == "iPad" and udid:
+    if hardware.get("deviceType") == "iPad" and connection.get("transportType") == expected_transport["ipad"] and udid:
         matches["ipad"].append(udid)
-    if hardware.get("deviceType") == "iPhone" and udid:
+    if hardware.get("deviceType") == "iPhone" and connection.get("transportType") == expected_transport["iphone"] and udid:
         matches["iphone"].append(udid)
 if len(matches["ipad"]) != 1 or len(matches["iphone"]) != 1:
     missing = [label for label, values in matches.items() if len(values) != 1]
-    raise SystemExit("error: auto-detect requires exactly one connected physical iPad and one connected physical iPhone; set QPERIAPT_IOS_DEVICE_MATRIX explicitly. missing_or_ambiguous=" + ",".join(missing))
+    raise SystemExit("error: auto-detect requires exactly one connected wired physical iPad and one connected localNetwork physical iPhone; set QPERIAPT_IOS_DEVICE_MATRIX explicitly. missing_or_ambiguous=" + ",".join(missing))
 print("ipad:{},iphone:{}".format(matches["ipad"][0], matches["iphone"][0]))
 ')
 fi
@@ -126,6 +127,7 @@ from evidence_io import parse_strict_json_bytes
 
 matrix_spec = sys.argv[1]
 label_to_type = {"ipad": "iPad", "iphone": "iPhone"}
+label_to_transport = {"ipad": "wired", "iphone": "localNetwork"}
 entries = []
 seen_labels = set()
 seen_ids = set()
@@ -177,6 +179,11 @@ for label, device_id, expected_type in entries:
             f"pairing={connection.get('pairingState')} transport={connection.get('transportType')}; "
             "devicectl available/paired but disconnected devices are not accepted as runnable proof"
         )
+    if connection.get("transportType") != label_to_transport[label]:
+        raise SystemExit(
+            f"error: matrix device {label} must use {label_to_transport[label]} transport, "
+            f"got {connection.get('transportType')}"
+        )
     seen_types.add(actual_type)
 if seen_types != {"iPad", "iPhone"}:
     raise SystemExit(f"error: matrix must contain iPad and iPhone, got: {sorted(seen_types)}")
@@ -214,8 +221,8 @@ for raw_entry in $MATRIX_SPEC; do
 		exit 2
 	fi
 	case "$label" in
-		ipad) expected_type=iPad ;;
-		iphone) expected_type=iPhone ;;
+		ipad) expected_type=iPad; expected_transport=wired ;;
+		iphone) expected_type=iPhone; expected_transport=localNetwork ;;
 		*)
 			printf 'error: unsupported matrix label: %s (expected ipad or iphone)\n' "$label" >&2
 			exit 2
@@ -242,11 +249,13 @@ for raw_entry in $MATRIX_SPEC; do
 	printf '\n=== Matrix device: %s (%s) ===\n' "$label" "$expected_type"
 	python3 artifact/apple_device_proof.py inspect-device \
 		--device-id "$device_id" \
-		--expected-device-type "$expected_type" >/dev/null
+		--expected-device-type "$expected_type" \
+		--expected-transport "$expected_transport" >/dev/null
 	QPERIAPT_IOS_DEVICE_ID="$device_id" \
 	QPERIAPT_DEVICE_LABEL="$label" \
 	QPERIAPT_DEVICE_ARTIFACT_PREFIX="$label" \
 	QPERIAPT_EXPECT_DEVICE_TYPE="$expected_type" \
+	QPERIAPT_EXPECT_DEVICE_TRANSPORT="$expected_transport" \
 	QPERIAPT_DEVICE_RESULT_DIR="$device_result_dir" \
 	QPERIAPT_DERIVED_DATA="$device_derived" \
 	sh artifact/apple-device-smoke.sh
@@ -298,4 +307,4 @@ else
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS"
 fi
 
-printf '\nALL PASS: physical iPad + iPhone Apple-device matrix smoke\n'
+printf '\nALL PASS: wired physical iPad + localNetwork physical iPhone Apple-device matrix smoke\n'

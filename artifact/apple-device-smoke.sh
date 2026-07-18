@@ -29,6 +29,7 @@ DEVICE_PROOF_MAX_AGE_SECONDS=${QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS:-86400}
 DEVICE_ARTIFACT_PREFIX=${QPERIAPT_DEVICE_ARTIFACT_PREFIX:-ipad}
 DEVICE_LABEL=${QPERIAPT_DEVICE_LABEL:-$DEVICE_ARTIFACT_PREFIX}
 EXPECTED_DEVICE_TYPE=${QPERIAPT_EXPECT_DEVICE_TYPE:-}
+EXPECTED_DEVICE_TRANSPORT=${QPERIAPT_EXPECT_DEVICE_TRANSPORT:-}
 ALLOW_DIRTY_APPLE_DEVICE=${QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE:-0}
 PROJECT_DIR="$ROOT/bindings/apple-device"
 PROJECT="$PROJECT_DIR/QPeriaptAppleDevice.xcodeproj"
@@ -46,6 +47,13 @@ case "$ALLOW_PROVISIONING_DEVICE_REGISTRATION" in
 	0 | 1) ;;
 	*)
 		printf 'error: QPERIAPT_ALLOW_PROVISIONING_DEVICE_REGISTRATION must be 0 or 1\n' >&2
+		exit 2
+		;;
+esac
+case "$EXPECTED_DEVICE_TRANSPORT" in
+	"" | wired | localNetwork) ;;
+	*)
+		printf 'error: QPERIAPT_EXPECT_DEVICE_TRANSPORT must be wired or localNetwork\n' >&2
 		exit 2
 		;;
 esac
@@ -69,10 +77,12 @@ need() {
 pick_device() {
 	xcrun devicectl list devices --json-output - 2>/dev/null | python3 -c '
 import json
+import os
 import sys
 
 data = json.load(sys.stdin)
 matches = []
+expected_transport = os.environ.get("QPERIAPT_EXPECT_DEVICE_TRANSPORT", "")
 for dev in data.get("result", {}).get("devices", []):
     props = dev.get("properties", {})
     hardware = props.get("hardware", {})
@@ -88,12 +98,21 @@ for dev in data.get("result", {}).get("devices", []):
         continue
     if connection.get("state") != "connected":
         continue
+    if expected_transport and connection.get("transportType") != expected_transport:
+        continue
     udid = hardware.get("udid")
     if udid:
         matches.append(udid)
 if len(matches) == 1:
     print(matches[0])
 '
+}
+
+assert_device_route() {
+	python3 artifact/apple_device_proof.py inspect-device \
+		--device-id "$DEVICE_ID" \
+		--expected-device-type "$EXPECTED_DEVICE_TYPE" \
+		--expected-transport "$EXPECTED_DEVICE_TRANSPORT" >/dev/null
 }
 
 need cargo
@@ -213,9 +232,7 @@ device_id = sys.argv[1]
 if not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
     raise SystemExit(f"error: invalid resolved iOS device id: {device_id}")
 PY
-python3 artifact/apple_device_proof.py inspect-device \
-	--device-id "$DEVICE_ID" \
-	--expected-device-type "$EXPECTED_DEVICE_TYPE" >/dev/null
+assert_device_route
 DEVICE_ID_SHA256_PREFIX=$(python3 - "$DEVICE_ID" <<'PY'
 import hashlib
 import sys
@@ -353,6 +370,7 @@ FROZEN_STATICLIB_SHA256=${FROZEN_BINARY_HASHES#*:}
 
 printf '\n=== Install device runner ===\n'
 INSTALL_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-install.log"
+assert_device_route
 if ! xcrun devicectl device uninstall app --device "$DEVICE_ID" "$BUNDLE_ID" >"$INSTALL_LOG" 2>&1; then
 	printf 'error: device runner uninstall failed; see %s\n' "$INSTALL_LOG" >&2
 	exit 1
@@ -361,6 +379,7 @@ if ! xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >>"$INSTALL
 	printf 'error: device runner install failed; see %s\n' "$INSTALL_LOG" >&2
 	exit 1
 fi
+assert_device_route
 
 printf '\n=== Launch device runner ===\n'
 LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-launch.log"
@@ -370,6 +389,7 @@ DEVICE_RESULT_UNIQUE_NAME="qperiapt-device-result-$RUN_ID.txt"
 rm -f "$LOG"
 rm -f "$DEVICE_RESULT"
 rm -f "$DEVICE_RESULT_COPY"
+assert_device_route
 set +e
 xcrun devicectl device process launch \
 	--device "$DEVICE_ID" \
@@ -388,6 +408,7 @@ if grep -q 'QPERIAPT_DEVICE_FAIL' "$LOG"; then
 	printf 'error: device runner emitted failure; see %s\n' "$LOG" >&2
 	exit 1
 fi
+assert_device_route
 
 printf '\n=== Fetch device result marker ===\n'
 COPY_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-copy.log"
@@ -400,6 +421,7 @@ if ! xcrun devicectl device copy from \
 	printf 'error: device result copy failed; see %s\n' "$COPY_LOG" >&2
 	exit 1
 fi
+assert_device_route
 chmod 600 "$DEVICE_RESULT_COPY"
 test -f "$DEVICE_RESULT_COPY" || {
 	printf 'error: run-bound device result marker missing from copied app container: %s\n' "$DEVICE_RESULT_UNIQUE_NAME" >&2
@@ -448,6 +470,7 @@ python3 artifact/apple_device_proof.py emit \
 	--run-id "$RUN_ID" \
 	--device-label "$DEVICE_LABEL" \
 	--expected-device-type "$EXPECTED_DEVICE_TYPE" \
+	--expected-transport "$EXPECTED_DEVICE_TRANSPORT" \
 	--expected-team "${DEVELOPMENT_TEAM:-}" \
 	--min-profile-valid-days "$MIN_PROFILE_VALID_DAYS" \
 	--staticlib "$STATICLIB" \
@@ -469,6 +492,8 @@ if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 		--build-log "$BUILD_LOG" \
 		--launch-log "$LOG" \
 		--device-result "$DEVICE_RESULT" \
+		--expected-device-type "$EXPECTED_DEVICE_TYPE" \
+		--expected-transport "$EXPECTED_DEVICE_TRANSPORT" \
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS" \
 		--allow-dirty-proof
 else
@@ -478,6 +503,8 @@ else
 		--build-log "$BUILD_LOG" \
 		--launch-log "$LOG" \
 		--device-result "$DEVICE_RESULT" \
+		--expected-device-type "$EXPECTED_DEVICE_TYPE" \
+		--expected-transport "$EXPECTED_DEVICE_TRANSPORT" \
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS"
 fi
 

@@ -473,6 +473,15 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                 require_release_mode=True,
             )
         proof["android"]["ndk"] = "29.0.14206865"
+        proof["android"]["build_tools"] = "35.0.0"
+        with self.assertRaisesRegex(SystemExit, "must use build-tools 36.0.0"):
+            android_device_proof.verify_device_metadata(
+                proof,
+                expected_device_abi="arm64-v8a",
+                expected_page_size=16384,
+                expected_device_sdk=35,
+                require_release_mode=True,
+            )
         proof["android"]["build_tools"] = "not-a-version"
         with self.assertRaisesRegex(SystemExit, "invalid build-tools metadata"):
             android_device_proof.verify_device_metadata(proof)
@@ -579,6 +588,179 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertIn('QPERIAPT_ANDROID_EXPECT_SDK=35', producer)
         self.assertIn('"sdk": device_sdk', producer)
         self.assertIn('--expected-device-sdk "$DEVICE_SDK"', producer)
+
+    def test_temporary_keystore_is_private_and_cleaned_on_every_exit(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("umask 077", producer)
+        self.assertIn('chmod 700 "$WORK" "$DIST"', producer)
+        keystore_assignment = producer.index(
+            'KEYSTORE="$WORK/qperiapt-android-smoke.p12"'
+        )
+        exit_trap = producer.index("trap cleanup_exit EXIT")
+        keytool = producer.index("keytool -genkeypair")
+        signer = producer.index('"$APKSIGNER" sign')
+        eager_removal = producer.index('rm -f -- "$KEYSTORE"', signer)
+        self.assertLess(keystore_assignment, exit_trap)
+        self.assertLess(exit_trap, keytool)
+        self.assertLess(keytool, eager_removal)
+        self.assertIn('rm -f -- "$KEYSTORE"', producer[keystore_assignment:keytool])
+        self.assertIn("stop_emulator_process()", producer)
+        self.assertIn('"$cleanup_wait_count" -lt 15', producer)
+        self.assertIn('"$cleanup_wait_count" -lt 5', producer)
+        self.assertNotIn("|| :", producer)
+        self.assertNotIn("|| true", producer)
+        self.assertNotIn("qperiapt-android-smoke.p12", "\n".join(android_device_proof.BUNDLE_FILE_PATHS.values()))
+
+    def test_temporary_app_and_booted_avd_are_bound_and_cleaned(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        trap_index = producer.index("trap cleanup_exit EXIT")
+        install_index = producer.index('"$ADB" -s "$SERIAL" install -r')
+        installed_index = producer.index("APP_INSTALLED=1", install_index)
+        uninstall_index = producer.index(
+            '"$ADB" -s "$SERIAL" uninstall "$PACKAGE"', installed_index
+        )
+        cleared_index = producer.index("APP_INSTALLED=0", uninstall_index)
+        cleanup_index = producer.index('if [ "${APP_INSTALLED:-0}" = "1" ]; then')
+        emulator_cleanup_index = producer.index(
+            'if [ "${EMULATOR_STARTED:-0}" = "1" ]', cleanup_index
+        )
+        boot_loop_index = producer.index('while [ "$i" -lt 90 ]; do')
+        child_liveness_index = producer.index(
+            "if ! emulator_process_active; then", boot_loop_index
+        )
+        bound_serial_index = producer.index(
+            '"$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state', boot_loop_index
+        )
+        self.assertLess(producer.index("APP_INSTALLED=0"), trap_index)
+        self.assertLess(install_index, installed_index)
+        self.assertLess(installed_index, uninstall_index)
+        self.assertLess(uninstall_index, cleared_index)
+        self.assertLess(cleanup_index, emulator_cleanup_index)
+        self.assertLess(child_liveness_index, bound_serial_index)
+        self.assertIn("adb-uninstall-cleanup.log", producer[cleanup_index:emulator_cleanup_index])
+        self.assertIn(
+            "refusing to boot a proof AVD while another adb device is already online",
+            producer,
+        )
+        self.assertIn(
+            'ANDROID_EMULATOR_PORT=${QPERIAPT_ANDROID_EMULATOR_PORT:-5584}',
+            producer,
+        )
+        self.assertIn('ANDROID_BOOT_AVD=${QPERIAPT_ANDROID_BOOT_AVD:-0}', producer)
+        self.assertIn(
+            'ANDROID_KEEP_EMULATOR=${QPERIAPT_ANDROID_KEEP_EMULATOR:-0}', producer
+        )
+        self.assertIn(
+            'EXPECTED_DEVICE_KIND=${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}', producer
+        )
+        self.assertIn(
+            "Android release emulator proof requires QPERIAPT_ANDROID_BOOT_AVD=1",
+            producer,
+        )
+        self.assertIn(
+            "Android release emulator proof must use the script-started cold-boot AVD",
+            producer,
+        )
+        self.assertIn(
+            "Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+            producer,
+        )
+        self.assertIn('EXPECTED_EMULATOR_SERIAL="emulator-$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn('-port "$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn('SERIAL=$EXPECTED_EMULATOR_SERIAL', producer)
+        self.assertIn("temporary Android emulator exited before its bound adb serial", producer)
+        self.assertNotIn(
+            'if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]',
+            producer,
+        )
+
+    def test_android_release_entrypoints_default_to_stable_sdk_contract(self) -> None:
+        artifact = pathlib.Path(__file__).resolve().parent
+        for name in ("android-aar.sh", "android-device-smoke.sh"):
+            with self.subTest(entrypoint=name):
+                source = (artifact / name).read_text(encoding="utf-8")
+                self.assertIn(
+                    'ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-"$ANDROID_SDK/platforms/android-35"}',
+                    source,
+                )
+                self.assertNotIn(
+                    'ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-$(choose_highest_child',
+                    source,
+                )
+                self.assertIn(
+                    'ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}',
+                    source,
+                )
+                self.assertNotIn(
+                    'ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-$(choose_highest_child',
+                    source,
+                )
+
+        producer = (artifact / "android-device-smoke.sh").read_text(encoding="utf-8")
+        self.assertIn("\n\t\t-no-snapshot \\\n", producer)
+        self.assertIn("ANDROID_RELEASE_BUILD_TOOLS=36.0.0", producer)
+        self.assertIn(
+            'ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}',
+            producer,
+        )
+        self.assertIn(
+            'if [ "$ANDROID_RELEASE_MODE" = "1" ] && [ "$ANDROID_BUILD_TOOLS" != "$EXPECTED_RELEASE_BUILD_TOOLS" ]; then',
+            producer,
+        )
+
+    def test_producer_captures_only_the_smoke_log_tag(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("capture_app_logcat()", producer)
+        self.assertIn("logcat -d -v tag -s 'QPeriaptSmoke:*' '*:S'", producer)
+        self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)
+
+    def test_result_verifier_rejects_unrelated_logcat_data(self) -> None:
+        run_id = "a" * 32
+        result_txt = self.root / "result.txt"
+        result_json = self.root / "result.json"
+        logcat = self.root / "logcat.txt"
+        result_txt.write_text(
+            android_device_proof.expected_marker(run_id) + "\n", encoding="utf-8"
+        )
+        result_json.write_text(
+            '{"schema":1,"status":"pass","run_id":"'
+            + run_id
+            + '","test_count":3,"passed_tests":['
+            '"runtimeMetadataMatches",'
+            '"signedPolicyDecisionIsExactAndFailClosed",'
+            '"osRandomPolicyRoundtripAndWipes"]}\n',
+            encoding="utf-8",
+        )
+        paths = {
+            "result_txt": result_txt,
+            "result_json": result_json,
+            "logcat": logcat,
+        }
+        logcat.write_text("I/QPeriaptSmoke: verified\n", encoding="utf-8")
+        android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "--------- beginning of main\nI/QPeriaptSmoke( 123): verified\n",
+            encoding="utf-8",
+        )
+        android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "I/QPeriaptSmoke: verified\nI/OtherApplication: private data\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "outside the QPeriaptSmoke tag"):
+            android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "I/OtherApplication: mentions QPeriaptSmoke but is unrelated\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "outside the QPeriaptSmoke tag"):
+            android_device_proof.verify_result_files(paths, run_id)
 
     def test_private_directory_canonicalization_accepts_only_aliases_above_leaf(self) -> None:
         physical_parent = self.root / "physical-parent"
