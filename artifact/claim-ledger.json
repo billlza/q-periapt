@@ -154,14 +154,14 @@
     },
     {
       "id": "ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS",
-      "title": "The Android runtime proof gate is source-bound, but the selected runtime evidence is stale",
-      "status": "pending",
+      "title": "The Android runtime proof gate is source-bound and live-tree currentness is selected by the results manifest",
+      "status": "diagnostic",
       "evidence": {
         "harness": ["artifact/android-device-smoke.sh", "artifact/android_device_proof.py"],
         "tests": ["artifact/test_android_device_proof.py"],
         "data": ["artifact/results.json"]
       },
-      "boundary": "Schema v2 freezes tracked plus ignored and visible untracked canonical source inputs under the verifier-owned fixed non-input policy, except artifact/results.json and paper/camera-ready-results.txt. The policy excludes exact untracked regular .DS_Store files and explicitly enumerated generated-output locations; lookalikes and special objects remain inputs. The digest is not a hermetic build-input closure: declared generated-output locations can be consumed only under lane-specific artifact/hash checks, and an isolated-checkout release builder remains pending. The historical transcript is bound by a named hash in the manifest, but the manifest root is not recursively hashed; only clean committed/signed provenance or the evidence-only successor rule can bind that root. artifact/results.json selects an older clean-tree Android-emulator proof whose source digest predates the current canonical tree, so no current-source Android runtime claim is available. A fresh current-source run remains pending and would still be emulator evidence, not physical Android or clean release provenance."
+      "boundary": "Schema v2 freezes tracked plus ignored and visible untracked canonical source inputs under the verifier-owned fixed non-input policy, except artifact/results.json and paper/camera-ready-results.txt. The policy excludes exact untracked regular .DS_Store files and explicitly enumerated generated-output locations; lookalikes and special objects remain inputs. The digest is not a hermetic build-input closure: declared generated-output locations can be consumed only under lane-specific artifact/hash checks, and an isolated-checkout release builder remains pending. The historical transcript is bound by a named hash in the manifest, but the manifest root is not recursively hashed; only clean committed/signed provenance or the evidence-only successor rule can bind that root. artifact/results.json records whether the selected clean-tree Android-emulator proof matches the live canonical source digest: after any source-changing commit the previously selected proof becomes stale and a fresh clean-tree emulator rerun must be selected before any current-source runtime claim. Even a current selection remains emulator evidence, not physical Android coverage or clean public release provenance; the physical-vs-CI-emulator release policy remains pending."
     },
     {
       "id": "PERFORMANCE-MATCHED-HOST-DIAGNOSTIC",

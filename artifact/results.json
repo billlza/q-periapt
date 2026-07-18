@@ -312,7 +312,7 @@
     "camera_ready_sandbox_script_sha256": "4158068d33a5ce183ad03974113f61898bcb963bda23576b8cdfeb7d581493d8",
     "ci_workflow_sha256": "7ac05081a6055ebfe6e886718f930e6ad6557782ed5961e54ac3d055758f42c3",
     "codeql_workflow_sha256": "25d750f0ab24b368b135a2f113679c1bee110e1527a4c8f96acc6f0ad966c5f4",
-    "claim_ledger_sha256": "ad6418a09b2a131b62352b57e6e685791cd46fa57b3408e05e156b9218a2d6c7",
+    "claim_ledger_sha256": "9ebfaa36af2083024de96ad7c1406901cb9d53032f87e5dbc6dcade5e4a55cb5",
     "claim_ledger_tests_sha256": "2b6597b3d8c951fbb441c33808acee96431950997ab7ea5424de5bc922e420ae",
     "claim_ledger_verifier_sha256": "4ed8f09c4ac682cecd1b4a1b6f116c23f72c62e891e1c5bddb545582e43c06eb",
     "contextbound_vectors_sha256": "df7d2613e74a8d4c27310d2d6b3b09ed18617280ded456a3f6e841940d8bde87",

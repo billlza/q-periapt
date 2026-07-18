@@ -52,7 +52,7 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ logic verified + builds wasm32 | `cargo test -p q-periapt-wasm`; CI builds `wasm32` |
 | **Kotlin** (`kotlin/`) | 🟡 source migrated; JDK 22 verification required | `gradle test` (Panama FFM, JDK ≥22) |
-| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.0-alpha.2-r2` with API 35 / 16 KiB-page emulator runtime evidence; current-source ART rerun pending | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
+| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.0-alpha.2-r2` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
 Kotlin needs a JDK ≥22 (stable FFM):
 

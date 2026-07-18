@@ -410,9 +410,11 @@ current (currently the immutable `v0.1.0-alpha.2-r1` prerelease). The asset is b
 remote binary package. Its exact static-only layout has no notarizable executable; the consuming
 macOS product retains its own signing and notarization duty. Android's current source-bound AAR and
 its API 35 / 16 KiB-page emulator runtime-evidence bundle are published in the
-`abi2-platforms-v0.1.0-alpha.2-r2` prerelease; a current-source emulator rerun on the live tree and
-an explicit physical-device policy remain open before a product-ready runtime claim
-(see `ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS` in `artifact/claim-ledger.json`).
+`abi2-platforms-v0.1.0-alpha.2-r2` prerelease; `artifact/results.json` selects whether a
+clean-tree emulator rerun matches the live source digest (it goes stale after every
+source-changing commit), and an explicit physical-device policy remains open before a
+product-ready runtime claim (see `ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS` in
+`artifact/claim-ledger.json`).
 
 ### Crate tree
 
