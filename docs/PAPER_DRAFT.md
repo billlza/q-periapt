@@ -244,7 +244,8 @@ Authenticode remain requirements for production promotion.
 - **Do NOT** claim any X-BIND-CT-* notion (structurally unachievable for implicitly-rejecting KEMs).
 - **Do NOT** claim a speed edge or overall parity: ContextBound hashes more bytes than X-Wing.
   The matched Mac core gate accepts only a controlled proof bound to the live canonical source;
-  its schema-v4 producer pins Cargo/Rustc executable identity and uses a configuration-rejecting,
+  its budget-schema-v5 producer pins the exact rustup toolchain name plus Cargo/Rustc executable
+  identity and uses a configuration-rejecting,
   fresh-target build, but still trusts the mutable Cargo registry/Rust sysroot/OS and collector.
   iPad/iPhone energy, clean baseline history, rustls end-to-end, and optimized production
   comparison remain pending.
@@ -473,7 +474,8 @@ Authenticode remain requirements for production promotion.
 - ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE diagnostically** with 20,480 paired
   seed-dk ML-KEM-768 + X25519 samples, batched raw timing, corpus-balanced time blocks, and a
   same-estimand moving-block-bootstrap upper bound under a published fail-closed budget. Budget
-  schema v4 requires 1,024-pair primary estimate blocks and at least 10 nearest-rank p99 tail
+  schema v5 preserves the v4 statistical contract: it requires 1,024-pair primary estimate blocks
+  and at least 10 nearest-rank p99 tail
   observations per block, then rechecks the same numeric limits with the former 256-pair
   estimator as a regression guard; separately parameterized stability windows preserve the 5%
   CV limit. The

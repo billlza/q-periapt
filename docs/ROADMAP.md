@@ -255,14 +255,14 @@ thermal contract. The time-varying proof state is recorded in `artifact/results.
 not copied into this source document. The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
-Budget schema v4 keeps the thresholds and 20,480-sample corpus fixed while using
+Budget schema v5 preserves the v4 thresholds, 20,480-sample corpus, and
 1,024-pair primary percentile-estimate blocks, yielding 11 nearest-rank p99 tail
 observations per block. It also retains the former 256-pair estimator as a regression
 guard and applies the same limits at both scales; separately parameterized temporal-
 stability windows retain the same 5% CV limit.
-The schema-v4 producer also fixes Cargo/Rustc executable hashes, versions, and target;
-rejects repository/ancestor/user Cargo configuration and caller compiler/wrapper/loader
-controls; and builds offline in a fresh private target. It still trusts the user-writable
+The schema-v5 policy also fixes the exact rustup toolchain name plus Cargo/Rustc executable
+hashes, versions, and target. The producer rejects repository/ancestor/user Cargo configuration
+and caller compiler/wrapper/loader controls, and builds offline in a fresh private target. It still trusts the user-writable
 Cargo registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector
 source-to-binary honesty, so hermetic producer attestation remains pending.
 

@@ -517,8 +517,9 @@ These produce the paper's primary network table and the binary constant-time dis
   per-operation iteration map: combine/encapsulate/decapsulate use 256/1/2 calls per timed sample
   for both profiles. Analysis divides total time by the authenticated iteration count. Paired
   primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
-  therefore has 11 tail observations in each estimate block rather than three. Budget schema v4
-  pins a minimum of 10 and also recomputes the former 256-pair estimator as a regression guard;
+  therefore has 11 tail observations in each estimate block rather than three. Budget schema v5
+  preserves the v4 statistical contract: it pins a minimum of 10 and also recomputes the former
+  256-pair estimator as a regression guard;
   every published ratio/delta limit must pass at both block scales. Separately parameterized
   stability windows use 64/256/256 pairs for
   combine/encapsulate/decapsulate. Every statistical block contains whole
@@ -531,15 +532,15 @@ These produce the paper's primary network table and the binary constant-time dis
   post-analysis thermal or power observation, or any
   published ratio/absolute-delta budget failure. The verifier fixes policy to
   `artifact/performance-budgets.json`; alternate paths fail even when their bytes happen to match.
-  That policy also fixes the Cargo and Rustc executable hashes, versions, and host target.
-  Collection selects one same-directory matching pair before executing it, rejects repository/
-  ancestor/user Cargo configuration, clears caller compiler/wrapper/loader controls, fixes system
+  That policy also fixes the exact rustup toolchain name plus the Cargo and Rustc executable hashes,
+  versions, and host target. Collection selects that named same-directory pair before executing it,
+  rejects repository/ancestor/user Cargo configuration, clears caller compiler/wrapper/loader controls, fixes system
   tool lookup, builds offline in a fresh private target, and rechecks those executables. The
   user-writable Cargo registry cache, Rust sysroot/driver, OS tools/libraries, and same-UID
   replace-and-restore races remain trusted. The verifier also trusts the local collector to have
   built the content-addressed binary it records; it does not independently rebuild it. Therefore
   this is a strengthened single-host diagnostic, not hermetic or hostile-builder attestation.
-  Proof schema v4, raw schema v2, and budget schema v4 are required; older files
+  Proof schema v4, raw schema v2, and budget schema v5 are required; older files
   fail closed and must be recollected. Shared CI runs only a short schema exercise; numeric
   decisions require controlled hardware. Reverify with
   `QPERIAPT_REQUIRE_PERFORMANCE=1 sh artifact/proof-to-byte.sh`. Dirty diagnostic collection and

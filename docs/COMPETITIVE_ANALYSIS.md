@@ -323,7 +323,7 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Standards/interoperability | X-Wing/CFRG/TLS **lead** | deployed proprietary protocols | **behind** for ContextBound |
 | Third-party audit/deployment | major **lead** | major **lead** | **behind**: none |
 | Constant-time/FIPS backend maturity | production implementations vary, best are strong | production-hardened | **behind/partial**; per-backend/ISA only |
-| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v2/proof schema v4 gate fixes budget plus Cargo/Rustc executable identity, rejects Cargo/wrapper configuration, uses an offline fresh target, and records controlled pre-build/pre-run/post-run/post-analysis observations; mutable registry/sysroot/OS and collector honesty remain trusted |
+| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v2/proof schema v4/budget schema v5 gate fixes the exact rustup toolchain plus Cargo/Rustc executable identity, rejects Cargo/wrapper configuration, uses an offline fresh target, and records controlled pre-build/pre-run/post-run/post-analysis observations; mutable registry/sysroot/OS and collector honesty remain trusted |
 | End-to-end/device performance | optimized baseline | optimized deployed code | **pending**; rustls/backend, energy, and device gaps remain |
 
 ## 4. Performance: the only acceptable claim after fresh capture
@@ -335,9 +335,10 @@ Raw schema v2 times fixed 256/1/2-call batches for combine/encapsulation/decapsu
 profiles and records the unrounded total. Verification normalizes by a strict, budget-bound
 iteration map. Consecutive 1,024-pair blocks define the primary paired percentile ratio/delta
 estimand and its moving-block-bootstrap upper bound. Under the nearest-rank rule, each block's p99
-is supported by 11 tail observations; budget schema v4 requires at least 10 instead of allowing
-the three tail observations produced by the previous 256-pair primary blocks. Because that changes
-the estimand rather than monotonically shrinking its acceptance set, schema v4 also recomputes the
+is supported by 11 tail observations; budget schema v5 preserves the v4 estimator and requires at
+least 10 instead of allowing the three tail observations produced by the previous 256-pair primary
+blocks. Because that changes the estimand rather than monotonically shrinking its acceptance set,
+schema v5 continues to recompute the
 former 256-pair estimator as a regression guard and requires the same published limits at both
 block scales. Separately parameterized 64/256/256-pair stability windows prevent
 environment CV from sharing that statistical role. Every block preserves complete ABBA cycles and
@@ -347,7 +348,9 @@ simultaneous 95% family guarantee. The span-5 bootstrap is deterministic and thr
 but its coverage under autocorrelation has not been independently calibrated; this is another reason
 the result remains a diagnostic non-regression gate rather than a population-level performance claim.
 
-An earlier 256-pair-primary attempt failed the decapsulation p99 bootstrap upper bound: its block
+Schema v5 additionally binds the exact rustup toolchain name so byte-identical mutable aliases
+cannot make tool selection ambiguous. An earlier 256-pair-primary attempt failed the decapsulation
+p99 bootstrap upper bound: its block
 ratios ranged from 0.24 to 4.28 while the global ContextBound p99 was below CompatXWing and both
 order halves had the same approximately 1.063 median ratio. Later schema-v4 collections moved the
 primary tail estimator to 1,024-pair blocks while retaining 256-pair blocks as a regression guard.
@@ -371,8 +374,9 @@ the required domain verifier, not manifest prose alone, checks the actual proof,
 freshness. The backend/source migration invalidated all recorded performance proofs,
 including the later matched-backend capture; a fresh same-source controlled-host run
 is required. The old single-call proof also remains invalid and must not be cited.
-The fixed policy also pins Cargo/Rustc executable hashes, versions, and target. Collection selects
-one same-directory matching pair, rejects repository/ancestor/user Cargo configuration, clears
+The fixed budget-schema-v5 policy pins the exact rustup toolchain name plus Cargo/Rustc executable
+hashes, versions, and target. Collection selects that named same-directory pair, rejects
+repository/ancestor/user Cargo configuration, clears
 caller compiler/wrapper/loader controls, fixes system-tool lookup, builds offline in a fresh private
 target, and rechecks the two executables. The user-writable Cargo registry, Rust sysroot/driver, OS
 tools/libraries, same-UID host, and local collector's source-to-binary honesty remain trusted; this is

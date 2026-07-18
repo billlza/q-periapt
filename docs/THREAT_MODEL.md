@@ -454,8 +454,8 @@ performance, and binary-CT proof is historical regardless of whether its older-s
 run passed. A fresh controlled-host proof and physical-device matrix must be collected
 against the release source. Currentness is determined only by `artifact/results.json`
 plus live verification against the canonical tree. The
-schema-v4 producer fixes Cargo/Rustc executable hashes, versions, and target; rejects repository/
-ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes system-tool
+budget-schema-v5 producer fixes the exact rustup toolchain name plus Cargo/Rustc executable hashes,
+versions, and target; rejects repository/ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes system-tool
 lookup; and builds offline in a fresh private target. It still trusts the user-writable Cargo
 registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector source-to-binary
 honesty; standalone verification does not independently rebuild the binary. Even

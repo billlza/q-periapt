@@ -124,8 +124,9 @@ plus a 10 µs combiner p95 delta. A run counts as current only when its bound ca
 source digest equals the verifier's live digest; source drift and uncontrolled power
 or thermal state fail closed. Release verification always loads the exact repository
 `artifact/performance-budgets.json`; a proof cannot select an alternate policy path.
-Budget schema v4 uses 1,024-pair primary percentile-estimate blocks, so nearest-rank
-p99 is supported by 11 tail observations per block instead of only three. It also
+Budget schema v5 preserves the v4 statistical contract: it uses 1,024-pair primary
+percentile-estimate blocks, so nearest-rank p99 is supported by 11 tail observations
+per block instead of only three. It also
 recomputes the former 256-pair estimator as a regression guard and applies every
 published numeric limit to both block scales; changing the primary estimator therefore
 cannot turn a former-scale failure green. Separately parameterized 64/256/256-pair
@@ -133,9 +134,10 @@ stability windows retain the same 5% CV limit.
 The backend/source migration changes the canonical source digest, so every device,
 package, performance, and binary-CT result recorded before this migration is historical
 only and must be rebuilt or re-collected before release; the verifier will not promote it.
-The same policy pins the Cargo/Rustc executable hashes, versions, and target. Collection
-selects one same-directory matching pair, rejects repository/ancestor/user Cargo configuration,
-clears caller compiler/wrapper/loader controls, fixes system-tool lookup, and builds offline in a
+The same policy pins the exact rustup toolchain name plus the Cargo/Rustc executable hashes,
+versions, and target. Collection selects that named same-directory pair, rejects
+repository/ancestor/user Cargo configuration, clears caller compiler/wrapper/loader controls,
+fixes system-tool lookup, and builds offline in a
 fresh private target before rechecking the two executables. The user-writable Cargo registry cache,
 Rust sysroot/driver, OS tools/libraries, and same-UID replace-and-restore races remain trusted; this
 is a strengthened local diagnostic, not a hermetic or hostile-builder attestation.

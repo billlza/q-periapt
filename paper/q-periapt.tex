@@ -787,9 +787,10 @@ a 5-s warm-up it records 20,480 paired samples per operation/profile. Each timed
 256/1/2 calls for combine/encapsulation/decapsulation, records the unrounded total, and normalizes
 only after a strict iteration-map check. Consecutive 1,024-pair, corpus-balanced blocks define both
 the primary paired point estimate and its span-5 moving-block-bootstrap upper bound. Under the
-nearest-rank rule each block's p99 has 11 tail observations; budget schema v4 requires at least 10
-instead of the three supplied by the former 256-pair blocks. Since changing block size changes the
-estimand, schema v4 also recomputes the former 256-pair estimator and requires every published
+nearest-rank rule each block's p99 has 11 tail observations; budget schema v5 preserves the v4
+estimator and requires at least 10 instead of the three supplied by the former 256-pair blocks.
+Since changing block size changes the estimand, schema v5 continues to recompute the former
+256-pair estimator and requires every published
 numeric limit to pass at both scales. Separate 64/256/256-pair windows test temporal
 stability without changing the 5\% CV limit. A controlled Apple-Silicon proof is accepted only if it
 passes nine published \emph{per-metric} one-sided 95\% bootstrap budgets (not a simultaneous 95\%
@@ -799,8 +800,9 @@ encapsulation/decapsulation, plus a $10\,\mu$s combiner p95 delta. The proof bin
 harness binary, verifier-fixed repository budget, commit, and canonical source-input tree after
 fixed generated-prefix exclusions. This is not yet a hermetic build-input closure. Raw,
 budget, and proof semantics share their digest snapshots; four boundary power/thermal observations
-are gated. The producer fixes Cargo/Rustc executable hashes, versions, and target; rejects
-repository/ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes
+are gated. The producer fixes the exact rustup toolchain name plus Cargo/Rustc executable hashes,
+versions, and target; rejects repository/ancestor/user Cargo configuration and caller
+compiler/wrapper/loader controls; fixes
 system-tool lookup; and builds offline in a fresh private target. It still trusts the user-writable
 Cargo registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector source-to-binary
 honesty; the verifier does not independently rebuild the binary. Clean provenance checks
