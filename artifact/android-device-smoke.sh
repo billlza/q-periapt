@@ -1052,6 +1052,7 @@ if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]; then
 	printf 'boot-avd : %s\n' "$QPERIAPT_ANDROID_AVD"
 	"$EMULATOR" \
 		-avd "$QPERIAPT_ANDROID_AVD" \
+		-no-snapshot \
 		-no-window \
 		-no-audio \
 		-no-boot-anim \

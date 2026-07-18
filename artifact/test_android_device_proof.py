@@ -626,6 +626,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                     source,
                 )
 
+        producer = (artifact / "android-device-smoke.sh").read_text(encoding="utf-8")
+        self.assertIn("\n\t\t-no-snapshot \\\n", producer)
+
     def test_producer_captures_only_the_smoke_log_tag(self) -> None:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
