@@ -143,7 +143,7 @@ if [ ! -d "$ANDROID_SDK" ]; then
 	exit 2
 fi
 
-ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-$(choose_highest_child "$ANDROID_SDK/platforms" "Android platform")}
+ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-"$ANDROID_SDK/platforms/android-35"}
 ANDROID_JAR="$ANDROID_PLATFORM/android.jar"
 if [ ! -f "$ANDROID_JAR" ]; then
 	printf 'error: Android platform is missing android.jar: %s\n' "$ANDROID_PLATFORM" >&2

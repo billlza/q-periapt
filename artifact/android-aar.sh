@@ -193,7 +193,7 @@ if [ ! -d "$ANDROID_NDK" ]; then
 fi
 NDK_REVISION=$(PYTHONPATH=artifact python3 artifact/android_elf.py verify-ndk --ndk "$ANDROID_NDK")
 
-ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-$(choose_highest_child "$ANDROID_SDK/platforms" "Android platform")}
+ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-"$ANDROID_SDK/platforms/android-35"}
 ANDROID_JAR="$ANDROID_PLATFORM/android.jar"
 if [ ! -f "$ANDROID_JAR" ]; then
 	printf 'error: Android platform is missing android.jar: %s\n' "$ANDROID_PLATFORM" >&2

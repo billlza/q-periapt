@@ -604,6 +604,20 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertNotIn("|| true", producer)
         self.assertNotIn("qperiapt-android-smoke.p12", "\n".join(android_device_proof.BUNDLE_FILE_PATHS.values()))
 
+    def test_android_release_entrypoints_default_to_stable_api_35(self) -> None:
+        artifact = pathlib.Path(__file__).resolve().parent
+        for name in ("android-aar.sh", "android-device-smoke.sh"):
+            with self.subTest(entrypoint=name):
+                source = (artifact / name).read_text(encoding="utf-8")
+                self.assertIn(
+                    'ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-"$ANDROID_SDK/platforms/android-35"}',
+                    source,
+                )
+                self.assertNotIn(
+                    'ANDROID_PLATFORM=${QPERIAPT_ANDROID_PLATFORM:-$(choose_highest_child',
+                    source,
+                )
+
     def test_producer_captures_only_the_smoke_log_tag(self) -> None:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
