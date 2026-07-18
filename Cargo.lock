@@ -1030,7 +1030,7 @@ dependencies = [
 name = "q-periapt-ffi"
 version = "0.1.0-alpha.2"
 dependencies = [
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-kem",
@@ -1089,7 +1089,7 @@ dependencies = [
 name = "q-periapt-tls-demo"
 version = "0.1.0-alpha.2"
 dependencies = [
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-kem",
