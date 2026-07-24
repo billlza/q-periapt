@@ -33,7 +33,7 @@ fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44
 # `zeroize` makes StaticSecret wipe its scalar on drop (defense-in-depth for ephemeral secrets).
 x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
 # SHA3-256 / SHAKE-256. `std` is not needed by the digest implementation.
-sha3 = { version = "=0.10.9", default-features = false }
+sha3 = { version = "=0.12.0", default-features = false }
 # --- optional backends (see [features]) ---
 # SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged) signing, KAT-able.
 fips205 = { version = "0.4.1", optional = true }
