@@ -267,6 +267,7 @@ impl PendingSessionHandle {
         self.0.as_bytes()
     }
 
+    #[cfg(unix)]
     pub(crate) fn decode(bytes: [u8; 32]) -> Result<Self, AgentError> {
         SessionId::decode(bytes)
             .map(Self)
@@ -291,6 +292,7 @@ impl ConfirmedKeyHandle {
         self.0.as_bytes()
     }
 
+    #[cfg(unix)]
     pub(crate) fn decode(bytes: [u8; 32]) -> Result<Self, AgentError> {
         SessionId::decode(bytes)
             .map(Self)

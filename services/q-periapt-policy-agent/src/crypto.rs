@@ -42,6 +42,7 @@ impl EncapsulationPublicKeys {
         &self.traditional
     }
 
+    #[cfg(unix)]
     pub(crate) fn from_slices(pq: &[u8], traditional: &[u8]) -> Result<Self, Abi2EngineError> {
         Ok(Self {
             pq: pq
@@ -80,6 +81,7 @@ impl EncapsulationCiphertexts {
         &self.traditional
     }
 
+    #[cfg(unix)]
     pub(crate) fn from_slices(pq: &[u8], traditional: &[u8]) -> Result<Self, Abi2EngineError> {
         Ok(Self {
             pq: pq
