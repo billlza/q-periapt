@@ -20,7 +20,7 @@ q-periapt-core = { version = "=0.1.0-alpha.2", path = "../q-periapt-core" }
 q-periapt-sig = { version = "=0.1.0-alpha.2", path = "../q-periapt-sig" }
 # TOML policy-file loading.
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 # Exact-byte identity for authenticated policy state. This is the same maintained
 # RustCrypto SHA-3 implementation already used elsewhere in the workspace.
 sha3 = { version = "0.10", default-features = false }
