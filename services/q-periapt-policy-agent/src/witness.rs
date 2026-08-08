@@ -882,13 +882,13 @@ pub(crate) mod test_support {
 
     pub(crate) fn framed_read_request(
         signing_key: &[u8],
-        nonce: [u8; 32],
-    ) -> Result<Vec<u8>, WitnessError> {
+    ) -> Result<(Vec<u8>, [u8; 32]), WitnessError> {
+        let nonce = random_nonce()?;
         let body = Request::read(nonce).body()?;
         let envelope = signed_envelope(&body, signing_key)?;
         let mut frame = Vec::new();
         write_frame(&mut frame, &envelope).map_err(map_codec)?;
-        Ok(frame)
+        Ok((frame, nonce))
     }
 
     pub(crate) fn read_response_head(

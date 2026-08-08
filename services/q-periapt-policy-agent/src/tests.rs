@@ -383,9 +383,7 @@ fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> Tes
 
     let result =
         (|| -> TestResult {
-            let mut nonce = [0u8; 32];
-            getrandom::fill(&mut nonce).map_err(|error| io::Error::other(error.to_string()))?;
-            let frame = crate::witness::test_support::framed_read_request(&client_sk, nonce)?;
+            let (frame, nonce) = crate::witness::test_support::framed_read_request(&client_sk)?;
 
             // Keep the accepted connection empty long enough for the server to enter
             // its read, then force partial reads across the length and payload.
