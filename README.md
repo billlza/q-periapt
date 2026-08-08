@@ -275,6 +275,24 @@ bytes, ratchet, or session security claim. See
 [`docs/CONTINUITY_RESEARCH.md`](docs/CONTINUITY_RESEARCH.md) and
 [`docs/continuity/README.md`](docs/continuity/README.md).
 
+### Authenticated migration is another separate research lane
+
+The `publish = false` [`q-periapt-migration`](models/q-periapt-migration/README.md)
+model begins a layer **above** frozen ABI 2. Phase 1 implements only a candidate
+315-byte, role-normalized `MigrationContextV1` application body, derived from
+authenticated policy types and checked by independent Rust/Python full-byte vectors.
+ABI 2 applies its existing policy wrapper exactly once and otherwise remains
+byte-for-byte unchanged.
+
+This is canonical commitment, not authenticated migration history. The transition
+state and pre-KEM transcript are externally asserted commitments; there is no
+transition certificate, trusted monotonic state owner, mutual key confirmation,
+rollback/fork/reset resistance, peer agreement, outcome-bearing floor proof, or
+hostile same-process defense. Those are explicit later gates in
+[`docs/MIGRATION_CONTRACT_RESEARCH.md`](docs/MIGRATION_CONTRACT_RESEARCH.md); the
+exact phase-1 bytes and non-claims are in
+[`docs/migration/MIGRATION_CONTEXT_V1.md`](docs/migration/MIGRATION_CONTEXT_V1.md).
+
 ## Feature matrix vs the target dimensions
 
 Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned, not started.
@@ -287,6 +305,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Combiner safety guards | C2PRI + X-Wing-safe backend guards, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four absorbed fields are exactly 32 bytes; `HybridKem::new` rejects the omitted first-slot backend unless both `Kem::C2PRI` and `Kem::COMPAT_XWING_SAFE` are true, with contradictory third-party declarations failing closed as `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-44/65/87, SLH-DSA | ✅ the full FIPS-204 family **ML-DSA-44/65/87** (`fips204` 0.4.6) wired & tested (NIST ACVP — external/pure deterministic and hedged, non-empty context, and SHAKE-128 pre-hash modes — + an independent RustCrypto `ml-dsa` differential); ML-DSA-65 is the default, ML-DSA-87 the enhanced-mode (L5) signature. Vendored internal-interface vectors remain explicit, **unwired reference data** and are not claimed as backend conformance. **SLH-DSA-SHA2-128s/192s/256s** (fips205) — with **NIST ACVP conformance** (`acvp_slhdsa.rs`) — are behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade/equivocation state, atomic suite decision | ✅ `q-periapt-policy`: strict TOML loading (`Policy::from_toml`) + domain-separated signed-policy verification (`Policy::load_signed` / `load_signed_monotonic`); `(version, SHA3-256(exact bytes))` rollback/equivocation state; closed, private-field `ResolvedSuite` selected against concrete locally supported suites. Authentication, parsing, or resolution failure is returned as an error; there is no fallback-success API. |
+| Authenticated migration contract | canonical commitment now; authenticated transition state, durable rollback resistance, peer agreement, and outcome-bearing floor later | 🟡 phase-1 `publish = false` model only: fixed 315-byte role-normalized application body, typed policy/suite/floor checks, ABI2 fixed-suite adapter, independent vectors, and ABI2 key-separation tests. Transition authenticity, monotonic state ownership, key confirmation, MIG-ROLLBACK/MIG-AGREE/MIG-FLOOR, and same-process resistance are not implemented or claimed. |
 | KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** (`src/differential.rs`) — release-graph portable `mlkem-native` ML-KEM-512/768/1024 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed with independent ML-KEM/X25519 components while using the same RustCrypto SHA3 implementation; the independent official/reference KATs separately protect the combiner bytes. Release-graph `fips204` ML-DSA-44/65/87 is compared with RustCrypto `ml-dsa` (byte-identical keygen + signatures, cross-verification both directions, tamper rejection). **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) for ML-KEM-512/768/1024 (60 cases each, incl. implicit rejection) and ML-DSA-44/65/87 external/pure deterministic + hedged, non-empty-context, and HashML-DSA SHAKE-128 pre-hash modes. Internal-interface vectors are retained but deliberately unwired and do not count as passing cases; `externalMu=true`, internal μ-entry, and non-SHAKE128 pre-hash modes remain out of scope. **SLH-DSA-SHA2-{128,192,256}s** (FIPS 205) also have NIST ACVP conformance under the `slh-dsa` feature. |
 | Side-channel CI | indistinguishability gate + binary-CT matrix; dudect local diagnostic | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); current main CI runs `ct_verify` plus self-validating ML-KEM-512/768/1024 shipped-provider decapsulation probes under Valgrind/Memcheck-TIMECOP on x86_64 + aarch64. Each ŝ+z probe requires exact zero reports and its planted control must report positive. `fips203` failed the cited historical run and was replaced; the current `mlkem-native` source cells pass, while a new immutable release receipt for later source revisions remains separate. Dudect timing is local-only, other primitive paths are not covered, and riscv64/wasm32 remain unverified at binary level. |
 | Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | 🟡 CI `cross` builds the core/KEM across the declared ISA targets and `no_std` builds `thumbv7em-none-eabihf`. The attested `abi2-platforms-v0.1.0-alpha.2-r2` candidate pipeline rebuilt the Linux x86_64/aarch64 SDK archives (GLIBC 2.35 ceiling, SONAME/pkg-config/CMake consumers) and the Windows x64 MSVC SDK — `q_periapt_ffi_abi2.dll` plus import/static libraries under the PE/REPRO, producer-path-scan, and `/W4 /WX` consumer gates — from the corrected source-bound path. riscv64/wasm32/embedded remain build-only lanes without packaged release evidence. |

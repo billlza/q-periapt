@@ -1046,6 +1046,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "q-periapt-migration"
+version = "0.1.0-alpha.2"
+dependencies = [
+ "q-periapt-backends",
+ "q-periapt-core",
+ "q-periapt-ffi",
+ "q-periapt-policy",
+ "q-periapt-sig",
+ "serde_json",
+]
+
+[[package]]
 name = "q-periapt-mlkem-native-sys"
 version = "0.1.0-alpha.2"
 dependencies = [

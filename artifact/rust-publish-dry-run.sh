@@ -99,6 +99,7 @@ nonpublishable = {
     "q-periapt-tls-demo",
     "q-periapt-ctstats",
     "q-periapt-continuity-model",
+    "q-periapt-migration",
 }
 packages = {pkg["name"]: pkg for pkg in metadata["packages"]}
 workspace_member_ids = set(metadata["workspace_members"])

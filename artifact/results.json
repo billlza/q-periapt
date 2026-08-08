@@ -411,7 +411,7 @@
     "release_index_verifier_sha256": "b72ecc90c3fba8e2131c5346c0c0d512d6b1317518ac7de7e41d769729fe3332",
     "rust_publish_contract_sha256": "ec262b07d684a847a56abe0699e180b58f02e6727db6335bfb94e069d8ee1bee",
     "rust_publish_contract_tests_sha256": "86365138193612a553493344068b41078cc794213e3cad14ed17a1a5d08c5a5e",
-    "rust_publish_dry_run_script_sha256": "c65e2b67b981999160d6fb89d84809fb0427a3910238d011b55b9ddbb954fde5",
+    "rust_publish_dry_run_script_sha256": "4110f9f0638dd1e5ee7d1157fc438ec6cca3a44ba67e9a76d52535d2334c1a4d",
     "security_policy_sha256": "ba4aa6fb8f77747c71cdf7d4bb556a8c4fe968ccea3ac6e5e108586174ebd7e9",
     "shared_vectors_sha256": "230c0246b0c6a79cb96b3bd68641d0cb574ee237cb626626965b2db1b1ebd2f3",
     "signed_policy_vectors_sha256": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5",

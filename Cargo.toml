@@ -20,6 +20,7 @@ members = [
     "crates/q-periapt-rustls",
     "ctstats",
     "models/q-periapt-continuity-model",
+    "models/q-periapt-migration",
 ]
 exclude = ["research/hqc-fips207-candidate"]
 

@@ -30,6 +30,8 @@ its honest scope),
 [`formal/easycrypt/BindingViaCR.ec`](../formal/easycrypt/BindingViaCR.ec) +
 [`formal/easycrypt/README.md`](../formal/easycrypt/README.md) (the mechanized proof),
 [`ctstats/README.md`](../ctstats/README.md) (side-channel CI scope),
+[`MIGRATION_CONTRACT_RESEARCH.md`](MIGRATION_CONTRACT_RESEARCH.md) (staged
+authenticated-migration targets and non-claims),
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (which checks gate vs report).
 
 ---
@@ -276,6 +278,15 @@ allocation; Java, Kotlin, and JNI facades also reject before their own explicit 
 Swift/wasm-bindgen/runtime marshalling may already have copied a caller-owned input before
 Rust receives it, so this is not a whole-runtime memory quota. Oversized input is an explicit
 error, never truncation or fallback. Network-facing services still need request/body limits.
+
+The phase-1 `MigrationContextV1` model does not strengthen this caller boundary.
+It builds a fixed, typed application body and checks local consistency, but the
+transition-state and transcript digests are externally asserted. ABI 2 still accepts
+a writable same-process decision descriptor. Both peers must use the same exact
+authenticated execution decision; a different body or decision normally yields
+`Q_PERIAPT_OK` plus a different secret, not `ERR_POLICY`. Protocol acceptance therefore
+requires a separate mutually authenticated key-confirmation step that is not
+implemented by the migration model.
 
 ### 4.4 Core-local secure zeroization — **ENFORCED for owned Rust storage**
 
@@ -574,6 +585,30 @@ failure. Its minimum fail-closed invariants and evidence gates are specified in
 in [`continuity/G1_EFFECT_LIFECYCLE.md`](continuity/G1_EFFECT_LIFECYCLE.md). Until the
 full model and implementation exist, there is no session-protocol security claim.
 
+### 5.11 Migration-context commitment is not authenticated migration
+
+The `publish = false` model under `models/q-periapt-migration` emits one canonical,
+role-normalized 315-byte body for the existing ABI 2 `application_context`. Typed
+construction rejects zero commitments, invalid epochs, incompatible endpoint
+policies, below-floor suites, and non-ABI2 suites at the adapter boundary. Independent
+vectors and integration tests establish deterministic bytes and KDF separation.
+
+Those checks do not establish the provenance or freshness of the committed bytes.
+In phase 1 an attacker controlling the trusted host can still select an old epoch,
+graft an unrelated transition digest, manufacture transcript commitments, omit
+persisted state to claim first enrollment, forge the 40-byte ABI decision, or bypass
+any unimplemented key-confirmation/acceptance layer. Hashing an epoch does not make it
+monotonic, and deriving different keys on mismatch does not itself cause either peer
+to reject.
+
+MIG-ROLLBACK, MIG-AGREE, MIG-FLOOR, transition authenticity, fork/reset resistance,
+UKS/KCI/reflection resistance, and outcome-bearing PQ policy remain **TODO**. They
+require a signed transition chain, protected monotonic state with explicit reset and
+crash/concurrency semantics, authenticated negotiation, and mutual key confirmation.
+Hostile local callers additionally require service/process isolation that owns the
+pinned roots and state; an opaque object in the same address space is insufficient.
+See [`migration/MIGRATION_CONTEXT_V1.md`](migration/MIGRATION_CONTEXT_V1.md).
+
 ---
 
 ## 6. Summary table
@@ -592,3 +627,4 @@ full model and implementation exist, there is no session-protocol security claim
 | 5.5 | NIST ACVP conformance (wired FIPS modes) | — | X-Wing KAT + wired ACVP sets (`acvp.rs`) | **CONFORMANCE DONE for the stated modes**; internal-interface vectors are reference-only; not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |
 | 5.10 | Async identity/prekeys/ratchet/multi-device/recovery | directory, replay, compromise, rollback, DoS | Test-only model checks canonical role-ordered context admission, a strict four-quadrant prekey-selection record with atomic B21-B23 derivation, exact version+digest CAS, no-op-anchor rejection and abstract reconstruction; independent Python/Rust full-byte vectors and structural EasyCrypt diagnostics agree, but fields still enter through trusted genesis and there is no manifest verifier, lease/tombstone state, context-advance API, credential/prekey/directory authentication, ratchet, manager, or production protocol mechanism | **OUT OF SCOPE / G1 PARTIAL** |
+| 5.11 | Authenticated migration history, rollback/agreement/floor enforcement | ADV-POLICY plus hostile host/network | Phase-1 model provides only canonical role-normalized application bytes and typed consistency checks over externally asserted commitments | **TODO beyond canonical commitment**; no transition authentication, monotonic state owner, key confirmation, MIG-ROLLBACK/MIG-AGREE/MIG-FLOOR, or same-process isolation |

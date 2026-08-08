@@ -1,0 +1,25 @@
+[package]
+name = "q-periapt-migration"
+description = "Canonical migration-context model layered above the frozen Q-Periapt ABI 2"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+readme = "README.md"
+
+[lints]
+workspace = true
+
+[dependencies]
+q-periapt-core = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-core" }
+q-periapt-policy = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-policy" }
+
+[dev-dependencies]
+q-periapt-backends = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-backends" }
+q-periapt-ffi = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-ffi" }
+q-periapt-sig = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-sig" }
+serde_json = "1"
