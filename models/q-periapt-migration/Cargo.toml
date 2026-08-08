@@ -18,7 +18,7 @@ workspace = true
 q-periapt-core = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-core" }
 q-periapt-policy = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-policy" }
 q-periapt-sig = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-sig" }
-sha3 = { version = "=0.10.9", default-features = false }
+sha3 = { version = "=0.12.0", default-features = false }
 
 [dev-dependencies]
 q-periapt-backends = { version = "=0.1.0-alpha.2", path = "../../crates/q-periapt-backends" }

@@ -23,7 +23,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 # Exact-byte identity for authenticated policy state. This is the same maintained
 # RustCrypto SHA-3 implementation already used elsewhere in the workspace.
-sha3 = { version = "0.10", default-features = false }
+sha3 = { version = "0.12", default-features = false }
 
 [dev-dependencies]
 # A concrete signer/verifier (ML-DSA-65) to exercise signed-policy load round-trips.
