@@ -281,7 +281,7 @@
     "workspace_tests_default_features": {
       "cmd": "cargo test --workspace --locked",
       "failed": 0,
-      "passed": 240
+      "passed": 244
     }
   },
   "footprint_bytes": {
@@ -384,18 +384,19 @@
     "local_release_index_script_sha256": "7a313d9359d14c7c4f179fdd7a23f17a2209e8a9757bc821dd5e103fb975347a",
     "migration_agent_authentication_sha256": "f8f1271aa1f2f383c6e219bcdb69ab8929d8f3efd485b4fb070011f966141bad",
     "migration_agent_codec_sha256": "3b01ad9b9c41cc6f3dba8800c8b30a548e6a2f8b31bf8d0d51d6f2fc80548e02",
-    "migration_agent_crypto_sha256": "c2b51bdf627d21f233118626368a296d5cee56c45102e23c82d002558b6e7fda",
-    "migration_agent_filesystem_sha256": "d6d8101e0164646930afc710bb16aef031c40a4c162f790c000ffbb09204d45b",
-    "migration_agent_ipc_sha256": "73357d5f4ba30758f6b5c990d9d20a66e077c9debb0ea5dd9101a06946ea07a1",
-    "migration_agent_lib_sha256": "db7a21c5e889d629e75041763ba6c63774220b596026fdf00477ff6d12b958ad",
+    "migration_agent_crypto_sha256": "ac13d5d7714c317c603ac0ad83255a2c4f3cfae00b42dfa894ff46b9bac390b1",
+    "migration_agent_filesystem_sha256": "a5b1d59c1ae64e8e4bdf86b14936376b86b0f2538c21102b6d23d415e5624164",
+    "migration_agent_ipc_sha256": "f942f25efb13a7542a6ff86284674d5c1ed8b0d1c9b72ec50786a6d0eeebae7c",
+    "migration_agent_lib_sha256": "dbb93c5f616988c9cd27c25c552d452be61325a691832e850744c3ac5dbd67eb",
+    "migration_agent_macos_acl_sha256": "b2788212c46dd3c7550adce3e49c53af33da904a7282bd155652177b1550c439",
     "migration_agent_main_sha256": "e6f9ba5d5fad12b96f3c9aaf5b6b49467ab416f2578d8cec7ebf8a157cf8ed16",
-    "migration_agent_manifest_sha256": "1097405e918474b4e80999f6684c04369cab4e65d26dd42e1a7a9c8acd67625b",
-    "migration_agent_readme_sha256": "47a8f56e56afa222b1fd50f657b74d912b8bf9ca35a8d0b7a75ae06e76728322",
-    "migration_agent_repository_sha256": "f65b964f2ca2b508616af67f93dbd80919a20767912c70ef3bb82550c2035a20",
+    "migration_agent_manifest_sha256": "702c220da3dbe61330ccaa2343164670d0211666f883596d772f27d7ee2ad892",
+    "migration_agent_readme_sha256": "b53c22f6d66fed3db87f3058688a8a11625513ae491d65ccc2a7a50234cc891c",
+    "migration_agent_repository_sha256": "e8f7fc6a284896f140fbad8a82cf419f643e06aa0a4bbff49c87c29df35a9198",
     "migration_agent_service_sha256": "794f93ecead1466855c303418a109ad127a9b14c6683b37647dc846aadb0d969",
-    "migration_agent_tests_sha256": "36e5cd6f5525933d3a34a3399d62d35abc29f77f88417b1f59f82ae444afbd50",
+    "migration_agent_tests_sha256": "ed749d66b524678865cb48a82f6e84d8c3a6e4fcd5375286175ad418d0f98f1a",
     "migration_agent_types_sha256": "3673cee06090f189be2dc6a9cf3ee9209b32dbf88dbf21318e45948861ba09a2",
-    "migration_agent_witness_sha256": "f6bff8d847fb067a923a49305da4b6162e101ec0044266ff6740bc847f26ed23",
+    "migration_agent_witness_sha256": "b9acfe5ba51b99ee2e74a606001bf01b852ce728d7b3f1ba62e713f0d5b369a3",
     "migration_capability_model_sha256": "017f2bc19bc6a94c307a45fca858179b1d3ebe507dd3c40422a75f47e01b220a",
     "migration_confirmation_model_sha256": "1a9bbd67c4fecf04dbd375a237b3dd02d02c60873fb61eaed307183609a6f190",
     "migration_context_v2_model_sha256": "7792946f346aeeddb330d96e0834cf78249f69b6f2400509a6a00c9394a71418",
@@ -422,8 +423,8 @@
     "proof_manifest_sha256": "008bcf84ba82769f0de3245b576857cc6572af109ebf2677a82020f41589f01a",
     "proof_manifest_tests_sha256": "9666e65c8a24e2bee8b0b4547094b35040807fdc0fdccf801ac57e8a21bca3ef",
     "proof_to_byte_finalizer_sha256": "6d60e5d8834617d125ef62505f5122e1f92ac58eed569302ac42a2b74301ecde",
-    "proof_to_byte_release_tests_sha256": "86a217d5f7cb3c681609a0fdc0df29208f58d839060350fa59619683e4d1d3d0",
-    "proof_to_byte_script_sha256": "5e5ca02f5fb6c7f1fe08d331db37c5698a8c68151ee8d74ed8844043927e2512",
+    "proof_to_byte_release_tests_sha256": "430fb19ba5236fdaed99df6bd09684a7b6212f1b9f769efbe32c6c5a8d58d2c6",
+    "proof_to_byte_script_sha256": "0c5d339cdfc677140a7700aa6e7958096428c3d4c69b6274bbb08414a8a11ab2",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
     "python_bootstrap_sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
     "python_env_sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
@@ -467,11 +468,11 @@
     "windows_package_verifier_sha256": "f8c3909310d9281b00569cdb5bc2d5ab92c0a06ef90ca9a68c97bdbd376cc6ad",
     "windows_toolchain_tests_sha256": "29b57c9ba461acd125d8a650c05e8b940fd567d69b8213d5a3aa86a6b9aa4c5c"
   },
-  "proof_source_tree_sha256": "bed9cdea8c977bd8d7e072909d97229ec644f7fdba6e0da10426e5dd16bcbc2a",
+  "proof_source_tree_sha256": "2a5f043d4e3c1d84d599194b9f2d8fdf06d4628311cc0b9d049038099f8802fb",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "44a5ef89347c006a7b235e27db78116b688968e4",
+    "snapshot_commit": "0efa321f2fc9f70acb289a22012730a5f1fb4e5a",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
