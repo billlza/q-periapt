@@ -1,0 +1,277 @@
+# Authenticated Migration Contract V2
+
+> **Status: non-publishable reference candidate.** V2 is implemented by
+> `q-periapt-migration` and is the only migration path that can reach the
+> accepted-session typestate. `q-periapt-policy-agent` supplies the durable and
+> process-isolated reference boundary. The construction leaves Q-Periapt ABI 2
+> byte-for-byte unchanged. Deployment claims remain conditional on a separately
+> protected, authenticated external witness and an owner-protected Agent process.
+
+## 1. Frozen lower boundary
+
+V2 does not add a C export or reinterpret an ABI 2 value. The following remain
+frozen:
+
+- the exact-nine dynamic exports;
+- the 40-byte policy decision and 36-byte trusted policy state;
+- `Q-PERIAPT-HYBRID-KEM/v1` and the existing ContextBound field order; and
+- the ABI policy wrapper
+  `LP8("Q-PERIAPT-POLICY-CONTEXT/v1") || LP8(policy_digest) || LP8(application_context)`.
+
+The Agent passes one V2 body as `application_context`. ABI 2 applies its wrapper
+exactly once. A V2 encoder must never pre-wrap the body.
+
+## 2. Accepted construction chain
+
+The accepted path is:
+
+```text
+signed state/reset envelope
+  -> verified pending transition
+  -> durable exact intent
+  -> authenticated external-witness CAS/receipt
+  -> committed state snapshot
+  -> two identity-signed endpoint offers
+  -> authenticated role-ordered negotiation
+  -> typed pre-KEM transcript and V2 context
+  -> frozen ABI 2 KEM inside Policy Agent
+  -> typed post-KEM transcript
+  -> role-separated peer Finished verification
+  -> exact local head + witness fence recheck
+  -> opaque accepted-key handle
+```
+
+There is no conversion from `MigrationContextV1`, a raw digest, a raw epoch, or
+a caller-created 40-byte decision into this accepted path.
+
+## 3. Migration state
+
+`MigrationStateV1` is an LP8 record signed under the migration authority. Its
+fields are:
+
+| Index | Field | Width |
+|---:|---|---:|
+| S0 | `Q-PERIAPT-MIGRATION-STATE/v1` | 28 |
+| S1 | schema `u16_be(1)` | 2 |
+| S2 | global generation | 8 |
+| S3 | chain ID | 32 |
+| S4 | protocol ID | 16 |
+| S5 | chain-local epoch | 8 |
+| S6 | previous state digest | 32 |
+| S7 | authority key ID | 32 |
+| S8 | exact execution `TrustedPolicyState` | 36 |
+| S9 | minimum PQ category | 1 |
+| S10 | component mode | 1 |
+| S11 | allowed-suite bit set | 1 |
+
+The state identity is SHA3-256 over the complete canonical body. The signed
+certificate uses a separate domain and certificate-kind byte, so a genesis
+signature cannot be replayed as an advance.
+
+The transition rules are closed:
+
+- genesis is explicit, signed, generation 1, epoch 1, and has the zero
+  predecessor digest;
+- an ordinary advance requires the exact predecessor digest, unchanged
+  chain/protocol/authority, and exact `generation + 1` and `epoch + 1`;
+- neither the PQ floor nor component posture may weaken;
+- `PostQuantumOnly` can never transition back to `HybridRequired`;
+- reset uses a distinct recovery-authority signature, exact old revision,
+  nonzero reset nonce, new chain, epoch 1, and exact `generation + 1`; and
+- missing, empty, corrupt, or incomplete storage is never genesis.
+
+The reference Agent pins one migration authority and one recovery authority. A
+reset naming an unprovisioned next authority is rejected; authority rotation is
+not silently inferred.
+
+Migration-state ownership is independent of immediate executor availability. A
+valid committed state may change its execution-policy identity, require
+`PostQuantumOnly`, or exclude ML-KEM-768+X25519. The Agent continues to replay,
+witness, advance, and recover such a state, but returns an explicit
+execution-unavailable error for public-key and session operations. It never
+substitutes a weaker executor. Supplying a newly authenticated compatible
+execution policy on a later restart can re-enable execution when the committed
+posture permits it.
+
+The domain state machine is generic over the certificate verifier and requires
+that verifier's NIST level to meet the next state's floor. The reference Agent
+currently pins ML-DSA-65, so a level-5 state is rejected before any durable
+intent is written because the configured signer is below that floor. Supporting
+a level-5 authority is an explicit future provisioning change, not a fallback
+to level 3.
+
+## 4. Authenticated negotiation
+
+Each endpoint signs a strict capability offer under its pinned identity key.
+The offer binds:
+
+- protocol, chain, session, sender role, sender and receiver identity key IDs;
+- a fresh sender nonce;
+- the sender's authenticated policy state;
+- the exact committed migration-state digest and global generation;
+- the complete closed suite bit set, floor, and component mode; and
+- a domain-separated commitment to the sender-owned PQ and traditional public
+  key bytes.
+
+The joint constructor fixes initiator/responder order, verifies both signatures,
+requires reciprocal identities and distinct role inputs, resolves both real
+`AuthenticatedPolicy` values against the same execution decision, checks that
+both offers include the selected suite, and computes:
+
+```text
+initiator_offer_floor = max(
+  initiator_authenticated_policy.minimum,
+  state.minimum_pq_level
+)
+responder_offer_floor = max(
+  responder_authenticated_policy.minimum,
+  state.minimum_pq_level
+)
+effective_floor = max(
+  state.minimum_pq_level,
+  initiator_authenticated_policy.minimum,
+  responder_authenticated_policy.minimum
+)
+```
+
+The selected suite must meet that floor. A caller-controlled offer bit set is
+not a substitute for policy resolution.
+
+## 5. Typed transcripts and exact V2 context
+
+The pre-KEM transcript is constructed only from one authenticated negotiation,
+one committed state, one common execution decision, one KEM direction, and the
+exact receiver-owned public keys. The keys must match the commitment in that
+receiver's signed offer. The object retains those same key bytes for the KEM;
+the caller cannot substitute a second key after hashing.
+
+The accepted V2 `application_context` is exactly 324 bytes and thirteen LP8
+fields:
+
+| Index | Field | Width |
+|---:|---|---:|
+| M0 | `Q-PERIAPT-MIGRATION-CONTEXT/v2` | 30 |
+| M1 | schema `u16_be(2)` | 2 |
+| M2 | protocol ID | 16 |
+| M3 | encapsulator role | 1 |
+| M4 | committed epoch | 8 |
+| M5 | initiator policy digest | 32 |
+| M6 | responder policy digest | 32 |
+| M7 | authenticated negotiation digest | 32 |
+| M8 | selected suite | 1 |
+| M9 | effective floor | 1 |
+| M10 | committed state digest | 32 |
+| M11 | typed pre-KEM transcript digest | 32 |
+| M12 | component mode | 1 |
+
+Every field is derived from authenticated types; V2 exposes no raw commitment or
+raw epoch constructor. The post-KEM transcript then commits the exact V2 body and
+both component ciphertexts. It does not include Finished values, avoiding a
+circular transcript.
+
+The current ABI 2 executor contains a traditional X25519 component. Therefore
+`PostQuantumOnly` is a valid migration state for blocking legacy execution, but
+`Abi2MigrationApplicationContextV2` rejects it. It is never reinterpreted as
+hybrid-allowed.
+
+## 6. Mutual confirmation and key release
+
+For the exact post-KEM digest `TH`, each role derives:
+
+```text
+Finished(role) = SHA3-256(
+  LP8("Q-PERIAPT-MIGRATION-FINISHED/v1") ||
+  LP8(ABI2_secret) ||
+  LP8(role) ||
+  LP8(TH)
+)
+```
+
+The peer value is compared with `ct_eq`. Reflection fails because the roles use
+different one-byte codes. After successful peer confirmation, the Agent derives
+a separate application key:
+
+```text
+accepted_key = SHA3-256(
+  LP8("Q-PERIAPT-MIGRATION-ACCEPTED-KEY/v1") ||
+  LP8(ABI2_secret) ||
+  LP8(TH) ||
+  LP8(initiator_finished) ||
+  LP8(responder_finished)
+)
+```
+
+All failure paths consume the pending typestate and drop the zeroizing ABI 2
+secret. The process service returns only an opaque accepted-key handle. It does
+not return a raw decision, KEM private key, pending secret, or unconfirmed key.
+
+Before release, the Agent rechecks the exact local `(generation, epoch, digest,
+fence)` and the authenticated witness head. A concurrent transition may proceed;
+its durable commit changes the fence, clears all durable session reservations,
+and wipes all in-memory pending secrets. An old handle then fails as stale or
+unknown.
+
+## 7. Durable state and external witness
+
+The reference repository uses immediate-durability, two-phase `redb`
+transactions. It persists the complete canonical signed history, not just a
+counter. Opening a store replays and re-verifies genesis through the current
+head. The database file is exclusively locked while open.
+
+A transition follows this order:
+
+1. verify the signed envelope and derive an unforgeable pending token;
+2. durably persist one exact operation ID, predecessor/successor, fence change,
+   and canonical envelope;
+3. send that same intent to the mandatory authenticated witness;
+4. on an unknown transport outcome, query only that operation ID;
+5. accept only an exact applied receipt whose authoritative head is the exact
+   successor; and
+6. commit the local history/head and invalidate older sessions in one local
+   transaction.
+
+Conflict, ahead, equivocation, unauthenticated response, missing history, or a
+different receipt suspends progress. There is no local-file witness fallback.
+
+Authenticated capability-session identifiers are durable replay tombstones for the
+entire current state. Cancellation, Finished rejection, acceptance, and restart do
+not erase them, and capacity exhaustion fails closed instead of evicting history.
+A committed state transition changes the state digest/generation before clearing
+the old table, so old signed offers fail the new-state checks.
+
+`redb`, SQLite, Keychain, or a normal file cannot independently detect a whole
+disk or VM snapshot rollback. For the `MIG-ROLLBACK` profile, the authenticated
+witness must run outside the Agent host's rollback domain or use a platform
+monotonic facility with equivalent semantics. The reference witness server is
+useful for protocol and crash testing; placing both databases on the same
+restorable disk does not meet that deployment assumption.
+
+## 8. Formal and byte-correspondence boundary
+
+- EasyCrypt proves the V2 state-identity projection and an outer/state-hash bad
+  event decomposition for `MIG-BIND-K-STATE`, with an omission countermodel.
+- Tamarin models active-network identity signatures, restorable local store,
+  protected witness/fence, signed transitions/reset, role-separated Finished,
+  and the closed floor relation for `MIG-ROLLBACK`, `MIG-AGREE`, and
+  `MIG-FLOOR`.
+- Independent Python recomputes the state, both offers, negotiation, pre-KEM
+  transcript, V2 context, post-KEM transcript, both Finished values, and accepted
+  key from structured frozen inputs.
+
+These are source-bound translation-validation and symbolic/computational models.
+They are not a proof that the Rust implementation, database, operating system,
+or machine code refines the models. Transition authenticity additionally relies
+on the pinned signature scheme's unforgeability, which is not supplied by the
+hash-binding theorem.
+
+## 9. Deployment non-claims
+
+The repository does not claim the following without separate evidence:
+
+- rollback resistance when Agent and witness share one rollback domain;
+- hostile-local-caller isolation without a separately installed service account,
+  protected state directory, pinned roots, and authenticated IPC client;
+- resistance to an administrator, kernel, hypervisor, or compromised witness;
+- cross-platform service parity beyond the implemented Unix reference IPC;
+- formal-to-Rust or source-to-binary refinement; or
+- real peer/device interoperability from local unit and loopback tests alone.

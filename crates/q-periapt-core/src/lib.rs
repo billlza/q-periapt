@@ -567,7 +567,7 @@ pub fn ct_eq(a: &[u8], b: &[u8]) -> u8 {
 
 /// Branch-free select over 32-byte buffers: returns `a` if `mask == 0xFF`, `b`
 /// if `mask == 0x00`. `mask` must be all-ones or all-zeros (use [`ct_eq`] /
-/// [`ct_is_zero`] to produce it). This is the primitive for implicit rejection:
+/// `ct_is_zero` to produce it). This is the primitive for implicit rejection:
 /// always run the real and rejection derivations, then select with a mask, so
 /// the failure path is instruction-indistinguishable from success.
 #[must_use]

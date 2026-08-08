@@ -500,7 +500,23 @@ are the gap between research-grade and audited/production.
    strict decoding, production wire/identity/prekey/ratchet/storage
    adapters, metadata, numeric budgets and all G2–G6 outcomes remain open.
 
-8. **(Future) SkyBridge integration.** Folding Q-Periapt into the SkyBridge
+8. **Authenticated Migration Contract research.** Keep ABI 2 frozen and build a
+   separate layer above it. Phase 1 now has a `publish = false` candidate model:
+   exact 315-byte role-normalized `MigrationContextV1`, authenticated policy-derived
+   suite/floor/digests, a fixed-suite ABI 2 adapter, independent Rust/Python vectors,
+   and ABI 2 round-trip/key-separation tests. This closes only the canonical-byte
+   commitment gate.
+
+   Later gates remain open: a signed transition-state/certificate schema; authority
+   rotation and authorized reset; a process-isolated Policy Agent that owns pinned
+   roots and monotonic CAS state; crash/concurrency/TOCTOU tests; mutually
+   authenticated negotiation and key confirmation; model-to-byte linkage; and
+   formal MIG-BIND-K-STATE, MIG-ROLLBACK, MIG-AGREE, and MIG-FLOOR arguments.
+   Until those close, do not call the phase-1 context rollback-resistant,
+   outcome-bearing, mutually agreed, or a stateful cryptographic construction. See
+   [`MIGRATION_CONTRACT_RESEARCH.md`](MIGRATION_CONTRACT_RESEARCH.md).
+
+9. **(Future) SkyBridge integration.** Folding Q-Periapt into the SkyBridge
    quantum-comm project still needs a downstream harness per target repo. The Q-Periapt embedding
    gate proves this repo's language faces; it does not prove SkyBridge product integration.
 
@@ -517,6 +533,7 @@ are the gap between research-grade and audited/production.
 | Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The published r2 platform prerelease covers the Android AAR and Linux/Windows C SDK archives. Kotlin JDK 22 host tests are current CI gates; Apple/Android physical runtime and immutable release evidence remain independently source-bound as recorded in results.json.** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
+| Authenticated Migration Contract | **Phase 1 candidate canonical commitment implemented in a publish=false model: fixed role-normalized body, policy-derived consistency checks, independent vectors, and unchanged-ABI2 integration. Transition authentication, monotonic state ownership, key confirmation, rollback/agreement/floor proofs, and hostile-local-caller isolation remain future gates.** |
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
 | Machine-checked `bind_le_cr` + `encode_inj` lemma + CI no-admits gate | **Done** |
 | Tamarin symbolic handshake model (auth, authenticated context agreement, hybrid robustness; 5 lemmas) | **Done** |

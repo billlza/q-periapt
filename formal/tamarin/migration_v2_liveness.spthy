@@ -1,0 +1,64 @@
+theory QPeriaptMigrationV2Liveness
+/* Focused progress projection for the state/CAS theory: an authority-issued
+   non-downgrade successor is applied, its exact store snapshot reconciles, and
+   the successor state accepts. Safety against hostile delivery/replay remains
+   in migration_v2.spthy. */
+begin
+
+builtins: signing
+functions: next_generation/1, next_epoch/1, next_fence/1
+
+rule Liveness_Setup:
+  let oldState = <'generation-one', ~chain, 'epoch-one',
+                  ~oldDigest, 'floor-l3', ~fence>
+  in
+  [ Fr(~A), Fr(~sk), Fr(~I), Fr(~R), Fr(~chain), Fr(~oldDigest), Fr(~fence) ]
+--[ LivenessSetup(~A, ~I, ~R, oldState) ]->
+  [ !TransitionAuthority(~A, ~sk)
+  , WitnessCurrent(~I, ~R, ~A, oldState)
+  , CanIssue(~A, ~I, ~R, oldState)
+  , !FloorAdvance('floor-l3', 'floor-l3') ]
+
+rule Liveness_Issue:
+  let oldState = <generation, chain, epoch, oldDigest, oldFloor, fence>
+      newState = <next_generation(generation), chain, next_epoch(epoch),
+                  ~newDigest, 'floor-l3', next_fence(fence)>
+      payload = <'q-periapt-migration-transition-v2', I, R, A,
+                 oldState, newState>
+  in
+  [ !TransitionAuthority(A, sk), CanIssue(A, I, R, oldState), Fr(~newDigest) ]
+--[ TransitionIssued(A, I, R, oldState, newState) ]->
+  [ IssuedSuccessor(A, I, R, oldState, newState, sign(payload, sk)) ]
+
+rule Liveness_Apply:
+  let oldState = <generation, chain, epoch, oldDigest, oldFloor, fence>
+      newState = <next_generation(generation), chain, next_epoch(epoch),
+                  newDigest, newFloor, next_fence(fence)>
+  in
+  [ IssuedSuccessor(A, I, R, oldState, newState, certificate)
+  , WitnessCurrent(I, R, A, oldState)
+  , !FloorAdvance(oldFloor, newFloor) ]
+--[ TransitionAccepted(A, I, R, oldState, newState)
+  , StateAdvanced(I, R, oldState, newState) ]->
+  [ WitnessAdvanced(I, R, A, newState)
+  , ExactSuccessorStore(I, R, A, newState) ]
+
+rule Liveness_Reconcile:
+  [ WitnessAdvanced(I, R, A, newState)
+  , ExactSuccessorStore(I, R, A, newState) ]
+--[ AdvancedStateReconciled(I, R, newState) ]->
+  [ SuccessorReady(I, R, newState) ]
+
+rule Liveness_Accept:
+  [ SuccessorReady(I, R, newState), Fr(~session) ]
+--[ MigrationAccepted('responder', I, R, newState, ~session) ]->
+  [ ]
+
+lemma successor_state_executable:
+  exists-trace
+  "Ex A I R oldState newState session #advanced #accepted.
+       TransitionAccepted(A, I, R, oldState, newState) @ advanced
+     & MigrationAccepted('responder', I, R, newState, session) @ accepted
+     & #advanced < #accepted"
+
+end

@@ -405,7 +405,17 @@ paths = {
     "shared_vectors_sha256": "bindings/shared-test-vectors.json",
     "signed_policy_vectors_sha256": "bindings/signed-policy-vectors.json",
     "easycrypt_binding_sha256": "formal/easycrypt/BindingViaCR.ec",
+    "easycrypt_migration_v2_sha256": "formal/easycrypt/MigrationBindingV2.ec",
+    "easycrypt_makefile_sha256": "formal/easycrypt/Makefile",
+    "easycrypt_negative_controls_sha256": "formal/easycrypt/negative-controls.sh",
     "tamarin_model_sha256": "formal/tamarin/handshake.spthy",
+    "tamarin_migration_state_v2_sha256": "formal/tamarin/migration_v2.spthy",
+    "tamarin_migration_agreement_v2_sha256": "formal/tamarin/migration_v2_agreement.spthy",
+    "tamarin_migration_liveness_v2_sha256": "formal/tamarin/migration_v2_liveness.spthy",
+    "tamarin_migration_rollback_v2_sha256": "formal/tamarin/migration_v2_rollback.spthy",
+    "tamarin_migration_no_witness_v2_sha256": "formal/tamarin/migration_v2_no_witness.spthy",
+    "tamarin_migration_negative_controls_v2_sha256": "formal/tamarin/migration_v2_negative_controls.spthy",
+    "tamarin_makefile_sha256": "formal/tamarin/Makefile",
     "proverif_model_sha256": "formal/proverif/handshake.pv",
     "proof_to_byte_script_sha256": "artifact/proof-to-byte.sh",
     "proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py",
@@ -458,6 +468,35 @@ paths = {
     "continuity_easycrypt_model_sha256": "formal/easycrypt/continuity/LifecycleContextV1.ec",
     "continuity_prekey_easycrypt_model_sha256": "formal/easycrypt/continuity/PrekeySelectionV1.ec",
     "continuity_easycrypt_makefile_sha256": "formal/easycrypt/continuity/Makefile",
+    "migration_contract_v2_spec_sha256": "docs/migration/MIGRATION_CONTRACT_V2.md",
+    "migration_model_manifest_sha256": "models/q-periapt-migration/Cargo.toml",
+    "migration_model_readme_sha256": "models/q-periapt-migration/README.md",
+    "migration_model_lib_sha256": "models/q-periapt-migration/src/lib.rs",
+    "migration_model_codec_sha256": "models/q-periapt-migration/src/codec.rs",
+    "migration_context_v2_model_sha256": "models/q-periapt-migration/src/context_v2.rs",
+    "migration_state_model_sha256": "models/q-periapt-migration/src/state.rs",
+    "migration_capability_model_sha256": "models/q-periapt-migration/src/capability.rs",
+    "migration_transcript_model_sha256": "models/q-periapt-migration/src/transcript.rs",
+    "migration_confirmation_model_sha256": "models/q-periapt-migration/src/confirmation.rs",
+    "migration_contract_v2_tests_sha256": "models/q-periapt-migration/tests/contract_v2.rs",
+    "migration_contract_v2_vectors_sha256": "models/q-periapt-migration/vectors/migration-contract-v2.json",
+    "migration_contract_v2_verifier_sha256": "artifact/migration_contract_v2.py",
+    "migration_contract_v2_verifier_tests_sha256": "artifact/test_migration_contract_v2.py",
+    "migration_agent_manifest_sha256": "services/q-periapt-policy-agent/Cargo.toml",
+    "migration_agent_readme_sha256": "services/q-periapt-policy-agent/README.md",
+    "migration_agent_lib_sha256": "services/q-periapt-policy-agent/src/lib.rs",
+    "migration_agent_main_sha256": "services/q-periapt-policy-agent/src/main.rs",
+    "migration_agent_authentication_sha256": "services/q-periapt-policy-agent/src/authentication.rs",
+    "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
+    "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
+    "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
+    "migration_agent_macos_acl_sha256": "services/q-periapt-policy-agent/src/macos_acl.rs",
+    "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
+    "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
+    "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",
+    "migration_agent_ipc_sha256": "services/q-periapt-policy-agent/src/ipc.rs",
+    "migration_agent_tests_sha256": "services/q-periapt-policy-agent/src/tests.rs",
+    "migration_agent_types_sha256": "services/q-periapt-policy-agent/src/types.rs",
     "hqc_candidate_readme_sha256": "research/hqc-fips207-candidate/README.md",
     "hqc_candidate_manifest_sha256": "research/hqc-fips207-candidate/Cargo.toml",
     "hqc_candidate_lock_sha256": "research/hqc-fips207-candidate/Cargo.lock",
@@ -544,6 +583,10 @@ for key, rel in paths.items():
 
 print("PROOF_TO_BYTE_MANIFEST_HASHES_PASS")
 PY
+
+sh artifact/python-run.sh artifact/migration_contract_v2.py verify \
+	--vectors models/q-periapt-migration/vectors/migration-contract-v2.json
+printf 'PROOF_TO_BYTE_MIGRATION_V2_EXACT_BYTES_PASS boundary=independent_renderer_not_formal_refinement\n'
 
 if [ "$REQUIRE_CAMERA_READY" = "1" ]; then
 	test -f "$CAMERA_READY_TRANSCRIPT" || {

@@ -795,7 +795,7 @@ jobs:
           # .eco is host-owned, so the container's opam user can't rm it in place. Copying makes the
           # files opam-owned, so `rm -f *.eco` forces a from-scratch re-check.
           docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/src:ro" q-periapt-ec:ci \
-            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh && EC=easycrypt make -C continuity check'
+            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && EC=easycrypt make check && sh negative-controls.sh && EC=easycrypt make -C continuity check'
 
   # Symbolic handshake proof. The lemma-presence check catches a lemma being
   # deleted/stubbed out; the full Tamarin machine-check is a HARD GATE too.
@@ -807,11 +807,8 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: All five Tamarin lemmas present (hard gate)
-        run: |
-          for l in executable server_authentication authenticated_context_agreement hybrid_secrecy hybrid_robustness_authenticated; do
-            grep -qE "^lemma ${l}:" formal/tamarin/handshake.spthy || { echo "missing lemma: ${l}"; exit 1; }
-          done
+      - name: Handshake and migration lemma names present (hard gate)
+        run: make -C formal/tamarin check-lemma-names
       - name: Install Maude + Tamarin
         run: |
           sudo apt-get update
@@ -846,7 +843,7 @@ jobs:
           rm -rf "$TAMARIN_ARCHIVE" "$TAMARIN_DIR"
           test "$(maude --version)" = "3.5.1"
           tamarin-prover --version
-      - name: Machine-check the handshake model (make prove)
+      - name: Machine-check handshake, migration, and countermodels (make prove)
         run: make -C formal/tamarin prove
 
   # Second, independent symbolic prover (ProVerif) for the same handshake — assurance

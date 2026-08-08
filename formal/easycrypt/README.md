@@ -19,6 +19,34 @@ the paper proof, but they remain non-normative. They prove neither SHA3 injectiv
 a protocol theorem or model-to-Rust refinement and do not enlarge the paper's
 ContextBound contribution.
 
+## Independent migration hard gate
+
+[`MigrationBindingV2.ec`](MigrationBindingV2.ec) is a separate proof artifact for
+the Migration Contract V2 KDF boundary. It proves projection injectivity from
+the exact 13-field V2 M0..M12 projection to the authenticated state identity
+`(committed_epoch, committed_state_digest)`, then proves
+`MIG-BIND-K-STATE`: equal non-bottom accepted keys for distinct state identities
+reduce to a collision in the modeled KDF/hash `H`. Its
+`omitted_state_negative_control` is an explicit probability-one winner when both
+state-identity projections are removed.
+
+The stronger full-state theorem models the exact 12-field canonical
+`MigrationStateV1` body committed by V2 M10 and a separate state hash
+`H_state`. `mig_bind_k_full_state_bad_event_decomposition` proves that equal
+non-bottom accepted keys for different full-state bodies imply either an outer
+context collision or a state-digest collision, yielding the union bound
+`Adv_CR(H_context) + Adv_CR(H_state)`. Transition-signature EUF-CMA remains a
+separate protocol assumption.
+
+This model starts with abstract byte strings supplied to the KDF. It does not
+prove equality of digest preimages, concrete Rust serialization, signatures,
+persistence/crash behavior, IPC behavior, protocol acceptance, Lean refinement,
+or specification-to-Rust/model-to-byte refinement. It is not a proof about the
+existing 315-byte phase-1 V1 context. V2 uses the distinct domain
+`Q-PERIAPT-MIGRATION-CONTEXT/v2` and the unsigned-u16 big-endian schema bytes
+`[0, 2]`. A checked constant-mapping lemma prevents width drift in the formal
+projection. Those remain separate gates.
+
 ## File: [`BindingViaCR.ec`](BindingViaCR.ec)
 
 Formalizes `bind_le_cr`: a generic transcript-projection collision bound for the
@@ -32,7 +60,8 @@ step, `encode_inj` (injectivity of the fixed-width length-prefixed encoding), is
 **proved** (the encoding is modeled concretely and its injectivity machine-checked),
 not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
 
-> **STATUS: MACHINE-CHECKED.** ✅ `make check` (`easycrypt BindingViaCR.ec`) passes
+> **STATUS: MACHINE-CHECKED.** ✅ `make check`
+> (`easycrypt compile -no-eco BindingViaCR.ec`) passes
 > with EasyCrypt dev (OCaml 5.4.1) + Z3 4.16.0. `bind_le_cr` is verified. Honest
 > scope still applies (`BINDING_SECURITY.md` §5/§6): `encode_inj` is now a **proved
 > lemma** (the encoding is modeled concretely and its injectivity machine-checked,
@@ -42,7 +71,7 @@ not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
 > linkage proof.
 
 ```sh
-make check   # runs `easycrypt BindingViaCR.ec`  (install EasyCrypt via opam first)
+make check   # checks required names, then compiles both root proof files
 ```
 
 ### Pinned-source container check (the CI hard gate)
@@ -57,11 +86,15 @@ pinned-source container gate, not a hermetic or bit-reproducible toolchain. Repr
 
 ```sh
 docker build -f formal/Dockerfile -t q-periapt-ec .
-# Mount read-only + copy into a container-owned dir (the committed .eco is host-owned), then
-# re-check from scratch:
+# Mount read-only, copy into a container-owned directory, remove any local generated
+# outputs, and re-check both root proofs, all seven dependency controls, and both
+# continuity diagnostics from source. `.eco` files and the control log are ignored
+# local outputs and are not committed evidence.
 docker run --rm -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
-    opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco \
-        && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+    opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec \
+        && rm -f *.eco continuity/*.eco negative-controls.log \
+        && EC=easycrypt make check && sh negative-controls.sh \
+        && EC=easycrypt make -C continuity check'
 ```
 
 The historical `negative-controls.sh` filename is retained because the CI entrypoint invokes it.

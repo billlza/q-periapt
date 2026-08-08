@@ -6,7 +6,7 @@
 #
 # Build:  docker build -f formal/Dockerfile -t q-periapt-ec .
 # Check:  docker run --rm -v "$PWD/formal/easycrypt:/work" q-periapt-ec \
-#             opam exec -- sh -c 'rm -f *.eco && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+#             opam exec -- sh -c 'easycrypt compile -no-eco BindingViaCR.ec && sh negative-controls.sh'
 FROM ocaml/opam:debian-12-ocaml-5.3@sha256:bbaac53e502f6602013d8967c3a54cfcb898b556f453ab72e8e23966c3c681df
 
 # Base tools + the Z3 solver. The apt lists are intentionally KEPT so opam can resolve and install

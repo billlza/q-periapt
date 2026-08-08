@@ -1,0 +1,195 @@
+//! Bounded canonical codecs shared by repository, witness, and IPC boundaries.
+
+use std::io::{Read, Write};
+
+use q_periapt_backends::Sha3_256Xof;
+use q_periapt_core::Xof256;
+
+pub(crate) const MAX_FRAME_BYTES: usize = 16 * 1024;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CodecError {
+    Allocation,
+    InvalidLength,
+    InvalidValue,
+    Io,
+    Oversized,
+    TrailingBytes,
+    Truncated,
+}
+
+pub(crate) struct Encoder {
+    bytes: Vec<u8>,
+    maximum: usize,
+}
+
+impl Encoder {
+    pub(crate) fn new(maximum: usize) -> Self {
+        Self {
+            bytes: Vec::new(),
+            maximum,
+        }
+    }
+
+    fn reserve(&mut self, additional: usize) -> Result<(), CodecError> {
+        let required = self
+            .bytes
+            .len()
+            .checked_add(additional)
+            .ok_or(CodecError::Oversized)?;
+        if required > self.maximum {
+            return Err(CodecError::Oversized);
+        }
+        self.bytes
+            .try_reserve_exact(additional)
+            .map_err(|_| CodecError::Allocation)
+    }
+
+    pub(crate) fn byte(&mut self, value: u8) -> Result<(), CodecError> {
+        self.reserve(1)?;
+        self.bytes.push(value);
+        Ok(())
+    }
+
+    pub(crate) fn u16(&mut self, value: u16) -> Result<(), CodecError> {
+        self.fixed(&value.to_be_bytes())
+    }
+
+    pub(crate) fn u64(&mut self, value: u64) -> Result<(), CodecError> {
+        self.fixed(&value.to_be_bytes())
+    }
+
+    pub(crate) fn fixed(&mut self, value: &[u8]) -> Result<(), CodecError> {
+        self.reserve(value.len())?;
+        self.bytes.extend_from_slice(value);
+        Ok(())
+    }
+
+    pub(crate) fn lp16(&mut self, value: &[u8]) -> Result<(), CodecError> {
+        let length = u16::try_from(value.len()).map_err(|_| CodecError::Oversized)?;
+        self.u16(length)?;
+        self.fixed(value)
+    }
+
+    pub(crate) fn finish(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+pub(crate) struct Decoder<'a> {
+    remaining: &'a [u8],
+}
+
+impl<'a> Decoder<'a> {
+    pub(crate) const fn new(bytes: &'a [u8]) -> Self {
+        Self { remaining: bytes }
+    }
+
+    pub(crate) fn fixed(&mut self, length: usize) -> Result<&'a [u8], CodecError> {
+        let value = self.remaining.get(..length).ok_or(CodecError::Truncated)?;
+        self.remaining = self.remaining.get(length..).ok_or(CodecError::Truncated)?;
+        Ok(value)
+    }
+
+    pub(crate) fn array<const N: usize>(&mut self) -> Result<[u8; N], CodecError> {
+        self.fixed(N)?
+            .try_into()
+            .map_err(|_| CodecError::InvalidLength)
+    }
+
+    pub(crate) fn byte(&mut self) -> Result<u8, CodecError> {
+        self.fixed(1)?.first().copied().ok_or(CodecError::Truncated)
+    }
+
+    pub(crate) fn u16(&mut self) -> Result<u16, CodecError> {
+        Ok(u16::from_be_bytes(self.array()?))
+    }
+
+    pub(crate) fn u64(&mut self) -> Result<u64, CodecError> {
+        Ok(u64::from_be_bytes(self.array()?))
+    }
+
+    pub(crate) fn lp16(&mut self, maximum: usize) -> Result<&'a [u8], CodecError> {
+        let length = usize::from(self.u16()?);
+        if length > maximum {
+            return Err(CodecError::Oversized);
+        }
+        self.fixed(length)
+    }
+
+    pub(crate) fn finish(self) -> Result<(), CodecError> {
+        if self.remaining.is_empty() {
+            Ok(())
+        } else {
+            Err(CodecError::TrailingBytes)
+        }
+    }
+}
+
+pub(crate) fn hash_fields(domain: &[u8], fields: &[&[u8]]) -> Result<[u8; 32], CodecError> {
+    let total = core::iter::once(domain)
+        .chain(fields.iter().copied())
+        .try_fold(0usize, |size, field| {
+            size.checked_add(8)?.checked_add(field.len())
+        })
+        .ok_or(CodecError::Oversized)?;
+    let mut hash = Sha3_256Xof::new();
+    hash.reserve(total);
+    for field in core::iter::once(domain).chain(fields.iter().copied()) {
+        let length = u64::try_from(field.len()).map_err(|_| CodecError::Oversized)?;
+        hash.absorb_public(&length.to_be_bytes());
+        hash.absorb_public(field);
+    }
+    Ok(hash.squeeze32())
+}
+
+pub(crate) fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<(), CodecError> {
+    if payload.is_empty() || payload.len() > MAX_FRAME_BYTES {
+        return Err(CodecError::Oversized);
+    }
+    let length = u32::try_from(payload.len()).map_err(|_| CodecError::Oversized)?;
+    writer
+        .write_all(&length.to_be_bytes())
+        .and_then(|()| writer.write_all(payload))
+        .and_then(|()| writer.flush())
+        .map_err(|_| CodecError::Io)
+}
+
+pub(crate) fn read_frame<R: Read>(reader: &mut R) -> Result<Vec<u8>, CodecError> {
+    let mut length = [0u8; 4];
+    reader.read_exact(&mut length).map_err(|_| CodecError::Io)?;
+    let length = usize::try_from(u32::from_be_bytes(length)).map_err(|_| CodecError::Oversized)?;
+    if length == 0 || length > MAX_FRAME_BYTES {
+        return Err(CodecError::Oversized);
+    }
+    let mut payload = Vec::new();
+    payload
+        .try_reserve_exact(length)
+        .map_err(|_| CodecError::Allocation)?;
+    payload.resize(length, 0);
+    reader
+        .read_exact(&mut payload)
+        .map_err(|_| CodecError::Io)?;
+    Ok(payload)
+}
+
+pub(crate) fn require_domain(
+    decoder: &mut Decoder<'_>,
+    expected: &[u8],
+    version: u16,
+) -> Result<(), CodecError> {
+    if decoder.lp16(expected.len())? != expected || decoder.u16()? != version {
+        Err(CodecError::InvalidValue)
+    } else {
+        Ok(())
+    }
+}
+
+pub(crate) fn encode_domain(
+    encoder: &mut Encoder,
+    domain: &[u8],
+    version: u16,
+) -> Result<(), CodecError> {
+    encoder.lp16(domain)?;
+    encoder.u16(version)
+}

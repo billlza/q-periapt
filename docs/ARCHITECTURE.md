@@ -27,6 +27,10 @@ EasyCrypt development under [`formal/easycrypt/`](../formal/easycrypt/). For the
 exact wire format, read [`docs/COMBINER_SPEC.md`](COMBINER_SPEC.md).
 The future stateful protocol architecture is deliberately separate and specified in
 [`docs/CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md); it is not implemented.
+The separate authenticated-migration research plan is in
+[`docs/MIGRATION_CONTRACT_RESEARCH.md`](MIGRATION_CONTRACT_RESEARCH.md). Its
+phase-1 model is only a canonical application-context commitment above unchanged
+ABI 2, not an authenticated state machine or protocol.
 
 ---
 
@@ -98,7 +102,8 @@ round-trip invariants, rollback rejection, and failure-output atomicity.
 
 The workspace members are listed in [`Cargo.toml`](../Cargo.toml):
 `q-periapt-core`, `-kem`, `-sig`, `-mlkem-native-sys`, `-policy`, `-backends`, `-ffi`, `-wasm`,
-`-tls-demo`, `-rustls`, `-cli`, `ctstats`, and the Continuity model. The independent
+`-tls-demo`, `-rustls`, `-cli`, `ctstats`, the Continuity model, and the
+`publish = false` migration model. The independent
 [`research/hqc-fips207-candidate`](../research/hqc-fips207-candidate/) crate is
 explicitly excluded from the root workspace, has its own lockfile, is `publish = false`,
 and is not depended on by any product/publishable crate.
@@ -111,6 +116,26 @@ through the C ABI. The separate, non-publishable `q-periapt-tls-demo` depends on
 core/KEM/signature/backends for its custom four-flight transport experiment and does
 not depend on rustls. Neither integration reimplements a primitive or moves protocol
 logic into the sys crate.
+
+The migration model has a separate, one-way research dependency on the existing
+policy/core types. No product or publishable crate depends on it:
+
+```text
+protocol handshake
+  identity / capabilities / pre-KEM transcript / confirmation
+        |
+        v
+q-periapt-migration (publish=false model)
+  canonical MigrationContextV1 application body
+        |
+        v
+q-periapt-ffi ABI 2 (unchanged)
+  policy wrapper -> ContextBound -> ML-KEM-768 + X25519
+```
+
+The model neither parses the raw 40-byte decision nor adds a C export. Its ABI 2
+adapter only proves that a typed context selected the fixed ABI 2 suite; peers
+must still independently authenticate and use the same exact execution decision.
 
 ---
 
@@ -587,6 +612,38 @@ independently.
   in the same hostile address space is insufficient. Authenticity against an untrusted
   local caller requires a service/process boundary that owns the pinned verification
   key and monotonic `(version,digest)` state and exposes only policy-bound operations.
+
+### 8.1 Migration context model (`q-periapt-migration`)
+
+`models/q-periapt-migration`. `publish = false`, `forbid(unsafe_code)`. This is a
+typed canonicalization boundary above policy and below a future protocol, not a
+product execution crate.
+
+- **Fixed application body.** `MigrationContextV1` emits exactly twelve LP8
+  fields and 315 bytes. Domain/schema are internal constants; typed commitments
+  are nonzero; the monotonic epoch excludes zero and `u64::MAX`. It emits neither
+  a digest nor the ABI policy wrapper.
+- **Stable roles.** A local/peer construction view is immediately normalized into
+  initiator/responder policy ownership. The encoded role is the encapsulator role
+  agreed by both peers, not the local endpoint's perspective.
+- **Authenticated derivation.** Endpoint digests and the effective floor come
+  from `AuthenticatedPolicy`; the suite comes from an
+  `AuthenticatedResolvedSuite`. Both endpoint policies must resolve the same
+  ContextBound/expanded suite and the suite must meet the maximum endpoint floor.
+- **Strict ABI 2 adapter.** `Abi2MigrationApplicationContextV1` accepts only
+  `ML-KEM-768+X25519`. The unchanged FFI then applies its policy wrapper exactly
+  once. It remains the protocol's responsibility to use the same independently
+  authenticated execution decision on both sides.
+- **Failure atomicity.** Encoding uses a fixed temporary and only copies after
+  all checks; wrong output length or invalid construction cannot expose partial
+  bytes. There is no decoder or raw-context fallback.
+
+The model does not own a verification root, authenticate M10/M11, persist an
+epoch, issue a transition certificate, confirm a key, or make an acceptance
+decision. The exact format and non-claims are in
+[`migration/MIGRATION_CONTEXT_V1.md`](migration/MIGRATION_CONTEXT_V1.md); later
+service/state/proof gates are in
+[`MIGRATION_CONTRACT_RESEARCH.md`](MIGRATION_CONTRACT_RESEARCH.md).
 
 ---
 

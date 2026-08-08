@@ -1,0 +1,177 @@
+theory QPeriaptMigrationV2Agreement
+/* Migration Contract V2 endpoint-authentication model. Each endpoint first
+   signs its own role-owned capability offer, and each role independently
+   verifies the peer offer against its pinned identity key before forming the
+   ordered joint decision with its own locally signed offer. The actual two
+   Finished flights are role-separated keyed hashes
+   over one post-KEM transcript digest; Finished values are not signatures and
+   there is no third commit flight. */
+begin
+
+builtins: signing, hashing
+
+rule Agreement_Setup:
+  let state = <'generation-one', ~chain, 'epoch-one',
+               ~digest, 'floor-l3', ~fence>
+      initiatorOffer =
+        <'q-periapt-migration-capability-offer-v1', 'initiator', ~I, ~R,
+         state, ~negotiation, 'suite-hybrid-l3', ~typed, 'hybrid',
+         ~session, ~nonceI>
+      responderOffer =
+        <'q-periapt-migration-capability-offer-v1', 'responder', ~R, ~I,
+         state, ~negotiation, 'suite-hybrid-l3', ~typed, 'hybrid',
+         ~session, ~nonceR>
+      joint =
+        <'q-periapt-migration-authenticated-negotiation-v1',
+         initiatorOffer, responderOffer>
+      postKem =
+        h(<'q-periapt-migration-post-kem-v1', joint, ~ctPq, ~ctTraditional>)
+  in
+  [ Fr(~I), Fr(~R), Fr(~isk), Fr(~rsk)
+  , Fr(~chain), Fr(~digest), Fr(~fence), Fr(~negotiation), Fr(~typed)
+  , Fr(~session), Fr(~nonceI), Fr(~nonceR), Fr(~sharedKey)
+  , Fr(~ctPq), Fr(~ctTraditional) ]
+--[ AgreementParametersCreated(~I, ~R, state, joint, postKem)
+  , CapabilityOfferSigned('initiator', ~I, initiatorOffer)
+  , CapabilityOfferSigned('responder', ~R, responderOffer) ]->
+  [ !PinnedIdentityKey(~I, pk(~isk))
+  , !PinnedIdentityKey(~R, pk(~rsk))
+  , !IssuedCapabilityOffer('initiator', ~I, pk(~isk), initiatorOffer)
+  , !IssuedCapabilityOffer('responder', ~R, pk(~rsk), responderOffer)
+  , InitiatorOffersPending(
+      ~I, ~R, state, ~negotiation, 'suite-hybrid-l3', ~typed, 'hybrid',
+      ~session, ~sharedKey, initiatorOffer, responderOffer, joint, postKem)
+  , ResponderOffersPending(
+      ~I, ~R, state, ~negotiation, 'suite-hybrid-l3', ~typed, 'hybrid',
+      ~session, ~sharedKey, initiatorOffer, responderOffer, joint, postKem)
+  , Out(<initiatorOffer, sign(initiatorOffer, ~isk)>)
+  , Out(<responderOffer, sign(responderOffer, ~rsk)>)
+  , Out(initiatorOffer)
+  , Out(responderOffer)
+  , Out(<~I, ~R, state, ~session, pk(~isk), pk(~rsk)>) ]
+
+/* IssuedCapabilityOffer is the ideal-signature provenance fact: it records only
+   honestly issued offers under a pinned public key. The active network supplies
+   a delivery token for the exact public offer, so it can drop, delay, replay, or
+   mix issued offers; unissued or altered offers lack provenance and cannot pass.
+   The concrete signature term is sent above, while cryptographic verification is
+   abstracted by the provenance fact. */
+rule Initiator_Verify_Capability_Offers:
+  [ InitiatorOffersPending(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      initiatorOffer, responderOffer, joint, postKem)
+  , !PinnedIdentityKey(R, rvk)
+  , !IssuedCapabilityOffer('responder', R, rvk, responderOffer)
+  , In(<'deliver-capability-offer-v1', responderOffer>) ]
+--[ CapabilityOffersVerified('initiator', I, R, joint, postKem) ]->
+  [ InitiatorConfirmationReady(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      joint, postKem) ]
+
+rule Responder_Verify_Capability_Offers:
+  [ ResponderOffersPending(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      initiatorOffer, responderOffer, joint, postKem)
+  , !PinnedIdentityKey(I, ivk)
+  , !IssuedCapabilityOffer('initiator', I, ivk, initiatorOffer)
+  , In(<'deliver-capability-offer-v1', initiatorOffer>) ]
+--[ CapabilityOffersVerified('responder', I, R, joint, postKem) ]->
+  [ ResponderConfirmationReady(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      joint, postKem) ]
+
+rule Initiator_Issue_Finished:
+  let initiatorFinished =
+        h(<'q-periapt-migration-finished-v1', sharedKey,
+           'initiator', postKem>)
+      responderFinished =
+        h(<'q-periapt-migration-finished-v1', sharedKey,
+           'responder', postKem>)
+      keyCommit =
+        h(<'q-periapt-migration-accepted-key-v1', sharedKey, postKem,
+           initiatorFinished, responderFinished>)
+  in
+  [ InitiatorConfirmationReady(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      joint, postKem) ]
+--[ InitiatorFinished(I, R, state, negotiation, suite, typed, mode,
+                      keyCommit, session, postKem) ]->
+  [ InitiatorAwaitResponderFinished(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      joint, postKem)
+  , Out(initiatorFinished) ]
+
+rule Responder_Verify_Accept_And_Finish:
+  let initiatorFinished =
+        h(<'q-periapt-migration-finished-v1', sharedKey,
+           'initiator', postKem>)
+      responderFinished =
+        h(<'q-periapt-migration-finished-v1', sharedKey,
+           'responder', postKem>)
+      keyCommit =
+        h(<'q-periapt-migration-accepted-key-v1', sharedKey, postKem,
+           initiatorFinished, responderFinished>)
+  in
+  [ ResponderConfirmationReady(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      joint, postKem)
+  , In(initiatorFinished) ]
+--[ ResponderAccepted(I, R, state, negotiation, suite, typed, mode,
+                      keyCommit, session, postKem) ]->
+  [ Out(responderFinished) ]
+
+rule Initiator_Verify_And_Accept:
+  let initiatorFinished =
+        h(<'q-periapt-migration-finished-v1', sharedKey,
+           'initiator', postKem>)
+      responderFinished =
+        h(<'q-periapt-migration-finished-v1', sharedKey,
+           'responder', postKem>)
+      keyCommit =
+        h(<'q-periapt-migration-accepted-key-v1', sharedKey, postKem,
+           initiatorFinished, responderFinished>)
+  in
+  [ InitiatorAwaitResponderFinished(
+      I, R, state, negotiation, suite, typed, mode, session, sharedKey,
+      joint, postKem)
+  , In(responderFinished) ]
+--[ InitiatorAccepted(I, R, state, negotiation, suite, typed, mode,
+                      keyCommit, session, postKem) ]->
+  [ ]
+
+lemma migration_executable:
+  exists-trace
+  "Ex I R state negotiation suite typed mode key session tr #i #r.
+       ResponderAccepted(I, R, state, negotiation, suite, typed, mode,
+                         key, session, tr) @ r
+     & InitiatorAccepted(I, R, state, negotiation, suite, typed, mode,
+                         key, session, tr) @ i
+     & #r < #i"
+
+lemma mig_agree_initiator:
+  "All I R state negotiation suite typed mode key session tr #i.
+       InitiatorAccepted(I, R, state, negotiation, suite, typed, mode,
+                         key, session, tr) @ i
+     ==> (Ex #j. ResponderAccepted(I, R, state, negotiation, suite, typed,
+                                  mode, key, session, tr) @ j & #j < #i)"
+
+lemma mig_agree_responder:
+  "All I R state negotiation suite typed mode key session tr #i.
+       ResponderAccepted(I, R, state, negotiation, suite, typed, mode,
+                         key, session, tr) @ i
+     ==> (Ex #j. InitiatorFinished(I, R, state, negotiation, suite, typed,
+                                  mode, key, session, tr) @ j & #j < #i)"
+
+lemma mig_agree_both_accept:
+  "All I0 R0 state0 negotiation0 suite0 typed0 mode0 tr0
+       I1 R1 state1 negotiation1 suite1 typed1 mode1 tr1
+       key session #i #r.
+       InitiatorAccepted(I0, R0, state0, negotiation0, suite0, typed0, mode0,
+                         key, session, tr0) @ i
+     & ResponderAccepted(I1, R1, state1, negotiation1, suite1, typed1, mode1,
+                         key, session, tr1) @ r
+     ==> I0 = I1 & R0 = R1 & state0 = state1
+       & negotiation0 = negotiation1 & suite0 = suite1
+       & typed0 = typed1 & mode0 = mode1 & tr0 = tr1"
+
+end
