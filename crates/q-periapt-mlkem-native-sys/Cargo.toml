@@ -35,4 +35,4 @@ workspace = true
 cc = "=1.2.67"
 
 [dev-dependencies]
-sha3 = { version = "=0.10.9", default-features = false }
+sha3 = { version = "=0.12.0", default-features = false }
