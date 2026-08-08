@@ -21,6 +21,7 @@ members = [
     "ctstats",
     "models/q-periapt-continuity-model",
     "models/q-periapt-migration",
+    "services/q-periapt-policy-agent",
 ]
 exclude = ["research/hqc-fips207-candidate"]
 

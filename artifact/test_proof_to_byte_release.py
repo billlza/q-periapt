@@ -581,6 +581,46 @@ CONTINUITY_PROOF_INPUTS = {
     "continuity_easycrypt_makefile_sha256": "formal/easycrypt/continuity/Makefile",
 }
 
+MIGRATION_V2_PROOF_INPUTS = {
+    "easycrypt_migration_v2_sha256": "formal/easycrypt/MigrationBindingV2.ec",
+    "easycrypt_makefile_sha256": "formal/easycrypt/Makefile",
+    "tamarin_migration_state_v2_sha256": "formal/tamarin/migration_v2.spthy",
+    "tamarin_migration_agreement_v2_sha256": "formal/tamarin/migration_v2_agreement.spthy",
+    "tamarin_migration_liveness_v2_sha256": "formal/tamarin/migration_v2_liveness.spthy",
+    "tamarin_migration_rollback_v2_sha256": "formal/tamarin/migration_v2_rollback.spthy",
+    "tamarin_migration_no_witness_v2_sha256": "formal/tamarin/migration_v2_no_witness.spthy",
+    "tamarin_migration_negative_controls_v2_sha256": "formal/tamarin/migration_v2_negative_controls.spthy",
+    "tamarin_makefile_sha256": "formal/tamarin/Makefile",
+    "migration_contract_v2_spec_sha256": "docs/migration/MIGRATION_CONTRACT_V2.md",
+    "migration_model_manifest_sha256": "models/q-periapt-migration/Cargo.toml",
+    "migration_model_readme_sha256": "models/q-periapt-migration/README.md",
+    "migration_model_lib_sha256": "models/q-periapt-migration/src/lib.rs",
+    "migration_model_codec_sha256": "models/q-periapt-migration/src/codec.rs",
+    "migration_context_v2_model_sha256": "models/q-periapt-migration/src/context_v2.rs",
+    "migration_state_model_sha256": "models/q-periapt-migration/src/state.rs",
+    "migration_capability_model_sha256": "models/q-periapt-migration/src/capability.rs",
+    "migration_transcript_model_sha256": "models/q-periapt-migration/src/transcript.rs",
+    "migration_confirmation_model_sha256": "models/q-periapt-migration/src/confirmation.rs",
+    "migration_contract_v2_tests_sha256": "models/q-periapt-migration/tests/contract_v2.rs",
+    "migration_contract_v2_vectors_sha256": "models/q-periapt-migration/vectors/migration-contract-v2.json",
+    "migration_contract_v2_verifier_sha256": "artifact/migration_contract_v2.py",
+    "migration_contract_v2_verifier_tests_sha256": "artifact/test_migration_contract_v2.py",
+    "migration_agent_manifest_sha256": "services/q-periapt-policy-agent/Cargo.toml",
+    "migration_agent_readme_sha256": "services/q-periapt-policy-agent/README.md",
+    "migration_agent_lib_sha256": "services/q-periapt-policy-agent/src/lib.rs",
+    "migration_agent_main_sha256": "services/q-periapt-policy-agent/src/main.rs",
+    "migration_agent_authentication_sha256": "services/q-periapt-policy-agent/src/authentication.rs",
+    "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
+    "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
+    "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
+    "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
+    "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
+    "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",
+    "migration_agent_ipc_sha256": "services/q-periapt-policy-agent/src/ipc.rs",
+    "migration_agent_tests_sha256": "services/q-periapt-policy-agent/src/tests.rs",
+    "migration_agent_types_sha256": "services/q-periapt-policy-agent/src/types.rs",
+}
+
 HQC_CANDIDATE_PROOF_INPUTS = {
     "hqc_candidate_readme_sha256": "research/hqc-fips207-candidate/README.md",
     "hqc_candidate_manifest_sha256": "research/hqc-fips207-candidate/Cargo.toml",
@@ -967,6 +1007,23 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertIn(f'"{key}": "{relative}"', source)
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
                 self.assertEqual(inputs.get(key), actual)
+
+    def test_proof_to_byte_names_every_migration_v2_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        inputs = manifest["proof_to_byte_inputs"]
+        for key, relative in MIGRATION_V2_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assertIn(f'"{key}": "{relative}"', source)
+                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                self.assertEqual(inputs.get(key), actual)
+        self.assertIn(
+            "artifact/migration_contract_v2.py verify", source
+        )
+        self.assertIn("make -C formal/easycrypt check", source)
+        self.assertIn("make -C formal/tamarin prove", source)
 
     def test_proof_to_byte_names_every_hqc_candidate_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")

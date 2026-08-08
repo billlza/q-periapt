@@ -1,22 +1,68 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-//! Canonical first-stage migration context layered above the frozen Q-Periapt ABI 2.
+//! Authenticated migration-contract models layered above frozen Q-Periapt ABI 2.
 //!
-//! This crate owns only typed, role-normalized public context bytes. It does not
-//! authenticate a handshake transcript, verify a transition certificate, persist a
-//! rollback-resistant migration state, or turn ABI 2 policy decisions into
-//! unforgeable capabilities. Callers must derive both endpoint policies through
-//! [`q_periapt_policy::Policy::load_signed`] (or its monotonic variant), validate
-//! every externally asserted transcript commitment at their protocol boundary, and
-//! use the same authenticated execution decision at construction, encapsulation,
-//! and decapsulation.
+//! [`MigrationContextV1`] remains the exact 315-byte phase-one commitment model. Its
+//! three caller-supplied commitments are not an accepted-session path.
 //!
-//! The exact 315-byte encoding is passed unchanged as ABI 2 `application_context`.
-//! ABI 2 then applies its existing policy-context wrapper; callers must not pre-wrap
-//! or pre-hash these bytes.
+//! [`MigrationContextV2`] is derived only from authority-signed and exactly committed
+//! migration state, identity-signed role-ordered capability offers, authenticated
+//! endpoint policies, one common [`q_periapt_policy::AuthenticatedResolvedSuite`],
+//! and typed pre-KEM transcript bytes. Typed post-KEM transcript and mutual Finished
+//! states retain the ABI2 [`q_periapt_core::Secret`] until the peer Finished verifies
+//! and the exact state revision is rechecked; only then is an accepted application
+//! key derived.
+//!
+//! The in-crate state machine models signature verification, exact revision CAS,
+//! monotonic normal advances, and separately authorized resets. Durable storage,
+//! anti-rollback anchors, replay tracking, IPC authorization, and process isolation
+//! belong to the Policy Agent. A caller-created V1 context, raw ABI2 decision, or
+//! cloned public commitment is never evidence of an accepted V2 session.
+//!
+//! Both context versions emit only their application body. Frozen ABI 2 applies its
+//! existing policy-context wrapper; callers must not pre-wrap or pre-hash the body.
 
+mod capability;
 mod codec;
+mod confirmation;
+mod context_v2;
+mod state;
+mod transcript;
+
+pub use capability::{
+    AuthenticatedCapabilityOfferV1, AuthenticatedNegotiationDigest,
+    AuthenticatedNegotiationInputV1, AuthenticatedNegotiationV1, CapabilityError,
+    CapabilityOfferInputV1, CapabilityOfferV1, EndpointKeyShareV1, KeyShareCommitment,
+    MigrationIdentityKeyId, MigrationNonce, MigrationSessionId, SignedCapabilityOfferV1,
+    AUTHENTICATED_NEGOTIATION_DOMAIN, CAPABILITY_OFFER_DOMAIN, CAPABILITY_OFFER_SIGNATURE_DOMAIN,
+    CAPABILITY_SCHEMA_VERSION, KEY_SHARE_COMMITMENT_DOMAIN, MAX_CAPABILITY_OFFER_BODY_BYTES,
+    MAX_PQ_PUBLIC_KEY_BYTES, MAX_TRADITIONAL_PUBLIC_KEY_BYTES,
+};
+pub use confirmation::{
+    AcceptedSessionKeyV1, ConfirmationError, IssuedLocalFinishedV1, MigrationFinishedV1,
+    PendingMutualConfirmationV1, MIGRATION_ACCEPTED_KEY_DOMAIN, MIGRATION_FINISHED_DOMAIN,
+};
+pub use context_v2::{
+    Abi2MigrationApplicationContextV2, AuthenticatedMigrationContextV2Input, MigrationContextV2,
+    MigrationContextV2Digest, MigrationContractError, MIGRATION_CONTEXT_V2_DOMAIN,
+    MIGRATION_CONTEXT_V2_ENCODED_LEN, MIGRATION_CONTEXT_V2_SCHEMA_VERSION,
+};
+pub use state::{
+    CommittedMigrationStateV1, ComponentMode, MigrationAuthorityKeyId, MigrationChainId,
+    MigrationResetNonce, MigrationResetV1, MigrationSecurityPosture, MigrationStateDigest,
+    MigrationStateDraftV1, MigrationStateError, MigrationStateMachineV1, MigrationStateV1,
+    MigrationSuiteSet, PendingGenesisCommitV1, PendingMigrationCommitKind,
+    PendingMigrationCommitV1, SignedMigrationResetV1, SignedMigrationStateV1, StateCertificateKind,
+    StateRevisionV1, UninitializedMigrationStateV1, MAX_MIGRATION_RESET_BODY_BYTES,
+    MAX_MIGRATION_SIGNATURE_BYTES, MIGRATION_RESET_DOMAIN, MIGRATION_STATE_CERTIFICATE_DOMAIN,
+    MIGRATION_STATE_DOMAIN, MIGRATION_STATE_SCHEMA_VERSION,
+};
+pub use transcript::{
+    PostKemTranscriptDigest, PostKemTranscriptV1, PreKemTranscriptDigest, PreKemTranscriptV1,
+    TranscriptError, MAX_PQ_CIPHERTEXT_BYTES, MAX_TRADITIONAL_CIPHERTEXT_BYTES,
+    MIGRATION_TRANSCRIPT_SCHEMA_VERSION, POST_KEM_TRANSCRIPT_DOMAIN, PRE_KEM_TRANSCRIPT_DOMAIN,
+};
 
 use core::fmt;
 
@@ -547,6 +593,9 @@ impl MigrationCommitmentsV1 {
 
 /// Canonical, role-normalized migration context version 1.
 ///
+/// This phase-one type cannot enter the V2 mutual-confirmation typestate and
+/// therefore cannot produce [`AcceptedSessionKeyV1`].
+///
 /// Both peers must construct this value independently from authenticated endpoint
 /// policies and caller-validated, externally asserted commitments. Equality of
 /// this value is not itself peer authentication or transition authorization; it
@@ -780,6 +829,9 @@ impl CanonicalMigrationFieldsV1 {
 }
 
 /// Exact ABI 2 application-context bytes for one validated migration context.
+///
+/// This V1 adapter proves only ABI2 input binding. It cannot enter the accepted
+/// V2 session path or release [`AcceptedSessionKeyV1`].
 ///
 /// This adapter permits only ABI 2's fixed ML-KEM-768 + X25519 suite. The bytes
 /// are the 315-byte application body, not the ABI's outer policy-context wrapper.

@@ -6,6 +6,10 @@
 __pycache__/
 *.pyc
 
+# EasyCrypt compiler and regression-control outputs are never proof inputs.
+/formal/easycrypt/*.eco
+/formal/easycrypt/negative-controls.log
+
 # Ephemeral review/render outputs are never execution or release inputs.
 /tmp/
 

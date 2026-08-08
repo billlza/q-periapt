@@ -1,0 +1,46 @@
+theory QPeriaptMigrationV2NegativeControls
+/* Executable semantic countermodels for two omitted guards. */
+begin
+
+builtins: hashing
+
+/* If Finished has no role domain, the initiator's own value can be reflected
+   and misinterpreted as the responder's confirmation. */
+rule Untyped_Finished_Start:
+  let untypedFinished = h(<~sharedKey, ~joint>)
+  in
+  [ Fr(~I), Fr(~R), Fr(~sharedKey), Fr(~joint) ]
+--[ UntypedFinishedSent('initiator', ~I, ~R, ~joint) ]->
+  [ ReflectableInitiatorWait(~I, ~R, ~sharedKey, ~joint)
+  , Out(untypedFinished)
+  ]
+
+rule Untyped_Finished_Reflected_Accept:
+  let untypedFinished = h(<sharedKey, joint>)
+  in
+  [ ReflectableInitiatorWait(I, R, sharedKey, joint)
+  , In(untypedFinished)
+  ]
+--[ ReflectedInitiatorAccepted(I, R, joint) ]->
+  [ ]
+
+/* Removing the closed FloorAllows premise leaves an open selection rule. */
+rule Open_Floor_Accept:
+  [ In(<'open-floor-start', floor, suite, mode>), Fr(~session) ]
+--[ OpenFloorAccepted(floor, suite, mode, ~session) ]->
+  [ ]
+
+lemma untyped_finished_reflection_executable:
+  exists-trace
+  "Ex I R joint #sent #accepted.
+       UntypedFinishedSent('initiator', I, R, joint) @ sent
+     & ReflectedInitiatorAccepted(I, R, joint) @ accepted
+     & #sent < #accepted"
+
+lemma below_floor_without_closed_relation_executable:
+  exists-trace
+  "Ex session #accepted.
+       OpenFloorAccepted('floor-l5', 'suite-classical-only',
+                         'classical-only', session) @ accepted"
+
+end

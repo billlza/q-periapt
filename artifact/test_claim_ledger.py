@@ -16,6 +16,9 @@ from claim_ledger import (
 from evidence_io import load_json_object_snapshot
 
 
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
 class ClaimLedgerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -145,6 +148,32 @@ class ClaimLedgerTests(unittest.TestCase):
             side_effect=load_then_replace,
         ):
             self.assertEqual(expected, verify(self.root, ledger_path, manifest_path))
+
+    def test_repository_migration_claims_are_evidence_bound_and_scoped(self) -> None:
+        ledger_path = REPOSITORY_ROOT / "artifact" / "claim-ledger.json"
+        ledger = load_json_object_snapshot(
+            ledger_path,
+            maximum=claim_ledger.MAX_CLAIM_LEDGER_BYTES,
+            label="repository claim ledger",
+        ).value
+        validate_ledger(REPOSITORY_ROOT, ledger)
+        claims = {claim["id"]: claim for claim in ledger["claims"]}
+        expected = {
+            "MIG-BIND-K-STATE-V2": "formal/easycrypt/MigrationBindingV2.ec",
+            "MIG-ROLLBACK-V2": "formal/tamarin/migration_v2_no_witness.spthy",
+            "MIG-AGREE-V2": "formal/tamarin/migration_v2_agreement.spthy",
+            "MIG-FLOOR-V2": "formal/tamarin/migration_v2_negative_controls.spthy",
+        }
+        for claim_id, formal_path in expected.items():
+            with self.subTest(claim_id=claim_id):
+                claim = claims[claim_id]
+                self.assertEqual(claim["status"], "machine_checked")
+                self.assertIn(formal_path, claim["evidence"]["formal"])
+                self.assertIn("not", claim["boundary"].lower())
+                self.assertTrue(
+                    "refinement" in claim["boundary"].lower()
+                    or "correspondence" in claim["boundary"].lower()
+                )
 
 
 if __name__ == "__main__":

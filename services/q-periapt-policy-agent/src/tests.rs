@@ -1,0 +1,1087 @@
+use std::collections::HashMap;
+use std::error::Error;
+use std::fs;
+use std::io::{self, Write};
+use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
+use q_periapt_core::ZeroizingBytes;
+use q_periapt_migration::{
+    CapabilityOfferInputV1, CapabilityOfferV1, CommittedMigrationStateV1, ComponentMode,
+    EndpointKeyShareV1, EndpointRole, MigrationAuthorityKeyId, MigrationChainId,
+    MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId, MigrationResetNonce,
+    MigrationResetV1, MigrationSecurityPosture, MigrationSessionId, MigrationStateDigest,
+    MigrationStateDraftV1, MigrationStateV1, MigrationSuiteSet, SecurityFloor,
+    SignedCapabilityOfferV1, SignedMigrationResetV1, SignedMigrationStateV1, StateCertificateKind,
+};
+use q_periapt_policy::{
+    policy_signature_message, AuthenticatedPolicy, HybridSuite, Policy, TrustedPolicyState,
+};
+use q_periapt_sig::Signer;
+
+use crate::codec::read_frame;
+use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
+use crate::repository::{MigrationTrustRoots, StateRepository};
+use crate::service::{
+    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginEncapsulation, EndpointIdentity,
+    PolicyAgent, SessionAuthorization, SignedPolicyBundle,
+};
+use crate::types::{
+    FenceToken, OperationId, StateAdvance, StateHead, StateRevision, TransitionKind,
+};
+use crate::witness::{
+    AuthenticatedTcpWitness, ReferenceWitnessServer, WitnessError, WitnessIntent, WitnessOutcome,
+    WitnessPort, WitnessReceipt,
+};
+
+type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
+
+const POLICY: &str = "schema_version = 1\n\
+    policy_version = 1\n\
+    min_nist_level = 3\n\
+    default_profile = \"ContextBound\"\n\
+    allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+    allowed_sigs = [\"ML-DSA-65\"]\n\
+    deprecated = []\n";
+
+struct TestDirectory {
+    path: PathBuf,
+}
+
+impl TestDirectory {
+    fn new(label: &str) -> TestResult<Self> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut random = [0u8; 16];
+        getrandom::fill(&mut random).map_err(|error| io::Error::other(error.to_string()))?;
+        let suffix = random
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let path = std::env::temp_dir().join(format!("q-periapt-policy-agent-{label}-{suffix}"));
+        fs::create_dir(&path)?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+        Ok(Self { path })
+    }
+
+    fn join(&self, name: &str) -> PathBuf {
+        self.path.join(name)
+    }
+}
+
+impl Drop for TestDirectory {
+    fn drop(&mut self) {
+        if let Err(error) = fs::remove_dir_all(&self.path) {
+            eprintln!("test directory cleanup failed: {error}");
+        }
+    }
+}
+
+#[test]
+fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> TestResult {
+    let directory = TestDirectory::new("witness-loopback")?;
+    let database = directory.join("witness.redb");
+    let (client_sk, client_vk) = MlDsa65::generate([11u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([12u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [1u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        Duration::from_secs(2),
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || server.serve(listener, &server_shutdown));
+
+    let client_a = AuthenticatedTcpWitness::new(
+        address,
+        ZeroizingBytes::from_bytes(client_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    assert_eq!(client_a.read_head()?, initial);
+
+    let next_a = StateRevision::new(2, 2, [2u8; 32])?;
+    let next_b = StateRevision::new(2, 2, [3u8; 32])?;
+    let intent_a = WitnessIntent::new(
+        OperationId::generate()?,
+        StateAdvance::new(TransitionKind::Advance, initial.revision(), next_a)?,
+        initial.fence(),
+        FenceToken::generate()?,
+    )?;
+    let intent_b = WitnessIntent::new(
+        OperationId::generate()?,
+        StateAdvance::new(TransitionKind::Advance, initial.revision(), next_b)?,
+        initial.fence(),
+        FenceToken::generate()?,
+    )?;
+    let client_b = AuthenticatedTcpWitness::new(
+        address,
+        ZeroizingBytes::from_bytes(MlDsa65::generate([11u8; 32]).0),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    let thread_a = thread::spawn(move || client_a.compare_and_advance(intent_a));
+    let thread_b = thread::spawn(move || client_b.compare_and_advance(intent_b));
+    let outcome_a = join(thread_a)??;
+    let outcome_b = join(thread_b)??;
+    let applied = [outcome_a, outcome_b]
+        .into_iter()
+        .filter(|outcome| {
+            matches!(
+                outcome,
+                WitnessOutcome::Known(receipt)
+                    if receipt.disposition() == crate::WitnessDisposition::Applied
+            )
+        })
+        .count();
+    assert_eq!(applied, 1);
+
+    let query_client = AuthenticatedTcpWitness::new(
+        address,
+        ZeroizingBytes::from_bytes(MlDsa65::generate([11u8; 32]).0),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    let query_a = query_client.query(intent_a.operation_id())?;
+    assert!(matches!(query_a, WitnessOutcome::Known(_)));
+    shutdown.store(true, Ordering::Release);
+    join(server_thread)??;
+    Ok(())
+}
+
+#[test]
+fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> TestResult {
+    let directory = TestDirectory::new("witness-fragmented-frame")?;
+    let database = directory.join("witness.redb");
+    let (client_sk, client_vk) = MlDsa65::generate([13u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([14u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [4u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        Duration::from_secs(2),
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let mut stream = TcpStream::connect(address)?;
+    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || server.serve(listener, &server_shutdown));
+
+    let result =
+        (|| -> TestResult {
+            let nonce = [15u8; 32];
+            let frame = crate::witness::test_support::framed_read_request(&client_sk, nonce)?;
+
+            // Keep the accepted connection empty long enough for the server to enter
+            // its read, then force partial reads across the length and payload.
+            thread::sleep(Duration::from_millis(50));
+            stream.write_all(frame.get(..2).ok_or_else(|| {
+                io::Error::other("test witness frame omitted its length prefix")
+            })?)?;
+            stream.flush()?;
+            thread::sleep(Duration::from_millis(20));
+            stream.write_all(frame.get(2..7).ok_or_else(|| {
+                io::Error::other("test witness frame omitted its initial payload bytes")
+            })?)?;
+            stream.flush()?;
+            thread::sleep(Duration::from_millis(20));
+            stream.write_all(
+                frame
+                    .get(7..)
+                    .ok_or_else(|| io::Error::other("test witness frame was unexpectedly short"))?,
+            )?;
+            stream.flush()?;
+
+            let response = read_frame(&mut stream)
+                .map_err(|_| io::Error::other("witness response frame was unavailable"))?;
+            assert_eq!(
+                crate::witness::test_support::read_response_head(&response, &witness_vk, nonce)?,
+                initial
+            );
+            Ok(())
+        })();
+
+    shutdown.store(true, Ordering::Release);
+    let server_result = join(server_thread)?;
+    result?;
+    server_result?;
+    Ok(())
+}
+
+fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
+    handle
+        .join()
+        .map_err(|_| io::Error::other("test worker panicked").into())
+}
+
+#[derive(Clone)]
+struct MemoryWitness {
+    state: Arc<Mutex<MemoryWitnessState>>,
+    unknown_after_apply: Arc<AtomicBool>,
+}
+
+struct MemoryWitnessState {
+    head: StateHead,
+    operations: HashMap<OperationId, WitnessReceipt>,
+}
+
+impl MemoryWitness {
+    fn new(head: StateHead) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(MemoryWitnessState {
+                head,
+                operations: HashMap::new(),
+            })),
+            unknown_after_apply: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    fn make_next_unknown(&self) {
+        self.unknown_after_apply.store(true, Ordering::Release);
+    }
+}
+
+impl WitnessPort for MemoryWitness {
+    fn read_head(&self) -> Result<StateHead, WitnessError> {
+        Ok(self
+            .state
+            .lock()
+            .map_err(|_| WitnessError::Persistence)?
+            .head)
+    }
+
+    fn compare_and_advance(&self, intent: WitnessIntent) -> Result<WitnessOutcome, WitnessError> {
+        let mut state = self.state.lock().map_err(|_| WitnessError::Persistence)?;
+        if let Some(receipt) = state.operations.get(&intent.operation_id()).copied() {
+            if receipt.intent() != Some(intent) {
+                return Err(WitnessError::InvalidIntent);
+            }
+            return Ok(WitnessOutcome::Known(Box::new(receipt)));
+        }
+        let receipt = if state.head == intent.expected() {
+            state.head = intent.next();
+            WitnessReceipt::applied(intent)
+        } else {
+            WitnessReceipt::conflict(intent, state.head)
+        };
+        state.operations.insert(intent.operation_id(), receipt);
+        if self.unknown_after_apply.swap(false, Ordering::AcqRel) {
+            Ok(WitnessOutcome::Unknown)
+        } else {
+            Ok(WitnessOutcome::Known(Box::new(receipt)))
+        }
+    }
+
+    fn query(&self, operation_id: OperationId) -> Result<WitnessOutcome, WitnessError> {
+        let state = self.state.lock().map_err(|_| WitnessError::Persistence)?;
+        Ok(WitnessOutcome::Known(Box::new(
+            state
+                .operations
+                .get(&operation_id)
+                .copied()
+                .unwrap_or_else(|| WitnessReceipt::not_applied(state.head)),
+        )))
+    }
+}
+
+struct PolicyMaterial {
+    bundle: SignedPolicyBundle,
+    authenticated: AuthenticatedPolicy,
+}
+
+fn policy_material(seed: u8) -> TestResult<PolicyMaterial> {
+    policy_material_from_text(seed, POLICY)
+}
+
+fn policy_material_from_text(seed: u8, document: &str) -> TestResult<PolicyMaterial> {
+    let (signing_key, verification_key) = MlDsa65::generate([seed; 32]);
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let written = MlDsa65
+        .sign(
+            &signing_key,
+            &policy_signature_message(document.as_bytes()),
+            &[0u8; 32],
+            &mut signature,
+        )
+        .map_err(|error| io::Error::other(format!("{error:?}")))?;
+    if written != ML_DSA_65_SIG_LEN {
+        return Err(io::Error::other("unexpected policy signature length").into());
+    }
+    let authenticated =
+        Policy::load_signed(&MlDsa65, &verification_key, document.as_bytes(), &signature)
+            .map_err(|error| io::Error::other(error.to_string()))?;
+    let bundle = SignedPolicyBundle::new(
+        document.as_bytes().to_vec(),
+        signature.to_vec(),
+        verification_key,
+    )?;
+    Ok(PolicyMaterial {
+        bundle,
+        authenticated,
+    })
+}
+
+#[test]
+fn constructors_reject_collapsed_identity_domains_and_zero_timeouts() -> TestResult {
+    let (_, shared_vk) = MlDsa65::generate([90u8; 32]);
+    assert_eq!(
+        MigrationTrustRoots::new(
+            MigrationAuthorityKeyId::from_bytes([1u8; 32]),
+            shared_vk,
+            MigrationAuthorityKeyId::from_bytes([1u8; 32]),
+            shared_vk,
+        ),
+        Err(crate::RepositoryError::UnprovisionedAuthority)
+    );
+
+    let policy = policy_material(20)?;
+    let config = AgentConfig::new(
+        AgentLimits::new(2, 2, Duration::from_secs(1))?,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(MigrationIdentityKeyId::from_bytes([2u8; 32]), shared_vk)?,
+        EndpointIdentity::new(MigrationIdentityKeyId::from_bytes([3u8; 32]), shared_vk)?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle,
+    );
+    assert!(matches!(config, Err(AgentError::InvalidConfiguration)));
+
+    let (client_sk, _) = MlDsa65::generate([91u8; 32]);
+    assert_eq!(
+        AuthenticatedTcpWitness::new(
+            "127.0.0.1:9".parse()?,
+            ZeroizingBytes::from_bytes(client_sk),
+            shared_vk,
+            Duration::ZERO,
+        )
+        .err(),
+        Some(WitnessError::InvalidConfiguration)
+    );
+    assert_eq!(
+        AuthenticatedTcpWitness::new(
+            "127.0.0.1:9".parse()?,
+            ZeroizingBytes::zeroed(),
+            shared_vk,
+            Duration::from_secs(1),
+        )
+        .err(),
+        Some(WitnessError::InvalidConfiguration)
+    );
+    assert_eq!(
+        AuthenticatedTcpWitness::new(
+            "127.0.0.1:9".parse()?,
+            ZeroizingBytes::from_bytes(client_sk),
+            [0u8; ML_DSA_65_VK_LEN],
+            Duration::from_secs(1),
+        )
+        .err(),
+        Some(WitnessError::InvalidConfiguration)
+    );
+    let directory = TestDirectory::new("invalid-witness-config")?;
+    let (server_sk, _) = MlDsa65::generate([92u8; 32]);
+    let head = StateHead::new(
+        StateRevision::new(1, 1, [1u8; 32])?,
+        FenceToken::generate()?,
+    );
+    assert_eq!(
+        ReferenceWitnessServer::provision(
+            &directory.join("witness.redb"),
+            head,
+            shared_vk,
+            ZeroizingBytes::from_bytes(server_sk),
+            Duration::ZERO,
+        )
+        .err(),
+        Some(WitnessError::InvalidConfiguration)
+    );
+    Ok(())
+}
+
+struct MigrationMaterial {
+    roots: MigrationTrustRoots,
+    authority_signing_key: Vec<u8>,
+    recovery_signing_key: Vec<u8>,
+    genesis: Vec<u8>,
+}
+
+fn migration_material(policy: &AuthenticatedPolicy) -> TestResult<MigrationMaterial> {
+    let (authority_sk, authority_vk) = MlDsa65::generate([21u8; 32]);
+    let (recovery_sk, recovery_vk) = MlDsa65::generate([22u8; 32]);
+    let authority_id = MigrationAuthorityKeyId::from_bytes([31u8; 32]);
+    let recovery_id = MigrationAuthorityKeyId::from_bytes([32u8; 32]);
+    let state = MigrationStateV1::new(MigrationStateDraftV1 {
+        global_generation: 1,
+        chain_id: MigrationChainId::from_bytes([41u8; 32]),
+        protocol_id: MigrationProtocolId::from_bytes([42u8; 16]),
+        epoch: 1,
+        previous_state_digest: MigrationStateDigest::from_bytes([0u8; 32]),
+        authority_key_id: authority_id,
+        execution_policy_state: policy.trusted_state(),
+        posture: MigrationSecurityPosture::new(
+            SecurityFloor::Level3,
+            ComponentMode::HybridRequired,
+        ),
+        allowed_suites: MigrationSuiteSet::from_suites(&[HybridSuite::MlKem768X25519])?,
+    })?;
+    let mut signature_output = [0u8; ML_DSA_65_SIG_LEN];
+    let certificate = SignedMigrationStateV1::sign(
+        StateCertificateKind::Genesis,
+        state,
+        &MlDsa65,
+        &authority_sk,
+        &[0u8; 32],
+        &mut signature_output,
+    )?;
+    Ok(MigrationMaterial {
+        roots: MigrationTrustRoots::new(authority_id, authority_vk, recovery_id, recovery_vk)?,
+        authority_signing_key: authority_sk.to_vec(),
+        recovery_signing_key: recovery_sk.to_vec(),
+        genesis: certificate.encode()?,
+    })
+}
+
+struct AgentPair {
+    initiator: PolicyAgent<MemoryWitness>,
+    responder: PolicyAgent<MemoryWitness>,
+    witness: MemoryWitness,
+    committed: CommittedMigrationStateV1,
+    migration: MigrationMaterial,
+    initiator_config: AgentConfig,
+    endpoint_policy_bundle: SignedPolicyBundle,
+    initiator_repository_path: PathBuf,
+    old_snapshot_path: PathBuf,
+    initiator_authorization: SessionAuthorization,
+    responder_authorization: SessionAuthorization,
+    responder_public_keys: EncapsulationPublicKeys,
+}
+
+fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPair> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let initiator_repository_path = directory.join("initiator.redb");
+    let responder_repository_path = directory.join("responder.redb");
+    let old_snapshot_path = directory.join("old-snapshot.redb");
+    let (initial_repository, head) = StateRepository::provision_new(
+        &initiator_repository_path,
+        &migration.genesis,
+        migration.roots.clone(),
+    )?;
+    let committed = initial_repository.committed_state();
+    drop(initial_repository);
+    for destination in [&responder_repository_path, &old_snapshot_path] {
+        fs::copy(&initiator_repository_path, destination)?;
+        fs::set_permissions(destination, fs::Permissions::from_mode(0o600))?;
+    }
+    let initiator_repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    let responder_repository =
+        StateRepository::open_existing(&responder_repository_path, migration.roots.clone())?;
+    let witness = MemoryWitness::new(head);
+    let (initiator_identity_sk, initiator_identity_vk) = MlDsa65::generate([51u8; 32]);
+    let (responder_identity_sk, responder_identity_vk) = MlDsa65::generate([52u8; 32]);
+    let initiator_identity_id = MigrationIdentityKeyId::from_bytes([61u8; 32]);
+    let responder_identity_id = MigrationIdentityKeyId::from_bytes([62u8; 32]);
+    let limits = AgentLimits::new(16, 16, Duration::from_secs(60))?;
+    let initiator_config = AgentConfig::new(
+        limits,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(initiator_identity_id, initiator_identity_vk)?,
+        EndpointIdentity::new(responder_identity_id, responder_identity_vk)?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+    )?;
+    let responder_config = AgentConfig::new(
+        limits,
+        EndpointRole::Responder,
+        EndpointIdentity::new(responder_identity_id, responder_identity_vk)?,
+        EndpointIdentity::new(initiator_identity_id, initiator_identity_vk)?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+    )?;
+    let initiator = PolicyAgent::new(
+        initiator_repository,
+        witness.clone(),
+        initiator_config.clone(),
+    )?;
+    let responder = PolicyAgent::new(responder_repository, witness.clone(), responder_config)?;
+    let initiator_public_keys = initiator.public_keys()?;
+    let responder_public_keys = responder.public_keys()?;
+    let session_id = MigrationSessionId::from_bytes([session_byte; 32]);
+    let initiator_offer = signed_offer(SignedOfferInput {
+        role: EndpointRole::Initiator,
+        sender_identity: initiator_identity_id,
+        receiver_identity: responder_identity_id,
+        nonce: MigrationNonce::from_bytes([71u8.wrapping_add(session_byte); 32]),
+        session_id,
+        policy: &policy.authenticated,
+        committed,
+        keys: &initiator_public_keys,
+        signing_key: &initiator_identity_sk,
+    })?;
+    let responder_offer = signed_offer(SignedOfferInput {
+        role: EndpointRole::Responder,
+        sender_identity: responder_identity_id,
+        receiver_identity: initiator_identity_id,
+        nonce: MigrationNonce::from_bytes([81u8.wrapping_add(session_byte); 32]),
+        session_id,
+        policy: &policy.authenticated,
+        committed,
+        keys: &responder_public_keys,
+        signing_key: &responder_identity_sk,
+    })?;
+    Ok(AgentPair {
+        initiator,
+        responder,
+        witness,
+        committed,
+        migration,
+        initiator_config,
+        endpoint_policy_bundle: policy.bundle,
+        initiator_repository_path,
+        old_snapshot_path,
+        initiator_authorization: SessionAuthorization::new(
+            initiator_offer.clone(),
+            responder_offer.clone(),
+        )?,
+        responder_authorization: SessionAuthorization::new(responder_offer, initiator_offer)?,
+        responder_public_keys,
+    })
+}
+
+struct SignedOfferInput<'a> {
+    role: EndpointRole,
+    sender_identity: MigrationIdentityKeyId,
+    receiver_identity: MigrationIdentityKeyId,
+    nonce: MigrationNonce,
+    session_id: MigrationSessionId,
+    policy: &'a AuthenticatedPolicy,
+    committed: CommittedMigrationStateV1,
+    keys: &'a EncapsulationPublicKeys,
+    signing_key: &'a [u8],
+}
+
+fn signed_offer(input: SignedOfferInput<'_>) -> TestResult<Vec<u8>> {
+    let SignedOfferInput {
+        role,
+        sender_identity,
+        receiver_identity,
+        nonce,
+        session_id,
+        policy,
+        committed,
+        keys,
+        signing_key,
+    } = input;
+    let key_share = EndpointKeyShareV1::new(keys.pq(), keys.traditional())?;
+    let offer = CapabilityOfferV1::from_authenticated_state(CapabilityOfferInputV1 {
+        protocol_id: committed.state().protocol_id(),
+        session_id,
+        sender_role: role,
+        sender_identity,
+        receiver_identity,
+        sender_nonce: nonce,
+        sender_policy: policy,
+        committed_state: committed,
+        offered_suites: MigrationSuiteSet::from_suites(&[HybridSuite::MlKem768X25519])?,
+        sender_key_share: &key_share,
+    })?;
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let signed =
+        SignedCapabilityOfferV1::sign(offer, &MlDsa65, signing_key, &[0u8; 32], &mut signature)?;
+    Ok(signed.encode()?)
+}
+
+#[test]
+fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_restart() -> TestResult {
+    let directory = TestDirectory::new("mutual-confirmation")?;
+    let pair = agent_pair(&directory, 1)?;
+    let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    let decapsulated = pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization.clone(),
+        encapsulated.ciphertexts.clone(),
+    ))?;
+    let initiator_key = pair
+        .initiator
+        .confirm(encapsulated.handle, *decapsulated.local_finished.as_bytes())?;
+    let responder_key = pair
+        .responder
+        .confirm(decapsulated.handle, *encapsulated.local_finished.as_bytes())?;
+    pair.initiator.destroy_key(initiator_key)?;
+    pair.responder.destroy_key(responder_key)?;
+    let replay = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ));
+    assert_eq!(replay, Err(AgentError::AuthorizationRejected));
+
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        initiator_authorization,
+        responder_public_keys,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+    let reopened_repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
+    let reopened = PolicyAgent::new(reopened_repository, witness, initiator_config)?;
+    let replay_after_restart = reopened.begin_encapsulation(BeginEncapsulation::new(
+        initiator_authorization,
+        responder_public_keys,
+    ));
+    assert_eq!(replay_after_restart, Err(AgentError::AuthorizationRejected));
+    Ok(())
+}
+
+#[test]
+fn abi2_secret_mismatch_rejects_finished_and_terminally_erases_session() -> TestResult {
+    let directory = TestDirectory::new("finished-mismatch")?;
+    let pair = agent_pair(&directory, 2)?;
+    let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    let mut damaged_pq = *encapsulated.ciphertexts.pq();
+    if let Some(first) = damaged_pq.first_mut() {
+        *first ^= 1;
+    }
+    let damaged =
+        EncapsulationCiphertexts::from_slices(&damaged_pq, encapsulated.ciphertexts.traditional())?;
+    let decapsulated = pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization,
+        damaged,
+    ))?;
+    assert_eq!(
+        pair.initiator
+            .confirm(encapsulated.handle, *decapsulated.local_finished.as_bytes(),),
+        Err(AgentError::FinishedRejected)
+    );
+    assert_eq!(
+        pair.initiator.confirm(encapsulated.handle, [0u8; 32]),
+        Err(AgentError::UnknownHandle)
+    );
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    Ok(())
+}
+
+fn signed_advance(
+    current: MigrationStateV1,
+    migration: &MigrationMaterial,
+    posture: MigrationSecurityPosture,
+    allowed_suites: MigrationSuiteSet,
+) -> TestResult<(MigrationStateV1, Vec<u8>)> {
+    signed_advance_with_execution(
+        current,
+        migration,
+        current.execution_policy_state(),
+        posture,
+        allowed_suites,
+    )
+}
+
+fn signed_advance_with_execution(
+    current: MigrationStateV1,
+    migration: &MigrationMaterial,
+    execution_policy_state: TrustedPolicyState,
+    posture: MigrationSecurityPosture,
+    allowed_suites: MigrationSuiteSet,
+) -> TestResult<(MigrationStateV1, Vec<u8>)> {
+    let next = MigrationStateV1::new(MigrationStateDraftV1 {
+        global_generation: current
+            .global_generation()
+            .checked_add(1)
+            .ok_or_else(|| io::Error::other("generation overflow"))?,
+        chain_id: current.chain_id(),
+        protocol_id: current.protocol_id(),
+        epoch: current
+            .epoch()
+            .checked_add(1)
+            .ok_or_else(|| io::Error::other("epoch overflow"))?,
+        previous_state_digest: current.digest()?,
+        authority_key_id: current.authority_key_id(),
+        execution_policy_state,
+        posture,
+        allowed_suites,
+    })?;
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let certificate = SignedMigrationStateV1::sign(
+        StateCertificateKind::Advance,
+        next,
+        &MlDsa65,
+        &migration.authority_signing_key,
+        &[0u8; 32],
+        &mut signature,
+    )?;
+    Ok((next, certificate.encode()?))
+}
+
+#[test]
+fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> TestResult {
+    let directory = TestDirectory::new("floor-five-signer")?;
+    let pair = agent_pair(&directory, 8)?;
+    let initial_state = pair.committed.state();
+    let initial_head = pair.witness.read_head()?;
+    let (_, floor_five_certificate) = signed_advance(
+        initial_state,
+        &pair.migration,
+        MigrationSecurityPosture::new(SecurityFloor::Level5, ComponentMode::HybridRequired),
+        MigrationSuiteSet::from_suites(&[HybridSuite::MlKem1024X25519])?,
+    )?;
+
+    assert_eq!(
+        pair.initiator.apply_advance(&floor_five_certificate),
+        Err(AgentError::Repository(
+            crate::RepositoryError::InvalidCertificate
+        ))
+    );
+    assert_eq!(pair.witness.read_head()?, initial_head);
+
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    assert_eq!(repository.pending_intent(), None);
+    assert_eq!(repository.head()?, initial_head);
+    assert_eq!(repository.committed_state().state(), initial_state);
+
+    let (floor_three_state, floor_three_certificate) = signed_advance(
+        initial_state,
+        &migration,
+        initial_state.posture(),
+        initial_state.allowed_suites(),
+    )?;
+    let agent = PolicyAgent::new(repository, witness.clone(), initiator_config)?;
+    agent.apply_advance(&floor_three_certificate)?;
+    drop(agent);
+
+    let transitioned = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
+    assert_eq!(transitioned.pending_intent(), None);
+    assert_eq!(transitioned.committed_state().state(), floor_three_state);
+    assert_eq!(transitioned.head()?, witness.read_head()?);
+    assert_ne!(transitioned.head()?, initial_head);
+    Ok(())
+}
+
+#[test]
+fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> TestResult {
+    let directory = TestDirectory::new("unknown-reconcile")?;
+    let pair = agent_pair(&directory, 3)?;
+    let pending = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys,
+    ))?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.witness.make_next_unknown();
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::TransitionIndeterminate)
+    );
+    assert_eq!(
+        pair.initiator.confirm(pending.handle, [0u8; 32]),
+        Err(AgentError::TransitionPending)
+    );
+    pair.initiator.reconcile_transition()?;
+    assert_eq!(
+        pair.initiator.confirm(pending.handle, [0u8; 32]),
+        Err(AgentError::UnknownHandle)
+    );
+
+    let old_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let rolled_back = PolicyAgent::new(old_repository, pair.witness, pair.initiator_config);
+    assert!(matches!(rolled_back, Err(AgentError::RollbackOrFork)));
+    Ok(())
+}
+
+#[test]
+fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() -> TestResult {
+    let directory = TestDirectory::new("executor-unavailable")?;
+    let pair = agent_pair(&directory, 4)?;
+    let (incompatible_state, incompatible_certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        MigrationSuiteSet::from_suites(&[HybridSuite::MlKem1024X25519])?,
+    )?;
+    pair.initiator.apply_advance(&incompatible_certificate)?;
+    assert_eq!(
+        pair.initiator.public_keys(),
+        Err(AgentError::ExecutionUnavailable)
+    );
+
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    let restarted = PolicyAgent::new(repository, witness, initiator_config)?;
+    assert_eq!(
+        restarted.public_keys(),
+        Err(AgentError::ExecutionUnavailable)
+    );
+    let (_, recovery_certificate) = signed_advance(
+        incompatible_state,
+        &migration,
+        incompatible_state.posture(),
+        MigrationSuiteSet::from_suites(&[HybridSuite::MlKem768X25519])?,
+    )?;
+    restarted.apply_advance(&recovery_certificate)?;
+    assert!(restarted.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
+fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> TestResult {
+    let directory = TestDirectory::new("execution-policy-change")?;
+    let pair = agent_pair(&directory, 6)?;
+    let policy_v2_text = POLICY.replace("policy_version = 1", "policy_version = 2");
+    let policy_v2 = policy_material_from_text(23, &policy_v2_text)?;
+    let (_, certificate) = signed_advance_with_execution(
+        pair.committed.state(),
+        &pair.migration,
+        policy_v2.authenticated.trusted_state(),
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.initiator.apply_advance(&certificate)?;
+    assert_eq!(
+        pair.initiator.public_keys(),
+        Err(AgentError::ExecutionUnavailable)
+    );
+
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        migration,
+        initiator_repository_path,
+        endpoint_policy_bundle,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+    let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
+    let (_, initiator_vk) = MlDsa65::generate([51u8; 32]);
+    let (_, responder_vk) = MlDsa65::generate([52u8; 32]);
+    let updated_config = AgentConfig::new(
+        AgentLimits::new(16, 16, Duration::from_secs(60))?,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(MigrationIdentityKeyId::from_bytes([61u8; 32]), initiator_vk)?,
+        EndpointIdentity::new(MigrationIdentityKeyId::from_bytes([62u8; 32]), responder_vk)?,
+        policy_v2.bundle,
+        endpoint_policy_bundle.clone(),
+        endpoint_policy_bundle,
+    )?;
+    let restarted = PolicyAgent::new(repository, witness, updated_config)?;
+    assert!(restarted.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
+fn reset_cannot_rotate_to_an_unprovisioned_migration_authority() -> TestResult {
+    let directory = TestDirectory::new("authority-rotation")?;
+    let pair = agent_pair(&directory, 5)?;
+    let current = pair.committed;
+    let next = MigrationStateV1::new(MigrationStateDraftV1 {
+        global_generation: 2,
+        chain_id: MigrationChainId::from_bytes([99u8; 32]),
+        protocol_id: current.state().protocol_id(),
+        epoch: 1,
+        previous_state_digest: current.revision().digest(),
+        authority_key_id: MigrationAuthorityKeyId::from_bytes([100u8; 32]),
+        execution_policy_state: current.state().execution_policy_state(),
+        posture: current.state().posture(),
+        allowed_suites: current.state().allowed_suites(),
+    })?;
+    let reset = MigrationResetV1::new(
+        current.revision(),
+        next,
+        MigrationResetNonce::from_bytes([101u8; 32]),
+        MigrationAuthorityKeyId::from_bytes([32u8; 32]),
+    );
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let signed = SignedMigrationResetV1::sign(
+        reset,
+        &MlDsa65,
+        &pair.migration.recovery_signing_key,
+        &[0u8; 32],
+        &mut signature,
+    )?;
+    assert_eq!(
+        pair.initiator.apply_reset(&signed.encode()?),
+        Err(AgentError::Repository(
+            crate::RepositoryError::UnprovisionedAuthority
+        ))
+    );
+    assert_eq!(pair.witness.read_head()?, pair.committed_head()?);
+    Ok(())
+}
+
+impl AgentPair {
+    fn committed_head(&self) -> TestResult<StateHead> {
+        let repository =
+            StateRepository::open_existing(&self.old_snapshot_path, self.migration.roots.clone())?;
+        repository.head().map_err(Into::into)
+    }
+}
+
+#[test]
+fn redb_lock_rejects_a_second_agent_repository_open() -> TestResult {
+    let directory = TestDirectory::new("exclusive-lock")?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("repository.redb");
+    let (repository, _) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    assert!(matches!(
+        StateRepository::open_existing(&path, migration.roots),
+        Err(crate::RepositoryError::CorruptStore)
+    ));
+    drop(repository);
+    Ok(())
+}
+
+#[test]
+fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operation() -> TestResult {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = TestDirectory::new("crash-intent")?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let repository_path = directory.join("repository.redb");
+    let certificate_path = directory.join("advance.cert");
+    let (repository, head) = StateRepository::provision_new(
+        &repository_path,
+        &migration.genesis,
+        migration.roots.clone(),
+    )?;
+    let current = repository.committed_state();
+    drop(repository);
+    let (_, certificate) = signed_advance(
+        current.state(),
+        &migration,
+        current.state().posture(),
+        current.state().allowed_suites(),
+    )?;
+    fs::write(&certificate_path, &certificate)?;
+    fs::set_permissions(&certificate_path, fs::Permissions::from_mode(0o600))?;
+    let status = Command::new(std::env::current_exe()?)
+        .arg("--exact")
+        .arg("tests::crash_after_durable_intent_child")
+        .env("Q_PERIAPT_TEST_REPOSITORY", &repository_path)
+        .env("Q_PERIAPT_TEST_CERTIFICATE", &certificate_path)
+        .status()?;
+    assert_eq!(status.code(), Some(86));
+
+    let reopened = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+    let operation = reopened
+        .pending_intent()
+        .ok_or_else(|| io::Error::other("crash lost durable transition intent"))?
+        .operation_id();
+    let witness = MemoryWitness::new(head);
+    let (_, local_vk) = MlDsa65::generate([51u8; 32]);
+    let (_, peer_vk) = MlDsa65::generate([52u8; 32]);
+    let config = AgentConfig::new(
+        AgentLimits::new(8, 8, Duration::from_secs(30))?,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(MigrationIdentityKeyId::from_bytes([61u8; 32]), local_vk)?,
+        EndpointIdentity::new(MigrationIdentityKeyId::from_bytes([62u8; 32]), peer_vk)?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle,
+    )?;
+    let agent = PolicyAgent::new(reopened, witness.clone(), config)?;
+    agent.reconcile_transition()?;
+    assert!(matches!(
+        witness.query(operation)?,
+        WitnessOutcome::Known(receipt) if receipt.disposition() == crate::WitnessDisposition::Applied
+    ));
+    Ok(())
+}
+
+#[test]
+fn crash_after_durable_intent_child() -> TestResult {
+    let Some(repository_path) = std::env::var_os("Q_PERIAPT_TEST_REPOSITORY").map(PathBuf::from)
+    else {
+        return Ok(());
+    };
+    let certificate_path = std::env::var_os("Q_PERIAPT_TEST_CERTIFICATE")
+        .map(PathBuf::from)
+        .ok_or_else(|| io::Error::other("missing crash certificate path"))?;
+    let (_, authority_vk) = MlDsa65::generate([21u8; 32]);
+    let (_, recovery_vk) = MlDsa65::generate([22u8; 32]);
+    let roots = MigrationTrustRoots::new(
+        MigrationAuthorityKeyId::from_bytes([31u8; 32]),
+        authority_vk,
+        MigrationAuthorityKeyId::from_bytes([32u8; 32]),
+        recovery_vk,
+    )?;
+    let mut repository = StateRepository::open_existing(&repository_path, roots)?;
+    let certificate = fs::read(certificate_path)?;
+    repository.prepare_advance(&certificate)?;
+    std::process::exit(86);
+}

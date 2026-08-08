@@ -1,9 +1,12 @@
-# Authenticated Migration Contract — research plan
+# Authenticated Migration Contract — research status
 
-> **Status: staged research plan.** Only the phase-1 canonical context model is
-> implemented. The authenticated state machine, transition certificates, policy
-> service, acceptance protocol, security games, and ABI 3 handles described below
-> are targets, not present guarantees.
+> **Status: V2 reference candidate implemented.** Phase 1 remains frozen evidence.
+> V2 adds authenticated transition state, a process-service reference, mutual
+> confirmation, independent vectors, and EasyCrypt/Tamarin gates without changing
+> ABI 2. This is not production/platform evidence: the rollback result requires a
+> separately protected external witness, the Unix service boundary requires real
+> deployment permissions and pinned credentials, and no formal-to-Rust refinement
+> or device interoperability is claimed.
 
 ## 1. Research question
 
@@ -46,8 +49,13 @@ protocol handshake
         |
         v
 q-periapt-migration (publish=false research model)
-  canonical context now
-  authenticated transition/state/decision later
+  V1 frozen canonical context
+  V2 authenticated transition/state/decision/confirmation
+        |
+        v
+q-periapt-policy-agent (publish=false reference service)
+  pinned roots / durable exact CAS / mandatory external witness
+  frozen ABI2 KEM / pending secrets / accepted-key handles
         |
         | exact application-context body
         v
@@ -74,34 +82,41 @@ new C symbols, or move protocol state into `q-periapt-core`.
 Phase 1 does not authenticate the transition-state commitment and does not own
 durable state. See [`migration/MIGRATION_CONTEXT_V1.md`](migration/MIGRATION_CONTEXT_V1.md).
 
-### Phase 2 — authenticated transition state and Policy Agent
+### Phase 2 — authenticated transition state and Policy Agent (reference implemented)
 
-Freeze typed schemas for:
+The implemented typed state is:
 
 ```text
 MigrationStateV1 = {
+  global_generation,
   chain_id,
+  protocol_id,
   epoch,
-  current_policy_digest,
   previous_state_digest,
-  security_floor,
   authority_key_id,
-  transition_flags
+  execution_policy_state,
+  minimum_pq_level,
+  component_mode,
+  allowed_suite_bits
 }
 
-TransitionCertificateV1 = Sign_authority(
-  domain,
-  previous_state_digest,
-  next_state_digest,
-  transition_rules,
-  authority_rotation_evidence
-)
+signature_message =
+  LP8(certificate_domain) ||
+  LP8(certificate_kind) ||
+  LP8(canonical_state_body)
+
+SignedMigrationStateV1 =
+  LP8(certificate_kind) ||
+  LP8(canonical_state_body) ||
+  LP8(Sign_authority(signature_message))
 ```
 
 The certificate verifier must bind exact canonical bytes, an authority lineage,
 allowed floor transitions, and any exceptional reset. The state owner must perform
-atomic compare-and-swap on `(chain_id, authority_key_id, epoch, state_digest)`;
-same-epoch/different-digest is equivocation. Missing or corrupt storage must never
+atomic compare-and-swap on the exact
+`(global_generation, epoch, state_digest, writer_fence)` head. The digest commits
+the chain, authority, execution state, posture, and suite set; same-generation or
+same-epoch alternate digests are forks. Missing or corrupt storage must never
 become implicit first enrollment. Reset must be separately authorized and bind the
 old state to a new lineage.
 
@@ -111,11 +126,18 @@ reservation, and KEM use must operate on one immutable snapshot so concurrent
 transition/session operations cannot create time-of-check/time-of-use gaps. A
 same-process opaque handle is not a security boundary.
 
-Phase 2 must add crash/failpoint tests for every durability cut, concurrent CAS,
-rollback/fork/reset cases, and explicit recovery semantics before making a
-monotonicity claim.
+The V2 state implementation uses exact signed canonical bodies, explicit genesis,
+non-resetting global generation, exact predecessor/epoch checks, non-weakening
+posture, and a distinct recovery-authority reset. The reference Agent journals the
+complete signed history and pending envelope in immediate-durability transactions,
+re-verifies the chain on every open, and reconciles one exact operation with a
+mandatory authenticated witness. Missing/corrupt state and witness disagreement
+fail closed. A valid state that the frozen ABI 2 executor cannot implement remains
+owned and recoverable but exposes no session executor; it is not converted into a
+weaker suite or a poisoned repository. The local database is not itself a rollback
+anchor.
 
-### Phase 3 — authenticated agreement and possible ABI 3
+### Phase 3 — authenticated agreement (reference implemented) and possible ABI 3
 
 Define a protocol-level joint decision derived from:
 
@@ -125,9 +147,11 @@ Define a protocol-level joint decision derived from:
 - the common execution policy and selected suite/floor; and
 - the complete pre-KEM and post-KEM transcripts.
 
-Both parties must verify role-separated Finished/key-confirmation values before
-acceptance or application-key release. Rejection destroys pending key material and
-cannot fall back to a weaker or unbound path.
+V2 implements this joint decision using signed endpoint offers, sender-owned key
+share commitments, a typed pre-KEM transcript, a fixed 324-byte V2 context, and a
+post-KEM transcript. Both roles use distinct Finished domains. Peer verification is
+constant-time; failure consumes the pending zeroizing secret. The Agent rechecks the
+exact local and witness fence before returning an opaque accepted-key handle.
 
 Only after the model, experiments, and security games stabilize should an ABI 3 be
 considered. Its likely surface uses process-owned `PolicyHandle`, `KeyHandle`, and
@@ -136,15 +160,15 @@ not mutate ABI 2 or pretend that a writable in-process token is unforgeable.
 
 ## 4. Target security notions
 
-These are definitions to refine and prove, not current results.
+These are implemented reference notions with the proof boundaries stated below.
 
 ### MIG-BIND-K-STATE
 
 If two accepted executions produce the same non-bottom session key, then, except
 with negligible probability, their authenticated migration-state identities are
-equal. The likely reduction reuses the existing injective context projection and
-collision resistance, but must also link the authenticated state object to the
-bytes actually consumed by the KDF.
+equal. `MigrationBindingV2.ec` proves the outer digest-identity reduction and a
+full-state bad-event decomposition into ContextBound-hash or state-hash collision.
+Signature authenticity remains a separate unforgeability assumption.
 
 ### MIG-ROLLBACK
 
@@ -152,14 +176,21 @@ After a principal has durably accepted state `i`, an adversary with old policies
 certificates, binaries, messages, and application control cannot cause later
 acceptance under a predecessor or unauthorized fork. The game must model trusted
 state ownership, authorized reset, crashes, recovery, concurrency, and state loss;
-an epoch merely hashed into a key is insufficient.
+an epoch merely hashed into a key is insufficient. The Tamarin model includes a
+restorable local store and protected witness/fence; the Rust reference implements
+the matching exact intent/receipt protocol. The result is conditional on the
+witness being outside the host rollback domain.
 
 ### MIG-AGREE
 
 If both named peers accept the same session, they agree on roles, identities,
-suite, migration epoch/state/certificate, floor, complete capabilities, common
-execution decision, and transcript. This requires authenticated negotiation and
-mutual key confirmation, not only “different context gives a different key”.
+suite, migration epoch/state identity and transition semantics, floor, complete
+capabilities, common execution decision, and transcript. Randomized signatures may
+produce different certificate-envelope bytes for the same authenticated state, so
+exact signature-byte equality is deliberately not claimed. This requires
+authenticated negotiation and mutual key confirmation, not only “different context
+gives a different key”. The Tamarin gate models both identity signatures and the
+two role-separated Finished messages under an active network adversary.
 
 ### MIG-FLOOR
 
@@ -167,11 +198,12 @@ No accepted execution falls below the effective authenticated migration floor.
 The acceptance predicate—not parsing, metadata, or a post-validation flag—must
 depend on all required PQ evidence. The model must define what the floor means for
 hybrid, PQ-only, and forbidden-classical states rather than equating it with the
-current policy engine's PQ-component NIST category.
+current policy engine's PQ-component NIST category. V2 uses a closed component-mode
+predicate; the current hybrid ABI2 executor explicitly rejects `PostQuantumOnly`.
 
 ## 5. Proof and experiment gates
 
-Before describing the Migration Contract as a stateful cryptographic construction:
+The reference-candidate gates are:
 
 1. freeze state, certificate, negotiation, confirmation, and reset schemas;
 2. produce independent exact-byte encoders and mutation/fuzz corpora;
@@ -181,6 +213,10 @@ Before describing the Migration Contract as a stateful cryptographic constructio
 5. link the model's accepted decision to the exact bytes passed to ABI 2;
 6. implement the Policy Agent with transaction/crash/concurrency tests; and
 7. obtain independent cryptographic, protocol, service-boundary, and ABI review.
+
+Gates 1–6 are wired into the repository's V2 reference checks. Gate 7 remains open
+as an external review/deployment gate. The machine-checked models are abstract, and
+the independent byte verifier is translation validation rather than refinement.
 
 Until all relevant gates close, the repository must keep separate claims for:
 
@@ -192,4 +228,6 @@ Until all relevant gates close, the repository must keep separate claims for:
 - hostile-local-caller isolation; and
 - product/platform interoperability.
 
-Passing one gate is not evidence for the others.
+Passing one gate is not evidence for the others. Exact schemas and operational
+boundaries are in
+[`migration/MIGRATION_CONTRACT_V2.md`](migration/MIGRATION_CONTRACT_V2.md).
