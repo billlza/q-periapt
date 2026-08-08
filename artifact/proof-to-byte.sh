@@ -407,6 +407,7 @@ paths = {
     "easycrypt_binding_sha256": "formal/easycrypt/BindingViaCR.ec",
     "easycrypt_migration_v2_sha256": "formal/easycrypt/MigrationBindingV2.ec",
     "easycrypt_makefile_sha256": "formal/easycrypt/Makefile",
+    "easycrypt_negative_controls_sha256": "formal/easycrypt/negative-controls.sh",
     "tamarin_model_sha256": "formal/tamarin/handshake.spthy",
     "tamarin_migration_state_v2_sha256": "formal/tamarin/migration_v2.spthy",
     "tamarin_migration_agreement_v2_sha256": "formal/tamarin/migration_v2_agreement.spthy",

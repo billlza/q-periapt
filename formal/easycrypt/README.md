@@ -60,7 +60,8 @@ step, `encode_inj` (injectivity of the fixed-width length-prefixed encoding), is
 **proved** (the encoding is modeled concretely and its injectivity machine-checked),
 not assumed — mirrored by the Rust negative-KAT in `q-periapt-core`.
 
-> **STATUS: MACHINE-CHECKED.** ✅ `make check` (`easycrypt BindingViaCR.ec`) passes
+> **STATUS: MACHINE-CHECKED.** ✅ `make check`
+> (`easycrypt compile -no-eco BindingViaCR.ec`) passes
 > with EasyCrypt dev (OCaml 5.4.1) + Z3 4.16.0. `bind_le_cr` is verified. Honest
 > scope still applies (`BINDING_SECURITY.md` §5/§6): `encode_inj` is now a **proved
 > lemma** (the encoding is modeled concretely and its injectivity machine-checked,
