@@ -17,7 +17,7 @@ pass=0; fail=0
 ctl() { # label  perl-substitution-removing-the-named-SMT-hint
   tmp=$(mktemp /tmp/nc.XXXXXX); mv "$tmp" "$tmp.ec"; tmp="$tmp.ec"
   cp "$SRC" "$tmp"; perl -0pi -e "$2" "$tmp"
-  if "$EC" compile "$tmp" >/dev/null 2>&1; then
+  if "$EC" compile -no-eco "$tmp" >/dev/null 2>&1; then
     echo "  FAIL  [$1] edited proof still checks; documented script dependency changed"; fail=$((fail+1))
   else
     echo "  ok    [$1] edited proof fails as expected; script dependency retained"; pass=$((pass+1))
@@ -26,7 +26,7 @@ ctl() { # label  perl-substitution-removing-the-named-SMT-hint
 }
 
 echo "baseline: the unmodified development must check..."
-if "$EC" compile "$SRC" >/dev/null 2>&1; then echo "  ok    baseline checks (no proof holes)"; else echo "  FAIL baseline does not check"; exit 2; fi
+if "$EC" compile -no-eco "$SRC" >/dev/null 2>&1; then echo "  ok    baseline checks (no proof holes)"; else echo "  FAIL baseline does not check"; exit 2; fi
 echo "proof-dependency regression controls (each edited proof MUST fail to check):"
 ctl "lean K-PK counterexample / ek_neq hint"            's/\Qsmt(ek_neq lean_eq lpk_mk)\E/smt(lean_eq lpk_mk)/'
 ctl "omit-context K-CTX counterexample / lctx_neq hint" 's/\Qsmt(lctx_neq omitctx_eq lctxo_mkc)\E/smt(omitctx_eq lctxo_mkc)/'

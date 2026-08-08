@@ -20,7 +20,7 @@ MIGRATION_LEMMAS := \
 .PHONY: check check-lemma-names
 check: check-lemma-names
 	@for source in $(SRC); do \
-		$(EC) "$$source" || exit $$?; \
+		$(EC) compile -no-eco "$$source" || exit $$?; \
 	done
 
 check-lemma-names:
