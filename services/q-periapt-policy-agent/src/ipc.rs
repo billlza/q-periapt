@@ -3,10 +3,9 @@
 use core::fmt;
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
-use std::fs::{self, File};
-use std::io::{self, Read};
+use std::fs::File;
+use std::io::Read;
 use std::net::{SocketAddr, TcpListener};
-use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -25,6 +24,7 @@ use crate::codec::{
     Encoder, MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
+use crate::filesystem::OwnedPrivateDirectory;
 use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginEncapsulation,
@@ -43,6 +43,7 @@ const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
 const MAX_POLICY_BYTES: usize = q_periapt_ffi_abi2::Q_PERIAPT_MAX_SIGNED_POLICY_BYTES;
+const IPC_SOCKET_NAME: &str = "agent.sock";
 
 /// IPC configuration, authentication, framing, or fatal service failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -236,7 +237,7 @@ impl RecentNonces {
 /// Sequential handling deliberately caps active clients at one. A slow client
 /// can occupy that slot for at most `io_timeout`; no unbounded worker/thread
 /// creation is possible.
-pub struct UnixIpcServer<W: crate::witness::WitnessPort> {
+struct UnixIpcServer<W: crate::witness::WitnessPort> {
     agent: PolicyAgent<W>,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
     server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
@@ -252,8 +253,8 @@ impl<W: crate::witness::WitnessPort> fmt::Debug for UnixIpcServer<W> {
 
 impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
     /// Bind an owner-only socket and configure pinned request/response keys.
-    pub fn bind(
-        socket_path: &Path,
+    fn bind(
+        service_directory: &OwnedPrivateDirectory,
         agent: PolicyAgent<W>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
@@ -262,7 +263,7 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
         if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
             return Err(IpcError::InvalidConfiguration);
         }
-        let listener = bind_private_socket(socket_path)?;
+        let listener = bind_private_socket(service_directory)?;
         Ok((
             Self {
                 agent,
@@ -276,7 +277,7 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
     }
 
     /// Serve one request per accepted connection with bounded sequential resources.
-    pub fn serve(mut self, listener: UnixListener) -> Result<(), IpcError> {
+    fn serve(mut self, listener: UnixListener) -> Result<(), IpcError> {
         for accepted in listener.incoming() {
             let mut stream = accepted.map_err(|_| IpcError::Unavailable)?;
             match self.handle(&mut stream) {
@@ -436,38 +437,37 @@ fn agent_status(error: AgentError) -> u8 {
     }
 }
 
-fn bind_private_socket(path: &Path) -> Result<UnixListener, IpcError> {
-    let parent = path.parent().ok_or(IpcError::InsecureSocket)?;
-    validate_private_directory(parent)?;
-    match fs::symlink_metadata(path) {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-        _ => return Err(IpcError::InsecureSocket),
-    }
-    let listener = UnixListener::bind(path).map_err(|_| IpcError::Unavailable)?;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+pub(crate) fn bind_private_socket(
+    directory: &OwnedPrivateDirectory,
+) -> Result<UnixListener, IpcError> {
+    let name = std::ffi::OsStr::new(IPC_SOCKET_NAME);
+    directory
+        .require_absent(name)
         .map_err(|_| IpcError::InsecureSocket)?;
-    let metadata = fs::symlink_metadata(path).map_err(|_| IpcError::InsecureSocket)?;
-    if !metadata.file_type().is_socket() || metadata.permissions().mode() & 0o077 != 0 {
+    directory
+        .set_as_process_directory()
+        .map_err(|_| IpcError::InsecureSocket)?;
+    let listener = UnixListener::bind(IPC_SOCKET_NAME).map_err(|_| IpcError::Unavailable)?;
+    if directory.protect_socket(name).is_err() {
+        drop(listener);
+        directory
+            .remove_leaf(name)
+            .map_err(|_| IpcError::InsecureSocket)?;
         return Err(IpcError::InsecureSocket);
     }
     Ok(listener)
 }
 
-fn validate_private_directory(path: &Path) -> Result<(), IpcError> {
-    let metadata = fs::symlink_metadata(path).map_err(|_| IpcError::InvalidConfiguration)?;
-    if metadata.file_type().is_symlink()
-        || !metadata.is_dir()
-        || metadata.permissions().mode() & 0o077 != 0
-    {
-        return Err(IpcError::InvalidConfiguration);
-    }
-    Ok(())
-}
-
 /// Run the Unix executable from one of two exact command shapes:
 ///
-/// `serve-agent SOCKET REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY`
+/// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY`
 /// `serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY`
+///
+/// A successful `serve-agent` startup permanently pins `SERVICE_DIRECTORY` as
+/// the process working directory before entering the server loop. This entry
+/// point is therefore intended for the dedicated executable process, not for
+/// embedding in a host process with unrelated working-directory users. Call it
+/// before starting any other threads or relative-path I/O in that process.
 pub fn run_from_arguments<I>(arguments: I) -> Result<(), IpcError>
 where
     I: IntoIterator<Item = OsString>,
@@ -476,7 +476,8 @@ where
     let _program = arguments.next().ok_or(IpcError::InvalidConfiguration)?;
     let mode = arguments.next().ok_or(IpcError::InvalidConfiguration)?;
     if mode == "serve-agent" {
-        let socket = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
+        let service_directory =
+            PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let repository = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let witness_address =
             parse_socket_address(arguments.next().ok_or(IpcError::InvalidConfiguration)?)?;
@@ -484,7 +485,12 @@ where
         if arguments.next().is_some() {
             return Err(IpcError::InvalidConfiguration);
         }
-        return serve_agent(&socket, &repository, witness_address, &configuration);
+        return serve_agent(
+            &service_directory,
+            &repository,
+            witness_address,
+            &configuration,
+        );
     }
     if mode == "serve-witness" {
         let listen = parse_socket_address(arguments.next().ok_or(IpcError::InvalidConfiguration)?)?;
@@ -499,30 +505,33 @@ where
 }
 
 fn serve_agent(
-    socket: &Path,
+    service_directory: &Path,
     repository_path: &Path,
     witness_address: SocketAddr,
     configuration: &Path,
 ) -> Result<(), IpcError> {
-    validate_private_directory(configuration)?;
-    let roots = load_migration_roots(configuration)?;
+    let service_directory =
+        OwnedPrivateDirectory::open(service_directory).map_err(|_| IpcError::InsecureSocket)?;
+    let configuration =
+        OwnedPrivateDirectory::open(configuration).map_err(|_| IpcError::InvalidConfiguration)?;
+    let roots = load_migration_roots(&configuration)?;
     let repository = StateRepository::open_existing(repository_path, roots)
         .map_err(|_| IpcError::InvalidConfiguration)?;
     let witness = AuthenticatedTcpWitness::new(
         witness_address,
-        read_secret(configuration, "witness-client-sk.bin")?,
-        read_array(configuration, "witness-server-vk.bin")?,
+        read_secret(&configuration, "witness-client-sk.bin")?,
+        read_array(&configuration, "witness-server-vk.bin")?,
         WITNESS_IO_TIMEOUT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
-    let config = load_agent_config(configuration)?;
+    let config = load_agent_config(&configuration)?;
     let agent = PolicyAgent::new(repository, witness, config)
         .map_err(|_| IpcError::InvalidConfiguration)?;
     let (server, listener) = UnixIpcServer::bind(
-        socket,
+        &service_directory,
         agent,
-        read_array(configuration, "ipc-client-vk.bin")?,
-        read_secret(configuration, "ipc-server-sk.bin")?,
+        read_array(&configuration, "ipc-client-vk.bin")?,
+        read_secret(&configuration, "ipc-server-sk.bin")?,
         IPC_IO_TIMEOUT,
     )?;
     server.serve(listener)
@@ -533,11 +542,12 @@ fn serve_witness(
     database: &Path,
     configuration: &Path,
 ) -> Result<(), IpcError> {
-    validate_private_directory(configuration)?;
+    let configuration =
+        OwnedPrivateDirectory::open(configuration).map_err(|_| IpcError::InvalidConfiguration)?;
     let server = ReferenceWitnessServer::open(
         database,
-        read_array(configuration, "witness-client-vk.bin")?,
-        read_secret(configuration, "witness-server-sk.bin")?,
+        read_array(&configuration, "witness-client-vk.bin")?,
+        read_secret(&configuration, "witness-server-sk.bin")?,
         WITNESS_IO_TIMEOUT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
@@ -548,7 +558,9 @@ fn serve_witness(
         .map_err(|_| IpcError::Unavailable)
 }
 
-fn load_migration_roots(configuration: &Path) -> Result<MigrationTrustRoots, IpcError> {
+fn load_migration_roots(
+    configuration: &OwnedPrivateDirectory,
+) -> Result<MigrationTrustRoots, IpcError> {
     MigrationTrustRoots::new(
         MigrationAuthorityKeyId::from_bytes(read_array(
             configuration,
@@ -564,7 +576,7 @@ fn load_migration_roots(configuration: &Path) -> Result<MigrationTrustRoots, Ipc
     .map_err(|_| IpcError::InvalidConfiguration)
 }
 
-fn load_agent_config(configuration: &Path) -> Result<AgentConfig, IpcError> {
+fn load_agent_config(configuration: &OwnedPrivateDirectory) -> Result<AgentConfig, IpcError> {
     let role = match read_array::<1>(configuration, "local-role.bin")? {
         [1] => EndpointRole::Initiator,
         [2] => EndpointRole::Responder,
@@ -593,7 +605,10 @@ fn load_agent_config(configuration: &Path) -> Result<AgentConfig, IpcError> {
     .map_err(|_| IpcError::InvalidConfiguration)
 }
 
-fn read_policy_bundle(configuration: &Path, prefix: &str) -> Result<SignedPolicyBundle, IpcError> {
+fn read_policy_bundle(
+    configuration: &OwnedPrivateDirectory,
+    prefix: &str,
+) -> Result<SignedPolicyBundle, IpcError> {
     let document = read_bounded(
         configuration,
         &format!("{prefix}-policy.toml"),
@@ -612,7 +627,10 @@ fn read_policy_bundle(configuration: &Path, prefix: &str) -> Result<SignedPolicy
     .map_err(|_| IpcError::InvalidConfiguration)
 }
 
-fn read_array<const N: usize>(directory: &Path, name: &str) -> Result<[u8; N], IpcError> {
+fn read_array<const N: usize>(
+    directory: &OwnedPrivateDirectory,
+    name: &str,
+) -> Result<[u8; N], IpcError> {
     let mut file = open_private_config(directory, name, N)?;
     let mut value = [0u8; N];
     file.read_exact(&mut value)
@@ -622,7 +640,7 @@ fn read_array<const N: usize>(directory: &Path, name: &str) -> Result<[u8; N], I
 }
 
 fn read_secret<const N: usize>(
-    directory: &Path,
+    directory: &OwnedPrivateDirectory,
     name: &str,
 ) -> Result<ZeroizingBytes<N>, IpcError> {
     let mut file = open_private_config(directory, name, N)?;
@@ -633,7 +651,11 @@ fn read_secret<const N: usize>(
     Ok(value)
 }
 
-fn read_bounded(directory: &Path, name: &str, maximum: usize) -> Result<Vec<u8>, IpcError> {
+fn read_bounded(
+    directory: &OwnedPrivateDirectory,
+    name: &str,
+    maximum: usize,
+) -> Result<Vec<u8>, IpcError> {
     let file = open_private_config(directory, name, maximum)?;
     let limit = u64::try_from(maximum)
         .map_err(|_| IpcError::InvalidConfiguration)?
@@ -649,18 +671,14 @@ fn read_bounded(directory: &Path, name: &str, maximum: usize) -> Result<Vec<u8>,
     Ok(value)
 }
 
-fn open_private_config(directory: &Path, name: &str, maximum: usize) -> Result<File, IpcError> {
-    let path = directory.join(name);
-    let metadata = fs::symlink_metadata(&path).map_err(|_| IpcError::InvalidConfiguration)?;
-    let maximum = u64::try_from(maximum).map_err(|_| IpcError::InvalidConfiguration)?;
-    if metadata.file_type().is_symlink()
-        || !metadata.is_file()
-        || metadata.permissions().mode() & 0o077 != 0
-        || metadata.len() > maximum
-    {
-        return Err(IpcError::InvalidConfiguration);
-    }
-    File::open(path).map_err(|_| IpcError::InvalidConfiguration)
+fn open_private_config(
+    directory: &OwnedPrivateDirectory,
+    name: &str,
+    maximum: usize,
+) -> Result<File, IpcError> {
+    directory
+        .open_config_file(name, maximum)
+        .map_err(|_| IpcError::InvalidConfiguration)
 }
 
 fn ensure_eof(file: &mut File) -> Result<(), IpcError> {

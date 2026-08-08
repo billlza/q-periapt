@@ -6,12 +6,14 @@
 //! The library separates exact durable state, authenticated external witnessing,
 //! the frozen ABI 2 execution adapter, and the session acceptance state machine.
 //! The only `unsafe` operations are the narrowly reviewed ABI 2 calls in the
-//! private `crypto` module.
+//! private `crypto` module and macOS descriptor ACL calls in `macos_acl`.
 
 mod authentication;
 mod codec;
 mod crypto;
 mod filesystem;
+#[cfg(target_os = "macos")]
+mod macos_acl;
 mod repository;
 mod service;
 mod types;

@@ -18,7 +18,7 @@ use crate::codec::{
     encode_domain, hash_fields, read_frame, require_domain, write_frame, CodecError, Decoder,
     Encoder, MAX_FRAME_BYTES,
 };
-use crate::filesystem::prepare_private_file;
+use crate::filesystem::open_private_file;
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
 
 const WITNESS_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-WITNESS-REQUEST/v1";
@@ -589,8 +589,10 @@ struct WitnessStore {
 
 impl WitnessStore {
     fn provision(path: &Path, initial_head: StateHead) -> Result<Self, WitnessError> {
-        prepare_private_file(path, true).map_err(|_| WitnessError::Persistence)?;
-        let database = Database::create(path).map_err(|_| WitnessError::Persistence)?;
+        let file = open_private_file(path, true).map_err(|_| WitnessError::Persistence)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
@@ -617,8 +619,10 @@ impl WitnessStore {
     }
 
     fn open(path: &Path) -> Result<Self, WitnessError> {
-        prepare_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
-        let mut database = Database::open(path).map_err(|_| WitnessError::Persistence)?;
+        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        let mut database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
         if !database
             .check_integrity()
             .map_err(|_| WitnessError::Persistence)?

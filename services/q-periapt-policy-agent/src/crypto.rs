@@ -1,4 +1,5 @@
-//! Narrow frozen-ABI-2 adapter. No other module is permitted to use unsafe code.
+//! Narrow frozen-ABI-2 adapter. Only the macOS ACL adapter has another scoped
+//! native-call boundary.
 
 #![allow(unsafe_code)]
 

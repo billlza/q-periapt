@@ -12,7 +12,7 @@ use q_periapt_migration::{
 use redb::{Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition};
 
 use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
-use crate::filesystem::prepare_private_file;
+use crate::filesystem::open_private_file;
 use crate::types::{
     FenceToken, OperationId, SessionId, StateAdvance, StateHead, StateRevision, TransitionKind,
 };
@@ -200,8 +200,11 @@ impl StateRepository {
             project_revision(machine.current_revision())?,
             FenceToken::generate().map_err(|_| RepositoryError::EntropyUnavailable)?,
         );
-        prepare_private_file(path, true).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
-        let database = Database::create(path).map_err(|_| RepositoryError::CorruptStore)?;
+        let file =
+            open_private_file(path, true).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| RepositoryError::CorruptStore)?;
         let transaction = durable_write(&database)?;
         {
             let mut meta = transaction
@@ -242,8 +245,11 @@ impl StateRepository {
 
     /// Open and fully replay an existing store. Missing/corrupt state never becomes genesis.
     pub fn open_existing(path: &Path, roots: MigrationTrustRoots) -> Result<Self, RepositoryError> {
-        prepare_private_file(path, false).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
-        let mut database = Database::open(path).map_err(|_| RepositoryError::CorruptStore)?;
+        let file =
+            open_private_file(path, false).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
+        let mut database = Database::builder()
+            .create_file(file)
+            .map_err(|_| RepositoryError::CorruptStore)?;
         if !database
             .check_integrity()
             .map_err(|_| RepositoryError::CorruptStore)?

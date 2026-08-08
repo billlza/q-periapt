@@ -489,6 +489,7 @@ paths = {
     "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
     "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
     "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
+    "migration_agent_macos_acl_sha256": "services/q-periapt-policy-agent/src/macos_acl.rs",
     "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
     "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
     "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",

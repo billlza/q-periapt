@@ -21,12 +21,22 @@ rollback anchor: restoring the whole database file restores all of its history.
 Every open, transition, and key release therefore requires an authenticated
 external `WitnessPort`. There is no local-only fallback.
 
-Both durable files must live in a real owner-only (`0700`) service directory
-and remain owner-only (`0600`) files. Symlinks are rejected. The protected
-parent directory is the race-control boundary. `redb` also holds an exclusive
-database lock, so a second policy-agent process cannot open the same repository;
-that lock is part of the cross-process linearization boundary around witness
-rechecks and local commits.
+Both durable-file paths must be absolute, contain only normal path components,
+live in an owner-owned exact-`0700` service directory, and identify an
+owner-owned exact-`0600` regular file. On macOS, the service also rejects any
+extended ACL on the final directory or file through a descriptor-based native
+query; POSIX mode alone is not treated as an owner-only proof. The service
+traverses every directory descriptor-relative with `O_NOFOLLOW`, opens the final
+file relative to the pinned parent descriptor, and passes that already-open file
+into `redb`; the database path is never re-resolved. `redb` also holds an
+exclusive database lock, so a second policy-agent process cannot open the same
+repository; that lock is part of the cross-process linearization boundary around
+witness rechecks and local commits.
+
+The reviewed durable-file boundary supports macOS and Linux. Linux POSIX ACL
+grants are reflected in the group-class mode mask and are rejected by the exact
+mode checks. Other Unix ACL models are not assumed equivalent and fail closed
+until a platform adapter is reviewed.
 
 A signed state or reset envelope is first authenticated and replayed by the
 migration state machine. The repository then durably records one operation ID,
@@ -90,13 +100,26 @@ claiming an equivalent boundary.
 The executable accepts exactly one of these command shapes:
 
 ```text
-q-periapt-policy-agent serve-agent SOCKET REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY
+q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY
 q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY
 ```
 
-It opens existing stores only. Controlled bootstrap must explicitly call
-`StateRepository::provision_new` and `ReferenceWitnessServer::provision`; a
-missing store is never provisioned by the runtime. Configuration files are
+`SERVICE_DIRECTORY` is an absolute owner-owned exact-`0700` directory. The
+process pins it as its working-directory capability before binding the fixed
+`agent.sock` leaf; it does not reinterpret a caller-provided socket pathname.
+On macOS, socket isolation is inherited from the revalidated ACL-free parent
+capability plus the new fixed leaf and its verified `0600` mode; the service
+does not reopen the socket pathname to make a weaker ACL inference.
+The directory must also live in a stable, trusted namespace so an untrusted UID
+cannot rename an ancestor and substitute a different client-visible pathname.
+The dedicated daemon does not restore its working directory. After an abnormal
+exit, the service manager must first establish that the old process is gone and
+then remove its stale `agent.sock` before restart; the daemon never guesses that
+an existing socket is safe to unlink.
+
+The executable opens existing stores only. Controlled bootstrap must explicitly
+call `StateRepository::provision_new` and `ReferenceWitnessServer::provision`;
+a missing store is never provisioned by the runtime. Configuration files are
 fixed-name, exact-length owner-only files under the validated `0700` directory.
 They include separate migration/recovery roots, local/peer endpoint identities,
 signed execution/local/peer policy bundles, IPC request/response keys, and

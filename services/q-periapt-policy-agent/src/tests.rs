@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -27,6 +27,7 @@ use q_periapt_sig::Signer;
 
 use crate::codec::read_frame;
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
+use crate::filesystem::{open_private_file, OwnedPrivateDirectory, PrivateFileError};
 use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginEncapsulation, EndpointIdentity,
@@ -51,41 +52,231 @@ const POLICY: &str = "schema_version = 1\n\
     deprecated = []\n";
 
 struct TestDirectory {
+    _temporary: tempfile::TempDir,
     path: PathBuf,
 }
 
 impl TestDirectory {
-    fn new(label: &str) -> TestResult<Self> {
+    fn new() -> TestResult<Self> {
         use std::os::unix::fs::PermissionsExt;
 
-        let mut random = [0u8; 16];
-        getrandom::fill(&mut random).map_err(|error| io::Error::other(error.to_string()))?;
-        let suffix = random
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>();
-        let path = std::env::temp_dir().join(format!("q-periapt-policy-agent-{label}-{suffix}"));
-        fs::create_dir(&path)?;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
-        Ok(Self { path })
+        let temporary = tempfile::Builder::new()
+            .prefix("q-periapt-policy-agent-")
+            .permissions(fs::Permissions::from_mode(0o700))
+            .tempdir()?;
+        let path = temporary.path().canonicalize()?;
+        Ok(Self {
+            _temporary: temporary,
+            path,
+        })
     }
 
     fn join(&self, name: &str) -> PathBuf {
         self.path.join(name)
     }
-}
 
-impl Drop for TestDirectory {
-    fn drop(&mut self) {
-        if let Err(error) = fs::remove_dir_all(&self.path) {
-            eprintln!("test directory cleanup failed: {error}");
-        }
+    fn path(&self) -> &Path {
+        &self.path
     }
 }
 
 #[test]
+fn private_state_file_is_opened_beneath_an_owned_descriptor_boundary() -> TestResult {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+
+    let directory = TestDirectory::new()?;
+    let valid_path = directory.join("valid.redb");
+    let mut valid = open_private_file(&valid_path, true)
+        .map_err(|_| io::Error::other("failed to create private test state"))?;
+    valid.write_all(&[1])?;
+    valid.sync_all()?;
+    drop(valid);
+    drop(
+        open_private_file(&valid_path, false)
+            .map_err(|_| io::Error::other("failed to reopen private test state"))?,
+    );
+
+    let empty_path = directory.join("empty.redb");
+    drop(
+        open_private_file(&empty_path, true)
+            .map_err(|_| io::Error::other("failed to create empty private test state"))?,
+    );
+    assert!(matches!(
+        open_private_file(&empty_path, false),
+        Err(PrivateFileError)
+    ));
+    assert_eq!(fs::metadata(&empty_path)?.len(), 0);
+
+    assert!(matches!(
+        open_private_file(Path::new("relative.redb"), true),
+        Err(PrivateFileError)
+    ));
+
+    let nested = directory.join("nested");
+    fs::create_dir(&nested)?;
+    fs::set_permissions(&nested, fs::Permissions::from_mode(0o700))?;
+    assert!(matches!(
+        open_private_file(&nested.join("..").join("traversal.redb"), true),
+        Err(PrivateFileError)
+    ));
+
+    let insecure = directory.join("insecure");
+    fs::create_dir(&insecure)?;
+    fs::set_permissions(&insecure, fs::Permissions::from_mode(0o755))?;
+    assert!(matches!(
+        open_private_file(&insecure.join("state.redb"), true),
+        Err(PrivateFileError)
+    ));
+
+    let real_parent = directory.join("real-parent");
+    fs::create_dir(&real_parent)?;
+    fs::set_permissions(&real_parent, fs::Permissions::from_mode(0o700))?;
+    let alias_parent = directory.join("alias-parent");
+    symlink(&real_parent, &alias_parent)?;
+    assert!(matches!(
+        open_private_file(&alias_parent.join("state.redb"), true),
+        Err(PrivateFileError)
+    ));
+
+    let target = directory.join("target.redb");
+    let mut target_file = open_private_file(&target, true)
+        .map_err(|_| io::Error::other("failed to create symlink target"))?;
+    target_file.write_all(&[1])?;
+    target_file.sync_all()?;
+    drop(target_file);
+    let alias_file = directory.join("alias.redb");
+    symlink(&target, &alias_file)?;
+    assert!(matches!(
+        open_private_file(&alias_file, false),
+        Err(PrivateFileError)
+    ));
+
+    let private_directory = OwnedPrivateDirectory::open(directory.path())
+        .map_err(|_| io::Error::other("failed to pin private test directory"))?;
+    assert!(private_directory.open_config_file("alias.redb", 1).is_err());
+
+    let config_path = directory.join("config.bin");
+    let mut config = open_private_file(&config_path, true)
+        .map_err(|_| io::Error::other("failed to create private config"))?;
+    config.write_all(&[1])?;
+    config.sync_all()?;
+    drop(config);
+    let mut pinned_config = private_directory
+        .open_config_file("config.bin", 1)
+        .map_err(|_| io::Error::other("failed to open pinned private config"))?;
+    let moved_config = directory.join("moved-config.bin");
+    fs::rename(&config_path, &moved_config)?;
+    let mut replacement = open_private_file(&config_path, true)
+        .map_err(|_| io::Error::other("failed to create replacement config"))?;
+    replacement.write_all(&[2])?;
+    replacement.sync_all()?;
+    drop(replacement);
+    let mut original = [0u8; 1];
+    pinned_config.read_exact(&mut original)?;
+    assert_eq!(original, [1]);
+
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o644))?;
+    assert!(private_directory.open_config_file("config.bin", 1).is_err());
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_extended_acls_are_rejected_even_when_posix_modes_remain_private() -> TestResult {
+    use std::os::unix::fs::PermissionsExt;
+
+    let file_directory = TestDirectory::new()?;
+    let private_directory = OwnedPrivateDirectory::open(file_directory.path())
+        .map_err(|_| io::Error::other("failed to pin ACL test directory"))?;
+    let state_path = file_directory.join("state.redb");
+    let mut state = open_private_file(&state_path, true)
+        .map_err(|_| io::Error::other("failed to create ACL test state"))?;
+    state.write_all(&[1])?;
+    state.sync_all()?;
+    drop(state);
+
+    install_macos_test_acl(&state_path, "everyone allow read")?;
+    assert_eq!(
+        fs::metadata(&state_path)?.permissions().mode() & 0o777,
+        0o600
+    );
+    assert!(matches!(
+        open_private_file(&state_path, false),
+        Err(PrivateFileError)
+    ));
+    assert!(private_directory.open_config_file("state.redb", 1).is_err());
+
+    let acl_directory = TestDirectory::new()?;
+    install_macos_test_acl(acl_directory.path(), "everyone allow list,search")?;
+    assert_eq!(
+        fs::metadata(acl_directory.path())?.permissions().mode() & 0o777,
+        0o700
+    );
+    assert!(matches!(
+        OwnedPrivateDirectory::open(acl_directory.path()),
+        Err(PrivateFileError)
+    ));
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn install_macos_test_acl(path: &Path, entry: &str) -> TestResult {
+    let status = Command::new("/bin/chmod")
+        .args(["+a", entry])
+        .arg(path)
+        .status()?;
+    if !status.success() {
+        return Err(io::Error::other("failed to install macOS test ACL").into());
+    }
+    Ok(())
+}
+
+#[test]
+fn fixed_private_socket_is_bound_beneath_the_process_directory_capability() -> TestResult {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = TestDirectory::new()?;
+    let service_directory = directory.join("service");
+    fs::create_dir(&service_directory)?;
+    fs::set_permissions(&service_directory, fs::Permissions::from_mode(0o700))?;
+    let status = Command::new(std::env::current_exe()?)
+        .arg("--exact")
+        .arg("tests::private_socket_bind_child")
+        .current_dir(directory.path())
+        .env("Q_PERIAPT_TEST_SOCKET_BIND", "1")
+        .status()?;
+    assert!(status.success());
+    Ok(())
+}
+
+#[test]
+fn private_socket_bind_child() -> TestResult {
+    if std::env::var_os("Q_PERIAPT_TEST_SOCKET_BIND").is_none() {
+        return Ok(());
+    }
+    let launch_directory = std::env::current_dir()?;
+    let directory_path = launch_directory.join("service");
+    let launch = OwnedPrivateDirectory::open(&launch_directory)
+        .map_err(|_| io::Error::other("socket launch directory is not private"))?;
+    let directory = OwnedPrivateDirectory::open(&directory_path)
+        .map_err(|_| io::Error::other("socket test directory is not private"))?;
+    let listener = crate::ipc::bind_private_socket(&directory)?;
+    assert_eq!(std::env::current_dir()?, directory_path);
+    assert!(directory.socket_is_protected(std::ffi::OsStr::new("agent.sock")));
+    assert!(launch
+        .require_absent(std::ffi::OsStr::new("agent.sock"))
+        .is_ok());
+    assert!(matches!(
+        crate::ipc::bind_private_socket(&directory),
+        Err(crate::ipc::IpcError::InsecureSocket)
+    ));
+    drop(listener);
+    Ok(())
+}
+
+#[test]
 fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> TestResult {
-    let directory = TestDirectory::new("witness-loopback")?;
+    let directory = TestDirectory::new()?;
     let database = directory.join("witness.redb");
     let (client_sk, client_vk) = MlDsa65::generate([11u8; 32]);
     let (witness_sk, witness_vk) = MlDsa65::generate([12u8; 32]);
@@ -165,7 +356,7 @@ fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> Te
 
 #[test]
 fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> TestResult {
-    let directory = TestDirectory::new("witness-fragmented-frame")?;
+    let directory = TestDirectory::new()?;
     let database = directory.join("witness.redb");
     let (client_sk, client_vk) = MlDsa65::generate([13u8; 32]);
     let (witness_sk, witness_vk) = MlDsa65::generate([14u8; 32]);
@@ -192,7 +383,8 @@ fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> Tes
 
     let result =
         (|| -> TestResult {
-            let nonce = [15u8; 32];
+            let mut nonce = [0u8; 32];
+            getrandom::fill(&mut nonce).map_err(|error| io::Error::other(error.to_string()))?;
             let frame = crate::witness::test_support::framed_read_request(&client_sk, nonce)?;
 
             // Keep the accepted connection empty long enough for the server to enter
@@ -400,7 +592,7 @@ fn constructors_reject_collapsed_identity_domains_and_zero_timeouts() -> TestRes
         .err(),
         Some(WitnessError::InvalidConfiguration)
     );
-    let directory = TestDirectory::new("invalid-witness-config")?;
+    let directory = TestDirectory::new()?;
     let (server_sk, _) = MlDsa65::generate([92u8; 32]);
     let head = StateHead::new(
         StateRevision::new(1, 1, [1u8; 32])?,
@@ -620,7 +812,7 @@ fn signed_offer(input: SignedOfferInput<'_>) -> TestResult<Vec<u8>> {
 
 #[test]
 fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_restart() -> TestResult {
-    let directory = TestDirectory::new("mutual-confirmation")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 1)?;
     let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization.clone(),
@@ -670,7 +862,7 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
 
 #[test]
 fn abi2_secret_mismatch_rejects_finished_and_terminally_erases_session() -> TestResult {
-    let directory = TestDirectory::new("finished-mismatch")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 2)?;
     let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization.clone(),
@@ -758,7 +950,7 @@ fn signed_advance_with_execution(
 
 #[test]
 fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> TestResult {
-    let directory = TestDirectory::new("floor-five-signer")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 8)?;
     let initial_state = pair.committed.state();
     let initial_head = pair.witness.read_head()?;
@@ -815,7 +1007,7 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
 
 #[test]
 fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> TestResult {
-    let directory = TestDirectory::new("unknown-reconcile")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 3)?;
     let pending = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization,
@@ -851,7 +1043,7 @@ fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> Test
 
 #[test]
 fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() -> TestResult {
-    let directory = TestDirectory::new("executor-unavailable")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 4)?;
     let (incompatible_state, incompatible_certificate) = signed_advance(
         pair.committed.state(),
@@ -896,7 +1088,7 @@ fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() 
 
 #[test]
 fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> TestResult {
-    let directory = TestDirectory::new("execution-policy-change")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 6)?;
     let policy_v2_text = POLICY.replace("policy_version = 1", "policy_version = 2");
     let policy_v2 = policy_material_from_text(23, &policy_v2_text)?;
@@ -943,7 +1135,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
 
 #[test]
 fn reset_cannot_rotate_to_an_unprovisioned_migration_authority() -> TestResult {
-    let directory = TestDirectory::new("authority-rotation")?;
+    let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 5)?;
     let current = pair.committed;
     let next = MigrationStateV1::new(MigrationStateDraftV1 {
@@ -991,7 +1183,7 @@ impl AgentPair {
 
 #[test]
 fn redb_lock_rejects_a_second_agent_repository_open() -> TestResult {
-    let directory = TestDirectory::new("exclusive-lock")?;
+    let directory = TestDirectory::new()?;
     let policy = policy_material(20)?;
     let migration = migration_material(&policy.authenticated)?;
     let path = directory.join("repository.redb");
@@ -1009,7 +1201,7 @@ fn redb_lock_rejects_a_second_agent_repository_open() -> TestResult {
 fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operation() -> TestResult {
     use std::os::unix::fs::PermissionsExt;
 
-    let directory = TestDirectory::new("crash-intent")?;
+    let directory = TestDirectory::new()?;
     let policy = policy_material(20)?;
     let migration = migration_material(&policy.authenticated)?;
     let repository_path = directory.join("repository.redb");
@@ -1032,8 +1224,8 @@ fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operati
     let status = Command::new(std::env::current_exe()?)
         .arg("--exact")
         .arg("tests::crash_after_durable_intent_child")
-        .env("Q_PERIAPT_TEST_REPOSITORY", &repository_path)
-        .env("Q_PERIAPT_TEST_CERTIFICATE", &certificate_path)
+        .current_dir(directory.path())
+        .env("Q_PERIAPT_TEST_CRASH_INTENT", "1")
         .status()?;
     assert_eq!(status.code(), Some(86));
 
@@ -1065,13 +1257,13 @@ fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operati
 
 #[test]
 fn crash_after_durable_intent_child() -> TestResult {
-    let Some(repository_path) = std::env::var_os("Q_PERIAPT_TEST_REPOSITORY").map(PathBuf::from)
-    else {
+    if std::env::var_os("Q_PERIAPT_TEST_CRASH_INTENT").is_none() {
         return Ok(());
-    };
-    let certificate_path = std::env::var_os("Q_PERIAPT_TEST_CERTIFICATE")
-        .map(PathBuf::from)
-        .ok_or_else(|| io::Error::other("missing crash certificate path"))?;
+    }
+    let directory_path = std::env::current_dir()?;
+    let repository_path = directory_path.join("repository.redb");
+    let directory = OwnedPrivateDirectory::open(&directory_path)
+        .map_err(|_| io::Error::other("crash test directory is not private"))?;
     let (_, authority_vk) = MlDsa65::generate([21u8; 32]);
     let (_, recovery_vk) = MlDsa65::generate([22u8; 32]);
     let roots = MigrationTrustRoots::new(
@@ -1081,7 +1273,16 @@ fn crash_after_durable_intent_child() -> TestResult {
         recovery_vk,
     )?;
     let mut repository = StateRepository::open_existing(&repository_path, roots)?;
-    let certificate = fs::read(certificate_path)?;
+    let mut certificate_file = directory
+        .open_config_file(
+            "advance.cert",
+            q_periapt_migration::MAX_MIGRATION_SIGNATURE_BYTES
+                + q_periapt_migration::MAX_MIGRATION_RESET_BODY_BYTES
+                + 16,
+        )
+        .map_err(|_| io::Error::other("crash certificate is not private"))?;
+    let mut certificate = Vec::new();
+    certificate_file.read_to_end(&mut certificate)?;
     repository.prepare_advance(&certificate)?;
     std::process::exit(86);
 }

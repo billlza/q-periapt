@@ -1090,6 +1090,8 @@ dependencies = [
  "q-periapt-policy",
  "q-periapt-sig",
  "redb",
+ "rustix",
+ "tempfile",
 ]
 
 [[package]]
