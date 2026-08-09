@@ -683,6 +683,8 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "release_binary_scan_sha256": "artifact/release_binary_scan.py",
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "release_index_verifier_sha256": "artifact/release_index.py",
+    "release_index_tests_sha256": "artifact/test_release_index.py",
     "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
     "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "security_policy_sha256": "SECURITY.md",

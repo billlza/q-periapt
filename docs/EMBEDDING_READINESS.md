@@ -161,9 +161,15 @@ sh artifact/local-release-index.sh
 ```
 
 The index copies only the C archive, Swift XCFramework zip, Android AAR, and their manifests into
-`target/qperiapt-local-release/<version>/<commit>/`. It may include sanitized Apple/Android proof
+`target/qperiapt-local-release/<channel>/<version>/<commit>/`. It may include sanitized Apple/Android proof
 summaries, but it never copies raw device proof, build logs, provisioning profiles, `.xcresult`
-bundles, UDIDs, or adb serials.
+bundles, UDIDs, or adb serials. Index schema 3 accepts only the current C schema-2, Swift schema-5, and Android
+schema-4 package envelopes and rejects signed Swift input because the local index does not carry its
+Apple distribution evidence. Artifact boundaries name the required leaf gate and explicitly record
+that no leaf receipt or cryptographic attestation is embedded. This is an aggregation gate over package outputs already checked by
+their leaf gates, not an independent binary verifier or a signature over mutable `target/` content;
+durable provenance still requires the results-only evidence successor or an external release
+attestation.
 
 ## Per-Face Status
 

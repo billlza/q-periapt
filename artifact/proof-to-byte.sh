@@ -536,6 +536,7 @@ paths = {
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
     "local_release_index_script_sha256": "artifact/local-release-index.sh",
     "release_index_verifier_sha256": "artifact/release_index.py",
+    "release_index_tests_sha256": "artifact/test_release_index.py",
     "local_release_consumer_smoke_script_sha256": "artifact/local-release-consumer-smoke.sh",
     "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
     "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",

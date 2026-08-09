@@ -89,8 +89,8 @@ def default_index_path(root: pathlib.Path) -> pathlib.Path:
     primary = release_base / "latest-release.json"
     if primary.exists() or primary.is_symlink():
         return pointer_index_path(root, primary)
-    # Schema-2 release emitters also update latest.json for compatibility.  It
-    # is still required to point at the release channel, never diagnostics.
+    # Release emitters also update latest.json as the default release pointer.
+    # It must still point at the release channel, never diagnostics.
     return pointer_index_path(root, release_base / "latest.json")
 
 

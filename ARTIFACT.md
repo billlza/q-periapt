@@ -318,10 +318,17 @@ running `artifact/android-device-smoke.sh` to require a fresh emulator or physic
 proof too. Passing this gate proves that the current source tree can be embedded through the
 existing faces and that the host C archive is consumable after extraction. After those package gates
 have produced artifacts, `sh artifact/local-release-index.sh` creates a local hash-bound index under
-`target/qperiapt-local-release/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
+`target/qperiapt-local-release/<channel>/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
 Android AAR. Release mode requires a clean tree. Set `QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1` only for
 diagnostic indexes; optional Apple/Android runtime evidence is included as sanitized proof summaries,
-never as copied raw device logs or profiles. Credentialed Apple distribution uses
+never as copied raw device logs or profiles. Index schema 3 accepts only the current producer envelopes
+(C schema 2, Swift schema 5, Android schema 4), binds their exact package-only targets and boundaries,
+and rejects the credentialed/signed Swift lane because it does not copy `APPLE_DISTRIBUTION.json`.
+Its machine-readable boundary records the required leaf gate, absence of an embedded leaf receipt,
+and the trusted local artifact-store assumption. It does not independently authenticate mutable
+`target/` bytes or turn locally recomputable hashes into a signed attestation; run the leaf gates
+first and use the results-only evidence successor or an external release attestation for durable
+provenance. Credentialed Apple distribution uses
 `artifact/swift-xcframework-release.sh`, builds from a fixed detached source commit, pins the
 Developer ID identity/certificate, verifies the exact static-only ZIP layout, and binds the final
 ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slice hashes in public
