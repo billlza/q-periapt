@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import errno
 import hashlib
 import io
 import json
 import os
 import pathlib
 import re
+import socket
 import stat
 import subprocess
 import sys
@@ -33,6 +35,7 @@ from deterministic_archive import (
 from evidence_io import (
     EvidenceIOError,
     load_json_object_snapshot,
+    parse_strict_json_bytes,
     read_regular_snapshot,
 )
 from git_provenance import (
@@ -60,6 +63,8 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MAX_ANDROID_PROOF_AGE_SECONDS = 7 * 24 * 60 * 60
 MAX_EVIDENCE_FILE_BYTES = 512 * 1024 * 1024
 MAX_APKSIGNER_OUTPUT_BYTES = 1024 * 1024
+MAX_ADB_SERVER_STATUS_BYTES = 64 * 1024
+MAX_ADB_LISTENER_OUTPUT_BYTES = 64 * 1024
 MAX_ANDROID_SDK = 999
 ANDROID_RELEASE_SDK = 35
 ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
@@ -304,6 +309,789 @@ def signer_sha256(args: argparse.Namespace) -> None:
     except (EvidenceIOError, UnicodeDecodeError) as exc:
         raise SystemExit(f"error: cannot read apksigner certificate output: {exc}") from exc
     print(parse_single_signer_sha256(text))
+
+
+def _reject_macos_allow_acl(file_descriptor: int, label: str) -> None:
+    if sys.platform == "linux":
+        return
+    if sys.platform != "darwin":
+        raise SystemExit(
+            f"error: adb identity ACL semantics are unsupported on {sys.platform}: {label}"
+        )
+
+    import ctypes
+    import errno
+
+    acl_type_extended = 0x00000100
+    acl_first_entry = 0
+    acl_next_entry = -1
+    acl_extended_allow = 1
+    acl_extended_deny = 2
+    libc = ctypes.CDLL(None, use_errno=True)
+    acl_get_fd_np = libc.acl_get_fd_np
+    acl_get_fd_np.argtypes = [ctypes.c_int, ctypes.c_uint]
+    acl_get_fd_np.restype = ctypes.c_void_p
+    acl_get_entry = libc.acl_get_entry
+    acl_get_entry.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)]
+    acl_get_entry.restype = ctypes.c_int
+    acl_get_tag_type = libc.acl_get_tag_type
+    acl_get_tag_type.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+    acl_get_tag_type.restype = ctypes.c_int
+    acl_free = libc.acl_free
+    acl_free.argtypes = [ctypes.c_void_p]
+    acl_free.restype = ctypes.c_int
+
+    ctypes.set_errno(0)
+    acl = acl_get_fd_np(file_descriptor, acl_type_extended)
+    if not acl:
+        error_number = ctypes.get_errno()
+        if error_number == errno.ENOENT:
+            return
+        detail = os.strerror(error_number) if error_number else "unknown ACL query error"
+        raise SystemExit(f"error: cannot inspect macOS ACL for {label}: {detail}")
+
+    allow_entry = False
+    acl_error: str | None = None
+    selector = acl_first_entry
+    while acl_error is None:
+        entry = ctypes.c_void_p()
+        ctypes.set_errno(0)
+        result = acl_get_entry(acl, selector, ctypes.byref(entry))
+        if result != 0:
+            error_number = ctypes.get_errno()
+            if error_number == errno.EINVAL and selector == acl_next_entry:
+                break
+            detail = os.strerror(error_number) if error_number else "unknown ACL entry error"
+            acl_error = f"cannot enumerate macOS ACL for {label}: {detail}"
+            break
+        tag_type = ctypes.c_int()
+        ctypes.set_errno(0)
+        if acl_get_tag_type(entry, ctypes.byref(tag_type)) != 0:
+            error_number = ctypes.get_errno()
+            detail = os.strerror(error_number) if error_number else "unknown ACL tag error"
+            acl_error = f"cannot inspect macOS ACL tag for {label}: {detail}"
+            break
+        if tag_type.value == acl_extended_allow:
+            allow_entry = True
+        elif tag_type.value != acl_extended_deny:
+            acl_error = f"macOS ACL for {label} contains an unsupported tag"
+            break
+        selector = acl_next_entry
+
+    ctypes.set_errno(0)
+    if acl_free(acl) != 0:
+        error_number = ctypes.get_errno()
+        detail = os.strerror(error_number) if error_number else "unknown ACL free error"
+        acl_error = acl_error or f"cannot release macOS ACL for {label}: {detail}"
+    if acl_error is not None:
+        raise SystemExit(f"error: {acl_error}")
+    if allow_entry:
+        raise SystemExit(f"error: macOS allow ACL is forbidden for {label}")
+
+
+def _open_verified_adb_identity_entry(
+    path: str | pathlib.Path,
+    *,
+    display_path: pathlib.Path,
+    label: str,
+    directory: bool,
+    forbidden_mode: int,
+    parent_descriptor: int | None = None,
+) -> int:
+    import errno
+
+    required_flags = ("O_CLOEXEC", "O_NOFOLLOW")
+    if directory:
+        required_flags += ("O_DIRECTORY",)
+    if any(not hasattr(os, flag) for flag in required_flags):
+        raise SystemExit("error: host lacks descriptor-relative adb identity checks")
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    if directory:
+        flags |= os.O_DIRECTORY
+    else:
+        flags |= os.O_NONBLOCK
+    try:
+        if parent_descriptor is None:
+            descriptor = os.open(path, flags)
+        else:
+            descriptor = os.open(path, flags, dir_fd=parent_descriptor)
+    except OSError as exc:
+        if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+            kind = "non-symlink directory" if directory else "regular non-symlink file"
+            raise SystemExit(f"error: {label} must be a {kind}: {display_path}") from exc
+        raise SystemExit(
+            f"error: existing {label} is required before device proof: {exc}"
+        ) from exc
+
+    try:
+        metadata = os.fstat(descriptor)
+        expected_type = stat.S_ISDIR if directory else stat.S_ISREG
+        if not expected_type(metadata.st_mode):
+            kind = "non-symlink directory" if directory else "regular non-symlink file"
+            raise SystemExit(f"error: {label} must be a {kind}: {display_path}")
+        if metadata.st_uid != os.geteuid():
+            raise SystemExit(
+                f"error: {label} must be owned by the current user: {display_path}"
+            )
+        if not directory and metadata.st_size == 0:
+            raise SystemExit(f"error: {label} must not be empty: {display_path}")
+        if stat.S_IMODE(metadata.st_mode) & forbidden_mode:
+            access = (
+                "accessible by group or other users"
+                if label == "adb private key"
+                else "writable by group or other users"
+            )
+            raise SystemExit(f"error: {label} must not be {access}: {display_path}")
+        _reject_macos_allow_acl(descriptor, str(display_path))
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _validate_adb_key_entries(directory_descriptor: int, directory: pathlib.Path) -> None:
+    for leaf, label, forbidden_mode in (
+        ("adbkey", "adb private key", 0o077),
+        ("adbkey.pub", "adb public key", 0o022),
+    ):
+        descriptor = _open_verified_adb_identity_entry(
+            leaf,
+            display_path=directory / leaf,
+            label=label,
+            directory=False,
+            forbidden_mode=forbidden_mode,
+            parent_descriptor=directory_descriptor,
+        )
+        os.close(descriptor)
+
+
+def validate_adb_identity_directory(directory: pathlib.Path) -> None:
+    """Require adb keys beneath an owner-controlled directory."""
+
+    descriptor = _open_verified_adb_identity_entry(
+        directory,
+        display_path=directory,
+        label="adb identity directory",
+        directory=True,
+        forbidden_mode=0o022,
+    )
+    try:
+        _validate_adb_key_entries(descriptor, directory)
+    finally:
+        os.close(descriptor)
+
+
+def validate_account_adb_identity(
+    home_directory: pathlib.Path, *, account_home: pathlib.Path
+) -> None:
+    if not home_directory.is_absolute() or home_directory != account_home:
+        raise SystemExit(
+            "error: HOME must match the current account home directory for device proof: "
+            f"{home_directory}"
+        )
+    home_descriptor = _open_verified_adb_identity_entry(
+        home_directory,
+        display_path=home_directory,
+        label="current account home",
+        directory=True,
+        forbidden_mode=0o022,
+    )
+    identity_directory = home_directory / ".android"
+    try:
+        identity_descriptor = _open_verified_adb_identity_entry(
+            ".android",
+            display_path=identity_directory,
+            label="adb identity directory",
+            directory=True,
+            forbidden_mode=0o022,
+            parent_descriptor=home_descriptor,
+        )
+        try:
+            _validate_adb_key_entries(identity_descriptor, identity_directory)
+        finally:
+            os.close(identity_descriptor)
+    finally:
+        os.close(home_descriptor)
+
+
+def verify_adb_identity(args: argparse.Namespace) -> None:
+    account_home = current_account_home()
+    validate_account_adb_identity(args.home_directory, account_home=account_home)
+    print("ANDROID_ADB_IDENTITY_VERIFY_PASS")
+
+
+def current_account_home() -> pathlib.Path:
+    try:
+        import pwd
+
+        return pathlib.Path(pwd.getpwuid(os.geteuid()).pw_dir)
+    except (ImportError, KeyError, OSError) as exc:
+        raise SystemExit(
+            f"error: cannot resolve the current account home directory: {exc}"
+        ) from exc
+
+
+def parse_adb_server_status(text: str) -> dict[str, object]:
+    fields: dict[str, object] = {}
+    for line in text.splitlines():
+        match = re.fullmatch(r"([a-z][a-z0-9_]*): (.+)", line)
+        if match is None:
+            raise SystemExit(f"error: malformed adb server-status line: {line!r}")
+        key, raw_value = match.groups()
+        if key in fields:
+            raise SystemExit(f"error: duplicate adb server-status field: {key}")
+        if re.fullmatch(r"[A-Z][A-Z0-9_]*", raw_value) is not None:
+            fields[key] = raw_value
+        else:
+            try:
+                fields[key] = parse_strict_json_bytes(
+                    raw_value.encode("utf-8"), label=f"adb server-status {key}"
+                )
+            except EvidenceIOError as exc:
+                raise SystemExit(
+                    f"error: malformed adb server-status value for {key}: {exc}"
+                ) from exc
+    required = {"executable_absolute_path", "keystore_path", "mdns_enabled"}
+    missing = sorted(required - fields.keys())
+    if missing:
+        raise SystemExit(
+            "error: adb server-status omits required fields: " + ", ".join(missing)
+        )
+    return fields
+
+
+def verify_adb_server_status(args: argparse.Namespace) -> None:
+    try:
+        snapshot = read_regular_snapshot(
+            args.status,
+            maximum=MAX_ADB_SERVER_STATUS_BYTES,
+            label="adb server-status output",
+        )
+        fields = parse_adb_server_status(snapshot.data.decode("utf-8"))
+    except (EvidenceIOError, UnicodeDecodeError) as exc:
+        raise SystemExit(f"error: cannot read adb server-status output: {exc}") from exc
+
+    validate_adb_server_status_fields(
+        fields,
+        selected_adb=args.adb,
+        home_directory=args.home_directory,
+        account_home=current_account_home(),
+    )
+    print("ANDROID_ADB_SERVER_STATUS_VERIFY_PASS")
+
+
+def validate_adb_server_status_fields(
+    fields: dict[str, object],
+    *,
+    selected_adb: pathlib.Path,
+    home_directory: pathlib.Path,
+    account_home: pathlib.Path,
+) -> None:
+    if home_directory != account_home:
+        raise SystemExit(
+            "error: HOME must match the current account home directory for adb server verification"
+        )
+    executable = fields["executable_absolute_path"]
+    keystore = fields["keystore_path"]
+    mdns_enabled = fields["mdns_enabled"]
+    if not isinstance(executable, str) or not isinstance(keystore, str):
+        raise SystemExit("error: adb server-status path fields must be strings")
+    if mdns_enabled is not False:
+        raise SystemExit("error: active adb server did not disable mDNS discovery")
+    try:
+        expected_executable = selected_adb.resolve(strict=True)
+        actual_executable = pathlib.Path(executable).resolve(strict=True)
+    except OSError as exc:
+        raise SystemExit(f"error: cannot resolve adb server executable: {exc}") from exc
+    if actual_executable != expected_executable:
+        raise SystemExit(
+            "error: active adb server executable differs from the selected adb: "
+            f"{actual_executable}"
+        )
+    expected_keystore = account_home / ".android" / "adbkey"
+    if pathlib.Path(keystore) != expected_keystore:
+        raise SystemExit(
+            "error: active adb server keystore differs from the verified identity: "
+            f"{keystore}"
+        )
+
+
+def assert_default_adb_server_absent(_: argparse.Namespace) -> None:
+    endpoints: list[tuple[int, tuple[object, ...], str]] = [
+        (socket.AF_INET, ("127.0.0.1", 5037), "127.0.0.1:5037")
+    ]
+    if socket.has_ipv6:
+        endpoints.append((socket.AF_INET6, ("::1", 5037, 0, 0), "[::1]:5037"))
+    for family, address, label in endpoints:
+        try:
+            probe = socket.socket(family, socket.SOCK_STREAM)
+        except OSError as exc:
+            if family == socket.AF_INET6 and exc.errno in {
+                errno.EAFNOSUPPORT,
+                errno.EPROTONOSUPPORT,
+            }:
+                continue
+            raise SystemExit(
+                f"error: cannot create the default adb endpoint probe for {label}: {exc}"
+            ) from exc
+        with probe:
+            probe.settimeout(1.0)
+            try:
+                result = probe.connect_ex(address)
+            except OSError as exc:
+                raise SystemExit(
+                    f"error: cannot probe the default adb endpoint {label}: {exc}"
+                ) from exc
+        if result == 0:
+            raise SystemExit(
+                f"error: default adb server is already listening on {label}; "
+                "stop it explicitly before device proof"
+            )
+        if result != errno.ECONNREFUSED:
+            detail = os.strerror(result) if result > 0 else f"socket result {result}"
+            raise SystemExit(
+                f"error: cannot establish absence of the default adb listener on "
+                f"{label}: {detail}"
+            )
+    print("ANDROID_DEFAULT_ADB_SERVER_ABSENT_PASS")
+
+
+def parse_lsof_adb_listener(text: str, *, expected_endpoint: str) -> tuple[int, int]:
+    listeners: dict[int, int | None] = {}
+    endpoints: dict[int, set[str]] = {}
+    current_pid: int | None = None
+    for line in text.splitlines():
+        if not line:
+            raise SystemExit("error: empty field in adb listener inspection")
+        prefix, value = line[0], line[1:]
+        if prefix == "p":
+            if not value.isascii() or not value.isdigit() or str(int(value)) != value:
+                raise SystemExit(f"error: malformed adb listener pid: {value!r}")
+            current_pid = int(value)
+            if current_pid <= 1 or current_pid in listeners:
+                raise SystemExit(f"error: duplicate or invalid adb listener pid: {current_pid}")
+            listeners[current_pid] = None
+            endpoints[current_pid] = set()
+        elif prefix == "u":
+            if current_pid is None or not value.isascii() or not value.isdigit():
+                raise SystemExit(f"error: malformed adb listener uid: {value!r}")
+            uid = int(value)
+            if listeners[current_pid] is not None:
+                raise SystemExit(f"error: duplicate uid for adb listener pid {current_pid}")
+            listeners[current_pid] = uid
+        elif prefix == "n":
+            if current_pid is None or not value:
+                raise SystemExit(f"error: malformed adb listener endpoint: {value!r}")
+            endpoints[current_pid].add(value)
+        elif prefix != "f":
+            raise SystemExit(f"error: unexpected adb listener field: {line!r}")
+    if len(listeners) != 1:
+        raise SystemExit(
+            f"error: expected exactly one local adb listener, found {len(listeners)}"
+        )
+    pid, uid = next(iter(listeners.items()))
+    if uid is None:
+        raise SystemExit(f"error: adb listener pid {pid} lacks an owner uid")
+    if endpoints[pid] != {expected_endpoint}:
+        raise SystemExit(f"error: adb listener endpoint differs from {expected_endpoint}")
+    return pid, uid
+
+
+def _darwin_process_identity(pid: int) -> tuple[int, int, int, pathlib.Path, dict[str, str]]:
+    import ctypes
+
+    class ProcBsdInfo(ctypes.Structure):
+        _fields_ = [
+            ("pbi_flags", ctypes.c_uint32),
+            ("pbi_status", ctypes.c_uint32),
+            ("pbi_xstatus", ctypes.c_uint32),
+            ("pbi_pid", ctypes.c_uint32),
+            ("pbi_ppid", ctypes.c_uint32),
+            ("pbi_uid", ctypes.c_uint32),
+            ("pbi_gid", ctypes.c_uint32),
+            ("pbi_ruid", ctypes.c_uint32),
+            ("pbi_rgid", ctypes.c_uint32),
+            ("pbi_svuid", ctypes.c_uint32),
+            ("pbi_svgid", ctypes.c_uint32),
+            ("rfu_1", ctypes.c_uint32),
+            ("pbi_comm", ctypes.c_char * 16),
+            ("pbi_name", ctypes.c_char * 32),
+            ("pbi_nfiles", ctypes.c_uint32),
+            ("pbi_pgid", ctypes.c_uint32),
+            ("pbi_pjobc", ctypes.c_uint32),
+            ("e_tdev", ctypes.c_uint32),
+            ("e_tpgid", ctypes.c_uint32),
+            ("pbi_nice", ctypes.c_int32),
+            ("pbi_start_tvsec", ctypes.c_uint64),
+            ("pbi_start_tvusec", ctypes.c_uint64),
+        ]
+
+    libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+    proc_pidinfo = libproc.proc_pidinfo
+    proc_pidinfo.argtypes = [
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_uint64,
+        ctypes.c_void_p,
+        ctypes.c_int,
+    ]
+    proc_pidinfo.restype = ctypes.c_int
+    info = ProcBsdInfo()
+    ctypes.set_errno(0)
+    result = proc_pidinfo(pid, 3, 0, ctypes.byref(info), ctypes.sizeof(info))
+    if result != ctypes.sizeof(info) or info.pbi_pid != pid:
+        error_number = ctypes.get_errno()
+        detail = os.strerror(error_number) if error_number else "short process metadata"
+        raise SystemExit(f"error: cannot inspect adb listener process {pid}: {detail}")
+
+    proc_pidpath = libproc.proc_pidpath
+    proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    proc_pidpath.restype = ctypes.c_int
+    path_buffer = ctypes.create_string_buffer(4096)
+    ctypes.set_errno(0)
+    path_length = proc_pidpath(pid, path_buffer, len(path_buffer))
+    if path_length <= 0:
+        error_number = ctypes.get_errno()
+        detail = os.strerror(error_number) if error_number else "empty process path"
+        raise SystemExit(f"error: cannot inspect adb listener executable: {detail}")
+    executable = pathlib.Path(os.fsdecode(path_buffer.value)).resolve(strict=True)
+    environment = _darwin_process_environment(pid)
+    return (
+        info.pbi_uid,
+        info.pbi_start_tvsec,
+        info.pbi_start_tvusec,
+        executable,
+        environment,
+    )
+
+
+def _darwin_process_environment(pid: int) -> dict[str, str]:
+    import ctypes
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    sysctl = libc.sysctl
+    sysctl.argtypes = [
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.c_uint,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_void_p,
+        ctypes.c_size_t,
+    ]
+    sysctl.restype = ctypes.c_int
+    mib = (ctypes.c_int * 3)(1, 49, pid)
+    size = ctypes.c_size_t()
+    ctypes.set_errno(0)
+    if sysctl(mib, 3, None, ctypes.byref(size), None, 0) != 0 or size.value < 8:
+        error_number = ctypes.get_errno()
+        detail = os.strerror(error_number) if error_number else "invalid process arguments size"
+        raise SystemExit(f"error: cannot size adb server environment: {detail}")
+    if size.value > 16 * 1024 * 1024:
+        raise SystemExit("error: adb server environment exceeds the fixed inspection bound")
+    buffer = ctypes.create_string_buffer(size.value)
+    ctypes.set_errno(0)
+    if sysctl(mib, 3, buffer, ctypes.byref(size), None, 0) != 0:
+        error_number = ctypes.get_errno()
+        detail = os.strerror(error_number) if error_number else "unknown sysctl error"
+        raise SystemExit(f"error: cannot read adb server environment: {detail}")
+    data = bytes(buffer.raw[: size.value])
+    argc = int.from_bytes(data[:4], sys.byteorder, signed=True)
+    if argc < 1 or argc > 4096:
+        raise SystemExit(f"error: adb server argc is outside the inspection bound: {argc}")
+    offset = 4
+    executable_end = data.find(b"\0", offset)
+    if executable_end < 0:
+        raise SystemExit("error: adb server process arguments lack an executable terminator")
+    offset = executable_end + 1
+    while offset < len(data) and data[offset] == 0:
+        offset += 1
+    for _ in range(argc):
+        argument_end = data.find(b"\0", offset)
+        if argument_end < 0:
+            raise SystemExit("error: adb server process arguments are truncated")
+        offset = argument_end + 1
+    environment: dict[str, str] = {}
+    while offset < len(data):
+        entry_end = data.find(b"\0", offset)
+        if entry_end < 0:
+            raise SystemExit("error: adb server environment is truncated")
+        raw_entry = data[offset:entry_end]
+        offset = entry_end + 1
+        if not raw_entry:
+            break
+        try:
+            entry = os.fsdecode(raw_entry)
+        except UnicodeDecodeError as exc:
+            raise SystemExit("error: adb server environment is not decodable") from exc
+        if "=" not in entry:
+            raise SystemExit("error: malformed adb server environment entry")
+        name, value = entry.split("=", 1)
+        if not name or name in environment:
+            raise SystemExit("error: duplicate or empty adb server environment name")
+        environment[name] = value
+    return environment
+
+
+def _linux_process_identity(pid: int) -> tuple[int, int, int, pathlib.Path, dict[str, str]]:
+    process_root = pathlib.Path("/proc") / str(pid)
+    try:
+        metadata = process_root.stat()
+        executable = (process_root / "exe").resolve(strict=True)
+        stat_fields = (process_root / "stat").read_text(encoding="utf-8").split()
+        environment_bytes = (process_root / "environ").read_bytes()
+    except OSError as exc:
+        raise SystemExit(f"error: cannot inspect adb listener process {pid}: {exc}") from exc
+    if len(stat_fields) < 22 or not stat_fields[21].isdigit():
+        raise SystemExit("error: malformed Linux adb listener start identity")
+    environment: dict[str, str] = {}
+    for raw_entry in environment_bytes.split(b"\0"):
+        if not raw_entry:
+            continue
+        entry = os.fsdecode(raw_entry)
+        if "=" not in entry:
+            raise SystemExit("error: malformed adb server environment entry")
+        name, value = entry.split("=", 1)
+        if not name or name in environment:
+            raise SystemExit("error: duplicate or empty adb server environment name")
+        environment[name] = value
+    return metadata.st_uid, int(stat_fields[21]), 0, executable, environment
+
+
+def verify_adb_listener(args: argparse.Namespace) -> None:
+    try:
+        snapshot = read_regular_snapshot(
+            args.lsof_output,
+            maximum=MAX_ADB_LISTENER_OUTPUT_BYTES,
+            label="adb listener inspection",
+        )
+        pid, reported_uid = parse_lsof_adb_listener(
+            snapshot.data.decode("utf-8"), expected_endpoint=args.expected_endpoint
+        )
+    except (EvidenceIOError, UnicodeDecodeError) as exc:
+        raise SystemExit(f"error: cannot read adb listener inspection: {exc}") from exc
+    if sys.platform == "darwin":
+        uid, started_at, started_subsecond, executable, environment = (
+            _darwin_process_identity(pid)
+        )
+    elif sys.platform == "linux":
+        uid, started_at, started_subsecond, executable, environment = (
+            _linux_process_identity(pid)
+        )
+    else:
+        raise SystemExit(f"error: adb listener verification is unsupported on {sys.platform}")
+    if args.expected_pid is not None and pid != args.expected_pid:
+        raise SystemExit(
+            f"error: adb listener pid differs from the owned server: {pid}"
+        )
+    expected_environment: dict[str, str] = {}
+    forbidden_environment = [
+        "ANDROID_ADB_SERVER_ADDRESS",
+        "ANDROID_ADB_SERVER_PORT",
+        "ADB_MDNS_OPENSCREEN",
+        "ADB_REJECT_KILL_SERVER",
+        "ADB_OSX_USB_CLEAR_ENDPOINTS",
+        "ANDROID_ADB_LOG_PATH",
+        "ADB_TRACE",
+        "ADB_INSTALL_DEFAULT_INCREMENTAL",
+        "ADB_LIBUSB",
+        "ADB_LIBUSB_START_DETACHED",
+    ]
+    private_arguments = (
+        args.expected_server_socket,
+        args.expected_vendor_keys,
+        args.expected_mdns,
+        args.expected_transport_kind,
+    )
+    if all(value is None for value in private_arguments):
+        forbidden_environment.extend(
+            (
+                "ADB_VENDOR_KEYS",
+                "ADB_SERVER_SOCKET",
+                "ADB_MDNS",
+                "ADB_MDNS_AUTO_CONNECT",
+                "ADB_USB",
+                "ADB_EMU",
+                "ADB_LOCAL_TRANSPORT_MAX_PORT",
+            )
+        )
+    elif any(value is None for value in private_arguments):
+        raise SystemExit(
+            "error: expected adb socket, vendor keys, mDNS mode, and transport kind must be supplied together"
+        )
+    else:
+        if args.expected_pid is None:
+            raise SystemExit("error: private adb listener verification requires its owned pid")
+        expected_socket = f"localfilesystem:{args.expected_endpoint}"
+        if args.expected_server_socket != expected_socket:
+            raise SystemExit(
+                "error: expected adb server socket does not name the inspected endpoint"
+            )
+        expected_environment = {
+            "ADB_SERVER_SOCKET": args.expected_server_socket,
+            "ADB_VENDOR_KEYS": args.expected_vendor_keys,
+            "ADB_MDNS": args.expected_mdns,
+            "ADB_MDNS_AUTO_CONNECT": args.expected_mdns,
+            "ADB_LOCAL_TRANSPORT_MAX_PORT": "5585",
+        }
+        if args.expected_transport_kind == "physical":
+            expected_environment["ADB_USB"] = "1"
+            expected_environment["ADB_EMU"] = "0"
+        elif args.expected_transport_kind == "emulator":
+            expected_environment["ADB_USB"] = "0"
+            expected_environment["ADB_EMU"] = "1"
+        else:
+            raise SystemExit("error: invalid private adb transport kind")
+    identity = validate_adb_listener_identity(
+        pid=pid,
+        reported_uid=reported_uid,
+        process_uid=uid,
+        started_at=started_at,
+        started_subsecond=started_subsecond,
+        executable=executable,
+        environment=environment,
+        selected_adb=args.adb,
+        account_home=current_account_home(),
+        expected_identity=args.expected_identity,
+        expected_environment=expected_environment,
+        forbidden_environment=tuple(forbidden_environment),
+    )
+    print(identity)
+
+
+def publish_staged_proof(args: argparse.Namespace) -> None:
+    staging = args.staging
+    destination = args.destination
+    try:
+        metadata = staging.lstat()
+    except OSError as exc:
+        raise SystemExit(f"error: cannot inspect staged Android proof: {exc}") from exc
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        raise SystemExit(f"error: staged Android proof is not a regular file: {staging}")
+    if metadata.st_uid != os.geteuid() or stat.S_IMODE(metadata.st_mode) != 0o600:
+        raise SystemExit(f"error: staged Android proof ownership or mode changed: {staging}")
+    if metadata.st_nlink != 1:
+        raise SystemExit(f"error: staged Android proof has unexpected hard links: {staging}")
+    try:
+        destination.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise SystemExit(f"error: cannot inspect Android proof destination: {exc}") from exc
+    else:
+        raise SystemExit(f"error: Android proof destination already exists: {destination}")
+    try:
+        os.link(staging, destination, follow_symlinks=False)
+    except OSError as exc:
+        raise SystemExit(f"error: cannot atomically publish Android proof: {exc}") from exc
+    try:
+        staging.unlink()
+    except OSError as exc:
+        raise SystemExit(f"error: cannot remove staged Android proof after publication: {exc}") from exc
+    print("ANDROID_DEVICE_PROOF_PUBLISH_PASS")
+
+
+def verify_private_adb_socket(args: argparse.Namespace) -> None:
+    directory = args.directory
+    if directory.parent != pathlib.Path("/tmp") or re.fullmatch(
+        r"qperiapt-adb\.[A-Za-z0-9]{8}", directory.name
+    ) is None:
+        raise SystemExit(
+            "error: private adb server directory must be one fixed-shape child of /tmp"
+        )
+    socket_path = directory / "adb.sock"
+    if len(os.fsencode(socket_path)) >= 104:
+        raise SystemExit("error: private adb server socket exceeds the Unix path limit")
+    descriptor = _open_verified_adb_identity_entry(
+        directory,
+        display_path=directory,
+        label="private adb server directory",
+        directory=True,
+        forbidden_mode=0o022,
+    )
+    try:
+        metadata = os.fstat(descriptor)
+        if stat.S_IMODE(metadata.st_mode) != 0o700:
+            raise SystemExit(
+                f"error: private adb server directory must have mode 0700: {directory}"
+            )
+        try:
+            socket_metadata = os.stat("adb.sock", dir_fd=descriptor, follow_symlinks=False)
+        except FileNotFoundError:
+            if args.state != "absent":
+                raise SystemExit(f"error: private adb server socket is missing: {socket_path}")
+        except OSError as exc:
+            raise SystemExit(f"error: cannot inspect private adb server socket: {exc}") from exc
+        else:
+            if args.state != "present":
+                raise SystemExit(
+                    f"error: private adb server socket already exists: {socket_path}"
+                )
+            if not stat.S_ISSOCK(socket_metadata.st_mode):
+                raise SystemExit(
+                    f"error: private adb server endpoint is not a socket: {socket_path}"
+                )
+            if socket_metadata.st_uid != os.geteuid():
+                raise SystemExit(
+                    f"error: private adb server socket has the wrong owner: {socket_path}"
+                )
+    finally:
+        os.close(descriptor)
+    print(f"ANDROID_PRIVATE_ADB_SOCKET_{args.state.upper()}_PASS")
+
+
+def validate_adb_listener_identity(
+    *,
+    pid: int,
+    reported_uid: int,
+    process_uid: int,
+    started_at: int,
+    started_subsecond: int,
+    executable: pathlib.Path,
+    environment: dict[str, str],
+    selected_adb: pathlib.Path,
+    account_home: pathlib.Path,
+    expected_identity: str | None,
+    expected_environment: dict[str, str] | None = None,
+    forbidden_environment: tuple[str, ...] = (
+        "ADB_VENDOR_KEYS",
+        "ADB_SERVER_SOCKET",
+        "ANDROID_ADB_SERVER_ADDRESS",
+        "ANDROID_ADB_SERVER_PORT",
+    ),
+) -> str:
+    if process_uid != reported_uid or process_uid != os.geteuid():
+        raise SystemExit(
+            "error: adb listener uid is not the current user: "
+            f"lsof={reported_uid}, process={process_uid}"
+    )
+    try:
+        expected_executable = selected_adb.resolve(strict=True)
+    except OSError as exc:
+        raise SystemExit(f"error: cannot resolve selected adb executable: {exc}") from exc
+    if executable != expected_executable:
+        raise SystemExit(
+            f"error: adb listener executable differs from selected adb: {executable}"
+        )
+    present = [name for name in forbidden_environment if name in environment]
+    if present:
+        raise SystemExit(
+            "error: adb listener inherited forbidden routing or identity variables: "
+            + ", ".join(present)
+        )
+    for name, expected_value in (expected_environment or {}).items():
+        if environment.get(name) != expected_value:
+            raise SystemExit(
+                f"error: adb listener environment differs for required variable {name}"
+            )
+    if environment.get("HOME") != str(account_home):
+        raise SystemExit("error: adb listener HOME differs from the current account home")
+    identity = f"{pid}:{process_uid}:{started_at}:{started_subsecond}"
+    if expected_identity is not None and expected_identity != identity:
+        raise SystemExit(
+            "error: adb listener process identity changed during device proof: "
+            f"expected {expected_identity}, got {identity}"
+        )
+    return identity
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -1497,6 +2285,69 @@ def build_parser() -> argparse.ArgumentParser:
     )
     signer_parser.add_argument("--apksigner-output", required=True, type=pathlib.Path)
     signer_parser.set_defaults(func=signer_sha256)
+
+    adb_identity_parser = sub.add_parser(
+        "verify-adb-identity",
+        help="verify the current account adb identity and key permissions",
+    )
+    adb_identity_parser.add_argument(
+        "--home-directory", required=True, type=pathlib.Path
+    )
+    adb_identity_parser.set_defaults(func=verify_adb_identity)
+
+    default_adb_parser = sub.add_parser(
+        "assert-default-adb-server-absent",
+        help="fail unless the standard IPv4 and IPv6 adb endpoints refuse connections",
+    )
+    default_adb_parser.set_defaults(func=assert_default_adb_server_absent)
+
+    adb_server_parser = sub.add_parser(
+        "verify-adb-server-status",
+        help="verify the active adb server executable and keystore paths",
+    )
+    adb_server_parser.add_argument("--status", required=True, type=pathlib.Path)
+    adb_server_parser.add_argument("--adb", required=True, type=pathlib.Path)
+    adb_server_parser.add_argument(
+        "--home-directory", required=True, type=pathlib.Path
+    )
+    adb_server_parser.set_defaults(func=verify_adb_server_status)
+
+    adb_listener_parser = sub.add_parser(
+        "verify-adb-listener",
+        help="bind one exact adb endpoint to the expected owned server process",
+    )
+    adb_listener_parser.add_argument(
+        "--lsof-output", required=True, type=pathlib.Path
+    )
+    adb_listener_parser.add_argument("--adb", required=True, type=pathlib.Path)
+    adb_listener_parser.add_argument("--expected-endpoint", required=True)
+    adb_listener_parser.add_argument("--expected-pid", type=int)
+    adb_listener_parser.add_argument("--expected-identity")
+    adb_listener_parser.add_argument("--expected-server-socket")
+    adb_listener_parser.add_argument("--expected-vendor-keys")
+    adb_listener_parser.add_argument("--expected-mdns", choices=["0"])
+    adb_listener_parser.add_argument(
+        "--expected-transport-kind", choices=["physical", "emulator"]
+    )
+    adb_listener_parser.set_defaults(func=verify_adb_listener)
+
+    publish_parser = sub.add_parser(
+        "publish-staged-proof",
+        help="atomically publish one private staged Android proof without replacement",
+    )
+    publish_parser.add_argument("--staging", required=True, type=pathlib.Path)
+    publish_parser.add_argument("--destination", required=True, type=pathlib.Path)
+    publish_parser.set_defaults(func=publish_staged_proof)
+
+    private_socket_parser = sub.add_parser(
+        "verify-private-adb-socket",
+        help="verify the private adb server directory and fixed socket leaf",
+    )
+    private_socket_parser.add_argument("--directory", required=True, type=pathlib.Path)
+    private_socket_parser.add_argument(
+        "--state", required=True, choices=["absent", "present"]
+    )
+    private_socket_parser.set_defaults(func=verify_private_adb_socket)
     return parser
 
 

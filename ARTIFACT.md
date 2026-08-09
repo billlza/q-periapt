@@ -503,7 +503,7 @@ These produce the paper's primary network table and the binary constant-time dis
   raw combine/X-Wing/deterministic paths are forbidden exports. Proof schema v3 records hashed
   adb serial and build fingerprint only, hashes the AAR/APK/result/logcat/named inputs, and freezes
   the claim-ledger canonical source-input digest before the build. It recomputes
-  that digest before proof emission, so a source change during the run fails instead of binding old
+  that digest before proof staging, so a source change during the run fails instead of binding old
   binaries to new source. The proof is
   reverified with `QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh`. By default this
   lane requires a clean tree; use `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and
@@ -513,10 +513,26 @@ These produce the paper's primary network table and the binary constant-time dis
   `QPERIAPT_ANDROID_AVD=<avd-name>`, and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`; the AVD runs with a read-only userdata overlay. The smoke refuses to replace an existing package,
   matches both installed APK bytes and signer before owned cleanup, reconciles command-unknown
   outcomes with bounded repeated observations, and never clears global logcat buffers. It requires
-  an existing owner-protected adb key and an already authorized target; new authorization prompts
-  are outside the gate. `SIGKILL`,
-  host loss, or physical-device loss cannot run traps; an orphaned
-  `dev.qperiapt.androidsmoke` must be compared with the private run APK before manual removal.
+  the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
+  identity directory that is not group/other writable, owner-protected adb key files, and an already
+  authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is
+  rejected. The standard IPv4 and IPv6 adb endpoints must refuse connections at startup, before
+  cleanup, and immediately before final proof publication; the script never reuses or stops a
+  pre-existing default server. It instead owns one fixed `adb.sock` in a random, mode-0700,
+  allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/` directory and routes every client through its exact
+  `localfilesystem:` endpoint. The server disables mDNS and auto-connect. Physical proof enables
+  only USB scanning, binds `--one-device` to the explicit serial, and rechecks a `usb:` devpath before
+  staging; the owned AVD lane disables USB scanning and enables only emulator discovery. Immediately
+  after spawning the owned server, all parent/client scanners are disabled so a client-autostarted
+  replacement cannot attach to a device. Listener PID/start identity, executable, key, endpoint,
+  transport environment, and `mdns_enabled: false` status are checked before selection and again
+  after the last device query. Runtime cleanup, private-server protocol shutdown, and socket removal
+  must all succeed before the canonical proof is atomically published; cleanup failure produces no
+  PASS marker or accepted proof. The script never sends TERM/KILL to a cached PID. AVD transport still
+  requires an exclusive trusted evidence host because another locally started server could reach an
+  emulator port. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
+  cannot run traps; use the reported private socket/PID to confirm ownership before manual cleanup,
+  and compare any orphaned `dev.qperiapt.androidsmoke` with the private run APK before removal.
 - **Matched-backend performance gate.** Collect a paired host proof with:
 
   ```sh

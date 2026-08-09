@@ -68,6 +68,10 @@ for boolean_value in "$ANDROID_BOOT_AVD" "$ANDROID_KEEP_EMULATOR"; do
 			;;
 	esac
 done
+if [ "$ANDROID_KEEP_EMULATOR" = "1" ]; then
+	printf 'error: QPERIAPT_ANDROID_KEEP_EMULATOR=1 is incompatible with publishable device evidence\n' >&2
+	exit 2
+fi
 EXPECTED_DEVICE_KIND=${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}
 case "$EXPECTED_DEVICE_KIND" in
 	any | emulator | physical) ;;
@@ -245,32 +249,84 @@ if [ ! -x "$ADB" ]; then
 	printf 'error: adb not found: %s\n' "$ADB" >&2
 	exit 2
 fi
-if [ -n "${ADB_VENDOR_KEYS:-}" ]; then
-	printf 'error: ADB_VENDOR_KEYS is not supported by the physical evidence lane\n' >&2
+if [ -x /usr/sbin/lsof ]; then
+	LSOF=/usr/sbin/lsof
+elif [ -x /usr/bin/lsof ]; then
+	LSOF=/usr/bin/lsof
+else
+	printf 'error: fixed-system lsof is required to bind the adb listener process\n' >&2
 	exit 2
 fi
-python3 - "$HOME/.android/adbkey" "$HOME/.android/adbkey.pub" <<'PY'
-import os
-import pathlib
-import stat
-import sys
-
-private_key = pathlib.Path(sys.argv[1])
-public_key = pathlib.Path(sys.argv[2])
-for path, label in ((private_key, "adb private key"), (public_key, "adb public key")):
-    try:
-        metadata = path.lstat()
-    except OSError as exc:
-        raise SystemExit(f"error: existing {label} is required before device proof: {exc}") from exc
-    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
-        raise SystemExit(f"error: {label} must be a regular non-symlink file: {path}")
-    if metadata.st_uid != os.geteuid():
-        raise SystemExit(f"error: {label} must be owned by the current user: {path}")
-if stat.S_IMODE(private_key.lstat().st_mode) & 0o077:
-    raise SystemExit(f"error: adb private key must not be accessible by group or other users: {private_key}")
-if stat.S_IMODE(public_key.lstat().st_mode) & 0o022:
-    raise SystemExit(f"error: adb public key must not be writable by group or other users: {public_key}")
-PY
+if [ "${ADB_VENDOR_KEYS+x}" = x ]; then
+	printf 'error: ADB_VENDOR_KEYS is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_SERVER_SOCKET+x}" = x ]; then
+	printf 'error: ADB_SERVER_SOCKET is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ANDROID_ADB_SERVER_ADDRESS+x}" = x ]; then
+	printf 'error: ANDROID_ADB_SERVER_ADDRESS is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ANDROID_ADB_SERVER_PORT+x}" = x ]; then
+	printf 'error: ANDROID_ADB_SERVER_PORT is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_MDNS+x}" = x ]; then
+	printf 'error: ADB_MDNS is controlled internally by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_MDNS_AUTO_CONNECT+x}" = x ]; then
+	printf 'error: ADB_MDNS_AUTO_CONNECT is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_MDNS_OPENSCREEN+x}" = x ]; then
+	printf 'error: ADB_MDNS_OPENSCREEN is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_USB+x}" = x ]; then
+	printf 'error: ADB_USB is controlled internally by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_EMU+x}" = x ]; then
+	printf 'error: ADB_EMU is controlled internally by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_REJECT_KILL_SERVER+x}" = x ]; then
+	printf 'error: ADB_REJECT_KILL_SERVER is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_LOCAL_TRANSPORT_MAX_PORT+x}" = x ]; then
+	printf 'error: ADB_LOCAL_TRANSPORT_MAX_PORT is controlled internally by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_OSX_USB_CLEAR_ENDPOINTS+x}" = x ]; then
+	printf 'error: ADB_OSX_USB_CLEAR_ENDPOINTS is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ANDROID_ADB_LOG_PATH+x}" = x ]; then
+	printf 'error: ANDROID_ADB_LOG_PATH is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_TRACE+x}" = x ]; then
+	printf 'error: ADB_TRACE is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_INSTALL_DEFAULT_INCREMENTAL+x}" = x ]; then
+	printf 'error: ADB_INSTALL_DEFAULT_INCREMENTAL is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_LIBUSB+x}" = x ]; then
+	printf 'error: ADB_LIBUSB is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+if [ "${ADB_LIBUSB_START_DETACHED+x}" = x ]; then
+	printf 'error: ADB_LIBUSB_START_DETACHED is not supported by the Android device evidence lane\n' >&2
+	exit 2
+fi
+python3 artifact/android_device_proof.py verify-adb-identity \
+	--home-directory "$HOME"
 
 run_bounded_command() {
 	timeout_seconds=$1
@@ -321,7 +377,122 @@ remaining_bounded_timeout() {
 adb_for_serial() {
 	timeout_seconds=$1
 	shift
-	run_bounded_command "$timeout_seconds" "$ADB" -s "$SERIAL" "$@"
+	run_bounded_command "$timeout_seconds" \
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" "$@"
+}
+
+assert_default_adb_server_absent() {
+	python3 artifact/android_device_proof.py assert-default-adb-server-absent >/dev/null
+}
+
+private_adb_process_active() {
+	if [ -z "${ADB_PRIVATE_SERVER_PID:-}" ] || ! kill -0 "$ADB_PRIVATE_SERVER_PID" 2>/dev/null; then
+		return 1
+	fi
+	if private_adb_process_state=$(/bin/ps -o stat= -p "$ADB_PRIVATE_SERVER_PID" 2>/dev/null); then
+		case "$private_adb_process_state" in
+			"" | *Z*) return 1 ;;
+		esac
+	fi
+	return 0
+}
+
+wait_for_private_adb_exit() {
+	wait_duration_seconds=$1
+	private_adb_cleanup_deadline=$(monotonic_deadline "$wait_duration_seconds") || return 1
+	while private_adb_process_active; do
+		remaining_bounded_timeout "$private_adb_cleanup_deadline" 1 >/dev/null || break
+		sleep 0.2
+	done
+	! private_adb_process_active
+}
+
+stop_private_adb_server() {
+	if [ "${ADB_PRIVATE_SERVER_CLEANUP_ARMED:-0}" != "1" ]; then
+		return 0
+	fi
+	private_adb_cleanup_status=0
+	private_adb_resource_cleanup_status=0
+	private_adb_owned_process_recorded=0
+	private_adb_process_stopped=1
+	private_adb_protocol_shutdown_confirmed=1
+	if [ -z "${ADB_PRIVATE_SERVER_DIRECTORY:-}" ] || \
+		[ -z "${ADB_PRIVATE_SERVER_SOCKET_PATH:-}" ] || \
+		[ -z "${ADB_PRIVATE_SERVER_SOCKET_SPEC:-}" ]; then
+		printf 'error: private adb server cleanup lacks its directory capability\n' >&2
+		return 1
+	fi
+	if [ -n "${ADB_PRIVATE_SERVER_PID:-}" ]; then
+		private_adb_owned_process_recorded=1
+		private_adb_protocol_shutdown_confirmed=0
+		if ! run_bounded_command 15 \
+			"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" kill-server >/dev/null 2>&1; then
+			printf 'error: private adb server rejected the shutdown request\n' >&2
+			private_adb_cleanup_status=1
+		else
+			private_adb_protocol_shutdown_confirmed=1
+		fi
+		if ! wait_for_private_adb_exit 15; then
+			private_adb_cleanup_status=1
+		fi
+		if private_adb_process_active; then
+			printf 'error: owned adb server did not stop; refusing unsafe PID signalling (pid=%s socket=%s)\n' \
+				"$ADB_PRIVATE_SERVER_PID" "$ADB_PRIVATE_SERVER_SOCKET_PATH" >&2
+			private_adb_cleanup_status=1
+			private_adb_process_stopped=0
+		else
+			set +e
+			wait "$ADB_PRIVATE_SERVER_PID" >/dev/null 2>&1
+			private_adb_wait_status=$?
+			set -e
+			case "$private_adb_wait_status" in
+				0 | 129 | 130 | 137 | 143) ;;
+				*)
+					printf 'error: owned adb server exited unexpectedly with status %s\n' \
+						"$private_adb_wait_status" >&2
+					private_adb_cleanup_status=1
+					;;
+			esac
+			ADB_PRIVATE_SERVER_PID=
+		fi
+		if [ "$private_adb_protocol_shutdown_confirmed" -ne 1 ]; then
+			printf 'error: preserving the private adb socket because protocol shutdown was not confirmed: %s\n' \
+				"$ADB_PRIVATE_SERVER_SOCKET_PATH" >&2
+			private_adb_process_stopped=0
+		fi
+	fi
+	if [ "$private_adb_process_stopped" -eq 1 ]; then
+		if [ -S "$ADB_PRIVATE_SERVER_SOCKET_PATH" ]; then
+			if [ "$private_adb_owned_process_recorded" -ne 1 ]; then
+				printf 'error: private adb socket appeared before process ownership was recorded\n' >&2
+				private_adb_resource_cleanup_status=1
+			elif ! unlink "$ADB_PRIVATE_SERVER_SOCKET_PATH"; then
+				printf 'error: failed to remove private adb server socket\n' >&2
+				private_adb_resource_cleanup_status=1
+			fi
+		elif [ -e "$ADB_PRIVATE_SERVER_SOCKET_PATH" ] || [ -L "$ADB_PRIVATE_SERVER_SOCKET_PATH" ]; then
+			printf 'error: private adb server endpoint changed type during cleanup\n' >&2
+			private_adb_resource_cleanup_status=1
+		fi
+		if [ "$private_adb_resource_cleanup_status" -eq 0 ] && ! \
+			python3 artifact/android_device_proof.py verify-private-adb-socket \
+				--directory "$ADB_PRIVATE_SERVER_DIRECTORY" \
+				--state absent >/dev/null; then
+			private_adb_resource_cleanup_status=1
+		fi
+		if [ "$private_adb_resource_cleanup_status" -eq 0 ] && ! rmdir "$ADB_PRIVATE_SERVER_DIRECTORY"; then
+			printf 'error: failed to remove private adb server directory\n' >&2
+			private_adb_resource_cleanup_status=1
+		fi
+		if [ "$private_adb_resource_cleanup_status" -eq 0 ]; then
+			ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
+		fi
+	fi
+	if [ "$private_adb_cleanup_status" -ne 0 ] || \
+		[ "$private_adb_resource_cleanup_status" -ne 0 ]; then
+		return 1
+	fi
+	return 0
 }
 
 OUT_ROOT=${QPERIAPT_ANDROID_DEVICE_OUT_DIR:-"$ROOT/target/qperiapt-android-device-smoke"}
@@ -337,6 +508,7 @@ PACKAGE="dev.qperiapt.androidsmoke"
 RESULT_TXT="$DIST/qperiapt-android-device-result.txt"
 RESULT_JSON="$DIST/qperiapt-android-device-result.json"
 PROOF_JSON="$DIST/qperiapt-android-device-proof.json"
+PROOF_STAGING="$WORK/qperiapt-android-device-proof.json.pending"
 EVIDENCE_BUNDLE="$DIST/qperiapt-android-runtime-evidence-v1.zip"
 SOURCE_TREE_SHA256=$(python3 - "$ROOT" <<'PY'
 import pathlib
@@ -910,27 +1082,15 @@ stop_emulator_process() {
 		return 1
 	fi
 
-	cleanup_wait_count=0
-	while emulator_process_active && [ "$cleanup_wait_count" -lt 15 ]; do
-		sleep 1
-		cleanup_wait_count=$((cleanup_wait_count + 1))
+	emulator_cleanup_deadline=$(monotonic_deadline 20) || return 1
+	while emulator_process_active && \
+		remaining_bounded_timeout "$emulator_cleanup_deadline" 1 >/dev/null; do
+		sleep 0.2
 	done
 	if emulator_process_active; then
-		if ! kill -TERM "$EMULATOR_PID" 2>/dev/null && emulator_process_active; then
-			printf 'error: failed to terminate the temporary Android emulator\n' >&2
-			return 1
-		fi
-		cleanup_wait_count=0
-		while emulator_process_active && [ "$cleanup_wait_count" -lt 5 ]; do
-			sleep 1
-			cleanup_wait_count=$((cleanup_wait_count + 1))
-		done
-	fi
-	if emulator_process_active; then
-		if ! kill -KILL "$EMULATOR_PID" 2>/dev/null; then
-			printf 'error: failed to kill the unresponsive temporary Android emulator\n' >&2
-			return 1
-		fi
+		printf 'error: temporary Android emulator did not stop; refusing unsafe PID signalling (pid=%s)\n' \
+			"$EMULATOR_PID" >&2
+		return 1
 	fi
 
 	if wait "$EMULATOR_PID" >/dev/null 2>&1; then
@@ -938,6 +1098,8 @@ stop_emulator_process() {
 	else
 		emulator_wait_status=$?
 	fi
+	EMULATOR_PID=
+	EMULATOR_STARTED=0
 	case "$emulator_wait_status" in
 		0 | 129 | 130 | 137 | 143) return 0 ;;
 		*)
@@ -950,7 +1112,8 @@ stop_emulator_process() {
 query_package_state() {
 	package_query_output="$DIST/adb-package-query.txt"
 	if ! run_bounded_to_file 15 65536 "$package_query_output" \
-		"$ADB" -s "$SERIAL" shell cmd package list packages -u "$PACKAGE" 2>"$DIST/adb-package-query.err"; then
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+		shell cmd package list packages -u "$PACKAGE" 2>"$DIST/adb-package-query.err"; then
 		printf 'error: cannot query the Android smoke package state\n' >&2
 		return 1
 	fi
@@ -971,7 +1134,8 @@ query_package_state() {
 package_base_apk_path() {
 	package_path_output="$DIST/adb-package-path.txt"
 	if ! run_bounded_to_file 15 65536 "$package_path_output" \
-		"$ADB" -s "$SERIAL" shell pm path "$PACKAGE" 2>"$DIST/adb-package-path.err"; then
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+		shell pm path "$PACKAGE" 2>"$DIST/adb-package-path.err"; then
 		printf 'error: cannot resolve the installed Android smoke APK\n' >&2
 		return 1
 	fi
@@ -1027,7 +1191,8 @@ verify_installed_apk_signer() {
 		return 1
 	fi
 	if ! run_bounded_to_file 60 "$SIGNED_APK_BYTES" "$installed_apk" \
-		"$ADB" -s "$SERIAL" exec-out cat "$installed_base_apk"; then
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+		exec-out cat "$installed_base_apk"; then
 		printf 'error: cannot read the installed Android smoke base APK\n' >&2
 		remove_installed_apk_copy || return 1
 		return 1
@@ -1116,45 +1281,101 @@ cleanup_android_app() {
 	return 1
 }
 
+cleanup_unconfirmed_proof() {
+	proof_artifact_cleanup_status=0
+	if [ "${ANDROID_PROOF_EVIDENCE_CONFIRMED:-0}" != "1" ]; then
+		for proof_artifact in "$PROOF_STAGING" "$PROOF_JSON" "$EVIDENCE_BUNDLE"; do
+			if { [ -e "$proof_artifact" ] || [ -L "$proof_artifact" ]; } && \
+				! rm -f -- "$proof_artifact"; then
+				printf 'error: failed to remove unconfirmed Android proof artifact: %s\n' \
+					"$proof_artifact" >&2
+				proof_artifact_cleanup_status=1
+			fi
+			done
+	fi
+	return "$proof_artifact_cleanup_status"
+}
+
 cleanup_runtime() {
-	cleanup_status=0
+	runtime_internal_cleanup_status=0
 	if [ -n "${KEYSTORE:-}" ] && [ -e "$KEYSTORE" ]; then
 		if ! rm -f -- "$KEYSTORE"; then
 			printf 'error: failed to remove temporary Android smoke keystore: %s\n' "$KEYSTORE" >&2
-			cleanup_status=1
+			runtime_internal_cleanup_status=1
 		fi
 	fi
 	if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" = "1" ]; then
 		if [ -z "${ADB:-}" ] || [ -z "${SERIAL:-}" ]; then
 			printf 'error: installed Android smoke app cleanup lacks adb or device identity\n' >&2
-			cleanup_status=1
+			runtime_internal_cleanup_status=1
 		else
-			cleanup_android_app || cleanup_status=1
+			cleanup_android_app || runtime_internal_cleanup_status=1
 		fi
 	fi
-	if [ "${EMULATOR_STARTED:-0}" = "1" ] && [ "$ANDROID_KEEP_EMULATOR" != "1" ]; then
+	if [ "${EMULATOR_STARTED:-0}" = "1" ]; then
 		if [ -n "${ADB:-}" ] && [ -n "${SERIAL:-}" ] && ! adb_for_serial 15 emu kill >/dev/null 2>&1; then
 			printf 'error: failed to request shutdown of the temporary Android emulator\n' >&2
-			cleanup_status=1
+			runtime_internal_cleanup_status=1
 		fi
-		stop_emulator_process || cleanup_status=1
+		if stop_emulator_process; then
+			EMULATOR_STARTED=0
+		else
+			runtime_internal_cleanup_status=1
+		fi
 	fi
-	return "$cleanup_status"
+	if [ "${ADB_PRIVATE_SERVER_CLEANUP_ARMED:-0}" = "1" ]; then
+		stop_private_adb_server || runtime_internal_cleanup_status=1
+	fi
+	if [ "$runtime_internal_cleanup_status" -eq 0 ]; then
+		ANDROID_RUNTIME_CLEANUP_COMPLETED=1
+	fi
+	return "$runtime_internal_cleanup_status"
+}
+
+cleanup_runtime_with_deferred_signals() {
+	ANDROID_CLEANUP_SIGNAL=0
+	trap 'ANDROID_CLEANUP_SIGNAL=129' HUP
+	trap 'ANDROID_CLEANUP_SIGNAL=130' INT
+	trap 'ANDROID_CLEANUP_SIGNAL=143' TERM
+	deferred_runtime_cleanup_status=0
+	cleanup_runtime || deferred_runtime_cleanup_status=$?
+	trap 'exit 129' HUP
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	return "$deferred_runtime_cleanup_status"
 }
 
 cleanup_exit() {
-	status=$?
-	trap - EXIT HUP INT TERM
-	cleanup_status=0
-	cleanup_runtime || cleanup_status=$?
-	if [ "$status" -eq 0 ] && [ "$cleanup_status" -ne 0 ]; then
-		status=$cleanup_status
+	exit_status=$?
+	trap - EXIT
+	ANDROID_EXIT_CLEANUP_SIGNAL=0
+	trap 'ANDROID_EXIT_CLEANUP_SIGNAL=129' HUP
+	trap 'ANDROID_EXIT_CLEANUP_SIGNAL=130' INT
+	trap 'ANDROID_EXIT_CLEANUP_SIGNAL=143' TERM
+	exit_runtime_cleanup_status=0
+	cleanup_runtime || exit_runtime_cleanup_status=$?
+	exit_proof_cleanup_status=0
+	cleanup_unconfirmed_proof || exit_proof_cleanup_status=$?
+	trap - HUP INT TERM
+	if [ "$ANDROID_EXIT_CLEANUP_SIGNAL" -ne 0 ]; then
+		exit_status=$ANDROID_EXIT_CLEANUP_SIGNAL
+	elif [ "$exit_status" -eq 0 ] && [ "$exit_runtime_cleanup_status" -ne 0 ]; then
+		exit_status=$exit_runtime_cleanup_status
+	elif [ "$exit_status" -eq 0 ] && [ "$exit_proof_cleanup_status" -ne 0 ]; then
+		exit_status=$exit_proof_cleanup_status
 	fi
-	exit "$status"
+	exit "$exit_status"
 }
 
 ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
+ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
+ADB_PRIVATE_SERVER_DIRECTORY=
+ADB_PRIVATE_SERVER_SOCKET_PATH=
+ADB_PRIVATE_SERVER_SOCKET_SPEC=
+ADB_PRIVATE_SERVER_PID=
+ANDROID_RUNTIME_CLEANUP_COMPLETED=0
+ANDROID_PROOF_EVIDENCE_CONFIRMED=0
 trap cleanup_exit EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -1341,7 +1562,8 @@ esac
 printf 'PASS: temporary Android smoke APK built and signed\n'
 
 adb_devices() {
-	if ! devices_output=$(run_bounded_command 15 "$ADB" devices); then
+	if ! devices_output=$(run_bounded_command 15 \
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" devices); then
 		printf 'error: cannot enumerate Android devices\n' >&2
 		return 1
 	fi
@@ -1364,7 +1586,8 @@ for line in sys.stdin:
 capture_app_logcat() {
 	raw_logcat="$DIST/logcat-raw.txt"
 	if ! run_bounded_to_file 30 16777216 "$raw_logcat" \
-		"$ADB" -s "$SERIAL" logcat -d -v tag -T "$LOGCAT_START_EPOCH" \
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+		logcat -d -v tag -T "$LOGCAT_START_EPOCH" \
 		-s 'QPeriaptSmoke:*' '*:S'; then
 		printf 'error: failed to capture the run-bounded Android smoke log\n' >&2
 		return 1
@@ -1429,7 +1652,112 @@ choose_device_serial() {
 }
 
 printf '\n=== Select Android runtime device ===\n'
-run_bounded_command 15 "$ADB" start-server >/dev/null
+assert_default_adb_server_absent
+ADB_PRIVATE_DIRECTORY_SIGNAL=0
+trap 'ADB_PRIVATE_DIRECTORY_SIGNAL=129' HUP
+trap 'ADB_PRIVATE_DIRECTORY_SIGNAL=130' INT
+trap 'ADB_PRIVATE_DIRECTORY_SIGNAL=143' TERM
+if ADB_PRIVATE_SERVER_DIRECTORY=$(/usr/bin/mktemp -d /tmp/qperiapt-adb.XXXXXXXX); then
+	ADB_PRIVATE_SERVER_SOCKET_PATH="$ADB_PRIVATE_SERVER_DIRECTORY/adb.sock"
+	ADB_PRIVATE_SERVER_SOCKET_SPEC="localfilesystem:$ADB_PRIVATE_SERVER_SOCKET_PATH"
+	ADB_PRIVATE_VENDOR_KEY="$HOME/.android/adbkey"
+	ADB_PRIVATE_SERVER_CLEANUP_ARMED=1
+	private_adb_directory_status=0
+else
+	private_adb_directory_status=$?
+fi
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+if [ "$private_adb_directory_status" -ne 0 ]; then
+	printf 'error: cannot create private adb server directory\n' >&2
+	exit "$private_adb_directory_status"
+fi
+if [ "$ADB_PRIVATE_DIRECTORY_SIGNAL" -ne 0 ]; then
+	exit "$ADB_PRIVATE_DIRECTORY_SIGNAL"
+fi
+/bin/chmod 0700 "$ADB_PRIVATE_SERVER_DIRECTORY"
+python3 artifact/android_device_proof.py verify-private-adb-socket \
+	--directory "$ADB_PRIVATE_SERVER_DIRECTORY" \
+	--state absent >/dev/null
+export ADB_SERVER_SOCKET="$ADB_PRIVATE_SERVER_SOCKET_SPEC"
+export ADB_VENDOR_KEYS="$ADB_PRIVATE_VENDOR_KEY"
+export ADB_MDNS=0
+export ADB_MDNS_AUTO_CONNECT=0
+export ADB_LOCAL_TRANSPORT_MAX_PORT=5585
+if [ "$EXPECTED_DEVICE_KIND" = "physical" ]; then
+	export ADB_USB=1
+	export ADB_EMU=0
+else
+	export ADB_USB=0
+	export ADB_EMU=1
+fi
+ADB_SERVER_START_SIGNAL=0
+trap 'ADB_SERVER_START_SIGNAL=129' HUP
+trap 'ADB_SERVER_START_SIGNAL=130' INT
+trap 'ADB_SERVER_START_SIGNAL=143' TERM
+if [ "$EXPECTED_DEVICE_KIND" = "physical" ]; then
+	"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" \
+		--one-device "$QPERIAPT_ANDROID_SERIAL" server nodaemon \
+		>"$DIST/adb-server.log" 2>&1 &
+else
+	"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" server nodaemon \
+		>"$DIST/adb-server.log" 2>&1 &
+fi
+ADB_PRIVATE_SERVER_PID=$!
+# The owned child inherited its lane-specific transport scanners at spawn. All
+# subsequent clients disable scanners so an auto-started replacement is inert.
+export ADB_USB=0
+export ADB_EMU=0
+printf 'private-adb: pid=%s socket=%s\n' \
+	"$ADB_PRIVATE_SERVER_PID" "$ADB_PRIVATE_SERVER_SOCKET_PATH" >&2
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+if [ "$ADB_SERVER_START_SIGNAL" -ne 0 ]; then
+	exit "$ADB_SERVER_START_SIGNAL"
+fi
+ADB_PRIVATE_SERVER_READY_DEADLINE=$(monotonic_deadline 15)
+while [ ! -S "$ADB_PRIVATE_SERVER_SOCKET_PATH" ] && \
+	private_adb_process_active && \
+	remaining_bounded_timeout "$ADB_PRIVATE_SERVER_READY_DEADLINE" 1 >/dev/null; do
+	sleep 0.1
+done
+python3 artifact/android_device_proof.py verify-private-adb-socket \
+	--directory "$ADB_PRIVATE_SERVER_DIRECTORY" \
+	--state present >/dev/null
+ADB_LISTENER_INITIAL="$DIST/adb-listener-initial.txt"
+run_bounded_to_file 15 65536 "$ADB_LISTENER_INITIAL" \
+	"$LSOF" -nP -a -U -Fpun "$ADB_PRIVATE_SERVER_SOCKET_PATH"
+ADB_PRIVATE_SERVER_PROCESS_IDENTITY=$(python3 artifact/android_device_proof.py verify-adb-listener \
+	--lsof-output "$ADB_LISTENER_INITIAL" \
+	--adb "$ADB" \
+	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
+	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
+	--expected-server-socket "$ADB_PRIVATE_SERVER_SOCKET_SPEC" \
+	--expected-vendor-keys "$ADB_PRIVATE_VENDOR_KEY" \
+	--expected-mdns 0 \
+	--expected-transport-kind "$EXPECTED_DEVICE_KIND")
+ADB_SERVER_STATUS_BEFORE="$DIST/adb-server-status-before.txt"
+run_bounded_to_file 15 65536 "$ADB_SERVER_STATUS_BEFORE" \
+	"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" server-status
+python3 artifact/android_device_proof.py verify-adb-server-status \
+	--status "$ADB_SERVER_STATUS_BEFORE" \
+	--adb "$ADB" \
+	--home-directory "$HOME"
+ADB_LISTENER_BEFORE="$DIST/adb-listener-before.txt"
+run_bounded_to_file 15 65536 "$ADB_LISTENER_BEFORE" \
+	"$LSOF" -nP -a -U -Fpun "$ADB_PRIVATE_SERVER_SOCKET_PATH"
+ADB_LISTENER_IDENTITY=$(python3 artifact/android_device_proof.py verify-adb-listener \
+	--lsof-output "$ADB_LISTENER_BEFORE" \
+	--adb "$ADB" \
+	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
+	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
+	--expected-identity "$ADB_PRIVATE_SERVER_PROCESS_IDENTITY" \
+	--expected-server-socket "$ADB_PRIVATE_SERVER_SOCKET_SPEC" \
+	--expected-vendor-keys "$ADB_PRIVATE_VENDOR_KEY" \
+	--expected-mdns 0 \
+	--expected-transport-kind "$EXPECTED_DEVICE_KIND")
 EMULATOR_STARTED=0
 SERIAL=$(select_serial_or_empty)
 if [ "$ANDROID_BOOT_AVD" = "1" ]; then
@@ -1459,6 +1787,10 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		exit 2
 	fi
 	printf 'boot-avd : %s\n' "$QPERIAPT_ANDROID_AVD"
+	EMULATOR_START_SIGNAL=0
+	trap 'EMULATOR_START_SIGNAL=129' HUP
+	trap 'EMULATOR_START_SIGNAL=130' INT
+	trap 'EMULATOR_START_SIGNAL=143' TERM
 	"$EMULATOR" \
 		-avd "$QPERIAPT_ANDROID_AVD" \
 		-port "$ANDROID_EMULATOR_PORT" \
@@ -1471,13 +1803,21 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		>"$DIST/emulator.log" 2>&1 &
 	EMULATOR_PID=$!
 	EMULATOR_STARTED=1
+	trap 'exit 129' HUP
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	if [ "$EMULATOR_START_SIGNAL" -ne 0 ]; then
+		exit "$EMULATOR_START_SIGNAL"
+	fi
 	EMULATOR_ADB_DEADLINE=$(monotonic_deadline 90)
 	while emulator_attempt_timeout=$(remaining_bounded_timeout "$EMULATOR_ADB_DEADLINE" 10); do
 		if ! emulator_process_active; then
 			printf 'error: temporary Android emulator exited before its bound adb serial became available\n' >&2
 			exit 1
 		fi
-		if emulator_state=$(run_bounded_command "$emulator_attempt_timeout" "$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state 2>/dev/null) \
+		if emulator_state=$(run_bounded_command "$emulator_attempt_timeout" \
+			"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" \
+			-s "$EXPECTED_EMULATOR_SERIAL" get-state 2>/dev/null) \
 			&& [ "$emulator_state" = "device" ]; then
 			SERIAL=$EXPECTED_EMULATOR_SERIAL
 			break
@@ -1499,7 +1839,9 @@ if [ -z "$SERIAL" ]; then
 	printf 'hint : set an explicit physical serial/kind, or run with QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=<name> QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator\n' >&2
 	exit 2
 fi
-if ! authorized_state=$(run_bounded_command 15 "$ADB" -s "$SERIAL" get-state 2>"$DIST/adb-authorization.err"); then
+if ! authorized_state=$(run_bounded_command 15 \
+	"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+	get-state 2>"$DIST/adb-authorization.err"); then
 	printf 'error: target Android device was not already authorized; do not accept a new authorization prompt during proof\n' >&2
 	exit 2
 fi
@@ -1549,6 +1891,32 @@ case "$EXPECTED_DEVICE_KIND" in
 		fi
 		;;
 esac
+if [ "$DEVICE_KIND" = "physical" ]; then
+	DEVICE_DEVPATH_FILE="$DIST/adb-device-devpath.txt"
+	run_bounded_to_file 15 4096 "$DEVICE_DEVPATH_FILE" \
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" get-devpath
+	DEVICE_TRANSPORT=$(PYTHONPATH=artifact python3 - "$DEVICE_DEVPATH_FILE" <<'PY'
+import pathlib
+import re
+import sys
+
+from evidence_io import read_regular_snapshot
+
+snapshot = read_regular_snapshot(
+    pathlib.Path(sys.argv[1]), maximum=4096, label="Android adb device path"
+)
+try:
+    value = snapshot.data.decode("utf-8").replace("\r", "").removesuffix("\n")
+except UnicodeDecodeError as exc:
+    raise SystemExit(f"error: Android adb device path is not UTF-8: {exc}") from exc
+if re.fullmatch(r"usb:[A-Za-z0-9._:/-]{1,512}", value) is None:
+    raise SystemExit(f"error: physical Android evidence requires one USB transport: {value!r}")
+print("usb")
+PY
+	)
+else
+	DEVICE_TRANSPORT=emulator-local
+fi
 DEVICE_ABI=$(adb_for_serial 15 shell getprop ro.product.cpu.abi | tr -d '\r\n ')
 case "$DEVICE_ABI" in
 	arm64-v8a | x86_64 | armeabi-v7a | x86) ;;
@@ -1587,6 +1955,7 @@ if [ -n "$EXPECTED_DEVICE_SDK" ] && [ "$DEVICE_SDK" != "$EXPECTED_DEVICE_SDK" ];
 fi
 printf 'serial   : sha256:%s\n' "$SERIAL_SHA256_PREFIX"
 printf 'kind     : %s\n' "$DEVICE_KIND"
+printf 'transport: %s\n' "$DEVICE_TRANSPORT"
 printf 'abi      : %s\n' "$DEVICE_ABI"
 printf 'page-size: %s\n' "$PAGE_SIZE"
 printf 'sdk      : %s\n' "$DEVICE_SDK"
@@ -1604,7 +1973,7 @@ if ! rm -f -- "$DIST/adb-uninstall-cleanup.log"; then
 	exit 1
 fi
 ANDROID_APP_CLEANUP_ARMED=1
-if ! adb_for_serial 120 install "$SIGNED_APK" >"$DIST/adb-install.log"; then
+if ! adb_for_serial 120 install --no-incremental "$SIGNED_APK" >"$DIST/adb-install.log"; then
 	printf 'error: Android smoke APK installation failed\n' >&2
 	exit 1
 fi
@@ -1632,7 +2001,9 @@ RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)
 while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 15); do
 	set +e
 	run_bounded_to_file "$result_attempt_timeout" 1048576 "$RESULT_TXT.tmp" \
-		"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.txt" 2>"$DIST/result-read.err"
+		"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+		exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.txt" \
+		2>"$DIST/result-read.err"
 	read_rc=$?
 	set -e
 	if [ "$read_rc" -eq 0 ]; then
@@ -1643,7 +2014,9 @@ while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLI
 		if grep -F "QPERIAPT_ANDROID_DEVICE_FAIL run-id=$RUN_ID" "$RESULT_TXT.tmp" >/dev/null 2>&1; then
 			mv "$RESULT_TXT.tmp" "$RESULT_TXT"
 			run_bounded_to_file 15 4194304 "$RESULT_JSON" \
-				"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" 2>"$DIST/result-json-read.err"
+				"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+				exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" \
+				2>"$DIST/result-json-read.err"
 			capture_app_logcat >"$DIST/logcat.txt"
 			printf 'error: Android runtime smoke reported failure; see %s and %s\n' "$RESULT_JSON" "$DIST/logcat.txt" >&2
 			exit 1
@@ -1660,7 +2033,8 @@ test -f "$RESULT_TXT" || {
 	exit 1
 }
 run_bounded_to_file 15 4194304 "$RESULT_JSON" \
-	"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json"
+	"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" -s "$SERIAL" \
+	exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json"
 capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
 	printf 'error: Android logcat contains a runtime failure marker; see %s\n' "$DIST/logcat.txt" >&2
@@ -1704,10 +2078,11 @@ PY
 printf 'PASS: Android runtime smoke returned run-bound marker\n'
 
 printf '\n=== Emit Android runtime proof ===\n'
-python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$ADB" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" <<'PY'
+python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_STAGING" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$ADB" "$ADB_PRIVATE_SERVER_SOCKET_SPEC" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" <<'PY'
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -1729,18 +2104,20 @@ result_txt = pathlib.Path(sys.argv[8])
 result_json = pathlib.Path(sys.argv[9])
 logcat = pathlib.Path(sys.argv[10])
 proof = pathlib.Path(sys.argv[11])
-android_platform = pathlib.Path(sys.argv[12])
-android_build_tools = pathlib.Path(sys.argv[13])
-aar_extract = pathlib.Path(sys.argv[14])
-adb = pathlib.Path(sys.argv[15])
-source_tree_sha256 = sys.argv[16]
-device_abi = sys.argv[17]
-page_size = int(sys.argv[18])
-device_sdk = int(sys.argv[19])
-ndk_revision = sys.argv[20]
-release_mode = sys.argv[21] == "1"
-apksigner = pathlib.Path(sys.argv[22]).resolve()
-zipalign = pathlib.Path(sys.argv[23]).resolve()
+proof_destination = pathlib.Path(sys.argv[12])
+android_platform = pathlib.Path(sys.argv[13])
+android_build_tools = pathlib.Path(sys.argv[14])
+aar_extract = pathlib.Path(sys.argv[15])
+adb = pathlib.Path(sys.argv[16])
+adb_server_socket = sys.argv[17]
+source_tree_sha256 = sys.argv[18]
+device_abi = sys.argv[19]
+page_size = int(sys.argv[20])
+device_sdk = int(sys.argv[21])
+ndk_revision = sys.argv[22]
+release_mode = sys.argv[23] == "1"
+apksigner = pathlib.Path(sys.argv[24]).resolve()
+zipalign = pathlib.Path(sys.argv[25]).resolve()
 
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -1767,7 +2144,10 @@ def bounded_text(argv: list[str], label: str, maximum_bytes: int = 65536) -> str
         raise SystemExit(f"error: {label} output is not UTF-8: {exc}") from exc
 
 def adb_text(*args: str) -> str:
-    return bounded_text([str(adb), "-s", serial, *args], "adb device query")
+    return bounded_text(
+        [str(adb), "-L", adb_server_socket, "-s", serial, *args],
+        "adb device query",
+    )
 
 def getprop(name: str) -> str:
     return adb_text("shell", "getprop", name)
@@ -1775,6 +2155,10 @@ def getprop(name: str) -> str:
 def sha_text(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
+if device_kind == "physical" and re.fullmatch(
+    r"usb:[A-Za-z0-9._:/-]{1,512}", adb_text("get-devpath")
+) is None:
+    raise SystemExit("error: physical Android transport changed before proof staging")
 if getprop("ro.product.cpu.abi") != device_abi:
     raise SystemExit("error: Android device ABI changed while producing runtime proof")
 if int(adb_text("shell", "getconf", "PAGE_SIZE")) != page_size:
@@ -1827,7 +2211,9 @@ def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
 
 adb_version_lines = bounded_text(
-    [str(adb), "version"], "adb version", 1024 * 1024
+    [str(adb), "-L", adb_server_socket, "version"],
+    "adb version",
+    1024 * 1024,
 ).splitlines()
 if not adb_version_lines:
     raise SystemExit("error: adb version output is empty")
@@ -1848,8 +2234,8 @@ payload = {
         "aar": rel(aar),
         "aar_manifest": rel(aar_manifest),
         "smoke_apk": rel(apk),
-        "apksigner_verify": rel(proof.parent / "apksigner-verify.txt"),
-        "zipalign_verify": rel(proof.parent / "zipalign-verify.txt"),
+        "apksigner_verify": rel(proof_destination.parent / "apksigner-verify.txt"),
+        "zipalign_verify": rel(proof_destination.parent / "zipalign-verify.txt"),
         "result_txt": rel(result_txt),
         "result_json": rel(result_json),
         "logcat": rel(logcat),
@@ -1896,15 +2282,66 @@ payload = {
         "aar_sha256": sha256(aar),
         "aar_manifest_sha256": sha256(aar_manifest),
         "smoke_apk_sha256": sha256(apk),
-        "apksigner_verify_sha256": sha256(proof.parent / "apksigner-verify.txt"),
-        "zipalign_verify_sha256": sha256(proof.parent / "zipalign-verify.txt"),
+        "apksigner_verify_sha256": sha256(
+            proof_destination.parent / "apksigner-verify.txt"
+        ),
+        "zipalign_verify_sha256": sha256(
+            proof_destination.parent / "zipalign-verify.txt"
+        ),
         "logcat_sha256": sha256(logcat),
         "native": native,
     },
     "source_hashes": {name + "_sha256": sha256(path) for name, path in source_paths.items()},
 }
-proof.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+encoded_proof = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW
+descriptor = os.open(proof, flags, 0o600)
+with os.fdopen(descriptor, "wb") as proof_file:
+    proof_file.write(encoded_proof)
+    proof_file.flush()
+    os.fsync(proof_file.fileno())
 PY
+ADB_SERVER_STATUS_AFTER="$DIST/adb-server-status-after.txt"
+run_bounded_to_file 15 65536 "$ADB_SERVER_STATUS_AFTER" \
+	"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC" server-status
+python3 artifact/android_device_proof.py verify-adb-server-status \
+	--status "$ADB_SERVER_STATUS_AFTER" \
+	--adb "$ADB" \
+	--home-directory "$HOME"
+ADB_LISTENER_AFTER="$DIST/adb-listener-after.txt"
+run_bounded_to_file 15 65536 "$ADB_LISTENER_AFTER" \
+	"$LSOF" -nP -a -U -Fpun "$ADB_PRIVATE_SERVER_SOCKET_PATH"
+python3 artifact/android_device_proof.py verify-adb-listener \
+	--lsof-output "$ADB_LISTENER_AFTER" \
+	--adb "$ADB" \
+	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
+	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
+	--expected-identity "$ADB_LISTENER_IDENTITY" \
+	--expected-server-socket "$ADB_PRIVATE_SERVER_SOCKET_SPEC" \
+	--expected-vendor-keys "$ADB_PRIVATE_VENDOR_KEY" \
+	--expected-mdns 0 \
+	--expected-transport-kind "$EXPECTED_DEVICE_KIND" >/dev/null
+assert_default_adb_server_absent
+if cleanup_runtime_with_deferred_signals; then
+	runtime_cleanup_status=0
+else
+	runtime_cleanup_status=$?
+fi
+if [ "$ANDROID_CLEANUP_SIGNAL" -ne 0 ]; then
+	exit "$ANDROID_CLEANUP_SIGNAL"
+fi
+if [ "$runtime_cleanup_status" -ne 0 ]; then
+	printf 'error: Android runtime cleanup failed before proof publication\n' >&2
+	exit "$runtime_cleanup_status"
+fi
+if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
+	printf 'error: Android runtime cleanup did not reach its confirmation point\n' >&2
+	exit 1
+fi
+assert_default_adb_server_absent
+python3 artifact/android_device_proof.py publish-staged-proof \
+	--staging "$PROOF_STAGING" \
+	--destination "$PROOF_JSON"
 python3 -m json.tool "$PROOF_JSON" >/dev/null
 if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
 	set -- --allow-dirty-proof
@@ -1931,6 +2368,11 @@ PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
 	--forbid-text "$SERIAL" \
 	--expected-device-kind "$DEVICE_KIND" \
 	"$@"
+if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
+	printf 'error: refusing to confirm Android evidence before runtime cleanup\n' >&2
+	exit 1
+fi
+ANDROID_PROOF_EVIDENCE_CONFIRMED=1
 printf 'Proof    : %s\n' "$PROOF_JSON"
 printf 'Bundle   : %s\n' "$EVIDENCE_BUNDLE"
 printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s bundle=%s\n' "$PROOF_JSON" "$EVIDENCE_BUNDLE"

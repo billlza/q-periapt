@@ -68,9 +68,24 @@ requires the exact package to be absent, and before cleanup it verifies that the
 installed base APK matches both this run's exact bytes and signer. Unknown install or
 uninstall outcomes are reconciled through bounded repeated observations. Log evidence is bounded to the current
 run and tag without clearing any global Android log buffer.
-The lane requires an existing owner-protected `~/.android/adbkey` identity and an
+The lane requires `$HOME` to match the current account's non-symlink home directory that is
+not writable by group or other users, an owner-controlled non-symlink `~/.android` directory that is not
+writable by group or other users, owner-protected `adbkey`/`adbkey.pub` files, and an
 already authorized target; do not accept a new authorization prompt during proof.
-`SIGKILL`, host loss, and physical-device loss cannot run traps; manually remove an
+On macOS, deny-only ACLs may further restrict these nodes, while any allow ACL is
+rejected even when the POSIX mode appears private.
+Caller-provided adb routing, discovery, and kill-policy environment variables are rejected.
+The default IPv4/IPv6 adb endpoints must be absent; the script never stops or reuses them.
+It owns a mode-0700, allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/adb.sock` and explicitly routes
+every client to that `localfilesystem:` endpoint. mDNS/auto-connect are disabled. Physical
+proof is USB-only and serial-bound; the owned AVD server disables USB and enables only emulator
+discovery. Parent clients disable both scanners immediately after server spawn so an auto-started
+replacement is inert. The server PID/start identity, executable, key, endpoint, transport env,
+and mDNS-disabled status are checked before selection and after the final device query. App/AVD/server
+cleanup and socket removal complete before atomic final proof publication; failure emits neither an
+accepted proof nor the PASS marker, and the script never signals a cached PID directly. AVD transport
+still requires an exclusive trusted evidence host. `SIGKILL`, host loss, and device loss cannot run
+traps; use the reported private socket/PID to establish ownership before manual cleanup, and remove an
 orphaned `dev.qperiapt.androidsmoke` only after comparing it with the private run APK.
 
 Reverify the proof with:

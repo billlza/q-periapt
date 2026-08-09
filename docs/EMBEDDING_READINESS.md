@@ -126,8 +126,20 @@ serial and `physical` expectation; emulators are accepted only when this script 
 the cold-boot AVD with a read-only userdata overlay. The smoke refuses to replace an existing exact package, validates the installed
 APK bytes and signer before cleanup, reconciles unknown outcomes with bounded stable observations,
 and captures only run-bounded tag output without clearing global logcat
-buffers. A pre-existing owner-protected adb identity and an already authorized target
-are mandatory; authorization prompts are not part of the proof lane.
+buffers. The fixed current-account home and its `.android` identity directory must be
+non-symlink, owner-controlled, and not group/other writable; owner-protected key files
+and an already authorized target are mandatory. macOS deny-only ACLs are accepted, but
+any allow ACL is rejected. Caller-supplied adb routing/discovery overrides are rejected, and
+the default IPv4/IPv6 endpoints must already be absent; the script never stops or reuses a
+global server. It owns one mode-0700, allow-ACL-free private `localfilesystem:` socket under
+`/tmp`, routes every client explicitly, disables mDNS/auto-connect, and freezes server PID/start,
+executable, key, endpoint, transport environment, and mDNS-disabled status before selection and
+after the final query. Physical proof is restricted to one explicit USB serial. The AVD lane disables
+USB, but its localhost emulator transport still requires an exclusive trusted evidence host. App,
+AVD, private-server, and socket cleanup must complete before atomic final proof publication; failures
+leave no accepted proof or PASS marker and never trigger raw-PID TERM/KILL. Authorization prompts are
+not part of the proof lane; after `SIGKILL` or host/device loss, establish ownership from the reported
+private socket/PID before manual cleanup.
 
 ## Local Release Index
 
