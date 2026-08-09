@@ -34,6 +34,10 @@ if [ "$MATRIX_MODE" = "1" ] && [ -n "${QPERIAPT_IOS_DEVICE_ID:-}" ]; then
 	printf 'error: QPERIAPT_IOS_DEVICE_ID and matrix mode are mutually exclusive\n' >&2
 	exit 2
 fi
+if [ "$MATRIX_MODE" = "1" ] && [ -z "${QPERIAPT_IOS_DEVICE_MATRIX:-}" ]; then
+	printf 'error: QPERIAPT_IOS_DEVICE_MATRIX is required for the Xcode 27 matrix gate\n' >&2
+	exit 2
+fi
 if [ "$MATRIX_MODE" = "0" ] && [ -z "${QPERIAPT_IOS_DEVICE_ID:-}" ]; then
 	printf 'error: QPERIAPT_IOS_DEVICE_ID is required for the Xcode 27 gate\n' >&2
 	exit 2

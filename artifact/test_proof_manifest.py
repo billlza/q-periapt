@@ -269,6 +269,21 @@ class ProofManifestTests(unittest.TestCase):
                     label="performance proof",
                 )
 
+    def test_selected_path_rejects_a_noncanonical_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            proof = self.make_fixture(root)
+            manifest = load_results_manifest_snapshot(root / "artifact" / "results.json")
+            alias = proof.parent / "nonexistent" / ".." / proof.name
+            with self.assertRaisesRegex(ProofManifestError, "canonically spelled"):
+                select_bound_json_snapshot(
+                    root,
+                    manifest,
+                    binding="performance",
+                    selected_path=alias,
+                    label="performance proof",
+                )
+
     def test_hash_mismatch_and_duplicate_manifest_keys_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)

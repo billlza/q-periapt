@@ -7,6 +7,7 @@ import os
 import pathlib
 import re
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from evidence_io import (
     EvidenceIOError,
@@ -23,6 +24,12 @@ from platform_release_contract import (
 MAX_RESULTS_MANIFEST_BYTES = 4 * 1024 * 1024
 MAX_SELECTED_PROOF_BYTES = 16 * 1024 * 1024
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_CANONICAL_PATH_ASCII = MappingProxyType(
+    {
+        character: character
+        for character in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._+/-"
+    }
+)
 PERFORMANCE_SOURCE_STATUSES = {
     "current_controlled_pass",
     "stale_requires_rerun",
@@ -243,23 +250,76 @@ def load_results_manifest_snapshot(
 
 
 def _safe_declared_path(root: pathlib.Path, relative: object) -> pathlib.Path:
-    if not isinstance(relative, str) or not relative:
+    if not isinstance(relative, str) or not relative or len(relative) > 4096:
         raise ProofManifestError("results manifest proof path is missing")
-    if "\\" in relative:
-        raise ProofManifestError(f"results manifest proof path is not canonical POSIX: {relative}")
-    pure = pathlib.PurePosixPath(relative)
+    rebuilt: list[str] = []
+    for character in relative:
+        canonical = _CANONICAL_PATH_ASCII.get(character)
+        if canonical is None:
+            raise ProofManifestError(
+                "results manifest proof path contains an unsupported character"
+            )
+        rebuilt.append(canonical)
+    canonical_relative = "".join(rebuilt)
+    pure = pathlib.PurePosixPath(canonical_relative)
     if pure.is_absolute() or ".." in pure.parts or not pure.parts:
-        raise ProofManifestError(f"unsafe results manifest proof path: {relative}")
-    if pure.as_posix() != relative or any(part in ("", ".") for part in pure.parts):
-        raise ProofManifestError(f"non-canonical results manifest proof path: {relative}")
+        raise ProofManifestError(
+            f"unsafe results manifest proof path: {canonical_relative}"
+        )
+    if pure.as_posix() != canonical_relative or any(
+        part in ("", ".") for part in pure.parts
+    ):
+        raise ProofManifestError(
+            f"non-canonical results manifest proof path: {canonical_relative}"
+        )
     declared = root.joinpath(*pure.parts)
     lexical = pathlib.Path(os.path.abspath(declared))
     root_lexical = pathlib.Path(os.path.abspath(root))
     try:
         lexical.relative_to(root_lexical)
     except ValueError as exc:
-        raise ProofManifestError(f"results manifest proof path escapes repository: {relative}") from exc
+        raise ProofManifestError(
+            f"results manifest proof path escapes repository: {canonical_relative}"
+        ) from exc
     return lexical
+
+
+def load_bound_json_snapshot(
+    root: pathlib.Path,
+    manifest: JsonObjectSnapshot,
+    *,
+    binding: str,
+    maximum: int = MAX_SELECTED_PROOF_BYTES,
+    label: str,
+) -> JsonObjectSnapshot:
+    """Load the proof path and digest declared by one validated manifest binding."""
+
+    spec = BINDINGS.get(binding)
+    if spec is None:
+        raise ProofManifestError(f"unknown proof binding: {binding}")
+    section = manifest.value.get(spec.section)
+    if not isinstance(section, dict):
+        raise ProofManifestError(f"results manifest lacks section {spec.section}")
+    declared = _safe_declared_path(root, section.get(spec.path_key))
+    expected_sha256 = section.get(spec.hash_key)
+    if not isinstance(expected_sha256, str) or SHA256_RE.fullmatch(expected_sha256) is None:
+        raise ProofManifestError(
+            f"results manifest has invalid {spec.section}.{spec.hash_key}"
+        )
+    try:
+        snapshot = load_json_object_snapshot(
+            declared,
+            maximum=maximum,
+            label=label,
+        )
+    except EvidenceIOError as exc:
+        raise ProofManifestError(str(exc)) from exc
+    if snapshot.file.sha256 != expected_sha256:
+        raise ProofManifestError(
+            "selected proof hash differs from results manifest: "
+            f"got={snapshot.file.sha256} expected={expected_sha256}"
+        )
+    return snapshot
 
 
 def select_bound_json_snapshot(
@@ -280,30 +340,22 @@ def select_bound_json_snapshot(
     if not isinstance(section, dict):
         raise ProofManifestError(f"results manifest lacks section {spec.section}")
     declared = _safe_declared_path(root, section.get(spec.path_key))
-    expected_sha256 = section.get(spec.hash_key)
-    if not isinstance(expected_sha256, str) or SHA256_RE.fullmatch(expected_sha256) is None:
-        raise ProofManifestError(
-            f"results manifest has invalid {spec.section}.{spec.hash_key}"
-        )
 
+    if any(part in {"", ".", ".."} for part in selected_path.parts):
+        raise ProofManifestError("selected proof path is not canonically spelled")
     selected = selected_path if selected_path.is_absolute() else root / selected_path
     selected_lexical = pathlib.Path(os.path.abspath(selected))
+    if selected_path.is_absolute() and selected_path != selected_lexical:
+        raise ProofManifestError("selected proof path is not canonically spelled")
     if selected_lexical != declared:
         raise ProofManifestError(
             "selected proof differs from results manifest: "
             f"selected={selected_lexical} declared={declared}"
         )
-    try:
-        snapshot = load_json_object_snapshot(
-            selected_lexical,
-            maximum=maximum,
-            label=label,
-        )
-    except EvidenceIOError as exc:
-        raise ProofManifestError(str(exc)) from exc
-    if snapshot.file.sha256 != expected_sha256:
-        raise ProofManifestError(
-            "selected proof hash differs from results manifest: "
-            f"got={snapshot.file.sha256} expected={expected_sha256}"
-        )
-    return snapshot
+    return load_bound_json_snapshot(
+        root,
+        manifest,
+        binding=binding,
+        maximum=maximum,
+        label=label,
+    )

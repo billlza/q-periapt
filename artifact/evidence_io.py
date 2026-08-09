@@ -13,6 +13,7 @@ import stat
 import sys
 import unicodedata
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any, NoReturn
 
 if os.name == "nt":
@@ -34,6 +35,15 @@ class FileSnapshot:
 
     path: pathlib.Path
     data: bytes
+    size: int
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class FileDigestSnapshot:
+    """Size and digest consumed from one stable open regular-file description."""
+
+    path: pathlib.Path
     size: int
     sha256: str
 
@@ -820,74 +830,207 @@ def _descriptor_identity(descriptor: int, observed: os.stat_result) -> object:
     )
 
 
-def read_regular_snapshot(
+def _consume_open_regular_snapshot(
+    descriptor: int,
     path: pathlib.Path,
     *,
     maximum: int,
     label: str,
-) -> FileSnapshot:
-    """Read one bounded regular file and hash exactly the bytes returned."""
-
+    consume: Callable[[bytes], None] | None = None,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileDigestSnapshot:
     if type(maximum) is not int or maximum <= 0:
         raise EvidenceIOError(f"{label} maximum must be a positive integer")
-    descriptor = _open_regular_no_symlinks(path)
-    primary_error: BaseException | None = None
     try:
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             raise EvidenceIOError(f"{label} is not a regular file: {path}")
         if before.st_size > maximum:
             raise EvidenceIOError(f"{label} exceeds {maximum} bytes: {path}")
+        if validate_metadata is not None:
+            validate_metadata(before)
 
         identity_before = _descriptor_identity(descriptor, before)
 
-        chunks: list[bytes] = []
+        hasher = hashlib.sha256()
+        total = 0
         remaining = maximum + 1
         while remaining:
             chunk = os.read(descriptor, min(1024 * 1024, remaining))
             if not chunk:
                 break
-            chunks.append(chunk)
+            total += len(chunk)
             remaining -= len(chunk)
-        data = b"".join(chunks)
-        if len(data) > maximum:
+            if total > maximum:
+                raise EvidenceIOError(f"{label} exceeds {maximum} bytes: {path}")
+            hasher.update(chunk)
+            if consume is not None:
+                consume(chunk)
+        if total > maximum:
             raise EvidenceIOError(f"{label} exceeds {maximum} bytes: {path}")
 
         after = os.fstat(descriptor)
         identity_after = _descriptor_identity(descriptor, after)
         if (
             identity_before != identity_after
-            or len(data) != before.st_size
-            or len(data) != after.st_size
+            or total != before.st_size
+            or total != after.st_size
         ):
             raise EvidenceIOError(f"{label} changed while it was read: {path}")
 
-        return FileSnapshot(
+        return FileDigestSnapshot(
             path=pathlib.Path(os.path.abspath(path)),
-            data=data,
-            size=len(data),
-            sha256=hashlib.sha256(data).hexdigest(),
+            size=total,
+            sha256=hasher.hexdigest(),
         )
     except OSError as exc:
-        primary_error = EvidenceIOError(f"cannot read {label} {path}: {exc}")
-        raise primary_error from exc
+        raise EvidenceIOError(f"cannot read {label} {path}: {exc}") from exc
+
+
+def _close_snapshot_descriptor(
+    descriptor: int,
+    *,
+    path: pathlib.Path,
+    label: str,
+    primary_error: BaseException | None,
+) -> None:
+    try:
+        os.close(descriptor)
+    except BaseException as cleanup_error:
+        if primary_error is not None:
+            primary_error.add_note(
+                f"closing the evidence descriptor also failed: {cleanup_error}"
+            )
+        elif isinstance(cleanup_error, Exception):
+            raise EvidenceIOError(
+                f"cannot close {label} evidence descriptor for {path}: {cleanup_error}"
+            ) from cleanup_error
+        else:
+            raise
+
+
+def consume_regular_snapshot(
+    path: pathlib.Path,
+    *,
+    maximum: int,
+    label: str,
+    consume: Callable[[bytes], None] | None = None,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileDigestSnapshot:
+    """Consume and hash one bounded regular file without reopening its path."""
+
+    descriptor = _open_regular_no_symlinks(path)
+    primary_error: BaseException | None = None
+    try:
+        return _consume_open_regular_snapshot(
+            descriptor,
+            path,
+            maximum=maximum,
+            label=label,
+            consume=consume,
+            validate_metadata=validate_metadata,
+        )
     except BaseException as exc:
         primary_error = exc
         raise
     finally:
-        try:
-            os.close(descriptor)
-        except BaseException as cleanup_error:
-            if primary_error is not None:
-                primary_error.add_note(
-                    f"closing the evidence descriptor also failed: {cleanup_error}"
-                )
-            elif isinstance(cleanup_error, Exception):
-                raise EvidenceIOError(
-                    f"cannot close {label} evidence descriptor for {path}: {cleanup_error}"
-                ) from cleanup_error
-            else:
-                raise
+        _close_snapshot_descriptor(
+            descriptor,
+            path=path,
+            label=label,
+            primary_error=primary_error,
+        )
+
+
+def consume_regular_snapshot_at(
+    directory_fd: int,
+    leaf: str,
+    *,
+    display_path: pathlib.Path,
+    maximum: int,
+    label: str,
+    consume: Callable[[bytes], None] | None = None,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileDigestSnapshot:
+    """Consume one regular leaf relative to an already-open directory."""
+
+    if os.name == "nt":
+        raise EvidenceIOError(f"{label} dirfd-relative snapshots are unavailable on Windows")
+    if (
+        type(leaf) is not str
+        or not leaf
+        or leaf in {".", ".."}
+        or "/" in leaf
+        or "\\" in leaf
+        or "\x00" in leaf
+    ):
+        raise EvidenceIOError(f"{label} leaf must be one safe basename")
+    try:
+        directory_metadata = os.fstat(directory_fd)
+        if not stat.S_ISDIR(directory_metadata.st_mode):
+            raise EvidenceIOError(f"{label} parent descriptor is not a directory")
+        descriptor = os.open(
+            leaf,
+            os.O_RDONLY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_NONBLOCK", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_fd,
+        )
+    except EvidenceIOError:
+        raise
+    except OSError as exc:
+        raise EvidenceIOError(
+            f"cannot safely open {label} {display_path}: {exc}"
+        ) from exc
+    primary_error: BaseException | None = None
+    try:
+        return _consume_open_regular_snapshot(
+            descriptor,
+            display_path,
+            maximum=maximum,
+            label=label,
+            consume=consume,
+            validate_metadata=validate_metadata,
+        )
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        _close_snapshot_descriptor(
+            descriptor,
+            path=display_path,
+            label=label,
+            primary_error=primary_error,
+        )
+
+
+def read_regular_snapshot(
+    path: pathlib.Path,
+    *,
+    maximum: int,
+    label: str,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileSnapshot:
+    """Read one bounded regular file and hash exactly the bytes returned."""
+
+    chunks: list[bytes] = []
+    digest = consume_regular_snapshot(
+        path,
+        maximum=maximum,
+        label=label,
+        consume=chunks.append,
+        validate_metadata=validate_metadata,
+    )
+    data = b"".join(chunks)
+    if len(data) != digest.size:
+        raise EvidenceIOError(f"{label} consumer byte count changed unexpectedly")
+    return FileSnapshot(
+        path=digest.path,
+        data=data,
+        size=digest.size,
+        sha256=digest.sha256,
+    )
 
 
 def parse_strict_json_bytes(data: bytes, *, label: str) -> Any:
@@ -928,11 +1071,53 @@ def load_json_object_snapshot(
     *,
     maximum: int = DEFAULT_JSON_MAX_BYTES,
     label: str,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
 ) -> JsonObjectSnapshot:
     """Read, hash, and parse one JSON object without reopening its path."""
 
-    file_snapshot = read_regular_snapshot(path, maximum=maximum, label=label)
+    file_snapshot = read_regular_snapshot(
+        path,
+        maximum=maximum,
+        label=label,
+        validate_metadata=validate_metadata,
+    )
     value = parse_strict_json_bytes(file_snapshot.data, label=label)
+    if not isinstance(value, dict):
+        raise EvidenceIOError(f"{label} root must be a JSON object")
+    return JsonObjectSnapshot(file=file_snapshot, value=value)
+
+
+def load_json_object_snapshot_at(
+    directory_fd: int,
+    leaf: str,
+    *,
+    display_path: pathlib.Path,
+    maximum: int = DEFAULT_JSON_MAX_BYTES,
+    label: str,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> JsonObjectSnapshot:
+    """Read strict JSON from one leaf of an already-open directory."""
+
+    chunks: list[bytes] = []
+    digest = consume_regular_snapshot_at(
+        directory_fd,
+        leaf,
+        display_path=display_path,
+        maximum=maximum,
+        label=label,
+        consume=chunks.append,
+        validate_metadata=validate_metadata,
+    )
+    data = b"".join(chunks)
+    if len(data) != digest.size:
+        raise EvidenceIOError(f"{label} consumer byte count changed unexpectedly")
+    file_snapshot = FileSnapshot(
+        path=digest.path,
+        data=data,
+        size=digest.size,
+        sha256=digest.sha256,
+    )
+    value = parse_strict_json_bytes(data, label=label)
     if not isinstance(value, dict):
         raise EvidenceIOError(f"{label} root must be a JSON object")
     return JsonObjectSnapshot(file=file_snapshot, value=value)

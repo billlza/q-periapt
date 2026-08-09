@@ -184,6 +184,59 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
                 "Apple device proof",
             )
 
+    def test_devicectl_app_listing_is_exact_and_fail_closed(self) -> None:
+        bundle_id = "dev.qperiapt.DeviceRunner.run" + "a" * 32
+        absent = {
+            "result": {
+                "matchingBundleIdentifier": bundle_id,
+                "apps": [],
+            }
+        }
+        self.assertEqual(
+            apple_device_proof.parse_installed_app_state(absent, bundle_id),
+            "absent",
+        )
+        present = {
+            "result": {
+                "matchingBundleIdentifier": bundle_id,
+                "apps": [{"bundleIdentifier": bundle_id}],
+            }
+        }
+        self.assertEqual(
+            apple_device_proof.parse_installed_app_state(present, bundle_id),
+            "present",
+        )
+        malformed_documents = (
+            {},
+            {"result": []},
+            {"result": {"matchingBundleIdentifier": bundle_id}},
+            {
+                "result": {
+                    "matchingBundleIdentifier": "dev.qperiapt.Other",
+                    "apps": [],
+                }
+            },
+            {
+                "result": {
+                    "matchingBundleIdentifier": bundle_id,
+                    "apps": [{"bundleIdentifier": "dev.qperiapt.Other"}],
+                }
+            },
+            {
+                "result": {
+                    "matchingBundleIdentifier": bundle_id,
+                    "apps": [
+                        {"bundleIdentifier": bundle_id},
+                        {"bundleIdentifier": bundle_id},
+                    ],
+                }
+            },
+        )
+        for document in malformed_documents:
+            with self.subTest(document=document):
+                with self.assertRaises(SystemExit):
+                    apple_device_proof.parse_installed_app_state(document, bundle_id)
+
     def test_release_freshness_and_profile_policy_are_fixed(self) -> None:
         apple_device_proof.require_release_policy(
             86400, False, min_profile_valid_days=30
@@ -207,6 +260,59 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         self.assertLess(freeze_position, first_build_position)
         self.assertIn('--expected-git-commit "$SOURCE_GIT_COMMIT"', script)
         self.assertIn('--expected-source-tree-sha256 "$SOURCE_TREE_SHA256"', script)
+
+    def test_smoke_script_owns_only_a_run_unique_device_app(self) -> None:
+        artifact = pathlib.Path(__file__).parent
+        script = (artifact / "apple-device-smoke.sh").read_text(encoding="utf-8")
+        trap_position = script.index("trap cleanup_exit EXIT")
+        preflight_position = script.index(
+            "inspect_device_app --expect absent", trap_position
+        )
+        armed_position = script.index(
+            "APPLE_APP_CLEANUP_ARMED=1", preflight_position
+        )
+        install_position = script.index("device install app")
+        normal_cleanup_position = script.index(
+            "if ! cleanup_device_app; then", install_position
+        )
+        emit_position = script.index("apple_device_proof.py emit")
+        self.assertIn(
+            'BUNDLE_ID="dev.qperiapt.DeviceRunner.run$RUN_ID"', script
+        )
+        self.assertNotIn(
+            "QPERIAPT_IOS_BUNDLE_ID:-dev.qperiapt.DeviceRunner", script
+        )
+        self.assertIn("QPERIAPT_IOS_BUNDLE_ID is not supported", script)
+        verifier = (artifact / "apple_device_proof.py").read_text(encoding="utf-8")
+        self.assertIn('"--include-all-apps"', verifier)
+        self.assertIn("DEVICECTL_COMMAND_TIMEOUT_SECONDS", verifier)
+        self.assertLess(trap_position, preflight_position)
+        self.assertLess(preflight_position, armed_position)
+        self.assertLess(armed_position, install_position)
+        self.assertLess(install_position, normal_cleanup_position)
+        self.assertLess(normal_cleanup_position, emit_position)
+        self.assertEqual(script.count("device uninstall app"), 1)
+        self.assertIn("required_absent_observations=8", script)
+        self.assertIn("APPLE_APP_INSTALL_CONFIRMED=1", script)
+        self.assertIn("Apple app cleanup outcome is unresolved", script)
+        self.assertIn("xcodebuild -checkFirstLaunchStatus", script)
+        self.assertIn('--timeout "$DEVICECTL_TIMEOUT_SECONDS"', script)
+        self.assertNotIn("--terminate-existing", script)
+        self.assertNotIn("pick_device()", script)
+        self.assertNotIn("${1:-}", script)
+        self.assertIn("QPERIAPT_IOS_DEVICE_ID is required", script)
+
+        matrix = (artifact / "apple-device-matrix.sh").read_text(encoding="utf-8")
+        self.assertIn("QPERIAPT_IOS_DEVICE_MATRIX is required", matrix)
+        self.assertNotIn("devicectl list devices", matrix)
+
+        xcode27 = (artifact / "apple-device-xcode27-gate.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "QPERIAPT_IOS_DEVICE_MATRIX is required for the Xcode 27 matrix gate",
+            xcode27,
+        )
 
     def test_smoke_script_freezes_and_rechecks_installed_binary_inputs(self) -> None:
         script = (pathlib.Path(__file__).parent / "apple-device-smoke.sh").read_text(encoding="utf-8")

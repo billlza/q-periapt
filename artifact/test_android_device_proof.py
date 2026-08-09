@@ -5,14 +5,32 @@ from __future__ import annotations
 import argparse
 import copy
 import datetime as dt
+import os
 import pathlib
 import re
+import secrets
+import shutil
+import socket
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import android_device_proof
+
+
+def create_private_adb_test_directory() -> pathlib.Path:
+    for _ in range(100):
+        directory = pathlib.Path("/tmp") / f"qperiapt-adb.{secrets.token_hex(4)}"
+        try:
+            directory.mkdir(mode=0o700)
+        except FileExistsError:
+            continue
+        directory.chmod(0o700)
+        return directory
+    raise RuntimeError("could not allocate a private adb test directory")
 
 
 def complete_proof_shape() -> dict[str, object]:
@@ -23,6 +41,7 @@ def complete_proof_shape() -> dict[str, object]:
         }
         for abi in android_device_proof.REQUIRED_NATIVE_ABIS
     }
+
     return {
         "schema": android_device_proof.PROOF_SCHEMA_VERSION,
         "generated_at": "2026-07-15T00:00:00Z",
@@ -92,6 +111,496 @@ def complete_proof_shape() -> dict[str, object]:
     }
 
 
+class AndroidAdbIdentityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.account_home = pathlib.Path(self.temp_dir.name) / "account-home"
+        self.account_home.mkdir(mode=0o700)
+        self.account_home.chmod(0o700)
+        self.android_dir = self.account_home / ".android"
+        self.android_dir.mkdir(mode=0o700)
+        self.android_dir.chmod(0o700)
+        self.private_key = self.android_dir / "adbkey"
+        self.public_key = self.android_dir / "adbkey.pub"
+        self.private_key.write_text("private fixture\n", encoding="utf-8")
+        self.public_key.write_text("public fixture\n", encoding="utf-8")
+        self.private_key.chmod(0o600)
+        self.public_key.chmod(0o644)
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def test_owner_controlled_identity_passes(self) -> None:
+        android_device_proof.validate_adb_identity_directory(self.android_dir)
+        android_device_proof.validate_account_adb_identity(
+            self.account_home, account_home=self.account_home
+        )
+
+    def test_different_or_group_writable_account_home_is_rejected(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "must match the current account home"):
+            android_device_proof.validate_account_adb_identity(
+                self.account_home, account_home=self.account_home.parent
+            )
+        self.account_home.chmod(0o770)
+        with self.assertRaisesRegex(SystemExit, "home must not be writable by group"):
+            android_device_proof.validate_account_adb_identity(
+                self.account_home, account_home=self.account_home
+            )
+
+    def test_group_writable_identity_directory_is_rejected(self) -> None:
+        self.android_dir.chmod(0o770)
+        with self.assertRaisesRegex(SystemExit, "must not be writable by group"):
+            android_device_proof.validate_adb_identity_directory(self.android_dir)
+
+    def test_symlink_identity_directory_is_rejected(self) -> None:
+        link = pathlib.Path(self.temp_dir.name) / "android-link"
+        link.symlink_to(self.android_dir, target_is_directory=True)
+        with self.assertRaisesRegex(SystemExit, "non-symlink directory"):
+            android_device_proof.validate_adb_identity_directory(link)
+
+    def test_insecure_or_empty_key_is_rejected(self) -> None:
+        self.private_key.chmod(0o640)
+        with self.assertRaisesRegex(SystemExit, "must not be accessible"):
+            android_device_proof.validate_adb_identity_directory(self.android_dir)
+        self.private_key.chmod(0o600)
+        self.public_key.write_bytes(b"")
+        with self.assertRaisesRegex(SystemExit, "must not be empty"):
+            android_device_proof.validate_adb_identity_directory(self.android_dir)
+
+    def test_non_key_leaf_cannot_substitute_for_regular_key(self) -> None:
+        self.private_key.unlink()
+        self.private_key.mkdir(mode=0o700)
+        with self.assertRaisesRegex(SystemExit, "regular non-symlink file"):
+            android_device_proof.validate_adb_identity_directory(self.android_dir)
+
+    def test_fifo_key_is_rejected_without_blocking(self) -> None:
+        self.private_key.unlink()
+        os.mkfifo(self.private_key, mode=0o600)
+        artifact_directory = pathlib.Path(__file__).resolve().parent
+        script = (
+            "import pathlib, sys; "
+            f"sys.path.insert(0, {str(artifact_directory)!r}); "
+            "import android_device_proof; "
+            "android_device_proof.validate_adb_identity_directory("
+            f"pathlib.Path({str(self.android_dir)!r}))"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-I", "-S", "-B", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("regular non-symlink file", completed.stderr)
+
+    @unittest.skipUnless(sys.platform == "darwin", "requires macOS extended ACLs")
+    def test_macos_allow_acl_on_every_identity_node_is_rejected(self) -> None:
+        for path in (
+            self.account_home,
+            self.android_dir,
+            self.private_key,
+            self.public_key,
+        ):
+            with self.subTest(path=path):
+                subprocess.run(
+                    ["/bin/chmod", "+a", "everyone allow readattr", str(path)],
+                    check=True,
+                )
+                try:
+                    with self.assertRaisesRegex(SystemExit, "allow ACL is forbidden"):
+                        android_device_proof.validate_account_adb_identity(
+                            self.account_home, account_home=self.account_home
+                        )
+                finally:
+                    subprocess.run(["/bin/chmod", "-N", str(path)], check=True)
+
+    @unittest.skipUnless(sys.platform == "darwin", "requires macOS extended ACLs")
+    def test_macos_deny_only_home_acl_is_accepted(self) -> None:
+        subprocess.run(
+            ["/bin/chmod", "+a", "everyone deny delete", str(self.account_home)],
+            check=True,
+        )
+        try:
+            android_device_proof.validate_account_adb_identity(
+                self.account_home, account_home=self.account_home
+            )
+        finally:
+            subprocess.run(
+                ["/bin/chmod", "-N", str(self.account_home)], check=True
+            )
+
+    def test_adb_server_status_requires_exact_executable_and_keystore(self) -> None:
+        executable = pathlib.Path(sys.executable).resolve()
+        expected_keystore = self.android_dir / "adbkey"
+        fields = android_device_proof.parse_adb_server_status(
+            f'executable_absolute_path: "{executable}"\n'
+            f'keystore_path: "{expected_keystore}"\n'
+            "mdns_enabled: false\n"
+        )
+        android_device_proof.validate_adb_server_status_fields(
+            fields,
+            selected_adb=executable,
+            home_directory=self.account_home,
+            account_home=self.account_home,
+        )
+        fields["keystore_path"] = str(self.android_dir / "different-key")
+        with self.assertRaisesRegex(SystemExit, "keystore differs"):
+            android_device_proof.validate_adb_server_status_fields(
+                fields,
+                selected_adb=executable,
+                home_directory=self.account_home,
+                account_home=self.account_home,
+            )
+        fields["keystore_path"] = str(expected_keystore)
+        fields["mdns_enabled"] = True
+        with self.assertRaisesRegex(SystemExit, "disable mDNS"):
+            android_device_proof.validate_adb_server_status_fields(
+                fields,
+                selected_adb=executable,
+                home_directory=self.account_home,
+                account_home=self.account_home,
+            )
+
+    def test_adb_server_status_rejects_missing_duplicate_or_malformed_fields(self) -> None:
+        invalid_statuses = (
+            'executable_absolute_path: "/bin/false"\n',
+            'keystore_path: "/tmp/key"\nkeystore_path: "/tmp/key"\n',
+            "keystore_path: not-json\n",
+            'keystore_path: {"path":"a","path":"b"}\n',
+            "mdns_enabled: NaN\n",
+        )
+        for status in invalid_statuses:
+            with self.subTest(status=status):
+                with self.assertRaises(SystemExit):
+                    android_device_proof.parse_adb_server_status(status)
+
+    def test_lsof_listener_requires_one_canonical_pid_and_uid(self) -> None:
+        self.assertEqual(
+            android_device_proof.parse_lsof_adb_listener(
+                "p123\nu501\nf18\nn127.0.0.1:5037\n",
+                expected_endpoint="127.0.0.1:5037",
+            ),
+            (123, 501),
+        )
+        self.assertEqual(
+            android_device_proof.parse_lsof_adb_listener(
+                "p124\nu501\nf19\nn/tmp/qperiapt-adb.12345678/adb.sock\n",
+                expected_endpoint="/tmp/qperiapt-adb.12345678/adb.sock",
+            ),
+            (124, 501),
+        )
+        invalid_outputs = (
+            "",
+            "p0123\nu501\nf18\n",
+            "p123\nf18\n",
+            "p123\nu501\np124\nu501\n",
+            "p123\nu501\nu501\n",
+            "p123\nu501\ncunknown\n",
+            "p123\nu501\nf18\nn*:5037\n",
+        )
+        for output in invalid_outputs:
+            with self.subTest(output=output):
+                with self.assertRaises(SystemExit):
+                    android_device_proof.parse_lsof_adb_listener(
+                        output, expected_endpoint="127.0.0.1:5037"
+                    )
+
+    def test_default_adb_endpoint_probe_fails_closed(self) -> None:
+        class Probe:
+            def __init__(self, result: int) -> None:
+                self.result = result
+
+            def __enter__(self) -> "Probe":
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def settimeout(self, _: float) -> None:
+                pass
+
+            def connect_ex(self, _: tuple[object, ...]) -> int:
+                return self.result
+
+        with (
+            mock.patch.object(android_device_proof.socket, "has_ipv6", False),
+            mock.patch.object(
+                android_device_proof.socket,
+                "socket",
+                return_value=Probe(android_device_proof.errno.ECONNREFUSED),
+            ),
+        ):
+            android_device_proof.assert_default_adb_server_absent(
+                argparse.Namespace()
+            )
+
+        for result in (0, android_device_proof.errno.EACCES):
+            with self.subTest(result=result):
+                with (
+                    mock.patch.object(
+                        android_device_proof.socket, "has_ipv6", False
+                    ),
+                    mock.patch.object(
+                        android_device_proof.socket,
+                        "socket",
+                        return_value=Probe(result),
+                    ),
+                ):
+                    with self.assertRaises(SystemExit):
+                        android_device_proof.assert_default_adb_server_absent(
+                            argparse.Namespace()
+                        )
+
+    def test_adb_listener_identity_rejects_wrong_process_or_environment(self) -> None:
+        executable = pathlib.Path(sys.executable).resolve()
+        uid = os.geteuid()
+
+        def validate(**overrides: object) -> str:
+            arguments: dict[str, object] = {
+                "pid": 123,
+                "reported_uid": uid,
+                "process_uid": uid,
+                "started_at": 456,
+                "started_subsecond": 789,
+                "executable": executable,
+                "environment": {"HOME": str(self.account_home)},
+                "selected_adb": executable,
+                "account_home": self.account_home,
+                "expected_identity": None,
+            }
+            arguments.update(overrides)
+            return android_device_proof.validate_adb_listener_identity(**arguments)
+
+        self.assertEqual(validate(), f"123:{uid}:456:789")
+        private_environment = {
+            "HOME": str(self.account_home),
+            "ADB_SERVER_SOCKET": "localfilesystem:/tmp/qperiapt-adb.12345678/adb.sock",
+            "ADB_VENDOR_KEYS": str(self.private_key),
+            "ADB_MDNS": "0",
+            "ADB_MDNS_AUTO_CONNECT": "0",
+            "ADB_USB": "1",
+            "ADB_EMU": "0",
+            "ADB_LOCAL_TRANSPORT_MAX_PORT": "5585",
+        }
+        private_forbidden_environment = (
+            "ANDROID_ADB_SERVER_ADDRESS",
+            "ANDROID_ADB_SERVER_PORT",
+            "ADB_MDNS_OPENSCREEN",
+            "ADB_REJECT_KILL_SERVER",
+            "ADB_OSX_USB_CLEAR_ENDPOINTS",
+            "ANDROID_ADB_LOG_PATH",
+            "ADB_TRACE",
+            "ADB_INSTALL_DEFAULT_INCREMENTAL",
+            "ADB_LIBUSB",
+            "ADB_LIBUSB_START_DETACHED",
+        )
+        self.assertEqual(
+            validate(
+                environment=private_environment,
+                expected_environment={
+                    "ADB_SERVER_SOCKET": private_environment["ADB_SERVER_SOCKET"],
+                    "ADB_VENDOR_KEYS": private_environment["ADB_VENDOR_KEYS"],
+                    "ADB_MDNS": "0",
+                    "ADB_MDNS_AUTO_CONNECT": "0",
+                    "ADB_USB": "1",
+                    "ADB_EMU": "0",
+                    "ADB_LOCAL_TRANSPORT_MAX_PORT": "5585",
+                },
+                forbidden_environment=private_forbidden_environment,
+            ),
+            f"123:{uid}:456:789",
+        )
+        invalid_overrides = (
+            {"reported_uid": uid + 1},
+            {"executable": pathlib.Path("/bin/false")},
+            {"environment": {"HOME": str(self.account_home), "ADB_VENDOR_KEYS": ""}},
+            {"environment": {"HOME": "/different"}},
+            {"expected_identity": "123:0:456:789"},
+            {
+                "environment": private_environment,
+                "expected_environment": {
+                    "ADB_SERVER_SOCKET": "localfilesystem:/tmp/wrong/adb.sock",
+                    "ADB_VENDOR_KEYS": str(self.private_key),
+                    "ADB_MDNS": "0",
+                    "ADB_MDNS_AUTO_CONNECT": "0",
+                    "ADB_USB": "1",
+                    "ADB_EMU": "0",
+                    "ADB_LOCAL_TRANSPORT_MAX_PORT": "5585",
+                },
+                "forbidden_environment": private_forbidden_environment,
+            },
+        )
+        for overrides in invalid_overrides:
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(SystemExit):
+                    validate(**overrides)
+
+    def test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf(
+        self,
+    ) -> None:
+        directory = create_private_adb_test_directory()
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        try:
+            arguments = argparse.Namespace(directory=directory, state="absent")
+            android_device_proof.verify_private_adb_socket(arguments)
+
+            socket_path = directory / "adb.sock"
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.addCleanup(listener.close)
+            listener.bind(str(socket_path))
+            android_device_proof.verify_private_adb_socket(
+                argparse.Namespace(directory=directory, state="present")
+            )
+            with self.assertRaisesRegex(SystemExit, "already exists"):
+                android_device_proof.verify_private_adb_socket(arguments)
+            listener.close()
+            socket_path.unlink()
+
+            os.mkfifo(socket_path, mode=0o600)
+            with self.assertRaisesRegex(SystemExit, "not a socket"):
+                android_device_proof.verify_private_adb_socket(
+                    argparse.Namespace(directory=directory, state="present")
+                )
+            socket_path.unlink()
+
+            directory.chmod(0o770)
+            with self.assertRaisesRegex(SystemExit, "writable by group"):
+                android_device_proof.verify_private_adb_socket(arguments)
+            directory.chmod(0o750)
+            with self.assertRaisesRegex(SystemExit, "mode 0700"):
+                android_device_proof.verify_private_adb_socket(arguments)
+        finally:
+            directory.chmod(0o700)
+
+    def test_private_listener_cli_binds_endpoint_pid_and_environment(self) -> None:
+        endpoint = "/tmp/qperiapt-adb.12345678/adb.sock"
+        lsof_output = self.account_home / "listener.txt"
+        lsof_output.write_text(
+            f"p123\nu{os.geteuid()}\nf18\nn{endpoint}\n", encoding="utf-8"
+        )
+        lsof_output = lsof_output.resolve()
+        environment = {
+            "HOME": str(self.account_home),
+            "ADB_SERVER_SOCKET": f"localfilesystem:{endpoint}",
+            "ADB_VENDOR_KEYS": str(self.private_key),
+            "ADB_MDNS": "0",
+            "ADB_MDNS_AUTO_CONNECT": "0",
+            "ADB_USB": "1",
+            "ADB_EMU": "0",
+            "ADB_LOCAL_TRANSPORT_MAX_PORT": "5585",
+        }
+        arguments = argparse.Namespace(
+            lsof_output=lsof_output,
+            adb=pathlib.Path(sys.executable),
+            expected_endpoint=endpoint,
+            expected_pid=123,
+            expected_identity=None,
+            expected_server_socket=f"localfilesystem:{endpoint}",
+            expected_vendor_keys=str(self.private_key),
+            expected_mdns="0",
+            expected_transport_kind="physical",
+        )
+        process_identity = (
+            os.geteuid(),
+            456,
+            789,
+            pathlib.Path(sys.executable).resolve(),
+            environment,
+        )
+        with (
+            mock.patch.object(android_device_proof.sys, "platform", "linux"),
+            mock.patch.object(
+                android_device_proof,
+                "_linux_process_identity",
+                return_value=process_identity,
+            ),
+            mock.patch.object(
+                android_device_proof,
+                "current_account_home",
+                return_value=self.account_home,
+            ),
+        ):
+            android_device_proof.verify_adb_listener(arguments)
+            wrong_socket = copy.copy(arguments)
+            wrong_socket.expected_server_socket = (
+                "localfilesystem:/tmp/qperiapt-adb.87654321/adb.sock"
+            )
+            with self.assertRaisesRegex(SystemExit, "does not name"):
+                android_device_proof.verify_adb_listener(wrong_socket)
+            missing_pid = copy.copy(arguments)
+            missing_pid.expected_pid = None
+            with self.assertRaisesRegex(SystemExit, "requires its owned pid"):
+                android_device_proof.verify_adb_listener(missing_pid)
+
+    def test_private_adb_socket_rejects_wrong_shape_and_symlink_leaf(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="wrong-adb.", dir="/tmp") as raw:
+            directory = pathlib.Path(raw)
+            directory.chmod(0o700)
+            with self.assertRaisesRegex(SystemExit, "fixed-shape child"):
+                android_device_proof.verify_private_adb_socket(
+                    argparse.Namespace(directory=directory, state="absent")
+                )
+
+        directory = create_private_adb_test_directory()
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        target = directory / "target"
+        target.write_bytes(b"not a socket")
+        (directory / "adb.sock").symlink_to(target)
+        with self.assertRaisesRegex(SystemExit, "not a socket"):
+            android_device_proof.verify_private_adb_socket(
+                argparse.Namespace(directory=directory, state="present")
+            )
+
+    def test_staged_proof_publication_is_atomic_and_never_clobbers(self) -> None:
+        staging = self.account_home / "proof.pending"
+        destination = self.account_home / "proof.json"
+        staging.write_bytes(b'{"status":"pass"}\n')
+        staging.chmod(0o600)
+        android_device_proof.publish_staged_proof(
+            argparse.Namespace(staging=staging, destination=destination)
+        )
+        self.assertFalse(staging.exists())
+        self.assertEqual(destination.read_bytes(), b'{"status":"pass"}\n')
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+
+        second_staging = self.account_home / "second.pending"
+        second_staging.write_bytes(b"replacement\n")
+        second_staging.chmod(0o600)
+        with self.assertRaisesRegex(SystemExit, "destination already exists"):
+            android_device_proof.publish_staged_proof(
+                argparse.Namespace(staging=second_staging, destination=destination)
+            )
+        self.assertEqual(destination.read_bytes(), b'{"status":"pass"}\n')
+        self.assertEqual(second_staging.read_bytes(), b"replacement\n")
+
+    def test_staged_proof_publication_rejects_symlink_or_insecure_mode(self) -> None:
+        source = self.account_home / "source"
+        source.write_bytes(b"proof\n")
+        source.chmod(0o600)
+        staging = self.account_home / "proof.pending"
+        staging.symlink_to(source)
+        destination = self.account_home / "proof.json"
+        with self.assertRaisesRegex(SystemExit, "not a regular file"):
+            android_device_proof.publish_staged_proof(
+                argparse.Namespace(staging=staging, destination=destination)
+            )
+        staging.unlink()
+        staging.write_bytes(b"proof\n")
+        staging.chmod(0o640)
+        with self.assertRaisesRegex(SystemExit, "mode changed"):
+            android_device_proof.publish_staged_proof(
+                argparse.Namespace(staging=staging, destination=destination)
+            )
+        staging.chmod(0o600)
+        extra_link = self.account_home / "proof.extra-link"
+        os.link(staging, extra_link)
+        with self.assertRaisesRegex(SystemExit, "unexpected hard links"):
+            android_device_proof.publish_staged_proof(
+                argparse.Namespace(staging=staging, destination=destination)
+            )
+
+
 class AndroidDeviceProofProvenanceTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -117,6 +626,32 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             {"git_commit": self.commit, "source_tree_dirty": False},
             allow_dirty_proof=False,
         )
+
+    def test_apksigner_output_requires_one_exact_signer_digest(self) -> None:
+        digest = "a" * 64
+        output = (
+            "Signer #1 certificate DN: CN=QPeriapt Android Smoke\n"
+            f"Signer #1 certificate SHA-256 digest: {digest}\n"
+            "Signer #1 certificate SHA-1 digest: deadbeef\n"
+        )
+        self.assertEqual(
+            android_device_proof.parse_single_signer_sha256(output), digest
+        )
+        malformed_outputs = (
+            "",
+            "Signer #1 certificate SHA-256 digest: deadbeef\n",
+            (
+                f"Signer #1 certificate SHA-256 digest: {digest}\n"
+                f"Signer #2 certificate SHA-256 digest: {'b' * 64}\n"
+            ),
+            f"Signer #2 certificate SHA-256 digest: {digest}\n",
+        )
+        for malformed in malformed_outputs:
+            with self.subTest(output=malformed):
+                with self.assertRaisesRegex(
+                    SystemExit, "exactly one signer #1 SHA-256"
+                ):
+                    android_device_proof.parse_single_signer_sha256(malformed)
 
     def test_allow_dirty_never_bypasses_commit_binding(self) -> None:
         with self.assertRaisesRegex(SystemExit, "commit provenance failed"):
@@ -593,6 +1128,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
+        lane_lock = producer.index("fcntl.LOCK_EX | fcntl.LOCK_NB")
+        output_reset = producer.index('rm -rf "$OUT_ROOT"')
+        self.assertLess(lane_lock, output_reset)
         self.assertIn("umask 077", producer)
         self.assertIn('chmod 700 "$WORK" "$DIST"', producer)
         keystore_assignment = producer.index(
@@ -607,8 +1145,11 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertLess(keytool, eager_removal)
         self.assertIn('rm -f -- "$KEYSTORE"', producer[keystore_assignment:keytool])
         self.assertIn("stop_emulator_process()", producer)
-        self.assertIn('"$cleanup_wait_count" -lt 15', producer)
-        self.assertIn('"$cleanup_wait_count" -lt 5', producer)
+        self.assertIn("emulator_cleanup_deadline=$(monotonic_deadline 20)", producer)
+        self.assertNotIn('kill -TERM "$EMULATOR_PID"', producer)
+        self.assertNotIn('kill -KILL "$EMULATOR_PID"', producer)
+        self.assertNotIn('kill -TERM "$ADB_PRIVATE_SERVER_PID"', producer)
+        self.assertNotIn('kill -KILL "$ADB_PRIVATE_SERVER_PID"', producer)
         self.assertNotIn("|| :", producer)
         self.assertNotIn("|| true", producer)
         self.assertNotIn("qperiapt-android-smoke.p12", "\n".join(android_device_proof.BUNDLE_FILE_PATHS.values()))
@@ -618,30 +1159,303 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         trap_index = producer.index("trap cleanup_exit EXIT")
-        install_index = producer.index('"$ADB" -s "$SERIAL" install -r')
-        installed_index = producer.index("APP_INSTALLED=1", install_index)
-        uninstall_index = producer.index(
-            '"$ADB" -s "$SERIAL" uninstall "$PACKAGE"', installed_index
+        preflight_index = producer.index(
+            "if ! package_state=$(query_package_state); then", trap_index
         )
-        cleared_index = producer.index("APP_INSTALLED=0", uninstall_index)
-        cleanup_index = producer.index('if [ "${APP_INSTALLED:-0}" = "1" ]; then')
+        armed_index = producer.index("ANDROID_APP_CLEANUP_ARMED=1", preflight_index)
+        install_index = producer.index(
+            "android_command install-apk", armed_index
+        )
+        normal_cleanup_index = producer.index(
+            "if ! cleanup_android_app; then", install_index
+        )
+        cleanup_index = producer.index(
+            'if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" = "1" ]; then'
+        )
         emulator_cleanup_index = producer.index(
             'if [ "${EMULATOR_STARTED:-0}" = "1" ]', cleanup_index
         )
-        boot_loop_index = producer.index('while [ "$i" -lt 90 ]; do')
+        boot_loop_index = producer.index(
+            "EMULATOR_ADB_DEADLINE=$(monotonic_deadline 90)"
+        )
         child_liveness_index = producer.index(
             "if ! emulator_process_active; then", boot_loop_index
         )
         bound_serial_index = producer.index(
-            '"$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state', boot_loop_index
+            "android_command device-state", boot_loop_index
         )
-        self.assertLess(producer.index("APP_INSTALLED=0"), trap_index)
-        self.assertLess(install_index, installed_index)
-        self.assertLess(installed_index, uninstall_index)
-        self.assertLess(uninstall_index, cleared_index)
+        self.assertLess(producer.index("ANDROID_APP_CLEANUP_ARMED=0"), trap_index)
+        self.assertLess(trap_index, preflight_index)
+        self.assertLess(preflight_index, armed_index)
+        self.assertLess(armed_index, install_index)
+        self.assertLess(install_index, normal_cleanup_index)
         self.assertLess(cleanup_index, emulator_cleanup_index)
         self.assertLess(child_liveness_index, bound_serial_index)
-        self.assertIn("adb-uninstall-cleanup.log", producer[cleanup_index:emulator_cleanup_index])
+        self.assertIn("adb-uninstall-cleanup.log", producer)
+        self.assertIn(
+            "cleanup_android_app || runtime_internal_cleanup_status=1",
+            producer[cleanup_index:emulator_cleanup_index],
+        )
+        self.assertNotIn("\n\tcleanup_status=", producer)
+        self.assertNotIn("\n\towned_process_recorded=", producer)
+        self.assertNotIn("\n\tprocess_stopped=", producer)
+        runtime_function_start = producer.index("cleanup_runtime()")
+        runtime_function_end = producer.index(
+            "cleanup_runtime_with_deferred_signals()", runtime_function_start
+        )
+        runtime_function = producer[runtime_function_start:runtime_function_end]
+        private_cleanup = runtime_function.index("stop_private_adb_server")
+        unresolved_guard = runtime_function.index(
+            'if [ "${ADB_PRIVATE_SERVER_CLEANUP_ARMED:-0}" = "1" ]',
+            private_cleanup,
+        )
+        capability_cleanup = runtime_function.index(
+            "cleanup_android_command_capability", unresolved_guard
+        )
+        self.assertLess(private_cleanup, unresolved_guard)
+        self.assertLess(unresolved_guard, capability_cleanup)
+        self.assertIn(
+            "preserving the Android command capability because private adb cleanup is unresolved",
+            runtime_function,
+        )
+        verifier_start = producer.index("verify_installed_apk_signer()")
+        verifier_end = producer.index("cleanup_android_app()", verifier_start)
+        verifier = producer[verifier_start:verifier_end]
+        self.assertLess(
+            verifier.index('installed_apk_identity" != "$SIGNED_APK_IDENTITY'),
+            verifier.index('installed_signer_sha256" != "$EXPECTED_APK_SIGNER_SHA256'),
+        )
+        cleanup_start = verifier_end
+        cleanup_end = producer.index("cleanup_runtime()", cleanup_start)
+        cleanup = producer[cleanup_start:cleanup_end]
+        threshold = cleanup.index(
+            'if [ "$absent_observations" -ge "$required_absent_observations" ]'
+        )
+        disarm = cleanup.index("ANDROID_APP_CLEANUP_ARMED=0", threshold)
+        present = cleanup.index("present)")
+        signer_gate = cleanup.index("verify_installed_apk_signer", present)
+        owned_uninstall = cleanup.index(
+            "android_command uninstall-app", signer_gate
+        )
+        unknown_outcome = cleanup.index("uninstall=unknown-or-failed", owned_uninstall)
+        self.assertLess(threshold, disarm)
+        self.assertLess(present, signer_gate)
+        self.assertLess(signer_gate, owned_uninstall)
+        self.assertLess(owned_uninstall, unknown_outcome)
+        self.assertNotIn('install -r "$SIGNED_APK"', producer)
+        self.assertNotIn("logcat -c", producer)
+        self.assertIn("QPERIAPT_ANDROID_SERIAL is required", producer)
+        self.assertIn(
+            "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical", producer
+        )
+        self.assertIn("refusing automatic Android device selection", producer)
+        self.assertIn("android_command()", producer)
+        self.assertIn("artifact/android_bounded_command.py invoke", producer)
+        self.assertIn("artifact/android_bounded_command.py server-nodaemon", producer)
+        self.assertNotIn('"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertNotIn("artifact/bounded_process.py run", producer)
+        self.assertNotIn("artifact/bounded_process.py write", producer)
+        bounded_process_source = (
+            pathlib.Path(__file__).resolve().parent / "bounded_process.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("command timed out after", bounded_process_source)
+        self.assertIn("command output exceeds", bounded_process_source)
+        command_adapter_source = (
+            pathlib.Path(__file__).resolve().parent / "android_bounded_command.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("argparse.REMAINDER", command_adapter_source)
+        self.assertNotIn('"argv"', command_adapter_source)
+        for operation in (
+            "package-list",
+            "pull-installed-apk",
+            "install-apk",
+            "uninstall-app",
+            "read-result-text",
+            "read-result-json",
+            "capture-logcat",
+            "kill-server",
+        ):
+            self.assertIn(f"android_command {operation}", producer)
+        self.assertIn("remaining_bounded_timeout()", producer)
+        self.assertIn(
+            "BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)", producer
+        )
+        self.assertIn(
+            "RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)", producer
+        )
+        self.assertIn(
+            'android_command device-state \\\n\t\t\t--timeout-seconds "$emulator_attempt_timeout"',
+            producer,
+        )
+        self.assertIn(
+            'android_command boot-completed \\\n\t\t--timeout-seconds "$boot_attempt_timeout"',
+            producer,
+        )
+        self.assertIn(
+            'android_command read-result-text \\\n\t\t--timeout-seconds "$result_attempt_timeout"',
+            producer,
+        )
+        self.assertNotIn('while [ "$i" -lt 90 ]; do', producer)
+        self.assertNotIn('while [ "$i" -lt 120 ]; do', producer)
+        self.assertIn("ADB_VENDOR_KEYS is not supported", producer)
+        self.assertIn("ADB_SERVER_SOCKET is not supported", producer)
+        self.assertIn("QPERIAPT_ADB is not supported", producer)
+        self.assertIn("QPERIAPT_ANDROID_ADB_PROFILE is unsupported", producer)
+        self.assertIn("ANDROID_ADB_SERVER_ADDRESS is not supported", producer)
+        self.assertIn("ANDROID_ADB_SERVER_PORT is not supported", producer)
+        for variable in (
+            "ADB_VENDOR_KEYS",
+            "ADB_SERVER_SOCKET",
+            "ANDROID_ADB_SERVER_ADDRESS",
+            "ANDROID_ADB_SERVER_PORT",
+            "ADB_MDNS",
+            "ADB_MDNS_AUTO_CONNECT",
+            "ADB_MDNS_OPENSCREEN",
+            "ADB_USB",
+            "ADB_EMU",
+            "ADB_REJECT_KILL_SERVER",
+            "ADB_LOCAL_TRANSPORT_MAX_PORT",
+            "ADB_OSX_USB_CLEAR_ENDPOINTS",
+            "ANDROID_ADB_LOG_PATH",
+            "ADB_TRACE",
+            "ADB_INSTALL_DEFAULT_INCREMENTAL",
+            "ADB_LIBUSB",
+            "ADB_LIBUSB_START_DETACHED",
+        ):
+            self.assertIn(f'"${{{variable}+x}}" = x', producer)
+        self.assertIn("verify-adb-identity", producer)
+        self.assertIn('--home-directory "$HOME"', producer)
+        verifier_source = (
+            pathlib.Path(__file__).resolve().parent / "android_device_proof.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "existing {label} is required before device proof", verifier_source
+        )
+        self.assertIn(
+            "HOME must match the current account home directory", verifier_source
+        )
+        self.assertLess(
+            producer.index("verify-adb-identity"),
+            producer.index("server-nodaemon"),
+        )
+        device_selection_section = producer.index("=== Select Android runtime device ===")
+        default_listener_gate = producer.index(
+            "\nassert_default_adb_server_absent\n", device_selection_section
+        )
+        server_cleanup_arm = producer.index("ADB_PRIVATE_SERVER_CLEANUP_ARMED=1")
+        capability_create = producer.index("create-capability", server_cleanup_arm)
+        capability_arm = producer.index(
+            "ANDROID_COMMAND_CAPABILITY_ARMED=1", server_cleanup_arm
+        )
+        server_start = producer.index("server-nodaemon", server_cleanup_arm)
+        self.assertLess(capability_arm, capability_create)
+        server_pid_capture = producer.index("ADB_PRIVATE_SERVER_PID=$!", server_start)
+        client_transport_disable = producer.index(
+            "export ADB_USB=0", server_pid_capture
+        )
+        recovery_identity_print = producer.index("private-adb: pid=", server_pid_capture)
+        initial_listener_check = producer.index("verify-adb-listener", server_start)
+        first_server_check = producer.index(
+            "verify-adb-server-status", initial_listener_check
+        )
+        first_listener_check = producer.index(
+            "verify-adb-listener", first_server_check
+        )
+        device_selection = producer.index("SERIAL=$(select_serial_or_empty)")
+        second_server_check = producer.rindex("verify-adb-server-status")
+        second_listener_check = producer.rindex("verify-adb-listener")
+        proof_emission = producer.index('python3 - "$ROOT" "$RUN_ID"', device_selection)
+        proof_staging_write = producer.index(
+            "descriptor = os.open(proof, flags, 0o600)", proof_emission
+        )
+        proof_publication = producer.index("publish-staged-proof", second_listener_check)
+        runtime_cleanup = producer.index(
+            "cleanup_runtime_with_deferred_signals", second_listener_check
+        )
+        final_default_listener_gate = producer.rindex(
+            "\nassert_default_adb_server_absent\n"
+        )
+        proof_verification = producer.index(
+            "artifact/android_device_proof.py verify \\", second_listener_check
+        )
+        proof_bundle = producer.index(
+            "artifact/android_device_proof.py create-bundle", proof_verification
+        )
+        evidence_confirmation = producer.index(
+            "ANDROID_PROOF_EVIDENCE_CONFIRMED=1", proof_bundle
+        )
+        pass_marker = producer.index("ANDROID_DEVICE_RUNTIME_PASS", evidence_confirmation)
+        self.assertLess(default_listener_gate, server_cleanup_arm)
+        self.assertLess(server_cleanup_arm, server_start)
+        self.assertLess(capability_arm, capability_create)
+        self.assertLess(capability_create, server_start)
+        self.assertLess(server_start, server_pid_capture)
+        self.assertLess(server_pid_capture, client_transport_disable)
+        self.assertLess(client_transport_disable, recovery_identity_print)
+        self.assertLess(recovery_identity_print, initial_listener_check)
+        self.assertLess(client_transport_disable, initial_listener_check)
+        self.assertLess(initial_listener_check, first_server_check)
+        self.assertLess(first_server_check, first_listener_check)
+        self.assertLess(first_listener_check, device_selection)
+        self.assertLess(proof_staging_write, second_server_check)
+        self.assertLess(second_server_check, second_listener_check)
+        self.assertLess(second_listener_check, runtime_cleanup)
+        self.assertLess(runtime_cleanup, final_default_listener_gate)
+        self.assertLess(final_default_listener_gate, proof_publication)
+        self.assertLess(second_listener_check, proof_publication)
+        self.assertLess(proof_publication, proof_verification)
+        self.assertLess(proof_verification, proof_bundle)
+        self.assertLess(proof_bundle, evidence_confirmation)
+        self.assertLess(evidence_confirmation, pass_marker)
+        self.assertLess(second_listener_check, proof_verification)
+        self.assertIn('--expected-identity "$ADB_LISTENER_IDENTITY"', producer)
+        self.assertIn('--expected-pid "$ADB_PRIVATE_SERVER_PID"', producer)
+        self.assertIn(
+            '--expected-server-socket "$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer
+        )
+        self.assertIn(
+            '--expected-vendor-keys "$ADB_PRIVATE_VENDOR_KEY"', producer
+        )
+        self.assertIn("--expected-mdns 0", producer)
+        self.assertIn(
+            '--expected-transport-kind "$EXPECTED_DEVICE_KIND"', producer
+        )
+        self.assertIn(
+            'ADB_PRIVATE_SERVER_SOCKET_SPEC="localfilesystem:$ADB_PRIVATE_SERVER_SOCKET_PATH"',
+            producer,
+        )
+        self.assertNotIn('"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertIn('argv.extend(("--one-device", capability.expected_serial))', command_adapter_source)
+        self.assertIn("default adb server is already listening", verifier_source)
+        self.assertNotIn('"$ADB" start-server', producer)
+        self.assertNotIn('"$ADB" kill-server', producer)
+        self.assertNotIn('"$ADB" -s ', producer)
+        self.assertNotIn('"$ADB" devices', producer)
+        self.assertNotIn('"$ADB" server-status', producer)
+        self.assertNotIn('[str(adb), "-s"', producer)
+        self.assertNotIn('[str(adb), "version"', producer)
+        self.assertNotIn('--one-device "$QPERIAPT_ANDROID_SERIAL"', producer)
+        self.assertIn("export ADB_MDNS=0", producer)
+        self.assertIn("export ADB_MDNS_AUTO_CONNECT=0", producer)
+        self.assertIn("export ADB_LOCAL_TRANSPORT_MAX_PORT=5585", producer)
+        self.assertIn("export ADB_USB=1", producer)
+        self.assertIn("export ADB_EMU=0", producer)
+        self.assertIn("physical Android evidence requires one USB transport", producer)
+        self.assertEqual(
+            producer.count("\nassert_default_adb_server_absent\n"), 3
+        )
+        self.assertIn(
+            'PROOF_STAGING="$WORK/qperiapt-android-device-proof.json.pending"',
+            producer,
+        )
+        self.assertIn("ANDROID_PROOF_EVIDENCE_CONFIRMED=1", producer)
+        self.assertIn("cleanup_unconfirmed_proof", producer)
+        self.assertIn('proof_destination.parent / "apksigner-verify.txt"', producer)
+        self.assertIn('proof_destination.parent / "zipalign-verify.txt"', producer)
+        self.assertIn("was not already authorized", producer)
+        self.assertIn("ANDROID_APP_INSTALL_CONFIRMED=1", producer)
+        self.assertIn("required_absent_observations=8", producer)
+        self.assertIn("Android app cleanup outcome is unresolved", producer)
         self.assertIn(
             "refusing to boot a proof AVD while another adb device is already online",
             producer,
@@ -669,10 +1483,12 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
             producer,
         )
-        self.assertIn('EXPECTED_EMULATOR_SERIAL="emulator-$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn('EXPECTED_COMMAND_SERIAL="emulator-$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn("EXPECTED_EMULATOR_SERIAL=$EXPECTED_COMMAND_SERIAL", producer)
         self.assertIn('-port "$ANDROID_EMULATOR_PORT"', producer)
         self.assertIn('SERIAL=$EXPECTED_EMULATOR_SERIAL', producer)
         self.assertIn("temporary Android emulator exited before its bound adb serial", producer)
+        self.assertIn("\n\t\t-read-only \\\n", producer)
         self.assertNotIn(
             'if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]',
             producer,
@@ -717,8 +1533,16 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("capture_app_logcat()", producer)
-        self.assertIn("logcat -d -v tag -s 'QPeriaptSmoke:*' '*:S'", producer)
+        self.assertIn("android_command capture-logcat", producer)
+        adapter = (
+            pathlib.Path(__file__).resolve().parent / "android_bounded_command.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"logcat",', adapter)
+        self.assertIn('"-T",\n            _device_epoch(),', adapter)
+        self.assertIn('"QPeriaptSmoke:*",\n            "*:S",', adapter)
+        self.assertIn("needle = f\"run-id={run_id}\"", producer)
         self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)
+        self.assertNotIn("logcat -c", producer)
 
     def test_result_verifier_rejects_unrelated_logcat_data(self) -> None:
         run_id = "a" * 32
@@ -742,18 +1566,34 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "result_json": result_json,
             "logcat": logcat,
         }
-        logcat.write_text("I/QPeriaptSmoke: verified\n", encoding="utf-8")
+        valid_line = (
+            "I/QPeriaptSmoke: QPERIAPT_ANDROID_DEVICE_PASS "
+            f"run-id={run_id} tests=3\n"
+        )
+        logcat.write_text(valid_line, encoding="utf-8")
         android_device_proof.verify_result_files(paths, run_id)
         logcat.write_text(
-            "--------- beginning of main\nI/QPeriaptSmoke( 123): verified\n",
+            "--------- beginning of main\n"
+            "I/QPeriaptSmoke( 123): QPERIAPT_ANDROID_DEVICE_PASS "
+            f"run-id={run_id} tests=3\n",
             encoding="utf-8",
         )
         android_device_proof.verify_result_files(paths, run_id)
         logcat.write_text(
-            "I/QPeriaptSmoke: verified\nI/OtherApplication: private data\n",
+            valid_line + "I/OtherApplication: private data\n",
             encoding="utf-8",
         )
         with self.assertRaisesRegex(SystemExit, "outside the QPeriaptSmoke tag"):
+            android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "I/QPeriaptSmoke: QPERIAPT_ANDROID_DEVICE_PASS "
+            f"run-id={'b' * 32} tests=3\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "another run"):
+            android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text("", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "exactly one run-bound PASS"):
             android_device_proof.verify_result_files(paths, run_id)
         logcat.write_text(
             "I/OtherApplication: mentions QPeriaptSmoke but is unrelated\n",

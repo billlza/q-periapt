@@ -1,6 +1,7 @@
 #!/bin/sh
 # Consume the local release index like an external downstream C project.
 set -eu
+umask 077
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
@@ -24,19 +25,16 @@ case "${QPERIAPT_ALLOW_DIAGNOSTIC_RELEASE_CONSUMER:-0}" in
 		exit 2
 		;;
 esac
-
-set -- python3 artifact/release_consumer_smoke.py --root "$ROOT"
-
-if [ -n "${QPERIAPT_RELEASE_INDEX_PATH:-}" ]; then
-	set -- "$@" --index "$QPERIAPT_RELEASE_INDEX_PATH"
+if [ "${QPERIAPT_RELEASE_INDEX_PATH+x}" = x ] || \
+	[ "${QPERIAPT_RELEASE_CONSUMER_OUT_DIR+x}" = x ]; then
+	printf 'error: caller-selected release index and consumer output paths are not supported\n' >&2
+	exit 2
 fi
 
-if [ -n "${QPERIAPT_RELEASE_CONSUMER_OUT_DIR:-}" ]; then
-	set -- "$@" --out-dir "$QPERIAPT_RELEASE_CONSUMER_OUT_DIR"
-fi
+set -- python3 artifact/release_consumer_smoke.py
 
 if [ "${QPERIAPT_ALLOW_DIAGNOSTIC_RELEASE_CONSUMER:-0}" = "1" ]; then
-	set -- "$@" --allow-diagnostic
+	set -- "$@" --channel diagnostic --allow-diagnostic
 fi
 
 "$@"

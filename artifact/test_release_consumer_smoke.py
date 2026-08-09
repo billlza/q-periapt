@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import io
 import pathlib
+import stat
+import tarfile
 import tempfile
 import unittest
 from unittest import mock
@@ -120,6 +124,63 @@ class ReleaseConsumerFlagTests(unittest.TestCase):
                 ]
             )
         )
+
+    def test_cli_uses_only_fixed_repository_paths(self) -> None:
+        source = pathlib.Path(release_consumer_smoke.__file__).read_text(
+            encoding="utf-8"
+        )
+        for option in ("--root", "--index", "--out-dir"):
+            self.assertNotIn(f'add_argument("{option}"', source)
+        for variable in (
+            "QPERIAPT_RELEASE_INDEX_PATH",
+            "QPERIAPT_RELEASE_CONSUMER_OUT_DIR",
+        ):
+            self.assertNotIn(variable, source)
+
+    def test_output_directory_is_private_and_fixed(self) -> None:
+        repository = self.package / "repository"
+        (repository / "target").mkdir(parents=True)
+        with mock.patch.object(
+            release_consumer_smoke, "REPOSITORY_ROOT", repository
+        ):
+            output = release_consumer_smoke.resolve_output_dir()
+        self.assertEqual(output, repository / "target/qperiapt-release-consumer-smoke")
+        self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o700)
+
+    def test_archive_is_consumed_from_the_verified_size_and_digest_snapshot(self) -> None:
+        archive_path = self.package / "package.tar.gz"
+
+        def archive_bytes(payload: bytes) -> bytes:
+            output = io.BytesIO()
+            with tarfile.open(fileobj=output, mode="w:gz") as archive:
+                info = tarfile.TarInfo("package/README.md")
+                info.size = len(payload)
+                archive.addfile(info, io.BytesIO(payload))
+            return output.getvalue()
+
+        original = archive_bytes(b"original")
+        replacement = archive_bytes(b"replacement")
+        archive_path.write_bytes(original)
+        reference = release_consumer_smoke.VerifiedArchiveReference(
+            path=archive_path,
+            size=len(original),
+            sha256=hashlib.sha256(original).hexdigest(),
+        )
+        archive_path.write_bytes(replacement)
+        with self.assertRaisesRegex(SystemExit, "changed after release-index"):
+            release_consumer_smoke.safe_extract_tar_gz(
+                reference,
+                self.package / "replacement-extract",
+            )
+
+        archive_path.write_bytes(original)
+        destination = self.package / "original-extract"
+        release_consumer_smoke.safe_extract_tar_gz(reference, destination)
+        self.assertEqual(
+            (destination / "package/README.md").read_bytes(),
+            b"original",
+        )
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o700)
 
 
 if __name__ == "__main__":

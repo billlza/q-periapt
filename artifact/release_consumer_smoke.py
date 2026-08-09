@@ -9,35 +9,38 @@ explicitly opts in.
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import pathlib
 import platform
-import re
 import shlex
 import shutil
 import stat
 import subprocess
 import tarfile
+import tempfile
+from dataclasses import dataclass
 from typing import Any
 
-from evidence_io import EvidenceIOError, load_json_object_snapshot
+from evidence_io import EvidenceIOError, consume_regular_snapshot
+
 from release_index import (
-    SCHEMA_VERSION,
+    REPOSITORY_ROOT,
+    MAX_TAR_ARCHIVE_BYTES,
     normalized_absolute,
+    protect_private_directory,
     require,
     require_no_symlink_components,
-    require_relative_safe,
+    release_pointer_selection,
     require_strictly_under,
     require_under,
-    sha256_file,
+    require_relative_safe,
     verify_index_file as verify_release_file,
     verify_release_index,
     verify_sha256s,
 )
 
 
-POINTER_KIND = "qperiapt.local_release_index.pointer"
-HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
 MAX_TAR_MEMBERS = 8192
 MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 TRUSTED_TOOL_CANDIDATES = {
@@ -50,66 +53,17 @@ TRUSTED_TOOL_CANDIDATES = {
 }
 
 
-def load_json(path: pathlib.Path) -> dict[str, Any]:
-    require(not path.is_symlink(), f"consumer JSON must not be a symlink: {path}")
-    try:
-        return load_json_object_snapshot(path, label=f"consumer JSON {path}").value
-    except EvidenceIOError as exc:
-        raise SystemExit(f"error: {exc}") from exc
+@dataclass(frozen=True, slots=True)
+class VerifiedArchiveReference:
+    path: pathlib.Path
+    size: int
+    sha256: str
 
 
-def pointer_index_path(root: pathlib.Path, pointer_path: pathlib.Path) -> pathlib.Path:
-    target = root / "target"
-    release_base = target / "qperiapt-local-release"
-    require_no_symlink_components(pointer_path, target, "release pointer")
-    require(pointer_path.is_file(), f"release pointer missing: {pointer_path}")
-    pointer = load_json(pointer_path)
-    require(pointer.get("schema_version") == SCHEMA_VERSION, "release pointer schema mismatch")
-    require(pointer.get("kind") == POINTER_KIND, "release pointer kind mismatch")
-    require(pointer.get("channel") == "release", "default release pointer must select release channel")
-    require(pointer.get("diagnostic_only") is False, "default release pointer must not be diagnostic")
-    rel = pointer.get("index_path")
-    expected = pointer.get("index_sha256")
-    require(isinstance(rel, str), "release pointer lacks index_path")
-    require(
-        isinstance(expected, str) and HEX_SHA256.fullmatch(expected) is not None,
-        "release pointer lacks a valid index_sha256",
-    )
-    require_relative_safe(rel, "release pointer index_path")
-    index_path = normalized_absolute(target / pathlib.Path(rel))
-    require_strictly_under(index_path, release_base / "release", "default release index")
-    require_no_symlink_components(index_path, target, "default release index")
-    require(index_path.is_file(), f"default release index missing: {index_path}")
-    require(sha256_file(index_path) == expected, "release pointer index hash mismatch")
-    return index_path
-
-
-def default_index_path(root: pathlib.Path) -> pathlib.Path:
-    release_base = root / "target" / "qperiapt-local-release"
-    primary = release_base / "latest-release.json"
-    if primary.exists() or primary.is_symlink():
-        return pointer_index_path(root, primary)
-    # Schema-2 release emitters also update latest.json for compatibility.  It
-    # is still required to point at the release channel, never diagnostics.
-    return pointer_index_path(root, release_base / "latest.json")
-
-
-def resolve_index_path(root: pathlib.Path, raw: str) -> pathlib.Path:
-    if not raw:
-        return default_index_path(root)
-    index_path = pathlib.Path(raw)
-    if not index_path.is_absolute():
-        index_path = root / index_path
-    index_path = normalized_absolute(index_path)
-    release_base = root / "target" / "qperiapt-local-release"
-    require_strictly_under(index_path, release_base, "release index")
-    require_no_symlink_components(index_path, root / "target", "release index")
-    require(index_path.is_file(), f"release index missing: {index_path}")
-    return index_path
-
-
-def c_archive_entries(index: dict[str, Any], release_root: pathlib.Path) -> list[pathlib.Path]:
-    entries: list[pathlib.Path] = []
+def c_archive_entries(
+    index: dict[str, Any], release_root: pathlib.Path
+) -> list[VerifiedArchiveReference]:
+    entries: list[VerifiedArchiveReference] = []
     artifacts = index.get("artifacts")
     require(isinstance(artifacts, list), "release index artifacts are malformed")
     for artifact in artifacts:
@@ -122,49 +76,97 @@ def c_archive_entries(index: dict[str, Any], release_root: pathlib.Path) -> list
         for item in files:
             path = verify_release_file(release_root, item)
             require(path.name.endswith(".tar.gz"), f"C ABI package is not a tar.gz: {path}")
-            entries.append(path)
+            require(isinstance(item, dict), "C ABI package entry is malformed")
+            size = item.get("bytes")
+            digest = item.get("sha256")
+            require(type(size) is int, "C ABI package size is malformed")
+            require(isinstance(digest, str), "C ABI package digest is malformed")
+            entries.append(
+                VerifiedArchiveReference(path=path, size=size, sha256=digest)
+            )
     require(len(entries) == 1, f"release index must have exactly one C ABI archive, found {len(entries)}")
     return entries
 
 
-def safe_extract_tar_gz(archive: pathlib.Path, dest: pathlib.Path) -> None:
+def safe_extract_tar_gz(
+    archive: VerifiedArchiveReference, dest: pathlib.Path
+) -> None:
     require(not dest.is_symlink(), f"tar destination must not be a symlink: {dest}")
     try:
-        dest.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(archive, "r:gz") as bundle:
-            members = bundle.getmembers()
-            require(members, f"archive is empty: {archive}")
-            require(
-                len(members) <= MAX_TAR_MEMBERS,
-                f"archive has too many members: {archive}",
+        dest.mkdir(parents=True, mode=0o700, exist_ok=True)
+        protect_private_directory(dest, "release consumer extraction")
+        with tempfile.SpooledTemporaryFile(
+            max_size=8 * 1024 * 1024,
+            mode="w+b",
+        ) as captured:
+            def write_archive(chunk: bytes) -> None:
+                written = captured.write(chunk)
+                require(written == len(chunk), "short write while capturing C archive")
+
+            snapshot = consume_regular_snapshot(
+                archive.path,
+                maximum=MAX_TAR_ARCHIVE_BYTES,
+                label="indexed C archive",
+                consume=write_archive,
             )
-            seen: set[str] = set()
-            total_size = 0
-            for member in members:
-                name = member.name
-                pure = pathlib.PurePosixPath(name)
-                require(name and not pure.is_absolute(), f"absolute/empty tar member: {name}")
-                require("\\" not in name, f"backslash tar member is unsupported: {name}")
-                require(":" not in pure.parts[0], f"drive-like tar member is unsupported: {name}")
-                require(
-                    all(part not in {"", ".", ".."} for part in pure.parts),
-                    f"unsafe tar member: {name}",
-                )
-                require(name not in seen, f"duplicate tar member: {name}")
-                seen.add(name)
-                require(member.isfile() or member.isdir(), f"unsupported tar member type: {name}")
-                if member.isfile():
-                    require(member.size >= 0, f"negative tar member size: {name}")
-                    total_size += member.size
+            require(
+                snapshot.size == archive.size and snapshot.sha256 == archive.sha256,
+                "indexed C archive changed after release-index verification",
+            )
+            captured.flush()
+            captured.seek(0)
+            with tarfile.open(fileobj=captured, mode="r:gz") as bundle:
+                member_count = 0
+                seen: set[str] = set()
+                total_size = 0
+                for member in bundle:
+                    member_count += 1
                     require(
-                        total_size <= MAX_EXTRACTED_BYTES,
-                        f"archive exceeds extracted-size limit: {archive}",
+                        member_count <= MAX_TAR_MEMBERS,
+                        f"archive has too many members: {archive.path}",
                     )
-                target = dest / pathlib.Path(*pure.parts)
-                require_under(target, dest, "tar extraction target")
-            bundle.extractall(dest, filter="data")
-    except (OSError, tarfile.TarError) as exc:
-        raise SystemExit(f"error: cannot extract {archive}: {exc}") from exc
+                    name = member.name
+                    pure = pathlib.PurePosixPath(name)
+                    require(
+                        name and not pure.is_absolute(),
+                        f"absolute/empty tar member: {name}",
+                    )
+                    accepted_name = (
+                        name[:-1]
+                        if member.isdir() and name.endswith("/")
+                        else name
+                    )
+                    canonical = require_relative_safe(
+                        pure.as_posix(), "consumer tar member"
+                    )
+                    require(
+                        accepted_name == canonical,
+                        f"non-canonical tar member: {name}",
+                    )
+                    require(
+                        canonical not in seen,
+                        f"duplicate tar member: {canonical}",
+                    )
+                    seen.add(canonical)
+                    require(
+                        member.isfile() or member.isdir(),
+                        f"unsupported tar member type: {name}",
+                    )
+                    if member.isfile():
+                        require(member.size >= 0, f"negative tar member size: {name}")
+                        total_size += member.size
+                        require(
+                            total_size <= MAX_EXTRACTED_BYTES,
+                            f"archive exceeds extracted-size limit: {archive.path}",
+                        )
+                    safe_member = copy.copy(member)
+                    safe_member.name = canonical
+                    target = dest / pathlib.Path(canonical)
+                    require_under(target, dest, "tar extraction target")
+                    bundle.extract(safe_member, dest, filter="data")
+                require(member_count > 0, f"archive is empty: {archive.path}")
+    except (EvidenceIOError, OSError, tarfile.TarError) as exc:
+        raise SystemExit(f"error: cannot extract {archive.path}: {exc}") from exc
 
 
 def find_c_package_root(extract_root: pathlib.Path) -> pathlib.Path:
@@ -368,12 +370,15 @@ def compile_and_run_c_smoke(
 
 def smoke_c_archive(
     root: pathlib.Path,
-    index_path: pathlib.Path,
-    archive: pathlib.Path,
+    index_sha256: str,
+    archive: VerifiedArchiveReference,
     out_dir: pathlib.Path,
 ) -> None:
-    index_sha = sha256_file(index_path)
-    work = out_dir / index_sha[:16] / archive.name.removesuffix(".tar.gz")
+    work = (
+        out_dir
+        / index_sha256[:16]
+        / archive.path.name.removesuffix(".tar.gz")
+    )
     require_strictly_under(work, out_dir, "release consumer work directory")
     require_no_symlink_components(work, out_dir, "release consumer work directory")
     try:
@@ -419,17 +424,10 @@ def smoke_c_archive(
     require_under(work, root / "target", "release consumer smoke output")
 
 
-def resolve_output_dir(root: pathlib.Path, raw: str) -> pathlib.Path:
+def resolve_output_dir() -> pathlib.Path:
+    root = REPOSITORY_ROOT
     target = root / "target"
-    base = target / "qperiapt-release-consumer-smoke"
-    if raw:
-        value = pathlib.Path(raw)
-        if not value.is_absolute():
-            value = root / value
-        output = normalized_absolute(value)
-        require_under(output, base, "release consumer output")
-    else:
-        output = base
+    output = target / "qperiapt-release-consumer-smoke"
     require_no_symlink_components(output, target, "release consumer output")
     if output.exists():
         require(output.is_dir(), f"release consumer output is not a directory: {output}")
@@ -440,26 +438,33 @@ def resolve_output_dir(root: pathlib.Path, raw: str) -> pathlib.Path:
             raise SystemExit(
                 f"error: cannot create release consumer output {output}: {exc}"
             ) from exc
+    protect_private_directory(output, "release consumer output")
     return output
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=".")
-    parser.add_argument("--index", default=os.environ.get("QPERIAPT_RELEASE_INDEX_PATH", ""))
-    parser.add_argument("--out-dir", default="")
+    parser.add_argument("--channel", choices=["release", "diagnostic"], default="release")
     parser.add_argument("--allow-diagnostic", action="store_true")
     args = parser.parse_args()
 
-    root = pathlib.Path(args.root).resolve()
-    out_dir = resolve_output_dir(root, args.out_dir)
-    index_path = resolve_index_path(root, args.index)
-    index = verify_release_index(
-        index_path, root, allow_diagnostic=args.allow_diagnostic
+    root = REPOSITORY_ROOT
+    require(
+        args.channel == "release" or args.allow_diagnostic,
+        "diagnostic release consumer requires --allow-diagnostic",
     )
-    release_root = index_path.parent
+    out_dir = resolve_output_dir()
+    selection = release_pointer_selection(root, args.channel)
+    index = verify_release_index(
+        selection.path,
+        root,
+        allow_diagnostic=args.allow_diagnostic,
+        expected_index_sha256=selection.expected_sha256,
+        expected_generated_at=selection.expected_generated_at,
+    )
+    release_root = selection.path.parent
     for archive in c_archive_entries(index, release_root):
-        smoke_c_archive(root, index_path, archive, out_dir)
+        smoke_c_archive(root, selection.expected_sha256, archive, out_dir)
     print("QPERIAPT_RELEASE_CONSUMER_SMOKE_PASS c-abi")
 
 

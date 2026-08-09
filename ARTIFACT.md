@@ -318,10 +318,31 @@ running `artifact/android-device-smoke.sh` to require a fresh emulator or physic
 proof too. Passing this gate proves that the current source tree can be embedded through the
 existing faces and that the host C archive is consumable after extraction. After those package gates
 have produced artifacts, `sh artifact/local-release-index.sh` creates a local hash-bound index under
-`target/qperiapt-local-release/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
+`target/qperiapt-local-release/<channel>/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
 Android AAR. Release mode requires a clean tree. Set `QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1` only for
 diagnostic indexes; optional Apple/Android runtime evidence is included as sanitized proof summaries,
-never as copied raw device logs or profiles. Credentialed Apple distribution uses
+never as copied raw device logs or profiles. Index schema 3 accepts only the current producer envelopes
+(C schema 2, Swift schema 5, Android schema 4), binds their exact package-only targets and boundaries,
+and rejects the credentialed/signed Swift lane because it does not copy `APPLE_DISTRIBUTION.json`.
+The emitter and consumer derive the repository root from their installed script location and select
+only the fixed channel pointer; arbitrary root, index, and output-path CLI overrides are not supported.
+Each `<channel>/<version>/<commit>` tree is immutable once created: a repeated emit fails before
+touching the existing tree. A serialized emitter first builds and verifies a unique mode-0700
+sibling staging tree, then atomically moves it to the immutable identity and replaces the single
+authoritative per-channel pointer inside one short termination-deferred publication window. An
+interruption during package copying can therefore leave at most an unselected private staging tree;
+it cannot occupy or partially rewrite the final identity. The next serialized emit removes only
+strictly named, current-user-owned mode-0700 staging remnants before using a fresh staging name. A
+`SIGKILL` or host loss during the much shorter final rename/pointer window can still require
+ownership-checked manual recovery, but no incomplete tree is selected as published evidence.
+The local store and consumer work directories use mode 0700, and copied packages, indexes, checksums,
+and pointers use mode 0600. Publication tooling must explicitly create separately permissioned public
+artifacts rather than reusing this private local store.
+Its machine-readable boundary records the required leaf gate, absence of an embedded leaf receipt,
+and the trusted local artifact-store assumption. It does not independently authenticate mutable
+`target/` bytes or turn locally recomputable hashes into a signed attestation; run the leaf gates
+first and use the results-only evidence successor or an external release attestation for durable
+provenance. Credentialed Apple distribution uses
 `artifact/swift-xcframework-release.sh`, builds from a fixed detached source commit, pins the
 Developer ID identity/certificate, verifies the exact static-only ZIP layout, and binds the final
 ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slice hashes in public
@@ -459,7 +480,8 @@ These produce the paper's primary network table and the binary constant-time dis
   `artifact/device-runs` and app/staticlib paths outside `target`.
   `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` pins the Xcode 27 beta
   lane without changing global `xcode-select`. This lane requires local signing. Set
-  `DEVELOPMENT_TEAM`, set `QPERIAPT_IOS_DEVICE_ID` when more than one physical device is connected,
+  `DEVELOPMENT_TEAM` and an explicit `QPERIAPT_IOS_DEVICE_ID` for every physical run,
+  and complete the selected Xcode first-launch/CoreDevice setup before capture,
   and set `QPERIAPT_ALLOW_PROVISIONING_UPDATES=1` only when automatic profile changes are intended;
   otherwise the lane fails closed rather than falling back to a simulator. By default,
   `artifact/proof-to-byte.sh` does not require local signing hardware; set
@@ -470,7 +492,12 @@ These produce the paper's primary network table and the binary constant-time dis
   The capture freezes the app executable and Rust static-library hashes before installation,
   strictly verifies the app signature, and rechecks both hashes after the run-bound marker returns
   from the app-private container and again during proof emission. This binds persistent local
-  artifacts to the installation window; it is not on-device binary attestation. Raw local evidence
+  artifacts to the installation window; it is not on-device binary attestation. The capture uses a
+  random run-scoped bundle identifier, refuses to replace a pre-existing exact identifier, and
+  confirms stable removal of only its own app before proof emission. Install/uninstall unknown
+  outcomes are reconciled with bounded repeated observations; an unresolved outcome fails the
+  gate. `SIGKILL`, host loss, or device loss cannot run traps: derive the random identifier from
+  the printed run id and inspect that exact app before any manual cleanup. Raw local evidence
   uses a private umask and is never part of a publishable package or release index.
   For iPhone+iPad family coverage, use the matrix lane:
   `QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-matrix.sh`.
@@ -497,12 +524,42 @@ These produce the paper's primary network table and the binary constant-time dis
   raw combine/X-Wing/deterministic paths are forbidden exports. Proof schema v3 records hashed
   adb serial and build fingerprint only, hashes the AAR/APK/result/logcat/named inputs, and freezes
   the claim-ledger canonical source-input digest before the build. It recomputes
-  that digest before proof emission, so a source change during the run fails instead of binding old
+  that digest before proof staging, so a source change during the run fails instead of binding old
   binaries to new source. The proof is
   reverified with `QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh`. By default this
   lane requires a clean tree; use `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and
-  `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` only for local diagnostics. To boot a local AVD,
-  set `QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=<avd-name>`.
+  `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` only for local diagnostics. Physical runs require
+  both `QPERIAPT_ANDROID_SERIAL=<serial>` and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical`.
+  To boot a local AVD, set `QPERIAPT_ANDROID_BOOT_AVD=1`,
+  `QPERIAPT_ANDROID_AVD=<avd-name>`, and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`; the AVD runs with a read-only userdata overlay. The smoke refuses to replace an existing package,
+  matches both installed APK bytes and signer before owned cleanup, reconciles command-unknown
+  outcomes with bounded repeated observations, and never clears global logcat buffers. It requires
+  the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
+  identity directory that is not group/other writable, owner-protected adb key files, and an already
+  authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is
+  rejected. The standard IPv4 and IPv6 adb endpoints must refuse connections at startup, before
+  cleanup, and immediately before final proof publication; the script never reuses or stops a
+  pre-existing default server. It instead owns one fixed `adb.sock` in a random, mode-0700,
+  allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/` directory and routes every client through its exact
+  `localfilesystem:` endpoint. The server disables mDNS and auto-connect. Physical proof enables
+  only USB scanning, binds `--one-device` to the explicit serial, and rechecks a `usb:` devpath before
+  staging; the owned AVD lane disables USB scanning and enables only emulator discovery. Immediately
+  after spawning the owned server, all parent/client scanners are disabled so a client-autostarted
+  replacement cannot attach to a device. Listener PID/start identity, executable, key, endpoint,
+  transport environment, and `mdns_enabled: false` status are checked before selection and again
+  after the last device query. Runtime cleanup, private-server protocol shutdown, and socket removal
+  must all succeed before the canonical proof is atomically published; cleanup failure produces no
+  PASS marker or accepted proof. A repository-scoped open-file lock serializes the entire lane before
+  any prior output is cleared, and capability creation defers HUP/INT/TERM until its owned 0600 state
+  is either armed or removed. The script never sends TERM/KILL to a cached PID.
+  Every adb/lsof call is selected from a finite Android operation table and executed through the
+  private run capability; the generic bounded-process module has no arbitrary command or output CLI.
+  adb itself is selected from the fixed `auto`, `macos-account`, `linux-account`, `linux-system`, or
+  `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB` paths are rejected.
+  AVD transport still requires an exclusive trusted evidence host because another locally started
+  server could reach an emulator port. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
+  cannot run traps; use the reported private socket/PID to confirm ownership before manual cleanup,
+  and compare any orphaned `dev.qperiapt.androidsmoke` with the private run APK before removal.
 - **Matched-backend performance gate.** Collect a paired host proof with:
 
   ```sh

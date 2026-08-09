@@ -19,8 +19,17 @@ if [ -n "${QPERIAPT_DEVELOPER_DIR:-}" ]; then
 	export DEVELOPER_DIR
 fi
 
-DEVICE_ID=${QPERIAPT_IOS_DEVICE_ID:-${1:-}}
-BUNDLE_ID=${QPERIAPT_IOS_BUNDLE_ID:-dev.qperiapt.DeviceRunner}
+if [ "$#" -ne 0 ]; then
+	printf 'error: positional device identifiers are not supported; set QPERIAPT_IOS_DEVICE_ID explicitly\n' >&2
+	exit 2
+fi
+
+DEVICE_ID=${QPERIAPT_IOS_DEVICE_ID:-}
+if [ "${QPERIAPT_IOS_BUNDLE_ID+x}" = x ]; then
+	printf 'error: QPERIAPT_IOS_BUNDLE_ID is not supported; the device proof always uses a random run-owned identifier\n' >&2
+	exit 2
+fi
+BUNDLE_ID=
 CODE_SIGN_STYLE_VALUE=${QPERIAPT_CODE_SIGN_STYLE:-Automatic}
 MIN_PROFILE_VALID_DAYS=${QPERIAPT_MIN_PROFILE_VALID_DAYS:-30}
 DERIVED_DATA=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-device-derived"}
@@ -36,6 +45,8 @@ PROJECT="$PROJECT_DIR/QPeriaptAppleDevice.xcodeproj"
 APP="$DERIVED_DATA/Build/Products/Debug-iphoneos/QPeriaptDeviceRunner.app"
 ALLOW_PROVISIONING_UPDATES=${QPERIAPT_ALLOW_PROVISIONING_UPDATES:-0}
 ALLOW_PROVISIONING_DEVICE_REGISTRATION=${QPERIAPT_ALLOW_PROVISIONING_DEVICE_REGISTRATION:-0}
+DEVICECTL_TIMEOUT_SECONDS=30
+DEVICE_CLEANUP_RECONCILE_ATTEMPTS=12
 case "$ALLOW_PROVISIONING_UPDATES" in
 	0 | 1) ;;
 	*)
@@ -74,45 +85,79 @@ need() {
 	fi
 }
 
-pick_device() {
-	xcrun devicectl list devices --json-output - 2>/dev/null | python3 -c '
-import json
-import os
-import sys
-
-data = json.load(sys.stdin)
-matches = []
-expected_transport = os.environ.get("QPERIAPT_EXPECT_DEVICE_TRANSPORT", "")
-for dev in data.get("result", {}).get("devices", []):
-    props = dev.get("properties", {})
-    hardware = props.get("hardware", {})
-    state = props.get("state", {})
-    connection = props.get("connection", {})
-    if hardware.get("platform") != "iOS":
-        continue
-    if hardware.get("reality") != "physical":
-        continue
-    if hardware.get("deviceType") not in ("iPad", "iPhone"):
-        continue
-    if state.get("bootState") != "booted":
-        continue
-    if connection.get("state") != "connected":
-        continue
-    if expected_transport and connection.get("transportType") != expected_transport:
-        continue
-    udid = hardware.get("udid")
-    if udid:
-        matches.append(udid)
-if len(matches) == 1:
-    print(matches[0])
-'
-}
-
 assert_device_route() {
 	python3 artifact/apple_device_proof.py inspect-device \
 		--device-id "$DEVICE_ID" \
 		--expected-device-type "$EXPECTED_DEVICE_TYPE" \
 		--expected-transport "$EXPECTED_DEVICE_TRANSPORT" >/dev/null
+}
+
+inspect_device_app() {
+	python3 artifact/apple_device_proof.py inspect-app \
+		--device-id "$DEVICE_ID" \
+		--bundle-id "$BUNDLE_ID" "$@"
+}
+
+cleanup_device_app() {
+	if [ "${APPLE_APP_CLEANUP_ARMED:-0}" != "1" ]; then
+		return 0
+	fi
+	required_absent_observations=3
+	if [ "${APPLE_APP_INSTALL_CONFIRMED:-0}" != "1" ]; then
+		required_absent_observations=8
+	fi
+	attempt=0
+	absent_observations=0
+	while [ "$attempt" -lt "$DEVICE_CLEANUP_RECONCILE_ATTEMPTS" ]; do
+		if app_state=$(inspect_device_app 2>>"$CLEANUP_LOG"); then
+			printf 'attempt=%s state=%s\n' "$attempt" "$app_state" >>"$CLEANUP_LOG"
+		else
+			app_state=unknown
+			printf 'attempt=%s state=query-error\n' "$attempt" >>"$CLEANUP_LOG"
+		fi
+		case "$app_state" in
+			absent)
+				absent_observations=$((absent_observations + 1))
+				if [ "$absent_observations" -ge "$required_absent_observations" ]; then
+					APPLE_APP_CLEANUP_ARMED=0
+					return 0
+				fi
+				;;
+			present)
+				absent_observations=0
+				APPLE_APP_INSTALL_CONFIRMED=1
+				required_absent_observations=3
+				if ! xcrun devicectl device uninstall app \
+					--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
+					--device "$DEVICE_ID" "$BUNDLE_ID" >>"$CLEANUP_LOG" 2>&1; then
+					printf 'attempt=%s uninstall=unknown-or-failed\n' "$attempt" >>"$CLEANUP_LOG"
+				fi
+				;;
+			unknown) absent_observations=0 ;;
+			*)
+				printf 'error: unexpected Apple app state during cleanup: %s\n' "$app_state" >&2
+				return 1
+				;;
+		esac
+		attempt=$((attempt + 1))
+		if [ "$attempt" -lt "$DEVICE_CLEANUP_RECONCILE_ATTEMPTS" ]; then
+			sleep 1
+		fi
+	done
+	printf 'error: Apple app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
+		"${DEVICE_ID_SHA256_PREFIX:-unavailable}" "$CLEANUP_LOG" >&2
+	return 1
+}
+
+cleanup_exit() {
+	status=$?
+	trap - EXIT HUP INT TERM
+	cleanup_status=0
+	cleanup_device_app || cleanup_status=$?
+	if [ "$status" -eq 0 ] && [ "$cleanup_status" -ne 0 ]; then
+		status=$cleanup_status
+	fi
+	exit "$status"
 }
 
 need cargo
@@ -124,6 +169,17 @@ need otool
 need python3
 need security
 
+if ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+	printf 'error: selected Xcode first-launch setup is incomplete; finish it before running device proof\n' >&2
+	exit 2
+fi
+
+RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+BUNDLE_ID="dev.qperiapt.DeviceRunner.run$RUN_ID"
+if [ -z "$DEVICE_ID" ]; then
+	printf 'error: QPERIAPT_IOS_DEVICE_ID is required for the physical Apple-device proof lane\n' >&2
+	exit 2
+fi
 if [ -z "${DEVELOPMENT_TEAM:-}" ]; then
 	printf 'error: DEVELOPMENT_TEAM is required for the physical Apple-device proof lane\n' >&2
 	exit 2
@@ -215,15 +271,6 @@ esac
 SOURCE_GIT_COMMIT=${SOURCE_SNAPSHOT%%:*}
 SOURCE_TREE_SHA256=${SOURCE_SNAPSHOT#*:}
 
-RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
-
-if [ -z "$DEVICE_ID" ]; then
-	DEVICE_ID=$(pick_device)
-fi
-if [ -z "$DEVICE_ID" ]; then
-	printf 'error: no online physical iOS/iPadOS device found; set QPERIAPT_IOS_DEVICE_ID explicitly\n' >&2
-	exit 2
-fi
 python3 - "$DEVICE_ID" <<'PY'
 import re
 import sys
@@ -243,6 +290,17 @@ PY
 
 mkdir -p "$RESULT_DIR"
 chmod 700 "$RESULT_DIR"
+CLEANUP_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-cleanup.log"
+if ! rm -f -- "$CLEANUP_LOG"; then
+	printf 'error: cannot reset Apple device cleanup log: %s\n' "$CLEANUP_LOG" >&2
+	exit 1
+fi
+APPLE_APP_CLEANUP_ARMED=0
+APPLE_APP_INSTALL_CONFIRMED=0
+trap cleanup_exit EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 printf 'Q-Periapt Apple device smoke\n'
 printf 'repo    : %s\n' "$ROOT"
@@ -371,14 +429,22 @@ FROZEN_STATICLIB_SHA256=${FROZEN_BINARY_HASHES#*:}
 printf '\n=== Install device runner ===\n'
 INSTALL_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-install.log"
 assert_device_route
-if ! xcrun devicectl device uninstall app --device "$DEVICE_ID" "$BUNDLE_ID" >"$INSTALL_LOG" 2>&1; then
-	printf 'error: device runner uninstall failed; see %s\n' "$INSTALL_LOG" >&2
+if ! inspect_device_app --expect absent >"$INSTALL_LOG" 2>&1; then
+	printf 'error: refusing to replace a pre-existing Apple app; see %s\n' "$INSTALL_LOG" >&2
 	exit 1
 fi
-if ! xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >>"$INSTALL_LOG" 2>&1; then
+APPLE_APP_CLEANUP_ARMED=1
+if ! xcrun devicectl device install app \
+	--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
+	--device "$DEVICE_ID" "$APP" >>"$INSTALL_LOG" 2>&1; then
 	printf 'error: device runner install failed; see %s\n' "$INSTALL_LOG" >&2
 	exit 1
 fi
+if ! inspect_device_app --expect present >>"$INSTALL_LOG" 2>&1; then
+	printf 'error: device runner installation was not observable; see %s\n' "$INSTALL_LOG" >&2
+	exit 1
+fi
+APPLE_APP_INSTALL_CONFIRMED=1
 assert_device_route
 
 printf '\n=== Launch device runner ===\n'
@@ -392,8 +458,8 @@ rm -f "$DEVICE_RESULT_COPY"
 assert_device_route
 set +e
 xcrun devicectl device process launch \
+	--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
 	--device "$DEVICE_ID" \
-	--terminate-existing \
 	--console \
 	--environment-variables "{\"QPERIAPT_DEVICE_RUN_ID\":\"$RUN_ID\"}" \
 	"$BUNDLE_ID" >"$LOG" 2>&1
@@ -413,6 +479,7 @@ assert_device_route
 printf '\n=== Fetch device result marker ===\n'
 COPY_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-copy.log"
 if ! xcrun devicectl device copy from \
+	--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
 	--device "$DEVICE_ID" \
 	--domain-type appDataContainer \
 	--domain-identifier "$BUNDLE_ID" \
@@ -453,6 +520,11 @@ if grep -cx 'QPERIAPT_DEVICE_PASS' "$DEVICE_RESULT" >/dev/null 2>&1; then
 	exit 1
 fi
 printf 'QPERIAPT_DEVICE_RESULT_VERIFIED run-id=%s\n' "$RUN_ID"
+
+if ! cleanup_device_app; then
+	printf 'error: run-owned Apple app cleanup failed\n' >&2
+	exit 1
+fi
 
 codesign --verify --deep --strict "$APP"
 FINAL_BINARY_HASHES=$(binary_hashes)

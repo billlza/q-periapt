@@ -38,6 +38,8 @@ separate device/emulator smoke below, not by this package-only gate.
 For runtime proof, run:
 
 ```sh
+QPERIAPT_ANDROID_SERIAL=<adb-serial> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 sh artifact/android-device-smoke.sh
 ```
 
@@ -46,8 +48,12 @@ With no attached Android device, the script can boot a named local AVD:
 ```sh
 QPERIAPT_ANDROID_BOOT_AVD=1 \
 QPERIAPT_ANDROID_AVD=<avd-name> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 sh artifact/android-device-smoke.sh
 ```
+
+The script-owned emulator uses `-no-snapshot -read-only`; runtime writes are discarded
+instead of mutating the named AVD's persistent userdata.
 
 The runtime smoke builds a temporary APK that consumes the generated AAR, installs it
 through adb, runs the Java facade on ART, and accepts only a run-bound
@@ -56,7 +62,39 @@ app-private files directory. It covers runtime metadata, signed-policy exact-dig
 resolution, OS-random key generation and encapsulation,
 context binding, ABI1 legacy-state/rollback/tamper rejection, secret wipe, and
 boundary fail-closed checks. Raw hybrid, deterministic seeds/coins, CompatXWing and
-combine are forbidden from the AAR's product export surface. Reverify the proof with:
+combine are forbidden from the AAR's product export surface.
+External devices are never selected implicitly. Before installation the smoke
+requires the exact package to be absent, and before cleanup it verifies that the
+installed base APK matches both this run's exact bytes and signer. Unknown install or
+uninstall outcomes are reconciled through bounded repeated observations. Log evidence is bounded to the current
+run and tag without clearing any global Android log buffer.
+The lane requires `$HOME` to match the current account's non-symlink home directory that is
+not writable by group or other users, an owner-controlled non-symlink `~/.android` directory that is not
+writable by group or other users, owner-protected `adbkey`/`adbkey.pub` files, and an
+already authorized target; do not accept a new authorization prompt during proof.
+On macOS, deny-only ACLs may further restrict these nodes, while any allow ACL is
+rejected even when the POSIX mode appears private.
+Caller-provided adb routing, discovery, and kill-policy environment variables are rejected.
+The default IPv4/IPv6 adb endpoints must be absent; the script never stops or reuses them.
+It owns a mode-0700, allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/adb.sock` and explicitly routes
+every client to that `localfilesystem:` endpoint. mDNS/auto-connect are disabled. Physical
+proof is USB-only and serial-bound; the owned AVD server disables USB and enables only emulator
+discovery. Parent clients disable both scanners immediately after server spawn so an auto-started
+replacement is inert. The server PID/start identity, executable, key, endpoint, transport env,
+and mDNS-disabled status are checked before selection and after the final device query. App/AVD/server
+cleanup and socket removal complete before atomic final proof publication; failure emits neither an
+accepted proof nor the PASS marker. A repository-scoped open-file lock is held before any output reset,
+and capability creation defers HUP/INT/TERM until its private state is armed or removed. The script
+never signals a cached PID directly. AVD transport
+still requires an exclusive trusted evidence host. `SIGKILL`, host loss, and device loss cannot run
+traps; use the reported private socket/PID to establish ownership before manual cleanup, and remove an
+orphaned `dev.qperiapt.androidsmoke` only after comparing it with the private run APK.
+The lane selects every adb/lsof call from a finite operation table backed by a private run capability;
+the shared bounded-process module is import-only and has no arbitrary command or output-path CLI.
+Use `QPERIAPT_ANDROID_ADB_PROFILE` only with `auto`, `macos-account`, `linux-account`,
+`linux-system`, or `linux-opt`; arbitrary `QPERIAPT_ADB` paths are rejected.
+
+Reverify the proof with:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh

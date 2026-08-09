@@ -45,6 +45,8 @@ sh artifact/apple-device-xcode27-gate.sh
 For a physical device, signing must be configured locally. Set `DEVELOPMENT_TEAM`
 when Xcode cannot infer a team. Set `QPERIAPT_ALLOW_PROVISIONING_UPDATES=1` only
 when allowing Xcode to create or update local development profiles is acceptable.
+Complete the selected Xcode's first-launch/CoreDevice setup in a separate maintenance
+step; the proof lane checks readiness and will not perform that setup implicitly.
 The wrapper fails closed when it cannot resolve the explicit physical
 iOS/iPadOS destination(s), when the built bundle id differs from the requested
 bundle id, or when the copied result marker does not match the per-run id. It
@@ -56,6 +58,15 @@ and refuses to treat one device family as proof for the other. Proof verificatio
 requires proof inputs under `artifact/device-runs`, app/staticlib artifacts under
 `target`, and a positive `QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS` no larger than
 seven days.
+The wrapper never auto-selects a device. Its default bundle identifier includes the
+random run id, and bundle-identifier overrides are rejected. Cleanup is armed before
+the install request, verifies
+the exact installed identifier, and confirms stable removal of only the run-owned app.
+Existing apps and containers are never replaced as part of this gate.
+Install and uninstall unknown outcomes are reconciled for a bounded interval. An
+unresolved outcome fails with the hashed device identity and private cleanup log.
+`SIGKILL`, host loss, and device loss cannot run shell traps; use the printed run id
+to derive the exact random bundle identifier before any manual inspection or cleanup.
 Before installation, the runner strictly verifies the app signature and freezes
 the app executable/static-library hashes. It rechecks them after retrieving the
 run-bound marker and during proof emission. This closes persistent local rebuild

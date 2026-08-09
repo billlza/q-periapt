@@ -52,7 +52,12 @@ hardware diagnostics on an in-progress tree, set `QPERIAPT_ALLOW_DIRTY_APPLE_DEV
 generating proof and `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1` when reverifying it; that mode is
 diagnostic only. Matrix schema v4 fixes the release requirement to a wired physical iPad and a
 distinct local-network physical iPhone, each backed by a schema-v3 child proof; callers cannot
-weaken it to another transport or a single-device subset.
+weaken it to another transport or a single-device subset. Device-writing lanes never auto-select
+hardware: a single-device run requires `QPERIAPT_IOS_DEVICE_ID`, and a matrix capture requires
+`QPERIAPT_IOS_DEVICE_MATRIX=ipad:<udid>,iphone:<udid>`. The runner uses a random run-scoped bundle
+identifier, rejects bundle-identifier overrides, checks all installed app classes, and verifies
+removal of only its own app before emitting proof. Automatic provisioning and device registration remain disabled
+unless the caller explicitly opts into those separate account mutations.
 
 The gate fails closed and checks:
 
@@ -99,6 +104,8 @@ embedding gate remains usable on hosts without Apple hardware.
 To require Android runtime evidence too:
 
 ```sh
+QPERIAPT_ANDROID_SERIAL=<adb-serial> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 sh artifact/android-device-smoke.sh
 QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 sh artifact/embedding-readiness.sh
 ```
@@ -108,12 +115,38 @@ If no Android device is attached, the smoke can boot a local AVD:
 ```sh
 QPERIAPT_ANDROID_BOOT_AVD=1 \
 QPERIAPT_ANDROID_AVD=<avd-name> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 sh artifact/android-device-smoke.sh
 ```
 
 The runtime lane is separate because it requires adb plus a booted emulator or physical Android
 device. Clean-tree proof is the release contract; dirty runs must set
-`QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and are diagnostic only.
+`QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and are diagnostic only. External devices require an exact
+serial and `physical` expectation; emulators are accepted only when this script starts and binds
+the cold-boot AVD with a read-only userdata overlay. The smoke refuses to replace an existing exact package, validates the installed
+APK bytes and signer before cleanup, reconciles unknown outcomes with bounded stable observations,
+and captures only run-bounded tag output without clearing global logcat
+buffers. The fixed current-account home and its `.android` identity directory must be
+non-symlink, owner-controlled, and not group/other writable; owner-protected key files
+and an already authorized target are mandatory. macOS deny-only ACLs are accepted, but
+any allow ACL is rejected. Caller-supplied adb routing/discovery overrides are rejected, and
+the default IPv4/IPv6 endpoints must already be absent; the script never stops or reuses a
+global server. It owns one mode-0700, allow-ACL-free private `localfilesystem:` socket under
+`/tmp`, routes every client explicitly, disables mDNS/auto-connect, and freezes server PID/start,
+executable, key, endpoint, transport environment, and mDNS-disabled status before selection and
+after the final query. Physical proof is restricted to one explicit USB serial. The AVD lane disables
+USB, but its localhost emulator transport still requires an exclusive trusted evidence host. App,
+AVD, private-server, and socket cleanup must complete before atomic final proof publication; failures
+leave no accepted proof or PASS marker and never trigger raw-PID TERM/KILL. Authorization prompts are
+not part of the proof lane. A repository-scoped open-file lock serializes the lane before output reset,
+and capability creation defers HUP/INT/TERM until its private state is armed or removed. After
+`SIGKILL` or host/device loss, establish ownership from the reported
+private socket/PID before manual cleanup.
+All adb/lsof activity is selected from a finite Android operation table backed by one private
+run capability. The shared bounded-process module is import-only and exposes no arbitrary command or
+output-path CLI. adb is selected only from the fixed `auto`, `macos-account`, `linux-account`,
+`linux-system`, or `linux-opt` profiles via `QPERIAPT_ANDROID_ADB_PROFILE`; arbitrary
+`QPERIAPT_ADB` paths are rejected.
 
 ## Local Release Index
 
@@ -135,9 +168,27 @@ sh artifact/local-release-index.sh
 ```
 
 The index copies only the C archive, Swift XCFramework zip, Android AAR, and their manifests into
-`target/qperiapt-local-release/<version>/<commit>/`. It may include sanitized Apple/Android proof
+`target/qperiapt-local-release/<channel>/<version>/<commit>/`. It may include sanitized Apple/Android proof
 summaries, but it never copies raw device proof, build logs, provisioning profiles, `.xcresult`
-bundles, UDIDs, or adb serials.
+bundles, UDIDs, or adb serials. Index schema 3 accepts only the current C schema-2, Swift schema-5, and Android
+schema-4 package envelopes and rejects signed Swift input because the local index does not carry its
+Apple distribution evidence. Artifact boundaries name the required leaf gate and explicitly record
+that no leaf receipt or cryptographic attestation is embedded. This is an aggregation gate over package outputs already checked by
+their leaf gates, not an independent binary verifier or a signature over mutable `target/` content;
+durable provenance still requires the results-only evidence successor or an external release
+attestation.
+The emitter and consumer use their installed repository root and fixed per-channel pointer; they do
+not accept arbitrary root, index, or output paths. Local-store and consumer directories are mode 0700,
+each `<channel>/<version>/<commit>` tree is immutable once created, and the authoritative channel
+pointer changes only after a unique private sibling staging tree has been completely verified and
+atomically moved into the final identity. Re-emitting an existing identity fails without deleting or
+partially rewriting its selected tree. A pre-publication interruption can leave an unselected private
+staging directory, never a partially published identity; the next serialized emit removes only an
+exactly named, current-user-owned mode-0700 remnant. A `SIGKILL` or host loss in the shorter final
+rename/pointer window can still require ownership-checked manual recovery, but cannot select an
+incomplete tree.
+while package copies, manifests, checksums, indexes, and pointers are mode 0600. A later public
+publication step must deliberately create its own public-permission artifact set.
 
 ## Per-Face Status
 
