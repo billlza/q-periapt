@@ -682,6 +682,12 @@ class BoundedProcessTests(unittest.TestCase):
 
     def test_sigterm_and_sighup_library_cleanup_owned_process_group(self) -> None:
         script = pathlib.Path(bounded_process.__file__).resolve()
+        adjacent_cache = (
+            script.parent
+            / "__pycache__"
+            / f"{script.stem}.{sys.implementation.cache_tag}.pyc"
+        )
+        self.assertFalse(adjacent_cache.exists(), "test started with a repository pyc")
         for termination_signal in (signal.SIGTERM, signal.SIGHUP):
             with self.subTest(signal=termination_signal.name):
                 pid_path = self.root / f"cli-{termination_signal.name}.pids"
@@ -711,6 +717,7 @@ class BoundedProcessTests(unittest.TestCase):
                 helper = subprocess.Popen(
                     [
                         sys.executable,
+                        "-B",
                         "-c",
                         helper_source,
                         str(pid_path),
@@ -745,6 +752,10 @@ class BoundedProcessTests(unittest.TestCase):
                         helper.kill()
                         helper.wait(timeout=5)
                     self.cleanup_process_group(process_group)
+                self.assertFalse(
+                    adjacent_cache.exists(),
+                    "bounded-process signal helper wrote a repository pyc",
+                )
 
     def test_non_main_thread_fails_before_starting_process(self) -> None:
         sentinel = self.root / "worker-started"
