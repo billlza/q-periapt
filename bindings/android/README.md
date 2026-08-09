@@ -38,6 +38,8 @@ separate device/emulator smoke below, not by this package-only gate.
 For runtime proof, run:
 
 ```sh
+QPERIAPT_ANDROID_SERIAL=<adb-serial> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 sh artifact/android-device-smoke.sh
 ```
 
@@ -46,8 +48,12 @@ With no attached Android device, the script can boot a named local AVD:
 ```sh
 QPERIAPT_ANDROID_BOOT_AVD=1 \
 QPERIAPT_ANDROID_AVD=<avd-name> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 sh artifact/android-device-smoke.sh
 ```
+
+The script-owned emulator uses `-no-snapshot -read-only`; runtime writes are discarded
+instead of mutating the named AVD's persistent userdata.
 
 The runtime smoke builds a temporary APK that consumes the generated AAR, installs it
 through adb, runs the Java facade on ART, and accepts only a run-bound
@@ -56,7 +62,18 @@ app-private files directory. It covers runtime metadata, signed-policy exact-dig
 resolution, OS-random key generation and encapsulation,
 context binding, ABI1 legacy-state/rollback/tamper rejection, secret wipe, and
 boundary fail-closed checks. Raw hybrid, deterministic seeds/coins, CompatXWing and
-combine are forbidden from the AAR's product export surface. Reverify the proof with:
+combine are forbidden from the AAR's product export surface.
+External devices are never selected implicitly. Before installation the smoke
+requires the exact package to be absent, and before cleanup it verifies that the
+installed base APK matches both this run's exact bytes and signer. Unknown install or
+uninstall outcomes are reconciled through bounded repeated observations. Log evidence is bounded to the current
+run and tag without clearing any global Android log buffer.
+The lane requires an existing owner-protected `~/.android/adbkey` identity and an
+already authorized target; do not accept a new authorization prompt during proof.
+`SIGKILL`, host loss, and physical-device loss cannot run traps; manually remove an
+orphaned `dev.qperiapt.androidsmoke` only after comparing it with the private run APK.
+
+Reverify the proof with:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh

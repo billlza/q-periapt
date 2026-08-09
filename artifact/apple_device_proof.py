@@ -14,6 +14,7 @@ import re
 import subprocess
 from typing import Any
 
+from bounded_process import BoundedProcessError, capture_stdout
 from claim_ledger import LedgerError, canonical_tree_digest, repository_paths
 from evidence_io import (
     EvidenceIOError,
@@ -39,6 +40,8 @@ SCHEMA_VERSION = 3
 MATRIX_SCHEMA_VERSION = 4
 MAX_APPLE_PROOF_BYTES = 4 * 1024 * 1024
 MAX_APPLE_ARTIFACT_BYTES = 128 * 1024 * 1024
+MAX_DEVICECTL_JSON_BYTES = 8 * 1024 * 1024
+DEVICECTL_COMMAND_TIMEOUT_SECONDS = 20
 REQUIRED_MATRIX_LABEL_TO_TYPE = {"ipad": "iPad", "iphone": "iPhone"}
 REQUIRED_MATRIX_LABEL_TO_TRANSPORT = {"ipad": "wired", "iphone": "localNetwork"}
 REQUIRED_MATRIX_TYPES = ("iPad", "iPhone")
@@ -53,6 +56,7 @@ RELEASE_DEVICE_PROOF_MAX_AGE_SECONDS = 24 * 60 * 60
 RELEASE_MIN_PROFILE_VALID_DAYS = 30
 
 SOURCE_INPUTS = {
+    "bounded_process": "artifact/bounded_process.py",
     "apple_device_smoke": "artifact/apple-device-smoke.sh",
     "apple_device_matrix": "artifact/apple-device-matrix.sh",
     "apple_device_xcode27_gate": "artifact/apple-device-xcode27-gate.sh",
@@ -280,6 +284,74 @@ def run_line(args: list[str]) -> str:
         return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT).strip()
     except (OSError, subprocess.CalledProcessError) as exc:
         raise SystemExit(f"error: cannot run {' '.join(args)}: {exc}") from exc
+
+
+def run_devicectl_json(args: list[str], label: str) -> dict[str, Any]:
+    """Run devicectl with bounded stdout and parse one strict JSON object."""
+
+    command = [
+        "xcrun",
+        "devicectl",
+        *args,
+        "--timeout",
+        str(DEVICECTL_COMMAND_TIMEOUT_SECONDS - 5),
+        "--json-output",
+        "-",
+    ]
+    try:
+        result = capture_stdout(
+            command,
+            timeout_seconds=DEVICECTL_COMMAND_TIMEOUT_SECONDS,
+            maximum_bytes=MAX_DEVICECTL_JSON_BYTES,
+            stderr=subprocess.DEVNULL,
+        )
+    except BoundedProcessError as exc:
+        raise SystemExit(f"error: {label} {exc.kind}: {exc}") from exc
+    require(result.returncode == 0, f"{label} failed with exit status {result.returncode}")
+    try:
+        data = parse_strict_json_bytes(result.stdout, label=f"{label} output")
+    except EvidenceIOError as exc:
+        raise SystemExit(f"error: cannot parse {label} JSON output: {exc}") from exc
+    require(isinstance(data, dict), f"{label} JSON root is not an object")
+    return data
+
+
+def parse_installed_app_state(data: dict[str, Any], bundle_id: str) -> str:
+    """Return the exact bundle's state from a filtered devicectl app listing."""
+
+    result = data.get("result")
+    require(isinstance(result, dict), "devicectl app-list result is not an object")
+    require(
+        result.get("matchingBundleIdentifier") == bundle_id,
+        "devicectl app-list result does not bind the requested bundle identifier",
+    )
+    apps = result.get("apps")
+    require(isinstance(apps, list), "devicectl app-list apps field is not a list")
+    require(len(apps) <= 1, f"devicectl returned duplicate apps for bundle {bundle_id}")
+    for app in apps:
+        require(isinstance(app, dict), "devicectl app-list entry is not an object")
+        require(
+            app.get("bundleIdentifier") == bundle_id,
+            "devicectl app-list entry does not match the requested bundle identifier",
+        )
+    return "present" if apps else "absent"
+
+
+def load_installed_app_state(device_id: str, bundle_id: str) -> str:
+    data = run_devicectl_json(
+        [
+            "device",
+            "info",
+            "apps",
+            "--device",
+            device_id,
+            "--bundle-id",
+            bundle_id,
+            "--include-all-apps",
+        ],
+        "xcrun devicectl device info apps",
+    )
+    return parse_installed_app_state(data, bundle_id)
 
 
 def git_commit(root: pathlib.Path) -> str:
@@ -579,19 +651,10 @@ def load_device_metadata(
     expected_device_type: str,
     expected_transport: str = "",
 ) -> dict[str, Any]:
-    try:
-        raw = subprocess.check_output(
-            ["xcrun", "devicectl", "device", "info", "details", "--device", device_id, "--json-output", "-"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise SystemExit(f"error: cannot run xcrun devicectl device info details for {device_id}: {exc}") from exc
-    try:
-        data = parse_strict_json_bytes(raw.encode("utf-8"), label="devicectl output")
-    except EvidenceIOError as exc:
-        raise SystemExit(f"error: cannot parse devicectl JSON output: {exc}") from exc
-    require(isinstance(data, dict), "devicectl JSON root is not an object")
+    data = run_devicectl_json(
+        ["device", "info", "details", "--device", device_id],
+        f"xcrun devicectl device info details for {device_id}",
+    )
     result = data.get("result", {})
     props = result.get("properties", {})
     hardware = props.get("hardware", {})
@@ -1099,6 +1162,16 @@ def inspect_device(args: argparse.Namespace) -> None:
     print(json.dumps(metadata, sort_keys=True))
 
 
+def inspect_app(args: argparse.Namespace) -> None:
+    state = load_installed_app_state(args.device_id, args.bundle_id)
+    if args.expect:
+        require(
+            state == args.expect,
+            f"device app {args.bundle_id} is {state}, expected {args.expect}",
+        )
+    print(state)
+
+
 def freeze_source(args: argparse.Namespace) -> None:
     commit, digest = freeze_source_snapshot(pathlib.Path(args.root).resolve())
     print(f"{commit}:{digest}")
@@ -1439,6 +1512,14 @@ def main() -> None:
     inspect_device_parser.add_argument("--expected-device-type", choices=["", "iPad", "iPhone"], default="")
     inspect_device_parser.add_argument("--expected-transport", choices=["", "wired", "localNetwork"], default="")
     inspect_device_parser.set_defaults(func=inspect_device)
+
+    inspect_app_parser = sub.add_parser("inspect-app")
+    inspect_app_parser.add_argument("--device-id", required=True)
+    inspect_app_parser.add_argument("--bundle-id", required=True)
+    inspect_app_parser.add_argument(
+        "--expect", choices=["", "absent", "present"], default=""
+    )
+    inspect_app_parser.set_defaults(func=inspect_app)
 
     freeze_source_parser = sub.add_parser("freeze-source")
     freeze_source_parser.add_argument("--root", required=True)

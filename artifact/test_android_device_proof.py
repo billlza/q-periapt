@@ -118,6 +118,32 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             allow_dirty_proof=False,
         )
 
+    def test_apksigner_output_requires_one_exact_signer_digest(self) -> None:
+        digest = "a" * 64
+        output = (
+            "Signer #1 certificate DN: CN=QPeriapt Android Smoke\n"
+            f"Signer #1 certificate SHA-256 digest: {digest}\n"
+            "Signer #1 certificate SHA-1 digest: deadbeef\n"
+        )
+        self.assertEqual(
+            android_device_proof.parse_single_signer_sha256(output), digest
+        )
+        malformed_outputs = (
+            "",
+            "Signer #1 certificate SHA-256 digest: deadbeef\n",
+            (
+                f"Signer #1 certificate SHA-256 digest: {digest}\n"
+                f"Signer #2 certificate SHA-256 digest: {'b' * 64}\n"
+            ),
+            f"Signer #2 certificate SHA-256 digest: {digest}\n",
+        )
+        for malformed in malformed_outputs:
+            with self.subTest(output=malformed):
+                with self.assertRaisesRegex(
+                    SystemExit, "exactly one signer #1 SHA-256"
+                ):
+                    android_device_proof.parse_single_signer_sha256(malformed)
+
     def test_allow_dirty_never_bypasses_commit_binding(self) -> None:
         with self.assertRaisesRegex(SystemExit, "commit provenance failed"):
             android_device_proof.verify_git_provenance(
@@ -618,30 +644,102 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         trap_index = producer.index("trap cleanup_exit EXIT")
-        install_index = producer.index('"$ADB" -s "$SERIAL" install -r')
-        installed_index = producer.index("APP_INSTALLED=1", install_index)
-        uninstall_index = producer.index(
-            '"$ADB" -s "$SERIAL" uninstall "$PACKAGE"', installed_index
+        preflight_index = producer.index(
+            "if ! package_state=$(query_package_state); then", trap_index
         )
-        cleared_index = producer.index("APP_INSTALLED=0", uninstall_index)
-        cleanup_index = producer.index('if [ "${APP_INSTALLED:-0}" = "1" ]; then')
+        armed_index = producer.index("ANDROID_APP_CLEANUP_ARMED=1", preflight_index)
+        install_index = producer.index(
+            'adb_for_serial 120 install "$SIGNED_APK"', armed_index
+        )
+        normal_cleanup_index = producer.index(
+            "if ! cleanup_android_app; then", install_index
+        )
+        cleanup_index = producer.index(
+            'if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" = "1" ]; then'
+        )
         emulator_cleanup_index = producer.index(
             'if [ "${EMULATOR_STARTED:-0}" = "1" ]', cleanup_index
         )
-        boot_loop_index = producer.index('while [ "$i" -lt 90 ]; do')
+        boot_loop_index = producer.index(
+            "EMULATOR_ADB_DEADLINE=$(monotonic_deadline 90)"
+        )
         child_liveness_index = producer.index(
             "if ! emulator_process_active; then", boot_loop_index
         )
         bound_serial_index = producer.index(
             '"$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state', boot_loop_index
         )
-        self.assertLess(producer.index("APP_INSTALLED=0"), trap_index)
-        self.assertLess(install_index, installed_index)
-        self.assertLess(installed_index, uninstall_index)
-        self.assertLess(uninstall_index, cleared_index)
+        self.assertLess(producer.index("ANDROID_APP_CLEANUP_ARMED=0"), trap_index)
+        self.assertLess(trap_index, preflight_index)
+        self.assertLess(preflight_index, armed_index)
+        self.assertLess(armed_index, install_index)
+        self.assertLess(install_index, normal_cleanup_index)
         self.assertLess(cleanup_index, emulator_cleanup_index)
         self.assertLess(child_liveness_index, bound_serial_index)
-        self.assertIn("adb-uninstall-cleanup.log", producer[cleanup_index:emulator_cleanup_index])
+        self.assertIn("adb-uninstall-cleanup.log", producer)
+        self.assertIn("cleanup_android_app || cleanup_status=1", producer[cleanup_index:emulator_cleanup_index])
+        verifier_start = producer.index("verify_installed_apk_signer()")
+        verifier_end = producer.index("cleanup_android_app()", verifier_start)
+        verifier = producer[verifier_start:verifier_end]
+        self.assertLess(
+            verifier.index('installed_apk_identity" != "$SIGNED_APK_IDENTITY'),
+            verifier.index('installed_signer_sha256" != "$EXPECTED_APK_SIGNER_SHA256'),
+        )
+        cleanup_start = verifier_end
+        cleanup_end = producer.index("cleanup_runtime()", cleanup_start)
+        cleanup = producer[cleanup_start:cleanup_end]
+        threshold = cleanup.index(
+            'if [ "$absent_observations" -ge "$required_absent_observations" ]'
+        )
+        disarm = cleanup.index("ANDROID_APP_CLEANUP_ARMED=0", threshold)
+        present = cleanup.index("present)")
+        signer_gate = cleanup.index("verify_installed_apk_signer", present)
+        owned_uninstall = cleanup.index(
+            'adb_for_serial 60 uninstall "$PACKAGE"', signer_gate
+        )
+        unknown_outcome = cleanup.index("uninstall=unknown-or-failed", owned_uninstall)
+        self.assertLess(threshold, disarm)
+        self.assertLess(present, signer_gate)
+        self.assertLess(signer_gate, owned_uninstall)
+        self.assertLess(owned_uninstall, unknown_outcome)
+        self.assertNotIn('install -r "$SIGNED_APK"', producer)
+        self.assertNotIn("logcat -c", producer)
+        self.assertIn("QPERIAPT_ANDROID_SERIAL is required", producer)
+        self.assertIn(
+            "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical", producer
+        )
+        self.assertIn("refusing automatic Android device selection", producer)
+        self.assertIn("run_bounded_command()", producer)
+        self.assertIn("run_bounded_to_file()", producer)
+        self.assertIn("artifact/bounded_process.py run", producer)
+        self.assertIn("artifact/bounded_process.py write", producer)
+        bounded_process_source = (
+            pathlib.Path(__file__).resolve().parent / "bounded_process.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("command timed out after", bounded_process_source)
+        self.assertIn("command output exceeds", bounded_process_source)
+        self.assertIn("remaining_bounded_timeout()", producer)
+        self.assertIn(
+            "BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)", producer
+        )
+        self.assertIn(
+            "RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)", producer
+        )
+        self.assertIn(
+            'run_bounded_command "$emulator_attempt_timeout"', producer
+        )
+        self.assertIn('adb_for_serial "$boot_attempt_timeout"', producer)
+        self.assertIn(
+            'run_bounded_to_file "$result_attempt_timeout"', producer
+        )
+        self.assertNotIn('while [ "$i" -lt 90 ]; do', producer)
+        self.assertNotIn('while [ "$i" -lt 120 ]; do', producer)
+        self.assertIn("existing {label} is required before device proof", producer)
+        self.assertIn("ADB_VENDOR_KEYS is not supported", producer)
+        self.assertIn("was not already authorized", producer)
+        self.assertIn("ANDROID_APP_INSTALL_CONFIRMED=1", producer)
+        self.assertIn("required_absent_observations=8", producer)
+        self.assertIn("Android app cleanup outcome is unresolved", producer)
         self.assertIn(
             "refusing to boot a proof AVD while another adb device is already online",
             producer,
@@ -673,6 +771,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertIn('-port "$ANDROID_EMULATOR_PORT"', producer)
         self.assertIn('SERIAL=$EXPECTED_EMULATOR_SERIAL', producer)
         self.assertIn("temporary Android emulator exited before its bound adb serial", producer)
+        self.assertIn("\n\t\t-read-only \\\n", producer)
         self.assertNotIn(
             'if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]',
             producer,
@@ -717,8 +816,12 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("capture_app_logcat()", producer)
-        self.assertIn("logcat -d -v tag -s 'QPeriaptSmoke:*' '*:S'", producer)
+        self.assertIn(
+            'logcat -d -v tag -T "$LOGCAT_START_EPOCH"', producer
+        )
+        self.assertIn("needle = f\"run-id={run_id}\"", producer)
         self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)
+        self.assertNotIn("logcat -c", producer)
 
     def test_result_verifier_rejects_unrelated_logcat_data(self) -> None:
         run_id = "a" * 32
@@ -742,18 +845,34 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "result_json": result_json,
             "logcat": logcat,
         }
-        logcat.write_text("I/QPeriaptSmoke: verified\n", encoding="utf-8")
+        valid_line = (
+            "I/QPeriaptSmoke: QPERIAPT_ANDROID_DEVICE_PASS "
+            f"run-id={run_id} tests=3\n"
+        )
+        logcat.write_text(valid_line, encoding="utf-8")
         android_device_proof.verify_result_files(paths, run_id)
         logcat.write_text(
-            "--------- beginning of main\nI/QPeriaptSmoke( 123): verified\n",
+            "--------- beginning of main\n"
+            "I/QPeriaptSmoke( 123): QPERIAPT_ANDROID_DEVICE_PASS "
+            f"run-id={run_id} tests=3\n",
             encoding="utf-8",
         )
         android_device_proof.verify_result_files(paths, run_id)
         logcat.write_text(
-            "I/QPeriaptSmoke: verified\nI/OtherApplication: private data\n",
+            valid_line + "I/OtherApplication: private data\n",
             encoding="utf-8",
         )
         with self.assertRaisesRegex(SystemExit, "outside the QPeriaptSmoke tag"):
+            android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text(
+            "I/QPeriaptSmoke: QPERIAPT_ANDROID_DEVICE_PASS "
+            f"run-id={'b' * 32} tests=3\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "another run"):
+            android_device_proof.verify_result_files(paths, run_id)
+        logcat.write_text("", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "exactly one run-bound PASS"):
             android_device_proof.verify_result_files(paths, run_id)
         logcat.write_text(
             "I/OtherApplication: mentions QPeriaptSmoke but is unrelated\n",

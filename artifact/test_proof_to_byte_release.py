@@ -643,6 +643,19 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
 }
 
+APPLE_DEVICE_PROOF_INPUTS = {
+    "apple_device_smoke_script_sha256": "artifact/apple-device-smoke.sh",
+    "apple_device_matrix_script_sha256": "artifact/apple-device-matrix.sh",
+    "apple_device_xcode27_gate_script_sha256": "artifact/apple-device-xcode27-gate.sh",
+    "apple_device_proof_verifier_sha256": "artifact/apple_device_proof.py",
+    "apple_device_proof_tests_sha256": "artifact/test_apple_device_proof.py",
+}
+
+BOUNDED_PROCESS_PROOF_INPUTS = {
+    "bounded_process_sha256": "artifact/bounded_process.py",
+    "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
+}
+
 ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "ci_workflow_sha256": ".github/workflows/ci.yml",
     "codeql_workflow_sha256": ".github/workflows/codeql.yml",
@@ -1042,6 +1055,30 @@ class BoundVerifierWiringTests(unittest.TestCase):
         manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assertIn(f'"{key}": "{relative}"', source)
+                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                self.assertEqual(inputs.get(key), actual)
+
+    def test_proof_to_byte_names_every_apple_device_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        inputs = manifest["proof_to_byte_inputs"]
+        for key, relative in APPLE_DEVICE_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assertIn(f'"{key}": "{relative}"', source)
+                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                self.assertEqual(inputs.get(key), actual)
+
+    def test_proof_to_byte_names_every_bounded_process_input(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        inputs = manifest["proof_to_byte_inputs"]
+        for key, relative in BOUNDED_PROCESS_PROOF_INPUTS.items():
             with self.subTest(key=key):
                 self.assertIn(f'"{key}": "{relative}"', source)
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()

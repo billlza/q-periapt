@@ -459,7 +459,8 @@ These produce the paper's primary network table and the binary constant-time dis
   `artifact/device-runs` and app/staticlib paths outside `target`.
   `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` pins the Xcode 27 beta
   lane without changing global `xcode-select`. This lane requires local signing. Set
-  `DEVELOPMENT_TEAM`, set `QPERIAPT_IOS_DEVICE_ID` when more than one physical device is connected,
+  `DEVELOPMENT_TEAM` and an explicit `QPERIAPT_IOS_DEVICE_ID` for every physical run,
+  and complete the selected Xcode first-launch/CoreDevice setup before capture,
   and set `QPERIAPT_ALLOW_PROVISIONING_UPDATES=1` only when automatic profile changes are intended;
   otherwise the lane fails closed rather than falling back to a simulator. By default,
   `artifact/proof-to-byte.sh` does not require local signing hardware; set
@@ -470,7 +471,12 @@ These produce the paper's primary network table and the binary constant-time dis
   The capture freezes the app executable and Rust static-library hashes before installation,
   strictly verifies the app signature, and rechecks both hashes after the run-bound marker returns
   from the app-private container and again during proof emission. This binds persistent local
-  artifacts to the installation window; it is not on-device binary attestation. Raw local evidence
+  artifacts to the installation window; it is not on-device binary attestation. The capture uses a
+  random run-scoped bundle identifier, refuses to replace a pre-existing exact identifier, and
+  confirms stable removal of only its own app before proof emission. Install/uninstall unknown
+  outcomes are reconciled with bounded repeated observations; an unresolved outcome fails the
+  gate. `SIGKILL`, host loss, or device loss cannot run traps: derive the random identifier from
+  the printed run id and inspect that exact app before any manual cleanup. Raw local evidence
   uses a private umask and is never part of a publishable package or release index.
   For iPhone+iPad family coverage, use the matrix lane:
   `QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-matrix.sh`.
@@ -501,8 +507,16 @@ These produce the paper's primary network table and the binary constant-time dis
   binaries to new source. The proof is
   reverified with `QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh`. By default this
   lane requires a clean tree; use `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and
-  `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` only for local diagnostics. To boot a local AVD,
-  set `QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=<avd-name>`.
+  `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` only for local diagnostics. Physical runs require
+  both `QPERIAPT_ANDROID_SERIAL=<serial>` and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical`.
+  To boot a local AVD, set `QPERIAPT_ANDROID_BOOT_AVD=1`,
+  `QPERIAPT_ANDROID_AVD=<avd-name>`, and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`; the AVD runs with a read-only userdata overlay. The smoke refuses to replace an existing package,
+  matches both installed APK bytes and signer before owned cleanup, reconciles command-unknown
+  outcomes with bounded repeated observations, and never clears global logcat buffers. It requires
+  an existing owner-protected adb key and an already authorized target; new authorization prompts
+  are outside the gate. `SIGKILL`,
+  host loss, or physical-device loss cannot run traps; an orphaned
+  `dev.qperiapt.androidsmoke` must be compared with the private run APK before manual removal.
 - **Matched-backend performance gate.** Collect a paired host proof with:
 
   ```sh

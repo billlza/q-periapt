@@ -59,6 +59,7 @@ RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MAX_ANDROID_PROOF_AGE_SECONDS = 7 * 24 * 60 * 60
 MAX_EVIDENCE_FILE_BYTES = 512 * 1024 * 1024
+MAX_APKSIGNER_OUTPUT_BYTES = 1024 * 1024
 MAX_ANDROID_SDK = 999
 ANDROID_RELEASE_SDK = 35
 ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
@@ -96,6 +97,7 @@ EXPECTED_TESTS = [
 ]
 
 SOURCE_INPUTS = {
+    "bounded_process": "artifact/bounded_process.py",
     "android_device_smoke_script": "artifact/android-device-smoke.sh",
     "android_device_proof": "artifact/android_device_proof.py",
     "proof_to_byte": "artifact/proof-to-byte.sh",
@@ -198,6 +200,9 @@ LOG_FATAL_PATTERNS = (
     "signal 11",
 )
 LOGCAT_APP_LINE = re.compile(r"^[VDIWEF]/QPeriaptSmoke(?:\(\s*[0-9]+\))?:")
+APKSIGNER_CERT_SHA256_LINE = re.compile(
+    r"^Signer #([1-9][0-9]*) certificate SHA-256 digest: ([0-9a-f]{64})$"
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -271,6 +276,34 @@ def read_bytes(path: pathlib.Path) -> bytes:
         ).data
     except EvidenceIOError as exc:
         raise SystemExit(f"error: cannot read {path}: {exc}") from exc
+
+
+def parse_single_signer_sha256(text: str) -> str:
+    """Extract one exact APK signer certificate digest from apksigner output."""
+
+    digests: list[tuple[int, str]] = []
+    for line in text.splitlines():
+        match = APKSIGNER_CERT_SHA256_LINE.fullmatch(line)
+        if match is not None:
+            digests.append((int(match.group(1)), match.group(2)))
+    require(
+        len(digests) == 1 and digests[0][0] == 1,
+        "apksigner output must contain exactly one signer #1 SHA-256 certificate digest",
+    )
+    return digests[0][1]
+
+
+def signer_sha256(args: argparse.Namespace) -> None:
+    try:
+        snapshot = read_regular_snapshot(
+            args.apksigner_output,
+            maximum=MAX_APKSIGNER_OUTPUT_BYTES,
+            label="apksigner certificate output",
+        )
+        text = snapshot.data.decode("utf-8")
+    except (EvidenceIOError, UnicodeDecodeError) as exc:
+        raise SystemExit(f"error: cannot read apksigner certificate output: {exc}") from exc
+    print(parse_single_signer_sha256(text))
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -498,14 +531,27 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
     require(result.get("passed_tests") == EXPECTED_TESTS, "Android result passed_tests mismatch")
 
     logcat = read_text(paths["logcat"])
+    expected_log_marker = marker
+    pass_marker_count = 0
     for line in logcat.splitlines():
         if not line:
             continue
+        if line.startswith("--------- beginning of "):
+            continue
         require(
-            line.startswith("--------- beginning of ")
-            or LOGCAT_APP_LINE.match(line) is not None,
+            LOGCAT_APP_LINE.match(line) is not None,
             "Android logcat contains data outside the QPeriaptSmoke tag filter",
         )
+        require(
+            f"run-id={run_id}" in line,
+            "Android logcat contains a QPeriaptSmoke line from another run",
+        )
+        if expected_log_marker in line:
+            pass_marker_count += 1
+    require(
+        pass_marker_count == 1,
+        "Android logcat must contain exactly one run-bound PASS marker",
+    )
     for pattern in LOG_FATAL_PATTERNS:
         require(pattern not in logcat, f"Android logcat contains runtime failure marker: {pattern}")
 
@@ -1444,6 +1490,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_runtime_constraints(verify_bundle_parser)
     add_bundle_tools(verify_bundle_parser)
     verify_bundle_parser.set_defaults(func=verify_bundle)
+
+    signer_parser = sub.add_parser(
+        "signer-sha256",
+        help="extract one exact signer certificate SHA-256 digest from apksigner output",
+    )
+    signer_parser.add_argument("--apksigner-output", required=True, type=pathlib.Path)
+    signer_parser.set_defaults(func=signer_sha256)
     return parser
 
 

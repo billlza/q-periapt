@@ -76,6 +76,46 @@ case "$EXPECTED_DEVICE_KIND" in
 		exit 2
 		;;
 esac
+if [ "$ANDROID_BOOT_AVD" = "1" ]; then
+	if [ -n "${QPERIAPT_ANDROID_SERIAL:-}" ]; then
+		printf 'error: QPERIAPT_ANDROID_SERIAL is forbidden when the script owns the proof AVD\n' >&2
+		exit 2
+	fi
+	if [ "$EXPECTED_DEVICE_KIND" != "emulator" ]; then
+		printf 'error: a script-owned proof AVD requires QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator\n' >&2
+		exit 2
+	fi
+	case "${QPERIAPT_ANDROID_AVD:-}" in
+		"") ;;
+		*[!A-Za-z0-9._-]*)
+			printf 'error: QPERIAPT_ANDROID_AVD must contain only ASCII letters, digits, dot, underscore, or hyphen\n' >&2
+			exit 2
+			;;
+	esac
+	if [ -n "${QPERIAPT_ANDROID_AVD:-}" ] && [ "${#QPERIAPT_ANDROID_AVD}" -gt 128 ]; then
+		printf 'error: QPERIAPT_ANDROID_AVD exceeds 128 characters\n' >&2
+		exit 2
+	fi
+else
+	if [ -z "${QPERIAPT_ANDROID_SERIAL:-}" ]; then
+		printf 'error: QPERIAPT_ANDROID_SERIAL is required for a physical Android device run\n' >&2
+		exit 2
+	fi
+	if [ "$EXPECTED_DEVICE_KIND" != "physical" ]; then
+		printf 'error: an external Android device requires QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical\n' >&2
+		exit 2
+	fi
+	case "$QPERIAPT_ANDROID_SERIAL" in
+		*[!A-Za-z0-9._:-]*)
+			printf 'error: QPERIAPT_ANDROID_SERIAL contains unsupported characters\n' >&2
+			exit 2
+			;;
+	esac
+	if [ "${#QPERIAPT_ANDROID_SERIAL}" -gt 128 ]; then
+		printf 'error: QPERIAPT_ANDROID_SERIAL exceeds 128 characters\n' >&2
+		exit 2
+	fi
+fi
 EXPECTED_DEVICE_ABI=${QPERIAPT_ANDROID_EXPECT_ABI:-}
 case "$EXPECTED_DEVICE_ABI" in
 	"" | arm64-v8a | x86_64 | armeabi-v7a | x86) ;;
@@ -205,6 +245,84 @@ if [ ! -x "$ADB" ]; then
 	printf 'error: adb not found: %s\n' "$ADB" >&2
 	exit 2
 fi
+if [ -n "${ADB_VENDOR_KEYS:-}" ]; then
+	printf 'error: ADB_VENDOR_KEYS is not supported by the physical evidence lane\n' >&2
+	exit 2
+fi
+python3 - "$HOME/.android/adbkey" "$HOME/.android/adbkey.pub" <<'PY'
+import os
+import pathlib
+import stat
+import sys
+
+private_key = pathlib.Path(sys.argv[1])
+public_key = pathlib.Path(sys.argv[2])
+for path, label in ((private_key, "adb private key"), (public_key, "adb public key")):
+    try:
+        metadata = path.lstat()
+    except OSError as exc:
+        raise SystemExit(f"error: existing {label} is required before device proof: {exc}") from exc
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        raise SystemExit(f"error: {label} must be a regular non-symlink file: {path}")
+    if metadata.st_uid != os.geteuid():
+        raise SystemExit(f"error: {label} must be owned by the current user: {path}")
+if stat.S_IMODE(private_key.lstat().st_mode) & 0o077:
+    raise SystemExit(f"error: adb private key must not be accessible by group or other users: {private_key}")
+if stat.S_IMODE(public_key.lstat().st_mode) & 0o022:
+    raise SystemExit(f"error: adb public key must not be writable by group or other users: {public_key}")
+PY
+
+run_bounded_command() {
+	timeout_seconds=$1
+	shift
+	PYTHONPATH=artifact python3 artifact/bounded_process.py run \
+		--timeout-seconds "$timeout_seconds" -- "$@"
+}
+
+run_bounded_to_file() {
+	timeout_seconds=$1
+	maximum_bytes=$2
+	output_path=$3
+	shift 3
+	PYTHONPATH=artifact python3 artifact/bounded_process.py write \
+		--timeout-seconds "$timeout_seconds" \
+		--maximum-bytes "$maximum_bytes" \
+		--output "$output_path" -- "$@"
+}
+
+monotonic_seconds() {
+	python3 - <<'PY'
+import time
+
+print(time.monotonic_ns() // 1_000_000_000)
+PY
+}
+
+monotonic_deadline() {
+	duration_seconds=$1
+	now_seconds=$(monotonic_seconds) || return 1
+	printf '%s\n' "$((now_seconds + duration_seconds))"
+}
+
+remaining_bounded_timeout() {
+	deadline_seconds=$1
+	maximum_seconds=$2
+	now_seconds=$(monotonic_seconds) || return 1
+	remaining_seconds=$((deadline_seconds - now_seconds))
+	if [ "$remaining_seconds" -le 0 ]; then
+		return 1
+	fi
+	if [ "$remaining_seconds" -gt "$maximum_seconds" ]; then
+		remaining_seconds=$maximum_seconds
+	fi
+	printf '%s\n' "$remaining_seconds"
+}
+
+adb_for_serial() {
+	timeout_seconds=$1
+	shift
+	run_bounded_command "$timeout_seconds" "$ADB" -s "$SERIAL" "$@"
+}
 
 OUT_ROOT=${QPERIAPT_ANDROID_DEVICE_OUT_DIR:-"$ROOT/target/qperiapt-android-device-smoke"}
 require_under_target "$OUT_ROOT" "QPERIAPT_ANDROID_DEVICE_OUT_DIR"
@@ -829,6 +947,175 @@ stop_emulator_process() {
 	esac
 }
 
+query_package_state() {
+	package_query_output="$DIST/adb-package-query.txt"
+	if ! run_bounded_to_file 15 65536 "$package_query_output" \
+		"$ADB" -s "$SERIAL" shell cmd package list packages -u "$PACKAGE" 2>"$DIST/adb-package-query.err"; then
+		printf 'error: cannot query the Android smoke package state\n' >&2
+		return 1
+	fi
+	if ! package_listing=$(tr -d '\r' <"$package_query_output"); then
+		printf 'error: cannot normalize the Android smoke package state\n' >&2
+		return 1
+	fi
+	case "$package_listing" in
+		"") printf 'absent\n' ;;
+		"package:$PACKAGE") printf 'present\n' ;;
+		*)
+			printf 'error: Android package query returned an unexpected result\n' >&2
+			return 1
+			;;
+	esac
+}
+
+package_base_apk_path() {
+	package_path_output="$DIST/adb-package-path.txt"
+	if ! run_bounded_to_file 15 65536 "$package_path_output" \
+		"$ADB" -s "$SERIAL" shell pm path "$PACKAGE" 2>"$DIST/adb-package-path.err"; then
+		printf 'error: cannot resolve the installed Android smoke APK\n' >&2
+		return 1
+	fi
+	if ! package_paths=$(tr -d '\r' <"$package_path_output"); then
+		printf 'error: cannot normalize the installed Android smoke APK path\n' >&2
+		return 1
+	fi
+	python3 - "$package_paths" <<'PY'
+import re
+import sys
+
+lines = sys.argv[1].splitlines()
+if len(lines) != 1 or not lines[0].startswith("package:"):
+    raise SystemExit("error: installed Android smoke package does not have one base APK")
+path = lines[0][len("package:"):]
+if re.fullmatch(r"/[A-Za-z0-9_./+=~:-]+/base\.apk", path) is None:
+    raise SystemExit("error: installed Android smoke base APK path is not canonical")
+print(path)
+PY
+}
+
+remove_installed_apk_copy() {
+	if [ -e "$installed_apk" ] && ! rm -f -- "$installed_apk"; then
+		printf 'error: failed to remove the temporary installed-APK copy\n' >&2
+		return 1
+	fi
+}
+
+apk_file_identity() {
+	PYTHONPATH=artifact python3 - "$1" <<'PY'
+import pathlib
+import sys
+
+from evidence_io import read_regular_snapshot
+
+snapshot = read_regular_snapshot(
+    pathlib.Path(sys.argv[1]),
+    maximum=512 * 1024 * 1024,
+    label="Android smoke APK",
+)
+print(f"{snapshot.size}:{snapshot.sha256}")
+PY
+}
+
+verify_installed_apk_signer() {
+	if ! installed_base_apk=$(package_base_apk_path); then
+		return 1
+	fi
+	installed_apk="$WORK/installed-smoke-base.apk"
+	installed_signer_output="$DIST/installed-apksigner-verify.txt"
+	if ! rm -f -- "$installed_apk" "$installed_signer_output"; then
+		printf 'error: cannot reset temporary installed-APK verification files\n' >&2
+		return 1
+	fi
+	if ! run_bounded_to_file 60 "$SIGNED_APK_BYTES" "$installed_apk" \
+		"$ADB" -s "$SERIAL" exec-out cat "$installed_base_apk"; then
+		printf 'error: cannot read the installed Android smoke base APK\n' >&2
+		remove_installed_apk_copy || return 1
+		return 1
+	fi
+	if ! installed_apk_identity=$(apk_file_identity "$installed_apk"); then
+		remove_installed_apk_copy || return 1
+		return 1
+	fi
+	if [ "$installed_apk_identity" != "$SIGNED_APK_IDENTITY" ]; then
+		printf 'error: installed Android smoke APK bytes do not match this run; refusing to uninstall it\n' >&2
+		remove_installed_apk_copy || return 1
+		return 1
+	fi
+	if ! chmod 600 "$installed_apk"; then
+		printf 'error: cannot protect the temporary installed-APK copy\n' >&2
+		remove_installed_apk_copy || return 1
+		return 1
+	fi
+	if ! "$APKSIGNER" verify --min-sdk-version 23 --print-certs \
+		"$installed_apk" >"$installed_signer_output" 2>&1; then
+		printf 'error: installed Android smoke APK signature verification failed\n' >&2
+		remove_installed_apk_copy || return 1
+		return 1
+	fi
+	if ! installed_signer_sha256=$(PYTHONPATH=artifact python3 artifact/android_device_proof.py signer-sha256 \
+		--apksigner-output "$installed_signer_output"); then
+		remove_installed_apk_copy || return 1
+		return 1
+	fi
+	remove_installed_apk_copy || return 1
+	if [ "$installed_signer_sha256" != "$EXPECTED_APK_SIGNER_SHA256" ]; then
+		printf 'error: installed Android package signer does not match this run; refusing to uninstall it\n' >&2
+		return 1
+	fi
+}
+
+cleanup_android_app() {
+	if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" != "1" ]; then
+		return 0
+	fi
+	required_absent_observations=3
+	if [ "${ANDROID_APP_INSTALL_CONFIRMED:-0}" != "1" ]; then
+		required_absent_observations=8
+	fi
+	attempt=0
+	absent_observations=0
+	while [ "$attempt" -lt 12 ]; do
+		if package_state=$(query_package_state); then
+			printf 'attempt=%s state=%s\n' "$attempt" "$package_state" >>"$DIST/adb-uninstall-cleanup.log"
+		else
+			package_state=unknown
+			printf 'attempt=%s state=query-error\n' "$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+		fi
+		case "$package_state" in
+			absent)
+				absent_observations=$((absent_observations + 1))
+				if [ "$absent_observations" -ge "$required_absent_observations" ]; then
+					ANDROID_APP_CLEANUP_ARMED=0
+					return 0
+				fi
+				;;
+			present)
+				absent_observations=0
+				if ! verify_installed_apk_signer; then
+					return 1
+				fi
+				ANDROID_APP_INSTALL_CONFIRMED=1
+				required_absent_observations=3
+				if ! adb_for_serial 60 uninstall "$PACKAGE" >>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
+					printf 'attempt=%s uninstall=unknown-or-failed\n' "$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+				fi
+				;;
+			unknown) absent_observations=0 ;;
+			*)
+				printf 'error: unexpected Android package state during cleanup: %s\n' "$package_state" >&2
+				return 1
+				;;
+		esac
+		attempt=$((attempt + 1))
+		if [ "$attempt" -lt 12 ]; then
+			sleep 1
+		fi
+	done
+	printf 'error: Android app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
+		"${SERIAL_SHA256_PREFIX:-unavailable}" "$DIST/adb-uninstall-cleanup.log" >&2
+	return 1
+}
+
 cleanup_runtime() {
 	cleanup_status=0
 	if [ -n "${KEYSTORE:-}" ] && [ -e "$KEYSTORE" ]; then
@@ -837,19 +1124,16 @@ cleanup_runtime() {
 			cleanup_status=1
 		fi
 	fi
-	if [ "${APP_INSTALLED:-0}" = "1" ]; then
+	if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" = "1" ]; then
 		if [ -z "${ADB:-}" ] || [ -z "${SERIAL:-}" ]; then
 			printf 'error: installed Android smoke app cleanup lacks adb or device identity\n' >&2
 			cleanup_status=1
-		elif ! "$ADB" -s "$SERIAL" uninstall "$PACKAGE" >"$DIST/adb-uninstall-cleanup.log" 2>&1; then
-			printf 'error: failed to uninstall the temporary Android smoke app during cleanup\n' >&2
-			cleanup_status=1
 		else
-			APP_INSTALLED=0
+			cleanup_android_app || cleanup_status=1
 		fi
 	fi
 	if [ "${EMULATOR_STARTED:-0}" = "1" ] && [ "$ANDROID_KEEP_EMULATOR" != "1" ]; then
-		if [ -n "${ADB:-}" ] && [ -n "${SERIAL:-}" ] && ! "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1; then
+		if [ -n "${ADB:-}" ] && [ -n "${SERIAL:-}" ] && ! adb_for_serial 15 emu kill >/dev/null 2>&1; then
 			printf 'error: failed to request shutdown of the temporary Android emulator\n' >&2
 			cleanup_status=1
 		fi
@@ -869,7 +1153,8 @@ cleanup_exit() {
 	exit "$status"
 }
 
-APP_INSTALLED=0
+ANDROID_APP_CLEANUP_ARMED=0
+ANDROID_APP_INSTALL_CONFIRMED=0
 trap cleanup_exit EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -1027,6 +1312,28 @@ KEYSTORE=
 	cd "$DIST"
 	"$APKSIGNER" verify --min-sdk-version 23 --print-certs "$(basename "$SIGNED_APK")"
 ) >"$DIST/apksigner-verify.txt"
+EXPECTED_APK_SIGNER_SHA256=$(PYTHONPATH=artifact python3 artifact/android_device_proof.py signer-sha256 \
+	--apksigner-output "$DIST/apksigner-verify.txt")
+SIGNED_APK_IDENTITY=$(apk_file_identity "$SIGNED_APK")
+case "$SIGNED_APK_IDENTITY" in
+	*:*:*)
+		printf 'error: malformed Android smoke APK identity\n' >&2
+		exit 2
+		;;
+	*:*) ;;
+	*)
+		printf 'error: Android smoke APK identity is missing its separator\n' >&2
+		exit 2
+		;;
+esac
+SIGNED_APK_BYTES=${SIGNED_APK_IDENTITY%%:*}
+case "$SIGNED_APK_BYTES" in
+	[1-9] | [1-9][0-9]*) ;;
+	*)
+		printf 'error: Android smoke APK byte length is not canonical\n' >&2
+		exit 2
+		;;
+esac
 (
 	cd "$DIST"
 	"$ZIPALIGN" -c -P 16 -v 4 "$(basename "$SIGNED_APK")"
@@ -1034,7 +1341,11 @@ KEYSTORE=
 printf 'PASS: temporary Android smoke APK built and signed\n'
 
 adb_devices() {
-	"$ADB" devices | awk '$2 == "device" { print $1 }'
+	if ! devices_output=$(run_bounded_command 15 "$ADB" devices); then
+		printf 'error: cannot enumerate Android devices\n' >&2
+		return 1
+	fi
+	printf '%s\n' "$devices_output" | awk '$2 == "device" { print $1 }'
 }
 
 redact_serials() {
@@ -1051,7 +1362,35 @@ for line in sys.stdin:
 }
 
 capture_app_logcat() {
-	"$ADB" -s "$SERIAL" logcat -d -v tag -s 'QPeriaptSmoke:*' '*:S'
+	raw_logcat="$DIST/logcat-raw.txt"
+	if ! run_bounded_to_file 30 16777216 "$raw_logcat" \
+		"$ADB" -s "$SERIAL" logcat -d -v tag -T "$LOGCAT_START_EPOCH" \
+		-s 'QPeriaptSmoke:*' '*:S'; then
+		printf 'error: failed to capture the run-bounded Android smoke log\n' >&2
+		return 1
+	fi
+	PYTHONPATH=artifact python3 - "$raw_logcat" "$RUN_ID" <<'PY'
+import pathlib
+import sys
+
+from evidence_io import read_regular_snapshot
+
+path = pathlib.Path(sys.argv[1])
+run_id = sys.argv[2]
+snapshot = read_regular_snapshot(
+    path,
+    maximum=16 * 1024 * 1024,
+    label="Android run-bounded logcat",
+)
+try:
+    text = snapshot.data.decode("utf-8")
+except UnicodeDecodeError as exc:
+    raise SystemExit(f"error: Android run-bounded logcat is not UTF-8: {exc}") from exc
+needle = f"run-id={run_id}"
+for line in text.splitlines():
+    if line.startswith("--------- beginning of ") or needle in line:
+        print(line)
+PY
 }
 
 select_serial_or_empty() {
@@ -1077,22 +1416,20 @@ choose_device_serial() {
 		printf '%s\n' "$QPERIAPT_ANDROID_SERIAL"
 		return
 	fi
-	devices=$(adb_devices)
-	count=$(printf '%s\n' "$devices" | sed '/^$/d' | wc -l | tr -d ' ')
-	if [ "$count" = "1" ]; then
-		printf '%s\n' "$devices" | sed '/^$/d'
-		return
+	if ! devices=$(adb_devices); then
+		exit 2
 	fi
+	count=$(printf '%s\n' "$devices" | sed '/^$/d' | wc -l | tr -d ' ')
 	if [ "$count" = "0" ]; then
 		return 1
 	fi
-	printf 'error: multiple Android devices are attached; set QPERIAPT_ANDROID_SERIAL\n' >&2
+	printf 'error: refusing automatic Android device selection; set QPERIAPT_ANDROID_SERIAL for a physical run or detach devices before booting the owned AVD\n' >&2
 	printf '%s\n' "$devices" | redact_serials >&2
 	exit 2
 }
 
 printf '\n=== Select Android runtime device ===\n'
-"$ADB" start-server >/dev/null
+run_bounded_command 15 "$ADB" start-server >/dev/null
 EMULATOR_STARTED=0
 SERIAL=$(select_serial_or_empty)
 if [ "$ANDROID_BOOT_AVD" = "1" ]; then
@@ -1126,6 +1463,7 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		-avd "$QPERIAPT_ANDROID_AVD" \
 		-port "$ANDROID_EMULATOR_PORT" \
 		-no-snapshot \
+		-read-only \
 		-no-window \
 		-no-audio \
 		-no-boot-anim \
@@ -1133,18 +1471,20 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		>"$DIST/emulator.log" 2>&1 &
 	EMULATOR_PID=$!
 	EMULATOR_STARTED=1
-	i=0
-	while [ "$i" -lt 90 ]; do
+	EMULATOR_ADB_DEADLINE=$(monotonic_deadline 90)
+	while emulator_attempt_timeout=$(remaining_bounded_timeout "$EMULATOR_ADB_DEADLINE" 10); do
 		if ! emulator_process_active; then
 			printf 'error: temporary Android emulator exited before its bound adb serial became available\n' >&2
 			exit 1
 		fi
-		if "$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state 2>/dev/null | grep -Fx device >/dev/null 2>&1; then
+		if emulator_state=$(run_bounded_command "$emulator_attempt_timeout" "$ADB" -s "$EXPECTED_EMULATOR_SERIAL" get-state 2>/dev/null) \
+			&& [ "$emulator_state" = "device" ]; then
 			SERIAL=$EXPECTED_EMULATOR_SERIAL
 			break
 		fi
-		sleep 1
-		i=$((i + 1))
+		if remaining_bounded_timeout "$EMULATOR_ADB_DEADLINE" 1 >/dev/null; then
+			sleep 1
+		fi
 	done
 	if [ -z "$SERIAL" ]; then
 		if ! "$EMULATOR" -accel-check >"$DIST/emulator-accel-check.log" 2>&1; then
@@ -1156,7 +1496,15 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 fi
 if [ -z "$SERIAL" ]; then
 	printf 'error: no Android adb device available\n' >&2
-	printf 'hint : attach a physical Android device and set QPERIAPT_ANDROID_SERIAL, or run with QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=<name>\n' >&2
+	printf 'hint : set an explicit physical serial/kind, or run with QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=<name> QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator\n' >&2
+	exit 2
+fi
+if ! authorized_state=$(run_bounded_command 15 "$ADB" -s "$SERIAL" get-state 2>"$DIST/adb-authorization.err"); then
+	printf 'error: target Android device was not already authorized; do not accept a new authorization prompt during proof\n' >&2
+	exit 2
+fi
+if [ "$authorized_state" != "device" ]; then
+	printf 'error: target Android device state is not authorized/device: %s\n' "$authorized_state" >&2
 	exit 2
 fi
 SERIAL_SHA256_PREFIX=$(python3 - "$SERIAL" <<'PY'
@@ -1167,21 +1515,22 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
-"$ADB" -s "$SERIAL" wait-for-device
-i=0
-while [ "$i" -lt 120 ]; do
-	booted=$("$ADB" -s "$SERIAL" shell getprop sys.boot_completed | tr -d '\r')
+BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)
+booted=
+while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLINE" 15); do
+	booted=$(adb_for_serial "$boot_attempt_timeout" shell getprop sys.boot_completed | tr -d '\r')
 	if [ "$booted" = "1" ]; then
 		break
 	fi
-	sleep 1
-	i=$((i + 1))
+	if remaining_bounded_timeout "$BOOT_COMPLETION_DEADLINE" 1 >/dev/null; then
+		sleep 1
+	fi
 done
 if [ "$booted" != "1" ]; then
 	printf 'error: Android device did not complete boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
 	exit 1
 fi
-qemu=$("$ADB" -s "$SERIAL" shell getprop ro.kernel.qemu | tr -d '\r')
+qemu=$(adb_for_serial 15 shell getprop ro.kernel.qemu | tr -d '\r')
 if [ "$qemu" = "1" ]; then
 	DEVICE_KIND=emulator
 else
@@ -1200,7 +1549,7 @@ case "$EXPECTED_DEVICE_KIND" in
 		fi
 		;;
 esac
-DEVICE_ABI=$("$ADB" -s "$SERIAL" shell getprop ro.product.cpu.abi | tr -d '\r\n ')
+DEVICE_ABI=$(adb_for_serial 15 shell getprop ro.product.cpu.abi | tr -d '\r\n ')
 case "$DEVICE_ABI" in
 	arm64-v8a | x86_64 | armeabi-v7a | x86) ;;
 	*)
@@ -1208,7 +1557,7 @@ case "$DEVICE_ABI" in
 		exit 1
 		;;
 esac
-PAGE_SIZE=$("$ADB" -s "$SERIAL" shell getconf PAGE_SIZE | tr -d '\r\n ')
+PAGE_SIZE=$(adb_for_serial 15 shell getconf PAGE_SIZE | tr -d '\r\n ')
 case "$PAGE_SIZE" in
 	4096 | 16384) ;;
 	*)
@@ -1216,7 +1565,7 @@ case "$PAGE_SIZE" in
 		exit 1
 		;;
 esac
-DEVICE_SDK=$("$ADB" -s "$SERIAL" shell getprop ro.build.version.sdk | tr -d '\r\n ')
+DEVICE_SDK=$(adb_for_serial 15 shell getprop ro.build.version.sdk | tr -d '\r\n ')
 case "$DEVICE_SDK" in
 	[1-9] | [1-9][0-9] | [1-9][0-9][0-9]) ;;
 	*)
@@ -1243,15 +1592,47 @@ printf 'page-size: %s\n' "$PAGE_SIZE"
 printf 'sdk      : %s\n' "$DEVICE_SDK"
 
 printf '\n=== Install and run Android runtime smoke ===\n'
-"$ADB" -s "$SERIAL" install -r "$SIGNED_APK" >"$DIST/adb-install.log"
-APP_INSTALLED=1
-"$ADB" -s "$SERIAL" logcat -c
-"$ADB" -s "$SERIAL" shell am force-stop "$PACKAGE" >"$DIST/adb-force-stop.log"
-"$ADB" -s "$SERIAL" shell am start -W -n "$PACKAGE/.QPeriaptSmokeActivity" --es qperiapt_run_id "$RUN_ID" >"$DIST/adb-start.log"
-i=0
-while [ "$i" -lt 90 ]; do
+if ! package_state=$(query_package_state); then
+	exit 1
+fi
+if [ "$package_state" != "absent" ]; then
+	printf 'error: refusing to replace a pre-existing Android package: %s\n' "$PACKAGE" >&2
+	exit 1
+fi
+if ! rm -f -- "$DIST/adb-uninstall-cleanup.log"; then
+	printf 'error: cannot reset Android app cleanup log\n' >&2
+	exit 1
+fi
+ANDROID_APP_CLEANUP_ARMED=1
+if ! adb_for_serial 120 install "$SIGNED_APK" >"$DIST/adb-install.log"; then
+	printf 'error: Android smoke APK installation failed\n' >&2
+	exit 1
+fi
+if ! package_state=$(query_package_state) || [ "$package_state" != "present" ]; then
+	printf 'error: Android smoke package was not observable after installation\n' >&2
+	exit 1
+fi
+if ! verify_installed_apk_signer; then
+	printf 'error: installed Android smoke package does not belong to this run\n' >&2
+	exit 1
+fi
+ANDROID_APP_INSTALL_CONFIRMED=1
+LOGCAT_START_EPOCH=$(adb_for_serial 15 shell date '+%s.%3N' | tr -d '\r\n ')
+python3 - "$LOGCAT_START_EPOCH" <<'PY'
+import re
+import sys
+
+value = sys.argv[1]
+if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
+    raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
+PY
+adb_for_serial 15 shell am force-stop "$PACKAGE" >"$DIST/adb-force-stop.log"
+adb_for_serial 30 shell am start -W -n "$PACKAGE/.QPeriaptSmokeActivity" --es qperiapt_run_id "$RUN_ID" >"$DIST/adb-start.log"
+RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)
+while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 15); do
 	set +e
-	"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.txt" >"$RESULT_TXT.tmp" 2>"$DIST/result-read.err"
+	run_bounded_to_file "$result_attempt_timeout" 1048576 "$RESULT_TXT.tmp" \
+		"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.txt" 2>"$DIST/result-read.err"
 	read_rc=$?
 	set -e
 	if [ "$read_rc" -eq 0 ]; then
@@ -1261,14 +1642,16 @@ while [ "$i" -lt 90 ]; do
 		fi
 		if grep -F "QPERIAPT_ANDROID_DEVICE_FAIL run-id=$RUN_ID" "$RESULT_TXT.tmp" >/dev/null 2>&1; then
 			mv "$RESULT_TXT.tmp" "$RESULT_TXT"
-			"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" >"$RESULT_JSON" 2>"$DIST/result-json-read.err"
+			run_bounded_to_file 15 4194304 "$RESULT_JSON" \
+				"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" 2>"$DIST/result-json-read.err"
 			capture_app_logcat >"$DIST/logcat.txt"
 			printf 'error: Android runtime smoke reported failure; see %s and %s\n' "$RESULT_JSON" "$DIST/logcat.txt" >&2
 			exit 1
 		fi
 	fi
-	sleep 1
-	i=$((i + 1))
+	if remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 1 >/dev/null; then
+		sleep 1
+	fi
 done
 rm -f "$RESULT_TXT.tmp"
 test -f "$RESULT_TXT" || {
@@ -1276,14 +1659,17 @@ test -f "$RESULT_TXT" || {
 	printf 'error: did not receive Android runtime PASS marker within 90 seconds; see %s\n' "$DIST/logcat.txt" >&2
 	exit 1
 }
-"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json" >"$RESULT_JSON"
+run_bounded_to_file 15 4194304 "$RESULT_JSON" \
+	"$ADB" -s "$SERIAL" exec-out run-as "$PACKAGE" cat "files/qperiapt-android-device-result.json"
 capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
 	printf 'error: Android logcat contains a runtime failure marker; see %s\n' "$DIST/logcat.txt" >&2
 	exit 1
 fi
-"$ADB" -s "$SERIAL" uninstall "$PACKAGE" >"$DIST/adb-uninstall.log"
-APP_INSTALLED=0
+if ! cleanup_android_app; then
+	printf 'error: run-owned Android smoke app cleanup failed\n' >&2
+	exit 1
+fi
 
 PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'
 import pathlib
@@ -1328,6 +1714,7 @@ import subprocess
 import sys
 
 from artifact.claim_ledger import canonical_tree_digest, repository_paths
+from artifact.bounded_process import BoundedProcessError, capture_stdout
 from artifact.evidence_io import load_json_object_snapshot
 from artifact.git_provenance import git_commit, source_tree_dirty
 
@@ -1362,8 +1749,25 @@ def sha256(path: pathlib.Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+def bounded_text(argv: list[str], label: str, maximum_bytes: int = 65536) -> str:
+    try:
+        result = capture_stdout(
+            argv,
+            timeout_seconds=15,
+            maximum_bytes=maximum_bytes,
+            stderr=subprocess.DEVNULL,
+        )
+    except BoundedProcessError as exc:
+        raise SystemExit(f"error: {label} {exc.kind}: {exc}") from exc
+    if result.returncode != 0:
+        raise SystemExit(f"error: {label} failed with exit status {result.returncode}")
+    try:
+        return result.stdout.decode("utf-8").replace("\r", "").strip()
+    except UnicodeDecodeError as exc:
+        raise SystemExit(f"error: {label} output is not UTF-8: {exc}") from exc
+
 def adb_text(*args: str) -> str:
-    return subprocess.check_output([str(adb), "-s", serial, *args], text=True).replace("\r", "").strip()
+    return bounded_text([str(adb), "-s", serial, *args], "adb device query")
 
 def getprop(name: str) -> str:
     return adb_text("shell", "getprop", name)
@@ -1404,6 +1808,7 @@ if current_source_tree_sha256 != source_tree_sha256:
         f"got {current_source_tree_sha256}, expected {source_tree_sha256}"
     )
 source_paths = {
+    "bounded_process": root / "artifact/bounded_process.py",
     "android_device_smoke_script": root / "artifact/android-device-smoke.sh",
     "android_device_proof": root / "artifact/android_device_proof.py",
     "proof_to_byte": root / "artifact/proof-to-byte.sh",
@@ -1420,6 +1825,13 @@ source_paths = {
 
 def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
+
+adb_version_lines = bounded_text(
+    [str(adb), "version"], "adb version", 1024 * 1024
+).splitlines()
+if not adb_version_lines:
+    raise SystemExit("error: adb version output is empty")
+adb_version = adb_version_lines[0]
 
 payload = {
     "schema": 3,
@@ -1461,7 +1873,7 @@ payload = {
         "native_page_alignment": 16384,
         "min_sdk": 23,
         "target_sdk": int(target_sdk_match.group(1)),
-        "adb_version": subprocess.check_output([str(adb), "version"], text=True).splitlines()[0],
+        "adb_version": adb_version,
         "apksigner_sha256": sha256(apksigner),
         "zipalign_sha256": sha256(zipalign),
     },
