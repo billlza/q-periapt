@@ -103,6 +103,8 @@ EXPECTED_TESTS = [
 
 SOURCE_INPUTS = {
     "bounded_process": "artifact/bounded_process.py",
+    "android_bounded_command": "artifact/android_bounded_command.py",
+    "android_bounded_command_tests": "artifact/test_android_bounded_command.py",
     "android_device_smoke_script": "artifact/android-device-smoke.sh",
     "android_device_proof": "artifact/android_device_proof.py",
     "proof_to_byte": "artifact/proof-to-byte.sh",

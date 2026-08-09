@@ -654,6 +654,8 @@ APPLE_DEVICE_PROOF_INPUTS = {
 BOUNDED_PROCESS_PROOF_INPUTS = {
     "bounded_process_sha256": "artifact/bounded_process.py",
     "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
+    "android_bounded_command_sha256": "artifact/android_bounded_command.py",
+    "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
 }
 
 ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
@@ -665,6 +667,8 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
     "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
     "android_aar_script_sha256": "artifact/android-aar.sh",
+    "android_bounded_command_sha256": "artifact/android_bounded_command.py",
+    "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
     "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
     "android_device_proof_verifier_sha256": "artifact/android_device_proof.py",
     "android_device_proof_tests_sha256": "artifact/test_android_device_proof.py",

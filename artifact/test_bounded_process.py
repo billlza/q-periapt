@@ -11,7 +11,7 @@ import sys
 import tempfile
 import time
 import unittest
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import BinaryIO
 from unittest import mock
 
@@ -22,8 +22,13 @@ class BoundedProcessTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.temp_dir.name)
+        self.output_directory_fd = os.open(
+            self.root,
+            os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0),
+        )
 
     def tearDown(self) -> None:
+        os.close(self.output_directory_fd)
         self.temp_dir.cleanup()
 
     @staticmethod
@@ -183,6 +188,27 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(result.returncode, 7)
         self.assertEqual(result.stdout, b"diagnostic\n")
 
+    def test_explicit_environment_is_exact_and_malformed_entries_fail_fast(self) -> None:
+        result = bounded_process.capture_stdout(
+            self.python(
+                "import os, sys; "
+                "sys.stdout.write(os.environ.get('FIXED', '') + '|' + str('PATH' in os.environ))"
+            ),
+            timeout_seconds=5,
+            maximum_bytes=1024,
+            stderr=subprocess.DEVNULL,
+            environment={"FIXED": "value"},
+        )
+        self.assertEqual(result.stdout, b"value|False")
+        with self.assertRaisesRegex(
+            bounded_process.BoundedProcessError, "malformed entry"
+        ):
+            bounded_process.run(
+                self.python("raise SystemExit(0)"),
+                timeout_seconds=5,
+                environment={"BAD=NAME": "value"},
+            )
+
     def test_timeout_terminates_promptly(self) -> None:
         started = time.monotonic()
         with self.assertRaisesRegex(
@@ -281,8 +307,11 @@ class BoundedProcessTests(unittest.TestCase):
             *,
             stdout: int | None,
             stderr: int | None,
+            environment: Mapping[str, str] | None,
         ) -> subprocess.Popen[bytes]:
-            process = original_start(argv, stdout=stdout, stderr=stderr)
+            process = original_start(
+                argv, stdout=stdout, stderr=stderr, environment=environment
+            )
             for _ in range(200):
                 if self.read_complete_integer_record(pid_path, 6) is not None:
                     return process
@@ -338,8 +367,11 @@ class BoundedProcessTests(unittest.TestCase):
             *,
             stdout: int | None,
             stderr: int | None,
+            environment: Mapping[str, str] | None,
         ) -> subprocess.Popen[bytes]:
-            process = original_start(argv, stdout=stdout, stderr=stderr)
+            process = original_start(
+                argv, stdout=stdout, stderr=stderr, environment=environment
+            )
             for _ in range(200):
                 if self.read_complete_integer_record(pid_path, 6) is not None:
                     return process
@@ -594,8 +626,11 @@ class BoundedProcessTests(unittest.TestCase):
             *,
             stdout: int | None,
             stderr: int | None,
+            environment: Mapping[str, str] | None,
         ) -> subprocess.Popen[bytes]:
-            process = original_start(argv, stdout=stdout, stderr=stderr)
+            process = original_start(
+                argv, stdout=stdout, stderr=stderr, environment=environment
+            )
             for _ in range(200):
                 if self.read_complete_integer_record(pid_path, 6) is not None:
                     os.kill(os.getpid(), signal.SIGINT)
@@ -645,7 +680,7 @@ class BoundedProcessTests(unittest.TestCase):
                     result.stdout.decode("ascii").strip().split(","),
                 )
 
-    def test_sigterm_and_sighup_cli_cleanup_owned_process_group(self) -> None:
+    def test_sigterm_and_sighup_library_cleanup_owned_process_group(self) -> None:
         script = pathlib.Path(bounded_process.__file__).resolve()
         for termination_signal in (signal.SIGTERM, signal.SIGHUP):
             with self.subTest(signal=termination_signal.name):
@@ -660,24 +695,30 @@ class BoundedProcessTests(unittest.TestCase):
                         "time.sleep(60)",
                     )
                 )
+                helper_source = "\n".join(
+                    (
+                        "import subprocess, sys",
+                        "from bounded_process import capture_stdout",
+                        "result = capture_stdout(",
+                        f"    [sys.executable, '-c', {target_source!r}, sys.argv[1]],",
+                        "    timeout_seconds=30,",
+                        "    maximum_bytes=1024,",
+                        "    stderr=subprocess.DEVNULL,",
+                        ")",
+                        "raise SystemExit(result.returncode)",
+                    )
+                )
                 helper = subprocess.Popen(
                     [
                         sys.executable,
-                        str(script),
-                        "capture",
-                        "--timeout-seconds",
-                        "30",
-                        "--maximum-bytes",
-                        "1024",
-                        "--",
-                        sys.executable,
                         "-c",
-                        target_source,
+                        helper_source,
                         str(pid_path),
                     ],
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
+                    env={**os.environ, "PYTHONPATH": str(script.parent)},
                 )
                 process_group: int | None = None
                 try:
@@ -759,8 +800,11 @@ class BoundedProcessTests(unittest.TestCase):
             *,
             stdout: int | None,
             stderr: int | None,
+            environment: Mapping[str, str] | None,
         ) -> subprocess.Popen[bytes]:
-            process = original_start(argv, stdout=stdout, stderr=stderr)
+            process = original_start(
+                argv, stdout=stdout, stderr=stderr, environment=environment
+            )
             started_processes.append(process)
             for _ in range(200):
                 if self.read_complete_integer_record(pid_path, 6) is not None:
@@ -813,8 +857,11 @@ class BoundedProcessTests(unittest.TestCase):
             *,
             stdout: int | None,
             stderr: int | None,
+            environment: Mapping[str, str] | None,
         ) -> subprocess.Popen[bytes]:
-            process = original_process_start(argv, stdout=stdout, stderr=stderr)
+            process = original_process_start(
+                argv, stdout=stdout, stderr=stderr, environment=environment
+            )
             for _ in range(200):
                 if self.read_complete_integer_record(pid_path, 6) is not None:
                     return process
@@ -859,9 +906,10 @@ class BoundedProcessTests(unittest.TestCase):
 
     def test_write_is_private_and_atomic_on_success(self) -> None:
         output = self.root / "output.bin"
-        result = bounded_process.write_stdout(
+        result = bounded_process.write_stdout_at(
             self.python("import sys; sys.stdout.buffer.write(b'complete')"),
-            output_path=output,
+            output_directory_fd=self.output_directory_fd,
+            output_name=output.name,
             timeout_seconds=5,
             maximum_bytes=8,
             stderr=subprocess.DEVNULL,
@@ -903,9 +951,10 @@ class BoundedProcessTests(unittest.TestCase):
                 output.write_bytes(b"original")
                 output.chmod(0o600)
                 if error_kind is None:
-                    result = bounded_process.write_stdout(
+                    result = bounded_process.write_stdout_at(
                         command,
-                        output_path=output,
+                        output_directory_fd=self.output_directory_fd,
+                        output_name=output.name,
                         timeout_seconds=timeout,
                         maximum_bytes=maximum,
                         stderr=subprocess.DEVNULL,
@@ -913,9 +962,10 @@ class BoundedProcessTests(unittest.TestCase):
                     self.assertEqual(result.returncode, returncode)
                 else:
                     with self.assertRaises(bounded_process.BoundedProcessError) as raised:
-                        bounded_process.write_stdout(
+                        bounded_process.write_stdout_at(
                             command,
-                            output_path=output,
+                            output_directory_fd=self.output_directory_fd,
+                            output_name=output.name,
                             timeout_seconds=timeout,
                             maximum_bytes=maximum,
                             stderr=subprocess.DEVNULL,
@@ -930,30 +980,30 @@ class BoundedProcessTests(unittest.TestCase):
             "timeout", "sentinel command timeout"
         )
         real_close = os.close
-        real_unlink = pathlib.Path.unlink
+        real_unlink = os.unlink
 
         def close_then_fail(file_descriptor: int) -> None:
             real_close(file_descriptor)
             raise OSError("sentinel close failure")
 
-        def unlink_then_fail(path: pathlib.Path, *, missing_ok: bool = False) -> None:
-            real_unlink(path, missing_ok=missing_ok)
+        def unlink_then_fail(path: str, *, dir_fd: int | None = None) -> None:
+            real_unlink(path, dir_fd=dir_fd)
             raise OSError("sentinel unlink failure")
 
         with (
             mock.patch.object(bounded_process, "_stream_stdout", side_effect=primary),
             mock.patch.object(bounded_process.os, "close", side_effect=close_then_fail),
             mock.patch.object(
-                bounded_process.pathlib.Path,
+                bounded_process.os,
                 "unlink",
-                autospec=True,
                 side_effect=unlink_then_fail,
             ),
             self.assertRaises(bounded_process.BoundedProcessError) as raised,
         ):
-            bounded_process.write_stdout(
+            bounded_process.write_stdout_at(
                 self.python("raise SystemExit(0)"),
-                output_path=output,
+                output_directory_fd=self.output_directory_fd,
+                output_name=output.name,
                 timeout_seconds=5,
                 maximum_bytes=1024,
                 stderr=subprocess.DEVNULL,
@@ -989,9 +1039,10 @@ class BoundedProcessTests(unittest.TestCase):
             ),
             self.assertRaises(SystemExit) as raised,
         ):
-            bounded_process.write_stdout(
+            bounded_process.write_stdout_at(
                 self.python("raise SystemExit(0)"),
-                output_path=output,
+                output_directory_fd=self.output_directory_fd,
+                output_name=output.name,
                 timeout_seconds=5,
                 maximum_bytes=1024,
                 stderr=subprocess.DEVNULL,
@@ -1011,9 +1062,10 @@ class BoundedProcessTests(unittest.TestCase):
         except OSError as exc:
             self.skipTest(f"platform cannot create symlink: {exc}")
         with self.assertRaises(bounded_process.BoundedProcessError) as raised:
-            bounded_process.write_stdout(
+            bounded_process.write_stdout_at(
                 self.python("print('replacement')"),
-                output_path=link,
+                output_directory_fd=self.output_directory_fd,
+                output_name=link.name,
                 timeout_seconds=5,
                 maximum_bytes=1024,
                 stderr=subprocess.DEVNULL,
@@ -1043,50 +1095,25 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(result.returncode, 11)
         self.assertEqual(result.stdout, b"")
 
-    def test_cli_capture_and_write_match_library_contract(self) -> None:
+    def test_module_has_no_generic_command_or_output_cli(self) -> None:
         script = pathlib.Path(bounded_process.__file__).resolve()
-        capture = subprocess.run(
+        sentinel = self.root / "must-not-execute"
+        result = subprocess.run(
             [
                 sys.executable,
                 str(script),
-                "capture",
-                "--timeout-seconds",
-                "5",
-                "--maximum-bytes",
-                "4",
-                "--",
                 sys.executable,
                 "-c",
-                "import sys; sys.stdout.buffer.write(b'data')",
+                f"import pathlib; pathlib.Path({str(sentinel)!r}).write_text('bad')",
             ],
             check=False,
             capture_output=True,
         )
-        self.assertEqual(capture.returncode, 0, capture.stderr.decode())
-        self.assertEqual(capture.stdout, b"data")
-
-        output = self.root / "cli-output.bin"
-        write = subprocess.run(
-            [
-                sys.executable,
-                str(script),
-                "write",
-                "--timeout-seconds",
-                "5",
-                "--maximum-bytes",
-                "4",
-                "--output",
-                str(output),
-                "--",
-                sys.executable,
-                "-c",
-                "import sys; sys.stdout.buffer.write(b'data')",
-            ],
-            check=False,
-            capture_output=True,
-        )
-        self.assertEqual(write.returncode, 0, write.stderr.decode())
-        self.assertEqual(output.read_bytes(), b"data")
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertFalse(sentinel.exists())
+        source = script.read_text(encoding="utf-8")
+        self.assertNotIn("argparse.REMAINDER", source)
+        self.assertNotIn("sys.argv[1:]", source)
 
     def test_argument_boundaries_fail_fast(self) -> None:
         invalid_calls = (

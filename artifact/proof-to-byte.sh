@@ -542,6 +542,8 @@ paths = {
     "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "bounded_process_sha256": "artifact/bounded_process.py",
     "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
+    "android_bounded_command_sha256": "artifact/android_bounded_command.py",
+    "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
     "apple_device_smoke_script_sha256": "artifact/apple-device-smoke.sh",
     "apple_device_matrix_script_sha256": "artifact/apple-device-matrix.sh",
     "apple_device_xcode27_gate_script_sha256": "artifact/apple-device-xcode27-gate.sh",

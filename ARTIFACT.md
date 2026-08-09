@@ -324,6 +324,20 @@ diagnostic indexes; optional Apple/Android runtime evidence is included as sanit
 never as copied raw device logs or profiles. Index schema 3 accepts only the current producer envelopes
 (C schema 2, Swift schema 5, Android schema 4), binds their exact package-only targets and boundaries,
 and rejects the credentialed/signed Swift lane because it does not copy `APPLE_DISTRIBUTION.json`.
+The emitter and consumer derive the repository root from their installed script location and select
+only the fixed channel pointer; arbitrary root, index, and output-path CLI overrides are not supported.
+Each `<channel>/<version>/<commit>` tree is immutable once created: a repeated emit fails before
+touching the existing tree. A serialized emitter first builds and verifies a unique mode-0700
+sibling staging tree, then atomically moves it to the immutable identity and replaces the single
+authoritative per-channel pointer inside one short termination-deferred publication window. An
+interruption during package copying can therefore leave at most an unselected private staging tree;
+it cannot occupy or partially rewrite the final identity. The next serialized emit removes only
+strictly named, current-user-owned mode-0700 staging remnants before using a fresh staging name. A
+`SIGKILL` or host loss during the much shorter final rename/pointer window can still require
+ownership-checked manual recovery, but no incomplete tree is selected as published evidence.
+The local store and consumer work directories use mode 0700, and copied packages, indexes, checksums,
+and pointers use mode 0600. Publication tooling must explicitly create separately permissioned public
+artifacts rather than reusing this private local store.
 Its machine-readable boundary records the required leaf gate, absence of an embedded leaf receipt,
 and the trusted local artifact-store assumption. It does not independently authenticate mutable
 `target/` bytes or turn locally recomputable hashes into a signed attestation; run the leaf gates
@@ -535,9 +549,15 @@ These produce the paper's primary network table and the binary constant-time dis
   transport environment, and `mdns_enabled: false` status are checked before selection and again
   after the last device query. Runtime cleanup, private-server protocol shutdown, and socket removal
   must all succeed before the canonical proof is atomically published; cleanup failure produces no
-  PASS marker or accepted proof. The script never sends TERM/KILL to a cached PID. AVD transport still
-  requires an exclusive trusted evidence host because another locally started server could reach an
-  emulator port. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
+  PASS marker or accepted proof. A repository-scoped open-file lock serializes the entire lane before
+  any prior output is cleared, and capability creation defers HUP/INT/TERM until its owned 0600 state
+  is either armed or removed. The script never sends TERM/KILL to a cached PID.
+  Every adb/lsof call is selected from a finite Android operation table and executed through the
+  private run capability; the generic bounded-process module has no arbitrary command or output CLI.
+  adb itself is selected from the fixed `auto`, `macos-account`, `linux-account`, `linux-system`, or
+  `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB` paths are rejected.
+  AVD transport still requires an exclusive trusted evidence host because another locally started
+  server could reach an emulator port. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
   cannot run traps; use the reported private socket/PID to confirm ownership before manual cleanup,
   and compare any orphaned `dev.qperiapt.androidsmoke` with the private run APK before removal.
 - **Matched-backend performance gate.** Collect a paired host proof with:

@@ -3,18 +3,17 @@
 
 from __future__ import annotations
 
-import argparse
 import dataclasses
 import os
 import pathlib
+import re
+import secrets
 import signal
 import stat
 import subprocess
-import sys
-import tempfile
 import threading
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import BinaryIO, Literal, Never
 
 
@@ -22,6 +21,8 @@ MAX_TIMEOUT_SECONDS = 300
 MAX_OUTPUT_BYTES = 512 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
 REAP_TIMEOUT_SECONDS = 5
+MAX_OUTPUT_NAME_BYTES = 128
+_OUTPUT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 ErrorKind = Literal[
     "arguments",
@@ -221,13 +222,39 @@ def _validated_maximum(maximum_bytes: int) -> int:
     return maximum_bytes
 
 
+def _validated_environment(
+    environment: Mapping[str, str] | None,
+) -> dict[str, str] | None:
+    if environment is None:
+        return None
+    if not isinstance(environment, Mapping):
+        raise BoundedProcessError("arguments", "process environment must be a mapping")
+    validated: dict[str, str] = {}
+    for name, value in environment.items():
+        if (
+            not isinstance(name, str)
+            or not name
+            or "=" in name
+            or "\x00" in name
+            or not isinstance(value, str)
+            or "\x00" in value
+        ):
+            raise BoundedProcessError(
+                "arguments", "process environment contains a malformed entry"
+            )
+        validated[name] = value
+    return validated
+
+
 def _start_process(
     argv: Sequence[str],
     *,
     stdout: int | None,
     stderr: int | None,
+    environment: Mapping[str, str] | None,
 ) -> subprocess.Popen[bytes]:
     command = _validated_argv(argv)
+    child_environment = _validated_environment(environment)
     if os.name != "posix":
         raise BoundedProcessError(
             "start", "bounded process groups require a POSIX host"
@@ -247,6 +274,7 @@ def _start_process(
             stdin=subprocess.DEVNULL,
             stdout=stdout,
             stderr=stderr,
+            env=child_environment,
             bufsize=0,
             start_new_session=True,
         )
@@ -509,6 +537,7 @@ def run(
     *,
     timeout_seconds: int,
     stderr: int | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> BoundedResult:
     """Run with inherited stdout, DEVNULL stdin, and a hard wall-clock deadline."""
 
@@ -518,7 +547,12 @@ def run(
     with _SignalCoordinator() as coordinator:
         try:
             coordinator.raise_if_requested()
-            process = _start_process(argv, stdout=None, stderr=stderr)
+            process = _start_process(
+                argv,
+                stdout=None,
+                stderr=stderr,
+                environment=environment,
+            )
             coordinator.raise_if_requested()
             deadline = time.monotonic() + timeout
             returncode = _wait_for_process_exit(
@@ -549,6 +583,7 @@ def _stream_stdout(
     maximum_bytes: int,
     write_chunk: Callable[[bytes], None],
     stderr: int | None,
+    environment: Mapping[str, str] | None = None,
     coordinator: _SignalCoordinator | None = None,
 ) -> BoundedResult:
     if coordinator is None:
@@ -559,6 +594,7 @@ def _stream_stdout(
                 maximum_bytes=maximum_bytes,
                 write_chunk=write_chunk,
                 stderr=stderr,
+                environment=environment,
                 coordinator=owned_coordinator,
             )
     timeout = _validated_timeout(timeout_seconds)
@@ -572,7 +608,12 @@ def _stream_stdout(
     pending_failure: BaseException | None = None
     try:
         coordinator.raise_if_requested()
-        process = _start_process(argv, stdout=subprocess.PIPE, stderr=stderr)
+        process = _start_process(
+            argv,
+            stdout=subprocess.PIPE,
+            stderr=stderr,
+            environment=environment,
+        )
         stdout_pipe = process.stdout
         coordinator.raise_if_requested()
         if stdout_pipe is None:
@@ -713,6 +754,7 @@ def capture_stdout(
     timeout_seconds: int,
     maximum_bytes: int,
     stderr: int | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> BoundedResult:
     """Capture stdout without allowing the producer to exceed the byte limit."""
 
@@ -723,62 +765,162 @@ def capture_stdout(
         maximum_bytes=maximum_bytes,
         write_chunk=chunks.append,
         stderr=stderr,
+        environment=environment,
     )
     return dataclasses.replace(result, stdout=b"".join(chunks))
 
 
-def _require_safe_output_target(output_path: pathlib.Path) -> pathlib.Path:
-    path = pathlib.Path(output_path)
-    parent = path.parent
+def _validated_output_name(output_name: str) -> str:
+    if not isinstance(output_name, str) or _OUTPUT_NAME.fullmatch(output_name) is None:
+        raise BoundedProcessError(
+            "output_path",
+            "bounded-output name must be one canonical ASCII file leaf",
+        )
     try:
-        parent_metadata = parent.lstat()
+        encoded = output_name.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise BoundedProcessError(
+            "output_path", "bounded-output name must be ASCII"
+        ) from exc
+    if len(encoded) > MAX_OUTPUT_NAME_BYTES:
+        raise BoundedProcessError(
+            "output_path",
+            f"bounded-output name exceeds {MAX_OUTPUT_NAME_BYTES} bytes",
+        )
+    return output_name
+
+
+def _owned_private_directory_fd(directory_fd: int) -> int:
+    try:
+        owned_fd = os.dup(directory_fd)
     except OSError as exc:
         raise BoundedProcessError(
-            "output_path", f"cannot inspect bounded-output parent {parent}: {exc}"
+            "output_path", f"cannot duplicate bounded-output directory: {exc}"
         ) from exc
-    if not stat.S_ISDIR(parent_metadata.st_mode) or stat.S_ISLNK(
-        parent_metadata.st_mode
+    try:
+        metadata = os.fstat(owned_fd)
+        mode = stat.S_IMODE(metadata.st_mode)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or mode != 0o700
+        ):
+            raise BoundedProcessError(
+                "output_path",
+                "bounded-output directory must be current-user-owned with mode 0700",
+            )
+    except BaseException as primary:
+        try:
+            os.close(owned_fd)
+        except BaseException as cleanup_error:
+            primary.add_note(
+                f"closing the rejected bounded-output directory also failed: {cleanup_error}"
+            )
+        raise
+    return owned_fd
+
+
+def _require_safe_output_target_at(directory_fd: int, output_name: str) -> None:
+    try:
+        metadata = os.stat(output_name, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise BoundedProcessError(
+            "output_path", f"cannot inspect bounded-output target {output_name}: {exc}"
+        ) from exc
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
     ):
         raise BoundedProcessError(
-            "output_path", f"bounded-output parent is not a non-symlink directory: {parent}"
+            "output_path",
+            "bounded-output target must be one current-user-owned regular file with mode 0600",
         )
-    try:
-        metadata = path.lstat()
-    except FileNotFoundError:
-        return path
-    except OSError as exc:
-        raise BoundedProcessError(
-            "output_path", f"cannot inspect bounded-output target {path}: {exc}"
-        ) from exc
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-        raise BoundedProcessError(
-            "output_path", f"bounded-output target must be a regular non-symlink file: {path}"
-        )
-    return path
+
+
+def _create_temporary_output(directory_fd: int, output_name: str) -> tuple[int, str]:
+    flags = (
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    for _ in range(32):
+        temporary_name = f".{output_name}.bounded-{secrets.token_hex(16)}"
+        try:
+            descriptor = os.open(
+                temporary_name,
+                flags,
+                0o600,
+                dir_fd=directory_fd,
+            )
+        except FileExistsError:
+            continue
+        except OSError as exc:
+            raise BoundedProcessError(
+                "io", f"cannot create bounded temporary output for {output_name}: {exc}"
+            ) from exc
+        try:
+            os.fchmod(descriptor, 0o600)
+            metadata = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_uid != os.geteuid()
+                or metadata.st_nlink != 1
+                or stat.S_IMODE(metadata.st_mode) != 0o600
+            ):
+                raise BoundedProcessError(
+                    "io", "bounded temporary output lacks its private regular-file identity"
+                )
+        except BaseException as primary:
+            try:
+                os.close(descriptor)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f"closing rejected bounded temporary output also failed: {cleanup_error}"
+                )
+            try:
+                os.unlink(temporary_name, dir_fd=directory_fd)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f"removing rejected bounded temporary output also failed: {cleanup_error}"
+                )
+            raise
+        return descriptor, temporary_name
+    raise BoundedProcessError(
+        "io", "cannot allocate a unique bounded temporary output name"
+    )
 
 
 def _write_stdout_impl(
     argv: Sequence[str],
     *,
-    output_path: pathlib.Path,
+    output_directory_fd: int,
+    output_name: str,
     timeout_seconds: int,
     maximum_bytes: int,
     stderr: int | None = None,
+    environment: Mapping[str, str] | None = None,
     coordinator: _SignalCoordinator,
 ) -> BoundedResult:
     """Atomically replace output only after a bounded command exits successfully."""
 
-    target = _require_safe_output_target(output_path)
-    temporary_fd, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.name}.bounded-",
-        dir=target.parent,
-    )
-    temporary = pathlib.Path(temporary_name)
+    target_name = _validated_output_name(output_name)
+    directory_fd = _owned_private_directory_fd(output_directory_fd)
+    temporary_fd = -1
+    temporary_name = ""
     replaced = False
     primary_failure: BaseException | None = None
     try:
         try:
-            os.fchmod(temporary_fd, 0o600)
+            _require_safe_output_target_at(directory_fd, target_name)
+            temporary_fd, temporary_name = _create_temporary_output(
+                directory_fd, target_name
+            )
 
             def write_chunk(chunk: bytes) -> None:
                 view = memoryview(chunk)
@@ -792,6 +934,7 @@ def _write_stdout_impl(
                 maximum_bytes=maximum_bytes,
                 write_chunk=write_chunk,
                 stderr=stderr,
+                environment=environment,
                 coordinator=coordinator,
             )
             coordinator.raise_if_requested()
@@ -805,18 +948,24 @@ def _write_stdout_impl(
             )
             try:
                 coordinator.raise_if_requested()
-                _require_safe_output_target(target)
+                _require_safe_output_target_at(directory_fd, target_name)
                 # os.replace is the output transaction's linearization point.
                 # A signal pending inside this child-free critical section is
                 # ordered after the committed replacement.
-                os.replace(temporary, target)
+                os.replace(
+                    temporary_name,
+                    target_name,
+                    src_dir_fd=directory_fd,
+                    dst_dir_fd=directory_fd,
+                )
                 replaced = True
+                os.fsync(directory_fd)
             finally:
                 signal.pthread_sigmask(signal.SIG_SETMASK, commit_mask)
             return result
         except OSError as exc:
             raise BoundedProcessError(
-                "io", f"cannot store bounded command output at {target}: {exc}"
+                "io", f"cannot store bounded command output at {target_name}: {exc}"
             ) from exc
     except BaseException as exc:
         primary_failure = exc
@@ -828,105 +977,52 @@ def _write_stdout_impl(
                 os.close(temporary_fd)
             except BaseException as exc:
                 cleanup_failures.append(("close temporary output", exc))
-        if not replaced:
+        if temporary_name and not replaced:
             try:
-                temporary.unlink()
+                os.unlink(temporary_name, dir_fd=directory_fd)
             except FileNotFoundError:
                 pass
             except BaseException as exc:
                 cleanup_failures.append(("remove temporary output", exc))
+        try:
+            os.close(directory_fd)
+        except BaseException as exc:
+            cleanup_failures.append(("close output directory", exc))
         if cleanup_failures:
             details = "; ".join(
                 f"{operation}: {failure}"
                 for operation, failure in cleanup_failures
             )
             if primary_failure is not None:
-                primary_failure.add_note(
-                    f"bounded output cleanup failure: {details}"
-                )
+                primary_failure.add_note(f"bounded output cleanup failure: {details}")
             else:
                 cleanup_failure = BoundedProcessError(
-                    "io", f"cannot clean bounded output at {target}: {details}"
+                    "io", f"cannot clean bounded output at {target_name}: {details}"
                 )
                 cleanup_failure.__cause__ = cleanup_failures[0][1]
                 raise cleanup_failure
 
 
-def write_stdout(
+def write_stdout_at(
     argv: Sequence[str],
     *,
-    output_path: pathlib.Path,
+    output_directory_fd: int,
+    output_name: str,
     timeout_seconds: int,
     maximum_bytes: int,
     stderr: int | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> BoundedResult:
     """Atomically replace output only after a bounded command exits successfully."""
 
     with _SignalCoordinator() as coordinator:
         return _write_stdout_impl(
             argv,
-            output_path=output_path,
+            output_directory_fd=output_directory_fd,
+            output_name=output_name,
             timeout_seconds=timeout_seconds,
             maximum_bytes=maximum_bytes,
             stderr=stderr,
+            environment=environment,
             coordinator=coordinator,
         )
-
-
-def _command_from_args(args: argparse.Namespace) -> list[str]:
-    command = list(args.command)
-    if command and command[0] == "--":
-        command = command[1:]
-    return _validated_argv(command)
-
-
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
-    sub = parser.add_subparsers(dest="action", required=True)
-
-    run_parser = sub.add_parser("run")
-    run_parser.add_argument("--timeout-seconds", required=True, type=int)
-    run_parser.add_argument("command", nargs=argparse.REMAINDER)
-
-    capture_parser = sub.add_parser("capture")
-    capture_parser.add_argument("--timeout-seconds", required=True, type=int)
-    capture_parser.add_argument("--maximum-bytes", required=True, type=int)
-    capture_parser.add_argument("command", nargs=argparse.REMAINDER)
-
-    write_parser = sub.add_parser("write")
-    write_parser.add_argument("--timeout-seconds", required=True, type=int)
-    write_parser.add_argument("--maximum-bytes", required=True, type=int)
-    write_parser.add_argument("--output", required=True, type=pathlib.Path)
-    write_parser.add_argument("command", nargs=argparse.REMAINDER)
-    return parser
-
-
-def main(argv: list[str]) -> int:
-    args = _build_parser().parse_args(argv)
-    command = _command_from_args(args)
-    if args.action == "run":
-        return run(command, timeout_seconds=args.timeout_seconds).returncode
-    if args.action == "capture":
-        result = capture_stdout(
-            command,
-            timeout_seconds=args.timeout_seconds,
-            maximum_bytes=args.maximum_bytes,
-        )
-        sys.stdout.buffer.write(result.stdout)
-        return result.returncode
-    if args.action == "write":
-        return write_stdout(
-            command,
-            output_path=args.output,
-            timeout_seconds=args.timeout_seconds,
-            maximum_bytes=args.maximum_bytes,
-        ).returncode
-    raise BoundedProcessError("arguments", f"unsupported action: {args.action}")
-
-
-if __name__ == "__main__":
-    try:
-        raise SystemExit(main(sys.argv[1:]))
-    except BoundedProcessError as exc:
-        print(f"error: bounded process {exc.kind}: {exc}", file=sys.stderr)
-        raise SystemExit(2) from exc

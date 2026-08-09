@@ -1128,6 +1128,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
+        lane_lock = producer.index("fcntl.LOCK_EX | fcntl.LOCK_NB")
+        output_reset = producer.index('rm -rf "$OUT_ROOT"')
+        self.assertLess(lane_lock, output_reset)
         self.assertIn("umask 077", producer)
         self.assertIn('chmod 700 "$WORK" "$DIST"', producer)
         keystore_assignment = producer.index(
@@ -1161,7 +1164,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         )
         armed_index = producer.index("ANDROID_APP_CLEANUP_ARMED=1", preflight_index)
         install_index = producer.index(
-            'adb_for_serial 120 install --no-incremental "$SIGNED_APK"', armed_index
+            "android_command install-apk", armed_index
         )
         normal_cleanup_index = producer.index(
             "if ! cleanup_android_app; then", install_index
@@ -1179,7 +1182,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "if ! emulator_process_active; then", boot_loop_index
         )
         bound_serial_index = producer.index(
-            '-s "$EXPECTED_EMULATOR_SERIAL" get-state', boot_loop_index
+            "android_command device-state", boot_loop_index
         )
         self.assertLess(producer.index("ANDROID_APP_CLEANUP_ARMED=0"), trap_index)
         self.assertLess(trap_index, preflight_index)
@@ -1196,6 +1199,25 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertNotIn("\n\tcleanup_status=", producer)
         self.assertNotIn("\n\towned_process_recorded=", producer)
         self.assertNotIn("\n\tprocess_stopped=", producer)
+        runtime_function_start = producer.index("cleanup_runtime()")
+        runtime_function_end = producer.index(
+            "cleanup_runtime_with_deferred_signals()", runtime_function_start
+        )
+        runtime_function = producer[runtime_function_start:runtime_function_end]
+        private_cleanup = runtime_function.index("stop_private_adb_server")
+        unresolved_guard = runtime_function.index(
+            'if [ "${ADB_PRIVATE_SERVER_CLEANUP_ARMED:-0}" = "1" ]',
+            private_cleanup,
+        )
+        capability_cleanup = runtime_function.index(
+            "cleanup_android_command_capability", unresolved_guard
+        )
+        self.assertLess(private_cleanup, unresolved_guard)
+        self.assertLess(unresolved_guard, capability_cleanup)
+        self.assertIn(
+            "preserving the Android command capability because private adb cleanup is unresolved",
+            runtime_function,
+        )
         verifier_start = producer.index("verify_installed_apk_signer()")
         verifier_end = producer.index("cleanup_android_app()", verifier_start)
         verifier = producer[verifier_start:verifier_end]
@@ -1213,7 +1235,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         present = cleanup.index("present)")
         signer_gate = cleanup.index("verify_installed_apk_signer", present)
         owned_uninstall = cleanup.index(
-            'adb_for_serial 60 uninstall "$PACKAGE"', signer_gate
+            "android_command uninstall-app", signer_gate
         )
         unknown_outcome = cleanup.index("uninstall=unknown-or-failed", owned_uninstall)
         self.assertLess(threshold, disarm)
@@ -1227,15 +1249,33 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical", producer
         )
         self.assertIn("refusing automatic Android device selection", producer)
-        self.assertIn("run_bounded_command()", producer)
-        self.assertIn("run_bounded_to_file()", producer)
-        self.assertIn("artifact/bounded_process.py run", producer)
-        self.assertIn("artifact/bounded_process.py write", producer)
+        self.assertIn("android_command()", producer)
+        self.assertIn("artifact/android_bounded_command.py invoke", producer)
+        self.assertIn("artifact/android_bounded_command.py server-nodaemon", producer)
+        self.assertNotIn('"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertNotIn("artifact/bounded_process.py run", producer)
+        self.assertNotIn("artifact/bounded_process.py write", producer)
         bounded_process_source = (
             pathlib.Path(__file__).resolve().parent / "bounded_process.py"
         ).read_text(encoding="utf-8")
         self.assertIn("command timed out after", bounded_process_source)
         self.assertIn("command output exceeds", bounded_process_source)
+        command_adapter_source = (
+            pathlib.Path(__file__).resolve().parent / "android_bounded_command.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("argparse.REMAINDER", command_adapter_source)
+        self.assertNotIn('"argv"', command_adapter_source)
+        for operation in (
+            "package-list",
+            "pull-installed-apk",
+            "install-apk",
+            "uninstall-app",
+            "read-result-text",
+            "read-result-json",
+            "capture-logcat",
+            "kill-server",
+        ):
+            self.assertIn(f"android_command {operation}", producer)
         self.assertIn("remaining_bounded_timeout()", producer)
         self.assertIn(
             "BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)", producer
@@ -1244,16 +1284,23 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)", producer
         )
         self.assertIn(
-            'run_bounded_command "$emulator_attempt_timeout"', producer
+            'android_command device-state \\\n\t\t\t--timeout-seconds "$emulator_attempt_timeout"',
+            producer,
         )
-        self.assertIn('adb_for_serial "$boot_attempt_timeout"', producer)
         self.assertIn(
-            'run_bounded_to_file "$result_attempt_timeout"', producer
+            'android_command boot-completed \\\n\t\t--timeout-seconds "$boot_attempt_timeout"',
+            producer,
+        )
+        self.assertIn(
+            'android_command read-result-text \\\n\t\t--timeout-seconds "$result_attempt_timeout"',
+            producer,
         )
         self.assertNotIn('while [ "$i" -lt 90 ]; do', producer)
         self.assertNotIn('while [ "$i" -lt 120 ]; do', producer)
         self.assertIn("ADB_VENDOR_KEYS is not supported", producer)
         self.assertIn("ADB_SERVER_SOCKET is not supported", producer)
+        self.assertIn("QPERIAPT_ADB is not supported", producer)
+        self.assertIn("QPERIAPT_ANDROID_ADB_PROFILE is unsupported", producer)
         self.assertIn("ANDROID_ADB_SERVER_ADDRESS is not supported", producer)
         self.assertIn("ANDROID_ADB_SERVER_PORT is not supported", producer)
         for variable in (
@@ -1289,14 +1336,19 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         )
         self.assertLess(
             producer.index("verify-adb-identity"),
-            producer.index("server nodaemon"),
+            producer.index("server-nodaemon"),
         )
         device_selection_section = producer.index("=== Select Android runtime device ===")
         default_listener_gate = producer.index(
             "\nassert_default_adb_server_absent\n", device_selection_section
         )
         server_cleanup_arm = producer.index("ADB_PRIVATE_SERVER_CLEANUP_ARMED=1")
-        server_start = producer.index("server nodaemon", server_cleanup_arm)
+        capability_create = producer.index("create-capability", server_cleanup_arm)
+        capability_arm = producer.index(
+            "ANDROID_COMMAND_CAPABILITY_ARMED=1", server_cleanup_arm
+        )
+        server_start = producer.index("server-nodaemon", server_cleanup_arm)
+        self.assertLess(capability_arm, capability_create)
         server_pid_capture = producer.index("ADB_PRIVATE_SERVER_PID=$!", server_start)
         client_transport_disable = producer.index(
             "export ADB_USB=0", server_pid_capture
@@ -1335,6 +1387,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         pass_marker = producer.index("ANDROID_DEVICE_RUNTIME_PASS", evidence_confirmation)
         self.assertLess(default_listener_gate, server_cleanup_arm)
         self.assertLess(server_cleanup_arm, server_start)
+        self.assertLess(capability_arm, capability_create)
+        self.assertLess(capability_create, server_start)
         self.assertLess(server_start, server_pid_capture)
         self.assertLess(server_pid_capture, client_transport_disable)
         self.assertLess(client_transport_disable, recovery_identity_print)
@@ -1370,7 +1424,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             'ADB_PRIVATE_SERVER_SOCKET_SPEC="localfilesystem:$ADB_PRIVATE_SERVER_SOCKET_PATH"',
             producer,
         )
-        self.assertIn('"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertNotIn('"$ADB" -L "$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertIn('argv.extend(("--one-device", capability.expected_serial))', command_adapter_source)
         self.assertIn("default adb server is already listening", verifier_source)
         self.assertNotIn('"$ADB" start-server', producer)
         self.assertNotIn('"$ADB" kill-server', producer)
@@ -1379,7 +1434,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertNotIn('"$ADB" server-status', producer)
         self.assertNotIn('[str(adb), "-s"', producer)
         self.assertNotIn('[str(adb), "version"', producer)
-        self.assertIn('--one-device "$QPERIAPT_ANDROID_SERIAL"', producer)
+        self.assertNotIn('--one-device "$QPERIAPT_ANDROID_SERIAL"', producer)
         self.assertIn("export ADB_MDNS=0", producer)
         self.assertIn("export ADB_MDNS_AUTO_CONNECT=0", producer)
         self.assertIn("export ADB_LOCAL_TRANSPORT_MAX_PORT=5585", producer)
@@ -1428,7 +1483,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
             producer,
         )
-        self.assertIn('EXPECTED_EMULATOR_SERIAL="emulator-$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn('EXPECTED_COMMAND_SERIAL="emulator-$ANDROID_EMULATOR_PORT"', producer)
+        self.assertIn("EXPECTED_EMULATOR_SERIAL=$EXPECTED_COMMAND_SERIAL", producer)
         self.assertIn('-port "$ANDROID_EMULATOR_PORT"', producer)
         self.assertIn('SERIAL=$EXPECTED_EMULATOR_SERIAL', producer)
         self.assertIn("temporary Android emulator exited before its bound adb serial", producer)
@@ -1477,9 +1533,13 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("capture_app_logcat()", producer)
-        self.assertIn(
-            'logcat -d -v tag -T "$LOGCAT_START_EPOCH"', producer
-        )
+        self.assertIn("android_command capture-logcat", producer)
+        adapter = (
+            pathlib.Path(__file__).resolve().parent / "android_bounded_command.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"logcat",', adapter)
+        self.assertIn('"-T",\n            _device_epoch(),', adapter)
+        self.assertIn('"QPeriaptSmoke:*",\n            "*:S",', adapter)
         self.assertIn("needle = f\"run-id={run_id}\"", producer)
         self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)
         self.assertNotIn("logcat -c", producer)

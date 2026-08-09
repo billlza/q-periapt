@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import copy
 import gzip
 import io
@@ -7,7 +8,10 @@ import json
 import os
 import pathlib
 import shutil
+import signal
+import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -371,6 +375,27 @@ class ReleaseIndexTests(unittest.TestCase):
         release_index.write_json(index_path, index)
         release_index.write_release_sums(release_root)
         return index_path, index
+
+    def _write_pointer(
+        self, root: pathlib.Path, index_path: pathlib.Path, channel: str = "diagnostic"
+    ) -> pathlib.Path:
+        target = root / "target"
+        release_base = target / "qperiapt-local-release"
+        pointer_path = release_base / f"latest-{channel}.json"
+        release_index.write_json(
+            pointer_path,
+            {
+                "schema_version": release_index.SCHEMA_VERSION,
+                "kind": release_index.POINTER_KIND,
+                "version": index_path.parents[1].name,
+                "channel": channel,
+                "diagnostic_only": channel == "diagnostic",
+                "index_path": index_path.relative_to(target).as_posix(),
+                "index_sha256": release_index.sha256_file(index_path),
+                "generated_at": "2026-07-12T00:00:00Z",
+            },
+        )
+        return pointer_path
 
     def test_face_contracts_match_authoritative_producers(self) -> None:
         self.assertEqual(
@@ -753,6 +778,7 @@ class ReleaseIndexTests(unittest.TestCase):
 
             def android_proof(model: str) -> dict:
                 return {
+                    "git_commit": "a" * 40,
                     "generated_at": "2026-07-12T00:00:00Z",
                     "source_tree_dirty": False,
                     "run_id": "a" * 32,
@@ -765,6 +791,7 @@ class ReleaseIndexTests(unittest.TestCase):
                         "raw_serial_recorded": False,
                     },
                     "result": {
+                        "status": "pass",
                         "test_count": 1,
                         "passed_tests": ["fixture"],
                     },
@@ -794,6 +821,22 @@ class ReleaseIndexTests(unittest.TestCase):
             self.assertEqual(summary["device"]["model"], "FIRST")
             self.assertEqual(summary["sha256"], expected_sha256)
 
+            snapshot = original_loader(
+                proof_path,
+                label="Android proof fixture",
+            )
+            release_index.proof_summary_snapshot(
+                snapshot,
+                "android_runtime",
+                expected_commit="a" * 40,
+            )
+            with self.assertRaisesRegex(SystemExit, "commit differs"):
+                release_index.proof_summary_snapshot(
+                    snapshot,
+                    "android_runtime",
+                    expected_commit="b" * 40,
+                )
+
     def test_index_verification_binds_live_worktree_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._root(temporary)
@@ -805,6 +848,65 @@ class ReleaseIndexTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "source_tree_dirty differs"):
                 release_index.verify_release_index(
                     index_path, root, allow_diagnostic=True
+                )
+
+    def test_source_bound_index_accepts_only_an_evidence_only_successor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            release_index.verify_release_index(
+                index_path,
+                root,
+                allow_diagnostic=True,
+            )
+
+            results_path = root / "artifact/results.json"
+            results_path.parent.mkdir(parents=True)
+            results_path.write_text("{}\n", encoding="utf-8")
+            subprocess.run(["git", "add", "artifact/results.json"], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Q-Periapt Test",
+                    "-c",
+                    "user.email=q-periapt-test@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "evidence successor",
+                ],
+                cwd=root,
+                check=True,
+            )
+            release_index.verify_release_index(
+                index_path,
+                root,
+                allow_diagnostic=True,
+            )
+
+            (root / "FIXTURE_SOURCE.txt").write_text("changed\n", encoding="utf-8")
+            subprocess.run(["git", "add", "FIXTURE_SOURCE.txt"], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Q-Periapt Test",
+                    "-c",
+                    "user.email=q-periapt-test@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "source successor",
+                ],
+                cwd=root,
+                check=True,
+            )
+            with self.assertRaisesRegex(SystemExit, "canonical source inputs"):
+                release_index.verify_release_index(
+                    index_path,
+                    root,
+                    allow_diagnostic=True,
                 )
 
     def test_timestamps_reject_bool_and_invalid_unicode(self) -> None:
@@ -961,10 +1063,22 @@ class ReleaseIndexTests(unittest.TestCase):
                 "sha256": observed.sha256,
                 "bytes": observed.size,
             }
+            real_stat = pathlib.Path.stat
+
+            def reject_following_stat(
+                candidate: pathlib.Path,
+                *arguments: object,
+                **keywords: object,
+            ) -> os.stat_result:
+                if keywords.get("follow_symlinks") is False:
+                    return real_stat(candidate, *arguments, **keywords)
+                raise AssertionError("pathname stat must not supply indexed metadata")
+
             with mock.patch.object(
                 pathlib.Path,
                 "stat",
-                side_effect=AssertionError("pathname stat must not supply indexed metadata"),
+                autospec=True,
+                side_effect=reject_following_stat,
             ):
                 self.assertEqual(
                     release_index.verify_index_file(release_root, item),
@@ -995,36 +1109,520 @@ class ReleaseIndexTests(unittest.TestCase):
                     index_path, root, allow_diagnostic=True
                 )
 
-    def test_output_dir_rejects_roots_inputs_and_symlinks(self) -> None:
+    def test_output_dir_is_derived_from_fixed_release_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
-            target = root / "target"
-            target.mkdir()
-            common = {
-                "channel": "release",
-                "version": "0.1.0-alpha.2",
-                "commit": "a" * 40,
-            }
-            rejected = (
-                target,
-                target / "qperiapt-local-release",
-                target / "qperiapt-local-release/release",
-                target / "qperiapt-c-abi2/input-package",
+            output = release_index.resolve_release_output(
+                root,
+                channel="release",
+                version="0.1.0-alpha.2",
+                commit="a" * 40,
             )
-            for path in rejected:
-                with self.subTest(path=path), self.assertRaises(SystemExit):
-                    release_index.resolve_release_output(
-                        root, str(path), **common
-                    )
+            self.assertEqual(
+                output,
+                root
+                / "target/qperiapt-local-release/release/0.1.0-alpha.2"
+                / ("a" * 40),
+            )
 
-            channel_root = target / "qperiapt-local-release/release"
-            channel_root.mkdir(parents=True)
+    def test_existing_release_tree_is_immutable_and_pointer_remains_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, index = self._fixture(root)
+            self._write_pointer(root, index_path)
+
+            with self.assertRaisesRegex(SystemExit, "immutable and already exists"):
+                release_index.resolve_release_output(
+                    root,
+                    channel="diagnostic",
+                    version=index["version"],
+                    commit=index["git"]["commit"],
+                )
+
+            selection = release_index.release_pointer_selection(root, "diagnostic")
+            verified = release_index.verify_release_index_snapshot(
+                selection.path,
+                root,
+                allow_diagnostic=True,
+                expected_index_sha256=selection.expected_sha256,
+                expected_generated_at=selection.expected_generated_at,
+            )
+            self.assertEqual(verified.path, index_path)
+
+    def test_verified_staging_tree_uses_the_final_identity_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            release_root = index_path.parent
+            staging_root = release_root.parent / f".{release_root.name}.staging-fixture"
+            release_root.rename(staging_root)
+            staging_index = staging_root / "index.json"
+
+            with self.assertRaisesRegex(SystemExit, "channel/version/commit identity"):
+                release_index.verify_release_index_snapshot(
+                    staging_index,
+                    root,
+                    allow_diagnostic=True,
+                )
+
+            verified = release_index.verify_release_index_snapshot(
+                staging_index,
+                root,
+                allow_diagnostic=True,
+                identity_index_path=index_path,
+            )
+            self.assertEqual(verified.path, staging_index)
+
+    @unittest.skipUnless(os.name == "posix", "SIGTERM staging recovery is POSIX-only")
+    def test_sigterm_during_staging_cannot_poison_the_final_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            version = "0.1.0-alpha.2"
+            commit = "a" * 40
+            final_root = (
+                root
+                / "target/qperiapt-local-release/diagnostic"
+                / version
+                / commit
+            )
+            (root / "target").mkdir(mode=0o700)
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import pathlib
+import sys
+import time
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+root = pathlib.Path(sys.argv[1]).resolve()
+target = root / 'target'
+final_root = target / 'qperiapt-local-release/diagnostic/{version}/{commit}'
+staging_root, _identity = release_index.create_release_staging_tree(final_root, target)
+(staging_root / 'partial.bin').write_bytes(b'partial')
+print(staging_root, flush=True)
+time.sleep(60)
+"""
+            environment = dict(os.environ)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            process = subprocess.Popen(
+                [sys.executable, "-B", "-c", child_source, str(root)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=environment,
+            )
+            try:
+                self.assertIsNotNone(process.stdout)
+                staging_line = process.stdout.readline().strip()
+                self.assertTrue(staging_line)
+                staging_root = pathlib.Path(staging_line)
+                process.send_signal(signal.SIGTERM)
+                self.assertLess(process.wait(timeout=10), 0)
+
+                self.assertFalse(final_root.exists())
+                self.assertEqual(
+                    release_index.resolve_release_output(
+                        root,
+                        channel="diagnostic",
+                        version=version,
+                        commit=commit,
+                    ),
+                    final_root,
+                )
+                self.assertTrue(staging_root.is_dir())
+                release_index.cleanup_stale_release_staging_trees(
+                    final_root,
+                    root / "target",
+                )
+                self.assertFalse(staging_root.exists())
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+                if process.stdout is not None:
+                    process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
+
+    @unittest.skipUnless(
+        os.name == "posix" and hasattr(signal, "pthread_sigmask"),
+        "atomic publication rollback is POSIX-only",
+    )
+    def test_pending_sigterm_and_pointer_failure_roll_back_before_unmask(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            target = root / "target"
+            target.mkdir(mode=0o700)
+            version = "0.1.0-alpha.2"
+            commit = "a" * 40
+            final_root = (
+                target
+                / "qperiapt-local-release/diagnostic"
+                / version
+                / commit
+            )
+            pointer_path = target / "qperiapt-local-release/latest-diagnostic.json"
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import os
+import pathlib
+import signal
+import sys
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+root = pathlib.Path(sys.argv[1]).resolve()
+target = root / 'target'
+final_root = target / 'qperiapt-local-release/diagnostic/{version}/{commit}'
+pointer_path = target / 'qperiapt-local-release/latest-diagnostic.json'
+staging_root, identity = release_index.create_release_staging_tree(final_root, target)
+(staging_root / 'verified.bin').write_bytes(b'verified')
+def fail_before_pointer_commit(*_args, **_kwargs):
+    os.kill(os.getpid(), signal.SIGTERM)
+    raise OSError('injected pointer precommit failure')
+release_index.write_json = fail_before_pointer_commit
+release_index.publish_release_transaction(
+    staging_root=staging_root,
+    release_root=final_root,
+    staging_identity=identity,
+    target=target,
+    pointer_path=pointer_path,
+    pointer={{'fixture': True}},
+)
+"""
+            environment = dict(os.environ)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            completed = subprocess.run(
+                [sys.executable, "-B", "-c", child_source, str(root)],
+                capture_output=True,
+                text=True,
+                env=environment,
+                timeout=10,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, -signal.SIGTERM, completed.stderr)
+            self.assertFalse(final_root.exists())
+            self.assertFalse(pointer_path.exists())
+            staging_entries = list(final_root.parent.glob(f".{commit}.staging-*"))
+            self.assertEqual(staging_entries, [])
+            self.assertEqual(
+                release_index.resolve_release_output(
+                    root,
+                    channel="diagnostic",
+                    version=version,
+                    commit=commit,
+                ),
+                final_root,
+            )
+
+    def test_staging_recovery_rejects_unowned_names_and_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            target = root / "target"
+            target.mkdir(mode=0o700)
+            commit = "a" * 40
+            final_root = (
+                target
+                / "qperiapt-local-release/diagnostic/0.1.0-alpha.2"
+                / commit
+            )
+            release_index.ensure_private_directory(final_root.parent, target)
+            malformed = final_root.parent / f".{commit}.staging-not-a-token"
+            malformed.mkdir(mode=0o700)
+            with self.assertRaisesRegex(SystemExit, "invalid owned name"):
+                release_index.cleanup_stale_release_staging_trees(final_root, target)
+            self.assertTrue(malformed.is_dir())
+            malformed.rmdir()
+
             outside = root / "outside"
             outside.mkdir()
-            link = channel_root / "linked-output"
-            link.symlink_to(outside, target_is_directory=True)
-            with self.assertRaisesRegex(SystemExit, "must not traverse a symlink"):
-                release_index.resolve_release_output(root, str(link), **common)
+            symlink = final_root.parent / f".{commit}.staging-{'b' * 32}"
+            symlink.symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(SystemExit, "not one owned private directory"):
+                release_index.cleanup_stale_release_staging_trees(final_root, target)
+            self.assertTrue(symlink.is_symlink())
+            self.assertTrue(outside.is_dir())
+            symlink.unlink()
+
+            stale_roots = [
+                final_root.parent / f".{commit}.staging-{character * 32}"
+                for character in ("c", "d")
+            ]
+            for stale_root in stale_roots:
+                stale_root.mkdir(mode=0o700)
+            with (
+                mock.patch.object(
+                    release_index,
+                    "MAX_STALE_RELEASE_STAGING_TREES",
+                    1,
+                ),
+                self.assertRaisesRegex(SystemExit, "too many stale staging trees"),
+            ):
+                release_index.cleanup_stale_release_staging_trees(final_root, target)
+            self.assertTrue(all(stale_root.is_dir() for stale_root in stale_roots))
+
+            fifo = stale_roots[1] / "unexpected.fifo"
+            os.mkfifo(fifo)
+            with self.assertRaisesRegex(SystemExit, "special file"):
+                release_index.cleanup_stale_release_staging_trees(final_root, target)
+            self.assertTrue(all(stale_root.is_dir() for stale_root in stale_roots))
+            fifo.unlink()
+            release_index.cleanup_stale_release_staging_trees(final_root, target)
+            self.assertTrue(all(not stale_root.exists() for stale_root in stale_roots))
+
+            unrelated = [final_root.parent / name for name in ("one", "two")]
+            for directory in unrelated:
+                directory.mkdir(mode=0o700)
+            with (
+                mock.patch.object(
+                    release_index,
+                    "MAX_RELEASE_STAGING_PARENT_ENTRIES",
+                    1,
+                ),
+                self.assertRaisesRegex(SystemExit, "exceeds its entry limit"),
+            ):
+                release_index.cleanup_stale_release_staging_trees(final_root, target)
+            self.assertTrue(all(directory.is_dir() for directory in unrelated))
+
+    def test_failed_first_emit_removes_unselected_tree_and_allows_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            trust = release_index.load_abi_trust_root(root)
+            commit = release_index.git_commit(root)
+            target = root / "target"
+            host = "aarch64-apple-darwin"
+            c_package = f"{trust.archive_prefix}-{trust.version}-{host}"
+            c_dir = target / "qperiapt-c-abi2" / c_package
+            swift_dir = (
+                target
+                / "qperiapt-swift-xcframework"
+                / f"q-periapt-swift-{trust.version}"
+            )
+            android_dir = (
+                target
+                / "qperiapt-android-aar"
+                / f"q-periapt-android-{trust.version}"
+            )
+            source_files = (
+                c_dir / "MANIFEST.json",
+                target / "qperiapt-c-abi2" / f"{c_package}.tar.gz",
+                swift_dir / "MANIFEST.json",
+                swift_dir / "CQPeriapt.xcframework.zip",
+                android_dir / "MANIFEST.json",
+                android_dir / f"q-periapt-android-{trust.version}.aar",
+            )
+            for source_file in source_files:
+                source_file.parent.mkdir(parents=True, exist_ok=True)
+                source_file.write_bytes(b"fixture")
+
+            manifests = {
+                "c-abi": self._manifest(trust, "c-abi", "e" * 64, commit),
+                "swift": self._manifest(trust, "swift", "e" * 64, commit),
+                "android": self._manifest(trust, "android", "e" * 64, commit),
+            }
+            attempts = 0
+
+            def build_tree(
+                _args: object,
+                **arguments: object,
+            ) -> release_index.BuiltReleaseTree:
+                nonlocal attempts
+                attempts += 1
+                release_root = pathlib.Path(arguments["release_root"])
+                if attempts == 1:
+                    (release_root / "partial.bin").write_bytes(b"partial")
+                    raise SystemExit("error: injected first-build failure")
+                index_path = release_root / "index.json"
+                release_index.write_json(index_path, {"attempt": attempts})
+                return release_index.BuiltReleaseTree(
+                    index_path=index_path,
+                    index_sha256=release_index.sha256_file(index_path),
+                    generated_at="2026-07-12T00:00:00Z",
+                )
+
+            def validate_manifest(
+                _path: pathlib.Path,
+                _commit: str,
+                _version: str,
+                _channel: str,
+                face: str,
+                _trust: release_index.AbiTrustRoot,
+            ) -> dict:
+                return manifests[face]
+
+            arguments = argparse.Namespace(
+                channel="diagnostic",
+                apple_matrix_run="",
+                include_android_runtime=False,
+            )
+            release_root = (
+                target
+                / "qperiapt-local-release"
+                / "diagnostic"
+                / trust.version
+                / commit
+            )
+            pointer = target / "qperiapt-local-release/latest-diagnostic.json"
+            with (
+                mock.patch.object(release_index, "REPOSITORY_ROOT", root),
+                mock.patch.object(
+                    release_index,
+                    "cargo_version",
+                    return_value=trust.version,
+                ),
+                mock.patch.object(release_index, "rust_host", return_value=host),
+                mock.patch.object(release_index, "verify_sha256s"),
+                mock.patch.object(
+                    release_index,
+                    "validate_package_manifest",
+                    side_effect=validate_manifest,
+                ),
+                mock.patch.object(
+                    release_index,
+                    "build_release_tree",
+                    side_effect=build_tree,
+                ),
+            ):
+                with self.assertRaisesRegex(SystemExit, "injected first-build failure"):
+                    release_index.build_index(arguments)
+                self.assertFalse(release_root.exists())
+                self.assertFalse(pointer.exists())
+
+                emitted = release_index.build_index(arguments)
+
+            self.assertEqual(emitted, release_root / "index.json")
+            self.assertTrue(emitted.is_file())
+            self.assertTrue(pointer.is_file())
+            self.assertEqual(attempts, 2)
+
+    def test_cli_has_no_caller_controlled_repository_or_output_path(self) -> None:
+        source = pathlib.Path(release_index.__file__).read_text(encoding="utf-8")
+        for option in (
+            "--root",
+            "--index",
+            "--output-dir",
+            "--apple-matrix-proof",
+            "--android-proof",
+        ):
+            self.assertNotIn(f'add_argument("{option}"', source)
+
+    def test_pointer_digest_is_checked_against_the_verified_index_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            self._write_pointer(root, index_path)
+            selection = release_index.release_pointer_selection(root, "diagnostic")
+            original = index_path.read_bytes()
+            index_path.write_bytes(original + b" ")
+            with self.assertRaisesRegex(SystemExit, "pointer index hash mismatch"):
+                release_index.verify_release_index(
+                    selection.path,
+                    root,
+                    allow_diagnostic=True,
+                    expected_index_sha256=selection.expected_sha256,
+                    expected_generated_at=selection.expected_generated_at,
+                )
+
+    def test_pointer_generated_at_must_match_the_verified_index_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            pointer_path = self._write_pointer(root, index_path)
+            pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
+            pointer["generated_at"] = "2026-07-13T00:00:00Z"
+            release_index.write_json(pointer_path, pointer)
+            selection = release_index.release_pointer_selection(root, "diagnostic")
+
+            with self.assertRaisesRegex(
+                SystemExit,
+                "generated_at differs from the verified index snapshot",
+            ):
+                release_index.verify_release_index(
+                    selection.path,
+                    root,
+                    allow_diagnostic=True,
+                    expected_index_sha256=selection.expected_sha256,
+                    expected_generated_at=selection.expected_generated_at,
+                )
+
+    def test_index_path_must_match_its_declared_commit_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            replacement_commit = "b" * 40
+            moved_release_root = index_path.parent.parent / replacement_commit
+            index_path.parent.rename(moved_release_root)
+            moved_index = moved_release_root / "index.json"
+
+            with self.assertRaisesRegex(
+                SystemExit,
+                "path differs from its channel/version/commit identity",
+            ):
+                release_index.verify_release_index(
+                    moved_index,
+                    root,
+                    allow_diagnostic=True,
+                )
+
+    def test_index_snapshot_is_loaded_once_and_pins_the_outer_checksum(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            original_loader = release_index.load_json_object_snapshot
+            index_loads = 0
+
+            def count_index_loads(path: pathlib.Path, **arguments: object):
+                nonlocal index_loads
+                if pathlib.Path(path) == index_path:
+                    index_loads += 1
+                return original_loader(path, **arguments)
+
+            with mock.patch.object(
+                release_index,
+                "load_json_object_snapshot",
+                side_effect=count_index_loads,
+            ):
+                release_index.verify_release_index(
+                    index_path,
+                    root,
+                    allow_diagnostic=True,
+                )
+            self.assertEqual(index_loads, 1)
+
+            sums_path = index_path.parent / "SHA256SUMS"
+            lines = sums_path.read_text(encoding="utf-8").splitlines()
+            sums_path.write_text(
+                "\n".join(
+                    f"{'f' * 64}  index.json" if line.endswith("  index.json") else line
+                    for line in lines
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                SystemExit, "does not bind the verified snapshot"
+            ):
+                release_index.verify_release_index(
+                    index_path,
+                    root,
+                    allow_diagnostic=True,
+                )
+
+    def test_pointer_path_and_checksum_paths_are_canonically_rebuilt(self) -> None:
+        class InputString(str):
+            pass
+
+        raw = InputString("packages/c/package.tar.gz")
+        canonical = release_index.require_relative_safe(raw, "fixture path")
+        self.assertEqual(canonical, raw)
+        self.assertIsNot(canonical, raw)
+        for unsafe in (
+            "packages//c/package.tar.gz",
+            "packages/./c/package.tar.gz",
+            "packages/../outside",
+            "packages/c/package name.tar.gz",
+        ):
+            with self.subTest(path=unsafe), self.assertRaises(SystemExit):
+                release_index.require_relative_safe(unsafe, "fixture path")
 
     def test_copy_failure_does_not_remove_a_preexisting_destination(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1044,6 +1642,84 @@ class ReleaseIndexTests(unittest.TestCase):
                 )
             self.assertEqual(destination.read_bytes(), b"preserve")
 
+    def test_private_writer_migrates_existing_output_to_mode_0600(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            output = root / "pointer.json"
+            output.write_bytes(b"old")
+            output.chmod(0o644)
+
+            release_index.write_private_bytes(output, b"new")
+
+            self.assertEqual(output.read_bytes(), b"new")
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+
+    def test_private_writer_reports_commit_before_post_replace_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            output = root / "pointer.json"
+            output.write_bytes(b"old")
+            committed = False
+            original_fsync = os.fsync
+            fsync_calls = 0
+
+            def mark_committed() -> None:
+                nonlocal committed
+                committed = True
+
+            def fail_directory_fsync(descriptor: int) -> None:
+                nonlocal fsync_calls
+                fsync_calls += 1
+                if fsync_calls == 2:
+                    raise OSError("injected post-replace fsync failure")
+                original_fsync(descriptor)
+
+            with mock.patch.object(os, "fsync", side_effect=fail_directory_fsync):
+                with self.assertRaisesRegex(SystemExit, "post-replace fsync failure"):
+                    release_index.write_private_bytes(
+                        output,
+                        b"new",
+                        on_commit=mark_committed,
+                    )
+
+            self.assertTrue(committed)
+            self.assertEqual(output.read_bytes(), b"new")
+
+    @unittest.skipUnless(
+        hasattr(signal, "pthread_sigmask"),
+        "atomic signal handoff requires POSIX signal masks",
+    )
+    def test_private_writer_commits_before_pending_sigint_is_delivered(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            output = root / "pointer.json"
+            output.write_bytes(b"old")
+            committed = False
+            original_replace = os.replace
+
+            def mark_committed() -> None:
+                nonlocal committed
+                committed = True
+
+            def replace_then_signal(*args: object, **kwargs: object) -> None:
+                original_replace(*args, **kwargs)
+                os.kill(os.getpid(), signal.SIGINT)
+
+            with mock.patch.object(
+                os,
+                "replace",
+                side_effect=replace_then_signal,
+            ):
+                with self.assertRaises(KeyboardInterrupt):
+                    release_index.write_private_bytes(
+                        output,
+                        b"new",
+                        on_commit=mark_committed,
+                    )
+
+            self.assertTrue(committed)
+            self.assertEqual(output.read_bytes(), b"new")
+
     def test_copy_entry_uses_the_copied_stream_and_removes_partial_output(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
@@ -1058,6 +1734,11 @@ class ReleaseIndexTests(unittest.TestCase):
             self.assertEqual(entry["bytes"], len(payload))
             self.assertEqual(entry["sha256"], release_index.sha256_bytes(payload))
             self.assertEqual((release_root / "copied.bin").read_bytes(), payload)
+            self.assertEqual(stat.S_IMODE(release_root.stat().st_mode), 0o700)
+            self.assertEqual(
+                stat.S_IMODE((release_root / "copied.bin").stat().st_mode),
+                0o600,
+            )
 
             original_read = os.read
             reads = 0

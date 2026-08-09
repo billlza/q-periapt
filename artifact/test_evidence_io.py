@@ -13,13 +13,70 @@ from unittest import mock
 import evidence_io
 from evidence_io import (
     EvidenceIOError,
+    consume_regular_snapshot,
     load_json_object_snapshot,
+    load_json_object_snapshot_at,
     parse_strict_json_bytes,
     read_regular_snapshot,
 )
 
 
 class EvidenceIOTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "dirfd snapshots require POSIX")
+    def test_dirfd_json_snapshot_remains_bound_across_parent_rename(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            directory = root / "owned"
+            directory.mkdir()
+            proof = directory / "proof.json"
+            proof.write_text('{"value":"FIRST"}\n', encoding="utf-8")
+            directory_fd = os.open(
+                directory,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            )
+            try:
+                moved = root / "moved"
+                directory.rename(moved)
+                directory.mkdir()
+                (directory / "proof.json").write_text(
+                    '{"value":"SECOND"}\n',
+                    encoding="utf-8",
+                )
+                snapshot = load_json_object_snapshot_at(
+                    directory_fd,
+                    "proof.json",
+                    display_path=proof,
+                    maximum=1024,
+                    label="dirfd proof",
+                )
+            finally:
+                os.close(directory_fd)
+            self.assertEqual(snapshot.value["value"], "FIRST")
+
+    def test_streaming_snapshot_consumes_and_hashes_one_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "payload.bin"
+            data = b"streamed evidence" * 8192
+            path.write_bytes(data)
+            chunks: list[bytes] = []
+            snapshot = consume_regular_snapshot(
+                path,
+                maximum=len(data),
+                label="streamed evidence",
+                consume=chunks.append,
+            )
+            self.assertEqual(b"".join(chunks), data)
+            self.assertEqual(snapshot.size, len(data))
+            self.assertEqual(snapshot.sha256, hashlib.sha256(data).hexdigest())
+
+            with self.assertRaisesRegex(EvidenceIOError, "exceeds"):
+                consume_regular_snapshot(
+                    path,
+                    maximum=len(data) - 1,
+                    label="streamed evidence",
+                    consume=lambda _chunk: None,
+                )
+
     def test_snapshot_hash_and_parse_use_the_same_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = pathlib.Path(temporary) / "proof.json"

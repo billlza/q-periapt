@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build a local, hash-bound release index over already verified package artifacts.
 set -eu
+umask 077
 
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
@@ -36,23 +37,45 @@ esac
 if [ "${QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX:-0}" = "1" ]; then
 	CHANNEL=diagnostic
 fi
-
-set -- python3 artifact/release_index.py emit --root "$ROOT" --channel "$CHANNEL"
-
-if [ -n "${QPERIAPT_RELEASE_INDEX_OUT_DIR:-}" ]; then
-	set -- "$@" --output-dir "$QPERIAPT_RELEASE_INDEX_OUT_DIR"
+if [ "${QPERIAPT_RELEASE_INDEX_OUT_DIR+x}" = x ]; then
+	printf 'error: QPERIAPT_RELEASE_INDEX_OUT_DIR is no longer supported; the local store is fixed\n' >&2
+	exit 2
 fi
 
+for include_value in \
+	"${QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX:-0}" \
+	"${QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME:-0}"
+do
+	case "$include_value" in
+		0 | 1) ;;
+		*)
+			printf 'error: local release proof selectors must be 0 or 1\n' >&2
+			exit 2
+			;;
+	esac
+done
+if [ "${QPERIAPT_DEVICE_MATRIX_PROOF+x}" = x ] || \
+	[ "${QPERIAPT_ANDROID_DEVICE_PROOF+x}" = x ]; then
+	printf 'error: local release indexes do not accept caller-selected proof file paths\n' >&2
+	exit 2
+fi
+
+set -- python3 artifact/release_index.py emit --channel "$CHANNEL"
 if [ "${QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX:-0}" = "1" ]; then
 	if [ -z "${QPERIAPT_DEVICE_RESULT_DIR:-}" ]; then
-		printf 'error: QPERIAPT_DEVICE_RESULT_DIR is required when QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=1\n' >&2
+		printf 'error: QPERIAPT_DEVICE_RESULT_DIR is required for an Apple matrix summary\n' >&2
 		exit 2
 	fi
-	set -- "$@" --apple-matrix-proof "${QPERIAPT_DEVICE_MATRIX_PROOF:-$QPERIAPT_DEVICE_RESULT_DIR/apple-device-matrix-proof.json}"
+	apple_run_directory=${QPERIAPT_DEVICE_RESULT_DIR%/}
+	apple_run_leaf=${apple_run_directory##*/}
+	if [ -z "$apple_run_leaf" ]; then
+		printf 'error: QPERIAPT_DEVICE_RESULT_DIR lacks a run directory name\n' >&2
+		exit 2
+	fi
+	set -- "$@" --apple-matrix-run "$apple_run_leaf"
 fi
-
 if [ "${QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME:-0}" = "1" ]; then
-	set -- "$@" --android-proof "${QPERIAPT_ANDROID_DEVICE_PROOF:-$ROOT/target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json}"
+	set -- "$@" --include-android-runtime
 fi
 
 "$@"

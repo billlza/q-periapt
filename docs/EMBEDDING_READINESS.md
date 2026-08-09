@@ -138,8 +138,15 @@ after the final query. Physical proof is restricted to one explicit USB serial. 
 USB, but its localhost emulator transport still requires an exclusive trusted evidence host. App,
 AVD, private-server, and socket cleanup must complete before atomic final proof publication; failures
 leave no accepted proof or PASS marker and never trigger raw-PID TERM/KILL. Authorization prompts are
-not part of the proof lane; after `SIGKILL` or host/device loss, establish ownership from the reported
+not part of the proof lane. A repository-scoped open-file lock serializes the lane before output reset,
+and capability creation defers HUP/INT/TERM until its private state is armed or removed. After
+`SIGKILL` or host/device loss, establish ownership from the reported
 private socket/PID before manual cleanup.
+All adb/lsof activity is selected from a finite Android operation table backed by one private
+run capability. The shared bounded-process module is import-only and exposes no arbitrary command or
+output-path CLI. adb is selected only from the fixed `auto`, `macos-account`, `linux-account`,
+`linux-system`, or `linux-opt` profiles via `QPERIAPT_ANDROID_ADB_PROFILE`; arbitrary
+`QPERIAPT_ADB` paths are rejected.
 
 ## Local Release Index
 
@@ -170,6 +177,18 @@ that no leaf receipt or cryptographic attestation is embedded. This is an aggreg
 their leaf gates, not an independent binary verifier or a signature over mutable `target/` content;
 durable provenance still requires the results-only evidence successor or an external release
 attestation.
+The emitter and consumer use their installed repository root and fixed per-channel pointer; they do
+not accept arbitrary root, index, or output paths. Local-store and consumer directories are mode 0700,
+each `<channel>/<version>/<commit>` tree is immutable once created, and the authoritative channel
+pointer changes only after a unique private sibling staging tree has been completely verified and
+atomically moved into the final identity. Re-emitting an existing identity fails without deleting or
+partially rewriting its selected tree. A pre-publication interruption can leave an unselected private
+staging directory, never a partially published identity; the next serialized emit removes only an
+exactly named, current-user-owned mode-0700 remnant. A `SIGKILL` or host loss in the shorter final
+rename/pointer window can still require ownership-checked manual recovery, but cannot select an
+incomplete tree.
+while package copies, manifests, checksums, indexes, and pointers are mode 0600. A later public
+publication step must deliberately create its own public-permission artifact set.
 
 ## Per-Face Status
 

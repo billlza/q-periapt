@@ -83,10 +83,16 @@ discovery. Parent clients disable both scanners immediately after server spawn s
 replacement is inert. The server PID/start identity, executable, key, endpoint, transport env,
 and mDNS-disabled status are checked before selection and after the final device query. App/AVD/server
 cleanup and socket removal complete before atomic final proof publication; failure emits neither an
-accepted proof nor the PASS marker, and the script never signals a cached PID directly. AVD transport
+accepted proof nor the PASS marker. A repository-scoped open-file lock is held before any output reset,
+and capability creation defers HUP/INT/TERM until its private state is armed or removed. The script
+never signals a cached PID directly. AVD transport
 still requires an exclusive trusted evidence host. `SIGKILL`, host loss, and device loss cannot run
 traps; use the reported private socket/PID to establish ownership before manual cleanup, and remove an
 orphaned `dev.qperiapt.androidsmoke` only after comparing it with the private run APK.
+The lane selects every adb/lsof call from a finite operation table backed by a private run capability;
+the shared bounded-process module is import-only and has no arbitrary command or output-path CLI.
+Use `QPERIAPT_ANDROID_ADB_PROFILE` only with `auto`, `macos-account`, `linux-account`,
+`linux-system`, or `linux-opt`; arbitrary `QPERIAPT_ADB` paths are rejected.
 
 Reverify the proof with:
 
