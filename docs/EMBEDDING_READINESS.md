@@ -144,9 +144,14 @@ and capability creation defers HUP/INT/TERM until its private state is armed or 
 private socket/PID before manual cleanup.
 All adb/lsof activity is selected from a finite Android operation table backed by one private
 run capability. The shared bounded-process module is import-only and exposes no arbitrary command or
-output-path CLI. adb is selected only from the fixed `auto`, `macos-account`, `linux-account`,
-`linux-system`, or `linux-opt` profiles via `QPERIAPT_ANDROID_ADB_PROFILE`; arbitrary
-`QPERIAPT_ADB` paths are rejected.
+output-path CLI. Capability creation consumes the fixed-profile SDK adb from one opened descriptor
+while hashing and copying it into a fixed, run-owned mode-0500 executable under the private work
+directory. All later client/server execution and identity verification uses that snapshot, closing an
+ordinary SDK-path replacement window after capability creation. adb is selected only from the fixed
+`auto`, `macos-account`, `linux-account`, `linux-system`, or `linux-opt` profiles via
+`QPERIAPT_ANDROID_ADB_PROFILE`; arbitrary `QPERIAPT_ADB` paths are rejected. This is trusted-local
+reliability hardening, not protection against hostile same-UID modification; that boundary requires a
+separate account or isolated runner with a read-only checkout.
 
 ## Local Release Index
 
@@ -179,16 +184,22 @@ durable provenance still requires the results-only evidence successor or an exte
 attestation.
 The emitter and consumer use their installed repository root and fixed per-channel pointer; they do
 not accept arbitrary root, index, or output paths. Local-store and consumer directories are mode 0700,
-each `<channel>/<version>/<commit>` tree is immutable once created, and the authoritative channel
+while package copies, manifests, checksums, indexes, and pointers are mode 0600. Each
+`<channel>/<version>/<commit>` tree is immutable once created, and the authoritative channel
 pointer changes only after a unique private sibling staging tree has been completely verified and
-atomically moved into the final identity. Re-emitting an existing identity fails without deleting or
-partially rewriting its selected tree. A pre-publication interruption can leave an unselected private
-staging directory, never a partially published identity; the next serialized emit removes only an
-exactly named, current-user-owned mode-0700 remnant. A `SIGKILL` or host loss in the shorter final
-rename/pointer window can still require ownership-checked manual recovery, but cannot select an
-incomplete tree.
-while package copies, manifests, checksums, indexes, and pointers are mode 0600. A later public
-publication step must deliberately create its own public-permission artifact set.
+published with native atomic no-replace semantics. macOS uses `renameatx_np(RENAME_EXCL)`, Linux uses
+`renameat2(RENAME_NOREPLACE)`, and unsupported hosts/filesystems fail closed without an overwrite
+fallback. Re-emitting an already verified identity with the exact requested proof selectors is an
+idempotent success without rewriting its tree or canonical pointer. A pre-publication interruption can
+leave an unselected private staging directory, never a partially published identity; the next
+serialized emit removes only an exactly named, current-user-owned mode-0700 remnant. If `SIGKILL` or
+host loss occurs after the final rename but before pointer commit, the next emit fully verifies the
+exact final tree and idempotently advances the pointer. Corrupt, permission-invalid, or
+proof-selector-mismatched trees remain untouched for investigation and fail without changing the old
+pointer. An exact owned private-writer remnant from that window is removed only after this complete
+verification, and an already matching pointer still retries the parent-directory sync before success.
+These are trusted-local integrity guarantees and do not resist a hostile same-UID process. A later
+public publication step must deliberately create its own public-permission artifact set.
 
 ## Per-Face Status
 

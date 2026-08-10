@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ctypes
 import datetime as dt
+import errno
 import hashlib
 import importlib
 import json
@@ -24,6 +26,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
 import zlib
@@ -282,6 +285,9 @@ MAX_SHA256SUMS_ENTRIES = 8192
 MAX_RELEASE_TREE_ENTRIES = 16_384
 MAX_RELEASE_STAGING_PARENT_ENTRIES = 16_384
 MAX_STALE_RELEASE_STAGING_TREES = 32
+MAX_STALE_RELEASE_POINTER_FILES = 32
+RENAME_EXCL = 0x00000004
+RENAME_NOREPLACE = 0x00000001
 FORBIDDEN_INDEX_TEXT = (
     "artifact/device-runs",
     ".mobileprovision",
@@ -736,6 +742,94 @@ def cleanup_stale_release_staging_trees(
                 raise
 
 
+def _rename_release_tree_noreplace(
+    directory_fd: int,
+    source_name: str,
+    destination_name: str,
+) -> None:
+    """Publish one sibling directory with the host's atomic no-replace API."""
+
+    for name, label in (
+        (source_name, "release staging basename"),
+        (destination_name, "release destination basename"),
+    ):
+        require(
+            isinstance(name, str)
+            and 0 < len(os.fsencode(name)) <= 255
+            and name not in {".", ".."}
+            and "/" not in name
+            and "\\" not in name
+            and "\x00" not in name,
+            f"{label} is invalid",
+        )
+    try:
+        library = ctypes.CDLL(None, use_errno=True)
+    except OSError as exc:
+        fail(f"cannot load the native no-replace rename API: {exc}")
+
+    if sys.platform == "darwin":
+        symbol_name = "renameatx_np"
+        flags = RENAME_EXCL
+    elif sys.platform.startswith("linux"):
+        symbol_name = "renameat2"
+        flags = RENAME_NOREPLACE
+    else:
+        fail(
+            "immutable release publication is unsupported on this platform; "
+            "a native atomic no-replace rename is required"
+        )
+
+    try:
+        rename = getattr(library, symbol_name)
+    except AttributeError as exc:
+        fail(
+            f"immutable release publication cannot load {symbol_name}; "
+            "native atomic no-replace rename is required"
+        )
+    rename.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    rename.restype = ctypes.c_int
+    ctypes.set_errno(0)
+    result = rename(
+        directory_fd,
+        os.fsencode(source_name),
+        directory_fd,
+        os.fsencode(destination_name),
+        flags,
+    )
+    if result == 0:
+        return
+    observed_errno = ctypes.get_errno()
+    if observed_errno == errno.EEXIST:
+        fail(
+            "release index output is immutable and already exists: "
+            f"{destination_name}"
+        )
+    unsupported_errors = {
+        errno.EINVAL,
+        errno.ENOSYS,
+        getattr(errno, "ENOTSUP", errno.EINVAL),
+        getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+    }
+    if observed_errno in unsupported_errors:
+        fail(
+            f"{symbol_name} does not provide atomic no-replace publication on "
+            f"this host/filesystem: {os.strerror(observed_errno)} "
+            f"(errno {observed_errno})"
+        )
+    if observed_errno == 0:
+        fail(f"{symbol_name} failed without reporting errno")
+    fail(
+        f"cannot publish immutable release tree with {symbol_name}: "
+        f"{os.strerror(observed_errno)} (errno {observed_errno})"
+    )
+
+
 def publish_release_staging_tree(
     staging_root: pathlib.Path,
     release_root: pathlib.Path,
@@ -781,11 +875,10 @@ def publish_release_staging_tree(
         else:
             fail(f"release index output is immutable and already exists: {release_root}")
         try:
-            os.rename(
+            _rename_release_tree_noreplace(
+                directory_fd,
                 staging_root.name,
                 release_root.name,
-                src_dir_fd=directory_fd,
-                dst_dir_fd=directory_fd,
             )
             os.fsync(directory_fd)
         except OSError as exc:
@@ -1231,7 +1324,7 @@ def release_pointer_selection(
     )
 
 
-def resolve_release_output(
+def release_output_identity(
     root: pathlib.Path,
     *,
     channel: str,
@@ -1248,6 +1341,22 @@ def resolve_release_output(
     output = normalized_absolute(channel_base / version / commit)
     require_strictly_under(output, channel_base, "release index output")
     require_no_symlink_components(output, target, "release index output")
+    return output
+
+
+def resolve_release_output(
+    root: pathlib.Path,
+    *,
+    channel: str,
+    version: str,
+    commit: str,
+) -> pathlib.Path:
+    output = release_output_identity(
+        root,
+        channel=channel,
+        version=version,
+        commit=commit,
+    )
     require(
         not output.exists() and not output.is_symlink(),
         f"release index output is immutable and already exists: {output}",
@@ -2689,68 +2798,15 @@ def verify_release_index(
     ).value
 
 
-def build_release_tree(
+def requested_proof_summaries(
     args: argparse.Namespace,
     *,
     root: pathlib.Path,
     target: pathlib.Path,
-    release_root: pathlib.Path,
-    identity_index_path: pathlib.Path,
     channel: str,
-    trust: AbiTrustRoot,
-    version: str,
     commit: str,
-    current_dirty: bool,
-    c_dir: pathlib.Path,
-    c_manifest_path: pathlib.Path,
-    c_archive: pathlib.Path,
-    swift_dir: pathlib.Path,
-    swift_manifest_path: pathlib.Path,
-    swift_zip: pathlib.Path,
-    android_dir: pathlib.Path,
-    android_manifest_path: pathlib.Path,
-    android_aar: pathlib.Path,
-    source_semantics: dict[str, dict[str, Any]],
-    artifact_contracts: dict[str, dict[str, Any]],
-) -> BuiltReleaseTree:
-    artifacts = [
-        artifact_entry(
-            artifact_contracts["c-abi"]["id"],
-            "c-abi",
-            artifact_contracts["c-abi"]["type"],
-            [copy_to_release(c_archive, target, release_root, f"packages/c/{c_archive.name}")],
-            copy_to_release(c_manifest_path, target, release_root, "manifests/c/MANIFEST.json"),
-            copy_to_release(c_dir / "SHA256SUMS", target, release_root, "manifests/c/SHA256SUMS"),
-            artifact_contracts["c-abi"]["boundary"],
-            artifact_contracts["c-abi"]["required_leaf_gate"],
-            artifact_contracts["c-abi"]["targets"],
-            source_semantics["c-abi"],
-        ),
-        artifact_entry(
-            artifact_contracts["swift"]["id"],
-            "swift",
-            artifact_contracts["swift"]["type"],
-            [copy_to_release(swift_zip, target, release_root, "packages/swift/CQPeriapt.xcframework.zip")],
-            copy_to_release(swift_manifest_path, target, release_root, "manifests/swift/MANIFEST.json"),
-            copy_to_release(swift_dir / "SHA256SUMS", target, release_root, "manifests/swift/SHA256SUMS"),
-            artifact_contracts["swift"]["boundary"],
-            artifact_contracts["swift"]["required_leaf_gate"],
-            artifact_contracts["swift"]["targets"],
-            source_semantics["swift"],
-        ),
-        artifact_entry(
-            artifact_contracts["android"]["id"],
-            "android",
-            artifact_contracts["android"]["type"],
-            [copy_to_release(android_aar, target, release_root, f"packages/android/{android_aar.name}")],
-            copy_to_release(android_manifest_path, target, release_root, "manifests/android/MANIFEST.json"),
-            copy_to_release(android_dir / "SHA256SUMS", target, release_root, "manifests/android/SHA256SUMS"),
-            artifact_contracts["android"]["boundary"],
-            artifact_contracts["android"]["required_leaf_gate"],
-            artifact_contracts["android"]["targets"],
-            source_semantics["android"],
-        ),
-    ]
+) -> dict[str, Any]:
+    """Load exactly the proof summaries selected by one emit invocation."""
 
     proofs: dict[str, Any] = {}
     if args.apple_matrix_run:
@@ -2811,6 +2867,299 @@ def build_release_tree(
                 proof["source_tree_dirty"] is False,
                 f"release index cannot include dirty {proof_name} proof summary",
             )
+    return proofs
+
+
+def release_pointer_value(
+    *,
+    target: pathlib.Path,
+    index_path: pathlib.Path,
+    index_sha256: str,
+    version: str,
+    channel: str,
+    generated_at: str,
+) -> dict[str, Any]:
+    canonical_channel = require_release_channel(channel)
+    canonical_version = require_safe_basename(version, "release pointer version")
+    canonical_generated_at = require_utc_timestamp(
+        generated_at,
+        "release pointer generated_at",
+    )
+    require(
+        HEX_SHA256.fullmatch(index_sha256) is not None,
+        "release pointer index digest is malformed",
+    )
+    require_strictly_under(
+        index_path,
+        target / "qperiapt-local-release" / canonical_channel,
+        "release pointer index",
+    )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": POINTER_KIND,
+        "version": canonical_version,
+        "channel": canonical_channel,
+        "diagnostic_only": canonical_channel == "diagnostic",
+        "index_path": str(index_path.relative_to(target)),
+        "index_sha256": index_sha256,
+        "generated_at": canonical_generated_at,
+    }
+
+
+def _pointer_already_matches(
+    pointer_path: pathlib.Path,
+    pointer: dict[str, Any],
+) -> bool:
+    try:
+        metadata = pointer_path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        fail(f"cannot inspect existing release pointer {pointer_path}: {exc}")
+    require(
+        stat.S_ISREG(metadata.st_mode)
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and metadata.st_nlink == 1,
+        f"existing release pointer is not one current-user regular file: {pointer_path}",
+    )
+    if stat.S_IMODE(metadata.st_mode) != 0o600:
+        return False
+    expected = (json.dumps(pointer, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    try:
+        snapshot = read_regular_snapshot(
+            pointer_path,
+            maximum=MAX_TEXT_BYTES,
+            label="release pointer",
+        )
+    except EvidenceIOError as exc:
+        fail(str(exc))
+    return snapshot.data == expected
+
+
+def cleanup_stale_release_pointer_files(pointer_path: pathlib.Path) -> None:
+    """Remove exact private-writer remnants and durably sync the pointer parent."""
+
+    prefix = f".{pointer_path.name}.private-"
+    directory_fd = _open_private_directory(
+        pointer_path.parent,
+        "release pointer parent",
+    )
+    primary: BaseException | None = None
+    try:
+        try:
+            entries = os.scandir(directory_fd)
+        except OSError as exc:
+            fail(f"cannot enumerate release pointer parent {pointer_path.parent}: {exc}")
+        with entries:
+            parent_entry_count = 0
+            stale_entries: list[tuple[str, tuple[int, int]]] = []
+            for entry in entries:
+                parent_entry_count += 1
+                require(
+                    parent_entry_count <= MAX_RELEASE_STAGING_PARENT_ENTRIES,
+                    "release pointer parent exceeds its entry limit",
+                )
+                name = entry.name
+                if not name.startswith(prefix):
+                    continue
+                require(
+                    len(stale_entries) < MAX_STALE_RELEASE_POINTER_FILES,
+                    "release pointer parent has too many stale private files",
+                )
+                suffix = name[len(prefix) :]
+                require(
+                    len(suffix) == 32
+                    and all(character in "0123456789abcdef" for character in suffix),
+                    f"release pointer remnant has an invalid owned name: {name}",
+                )
+                try:
+                    metadata = os.stat(
+                        name,
+                        dir_fd=directory_fd,
+                        follow_symlinks=False,
+                    )
+                except OSError as exc:
+                    fail(f"cannot inspect stale release pointer file {name}: {exc}")
+                require(
+                    stat.S_ISREG(metadata.st_mode)
+                    and metadata.st_uid == os.geteuid()
+                    and metadata.st_nlink == 1
+                    and stat.S_IMODE(metadata.st_mode) == 0o600,
+                    f"stale release pointer entry is not one owned private file: {name}",
+                )
+                stale_entries.append(
+                    (name, (metadata.st_dev, metadata.st_ino))
+                )
+        for name, expected_identity in stale_entries:
+            try:
+                metadata = os.stat(
+                    name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+            except OSError as exc:
+                fail(f"cannot recheck stale release pointer file {name}: {exc}")
+            require(
+                stat.S_ISREG(metadata.st_mode)
+                and metadata.st_uid == os.geteuid()
+                and metadata.st_nlink == 1
+                and stat.S_IMODE(metadata.st_mode) == 0o600
+                and (metadata.st_dev, metadata.st_ino) == expected_identity,
+                f"stale release pointer entry changed before cleanup: {name}",
+            )
+        for name, _identity in stale_entries:
+            try:
+                os.unlink(name, dir_fd=directory_fd)
+            except OSError as exc:
+                fail(f"cannot remove stale release pointer file {name}: {exc}")
+        try:
+            os.fsync(directory_fd)
+        except OSError as exc:
+            fail(
+                "cannot synchronize release pointer parent "
+                f"{pointer_path.parent}: {exc}"
+            )
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            os.close(directory_fd)
+        except BaseException as cleanup_error:
+            if primary is not None:
+                primary.add_note(
+                    f"closing the release pointer parent also failed: {cleanup_error}"
+                )
+            elif isinstance(cleanup_error, Exception):
+                fail(
+                    "cannot close release pointer parent "
+                    f"{pointer_path.parent}: {cleanup_error}"
+                )
+            else:
+                raise
+
+
+def recover_verified_release_pointer(
+    *,
+    root: pathlib.Path,
+    target: pathlib.Path,
+    release_root: pathlib.Path,
+    channel: str,
+    requested_proofs: dict[str, Any],
+) -> bool:
+    """Select a fully verified final tree left before its pointer commit."""
+
+    try:
+        metadata = release_root.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        fail(f"cannot inspect recoverable release tree {release_root}: {exc}")
+    require(
+        stat.S_ISDIR(metadata.st_mode)
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and stat.S_IMODE(metadata.st_mode) == 0o700,
+        f"recoverable release tree is not one owned private directory: {release_root}",
+    )
+    verified = verify_release_index_snapshot(
+        release_root / "index.json",
+        root,
+        allow_diagnostic=channel == "diagnostic",
+    )
+    require_exact_json(
+        verified.value.get("proof_summaries"),
+        requested_proofs,
+        "recoverable release proof selectors",
+    )
+    pointer = release_pointer_value(
+        target=target,
+        index_path=verified.path,
+        index_sha256=verified.sha256,
+        version=verified.value["version"],
+        channel=verified.value["channel"],
+        generated_at=verified.value["generated_at"],
+    )
+    pointer_path = target / "qperiapt-local-release" / f"latest-{channel}.json"
+    cleanup_stale_release_pointer_files(pointer_path)
+    if _pointer_already_matches(pointer_path, pointer):
+        return True
+    write_json(pointer_path, pointer)
+    selection = release_pointer_selection(root, channel)
+    require_exact_json(selection.path, verified.path, "recovered release pointer path")
+    verify_release_index_snapshot(
+        selection.path,
+        root,
+        allow_diagnostic=channel == "diagnostic",
+        expected_index_sha256=selection.expected_sha256,
+        expected_generated_at=selection.expected_generated_at,
+    )
+    return True
+
+
+def build_release_tree(
+    *,
+    root: pathlib.Path,
+    target: pathlib.Path,
+    release_root: pathlib.Path,
+    identity_index_path: pathlib.Path,
+    channel: str,
+    trust: AbiTrustRoot,
+    version: str,
+    commit: str,
+    current_dirty: bool,
+    c_dir: pathlib.Path,
+    c_manifest_path: pathlib.Path,
+    c_archive: pathlib.Path,
+    swift_dir: pathlib.Path,
+    swift_manifest_path: pathlib.Path,
+    swift_zip: pathlib.Path,
+    android_dir: pathlib.Path,
+    android_manifest_path: pathlib.Path,
+    android_aar: pathlib.Path,
+    source_semantics: dict[str, dict[str, Any]],
+    artifact_contracts: dict[str, dict[str, Any]],
+    proofs: dict[str, Any],
+) -> BuiltReleaseTree:
+    artifacts = [
+        artifact_entry(
+            artifact_contracts["c-abi"]["id"],
+            "c-abi",
+            artifact_contracts["c-abi"]["type"],
+            [copy_to_release(c_archive, target, release_root, f"packages/c/{c_archive.name}")],
+            copy_to_release(c_manifest_path, target, release_root, "manifests/c/MANIFEST.json"),
+            copy_to_release(c_dir / "SHA256SUMS", target, release_root, "manifests/c/SHA256SUMS"),
+            artifact_contracts["c-abi"]["boundary"],
+            artifact_contracts["c-abi"]["required_leaf_gate"],
+            artifact_contracts["c-abi"]["targets"],
+            source_semantics["c-abi"],
+        ),
+        artifact_entry(
+            artifact_contracts["swift"]["id"],
+            "swift",
+            artifact_contracts["swift"]["type"],
+            [copy_to_release(swift_zip, target, release_root, "packages/swift/CQPeriapt.xcframework.zip")],
+            copy_to_release(swift_manifest_path, target, release_root, "manifests/swift/MANIFEST.json"),
+            copy_to_release(swift_dir / "SHA256SUMS", target, release_root, "manifests/swift/SHA256SUMS"),
+            artifact_contracts["swift"]["boundary"],
+            artifact_contracts["swift"]["required_leaf_gate"],
+            artifact_contracts["swift"]["targets"],
+            source_semantics["swift"],
+        ),
+        artifact_entry(
+            artifact_contracts["android"]["id"],
+            "android",
+            artifact_contracts["android"]["type"],
+            [copy_to_release(android_aar, target, release_root, f"packages/android/{android_aar.name}")],
+            copy_to_release(android_manifest_path, target, release_root, "manifests/android/MANIFEST.json"),
+            copy_to_release(android_dir / "SHA256SUMS", target, release_root, "manifests/android/SHA256SUMS"),
+            artifact_contracts["android"]["boundary"],
+            artifact_contracts["android"]["required_leaf_gate"],
+            artifact_contracts["android"]["targets"],
+            source_semantics["android"],
+        ),
+    ]
 
     index = {
         "schema_version": SCHEMA_VERSION,
@@ -2867,15 +3216,39 @@ def _build_index_locked(args: argparse.Namespace) -> pathlib.Path:
     if channel == "release":
         require(not current_dirty, "release index requires a clean source tree")
 
-    host = require_safe_basename(rust_host(), "Rust host")
-    require(host in C_HOST_PLATFORMS, f"Rust host is unsupported: {host}")
     target = root / "target"
+    release_root = release_output_identity(
+        root,
+        channel=channel,
+        version=version,
+        commit=commit,
+    )
+    requested_proofs = requested_proof_summaries(
+        args,
+        root=root,
+        target=target,
+        channel=channel,
+        commit=commit,
+    )
+    if recover_verified_release_pointer(
+        root=root,
+        target=target,
+        release_root=release_root,
+        channel=channel,
+        requested_proofs=requested_proofs,
+    ):
+        final_index_path = release_root / "index.json"
+        print(f"QPERIAPT_LOCAL_RELEASE_INDEX={final_index_path}")
+        return final_index_path
     release_root = resolve_release_output(
         root,
         channel=channel,
         version=version,
         commit=commit,
     )
+
+    host = require_safe_basename(rust_host(), "Rust host")
+    require(host in C_HOST_PLATFORMS, f"Rust host is unsupported: {host}")
 
     c_package = f"{trust.archive_prefix}-{version}-{host}"
     c_dir = target / "qperiapt-c-abi2" / c_package
@@ -2934,7 +3307,6 @@ def _build_index_locked(args: argparse.Namespace) -> pathlib.Path:
         )
 
         built = build_release_tree(
-            args,
             root=root,
             target=target,
             release_root=staging_root,
@@ -2955,17 +3327,16 @@ def _build_index_locked(args: argparse.Namespace) -> pathlib.Path:
             android_aar=android_aar,
             source_semantics=source_semantics,
             artifact_contracts=artifact_contracts,
+            proofs=requested_proofs,
         )
-        pointer = {
-            "schema_version": SCHEMA_VERSION,
-            "kind": POINTER_KIND,
-            "version": version,
-            "channel": channel,
-            "diagnostic_only": channel == "diagnostic",
-            "index_path": str(final_index_path.relative_to(target)),
-            "index_sha256": built.index_sha256,
-            "generated_at": built.generated_at,
-        }
+        pointer = release_pointer_value(
+            target=target,
+            index_path=final_index_path,
+            index_sha256=built.index_sha256,
+            version=version,
+            channel=channel,
+            generated_at=built.generated_at,
+        )
         release_base = target / "qperiapt-local-release"
         protect_private_directory(release_base, "release pointer")
         pointer_path = release_base / f"latest-{channel}.json"

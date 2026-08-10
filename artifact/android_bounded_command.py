@@ -27,8 +27,10 @@ from bounded_process import (
 )
 from evidence_io import (
     EvidenceIOError,
+    FileDigestSnapshot,
     JsonObjectSnapshot,
     consume_regular_snapshot,
+    consume_regular_snapshot_at,
     load_json_object_snapshot,
     load_json_object_snapshot_at,
     read_regular_snapshot,
@@ -50,6 +52,7 @@ WORK_ROOT = OUTPUT_ROOT / "work"
 PROOF_ROOT = OUTPUT_ROOT / "proof"
 CAPABILITY_LEAF = "android-command-capability.json"
 CAPABILITY_PATH = WORK_ROOT / CAPABILITY_LEAF
+ADB_SNAPSHOT_PREFIX = "adb-"
 SIGNED_APK_PATH = PROOF_ROOT / "qperiapt-android-smoke.apk"
 
 HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -167,7 +170,7 @@ class OutputRoot(str, enum.Enum):
 @dataclasses.dataclass(frozen=True, slots=True)
 class AndroidCommandCapability:
     adb_profile: str
-    adb_path: pathlib.Path
+    adb_snapshot_path: pathlib.Path
     adb_size: int
     adb_sha256: str
     socket_nonce: str
@@ -311,6 +314,18 @@ def _executable_metadata(metadata: os.stat_result) -> None:
         raise EvidenceIOError("Android command tool must be an executable regular file")
 
 
+def _private_executable_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o500
+    ):
+        raise EvidenceIOError(
+            "Android adb snapshot must be one current-user-owned regular file with mode 0500"
+        )
+
+
 def _close_owned_descriptor(
     descriptor: int,
     *,
@@ -385,13 +400,108 @@ def _open_private_directory(path: pathlib.Path, label: str) -> int:
     return descriptor
 
 
-def _write_all(descriptor: int, data: bytes) -> None:
+def _write_all(descriptor: int, data: bytes, *, label: str) -> None:
     view = memoryview(data)
     while view:
-        written = os.write(descriptor, view)
+        try:
+            written = os.write(descriptor, view)
+        except OSError as exc:
+            raise AndroidCommandError(f"cannot write {label}: {exc}") from exc
         if written <= 0:
-            raise AndroidCommandError("short write while creating Android command capability")
+            raise AndroidCommandError(f"short write while creating {label}")
         view = view[written:]
+
+
+def _adb_snapshot_leaf(run_id: str) -> str:
+    return f"{ADB_SNAPSHOT_PREFIX}{_canonical_run_id(run_id)}"
+
+
+def _create_adb_snapshot(
+    directory_fd: int,
+    source_path: pathlib.Path,
+    run_id: str,
+) -> FileDigestSnapshot:
+    """Copy and hash one SDK adb stream into this run's private executable."""
+
+    leaf = _adb_snapshot_leaf(run_id)
+    descriptor = -1
+    created = False
+    primary: BaseException | None = None
+    try:
+        flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        descriptor = os.open(leaf, flags, 0o600, dir_fd=directory_fd)
+        created = True
+        snapshot = consume_regular_snapshot(
+            source_path,
+            maximum=MAX_TOOL_BYTES,
+            label="adb executable",
+            validate_metadata=_executable_metadata,
+            consume=lambda chunk: _write_all(
+                descriptor,
+                chunk,
+                label="Android adb snapshot",
+            ),
+        )
+        os.fchmod(descriptor, 0o500)
+        metadata = os.fstat(descriptor)
+        _private_executable_metadata(metadata)
+        _require(
+            metadata.st_size == snapshot.size,
+            "Android adb snapshot size differs from the consumed SDK executable",
+        )
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        os.fsync(directory_fd)
+        return snapshot
+    except BaseException as exc:
+        primary = exc
+        if descriptor >= 0:
+            _close_owned_descriptor(
+                descriptor,
+                label="the incomplete Android adb snapshot",
+                primary=primary,
+            )
+        if created:
+            try:
+                os.unlink(leaf, dir_fd=directory_fd)
+                os.fsync(directory_fd)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f"removing the incomplete Android adb snapshot also failed: {cleanup_error}"
+                )
+        raise
+
+
+def _remove_adb_snapshot(
+    directory_fd: int,
+    run_id: str,
+    *,
+    missing_ok: bool,
+) -> None:
+    leaf = _adb_snapshot_leaf(run_id)
+    try:
+        metadata = os.stat(leaf, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        if missing_ok:
+            return
+        raise AndroidCommandError("Android adb snapshot is missing") from None
+    except OSError as exc:
+        raise AndroidCommandError(f"cannot inspect Android adb snapshot: {exc}") from exc
+    try:
+        _private_executable_metadata(metadata)
+    except EvidenceIOError as exc:
+        raise AndroidCommandError(str(exc)) from exc
+    try:
+        os.unlink(leaf, dir_fd=directory_fd)
+    except OSError as exc:
+        raise AndroidCommandError(f"cannot remove Android adb snapshot: {exc}") from exc
 
 
 def create_capability(
@@ -420,12 +530,6 @@ def create_capability(
         HEX_SHA256.fullmatch(signed_apk_sha256) is not None,
         "signed Android APK digest is invalid",
     )
-    adb_snapshot = consume_regular_snapshot(
-        validated_adb_path,
-        maximum=MAX_TOOL_BYTES,
-        label="adb executable",
-        validate_metadata=_executable_metadata,
-    )
     apk_snapshot = consume_regular_snapshot(
         SIGNED_APK_PATH,
         maximum=MAX_APK_BYTES,
@@ -436,26 +540,38 @@ def create_capability(
         and apk_snapshot.sha256 == signed_apk_sha256,
         "signed Android APK identity differs at capability creation",
     )
-    payload = {
-        "schema_version": SCHEMA_VERSION,
-        "kind": KIND,
-        "adb_profile": validated_adb_profile,
-        "adb_size": adb_snapshot.size,
-        "adb_sha256": adb_snapshot.sha256,
-        "socket_nonce": validated_socket_nonce,
-        "device_kind": validated_device_kind,
-        "expected_serial": validated_serial,
-        "run_id": validated_run_id,
-        "signed_apk_size": signed_apk_size,
-        "signed_apk_sha256": signed_apk_sha256,
-    }
-    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    _require(len(encoded) <= MAX_CAPABILITY_BYTES, "Android command capability is oversized")
     directory_fd = _open_private_directory(WORK_ROOT, "Android work")
     descriptor = -1
-    created = False
+    capability_created = False
+    snapshot_created = False
     primary: BaseException | None = None
     try:
+        adb_snapshot = _create_adb_snapshot(
+            directory_fd,
+            validated_adb_path,
+            validated_run_id,
+        )
+        snapshot_created = True
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "kind": KIND,
+            "adb_profile": validated_adb_profile,
+            "adb_size": adb_snapshot.size,
+            "adb_sha256": adb_snapshot.sha256,
+            "socket_nonce": validated_socket_nonce,
+            "device_kind": validated_device_kind,
+            "expected_serial": validated_serial,
+            "run_id": validated_run_id,
+            "signed_apk_size": signed_apk_size,
+            "signed_apk_sha256": signed_apk_sha256,
+        }
+        encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(
+            "utf-8"
+        )
+        _require(
+            len(encoded) <= MAX_CAPABILITY_BYTES,
+            "Android command capability is oversized",
+        )
         flags = (
             os.O_WRONLY
             | os.O_CREAT
@@ -464,10 +580,14 @@ def create_capability(
             | getattr(os, "O_CLOEXEC", 0)
         )
         descriptor = os.open(CAPABILITY_LEAF, flags, 0o600, dir_fd=directory_fd)
-        created = True
+        capability_created = True
         os.fchmod(descriptor, 0o600)
         _private_metadata(os.fstat(descriptor))
-        _write_all(descriptor, encoded)
+        _write_all(
+            descriptor,
+            encoded,
+            label="Android command capability",
+        )
         os.fsync(descriptor)
         os.close(descriptor)
         descriptor = -1
@@ -480,12 +600,24 @@ def create_capability(
                 label="the incomplete Android capability",
                 primary=primary,
             )
-        if created:
+        if capability_created:
             try:
                 os.unlink(CAPABILITY_LEAF, dir_fd=directory_fd)
             except BaseException as cleanup_error:
                 primary.add_note(
                     f"removing the incomplete Android capability also failed: {cleanup_error}"
+                )
+        if snapshot_created:
+            try:
+                _remove_adb_snapshot(
+                    directory_fd,
+                    validated_run_id,
+                    missing_ok=True,
+                )
+                os.fsync(directory_fd)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f"removing the uncommitted Android adb snapshot also failed: {cleanup_error}"
                 )
         raise
     finally:
@@ -527,6 +659,13 @@ def destroy_capability(
                         follow_symlinks=False,
                     )
                 except FileNotFoundError:
+                    if canonical_expected_run_id is not None:
+                        _remove_adb_snapshot(
+                            directory_fd,
+                            canonical_expected_run_id,
+                            missing_ok=True,
+                        )
+                        os.fsync(directory_fd)
                     return
             raise AndroidCommandError(
                 f"cannot load Android command capability for removal: {exc}"
@@ -537,7 +676,13 @@ def destroy_capability(
                 capability.run_id == canonical_expected_run_id,
                 "Android command capability belongs to a different run",
             )
+        _validate_adb_at(directory_fd, capability)
         os.unlink(CAPABILITY_LEAF, dir_fd=directory_fd)
+        _remove_adb_snapshot(
+            directory_fd,
+            capability.run_id,
+            missing_ok=False,
+        )
         os.fsync(directory_fd)
     except OSError as exc:
         primary = AndroidCommandError(
@@ -565,7 +710,6 @@ def _capability_from_snapshot(snapshot: JsonObjectSnapshot) -> AndroidCommandCap
     )
     _require(value.get("kind") == KIND, "Android command capability kind changed")
     adb_profile = _canonical_concrete_adb_profile(value.get("adb_profile"))
-    adb_path = ADB_PROFILE_PATHS[adb_profile]
     adb_size = value.get("adb_size")
     _require(
         type(adb_size) is int and 0 < adb_size <= MAX_TOOL_BYTES,
@@ -597,7 +741,7 @@ def _capability_from_snapshot(snapshot: JsonObjectSnapshot) -> AndroidCommandCap
     )
     return AndroidCommandCapability(
         adb_profile=adb_profile,
-        adb_path=adb_path,
+        adb_snapshot_path=WORK_ROOT / _adb_snapshot_leaf(run_id),
         adb_size=adb_size,
         adb_sha256=adb_sha256,
         socket_nonce=socket_nonce,
@@ -761,7 +905,12 @@ def _lsof_path() -> str:
 
 
 def _adb(capability: AndroidCommandCapability, *arguments: str) -> tuple[str, ...]:
-    return (str(capability.adb_path), "-L", capability.server_socket, *arguments)
+    return (
+        str(capability.adb_snapshot_path),
+        "-L",
+        capability.server_socket,
+        *arguments,
+    )
 
 
 def _device(capability: AndroidCommandCapability, *arguments: str) -> tuple[str, ...]:
@@ -1086,18 +1235,39 @@ def _validate_server_environment(capability: AndroidCommandCapability) -> None:
         _require(name not in os.environ, f"unsupported Android server environment: {name}")
 
 
-def _validate_adb(capability: AndroidCommandCapability) -> None:
-    observed = consume_regular_snapshot(
-        capability.adb_path,
+def _validate_adb_at(
+    directory_fd: int,
+    capability: AndroidCommandCapability,
+) -> None:
+    observed = consume_regular_snapshot_at(
+        directory_fd,
+        _adb_snapshot_leaf(capability.run_id),
+        display_path=capability.adb_snapshot_path,
         maximum=MAX_TOOL_BYTES,
-        label="adb executable",
-        validate_metadata=_executable_metadata,
+        label="Android adb snapshot",
+        validate_metadata=_private_executable_metadata,
     )
     _require(
         observed.size == capability.adb_size
         and observed.sha256 == capability.adb_sha256,
-        "adb executable changed after capability creation",
+        "Android adb snapshot changed after capability creation",
     )
+
+
+def _validate_adb(capability: AndroidCommandCapability) -> None:
+    directory_fd = _open_private_directory(WORK_ROOT, "Android work")
+    primary: BaseException | None = None
+    try:
+        _validate_adb_at(directory_fd, capability)
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        _close_owned_descriptor(
+            directory_fd,
+            label="the Android work directory",
+            primary=primary,
+        )
 
 
 def _validate_tool_and_apk(capability: AndroidCommandCapability, operation: AndroidOperation) -> None:
@@ -1119,12 +1289,16 @@ def exec_server() -> NoReturn:
     capability = load_capability()
     _validate_server_environment(capability)
     _validate_adb(capability)
-    argv = [str(capability.adb_path), "-L", capability.server_socket]
+    argv = [str(capability.adb_snapshot_path), "-L", capability.server_socket]
     if capability.device_kind == "physical":
         argv.extend(("--one-device", capability.expected_serial))
     argv.extend(("server", "nodaemon"))
     try:
-        os.execve(str(capability.adb_path), argv, _server_environment(capability))
+        os.execve(
+            str(capability.adb_snapshot_path),
+            argv,
+            _server_environment(capability),
+        )
     except OSError as exc:
         raise AndroidCommandError(f"cannot start the owned adb server: {exc}") from exc
 
@@ -1317,6 +1491,7 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["auto", *ADB_PROFILE_PATHS],
         default="auto",
     )
+    sub.add_parser("capability-adb-path")
     sub.add_parser("server-nodaemon")
     destroy = sub.add_parser("destroy-capability")
     destroy.add_argument("--expected-run-id")
@@ -1339,6 +1514,11 @@ def main(argv: list[str]) -> int:
         return 0
     if args.action == "adb-path":
         print(resolve_adb_profile(args.adb_profile))
+        return 0
+    if args.action == "capability-adb-path":
+        capability = load_capability()
+        _validate_adb(capability)
+        print(capability.adb_snapshot_path)
         return 0
     if args.action == "destroy-capability":
         destroy_capability(

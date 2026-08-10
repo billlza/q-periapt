@@ -1764,6 +1764,13 @@ fi
 if [ "$ANDROID_CAPABILITY_CREATE_SIGNAL" -ne 0 ]; then
 	exit "$ANDROID_CAPABILITY_CREATE_SIGNAL"
 fi
+ADB_SNAPSHOT=$(PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+	capability-adb-path)
+if [ "$ADB_SNAPSHOT" != "$WORK/adb-$RUN_ID" ]; then
+	printf 'error: private adb snapshot path differs from this run identity: %s\n' \
+		"$ADB_SNAPSHOT" >&2
+	exit 2
+fi
 ADB_SERVER_START_SIGNAL=0
 trap 'ADB_SERVER_START_SIGNAL=129' HUP
 trap 'ADB_SERVER_START_SIGNAL=130' INT
@@ -1796,7 +1803,7 @@ ADB_LISTENER_INITIAL="$DIST/adb-listener-initial.txt"
 android_command lsof-initial
 ADB_PRIVATE_SERVER_PROCESS_IDENTITY=$(python3 artifact/android_device_proof.py verify-adb-listener \
 	--lsof-output "$ADB_LISTENER_INITIAL" \
-	--adb "$ADB" \
+	--adb "$ADB_SNAPSHOT" \
 	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
 	--expected-server-socket "$ADB_PRIVATE_SERVER_SOCKET_SPEC" \
@@ -1807,13 +1814,13 @@ ADB_SERVER_STATUS_BEFORE="$DIST/adb-server-status-before.txt"
 android_command server-status-before
 python3 artifact/android_device_proof.py verify-adb-server-status \
 	--status "$ADB_SERVER_STATUS_BEFORE" \
-	--adb "$ADB" \
+	--adb "$ADB_SNAPSHOT" \
 	--home-directory "$HOME"
 ADB_LISTENER_BEFORE="$DIST/adb-listener-before.txt"
 android_command lsof-before
 ADB_LISTENER_IDENTITY=$(python3 artifact/android_device_proof.py verify-adb-listener \
 	--lsof-output "$ADB_LISTENER_BEFORE" \
-	--adb "$ADB" \
+	--adb "$ADB_SNAPSHOT" \
 	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
 	--expected-identity "$ADB_PRIVATE_SERVER_PROCESS_IDENTITY" \
@@ -2354,13 +2361,13 @@ ADB_SERVER_STATUS_AFTER="$DIST/adb-server-status-after.txt"
 android_command server-status-after
 python3 artifact/android_device_proof.py verify-adb-server-status \
 	--status "$ADB_SERVER_STATUS_AFTER" \
-	--adb "$ADB" \
+	--adb "$ADB_SNAPSHOT" \
 	--home-directory "$HOME"
 ADB_LISTENER_AFTER="$DIST/adb-listener-after.txt"
 android_command lsof-after
 python3 artifact/android_device_proof.py verify-adb-listener \
 	--lsof-output "$ADB_LISTENER_AFTER" \
-	--adb "$ADB" \
+	--adb "$ADB_SNAPSHOT" \
 	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
 	--expected-identity "$ADB_LISTENER_IDENTITY" \

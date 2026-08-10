@@ -326,15 +326,23 @@ never as copied raw device logs or profiles. Index schema 3 accepts only the cur
 and rejects the credentialed/signed Swift lane because it does not copy `APPLE_DISTRIBUTION.json`.
 The emitter and consumer derive the repository root from their installed script location and select
 only the fixed channel pointer; arbitrary root, index, and output-path CLI overrides are not supported.
-Each `<channel>/<version>/<commit>` tree is immutable once created: a repeated emit fails before
-touching the existing tree. A serialized emitter first builds and verifies a unique mode-0700
-sibling staging tree, then atomically moves it to the immutable identity and replaces the single
-authoritative per-channel pointer inside one short termination-deferred publication window. An
-interruption during package copying can therefore leave at most an unselected private staging tree;
-it cannot occupy or partially rewrite the final identity. The next serialized emit removes only
-strictly named, current-user-owned mode-0700 staging remnants before using a fresh staging name. A
-`SIGKILL` or host loss during the much shorter final rename/pointer window can still require
-ownership-checked manual recovery, but no incomplete tree is selected as published evidence.
+Each `<channel>/<version>/<commit>` tree is immutable once created. A serialized emitter first builds
+and verifies a unique mode-0700 sibling staging tree, then publishes it with the host's native atomic
+no-replace operation (`renameatx_np(RENAME_EXCL)` on macOS or
+`renameat2(RENAME_NOREPLACE)` on Linux) before replacing the single authoritative per-channel pointer
+inside one short termination-deferred window. Missing native support fails closed; there is no
+check-then-rename fallback that may replace an existing destination. An interruption during package
+copying can therefore leave at most an unselected private staging tree; the next serialized emit
+removes only strictly named, current-user-owned mode-0700 staging remnants before using a fresh name.
+If `SIGKILL` or host loss occurs after final-tree publication but before pointer commit, the next emit
+fully verifies that exact channel/version/commit tree, including its complete file inventory,
+manifests, checksums, current source identity, ABI contract, and exact requested proof summaries,
+then idempotently advances or confirms the pointer without rebuilding or rewriting the tree. A
+corrupt, permission-invalid, or proof-selector-mismatched final tree is preserved for investigation
+and fails without changing the pointer. Re-emitting an already verified and exactly selected identity
+is an idempotent success; a different identity or selector cannot overwrite it. Exact owned pointer
+temporary files left by this window are removed only after complete tree and selector verification,
+and the already-matching fast path retries the pointer-parent directory sync before returning success.
 The local store and consumer work directories use mode 0700, and copied packages, indexes, checksums,
 and pointers use mode 0600. Publication tooling must explicitly create separately permissioned public
 artifacts rather than reusing this private local store.
@@ -554,10 +562,17 @@ These produce the paper's primary network table and the binary constant-time dis
   is either armed or removed. The script never sends TERM/KILL to a cached PID.
   Every adb/lsof call is selected from a finite Android operation table and executed through the
   private run capability; the generic bounded-process module has no arbitrary command or output CLI.
-  adb itself is selected from the fixed `auto`, `macos-account`, `linux-account`, `linux-system`, or
-  `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB` paths are rejected.
+  Capability creation consumes the selected SDK adb from one already-open descriptor while hashing
+  and copying it into a fixed run-owned mode-0500 executable under the private work directory. Every
+  subsequent command, server exec, listener check, and server-status identity check uses that snapshot,
+  so an ordinary SDK path replacement after capability creation cannot change the executable selected
+  by the run. adb itself is selected from the fixed `auto`, `macos-account`, `linux-account`,
+  `linux-system`, or `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB`
+  paths are rejected.
   AVD transport still requires an exclusive trusted evidence host because another locally started
-  server could reach an emulator port. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
+  server could reach an emulator port. The private snapshot is Level-1 reliability hardening, not a
+  hostile same-UID isolation boundary; that stronger threat model requires a separate account or
+  isolated runner with a read-only checkout. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
   cannot run traps; use the reported private socket/PID to confirm ownership before manual cleanup,
   and compare any orphaned `dev.qperiapt.androidsmoke` with the private run APK before removal.
 - **Matched-backend performance gate.** Collect a paired host proof with:

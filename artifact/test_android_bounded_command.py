@@ -6,6 +6,7 @@ import io
 import json
 import os
 import pathlib
+import shlex
 import signal
 import stat
 import tempfile
@@ -35,6 +36,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.apk.write_bytes(b"signed apk fixture")
         self.apk.chmod(0o600)
         self.state = self.work / commands.CAPABILITY_LEAF
+        self.snapshot = self.work / f"{commands.ADB_SNAPSHOT_PREFIX}{'a' * 32}"
         self.constants = (
             mock.patch.object(commands, "WORK_ROOT", self.work),
             mock.patch.object(commands, "PROOF_ROOT", self.proof),
@@ -61,7 +63,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def create_capability(self, **overrides: object) -> None:
+    def capability_values(self, **overrides: object) -> dict[str, object]:
         values: dict[str, object] = {
             "adb_profile": "macos-account",
             "socket_nonce": "ABCDEFGH",
@@ -72,24 +74,96 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             "signed_apk_sha256": hashlib.sha256(self.apk.read_bytes()).hexdigest(),
         }
         values.update(overrides)
-        if self.state.exists():
-            self.state.unlink()
+        return values
+
+    def create_capability(self, **overrides: object) -> None:
+        values = self.capability_values(**overrides)
+        self.remove_capability_files()
         commands.create_capability(**values)  # type: ignore[arg-type]
+
+    def remove_capability_files(self) -> None:
+        self.state.unlink(missing_ok=True)
+        for snapshot in self.work.glob(f"{commands.ADB_SNAPSHOT_PREFIX}*"):
+            snapshot.unlink()
 
     def test_capability_is_private_exact_and_destroyed_explicitly(self) -> None:
         self.assertEqual(stat.S_IMODE(self.state.stat().st_mode), 0o600)
         capability = commands.load_capability()
         self.assertEqual(capability.expected_serial, "SERIAL123")
         self.assertEqual(capability.adb_profile, "macos-account")
+        self.assertEqual(capability.adb_snapshot_path, self.snapshot)
         self.assertEqual(capability.run_id, "a" * 32)
+        snapshot_metadata = self.snapshot.stat()
+        self.assertEqual(stat.S_IMODE(snapshot_metadata.st_mode), 0o500)
+        self.assertEqual(snapshot_metadata.st_uid, os.geteuid())
+        self.assertEqual(snapshot_metadata.st_nlink, 1)
+        self.assertEqual(self.snapshot.read_bytes(), self.adb.read_bytes())
         state = json.loads(self.state.read_text(encoding="utf-8"))
         self.assertEqual(set(state), commands.CAPABILITY_FIELDS)
         for redundant_path in ("adb_path", "vendor_key", "server_socket"):
             self.assertNotIn(redundant_path, state)
         commands.destroy_capability()
         self.assertFalse(self.state.exists())
+        self.assertFalse(self.snapshot.exists())
         with self.assertRaises(commands.AndroidCommandError):
             commands.destroy_capability()
+
+    def test_snapshot_write_failures_are_attributed_and_leave_no_partial_state(self) -> None:
+        def fail_write(_descriptor: int, _data: object) -> int:
+            raise OSError("injected snapshot write failure")
+
+        def short_write(_descriptor: int, _data: object) -> int:
+            return 0
+
+        for writer, message in (
+            (fail_write, "cannot write Android adb snapshot"),
+            (short_write, "short write while creating Android adb snapshot"),
+        ):
+            with self.subTest(message=message):
+                self.remove_capability_files()
+                with (
+                    mock.patch.object(commands.os, "write", new=writer),
+                    self.assertRaisesRegex(commands.AndroidCommandError, message),
+                ):
+                    commands.create_capability(  # type: ignore[arg-type]
+                        **self.capability_values()
+                    )
+                self.assertFalse(self.state.exists())
+                self.assertFalse(self.snapshot.exists())
+
+    def test_capability_collision_removes_only_the_uncommitted_snapshot(self) -> None:
+        self.remove_capability_files()
+        self.state.write_bytes(b"existing capability\n")
+        self.state.chmod(0o600)
+        with self.assertRaises(FileExistsError):
+            commands.create_capability(  # type: ignore[arg-type]
+                **self.capability_values()
+            )
+        self.assertEqual(self.state.read_bytes(), b"existing capability\n")
+        self.assertFalse(self.snapshot.exists())
+
+    def test_capability_fsync_failure_removes_capability_and_snapshot(self) -> None:
+        self.remove_capability_files()
+        original_fsync = os.fsync
+        calls = 0
+
+        def fail_capability_fsync(descriptor: int) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise OSError("injected capability fsync failure")
+            original_fsync(descriptor)
+
+        with (
+            mock.patch.object(commands.os, "fsync", side_effect=fail_capability_fsync),
+            self.assertRaisesRegex(OSError, "capability fsync failure"),
+        ):
+            commands.create_capability(  # type: ignore[arg-type]
+                **self.capability_values()
+            )
+        self.assertGreaterEqual(calls, 4)
+        self.assertFalse(self.state.exists())
+        self.assertFalse(self.snapshot.exists())
 
     def test_destroy_is_missing_safe_and_never_removes_another_run(self) -> None:
         commands.destroy_capability(
@@ -97,6 +171,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             missing_ok=True,
         )
         self.assertFalse(self.state.exists())
+        self.assertFalse(self.snapshot.exists())
         commands.destroy_capability(
             expected_run_id="a" * 32,
             missing_ok=True,
@@ -112,6 +187,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 missing_ok=True,
             )
         self.assertTrue(self.state.exists())
+        self.assertTrue(
+            (self.work / f"{commands.ADB_SNAPSHOT_PREFIX}{'b' * 32}").exists()
+        )
 
     @unittest.skipUnless(os.name == "posix", "dirfd cleanup requires POSIX")
     def test_destroy_remains_bound_to_the_open_work_directory(self) -> None:
@@ -138,7 +216,13 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
         self.assertTrue(root_replaced)
         self.assertFalse((old_work / commands.CAPABILITY_LEAF).exists())
+        self.assertFalse(
+            (old_work / f"{commands.ADB_SNAPSHOT_PREFIX}{'a' * 32}").exists()
+        )
         self.assertTrue(self.state.exists())
+        self.assertTrue(
+            (self.work / f"{commands.ADB_SNAPSHOT_PREFIX}{'b' * 32}").exists()
+        )
         self.assertEqual(commands.load_capability().run_id, "b" * 32)
 
     def test_capability_rejects_mode_schema_and_extra_fields(self) -> None:
@@ -175,7 +259,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         }
         for control_signal in (signal.SIGHUP, signal.SIGTERM):
             with self.subTest(signal=control_signal):
-                self.state.unlink(missing_ok=True)
+                self.remove_capability_files()
                 original_fsync = os.fsync
                 signal_sent = False
 
@@ -191,13 +275,14 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         commands.create_capability_with_deferred_signals(**values)
                 self.assertEqual(raised.exception.code, 128 + control_signal)
                 self.assertFalse(self.state.exists())
+                self.assertFalse(self.snapshot.exists())
 
     @unittest.skipUnless(
         hasattr(signal, "pthread_sigmask"),
         "signal handoff requires POSIX signal masks",
     )
     def test_control_signal_during_handler_restore_cannot_be_lost(self) -> None:
-        self.state.unlink(missing_ok=True)
+        self.remove_capability_files()
         values = {
             "adb_profile": "macos-account",
             "socket_nonce": "ABCDEFGH",
@@ -233,13 +318,14 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands.create_capability_with_deferred_signals(**values)
         self.assertEqual(raised.exception.code, 128 + signal.SIGTERM)
         self.assertFalse(self.state.exists())
+        self.assertFalse(self.snapshot.exists())
 
     @unittest.skipUnless(
         hasattr(signal, "pthread_sigmask"),
         "signal handoff requires POSIX signal masks",
     )
     def test_signal_immediately_before_final_handler_handoff_is_not_lost(self) -> None:
-        self.state.unlink(missing_ok=True)
+        self.remove_capability_files()
         values = {
             "adb_profile": "macos-account",
             "socket_nonce": "ABCDEFGH",
@@ -288,6 +374,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 128 + signal.SIGTERM)
         self.assertFalse(self.state.exists())
+        self.assertFalse(self.snapshot.exists())
         self.assertEqual(
             {
                 managed_signal: signal.getsignal(managed_signal)
@@ -445,13 +532,13 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         capability = commands.load_capability()
         expected = {
             commands.AndroidOperation.KILL_SERVER: (
-                str(self.adb),
+                str(self.snapshot),
                 "-L",
                 self.environment["ADB_SERVER_SOCKET"],
                 "kill-server",
             ),
             commands.AndroidOperation.DEVICE_ABI: (
-                str(self.adb),
+                str(self.snapshot),
                 "-L",
                 self.environment["ADB_SERVER_SOCKET"],
                 "-s",
@@ -461,7 +548,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 "ro.product.cpu.abi",
             ),
             commands.AndroidOperation.START_APP: (
-                str(self.adb),
+                str(self.snapshot),
                 "-L",
                 self.environment["ADB_SERVER_SOCKET"],
                 "-s",
@@ -561,7 +648,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(
             argv,
             [
-                str(self.adb),
+                str(self.snapshot),
                 "-L",
                 self.environment["ADB_SERVER_SOCKET"],
                 "--one-device",
@@ -573,15 +660,77 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(child_environment["HOME"], str(self.root))
         self.assertNotIn("LD_PRELOAD", child_environment)
 
-    def test_changed_adb_is_rejected_before_operation_start(self) -> None:
-        self.adb.write_bytes(b"replaced adb")
-        self.adb.chmod(0o700)
+    def test_sdk_directory_replacement_executes_only_the_run_snapshot(self) -> None:
+        sdk = self.root / "sdk"
+        source_adb = sdk / "platform-tools/adb"
+        source_adb.parent.mkdir(parents=True, mode=0o700)
+        original_marker = self.root / "original-adb-ran"
+        replacement_marker = self.root / "replacement-adb-ran"
+        source_adb.write_text(
+            "#!/bin/sh\n"
+            f"printf original > {shlex.quote(str(original_marker))}\n",
+            encoding="utf-8",
+        )
+        source_adb.chmod(0o700)
+        with mock.patch.object(
+            commands,
+            "ADB_PROFILE_PATHS",
+            {"macos-account": source_adb},
+        ):
+            self.create_capability()
+            sdk.rename(self.root / "sdk-owned-by-source")
+            source_adb.parent.mkdir(parents=True, mode=0o700)
+            source_adb.write_text(
+                "#!/bin/sh\n"
+                f"printf replacement > {shlex.quote(str(replacement_marker))}\n",
+                encoding="utf-8",
+            )
+            source_adb.chmod(0o700)
+            result = commands.invoke_operation(commands.AndroidOperation.KILL_SERVER)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(original_marker.read_text(encoding="ascii"), "original")
+        self.assertFalse(replacement_marker.exists())
+
+    def test_changed_adb_snapshot_is_rejected_before_operation_start(self) -> None:
+        self.snapshot.chmod(0o700)
+        self.snapshot.write_bytes(b"replaced snapshot")
+        self.snapshot.chmod(0o500)
         with (
             mock.patch.object(commands, "run") as run,
-            self.assertRaisesRegex(commands.AndroidCommandError, "adb executable changed"),
+            self.assertRaisesRegex(commands.AndroidCommandError, "snapshot changed"),
         ):
             commands.invoke_operation(commands.AndroidOperation.KILL_SERVER)
         run.assert_not_called()
+
+    def test_snapshot_mode_link_and_symlink_replacements_are_rejected(self) -> None:
+        cases = ("mode", "hardlink", "symlink")
+        for case in cases:
+            with self.subTest(case=case):
+                self.create_capability()
+                if case == "mode":
+                    self.snapshot.chmod(0o700)
+                elif case == "hardlink":
+                    os.link(self.snapshot, self.work / "snapshot-link")
+                else:
+                    replacement = self.work / "snapshot-replacement"
+                    replacement.write_bytes(self.snapshot.read_bytes())
+                    replacement.chmod(0o500)
+                    self.snapshot.unlink()
+                    self.snapshot.symlink_to(replacement)
+                with (
+                    mock.patch.object(commands, "run") as run,
+                    self.assertRaises(commands.EvidenceIOError),
+                ):
+                    commands.invoke_operation(commands.AndroidOperation.KILL_SERVER)
+                run.assert_not_called()
+                (self.work / "snapshot-link").unlink(missing_ok=True)
+                (self.work / "snapshot-replacement").unlink(missing_ok=True)
+
+    def test_capability_adb_path_action_returns_only_the_validated_snapshot(self) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(commands.main(["capability-adb-path"]), 0)
+        self.assertEqual(output.getvalue().strip(), str(self.snapshot))
 
     def test_remote_apk_path_is_validated_before_it_enters_argv(self) -> None:
         package_path = self.proof / "adb-package-path.txt"

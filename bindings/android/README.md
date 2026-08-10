@@ -91,8 +91,14 @@ traps; use the reported private socket/PID to establish ownership before manual 
 orphaned `dev.qperiapt.androidsmoke` only after comparing it with the private run APK.
 The lane selects every adb/lsof call from a finite operation table backed by a private run capability;
 the shared bounded-process module is import-only and has no arbitrary command or output-path CLI.
-Use `QPERIAPT_ANDROID_ADB_PROFILE` only with `auto`, `macos-account`, `linux-account`,
-`linux-system`, or `linux-opt`; arbitrary `QPERIAPT_ADB` paths are rejected.
+Capability creation streams the fixed-profile SDK adb from one opened descriptor into a fixed,
+run-owned mode-0500 executable under the private work directory while computing its recorded digest.
+Every later client/server execution and process-identity check uses that snapshot, so replacing the
+SDK path after capability creation cannot redirect an ordinary run. Use
+`QPERIAPT_ANDROID_ADB_PROFILE` only with `auto`, `macos-account`, `linux-account`, `linux-system`, or
+`linux-opt`; arbitrary `QPERIAPT_ADB` paths are rejected. This is trusted-local reliability hardening;
+a hostile same-UID threat model requires a separate account or isolated runner with a read-only
+checkout.
 
 Reverify the proof with:
 
