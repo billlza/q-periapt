@@ -7,9 +7,11 @@ import copy
 import datetime as dt
 import os
 import pathlib
+import py_compile
 import re
 import secrets
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -1493,6 +1495,210 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             'if [ -z "$SERIAL" ] && [ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" = "1" ]',
             producer,
         )
+
+    def test_private_server_launcher_preserves_exec_pid_without_bytecode_cache(
+        self,
+    ) -> None:
+        artifact = pathlib.Path(__file__).resolve().parent
+        root = artifact.parent
+        producer = (artifact / "android-device-smoke.sh").read_text(encoding="utf-8")
+        cache_assignment = producer.index(
+            'ADB_PRIVATE_SERVER_PYTHON_CACHE="$ADB_PRIVATE_SERVER_DIRECTORY/python-cache"'
+        )
+        cache_precheck = producer.index(
+            "private adb Python cache path already exists", cache_assignment
+        )
+        server_start = producer.index(
+            '"$QPERIAPT_PYTHON" -I -S -B -X '
+            '"pycache_prefix=$ADB_PRIVATE_SERVER_PYTHON_CACHE"'
+        )
+        server_pid = producer.index("ADB_PRIVATE_SERVER_PID=$!", server_start)
+        cache_postcheck = producer.index(
+            "private adb Python cache path appeared during server launch", server_pid
+        )
+        socket_verification = producer.index(
+            "verify-private-adb-socket", cache_postcheck
+        )
+        self.assertLess(cache_assignment, cache_precheck)
+        self.assertLess(cache_precheck, server_start)
+        self.assertLess(server_start, server_pid)
+        self.assertLess(server_pid, cache_postcheck)
+        self.assertLess(cache_postcheck, socket_verification)
+        self.assertIn(
+            '"$QPERIAPT_PYTHON_BOOTSTRAP" '
+            "artifact/android_bounded_command.py server-nodaemon",
+            producer[server_start:server_pid],
+        )
+        self.assertIn(
+            'server-nodaemon \\\n\t>"$DIST/adb-server.log" 2>&1 &\n',
+            producer[server_start:server_pid],
+        )
+        self.assertIn(
+            'artifact/android_bounded_command.py server-nodaemon \\\n'
+            '\t>"$DIST/adb-server.log" 2>&1 &\n'
+            "ADB_PRIVATE_SERVER_PID=$!",
+            producer,
+        )
+        self.assertNotIn(
+            "PYTHONPATH=artifact python3 "
+            "artifact/android_bounded_command.py server-nodaemon",
+            producer,
+        )
+        self.assertEqual(
+            producer.count(
+                'if [ -e "$ADB_PRIVATE_SERVER_PYTHON_CACHE" ] || '
+                '[ -L "$ADB_PRIVATE_SERVER_PYTHON_CACHE" ]; then'
+            ),
+            2,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            cache_prefix = pathlib.Path(temporary) / "python-cache"
+            shell = r'''set -eu
+ROOT=$1
+cache_prefix=$2
+. "$ROOT/artifact/python-env.sh"
+"$QPERIAPT_PYTHON" -I -S -B -X "pycache_prefix=$cache_prefix" \
+    "$QPERIAPT_PYTHON_BOOTSTRAP" -c "$3" &
+launcher=$!
+printf 'launcher=%s\n' "$launcher"
+wait "$launcher"
+'''
+            exec_chain = """import os
+import sys
+
+prefix = sys.pycache_prefix
+print(f"python={os.getpid()}", flush=True)
+print(f"prefix={prefix}", flush=True)
+print(f"python_cache={'present' if os.path.lexists(prefix) else 'absent'}", flush=True)
+final_command = (
+    'printf "final=%s\\n" "$$"; '
+    'if [ -e "$CACHE_PREFIX" ] || [ -L "$CACHE_PREFIX" ]; then '
+    'printf "final_cache=present\\n"; '
+    'else printf "final_cache=absent\\n"; fi'
+)
+os.execve(
+    "/bin/sh",
+    ["/bin/sh", "-c", final_command],
+    {"CACHE_PREFIX": prefix},
+)
+"""
+            process = subprocess.Popen(
+                [
+                    "/bin/sh",
+                    "-c",
+                    shell,
+                    "qperiapt-private-server-pid-test",
+                    str(root),
+                    str(cache_prefix),
+                    exec_chain,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=True,
+            )
+            try:
+                stdout, stderr = process.communicate(timeout=10)
+            except subprocess.TimeoutExpired as exc:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.communicate()
+                self.fail(f"private server PID exec-chain test timed out: {exc}")
+            self.assertEqual(process.returncode, 0)
+            self.assertEqual(stderr, "")
+            pairs: list[tuple[str, str]] = []
+            for line in stdout.splitlines():
+                self.assertRegex(line, r"^[a-z_]+=[^\r\n]+$")
+                pairs.append(tuple(line.split("=", 1)))
+            identities = dict(pairs)
+            self.assertEqual(len(pairs), len(identities))
+            self.assertEqual(
+                set(identities),
+                {
+                    "launcher",
+                    "python",
+                    "prefix",
+                    "python_cache",
+                    "final",
+                    "final_cache",
+                },
+            )
+            self.assertEqual(identities["launcher"], identities["python"])
+            self.assertEqual(identities["python"], identities["final"])
+            self.assertEqual(identities["prefix"], str(cache_prefix))
+            self.assertEqual(identities["python_cache"], "absent")
+            self.assertEqual(identities["final_cache"], "absent")
+            self.assertFalse(os.path.lexists(cache_prefix))
+
+    def test_direct_private_server_launcher_ignores_adjacent_bytecode(self) -> None:
+        artifact = pathlib.Path(__file__).resolve().parent
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = pathlib.Path(temporary) / "fixture"
+            fixture_artifact = fixture_root / "artifact"
+            fixture_artifact.mkdir(parents=True)
+            bootstrap = fixture_artifact / "python_bootstrap.py"
+            shutil.copy2(artifact / "python_bootstrap.py", bootstrap)
+            module = fixture_artifact / "launcher_probe.py"
+            runner = fixture_artifact / "runner.py"
+            hostile_source = 'VALUE = "hostile"\n'
+            clean_source = 'VALUE = "source_"\n'
+            self.assertEqual(len(hostile_source), len(clean_source))
+            module.write_text(hostile_source, encoding="utf-8")
+            source_metadata = module.stat()
+            bytecode = (
+                module.parent
+                / "__pycache__"
+                / f"{module.stem}.{sys.implementation.cache_tag}.pyc"
+            )
+            bytecode.parent.mkdir()
+            py_compile.compile(
+                str(module),
+                cfile=str(bytecode),
+                doraise=True,
+                invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP,
+            )
+            module.write_text(clean_source, encoding="utf-8")
+            os.utime(
+                module,
+                ns=(source_metadata.st_atime_ns, source_metadata.st_mtime_ns),
+            )
+            runner.write_text(
+                "from launcher_probe import VALUE\nprint(VALUE)\n",
+                encoding="utf-8",
+            )
+
+            baseline = subprocess.run(
+                [sys.executable, "-I", "-S", "-B", str(bootstrap), str(runner)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            self.assertEqual(baseline.stdout, "hostile\n")
+            self.assertEqual(baseline.stderr, "")
+
+            private_directory = fixture_root / "private"
+            private_directory.mkdir(mode=0o700)
+            cache_prefix = private_directory / "python-cache"
+            hardened = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-X",
+                    f"pycache_prefix={cache_prefix}",
+                    str(bootstrap),
+                    str(runner),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            self.assertEqual(hardened.stdout, "source_\n")
+            self.assertEqual(hardened.stderr, "")
+            self.assertFalse(os.path.lexists(cache_prefix))
 
     def test_android_release_entrypoints_default_to_stable_sdk_contract(self) -> None:
         artifact = pathlib.Path(__file__).resolve().parent

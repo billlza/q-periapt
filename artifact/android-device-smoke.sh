@@ -1771,11 +1771,21 @@ if [ "$ADB_SNAPSHOT" != "$WORK/adb-$RUN_ID" ]; then
 		"$ADB_SNAPSHOT" >&2
 	exit 2
 fi
+ADB_PRIVATE_SERVER_PYTHON_CACHE="$ADB_PRIVATE_SERVER_DIRECTORY/python-cache"
+if [ -e "$ADB_PRIVATE_SERVER_PYTHON_CACHE" ] || [ -L "$ADB_PRIVATE_SERVER_PYTHON_CACHE" ]; then
+	printf 'error: private adb Python cache path already exists\n' >&2
+	exit 2
+fi
 ADB_SERVER_START_SIGNAL=0
 trap 'ADB_SERVER_START_SIGNAL=129' HUP
 trap 'ADB_SERVER_START_SIGNAL=130' INT
 trap 'ADB_SERVER_START_SIGNAL=143' TERM
-PYTHONPATH=artifact python3 artifact/android_bounded_command.py server-nodaemon \
+
+# The hardened python3 shell function owns a cleanup wrapper process.  This
+# long-lived exec path must instead launch the already-validated interpreter
+# directly so $! remains the PID that Python later execs into adb.
+"$QPERIAPT_PYTHON" -I -S -B -X "pycache_prefix=$ADB_PRIVATE_SERVER_PYTHON_CACHE" \
+	"$QPERIAPT_PYTHON_BOOTSTRAP" artifact/android_bounded_command.py server-nodaemon \
 	>"$DIST/adb-server.log" 2>&1 &
 ADB_PRIVATE_SERVER_PID=$!
 # The owned child inherited its lane-specific transport scanners at spawn. All
@@ -1796,6 +1806,10 @@ while [ ! -S "$ADB_PRIVATE_SERVER_SOCKET_PATH" ] && \
 	remaining_bounded_timeout "$ADB_PRIVATE_SERVER_READY_DEADLINE" 1 >/dev/null; do
 	sleep 0.1
 done
+if [ -e "$ADB_PRIVATE_SERVER_PYTHON_CACHE" ] || [ -L "$ADB_PRIVATE_SERVER_PYTHON_CACHE" ]; then
+	printf 'error: private adb Python cache path appeared during server launch\n' >&2
+	exit 2
+fi
 python3 artifact/android_device_proof.py verify-private-adb-socket \
 	--directory "$ADB_PRIVATE_SERVER_DIRECTORY" \
 	--state present >/dev/null
