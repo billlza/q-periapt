@@ -2484,7 +2484,7 @@ fi
         self.assertIn(
             '"-port",\n        str(receipt.console_port),', command_adapter_source
         )
-        self.assertIn('"-no_direct_adb",', command_adapter_source)
+        self.assertIn('"-no-direct-adb",', command_adapter_source)
         self.assertIn("SERIAL=$EXPECTED_EMULATOR_SERIAL", producer)
         self.assertIn(
             "temporary Android emulator exited before its bound adb serial", producer

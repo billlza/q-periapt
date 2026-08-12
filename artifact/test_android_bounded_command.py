@@ -2027,7 +2027,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     "-no-window",
                     "-no-audio",
                     "-no-boot-anim",
-                    "-no_direct_adb",
+                    "-no-direct-adb",
                     "-gpu",
                     "swiftshader_indirect",
                 ],

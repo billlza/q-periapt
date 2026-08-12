@@ -956,7 +956,7 @@ def exec_emulator(run_id: str, avd_name: str, device_abi: str) -> NoReturn:
         "-no-window",
         "-no-audio",
         "-no-boot-anim",
-        "-no_direct_adb",
+        "-no-direct-adb",
         "-gpu",
         "swiftshader_indirect",
     ]
