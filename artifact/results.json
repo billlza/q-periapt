@@ -430,7 +430,7 @@
     "proof_manifest_sha256": "91156a21a98ac3721a1c1d623343148488f3a5ca2ede5d21a6644e338f871428",
     "proof_manifest_tests_sha256": "e8c8f75ff21824816b6f3fb5f59c124b7576b82b8902965e3457874f98fa5b82",
     "proof_to_byte_finalizer_sha256": "6d60e5d8834617d125ef62505f5122e1f92ac58eed569302ac42a2b74301ecde",
-    "proof_to_byte_release_tests_sha256": "ebb8b3ad6a7096cd696dd5b7036ad0df9e33665925b9350eeb8c20f4b8c85852",
+    "proof_to_byte_release_tests_sha256": "a9563961996eed9b4d4d5a03a02d2a6de0a9a14dea17d81110e68d118d3450cc",
     "proof_to_byte_script_sha256": "a3b93581afe632f2526fbbe3a1878d465ea23f9d297c2dfa8413ae1ca1590dcb",
     "process_identity_sha256": "cc1ede6590bf8713036562060a2a9155f362ec44dfbdb856c7ff3f69f9aeed41",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
@@ -479,11 +479,11 @@
     "bounded_process_sha256": "3a47981f9d63b8554cd5b3a7c6001c21bd6e9a06e8b5d233d8245089ce08de38",
     "bounded_process_tests_sha256": "ccd8f67fbb083fbaa29bf4b614cce0847d6ef16847fb0389ee7cdc1df46ec4d2"
   },
-  "proof_source_tree_sha256": "c104acfc18e3dcd0644f1f31e7ab3a86034914901d8228d754899bd95830d072",
+  "proof_source_tree_sha256": "89c0eb2ed4e611790373d19ca08ea5a79c64ec3321dafd6eb7b4801fbe445840",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "a77aea8e8a77873f98052904b88c3cbd610a081f",
+    "snapshot_commit": "8af9c5a6e01a5a9f7895f2311d962b819e5ded0c",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
