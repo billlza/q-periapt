@@ -12,7 +12,7 @@ set -eu
 # Capture the one permitted caller compiler selector before any child process,
 # then remove caller and internal names from the exported environment. POSIX
 # shell assignments retain an existing export attribute unless first unset.
-unset wasm_compiler_input WASM_C_COMPILER compiler compiler_version
+unset wasm_compiler_input WASM_C_COMPILER compiler compiler_version compiler_targets java_version_output
 wasm_compiler_input=${CC_wasm32_unknown_unknown:-}
 unset CC_wasm32_unknown_unknown
 
@@ -29,7 +29,11 @@ need() {
 
 require_java_22() {
 	need java
-	java -version 2>&1 | python3 -c '
+	java_version_output=$(java -version 2>&1) || {
+		printf 'error: Java could not report its version\n' >&2
+		exit 2
+	}
+	if ! printf '%s\n' "$java_version_output" | python3 -c '
 import re
 import sys
 
@@ -41,7 +45,11 @@ if not match:
 major = int(match.group(1))
 if major < 22:
     raise SystemExit(f"error: Kotlin/Panama binding requires JDK >= 22, got Java {major}")
-'
+'; then
+		unset java_version_output
+		return 2
+	fi
+	unset java_version_output
 }
 
 require_wasm_clang() {
@@ -70,7 +78,11 @@ require_wasm_clang() {
 		printf 'error: CC_wasm32_unknown_unknown must select upstream LLVM clang, not Apple clang\n' >&2
 		exit 2
 	fi
-	if ! "$compiler" --print-targets 2>/dev/null | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'; then
+	compiler_targets=$("$compiler" --print-targets 2>/dev/null) || {
+		printf 'error: CC_wasm32_unknown_unknown could not report supported targets\n' >&2
+		exit 2
+	}
+	if ! printf '%s\n' "$compiler_targets" | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'; then
 		printf 'error: CC_wasm32_unknown_unknown compiler has no wasm32 backend\n' >&2
 		exit 2
 	fi
@@ -89,7 +101,7 @@ wasm_binding_tests() {
 	# Revalidate immediately before use so a tool-path change during the long
 	# package gate fails closed instead of selecting unchecked compiler bytes.
 	require_wasm_clang "$wasm_compiler_input" >/dev/null
-	unset compiler compiler_version
+	unset compiler compiler_version compiler_targets
 	env CC_wasm32_unknown_unknown="$wasm_compiler_input" \
 		wasm-pack test --node crates/q-periapt-wasm
 }
@@ -147,7 +159,7 @@ require_java_22
 need wasm-pack
 need node
 require_wasm_clang "$wasm_compiler_input"
-unset compiler compiler_version
+unset compiler compiler_version compiler_targets
 
 printf 'Q-Periapt embedding readiness gate\n'
 printf 'repo   : %s\n' "$ROOT"

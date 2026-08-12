@@ -1668,7 +1668,12 @@ class HarnessTest(unittest.TestCase):
 printf 'clang:%s\\n' "${1:-}" >> "$SCOPE_EVENT_LOG"
 case "${1:-}" in
     --version) printf 'clang version 22.1.8\\n' ;;
-    --print-targets) printf '    wasm32      - WebAssembly 32-bit\\n' ;;
+    --print-targets)
+        printf '    wasm32      - WebAssembly 32-bit\\n'
+        if [ "${FAIL_TARGET_PROBE:-0}" = 1 ]; then
+            exit 7
+        fi
+        ;;
     *) exit 2 ;;
 esac
 """,
@@ -1676,11 +1681,14 @@ esac
             write_executable(
                 "java",
                 """#!/bin/sh
-if [ "${CC_wasm32_unknown_unknown+x}" = x ] || [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+if [ "${CC_wasm32_unknown_unknown+x}" = x ] || [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
     printf 'compiler selector or internal state leaked into Java preflight\\n' >&2
     exit 89
 fi
 printf 'openjdk version "22.0.2"\\n' >&2
+if [ "${FAIL_JAVA_PROBE:-0}" = 1 ]; then
+    exit 7
+fi
 """,
             )
             swift_marker = root / "swift-environment-checked"
@@ -1693,7 +1701,7 @@ if [ "${CC_wasm32_unknown_unknown+x}" = x ]; then
     printf 'compiler override leaked into Swift binding tests\\n' >&2
     exit 90
 fi
-if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
     printf 'internal compiler state leaked into Swift binding tests\\n' >&2
     exit 93
 fi
@@ -1708,7 +1716,7 @@ if [ "${CC_wasm32_unknown_unknown:-}" != "$EXPECTED_WASM_COMPILER" ]; then
     printf 'verified compiler was not scoped to wasm-pack\\n' >&2
     exit 91
 fi
-if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
     printf 'internal compiler state leaked into wasm-pack\\n' >&2
     exit 94
 fi
@@ -1727,7 +1735,7 @@ if [ "${1:-}" = artifact/swift-xcframework.sh ]; then
         printf 'compiler override leaked into Swift XCFramework packaging\\n' >&2
         exit 92
     fi
-    if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+    if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
         printf 'internal compiler state leaked into Swift XCFramework packaging\\n' >&2
         exit 95
     fi
@@ -1749,6 +1757,7 @@ exit 0
                     "WASM_C_COMPILER": "attacker-exported-internal-value",
                     "compiler": "attacker-exported-internal-value",
                     "compiler_version": "attacker-exported-internal-value",
+                    "compiler_targets": "attacker-exported-internal-value",
                     "EXPECTED_WASM_COMPILER": str(compiler),
                     "HOME": str(root),
                     "PATH": f"{stub_bin}:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -1757,8 +1766,35 @@ exit 0
                     "SWIFT_SCOPE_MARKER": str(swift_marker),
                     "WASM_SCOPE_MARKER": str(wasm_marker),
                     "wasm_compiler_input": "attacker-exported-internal-value",
+                    "java_version_output": "attacker-exported-internal-value",
                 }
             )
+
+            for failure_flag, expected_error in (
+                ("FAIL_JAVA_PROBE", "Java could not report its version"),
+                (
+                    "FAIL_TARGET_PROBE",
+                    "CC_wasm32_unknown_unknown could not report supported targets",
+                ),
+            ):
+                with self.subTest(failure_flag=failure_flag):
+                    failed_environment = {**environment, failure_flag: "1"}
+                    failed = subprocess.run(
+                        ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                        cwd=root,
+                        env=failed_environment,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        timeout=30,
+                    )
+                    self.assertEqual(failed.returncode, 2, failed.stderr)
+                    self.assertIn(expected_error, failed.stderr)
+                    self.assertNotIn("EMBEDDING_READINESS_PASS", failed.stdout)
+                    self.assertFalse(swift_marker.exists())
+                    self.assertFalse(wasm_marker.exists())
+
+            event_log.unlink(missing_ok=True)
             completed = subprocess.run(
                 ["/bin/sh", str(artifact / "embedding-readiness.sh")],
                 cwd=root,
