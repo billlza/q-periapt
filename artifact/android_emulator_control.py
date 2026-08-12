@@ -19,6 +19,8 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Literal
 
+from evidence_io import EvidenceIOError, parse_strict_json_bytes
+
 
 class AndroidEmulatorControlError(ValueError):
     """The fixed emulator layout or an owned listener snapshot is invalid."""
@@ -233,26 +235,9 @@ def parse_emulator_routing_receipt(
 
 
 def _strict_json_value(raw: str, *, label: str) -> object:
-    def reject_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        value: dict[str, object] = {}
-        for name, item in pairs:
-            if name in value:
-                raise AndroidEmulatorControlError(f"duplicate {label} JSON field")
-            value[name] = item
-        return value
-
-    def reject_constant(value: str) -> object:
-        raise AndroidEmulatorControlError(
-            f"unsupported {label} JSON constant: {value}"
-        )
-
     try:
-        return json.loads(
-            raw,
-            object_pairs_hook=reject_pairs,
-            parse_constant=reject_constant,
-        )
-    except (json.JSONDecodeError, UnicodeError) as exc:
+        return parse_strict_json_bytes(raw.encode("utf-8"), label=label)
+    except (EvidenceIOError, UnicodeError) as exc:
         raise AndroidEmulatorControlError(f"malformed {label} JSON value") from exc
 
 

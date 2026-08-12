@@ -342,19 +342,60 @@ def _lsof_path() -> str:
 
 
 def capture_owned_emulator_listeners(
-    *, run_id: str, emulator_pid: int, timeout_seconds: int
-) -> BoundedResult:
-    """Capture one owned emulator's fixed listeners into its run work tree."""
+    *, run_id: str, timeout_seconds: int
+) -> str:
+    """Capture the receipt-owned emulator's listeners and return its identity."""
+    runtime_state.validate_lane_lock_descriptor()
     layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
-    capability = runtime_state.load_capability(layout.run_id)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == layout.run_id
+        and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
+        and receipt.pid is not None
+        and receipt.process_identity is not None,
+        "emulator listener capture lacks this run's registered child receipt",
+    )
+    context = _validate_recovery_receipt(receipt)
+    _require(
+        context.layout == layout,
+        "emulator listener receipt belongs to a different repository run",
+    )
+    capability = context.capability
     _validate_client_environment(capability)
-    _validate_adb(layout, capability)
-    return _capture_owned_emulator_listeners(
+    before = _same_receipt_process(receipt)
+    _require(
+        before is not None
+        and context.backend is not None
+        and before.executable == context.backend,
+        "owned emulator is not its receipt-bound live backend",
+    )
+    result = _capture_owned_emulator_listeners(
         layout=layout,
         capability=capability,
-        emulator_pid=emulator_pid,
+        emulator_pid=receipt.pid,
         timeout_seconds=timeout_seconds,
     )
+    current = runtime_state.load_owned_runtime_receipt()
+    _require(
+        current is not None and current.snapshot_sha256 == receipt.snapshot_sha256,
+        "owned emulator receipt changed during listener capture",
+    )
+    confirmed_context = _validate_recovery_receipt(current)
+    _require(
+        confirmed_context.layout == layout
+        and confirmed_context.backend == context.backend,
+        "owned emulator backend changed during listener capture",
+    )
+    after = _same_receipt_process(current)
+    _require(
+        after is not None
+        and after.token == before.token
+        and after.executable == before.executable,
+        "owned emulator identity changed during listener capture",
+    )
+    _require(result.returncode == 0, "owned emulator listener inspection failed")
+    return after.token
 
 
 def _capture_owned_emulator_listeners(
@@ -404,7 +445,6 @@ def _capture_owned_emulator_listeners(
         runtime_state.close_descriptor(
             directory_fd, label="the Android work directory", primary=primary
         )
-    _require(result.returncode == 0, "owned emulator listener inspection failed")
     return result
 
 
@@ -2211,11 +2251,9 @@ def retire_stopped_owned_runtime(run_id: str) -> None:
         not os.path.lexists(socket_directory),
         "cannot retire an owned runtime receipt while its private adb directory remains",
     )
-    runtime_state.retire_owned_runtime_receipt(receipt)
     if receipt.device_kind == "emulator":
-        runtime_state.record_post_cleanup_adb_isolation_checkpoint(
-            context.layout.run_id,
-        )
+        runtime_state.record_post_cleanup_adb_isolation_checkpoint(receipt)
+    runtime_state.retire_owned_runtime_receipt(receipt)
 
 
 def owned_emulator_backend_identity(run_id: str) -> str:
@@ -2460,29 +2498,108 @@ def exec_server(run_id: str) -> NoReturn:
         raise AndroidCommandError(f"cannot start the owned adb server: {exc}") from exc
 
 
-def wait_owned_adb_server_start(
-    *, run_id: str, expected_pid: int, timeout_seconds: int
-) -> str:
-    """Wait until the exact spawned child durably advances its runtime receipt."""
+def wait_owned_emulator_backend(*, run_id: str, timeout_seconds: int) -> str:
+    """Wait for this run's registered emulator child to reach its fixed backend."""
     runtime_state.validate_lane_lock_descriptor()
     layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
     _require(
-        type(expected_pid) is int and expected_pid > 1,
-        "owned adb startup handshake pid is invalid",
+        type(timeout_seconds) is int and 1 <= timeout_seconds <= 30,
+        "owned emulator backend timeout must be 1 through 30 seconds",
     )
+    try:
+        controller = process_snapshot(os.getpid())
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot identify the Android control interpreter: {exc}"
+        ) from exc
+    deadline = time.monotonic() + timeout_seconds
+    observed_stage = -1
+    while True:
+        receipt = runtime_state.load_owned_runtime_receipt()
+        _require(receipt is not None, "runtime recovery receipt is missing")
+        _require(
+            receipt.run_id == layout.run_id,
+            "runtime recovery receipt belongs to another emulator spawn",
+        )
+        if receipt.phase is runtime_state.RuntimePhase.ADB_SEALED:
+            remaining = deadline - time.monotonic()
+            _require(
+                remaining > 0,
+                "spawned emulator child did not advance its recovery receipt",
+            )
+            time.sleep(min(0.02, remaining))
+            continue
+        _require(
+            receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
+            and receipt.pid is not None
+            and receipt.process_identity is not None,
+            "runtime receipt is not this run's registered emulator child",
+        )
+        context = _validate_recovery_receipt(receipt)
+        _require(
+            context.layout == layout
+            and receipt.launcher_path is not None
+            and receipt.backend_path is not None,
+            "emulator backend receipt belongs to a different repository run",
+        )
+        stages = (controller.executable, receipt.launcher_path, receipt.backend_path)
+        _require(
+            len(set(stages)) == len(stages),
+            "emulator control interpreter, launcher, and backend must differ",
+        )
+        observed = _same_receipt_process(receipt)
+        _require(observed is not None, "spawned emulator child exited before backend exec")
+        try:
+            current_stage = stages.index(observed.executable)
+        except ValueError as exc:
+            raise AndroidCommandError(
+                "spawned emulator child execed an unexpected executable"
+            ) from exc
+        _require(
+            current_stage >= observed_stage,
+            "spawned emulator executable regressed during backend transition",
+        )
+        observed_stage = current_stage
+        if observed.executable == receipt.backend_path:
+            current = runtime_state.load_owned_runtime_receipt()
+            _require(
+                current is not None
+                and current.snapshot_sha256 == receipt.snapshot_sha256,
+                "emulator receipt changed during backend transition",
+            )
+            confirmed_context = _validate_recovery_receipt(current)
+            _require(
+                confirmed_context.layout == layout
+                and confirmed_context.backend == receipt.backend_path,
+                "emulator backend identity changed during backend transition",
+            )
+            confirmed = _same_receipt_process(current)
+            _require(
+                confirmed is not None
+                and confirmed.token == observed.token
+                and confirmed.executable == receipt.backend_path,
+                "emulator identity changed at the backend transition",
+            )
+            _require(
+                time.monotonic() <= deadline,
+                "spawned emulator child reached its fixed backend after the deadline",
+            )
+            return confirmed.token
+        remaining = deadline - time.monotonic()
+        _require(
+            remaining > 0,
+            "spawned emulator child did not reach its fixed backend",
+        )
+        time.sleep(min(0.05, remaining))
+
+
+def wait_owned_adb_server_start(*, run_id: str, timeout_seconds: int) -> str:
+    """Wait until this run's exact adb child durably advances its receipt."""
+    runtime_state.validate_lane_lock_descriptor()
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
     _require(
         type(timeout_seconds) is int and 1 <= timeout_seconds <= 15,
         "owned adb startup handshake timeout must be 1 through 15 seconds",
-    )
-    try:
-        spawned = process_snapshot(expected_pid)
-    except ProcessIdentityError as exc:
-        raise AndroidCommandError(
-            f"cannot identify the spawned adb server child: {exc}"
-        ) from exc
-    _require(
-        spawned.uid == os.geteuid(),
-        "spawned adb server child belongs to another account",
     )
     deadline = time.monotonic() + timeout_seconds
     while True:
@@ -2492,26 +2609,49 @@ def wait_owned_adb_server_start(
             receipt.run_id == layout.run_id,
             "runtime recovery receipt belongs to another server spawn",
         )
-        try:
-            observed = process_snapshot(expected_pid)
-        except ProcessIdentityError as exc:
-            raise AndroidCommandError(
-                "spawned adb server child exited before its receipt advance"
-            ) from exc
-        _require(
-            observed.token == spawned.token,
-            "spawned adb server child identity changed during receipt handoff",
-        )
         if receipt.adb_server_started:
+            context = _validate_recovery_receipt(
+                receipt, validate_active_emulator=False
+            )
             _require(
-                receipt.adb_server_pid == expected_pid
-                and receipt.adb_server_process_identity == spawned.token,
-                "runtime receipt advanced for a different adb server child",
+                context.layout == layout,
+                "adb server receipt belongs to a different repository run",
+            )
+            observed = _same_receipt_adb_server_process(receipt)
+            _require(
+                observed is not None,
+                "spawned adb server child exited after its receipt advance",
+            )
+            capability = context.capability
+            _validate_receipt_adb_server_executable(receipt, capability, observed)
+            current = runtime_state.load_owned_runtime_receipt()
+            _require(
+                current is not None
+                and current.snapshot_sha256 == receipt.snapshot_sha256,
+                "adb server receipt changed during startup handoff",
+            )
+            confirmed_context = _validate_recovery_receipt(
+                current, validate_active_emulator=False
+            )
+            _require(
+                confirmed_context.layout == layout,
+                "adb server recovery context changed during startup handoff",
+            )
+            confirmed = _same_receipt_adb_server_process(current)
+            _require(
+                confirmed is not None
+                and confirmed.token == observed.token
+                and confirmed.executable == observed.executable,
+                "adb server identity changed during startup handoff",
             )
             _validate_receipt_adb_server_executable(
-                receipt, _load_recovery_adb_capability(layout, receipt), observed
+                current, confirmed_context.capability, confirmed
             )
-            return receipt.adb_server_process_identity
+            _require(
+                time.monotonic() <= deadline,
+                "spawned adb server child advanced its recovery receipt after the deadline",
+            )
+            return confirmed.token
         remaining = deadline - time.monotonic()
         _require(
             remaining > 0,
@@ -2729,7 +2869,6 @@ def _build_parser() -> argparse.ArgumentParser:
     invoke.add_argument("--timeout-seconds", type=int)
     emulator_listeners = sub.add_parser("capture-emulator-listeners")
     emulator_listeners.add_argument("--run-id", required=True)
-    emulator_listeners.add_argument("--emulator-pid", required=True, type=int)
     emulator_listeners.add_argument(
         "--timeout-seconds", required=True, type=int, choices=range(1, 6)
     )
@@ -2749,9 +2888,13 @@ def _build_parser() -> argparse.ArgumentParser:
     server.add_argument("--run-id", required=True)
     wait_server = sub.add_parser("wait-owned-adb-server-start")
     wait_server.add_argument("--run-id", required=True)
-    wait_server.add_argument("--expected-pid", required=True, type=int)
     wait_server.add_argument(
         "--timeout-seconds", required=True, type=int, choices=range(1, 16)
+    )
+    wait_emulator = sub.add_parser("wait-owned-emulator-backend")
+    wait_emulator.add_argument("--run-id", required=True)
+    wait_emulator.add_argument(
+        "--timeout-seconds", required=True, type=int, choices=range(1, 31)
     )
     emulator = sub.add_parser("emulator-nodaemon")
     emulator.add_argument("--run-id", required=True)
@@ -2813,11 +2956,12 @@ def main(argv: list[str]) -> int:
         print("ANDROID_RUNTIME_RECOVERY_RECEIPT_CREATED")
         return 0
     if args.action == "capture-emulator-listeners":
-        return capture_owned_emulator_listeners(
+        identity = capture_owned_emulator_listeners(
             run_id=args.run_id,
-            emulator_pid=args.emulator_pid,
             timeout_seconds=args.timeout_seconds,
-        ).returncode
+        )
+        print(identity)
+        return 0
     if args.action == "adb-path":
         print(runtime_state.resolve_adb_profile(args.adb_profile))
         return 0
@@ -2839,7 +2983,13 @@ def main(argv: list[str]) -> int:
     if args.action == "wait-owned-adb-server-start":
         identity = wait_owned_adb_server_start(
             run_id=args.run_id,
-            expected_pid=args.expected_pid,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(identity)
+        return 0
+    if args.action == "wait-owned-emulator-backend":
+        identity = wait_owned_emulator_backend(
+            run_id=args.run_id,
             timeout_seconds=args.timeout_seconds,
         )
         print(identity)

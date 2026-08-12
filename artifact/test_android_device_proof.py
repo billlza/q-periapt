@@ -639,7 +639,12 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             'keystore_path: "/tmp/key"\nkeystore_path: "/tmp/key"\n',
             "keystore_path: not-json\n",
             'keystore_path: {"path":"a","path":"b"}\n',
+            'keystore_path: {"outer":{"path":"a","path":"b"}}\n',
             "mdns_enabled: NaN\n",
+            "mdns_enabled: Infinity\n",
+            "mdns_enabled: -Infinity\n",
+            "mdns_enabled: 1e999\n",
+            "mdns_enabled: " + ("9" * 5000) + "\n",
         )
         for status in invalid_statuses:
             with self.subTest(status=status):
@@ -720,66 +725,21 @@ class AndroidAdbIdentityTests(unittest.TestCase):
                     adb_port=ports[1],
                 )
 
-    def test_owned_process_binds_pid_start_identity_and_executable(self) -> None:
-        executable = self.account_home / "emulator"
-        executable.write_bytes(b"fixture")
-        executable.chmod(0o700)
-        identity = f"123:{os.geteuid()}:456:789"
-        arguments = argparse.Namespace(
-            expected_pid=123,
-            expected_executable=executable,
-            expected_executable_device=executable.stat().st_dev,
-            expected_executable_inode=executable.stat().st_ino,
-            expected_identity=identity,
-        )
-        process_identity = ProcessIdentity(
-            pid=123,
-            uid=os.geteuid(),
-            started_at=456,
-            started_subsecond=789,
-            executable=executable.resolve(),
-        )
-        with (
-            mock.patch.object(
-                android_device_proof,
-                "process_snapshot",
-                return_value=process_identity,
-            ),
-            mock.patch.object(
-                android_device_proof,
-                "process_execution_snapshot",
-                side_effect=AssertionError(
-                    "owned process inspection must not read its environment"
-                ),
-            ),
-            contextlib.redirect_stdout(io.StringIO()),
-        ):
-            android_device_proof.verify_owned_process(arguments)
-
-        for changed in (
-            argparse.Namespace(**{**vars(arguments), "expected_identity": "123:0:1:2"}),
-            argparse.Namespace(
-                **{
-                    **vars(arguments),
-                    "expected_executable": self.account_home / "other",
-                }
-            ),
-            argparse.Namespace(
-                **{
-                    **vars(arguments),
-                    "expected_executable_inode": executable.stat().st_ino + 1,
-                }
-            ),
+    def test_direct_owned_process_pid_commands_are_not_public(self) -> None:
+        self.assertFalse(hasattr(android_device_proof, "verify_owned_process"))
+        self.assertFalse(hasattr(android_device_proof, "wait_owned_process_exec"))
+        parser = android_device_proof.build_parser()
+        for arguments in (
+            ["verify-owned-process", "--expected-pid", "123"],
+            ["wait-owned-process-exec", "--expected-pid", "123"],
         ):
             with (
-                mock.patch.object(
-                    android_device_proof,
-                    "process_snapshot",
-                    return_value=process_identity,
-                ),
-                self.assertRaises(SystemExit),
+                self.subTest(arguments=arguments),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as raised,
             ):
-                android_device_proof.verify_owned_process(changed)
+                parser.parse_args(arguments)
+            self.assertEqual(raised.exception.code, 2)
 
     def test_emulator_backend_path_is_fixed_by_host_and_device_abi(self) -> None:
         emulator_directory = self.account_home / "sdk" / "emulator"
@@ -851,158 +811,6 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             self.assertRaisesRegex(SystemExit, "must not be a symlink"),
         ):
             android_device_proof.emulator_backend_path(launcher, "arm64-v8a")
-
-    def test_owned_emulator_exec_wait_accepts_only_one_identity_transition(
-        self,
-    ) -> None:
-        emulator_directory = self.account_home / "sdk" / "emulator"
-        backend_directory = emulator_directory / "qemu" / "darwin-aarch64"
-        backend_directory.mkdir(parents=True)
-        launcher = emulator_directory / "emulator"
-        backend = backend_directory / "qemu-system-aarch64-headless"
-        initial = self.account_home / "python-bootstrap"
-        for executable in (initial, launcher, backend):
-            executable.write_bytes(b"fixture")
-            executable.chmod(0o700)
-        arguments = argparse.Namespace(
-            expected_pid=123,
-            initial_executable=initial,
-            launcher=launcher,
-            device_abi="arm64-v8a",
-            timeout_seconds=5,
-        )
-        identity = f"123:{os.geteuid()}:456:789"
-        with (
-            mock.patch.object(android_device_proof.sys, "platform", "darwin"),
-            mock.patch.object(
-                android_device_proof.platform, "machine", return_value="arm64"
-            ),
-            mock.patch.object(
-                android_device_proof,
-                "_owned_process_snapshot",
-                side_effect=[
-                    (initial.resolve(), identity),
-                    (launcher.resolve(), identity),
-                    (backend.resolve(), identity),
-                ],
-            ),
-            mock.patch.object(android_device_proof.time, "monotonic", return_value=0.0),
-            mock.patch.object(android_device_proof.time, "sleep") as sleep,
-            contextlib.redirect_stdout(io.StringIO()) as stdout,
-        ):
-            android_device_proof.wait_owned_process_exec(arguments)
-        self.assertEqual(stdout.getvalue(), f"{identity}\n")
-        self.assertEqual(sleep.call_args_list, [mock.call(0.05), mock.call(0.05)])
-
-        with (
-            mock.patch.object(android_device_proof.sys, "platform", "darwin"),
-            mock.patch.object(
-                android_device_proof.platform, "machine", return_value="arm64"
-            ),
-            mock.patch.object(
-                android_device_proof,
-                "_owned_process_snapshot",
-                return_value=(backend.resolve(), identity),
-            ) as stable_snapshot,
-            mock.patch.object(android_device_proof.time, "monotonic", return_value=0.0),
-            mock.patch.object(android_device_proof.time, "sleep") as stable_sleep,
-            contextlib.redirect_stdout(io.StringIO()),
-        ):
-            android_device_proof.wait_owned_process_exec(arguments)
-        stable_snapshot.assert_called_once_with(123)
-        stable_sleep.assert_not_called()
-
-        for snapshots, error in (
-            (
-                [
-                    (initial.resolve(), identity),
-                    (backend.resolve(), "123:0:1:2"),
-                ],
-                "identity changed",
-            ),
-            ([(self.account_home / "unexpected", identity)], "executable differs"),
-            (
-                [
-                    (launcher.resolve(), identity),
-                    (initial.resolve(), identity),
-                ],
-                "regressed",
-            ),
-        ):
-            with (
-                self.subTest(error=error),
-                mock.patch.object(android_device_proof.sys, "platform", "darwin"),
-                mock.patch.object(
-                    android_device_proof.platform, "machine", return_value="arm64"
-                ),
-                mock.patch.object(
-                    android_device_proof,
-                    "_owned_process_snapshot",
-                    side_effect=snapshots,
-                ),
-                mock.patch.object(
-                    android_device_proof.time, "monotonic", return_value=0.0
-                ),
-                mock.patch.object(android_device_proof.time, "sleep"),
-                self.assertRaisesRegex(SystemExit, error),
-            ):
-                android_device_proof.wait_owned_process_exec(arguments)
-
-        with (
-            mock.patch.object(android_device_proof.sys, "platform", "darwin"),
-            mock.patch.object(
-                android_device_proof.platform, "machine", return_value="arm64"
-            ),
-            mock.patch.object(
-                android_device_proof,
-                "_owned_process_snapshot",
-                return_value=(initial.resolve(), identity),
-            ) as timed_snapshot,
-            mock.patch.object(
-                android_device_proof.time,
-                "monotonic",
-                side_effect=[0.0, 0.0, 5.0],
-            ),
-            self.assertRaisesRegex(SystemExit, "fixed headless backend"),
-        ):
-            android_device_proof.wait_owned_process_exec(arguments)
-        timed_snapshot.assert_called_once_with(123)
-
-        duplicate_stage = argparse.Namespace(
-            **{**vars(arguments), "initial_executable": launcher}
-        )
-        with (
-            mock.patch.object(android_device_proof.sys, "platform", "darwin"),
-            mock.patch.object(
-                android_device_proof.platform, "machine", return_value="arm64"
-            ),
-            mock.patch.object(
-                android_device_proof, "_owned_process_snapshot"
-            ) as snapshot,
-            self.assertRaisesRegex(SystemExit, "must differ"),
-        ):
-            android_device_proof.wait_owned_process_exec(duplicate_stage)
-        snapshot.assert_not_called()
-
-        parser = android_device_proof.build_parser()
-        with (
-            contextlib.redirect_stderr(io.StringIO()),
-            self.assertRaises(SystemExit) as missing_initial,
-        ):
-            parser.parse_args(
-                [
-                    "wait-owned-process-exec",
-                    "--expected-pid",
-                    "123",
-                    "--launcher",
-                    str(launcher),
-                    "--device-abi",
-                    "arm64-v8a",
-                    "--timeout-seconds",
-                    "5",
-                ]
-            )
-        self.assertEqual(missing_initial.exception.code, 2)
 
     def test_default_adb_endpoint_probe_fails_closed(self) -> None:
         with mock.patch.object(
@@ -1207,6 +1015,17 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             missing_pid.expected_pid = None
             with self.assertRaisesRegex(SystemExit, "requires its owned pid"):
                 android_device_proof.verify_adb_listener(missing_pid)
+
+        wrong_pid = copy.copy(arguments)
+        wrong_pid.expected_pid = 124
+        with (
+            mock.patch.object(
+                android_device_proof, "process_execution_snapshot"
+            ) as inspect,
+            self.assertRaisesRegex(SystemExit, "pid differs"),
+        ):
+            android_device_proof.verify_adb_listener(wrong_pid)
+        inspect.assert_not_called()
 
     def test_private_adb_socket_rejects_wrong_shape_and_symlink_leaf(self) -> None:
         with tempfile.TemporaryDirectory(prefix="wrong-adb.", dir="/tmp") as raw:
@@ -2968,7 +2787,15 @@ fi
         self.assertLess(registered_status, registered_listener)
         self.assertLess(registered_listener, device_state)
         self.assertIn("verify-owned-emulator-listeners", producer)
-        self.assertIn('--initial-executable "$QPERIAPT_PYTHON"', producer)
+        self.assertIn("wait-owned-emulator-backend", producer)
+        self.assertIn(
+            'EMULATOR_RECEIPT_PID=${EMULATOR_PROCESS_IDENTITY%%:*}', producer
+        )
+        self.assertIn(
+            '[ "$EMULATOR_RECEIPT_PID" != "$EMULATOR_PID" ]', producer
+        )
+        self.assertNotIn("wait-owned-process-exec", producer)
+        self.assertNotIn("verify-owned-process", producer)
         self.assertIn("EMULATOR_ADB_PORT=$((ANDROID_EMULATOR_PORT + 1))", producer)
         self.assertIn('"schema": 5', producer)
         self.assertIn('"emulator_control": emulator_control', producer)

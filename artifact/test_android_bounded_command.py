@@ -304,8 +304,6 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ["invoke", "device-state"],
             [
                 "capture-emulator-listeners",
-                "--emulator-pid",
-                "123",
                 "--timeout-seconds",
                 "1",
             ],
@@ -313,8 +311,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ["server-nodaemon"],
             [
                 "wait-owned-adb-server-start",
-                "--expected-pid",
-                "123",
+                "--timeout-seconds",
+                "1",
+            ],
+            [
+                "wait-owned-emulator-backend",
                 "--timeout-seconds",
                 "1",
             ],
@@ -327,6 +328,65 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ):
                 commands.main(arguments)
             self.assertEqual(raised.exception.code, 2)
+
+    def test_receipt_owned_cli_rejects_legacy_pid_inputs(self) -> None:
+        for arguments in (
+            [
+                "capture-emulator-listeners",
+                "--run-id",
+                self.run_id,
+                "--emulator-pid",
+                "123",
+                "--timeout-seconds",
+                "1",
+            ],
+            [
+                "wait-owned-adb-server-start",
+                "--run-id",
+                self.run_id,
+                "--expected-pid",
+                "123",
+                "--timeout-seconds",
+                "1",
+            ],
+        ):
+            with (
+                self.subTest(arguments=arguments),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as raised,
+            ):
+                commands.main(arguments)
+            self.assertEqual(raised.exception.code, 2)
+
+    def test_receipt_owned_entrypoints_reject_run_id_before_os_inspection(
+        self,
+    ) -> None:
+        entrypoints = (
+            lambda: commands.capture_owned_emulator_listeners(
+                run_id="../" + ("a" * 29), timeout_seconds=1
+            ),
+            lambda: commands.wait_owned_adb_server_start(
+                run_id="/" + ("a" * 31), timeout_seconds=1
+            ),
+            lambda: commands.wait_owned_emulator_backend(
+                run_id=("A" * 32), timeout_seconds=1
+            ),
+        )
+        for entrypoint in entrypoints:
+            with (
+                self.subTest(entrypoint=entrypoint),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(state, "load_owned_runtime_receipt") as load,
+                mock.patch.object(commands, "process_snapshot") as inspect,
+                mock.patch.object(commands, "write_stdout_at") as write,
+                self.assertRaises(
+                    (commands.AndroidCommandError, state.AndroidRuntimeStateError)
+                ),
+            ):
+                entrypoint()
+            load.assert_not_called()
+            inspect.assert_not_called()
+            write.assert_not_called()
 
     def load_capability(self) -> state.AndroidCommandCapability:
         return state.load_capability(self.layout.run_id)
@@ -986,9 +1046,21 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(child_environment["ADB_EMU"], "0")
 
     def test_owned_emulator_listener_capture_is_run_bound_and_bounded(self) -> None:
-        self.create_capability(
-            device_kind="emulator",
-            expected_serial="emulator-5584",
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=capability,
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
         )
 
         def write_fixture(argv: tuple[str, ...], **arguments: object) -> BoundedResult:
@@ -999,7 +1071,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     "-nP",
                     "-a",
                     "-p",
-                    "123",
+                    str(receipt.pid),
                     "-iTCP:5584",
                     "-iTCP:5585",
                     "-sTCP:LISTEN",
@@ -1011,13 +1083,21 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(arguments["maximum_bytes"], 65_536)
             output = self.work / "emulator-listeners.txt.pending"
             output.write_text(
-                f"p123\nu{os.geteuid()}\nf18\nn127.0.0.1:5584\nf19\nn127.0.0.1:5585\n",
+                f"p{receipt.pid}\nu{os.geteuid()}\nf18\n"
+                "n127.0.0.1:5584\nf19\nn127.0.0.1:5585\n",
                 encoding="ascii",
             )
             output.chmod(0o600)
             return BoundedResult(0)
 
         with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands, "_same_receipt_process", side_effect=[identity, identity]
+            ),
             mock.patch.object(commands, "_lsof_path", return_value="/usr/sbin/lsof"),
             mock.patch.object(
                 commands, "write_stdout_at", side_effect=write_fixture
@@ -1025,15 +1105,21 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             result = commands.capture_owned_emulator_listeners(
                 run_id=self.layout.run_id,
-                emulator_pid=123,
                 timeout_seconds=3,
             )
-        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result, identity.token)
         write.assert_called_once()
 
-        for pid, timeout in ((1, 1), (123, 0), (123, 6)):
+        for timeout in (0, 6):
             with (
-                self.subTest(pid=pid, timeout=timeout),
+                self.subTest(timeout=timeout),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(
+                    commands, "_validate_recovery_receipt", return_value=context
+                ),
+                mock.patch.object(
+                    commands, "_same_receipt_process", return_value=identity
+                ),
                 mock.patch.object(commands, "write_stdout_at") as write,
                 self.assertRaises(
                     (commands.AndroidCommandError, state.AndroidRuntimeStateError)
@@ -1041,21 +1127,22 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ):
                 commands.capture_owned_emulator_listeners(
                     run_id=self.layout.run_id,
-                    emulator_pid=pid,
                     timeout_seconds=timeout,
                 )
             write.assert_not_called()
 
-        self.create_capability()
         with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state, "load_owned_runtime_receipt", return_value=None
+            ),
             mock.patch.object(commands, "write_stdout_at") as write,
             self.assertRaisesRegex(
-                commands.AndroidCommandError, "requires an emulator capability"
+                commands.AndroidCommandError, "lacks this run's registered child"
             ),
         ):
             commands.capture_owned_emulator_listeners(
                 run_id=self.layout.run_id,
-                emulator_pid=123,
                 timeout_seconds=1,
             )
         write.assert_not_called()
@@ -1406,7 +1493,6 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ):
                 observed_token = commands.wait_owned_adb_server_start(
                     run_id=self.run_id,
-                    expected_pid=identity.pid,
                     timeout_seconds=5,
                 )
         finally:
@@ -1416,42 +1502,182 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(worker_error, [])
         self.assertEqual(observed_token, identity.token)
 
-    def test_startup_handshake_preserves_pending_state_when_child_exits(self) -> None:
+    def test_startup_handshake_timeout_preserves_pending_state(self) -> None:
         state._write_owned_runtime_receipt(
             state._runtime_recovery_payload(self.load_capability())
-        )
-        identity = commands.ProcessIdentity(
-            pid=424242,
-            uid=os.geteuid(),
-            started_at=888888,
-            started_subsecond=444,
-            executable=pathlib.Path(sys.executable).resolve(),
         )
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
-                commands,
-                "process_snapshot",
-                side_effect=[
-                    identity,
-                    commands.ProcessIdentityError("child exited"),
-                ],
+                commands.time, "monotonic", side_effect=[0.0, 6.0]
             ),
+            mock.patch.object(commands, "_same_receipt_adb_server_process") as inspect,
+            mock.patch.object(commands.time, "sleep") as sleep,
             self.assertRaisesRegex(
                 (commands.AndroidCommandError, state.AndroidRuntimeStateError),
-                "exited before",
+                "did not advance",
             ),
         ):
             commands.wait_owned_adb_server_start(
                 run_id=self.run_id,
-                expected_pid=identity.pid,
                 timeout_seconds=5,
             )
+        inspect.assert_not_called()
+        sleep.assert_not_called()
         receipt = state.load_owned_runtime_receipt()
         self.assertIsNotNone(receipt)
         self.assertFalse(receipt.adb_server_started)  # type: ignore[union-attr]
         self.assertTrue(self.state.exists())
         self.assertTrue(self.snapshot.exists())
+
+    def test_startup_handshake_rejects_receipt_host_before_process_inspection(
+        self,
+    ) -> None:
+        receipt, _identity = self.start_physical_adb_server_receipt()
+        payload = state._runtime_receipt_payload(receipt)
+        payload["host_identity"] = receipt.host_identity + "-other"
+        state._replace_owned_runtime_receipt(receipt, payload)
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands, "_same_receipt_adb_server_process"
+            ) as inspect,
+            self.assertRaisesRegex(commands.AndroidCommandError, "different host"),
+        ):
+            commands.wait_owned_adb_server_start(
+                run_id=self.run_id,
+                timeout_seconds=5,
+            )
+        inspect.assert_not_called()
+
+    def test_startup_handshake_rejects_confirmation_after_deadline(self) -> None:
+        receipt, identity = self.start_physical_adb_server_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=self.load_capability(),
+            launcher=None,
+            backend=None,
+            current_boot=True,
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands,
+                "_same_receipt_adb_server_process",
+                side_effect=[identity, identity],
+            ),
+            mock.patch.object(commands, "_validate_receipt_adb_server_executable"),
+            mock.patch.object(commands.time, "monotonic", side_effect=[0.0, 5.1]),
+            self.assertRaisesRegex(commands.AndroidCommandError, "after the deadline"),
+        ):
+            commands.wait_owned_adb_server_start(
+                run_id=receipt.run_id,
+                timeout_seconds=5,
+            )
+
+    def test_emulator_backend_wait_uses_only_the_registered_receipt_identity(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=capability,
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        controller = commands.ProcessIdentity(
+            pid=os.getpid(),
+            uid=os.geteuid(),
+            started_at=1,
+            started_subsecond=1,
+            executable=pathlib.Path(sys.executable).resolve(),
+        )
+
+        def at(executable: pathlib.Path) -> commands.ProcessIdentity:
+            return commands.ProcessIdentity(
+                pid=receipt.pid,  # type: ignore[arg-type]
+                uid=receipt.uid,
+                started_at=receipt.started_at,  # type: ignore[arg-type]
+                started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+                executable=executable,
+            )
+
+        observed = (
+            at(controller.executable),
+            at(receipt.launcher_path),  # type: ignore[arg-type]
+            at(receipt.backend_path),  # type: ignore[arg-type]
+            at(receipt.backend_path),  # type: ignore[arg-type]
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "process_snapshot", return_value=controller),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands, "_same_receipt_process", side_effect=observed
+            ),
+            mock.patch.object(commands.time, "monotonic", return_value=0.0),
+            mock.patch.object(commands.time, "sleep") as sleep,
+        ):
+            token = commands.wait_owned_emulator_backend(
+                run_id=self.run_id,
+                timeout_seconds=5,
+            )
+        self.assertEqual(token, observed[-1].token)
+        self.assertEqual(sleep.call_args_list, [mock.call(0.05), mock.call(0.05)])
+
+        changed = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at + 1,  # type: ignore[operator]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "process_snapshot", return_value=controller),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands,
+                "_same_receipt_process",
+                side_effect=[observed[-1], changed],
+            ),
+            self.assertRaisesRegex(
+                commands.AndroidCommandError,
+                "identity changed at the backend transition",
+            ),
+        ):
+            commands.wait_owned_emulator_backend(
+                run_id=self.run_id,
+                timeout_seconds=5,
+            )
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "process_snapshot", return_value=controller),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands,
+                "_same_receipt_process",
+                side_effect=[observed[-1], observed[-1]],
+            ),
+            mock.patch.object(commands.time, "monotonic", side_effect=[0.0, 5.1]),
+            self.assertRaisesRegex(commands.AndroidCommandError, "after the deadline"),
+        ):
+            commands.wait_owned_emulator_backend(
+                run_id=self.run_id,
+                timeout_seconds=5,
+            )
 
     def test_sealed_socket_directory_allows_connect_but_blocks_replacement(
         self,
@@ -3242,12 +3468,24 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertTrue(state.owned_runtime_receipt_path().exists())
         state.retire_recovery_capability(self.layout, receipt)
         self.private_adb_directory.rmdir()
+
+        def checkpoint_before_retirement(
+            exact_receipt: state.OwnedRuntimeReceipt,
+        ) -> None:
+            self.assertEqual(exact_receipt.snapshot_sha256, receipt.snapshot_sha256)
+            self.assertTrue(state.owned_runtime_receipt_path().exists())
+
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(commands, "_same_receipt_process", return_value=None),
-            mock.patch.object(state, "record_post_cleanup_adb_isolation_checkpoint"),
+            mock.patch.object(
+                state,
+                "record_post_cleanup_adb_isolation_checkpoint",
+                side_effect=checkpoint_before_retirement,
+            ) as checkpoint,
         ):
             commands.retire_stopped_owned_runtime(receipt.run_id)
+        checkpoint.assert_called_once_with(receipt)
         self.assertFalse(state.owned_runtime_receipt_path().exists())
 
     def test_recovery_requires_exact_avd_name_before_console_kill(self) -> None:

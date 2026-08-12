@@ -2230,17 +2230,21 @@ def record_adb_isolation_checkpoint(
 
 
 def record_post_cleanup_adb_isolation_checkpoint(
-    run_id: str,
+    receipt: OwnedRuntimeReceipt,
 ) -> pathlib.Path:
-    """Publish post-cleanup only after the caller retired exact runtime state."""
+    """Durably stage post-cleanup evidence before exact receipt retirement."""
 
     validate_lane_lock_descriptor()
-    canonical_run = _canonical_run_id(run_id)
-    layout = AndroidRunLayout.from_run_id(canonical_run)
+    current_receipt = load_owned_runtime_receipt()
     _require(
-        load_owned_runtime_receipt(missing_ok=True) is None,
-        "post-cleanup adb isolation requires the runtime receipt to be retired",
+        current_receipt is not None
+        and current_receipt.snapshot_sha256 == receipt.snapshot_sha256
+        and current_receipt.run_id == receipt.run_id
+        and receipt.device_kind == "emulator",
+        "post-cleanup adb isolation requires the exact emulator runtime receipt",
     )
+    canonical_run = _canonical_run_id(receipt.run_id)
+    layout = AndroidRunLayout.from_run_id(canonical_run)
     _require(
         not os.path.lexists(layout.capability)
         and not os.path.lexists(layout.work / _adb_snapshot_leaf(canonical_run)),
@@ -2295,6 +2299,43 @@ def record_post_cleanup_adb_isolation_checkpoint(
         encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(
             "utf-8"
         )
+        current_receipt = load_owned_runtime_receipt()
+        _require(
+            current_receipt is not None
+            and current_receipt.snapshot_sha256 == receipt.snapshot_sha256,
+            "owned runtime receipt changed during post-cleanup observation",
+        )
+        try:
+            existing = load_json_object_snapshot_at(
+                proof_fd,
+                leaf,
+                display_path=layout.proof / leaf,
+                maximum=4096,
+                label="Android post-cleanup adb isolation checkpoint",
+                validate_metadata=_private_metadata,
+            )
+        except EvidenceIOError as exc:
+            try:
+                os.stat(leaf, dir_fd=proof_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                raise AndroidRuntimeStateError(
+                    f"cannot load existing post-cleanup adb isolation checkpoint: {exc}"
+                ) from exc
+        else:
+            _require(
+                existing.value == payload and existing.file.data == encoded,
+                "existing post-cleanup adb isolation checkpoint changed",
+            )
+            os.fsync(proof_fd)
+            current_receipt = load_owned_runtime_receipt()
+            _require(
+                current_receipt is not None
+                and current_receipt.snapshot_sha256 == receipt.snapshot_sha256,
+                "owned runtime receipt changed while confirming post-cleanup evidence",
+            )
+            return layout.proof / leaf
         descriptor = os.open(
             leaf,
             os.O_WRONLY
@@ -2317,6 +2358,12 @@ def record_post_cleanup_adb_isolation_checkpoint(
         os.close(descriptor)
         descriptor = -1
         os.fsync(proof_fd)
+        current_receipt = load_owned_runtime_receipt()
+        _require(
+            current_receipt is not None
+            and current_receipt.snapshot_sha256 == receipt.snapshot_sha256,
+            "owned runtime receipt changed while publishing post-cleanup evidence",
+        )
         return layout.proof / leaf
     except BaseException as exc:
         primary = exc

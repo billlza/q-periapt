@@ -16,7 +16,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import time
 import zipfile
 from typing import Any
 
@@ -87,9 +86,6 @@ from process_identity import (
 from process_identity import execution_snapshot as process_execution_snapshot
 from process_identity import (
     parse_token as parse_process_identity_token,
-)
-from process_identity import (
-    snapshot as process_snapshot,
 )
 from proof_manifest import (
     ProofManifestError,
@@ -941,39 +937,9 @@ def verify_owned_emulator_listeners(args: argparse.Namespace) -> None:
     print("ANDROID_OWNED_EMULATOR_LISTENERS_PASS")
 
 
-def _owned_process_snapshot(pid: int) -> tuple[pathlib.Path, str]:
-    require(type(pid) is int and pid > 1, "owned process pid is invalid")
-    try:
-        identity = process_snapshot(pid)
-    except ProcessIdentityError as exc:
-        raise SystemExit(f"error: cannot inspect owned process {pid}: {exc}") from exc
-    require(
-        identity.uid == os.geteuid(),
-        "owned process uid differs from the current account",
-    )
-    return identity.executable, identity.token
-
-
 def _expected_owned_executable(path: pathlib.Path, label: str) -> pathlib.Path:
     require(not path.is_symlink(), f"{label} must not be a symlink")
     return require_executable_file(path, label)
-
-
-def verify_owned_process(args: argparse.Namespace) -> None:
-    executable, identity = _owned_process_snapshot(args.expected_pid)
-    expected_executable = _expected_owned_executable(
-        args.expected_executable, "expected owned executable"
-    )
-    require(executable == expected_executable, "owned process executable differs")
-    executable_metadata = expected_executable.lstat()
-    require(
-        executable_metadata.st_dev == args.expected_executable_device
-        and executable_metadata.st_ino == args.expected_executable_inode,
-        "owned process executable file identity changed",
-    )
-    if args.expected_identity is not None:
-        require(identity == args.expected_identity, "owned process identity changed")
-    print(identity)
 
 
 def emulator_backend_path(
@@ -997,62 +963,6 @@ def resolve_emulator_backend(args: argparse.Namespace) -> None:
     print(emulator_backend_path(args.emulator, args.device_abi))
 
 
-def wait_owned_process_exec(args: argparse.Namespace) -> None:
-    initial = _expected_owned_executable(
-        args.initial_executable, "owned emulator initial executable"
-    )
-    launcher = _expected_owned_executable(args.launcher, "Android emulator launcher")
-    backend = emulator_backend_path(args.launcher, args.device_abi)
-    stages = (initial, launcher, backend)
-    require(
-        len(set(stages)) == len(stages),
-        "owned emulator initial executable, launcher, and backend must differ",
-    )
-    require(
-        type(args.timeout_seconds) is int and 1 <= args.timeout_seconds <= 30,
-        "owned process exec timeout is invalid",
-    )
-    deadline = time.monotonic() + args.timeout_seconds
-    expected_identity: str | None = None
-    observed_stage = -1
-    while True:
-        now = time.monotonic()
-        require(
-            now < deadline,
-            "Android emulator launcher did not become its fixed headless backend",
-        )
-        executable, identity = _owned_process_snapshot(args.expected_pid)
-        if expected_identity is None:
-            expected_identity = identity
-        require(
-            identity == expected_identity, "owned process identity changed during exec"
-        )
-        try:
-            current_stage = stages.index(executable)
-        except ValueError as exc:
-            raise SystemExit(
-                "error: owned process executable differs during launcher transition"
-            ) from exc
-        require(
-            current_stage >= observed_stage,
-            "owned process executable regressed during launcher transition",
-        )
-        observed_stage = current_stage
-        if current_stage == len(stages) - 1:
-            require(
-                time.monotonic() <= deadline,
-                "Android emulator launcher did not become its fixed headless backend",
-            )
-            print(identity)
-            return
-        remaining = deadline - time.monotonic()
-        require(
-            remaining > 0,
-            "Android emulator launcher did not become its fixed headless backend",
-        )
-        time.sleep(min(0.05, remaining))
-
-
 def verify_adb_listener(args: argparse.Namespace) -> None:
     try:
         snapshot = read_regular_snapshot(
@@ -1065,6 +975,10 @@ def verify_adb_listener(args: argparse.Namespace) -> None:
         )
     except (EvidenceIOError, UnicodeDecodeError) as exc:
         raise SystemExit(f"error: cannot read adb listener inspection: {exc}") from exc
+    if args.expected_pid is not None and pid != args.expected_pid:
+        raise SystemExit(
+            f"error: adb listener pid differs from the owned server: {pid}"
+        )
     try:
         execution: ProcessExecutionSnapshot = process_execution_snapshot(pid)
     except ProcessIdentityError as exc:
@@ -1072,10 +986,6 @@ def verify_adb_listener(args: argparse.Namespace) -> None:
             f"error: cannot inspect adb listener process {pid}: {exc}"
         ) from exc
     identity_fields = execution.identity
-    if args.expected_pid is not None and pid != args.expected_pid:
-        raise SystemExit(
-            f"error: adb listener pid differs from the owned server: {pid}"
-        )
     expected_environment: dict[str, str] = {}
     forbidden_environment = [
         "ANDROID_ADB_SERVER_ADDRESS",
@@ -3889,23 +3799,6 @@ def build_parser() -> argparse.ArgumentParser:
     emulator_listener_parser.add_argument("--adb-port", required=True, type=int)
     emulator_listener_parser.set_defaults(func=verify_owned_emulator_listeners)
 
-    owned_process_parser = sub.add_parser(
-        "verify-owned-process",
-        help="bind one direct child pid to its executable and start identity",
-    )
-    owned_process_parser.add_argument("--expected-pid", required=True, type=int)
-    owned_process_parser.add_argument(
-        "--expected-executable", required=True, type=pathlib.Path
-    )
-    owned_process_parser.add_argument(
-        "--expected-executable-device", required=True, type=int
-    )
-    owned_process_parser.add_argument(
-        "--expected-executable-inode", required=True, type=int
-    )
-    owned_process_parser.add_argument("--expected-identity")
-    owned_process_parser.set_defaults(func=verify_owned_process)
-
     emulator_backend_parser = sub.add_parser(
         "emulator-backend-path",
         help="derive the fixed headless QEMU backend selected by an emulator launcher",
@@ -3915,23 +3808,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
     )
     emulator_backend_parser.set_defaults(func=resolve_emulator_backend)
-
-    wait_exec_parser = sub.add_parser(
-        "wait-owned-process-exec",
-        help="wait for an owned emulator launcher to exec its fixed backend",
-    )
-    wait_exec_parser.add_argument("--expected-pid", required=True, type=int)
-    wait_exec_parser.add_argument(
-        "--initial-executable", required=True, type=pathlib.Path
-    )
-    wait_exec_parser.add_argument("--launcher", required=True, type=pathlib.Path)
-    wait_exec_parser.add_argument(
-        "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
-    )
-    wait_exec_parser.add_argument(
-        "--timeout-seconds", required=True, type=int, choices=range(1, 31)
-    )
-    wait_exec_parser.set_defaults(func=wait_owned_process_exec)
 
     publish_parser = sub.add_parser(
         "publish-staged-proof",

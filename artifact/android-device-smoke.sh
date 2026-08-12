@@ -1188,21 +1188,19 @@ capture_owned_emulator_listeners() {
 	if ! emulator_process_active; then
 		return 1
 	fi
-	if ! python3 artifact/android_device_proof.py verify-owned-process \
-		--expected-pid "$EMULATOR_PID" \
-		--expected-executable "$EMULATOR_BACKEND" \
-		--expected-executable-device "$EMULATOR_BACKEND_DEVICE" \
-		--expected-executable-inode "$EMULATOR_BACKEND_INODE" \
-		--expected-identity "$EMULATOR_PROCESS_IDENTITY" >/dev/null; then
-		return 1
-	fi
 	EMULATOR_ADB_PORT=$((ANDROID_EMULATOR_PORT + 1))
 	EMULATOR_LISTENER_PENDING="$WORK/emulator-listeners.txt.pending"
-	if ! PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+	if ! captured_emulator_identity=$(PYTHONPATH=artifact python3 \
+		artifact/android_bounded_command.py \
 		capture-emulator-listeners \
 		--run-id "$RUN_ID" \
-		--emulator-pid "$EMULATOR_PID" \
-		--timeout-seconds "$capture_timeout_seconds" >/dev/null 2>&1; then
+		--timeout-seconds "$capture_timeout_seconds" 2>/dev/null); then
+		return 1
+	fi
+	captured_emulator_pid=${captured_emulator_identity%%:*}
+	if [ "$captured_emulator_identity" != "$EMULATOR_PROCESS_IDENTITY" ] || \
+		[ "$captured_emulator_pid" != "$EMULATOR_PID" ]; then
+		printf 'error: emulator listener capture returned a different child identity\n' >&2
 		return 1
 	fi
 	if ! python3 artifact/android_device_proof.py verify-owned-emulator-listeners \
@@ -1212,12 +1210,6 @@ capture_owned_emulator_listeners() {
 		--adb-port "$EMULATOR_ADB_PORT" >/dev/null; then
 		return 1
 	fi
-	python3 artifact/android_device_proof.py verify-owned-process \
-		--expected-pid "$EMULATOR_PID" \
-		--expected-executable "$EMULATOR_BACKEND" \
-		--expected-executable-device "$EMULATOR_BACKEND_DEVICE" \
-		--expected-executable-inode "$EMULATOR_BACKEND_INODE" \
-		--expected-identity "$EMULATOR_PROCESS_IDENTITY" >/dev/null
 }
 
 wait_for_owned_emulator_listeners() {
@@ -1993,14 +1985,21 @@ export ADB_EMU=0
 printf 'private-adb: pid=%s socket=%s\n' \
 	"$ADB_PRIVATE_SERVER_PID" "$ADB_PRIVATE_SERVER_SOCKET_PATH" >&2
 set +e
-PYTHONPATH=artifact python3 \
+ADB_SERVER_START_IDENTITY=$(PYTHONPATH=artifact python3 \
 	artifact/android_bounded_command.py wait-owned-adb-server-start \
 	--run-id "$RUN_ID" \
-	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
 	--timeout-seconds 15 \
-	>/dev/null 2>"$DIST/adb-server-start-handshake.err"
+	2>"$DIST/adb-server-start-handshake.err")
 ADB_SERVER_START_HANDSHAKE_STATUS=$?
 set -e
+
+if [ "$ADB_SERVER_START_HANDSHAKE_STATUS" -eq 0 ]; then
+	ADB_SERVER_START_PID=${ADB_SERVER_START_IDENTITY%%:*}
+	if [ "$ADB_SERVER_START_PID" != "$ADB_PRIVATE_SERVER_PID" ]; then
+		printf 'error: private adb receipt advanced for a different child\n' >&2
+		ADB_SERVER_START_HANDSHAKE_STATUS=2
+	fi
+fi
 if [ "$ADB_SERVER_START_HANDSHAKE_STATUS" -ne 0 ]; then
 	ANDROID_RUNTIME_RECOVERY_PRESERVE=1
 fi
@@ -2041,6 +2040,10 @@ ADB_PRIVATE_SERVER_PROCESS_IDENTITY=$(python3 artifact/android_device_proof.py v
 	--expected-vendor-keys "$ADB_PRIVATE_VENDOR_KEY" \
 	--expected-mdns 0 \
 	--expected-transport-kind "$EXPECTED_DEVICE_KIND")
+if [ "$ADB_PRIVATE_SERVER_PROCESS_IDENTITY" != "$ADB_SERVER_START_IDENTITY" ]; then
+	printf 'error: private adb listener identity differs from its startup receipt\n' >&2
+	exit 2
+fi
 PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
 	seal-private-adb-directory --run-id "$RUN_ID" >/dev/null
 ADB_SERVER_STATUS_BEFORE="$DIST/adb-server-status-before.txt"
@@ -2103,13 +2106,15 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 	if [ "$EMULATOR_START_SIGNAL" -ne 0 ]; then
 		exit "$EMULATOR_START_SIGNAL"
 	fi
-	EMULATOR_PROCESS_IDENTITY=$(python3 artifact/android_device_proof.py \
-		wait-owned-process-exec \
-		--expected-pid "$EMULATOR_PID" \
-		--initial-executable "$QPERIAPT_PYTHON" \
-		--launcher "$EMULATOR" \
-		--device-abi "$EXPECTED_DEVICE_ABI" \
+	EMULATOR_PROCESS_IDENTITY=$(PYTHONPATH=artifact python3 \
+		artifact/android_bounded_command.py wait-owned-emulator-backend \
+		--run-id "$RUN_ID" \
 		--timeout-seconds 10)
+	EMULATOR_RECEIPT_PID=${EMULATOR_PROCESS_IDENTITY%%:*}
+	if [ "$EMULATOR_RECEIPT_PID" != "$EMULATOR_PID" ]; then
+		printf 'error: emulator receipt advanced for a different child\n' >&2
+		exit 2
+	fi
 	EMULATOR_BACKEND_FILE_IDENTITY=$(PYTHONPATH=artifact python3 \
 		artifact/android_bounded_command.py owned-emulator-backend-identity \
 		--run-id "$RUN_ID")

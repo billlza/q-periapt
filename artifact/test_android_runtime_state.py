@@ -138,6 +138,27 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             backend_sha256=hashlib.sha256(backend.read_bytes()).hexdigest(),
         )
 
+    def active_emulator_receipt(self) -> state.OwnedRuntimeReceipt:
+        sealed = self.advance_to_sealed()
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            return state.register_emulator_child(
+                receipt=sealed,
+                registration=self.emulator_registration(),
+            )
+
+    def write_prior_isolation_checkpoints(self) -> None:
+        for checkpoint in tuple(state.AdbIsolationCheckpoint)[:-1]:
+            payload = {
+                "schema": state.ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+                "kind": state.ADB_ISOLATION_RECEIPT_KIND,
+                "run_id": self.run_id,
+                "checkpoint": checkpoint.value,
+                "ports": state.AdbIsolationObservation().ports_payload(),
+            }
+            path = self.layout.proof / state.ADB_ISOLATION_CHECKPOINT_LEAVES[checkpoint]
+            path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+            path.chmod(0o600)
+
     def test_schema3_uses_one_phase_and_no_lifecycle_booleans(self) -> None:
         receipt = self.receipt()
         value = json.loads(state.owned_runtime_receipt_path().read_text())
@@ -469,38 +490,25 @@ class AndroidRuntimeStateTests(unittest.TestCase):
     def test_postcleanup_checkpoint_owns_probe_and_never_accepts_observation(
         self,
     ) -> None:
+        receipt = self.active_emulator_receipt()
         with self.assertRaises(TypeError):
             state.record_post_cleanup_adb_isolation_checkpoint(  # type: ignore[call-arg]
-                self.run_id,
+                receipt,
                 state.AdbIsolationObservation(),
             )
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(state, "load_owned_runtime_receipt", return_value=None),
-            mock.patch.object(state.os.path, "lexists", return_value=False),
-            mock.patch.object(
-                state,
-                "load_json_object_snapshot",
-                side_effect=state.EvidenceIOError("missing prior receipt"),
-            ),
             mock.patch.object(state, "probe_adb_loopback_absence") as probe,
             self.assertRaises(state.AndroidRuntimeStateError),
         ):
-            state.record_post_cleanup_adb_isolation_checkpoint(self.run_id)
+            state.record_post_cleanup_adb_isolation_checkpoint(receipt)
         probe.assert_not_called()
 
     def test_postcleanup_probe_failure_publishes_no_final_receipt(self) -> None:
-        for checkpoint in tuple(state.AdbIsolationCheckpoint)[:-1]:
-            payload = {
-                "schema": state.ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
-                "kind": state.ADB_ISOLATION_RECEIPT_KIND,
-                "run_id": self.run_id,
-                "checkpoint": checkpoint.value,
-                "ports": state.AdbIsolationObservation().ports_payload(),
-            }
-            path = self.layout.proof / state.ADB_ISOLATION_CHECKPOINT_LEAVES[checkpoint]
-            path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-            path.chmod(0o600)
+        receipt = self.active_emulator_receipt()
+        self.write_prior_isolation_checkpoints()
+        state.retire_recovery_capability(self.layout, receipt)
         final_path = (
             self.layout.proof
             / state.ADB_ISOLATION_CHECKPOINT_LEAVES[
@@ -509,8 +517,6 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         )
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
-            mock.patch.object(state, "load_owned_runtime_receipt", return_value=None),
-            mock.patch.object(state.os.path, "lexists", return_value=False),
             mock.patch.object(
                 state,
                 "probe_adb_loopback_absence",
@@ -518,9 +524,100 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             ) as probe,
             self.assertRaisesRegex(state.AndroidRuntimeStateError, "occupied notifier"),
         ):
-            state.record_post_cleanup_adb_isolation_checkpoint(self.run_id)
+            state.record_post_cleanup_adb_isolation_checkpoint(receipt)
         probe.assert_called_once_with()
         self.assertFalse(final_path.exists())
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
+
+    def test_postcleanup_checkpoint_is_exactly_idempotent_and_keeps_receipt(
+        self,
+    ) -> None:
+        receipt = self.active_emulator_receipt()
+        self.write_prior_isolation_checkpoints()
+        state.retire_recovery_capability(self.layout, receipt)
+        final_path = (
+            self.layout.proof
+            / state.ADB_ISOLATION_CHECKPOINT_LEAVES[
+                state.AdbIsolationCheckpoint.RUNTIME_POST_CLEANUP
+            ]
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state,
+                "probe_adb_loopback_absence",
+                return_value=state.AdbIsolationObservation(),
+            ) as probe,
+        ):
+            self.assertEqual(
+                state.record_post_cleanup_adb_isolation_checkpoint(receipt),
+                final_path,
+            )
+            with mock.patch.object(state.os, "fsync") as fsync:
+                self.assertEqual(
+                    state.record_post_cleanup_adb_isolation_checkpoint(receipt),
+                    final_path,
+                )
+            fsync.assert_called_once()
+        self.assertEqual(probe.call_count, 2)
+        self.assertTrue(final_path.exists())
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
+
+        final_path.write_text("{}\n")
+        final_path.chmod(0o600)
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state,
+                "probe_adb_loopback_absence",
+                return_value=state.AdbIsolationObservation(),
+            ),
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError,
+                "existing post-cleanup adb isolation checkpoint changed",
+            ),
+        ):
+            state.record_post_cleanup_adb_isolation_checkpoint(receipt)
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
+
+    def test_postcleanup_fsync_failure_is_retryable_with_receipt_preserved(
+        self,
+    ) -> None:
+        receipt = self.active_emulator_receipt()
+        self.write_prior_isolation_checkpoints()
+        state.retire_recovery_capability(self.layout, receipt)
+        final_path = (
+            self.layout.proof
+            / state.ADB_ISOLATION_CHECKPOINT_LEAVES[
+                state.AdbIsolationCheckpoint.RUNTIME_POST_CLEANUP
+            ]
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state,
+                "probe_adb_loopback_absence",
+                return_value=state.AdbIsolationObservation(),
+            ),
+            mock.patch.object(
+                state.os, "fsync", side_effect=[OSError("fsync denied"), None]
+            ),
+            self.assertRaisesRegex(OSError, "fsync denied"),
+        ):
+            state.record_post_cleanup_adb_isolation_checkpoint(receipt)
+        self.assertFalse(final_path.exists())
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state,
+                "probe_adb_loopback_absence",
+                return_value=state.AdbIsolationObservation(),
+            ),
+        ):
+            state.record_post_cleanup_adb_isolation_checkpoint(receipt)
+        self.assertTrue(final_path.exists())
 
 
 if __name__ == "__main__":
