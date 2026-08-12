@@ -170,7 +170,10 @@ class ProofManifestTests(unittest.TestCase):
             (
                 "proof_schema",
                 proof_manifest.ANDROID_DEVICE_PROOF_SCHEMA_VERSION - 1,
-                "requires proof schema 4",
+                (
+                    "requires proof schema "
+                    f"{proof_manifest.ANDROID_DEVICE_PROOF_SCHEMA_VERSION}"
+                ),
             ),
             ("proof_source_tree_sha256", "c" * 64, "does not match"),
             ("status", "fail", "passing proof"),

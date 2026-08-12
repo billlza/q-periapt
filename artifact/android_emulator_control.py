@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
-"""Fixed Android emulator executable rules and pure listener parsing."""
+"""Fixed Android emulator rules, listener parsing, and bounded loopback probes."""
 
 from __future__ import annotations
 
+import errno
+import hashlib
+import json
 import os
 import pathlib
 import platform
+import re
+import socket
 import stat
 import sys
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import Enum
+from types import MappingProxyType
 from typing import Literal
 
 
@@ -16,6 +25,309 @@ class AndroidEmulatorControlError(ValueError):
 
 
 EmulatorAbi = Literal["arm64-v8a", "x86_64"]
+
+DEFAULT_ADB_SERVER_PORT = 5037
+NATIVE_ADB_NOTIFIER_PORT = 5586
+NATIVE_ADB_NOTIFIER_MODE = "closed_loopback"
+ADB_ISOLATION_RECEIPT_SCHEMA_VERSION = 1
+ADB_ISOLATION_RECEIPT_KIND = "qperiapt.android_adb_loopback_absence"
+EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION = 1
+EMULATOR_ROUTING_RECEIPT_KIND = "qperiapt.android_emulator_routing"
+EMULATOR_ROUTING_RECEIPT_LEAF = "emulator-routing.json"
+EMULATOR_ROUTING_MODE = "private_unix_external_adb_closed_native_notifier"
+EMULATOR_ROUTING_PRIVATE_ADB_FIELDS = frozenset(
+    {
+        "identity_sha256",
+        "server_status_sha256",
+        "listener_snapshot_sha256",
+    }
+)
+EMULATOR_ROUTING_ENVIRONMENT_FIELDS = frozenset(
+    {
+        "HOME",
+        "PATH",
+        "TMPDIR",
+        "LC_ALL",
+        "LANG",
+        "ANDROID_HOME",
+        "ANDROID_SDK_ROOT",
+        "ADB_SERVER_SOCKET",
+        "ADB_VENDOR_KEYS",
+        "ADB_MDNS",
+        "ADB_MDNS_AUTO_CONNECT",
+        "ADB_LOCAL_TRANSPORT_MAX_PORT",
+        "ADB_USB",
+        "ADB_EMU",
+        "ANDROID_ADB_SERVER_PORT",
+    }
+)
+
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+_RUN_ID = re.compile(r"[0-9a-f]{32}")
+
+
+class AdbIsolationCheckpoint(str, Enum):
+    EMULATOR_PRE_EXEC = "emulator_pre_exec"
+    EMULATOR_POST_REGISTRATION = "emulator_post_registration"
+    RUNTIME_PRE_CLEANUP = "runtime_pre_cleanup"
+    RUNTIME_POST_CLEANUP = "runtime_post_cleanup"
+
+
+ADB_ISOLATION_CHECKPOINT_LEAVES = MappingProxyType(
+    {
+        AdbIsolationCheckpoint.EMULATOR_PRE_EXEC: "adb-isolation-emulator-pre-exec.json",
+        AdbIsolationCheckpoint.EMULATOR_POST_REGISTRATION: "adb-isolation-emulator-post-registration.json",
+        AdbIsolationCheckpoint.RUNTIME_PRE_CLEANUP: "adb-isolation-runtime-pre-cleanup.json",
+        AdbIsolationCheckpoint.RUNTIME_POST_CLEANUP: "adb-isolation-runtime-post-cleanup.json",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class AdbIsolationObservation:
+    """One bounded fixed-order sequence observing both ports on v4 and v6."""
+
+    default_ipv4: Literal["connection_refused"] = "connection_refused"
+    default_ipv6: Literal["connection_refused"] = "connection_refused"
+    notifier_ipv4: Literal["connection_refused"] = "connection_refused"
+    notifier_ipv6: Literal["connection_refused"] = "connection_refused"
+
+    def ports_payload(self) -> dict[str, dict[str, str]]:
+        return {
+            str(DEFAULT_ADB_SERVER_PORT): {
+                "ipv4": self.default_ipv4,
+                "ipv6": self.default_ipv6,
+            },
+            str(NATIVE_ADB_NOTIFIER_PORT): {
+                "ipv4": self.notifier_ipv4,
+                "ipv6": self.notifier_ipv6,
+            },
+        }
+
+
+def emulator_routing_transport_binding_sha256(
+    adb_snapshot_sha256: str,
+    routing_environment_sha256: str,
+    private_adb: Mapping[str, str],
+) -> str:
+    """Commit the exact external-adb routing projection used by proof parsing."""
+
+    _require(
+        _SHA256.fullmatch(adb_snapshot_sha256) is not None,
+        "emulator routing adb snapshot digest is invalid",
+    )
+    _require(
+        _SHA256.fullmatch(routing_environment_sha256) is not None,
+        "emulator routing environment digest is invalid",
+    )
+    _require(
+        isinstance(private_adb, Mapping)
+        and set(private_adb) == EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
+        "emulator routing private adb fields changed",
+    )
+    for name in EMULATOR_ROUTING_PRIVATE_ADB_FIELDS:
+        _require(
+            type(private_adb[name]) is str
+            and _SHA256.fullmatch(private_adb[name]) is not None,
+            f"emulator routing private adb digest is invalid: {name}",
+        )
+    payload = {
+        "mode": EMULATOR_ROUTING_MODE,
+        "adb_snapshot_sha256": adb_snapshot_sha256,
+        "routing_environment_sha256": routing_environment_sha256,
+        "native_notifier_port": NATIVE_ADB_NOTIFIER_PORT,
+        "private_adb": dict(private_adb),
+    }
+    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def emulator_routing_environment_sha256(environment: Mapping[str, str]) -> str:
+    """Hash the exact, finite emulator routing environment projection."""
+
+    _require(
+        isinstance(environment, Mapping)
+        and set(environment) == EMULATOR_ROUTING_ENVIRONMENT_FIELDS,
+        "emulator routing environment fields changed",
+    )
+    canonical: dict[str, str] = {}
+    for name in sorted(EMULATOR_ROUTING_ENVIRONMENT_FIELDS):
+        value = environment[name]
+        _require(
+            type(value) is str
+            and value
+            and "\0" not in value
+            and "\r" not in value
+            and "\n" not in value,
+            f"emulator routing environment value is invalid: {name}",
+        )
+        canonical[name] = value
+    encoded = (json.dumps(canonical, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def parse_emulator_routing_receipt(
+    payload: object,
+    *,
+    run_id: str,
+) -> Mapping[str, object]:
+    """Validate the exact canonical routing receipt object shared by runtime/proof."""
+
+    fields = {
+        "schema",
+        "kind",
+        "run_id",
+        "mode",
+        "adb_snapshot_sha256",
+        "routing_environment_sha256",
+        "transport_binding_sha256",
+        "private_adb",
+        "native_notifier_port",
+        "private_socket_kind",
+        "raw_paths_recorded",
+    }
+    _require(
+        type(payload) is dict and set(payload) == fields,
+        "emulator routing receipt fields changed",
+    )
+    _require(
+        type(run_id) is str and _RUN_ID.fullmatch(run_id) is not None,
+        "emulator routing run id is invalid",
+    )
+    _require(
+        type(payload["schema"]) is int
+        and payload["schema"] == EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION
+        and payload["kind"] == EMULATOR_ROUTING_RECEIPT_KIND
+        and payload["run_id"] == run_id
+        and payload["mode"] == EMULATOR_ROUTING_MODE
+        and type(payload["native_notifier_port"]) is int
+        and payload["native_notifier_port"] == NATIVE_ADB_NOTIFIER_PORT
+        and payload["private_socket_kind"] == "localfilesystem"
+        and payload["raw_paths_recorded"] is False,
+        "emulator routing receipt contract differs",
+    )
+    adb_snapshot_sha256 = payload["adb_snapshot_sha256"]
+    routing_environment_sha256 = payload["routing_environment_sha256"]
+    transport_binding_sha256 = payload["transport_binding_sha256"]
+    private_adb = payload["private_adb"]
+    _require(
+        type(adb_snapshot_sha256) is str
+        and _SHA256.fullmatch(adb_snapshot_sha256) is not None
+        and type(routing_environment_sha256) is str
+        and _SHA256.fullmatch(routing_environment_sha256) is not None
+        and type(transport_binding_sha256) is str
+        and _SHA256.fullmatch(transport_binding_sha256) is not None
+        and type(private_adb) is dict,
+        "emulator routing receipt digest shape differs",
+    )
+    expected_transport_binding = emulator_routing_transport_binding_sha256(
+        adb_snapshot_sha256,
+        routing_environment_sha256,
+        private_adb,
+    )
+    _require(
+        transport_binding_sha256 == expected_transport_binding,
+        "emulator routing transport binding differs",
+    )
+    return MappingProxyType(dict(payload))
+
+
+def _strict_json_value(raw: str, *, label: str) -> object:
+    def reject_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        value: dict[str, object] = {}
+        for name, item in pairs:
+            if name in value:
+                raise AndroidEmulatorControlError(f"duplicate {label} JSON field")
+            value[name] = item
+        return value
+
+    def reject_constant(value: str) -> object:
+        raise AndroidEmulatorControlError(
+            f"unsupported {label} JSON constant: {value}"
+        )
+
+    try:
+        return json.loads(
+            raw,
+            object_pairs_hook=reject_pairs,
+            parse_constant=reject_constant,
+        )
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise AndroidEmulatorControlError(f"malformed {label} JSON value") from exc
+
+
+def parse_owned_adb_server_status(text: str) -> Mapping[str, object]:
+    """Parse bounded adb server-status text without accepting duplicate fields."""
+
+    _require(
+        type(text) is str and 1 <= len(text.encode("utf-8")) <= 65536,
+        "adb server-status output is outside its fixed bound",
+    )
+    fields: dict[str, object] = {}
+    for line in text.splitlines():
+        match = re.fullmatch(r"([a-z][a-z0-9_]*): (.+)", line)
+        _require(match is not None, f"malformed adb server-status line: {line!r}")
+        key, raw_value = match.groups()
+        _require(key not in fields, f"duplicate adb server-status field: {key}")
+        if re.fullmatch(r"[A-Z][A-Z0-9_]*", raw_value) is not None:
+            fields[key] = raw_value
+        else:
+            fields[key] = _strict_json_value(
+                raw_value,
+                label=f"adb server-status {key}",
+            )
+    required = {"executable_absolute_path", "keystore_path", "mdns_enabled"}
+    _require(
+        required <= fields.keys(),
+        "adb server-status omits required fields: "
+        + ", ".join(sorted(required - fields.keys())),
+    )
+    return MappingProxyType(fields)
+
+
+def probe_adb_loopback_absence() -> AdbIsolationObservation:
+    """Require exact connection refusal on both fixed ports and IP families."""
+
+    endpoints = (
+        (socket.AF_INET, ("127.0.0.1", DEFAULT_ADB_SERVER_PORT), "IPv4 adb server"),
+        (
+            socket.AF_INET6,
+            ("::1", DEFAULT_ADB_SERVER_PORT, 0, 0),
+            "IPv6 adb server",
+        ),
+        (
+            socket.AF_INET,
+            ("127.0.0.1", NATIVE_ADB_NOTIFIER_PORT),
+            "IPv4 native adb notifier",
+        ),
+        (
+            socket.AF_INET6,
+            ("::1", NATIVE_ADB_NOTIFIER_PORT, 0, 0),
+            "IPv6 native adb notifier",
+        ),
+    )
+    for family, address, label in endpoints:
+        try:
+            probe = socket.socket(family, socket.SOCK_STREAM)
+        except OSError as exc:
+            raise AndroidEmulatorControlError(
+                f"cannot create the {label} absence probe: {exc}"
+            ) from exc
+        try:
+            probe.settimeout(1.0)
+            try:
+                result = probe.connect_ex(address)
+            except OSError as exc:
+                raise AndroidEmulatorControlError(
+                    f"cannot inspect the {label} endpoint: {exc}"
+                ) from exc
+        finally:
+            probe.close()
+        _require(
+            result == errno.ECONNREFUSED,
+            f"{label} endpoint did not refuse its loopback connection (errno={result})",
+        )
+    return AdbIsolationObservation()
 
 
 def _require(condition: bool, message: str) -> None:

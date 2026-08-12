@@ -7,6 +7,7 @@ import contextlib
 import copy
 import datetime as dt
 import io
+import json
 import os
 import pathlib
 import py_compile
@@ -25,6 +26,138 @@ import unittest
 from unittest import mock
 
 import android_device_proof
+from process_identity import ProcessExecutionSnapshot, ProcessIdentity
+
+# Independent immutable r2 fixture contract.  These literals intentionally do
+# not import or derive from current or historical production shape constants.
+PUBLISHED_V1_ROOT = "qperiapt-android-runtime-evidence-v1"
+PUBLISHED_V1_MANIFEST_PATH = "MANIFEST.json"
+PUBLISHED_V1_KIND = "qperiapt.android_runtime_evidence_bundle"
+PUBLISHED_V1_SCHEMA = 1
+PUBLISHED_V1_PROOF_SCHEMA = 3
+PUBLISHED_V1_RUN_ID = "ba666ecf3aa279cb83a4218f4951a3e6"
+PUBLISHED_V1_SOURCE_DATE_EPOCH = 1_784_262_215
+PUBLISHED_V1_TAG_COMMIT = "5d1598f0ebf9c61e150e55ff398e457ca11f4629"
+PUBLISHED_V1_SOURCE_TREE_SHA256 = (
+    "7d1224619ab9992e3e10a6be61351835146473bbbc03c661ce8b5b0825078416"
+)
+PUBLISHED_V1_FILE_PATHS = {
+    "proof": "qperiapt-android-device-proof.json",
+    "aar": "artifacts/q-periapt-android-0.1.0-alpha.2.aar",
+    "aar_manifest": "artifacts/q-periapt-android-0.1.0-alpha.2.MANIFEST.json",
+    "smoke_apk": "artifacts/qperiapt-android-smoke.apk",
+    "apksigner_verify": "evidence/apksigner-verify.txt",
+    "zipalign_verify": "evidence/zipalign-verify.txt",
+    "result_txt": "evidence/qperiapt-android-device-result.txt",
+    "result_json": "evidence/qperiapt-android-device-result.json",
+    "logcat": "evidence/logcat.txt",
+}
+PUBLISHED_V1_ARCHIVE_ENTRIES = {
+    "qperiapt-android-runtime-evidence-v1": "directory",
+    "qperiapt-android-runtime-evidence-v1/artifacts": "directory",
+    "qperiapt-android-runtime-evidence-v1/evidence": "directory",
+    "qperiapt-android-runtime-evidence-v1/MANIFEST.json": "file",
+    "qperiapt-android-runtime-evidence-v1/qperiapt-android-device-proof.json": "file",
+    "qperiapt-android-runtime-evidence-v1/artifacts/q-periapt-android-0.1.0-alpha.2.aar": "file",
+    "qperiapt-android-runtime-evidence-v1/artifacts/q-periapt-android-0.1.0-alpha.2.MANIFEST.json": "file",
+    "qperiapt-android-runtime-evidence-v1/artifacts/qperiapt-android-smoke.apk": "file",
+    "qperiapt-android-runtime-evidence-v1/evidence/apksigner-verify.txt": "file",
+    "qperiapt-android-runtime-evidence-v1/evidence/zipalign-verify.txt": "file",
+    "qperiapt-android-runtime-evidence-v1/evidence/qperiapt-android-device-result.txt": "file",
+    "qperiapt-android-runtime-evidence-v1/evidence/qperiapt-android-device-result.json": "file",
+    "qperiapt-android-runtime-evidence-v1/evidence/logcat.txt": "file",
+}
+PUBLISHED_V1_MANIFEST_FIELDS = frozenset(
+    {
+        "schema_version",
+        "kind",
+        "source_date_epoch",
+        "git_commit",
+        "run_id",
+        "release_candidate_mode",
+        "device",
+        "raw_serial_recorded",
+        "files",
+    }
+)
+PUBLISHED_V1_FILE_RECORD_FIELDS = frozenset({"bytes", "path", "sha256"})
+PUBLISHED_V1_PROOF_FIELDS = frozenset(
+    {
+        "schema",
+        "generated_at",
+        "git_commit",
+        "source_tree_dirty",
+        "proof_source_tree_sha256",
+        "device_runtime_proof",
+        "package_only",
+        "release_candidate_mode",
+        "run_id",
+        "package",
+        "paths",
+        "device",
+        "android",
+        "abi",
+        "result",
+        "artifacts",
+        "source_hashes",
+    }
+)
+PUBLISHED_V1_RESULT_FIELDS = frozenset(
+    {"marker_sha256", "json_sha256", "status", "test_count", "passed_tests"}
+)
+PUBLISHED_V1_ARTIFACT_FIELDS = frozenset(
+    {
+        "aar_sha256",
+        "aar_manifest_sha256",
+        "smoke_apk_sha256",
+        "apksigner_verify_sha256",
+        "zipalign_verify_sha256",
+        "logcat_sha256",
+        "native",
+    }
+)
+PUBLISHED_V1_ARTIFACT_LINKS = (
+    ("aar_sha256", "aar"),
+    ("aar_manifest_sha256", "aar_manifest"),
+    ("smoke_apk_sha256", "smoke_apk"),
+    ("apksigner_verify_sha256", "apksigner_verify"),
+    ("zipalign_verify_sha256", "zipalign_verify"),
+    ("logcat_sha256", "logcat"),
+)
+PUBLISHED_V1_EXPECTED_TESTS = (
+    "runtimeMetadataMatches",
+    "signedPolicyDecisionIsExactAndFailClosed",
+    "osRandomPolicyRoundtripAndWipes",
+)
+PUBLISHED_V1_NATIVE_ABIS = ("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
+PUBLISHED_V1_BUNDLE_DEVICE = {
+    "kind": "emulator",
+    "abi": "arm64-v8a",
+    "page_size": 16_384,
+    "sdk": 35,
+}
+PUBLISHED_V1_PROOF_DEVICE = {
+    "kind": "emulator",
+    "serial_sha256_prefix": "04ab3fc382bf",
+    "raw_serial_recorded": False,
+    "manufacturer": "Google",
+    "model": "sdk_gphone16k_arm64",
+    "abi": "arm64-v8a",
+    "page_size": 16_384,
+    "sdk": 35,
+    "release": "15",
+    "fingerprint_sha256_prefix": "d4cb1bb60eae",
+}
+PUBLISHED_V1_PROOF_PATHS = {
+    "aar": "target/abi2-platform-release-29555221955/candidate/q-periapt-android-0.1.0-alpha.2.aar",
+    "aar_manifest": "target/abi2-platform-release-29555221955/candidate/q-periapt-android-0.1.0-alpha.2-MANIFEST.json",
+    "smoke_apk": "target/abi2-platform-release-29555221955/android-runtime/proof/qperiapt-android-smoke.apk",
+    "apksigner_verify": "target/abi2-platform-release-29555221955/android-runtime/proof/apksigner-verify.txt",
+    "zipalign_verify": "target/abi2-platform-release-29555221955/android-runtime/proof/zipalign-verify.txt",
+    "result_txt": "target/abi2-platform-release-29555221955/android-runtime/proof/qperiapt-android-device-result.txt",
+    "result_json": "target/abi2-platform-release-29555221955/android-runtime/proof/qperiapt-android-device-result.json",
+    "logcat": "target/abi2-platform-release-29555221955/android-runtime/proof/logcat.txt",
+}
 
 
 def create_private_adb_test_directory() -> pathlib.Path:
@@ -53,6 +186,23 @@ def complete_proof_shape() -> dict[str, object]:
         "connected",
         console_port=console_port,
         adb_port=adb_port,
+    )
+    private_adb = {
+        "identity_sha256": "4" * 64,
+        "server_status_sha256": "5" * 64,
+        "listener_snapshot_sha256": "6" * 64,
+    }
+    external_adb = {
+        "snapshot_sha256": "7" * 64,
+        "routing_environment_sha256": "8" * 64,
+        "routing_receipt_sha256": "9" * 64,
+    }
+    external_adb["transport_binding_sha256"] = (
+        android_device_proof.emulator_routing_transport_binding_sha256(
+            external_adb["snapshot_sha256"],
+            external_adb["routing_environment_sha256"],
+            private_adb,
+        )
     )
 
     return {
@@ -100,10 +250,16 @@ def complete_proof_shape() -> dict[str, object]:
                     registration_response
                 ),
             },
-            "private_adb": {
-                "identity_sha256": "4" * 64,
-                "server_status_sha256": "5" * 64,
-                "listener_snapshot_sha256": "6" * 64,
+            "private_adb": private_adb,
+            "external_adb": external_adb,
+            "native_notifier": {
+                "mode": android_device_proof.NATIVE_NOTIFIER_MODE,
+                "port": android_device_proof.NATIVE_ADB_NOTIFIER_PORT,
+                "admission_checkpoints": [
+                    {"name": checkpoint.value, "receipt_sha256": "b" * 64}
+                    for checkpoint in android_device_proof.ADB_ISOLATION_CHECKPOINTS
+                ],
+                "continuous_absence_claimed": False,
             },
         },
         "android": {
@@ -145,6 +301,185 @@ def complete_proof_shape() -> dict[str, object]:
             name + "_sha256": "0" * 64 for name in android_device_proof.SOURCE_INPUTS
         },
     }
+
+
+def write_emulator_isolation_receipts(
+    directory: pathlib.Path,
+    *,
+    run_id: str,
+    private_adb: dict[str, str],
+) -> tuple[
+    pathlib.Path,
+    dict[android_device_proof.AdbIsolationCheckpoint, pathlib.Path],
+]:
+    """Write canonical private fixtures matching the schema-v5 projection."""
+
+    directory.mkdir(parents=True, exist_ok=True)
+    checkpoint_paths = {}
+    for checkpoint in android_device_proof.ADB_ISOLATION_CHECKPOINTS:
+        path = directory / android_device_proof.ADB_ISOLATION_CHECKPOINT_LEAVES[
+            checkpoint
+        ]
+        path.write_bytes(
+            android_device_proof.canonical_json(
+                {
+                    "schema": android_device_proof.ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+                    "kind": android_device_proof.ADB_ISOLATION_RECEIPT_KIND,
+                    "run_id": run_id,
+                    "checkpoint": checkpoint.value,
+                    "ports": {
+                        str(android_device_proof.DEFAULT_ADB_SERVER_PORT): {
+                            "ipv4": "connection_refused",
+                            "ipv6": "connection_refused",
+                        },
+                        str(android_device_proof.NATIVE_ADB_NOTIFIER_PORT): {
+                            "ipv4": "connection_refused",
+                            "ipv6": "connection_refused",
+                        },
+                    },
+                }
+            )
+        )
+        path.chmod(0o600)
+        checkpoint_paths[checkpoint] = path
+
+    adb_snapshot_sha256 = "7" * 64
+    routing_environment_sha256 = "8" * 64
+    routing_path = directory / android_device_proof.EMULATOR_ROUTING_RECEIPT_LEAF
+    routing_path.write_bytes(
+        android_device_proof.canonical_json(
+            {
+                "schema": android_device_proof.EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
+                "kind": android_device_proof.EMULATOR_ROUTING_RECEIPT_KIND,
+                "run_id": run_id,
+                "mode": android_device_proof.EMULATOR_ROUTING_MODE,
+                "adb_snapshot_sha256": adb_snapshot_sha256,
+                "routing_environment_sha256": routing_environment_sha256,
+                "transport_binding_sha256": (
+                    android_device_proof.emulator_routing_transport_binding_sha256(
+                        adb_snapshot_sha256,
+                        routing_environment_sha256,
+                        private_adb,
+                    )
+                ),
+                "private_adb": private_adb,
+                "native_notifier_port": android_device_proof.NATIVE_ADB_NOTIFIER_PORT,
+                "private_socket_kind": "localfilesystem",
+                "raw_paths_recorded": False,
+            }
+        )
+    )
+    routing_path.chmod(0o600)
+    return routing_path, checkpoint_paths
+
+
+def build_published_runtime_bundle_v1_fixture(
+    root: pathlib.Path,
+    *,
+    bundle_schema: int = PUBLISHED_V1_SCHEMA,
+    proof_schema: int = PUBLISHED_V1_PROOF_SCHEMA,
+    root_name: str | None = None,
+) -> tuple[pathlib.Path, str, str, str]:
+    """Build real deterministic v1 archive bytes without mocking the verifier."""
+
+    root = root.resolve(strict=True)
+    stage = root / "published-v1-stage"
+    stage.mkdir()
+    file_paths = PUBLISHED_V1_FILE_PATHS
+    records: dict[str, dict[str, object]] = {}
+    for key, relative in file_paths.items():
+        if key == "proof":
+            continue
+        path = stage / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"published-v1-fixture-{key}\n".encode("ascii"))
+        records[key] = android_device_proof.bundle_file_record(path, relative)
+
+    native = {
+        abi: {"ffi_so_sha256": "1" * 64, "jni_so_sha256": "2" * 64}
+        for abi in PUBLISHED_V1_NATIVE_ABIS
+    }
+    proof = {
+        "schema": proof_schema,
+        "generated_at": "2026-07-17T04:45:32.426321Z",
+        "git_commit": PUBLISHED_V1_TAG_COMMIT,
+        "source_tree_dirty": False,
+        "proof_source_tree_sha256": PUBLISHED_V1_SOURCE_TREE_SHA256,
+        "device_runtime_proof": True,
+        "package_only": False,
+        "release_candidate_mode": True,
+        "run_id": PUBLISHED_V1_RUN_ID,
+        "package": "dev.qperiapt.androidsmoke",
+        "paths": dict(PUBLISHED_V1_PROOF_PATHS),
+        "device": dict(PUBLISHED_V1_PROOF_DEVICE),
+        "android": {
+            "ndk": "29.0.14206865",
+            "platform": "android-35",
+            "build_tools": "36.0.0",
+            "adb_version": "Android Debug Bridge version 1.0.41",
+            "apksigner_sha256": "3" * 64,
+            "zipalign_sha256": "4" * 64,
+            "min_sdk": 23,
+            "target_sdk": 35,
+            "native_page_alignment": 16_384,
+        },
+        "abi": {
+            "major": 2,
+            "contract_path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+            "contract_sha256": "5" * 64,
+            "runtime_library": "libq_periapt_ffi_abi2.so",
+            "jni_library": "libqperiapt_jni_abi2.so",
+            "legacy_library_names_present": False,
+        },
+        "result": {
+            "marker_sha256": records["result_txt"]["sha256"],
+            "json_sha256": records["result_json"]["sha256"],
+            "status": "pass",
+            "test_count": len(PUBLISHED_V1_EXPECTED_TESTS),
+            "passed_tests": list(PUBLISHED_V1_EXPECTED_TESTS),
+        },
+        "artifacts": {
+            "aar_sha256": records["aar"]["sha256"],
+            "aar_manifest_sha256": records["aar_manifest"]["sha256"],
+            "smoke_apk_sha256": records["smoke_apk"]["sha256"],
+            "apksigner_verify_sha256": records["apksigner_verify"]["sha256"],
+            "zipalign_verify_sha256": records["zipalign_verify"]["sha256"],
+            "logcat_sha256": records["logcat"]["sha256"],
+            "native": native,
+        },
+        "source_hashes": {"published_fixture_sha256": "6" * 64},
+    }
+    proof_path = stage / file_paths["proof"]
+    proof_path.write_bytes(android_device_proof.canonical_json(proof))
+    records["proof"] = android_device_proof.bundle_file_record(
+        proof_path, file_paths["proof"]
+    )
+    manifest = {
+        "schema_version": bundle_schema,
+        "kind": PUBLISHED_V1_KIND,
+        "source_date_epoch": PUBLISHED_V1_SOURCE_DATE_EPOCH,
+        "git_commit": PUBLISHED_V1_TAG_COMMIT,
+        "run_id": PUBLISHED_V1_RUN_ID,
+        "release_candidate_mode": True,
+        "device": dict(PUBLISHED_V1_BUNDLE_DEVICE),
+        "raw_serial_recorded": False,
+        "files": records,
+    }
+    manifest_path = stage / PUBLISHED_V1_MANIFEST_PATH
+    manifest_path.write_bytes(android_device_proof.canonical_json(manifest))
+    bundle = root / "published-v1-fixture.zip"
+    android_device_proof.create_zip(
+        stage,
+        bundle,
+        root_name=root_name or PUBLISHED_V1_ROOT,
+        mtime=PUBLISHED_V1_SOURCE_DATE_EPOCH,
+    )
+    return (
+        bundle,
+        android_device_proof.sha256_file(bundle),
+        android_device_proof.sha256_file(manifest_path),
+        android_device_proof.sha256_file(proof_path),
+    )
 
 
 class AndroidAdbIdentityTests(unittest.TestCase):
@@ -397,7 +732,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             expected_executable_inode=executable.stat().st_ino,
             expected_identity=identity,
         )
-        process_identity = android_device_proof.ProcessIdentity(
+        process_identity = ProcessIdentity(
             pid=123,
             uid=os.geteuid(),
             started_at=456,
@@ -412,7 +747,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             ),
             mock.patch.object(
                 android_device_proof,
-                "_linux_process_identity",
+                "process_execution_snapshot",
                 side_effect=AssertionError(
                     "owned process inspection must not read its environment"
                 ),
@@ -670,46 +1005,23 @@ class AndroidAdbIdentityTests(unittest.TestCase):
         self.assertEqual(missing_initial.exception.code, 2)
 
     def test_default_adb_endpoint_probe_fails_closed(self) -> None:
-        class Probe:
-            def __init__(self, result: int) -> None:
-                self.result = result
-
-            def __enter__(self) -> "Probe":
-                return self
-
-            def __exit__(self, *args: object) -> None:
-                return None
-
-            def settimeout(self, _: float) -> None:
-                pass
-
-            def connect_ex(self, _: tuple[object, ...]) -> int:
-                return self.result
+        with mock.patch.object(
+            android_device_proof, "probe_adb_loopback_absence"
+        ) as probe:
+            android_device_proof.assert_default_adb_server_absent(argparse.Namespace())
+        probe.assert_called_once_with()
 
         with (
-            mock.patch.object(android_device_proof.socket, "has_ipv6", False),
             mock.patch.object(
-                android_device_proof.socket,
-                "socket",
-                return_value=Probe(android_device_proof.errno.ECONNREFUSED),
+                android_device_proof,
+                "probe_adb_loopback_absence",
+                side_effect=android_device_proof.AndroidEmulatorControlError(
+                    "native notifier endpoint did not refuse"
+                ),
             ),
+            self.assertRaisesRegex(SystemExit, "native notifier endpoint"),
         ):
             android_device_proof.assert_default_adb_server_absent(argparse.Namespace())
-
-        for result in (0, android_device_proof.errno.EACCES):
-            with self.subTest(result=result):
-                with (
-                    mock.patch.object(android_device_proof.socket, "has_ipv6", False),
-                    mock.patch.object(
-                        android_device_proof.socket,
-                        "socket",
-                        return_value=Probe(result),
-                    ),
-                ):
-                    with self.assertRaises(SystemExit):
-                        android_device_proof.assert_default_adb_server_absent(
-                            argparse.Namespace()
-                        )
 
     def test_adb_listener_identity_rejects_wrong_process_or_environment(self) -> None:
         executable = pathlib.Path(sys.executable).resolve()
@@ -860,19 +1172,23 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             expected_mdns="0",
             expected_transport_kind="physical",
         )
-        process_identity = (
-            os.geteuid(),
-            456,
-            789,
-            pathlib.Path(sys.executable).resolve(),
-            environment,
+        process_identity = ProcessIdentity(
+            pid=123,
+            uid=os.geteuid(),
+            started_at=456,
+            started_subsecond=789,
+            executable=pathlib.Path(sys.executable).resolve(),
+        )
+        execution = ProcessExecutionSnapshot(
+            identity=process_identity,
+            argv=(str(pathlib.Path(sys.executable).resolve()),),
+            environment=environment,
         )
         with (
-            mock.patch.object(android_device_proof.sys, "platform", "linux"),
             mock.patch.object(
                 android_device_proof,
-                "_linux_process_identity",
-                return_value=process_identity,
+                "process_execution_snapshot",
+                return_value=execution,
             ),
             mock.patch.object(
                 android_device_proof,
@@ -1087,11 +1403,11 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             allow_dirty_proof=True,
         )
 
-    def test_proof_schema_v4_is_required(self) -> None:
+    def test_proof_schema_v5_is_required(self) -> None:
         proof = complete_proof_shape()
         wrong_schema = copy.deepcopy(proof)
         wrong_schema["schema"] = 2
-        with self.assertRaisesRegex(SystemExit, "Android proof schema must be 4"):
+        with self.assertRaisesRegex(SystemExit, "Android proof schema must be 5"):
             android_device_proof.verify_proof_schema(wrong_schema)
         android_device_proof.verify_proof_schema(proof)
 
@@ -1123,6 +1439,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             ("registration_enum", "registration response is unsupported"),
             ("registration_digest", "response digest differs"),
             ("private_adb_identity", "process identity lacks a valid SHA-256"),
+            ("external_transport", "private transport binding differs"),
+            ("native_notifier_port", "native adb notifier contract differs"),
+            ("checkpoint_order", "checkpoint order differs"),
             ("extra_raw_field", "control fields differ"),
         ):
             with self.subTest(mutation=mutation):
@@ -1147,6 +1466,12 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                     control["registration"]["response_sha256"] = "0" * 64
                 elif mutation == "private_adb_identity":
                     control["private_adb"]["identity_sha256"] = None
+                elif mutation == "external_transport":
+                    control["external_adb"]["transport_binding_sha256"] = "0" * 64
+                elif mutation == "native_notifier_port":
+                    control["native_notifier"]["port"] = 5037
+                elif mutation == "checkpoint_order":
+                    control["native_notifier"]["admission_checkpoints"].reverse()
                 else:
                     control["home"] = "/Users/example"
                 with self.assertRaisesRegex(SystemExit, expected):
@@ -1174,13 +1499,26 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                 android_device_proof.verify_emulator_control(proof)
 
     def test_control_receipt_builder_emits_only_sanitized_commitments(self) -> None:
+        run_id = "c" * 32
+        proof_root = (
+            self.root
+            / "target"
+            / android_device_proof.ANDROID_RUNS_ROOT_LEAF
+            / run_id
+            / "proof"
+        )
+        proof_root.mkdir(parents=True)
         backend = self.root / "qemu-system-aarch64-headless"
         backend.write_bytes(b"fixed headless backend")
         backend.chmod(0o700)
         listener = self.root / "emulator-listeners.txt"
         registration = self.root / "registration.txt"
-        private_status = self.root / "server-status.txt"
-        private_listener = self.root / "adb-listener.txt"
+        private_status = (
+            proof_root / android_device_proof.PRIVATE_ADB_STATUS_REGISTERED_LEAF
+        )
+        private_listener = (
+            proof_root / android_device_proof.PRIVATE_ADB_LISTENER_REGISTERED_LEAF
+        )
         current_uid = os.geteuid()
         emulator_identity = f"123:{current_uid}:456:789"
         private_adb_identity = f"321:{current_uid}:654:987"
@@ -1193,13 +1531,34 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                 "connected", console_port=5584, adb_port=5585
             )
         )
+        expected_adb = proof_root.parent / "work" / f"adb-{run_id}"
+        expected_key = android_device_proof.current_account_home() / ".android" / "adbkey"
         private_status.write_text(
-            'executable_absolute_path: "/private/adb"\n'
-            'keystore_path: "/private/adbkey"\n'
+            f'executable_absolute_path: "{expected_adb}"\n'
+            f'keystore_path: "{expected_key}"\n'
             "mdns_enabled: false\n",
             encoding="utf-8",
         )
-        private_listener.write_bytes(b"private listener inspection\n")
+        private_listener.write_text(
+            f"p321\nu{current_uid}\nf7\nn/tmp/qperiapt-adb.A1b2C3d4/adb.sock\n",
+            encoding="utf-8",
+        )
+        private_status.chmod(0o600)
+        private_listener.chmod(0o600)
+        private_adb = {
+            "identity_sha256": android_device_proof.process_identity_sha256(
+                private_adb_identity, "private adb process identity"
+            ),
+            "server_status_sha256": android_device_proof.sha256_file(private_status),
+            "listener_snapshot_sha256": android_device_proof.sha256_file(
+                private_listener
+            ),
+        }
+        routing_receipt, isolation_receipts = write_emulator_isolation_receipts(
+            proof_root,
+            run_id=run_id,
+            private_adb=private_adb,
+        )
 
         receipt = android_device_proof.build_emulator_control_receipt(
             backend_path=backend,
@@ -1214,8 +1573,12 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             private_adb_identity=private_adb_identity,
             private_adb_status_path=private_status,
             private_adb_listener_path=private_listener,
+            routing_receipt_path=routing_receipt,
+            adb_isolation_receipt_paths=isolation_receipts,
+            run_id=run_id,
         )
         proof = complete_proof_shape()
+        proof["run_id"] = run_id
         proof["emulator_control"] = receipt
         android_device_proof.verify_emulator_control(proof, require_release_mode=True)
         self.assertEqual(
@@ -1237,6 +1600,68 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             with self.subTest(raw_value=raw_value):
                 self.assertNotIn(raw_value, serialized)
 
+        run_evidence_paths = {
+            android_device_proof.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[
+                checkpoint
+            ]: path
+            for checkpoint, path in isolation_receipts.items()
+        }
+        run_evidence_paths["emulator_routing"] = routing_receipt
+        android_device_proof.verify_emulator_control_evidence(
+            proof, run_evidence_paths
+        )
+        private_listener_bytes = private_listener.read_bytes()
+        private_listener.write_bytes(private_listener_bytes.replace(b"f7\n", b"f8\n"))
+        with self.assertRaisesRegex(SystemExit, "differs from its proof projection"):
+            android_device_proof.verify_emulator_control_evidence(
+                proof, run_evidence_paths
+            )
+        private_listener.write_bytes(private_listener_bytes)
+        private_listener.chmod(0o600)
+
+        bundled_paths: dict[str, pathlib.Path] = {}
+        bundle_evidence = self.root / "bundle-evidence"
+        bundle_evidence.mkdir()
+        for checkpoint, source in isolation_receipts.items():
+            key = android_device_proof.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[
+                checkpoint
+            ]
+            destination = bundle_evidence / source.name
+            shutil.copyfile(source, destination)
+            destination.chmod(0o644)
+            bundled_paths[key] = destination
+        bundled_routing = bundle_evidence / routing_receipt.name
+        shutil.copyfile(routing_receipt, bundled_routing)
+        bundled_routing.chmod(0o644)
+        bundled_paths["emulator_routing"] = bundled_routing
+        android_device_proof.verify_emulator_control_evidence(
+            proof, bundled_paths, bundled=True
+        )
+
+        first_checkpoint = android_device_proof.ADB_ISOLATION_CHECKPOINTS[0]
+        first_path = bundled_paths[
+            android_device_proof.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[first_checkpoint]
+        ]
+        tampered_checkpoint = json.loads(first_path.read_text(encoding="utf-8"))
+        tampered_checkpoint["ports"][
+            str(android_device_proof.NATIVE_ADB_NOTIFIER_PORT)
+        ]["ipv6"] = "timed_out"
+        first_path.write_bytes(android_device_proof.canonical_json(tampered_checkpoint))
+        with self.assertRaisesRegex(SystemExit, "was not closed"):
+            android_device_proof.verify_emulator_control_evidence(
+                proof, bundled_paths, bundled=True
+            )
+        shutil.copyfile(isolation_receipts[first_checkpoint], first_path)
+        first_path.chmod(0o644)
+
+        tampered_routing = json.loads(bundled_routing.read_text(encoding="utf-8"))
+        tampered_routing["private_adb"]["listener_snapshot_sha256"] = "0" * 64
+        bundled_routing.write_bytes(android_device_proof.canonical_json(tampered_routing))
+        with self.assertRaisesRegex(SystemExit, "private adb evidence differs"):
+            android_device_proof.verify_emulator_control_evidence(
+                proof, bundled_paths, bundled=True
+            )
+
         registration.write_bytes(b"Connected to emulator on ports 5584,5585\r\n")
         with self.assertRaisesRegex(SystemExit, "not an accepted exact value"):
             android_device_proof.build_emulator_control_receipt(
@@ -1252,6 +1677,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
                 private_adb_identity=private_adb_identity,
                 private_adb_status_path=private_status,
                 private_adb_listener_path=private_listener,
+                routing_receipt_path=routing_receipt,
+                adb_isolation_receipt_paths=isolation_receipts,
+                run_id=run_id,
             )
 
     def test_process_identity_commitment_requires_canonical_tuple(self) -> None:
@@ -1288,6 +1716,10 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         proof = complete_proof_shape()
         proof["device"]["kind"] = "physical"
         proof["emulator_control"] = None
+        proof["paths"] = {
+            key: proof["paths"][key]
+            for key in android_device_proof.BASE_PROOF_PATH_KEYS
+        }
         android_device_proof.verify_proof_schema(proof)
 
         proof["emulator_control"] = complete_proof_shape()["emulator_control"]
@@ -2047,7 +2479,7 @@ fi
                     source,
                 )
 
-        self.assertIn("Current proof schema v4", android_readme)
+        self.assertIn("Current proof schema v5", android_readme)
         self.assertIn("historical published receipt remains schema v3", android_readme)
         self.assertIn("raw-value-omitting, source-bound", artifact_document)
         self.assertIn("raw-value-omitting, source-bound", embedding_document)
@@ -2319,6 +2751,9 @@ fi
         verifier_source = (
             pathlib.Path(__file__).resolve().parent / "android_device_proof.py"
         ).read_text(encoding="utf-8")
+        emulator_control_source = (
+            pathlib.Path(__file__).resolve().parent / "android_emulator_control.py"
+        ).read_text(encoding="utf-8")
         self.assertIn(
             "existing {label} is required before device proof", verifier_source
         )
@@ -2357,15 +2792,20 @@ fi
         device_selection = producer.index("SERIAL=$(select_serial_or_empty)")
         second_server_check = producer.rindex("verify-adb-server-status")
         second_listener_check = producer.rindex("verify-adb-listener")
-        proof_emission = producer.index('python3 - "$ROOT" "$RUN_ID"', device_selection)
+        proof_function = producer.index(
+            'python3 - "$ROOT" "$RUN_ID"', device_selection
+        )
         proof_staging_write = producer.index(
-            "descriptor = os.open(proof, flags, 0o600)", proof_emission
+            "descriptor = os.open(proof, flags, 0o600)", proof_function
         )
         proof_publication = producer.index(
             "publish-staged-proof", second_listener_check
         )
         runtime_cleanup = producer.index(
             "cleanup_runtime_with_deferred_signals", second_listener_check
+        )
+        proof_emission = producer.index(
+            "\nemit_android_runtime_proof\n", runtime_cleanup
         )
         final_default_listener_gate = producer.rindex(
             "\nassert_default_adb_server_absent\n"
@@ -2394,10 +2834,12 @@ fi
         self.assertLess(initial_listener_check, first_server_check)
         self.assertLess(first_server_check, first_listener_check)
         self.assertLess(first_listener_check, device_selection)
-        self.assertLess(proof_staging_write, second_server_check)
+        self.assertLess(proof_function, proof_staging_write)
         self.assertLess(second_server_check, second_listener_check)
         self.assertLess(second_listener_check, runtime_cleanup)
         self.assertLess(runtime_cleanup, final_default_listener_gate)
+        self.assertLess(final_default_listener_gate, proof_emission)
+        self.assertLess(proof_emission, proof_publication)
         self.assertLess(final_default_listener_gate, proof_publication)
         self.assertLess(second_listener_check, proof_publication)
         self.assertLess(proof_publication, proof_verification)
@@ -2422,7 +2864,10 @@ fi
             'argv.extend(("--one-device", capability.expected_serial))',
             command_adapter_source,
         )
-        self.assertIn("default adb server is already listening", verifier_source)
+        self.assertIn(
+            "endpoint did not refuse its loopback connection",
+            emulator_control_source,
+        )
         self.assertNotIn('"$ADB" start-server', producer)
         self.assertNotIn('"$ADB" kill-server', producer)
         self.assertNotIn('"$ADB" -s ', producer)
@@ -2525,7 +2970,7 @@ fi
         self.assertIn("verify-owned-emulator-listeners", producer)
         self.assertIn('--initial-executable "$QPERIAPT_PYTHON"', producer)
         self.assertIn("EMULATOR_ADB_PORT=$((ANDROID_EMULATOR_PORT + 1))", producer)
-        self.assertIn('"schema": 4', producer)
+        self.assertIn('"schema": 5', producer)
         self.assertIn('"emulator_control": emulator_control', producer)
         self.assertIn('"$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY"', producer)
         self.assertIn('"$DIST/emulator-listeners.txt"', producer)
@@ -2991,12 +3436,248 @@ os.execve(
                 archive_mtime=1_700_000_000,
             )
 
+    def test_physical_bundle_omits_emulator_only_receipts(self) -> None:
+        bundle_root = self.root / "physical-bundle"
+        proof = complete_proof_shape()
+        proof["device"]["kind"] = "physical"
+        proof["emulator_control"] = None
+        proof["paths"] = {
+            key: proof["paths"][key]
+            for key in android_device_proof.BASE_PROOF_PATH_KEYS
+        }
+        file_paths = android_device_proof.bundle_file_paths(proof)
+        self.assertEqual(file_paths, android_device_proof.BASE_BUNDLE_FILE_PATHS)
+        self.assertTrue(
+            set(android_device_proof.EMULATOR_CONTROL_PATH_KEYS).isdisjoint(file_paths)
+        )
+
+        records = {}
+        for key, relative in file_paths.items():
+            payload = (
+                android_device_proof.canonical_json(proof)
+                if key == "proof"
+                else f"physical-evidence-{key}\n".encode("utf-8")
+            )
+            path = bundle_root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(payload)
+            records[key] = android_device_proof.bundle_file_record(path, relative)
+        manifest = {
+            "schema_version": android_device_proof.BUNDLE_SCHEMA_VERSION,
+            "kind": android_device_proof.BUNDLE_KIND,
+            "source_date_epoch": 1_700_000_000,
+            "git_commit": proof["git_commit"],
+            "run_id": proof["run_id"],
+            "release_candidate_mode": proof["release_candidate_mode"],
+            "device": {
+                key: proof["device"][key]
+                for key in ("kind", "abi", "page_size", "sdk")
+            },
+            "raw_serial_recorded": False,
+            "files": records,
+        }
+        selected, parsed_proof = android_device_proof.verify_bundle_manifest(
+            bundle_root,
+            manifest,
+            archive_mtime=1_700_000_000,
+        )
+        self.assertEqual(set(selected), set(android_device_proof.BASE_BUNDLE_FILE_PATHS))
+        self.assertEqual(parsed_proof, proof)
+
+    def test_published_v1_verifier_accepts_a_real_schema3_archive(self) -> None:
+        self.assertEqual(
+            PUBLISHED_V1_SCHEMA,
+            android_device_proof.PUBLISHED_BUNDLE_SCHEMA_VERSION,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_PROOF_SCHEMA,
+            android_device_proof.PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_ROOT,
+            android_device_proof.PUBLISHED_BUNDLE_ROOT_NAME,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_MANIFEST_PATH,
+            android_device_proof.PUBLISHED_BUNDLE_MANIFEST_PATH,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_KIND,
+            android_device_proof.PUBLISHED_BUNDLE_KIND,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_FILE_PATHS,
+            android_device_proof.PUBLISHED_BUNDLE_FILE_PATHS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_ARCHIVE_ENTRIES,
+            android_device_proof.PUBLISHED_BUNDLE_ARCHIVE_ENTRIES,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_MANIFEST_FIELDS,
+            android_device_proof.PUBLISHED_BUNDLE_MANIFEST_FIELDS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_FILE_RECORD_FIELDS,
+            android_device_proof.PUBLISHED_BUNDLE_FILE_RECORD_FIELDS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_PROOF_FIELDS,
+            android_device_proof.PUBLISHED_PROOF_FIELDS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_RESULT_FIELDS,
+            android_device_proof.PUBLISHED_PROOF_RESULT_FIELDS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_ARTIFACT_FIELDS,
+            android_device_proof.PUBLISHED_PROOF_ARTIFACT_FIELDS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_ARTIFACT_LINKS,
+            android_device_proof.PUBLISHED_PROOF_ARTIFACT_LINKS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_EXPECTED_TESTS,
+            android_device_proof.PUBLISHED_EXPECTED_TESTS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_BUNDLE_DEVICE,
+            android_device_proof.PUBLISHED_BUNDLE_DEVICE,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_PROOF_DEVICE,
+            android_device_proof.PUBLISHED_PROOF_DEVICE,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_PROOF_PATHS,
+            android_device_proof.PUBLISHED_PROOF_PATHS,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_RUN_ID,
+            android_device_proof.PUBLISHED_ANDROID_RUNTIME_RUN_ID,
+        )
+        self.assertEqual(
+            PUBLISHED_V1_SOURCE_DATE_EPOCH,
+            android_device_proof.PUBLISHED_ANDROID_RUNTIME_SOURCE_DATE_EPOCH,
+        )
+        self.assertEqual(PUBLISHED_V1_TAG_COMMIT, android_device_proof.TAG_COMMIT)
+        self.assertEqual(
+            PUBLISHED_V1_SOURCE_TREE_SHA256,
+            android_device_proof.CANONICAL_SOURCE_TREE_SHA256,
+        )
+        fixture_root = self.root / "published-v1-valid"
+        fixture_root.mkdir()
+        bundle, bundle_sha256, manifest_sha256, proof_sha256 = (
+            build_published_runtime_bundle_v1_fixture(fixture_root)
+        )
+        observed, manifest, proof = (
+            android_device_proof._verify_published_runtime_bundle_v1_with_digests(
+                bundle,
+                expected_bundle_sha256=bundle_sha256,
+                expected_manifest_sha256=manifest_sha256,
+                expected_proof_sha256=proof_sha256,
+            )
+        )
+        self.assertEqual(bundle_sha256, observed)
+        self.assertEqual(1, manifest["schema_version"])
+        self.assertEqual(3, proof["schema"])
+
+    def test_current_and_published_bundle_verifiers_do_not_auto_dispatch(self) -> None:
+        fixture_root = self.root / "published-v1-no-dispatch"
+        fixture_root.mkdir()
+        bundle, bundle_sha256, _, _ = build_published_runtime_bundle_v1_fixture(
+            fixture_root
+        )
+        with self.assertRaisesRegex(SystemExit, "selector differs"):
+            android_device_proof.verify_published_runtime_bundle_v1(
+                bundle,
+                expected_bundle_sha256=bundle_sha256,
+            )
+        with self.assertRaisesRegex(SystemExit, "archive verification failed"):
+            android_device_proof.verify_runtime_bundle(
+                root=self.root,
+                bundle=bundle,
+                expected_bundle_sha256=bundle_sha256,
+                llvm_nm=self.root / "llvm-nm",
+                llvm_readelf=self.root / "llvm-readelf",
+                apksigner=self.root / "apksigner",
+                zipalign=self.root / "zipalign",
+                expected_device_kind="emulator",
+                expected_device_abi="arm64-v8a",
+                expected_page_size=16_384,
+                expected_device_sdk=35,
+                require_release_mode=True,
+                allow_dirty_proof=False,
+                forbidden_text=[],
+            )
+
+    def test_published_v1_verifier_does_not_depend_on_current_shapes(self) -> None:
+        fixture_root = self.root / "published-v1-current-drift"
+        fixture_root.mkdir()
+        bundle, bundle_sha256, manifest_sha256, proof_sha256 = (
+            build_published_runtime_bundle_v1_fixture(fixture_root)
+        )
+        with (
+            mock.patch.object(android_device_proof, "BUNDLE_KIND", "current.changed"),
+            mock.patch.object(android_device_proof, "BUNDLE_MANIFEST_PATH", "NEW.json"),
+            mock.patch.object(android_device_proof, "BASE_BUNDLE_FILE_PATHS", {}),
+            mock.patch.object(android_device_proof, "PROOF_FIELDS", frozenset()),
+            mock.patch.object(
+                android_device_proof, "PROOF_RESULT_FIELDS", frozenset()
+            ),
+            mock.patch.object(
+                android_device_proof, "PROOF_ARTIFACT_FIELDS", frozenset()
+            ),
+            mock.patch.object(android_device_proof, "EXPECTED_TESTS", ["future"]),
+            mock.patch.object(android_device_proof, "ANDROID_RELEASE_SDK", 999),
+        ):
+            observed, manifest, proof = (
+                android_device_proof._verify_published_runtime_bundle_v1_with_digests(
+                    bundle,
+                    expected_bundle_sha256=bundle_sha256,
+                    expected_manifest_sha256=manifest_sha256,
+                    expected_proof_sha256=proof_sha256,
+                )
+            )
+        self.assertEqual(bundle_sha256, observed)
+        self.assertEqual(PUBLISHED_V1_SCHEMA, manifest["schema_version"])
+        self.assertEqual(PUBLISHED_V1_PROOF_SCHEMA, proof["schema"])
+
+    def test_published_v1_verifier_rejects_schema_and_root_confusion(self) -> None:
+        cases = (
+            ("bundle-schema2", {"bundle_schema": 2}, "identity differs"),
+            ("proof-schema5", {"proof_schema": 5}, "proof identity differs"),
+            (
+                "current-root",
+                {"root_name": android_device_proof.BUNDLE_ROOT_NAME},
+                "bundle is invalid",
+            ),
+        )
+        for label, overrides, message in cases:
+            with self.subTest(label=label):
+                fixture_root = self.root / f"published-v1-{label}"
+                fixture_root.mkdir()
+                bundle, bundle_sha256, manifest_sha256, proof_sha256 = (
+                    build_published_runtime_bundle_v1_fixture(
+                        fixture_root, **overrides
+                    )
+                )
+                with self.assertRaisesRegex(SystemExit, message):
+                    android_device_proof._verify_published_runtime_bundle_v1_with_digests(
+                        bundle,
+                        expected_bundle_sha256=bundle_sha256,
+                        expected_manifest_sha256=manifest_sha256,
+                        expected_proof_sha256=proof_sha256,
+                    )
+
     def test_proof_path_inventory_rejects_extra_dependencies(self) -> None:
-        paths = {key: f"target/{key}" for key in android_device_proof.PROOF_PATH_KEYS}
-        android_device_proof.proof_path_fields({"paths": paths})
+        proof = complete_proof_shape()
+        paths = proof["paths"]
+        android_device_proof.proof_path_fields(proof)
         paths["keystore"] = "target/debug.keystore"
         with self.assertRaisesRegex(SystemExit, "path fields differ"):
-            android_device_proof.proof_path_fields({"paths": paths})
+            android_device_proof.proof_path_fields(proof)
 
     def test_unique_run_layout_rejects_cross_run_runtime_artifacts(self) -> None:
         run_id = "a" * 32
@@ -3027,6 +3708,18 @@ os.execve(
             "result_json": proof_root / "qperiapt-android-device-result.json",
             "logcat": proof_root / "logcat.txt",
         }
+        paths.update(
+            {
+                android_device_proof.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[
+                    checkpoint
+                ]: proof_root
+                / android_device_proof.ADB_ISOLATION_CHECKPOINT_LEAVES[checkpoint]
+                for checkpoint in android_device_proof.ADB_ISOLATION_CHECKPOINTS
+            }
+        )
+        paths["emulator_routing"] = (
+            proof_root / android_device_proof.EMULATOR_ROUTING_RECEIPT_LEAF
+        )
         for name in (
             "smoke_apk",
             "apksigner_verify",
@@ -3034,6 +3727,7 @@ os.execve(
             "result_txt",
             "result_json",
             "logcat",
+            *android_device_proof.EMULATOR_CONTROL_PATH_KEYS,
         ):
             paths[name].write_bytes(b"fixture\n")
             paths[name].chmod(0o600)

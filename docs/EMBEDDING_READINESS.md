@@ -138,10 +138,14 @@ global server. It owns one mode-0700, allow-ACL-free private `localfilesystem:` 
 `/tmp`, routes every client explicitly, disables mDNS/auto-connect, and freezes server PID/start,
 executable, key, endpoint, transport environment, and mDNS-disabled status before selection and
 after the final query. Physical proof is restricted to one explicit USB serial. The AVD lane disables
-USB and automatic emulator scanning; it registers only the freshly PID-bound fixed listener pair
-through the private socket. Its localhost emulator transport still requires an exclusive trusted
-evidence host. Current schema-v4 proof contains a raw-value-omitting, source-bound admission receipt for the
-backend, fixed ports, listener, exact registration response, and private-adb identities; raw
+USB and automatic emulator scanning; it fixes external adb to the run-owned snapshot and private Unix
+socket, redirects the native notifier from 5037 to closed loopback port 5586, and registers only the
+freshly PID-bound fixed listener pair through the private socket. Four no-replace checkpoint receipts
+record IPv4/IPv6 `ECONNREFUSED` for 5037 and 5586 at emulator pre-exec, post-registration, runtime
+pre-cleanup, and post-cleanup. Its localhost emulator transport still requires an exclusive trusted
+evidence host. Current schema-v5 proof and schema-v2 bundle contain those checkpoint bytes plus a
+raw-value-omitting, source-bound admission receipt for external-adb routing, the native-notifier
+policy, backend, fixed ports, listener, exact registration response, and private-adb identities; raw
 HOME/key/socket/UID/PID/serial values are excluded. This remains trusted-local control-plane evidence,
 not independent hostile-builder attestation. App, AVD, private-server, and socket cleanup must complete before proof publication in
 the append-only `target/qperiapt-android-device-smoke-runs/<run-id>/` tree; failures leave no accepted
@@ -155,16 +159,17 @@ succeeds, so a later lane can acquire it and strictly recover an interrupted run
 defers HUP/INT/TERM until its private state is armed or removed. Same-boot recovery revalidates exact
 process/listener identities, shuts an owned AVD through its authenticated console independently of
 private adb, and protocol-stops any still-live private server; confirmed prior-boot recovery is
-offline-only. The socket directory is reconciled from mode 0700 through the schema-v3 runtime phases
-to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v2 runtime receipts are rejected
+offline-only. The socket directory is reconciled from mode 0700 through the schema-v4 runtime phases
+to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v3 runtime receipts are rejected
 rather than implicitly migrated. Normal publication requires accepted protocol shutdown requests and
 zero child exit statuses; recovery may finalize an exact identity already proven absent, but never
 turns that interrupted run into a PASS. The console-token bytes are not persisted. Unsafe receipt,
 filesystem, listener, or path mismatches are preserved and rejected for operator review; a PID/start-
 token mismatch is treated as the exact owned process being absent and is never signalled. Device loss can
-still leave app cleanup unresolved, and the receipt does not continuously exclude an unrelated
-default adb server between the lane's absence probes, so the exclusive trusted-host requirement
-remains. The fixed emulator argv omits gRPC enablement; the listener receipt binds the required
+still leave app cleanup unresolved. The checkpoint receipts establish only that the exact IPv4/IPv6
+connect attempts were refused; they do not continuously reserve 5037/5586 or prove the absence of
+traffic between checkpoints, so the exclusive trusted-host requirement remains. The fixed emulator
+argv omits gRPC enablement; the listener receipt binds the required
 console/adb pair and is not an exhaustive claim about every TCP listener of the emulator process.
 All adb/lsof activity is selected from a finite Android operation table backed by one private
 run capability. The shared bounded-process module is import-only and exposes no arbitrary command or
@@ -204,10 +209,11 @@ The release channel admits the canonical AVD runtime lane only: emulator, arm64-
 substituted for this release-index contract.
 
 The index copies only the C archive, Swift XCFramework zip, Android AAR, and their manifests into
-`target/qperiapt-local-release/<channel>/<version>/<commit>/`. It may include sanitized Apple/Android proof
+`target/qperiapt-local-release/<channel>/<version>/<commit>/`. It may include raw-value-omitting Apple/Android proof
 summaries, but it never copies raw device proof, build logs, provisioning profiles, `.xcresult`
-bundles, UDIDs, or adb serials. Index schema 4 includes the verified Android page size,
-release-candidate mode, and passing result in its sanitized summary, and accepts only the current C schema-2, Swift schema-5, and Android
+bundles, UDIDs, or adb serials. Index schema 5 includes the verified Android page size,
+release-candidate mode, passing result, and fixed external-adb/native-notifier admission in its
+raw-value-omitting summary, and accepts only the current C schema-2, Swift schema-5, and Android
 schema-4 package envelopes and rejects signed Swift input because the local index does not carry its
 Apple distribution evidence. Artifact boundaries name the required leaf gate and explicitly record
 that no leaf receipt or cryptographic attestation is embedded. This is an aggregation gate over package outputs already checked by

@@ -80,13 +80,20 @@ The default IPv4/IPv6 adb endpoints must be absent; the script never stops or re
 It owns a mode-0700, allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/adb.sock` and explicitly routes
 every client to that `localfilesystem:` endpoint. mDNS/auto-connect are disabled. Physical
 proof is USB-only and serial-bound; the owned AVD server disables USB and automatic emulator
-discovery. Parent clients keep both scanners disabled. After the exact child PID owns its fixed
+discovery. Parent clients keep both scanners disabled. The emulator's external adb is fixed by
+`-adb-path` to the run-owned snapshot; its exact ADB-routing projection is fixed to the private
+Unix-socket client settings, while launcher-added non-routing variables are outside that commitment;
+the emulator-native host notifier is redirected from 5037 to closed loopback port 5586, above the
+automatic transport range ending at 5585. After the exact child PID owns its fixed
 console/adb listeners, the lane explicitly registers that port pair through the private socket and
 rechecks it before selection and shutdown. The server PID/start identity, executable, key, endpoint,
 transport environment, and mDNS-disabled status are checked before selection and after the final
-device query. Current proof schema v4 records a raw-value-omitting, source-bound control-plane receipt for the backend, fixed ports,
-listener, exact registration response, and private-adb identities. It excludes raw HOME/key/socket,
-UID, PID, and serial values and is not independent hostile-builder attestation. App/AVD/server
+device query. Four no-replace receipts record IPv4/IPv6 `ECONNREFUSED` for 5037 and 5586 at emulator
+pre-exec, post-registration, runtime pre-cleanup, and post-cleanup. Current proof schema v5 and bundle
+schema v2 record those exact checkpoint bytes plus a raw-value-omitting, source-bound control-plane
+receipt for the external-adb routing, native-notifier policy, backend, fixed ports, listener, exact
+registration response, and private-adb identities. They exclude raw HOME/key/socket, UID, PID, and
+serial values and are not independent hostile-builder attestation. App/AVD/server
 cleanup and socket removal complete before proof publication in the append-only
 `target/qperiapt-android-device-smoke-runs/<32-hex-run-id>/` tree; failure emits neither an accepted
 proof nor the PASS marker and leaves any earlier selected proof untouched. A stable,
@@ -99,8 +106,8 @@ runtime. Capability creation defers HUP/INT/TERM until its private state is arme
 script never signals a cached PID directly. On the same boot, recovery requires the exact recorded
 process/listener identities and uses the authenticated emulator console independently of private adb,
 then protocol-stops any still-live private server; after a confirmed reboot it performs offline
-cleanup only. The socket directory is reconciled from mode 0700 through the schema-v3 runtime phases
-to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v2 runtime receipts are rejected
+cleanup only. The socket directory is reconciled from mode 0700 through the schema-v4 runtime phases
+to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v3 runtime receipts are rejected
 instead of implicitly migrated. Normal proof publication requires accepted protocol shutdowns and
 zero child exit statuses; exact already-absent resources can be finalized only by recovery and cannot
 make the interrupted run pass. Only the console-token file identity and digest enter the private
@@ -109,8 +116,9 @@ for operator review; a PID/start-token mismatch is treated as the exact owned pr
 is never signalled. AVD transport
 still requires an exclusive trusted evidence host, and device loss can still leave app removal
 unresolved. Remove an orphaned `dev.qperiapt.androidsmoke` only after comparing it with the private run
-APK. The receipt does not continuously prevent an unrelated default adb server from appearing between
-the lane's absence probes. The fixed emulator argv does not enable gRPC; listener evidence binds the
+APK. The receipt does not continuously reserve 5037 or 5586 between checkpoints; each checkpoint
+proves only that its exact IPv4/IPv6 connect attempts were refused, so the exclusive trusted-host
+requirement remains. The fixed emulator argv does not enable gRPC; listener evidence binds the
 required console/adb pair rather than proving that no other TCP listener exists.
 The lane selects every adb/lsof call from a finite operation table backed by a private run capability;
 the shared bounded-process module is import-only and has no arbitrary command or output-path CLI.
@@ -145,7 +153,7 @@ export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
 release also binds a runtime-evidence bundle that executed the exact public AAR on
 the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
 16 KiB pages. That historical published receipt remains schema v3; current source-tree runs require
-schema v4 and do not retroactively change the immutable release. Verify the AAR and its manifest with `gh release verify-asset`
+schema v5 and do not retroactively change the immutable release. Verify the AAR and its manifest with `gh release verify-asset`
 against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
 [`../../artifact/abi2-platform-release-notes.md`](../../artifact/abi2-platform-release-notes.md).
 Maven Central publication and physical-device coverage are explicitly not claimed,

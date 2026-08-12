@@ -19,7 +19,9 @@ from unittest import mock
 
 import android_bounded_command as commands
 import android_runtime_state as state
+import process_identity
 from bounded_process import BoundedResult
+from process_identity import ProcessExecutionSnapshot
 from process_identity import parse_token as parse_process_identity_token
 
 
@@ -193,6 +195,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     avd_name="QPeriapt_16K_API_35",
                     device_abi="arm64-v8a",
                     console_port=5584,
+                    native_adb_notifier_port=state.NATIVE_ADB_NOTIFIER_PORT,
                     console_auth_token=state.ConsoleAuthTokenIdentity(
                         device=self.console_token.stat().st_dev,
                         inode=self.console_token.stat().st_ino,
@@ -1668,6 +1671,37 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             )
         self.assertEqual(extra.exception.code, 2)
 
+    def test_public_isolation_action_rejects_internal_checkpoints(self) -> None:
+        parser = commands._build_parser()
+        for checkpoint in ("emulator_pre_exec", "runtime_post_cleanup"):
+            with (
+                self.subTest(checkpoint=checkpoint),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as rejected,
+            ):
+                parser.parse_args(
+                    [
+                        "record-adb-isolation-checkpoint",
+                        "--run-id",
+                        self.run_id,
+                        "--checkpoint",
+                        checkpoint,
+                    ]
+                )
+            self.assertEqual(rejected.exception.code, 2)
+        with self.assertRaisesRegex(commands.AndroidCommandError, "not exposed"):
+            commands.record_adb_isolation_checkpoint(
+                self.run_id,
+                commands.AdbIsolationCheckpoint.EMULATOR_PRE_EXEC,
+            )
+
+    def test_preexec_checkpoint_has_one_internal_production_callsite(self) -> None:
+        source = pathlib.Path(commands.__file__).read_text(encoding="utf-8")
+        self.assertEqual(
+            source.count("record_pre_exec_adb_isolation_checkpoint("),
+            1,
+        )
+
     def test_account_state_and_lane_lock_are_fixed_private_and_stable(self) -> None:
         state_path = state.account_state_directory()
         lock = state.lane_lock_path()
@@ -1720,6 +1754,206 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 parse_process_identity_token(invalid)
         with self.assertRaises(commands.ProcessIdentityError):
             commands.process_snapshot(1)
+
+    def test_process_execution_snapshot_is_typed_and_identity_stable(self) -> None:
+        execution = commands.execution_snapshot(os.getpid())
+        self.assertEqual(execution.identity.token, commands.process_snapshot(os.getpid()).token)
+        self.assertTrue(execution.argv)
+        self.assertTrue(dict(execution.environment))
+        with self.assertRaises(TypeError):
+            execution.environment["MUTATION"] = "forbidden"  # type: ignore[index]
+
+    def test_process_execution_parser_rejects_non_utf8_and_duplicate_environment(
+        self,
+    ) -> None:
+        identity = commands.process_snapshot(os.getpid())
+        for argv, environment, message in (
+            ((b"python", b"\xff"), (b"A=1",), "argument is not UTF-8"),
+            ((b"python",), (b"A=1", b"A=2"), "duplicate"),
+            ((b"python",), (b"MALFORMED",), "malformed"),
+        ):
+            with (
+                self.subTest(message=message),
+                self.assertRaisesRegex(commands.ProcessIdentityError, message),
+            ):
+                process_identity._execution_from_parts(identity, argv, environment)
+
+    def test_emulator_routing_accepts_launcher_nonrouting_environment_only(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,
+            uid=receipt.uid,
+            started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond,
+            executable=receipt.backend_path,
+        )
+        argv = (
+            str(receipt.backend_path),
+            "-no-direct-adb",
+            "-adb-path",
+            str(capability.adb_snapshot_path),
+        )
+        environment = {
+            **commands._emulator_environment(capability),
+            "MESA_RGB_VISUAL": "TrueColor 24",
+            "ANDROID_EMULATOR_LAUNCHER_DIR": str(receipt.launcher_path.parent),
+            "DYLD_LIBRARY_PATH": "/fixed/sdk/lib64",
+        }
+        execution = ProcessExecutionSnapshot(identity, argv, environment)
+        digest = commands._validate_emulator_execution_routing(
+            execution,
+            receipt=receipt,
+            capability=capability,
+        )
+        self.assertEqual(
+            digest,
+            commands.emulator_routing_environment_sha256(
+                commands._emulator_environment(capability)
+            ),
+        )
+        for name in ("ADB_TRACE", "ANDROID_ADB_SERVER_ADDRESS"):
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(commands.AndroidCommandError, "forbidden"),
+            ):
+                commands._validate_emulator_execution_routing(
+                    ProcessExecutionSnapshot(
+                        identity,
+                        argv,
+                        {**environment, name: "forbidden"},
+                    ),
+                    receipt=receipt,
+                    capability=capability,
+                )
+
+    def test_loopback_probe_requires_refusal_on_both_fixed_ports_and_families(
+        self,
+    ) -> None:
+        probes: list[object] = []
+
+        class Probe:
+            def __init__(self, family: int, kind: int) -> None:
+                self.family = family
+                self.kind = kind
+                self.timeout: float | None = None
+                self.address: object = None
+                probes.append(self)
+
+            def settimeout(self, timeout: float) -> None:
+                self.timeout = timeout
+
+            def connect_ex(self, address: object) -> int:
+                self.address = address
+                return commands.errno.ECONNREFUSED
+
+            def close(self) -> None:
+                return None
+
+        with mock.patch.object(commands.socket, "socket", side_effect=Probe):
+            observation = commands.probe_adb_loopback_absence()
+        self.assertEqual(
+            observation.ports_payload(),
+            {
+                "5037": {"ipv4": "connection_refused", "ipv6": "connection_refused"},
+                "5586": {"ipv4": "connection_refused", "ipv6": "connection_refused"},
+            },
+        )
+        self.assertEqual(
+            [(probe.family, probe.address, probe.timeout) for probe in probes],
+            [
+                (socket.AF_INET, ("127.0.0.1", 5037), 1.0),
+                (socket.AF_INET6, ("::1", 5037, 0, 0), 1.0),
+                (socket.AF_INET, ("127.0.0.1", 5586), 1.0),
+                (socket.AF_INET6, ("::1", 5586, 0, 0), 1.0),
+            ],
+        )
+
+    def test_loopback_probe_rejects_occupied_or_unobservable_endpoint(self) -> None:
+        class Probe:
+            def settimeout(self, _timeout: float) -> None:
+                return None
+
+            def connect_ex(self, _address: object) -> int:
+                return 0
+
+            def close(self) -> None:
+                return None
+
+        with (
+            mock.patch.object(commands.socket, "socket", return_value=Probe()),
+            self.assertRaisesRegex(commands.AndroidEmulatorControlError, "did not refuse"),
+        ):
+            commands.probe_adb_loopback_absence()
+
+    def test_owned_emulator_routing_receipt_is_live_bound_and_no_replace(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        status = self.proof / "adb-server-status-registered.txt"
+        status.write_text(
+            f'executable_absolute_path: "{capability.adb_snapshot_path}"\n'
+            f'keystore_path: "{capability.vendor_key}"\n'
+            "mdns_enabled: false\n"
+        )
+        status.chmod(0o600)
+        listener = self.proof / "adb-listener-registered.txt"
+        listener.write_text(
+            f"p{receipt.adb_server_pid}\n"
+            f"u{receipt.uid}\n"
+            "f7\n"
+            f"n{capability.socket_path}\n"
+        )
+        listener.chmod(0o600)
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,
+            uid=receipt.uid,
+            started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond,
+            executable=receipt.backend_path,
+        )
+        execution = ProcessExecutionSnapshot(
+            identity,
+            (
+                str(receipt.backend_path),
+                "-no-direct-adb",
+                "-adb-path",
+                str(capability.adb_snapshot_path),
+            ),
+            commands._emulator_environment(capability),
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "execution_snapshot", return_value=execution) as live,
+        ):
+            path = commands.record_owned_emulator_routing(self.run_id)
+            with self.assertRaises(FileExistsError):
+                commands.record_owned_emulator_routing(self.run_id)
+        self.assertEqual(live.call_count, 4)
+        self.assertEqual(path, self.proof / "emulator-routing.json")
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        value = json.loads(path.read_text())
+        self.assertEqual(
+            set(value),
+            {
+                "schema",
+                "kind",
+                "run_id",
+                "mode",
+                "adb_snapshot_sha256",
+                "routing_environment_sha256",
+                "transport_binding_sha256",
+                "private_adb",
+                "native_notifier_port",
+                "private_socket_kind",
+                "raw_paths_recorded",
+            },
+        )
+        self.assertEqual(value["native_notifier_port"], 5586)
+        self.assertFalse(value["raw_paths_recorded"])
+        self.assertNotIn(str(capability.socket_path), path.read_text())
 
     def test_lane_lock_descriptor_requires_the_fixed_held_open_description(
         self,
@@ -2028,11 +2262,20 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     "-no-audio",
                     "-no-boot-anim",
                     "-no-direct-adb",
+                    "-adb-path",
+                    str(self.snapshot),
                     "-gpu",
                     "swiftshader_indirect",
                 ],
             )
             self.assertEqual(environment["HOME"], str(self.root))
+            self.assertEqual(
+                environment["ANDROID_ADB_SERVER_PORT"],
+                str(state.NATIVE_ADB_NOTIFIER_PORT),
+            )
+            self.assertEqual(environment["ADB_SERVER_SOCKET"], self.environment["ADB_SERVER_SOCKET"])
+            self.assertEqual(environment["ADB_USB"], "0")
+            self.assertEqual(environment["ADB_EMU"], "0")
             self.assertNotIn("DYLD_INSERT_LIBRARIES", environment)
             raise RuntimeError("exec boundary")
 
@@ -2044,6 +2287,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands, "process_snapshot", return_value=identity),
             mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
             mock.patch.object(
+                state, "record_pre_exec_adb_isolation_checkpoint"
+            ) as checkpoint,
+            mock.patch.object(
                 state, "arm_lane_lock_close_on_exec", side_effect=close_lock
             ),
             mock.patch.object(commands, "_close_nonstandard_descriptors"),
@@ -2054,6 +2300,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 self.layout.run_id, "QPeriapt_16K_API_35", "arm64-v8a"
             )
         self.assertEqual(order, ["close-lock", "exec"])
+        checkpoint.assert_called_once_with(
+            self.layout.run_id,
+        )
         self.assertTrue(state.owned_runtime_receipt_path().exists())
         receipt = state.load_owned_runtime_receipt()
         self.assertIs(receipt.phase, state.RuntimePhase.EMULATOR_CHILD_REGISTERED)  # type: ignore[union-attr]
@@ -2511,8 +2760,6 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         def selective_lstat(path: pathlib.Path) -> os.stat_result:
             if path == socket_path:
                 return synthetic_socket
-            if path == socket_dir:
-                return real_lstat(path)
             return real_lstat(path)
 
         def selective_rmdir(path: pathlib.Path) -> None:
@@ -2579,8 +2826,6 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         def path_lstat(path: pathlib.Path) -> os.stat_result:
             if path == socket_path:
                 return synthetic_socket
-            if path == socket_dir:
-                return real_lstat(path)
             return real_lstat(path)
 
         def path_unlink(path: pathlib.Path, *args: object, **kwargs: object) -> None:
@@ -2700,8 +2945,15 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.layout,
             receipt,  # type: ignore[arg-type]
         )
-        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+        self.private_adb_directory.rmdir()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "probe_adb_loopback_absence") as probe,
+            mock.patch.object(state, "record_post_cleanup_adb_isolation_checkpoint") as post,
+        ):
             commands.retire_stopped_owned_runtime(self.run_id)
+        probe.assert_not_called()
+        post.assert_not_called()
         self.assertFalse(state.owned_runtime_receipt_path().exists())
 
     def test_live_private_adb_socket_without_snapshot_fails_closed(self) -> None:
@@ -2902,6 +3154,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         )
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "probe_adb_loopback_absence",
+                return_value=commands.runtime_state.AdbIsolationObservation(),
+            ),
             mock.patch.object(commands, "_same_receipt_process", return_value=observed),
             self.assertRaisesRegex(
                 (commands.AndroidCommandError, state.AndroidRuntimeStateError),
@@ -2915,6 +3172,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         receipt = self.create_active_emulator_runtime_receipt(pid=424242)
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "probe_adb_loopback_absence",
+                return_value=commands.runtime_state.AdbIsolationObservation(),
+            ),
             mock.patch.object(
                 commands,
                 "_fixed_emulator_paths",
@@ -2979,9 +3241,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             commands.retire_stopped_owned_runtime(receipt.run_id)
         self.assertTrue(state.owned_runtime_receipt_path().exists())
         state.retire_recovery_capability(self.layout, receipt)
+        self.private_adb_directory.rmdir()
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(commands, "_same_receipt_process", return_value=None),
+            mock.patch.object(state, "record_post_cleanup_adb_isolation_checkpoint"),
         ):
             commands.retire_stopped_owned_runtime(receipt.run_id)
         self.assertFalse(state.owned_runtime_receipt_path().exists())
@@ -3033,6 +3297,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
                 commands,
+                "probe_adb_loopback_absence",
+                return_value=commands.runtime_state.AdbIsolationObservation(),
+            ),
+            mock.patch.object(
+                commands,
                 "_same_receipt_process",
                 side_effect=[observed, None],
             ),
@@ -3076,6 +3345,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         )
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "probe_adb_loopback_absence",
+                return_value=commands.runtime_state.AdbIsolationObservation(),
+            ),
             mock.patch.object(commands, "_same_receipt_process", return_value=observed),
             mock.patch.object(
                 commands, "_same_receipt_adb_server_process", return_value=None
@@ -3222,6 +3496,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         order: list[str] = []
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "probe_adb_loopback_absence",
+                return_value=commands.runtime_state.AdbIsolationObservation(),
+            ),
             mock.patch.object(commands, "_same_receipt_process", return_value=observed),
             mock.patch.object(
                 commands,

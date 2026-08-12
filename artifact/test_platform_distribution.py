@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import pathlib
 import tempfile
@@ -32,12 +34,6 @@ class PlatformDistributionTests(unittest.TestCase):
             tree="b" * 40,
             canonical_source_tree_sha256="c" * 64,
             source_date_epoch=1_700_000_000,
-        )
-        self.android_tools = platform_distribution.AndroidVerificationTools(
-            llvm_nm=self.root / "tool-llvm-nm",
-            llvm_readelf=self.root / "tool-llvm-readelf",
-            apksigner=self.root / "tool-apksigner",
-            zipalign=self.root / "tool-zipalign",
         )
         self.aar_bytes = b"fixture Android AAR bytes\n"
         self._build_assets()
@@ -115,7 +111,7 @@ class PlatformDistributionTests(unittest.TestCase):
         stage = self.root / "android-bundle-stage"
         stage.mkdir()
         proof = {
-            "schema_version": 3,
+            "schema": 3,
             "git_commit": self.source.commit,
             "run_id": "d" * 32,
             "release_candidate_mode": True,
@@ -140,7 +136,7 @@ class PlatformDistributionTests(unittest.TestCase):
             "logcat": b"fixture logcat\n",
         }
         records = {}
-        for key, relative in android_device_proof.BUNDLE_FILE_PATHS.items():
+        for key, relative in android_device_proof.PUBLISHED_BUNDLE_FILE_PATHS.items():
             data = payloads[key]
             path = stage / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -151,7 +147,7 @@ class PlatformDistributionTests(unittest.TestCase):
                 "sha256": hashlib.sha256(data).hexdigest(),
             }
         bundle_manifest = {
-            "schema_version": android_device_proof.BUNDLE_SCHEMA_VERSION,
+            "schema_version": android_device_proof.PUBLISHED_BUNDLE_SCHEMA_VERSION,
             "kind": android_device_proof.BUNDLE_KIND,
             "source_date_epoch": self.source.source_date_epoch,
             "git_commit": self.source.commit,
@@ -165,10 +161,12 @@ class PlatformDistributionTests(unittest.TestCase):
             stage / android_device_proof.BUNDLE_MANIFEST_PATH,
             bundle_manifest,
         )
+        self.android_proof = proof
+        self.android_bundle_manifest = bundle_manifest
         create_zip(
             stage,
             self.assets / platform_distribution.ANDROID_RUNTIME_BUNDLE,
-            root_name=android_device_proof.BUNDLE_ROOT_NAME,
+            root_name=android_device_proof.PUBLISHED_BUNDLE_ROOT_NAME,
             mtime=self.source.source_date_epoch,
         )
 
@@ -277,34 +275,20 @@ class PlatformDistributionTests(unittest.TestCase):
             )
         return manifest
 
-    @staticmethod
-    def _verified_bundle_manifest(
-        bundle_root: pathlib.Path,
-        _manifest: dict,
-        *,
-        archive_mtime: int,
-    ) -> tuple[dict[str, pathlib.Path], dict]:
-        del archive_mtime
-        selected = {
-            key: bundle_root / relative
-            for key, relative in android_device_proof.BUNDLE_FILE_PATHS.items()
-        }
-        proof = json.loads(selected["proof"].read_text(encoding="utf-8"))
-        return selected, proof
+    def _verified_published_android_bundle(self, **kwargs):
+        bundle = kwargs["bundle"]
+        return (
+            hashlib.sha256(bundle.read_bytes()).hexdigest(),
+            self.android_bundle_manifest,
+            self.android_proof,
+        )
 
     def _deep_validator_mocks(self):
         return (
             mock.patch.object(
                 platform_distribution,
-                "verify_runtime_bundle",
-                side_effect=lambda **kwargs: hashlib.sha256(
-                    kwargs["bundle"].read_bytes()
-                ).hexdigest(),
-            ),
-            mock.patch.object(
-                platform_distribution,
-                "verify_bundle_manifest",
-                side_effect=self._verified_bundle_manifest,
+                "verify_published_runtime_bundle_v1",
+                side_effect=self._verified_published_android_bundle,
             ),
             mock.patch.object(
                 platform_distribution,
@@ -334,13 +318,11 @@ class PlatformDistributionTests(unittest.TestCase):
             validators[1],
             validators[2],
             validators[3],
-            validators[4],
         ):
             return platform_distribution.assemble(
                 self.repository,
                 self.assets,
                 output,
-                android_tools=self.android_tools,
             )
 
     def _verify(self, output: pathlib.Path) -> dict:
@@ -355,12 +337,10 @@ class PlatformDistributionTests(unittest.TestCase):
             validators[1],
             validators[2],
             validators[3],
-            validators[4],
         ):
             return platform_distribution.verify_distribution(
                 self.repository,
                 output,
-                android_tools=self.android_tools,
             )
 
     def test_assemble_verify_and_rebuild_are_byte_deterministic(self) -> None:
@@ -390,6 +370,48 @@ class PlatformDistributionTests(unittest.TestCase):
         }
         self.assertEqual(first, second)
         self.assertEqual(first_bytes, second_bytes)
+
+    def test_cli_contract_has_no_dead_android_tool_arguments(self) -> None:
+        self.assertFalse(hasattr(platform_distribution, "AndroidVerificationTools"))
+        parser = platform_distribution.build_parser()
+        assembled = parser.parse_args(
+            [
+                "assemble",
+                "--root",
+                "/repository",
+                "--assets-dir",
+                "/assets",
+                "--output-dir",
+                "/output",
+            ]
+        )
+        verified = parser.parse_args(
+            ["verify", "--root", "/repository", "--release-dir", "/release"]
+        )
+        self.assertEqual("assemble", assembled.command)
+        self.assertEqual("verify", verified.command)
+        for option in (
+            "--android-llvm-nm",
+            "--android-llvm-readelf",
+            "--android-apksigner",
+            "--android-zipalign",
+        ):
+            with (
+                self.subTest(option=option),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                parser.parse_args(
+                    [
+                        "verify",
+                        "--root",
+                        "/repository",
+                        "--release-dir",
+                        "/release",
+                        option,
+                        "/unused",
+                    ]
+                )
 
     def test_windows_fixture_validator_rejects_schema_and_pe_evidence_drift(self) -> None:
         package = self.root / "stage-windows"
@@ -502,13 +524,9 @@ class PlatformDistributionTests(unittest.TestCase):
             platform_distribution.verify_distribution(
                 self.repository,
                 output,
-                android_tools=self.android_tools,
             )
 
     def test_deep_validators_are_invoked_with_release_constraints(self) -> None:
-        runtime_digest = lambda **kwargs: hashlib.sha256(
-            kwargs["bundle"].read_bytes()
-        ).hexdigest()
         output = self.root / "release-validator-calls"
         with (
             mock.patch.object(
@@ -518,14 +536,9 @@ class PlatformDistributionTests(unittest.TestCase):
             ),
             mock.patch.object(
                 platform_distribution,
-                "verify_runtime_bundle",
-                side_effect=runtime_digest,
+                "verify_published_runtime_bundle_v1",
+                side_effect=self._verified_published_android_bundle,
             ) as android_verify,
-            mock.patch.object(
-                platform_distribution,
-                "verify_bundle_manifest",
-                side_effect=self._verified_bundle_manifest,
-            ) as bundle_verify,
             mock.patch.object(
                 platform_distribution,
                 "verify_proof_freshness",
@@ -545,18 +558,16 @@ class PlatformDistributionTests(unittest.TestCase):
                 self.repository,
                 self.assets,
                 output,
-                android_tools=self.android_tools,
             )
         self.assertEqual(2, android_verify.call_count)
-        self.assertEqual(2, bundle_verify.call_count)
         self.assertEqual(1, freshness_verify.call_count)
         self.assertEqual(4, linux_verify.call_count)
         self.assertEqual(2, windows_verify.call_count)
         for call in android_verify.call_args_list:
-            self.assertEqual(35, call.kwargs["expected_device_sdk"])
-            self.assertEqual(16_384, call.kwargs["expected_page_size"])
-            self.assertTrue(call.kwargs["require_release_mode"])
-            self.assertFalse(call.kwargs["allow_dirty_proof"])
+            self.assertEqual(
+                hashlib.sha256(call.kwargs["bundle"].read_bytes()).hexdigest(),
+                call.kwargs["expected_bundle_sha256"],
+            )
         for call in linux_verify.call_args_list:
             self.assertEqual(self.source.commit, call.kwargs["expected_commit"])
             self.assertEqual(
@@ -568,22 +579,15 @@ class PlatformDistributionTests(unittest.TestCase):
             self.assertEqual(self.source.tree, call.kwargs["expected_git_tree"])
 
     def test_each_minimal_forged_platform_is_rejected_by_its_real_validator(self) -> None:
-        runtime_digest = lambda **kwargs: hashlib.sha256(
-            kwargs["bundle"].read_bytes()
-        ).hexdigest()
-        common_android_mocks = lambda: (
-            mock.patch.object(
-                platform_distribution,
-                "verify_runtime_bundle",
-                side_effect=runtime_digest,
-            ),
-            mock.patch.object(
-                platform_distribution,
-                "verify_bundle_manifest",
-                side_effect=self._verified_bundle_manifest,
-            ),
-            mock.patch.object(platform_distribution, "verify_proof_freshness"),
-        )
+        def common_android_mocks():
+            return (
+                mock.patch.object(
+                    platform_distribution,
+                    "verify_published_runtime_bundle_v1",
+                    side_effect=self._verified_published_android_bundle,
+                ),
+                mock.patch.object(platform_distribution, "verify_proof_freshness"),
+            )
 
         with (
             mock.patch.object(platform_distribution, "_source_identity", return_value=self.source),
@@ -598,7 +602,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 self.repository,
                 self.assets,
                 self.root / "release-forged-android",
-                android_tools=self.android_tools,
             )
 
         android_mocks = common_android_mocks()
@@ -606,7 +609,6 @@ class PlatformDistributionTests(unittest.TestCase):
             mock.patch.object(platform_distribution, "_source_identity", return_value=self.source),
             android_mocks[0],
             android_mocks[1],
-            android_mocks[2],
             mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_windows_manifest),
             self.assertRaisesRegex(
                 platform_distribution.PlatformDistributionError,
@@ -617,7 +619,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 self.repository,
                 self.assets,
                 self.root / "release-forged-linux",
-                android_tools=self.android_tools,
             )
 
         android_mocks = common_android_mocks()
@@ -625,7 +626,6 @@ class PlatformDistributionTests(unittest.TestCase):
             mock.patch.object(platform_distribution, "_source_identity", return_value=self.source),
             android_mocks[0],
             android_mocks[1],
-            android_mocks[2],
             mock.patch.object(platform_distribution, "verify_c_package", side_effect=self._verified_manifest),
             self.assertRaisesRegex(
                 platform_distribution.PlatformDistributionError,
@@ -636,7 +636,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 self.repository,
                 self.assets,
                 self.root / "release-forged-windows",
-                android_tools=self.android_tools,
             )
 
 

@@ -573,7 +573,7 @@ RESULT_TXT="$DIST/qperiapt-android-device-result.txt"
 RESULT_JSON="$DIST/qperiapt-android-device-result.json"
 PROOF_JSON="$DIST/qperiapt-android-device-proof.json"
 PROOF_STAGING="$WORK/qperiapt-android-device-proof.json.pending"
-EVIDENCE_BUNDLE="$DIST/qperiapt-android-runtime-evidence-v1.zip"
+EVIDENCE_BUNDLE="$DIST/qperiapt-android-runtime-evidence-v2.zip"
 SOURCE_TREE_SHA256=$(python3 - "$ROOT" <<'PY'
 import pathlib
 import sys
@@ -2145,6 +2145,12 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		--expected-vendor-keys "$ADB_PRIVATE_VENDOR_KEY" \
 		--expected-mdns 0 \
 		--expected-transport-kind "$EXPECTED_DEVICE_KIND" >/dev/null
+	PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+		record-owned-emulator-routing --run-id "$RUN_ID" >/dev/null
+	PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+		record-adb-isolation-checkpoint \
+		--run-id "$RUN_ID" \
+		--checkpoint emulator_post_registration >/dev/null
 	EMULATOR_ADB_DEADLINE=$(monotonic_deadline 90)
 	while emulator_attempt_timeout=$(remaining_bounded_timeout "$EMULATOR_ADB_DEADLINE" 10); do
 		if ! emulator_process_active; then
@@ -2404,7 +2410,7 @@ if payload.get("passed_tests") != expected_tests:
 PY
 printf 'PASS: Android runtime smoke returned run-bound marker\n'
 
-printf '\n=== Emit Android runtime proof ===\n'
+printf '\n=== Capture final Android runtime metadata ===\n'
 if [ "$DEVICE_KIND" = "physical" ]; then
 	android_command device-devpath
 fi
@@ -2416,6 +2422,7 @@ DEVICE_MODEL=$(android_command device-model | tr -d '\r')
 DEVICE_RELEASE=$(android_command device-release | tr -d '\r')
 DEVICE_FINGERPRINT=$(android_command device-fingerprint | tr -d '\r')
 ADB_VERSION=$(android_command adb-version | sed -n '1p' | tr -d '\r')
+emit_android_runtime_proof() {
 python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_STAGING" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" "$FINAL_DEVICE_ABI" "$FINAL_PAGE_SIZE" "$FINAL_DEVICE_SDK" "$DEVICE_MANUFACTURER" "$DEVICE_MODEL" "$DEVICE_RELEASE" "$DEVICE_FINGERPRINT" "$ADB_VERSION" "$EMULATOR_BACKEND" "${ANDROID_EMULATOR_PORT:-}" "$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY" "$DIST/emulator-listeners.txt" "$DIST/adb-emulator-registration.txt" "${ADB_SERVER_STATUS_REGISTERED:-}" "${ADB_LISTENER_REGISTERED:-}" "$EMULATOR_BACKEND_DEVICE" "$EMULATOR_BACKEND_INODE" "$EMULATOR_BACKEND_SHA256" <<'PY'
 import datetime as dt
 import hashlib
@@ -2426,6 +2433,11 @@ import re
 import sys
 
 from artifact.android_device_proof import build_emulator_control_receipt
+from artifact.android_emulator_control import (
+    ADB_ISOLATION_CHECKPOINT_LEAVES,
+    EMULATOR_ROUTING_RECEIPT_LEAF,
+    AdbIsolationCheckpoint,
+)
 from artifact.claim_ledger import canonical_tree_digest, repository_paths
 from artifact.evidence_io import load_json_object_snapshot, read_regular_snapshot
 from artifact.git_provenance import git_commit, source_tree_dirty
@@ -2541,6 +2553,13 @@ if device_kind == "emulator":
         private_adb_identity=private_adb_identity,
         private_adb_status_path=registered_adb_status_path,
         private_adb_listener_path=registered_adb_listener_path,
+        routing_receipt_path=proof_destination.parent / EMULATOR_ROUTING_RECEIPT_LEAF,
+        adb_isolation_receipt_paths={
+            checkpoint: proof_destination.parent
+            / ADB_ISOLATION_CHECKPOINT_LEAVES[checkpoint]
+            for checkpoint in AdbIsolationCheckpoint
+        },
+        run_id=run_id,
     )
 elif any(
     (
@@ -2603,8 +2622,51 @@ source_paths = {
 def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
 
+proof_paths = {
+    "aar": rel(aar),
+    "aar_manifest": rel(aar_manifest),
+    "smoke_apk": rel(apk),
+    "apksigner_verify": rel(proof_destination.parent / "apksigner-verify.txt"),
+    "zipalign_verify": rel(proof_destination.parent / "zipalign-verify.txt"),
+    "result_txt": rel(result_txt),
+    "result_json": rel(result_json),
+    "logcat": rel(logcat),
+}
+if device_kind == "emulator":
+    proof_paths.update(
+        {
+            "adb_isolation_emulator_pre_exec": rel(
+                proof_destination.parent
+                / ADB_ISOLATION_CHECKPOINT_LEAVES[
+                    AdbIsolationCheckpoint.EMULATOR_PRE_EXEC
+                ]
+            ),
+            "adb_isolation_emulator_post_registration": rel(
+                proof_destination.parent
+                / ADB_ISOLATION_CHECKPOINT_LEAVES[
+                    AdbIsolationCheckpoint.EMULATOR_POST_REGISTRATION
+                ]
+            ),
+            "adb_isolation_runtime_pre_cleanup": rel(
+                proof_destination.parent
+                / ADB_ISOLATION_CHECKPOINT_LEAVES[
+                    AdbIsolationCheckpoint.RUNTIME_PRE_CLEANUP
+                ]
+            ),
+            "adb_isolation_runtime_post_cleanup": rel(
+                proof_destination.parent
+                / ADB_ISOLATION_CHECKPOINT_LEAVES[
+                    AdbIsolationCheckpoint.RUNTIME_POST_CLEANUP
+                ]
+            ),
+            "emulator_routing": rel(
+                proof_destination.parent / EMULATOR_ROUTING_RECEIPT_LEAF
+            ),
+        }
+    )
+
 payload = {
-    "schema": 4,
+    "schema": 5,
     "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
     "git_commit": git_commit(root),
     "source_tree_dirty": source_tree_dirty(root),
@@ -2614,16 +2676,7 @@ payload = {
     "release_candidate_mode": release_mode,
     "run_id": run_id,
     "package": "dev.qperiapt.androidsmoke",
-    "paths": {
-        "aar": rel(aar),
-        "aar_manifest": rel(aar_manifest),
-        "smoke_apk": rel(apk),
-        "apksigner_verify": rel(proof_destination.parent / "apksigner-verify.txt"),
-        "zipalign_verify": rel(proof_destination.parent / "zipalign-verify.txt"),
-        "result_txt": rel(result_txt),
-        "result_json": rel(result_json),
-        "logcat": rel(logcat),
-    },
+    "paths": proof_paths,
     "device": {
         "kind": device_kind,
         "serial_sha256_prefix": sha_text(serial)[:12],
@@ -2686,6 +2739,7 @@ with os.fdopen(descriptor, "wb") as proof_file:
     proof_file.flush()
     os.fsync(proof_file.fileno())
 PY
+}
 ADB_SERVER_STATUS_AFTER="$DIST/adb-server-status-after.txt"
 android_command server-status-after
 python3 artifact/android_device_proof.py verify-adb-server-status \
@@ -2705,6 +2759,12 @@ python3 artifact/android_device_proof.py verify-adb-listener \
 	--expected-mdns 0 \
 	--expected-transport-kind "$EXPECTED_DEVICE_KIND" >/dev/null
 assert_default_adb_server_absent
+if [ "$DEVICE_KIND" = "emulator" ]; then
+	PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+		record-adb-isolation-checkpoint \
+		--run-id "$RUN_ID" \
+		--checkpoint runtime_pre_cleanup >/dev/null
+fi
 if cleanup_runtime_with_deferred_signals; then
 	runtime_cleanup_status=0
 else
@@ -2722,6 +2782,8 @@ if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
 	exit 1
 fi
 assert_default_adb_server_absent
+printf '\n=== Emit Android runtime proof ===\n'
+emit_android_runtime_proof
 python3 artifact/android_device_proof.py publish-staged-proof \
 	--staging "$PROOF_STAGING" \
 	--destination "$PROOF_JSON"

@@ -33,6 +33,39 @@ PRODUCER_MANIFEST_CONTRACTS = {
 }
 
 
+def complete_emulator_control_summary() -> dict[str, object]:
+    private_adb = {
+        "identity_sha256": "6" * 64,
+        "server_status_sha256": "7" * 64,
+        "listener_snapshot_sha256": "8" * 64,
+    }
+    external_adb = {
+        "snapshot_sha256": "1" * 64,
+        "routing_environment_sha256": "2" * 64,
+        "routing_receipt_sha256": "3" * 64,
+    }
+    external_adb["transport_binding_sha256"] = (
+        release_index.emulator_routing_transport_binding_sha256(
+            external_adb["snapshot_sha256"],
+            external_adb["routing_environment_sha256"],
+            private_adb,
+        )
+    )
+    return {
+        "external_adb": external_adb,
+        "private_adb": private_adb,
+        "native_notifier": {
+            "mode": release_index.ANDROID_NATIVE_NOTIFIER_MODE,
+            "port": release_index.NATIVE_ADB_NOTIFIER_PORT,
+            "admission_checkpoints": [
+                {"name": checkpoint.value, "receipt_sha256": "5" * 64}
+                for checkpoint in release_index.AdbIsolationCheckpoint
+            ],
+            "continuous_absence_claimed": False,
+        },
+    }
+
+
 class ReleaseIndexTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -461,13 +494,13 @@ class ReleaseIndexTests(unittest.TestCase):
                         with self.assertRaises(SystemExit):
                             self._validate_manifest(root, face, forged)
 
-    def test_release_index_accepts_only_schema_four_as_an_exact_integer(self) -> None:
+    def test_release_index_accepts_only_schema_five_as_an_exact_integer(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._root(temporary)
             index_path, original = self._fixture(root)
-            self.assertEqual(release_index.SCHEMA_VERSION, 4)
+            self.assertEqual(release_index.SCHEMA_VERSION, 5)
             release_index.verify_release_index(index_path, root, allow_diagnostic=True)
-            for schema in (3, 5, True, "4", 4.0):
+            for schema in (4, 6, True, "5", 5.0):
                 forged = copy.deepcopy(original)
                 forged["schema_version"] = schema
                 release_index.write_json(index_path, forged)
@@ -735,7 +768,7 @@ class ReleaseIndexTests(unittest.TestCase):
     ) -> None:
         # This is an aggregate hash-linkage test, not a leaf-package verifier.
         # Coordinated rewrites of a mutable local package and all of its local
-        # metadata remain outside schema 4's explicitly recorded trust boundary.
+        # metadata remain outside schema 5's explicitly recorded trust boundary.
         for face in PRODUCER_MANIFEST_CONTRACTS:
             with self.subTest(face=face), tempfile.TemporaryDirectory() as temporary:
                 root = self._root(temporary)
@@ -782,6 +815,7 @@ class ReleaseIndexTests(unittest.TestCase):
 
             def android_proof(model: str) -> dict:
                 return {
+                    "schema": android_device_proof.PROOF_SCHEMA_VERSION,
                     "git_commit": "a" * 40,
                     "generated_at": "2026-07-12T00:00:00Z",
                     "source_tree_dirty": False,
@@ -797,6 +831,7 @@ class ReleaseIndexTests(unittest.TestCase):
                         "raw_serial_recorded": False,
                     },
                     "result": {
+                        "run_id": "a" * 32,
                         "status": "pass",
                         "test_count": 1,
                         "passed_tests": ["fixture"],
@@ -885,6 +920,7 @@ class ReleaseIndexTests(unittest.TestCase):
                 "source_tree_dirty": False,
                 "copied_raw_proof": False,
                 "diagnostic_only": False,
+                "proof_schema": android_device_proof.PROOF_SCHEMA_VERSION,
                 "release_candidate_mode": True,
                 "device": {
                     "kind": "emulator",
@@ -900,6 +936,10 @@ class ReleaseIndexTests(unittest.TestCase):
                     "status": "pass",
                     "test_count": 1,
                     "passed_tests": ["fixture"],
+                },
+                "adb_isolation": {
+                    "mode": release_index.ANDROID_EMULATOR_ROUTING_MODE,
+                    **complete_emulator_control_summary(),
                 },
             }
             index["channel"] = "release"
@@ -925,11 +965,23 @@ class ReleaseIndexTests(unittest.TestCase):
 
             cases = (
                 (("release_candidate_mode",), False, "release_candidate_mode"),
-                (("device", "kind"), "physical", "device kind"),
+                (("device", "kind"), "physical", "physical Android adb isolation"),
                 (("device", "abi"), "x86_64", "device ABI"),
                 (("device", "sdk"), 36, "device SDK"),
                 (("device", "page_size"), 4096, "device page size"),
                 (("result", "status"), "fail", "result status"),
+                (("proof_schema",), 4, "summary schema"),
+                (("adb_isolation", "native_notifier", "port"), 5037, "notifier port"),
+                (
+                    ("adb_isolation", "private_adb", "identity_sha256"),
+                    "0" * 64,
+                    "transport binding",
+                ),
+                (
+                    ("adb_isolation", "external_adb", "snapshot_sha256"),
+                    "0" * 64,
+                    "transport binding",
+                ),
             )
             for path, replacement, message in cases:
                 forged = copy.deepcopy(index)
@@ -949,6 +1001,24 @@ class ReleaseIndexTests(unittest.TestCase):
                         allow_diagnostic=False,
                     )
 
+            for label, replacement in (("missing", None), ("non-dict", "invalid")):
+                forged = copy.deepcopy(index)
+                runtime = forged["proof_summaries"]["android_runtime"]
+                if label == "missing":
+                    del runtime["adb_isolation"]
+                else:
+                    runtime["adb_isolation"] = replacement
+                with (
+                    self.subTest(adb_isolation=label),
+                    self.assertRaisesRegex(
+                        SystemExit,
+                        "Android release summary requires adb isolation evidence",
+                    ),
+                ):
+                    release_index.validate_android_release_summary_contract(
+                        runtime
+                    )
+
     def test_android_runtime_selector_is_exact_and_release_uses_full_verifier(
         self,
     ) -> None:
@@ -966,6 +1036,7 @@ class ReleaseIndexTests(unittest.TestCase):
             )
             proof_path.parent.mkdir(parents=True)
             proof = {
+                "schema": android_device_proof.PROOF_SCHEMA_VERSION,
                 "git_commit": "b" * 40,
                 "generated_at": "2026-08-12T00:00:00Z",
                 "source_tree_dirty": False,
@@ -981,10 +1052,12 @@ class ReleaseIndexTests(unittest.TestCase):
                     "raw_serial_recorded": False,
                 },
                 "result": {
+                    "run_id": run_id,
                     "status": "pass",
                     "test_count": 1,
                     "passed_tests": ["fixture"],
                 },
+                "emulator_control": complete_emulator_control_summary(),
             }
             release_index.write_json(proof_path, proof)
             args = argparse.Namespace(

@@ -18,22 +18,25 @@ from dataclasses import dataclass
 from typing import Any, NoReturn
 
 from android_device_proof import (
-    BUNDLE_MANIFEST_PATH,
-    BUNDLE_ROOT_NAME,
-    verify_bundle_manifest,
     verify_proof_freshness,
-    verify_runtime_bundle,
+    verify_published_runtime_bundle_v1,
 )
 from android_elf import (
     EXPECTED_CARGO_VERSION as ANDROID_EXPECTED_CARGO_VERSION,
+)
+from android_elf import (
     EXPECTED_RUSTC_VERSION as ANDROID_EXPECTED_RUSTC_VERSION,
+)
+from android_elf import (
     MANIFEST_SCHEMA_VERSION as ANDROID_MANIFEST_SCHEMA_VERSION,
 )
+from c_abi_contract import ABI_MAJOR, load_contract
 from c_package_manifest import (
     CPackageManifestError,
+)
+from c_package_manifest import (
     verify_package as verify_c_package,
 )
-from c_abi_contract import ABI_MAJOR, load_contract
 from claim_ledger import canonical_tree_digest, repository_paths
 from deterministic_archive import (
     ArchiveLimits,
@@ -50,27 +53,40 @@ from evidence_io import (
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_text
 from platform_release_contract import (
     ANDROID_AAR,
+    ANDROID_BUNDLE_MANIFEST_SHA256,
     ANDROID_MANIFEST,
+    ANDROID_PROOF_SHA256,
     ANDROID_RUNTIME_BUNDLE,
     DISTRIBUTION_REVISION,
     LINUX_AARCH64,
     LINUX_X86_64,
-    PLATFORM_DISTRIBUTION_KIND as KIND,
-    PLATFORM_DISTRIBUTION_SCHEMA_VERSION as SCHEMA_VERSION,
-    PLATFORM_INPUT_ASSETS as INPUT_ASSETS,
-    PLATFORM_RELEASE_FILES as RELEASE_FILES,
     PRODUCT_VERSION,
     RELEASE_MANIFEST,
     RELEASE_SUMS,
     RELEASE_TAG,
     WINDOWS_X86_64,
 )
+from platform_release_contract import (
+    PLATFORM_DISTRIBUTION_KIND as KIND,
+)
+from platform_release_contract import (
+    PLATFORM_DISTRIBUTION_SCHEMA_VERSION as SCHEMA_VERSION,
+)
+from platform_release_contract import (
+    PLATFORM_INPUT_ASSETS as INPUT_ASSETS,
+)
+from platform_release_contract import (
+    PLATFORM_RELEASE_FILES as RELEASE_FILES,
+)
 from windows_package import (
     SCHEMA_VERSION as WINDOWS_PACKAGE_SCHEMA_VERSION,
+)
+from windows_package import (
     WindowsPackageError,
+)
+from windows_package import (
     verify_package as verify_windows_package,
 )
-
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -94,14 +110,6 @@ class SourceIdentity:
     tree: str
     canonical_source_tree_sha256: str
     source_date_epoch: int
-
-
-@dataclass(frozen=True, slots=True)
-class AndroidVerificationTools:
-    llvm_nm: pathlib.Path
-    llvm_readelf: pathlib.Path
-    apksigner: pathlib.Path
-    zipalign: pathlib.Path
 
 
 def fail(message: str) -> NoReturn:
@@ -411,11 +419,8 @@ def _android_assets(
     files: dict[str, pathlib.Path],
     snapshots: dict[str, FileSnapshot],
     *,
-    repository: pathlib.Path,
     source: SourceIdentity,
     abi: dict[str, Any],
-    scratch: pathlib.Path,
-    tools: AndroidVerificationTools,
     require_fresh_proof: bool,
 ) -> list[dict[str, Any]]:
     aar_manifest, manifest_snapshot = _json(
@@ -463,21 +468,11 @@ def _android_assets(
 
     bundle = files[ANDROID_RUNTIME_BUNDLE]
     try:
-        verified_bundle_sha256 = verify_runtime_bundle(
-            root=repository,
-            bundle=bundle,
-            expected_bundle_sha256=snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
-            llvm_nm=tools.llvm_nm,
-            llvm_readelf=tools.llvm_readelf,
-            apksigner=tools.apksigner,
-            zipalign=tools.zipalign,
-            expected_device_kind="emulator",
-            expected_device_abi="arm64-v8a",
-            expected_page_size=16_384,
-            expected_device_sdk=35,
-            require_release_mode=True,
-            allow_dirty_proof=False,
-            forbidden_text=[str(repository), repository.as_posix()],
+        verified_bundle_sha256, bundle_manifest, proof = (
+            verify_published_runtime_bundle_v1(
+                bundle=bundle,
+                expected_bundle_sha256=snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
+            )
         )
     except SystemExit as exc:
         fail(f"Android runtime evidence bundle verification failed: {exc}")
@@ -485,30 +480,6 @@ def _android_assets(
         verified_bundle_sha256 == snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
         "Android runtime verifier observed different bundle bytes",
     )
-    destination = scratch / "extract-android-runtime"
-    try:
-        audit = extract_zip(
-            bundle,
-            destination,
-            root_name=BUNDLE_ROOT_NAME,
-            expected_sha256=snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
-            limits=ARCHIVE_LIMITS,
-        )
-    except DeterministicArchiveError as exc:
-        fail(f"Android runtime evidence bundle is invalid: {exc}")
-    bundle_root = destination / BUNDLE_ROOT_NAME
-    bundle_manifest, bundle_manifest_snapshot = _json(
-        bundle_root / BUNDLE_MANIFEST_PATH,
-        "Android runtime bundle MANIFEST.json",
-    )
-    try:
-        selected, proof = verify_bundle_manifest(
-            bundle_root,
-            bundle_manifest,
-            archive_mtime=audit.mtime,
-        )
-    except SystemExit as exc:
-        fail(f"Android runtime bundle manifest is invalid: {exc}")
     require(bundle_manifest.get("git_commit") == source.commit, "Android runtime bundle source commit differs")
     require(bundle_manifest.get("source_date_epoch") == source.source_date_epoch, "Android runtime bundle source epoch differs")
     require(bundle_manifest.get("release_candidate_mode") is True, "Android runtime bundle is not release-candidate evidence")
@@ -533,16 +504,15 @@ def _android_assets(
         except SystemExit as exc:
             fail(f"Android runtime proof freshness gate failed: {exc}")
     require(
-        _snapshot(selected["aar"], "bundled Android AAR").sha256
+        bundle_manifest["files"]["aar"]["sha256"]
         == snapshots[ANDROID_AAR].sha256,
         "Android runtime bundle did not exercise the public AAR bytes",
     )
     require(
-        _snapshot(selected["aar_manifest"], "bundled Android AAR manifest").sha256
+        bundle_manifest["files"]["aar_manifest"]["sha256"]
         == manifest_snapshot.sha256,
         "Android runtime bundle AAR manifest differs from the public manifest",
     )
-    proof_snapshot = _snapshot(selected["proof"], "bundled Android runtime proof")
     return [
         {
             "bytes": snapshots[ANDROID_AAR].size,
@@ -564,7 +534,7 @@ def _android_assets(
             "target": "arm64-v8a,armeabi-v7a,x86,x86_64",
         },
         {
-            "bundle_manifest_sha256": bundle_manifest_snapshot.sha256,
+            "bundle_manifest_sha256": ANDROID_BUNDLE_MANIFEST_SHA256,
             "bytes": snapshots[ANDROID_RUNTIME_BUNDLE].size,
             "device": {
                 "kind": "emulator",
@@ -575,7 +545,7 @@ def _android_assets(
             "media_type": "application/zip",
             "name": ANDROID_RUNTIME_BUNDLE,
             "platform": "android",
-            "proof_sha256": proof_snapshot.sha256,
+            "proof_sha256": ANDROID_PROOF_SHA256,
             "role": "runtime-evidence",
             "sha256": snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
             "tested_aar_sha256": snapshots[ANDROID_AAR].sha256,
@@ -589,7 +559,6 @@ def _build_manifest(
     release_dir: pathlib.Path,
     *,
     source: SourceIdentity,
-    android_tools: AndroidVerificationTools,
     require_fresh_android_proof: bool,
 ) -> dict[str, Any]:
     files = _inventory_files(release_dir)
@@ -611,11 +580,8 @@ def _build_manifest(
         assets = _android_assets(
             files,
             snapshots,
-            repository=root,
             source=source,
             abi=abi,
-            scratch=scratch,
-            tools=android_tools,
             require_fresh_proof=require_fresh_android_proof,
         )
         assets.append(
@@ -688,8 +654,6 @@ def assemble(
     root: pathlib.Path,
     assets_dir: pathlib.Path,
     output_dir: pathlib.Path,
-    *,
-    android_tools: AndroidVerificationTools,
 ) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     inputs = _regular_directory(assets_dir, "platform input asset directory")
@@ -710,7 +674,6 @@ def assemble(
             repository,
             output,
             source=source,
-            android_tools=android_tools,
             require_fresh_android_proof=True,
         )
         manifest_path = output / RELEASE_MANIFEST
@@ -725,7 +688,7 @@ def assemble(
             encoding="ascii",
         )
         os.chmod(sums_path, 0o644)
-        verify_distribution(repository, output, android_tools=android_tools)
+        verify_distribution(repository, output)
     except Exception:
         if output.exists() and not output.is_symlink():
             shutil.rmtree(output)
@@ -757,8 +720,6 @@ def _parse_sums(path: pathlib.Path) -> dict[str, str]:
 def verify_distribution(
     root: pathlib.Path,
     release_dir: pathlib.Path,
-    *,
-    android_tools: AndroidVerificationTools,
 ) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     release = _regular_directory(release_dir, "platform release directory")
@@ -827,7 +788,6 @@ def verify_distribution(
         repository,
         release,
         source=actual_source,
-        android_tools=android_tools,
         require_fresh_android_proof=False,
     )
     require(manifest == rebuilt, "platform distribution manifest differs from release asset bytes")
@@ -845,39 +805,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    def add_android_tools(command: argparse.ArgumentParser) -> None:
-        command.add_argument("--android-llvm-nm", required=True, type=pathlib.Path)
-        command.add_argument("--android-llvm-readelf", required=True, type=pathlib.Path)
-        command.add_argument("--android-apksigner", required=True, type=pathlib.Path)
-        command.add_argument("--android-zipalign", required=True, type=pathlib.Path)
-
     assemble_parser = subparsers.add_parser("assemble")
     assemble_parser.add_argument("--root", required=True, type=pathlib.Path)
     assemble_parser.add_argument("--assets-dir", required=True, type=pathlib.Path)
     assemble_parser.add_argument("--output-dir", required=True, type=pathlib.Path)
-    add_android_tools(assemble_parser)
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument("--root", required=True, type=pathlib.Path)
     verify_parser.add_argument("--release-dir", required=True, type=pathlib.Path)
-    add_android_tools(verify_parser)
     return parser
 
 
 def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
-    android_tools = AndroidVerificationTools(
-        llvm_nm=args.android_llvm_nm,
-        llvm_readelf=args.android_llvm_readelf,
-        apksigner=args.android_apksigner,
-        zipalign=args.android_zipalign,
-    )
     try:
         if args.command == "assemble":
             manifest = assemble(
                 args.root,
                 args.assets_dir,
                 args.output_dir,
-                android_tools=android_tools,
             )
             print(
                 "ABI2_PLATFORM_DISTRIBUTION_ASSEMBLE_PASS "
@@ -887,7 +832,6 @@ def main(argv: list[str]) -> int:
             manifest = verify_distribution(
                 args.root,
                 args.release_dir,
-                android_tools=android_tools,
             )
             print(
                 "ABI2_PLATFORM_DISTRIBUTION_VERIFY_PASS "

@@ -34,6 +34,13 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Callable, Iterator, NoReturn
 
+from android_emulator_control import (
+    EMULATOR_ROUTING_MODE,
+    NATIVE_ADB_NOTIFIER_MODE,
+    NATIVE_ADB_NOTIFIER_PORT,
+    AdbIsolationCheckpoint,
+    emulator_routing_transport_binding_sha256,
+)
 from evidence_io import (
     EvidenceIOError,
     FileDigestSnapshot,
@@ -53,6 +60,7 @@ from git_provenance import (
 from git_provenance import (
     source_tree_dirty as provenance_source_tree_dirty,
 )
+from platform_release_contract import ANDROID_DEVICE_PROOF_SCHEMA_VERSION
 
 
 @dataclass(frozen=True)
@@ -90,7 +98,7 @@ class BuiltReleaseTree:
     generated_at: str
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 KIND = "qperiapt.local_release_index"
 POINTER_KIND = "qperiapt.local_release_index.pointer"
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -120,6 +128,8 @@ ANDROID_RELEASE_DEVICE_KIND = "emulator"
 ANDROID_RELEASE_DEVICE_ABI = "arm64-v8a"
 ANDROID_RELEASE_DEVICE_SDK = 35
 ANDROID_RELEASE_PAGE_SIZE = 16_384
+ANDROID_EMULATOR_ROUTING_MODE = EMULATOR_ROUTING_MODE
+ANDROID_NATIVE_NOTIFIER_MODE = NATIVE_ADB_NOTIFIER_MODE
 C_HOST_PLATFORMS = {
     "aarch64-apple-darwin": "macos",
     "x86_64-apple-darwin": "macos",
@@ -2122,9 +2132,11 @@ def proof_summary_snapshot(
         device = proof.get("device")
         result = proof.get("result")
         require(
-            isinstance(device, dict) and isinstance(result, dict),
+            isinstance(device, dict)
+            and isinstance(result, dict),
             "Android proof is malformed",
         )
+        summary["proof_schema"] = proof.get("schema")
         summary["release_candidate_mode"] = proof.get("release_candidate_mode")
         summary["device"] = {
             "kind": device.get("kind"),
@@ -2141,6 +2153,29 @@ def proof_summary_snapshot(
             "test_count": result.get("test_count"),
             "passed_tests": result.get("passed_tests"),
         }
+        if device.get("kind") == "emulator":
+            emulator_control = proof.get("emulator_control")
+            require(
+                isinstance(emulator_control, dict),
+                "Android emulator proof lacks control evidence",
+            )
+            external_adb = emulator_control.get("external_adb")
+            private_adb = emulator_control.get("private_adb")
+            native_notifier = emulator_control.get("native_notifier")
+            require(
+                isinstance(external_adb, dict)
+                and isinstance(private_adb, dict)
+                and isinstance(native_notifier, dict),
+                "Android proof lacks adb isolation control",
+            )
+            summary["adb_isolation"] = {
+                "mode": ANDROID_EMULATOR_ROUTING_MODE,
+                "external_adb": dict(external_adb),
+                "private_adb": dict(private_adb),
+                "native_notifier": dict(native_notifier),
+            }
+        else:
+            summary["adb_isolation"] = None
     validate_sanitized_proof_summary(proof_kind, summary)
     return summary
 
@@ -2167,7 +2202,13 @@ def validate_sanitized_proof_summary(proof_name: str, proof: dict[str, Any]) -> 
     }
     extra_fields = {
         "apple_matrix": {"devices"},
-        "android_runtime": {"release_candidate_mode", "device", "result"},
+        "android_runtime": {
+            "proof_schema",
+            "release_candidate_mode",
+            "device",
+            "result",
+            "adb_isolation",
+        },
     }
     require(proof_name in extra_fields, f"unsupported proof summary: {proof_name}")
     proof = require_exact_object(
@@ -2249,6 +2290,11 @@ def validate_sanitized_proof_summary(proof_name: str, proof: dict[str, Any]) -> 
         ),
         "Android proof summary device",
     )
+    require_exact_int(
+        proof.get("proof_schema"),
+        ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+        "Android proof summary schema",
+    )
     require(
         type(proof.get("release_candidate_mode")) is bool,
         "Android release_candidate_mode must be boolean",
@@ -2298,6 +2344,109 @@ def validate_sanitized_proof_summary(proof_name: str, proof: dict[str, Any]) -> 
         len(passed_tests) == len(set(passed_tests)),
         "Android passed_tests contains duplicates",
     )
+    adb_isolation = proof.get("adb_isolation")
+    if device.get("kind") == "physical":
+        require_exact_json(
+            adb_isolation, None, "physical Android adb isolation summary"
+        )
+        return
+    isolation = require_exact_object(
+        adb_isolation,
+        frozenset({"mode", "external_adb", "private_adb", "native_notifier"}),
+        "Android adb isolation summary",
+    )
+    require_exact_json(
+        isolation.get("mode"),
+        ANDROID_EMULATOR_ROUTING_MODE,
+        "Android adb isolation mode",
+    )
+    external_adb = require_exact_object(
+        isolation.get("external_adb"),
+        frozenset(
+            {
+                "snapshot_sha256",
+                "routing_environment_sha256",
+                "routing_receipt_sha256",
+                "transport_binding_sha256",
+            }
+        ),
+        "Android external adb summary",
+    )
+    for field in external_adb:
+        require(
+            isinstance(external_adb[field], str)
+            and HEX_SHA256.fullmatch(external_adb[field]) is not None,
+            f"Android external adb {field} is malformed",
+        )
+    private_adb = require_exact_object(
+        isolation.get("private_adb"),
+        frozenset(
+            {
+                "identity_sha256",
+                "server_status_sha256",
+                "listener_snapshot_sha256",
+            }
+        ),
+        "Android private adb summary",
+    )
+    for field in private_adb:
+        require(
+            isinstance(private_adb[field], str)
+            and HEX_SHA256.fullmatch(private_adb[field]) is not None,
+            f"Android private adb {field} is malformed",
+        )
+    expected_transport_binding = emulator_routing_transport_binding_sha256(
+        external_adb["snapshot_sha256"],
+        external_adb["routing_environment_sha256"],
+        private_adb,
+    )
+    require_exact_json(
+        external_adb.get("transport_binding_sha256"),
+        expected_transport_binding,
+        "Android external adb transport binding",
+    )
+    native_notifier = require_exact_object(
+        isolation.get("native_notifier"),
+        frozenset(
+            {"mode", "port", "admission_checkpoints", "continuous_absence_claimed"}
+        ),
+        "Android native adb notifier summary",
+    )
+    require_exact_json(
+        native_notifier.get("mode"),
+        ANDROID_NATIVE_NOTIFIER_MODE,
+        "Android native adb notifier mode",
+    )
+    require_exact_int(
+        native_notifier.get("port"),
+        NATIVE_ADB_NOTIFIER_PORT,
+        "Android native adb notifier port",
+    )
+    require_exact_json(
+        native_notifier.get("continuous_absence_claimed"),
+        False,
+        "Android native adb continuous absence claim",
+    )
+    checkpoints = native_notifier.get("admission_checkpoints")
+    require(
+        isinstance(checkpoints, list)
+        and len(checkpoints) == len(AdbIsolationCheckpoint),
+        "Android native adb notifier checkpoints differ",
+    )
+    for item, checkpoint in zip(checkpoints, AdbIsolationCheckpoint):
+        item = require_exact_object(
+            item,
+            frozenset({"name", "receipt_sha256"}),
+            "Android native adb notifier checkpoint",
+        )
+        require_exact_json(
+            item.get("name"), checkpoint.value, "Android notifier checkpoint name"
+        )
+        require(
+            isinstance(item.get("receipt_sha256"), str)
+            and HEX_SHA256.fullmatch(item["receipt_sha256"]) is not None,
+            "Android notifier checkpoint receipt hash is malformed",
+        )
 
 
 def validate_android_release_summary_contract(proof: dict[str, Any]) -> None:
@@ -2305,6 +2454,12 @@ def validate_android_release_summary_contract(proof: dict[str, Any]) -> None:
 
     device = proof["device"]
     result = proof["result"]
+    isolation = proof.get("adb_isolation")
+    require_exact_int(
+        proof.get("proof_schema"),
+        ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+        "Android release summary proof schema",
+    )
     require_exact_json(
         proof.get("release_candidate_mode"),
         True,
@@ -2334,6 +2489,27 @@ def validate_android_release_summary_contract(proof: dict[str, Any]) -> None:
         result.get("status"),
         "pass",
         "Android release summary result status",
+    )
+    require(
+        isinstance(isolation, dict),
+        "Android release summary requires adb isolation evidence",
+    )
+    require_exact_json(
+        isolation.get("mode"),
+        ANDROID_EMULATOR_ROUTING_MODE,
+        "Android release summary adb isolation mode",
+    )
+    native_notifier = isolation.get("native_notifier")
+    require(isinstance(native_notifier, dict), "Android notifier summary is missing")
+    require_exact_json(
+        native_notifier.get("mode"),
+        ANDROID_NATIVE_NOTIFIER_MODE,
+        "Android release summary native notifier mode",
+    )
+    require_exact_int(
+        native_notifier.get("port"),
+        NATIVE_ADB_NOTIFIER_PORT,
+        "Android release summary native notifier port",
     )
 
 

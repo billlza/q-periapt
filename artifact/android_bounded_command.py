@@ -24,10 +24,16 @@ from typing import Literal, NoReturn
 
 import android_runtime_state as runtime_state
 from android_emulator_control import (
+    EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
+    NATIVE_ADB_NOTIFIER_PORT,
+    AdbIsolationCheckpoint,
     AndroidEmulatorControlError,
+    emulator_routing_environment_sha256,
     fixed_headless_backend_path,
+    parse_owned_adb_server_status,
     parse_owned_lsof_listeners,
     parse_owned_single_listener,
+    probe_adb_loopback_absence,
 )
 from bounded_process import (
     BoundedProcessError,
@@ -45,8 +51,10 @@ from evidence_io import (
     read_regular_snapshot,
 )
 from process_identity import (
+    ProcessExecutionSnapshot,
     ProcessIdentity,
     ProcessIdentityError,
+    execution_snapshot,
     host_boot_identity,
 )
 from process_identity import (
@@ -837,12 +845,10 @@ def _emulator_environment(
 ) -> dict[str, str]:
     sdk_root = runtime_state.ADB_PROFILE_PATHS[capability.adb_profile].parent.parent
     return {
-        "HOME": str(runtime_state.ACCOUNT_HOME),
-        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-        "LC_ALL": "C",
-        "LANG": "C",
+        **_client_environment(capability),
         "ANDROID_HOME": str(sdk_root),
         "ANDROID_SDK_ROOT": str(sdk_root),
+        "ANDROID_ADB_SERVER_PORT": str(NATIVE_ADB_NOTIFIER_PORT),
     }
 
 
@@ -934,6 +940,7 @@ def exec_emulator(run_id: str, avd_name: str, device_abi: str) -> NoReturn:
             avd_name=canonical_avd,
             device_abi=canonical_abi,
             console_port=console_port,
+            native_adb_notifier_port=NATIVE_ADB_NOTIFIER_PORT,
             console_auth_token=confirmed_token_identity,
             launcher_path=launcher,
             launcher_device=launcher_device,
@@ -944,7 +951,9 @@ def exec_emulator(run_id: str, avd_name: str, device_abi: str) -> NoReturn:
             backend_sha256=backend_snapshot.sha256,
         ),
     )
+    _validate_adb(layout, capability)
     _validate_owned_adb_server_for_client(capability)
+    emulator_environment = _emulator_environment(capability)
     argv = [
         str(launcher),
         "-avd",
@@ -957,13 +966,16 @@ def exec_emulator(run_id: str, avd_name: str, device_abi: str) -> NoReturn:
         "-no-audio",
         "-no-boot-anim",
         "-no-direct-adb",
+        "-adb-path",
+        str(capability.adb_snapshot_path),
         "-gpu",
         "swiftshader_indirect",
     ]
+    runtime_state.record_pre_exec_adb_isolation_checkpoint(layout.run_id)
     try:
         runtime_state.arm_lane_lock_close_on_exec()
         _close_nonstandard_descriptors(preserve_lane_lock=True)
-        os.execve(str(launcher), argv, _emulator_environment(capability))
+        os.execve(str(launcher), argv, emulator_environment)
     except BaseException as primary:
         if isinstance(primary, OSError):
             raise AndroidCommandError(
@@ -1307,6 +1319,7 @@ def _recovery_adb_capability(
         adb_size=receipt.adb_size,
         adb_sha256=receipt.adb_sha256,
         socket_nonce=receipt.socket_nonce,
+        native_adb_notifier_port=receipt.native_adb_notifier_port,
         server_socket=server_socket,
         socket_path=socket_path,
         vendor_key=runtime_state.ACCOUNT_HOME / ".android/adbkey",
@@ -1770,6 +1783,11 @@ def _request_verified_owned_emulator_stop(
         context.launcher is not None and context.backend is not None,
         "active emulator shutdown lacks its executable identity",
     )
+    _require(
+        receipt.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "active emulator shutdown lacks its native adb notifier isolation",
+    )
+    probe_adb_loopback_absence()
     observed = _wait_for_recovery_backend(receipt, context.launcher, context.backend)
     _require(observed is not None, "owned emulator exited before protocol shutdown")
     _verify_recovery_listeners(
@@ -2188,7 +2206,16 @@ def retire_stopped_owned_runtime(run_id: str) -> None:
         and (not os.path.lexists(context.capability.adb_snapshot_path)),
         "cannot retire an owned runtime receipt while private adb resources remain",
     )
+    socket_directory = socket_path.parent
+    _require(
+        not os.path.lexists(socket_directory),
+        "cannot retire an owned runtime receipt while its private adb directory remains",
+    )
     runtime_state.retire_owned_runtime_receipt(receipt)
+    if receipt.device_kind == "emulator":
+        runtime_state.record_post_cleanup_adb_isolation_checkpoint(
+            context.layout.run_id,
+        )
 
 
 def owned_emulator_backend_identity(run_id: str) -> str:
@@ -2201,6 +2228,192 @@ def owned_emulator_backend_identity(run_id: str) -> str:
         "owned runtime receipt belongs to a different run",
     )
     return f"{receipt.backend_device}:{receipt.backend_inode}:{receipt.backend_sha256}"
+
+
+def record_adb_isolation_checkpoint(
+    run_id: str, checkpoint: AdbIsolationCheckpoint
+) -> pathlib.Path:
+    """Durably record one admitted non-final isolation checkpoint."""
+
+    _require(
+        checkpoint
+        in {
+            AdbIsolationCheckpoint.EMULATOR_POST_REGISTRATION,
+            AdbIsolationCheckpoint.RUNTIME_PRE_CLEANUP,
+        },
+        "checkpoint is not exposed by the bounded isolation action",
+    )
+    return runtime_state.record_adb_isolation_checkpoint(run_id, checkpoint)
+
+
+def _registered_private_adb_evidence(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> dict[str, str]:
+    status = read_regular_snapshot(
+        layout.proof / "adb-server-status-registered.txt",
+        maximum=65536,
+        label="registered private adb server status",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    listener = read_regular_snapshot(
+        layout.proof / "adb-listener-registered.txt",
+        maximum=65536,
+        label="registered private adb listener snapshot",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    try:
+        status_fields = parse_owned_adb_server_status(status.data.decode("utf-8"))
+        listener_text = listener.data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise AndroidCommandError(
+            "registered private adb evidence is not UTF-8"
+        ) from exc
+    _require(
+        status_fields["executable_absolute_path"] == str(capability.adb_snapshot_path)
+        and status_fields["keystore_path"] == str(capability.vendor_key)
+        and status_fields["mdns_enabled"] is False,
+        "registered private adb server status differs from this run",
+    )
+    try:
+        parse_owned_single_listener(
+            listener_text,
+            expected_pid=receipt.adb_server_pid,
+            expected_uid=receipt.uid,
+            expected_endpoint=capability.socket_path,
+        )
+    except AndroidEmulatorControlError as exc:
+        raise AndroidCommandError(str(exc)) from exc
+    _require(
+        receipt.adb_server_process_identity is not None,
+        "registered private adb receipt lacks its process identity",
+    )
+    return {
+        "identity_sha256": hashlib.sha256(
+            receipt.adb_server_process_identity.encode("ascii")
+        ).hexdigest(),
+        "server_status_sha256": status.sha256,
+        "listener_snapshot_sha256": listener.sha256,
+    }
+
+
+def _validate_emulator_execution_routing(
+    execution: ProcessExecutionSnapshot,
+    *,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    capability: runtime_state.AndroidCommandCapability,
+) -> str:
+    _require(
+        execution.identity.token == receipt.process_identity
+        and execution.identity.pid == receipt.pid
+        and execution.identity.uid == receipt.uid,
+        "owned emulator process identity changed before routing receipt",
+    )
+    _require(
+        execution.identity.executable == receipt.backend_path,
+        "owned emulator has not reached its receipt-bound backend",
+    )
+    expected_environment = _emulator_environment(capability)
+    _require(
+        all(
+            execution.environment.get(name) == value
+            for name, value in expected_environment.items()
+        ),
+        "owned emulator routing environment projection differs",
+    )
+    forbidden_routing_names = sorted(
+        name
+        for name in execution.environment
+        if (
+            name.startswith("ADB_") or name.startswith("ANDROID_ADB_")
+        )
+        and name not in expected_environment
+    )
+    _require(
+        not forbidden_routing_names,
+        "owned emulator inherited forbidden adb routing variables: "
+        + ", ".join(forbidden_routing_names),
+    )
+    _require(
+        execution.argv.count("-no-direct-adb") == 1,
+        "owned emulator lacks native direct-adb suppression",
+    )
+    try:
+        adb_path_index = execution.argv.index("-adb-path")
+    except ValueError as exc:
+        raise AndroidCommandError(
+            "owned emulator lacks its external adb path"
+        ) from exc
+    _require(
+        execution.argv.count("-adb-path") == 1
+        and execution.argv.index("-no-direct-adb") < adb_path_index
+        and adb_path_index + 1 < len(execution.argv)
+        and execution.argv[adb_path_index + 1] == str(capability.adb_snapshot_path),
+        "owned emulator external adb route differs",
+    )
+    return emulator_routing_environment_sha256(expected_environment)
+
+
+def record_owned_emulator_routing(run_id: str) -> pathlib.Path:
+    """Verify the live child and publish its raw-value-omitting route receipt."""
+
+    runtime_state.validate_lane_lock_descriptor()
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    capability = runtime_state.load_capability(layout.run_id)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == layout.run_id
+        and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
+        and receipt.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "emulator routing lacks this run's registered child receipt",
+    )
+    _require(
+        capability.device_kind == "emulator"
+        and capability.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "emulator routing lacks its capability",
+    )
+    _validate_adb(layout, capability)
+    _validate_owned_adb_server_for_client(capability)
+    _require(receipt.pid is not None, "emulator routing receipt lacks its child pid")
+    try:
+        before = execution_snapshot(receipt.pid)
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect owned emulator routing: {exc}"
+        ) from exc
+    environment_sha256 = _validate_emulator_execution_routing(
+        before,
+        receipt=receipt,
+        capability=capability,
+    )
+    private_adb = _registered_private_adb_evidence(
+        layout,
+        capability,
+        receipt,
+    )
+    _require(
+        set(private_adb) == EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
+        "emulator routing private adb fields changed",
+    )
+    try:
+        after = execution_snapshot(receipt.pid)
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot recheck owned emulator routing: {exc}"
+        ) from exc
+    _require(
+        after == before,
+        "owned emulator routing changed while its receipt was created",
+    )
+    _validate_owned_adb_server_for_client(capability)
+    return runtime_state.record_emulator_routing_receipt(
+        layout.run_id,
+        adb_snapshot_sha256=capability.adb_sha256,
+        routing_environment_sha256=environment_sha256,
+        private_adb=private_adb,
+    )
 
 
 def exec_server(run_id: str) -> NoReturn:
@@ -2546,6 +2759,18 @@ def _build_parser() -> argparse.ArgumentParser:
     emulator.add_argument(
         "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
     )
+    isolation = sub.add_parser("record-adb-isolation-checkpoint")
+    isolation.add_argument("--run-id", required=True)
+    isolation.add_argument(
+        "--checkpoint",
+        required=True,
+        choices=[
+            AdbIsolationCheckpoint.EMULATOR_POST_REGISTRATION.value,
+            AdbIsolationCheckpoint.RUNTIME_PRE_CLEANUP.value,
+        ],
+    )
+    routing = sub.add_parser("record-owned-emulator-routing")
+    routing.add_argument("--run-id", required=True)
     sub.add_parser("lane-lock-path")
     sub.add_parser("recover-owned-runtime")
     seal_adb = sub.add_parser("seal-private-adb-directory")
@@ -2621,6 +2846,18 @@ def main(argv: list[str]) -> int:
         return 0
     if args.action == "emulator-nodaemon":
         exec_emulator(args.run_id, args.avd_name, args.device_abi)
+    if args.action == "record-adb-isolation-checkpoint":
+        checkpoint = AdbIsolationCheckpoint(args.checkpoint)
+        record_adb_isolation_checkpoint(args.run_id, checkpoint)
+        print(
+            "ANDROID_ADB_ISOLATION_CHECKPOINT_RECORDED "
+            f"checkpoint={checkpoint.value}"
+        )
+        return 0
+    if args.action == "record-owned-emulator-routing":
+        record_owned_emulator_routing(args.run_id)
+        print("ANDROID_OWNED_EMULATOR_ROUTING_RECORDED")
+        return 0
     if args.action == "recover-owned-runtime":
         status = recover_owned_runtime().upper().replace("-", "_")
         print(f"ANDROID_OWNED_RUNTIME_RECOVERY_{status}")
@@ -2668,6 +2905,7 @@ if __name__ == "__main__":
     except (
         AndroidCommandError,
         runtime_state.AndroidRuntimeStateError,
+        AndroidEmulatorControlError,
         BoundedProcessError,
         EvidenceIOError,
     ) as exc:

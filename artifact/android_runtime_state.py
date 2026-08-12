@@ -20,7 +20,24 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal, NoReturn
 
-from android_emulator_control import AndroidEmulatorControlError, canonical_emulator_abi
+from android_emulator_control import (
+    ADB_ISOLATION_CHECKPOINT_LEAVES,
+    ADB_ISOLATION_RECEIPT_KIND,
+    ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+    EMULATOR_ROUTING_MODE,
+    EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
+    EMULATOR_ROUTING_RECEIPT_KIND,
+    EMULATOR_ROUTING_RECEIPT_LEAF,
+    EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
+    NATIVE_ADB_NOTIFIER_PORT,
+    AdbIsolationCheckpoint,
+    AdbIsolationObservation,
+    AndroidEmulatorControlError,
+    canonical_emulator_abi,
+    emulator_routing_transport_binding_sha256,
+    parse_emulator_routing_receipt,
+    probe_adb_loopback_absence,
+)
 from evidence_io import (
     EvidenceIOError,
     FileDigestSnapshot,
@@ -43,7 +60,7 @@ from process_identity import (
     render_token as render_process_identity_token,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 KIND = "qperiapt.android_command_capability"
 MAX_CAPABILITY_BYTES = 16 * 1024
 MAX_TOOL_BYTES = 128 * 1024 * 1024
@@ -60,7 +77,7 @@ ACCOUNT_STATE_LEAF = "dev.qperiapt.android-device-smoke"
 LANE_LOCK_LEAF = "lane.lock"
 OWNED_RUNTIME_RECEIPT_LEAF = "owned-runtime.json"
 OWNED_RUNTIME_RECEIPT_KIND = "qperiapt.android_owned_runtime"
-OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 3
+OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 4
 MAX_OWNED_RUNTIME_RECEIPT_BYTES = 16 * 1024
 LANE_LOCK_FD = 9
 RENAME_EXCL = 0x00000004
@@ -97,6 +114,7 @@ CAPABILITY_FIELDS = frozenset(
         "adb_size",
         "adb_sha256",
         "socket_nonce",
+        "native_adb_notifier_port",
         "device_kind",
         "expected_serial",
         "run_id",
@@ -125,6 +143,7 @@ OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
         "adb_size",
         "adb_sha256",
         "socket_nonce",
+        "native_adb_notifier_port",
         "device_kind",
         "adb_server_pid",
         "adb_server_started_at",
@@ -207,6 +226,7 @@ class EmulatorChildRegistration:
     avd_name: str
     device_abi: Literal["arm64-v8a", "x86_64"]
     console_port: int
+    native_adb_notifier_port: int
     console_auth_token: ConsoleAuthTokenIdentity
     launcher_path: pathlib.Path
     launcher_device: int
@@ -253,6 +273,7 @@ class AndroidAdbCapability:
     adb_size: int
     adb_sha256: str
     socket_nonce: str
+    native_adb_notifier_port: int | None
     server_socket: str
     socket_path: str
     vendor_key: pathlib.Path
@@ -287,6 +308,7 @@ class OwnedRuntimeReceipt:
     adb_size: int
     adb_sha256: str
     socket_nonce: str
+    native_adb_notifier_port: int | None
     device_kind: Literal["physical", "emulator"]
     expected_serial: str
     adb_server_pid: int | None
@@ -1289,6 +1311,9 @@ def create_capability(
     validated_adb_path = ADB_PROFILE_PATHS[validated_adb_profile]
     validated_socket_nonce = _canonical_socket_nonce(socket_nonce)
     validated_device_kind = _canonical_device_kind(device_kind)
+    native_adb_notifier_port = (
+        NATIVE_ADB_NOTIFIER_PORT if validated_device_kind == "emulator" else None
+    )
     validated_serial = _canonical_expected_serial(
         expected_serial, validated_device_kind
     )
@@ -1330,6 +1355,7 @@ def create_capability(
             "adb_size": adb_snapshot.size,
             "adb_sha256": adb_snapshot.sha256,
             "socket_nonce": validated_socket_nonce,
+            "native_adb_notifier_port": native_adb_notifier_port,
             "device_kind": validated_device_kind,
             "expected_serial": validated_serial,
             "run_id": validated_run_id,
@@ -1522,6 +1548,8 @@ def _retire_recovery_capability_from_receipt(
                 and capability.adb_size == receipt.adb_size
                 and capability.adb_sha256 == receipt.adb_sha256
                 and capability.socket_nonce == receipt.socket_nonce
+                and capability.native_adb_notifier_port
+                == receipt.native_adb_notifier_port
                 and capability.device_kind == receipt.device_kind
                 and capability.expected_serial == receipt.expected_serial,
                 "recovery capability differs from the owned runtime receipt",
@@ -1617,8 +1645,18 @@ def _capability_from_snapshot_for_layout(
     )
     vendor_key = ACCOUNT_HOME / ".android/adbkey"
     socket_nonce = _canonical_socket_nonce(value.get("socket_nonce"))
+    native_adb_notifier_port = value.get("native_adb_notifier_port")
     server_socket, socket_path = _server_socket_identity(socket_nonce)
     device_kind = _canonical_device_kind(value.get("device_kind"))
+    _require(
+        (
+            device_kind == "emulator"
+            and type(native_adb_notifier_port) is int
+            and native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT
+        )
+        or (device_kind == "physical" and native_adb_notifier_port is None),
+        "native adb notifier port changed shape",
+    )
     expected_serial = _canonical_expected_serial(
         value.get("expected_serial"), device_kind
     )
@@ -1644,6 +1682,7 @@ def _capability_from_snapshot_for_layout(
         adb_size=adb_size,
         adb_sha256=adb_sha256,
         socket_nonce=socket_nonce,
+        native_adb_notifier_port=native_adb_notifier_port,
         server_socket=server_socket,
         socket_path=socket_path,
         vendor_key=vendor_key,
@@ -1801,6 +1840,7 @@ def _runtime_recovery_payload(
         "adb_size": capability.adb_size,
         "adb_sha256": capability.adb_sha256,
         "socket_nonce": capability.socket_nonce,
+        "native_adb_notifier_port": capability.native_adb_notifier_port,
         "device_kind": capability.device_kind,
         "adb_server_pid": None,
         "adb_server_started_at": None,
@@ -1852,6 +1892,7 @@ def _runtime_receipt_payload(receipt: OwnedRuntimeReceipt) -> dict[str, object]:
         "adb_size": receipt.adb_size,
         "adb_sha256": receipt.adb_sha256,
         "socket_nonce": receipt.socket_nonce,
+        "native_adb_notifier_port": receipt.native_adb_notifier_port,
         "device_kind": receipt.device_kind,
         "expected_serial": receipt.expected_serial,
         "adb_server_pid": receipt.adb_server_pid,
@@ -1974,6 +2015,448 @@ def create_runtime_recovery_receipt(run_id: str) -> None:
     _cleanup_owned_runtime_receipt_staging_files()
     capability = load_capability(run_id)
     _write_owned_runtime_receipt(_runtime_recovery_payload(capability))
+
+
+def _record_adb_isolation_checkpoint(
+    run_id: str,
+    checkpoint: AdbIsolationCheckpoint,
+    *,
+    internal_pre_exec: bool,
+) -> pathlib.Path:
+    """Admit, observe, and durably publish one fixed isolation checkpoint."""
+
+    validate_lane_lock_descriptor()
+    canonical_run = _canonical_run_id(run_id)
+    _require(
+        type(checkpoint) is AdbIsolationCheckpoint,
+        "Android adb isolation checkpoint is invalid",
+    )
+    _require(
+        (
+            internal_pre_exec
+            and checkpoint is AdbIsolationCheckpoint.EMULATOR_PRE_EXEC
+        )
+        or (
+            not internal_pre_exec
+            and checkpoint
+            in {
+                AdbIsolationCheckpoint.EMULATOR_POST_REGISTRATION,
+                AdbIsolationCheckpoint.RUNTIME_PRE_CLEANUP,
+            }
+        ),
+        "Android adb isolation checkpoint is not admitted by this API",
+    )
+    layout = AndroidRunLayout.from_run_id(canonical_run)
+    checkpoint_order = tuple(AdbIsolationCheckpoint)
+    checkpoint_index = checkpoint_order.index(checkpoint)
+    for prior_checkpoint in checkpoint_order[:checkpoint_index]:
+        prior_leaf = ADB_ISOLATION_CHECKPOINT_LEAVES[prior_checkpoint]
+        try:
+            prior_snapshot = load_json_object_snapshot(
+                layout.proof / prior_leaf,
+                maximum=4096,
+                label=f"Android adb isolation {prior_checkpoint.value} checkpoint",
+                validate_metadata=_private_metadata,
+            )
+        except EvidenceIOError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot load prior Android adb isolation checkpoint: {exc}"
+            ) from exc
+        expected_prior = {
+            "schema": ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+            "kind": ADB_ISOLATION_RECEIPT_KIND,
+            "run_id": canonical_run,
+            "checkpoint": prior_checkpoint.value,
+            "ports": AdbIsolationObservation().ports_payload(),
+        }
+        expected_bytes = (
+            json.dumps(expected_prior, indent=2, sort_keys=True) + "\n"
+        ).encode("utf-8")
+        _require(
+            prior_snapshot.value == expected_prior
+            and prior_snapshot.file.data == expected_bytes,
+            "prior Android adb isolation checkpoint changed",
+        )
+    receipt = load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == canonical_run
+        and receipt.phase is RuntimePhase.EMULATOR_CHILD_REGISTERED
+        and receipt.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "adb isolation checkpoint lacks this run's active emulator receipt",
+    )
+    capability = load_capability(canonical_run)
+    _require(
+        capability.device_kind == "emulator"
+        and capability.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "adb isolation checkpoint lacks its emulator capability",
+    )
+    snapshot = consume_regular_snapshot(
+        capability.adb_snapshot_path,
+        maximum=MAX_TOOL_BYTES,
+        label="Android adb snapshot",
+        validate_metadata=_private_executable_metadata,
+    )
+    _require(
+        snapshot.size == capability.adb_size
+        and snapshot.sha256 == capability.adb_sha256,
+        "adb isolation checkpoint adb snapshot identity changed",
+    )
+    _server_socket, socket_path = _server_socket_identity(receipt.socket_nonce)
+    socket_directory = pathlib.Path(socket_path).parent
+    metadata = socket_directory.lstat()
+    _require(
+        stat.S_ISDIR(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and stat.S_IMODE(metadata.st_mode) == 0o500
+        and (metadata.st_dev, metadata.st_ino)
+        == (
+            receipt.adb_socket_directory_device,
+            receipt.adb_socket_directory_inode,
+        ),
+        "adb isolation checkpoint private adb directory is not sealed",
+    )
+    if checkpoint is AdbIsolationCheckpoint.EMULATOR_POST_REGISTRATION:
+        try:
+            routing_snapshot = load_json_object_snapshot(
+                layout.proof / EMULATOR_ROUTING_RECEIPT_LEAF,
+                maximum=16 * 1024,
+                label="Android emulator routing receipt",
+                validate_metadata=_private_metadata,
+            )
+        except EvidenceIOError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot load Android emulator routing receipt: {exc}"
+            ) from exc
+        try:
+            parse_emulator_routing_receipt(
+                routing_snapshot.value,
+                run_id=canonical_run,
+            )
+        except AndroidEmulatorControlError as exc:
+            raise AndroidRuntimeStateError(str(exc)) from exc
+        expected_routing_bytes = (
+            json.dumps(routing_snapshot.value, indent=2, sort_keys=True) + "\n"
+        ).encode("utf-8")
+        _require(
+            routing_snapshot.file.data == expected_routing_bytes,
+            "Android emulator routing receipt is not canonical",
+        )
+    try:
+        observation = probe_adb_loopback_absence()
+    except AndroidEmulatorControlError as exc:
+        raise AndroidRuntimeStateError(str(exc)) from exc
+    leaf = ADB_ISOLATION_CHECKPOINT_LEAVES[checkpoint]
+    proof_fd = _open_private_directory(layout.proof, "Android proof")
+    descriptor = -1
+    created = False
+    primary: BaseException | None = None
+    try:
+        payload = {
+            "schema": ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+            "kind": ADB_ISOLATION_RECEIPT_KIND,
+            "run_id": canonical_run,
+            "checkpoint": checkpoint.value,
+            "ports": observation.ports_payload(),
+        }
+        encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(
+            "utf-8"
+        )
+        descriptor = os.open(
+            leaf,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+            0o600,
+            dir_fd=proof_fd,
+        )
+        created = True
+        os.fchmod(descriptor, 0o600)
+        _private_metadata(os.fstat(descriptor))
+        _write_all(descriptor, encoded, label="Android adb isolation checkpoint")
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        os.fsync(proof_fd)
+        return layout.proof / leaf
+    except BaseException as exc:
+        primary = exc
+        if descriptor >= 0:
+            _close_owned_descriptor(
+                descriptor,
+                label="the incomplete Android adb isolation checkpoint",
+                primary=primary,
+            )
+            descriptor = -1
+        if created:
+            try:
+                os.unlink(leaf, dir_fd=proof_fd)
+                os.fsync(proof_fd)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    "removing the incomplete Android adb isolation checkpoint "
+                    f"also failed: {cleanup_error}"
+                )
+        raise
+    finally:
+        _close_owned_descriptor(
+            proof_fd, label="the Android proof directory", primary=primary
+        )
+
+
+def record_pre_exec_adb_isolation_checkpoint(run_id: str) -> pathlib.Path:
+    """Internal emulator-exec-only admission for the pre-exec checkpoint."""
+
+    return _record_adb_isolation_checkpoint(
+        run_id,
+        AdbIsolationCheckpoint.EMULATOR_PRE_EXEC,
+        internal_pre_exec=True,
+    )
+
+
+def record_adb_isolation_checkpoint(
+    run_id: str,
+    checkpoint: AdbIsolationCheckpoint,
+) -> pathlib.Path:
+    """Record one shell-admitted post-registration or pre-cleanup checkpoint."""
+
+    return _record_adb_isolation_checkpoint(
+        run_id,
+        checkpoint,
+        internal_pre_exec=False,
+    )
+
+
+def record_post_cleanup_adb_isolation_checkpoint(
+    run_id: str,
+) -> pathlib.Path:
+    """Publish post-cleanup only after the caller retired exact runtime state."""
+
+    validate_lane_lock_descriptor()
+    canonical_run = _canonical_run_id(run_id)
+    layout = AndroidRunLayout.from_run_id(canonical_run)
+    _require(
+        load_owned_runtime_receipt(missing_ok=True) is None,
+        "post-cleanup adb isolation requires the runtime receipt to be retired",
+    )
+    _require(
+        not os.path.lexists(layout.capability)
+        and not os.path.lexists(layout.work / _adb_snapshot_leaf(canonical_run)),
+        "post-cleanup adb isolation requires capability resources to be retired",
+    )
+    checkpoint = AdbIsolationCheckpoint.RUNTIME_POST_CLEANUP
+    checkpoint_order = tuple(AdbIsolationCheckpoint)
+    for prior_checkpoint in checkpoint_order[:-1]:
+        try:
+            prior_snapshot = load_json_object_snapshot(
+                layout.proof / ADB_ISOLATION_CHECKPOINT_LEAVES[prior_checkpoint],
+                maximum=4096,
+                label=f"Android adb isolation {prior_checkpoint.value} checkpoint",
+                validate_metadata=_private_metadata,
+            )
+        except EvidenceIOError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot load prior Android adb isolation checkpoint: {exc}"
+            ) from exc
+        expected_prior = {
+            "schema": ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+            "kind": ADB_ISOLATION_RECEIPT_KIND,
+            "run_id": canonical_run,
+            "checkpoint": prior_checkpoint.value,
+            "ports": AdbIsolationObservation().ports_payload(),
+        }
+        expected_bytes = (
+            json.dumps(expected_prior, indent=2, sort_keys=True) + "\n"
+        ).encode("utf-8")
+        _require(
+            prior_snapshot.value == expected_prior
+            and prior_snapshot.file.data == expected_bytes,
+            "prior Android adb isolation checkpoint changed",
+        )
+    try:
+        observation = probe_adb_loopback_absence()
+    except AndroidEmulatorControlError as exc:
+        raise AndroidRuntimeStateError(str(exc)) from exc
+    leaf = ADB_ISOLATION_CHECKPOINT_LEAVES[checkpoint]
+    proof_fd = _open_private_directory(layout.proof, "Android proof")
+    descriptor = -1
+    created = False
+    primary: BaseException | None = None
+    try:
+        payload = {
+            "schema": ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
+            "kind": ADB_ISOLATION_RECEIPT_KIND,
+            "run_id": canonical_run,
+            "checkpoint": checkpoint.value,
+            "ports": observation.ports_payload(),
+        }
+        encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(
+            "utf-8"
+        )
+        descriptor = os.open(
+            leaf,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+            0o600,
+            dir_fd=proof_fd,
+        )
+        created = True
+        os.fchmod(descriptor, 0o600)
+        _private_metadata(os.fstat(descriptor))
+        _write_all(
+            descriptor,
+            encoded,
+            label="Android post-cleanup adb isolation checkpoint",
+        )
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        os.fsync(proof_fd)
+        return layout.proof / leaf
+    except BaseException as exc:
+        primary = exc
+        if descriptor >= 0:
+            _close_owned_descriptor(
+                descriptor,
+                label="the incomplete Android post-cleanup isolation checkpoint",
+                primary=primary,
+            )
+            descriptor = -1
+        if created:
+            try:
+                os.unlink(leaf, dir_fd=proof_fd)
+                os.fsync(proof_fd)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    "removing the incomplete Android post-cleanup isolation "
+                    f"checkpoint also failed: {cleanup_error}"
+                )
+        raise
+    finally:
+        _close_owned_descriptor(
+            proof_fd, label="the Android proof directory", primary=primary
+        )
+
+
+def record_emulator_routing_receipt(
+    run_id: str,
+    *,
+    adb_snapshot_sha256: str,
+    routing_environment_sha256: str,
+    private_adb: Mapping[str, str],
+) -> pathlib.Path:
+    """Durably publish the exact adapter-derived emulator routing projection."""
+
+    validate_lane_lock_descriptor()
+    canonical_run = _canonical_run_id(run_id)
+    _require(
+        isinstance(adb_snapshot_sha256, str)
+        and HEX_SHA256.fullmatch(adb_snapshot_sha256) is not None,
+        "emulator routing adb snapshot digest is invalid",
+    )
+    _require(
+        isinstance(routing_environment_sha256, str)
+        and HEX_SHA256.fullmatch(routing_environment_sha256) is not None,
+        "emulator routing environment digest is invalid",
+    )
+    _require(
+        isinstance(private_adb, Mapping)
+        and set(private_adb) == EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
+        "emulator routing private adb fields changed",
+    )
+    canonical_private_adb = dict(private_adb)
+    for name, digest in canonical_private_adb.items():
+        _require(
+            isinstance(digest, str) and HEX_SHA256.fullmatch(digest) is not None,
+            f"emulator routing private adb digest is invalid: {name}",
+        )
+    layout = AndroidRunLayout.from_run_id(canonical_run)
+    receipt = load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == canonical_run
+        and receipt.phase is RuntimePhase.EMULATOR_CHILD_REGISTERED
+        and receipt.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "emulator routing lacks this run's registered child receipt",
+    )
+    capability = load_capability(canonical_run)
+    _require(
+        capability.device_kind == "emulator"
+        and capability.adb_sha256 == adb_snapshot_sha256
+        and capability.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
+        "emulator routing capability differs",
+    )
+    transport_binding_sha256 = emulator_routing_transport_binding_sha256(
+        adb_snapshot_sha256,
+        routing_environment_sha256,
+        canonical_private_adb,
+    )
+    payload = {
+        "schema": EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
+        "kind": EMULATOR_ROUTING_RECEIPT_KIND,
+        "run_id": canonical_run,
+        "mode": EMULATOR_ROUTING_MODE,
+        "adb_snapshot_sha256": adb_snapshot_sha256,
+        "routing_environment_sha256": routing_environment_sha256,
+        "transport_binding_sha256": transport_binding_sha256,
+        "private_adb": canonical_private_adb,
+        "native_notifier_port": NATIVE_ADB_NOTIFIER_PORT,
+        "private_socket_kind": "localfilesystem",
+        "raw_paths_recorded": False,
+    }
+    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    proof_fd = _open_private_directory(layout.proof, "Android proof")
+    descriptor = -1
+    created = False
+    primary: BaseException | None = None
+    try:
+        descriptor = os.open(
+            EMULATOR_ROUTING_RECEIPT_LEAF,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+            0o600,
+            dir_fd=proof_fd,
+        )
+        created = True
+        os.fchmod(descriptor, 0o600)
+        _private_metadata(os.fstat(descriptor))
+        _write_all(descriptor, encoded, label="Android emulator routing receipt")
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        os.fsync(proof_fd)
+        return layout.proof / EMULATOR_ROUTING_RECEIPT_LEAF
+    except BaseException as exc:
+        primary = exc
+        if descriptor >= 0:
+            _close_owned_descriptor(
+                descriptor,
+                label="the incomplete Android emulator routing receipt",
+                primary=primary,
+            )
+            descriptor = -1
+        if created:
+            try:
+                os.unlink(EMULATOR_ROUTING_RECEIPT_LEAF, dir_fd=proof_fd)
+                os.fsync(proof_fd)
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    "removing the incomplete Android emulator routing receipt "
+                    f"also failed: {cleanup_error}"
+                )
+        raise
+    finally:
+        _close_owned_descriptor(
+            proof_fd, label="the Android proof directory", primary=primary
+        )
 
 
 def _write_owned_runtime_receipt(payload: Mapping[str, object]) -> str:
@@ -2309,6 +2792,9 @@ def register_emulator_child(
         and registration.console_port <= 5584
         and registration.console_port % 2 == 0
         and receipt.expected_serial == f"emulator-{registration.console_port}"
+        and receipt.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT
+        and registration.native_adb_notifier_port
+        == receipt.native_adb_notifier_port
         and token.device >= 0
         and token.inode > 0
         and HEX_SHA256.fullmatch(token.sha256) is not None
@@ -2421,6 +2907,7 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         "owned runtime receipt adb digest is invalid",
     )
     socket_nonce = _canonical_socket_nonce(value.get("socket_nonce"))
+    native_adb_notifier_port = value.get("native_adb_notifier_port")
     adb_socket_directory_device = _positive_int(
         value.get("adb_socket_directory_device"),
         "adb socket directory device",
@@ -2430,6 +2917,15 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         value.get("adb_socket_directory_inode"), "adb socket directory inode"
     )
     device_kind = _canonical_device_kind(value.get("device_kind"))
+    _require(
+        (
+            device_kind == "emulator"
+            and type(native_adb_notifier_port) is int
+            and native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT
+        )
+        or (device_kind == "physical" and native_adb_notifier_port is None),
+        "owned runtime receipt native adb notifier port is invalid",
+    )
     expected_serial = _canonical_expected_serial(
         value.get("expected_serial"), device_kind
     )
@@ -2633,6 +3129,7 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         adb_size=adb_size,
         adb_sha256=adb_sha256,
         socket_nonce=socket_nonce,
+        native_adb_notifier_port=native_adb_notifier_port,
         device_kind=device_kind,
         expected_serial=expected_serial,
         adb_server_pid=adb_server_pid,

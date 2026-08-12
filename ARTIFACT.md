@@ -321,14 +321,15 @@ existing faces and that the host C archive is consumable after extraction. After
 have produced artifacts, `sh artifact/local-release-index.sh` creates a local hash-bound index under
 `target/qperiapt-local-release/<channel>/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
 Android AAR. Release mode requires a clean tree. Set `QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1` only for
-diagnostic indexes; optional Apple/Android runtime evidence is included as sanitized proof summaries,
+diagnostic indexes; optional Apple/Android runtime evidence is included as raw-value-omitting proof summaries,
 never as copied raw device logs or profiles. An Android summary requires both
 `QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1` and the exact immutable
 `QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id>` selector; release indexes rerun the complete
 canonical AVD release-runtime contract (emulator, arm64-v8a, API 35, 16 KiB pages, release mode)
 rather than trusting a summary field. Physical-device proofs remain valid explicit runtime evidence,
-but they are not the canonical Android proof admitted into the release-channel index. Index schema 4 also projects the
-verified page size, release-candidate mode, and passing result into the sanitized Android summary so
+but they are not the canonical Android proof admitted into the release-channel index. Index schema 5 also projects the
+verified page size, release-candidate mode, passing result, and fixed external-adb/native-notifier
+admission into the raw-value-omitting Android summary so
 offline index consumers can see the canonical release-runtime contract. It accepts only the current producer envelopes
 (C schema 2, Swift schema 5, Android schema 4), binds their exact package-only targets and boundaries,
 and rejects the credentialed/signed Swift lane because it does not copy `APPLE_DISTRIBUTION.json`.
@@ -537,7 +538,7 @@ These produce the paper's primary network table and the binary constant-time dis
   files directory. The ABI2 runtime checks cover metadata, exact signed-policy decision/digest,
   OS-random atomic key generation and encapsulation, context-bound roundtrip, ABI1
   legacy-state/rollback/tamper rejection, secret wipe, and boundary fail-closed behavior;
-  raw combine/X-Wing/deterministic paths are forbidden exports. Current proof schema v4 records hashed
+  raw combine/X-Wing/deterministic paths are forbidden exports. Current proof schema v5 records hashed
   adb serial and build fingerprint only, hashes the AAR/APK/result/logcat/named inputs, and freezes
   the claim-ledger canonical source-input digest before the build. It recomputes
   that digest before proof staging, so a source change during the run fails instead of binding old
@@ -556,9 +557,9 @@ These produce the paper's primary network table and the binary constant-time dis
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
   identity directory that is not group/other writable, owner-protected adb key files, and an already
   authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is
-  rejected. The standard IPv4 and IPv6 adb endpoints must refuse connections at startup, before
-  cleanup, and immediately before final proof publication; the script never reuses or stops a
-  pre-existing default server. It instead owns one fixed `adb.sock` in a random, mode-0700,
+  rejected. The standard IPv4 and IPv6 adb endpoints must refuse connections at startup and at the
+  source-bound runtime checkpoints; the script never reuses or stops a pre-existing default server.
+  It instead owns one fixed `adb.sock` in a random, mode-0700,
   allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/` directory and routes every client through its exact
   `localfilesystem:` endpoint. The server disables mDNS and auto-connect. Physical proof enables
   only USB scanning, binds `--one-device` to the explicit serial, and rechecks a `usb:` devpath before
@@ -568,11 +569,19 @@ These produce the paper's primary network table and the binary constant-time dis
   transport environment, and `mdns_enabled: false` status are checked before selection and again
   after the last device query. The AVD lane disables both automatic scanners; after binding the exact
   child PID to its fixed console/adb listener pair, it explicitly registers `emu:<console>,<adb>`
-  through the private socket and rechecks both identities before selection or shutdown. Runtime
-  proof schema v4 carries a raw-value-omitting, source-bound `emulator_control` admission receipt binding the
-  backend digest/identity, fixed ports, listener and registration response digests, and private-adb
-  identity/status digests. Raw HOME/key/socket/UID/PID/serial values are excluded from the proof and
-  bundle. This is local control-plane evidence, not independent hostile-builder attestation.
+  through the private socket and rechecks both identities before selection or shutdown. The emulator
+  uses `-no-direct-adb` only together with `-adb-path` fixed to the run-owned adb snapshot. Its external
+  adb child's exact ADB-routing projection is fixed to the private Unix-socket client settings, while
+  launcher-added non-routing variables remain outside that commitment and the native emulator
+  notifier is redirected away from 5037 to fixed closed loopback port 5586, above the automatic
+  transport range ending at 5585. Four mode-0600, no-replace checkpoint receipts record IPv4 and IPv6
+  `ECONNREFUSED` for both 5037 and 5586 at emulator pre-exec, post-registration, runtime pre-cleanup,
+  and post-cleanup. Runtime proof schema v5 and evidence bundle schema v2 carry the fixed checkpoint
+  bytes plus a raw-value-omitting, source-bound `emulator_control` admission receipt binding the
+  run-owned external-adb digest/routing environment, native-notifier policy, backend digest/identity,
+  fixed ports, listener and registration response digests, and private-adb identity/status digests.
+  Raw HOME/key/socket/UID/PID/serial values are excluded from the public proof and bundle. This is local
+  control-plane evidence, not independent hostile-builder attestation.
   Cleanup, private-server protocol shutdown, and socket removal must all succeed before the proof is
   published inside the run's append-only
   `target/qperiapt-android-device-smoke-runs/<32-hex-run-id>/` tree; cleanup failure produces no PASS
@@ -586,8 +595,8 @@ These produce the paper's primary network table and the binary constant-time dis
   HUP/INT/TERM until its owned 0600 state is either armed or removed. The script never sends
   TERM/KILL to a cached PID.
   The private socket directory starts at mode 0700 and is durably reconciled through the receipt's
-  schema-v3 phases to `ADB_SEALED` plus an actual mode of 0500 before any adb client is admitted;
-  an interrupted seal is completed before recovery uses the endpoint. Schema-v2 runtime receipts
+  schema-v4 phases to `ADB_SEALED` plus an actual mode of 0500 before any adb client is admitted;
+  an interrupted seal is completed before recovery uses the endpoint. Schema-v3 runtime receipts
   are intentionally rejected rather than guessed or migrated. Normal success requires an accepted
   authenticated emulator-console shutdown request (for an AVD), an accepted private-adb protocol
   shutdown request, and zero exit status from both owned children. Crash recovery may finalize an
@@ -604,7 +613,10 @@ These produce the paper's primary network table and the binary constant-time dis
   `linux-system`, or `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB`
   paths are rejected.
   AVD transport still requires an exclusive trusted evidence host because another locally started
-  server could reach an emulator port. The private snapshot is Level-1 reliability hardening, not a
+  listener could appear between the fixed 5037/5586 probes or reach an emulator port. The checkpoint
+  receipts prove only that each exact loopback connect attempt was refused; they are not packet-level
+  proof that the emulator never attempted a connection between checkpoints. The private snapshot is
+  Level-1 reliability hardening, not a
   hostile same-UID isolation boundary; that stronger threat model requires a separate account or
   isolated runner with a read-only checkout. New authorization prompts are outside the gate. If
   `SIGKILL` or host loss prevents traps, the next lane first acquires the account-scoped lock and
@@ -616,7 +628,7 @@ These produce the paper's primary network table and the binary constant-time dis
   process being absent and is never signalled. Device loss can still
   leave app removal unresolved; compare any orphaned `dev.qperiapt.androidsmoke` with the private run
   APK before manual removal. This recovery does not replace the exclusive-host requirement or
-  continuously prevent an unrelated default adb server from appearing between absence probes.
+  continuously reserve the probed loopback ports between checkpoints.
   The fixed emulator argv does not enable gRPC. Listener evidence binds the required console/adb
   pair; it is not a claim that the emulator process has no other TCP listeners.
 - **Matched-backend performance gate.** Collect a paired host proof with:
