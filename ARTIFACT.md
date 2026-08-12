@@ -49,7 +49,17 @@ produce type-inference telemetry; this is not a claim of complete extractor sema
 generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
 those build/runtime surfaces. Rust analysis runs with SARIF upload disabled and raw database upload
 disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may publish
-results.
+results. The quality adapter accepts no environment-selected executable, database, or temporary
+path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout, rejects
+unsafe ownership/modes, and revalidates their open path identities around every query and decode.
+These checks prevent accidental path drift and ordinary replacement from silently selecting a
+different analysis, but they are trusted-runner integrity checks, not isolation from hostile code
+already executing under the same runner account. The open descriptors retain path-identity
+snapshots; the CLI, database contents, adjacent bundle files, and temporary workspace remain
+trusted inputs used by pathname. The inherited process environment and OS runtime are trusted too;
+the fixed-path rule does not claim to hermetically isolate the CodeQL process. Resisting same-UID
+replace-and-restore or a hostile builder requires a separate account or a read-only isolated runner
+image.
 
 ## Quick start — one command
 

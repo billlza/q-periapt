@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import pathlib
@@ -23,6 +24,13 @@ QUERY_DIR = ARTIFACT_DIR / "codeql-rust-quality"
 EXTRACTED_PATHS_QUERY = QUERY_DIR / "ExtractedPaths.ql"
 METRICS_QUERY = QUERY_DIR / "Metrics.ql"
 UNRESOLVED_MACROS_QUERY = QUERY_DIR / "UnresolvedMacros.ql"
+FIXED_CODEQL_BINARY = pathlib.Path(
+    "/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql"
+)
+FIXED_CODEQL_DATABASE = pathlib.Path(
+    "/home/runner/work/_temp/qperiapt-codeql-database/rust"
+)
+FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = 87
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
@@ -83,6 +91,283 @@ ZERO_METRICS = EXPECTED_METRICS - TELEMETRY_METRICS - {
 
 class CodeQLRustQualityError(ValueError):
     """The CodeQL database cannot support a complete Rust analysis claim."""
+
+
+def _merge_cleanup_failure(primary: BaseException, message: str) -> None:
+    """Preserve control exceptions; otherwise expose cleanup in the domain error."""
+
+    if not isinstance(primary, Exception):
+        primary.add_note(message)
+        return
+    raise CodeQLRustQualityError(f"{primary}; {message}") from primary
+
+
+@dataclasses.dataclass(frozen=True)
+class _PathIdentity:
+    device: int
+    inode: int
+
+
+@dataclasses.dataclass(frozen=True)
+class _FixedCodeQLPathBindings:
+    codeql: pathlib.Path
+    database: pathlib.Path
+    runner_temp: pathlib.Path
+    codeql_descriptor: int
+    database_descriptor: int
+    runner_temp_descriptor: int
+    codeql_identity: _PathIdentity
+    database_identity: _PathIdentity
+    database_metadata_identity: _PathIdentity
+    runner_temp_identity: _PathIdentity
+
+
+def _identity(metadata: os.stat_result) -> _PathIdentity:
+    return _PathIdentity(device=metadata.st_dev, inode=metadata.st_ino)
+
+
+def _directory_open_flags() -> int:
+    return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+
+
+def _file_open_flags() -> int:
+    return os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+
+
+def _canonical_fixed_metadata(path: pathlib.Path, label: str) -> os.stat_result:
+    if not isinstance(path, pathlib.Path) or not path.is_absolute():
+        raise CodeQLRustQualityError(f"{label} must be one fixed absolute path")
+    try:
+        metadata = os.lstat(path)
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise CodeQLRustQualityError(f"{label} is unavailable: {path}: {exc}") from exc
+    if resolved != path or stat.S_ISLNK(metadata.st_mode):
+        raise CodeQLRustQualityError(
+            f"{label} must be canonical and contain no symlink components"
+        )
+    return metadata
+
+
+def _require_codeql_metadata(metadata: os.stat_result) -> None:
+    mode = stat.S_IMODE(metadata.st_mode)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid not in {0, os.geteuid()}
+        or metadata.st_nlink != 1
+        or mode & 0o022
+        or not mode & 0o111
+    ):
+        raise CodeQLRustQualityError(
+            "fixed CodeQL binary must be one root-or-current-user-owned, "
+            "not-group-or-other-writable executable regular file with one link"
+        )
+
+
+def _require_owned_directory_metadata(
+    metadata: os.stat_result, label: str
+) -> None:
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise CodeQLRustQualityError(
+            f"{label} must be a current-user-owned directory without group or "
+            "other write permission"
+        )
+
+
+def _require_database_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise CodeQLRustQualityError(
+            "Rust CodeQL database metadata must be one current-user-owned, "
+            "not-group-or-other-writable regular file with one link"
+        )
+
+
+def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
+    if sys.platform != "linux":
+        raise CodeQLRustQualityError(
+            "fixed Rust CodeQL path bindings require the Linux analysis lane"
+        )
+    codeql_path_metadata = _canonical_fixed_metadata(
+        FIXED_CODEQL_BINARY, "fixed CodeQL binary"
+    )
+    database_path_metadata = _canonical_fixed_metadata(
+        FIXED_CODEQL_DATABASE, "fixed Rust CodeQL database"
+    )
+    runner_temp_path_metadata = _canonical_fixed_metadata(
+        FIXED_RUNNER_TEMP, "fixed CodeQL temporary parent"
+    )
+    try:
+        FIXED_CODEQL_DATABASE.relative_to(FIXED_RUNNER_TEMP)
+    except ValueError as exc:
+        raise CodeQLRustQualityError(
+            "fixed Rust CodeQL database must be under the fixed temporary parent"
+        ) from exc
+    codeql_descriptor = -1
+    database_descriptor = -1
+    runner_temp_descriptor = -1
+    try:
+        codeql_descriptor = os.open(FIXED_CODEQL_BINARY, _file_open_flags())
+        codeql_metadata = os.fstat(codeql_descriptor)
+        _require_codeql_metadata(codeql_metadata)
+        if _identity(codeql_metadata) != _identity(codeql_path_metadata):
+            raise CodeQLRustQualityError(
+                "fixed CodeQL binary changed while it was being opened"
+            )
+
+        database_descriptor = os.open(
+            FIXED_CODEQL_DATABASE, _directory_open_flags()
+        )
+        database_metadata = os.fstat(database_descriptor)
+        _require_owned_directory_metadata(
+            database_metadata, "fixed Rust CodeQL database"
+        )
+        if _identity(database_metadata) != _identity(database_path_metadata):
+            raise CodeQLRustQualityError(
+                "fixed Rust CodeQL database changed while it was being opened"
+            )
+        database_file_metadata = os.stat(
+            "codeql-database.yml",
+            dir_fd=database_descriptor,
+            follow_symlinks=False,
+        )
+        _require_database_metadata(database_file_metadata)
+
+        runner_temp_descriptor = os.open(FIXED_RUNNER_TEMP, _directory_open_flags())
+        runner_temp_metadata = os.fstat(runner_temp_descriptor)
+        _require_owned_directory_metadata(
+            runner_temp_metadata, "fixed CodeQL temporary parent"
+        )
+        if _identity(runner_temp_metadata) != _identity(runner_temp_path_metadata):
+            raise CodeQLRustQualityError(
+                "fixed CodeQL temporary parent changed while it was being opened"
+            )
+        return _FixedCodeQLPathBindings(
+            codeql=FIXED_CODEQL_BINARY,
+            database=FIXED_CODEQL_DATABASE,
+            runner_temp=FIXED_RUNNER_TEMP,
+            codeql_descriptor=codeql_descriptor,
+            database_descriptor=database_descriptor,
+            runner_temp_descriptor=runner_temp_descriptor,
+            codeql_identity=_identity(codeql_metadata),
+            database_identity=_identity(database_metadata),
+            database_metadata_identity=_identity(database_file_metadata),
+            runner_temp_identity=_identity(runner_temp_metadata),
+        )
+    except BaseException as primary:
+        cleanup_failures: list[str] = []
+        for descriptor, label in (
+            (runner_temp_descriptor, "temporary-parent"),
+            (database_descriptor, "database"),
+            (codeql_descriptor, "binary"),
+        ):
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except BaseException as cleanup_error:
+                    cleanup_failures.append(
+                        f"close rejected CodeQL {label} binding: {cleanup_error}"
+                    )
+        if isinstance(primary, OSError):
+            failure = CodeQLRustQualityError(
+                f"cannot open fixed Rust CodeQL path binding: {primary}"
+            )
+            if cleanup_failures:
+                failure = CodeQLRustQualityError(
+                    f"{failure}; cleanup also failed: "
+                    + "; ".join(cleanup_failures)
+                )
+            raise failure from primary
+        if cleanup_failures:
+            cleanup_message = "cleanup also failed: " + "; ".join(cleanup_failures)
+            _merge_cleanup_failure(primary, cleanup_message)
+        raise
+
+
+def _revalidate_fixed_codeql_bindings(
+    bindings: _FixedCodeQLPathBindings,
+) -> None:
+    codeql_path_metadata = _canonical_fixed_metadata(
+        bindings.codeql, "fixed CodeQL binary"
+    )
+    codeql_metadata = os.fstat(bindings.codeql_descriptor)
+    _require_codeql_metadata(codeql_metadata)
+    if not (
+        _identity(codeql_path_metadata)
+        == _identity(codeql_metadata)
+        == bindings.codeql_identity
+    ):
+        raise CodeQLRustQualityError("fixed CodeQL binary identity changed")
+
+    database_path_metadata = _canonical_fixed_metadata(
+        bindings.database, "fixed Rust CodeQL database"
+    )
+    database_metadata = os.fstat(bindings.database_descriptor)
+    _require_owned_directory_metadata(
+        database_metadata, "fixed Rust CodeQL database"
+    )
+    if not (
+        _identity(database_path_metadata)
+        == _identity(database_metadata)
+        == bindings.database_identity
+    ):
+        raise CodeQLRustQualityError("fixed Rust CodeQL database identity changed")
+    database_file_metadata = os.stat(
+        "codeql-database.yml",
+        dir_fd=bindings.database_descriptor,
+        follow_symlinks=False,
+    )
+    _require_database_metadata(database_file_metadata)
+    if _identity(database_file_metadata) != bindings.database_metadata_identity:
+        raise CodeQLRustQualityError("Rust CodeQL database metadata identity changed")
+
+    runner_temp_path_metadata = _canonical_fixed_metadata(
+        bindings.runner_temp, "fixed CodeQL temporary parent"
+    )
+    runner_temp_metadata = os.fstat(bindings.runner_temp_descriptor)
+    _require_owned_directory_metadata(
+        runner_temp_metadata, "fixed CodeQL temporary parent"
+    )
+    if not (
+        _identity(runner_temp_path_metadata)
+        == _identity(runner_temp_metadata)
+        == bindings.runner_temp_identity
+    ):
+        raise CodeQLRustQualityError("fixed CodeQL temporary parent identity changed")
+
+
+def _close_fixed_codeql_bindings(
+    bindings: _FixedCodeQLPathBindings,
+) -> None:
+    failures: list[str] = []
+    control_failure: BaseException | None = None
+    for descriptor, label in (
+        (bindings.runner_temp_descriptor, "temporary-parent"),
+        (bindings.database_descriptor, "database"),
+        (bindings.codeql_descriptor, "binary"),
+    ):
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            message = f"close CodeQL {label} binding: {exc}"
+            if not isinstance(exc, Exception) and control_failure is None:
+                control_failure = exc
+            else:
+                failures.append(message)
+    if control_failure is not None:
+        if failures:
+            control_failure.add_note("; ".join(failures))
+        raise control_failure
+    if failures:
+        raise CodeQLRustQualityError("; ".join(failures))
 
 
 def _decode_nul_paths(raw: bytes) -> tuple[str, ...]:
@@ -152,89 +437,20 @@ def require_repository_target_absent(
         )
 
 
-def _require_absolute_regular_file(raw: str, label: str) -> pathlib.Path:
-    candidate = pathlib.Path(raw)
-    if not candidate.is_absolute():
-        raise CodeQLRustQualityError(f"{label} must be an absolute path")
-    try:
-        metadata = candidate.lstat()
-        resolved = candidate.resolve(strict=True)
-        resolved_metadata = resolved.stat()
-    except OSError as exc:
-        raise CodeQLRustQualityError(f"{label} is unavailable: {candidate}: {exc}") from exc
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(resolved_metadata.st_mode):
-        raise CodeQLRustQualityError(f"{label} must be a non-symlink regular file: {candidate}")
-    if not os.access(resolved, os.X_OK):
-        raise CodeQLRustQualityError(f"{label} is not executable: {resolved}")
-    return resolved
-
-
-def _require_database(raw_locations: str, runner_temp: pathlib.Path) -> pathlib.Path:
-    try:
-        locations = parse_strict_json_bytes(
-            raw_locations.encode("utf-8"),
-            label="CodeQL database locations output",
-        )
-    except (EvidenceIOError, UnicodeEncodeError) as exc:
-        raise CodeQLRustQualityError(
-            "CodeQL database locations output is not strict UTF-8 JSON"
-        ) from exc
-    if not isinstance(locations, dict) or set(locations) != {"rust"}:
-        raise CodeQLRustQualityError(
-            "CodeQL database locations must contain exactly the rust database"
-        )
-    raw_database = locations["rust"]
-    if not isinstance(raw_database, str) or not raw_database:
-        raise CodeQLRustQualityError("Rust CodeQL database location is malformed")
-    candidate = pathlib.Path(raw_database)
-    if not candidate.is_absolute():
-        raise CodeQLRustQualityError("Rust CodeQL database location must be absolute")
-    try:
-        resolved = candidate.resolve(strict=True)
-        resolved.relative_to(runner_temp)
-    except (OSError, ValueError) as exc:
-        raise CodeQLRustQualityError(
-            "Rust CodeQL database must be a real directory under the runner temp root"
-        ) from exc
-    if resolved != candidate or not resolved.is_dir():
-        raise CodeQLRustQualityError(
-            "Rust CodeQL database must be a non-symlink directory"
-        )
-    metadata = resolved / "codeql-database.yml"
-    if not metadata.is_file() or metadata.is_symlink():
-        raise CodeQLRustQualityError(
-            f"Rust CodeQL database metadata is unavailable: {metadata}"
-        )
-    return resolved
-
-
-def _require_runner_temp(raw: str) -> pathlib.Path:
-    candidate = pathlib.Path(raw)
-    if not candidate.is_absolute():
-        raise CodeQLRustQualityError("runner temp root must be absolute")
-    try:
-        resolved = candidate.resolve(strict=True)
-    except OSError as exc:
-        raise CodeQLRustQualityError(f"runner temp root is unavailable: {exc}") from exc
-    if resolved != candidate or not resolved.is_dir():
-        raise CodeQLRustQualityError("runner temp root must be a non-symlink directory")
-    return resolved
-
-
 def _run_query(
-    codeql: pathlib.Path,
-    database: pathlib.Path,
+    bindings: _FixedCodeQLPathBindings,
     query: pathlib.Path,
     output: pathlib.Path,
 ) -> None:
+    _revalidate_fixed_codeql_bindings(bindings)
     try:
         result = capture_stdout(
             [
-                str(codeql),
+                os.fspath(bindings.codeql),
                 "query",
                 "run",
                 "--warnings=error",
-                f"--database={database}",
+                f"--database={bindings.database}",
                 f"--output={output}",
                 str(query),
             ],
@@ -259,12 +475,23 @@ def _run_query(
         raise CodeQLRustQualityError(
             f"CodeQL quality query {query.name} exited with status {result.returncode}"
         )
+    _revalidate_fixed_codeql_bindings(bindings)
 
 
-def _decode_query(codeql: pathlib.Path, bqrs: pathlib.Path) -> list[list[object]]:
+def _decode_query(
+    bindings: _FixedCodeQLPathBindings,
+    bqrs: pathlib.Path,
+) -> list[list[object]]:
+    _revalidate_fixed_codeql_bindings(bindings)
     try:
         result = capture_stdout(
-            [str(codeql), "bqrs", "decode", "--format=json", str(bqrs)],
+            [
+                os.fspath(bindings.codeql),
+                "bqrs",
+                "decode",
+                "--format=json",
+                str(bqrs),
+            ],
             timeout_seconds=CODEQL_COMMAND_TIMEOUT_SECONDS,
             maximum_bytes=MAX_CODEQL_DECODED_JSON_BYTES,
             stderr=subprocess.STDOUT,
@@ -294,6 +521,7 @@ def _decode_query(codeql: pathlib.Path, bqrs: pathlib.Path) -> list[list[object]
     tuples = selected["tuples"]
     if not all(isinstance(row, list) for row in tuples):
         raise CodeQLRustQualityError("CodeQL query result contains a malformed tuple")
+    _revalidate_fixed_codeql_bindings(bindings)
     return tuples
 
 
@@ -439,39 +667,64 @@ def main() -> None:
         if not expected_commit:
             raise CodeQLRustQualityError("expected checkout commit is missing")
         require_clean_checkout(expected_commit)
-        runner_temp = _require_runner_temp(os.environ.get("CODEQL_RUNNER_TEMP", ""))
-        codeql = _require_absolute_regular_file(
-            os.environ.get("CODEQL_BINARY", ""), "CodeQL binary"
-        )
-        database = _require_database(
-            os.environ.get("CODEQL_DATABASE_LOCATIONS", ""), runner_temp
-        )
         tracked = tracked_rust_paths()
-        with tempfile.TemporaryDirectory(
-            prefix="qperiapt-codeql-quality.", dir=runner_temp
-        ) as temporary:
-            output_dir = pathlib.Path(temporary)
-            paths_bqrs = output_dir / "extracted-paths.bqrs"
-            metrics_bqrs = output_dir / "metrics.bqrs"
-            unresolved_bqrs = output_dir / "unresolved-macros.bqrs"
-            _run_query(codeql, database, EXTRACTED_PATHS_QUERY, paths_bqrs)
-            _run_query(codeql, database, METRICS_QUERY, metrics_bqrs)
-            _run_query(codeql, database, UNRESOLVED_MACROS_QUERY, unresolved_bqrs)
-            extracted = _parse_extracted_paths(_decode_query(codeql, paths_bqrs))
-            metrics = _parse_metrics(_decode_query(codeql, metrics_bqrs))
-            unresolved = _parse_unresolved_macros(
-                _decode_query(codeql, unresolved_bqrs)
-            )
-            unresolved_metric = metrics["unresolved_source_macro_calls"]
-            validate_unresolved_detail_count(unresolved_metric, unresolved)
-            if unresolved:
-                print(
-                    "CODEQL_RUST_UNRESOLVED_MACROS "
-                    + json.dumps(unresolved, ensure_ascii=True, separators=(",", ":"))
+        bindings = _open_fixed_codeql_bindings()
+        binding_primary: BaseException | None = None
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="qperiapt-codeql-quality.", dir=bindings.runner_temp
+            ) as temporary:
+                output_dir = pathlib.Path(temporary)
+                paths_bqrs = output_dir / "extracted-paths.bqrs"
+                metrics_bqrs = output_dir / "metrics.bqrs"
+                unresolved_bqrs = output_dir / "unresolved-macros.bqrs"
+                _run_query(bindings, EXTRACTED_PATHS_QUERY, paths_bqrs)
+                _run_query(bindings, METRICS_QUERY, metrics_bqrs)
+                _run_query(
+                    bindings, UNRESOLVED_MACROS_QUERY, unresolved_bqrs
                 )
+                extracted = _parse_extracted_paths(
+                    _decode_query(bindings, paths_bqrs)
+                )
+                metrics = _parse_metrics(
+                    _decode_query(bindings, metrics_bqrs)
+                )
+                unresolved = _parse_unresolved_macros(
+                    _decode_query(bindings, unresolved_bqrs)
+                )
+                unresolved_metric = metrics["unresolved_source_macro_calls"]
+                validate_unresolved_detail_count(unresolved_metric, unresolved)
+                if unresolved:
+                    print(
+                        "CODEQL_RUST_UNRESOLVED_MACROS "
+                        + json.dumps(
+                            unresolved,
+                            ensure_ascii=True,
+                            separators=(",", ":"),
+                        )
+                    )
+        except BaseException as exc:
+            binding_primary = exc
+            raise
+        finally:
+            try:
+                _close_fixed_codeql_bindings(bindings)
+            except CodeQLRustQualityError as cleanup_error:
+                if binding_primary is not None:
+                    _merge_cleanup_failure(
+                        binding_primary,
+                        "CodeQL path-binding cleanup also failed: "
+                        f"{cleanup_error}",
+                    )
+                else:
+                    raise
         validate_quality(tracked, extracted, metrics)
         require_repository_target_absent()
         require_clean_checkout(expected_commit)
+    except OSError as exc:
+        raise SystemExit(
+            f"error: Rust CodeQL path-binding filesystem operation failed: {exc}"
+        ) from exc
     except CodeQLRustQualityError as exc:
         raise SystemExit(f"error: {exc}") from exc
     print(

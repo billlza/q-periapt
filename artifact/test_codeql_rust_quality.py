@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import pathlib
+import stat
 import tempfile
 import unittest
 from unittest import mock
@@ -24,6 +26,21 @@ def clean_metrics(source_count: int = 2) -> dict[str, int]:
 
 
 class CodeQLRustQualityTests(unittest.TestCase):
+    def _fixed_layout(
+        self, root: pathlib.Path
+    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, pathlib.Path]:
+        binary = root / "codeql"
+        binary.write_bytes(b"fixed executable\n")
+        binary.chmod(0o500)
+        runner_temp = root / "runner-temp"
+        runner_temp.mkdir(mode=0o700)
+        database = runner_temp / "database" / "rust"
+        database.mkdir(parents=True, mode=0o700)
+        metadata = database / "codeql-database.yml"
+        metadata.write_text("name: rust\n", encoding="utf-8")
+        metadata.chmod(0o600)
+        return binary, runner_temp, database, metadata
+
     def test_clean_quality_evidence_passes(self) -> None:
         tracked = frozenset({"crates/a/src/lib.rs", "crates/b/build.rs"})
         codeql_rust_quality.validate_quality(tracked, tracked, clean_metrics())
@@ -129,42 +146,488 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ):
                 codeql_rust_quality._parse_extracted_paths(rows)
 
-    def test_database_location_is_exact_rust_child_of_runner_temp(self) -> None:
+    def test_fixed_bindings_bind_exact_paths_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
-            database = root / "database"
-            database.mkdir()
-            (database / "codeql-database.yml").write_text(
-                "name: rust\n", encoding="utf-8"
-            )
-            encoded = '{"rust": "' + str(database) + '"}'
-            self.assertEqual(
-                codeql_rust_quality._require_database(encoded, root), database
-            )
-            outside = root.parent
-            with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
-                codeql_rust_quality._require_database(
-                    '{"rust": "' + str(outside) + '"}', root
+            binary, runner_temp, database, metadata = self._fixed_layout(root)
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+            ):
+                bindings = (
+                    codeql_rust_quality._open_fixed_codeql_bindings()
                 )
-            with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
-                codeql_rust_quality._require_database(
-                    '{"rust": "' + str(database) + '", "cpp": "' + str(database) + '"}',
-                    root,
+                try:
+                    codeql_rust_quality._revalidate_fixed_codeql_bindings(
+                        bindings
+                    )
+                    metadata.unlink()
+                    metadata.write_text("replaced: true\n", encoding="utf-8")
+                    metadata.chmod(0o600)
+                    with self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "metadata identity changed",
+                    ):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(
+                            bindings
+                        )
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(
+                        bindings
+                    )
+
+    def test_fixed_bindings_reject_cross_account_write_and_unsafe_types(
+        self,
+    ) -> None:
+        for case in (
+            "binary-group-writable",
+            "binary-hardlink",
+            "binary-not-executable",
+            "binary-not-regular",
+            "binary-symlink",
+            "database-group-writable",
+            "database-not-directory",
+            "metadata-group-writable",
+            "metadata-hardlink",
+            "metadata-symlink",
+            "metadata-not-regular",
+            "temporary-parent-group-writable",
+        ):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary).resolve()
+                binary, runner_temp, database, metadata = self._fixed_layout(root)
+                if case == "binary-group-writable":
+                    binary.chmod(0o520)
+                elif case == "binary-hardlink":
+                    os.link(binary, root / "second-codeql-link")
+                elif case == "binary-not-executable":
+                    binary.chmod(0o400)
+                elif case == "binary-not-regular":
+                    binary.unlink()
+                    binary.mkdir(mode=0o500)
+                elif case == "binary-symlink":
+                    target = root / "real-codeql"
+                    binary.rename(target)
+                    binary.symlink_to(target)
+                elif case == "database-group-writable":
+                    database.chmod(0o720)
+                elif case == "database-not-directory":
+                    metadata.unlink()
+                    database.rmdir()
+                    database.write_bytes(b"not a directory\n")
+                elif case == "metadata-group-writable":
+                    metadata.chmod(0o620)
+                elif case == "metadata-hardlink":
+                    os.link(metadata, root / "second-database-metadata-link")
+                elif case == "metadata-symlink":
+                    target = database / "real-codeql-database.yml"
+                    metadata.rename(target)
+                    metadata.symlink_to(target.name)
+                elif case == "metadata-not-regular":
+                    metadata.unlink()
+                    metadata.mkdir(mode=0o700)
+                else:
+                    runner_temp.chmod(0o720)
+                with (
+                    mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                    mock.patch.object(
+                        codeql_rust_quality, "FIXED_CODEQL_BINARY", binary
+                    ),
+                    mock.patch.object(
+                        codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                    ),
+                    mock.patch.object(
+                        codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                    ),
+                    self.assertRaises(codeql_rust_quality.CodeQLRustQualityError),
+                ):
+                    codeql_rust_quality._open_fixed_codeql_bindings()
+
+        with tempfile.TemporaryDirectory() as temporary:
+            not_directory = pathlib.Path(temporary) / "regular"
+            not_directory.write_bytes(b"not a directory\n")
+            with self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError,
+                "must be a current-user-owned directory",
+            ):
+                codeql_rust_quality._require_owned_directory_metadata(
+                    not_directory.stat(), "fixed CodeQL temporary parent"
                 )
 
-            for malformed in (
-                '{"rust":"a","rust":"b"}',
-                '{"rust":NaN}',
-                '{"rust":"\udcff"}',
-            ):
-                with self.subTest(malformed=malformed), self.assertRaisesRegex(
+    def test_fixed_bindings_reject_non_linux_and_database_outside_parent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "darwin"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                self.assertRaisesRegex(
                     codeql_rust_quality.CodeQLRustQualityError,
-                    "not strict UTF-8 JSON",
+                    "require the Linux analysis lane",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", root
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "must be under the fixed temporary parent",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+
+    def test_fixed_binding_owner_policy_is_exact(self) -> None:
+        regular = os.stat(__file__)
+        executable = os.stat_result(
+            (
+                stat.S_IFREG | 0o500,
+                regular.st_ino,
+                regular.st_dev,
+                1,
+                os.geteuid(),
+                regular.st_gid,
+                regular.st_size,
+                regular.st_atime,
+                regular.st_mtime,
+                regular.st_ctime,
+            )
+        )
+        codeql_rust_quality._require_codeql_metadata(executable)
+        root_executable = os.stat_result(
+            (*executable[:4], 0, *executable[5:])
+        )
+        codeql_rust_quality._require_codeql_metadata(root_executable)
+        foreign = os.stat_result(
+            (*regular[:4], os.geteuid() + 1000, *regular[5:])
+        )
+        with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+            codeql_rust_quality._require_database_metadata(foreign)
+        foreign_directory = os.stat_result(
+            (
+                stat.S_IFDIR | 0o700,
+                foreign.st_ino,
+                foreign.st_dev,
+                1,
+                foreign.st_uid,
+                foreign.st_gid,
+                0,
+                foreign.st_atime,
+                foreign.st_mtime,
+                foreign.st_ctime,
+            )
+        )
+        with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+            codeql_rust_quality._require_owned_directory_metadata(
+                foreign_directory, "foreign directory"
+            )
+
+    def test_query_revalidation_detects_binary_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+            ):
+                bindings = (
+                    codeql_rust_quality._open_fixed_codeql_bindings()
+                )
+                try:
+                    def replace_binary(
+                        _argv: list[str], **_kwargs: object
+                    ) -> BoundedResult:
+                        binary.unlink()
+                        binary.write_bytes(b"replacement\n")
+                        binary.chmod(0o500)
+                        return BoundedResult(0, b"")
+
+                    with mock.patch.object(
+                        codeql_rust_quality,
+                        "capture_stdout",
+                        side_effect=replace_binary,
+                    ), self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "fixed CodeQL binary",
+                    ):
+                        codeql_rust_quality._run_query(
+                            bindings,
+                            pathlib.Path("/query.ql"),
+                            pathlib.Path("/result.bqrs"),
+                        )
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(
+                        bindings
+                    )
+
+    def test_query_revalidation_detects_database_metadata_and_parent_drift(
+        self,
+    ) -> None:
+        for case in ("database-mode", "metadata-replacement", "parent-mode"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary).resolve()
+                binary, runner_temp, database, metadata = self._fixed_layout(root)
+                with (
+                    mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                    mock.patch.object(
+                        codeql_rust_quality, "FIXED_CODEQL_BINARY", binary
+                    ),
+                    mock.patch.object(
+                        codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                    ),
+                    mock.patch.object(
+                        codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                    ),
                 ):
-                    codeql_rust_quality._require_database(malformed, root)
+                    bindings = codeql_rust_quality._open_fixed_codeql_bindings()
+                    try:
+                        def mutate_binding(
+                            _argv: list[str], **_kwargs: object
+                        ) -> BoundedResult:
+                            if case == "database-mode":
+                                database.chmod(0o720)
+                            elif case == "metadata-replacement":
+                                metadata.unlink()
+                                metadata.write_text(
+                                    "replacement: true\n", encoding="utf-8"
+                                )
+                                metadata.chmod(0o600)
+                            else:
+                                runner_temp.chmod(0o720)
+                            return BoundedResult(0, b"")
+
+                        with mock.patch.object(
+                            codeql_rust_quality,
+                            "capture_stdout",
+                            side_effect=mutate_binding,
+                        ), self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+                            codeql_rust_quality._run_query(
+                                bindings,
+                                pathlib.Path("/query.ql"),
+                                pathlib.Path("/result.bqrs"),
+                            )
+                    finally:
+                        codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+
+    def test_open_failure_closes_earlier_fixed_binding_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            real_open = os.open
+            opened_binary: list[int] = []
+
+            def fail_database_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                if pathlib.Path(path) == database:
+                    raise OSError("synthetic database open failure")
+                descriptor = real_open(path, flags, *args, **kwargs)
+                if pathlib.Path(path) == binary:
+                    opened_binary.append(descriptor)
+                return descriptor
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "open",
+                    side_effect=fail_database_open,
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "cannot open fixed Rust CodeQL path binding",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+            self.assertEqual(len(opened_binary), 1)
+            with self.assertRaises(OSError):
+                os.fstat(opened_binary[0])
+
+    def test_open_failure_reports_secondary_close_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            real_open = os.open
+            real_close = os.close
+            binary_descriptor = -1
+
+            def fail_database_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                nonlocal binary_descriptor
+                if pathlib.Path(path) == database:
+                    raise OSError("PRIMARY_OPEN_FAILURE")
+                descriptor = real_open(path, flags, *args, **kwargs)
+                if pathlib.Path(path) == binary:
+                    binary_descriptor = descriptor
+                return descriptor
+
+            def fail_binary_close(descriptor: int) -> None:
+                if descriptor == binary_descriptor:
+                    real_close(descriptor)
+                    raise OSError("SECONDARY_CLOSE_FAILURE")
+                real_close(descriptor)
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "open",
+                    side_effect=fail_database_open,
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "close",
+                    side_effect=fail_binary_close,
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "PRIMARY_OPEN_FAILURE.*SECONDARY_CLOSE_FAILURE",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+
+    def test_close_bindings_attempts_every_descriptor_and_aggregates(self) -> None:
+        bindings = mock.Mock(
+            runner_temp_descriptor=11,
+            database_descriptor=12,
+            codeql_descriptor=13,
+        )
+        closed: list[int] = []
+
+        def fail_close(descriptor: int) -> None:
+            closed.append(descriptor)
+            raise OSError(f"synthetic close {descriptor}")
+
+        with mock.patch.object(
+            codeql_rust_quality.os, "close", side_effect=fail_close
+        ), self.assertRaisesRegex(
+            codeql_rust_quality.CodeQLRustQualityError,
+            "temporary-parent.*database.*binary",
+        ):
+            codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+        self.assertEqual(closed, [11, 12, 13])
+
+    def test_close_bindings_preserves_control_exception_and_continues(self) -> None:
+        bindings = mock.Mock(
+            runner_temp_descriptor=21,
+            database_descriptor=22,
+            codeql_descriptor=23,
+        )
+        closed: list[int] = []
+        interrupt = KeyboardInterrupt("PRIMARY_INTERRUPT")
+
+        def fail_close(descriptor: int) -> None:
+            closed.append(descriptor)
+            if descriptor == 21:
+                raise interrupt
+            if descriptor == 22:
+                raise OSError("SECONDARY_CLOSE_FAILURE")
+
+        with mock.patch.object(
+            codeql_rust_quality.os, "close", side_effect=fail_close
+        ), self.assertRaises(KeyboardInterrupt) as raised:
+            codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+        self.assertIs(raised.exception, interrupt)
+        self.assertEqual(closed, [21, 22, 23])
+        self.assertIn(
+            "SECONDARY_CLOSE_FAILURE",
+            " ".join(getattr(interrupt, "__notes__", ())),
+        )
+
+    def test_cleanup_merge_preserves_control_exception(self) -> None:
+        interrupt = KeyboardInterrupt("PRIMARY_INTERRUPT")
+        codeql_rust_quality._merge_cleanup_failure(
+            interrupt, "SECONDARY_CLEANUP_FAILURE"
+        )
+        self.assertIn(
+            "SECONDARY_CLEANUP_FAILURE",
+            " ".join(getattr(interrupt, "__notes__", ())),
+        )
+
+    def test_database_identity_replacement_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, metadata = self._fixed_layout(root)
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+            ):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings()
+                try:
+                    metadata.unlink()
+                    database.rmdir()
+                    database.mkdir(mode=0o700)
+                    replacement_metadata = database / "codeql-database.yml"
+                    replacement_metadata.write_text(
+                        "replacement: true\n", encoding="utf-8"
+                    )
+                    replacement_metadata.chmod(0o600)
+                    with self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "database identity changed",
+                    ):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(
+                            bindings
+                        )
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
 
     def test_bqrs_decode_requires_strict_json_and_empty_stderr(self) -> None:
-        codeql = pathlib.Path("/codeql")
+        bindings = mock.Mock(codeql=pathlib.Path("/codeql"))
         bqrs = pathlib.Path("/result.bqrs")
         valid = b'{"#select":{"tuples":[]}}'
         for stdout in (
@@ -179,8 +642,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
                 "not strict UTF-8 JSON",
+            ), mock.patch.object(
+                codeql_rust_quality,
+                "_revalidate_fixed_codeql_bindings",
             ):
-                codeql_rust_quality._decode_query(codeql, bqrs)
+                codeql_rust_quality._decode_query(bindings, bqrs)
 
         with mock.patch.object(
             codeql_rust_quality,
@@ -191,12 +657,36 @@ class CodeQLRustQualityTests(unittest.TestCase):
         ), self.assertRaisesRegex(
             codeql_rust_quality.CodeQLRustQualityError,
             "not strict UTF-8 JSON",
+        ), mock.patch.object(
+            codeql_rust_quality,
+            "_revalidate_fixed_codeql_bindings",
         ):
-            codeql_rust_quality._decode_query(codeql, bqrs)
+            codeql_rust_quality._decode_query(bindings, bqrs)
+
+    def test_decode_revalidates_fixed_bindings_before_and_after(self) -> None:
+        bindings = mock.Mock(codeql=pathlib.Path("/codeql"))
+        valid = b'{"#select":{"tuples":[]}}'
+        with mock.patch.object(
+            codeql_rust_quality,
+            "capture_stdout",
+            return_value=BoundedResult(0, valid),
+        ), mock.patch.object(
+            codeql_rust_quality,
+            "_revalidate_fixed_codeql_bindings",
+        ) as revalidate:
+            self.assertEqual(
+                codeql_rust_quality._decode_query(
+                    bindings, pathlib.Path("/result.bqrs")
+                ),
+                [],
+            )
+        self.assertEqual(revalidate.call_count, 2)
 
     def test_codeql_process_boundaries_fail_closed(self) -> None:
-        codeql = pathlib.Path("/codeql")
-        database = pathlib.Path("/database")
+        bindings = mock.Mock(
+            codeql=pathlib.Path("/codeql"),
+            database=pathlib.Path("/database"),
+        )
         query = pathlib.Path("/query.ql")
         output = pathlib.Path("/result.bqrs")
         for kind in ("timeout", "output_limit"):
@@ -207,18 +697,26 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
                 rf"failed at {kind} boundary",
+            ), mock.patch.object(
+                codeql_rust_quality,
+                "_revalidate_fixed_codeql_bindings",
             ):
-                codeql_rust_quality._run_query(codeql, database, query, output)
+                codeql_rust_quality._run_query(bindings, query, output)
 
         with mock.patch.object(
             codeql_rust_quality,
             "capture_stdout",
             return_value=BoundedResult(7, b"fatal query diagnostic\n"),
-        ), mock.patch.object(codeql_rust_quality.sys.stdout, "write") as write, self.assertRaisesRegex(
+        ), mock.patch.object(
+            codeql_rust_quality.sys.stdout, "write"
+        ) as write, self.assertRaisesRegex(
             codeql_rust_quality.CodeQLRustQualityError,
             "exited with status 7",
+        ), mock.patch.object(
+            codeql_rust_quality,
+            "_revalidate_fixed_codeql_bindings",
         ):
-            codeql_rust_quality._run_query(codeql, database, query, output)
+            codeql_rust_quality._run_query(bindings, query, output)
         write.assert_called_once_with("fatal query diagnostic\n")
 
         for result, message in (
@@ -240,20 +738,30 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
                 message,
+            ), mock.patch.object(
+                codeql_rust_quality,
+                "_revalidate_fixed_codeql_bindings",
             ):
-                codeql_rust_quality._decode_query(codeql, output)
+                codeql_rust_quality._decode_query(bindings, output)
 
     def test_codeql_process_limits_are_fixed(self) -> None:
-        codeql = pathlib.Path("/codeql")
-        database = pathlib.Path("/database")
+        bindings = mock.Mock(
+            codeql=pathlib.Path("/codeql"),
+            database=pathlib.Path("/database"),
+        )
         query = pathlib.Path("/query.ql")
         output = pathlib.Path("/result.bqrs")
         with mock.patch.object(
             codeql_rust_quality,
             "capture_stdout",
             return_value=BoundedResult(0, b"query progress\n"),
-        ) as capture, mock.patch.object(codeql_rust_quality.sys.stdout, "write"):
-            codeql_rust_quality._run_query(codeql, database, query, output)
+        ) as capture, mock.patch.object(
+            codeql_rust_quality.sys.stdout, "write"
+        ), mock.patch.object(
+            codeql_rust_quality,
+            "_revalidate_fixed_codeql_bindings",
+        ):
+            codeql_rust_quality._run_query(bindings, query, output)
         self.assertEqual(
             capture.call_args.kwargs,
             {
@@ -262,14 +770,31 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "stderr": codeql_rust_quality.subprocess.STDOUT,
             },
         )
+        self.assertEqual(
+            capture.call_args.args[0],
+            [
+                "/codeql",
+                "query",
+                "run",
+                "--warnings=error",
+                "--database=/database",
+                "--output=/result.bqrs",
+                "/query.ql",
+            ],
+        )
 
         valid = b'{"#select":{"tuples":[]}}'
         with mock.patch.object(
             codeql_rust_quality,
             "capture_stdout",
             return_value=BoundedResult(0, valid),
-        ) as capture:
-            self.assertEqual(codeql_rust_quality._decode_query(codeql, output), [])
+        ) as capture, mock.patch.object(
+            codeql_rust_quality,
+            "_revalidate_fixed_codeql_bindings",
+        ):
+            self.assertEqual(
+                codeql_rust_quality._decode_query(bindings, output), []
+            )
         self.assertEqual(
             capture.call_args.kwargs,
             {
@@ -277,6 +802,16 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "maximum_bytes": 16 * 1024 * 1024,
                 "stderr": codeql_rust_quality.subprocess.STDOUT,
             },
+        )
+        self.assertEqual(
+            capture.call_args.args[0],
+            [
+                "/codeql",
+                "bqrs",
+                "decode",
+                "--format=json",
+                "/result.bqrs",
+            ],
         )
 
     def test_tracked_inventory_is_nonempty_and_nul_terminated(self) -> None:

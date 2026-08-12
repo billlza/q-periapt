@@ -237,7 +237,6 @@ class WorkflowArtifactTests(unittest.TestCase):
         def raced_open(
             path: os.PathLike[str] | str,
             flags: int,
-            mode: int = 0o777,
             *,
             dir_fd: int | None = None,
         ) -> int:
@@ -251,9 +250,10 @@ class WorkflowArtifactTests(unittest.TestCase):
                     dir_fd=dir_fd,
                 )
                 raced = True
+            self.assertEqual(flags & os.O_CREAT, 0)
             if dir_fd is None:
-                return real_open(path, flags, mode)
-            return real_open(path, flags, mode, dir_fd=dir_fd)
+                return real_open(path, flags)
+            return real_open(path, flags, dir_fd=dir_fd)
 
         with mock.patch.object(
             workflow_artifact.os,

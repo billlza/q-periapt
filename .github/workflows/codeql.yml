@@ -132,6 +132,14 @@ jobs:
           CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
         run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"
 
+      - name: Bind Rust quality gate to the linked CodeQL bundle
+        if: matrix.language == 'rust'
+        env:
+          CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
+        run: |
+          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql
+          test "$CODEQL_BINARY" = "$fixed_codeql"
+
       - name: Build Kotlin binding
         if: matrix.language == 'java-kotlin'
         run: |
@@ -180,10 +188,7 @@ jobs:
       - name: Verify Rust CodeQL database quality
         if: matrix.language == 'rust'
         env:
-          CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
-          CODEQL_DATABASE_LOCATIONS: ${{ steps.codeql_analyze.outputs.db-locations }}
           CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
-          CODEQL_RUNNER_TEMP: ${{ runner.temp }}
         run: sh artifact/python-run.sh artifact/codeql_rust_quality.py
 
       - name: Upload quality-gated Rust CodeQL results

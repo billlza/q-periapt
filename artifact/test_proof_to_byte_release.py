@@ -1006,6 +1006,23 @@ class BoundVerifierWiringTests(unittest.TestCase):
             'run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"',
             exact_bundle,
         )
+        fixed_bundle = extract_named_workflow_step(
+            source, "Bind Rust quality gate to the linked CodeQL bundle"
+        )
+        self.assertIn("        if: matrix.language == 'rust'\n", fixed_bundle)
+        self.assertIn(
+            "          CODEQL_BINARY: "
+            "${{ steps.codeql_init.outputs.codeql-path }}\n",
+            fixed_bundle,
+        )
+        self.assertIn(
+            "          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.26.2/x64/"
+            "codeql/codeql\n",
+            fixed_bundle,
+        )
+        self.assertIn(
+            '          test "$CODEQL_BINARY" = "$fixed_codeql"\n', fixed_bundle
+        )
         self.assertNotIn("          tools:", initialize)
         analyze = extract_named_workflow_step(source, "Analyze")
         self.assertIn("        id: codeql_analyze\n", analyze)
@@ -1045,18 +1062,10 @@ class BoundVerifierWiringTests(unittest.TestCase):
             source, "Verify Rust CodeQL database quality"
         )
         self.assertIn("        if: matrix.language == 'rust'\n", quality)
-        self.assertIn(
-            "          CODEQL_BINARY: "
-            "${{ steps.codeql_init.outputs.codeql-path }}\n",
-            quality,
-        )
-        self.assertIn(
-            "          CODEQL_DATABASE_LOCATIONS: "
-            "${{ steps.codeql_analyze.outputs.db-locations }}\n",
-            quality,
-        )
         self.assertIn("          CODEQL_EXPECTED_COMMIT: ${{ github.sha }}\n", quality)
-        self.assertIn("          CODEQL_RUNNER_TEMP: ${{ runner.temp }}\n", quality)
+        self.assertNotIn("CODEQL_BINARY", quality)
+        self.assertNotIn("CODEQL_DATABASE_LOCATIONS", quality)
+        self.assertNotIn("CODEQL_RUNNER_TEMP", quality)
         self.assertIn(
             "        run: sh artifact/python-run.sh "
             "artifact/codeql_rust_quality.py\n",
@@ -1091,6 +1100,23 @@ class BoundVerifierWiringTests(unittest.TestCase):
             quality_source.count("        require_repository_target_absent()\n"),
             2,
         )
+        self.assertNotIn('os.environ.get("CODEQL_BINARY"', quality_source)
+        self.assertNotIn(
+            'os.environ.get("CODEQL_DATABASE_LOCATIONS"', quality_source
+        )
+        self.assertNotIn('os.environ.get("CODEQL_RUNNER_TEMP"', quality_source)
+        self.assertIn(
+            '"/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql"',
+            quality_source,
+        )
+        self.assertIn(
+            '"/home/runner/work/_temp/qperiapt-codeql-database/rust"',
+            quality_source,
+        )
+        self.assertIn(
+            'FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")',
+            quality_source,
+        )
 
     def test_rust_codeql_compatibility_and_upload_boundary_is_documented(self) -> None:
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
@@ -1105,6 +1131,15 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("`wasm_bindgen`-generated `Abi` type mentions", normalized)
         self.assertIn("raw database upload disabled", normalized)
         self.assertIn("only an explicit SARIF upload after the quality", normalized)
+        self.assertIn(
+            "accepts no environment-selected executable, database, or temporary path",
+            normalized,
+        )
+        self.assertIn("trusted-runner integrity checks", normalized)
+        self.assertIn("not isolation from hostile code", normalized)
+        self.assertIn("path-identity snapshots", normalized)
+        self.assertIn("remain trusted inputs used by pathname", normalized)
+        self.assertIn("inherited process environment and OS runtime are trusted", normalized)
 
     def test_dependency_monitoring_and_private_reporting_policy_are_explicit(
         self,
