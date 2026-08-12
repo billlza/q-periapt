@@ -253,7 +253,9 @@ jobs:
       - run: cargo install cbindgen --version 0.29.4 --locked
       - name: Install pinned stable Android inputs
         run: |
-          yes | sdkmanager --licenses >/dev/null
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
           sdkmanager "platforms;android-35" "build-tools;36.0.0" "ndk;29.0.14206865"
       - name: Build and verify the four-ABI 16 KiB-compatible AAR
         env:

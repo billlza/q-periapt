@@ -672,15 +672,9 @@ jobs:
       - run: cargo install cbindgen --version 0.29.4 --locked
       - name: Install pinned Android SDK/NDK inputs
         run: |
-          set +e
-          yes | sdkmanager --licenses >/dev/null
-          license_statuses=("${PIPESTATUS[@]}")
-          set -e
-          test "${license_statuses[1]}" -eq 0
-          case "${license_statuses[0]}" in
-            0|141) ;;
-            *) printf 'license input producer failed: %s\n' "${license_statuses[0]}" >&2; exit 1 ;;
-          esac
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
           sdkmanager "platforms;android-35" "build-tools;36.0.0" "ndk;29.0.14206865"
       - name: Android AAR/JNI packaging proof
         env:
@@ -752,15 +746,9 @@ jobs:
         run: |
           command -v setfacl
           command -v lsof
-          set +e
-          yes | sdkmanager --licenses >/dev/null
-          license_statuses=("${PIPESTATUS[@]}")
-          set -e
-          test "${license_statuses[1]}" -eq 0
-          case "${license_statuses[0]}" in
-            0|141) ;;
-            *) printf 'license input producer failed: %s\n' "${license_statuses[0]}" >&2; exit 1 ;;
-          esac
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
           sdkmanager \
             "platform-tools" \
             "emulator" \

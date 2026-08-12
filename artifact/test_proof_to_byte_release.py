@@ -1214,11 +1214,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
         self.assertNotIn("          run-id:", job)
         self.assertNotIn("          github-token:", job)
-        self.assertIn('license_statuses=("${PIPESTATUS[@]}")', job)
-        self.assertIn('test "${license_statuses[1]}" -eq 0', job)
-        self.assertIn('case "${license_statuses[0]}" in', job)
-        self.assertIn("0|141) ;;", job)
-        self.assertNotIn("sdkmanager --licenses >/dev/null ||", job)
+        self.assertIn("license_answers=$(printf 'y\\n%.0s' {1..64})", job)
+        self.assertIn('sdkmanager --licenses <<< "$license_answers"', job)
+        self.assertIn("unset license_answers", job)
+        self.assertNotIn("yes | sdkmanager", job)
+        self.assertNotIn("sdkmanager --licenses <<< \"$license_answers\" ||", job)
 
         image = '"system-images;android-35;google_apis_ps16k;x86_64"'
         self.assertGreaterEqual(job.count(image), 2)
@@ -1268,6 +1268,25 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
         self.assertIn('export ADB_SERVER_SOCKET="$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
         self.assertIn("assert_default_adb_server_absent", producer)
+
+    def test_every_android_sdk_license_input_is_finite_and_fail_closed(self) -> None:
+        workflow_sources = {
+            path.relative_to(ROOT).as_posix(): path.read_text(encoding="utf-8")
+            for path in sorted((ROOT / ".github/workflows").glob("*.yml"))
+        }
+        combined = "\n".join(workflow_sources.values())
+        self.assertEqual(combined.count("sdkmanager --licenses"), 3)
+        self.assertEqual(
+            combined.count("license_answers=$(printf 'y\\n%.0s' {1..64})"),
+            3,
+        )
+        self.assertEqual(
+            combined.count('sdkmanager --licenses <<< "$license_answers"'),
+            3,
+        )
+        self.assertEqual(combined.count("unset license_answers"), 3)
+        self.assertNotIn("yes | sdkmanager", combined)
+        self.assertNotIn('sdkmanager --licenses <<< "$license_answers" ||', combined)
 
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
