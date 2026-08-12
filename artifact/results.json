@@ -388,7 +388,7 @@
     "license_mit_sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
     "license_sha256": "ed972005262b556e78016964a8c210b2e64e341b51d3064bab951b0b86f28c3f",
     "local_release_consumer_smoke_script_sha256": "1ddf2237ac35371b4fa39bcb4a09c94f71b29ac414c052962bcf073852aefdf5",
-    "local_release_index_script_sha256": "486ef51b7534418a5aa4110f31e7d04795b54306b78d723d8adc94d8a52e24bd",
+    "local_release_index_script_sha256": "28ce08621eb432adecb3bfa05d41c7605c7d7e463fb1422de2163e8beaf63425",
     "migration_agent_authentication_sha256": "f8f1271aa1f2f383c6e219bcdb69ab8929d8f3efd485b4fb070011f966141bad",
     "migration_agent_codec_sha256": "3b01ad9b9c41cc6f3dba8800c8b30a548e6a2f8b31bf8d0d51d6f2fc80548e02",
     "migration_agent_crypto_sha256": "ac13d5d7714c317c603ac0ad83255a2c4f3cfae00b42dfa894ff46b9bac390b1",
@@ -475,15 +475,15 @@
     "windows_package_tests_sha256": "73b44cdb6e92ebe4ded05a6371f6095e167d6da6a6030c682fa13e90e7fde16c",
     "windows_package_verifier_sha256": "f8c3909310d9281b00569cdb5bc2d5ab92c0a06ef90ca9a68c97bdbd376cc6ad",
     "windows_toolchain_tests_sha256": "29b57c9ba461acd125d8a650c05e8b940fd567d69b8213d5a3aa86a6b9aa4c5c",
-    "release_index_tests_sha256": "fd5286dfa8baf195e28b9a2a912cc15bd91978910b2c1ecad176e3ec1f5cca01",
+    "release_index_tests_sha256": "beac937fd6918546328b526acbd99abcdc4bfe4e1b2ce8fea5039eb226f63191",
     "bounded_process_sha256": "3a47981f9d63b8554cd5b3a7c6001c21bd6e9a06e8b5d233d8245089ce08de38",
     "bounded_process_tests_sha256": "ccd8f67fbb083fbaa29bf4b614cce0847d6ef16847fb0389ee7cdc1df46ec4d2"
   },
-  "proof_source_tree_sha256": "cd162dc7fb3752b72748b6b2bb17d4423c5d22edee9339b09a1c4ad8049a8df3",
+  "proof_source_tree_sha256": "46f61ecbb060c297cd711f1d992a90ddfbf45e31793061d754607b96f879b4f9",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "f042514ea385d17b05a7f5a4b706326d0f38c317",
+    "snapshot_commit": "ce1f50f07fedcd3a89b2e37e8c86554ce207ca7d",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
