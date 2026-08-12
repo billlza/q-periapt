@@ -307,9 +307,9 @@
     "abi2_platform_candidate_workflow_sha256": "30d2ca73291f7251ec026abb850871078d76c86fa3ebc71979eab4a0ccc58b15",
     "abi2_platform_release_notes_sha256": "16b711b84d85ab609d84db6880cbc9abbd2180e344ca93c32ae514dbee101bbb",
     "android_aar_script_sha256": "aa11eeba4fbc23a3aacc47af9817907d62bdadef64696c0222c0b0de150d1d8c",
-    "android_bounded_command_sha256": "06354144f1f8753ed980465c1af70874f10bc443c18107f1b95e0169e6e84700",
-    "android_bounded_command_tests_sha256": "23c70bc98d4c960c64233979da1eeed698765f3afb9461a7cd7dbf545f80612f",
-    "android_device_proof_tests_sha256": "d57a25a4fd4a4aae41bd3c7d2b5a329ea7ccaaf177e3b8addee3d049ac1338b7",
+    "android_bounded_command_sha256": "203c262f9d8934b562c437a7db8895f9e7a61aaf3f2a3eb9628c3e2085b1e67e",
+    "android_bounded_command_tests_sha256": "ff76db5303dd7a69de1518e7a2c6da114a3ee7d148602462075ce09c01605ba9",
+    "android_device_proof_tests_sha256": "3e05b3433b2677d1c7948a892aecd12a79d8879af36787a013f9dd08949fe5c1",
     "android_device_proof_verifier_sha256": "286f63eb75301730e3a6eb2de3636f937cf88797c832f079748206d000c09108",
     "android_device_smoke_script_sha256": "ec52b966f0ff5ceed056545194b4912b01104f3e689e89228c7b47d292cb6664",
     "android_emulator_control_sha256": "b09a69370b000939432e4363b343a65991835837b7b3bcbaf8d5a999d61b5150",
@@ -479,11 +479,11 @@
     "bounded_process_sha256": "3a47981f9d63b8554cd5b3a7c6001c21bd6e9a06e8b5d233d8245089ce08de38",
     "bounded_process_tests_sha256": "ccd8f67fbb083fbaa29bf4b614cce0847d6ef16847fb0389ee7cdc1df46ec4d2"
   },
-  "proof_source_tree_sha256": "89c0eb2ed4e611790373d19ca08ea5a79c64ec3321dafd6eb7b4801fbe445840",
+  "proof_source_tree_sha256": "b71806df381d9766b315809b41842a9e3ad458ffe25e208e980b83d1f61ba59c",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "8af9c5a6e01a5a9f7895f2311d962b819e5ded0c",
+    "snapshot_commit": "ea523c80be99d262315c05d3c1fbbbb65460cad6",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
