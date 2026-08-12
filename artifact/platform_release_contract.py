@@ -46,7 +46,11 @@ PLATFORM_INPUT_ASSETS = frozenset(
 )
 PLATFORM_RELEASE_FILES = PLATFORM_INPUT_ASSETS | {RELEASE_MANIFEST, RELEASE_SUMS}
 
-ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 3
+# The current repository-local Android runtime proof contract.  Keep the
+# historical public r2 receipt schema separate: an evolution of the local
+# verifier must never rewrite what an immutable release actually published.
+ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 4
+PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 3
 PLATFORM_RELEASE_RECEIPT_SCHEMA_VERSION = 1
 PLATFORM_RELEASE_RECEIPT_KEY = "platform_r2"
 PLATFORM_RELEASE_STATUS_PENDING = (
@@ -498,7 +502,7 @@ def _validate_platform_r2_receipt(receipt_value: object) -> None:
             "device_kind": "emulator",
             "device_sdk": 35,
             "page_size": 16_384,
-            "proof_schema": ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+            "proof_schema": PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
             "proof_sha256": ANDROID_PROOF_SHA256,
             "tested_aar_sha256": ASSET_BY_NAME[ANDROID_AAR].sha256,
         },

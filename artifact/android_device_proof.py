@@ -11,12 +11,14 @@ import io
 import json
 import os
 import pathlib
+import platform
 import re
 import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 from typing import Any
 
@@ -25,6 +27,12 @@ from android_elf import (
     audit_aar,
     verify_aar,
     verify_ndk_r29,
+)
+from android_emulator_control import (
+    AndroidEmulatorControlError,
+    fixed_headless_backend_path,
+    parse_owned_lsof_listeners,
+    parse_owned_single_listener,
 )
 from claim_ledger import LedgerError, canonical_tree_digest, repository_paths
 from deterministic_archive import (
@@ -40,19 +48,32 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
-    git_commit as provenance_git_commit,
     require_commit_or_evidence_successor,
     run_git_text,
+)
+from git_provenance import (
+    git_commit as provenance_git_commit,
+)
+from git_provenance import (
     source_tree_dirty as provenance_source_tree_dirty,
+)
+from platform_release_contract import ANDROID_DEVICE_PROOF_SCHEMA_VERSION
+from process_identity import (
+    ProcessIdentity,
+    ProcessIdentityError,
+)
+from process_identity import (
+    parse_token as parse_process_identity_token,
+)
+from process_identity import (
+    snapshot as process_snapshot,
 )
 from proof_manifest import (
     ProofManifestError,
     load_results_manifest_snapshot,
     select_bound_json_snapshot,
 )
-from platform_release_contract import ANDROID_DEVICE_PROOF_SCHEMA_VERSION
 from release_binary_scan import ReleaseBinaryScanError, scan_release_file
-
 
 PROOF_SCHEMA_VERSION = ANDROID_DEVICE_PROOF_SCHEMA_VERSION
 RESULT_SCHEMA_VERSION = 1
@@ -71,6 +92,8 @@ ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
 BUNDLE_SCHEMA_VERSION = 1
 BUNDLE_KIND = "qperiapt.android_runtime_evidence_bundle"
 BUNDLE_ROOT_NAME = "qperiapt-android-runtime-evidence-v1"
+ANDROID_RUNS_ROOT_LEAF = "qperiapt-android-device-smoke-runs"
+ANDROID_PROOF_LEAF = "qperiapt-android-device-proof.json"
 
 PROOF_PATH_KEYS = (
     "aar",
@@ -103,6 +126,10 @@ EXPECTED_TESTS = [
 
 SOURCE_INPUTS = {
     "bounded_process": "artifact/bounded_process.py",
+    "process_identity": "artifact/process_identity.py",
+    "android_emulator_control": "artifact/android_emulator_control.py",
+    "android_runtime_state": "artifact/android_runtime_state.py",
+    "android_runtime_state_tests": "artifact/test_android_runtime_state.py",
     "android_bounded_command": "artifact/android_bounded_command.py",
     "android_bounded_command_tests": "artifact/test_android_bounded_command.py",
     "android_device_smoke_script": "artifact/android-device-smoke.sh",
@@ -113,6 +140,7 @@ SOURCE_INPUTS = {
     "release_binary_scan": "artifact/release_binary_scan.py",
     "third_party_license_collector": "artifact/third_party_licenses.py",
     "deterministic_archive": "artifact/deterministic_archive.py",
+    "platform_release_contract": "artifact/platform_release_contract.py",
     "android_facade": "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
     "android_jni_adapter": "bindings/android/jni/qperiapt_jni.c",
     "c_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
@@ -135,6 +163,7 @@ PROOF_FIELDS = frozenset(
         "package",
         "paths",
         "device",
+        "emulator_control",
         "android",
         "abi",
         "result",
@@ -142,6 +171,33 @@ PROOF_FIELDS = frozenset(
         "source_hashes",
     }
 )
+EMULATOR_CONTROL_FIELDS = frozenset(
+    {
+        "backend",
+        "ports",
+        "process_identity_sha256",
+        "listener_process_identity_sha256",
+        "listener_endpoints",
+        "listener_snapshot_sha256",
+        "registration",
+        "private_adb",
+    }
+)
+EMULATOR_BACKEND_FIELDS = frozenset({"identity", "sha256"})
+EMULATOR_PORT_FIELDS = frozenset({"console", "adb"})
+EMULATOR_REGISTRATION_FIELDS = frozenset({"accepted_response", "response_sha256"})
+PRIVATE_ADB_CONTROL_FIELDS = frozenset(
+    {
+        "identity_sha256",
+        "server_status_sha256",
+        "listener_snapshot_sha256",
+    }
+)
+EMULATOR_REGISTRATION_RESPONSES = frozenset({"connected", "already_registered"})
+EMULATOR_BACKEND_IDENTITY_BY_ABI = {
+    "arm64-v8a": "qemu-system-aarch64-headless",
+    "x86_64": "qemu-system-x86_64-headless",
+}
 PROOF_DEVICE_FIELDS = frozenset(
     {
         "kind",
@@ -309,7 +365,9 @@ def signer_sha256(args: argparse.Namespace) -> None:
         )
         text = snapshot.data.decode("utf-8")
     except (EvidenceIOError, UnicodeDecodeError) as exc:
-        raise SystemExit(f"error: cannot read apksigner certificate output: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot read apksigner certificate output: {exc}"
+        ) from exc
     print(parse_single_signer_sha256(text))
 
 
@@ -334,7 +392,11 @@ def _reject_macos_allow_acl(file_descriptor: int, label: str) -> None:
     acl_get_fd_np.argtypes = [ctypes.c_int, ctypes.c_uint]
     acl_get_fd_np.restype = ctypes.c_void_p
     acl_get_entry = libc.acl_get_entry
-    acl_get_entry.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)]
+    acl_get_entry.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
     acl_get_entry.restype = ctypes.c_int
     acl_get_tag_type = libc.acl_get_tag_type
     acl_get_tag_type.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
@@ -349,7 +411,9 @@ def _reject_macos_allow_acl(file_descriptor: int, label: str) -> None:
         error_number = ctypes.get_errno()
         if error_number == errno.ENOENT:
             return
-        detail = os.strerror(error_number) if error_number else "unknown ACL query error"
+        detail = (
+            os.strerror(error_number) if error_number else "unknown ACL query error"
+        )
         raise SystemExit(f"error: cannot inspect macOS ACL for {label}: {detail}")
 
     allow_entry = False
@@ -363,14 +427,18 @@ def _reject_macos_allow_acl(file_descriptor: int, label: str) -> None:
             error_number = ctypes.get_errno()
             if error_number == errno.EINVAL and selector == acl_next_entry:
                 break
-            detail = os.strerror(error_number) if error_number else "unknown ACL entry error"
+            detail = (
+                os.strerror(error_number) if error_number else "unknown ACL entry error"
+            )
             acl_error = f"cannot enumerate macOS ACL for {label}: {detail}"
             break
         tag_type = ctypes.c_int()
         ctypes.set_errno(0)
         if acl_get_tag_type(entry, ctypes.byref(tag_type)) != 0:
             error_number = ctypes.get_errno()
-            detail = os.strerror(error_number) if error_number else "unknown ACL tag error"
+            detail = (
+                os.strerror(error_number) if error_number else "unknown ACL tag error"
+            )
             acl_error = f"cannot inspect macOS ACL tag for {label}: {detail}"
             break
         if tag_type.value == acl_extended_allow:
@@ -420,7 +488,9 @@ def _open_verified_adb_identity_entry(
     except OSError as exc:
         if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
             kind = "non-symlink directory" if directory else "regular non-symlink file"
-            raise SystemExit(f"error: {label} must be a {kind}: {display_path}") from exc
+            raise SystemExit(
+                f"error: {label} must be a {kind}: {display_path}"
+            ) from exc
         raise SystemExit(
             f"error: existing {label} is required before device proof: {exc}"
         ) from exc
@@ -451,7 +521,9 @@ def _open_verified_adb_identity_entry(
     return descriptor
 
 
-def _validate_adb_key_entries(directory_descriptor: int, directory: pathlib.Path) -> None:
+def _validate_adb_key_entries(
+    directory_descriptor: int, directory: pathlib.Path
+) -> None:
     for leaf, label, forbidden_mode in (
         ("adbkey", "adb private key", 0o077),
         ("adbkey.pub", "adb public key", 0o022),
@@ -659,111 +731,194 @@ def assert_default_adb_server_absent(_: argparse.Namespace) -> None:
 
 
 def parse_lsof_adb_listener(text: str, *, expected_endpoint: str) -> tuple[int, int]:
-    listeners: dict[int, int | None] = {}
-    endpoints: dict[int, set[str]] = {}
-    current_pid: int | None = None
-    for line in text.splitlines():
-        if not line:
-            raise SystemExit("error: empty field in adb listener inspection")
-        prefix, value = line[0], line[1:]
-        if prefix == "p":
-            if not value.isascii() or not value.isdigit() or str(int(value)) != value:
-                raise SystemExit(f"error: malformed adb listener pid: {value!r}")
-            current_pid = int(value)
-            if current_pid <= 1 or current_pid in listeners:
-                raise SystemExit(f"error: duplicate or invalid adb listener pid: {current_pid}")
-            listeners[current_pid] = None
-            endpoints[current_pid] = set()
-        elif prefix == "u":
-            if current_pid is None or not value.isascii() or not value.isdigit():
-                raise SystemExit(f"error: malformed adb listener uid: {value!r}")
-            uid = int(value)
-            if listeners[current_pid] is not None:
-                raise SystemExit(f"error: duplicate uid for adb listener pid {current_pid}")
-            listeners[current_pid] = uid
-        elif prefix == "n":
-            if current_pid is None or not value:
-                raise SystemExit(f"error: malformed adb listener endpoint: {value!r}")
-            endpoints[current_pid].add(value)
-        elif prefix != "f":
-            raise SystemExit(f"error: unexpected adb listener field: {line!r}")
-    if len(listeners) != 1:
-        raise SystemExit(
-            f"error: expected exactly one local adb listener, found {len(listeners)}"
+    lines = text.splitlines()
+    pid_lines = [line[1:] for line in lines if line.startswith("p")]
+    uid_lines = [line[1:] for line in lines if line.startswith("u")]
+    if len(pid_lines) != 1 or len(uid_lines) != 1:
+        raise SystemExit("error: adb listener lacks one exact pid/uid identity")
+    try:
+        pid = int(pid_lines[0])
+        uid = int(uid_lines[0])
+        parse_owned_single_listener(
+            text,
+            expected_pid=pid,
+            expected_uid=uid,
+            expected_endpoint=expected_endpoint,
         )
-    pid, uid = next(iter(listeners.items()))
-    if uid is None:
-        raise SystemExit(f"error: adb listener pid {pid} lacks an owner uid")
-    if endpoints[pid] != {expected_endpoint}:
-        raise SystemExit(f"error: adb listener endpoint differs from {expected_endpoint}")
+    except (ValueError, AndroidEmulatorControlError) as exc:
+        raise SystemExit(f"error: {exc}") from exc
     return pid, uid
 
 
-def _darwin_process_identity(pid: int) -> tuple[int, int, int, pathlib.Path, dict[str, str]]:
-    import ctypes
+def parse_lsof_owned_emulator_listeners(
+    text: str,
+    *,
+    expected_pid: int,
+    console_port: int,
+    adb_port: int,
+) -> int:
+    try:
+        return parse_owned_lsof_listeners(
+            text,
+            expected_pid=expected_pid,
+            expected_uid=os.geteuid(),
+            console_port=console_port,
+            adb_port=adb_port,
+        )
+    except AndroidEmulatorControlError as exc:
+        raise SystemExit(f"error: {exc}") from exc
 
-    class ProcBsdInfo(ctypes.Structure):
-        _fields_ = [
-            ("pbi_flags", ctypes.c_uint32),
-            ("pbi_status", ctypes.c_uint32),
-            ("pbi_xstatus", ctypes.c_uint32),
-            ("pbi_pid", ctypes.c_uint32),
-            ("pbi_ppid", ctypes.c_uint32),
-            ("pbi_uid", ctypes.c_uint32),
-            ("pbi_gid", ctypes.c_uint32),
-            ("pbi_ruid", ctypes.c_uint32),
-            ("pbi_rgid", ctypes.c_uint32),
-            ("pbi_svuid", ctypes.c_uint32),
-            ("pbi_svgid", ctypes.c_uint32),
-            ("rfu_1", ctypes.c_uint32),
-            ("pbi_comm", ctypes.c_char * 16),
-            ("pbi_name", ctypes.c_char * 32),
-            ("pbi_nfiles", ctypes.c_uint32),
-            ("pbi_pgid", ctypes.c_uint32),
-            ("pbi_pjobc", ctypes.c_uint32),
-            ("e_tdev", ctypes.c_uint32),
-            ("e_tpgid", ctypes.c_uint32),
-            ("pbi_nice", ctypes.c_int32),
-            ("pbi_start_tvsec", ctypes.c_uint64),
-            ("pbi_start_tvusec", ctypes.c_uint64),
-        ]
 
-    libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
-    proc_pidinfo = libproc.proc_pidinfo
-    proc_pidinfo.argtypes = [
-        ctypes.c_int,
-        ctypes.c_int,
-        ctypes.c_uint64,
-        ctypes.c_void_p,
-        ctypes.c_int,
-    ]
-    proc_pidinfo.restype = ctypes.c_int
-    info = ProcBsdInfo()
-    ctypes.set_errno(0)
-    result = proc_pidinfo(pid, 3, 0, ctypes.byref(info), ctypes.sizeof(info))
-    if result != ctypes.sizeof(info) or info.pbi_pid != pid:
-        error_number = ctypes.get_errno()
-        detail = os.strerror(error_number) if error_number else "short process metadata"
-        raise SystemExit(f"error: cannot inspect adb listener process {pid}: {detail}")
+def verify_owned_emulator_listeners(args: argparse.Namespace) -> None:
+    try:
+        snapshot = read_regular_snapshot(
+            args.lsof_output,
+            maximum=MAX_ADB_LISTENER_OUTPUT_BYTES,
+            label="owned emulator listener inspection",
+        )
+        text = snapshot.data.decode("utf-8")
+    except (EvidenceIOError, UnicodeDecodeError) as exc:
+        raise SystemExit(
+            f"error: cannot read owned emulator listener inspection: {exc}"
+        ) from exc
+    parse_lsof_owned_emulator_listeners(
+        text,
+        expected_pid=args.expected_pid,
+        console_port=args.console_port,
+        adb_port=args.adb_port,
+    )
+    print("ANDROID_OWNED_EMULATOR_LISTENERS_PASS")
 
-    proc_pidpath = libproc.proc_pidpath
-    proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
-    proc_pidpath.restype = ctypes.c_int
-    path_buffer = ctypes.create_string_buffer(4096)
-    ctypes.set_errno(0)
-    path_length = proc_pidpath(pid, path_buffer, len(path_buffer))
-    if path_length <= 0:
-        error_number = ctypes.get_errno()
-        detail = os.strerror(error_number) if error_number else "empty process path"
-        raise SystemExit(f"error: cannot inspect adb listener executable: {detail}")
-    executable = pathlib.Path(os.fsdecode(path_buffer.value)).resolve(strict=True)
-    environment = _darwin_process_environment(pid)
+
+def _owned_process_snapshot(pid: int) -> tuple[pathlib.Path, str]:
+    require(type(pid) is int and pid > 1, "owned process pid is invalid")
+    try:
+        identity = process_snapshot(pid)
+    except ProcessIdentityError as exc:
+        raise SystemExit(f"error: cannot inspect owned process {pid}: {exc}") from exc
+    require(
+        identity.uid == os.geteuid(),
+        "owned process uid differs from the current account",
+    )
+    return identity.executable, identity.token
+
+
+def _expected_owned_executable(path: pathlib.Path, label: str) -> pathlib.Path:
+    require(not path.is_symlink(), f"{label} must not be a symlink")
+    return require_executable_file(path, label)
+
+
+def verify_owned_process(args: argparse.Namespace) -> None:
+    executable, identity = _owned_process_snapshot(args.expected_pid)
+    expected_executable = _expected_owned_executable(
+        args.expected_executable, "expected owned executable"
+    )
+    require(executable == expected_executable, "owned process executable differs")
+    executable_metadata = expected_executable.lstat()
+    require(
+        executable_metadata.st_dev == args.expected_executable_device
+        and executable_metadata.st_ino == args.expected_executable_inode,
+        "owned process executable file identity changed",
+    )
+    if args.expected_identity is not None:
+        require(identity == args.expected_identity, "owned process identity changed")
+    print(identity)
+
+
+def emulator_backend_path(
+    launcher_path: pathlib.Path,
+    device_abi: str,
+) -> pathlib.Path:
+    """Derive the one headless QEMU backend selected by the fixed launcher."""
+
+    try:
+        return fixed_headless_backend_path(
+            launcher_path,
+            device_abi,
+            host_platform=sys.platform,
+            host_machine=platform.machine(),
+        )
+    except AndroidEmulatorControlError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+
+
+def resolve_emulator_backend(args: argparse.Namespace) -> None:
+    print(emulator_backend_path(args.emulator, args.device_abi))
+
+
+def wait_owned_process_exec(args: argparse.Namespace) -> None:
+    initial = _expected_owned_executable(
+        args.initial_executable, "owned emulator initial executable"
+    )
+    launcher = _expected_owned_executable(args.launcher, "Android emulator launcher")
+    backend = emulator_backend_path(args.launcher, args.device_abi)
+    stages = (initial, launcher, backend)
+    require(
+        len(set(stages)) == len(stages),
+        "owned emulator initial executable, launcher, and backend must differ",
+    )
+    require(
+        type(args.timeout_seconds) is int and 1 <= args.timeout_seconds <= 30,
+        "owned process exec timeout is invalid",
+    )
+    deadline = time.monotonic() + args.timeout_seconds
+    expected_identity: str | None = None
+    observed_stage = -1
+    while True:
+        now = time.monotonic()
+        require(
+            now < deadline,
+            "Android emulator launcher did not become its fixed headless backend",
+        )
+        executable, identity = _owned_process_snapshot(args.expected_pid)
+        if expected_identity is None:
+            expected_identity = identity
+        require(
+            identity == expected_identity, "owned process identity changed during exec"
+        )
+        try:
+            current_stage = stages.index(executable)
+        except ValueError as exc:
+            raise SystemExit(
+                "error: owned process executable differs during launcher transition"
+            ) from exc
+        require(
+            current_stage >= observed_stage,
+            "owned process executable regressed during launcher transition",
+        )
+        observed_stage = current_stage
+        if current_stage == len(stages) - 1:
+            require(
+                time.monotonic() <= deadline,
+                "Android emulator launcher did not become its fixed headless backend",
+            )
+            print(identity)
+            return
+        remaining = deadline - time.monotonic()
+        require(
+            remaining > 0,
+            "Android emulator launcher did not become its fixed headless backend",
+        )
+        time.sleep(min(0.05, remaining))
+
+
+def _read_process_core_identity(pid: int, label: str) -> ProcessIdentity:
+    try:
+        return process_snapshot(pid)
+    except ProcessIdentityError as exc:
+        raise SystemExit(f"error: cannot inspect {label} process {pid}: {exc}") from exc
+
+
+def _darwin_process_identity(
+    pid: int,
+) -> tuple[int, int, int, pathlib.Path, dict[str, str]]:
+    identity = _read_process_core_identity(pid, "adb listener")
     return (
-        info.pbi_uid,
-        info.pbi_start_tvsec,
-        info.pbi_start_tvusec,
-        executable,
-        environment,
+        identity.uid,
+        identity.started_at,
+        identity.started_subsecond,
+        identity.executable,
+        _darwin_process_environment(pid),
     )
 
 
@@ -786,10 +941,16 @@ def _darwin_process_environment(pid: int) -> dict[str, str]:
     ctypes.set_errno(0)
     if sysctl(mib, 3, None, ctypes.byref(size), None, 0) != 0 or size.value < 8:
         error_number = ctypes.get_errno()
-        detail = os.strerror(error_number) if error_number else "invalid process arguments size"
+        detail = (
+            os.strerror(error_number)
+            if error_number
+            else "invalid process arguments size"
+        )
         raise SystemExit(f"error: cannot size adb server environment: {detail}")
     if size.value > 16 * 1024 * 1024:
-        raise SystemExit("error: adb server environment exceeds the fixed inspection bound")
+        raise SystemExit(
+            "error: adb server environment exceeds the fixed inspection bound"
+        )
     buffer = ctypes.create_string_buffer(size.value)
     ctypes.set_errno(0)
     if sysctl(mib, 3, buffer, ctypes.byref(size), None, 0) != 0:
@@ -799,11 +960,15 @@ def _darwin_process_environment(pid: int) -> dict[str, str]:
     data = bytes(buffer.raw[: size.value])
     argc = int.from_bytes(data[:4], sys.byteorder, signed=True)
     if argc < 1 or argc > 4096:
-        raise SystemExit(f"error: adb server argc is outside the inspection bound: {argc}")
+        raise SystemExit(
+            f"error: adb server argc is outside the inspection bound: {argc}"
+        )
     offset = 4
     executable_end = data.find(b"\0", offset)
     if executable_end < 0:
-        raise SystemExit("error: adb server process arguments lack an executable terminator")
+        raise SystemExit(
+            "error: adb server process arguments lack an executable terminator"
+        )
     offset = executable_end + 1
     while offset < len(data) and data[offset] == 0:
         offset += 1
@@ -834,17 +999,17 @@ def _darwin_process_environment(pid: int) -> dict[str, str]:
     return environment
 
 
-def _linux_process_identity(pid: int) -> tuple[int, int, int, pathlib.Path, dict[str, str]]:
+def _linux_process_identity(
+    pid: int,
+) -> tuple[int, int, int, pathlib.Path, dict[str, str]]:
     process_root = pathlib.Path("/proc") / str(pid)
+    identity = _read_process_core_identity(pid, "adb listener")
     try:
-        metadata = process_root.stat()
-        executable = (process_root / "exe").resolve(strict=True)
-        stat_fields = (process_root / "stat").read_text(encoding="utf-8").split()
         environment_bytes = (process_root / "environ").read_bytes()
     except OSError as exc:
-        raise SystemExit(f"error: cannot inspect adb listener process {pid}: {exc}") from exc
-    if len(stat_fields) < 22 or not stat_fields[21].isdigit():
-        raise SystemExit("error: malformed Linux adb listener start identity")
+        raise SystemExit(
+            f"error: cannot inspect adb listener process {pid}: {exc}"
+        ) from exc
     environment: dict[str, str] = {}
     for raw_entry in environment_bytes.split(b"\0"):
         if not raw_entry:
@@ -856,7 +1021,13 @@ def _linux_process_identity(pid: int) -> tuple[int, int, int, pathlib.Path, dict
         if not name or name in environment:
             raise SystemExit("error: duplicate or empty adb server environment name")
         environment[name] = value
-    return metadata.st_uid, int(stat_fields[21]), 0, executable, environment
+    return (
+        identity.uid,
+        identity.started_at,
+        identity.started_subsecond,
+        identity.executable,
+        environment,
+    )
 
 
 def verify_adb_listener(args: argparse.Namespace) -> None:
@@ -880,7 +1051,9 @@ def verify_adb_listener(args: argparse.Namespace) -> None:
             _linux_process_identity(pid)
         )
     else:
-        raise SystemExit(f"error: adb listener verification is unsupported on {sys.platform}")
+        raise SystemExit(
+            f"error: adb listener verification is unsupported on {sys.platform}"
+        )
     if args.expected_pid is not None and pid != args.expected_pid:
         raise SystemExit(
             f"error: adb listener pid differs from the owned server: {pid}"
@@ -922,7 +1095,9 @@ def verify_adb_listener(args: argparse.Namespace) -> None:
         )
     else:
         if args.expected_pid is None:
-            raise SystemExit("error: private adb listener verification requires its owned pid")
+            raise SystemExit(
+                "error: private adb listener verification requires its owned pid"
+            )
         expected_socket = f"localfilesystem:{args.expected_endpoint}"
         if args.expected_server_socket != expected_socket:
             raise SystemExit(
@@ -940,7 +1115,7 @@ def verify_adb_listener(args: argparse.Namespace) -> None:
             expected_environment["ADB_EMU"] = "0"
         elif args.expected_transport_kind == "emulator":
             expected_environment["ADB_USB"] = "0"
-            expected_environment["ADB_EMU"] = "1"
+            expected_environment["ADB_EMU"] = "0"
         else:
             raise SystemExit("error: invalid private adb transport kind")
     identity = validate_adb_listener_identity(
@@ -968,35 +1143,50 @@ def publish_staged_proof(args: argparse.Namespace) -> None:
     except OSError as exc:
         raise SystemExit(f"error: cannot inspect staged Android proof: {exc}") from exc
     if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
-        raise SystemExit(f"error: staged Android proof is not a regular file: {staging}")
+        raise SystemExit(
+            f"error: staged Android proof is not a regular file: {staging}"
+        )
     if metadata.st_uid != os.geteuid() or stat.S_IMODE(metadata.st_mode) != 0o600:
-        raise SystemExit(f"error: staged Android proof ownership or mode changed: {staging}")
+        raise SystemExit(
+            f"error: staged Android proof ownership or mode changed: {staging}"
+        )
     if metadata.st_nlink != 1:
-        raise SystemExit(f"error: staged Android proof has unexpected hard links: {staging}")
+        raise SystemExit(
+            f"error: staged Android proof has unexpected hard links: {staging}"
+        )
     try:
         destination.lstat()
     except FileNotFoundError:
         pass
     except OSError as exc:
-        raise SystemExit(f"error: cannot inspect Android proof destination: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot inspect Android proof destination: {exc}"
+        ) from exc
     else:
-        raise SystemExit(f"error: Android proof destination already exists: {destination}")
+        raise SystemExit(
+            f"error: Android proof destination already exists: {destination}"
+        )
     try:
         os.link(staging, destination, follow_symlinks=False)
     except OSError as exc:
-        raise SystemExit(f"error: cannot atomically publish Android proof: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot atomically publish Android proof: {exc}"
+        ) from exc
     try:
         staging.unlink()
     except OSError as exc:
-        raise SystemExit(f"error: cannot remove staged Android proof after publication: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot remove staged Android proof after publication: {exc}"
+        ) from exc
     print("ANDROID_DEVICE_PROOF_PUBLISH_PASS")
 
 
 def verify_private_adb_socket(args: argparse.Namespace) -> None:
     directory = args.directory
-    if directory.parent != pathlib.Path("/tmp") or re.fullmatch(
-        r"qperiapt-adb\.[A-Za-z0-9]{8}", directory.name
-    ) is None:
+    if (
+        directory.parent != pathlib.Path("/tmp")
+        or re.fullmatch(r"qperiapt-adb\.[A-Za-z0-9]{8}", directory.name) is None
+    ):
         raise SystemExit(
             "error: private adb server directory must be one fixed-shape child of /tmp"
         )
@@ -1017,12 +1207,18 @@ def verify_private_adb_socket(args: argparse.Namespace) -> None:
                 f"error: private adb server directory must have mode 0700: {directory}"
             )
         try:
-            socket_metadata = os.stat("adb.sock", dir_fd=descriptor, follow_symlinks=False)
+            socket_metadata = os.stat(
+                "adb.sock", dir_fd=descriptor, follow_symlinks=False
+            )
         except FileNotFoundError:
             if args.state != "absent":
-                raise SystemExit(f"error: private adb server socket is missing: {socket_path}")
+                raise SystemExit(
+                    f"error: private adb server socket is missing: {socket_path}"
+                )
         except OSError as exc:
-            raise SystemExit(f"error: cannot inspect private adb server socket: {exc}") from exc
+            raise SystemExit(
+                f"error: cannot inspect private adb server socket: {exc}"
+            ) from exc
         else:
             if args.state != "present":
                 raise SystemExit(
@@ -1065,11 +1261,13 @@ def validate_adb_listener_identity(
         raise SystemExit(
             "error: adb listener uid is not the current user: "
             f"lsof={reported_uid}, process={process_uid}"
-    )
+        )
     try:
         expected_executable = selected_adb.resolve(strict=True)
     except OSError as exc:
-        raise SystemExit(f"error: cannot resolve selected adb executable: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot resolve selected adb executable: {exc}"
+        ) from exc
     if executable != expected_executable:
         raise SystemExit(
             f"error: adb listener executable differs from selected adb: {executable}"
@@ -1086,7 +1284,9 @@ def validate_adb_listener_identity(
                 f"error: adb listener environment differs for required variable {name}"
             )
     if environment.get("HOME") != str(account_home):
-        raise SystemExit("error: adb listener HOME differs from the current account home")
+        raise SystemExit(
+            "error: adb listener HOME differs from the current account home"
+        )
     identity = f"{pid}:{process_uid}:{started_at}:{started_subsecond}"
     if expected_identity is not None and expected_identity != identity:
         raise SystemExit(
@@ -1098,6 +1298,14 @@ def validate_adb_listener_identity(
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def require_sha256(value: object, label: str) -> str:
+    require(
+        isinstance(value, str) and SHA256_RE.fullmatch(value) is not None,
+        f"{label} lacks a valid SHA-256",
+    )
+    return value
 
 
 def sha256_file(path: pathlib.Path) -> str:
@@ -1140,6 +1348,7 @@ def verify_proof_schema(proof: dict[str, Any]) -> None:
     exact_object(proof, PROOF_FIELDS, "Android proof")
     exact_object(proof.get("paths"), set(PROOF_PATH_KEYS), "Android proof path")
     exact_object(proof.get("device"), PROOF_DEVICE_FIELDS, "Android proof device")
+    verify_emulator_control(proof)
     exact_object(proof.get("android"), PROOF_ANDROID_FIELDS, "Android proof toolchain")
     exact_object(proof.get("abi"), PROOF_ABI_FIELDS, "Android proof ABI")
     exact_object(proof.get("result"), PROOF_RESULT_FIELDS, "Android proof result")
@@ -1162,13 +1371,340 @@ def verify_proof_schema(proof: dict[str, Any]) -> None:
     )
 
 
+def emulator_registration_response_bytes(
+    accepted_response: str,
+    *,
+    console_port: int,
+    adb_port: int,
+) -> bytes:
+    """Return the one accepted ADB registration response for a port pair."""
+
+    require(
+        isinstance(accepted_response, str)
+        and accepted_response in EMULATOR_REGISTRATION_RESPONSES,
+        "Android emulator registration response is unsupported",
+    )
+    require(
+        type(console_port) is int
+        and 5554 <= console_port <= 5584
+        and console_port % 2 == 0
+        and type(adb_port) is int
+        and adb_port == console_port + 1,
+        "Android emulator registration ports are invalid",
+    )
+    if accepted_response == "connected":
+        text = f"Connected to emulator on ports {console_port},{adb_port}\n"
+    else:
+        text = f"Emulator already registered on port {adb_port}\n"
+    return text.encode("ascii")
+
+
+def classify_emulator_registration_response(
+    response: bytes,
+    *,
+    console_port: int,
+    adb_port: int,
+) -> str:
+    """Classify one exact response without retaining its raw text in the proof."""
+
+    require(
+        isinstance(response, bytes),
+        "Android emulator registration response is not bytes",
+    )
+    for accepted_response in sorted(EMULATOR_REGISTRATION_RESPONSES):
+        if response == emulator_registration_response_bytes(
+            accepted_response,
+            console_port=console_port,
+            adb_port=adb_port,
+        ):
+            return accepted_response
+    raise SystemExit(
+        "error: emulator registration response is not an accepted exact value"
+    )
+
+
+def parse_process_identity(value: str, label: str) -> tuple[int, int, int, int]:
+    """Parse the canonical PID/UID/start tuple emitted by the live verifier."""
+
+    try:
+        parsed = parse_process_identity_token(value)
+    except ProcessIdentityError as exc:
+        raise SystemExit(f"error: {label} is invalid: {exc}") from exc
+    return (
+        parsed.pid,
+        parsed.uid,
+        parsed.started_at,
+        parsed.started_subsecond,
+    )
+
+
+def process_identity_sha256(value: str, label: str) -> str:
+    """Hash the canonical PID/UID/start tuple for raw-value-omitting correlation."""
+
+    parse_process_identity(value, label)
+    return sha256_bytes(value.encode("ascii"))
+
+
+def build_emulator_control_receipt(
+    *,
+    backend_path: pathlib.Path,
+    backend_device: int,
+    backend_inode: int,
+    backend_sha256: str,
+    device_abi: str,
+    console_port: int,
+    process_identity: str,
+    listener_snapshot_path: pathlib.Path,
+    registration_response_path: pathlib.Path,
+    private_adb_identity: str,
+    private_adb_status_path: pathlib.Path,
+    private_adb_listener_path: pathlib.Path,
+) -> dict[str, Any]:
+    """Build a raw-value-omitting receipt from verified live control files."""
+
+    expected_backend_identity = EMULATOR_BACKEND_IDENTITY_BY_ABI.get(device_abi)
+    require(
+        expected_backend_identity is not None,
+        "script-owned Android emulator ABI is unsupported",
+    )
+    backend = _expected_owned_executable(
+        backend_path, "Android emulator control receipt backend"
+    )
+    require(
+        backend.name == expected_backend_identity,
+        "Android emulator backend identity differs from its device ABI",
+    )
+    backend_metadata = backend.lstat()
+    require(
+        type(backend_device) is int
+        and type(backend_inode) is int
+        and backend_device >= 0
+        and backend_inode > 0
+        and (backend_metadata.st_dev, backend_metadata.st_ino)
+        == (backend_device, backend_inode),
+        "Android emulator backend file identity changed before proof creation",
+    )
+    require_sha256(backend_sha256, "Android emulator backend pre-exec identity")
+    require(
+        sha256_file(backend) == backend_sha256,
+        "Android emulator backend bytes changed before proof creation",
+    )
+    adb_port = console_port + 1
+    # The registration formatter is also the canonical port-pair validator.
+    emulator_registration_response_bytes(
+        "connected", console_port=console_port, adb_port=adb_port
+    )
+    try:
+        listener_snapshot = read_regular_snapshot(
+            listener_snapshot_path,
+            maximum=MAX_ADB_LISTENER_OUTPUT_BYTES,
+            label="owned emulator listener snapshot",
+        )
+        registration_snapshot = read_regular_snapshot(
+            registration_response_path,
+            maximum=512,
+            label="accepted emulator registration response",
+        )
+        private_adb_status_snapshot = read_regular_snapshot(
+            private_adb_status_path,
+            maximum=MAX_ADB_SERVER_STATUS_BYTES,
+            label="registered private adb server status",
+        )
+        private_adb_listener_snapshot = read_regular_snapshot(
+            private_adb_listener_path,
+            maximum=MAX_ADB_LISTENER_OUTPUT_BYTES,
+            label="registered private adb listener snapshot",
+        )
+    except EvidenceIOError as exc:
+        raise SystemExit(
+            f"error: cannot read Android emulator control evidence: {exc}"
+        ) from exc
+    accepted_response = classify_emulator_registration_response(
+        registration_snapshot.data,
+        console_port=console_port,
+        adb_port=adb_port,
+    )
+    emulator_pid, emulator_uid, _started_at, _started_subsecond = (
+        parse_process_identity(process_identity, "emulator process identity")
+    )
+    try:
+        listener_text = listener_snapshot.data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SystemExit(
+            f"error: owned emulator listener snapshot is not UTF-8: {exc}"
+        ) from exc
+    listener_uid = parse_lsof_owned_emulator_listeners(
+        listener_text,
+        expected_pid=emulator_pid,
+        console_port=console_port,
+        adb_port=adb_port,
+    )
+    require(
+        listener_uid == emulator_uid,
+        "owned emulator listener uid differs from its process identity",
+    )
+    try:
+        private_status_text = private_adb_status_snapshot.data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SystemExit(
+            f"error: registered private adb server status is not UTF-8: {exc}"
+        ) from exc
+    parse_adb_server_status(private_status_text)
+    emulator_identity_digest = process_identity_sha256(
+        process_identity, "emulator process identity"
+    )
+    return {
+        "backend": {
+            "identity": backend.name,
+            "sha256": backend_sha256,
+        },
+        "ports": {"console": console_port, "adb": adb_port},
+        "process_identity_sha256": emulator_identity_digest,
+        "listener_process_identity_sha256": emulator_identity_digest,
+        "listener_endpoints": [
+            f"127.0.0.1:{console_port}",
+            f"127.0.0.1:{adb_port}",
+        ],
+        "listener_snapshot_sha256": listener_snapshot.sha256,
+        "registration": {
+            "accepted_response": accepted_response,
+            "response_sha256": registration_snapshot.sha256,
+        },
+        "private_adb": {
+            "identity_sha256": process_identity_sha256(
+                private_adb_identity, "private adb process identity"
+            ),
+            "server_status_sha256": private_adb_status_snapshot.sha256,
+            "listener_snapshot_sha256": private_adb_listener_snapshot.sha256,
+        },
+    }
+
+
+def verify_emulator_control(
+    proof: dict[str, Any], *, require_release_mode: bool = False
+) -> None:
+    """Validate the raw-value-omitting emulator control-plane commitment."""
+
+    device = proof.get("device")
+    require(isinstance(device, dict), "proof lacks Android device metadata")
+    device_kind = device.get("kind")
+    control = proof.get("emulator_control")
+    if device_kind == "physical":
+        require(
+            control is None,
+            "physical Android proof must set emulator_control to null",
+        )
+        return
+    require(device_kind == "emulator", "unsupported Android device kind")
+    control = exact_object(control, EMULATOR_CONTROL_FIELDS, "Android emulator control")
+    backend = exact_object(
+        control.get("backend"),
+        EMULATOR_BACKEND_FIELDS,
+        "Android emulator backend control",
+    )
+    expected_backend_identity = EMULATOR_BACKEND_IDENTITY_BY_ABI.get(device.get("abi"))
+    require(
+        expected_backend_identity is not None,
+        "script-owned Android emulator ABI is unsupported",
+    )
+    require(
+        backend.get("identity") == expected_backend_identity,
+        "Android emulator backend identity differs from its device ABI",
+    )
+    require_sha256(backend.get("sha256"), "Android emulator backend")
+
+    ports = exact_object(
+        control.get("ports"), EMULATOR_PORT_FIELDS, "Android emulator port control"
+    )
+    console_port = ports.get("console")
+    adb_port = ports.get("adb")
+    require(
+        type(console_port) is int
+        and 5554 <= console_port <= 5584
+        and console_port % 2 == 0
+        and type(adb_port) is int
+        and adb_port == console_port + 1,
+        "Android emulator control ports are invalid",
+    )
+    if require_release_mode:
+        require(
+            (console_port, adb_port) == (5584, 5585),
+            "Android release proof must bind emulator ports 5584/5585",
+        )
+    process_identity_sha256 = control.get("process_identity_sha256")
+    listener_process_identity_sha256 = control.get("listener_process_identity_sha256")
+    require_sha256(
+        process_identity_sha256,
+        "Android emulator process identity",
+    )
+    require_sha256(
+        listener_process_identity_sha256,
+        "Android emulator listener process identity",
+    )
+    require(
+        listener_process_identity_sha256 == process_identity_sha256,
+        "Android emulator listener process identity differs from the owned backend",
+    )
+    require(
+        control.get("listener_endpoints")
+        == [f"127.0.0.1:{console_port}", f"127.0.0.1:{adb_port}"],
+        "Android emulator listener endpoints differ from its fixed ports",
+    )
+    require_sha256(
+        control.get("listener_snapshot_sha256"),
+        "Android emulator listener snapshot",
+    )
+
+    registration = exact_object(
+        control.get("registration"),
+        EMULATOR_REGISTRATION_FIELDS,
+        "Android emulator registration control",
+    )
+    accepted_response = registration.get("accepted_response")
+    require(
+        isinstance(accepted_response, str),
+        "Android emulator registration response is missing",
+    )
+    expected_response_digest = sha256_bytes(
+        emulator_registration_response_bytes(
+            accepted_response,
+            console_port=console_port,
+            adb_port=adb_port,
+        )
+    )
+    require(
+        registration.get("response_sha256") == expected_response_digest,
+        "Android emulator registration response digest differs",
+    )
+
+    private_adb = exact_object(
+        control.get("private_adb"),
+        PRIVATE_ADB_CONTROL_FIELDS,
+        "Android private adb control",
+    )
+    require_sha256(
+        private_adb.get("identity_sha256"),
+        "registered private adb process identity",
+    )
+    require_sha256(
+        private_adb.get("server_status_sha256"),
+        "registered private adb server status",
+    )
+    require_sha256(
+        private_adb.get("listener_snapshot_sha256"),
+        "registered private adb listener snapshot",
+    )
+
+
 def current_source_tree_digest(root: pathlib.Path) -> str:
     """Return the exact canonical digest used by the claim-ledger gate."""
 
     try:
         return canonical_tree_digest(root, repository_paths(root))
     except (LedgerError, OSError, UnicodeDecodeError) as exc:
-        raise SystemExit(f"error: cannot compute canonical source-input digest: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot compute canonical source-input digest: {exc}"
+        ) from exc
 
 
 def verify_source_tree_digest(root: pathlib.Path, proof: dict[str, Any]) -> None:
@@ -1184,10 +1720,13 @@ def verify_source_tree_digest(root: pathlib.Path, proof: dict[str, Any]) -> None
     )
 
 
-def verify_git_provenance(root: pathlib.Path, proof: dict[str, Any], allow_dirty_proof: bool) -> None:
+def verify_git_provenance(
+    root: pathlib.Path, proof: dict[str, Any], allow_dirty_proof: bool
+) -> None:
     proof_commit = proof.get("git_commit")
     require(
-        isinstance(proof_commit, str) and re.fullmatch(r"[0-9a-f]{40,64}", proof_commit) is not None,
+        isinstance(proof_commit, str)
+        and re.fullmatch(r"[0-9a-f]{40,64}", proof_commit) is not None,
         "Android proof lacks a valid git_commit",
     )
     try:
@@ -1197,8 +1736,13 @@ def verify_git_provenance(root: pathlib.Path, proof: dict[str, Any], allow_dirty
     proof_dirty = proof.get("source_tree_dirty")
     require(isinstance(proof_dirty, bool), "Android proof lacks source_tree_dirty")
     if not allow_dirty_proof:
-        require(proof_dirty is False, "Android proof was generated from a dirty source tree")
-        require(not source_tree_dirty(root), "Android proof cannot be release-verified while the current source tree is dirty")
+        require(
+            proof_dirty is False, "Android proof was generated from a dirty source tree"
+        )
+        require(
+            not source_tree_dirty(root),
+            "Android proof cannot be release-verified while the current source tree is dirty",
+        )
 
 
 def target_path(root: pathlib.Path, rel: str, label: str) -> pathlib.Path:
@@ -1232,6 +1776,85 @@ def proof_paths(root: pathlib.Path, proof: dict[str, Any]) -> dict[str, pathlib.
         name: target_path(root, relative, name)
         for name, relative in proof_path_fields(proof).items()
     }
+
+
+def validate_selected_run_layout(
+    root: pathlib.Path,
+    proof_path: pathlib.Path,
+    proof: dict[str, Any],
+    paths: dict[str, pathlib.Path],
+    *,
+    require_unique_run: bool,
+) -> None:
+    runs_root = (root / "target" / ANDROID_RUNS_ROOT_LEAF).resolve()
+    selected = proof_path.resolve()
+    try:
+        relative = selected.relative_to(runs_root)
+    except ValueError:
+        require(
+            not require_unique_run,
+            "release Android proof must use one immutable selected run directory",
+        )
+        return
+    require(
+        len(relative.parts) == 3
+        and RUN_ID_RE.fullmatch(relative.parts[0]) is not None
+        and relative.parts[1:] == ("proof", ANDROID_PROOF_LEAF),
+        "selected Android proof path does not match the immutable run layout",
+    )
+    run_id = relative.parts[0]
+    require(
+        proof.get("run_id") == run_id,
+        "selected Android proof run id differs from its run directory",
+    )
+    proof_root = runs_root / run_id / "proof"
+    for directory, label in (
+        (runs_root, "Android runs"),
+        (runs_root / run_id, "selected Android run"),
+        (proof_root, "selected Android proof"),
+    ):
+        canonical_private_directory(directory, label)
+    try:
+        proof_metadata = selected.lstat()
+    except OSError as exc:
+        raise SystemExit(
+            f"error: cannot inspect selected Android proof: {exc}"
+        ) from exc
+    require(
+        stat.S_ISREG(proof_metadata.st_mode)
+        and not stat.S_ISLNK(proof_metadata.st_mode)
+        and proof_metadata.st_uid == os.geteuid()
+        and proof_metadata.st_nlink == 1
+        and stat.S_IMODE(proof_metadata.st_mode) == 0o600,
+        "selected Android proof must be one current-user-owned mode-0600 regular file",
+    )
+    fixed_runtime_paths = {
+        "smoke_apk": proof_root / "qperiapt-android-smoke.apk",
+        "apksigner_verify": proof_root / "apksigner-verify.txt",
+        "zipalign_verify": proof_root / "zipalign-verify.txt",
+        "result_txt": proof_root / "qperiapt-android-device-result.txt",
+        "result_json": proof_root / "qperiapt-android-device-result.json",
+        "logcat": proof_root / "logcat.txt",
+    }
+    for name, expected in fixed_runtime_paths.items():
+        require(
+            paths.get(name) == expected,
+            f"selected Android {name} crosses or differs from its run directory",
+        )
+        try:
+            metadata = expected.lstat()
+        except OSError as exc:
+            raise SystemExit(
+                f"error: cannot inspect selected Android {name}: {exc}"
+            ) from exc
+        require(
+            stat.S_ISREG(metadata.st_mode)
+            and not stat.S_ISLNK(metadata.st_mode)
+            and metadata.st_uid == os.geteuid()
+            and metadata.st_nlink == 1
+            and stat.S_IMODE(metadata.st_mode) == 0o600,
+            f"selected Android {name} must be one current-user-owned mode-0600 regular file",
+        )
 
 
 def expected_marker(run_id: str) -> str:
@@ -1273,7 +1896,10 @@ def verify_proof_freshness(
     )
     age_seconds = (now.astimezone(dt.timezone.utc) - generated_at).total_seconds()
     require(age_seconds >= 0, "Android proof generated_at is in the future")
-    require(age_seconds <= max_age_seconds, f"Android proof is stale: {int(age_seconds)}s old")
+    require(
+        age_seconds <= max_age_seconds,
+        f"Android proof is stale: {int(age_seconds)}s old",
+    )
 
 
 def validate_max_age_seconds(raw_value: str) -> int:
@@ -1304,21 +1930,35 @@ def verify_source_hashes(root: pathlib.Path, proof: dict[str, Any]) -> None:
     )
     for name, rel in SOURCE_INPUTS.items():
         got = sha256_file(root / rel)
-        require(expected.get(name + "_sha256") == got, f"source input changed since Android proof: {name}")
+        require(
+            expected.get(name + "_sha256") == got,
+            f"source input changed since Android proof: {name}",
+        )
 
 
 def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
     marker = expected_marker(run_id)
     marker_text = read_text(paths["result_txt"])
-    require(marker_text == marker + "\n", f"Android result marker mismatch in {paths['result_txt']}")
+    require(
+        marker_text == marker + "\n",
+        f"Android result marker mismatch in {paths['result_txt']}",
+    )
 
     result = load_json(paths["result_json"])
     exact_object(result, RESULT_FIELDS, "Android result")
-    require(result.get("schema") == RESULT_SCHEMA_VERSION, "Android result schema mismatch")
+    require(
+        result.get("schema") == RESULT_SCHEMA_VERSION, "Android result schema mismatch"
+    )
     require(result.get("status") == "pass", "Android result status is not pass")
     require(result.get("run_id") == run_id, "Android result run_id mismatch")
-    require(result.get("test_count") == len(EXPECTED_TESTS), "Android result test_count mismatch")
-    require(result.get("passed_tests") == EXPECTED_TESTS, "Android result passed_tests mismatch")
+    require(
+        result.get("test_count") == len(EXPECTED_TESTS),
+        "Android result test_count mismatch",
+    )
+    require(
+        result.get("passed_tests") == EXPECTED_TESTS,
+        "Android result passed_tests mismatch",
+    )
 
     logcat = read_text(paths["logcat"])
     expected_log_marker = marker
@@ -1343,10 +1983,15 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
         "Android logcat must contain exactly one run-bound PASS marker",
     )
     for pattern in LOG_FATAL_PATTERNS:
-        require(pattern not in logcat, f"Android logcat contains runtime failure marker: {pattern}")
+        require(
+            pattern not in logcat,
+            f"Android logcat contains runtime failure marker: {pattern}",
+        )
 
 
-def verify_artifact_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) -> None:
+def verify_artifact_hashes(
+    paths: dict[str, pathlib.Path], proof: dict[str, Any]
+) -> None:
     artifacts = exact_object(
         proof.get("artifacts"), PROOF_ARTIFACT_FIELDS, "Android proof artifact"
     )
@@ -1359,16 +2004,30 @@ def verify_artifact_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]
         "logcat_sha256": paths["logcat"],
     }
     for key, path in expected_hashes.items():
-        require(artifacts.get(key) == sha256_file(path), f"hash mismatch for {key}: {path}")
+        require(
+            artifacts.get(key) == sha256_file(path), f"hash mismatch for {key}: {path}"
+        )
 
     result = exact_object(
         proof.get("result"), PROOF_RESULT_FIELDS, "Android proof result"
     )
-    require(result.get("marker_sha256") == sha256_file(paths["result_txt"]), "result marker hash mismatch")
-    require(result.get("json_sha256") == sha256_file(paths["result_json"]), "result JSON hash mismatch")
+    require(
+        result.get("marker_sha256") == sha256_file(paths["result_txt"]),
+        "result marker hash mismatch",
+    )
+    require(
+        result.get("json_sha256") == sha256_file(paths["result_json"]),
+        "result JSON hash mismatch",
+    )
     require(result.get("status") == "pass", "proof result status is not pass")
-    require(result.get("test_count") == len(EXPECTED_TESTS), "proof result test_count mismatch")
-    require(result.get("passed_tests") == EXPECTED_TESTS, "proof result passed_tests mismatch")
+    require(
+        result.get("test_count") == len(EXPECTED_TESTS),
+        "proof result test_count mismatch",
+    )
+    require(
+        result.get("passed_tests") == EXPECTED_TESTS,
+        "proof result passed_tests mismatch",
+    )
 
 
 def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) -> None:
@@ -1390,8 +2049,12 @@ def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) 
         )
         ffi = sha256_bytes(aar_entries[f"jni/{abi}/libq_periapt_ffi_abi2.so"])
         jni = sha256_bytes(aar_entries[f"jni/{abi}/libqperiapt_jni_abi2.so"])
-        require(expected.get("ffi_so_sha256") == ffi, f"AAR ffi hash mismatch for {abi}")
-        require(expected.get("jni_so_sha256") == jni, f"AAR JNI hash mismatch for {abi}")
+        require(
+            expected.get("ffi_so_sha256") == ffi, f"AAR ffi hash mismatch for {abi}"
+        )
+        require(
+            expected.get("jni_so_sha256") == jni, f"AAR JNI hash mismatch for {abi}"
+        )
 
 
 def verify_abi_metadata(root: pathlib.Path, proof: dict[str, Any]) -> None:
@@ -1431,11 +2094,15 @@ def verify_device_metadata(
 ) -> None:
     device = proof.get("device")
     require(isinstance(device, dict), "proof lacks device metadata")
-    require(device.get("raw_serial_recorded") is False, "proof must not record raw adb serial")
+    require(
+        device.get("raw_serial_recorded") is False,
+        "proof must not record raw adb serial",
+    )
     for prefix_field in ("serial_sha256_prefix", "fingerprint_sha256_prefix"):
         prefix = device.get(prefix_field)
         require(
-            isinstance(prefix, str) and re.fullmatch(r"[0-9a-f]{12}", prefix) is not None,
+            isinstance(prefix, str)
+            and re.fullmatch(r"[0-9a-f]{12}", prefix) is not None,
             f"Android proof has an invalid {prefix_field}",
         )
     for text_field in ("manufacturer", "model", "release"):
@@ -1449,16 +2116,30 @@ def verify_device_metadata(
     kind = device.get("kind")
     require(kind in {"emulator", "physical"}, f"invalid Android device kind: {kind}")
     if expected_device_kind:
-        require(kind == expected_device_kind, f"expected Android device kind {expected_device_kind}, got {kind}")
+        require(
+            kind == expected_device_kind,
+            f"expected Android device kind {expected_device_kind}, got {kind}",
+        )
 
     device_abi = device.get("abi")
-    require(device_abi in REQUIRED_NATIVE_ABIS, f"invalid Android device ABI: {device_abi}")
+    require(
+        device_abi in REQUIRED_NATIVE_ABIS, f"invalid Android device ABI: {device_abi}"
+    )
     if expected_device_abi:
-        require(device_abi == expected_device_abi, f"expected Android device ABI {expected_device_abi}, got {device_abi}")
+        require(
+            device_abi == expected_device_abi,
+            f"expected Android device ABI {expected_device_abi}, got {device_abi}",
+        )
     page_size = device.get("page_size")
-    require(type(page_size) is int and page_size in {4096, 16384}, f"invalid Android device page size: {page_size}")
+    require(
+        type(page_size) is int and page_size in {4096, 16384},
+        f"invalid Android device page size: {page_size}",
+    )
     if expected_page_size is not None:
-        require(page_size == expected_page_size, f"expected Android page size {expected_page_size}, got {page_size}")
+        require(
+            page_size == expected_page_size,
+            f"expected Android page size {expected_page_size}, got {page_size}",
+        )
     device_sdk = device.get("sdk")
     require(
         type(device_sdk) is int and 1 <= device_sdk <= MAX_ANDROID_SDK,
@@ -1478,10 +2159,22 @@ def verify_device_metadata(
         )
 
     if require_release_mode:
-        require(release_mode is True, "proof was not generated in Android release-candidate mode")
-        require(expected_device_abi != "", "release verification requires an explicit expected Android device ABI")
-        require(expected_page_size == 16384, "release verification requires expected Android page size 16384")
-        require(page_size == 16384, "Android release proof did not run on a 16 KiB page-size device")
+        require(
+            release_mode is True,
+            "proof was not generated in Android release-candidate mode",
+        )
+        require(
+            expected_device_abi != "",
+            "release verification requires an explicit expected Android device ABI",
+        )
+        require(
+            expected_page_size == 16384,
+            "release verification requires expected Android page size 16384",
+        )
+        require(
+            page_size == 16384,
+            "Android release proof did not run on a 16 KiB page-size device",
+        )
         require(
             device_sdk == ANDROID_RELEASE_SDK,
             f"Android release proof did not run on device SDK {ANDROID_RELEASE_SDK}",
@@ -1494,7 +2187,10 @@ def verify_device_metadata(
         isinstance(ndk, str) and re.fullmatch(r"29\.[0-9]+\.[0-9]+", ndk) is not None,
         f"Android runtime proof must use NDK r29, got {ndk!r}",
     )
-    require(android.get("native_page_alignment") == 16384, "Android runtime proof lacks 16 KiB native alignment metadata")
+    require(
+        android.get("native_page_alignment") == 16384,
+        "Android runtime proof lacks 16 KiB native alignment metadata",
+    )
     require(android.get("min_sdk") == 23, "Android runtime proof minimum SDK differs")
     build_tools = android.get("build_tools")
     require(
@@ -1556,11 +2252,22 @@ def verify_proof_contents(
     allow_dirty_proof: bool = False,
 ) -> None:
     verify_proof_schema(proof)
-    require(set(paths) == set(PROOF_PATH_KEYS), "selected Android evidence path fields differ")
+    require(
+        set(paths) == set(PROOF_PATH_KEYS),
+        "selected Android evidence path fields differ",
+    )
     proof_path_fields(proof)
-    require(proof.get("device_runtime_proof") is True, "proof is not an Android runtime proof")
-    require(proof.get("package_only") is False, "runtime proof must not be package_only")
-    require(proof.get("package") == "dev.qperiapt.androidsmoke", "unexpected Android proof package")
+    require(
+        proof.get("device_runtime_proof") is True,
+        "proof is not an Android runtime proof",
+    )
+    require(
+        proof.get("package_only") is False, "runtime proof must not be package_only"
+    )
+    require(
+        proof.get("package") == "dev.qperiapt.androidsmoke",
+        "unexpected Android proof package",
+    )
     run_id = proof.get("run_id")
     require(isinstance(run_id, str), "proof run_id is missing")
     expected_marker(run_id)
@@ -1577,6 +2284,7 @@ def verify_proof_contents(
         expected_device_sdk=expected_device_sdk,
         require_release_mode=require_release_mode,
     )
+    verify_emulator_control(proof, require_release_mode=require_release_mode)
     verify_source_hashes(root, proof)
     verify_abi_metadata(root, proof)
     verify_result_files(paths, run_id)
@@ -1589,7 +2297,8 @@ def verify(args: argparse.Namespace) -> None:
     proof_path = args.proof.resolve()
     require_under(proof_path, root / "target", "Android proof")
     require(
-        args.results_manifest is not None or args.expected_results_manifest_sha256 is None,
+        args.results_manifest is not None
+        or args.expected_results_manifest_sha256 is None,
         "expected results manifest SHA-256 requires --results-manifest",
     )
     if args.results_manifest is not None:
@@ -1618,10 +2327,18 @@ def verify(args: argparse.Namespace) -> None:
 
     verify_proof_schema(proof)
     verify_proof_freshness(proof, args.max_age_seconds)
+    selected_paths = proof_paths(root, proof)
+    validate_selected_run_layout(
+        root,
+        proof_path,
+        proof,
+        selected_paths,
+        require_unique_run=args.require_release_mode,
+    )
     verify_proof_contents(
         root,
         proof,
-        proof_paths(root, proof),
+        selected_paths,
         expected_device_kind=args.expected_device_kind,
         expected_device_abi=args.expected_device_abi,
         expected_page_size=args.expected_page_size,
@@ -1638,9 +2355,9 @@ def verify(args: argparse.Namespace) -> None:
 
 
 def canonical_json(value: Any) -> bytes:
-    return (json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n").encode(
-        "utf-8"
-    )
+    return (
+        json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
+    ).encode("utf-8")
 
 
 def write_bundle_file(path: pathlib.Path, data: bytes) -> None:
@@ -1649,7 +2366,9 @@ def write_bundle_file(path: pathlib.Path, data: bytes) -> None:
         path.write_bytes(data)
         os.chmod(path, 0o644)
     except OSError as exc:
-        raise SystemExit(f"error: cannot stage Android evidence bundle file {path}: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot stage Android evidence bundle file {path}: {exc}"
+        ) from exc
 
 
 def bundle_file_record(path: pathlib.Path, relative: str) -> dict[str, Any]:
@@ -1674,10 +2393,18 @@ def source_commit_epoch(root: pathlib.Path, proof: dict[str, Any]) -> int:
     try:
         raw_epoch = run_git_text(root, ["show", "-s", "--format=%ct", source_commit])
     except GitProvenanceError as exc:
-        raise SystemExit(f"error: cannot read Android proof commit epoch: {exc}") from exc
-    require(raw_epoch.isascii() and raw_epoch.isdigit(), "Android proof commit epoch is malformed")
+        raise SystemExit(
+            f"error: cannot read Android proof commit epoch: {exc}"
+        ) from exc
+    require(
+        raw_epoch.isascii() and raw_epoch.isdigit(),
+        "Android proof commit epoch is malformed",
+    )
     epoch = int(raw_epoch)
-    require(315532800 <= epoch <= 0xFFFFFFFF, "Android proof commit epoch cannot be represented by deterministic ZIP")
+    require(
+        315532800 <= epoch <= 0xFFFFFFFF,
+        "Android proof commit epoch cannot be represented by deterministic ZIP",
+    )
     return epoch
 
 
@@ -1706,7 +2433,9 @@ def scan_apk_contents(apk: pathlib.Path, *, forbidden_text: list[str]) -> None:
     folded_names: set[str] = set()
     total = 0
     try:
-        with zipfile.ZipFile(io.BytesIO(snapshot.data), "r", allowZip64=False) as archive:
+        with zipfile.ZipFile(
+            io.BytesIO(snapshot.data), "r", allowZip64=False
+        ) as archive:
             infos = archive.infolist()
             require(0 < len(infos) <= 4096, "Android smoke APK entry count is invalid")
             with tempfile.TemporaryDirectory(prefix="qperiapt-apk-scan-") as temp:
@@ -1729,16 +2458,23 @@ def scan_apk_contents(apk: pathlib.Path, *, forbidden_text: list[str]) -> None:
                         and pure.as_posix() == canonical_name,
                         f"Android smoke APK contains a noncanonical path: {name!r}",
                     )
-                    require(name not in names, f"Android smoke APK contains duplicate entry: {name}")
+                    require(
+                        name not in names,
+                        f"Android smoke APK contains duplicate entry: {name}",
+                    )
                     require(
                         canonical_name.casefold() not in folded_names,
                         f"Android smoke APK contains a case-conflicting entry: {name}",
                     )
                     names.add(name)
                     folded_names.add(canonical_name.casefold())
-                    require(info.flag_bits & 0x1 == 0, f"Android smoke APK contains encrypted entry: {name}")
                     require(
-                        info.compress_type in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED},
+                        info.flag_bits & 0x1 == 0,
+                        f"Android smoke APK contains encrypted entry: {name}",
+                    )
+                    require(
+                        info.compress_type
+                        in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED},
                         f"Android smoke APK contains unsupported compression: {name}",
                     )
                     file_type = (info.external_attr >> 16) & 0o170000
@@ -1752,11 +2488,17 @@ def scan_apk_contents(apk: pathlib.Path, *, forbidden_text: list[str]) -> None:
                         f"Android smoke APK entry is too large: {name}",
                     )
                     total += info.file_size
-                    require(total <= 256 * 1024 * 1024, "Android smoke APK uncompressed size exceeds limit")
+                    require(
+                        total <= 256 * 1024 * 1024,
+                        "Android smoke APK uncompressed size exceeds limit",
+                    )
                     if info.is_dir():
                         continue
                     data = archive.read(info)
-                    require(len(data) == info.file_size, f"Android smoke APK entry size differs: {name}")
+                    require(
+                        len(data) == info.file_size,
+                        f"Android smoke APK entry size differs: {name}",
+                    )
                     materialized_path = scan_root / f"entry-{index:04d}.bin"
                     materialized_path.write_bytes(data)
                     materialized.append(materialized_path)
@@ -1771,7 +2513,10 @@ def require_executable_file(path: pathlib.Path, label: str) -> pathlib.Path:
         metadata = resolved.lstat()
     except OSError as exc:
         raise SystemExit(f"error: cannot inspect {label} {path}: {exc}") from exc
-    require(stat.S_ISREG(metadata.st_mode), f"{label} must resolve to a regular file: {path}")
+    require(
+        stat.S_ISREG(metadata.st_mode),
+        f"{label} must resolve to a regular file: {path}",
+    )
     require(os.access(resolved, os.X_OK), f"{label} is not executable: {path}")
     return resolved
 
@@ -1788,9 +2533,7 @@ def verified_ndk_tools(
         "Android llvm-readelf filename differs",
     )
     resolved_nm = require_executable_file(llvm_nm, "Android llvm-nm")
-    resolved_readelf = require_executable_file(
-        llvm_readelf, "Android llvm-readelf"
-    )
+    resolved_readelf = require_executable_file(llvm_readelf, "Android llvm-readelf")
     require(
         resolved_nm.name == "llvm-nm"
         and resolved_readelf.name in {"llvm-readelf", "llvm-readobj"},
@@ -1811,7 +2554,9 @@ def verified_ndk_tools(
     try:
         revision = verify_ndk_r29(ndk_root)
     except AndroidVerificationError as exc:
-        raise SystemExit(f"error: Android NDK toolchain verification failed: {exc}") from exc
+        raise SystemExit(
+            f"error: Android NDK toolchain verification failed: {exc}"
+        ) from exc
     canonical_nm = bin_directory / "llvm-nm"
     canonical_readelf = bin_directory / "llvm-readelf"
     require(
@@ -1901,13 +2646,19 @@ def verify_bundle_manifest(
         archive_mtime == source_epoch - source_epoch % 2,
         "Android evidence bundle ZIP timestamp differs from source_date_epoch",
     )
-    require(manifest.get("raw_serial_recorded") is False, "Android evidence bundle records a raw serial")
+    require(
+        manifest.get("raw_serial_recorded") is False,
+        "Android evidence bundle records a raw serial",
+    )
     require(
         type(manifest.get("release_candidate_mode")) is bool,
         "Android evidence bundle release_candidate_mode must be a boolean",
     )
     files = manifest.get("files")
-    require(isinstance(files, dict) and set(files) == set(BUNDLE_FILE_PATHS), "Android evidence bundle file fields differ")
+    require(
+        isinstance(files, dict) and set(files) == set(BUNDLE_FILE_PATHS),
+        "Android evidence bundle file fields differ",
+    )
     selected: dict[str, pathlib.Path] = {}
     for key, expected_relative in BUNDLE_FILE_PATHS.items():
         record = files.get(key)
@@ -1915,11 +2666,20 @@ def verify_bundle_manifest(
             isinstance(record, dict) and set(record) == {"bytes", "path", "sha256"},
             f"Android evidence bundle file record differs: {key}",
         )
-        require(record.get("path") == expected_relative, f"Android evidence bundle path differs: {key}")
+        require(
+            record.get("path") == expected_relative,
+            f"Android evidence bundle path differs: {key}",
+        )
         size = record.get("bytes")
         digest = record.get("sha256")
-        require(type(size) is int and 0 < size <= MAX_EVIDENCE_FILE_BYTES, f"Android evidence bundle size is invalid: {key}")
-        require(isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None, f"Android evidence bundle digest is invalid: {key}")
+        require(
+            type(size) is int and 0 < size <= MAX_EVIDENCE_FILE_BYTES,
+            f"Android evidence bundle size is invalid: {key}",
+        )
+        require(
+            isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None,
+            f"Android evidence bundle digest is invalid: {key}",
+        )
         path = bundle_root.joinpath(*pathlib.PurePosixPath(expected_relative).parts)
         try:
             snapshot = read_regular_snapshot(
@@ -1929,12 +2689,21 @@ def verify_bundle_manifest(
             )
         except EvidenceIOError as exc:
             raise SystemExit(f"error: {exc}") from exc
-        require(snapshot.size == size and snapshot.sha256 == digest, f"Android bundled evidence bytes differ: {key}")
+        require(
+            snapshot.size == size and snapshot.sha256 == digest,
+            f"Android bundled evidence bytes differ: {key}",
+        )
         selected[key] = path
     proof = load_json(selected["proof"])
     verify_proof_schema(proof)
-    require(manifest.get("git_commit") == proof.get("git_commit"), "Android bundle git_commit differs from proof")
-    require(manifest.get("run_id") == proof.get("run_id"), "Android bundle run_id differs from proof")
+    require(
+        manifest.get("git_commit") == proof.get("git_commit"),
+        "Android bundle git_commit differs from proof",
+    )
+    require(
+        manifest.get("run_id") == proof.get("run_id"),
+        "Android bundle run_id differs from proof",
+    )
     require(
         manifest.get("release_candidate_mode") is proof.get("release_candidate_mode"),
         "Android bundle release mode differs from proof",
@@ -2005,7 +2774,10 @@ def verify_runtime_bundle(
                 expected_sha256=expected_bundle_sha256,
             )
             actual_entries = {entry.path: entry.kind for entry in audit.entries}
-            require(actual_entries == expected_bundle_entries(), "Android evidence bundle archive file set differs")
+            require(
+                actual_entries == expected_bundle_entries(),
+                "Android evidence bundle archive file set differs",
+            )
             extracted_root = destination / BUNDLE_ROOT_NAME
             manifest = load_json(extracted_root / BUNDLE_MANIFEST_PATH)
             selected, proof = verify_bundle_manifest(
@@ -2093,10 +2865,14 @@ def verify_runtime_bundle(
                     source_root=root,
                 )
             except AndroidVerificationError as exc:
-                raise SystemExit(f"error: bundled Android AAR verification failed: {exc}") from exc
+                raise SystemExit(
+                    f"error: bundled Android AAR verification failed: {exc}"
+                ) from exc
             return audit.archive_sha256
     except DeterministicArchiveError as exc:
-        raise SystemExit(f"error: Android evidence bundle archive verification failed: {exc}") from exc
+        raise SystemExit(
+            f"error: Android evidence bundle archive verification failed: {exc}"
+        ) from exc
 
 
 def create_bundle(args: argparse.Namespace) -> None:
@@ -2106,7 +2882,10 @@ def create_bundle(args: argparse.Namespace) -> None:
     require_under(proof_path, root / "target", "Android proof")
     require_under(output, root / "target", "Android evidence bundle output")
     require(output.suffix == ".zip", "Android evidence bundle output must use .zip")
-    require(not output.exists() and not output.is_symlink(), f"Android evidence bundle output already exists: {output}")
+    require(
+        not output.exists() and not output.is_symlink(),
+        f"Android evidence bundle output already exists: {output}",
+    )
     require(
         output.parent.is_dir() and not output.parent.is_symlink(),
         f"Android evidence bundle output parent is unsafe or missing: {output.parent}",
@@ -2115,6 +2894,13 @@ def create_bundle(args: argparse.Namespace) -> None:
     verify_proof_schema(proof)
     verify_proof_freshness(proof, args.max_age_seconds)
     selected_paths = proof_paths(root, proof)
+    validate_selected_run_layout(
+        root,
+        proof_path,
+        proof,
+        selected_paths,
+        require_unique_run=args.require_release_mode,
+    )
     verify_proof_contents(
         root,
         proof,
@@ -2129,7 +2915,9 @@ def create_bundle(args: argparse.Namespace) -> None:
     source_epoch = source_commit_epoch(root, proof)
     forbidden_text = [str(root), *args.forbid_text]
     try:
-        with tempfile.TemporaryDirectory(prefix="qperiapt-android-bundle-stage-", dir=output.parent) as temp:
+        with tempfile.TemporaryDirectory(
+            prefix="qperiapt-android-bundle-stage-", dir=output.parent
+        ) as temp:
             stage = pathlib.Path(temp) / "stage"
             stage.mkdir()
             sources = {"proof": proof_path, **selected_paths}
@@ -2156,11 +2944,17 @@ def create_bundle(args: argparse.Namespace) -> None:
                 "raw_serial_recorded": False,
                 "files": file_records,
             }
-            write_bundle_file(stage / BUNDLE_MANIFEST_PATH, canonical_json(bundle_manifest))
+            write_bundle_file(
+                stage / BUNDLE_MANIFEST_PATH, canonical_json(bundle_manifest)
+            )
             staged_paths = [stage / BUNDLE_MANIFEST_PATH]
-            staged_paths.extend(stage / relative for relative in BUNDLE_FILE_PATHS.values())
+            staged_paths.extend(
+                stage / relative for relative in BUNDLE_FILE_PATHS.values()
+            )
             scan_release_paths(staged_paths, forbidden_text=forbidden_text)
-            scan_apk_contents(stage / BUNDLE_FILE_PATHS["smoke_apk"], forbidden_text=forbidden_text)
+            scan_apk_contents(
+                stage / BUNDLE_FILE_PATHS["smoke_apk"], forbidden_text=forbidden_text
+            )
             audit = create_zip(
                 stage,
                 output,
@@ -2168,7 +2962,9 @@ def create_bundle(args: argparse.Namespace) -> None:
                 mtime=source_epoch,
             )
     except DeterministicArchiveError as exc:
-        raise SystemExit(f"error: cannot create Android evidence bundle: {exc}") from exc
+        raise SystemExit(
+            f"error: cannot create Android evidence bundle: {exc}"
+        ) from exc
 
     verified_sha256 = verify_runtime_bundle(
         root=root,
@@ -2186,7 +2982,10 @@ def create_bundle(args: argparse.Namespace) -> None:
         allow_dirty_proof=args.allow_dirty_proof,
         forbidden_text=forbidden_text,
     )
-    require(verified_sha256 == audit.archive_sha256, "created Android evidence bundle digest changed during verification")
+    require(
+        verified_sha256 == audit.archive_sha256,
+        "created Android evidence bundle digest changed during verification",
+    )
     print(
         "ANDROID_DEVICE_EVIDENCE_BUNDLE_CREATE_PASS "
         f"sha256={audit.archive_sha256} path={output}"
@@ -2249,7 +3048,9 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--zipalign", required=True, type=pathlib.Path)
         command.add_argument("--forbid-text", action="append", default=[])
 
-    verify_parser = sub.add_parser("verify", help="verify an Android runtime proof JSON")
+    verify_parser = sub.add_parser(
+        "verify", help="verify an Android runtime proof JSON"
+    )
     verify_parser.add_argument("--root", required=True, type=pathlib.Path)
     verify_parser.add_argument("--proof", required=True, type=pathlib.Path)
     add_runtime_constraints(verify_parser)
@@ -2309,18 +3110,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     adb_server_parser.add_argument("--status", required=True, type=pathlib.Path)
     adb_server_parser.add_argument("--adb", required=True, type=pathlib.Path)
-    adb_server_parser.add_argument(
-        "--home-directory", required=True, type=pathlib.Path
-    )
+    adb_server_parser.add_argument("--home-directory", required=True, type=pathlib.Path)
     adb_server_parser.set_defaults(func=verify_adb_server_status)
 
     adb_listener_parser = sub.add_parser(
         "verify-adb-listener",
         help="bind one exact adb endpoint to the expected owned server process",
     )
-    adb_listener_parser.add_argument(
-        "--lsof-output", required=True, type=pathlib.Path
-    )
+    adb_listener_parser.add_argument("--lsof-output", required=True, type=pathlib.Path)
     adb_listener_parser.add_argument("--adb", required=True, type=pathlib.Path)
     adb_listener_parser.add_argument("--expected-endpoint", required=True)
     adb_listener_parser.add_argument("--expected-pid", type=int)
@@ -2332,6 +3129,62 @@ def build_parser() -> argparse.ArgumentParser:
         "--expected-transport-kind", choices=["physical", "emulator"]
     )
     adb_listener_parser.set_defaults(func=verify_adb_listener)
+
+    emulator_listener_parser = sub.add_parser(
+        "verify-owned-emulator-listeners",
+        help="bind the fixed console and adb ports to the script-owned emulator child",
+    )
+    emulator_listener_parser.add_argument(
+        "--lsof-output", required=True, type=pathlib.Path
+    )
+    emulator_listener_parser.add_argument("--expected-pid", required=True, type=int)
+    emulator_listener_parser.add_argument("--console-port", required=True, type=int)
+    emulator_listener_parser.add_argument("--adb-port", required=True, type=int)
+    emulator_listener_parser.set_defaults(func=verify_owned_emulator_listeners)
+
+    owned_process_parser = sub.add_parser(
+        "verify-owned-process",
+        help="bind one direct child pid to its executable and start identity",
+    )
+    owned_process_parser.add_argument("--expected-pid", required=True, type=int)
+    owned_process_parser.add_argument(
+        "--expected-executable", required=True, type=pathlib.Path
+    )
+    owned_process_parser.add_argument(
+        "--expected-executable-device", required=True, type=int
+    )
+    owned_process_parser.add_argument(
+        "--expected-executable-inode", required=True, type=int
+    )
+    owned_process_parser.add_argument("--expected-identity")
+    owned_process_parser.set_defaults(func=verify_owned_process)
+
+    emulator_backend_parser = sub.add_parser(
+        "emulator-backend-path",
+        help="derive the fixed headless QEMU backend selected by an emulator launcher",
+    )
+    emulator_backend_parser.add_argument("--emulator", required=True, type=pathlib.Path)
+    emulator_backend_parser.add_argument(
+        "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
+    )
+    emulator_backend_parser.set_defaults(func=resolve_emulator_backend)
+
+    wait_exec_parser = sub.add_parser(
+        "wait-owned-process-exec",
+        help="wait for an owned emulator launcher to exec its fixed backend",
+    )
+    wait_exec_parser.add_argument("--expected-pid", required=True, type=int)
+    wait_exec_parser.add_argument(
+        "--initial-executable", required=True, type=pathlib.Path
+    )
+    wait_exec_parser.add_argument("--launcher", required=True, type=pathlib.Path)
+    wait_exec_parser.add_argument(
+        "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
+    )
+    wait_exec_parser.add_argument(
+        "--timeout-seconds", required=True, type=int, choices=range(1, 31)
+    )
+    wait_exec_parser.set_defaults(func=wait_owned_process_exec)
 
     publish_parser = sub.add_parser(
         "publish-staged-proof",

@@ -45,8 +45,12 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
-    git_commit as provenance_git_commit,
     require_commit_or_evidence_successor,
+)
+from git_provenance import (
+    git_commit as provenance_git_commit,
+)
+from git_provenance import (
     source_tree_dirty as provenance_source_tree_dirty,
 )
 
@@ -86,7 +90,7 @@ class BuiltReleaseTree:
     generated_at: str
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 KIND = "qperiapt.local_release_index"
 POINTER_KIND = "qperiapt.local_release_index.pointer"
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -112,6 +116,10 @@ SWIFT_TARGETS = (
     "x86_64-apple-ios",
 )
 ANDROID_ABIS = ("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
+ANDROID_RELEASE_DEVICE_KIND = "emulator"
+ANDROID_RELEASE_DEVICE_ABI = "arm64-v8a"
+ANDROID_RELEASE_DEVICE_SDK = 35
+ANDROID_RELEASE_PAGE_SIZE = 16_384
 C_HOST_PLATFORMS = {
     "aarch64-apple-darwin": "macos",
     "x86_64-apple-darwin": "macos",
@@ -347,7 +355,9 @@ def require_exact_json(value: Any, expected: Any, label: str) -> None:
         require(value == expected, f"{label} differs")
 
 
-def require_safe_string_list(value: Any, expected: tuple[str, ...], label: str) -> list[str]:
+def require_safe_string_list(
+    value: Any, expected: tuple[str, ...], label: str
+) -> list[str]:
     require(isinstance(value, list), f"{label} must be a list")
     require(
         all(
@@ -456,8 +466,7 @@ def protect_private_directory(path: pathlib.Path, label: str) -> None:
         descriptor = os.open(path, flags)
         metadata = os.fstat(descriptor)
         require(
-            stat.S_ISDIR(metadata.st_mode)
-            and metadata.st_uid == os.geteuid(),
+            stat.S_ISDIR(metadata.st_mode) and metadata.st_uid == os.geteuid(),
             f"{label} directory is not current-user-owned: {path}",
         )
         os.fchmod(descriptor, 0o700)
@@ -530,10 +539,7 @@ def release_emit_lock(target: pathlib.Path) -> Iterator[None]:
     try:
         lock_fd = os.open(
             ".emit.lock",
-            os.O_RDWR
-            | os.O_CREAT
-            | os.O_NOFOLLOW
-            | getattr(os, "O_CLOEXEC", 0),
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0),
             0o600,
             dir_fd=directory_fd,
         )
@@ -579,7 +585,9 @@ def release_emit_lock(target: pathlib.Path) -> Iterator[None]:
                         f"release emitter lock cleanup failed: {cleanup_error}"
                     )
             else:
-                fail(f"cannot release the local-index emitter lock: {cleanup_errors[0]}")
+                fail(
+                    f"cannot release the local-index emitter lock: {cleanup_errors[0]}"
+                )
 
 
 def remove_unpublished_release_tree(
@@ -671,7 +679,9 @@ def cleanup_stale_release_staging_trees(
         try:
             entries = os.scandir(directory_fd)
         except OSError as exc:
-            fail(f"cannot enumerate release staging parent {release_root.parent}: {exc}")
+            fail(
+                f"cannot enumerate release staging parent {release_root.parent}: {exc}"
+            )
         with entries:
             parent_entry_count = 0
             stale_entries: list[tuple[str, tuple[int, int]]] = []
@@ -708,9 +718,7 @@ def cleanup_stale_release_staging_trees(
                     and stat.S_IMODE(metadata.st_mode) == 0o700,
                     f"stale release staging entry is not one owned private directory: {name}",
                 )
-                stale_entries.append(
-                    (name, (metadata.st_dev, metadata.st_ino))
-                )
+                stale_entries.append((name, (metadata.st_dev, metadata.st_ino)))
         validated_stale_roots: list[tuple[pathlib.Path, tuple[int, int]]] = []
         for name, identity in stale_entries:
             stale_root = release_root.parent / name
@@ -781,7 +789,7 @@ def _rename_release_tree_noreplace(
 
     try:
         rename = getattr(library, symbol_name)
-    except AttributeError as exc:
+    except AttributeError:
         fail(
             f"immutable release publication cannot load {symbol_name}; "
             "native atomic no-replace rename is required"
@@ -807,8 +815,7 @@ def _rename_release_tree_noreplace(
     observed_errno = ctypes.get_errno()
     if observed_errno == errno.EEXIST:
         fail(
-            "release index output is immutable and already exists: "
-            f"{destination_name}"
+            f"release index output is immutable and already exists: {destination_name}"
         )
     unsupported_errors = {
         errno.EINVAL,
@@ -858,8 +865,7 @@ def publish_release_staging_tree(
             stat.S_ISDIR(staging_metadata.st_mode)
             and staging_metadata.st_uid == os.geteuid()
             and stat.S_IMODE(staging_metadata.st_mode) == 0o700
-            and (staging_metadata.st_dev, staging_metadata.st_ino)
-            == expected_identity,
+            and (staging_metadata.st_dev, staging_metadata.st_ino) == expected_identity,
             f"release staging tree identity changed before publication: {staging_root}",
         )
         try:
@@ -873,7 +879,9 @@ def publish_release_staging_tree(
         except OSError as exc:
             fail(f"cannot inspect immutable release destination {release_root}: {exc}")
         else:
-            fail(f"release index output is immutable and already exists: {release_root}")
+            fail(
+                f"release index output is immutable and already exists: {release_root}"
+            )
         try:
             _rename_release_tree_noreplace(
                 directory_fd,
@@ -1003,9 +1011,7 @@ def write_private_bytes(
             | os.O_NOFOLLOW
             | getattr(os, "O_CLOEXEC", 0)
         )
-        temporary_fd = os.open(
-            temporary_name, flags, 0o600, dir_fd=directory_fd
-        )
+        temporary_fd = os.open(temporary_name, flags, 0o600, dir_fd=directory_fd)
         os.fchmod(temporary_fd, 0o600)
         view = memoryview(data)
         while view:
@@ -1054,7 +1060,9 @@ def write_private_bytes(
         if cleanup_errors:
             if primary is not None:
                 for cleanup_error in cleanup_errors:
-                    primary.add_note(f"private release output cleanup failed: {cleanup_error}")
+                    primary.add_note(
+                        f"private release output cleanup failed: {cleanup_error}"
+                    )
             else:
                 fail(f"cannot clean private release output {path}: {cleanup_errors[0]}")
 
@@ -1171,7 +1179,9 @@ def require_strictly_under(path: pathlib.Path, base: pathlib.Path, label: str) -
     candidate = normalized_absolute(path)
     parent = normalized_absolute(base)
     require_under(candidate, parent, label)
-    require(candidate != parent, f"{label} must be a dedicated subdirectory of {parent}")
+    require(
+        candidate != parent, f"{label} must be a dedicated subdirectory of {parent}"
+    )
 
 
 def require_no_symlink_components(
@@ -1184,7 +1194,9 @@ def require_no_symlink_components(
     require(not current.is_symlink(), f"{label} base must not be a symlink: {current}")
     for component in candidate.relative_to(parent).parts:
         current /= component
-        require(not current.is_symlink(), f"{label} must not traverse a symlink: {current}")
+        require(
+            not current.is_symlink(), f"{label} must not traverse a symlink: {current}"
+        )
 
 
 def canonical_path_text(value: Any, label: str, *, maximum: int = 4096) -> str:
@@ -1224,7 +1236,9 @@ def require_relative_safe(path: Any, label: str) -> str:
 
 def require_safe_basename(value: Any, label: str) -> str:
     canonical = canonical_path_text(value, label, maximum=128)
-    require("/" not in canonical and "\\" not in canonical, f"{label} must be a basename")
+    require(
+        "/" not in canonical and "\\" not in canonical, f"{label} must be a basename"
+    )
     require(canonical not in {".", ".."}, f"{label} must be a safe basename")
     require(
         re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,127}", canonical) is not None,
@@ -1268,7 +1282,9 @@ def release_pointer_selection(
         ),
         "release pointer",
     )
-    require_exact_int(pointer.get("schema_version"), SCHEMA_VERSION, "release pointer schema")
+    require_exact_int(
+        pointer.get("schema_version"), SCHEMA_VERSION, "release pointer schema"
+    )
     require(pointer.get("kind") == POINTER_KIND, "release pointer kind mismatch")
     require(pointer.get("channel") == channel, "release pointer channel mismatch")
     require_exact_json(
@@ -1295,9 +1311,7 @@ def release_pointer_selection(
         len(rel_parts) == 5,
         "release pointer index_path has the wrong component count",
     )
-    pointer_commit = require_safe_basename(
-        rel_parts[3], "release pointer commit"
-    )
+    pointer_commit = require_safe_basename(rel_parts[3], "release pointer commit")
     require(
         GIT_COMMIT.fullmatch(pointer_commit) is not None,
         "release pointer commit is malformed",
@@ -1364,9 +1378,7 @@ def resolve_release_output(
     return output
 
 
-def require_disjoint_output(
-    output: pathlib.Path, inputs: list[pathlib.Path]
-) -> None:
+def require_disjoint_output(output: pathlib.Path, inputs: list[pathlib.Path]) -> None:
     output_abs = normalized_absolute(output)
     for source in inputs:
         source_abs = normalized_absolute(source)
@@ -1381,7 +1393,10 @@ def require_disjoint_output(
             overlap = True
         except ValueError:
             pass
-        require(not overlap, f"release index output overlaps input package path: {source_abs}")
+        require(
+            not overlap,
+            f"release index output overlaps input package path: {source_abs}",
+        )
 
 
 def load_abi_trust_root(root: pathlib.Path) -> AbiTrustRoot:
@@ -1389,7 +1404,9 @@ def load_abi_trust_root(root: pathlib.Path) -> AbiTrustRoot:
     require_no_symlink_components(contract_path, root, "ABI contract")
     contract = load_json(contract_path)
     require_exact_int(contract.get("schema"), 1, "ABI contract schema")
-    require(contract.get("kind") == "qperiapt.c_abi_contract", "ABI contract kind mismatch")
+    require(
+        contract.get("kind") == "qperiapt.c_abi_contract", "ABI contract kind mismatch"
+    )
     abi = contract.get("abi")
     require(isinstance(abi, dict), "ABI contract abi object is missing")
     require_exact_int(abi.get("major"), ABI_MAJOR, "ABI contract major")
@@ -1402,7 +1419,9 @@ def load_abi_trust_root(root: pathlib.Path) -> AbiTrustRoot:
         require(isinstance(name, str) and name, "ABI contract export name is malformed")
         require(name not in names, f"ABI contract contains duplicate export: {name}")
         names.add(name)
-    require(names == EXPECTED_EXPORT_NAMES, "ABI contract exact 9-export allowlist mismatch")
+    require(
+        names == EXPECTED_EXPORT_NAMES, "ABI contract exact 9-export allowlist mismatch"
+    )
     package = contract.get("package")
     require(isinstance(package, dict), "ABI contract package object is missing")
     version = require_safe_basename(package.get("semver"), "ABI package semver")
@@ -1410,7 +1429,10 @@ def load_abi_trust_root(root: pathlib.Path) -> AbiTrustRoot:
         package.get("archive_prefix"), "ABI archive prefix"
     )
     platforms = package.get("platforms")
-    require(isinstance(platforms, dict) and platforms, "ABI contract platforms are malformed")
+    require(
+        isinstance(platforms, dict) and platforms,
+        "ABI contract platforms are malformed",
+    )
     normalized_platforms: dict[str, dict[str, Any]] = {}
     for platform, identity in platforms.items():
         require(
@@ -1499,12 +1521,16 @@ def copy_to_release(
             try:
                 os.close(output_descriptor)
             except OSError as cleanup_error:
-                exc.add_note(f"cannot close incomplete release copy {dst}: {cleanup_error}")
+                exc.add_note(
+                    f"cannot close incomplete release copy {dst}: {cleanup_error}"
+                )
         if destination_created:
             try:
                 os.unlink(dst.name, dir_fd=output_directory_fd)
             except OSError as cleanup_error:
-                exc.add_note(f"cannot remove incomplete release copy {dst}: {cleanup_error}")
+                exc.add_note(
+                    f"cannot remove incomplete release copy {dst}: {cleanup_error}"
+                )
         if isinstance(exc, SystemExit):
             raise
         if isinstance(exc, EvidenceIOError):
@@ -1514,7 +1540,9 @@ def copy_to_release(
         raise
     finally:
         os.close(output_directory_fd)
-    require(source_snapshot is not None, "release artifact copy lacked a source snapshot")
+    require(
+        source_snapshot is not None, "release artifact copy lacked a source snapshot"
+    )
     return {
         "path": rel,
         "sha256": source_snapshot.sha256,
@@ -1541,10 +1569,10 @@ def parse_sha256s(base: pathlib.Path) -> dict[str, str]:
             HEX_SHA256.fullmatch(expected) is not None,
             f"malformed sha256 at {sums}:{line_no}",
         )
-        rel = require_relative_safe(
-            raw_rel, f"SHA256SUMS path at {sums}:{line_no}"
+        rel = require_relative_safe(raw_rel, f"SHA256SUMS path at {sums}:{line_no}")
+        require(
+            rel not in parsed, f"duplicate SHA256SUMS path at {sums}:{line_no}: {rel}"
         )
-        require(rel not in parsed, f"duplicate SHA256SUMS path at {sums}:{line_no}: {rel}")
         parsed[rel] = expected
     require(parsed, f"SHA256SUMS is empty: {sums}")
     return parsed
@@ -1601,7 +1629,9 @@ def verify_sha256s(
         target = base / pathlib.Path(rel)
         require_no_symlink_components(target, base, "SHA256SUMS target")
         require(target.is_file(), f"SHA256SUMS target missing: {target}")
-        require(sha256_file(target) == expected, f"SHA256SUMS hash mismatch for {target}")
+        require(
+            sha256_file(target) == expected, f"SHA256SUMS hash mismatch for {target}"
+        )
 
 
 def package_dirty(manifest: dict[str, Any]) -> bool:
@@ -1648,9 +1678,7 @@ def validate_package_manifest(
     manifest = load_json(manifest_path)
     require(face in EXPECTED_FACES, f"unsupported package face: {face}")
     contract = PACKAGE_MANIFEST_CONTRACTS[face]
-    require_exact_object(
-        manifest, contract.manifest_fields, f"{face} manifest"
-    )
+    require_exact_object(manifest, contract.manifest_fields, f"{face} manifest")
     require_exact_int(
         manifest.get("schema_version"),
         contract.schema_version,
@@ -1668,7 +1696,10 @@ def validate_package_manifest(
         f"{face} manifest version mismatch: {manifest.get('version')} != {expected_version}",
     )
     commit = manifest.get("git_commit")
-    require(commit == expected_commit, f"{face} manifest commit mismatch: {commit} != {expected_commit}")
+    require(
+        commit == expected_commit,
+        f"{face} manifest commit mismatch: {commit} != {expected_commit}",
+    )
     dirty = package_dirty(manifest)
     if face in {"c-abi", "android"}:
         require(
@@ -1707,7 +1738,9 @@ def validate_package_manifest(
     static_filename = require_safe_basename(
         abi.get("static_filename"), f"{face} ABI static_filename"
     )
-    validate_runtime_identity(abi.get("runtime_identity"), f"{face} ABI runtime_identity")
+    validate_runtime_identity(
+        abi.get("runtime_identity"), f"{face} ABI runtime_identity"
+    )
 
     if face == "c-abi":
         host = manifest.get("host")
@@ -1742,7 +1775,10 @@ def validate_package_manifest(
             "C ABI embedded contract path",
         )
         expected_identity = trust.platforms.get(platform)
-        require(expected_identity is not None, f"C ABI platform is not in contract: {platform}")
+        require(
+            expected_identity is not None,
+            f"C ABI platform is not in contract: {platform}",
+        )
         require(
             abi.get("runtime_identity") == expected_identity,
             f"C ABI runtime identity differs from contract for {platform}",
@@ -1756,7 +1792,9 @@ def validate_package_manifest(
             f"C ABI static filename differs from contract for {platform}",
         )
     elif face == "swift":
-        require(package == "q-periapt-swift", f"Swift package name is invalid: {package}")
+        require(
+            package == "q-periapt-swift", f"Swift package name is invalid: {package}"
+        )
         require_exact_json(
             manifest.get("type"), SWIFT_PACKAGE_TYPE, "Swift manifest type"
         )
@@ -1982,10 +2020,16 @@ def validate_indexed_artifact_contract(
 
 
 def validate_cross_face_semantics(semantics: dict[str, dict[str, Any]]) -> None:
-    require(set(semantics) == EXPECTED_FACES, "release index must contain C, Swift, and Android faces")
+    require(
+        set(semantics) == EXPECTED_FACES,
+        "release index must contain C, Swift, and Android faces",
+    )
     reference = semantics["c-abi"]
     for face, current in semantics.items():
-        require(current["version"] == reference["version"], f"{face} package version differs across faces")
+        require(
+            current["version"] == reference["version"],
+            f"{face} package version differs across faces",
+        )
         for key in ("major", "contract_sha256", "exports_sha256", "export_count"):
             require(
                 current["abi"][key] == reference["abi"][key],
@@ -2067,7 +2111,9 @@ def proof_summary_snapshot(
                     "product_type": item.get("product_type"),
                     "os_version": item.get("os_version"),
                     "os_build": item.get("os_build"),
-                    "device_id_sha256_prefix": str(item.get("device_id_sha256", ""))[:12],
+                    "device_id_sha256_prefix": str(item.get("device_id_sha256", ""))[
+                        :12
+                    ],
                     "run_id": item.get("run_id"),
                 }
             )
@@ -2075,17 +2121,23 @@ def proof_summary_snapshot(
     elif proof_kind == "android_runtime":
         device = proof.get("device")
         result = proof.get("result")
-        require(isinstance(device, dict) and isinstance(result, dict), "Android proof is malformed")
+        require(
+            isinstance(device, dict) and isinstance(result, dict),
+            "Android proof is malformed",
+        )
+        summary["release_candidate_mode"] = proof.get("release_candidate_mode")
         summary["device"] = {
             "kind": device.get("kind"),
             "model": device.get("model"),
             "sdk": device.get("sdk"),
             "abi": device.get("abi"),
+            "page_size": device.get("page_size"),
             "serial_sha256_prefix": device.get("serial_sha256_prefix"),
             "raw_serial_recorded": device.get("raw_serial_recorded"),
         }
         summary["result"] = {
             "run_id": proof.get("run_id"),
+            "status": result.get("status"),
             "test_count": result.get("test_count"),
             "passed_tests": result.get("passed_tests"),
         }
@@ -2104,9 +2156,7 @@ def proof_summary(path: pathlib.Path, proof_kind: str) -> dict[str, Any]:
     return proof_summary_snapshot(snapshot, proof_kind)
 
 
-def validate_sanitized_proof_summary(
-    proof_name: str, proof: dict[str, Any]
-) -> None:
+def validate_sanitized_proof_summary(proof_name: str, proof: dict[str, Any]) -> None:
     common_fields = {
         "kind",
         "sha256",
@@ -2117,7 +2167,7 @@ def validate_sanitized_proof_summary(
     }
     extra_fields = {
         "apple_matrix": {"devices"},
-        "android_runtime": {"device", "result"},
+        "android_runtime": {"release_candidate_mode", "device", "result"},
     }
     require(proof_name in extra_fields, f"unsupported proof summary: {proof_name}")
     proof = require_exact_object(
@@ -2143,7 +2193,9 @@ def validate_sanitized_proof_summary(
 
     if proof_name == "apple_matrix":
         devices = proof.get("devices")
-        require(isinstance(devices, list), "Apple matrix summary devices must be a list")
+        require(
+            isinstance(devices, list), "Apple matrix summary devices must be a list"
+        )
         require(len(devices) == 2, "Apple matrix summary must contain two devices")
         labels: list[str] = []
         for index, device in enumerate(devices):
@@ -2185,11 +2237,25 @@ def validate_sanitized_proof_summary(
     device = require_exact_object(
         proof.get("device"),
         frozenset(
-            {"kind", "model", "sdk", "abi", "serial_sha256_prefix", "raw_serial_recorded"}
+            {
+                "kind",
+                "model",
+                "sdk",
+                "abi",
+                "page_size",
+                "serial_sha256_prefix",
+                "raw_serial_recorded",
+            }
         ),
         "Android proof summary device",
     )
-    require(device.get("kind") in {"physical", "emulator"}, "Android device kind is invalid")
+    require(
+        type(proof.get("release_candidate_mode")) is bool,
+        "Android release_candidate_mode must be boolean",
+    )
+    require(
+        device.get("kind") in {"physical", "emulator"}, "Android device kind is invalid"
+    )
     require_bounded_text(device.get("model"), "Android device model")
     require(
         type(device.get("sdk")) is int and device["sdk"] > 0,
@@ -2197,9 +2263,12 @@ def validate_sanitized_proof_summary(
     )
     require(device.get("abi") in ANDROID_ABIS, "Android device ABI is invalid")
     require(
+        type(device.get("page_size")) is int and device["page_size"] in {4096, 16_384},
+        "Android device page size is invalid",
+    )
+    require(
         isinstance(device.get("serial_sha256_prefix"), str)
-        and re.fullmatch(r"[0-9a-f]{12}", device["serial_sha256_prefix"])
-        is not None,
+        and re.fullmatch(r"[0-9a-f]{12}", device["serial_sha256_prefix"]) is not None,
         "Android serial hash prefix is malformed",
     )
     require_exact_json(
@@ -2207,7 +2276,7 @@ def validate_sanitized_proof_summary(
     )
     result = require_exact_object(
         proof.get("result"),
-        frozenset({"run_id", "test_count", "passed_tests"}),
+        frozenset({"run_id", "status", "test_count", "passed_tests"}),
         "Android proof summary result",
     )
     require(
@@ -2215,6 +2284,7 @@ def validate_sanitized_proof_summary(
         and re.fullmatch(r"[0-9a-f]{32}", result["run_id"]) is not None,
         "Android result run_id is malformed",
     )
+    require_exact_json(result.get("status"), "pass", "Android result status")
     test_count = result.get("test_count")
     passed_tests = result.get("passed_tests")
     require(type(test_count) is int and test_count > 0, "Android test_count is invalid")
@@ -2224,7 +2294,47 @@ def validate_sanitized_proof_summary(
         all(isinstance(name, str) and name for name in passed_tests),
         "Android passed_tests contains a malformed name",
     )
-    require(len(passed_tests) == len(set(passed_tests)), "Android passed_tests contains duplicates")
+    require(
+        len(passed_tests) == len(set(passed_tests)),
+        "Android passed_tests contains duplicates",
+    )
+
+
+def validate_android_release_summary_contract(proof: dict[str, Any]) -> None:
+    """Require the canonical Android AVD lane in an offline release index."""
+
+    device = proof["device"]
+    result = proof["result"]
+    require_exact_json(
+        proof.get("release_candidate_mode"),
+        True,
+        "Android release summary release_candidate_mode",
+    )
+    require_exact_json(
+        device.get("kind"),
+        ANDROID_RELEASE_DEVICE_KIND,
+        "Android release summary device kind",
+    )
+    require_exact_json(
+        device.get("abi"),
+        ANDROID_RELEASE_DEVICE_ABI,
+        "Android release summary device ABI",
+    )
+    require_exact_int(
+        device.get("sdk"),
+        ANDROID_RELEASE_DEVICE_SDK,
+        "Android release summary device SDK",
+    )
+    require_exact_int(
+        device.get("page_size"),
+        ANDROID_RELEASE_PAGE_SIZE,
+        "Android release summary device page size",
+    )
+    require_exact_json(
+        result.get("status"),
+        "pass",
+        "Android release summary result status",
+    )
 
 
 def validate_index_bytes(data: bytes) -> None:
@@ -2233,7 +2343,10 @@ def validate_index_bytes(data: bytes) -> None:
     except UnicodeDecodeError as exc:
         fail(f"cannot decode release index as UTF-8: {exc}")
     for forbidden in FORBIDDEN_INDEX_TEXT:
-        require(forbidden not in text, f"release index contains private/local token: {forbidden}")
+        require(
+            forbidden not in text,
+            f"release index contains private/local token: {forbidden}",
+        )
 
 
 def write_release_sums(release_root: pathlib.Path) -> None:
@@ -2332,7 +2445,9 @@ def decompress_single_gzip_member(
 
 
 def tar_metadata_bytes(archive: pathlib.Path, suffix: str) -> bytes:
-    require(archive.name.endswith(".tar.gz"), f"C archive filename is invalid: {archive}")
+    require(
+        archive.name.endswith(".tar.gz"), f"C archive filename is invalid: {archive}"
+    )
     require(
         suffix in {"/MANIFEST.json", "/SHA256SUMS"},
         f"unsupported C archive metadata path: {suffix}",
@@ -2348,6 +2463,7 @@ def tar_metadata_bytes(archive: pathlib.Path, suffix: str) -> bytes:
                 max_size=8 * 1024 * 1024, mode="w+b"
             ) as decompressed,
         ):
+
             def write_compressed(chunk: bytes) -> None:
                 written = compressed.write(chunk)
                 require(written == len(chunk), "short write while buffering C archive")
@@ -2384,14 +2500,16 @@ def tar_metadata_bytes(archive: pathlib.Path, suffix: str) -> bytes:
                         f"unsafe C archive path: {member.name}",
                     )
                     canonical = pure.as_posix()
-                    accepted_name = member.name[:-1] if member.isdir() and member.name.endswith("/") else member.name
+                    accepted_name = (
+                        member.name[:-1]
+                        if member.isdir() and member.name.endswith("/")
+                        else member.name
+                    )
                     require(
                         accepted_name == canonical,
                         f"non-canonical C archive path: {member.name}",
                     )
-                    canonical = require_relative_safe(
-                        canonical, "C archive member"
-                    )
+                    canonical = require_relative_safe(canonical, "C archive member")
                     require(
                         pure.parts[0] == expected_root,
                         f"C archive member is outside {expected_root}: {member.name}",
@@ -2400,13 +2518,24 @@ def tar_metadata_bytes(archive: pathlib.Path, suffix: str) -> bytes:
                         ":" not in pure.parts[0],
                         f"unsafe C archive drive-like path: {member.name}",
                     )
-                    require(canonical not in seen, f"duplicate C archive path: {canonical}")
+                    require(
+                        canonical not in seen, f"duplicate C archive path: {canonical}"
+                    )
                     seen.add(canonical)
-                    require(member.isfile() or member.isdir(), f"unsupported C archive member: {member.name}")
+                    require(
+                        member.isfile() or member.isdir(),
+                        f"unsupported C archive member: {member.name}",
+                    )
                     if not member.isfile():
-                        require(member.size == 0, f"C archive directory has data: {member.name}")
+                        require(
+                            member.size == 0,
+                            f"C archive directory has data: {member.name}",
+                        )
                         continue
-                    require(member.size >= 0, f"C archive member has negative size: {member.name}")
+                    require(
+                        member.size >= 0,
+                        f"C archive member has negative size: {member.name}",
+                    )
                     require(
                         member.size <= MAX_TAR_MEMBER_BYTES,
                         f"C archive member exceeds {MAX_TAR_MEMBER_BYTES} bytes: {member.name}",
@@ -2427,10 +2556,14 @@ def tar_metadata_bytes(archive: pathlib.Path, suffix: str) -> bytes:
                     stream = bundle.extractfile(member)
                     require(stream is not None, f"cannot read C archive {suffix}")
                     value = stream.read(MAX_TAR_METADATA_BYTES + 1)
-                    require(len(value) == member.size, f"short read for C archive {suffix}")
+                    require(
+                        len(value) == member.size, f"short read for C archive {suffix}"
+                    )
                     match = value
                 tar_end = bundle.offset
-                require(match is not None, f"C archive must contain exactly one {suffix}")
+                require(
+                    match is not None, f"C archive must contain exactly one {suffix}"
+                )
             require(
                 type(tar_end) is int and 0 <= tar_end <= decompressed_size,
                 f"C archive tar end offset is invalid: {archive}",
@@ -2464,7 +2597,10 @@ def validate_artifact_binding(
     sha256s_path: pathlib.Path,
     package_files: list[pathlib.Path],
 ) -> None:
-    require(len(package_files) == 1, f"{face} release entry must contain exactly one package file")
+    require(
+        len(package_files) == 1,
+        f"{face} release entry must contain exactly one package file",
+    )
     package_file = package_files[0]
     if face == "c-abi":
         require(package_file.name.endswith(".tar.gz"), "C ABI package must be a tar.gz")
@@ -2528,7 +2664,10 @@ def validate_index_location(index_path: pathlib.Path, root: pathlib.Path) -> Non
     release_base = target / "qperiapt-local-release"
     require_strictly_under(index_path, release_base, "release index")
     require_no_symlink_components(index_path, target, "release index")
-    require(index_path.name == "index.json", f"release index filename must be index.json: {index_path}")
+    require(
+        index_path.name == "index.json",
+        f"release index filename must be index.json: {index_path}",
+    )
     require(index_path.is_file(), f"release index missing: {index_path}")
 
 
@@ -2581,7 +2720,9 @@ def verify_release_index_snapshot(
         ),
         "release index",
     )
-    require_exact_int(index.get("schema_version"), SCHEMA_VERSION, "release index schema_version")
+    require_exact_int(
+        index.get("schema_version"), SCHEMA_VERSION, "release index schema_version"
+    )
     require(index.get("kind") == KIND, "release index kind mismatch")
     index_generated_at = require_utc_timestamp(
         index.get("generated_at"),
@@ -2599,13 +2740,18 @@ def verify_release_index_snapshot(
     validate_index_bytes(snapshot.file.data)
     channel = require_release_channel(index.get("channel"))
     diagnostic_only = index.get("diagnostic_only")
-    require(type(diagnostic_only) is bool, "release index diagnostic_only must be boolean")
+    require(
+        type(diagnostic_only) is bool, "release index diagnostic_only must be boolean"
+    )
     require(
         diagnostic_only is (channel == "diagnostic"),
         "release index channel/diagnostic_only boundary mismatch",
     )
     if channel == "diagnostic":
-        require(allow_diagnostic, "diagnostic release index requires explicit allow_diagnostic")
+        require(
+            allow_diagnostic,
+            "diagnostic release index requires explicit allow_diagnostic",
+        )
     channel_base = root / "target" / "qperiapt-local-release" / channel
     require_strictly_under(
         identity_index_path,
@@ -2639,9 +2785,17 @@ def verify_release_index_snapshot(
         abi.get("contract_path") == CONTRACT_RELATIVE_PATH.as_posix(),
         "release index contract_path mismatch",
     )
-    require(abi.get("contract_sha256") == trust.contract_sha256, "release index contract hash mismatch")
-    require(abi.get("exports_sha256") == trust.exports_sha256, "release index exports hash mismatch")
-    require_exact_int(abi.get("export_count"), EXPORT_COUNT, "release index export_count")
+    require(
+        abi.get("contract_sha256") == trust.contract_sha256,
+        "release index contract hash mismatch",
+    )
+    require(
+        abi.get("exports_sha256") == trust.exports_sha256,
+        "release index exports hash mismatch",
+    )
+    require_exact_int(
+        abi.get("export_count"), EXPORT_COUNT, "release index export_count"
+    )
 
     git = require_exact_object(
         index.get("git"),
@@ -2650,7 +2804,10 @@ def verify_release_index_snapshot(
     )
     commit = require_safe_basename(git.get("commit"), "release index commit")
     dirty = git.get("source_tree_dirty")
-    require(isinstance(commit, str) and GIT_COMMIT.fullmatch(commit) is not None, "release index commit is malformed")
+    require(
+        isinstance(commit, str) and GIT_COMMIT.fullmatch(commit) is not None,
+        "release index commit is malformed",
+    )
     require(type(dirty) is bool, "release index source_tree_dirty must be boolean")
     try:
         require_commit_or_evidence_successor(root, commit)
@@ -2693,7 +2850,10 @@ def verify_release_index_snapshot(
 
     artifacts = index.get("artifacts")
     require(isinstance(artifacts, list), "release index artifacts are malformed")
-    require(len(artifacts) == len(EXPECTED_FACES), "release index must have exactly three package faces")
+    require(
+        len(artifacts) == len(EXPECTED_FACES),
+        "release index must have exactly three package faces",
+    )
     release_root = index_path.parent
     seen_faces: set[str] = set()
     declared_files = {index_path.relative_to(release_root).as_posix()}
@@ -2767,7 +2927,12 @@ def verify_release_index_snapshot(
         validate_sanitized_proof_summary(proof_name, proof)
         proof_dirty = proof["source_tree_dirty"]
         if channel == "release":
-            require(not proof_dirty, f"release index includes diagnostic proof summary: {proof_name}")
+            require(
+                not proof_dirty,
+                f"release index includes diagnostic proof summary: {proof_name}",
+            )
+            if proof_name == "android_runtime":
+                validate_android_release_summary_contract(proof)
 
     verify_sha256s(
         release_root,
@@ -2837,10 +3002,18 @@ def requested_proof_summaries(
             "apple_matrix",
             expected_commit=commit,
         )
-    if args.include_android_runtime:
+    if args.android_runtime_run:
+        android_run = require_safe_basename(
+            args.android_runtime_run, "Android runtime run selector"
+        )
+        require(
+            re.fullmatch(r"[0-9a-f]{32}", android_run) is not None,
+            "Android runtime run selector must be 32 lowercase hex characters",
+        )
         android_path = (
             target
-            / "qperiapt-android-device-smoke"
+            / "qperiapt-android-device-smoke-runs"
+            / android_run
             / "proof"
             / "qperiapt-android-device-proof.json"
         )
@@ -2856,6 +3029,38 @@ def requested_proof_summaries(
             )
         except EvidenceIOError as exc:
             fail(str(exc))
+        require(
+            android_snapshot.value.get("run_id") == android_run,
+            "Android runtime proof run id differs from its selected run directory",
+        )
+        if channel == "release":
+            # Import lazily so release-index-only consumers do not gain a
+            # second Android implementation.  The complete runtime verifier,
+            # not a hand-written summary check, owns release-mode semantics.
+            import android_device_proof
+
+            android_device_proof.verify_proof_freshness(android_snapshot.value, 86_400)
+            android_paths = android_device_proof.proof_paths(
+                root, android_snapshot.value
+            )
+            android_device_proof.validate_selected_run_layout(
+                root,
+                android_path,
+                android_snapshot.value,
+                android_paths,
+                require_unique_run=True,
+            )
+            android_device_proof.verify_proof_contents(
+                root,
+                android_snapshot.value,
+                android_paths,
+                expected_device_kind=ANDROID_RELEASE_DEVICE_KIND,
+                expected_device_abi=ANDROID_RELEASE_DEVICE_ABI,
+                expected_page_size=ANDROID_RELEASE_PAGE_SIZE,
+                expected_device_sdk=ANDROID_RELEASE_DEVICE_SDK,
+                require_release_mode=True,
+                allow_dirty_proof=False,
+            )
         proofs["android_runtime"] = proof_summary_snapshot(
             android_snapshot,
             "android_runtime",
@@ -2950,7 +3155,9 @@ def cleanup_stale_release_pointer_files(pointer_path: pathlib.Path) -> None:
         try:
             entries = os.scandir(directory_fd)
         except OSError as exc:
-            fail(f"cannot enumerate release pointer parent {pointer_path.parent}: {exc}")
+            fail(
+                f"cannot enumerate release pointer parent {pointer_path.parent}: {exc}"
+            )
         with entries:
             parent_entry_count = 0
             stale_entries: list[tuple[str, tuple[int, int]]] = []
@@ -2988,9 +3195,7 @@ def cleanup_stale_release_pointer_files(pointer_path: pathlib.Path) -> None:
                     and stat.S_IMODE(metadata.st_mode) == 0o600,
                     f"stale release pointer entry is not one owned private file: {name}",
                 )
-                stale_entries.append(
-                    (name, (metadata.st_dev, metadata.st_ino))
-                )
+                stale_entries.append((name, (metadata.st_dev, metadata.st_ino)))
         for name, expected_identity in stale_entries:
             try:
                 metadata = os.stat(
@@ -3127,9 +3332,17 @@ def build_release_tree(
             artifact_contracts["c-abi"]["id"],
             "c-abi",
             artifact_contracts["c-abi"]["type"],
-            [copy_to_release(c_archive, target, release_root, f"packages/c/{c_archive.name}")],
-            copy_to_release(c_manifest_path, target, release_root, "manifests/c/MANIFEST.json"),
-            copy_to_release(c_dir / "SHA256SUMS", target, release_root, "manifests/c/SHA256SUMS"),
+            [
+                copy_to_release(
+                    c_archive, target, release_root, f"packages/c/{c_archive.name}"
+                )
+            ],
+            copy_to_release(
+                c_manifest_path, target, release_root, "manifests/c/MANIFEST.json"
+            ),
+            copy_to_release(
+                c_dir / "SHA256SUMS", target, release_root, "manifests/c/SHA256SUMS"
+            ),
             artifact_contracts["c-abi"]["boundary"],
             artifact_contracts["c-abi"]["required_leaf_gate"],
             artifact_contracts["c-abi"]["targets"],
@@ -3139,9 +3352,26 @@ def build_release_tree(
             artifact_contracts["swift"]["id"],
             "swift",
             artifact_contracts["swift"]["type"],
-            [copy_to_release(swift_zip, target, release_root, "packages/swift/CQPeriapt.xcframework.zip")],
-            copy_to_release(swift_manifest_path, target, release_root, "manifests/swift/MANIFEST.json"),
-            copy_to_release(swift_dir / "SHA256SUMS", target, release_root, "manifests/swift/SHA256SUMS"),
+            [
+                copy_to_release(
+                    swift_zip,
+                    target,
+                    release_root,
+                    "packages/swift/CQPeriapt.xcframework.zip",
+                )
+            ],
+            copy_to_release(
+                swift_manifest_path,
+                target,
+                release_root,
+                "manifests/swift/MANIFEST.json",
+            ),
+            copy_to_release(
+                swift_dir / "SHA256SUMS",
+                target,
+                release_root,
+                "manifests/swift/SHA256SUMS",
+            ),
             artifact_contracts["swift"]["boundary"],
             artifact_contracts["swift"]["required_leaf_gate"],
             artifact_contracts["swift"]["targets"],
@@ -3151,9 +3381,26 @@ def build_release_tree(
             artifact_contracts["android"]["id"],
             "android",
             artifact_contracts["android"]["type"],
-            [copy_to_release(android_aar, target, release_root, f"packages/android/{android_aar.name}")],
-            copy_to_release(android_manifest_path, target, release_root, "manifests/android/MANIFEST.json"),
-            copy_to_release(android_dir / "SHA256SUMS", target, release_root, "manifests/android/SHA256SUMS"),
+            [
+                copy_to_release(
+                    android_aar,
+                    target,
+                    release_root,
+                    f"packages/android/{android_aar.name}",
+                )
+            ],
+            copy_to_release(
+                android_manifest_path,
+                target,
+                release_root,
+                "manifests/android/MANIFEST.json",
+            ),
+            copy_to_release(
+                android_dir / "SHA256SUMS",
+                target,
+                release_root,
+                "manifests/android/SHA256SUMS",
+            ),
             artifact_contracts["android"]["boundary"],
             artifact_contracts["android"]["required_leaf_gate"],
             artifact_contracts["android"]["targets"],
@@ -3209,7 +3456,10 @@ def _build_index_locked(args: argparse.Namespace) -> pathlib.Path:
     channel = require_release_channel(args.channel)
     trust = load_abi_trust_root(root)
     version = require_safe_basename(cargo_version(root), "Cargo package version")
-    require(version == trust.version, f"Cargo version {version} differs from ABI contract {trust.version}")
+    require(
+        version == trust.version,
+        f"Cargo version {version} differs from ABI contract {trust.version}",
+    )
     commit = require_safe_basename(git_commit(root), "Git commit")
     require(GIT_COMMIT.fullmatch(commit) is not None, "Git commit is malformed")
     current_dirty = git_dirty(root)
@@ -3265,7 +3515,9 @@ def _build_index_locked(args: argparse.Namespace) -> pathlib.Path:
 
     for package_dir in (c_dir, swift_dir, android_dir):
         require_no_symlink_components(package_dir, target, "release package directory")
-        require(package_dir.is_dir(), f"release package directory missing: {package_dir}")
+        require(
+            package_dir.is_dir(), f"release package directory missing: {package_dir}"
+        )
     for package_file in (c_archive, swift_zip, android_aar):
         require_no_symlink_components(package_file, target, "release package file")
         require(package_file.is_file(), f"release package file missing: {package_file}")
@@ -3399,11 +3651,13 @@ def main() -> None:
     emit = sub.add_parser("emit")
     emit.add_argument("--channel", choices=["release", "diagnostic"], default="release")
     emit.add_argument("--apple-matrix-run", default="")
-    emit.add_argument("--include-android-runtime", action="store_true")
+    emit.add_argument("--android-runtime-run", default="")
     emit.set_defaults(func=build_index)
 
     verify = sub.add_parser("verify")
-    verify.add_argument("--channel", choices=["release", "diagnostic"], default="release")
+    verify.add_argument(
+        "--channel", choices=["release", "diagnostic"], default="release"
+    )
     verify.add_argument("--allow-diagnostic", action="store_true")
     verify.set_defaults(func=verify_index_command)
 

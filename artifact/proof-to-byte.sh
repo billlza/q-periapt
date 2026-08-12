@@ -272,7 +272,8 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 	if [ "${QPERIAPT_ANDROID_DEVICE_PROOF+x}" = "x" ]; then
 		ANDROID_DEVICE_PROOF=$QPERIAPT_ANDROID_DEVICE_PROOF
 	else
-		ANDROID_DEVICE_PROOF=$ROOT/target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json
+		printf 'error: QPERIAPT_ANDROID_DEVICE_PROOF is required for an explicitly selected Android run\n' >&2
+		exit 2
 	fi
 	ANDROID_PROOF=$(proof_path_under \
 		"$ANDROID_DEVICE_PROOF" \
@@ -542,6 +543,10 @@ paths = {
     "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "bounded_process_sha256": "artifact/bounded_process.py",
     "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
+    "process_identity_sha256": "artifact/process_identity.py",
+    "android_emulator_control_sha256": "artifact/android_emulator_control.py",
+    "android_runtime_state_sha256": "artifact/android_runtime_state.py",
+    "android_runtime_state_tests_sha256": "artifact/test_android_runtime_state.py",
     "android_bounded_command_sha256": "artifact/android_bounded_command.py",
     "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
     "apple_device_smoke_script_sha256": "artifact/apple-device-smoke.sh",

@@ -224,6 +224,14 @@ class PlatformReleaseContractTests(unittest.TestCase):
             android_device_proof.PROOF_SCHEMA_VERSION,
         )
         self.assertEqual(
+            contract.PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+            self.receipt["observation"]["android_runtime_evidence"]["proof_schema"],
+        )
+        self.assertNotEqual(
+            contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+            contract.PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+        )
+        self.assertEqual(
             contract.PLATFORM_DISTRIBUTION_SCHEMA_VERSION,
             platform_distribution.SCHEMA_VERSION,
         )

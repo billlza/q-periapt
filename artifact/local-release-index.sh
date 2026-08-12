@@ -75,7 +75,21 @@ if [ "${QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX:-0}" = "1" ]; then
 	set -- "$@" --apple-matrix-run "$apple_run_leaf"
 fi
 if [ "${QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME:-0}" = "1" ]; then
-	set -- "$@" --include-android-runtime
+	android_runtime_run=${QPERIAPT_ANDROID_RUNTIME_RUN:-}
+	case "$android_runtime_run" in
+		"" | *[!0-9a-f]*)
+			printf 'error: QPERIAPT_ANDROID_RUNTIME_RUN must be 32 lowercase hex characters\n' >&2
+			exit 2
+			;;
+	esac
+	if [ "${#android_runtime_run}" -ne 32 ]; then
+		printf 'error: QPERIAPT_ANDROID_RUNTIME_RUN must be 32 lowercase hex characters\n' >&2
+		exit 2
+	fi
+	set -- "$@" --android-runtime-run "$android_runtime_run"
+elif [ "${QPERIAPT_ANDROID_RUNTIME_RUN+x}" = x ]; then
+	printf 'error: QPERIAPT_ANDROID_RUNTIME_RUN requires the Android runtime selector\n' >&2
+	exit 2
 fi
 
 "$@"

@@ -107,7 +107,9 @@ To require Android runtime evidence too:
 QPERIAPT_ANDROID_SERIAL=<adb-serial> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 sh artifact/android-device-smoke.sh
-QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 sh artifact/embedding-readiness.sh
+QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json \
+sh artifact/embedding-readiness.sh
 ```
 
 If no Android device is attached, the smoke can boot a local AVD:
@@ -116,6 +118,7 @@ If no Android device is attached, the smoke can boot a local AVD:
 QPERIAPT_ANDROID_BOOT_AVD=1 \
 QPERIAPT_ANDROID_AVD=<avd-name> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
 sh artifact/android-device-smoke.sh
 ```
 
@@ -135,13 +138,34 @@ global server. It owns one mode-0700, allow-ACL-free private `localfilesystem:` 
 `/tmp`, routes every client explicitly, disables mDNS/auto-connect, and freezes server PID/start,
 executable, key, endpoint, transport environment, and mDNS-disabled status before selection and
 after the final query. Physical proof is restricted to one explicit USB serial. The AVD lane disables
-USB, but its localhost emulator transport still requires an exclusive trusted evidence host. App,
-AVD, private-server, and socket cleanup must complete before atomic final proof publication; failures
-leave no accepted proof or PASS marker and never trigger raw-PID TERM/KILL. Authorization prompts are
-not part of the proof lane. A repository-scoped open-file lock serializes the lane before output reset,
-and capability creation defers HUP/INT/TERM until its private state is armed or removed. After
-`SIGKILL` or host/device loss, establish ownership from the reported
-private socket/PID before manual cleanup.
+USB and automatic emulator scanning; it registers only the freshly PID-bound fixed listener pair
+through the private socket. Its localhost emulator transport still requires an exclusive trusted
+evidence host. Current schema-v4 proof contains a raw-value-omitting, source-bound admission receipt for the
+backend, fixed ports, listener, exact registration response, and private-adb identities; raw
+HOME/key/socket/UID/PID/serial values are excluded. This remains trusted-local control-plane evidence,
+not independent hostile-builder attestation. App, AVD, private-server, and socket cleanup must complete before proof publication in
+the append-only `target/qperiapt-android-device-smoke-runs/<run-id>/` tree; failures leave no accepted
+proof or PASS marker, never change an earlier selected run, and never trigger raw-PID TERM/KILL.
+Authorization prompts are not part of the proof lane. A stable, account-private
+host/account-scoped open-file lock serializes all checkouts before a unique run root is created. A
+durable whole-runtime receipt binds the originating run, adb snapshot, endpoint, server, and optional
+emulator before a long-lived child releases that lock. The children retain the registered descriptor
+with close-on-exec set through receipt registration; the kernel closes it only when the fixed exec
+succeeds, so a later lane can acquire it and strictly recover an interrupted runtime. Capability creation
+defers HUP/INT/TERM until its private state is armed or removed. Same-boot recovery revalidates exact
+process/listener identities, shuts an owned AVD through its authenticated console independently of
+private adb, and protocol-stops any still-live private server; confirmed prior-boot recovery is
+offline-only. The socket directory is reconciled from mode 0700 through the schema-v3 runtime phases
+to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v2 runtime receipts are rejected
+rather than implicitly migrated. Normal publication requires accepted protocol shutdown requests and
+zero child exit statuses; recovery may finalize an exact identity already proven absent, but never
+turns that interrupted run into a PASS. The console-token bytes are not persisted. Unsafe receipt,
+filesystem, listener, or path mismatches are preserved and rejected for operator review; a PID/start-
+token mismatch is treated as the exact owned process being absent and is never signalled. Device loss can
+still leave app cleanup unresolved, and the receipt does not continuously exclude an unrelated
+default adb server between the lane's absence probes, so the exclusive trusted-host requirement
+remains. The fixed emulator argv omits gRPC enablement; the listener receipt binds the required
+console/adb pair and is not an exhaustive claim about every TCP listener of the emulator process.
 All adb/lsof activity is selected from a finite Android operation table backed by one private
 run capability. The shared bounded-process module is import-only and exposes no arbitrary command or
 output-path CLI. Capability creation consumes the fixed-profile SDK adb from one opened descriptor
@@ -169,13 +193,21 @@ QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1 \
 QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=1 \
 QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/<matrix-run-dir> \
 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
 sh artifact/local-release-index.sh
 ```
+
+The Android selector is mandatory when inclusion is enabled and is used only to derive the fixed
+immutable run proof path. Arbitrary proof paths, newest-run discovery, and legacy fallback are rejected.
+The release channel admits the canonical AVD runtime lane only: emulator, arm64-v8a, API 35,
+16 KiB pages, and release mode. Explicit physical proofs remain separately verifiable but are not
+substituted for this release-index contract.
 
 The index copies only the C archive, Swift XCFramework zip, Android AAR, and their manifests into
 `target/qperiapt-local-release/<channel>/<version>/<commit>/`. It may include sanitized Apple/Android proof
 summaries, but it never copies raw device proof, build logs, provisioning profiles, `.xcresult`
-bundles, UDIDs, or adb serials. Index schema 3 accepts only the current C schema-2, Swift schema-5, and Android
+bundles, UDIDs, or adb serials. Index schema 4 includes the verified Android page size,
+release-candidate mode, and passing result in its sanitized summary, and accepts only the current C schema-2, Swift schema-5, and Android
 schema-4 package envelopes and rejects signed Swift input because the local index does not carry its
 Apple distribution evidence. Artifact boundaries name the required leaf gate and explicitly record
 that no leaf receipt or cryptographic attestation is embedded. This is an aggregation gate over package outputs already checked by
@@ -208,7 +240,7 @@ public publication step must deliberately create its own public-permission artif
 | Rust | The coordinated ten-crate set forms the release-ready `0.1.0-alpha.2` research-alpha source/crate line intended for crates.io publication; **no crate has been uploaded to crates.io yet**. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and patched `cargo publish --dry-run`. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and portable-only build surface, then audits the normalized backend graph with the sys crate patched in. | Registry publication by itself does not establish independent signed provenance, audit the vendored C provider, or promote the crates to production. Those remain production-promotion requirements. |
 | C ABI | The release-ready research-alpha source/crate contract for `0.1.0-alpha.2` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | Published platform C archives exist: `abi2-platforms-v0.1.0-alpha.2-r2` ships Linux x86_64+aarch64 SDK tars (GLIBC 2.35 ceiling, SONAME, pkg-config/CMake, SBOM/CBOM, licenses) and an **unsigned experimental** Windows x64 MSVC SDK ZIP, all validated by attested candidate-CI native consumers and bound to `PLATFORM_DISTRIBUTION.json`/`SHA256SUMS`. Production promotion still needs independent review, clean signed or transparency-backed source provenance, Windows Authenticode, and deb/rpm/MSIX registry packaging. |
 | Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, credentialed Developer ID static-SDK lane, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | `artifact/results.json` decides whether a signed public XCFramework is current. Its exact static-only payload is not a notarizable executable/bundle and is explicitly recorded as not notarized. That Apple-only SDK ZIP is `binaryTarget` material, not a complete Git-URL Swift package. The consuming app retains signing/provisioning and, for macOS, notarization responsibilities. The physical iPad+iPhone evidence remains a separate same-source production gate. |
-| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. The rebuilt source-bound AAR (16 KiB load alignment, stable NDK r29, Rust 1.96.1) is published in `abi2-platforms-v0.1.0-alpha.2-r2` together with an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. | Live-tree ART-rerun currentness is selected by `artifact/results.json` and goes stale after each source-changing commit (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`); the physical-vs-CI-emulator release policy, Maven Central publication, physical-device coverage, and downstream SkyBridge harnesses remain required. |
+| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. The rebuilt source-bound AAR (16 KiB load alignment, stable NDK r29, Rust 1.96.1) is published in `abi2-platforms-v0.1.0-alpha.2-r2` together with an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. | Live-tree ART-rerun currentness is selected by `artifact/results.json` and goes stale after each source-changing commit (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). The local release-index slot is fixed to the API 35 / 16 KiB release-mode AVD; remaining policy questions are whether CI executes that lane on every change and whether production promotion additionally requires physical-device coverage. Maven Central publication and downstream SkyBridge harnesses also remain required. |
 | Kotlin | Panama FFM is migrated to ABI2, requires an absolute ABI-major library path, and passes the current JDK 22 warning-failing CI lane. | This is host JVM evidence only and remains separate from Android runtime. |
 | WASM | Both the lean default and signed-policy feature execute their deterministic conformance tests on Node/WASM. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
 
@@ -294,9 +326,11 @@ release artifact.
   runtime-evidence bundle executed on the exact public AAR. The ABI2 ART smoke must be
   rerun against the live source tree whenever it advances; `artifact/results.json`
   selects whether the latest clean-tree rerun is current
-  (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). Remaining: decide whether CI requires an
-  emulator lane or whether physical Android devices are the release gate, publish to
-  Maven Central, and add downstream SkyBridge target-level harnesses.
+  (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). The local release-index slot always requires the
+  canonical API 35 / 16 KiB release-mode AVD; a physical proof cannot replace it. Remaining:
+  decide whether CI runs that AVD lane on every change and whether production promotion also
+  requires physical-device coverage, publish to Maven Central, and add downstream SkyBridge
+  target-level harnesses.
 - Downstream SkyBridge harness: one minimal integration test per target repository using the same
   shared vectors and policy files, so Q-Periapt proof does not get mistaken for downstream product
   proof.

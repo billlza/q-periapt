@@ -6,18 +6,29 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import enum
-import json
+import errno
+import hashlib
 import os
 import pathlib
-import pwd
 import re
+import resource
 import signal
+import socket
 import stat
+import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping
 from types import MappingProxyType
 from typing import Literal, NoReturn
 
+import android_runtime_state as runtime_state
+from android_emulator_control import (
+    AndroidEmulatorControlError,
+    fixed_headless_backend_path,
+    parse_owned_lsof_listeners,
+    parse_owned_single_listener,
+)
 from bounded_process import (
     BoundedProcessError,
     BoundedResult,
@@ -27,78 +38,30 @@ from bounded_process import (
 )
 from evidence_io import (
     EvidenceIOError,
-    FileDigestSnapshot,
-    JsonObjectSnapshot,
     consume_regular_snapshot,
     consume_regular_snapshot_at,
     load_json_object_snapshot,
     load_json_object_snapshot_at,
     read_regular_snapshot,
 )
+from process_identity import (
+    ProcessIdentity,
+    ProcessIdentityError,
+    host_boot_identity,
+)
+from process_identity import (
+    snapshot as process_snapshot,
+)
 
-
-SCHEMA_VERSION = 2
-KIND = "qperiapt.android_command_capability"
-MAX_CAPABILITY_BYTES = 16 * 1024
-MAX_TOOL_BYTES = 128 * 1024 * 1024
-MAX_APK_BYTES = 512 * 1024 * 1024
 PACKAGE = "dev.qperiapt.androidsmoke"
 RESULT_TEXT_REMOTE = "files/qperiapt-android-device-result.txt"
 RESULT_JSON_REMOTE = "files/qperiapt-android-device-result.json"
-
-REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUTPUT_ROOT = REPOSITORY_ROOT / "target" / "qperiapt-android-device-smoke"
-WORK_ROOT = OUTPUT_ROOT / "work"
-PROOF_ROOT = OUTPUT_ROOT / "proof"
-CAPABILITY_LEAF = "android-command-capability.json"
-CAPABILITY_PATH = WORK_ROOT / CAPABILITY_LEAF
-ADB_SNAPSHOT_PREFIX = "adb-"
-SIGNED_APK_PATH = PROOF_ROOT / "qperiapt-android-smoke.apk"
-
-HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
-RUN_ID = re.compile(r"[0-9a-f]{32}")
-SERIAL = re.compile(r"[A-Za-z0-9._:-]{1,128}")
-SOCKET_NONCE = re.compile(r"[A-Za-z0-9]{8}")
-REMOTE_BASE_APK = re.compile(r"/[A-Za-z0-9_./+=~:-]+/base\.apk")
-DEVICE_EPOCH = re.compile(r"[1-9][0-9]{9,12}\.[0-9]{3}")
-
-_CANONICAL_ASCII = MappingProxyType(
-    {character: character for character in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._:/+=~-"}
-)
-_NONCE_CHARACTERS = frozenset("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-_SERIAL_CHARACTERS = frozenset("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._:-")
-_RUN_ID_CHARACTERS = frozenset("0123456789abcdef")
+REMOTE_BASE_APK = re.compile("/[A-Za-z0-9_./+=~:-]+/base\\.apk")
+DEVICE_EPOCH = re.compile("[1-9][0-9]{9,12}\\.[0-9]{3}")
 _REMOTE_PATH_CHARACTERS = frozenset(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_./+=~:-"
 )
 _EPOCH_CHARACTERS = frozenset("0123456789.")
-
-CAPABILITY_FIELDS = frozenset(
-    {
-        "schema_version",
-        "kind",
-        "adb_profile",
-        "adb_size",
-        "adb_sha256",
-        "socket_nonce",
-        "device_kind",
-        "expected_serial",
-        "run_id",
-        "signed_apk_size",
-        "signed_apk_sha256",
-    }
-)
-
-ACCOUNT_HOME = pathlib.Path(pwd.getpwuid(os.geteuid()).pw_dir)
-ADB_PROFILE_PATHS: Mapping[str, pathlib.Path] = MappingProxyType(
-    {
-        "macos-account": ACCOUNT_HOME / "Library/Android/sdk/platform-tools/adb",
-        "linux-account": ACCOUNT_HOME / "Android/Sdk/platform-tools/adb",
-        "linux-system": pathlib.Path("/usr/local/lib/android/sdk/platform-tools/adb"),
-        "linux-opt": pathlib.Path("/opt/android-sdk/platform-tools/adb"),
-    }
-)
-
 EXACT_CLIENT_ENVIRONMENT = MappingProxyType(
     {
         "ADB_MDNS": "0",
@@ -129,12 +92,14 @@ class AndroidCommandError(RuntimeError):
 
 
 class AndroidOperation(str, enum.Enum):
-    KILL_SERVER = "kill-server"
+    REGISTER_EMULATOR = "register-emulator"
     LIST_DEVICES = "list-devices"
     LSOF_INITIAL = "lsof-initial"
     LSOF_BEFORE = "lsof-before"
+    LSOF_REGISTERED = "lsof-registered"
     LSOF_AFTER = "lsof-after"
     SERVER_STATUS_BEFORE = "server-status-before"
+    SERVER_STATUS_REGISTERED = "server-status-registered"
     SERVER_STATUS_AFTER = "server-status-after"
     DEVICE_STATE = "device-state"
     BOOT_COMPLETED = "boot-completed"
@@ -153,7 +118,6 @@ class AndroidOperation(str, enum.Enum):
     PULL_INSTALLED_APK = "pull-installed-apk"
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
-    EMULATOR_KILL = "emulator-kill"
     DEVICE_TIME = "device-time"
     FORCE_STOP = "force-stop"
     START_APP = "start-app"
@@ -168,23 +132,6 @@ class OutputRoot(str, enum.Enum):
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
-class AndroidCommandCapability:
-    adb_profile: str
-    adb_snapshot_path: pathlib.Path
-    adb_size: int
-    adb_sha256: str
-    socket_nonce: str
-    server_socket: str
-    socket_path: str
-    vendor_key: pathlib.Path
-    device_kind: Literal["physical", "emulator"]
-    expected_serial: str
-    run_id: str
-    signed_apk_size: int
-    signed_apk_sha256: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
 class OutputSpec:
     root: OutputRoot
     leaf: str
@@ -193,11 +140,31 @@ class OutputSpec:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class OperationSpec:
-    mode: Literal["run", "capture", "write", "pull-apk", "logcat"]
+    mode: Literal[
+        "run",
+        "capture",
+        "write",
+        "pull-apk",
+        "logcat",
+        "register-emulator",
+        "emulator-avd-name",
+    ]
     timeout_seconds: int
     timeout_maximum: int
     output: OutputSpec | None
-    build_argv: Callable[[AndroidCommandCapability], tuple[str, ...]]
+    build_argv: Callable[[runtime_state.AndroidAdbCapability], tuple[str, ...]]
+    requires_private_server: bool = True
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class RecoveryContext:
+    """Protocol-layer recovery inputs reconstructed from durable state."""
+
+    layout: runtime_state.AndroidRunLayout
+    capability: runtime_state.AndroidAdbCapability
+    launcher: pathlib.Path | None
+    backend: pathlib.Path | None
+    current_boot: bool
 
 
 def _fail(message: str) -> NoReturn:
@@ -209,561 +176,35 @@ def _require(condition: bool, message: str) -> None:
         _fail(message)
 
 
-def _canonical_ascii_atom(
-    value: object,
-    *,
-    characters: frozenset[str],
-    minimum: int,
-    maximum: int,
-    label: str,
-) -> str:
-    """Rebuild an input from code-owned ASCII values after a finite allowlist."""
-
-    _require(
-        isinstance(value, str) and minimum <= len(value) <= maximum,
-        f"{label} is malformed",
-    )
-    rebuilt: list[str] = []
-    for character in value:
-        canonical = _CANONICAL_ASCII.get(character)
-        _require(
-            canonical is not None and canonical in characters,
-            f"{label} contains an unsupported character",
-        )
-        rebuilt.append(canonical)
-    return "".join(rebuilt)
-
-
-def _canonical_device_kind(value: object) -> Literal["physical", "emulator"]:
-    if value == "physical":
-        return "physical"
-    if value == "emulator":
-        return "emulator"
-    _fail("Android device kind is invalid")
-
-
-def _canonical_run_id(value: object) -> str:
-    rebuilt = _canonical_ascii_atom(
-        value,
-        characters=_RUN_ID_CHARACTERS,
-        minimum=32,
-        maximum=32,
-        label="Android run id",
-    )
-    _require(RUN_ID.fullmatch(rebuilt) is not None, "Android run id is invalid")
-    return rebuilt
-
-
-def _canonical_socket_nonce(value: object) -> str:
-    rebuilt = _canonical_ascii_atom(
-        value,
-        characters=_NONCE_CHARACTERS,
-        minimum=8,
-        maximum=8,
-        label="private adb socket nonce",
-    )
-    _require(
-        SOCKET_NONCE.fullmatch(rebuilt) is not None,
-        "private adb socket nonce is invalid",
-    )
-    return rebuilt
-
-
-def _server_socket_identity(nonce: str) -> tuple[str, str]:
-    socket_path = f"/tmp/qperiapt-adb.{nonce}/adb.sock"
-    return f"localfilesystem:{socket_path}", socket_path
-
-
-def _private_metadata(metadata: os.stat_result) -> None:
-    if (
-        not stat.S_ISREG(metadata.st_mode)
-        or metadata.st_uid != os.geteuid()
-        or metadata.st_nlink != 1
-        or stat.S_IMODE(metadata.st_mode) != 0o600
-    ):
-        raise EvidenceIOError(
-            "Android command capability must be one current-user-owned regular file with mode 0600"
-        )
-
-
-def _canonical_expected_serial(value: object, device_kind: str) -> str:
-    rebuilt = _canonical_ascii_atom(
-        value,
-        characters=_SERIAL_CHARACTERS,
-        minimum=1,
-        maximum=128,
-        label="Android serial",
-    )
-    _require(
-        SERIAL.fullmatch(rebuilt) is not None and not rebuilt.startswith("-"),
-        "Android serial is invalid",
-    )
-    if device_kind == "emulator":
-        match = re.fullmatch(r"emulator-([0-9]{4})", rebuilt)
-        _require(match is not None, "Android emulator serial is invalid")
-        port = int(match.group(1))
-        _require(
-            5554 <= port <= 5584 and port % 2 == 0,
-            "Android emulator serial is outside the owned AVD port range",
-        )
-    return rebuilt
-
-
-def _executable_metadata(metadata: os.stat_result) -> None:
-    if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o111 == 0:
-        raise EvidenceIOError("Android command tool must be an executable regular file")
-
-
-def _private_executable_metadata(metadata: os.stat_result) -> None:
-    if (
-        not stat.S_ISREG(metadata.st_mode)
-        or metadata.st_uid != os.geteuid()
-        or metadata.st_nlink != 1
-        or stat.S_IMODE(metadata.st_mode) != 0o500
-    ):
-        raise EvidenceIOError(
-            "Android adb snapshot must be one current-user-owned regular file with mode 0500"
-        )
-
-
-def _close_owned_descriptor(
-    descriptor: int,
-    *,
-    label: str,
-    primary: BaseException | None = None,
-) -> None:
+def _close_nonstandard_descriptors(*, preserve_lane_lock: bool = False) -> None:
+    """Close every inherited descriptor other than stdin/stdout/stderr."""
     try:
-        os.close(descriptor)
-    except BaseException as cleanup_error:
-        if primary is not None:
-            primary.add_note(f"closing {label} also failed: {cleanup_error}")
-        elif isinstance(cleanup_error, Exception):
-            raise AndroidCommandError(
-                f"cannot close {label}: {cleanup_error}"
-            ) from cleanup_error
+        soft_limit, _hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    except (OSError, ValueError) as exc:
+        raise AndroidCommandError(
+            f"cannot determine inherited descriptor limit: {exc}"
+        ) from exc
+    if soft_limit == resource.RLIM_INFINITY:
+        soft_limit = 1048576
+    _require(
+        type(soft_limit) is int and 3 <= soft_limit <= 1048576,
+        "inherited descriptor limit is outside the supported bound",
+    )
+    if preserve_lane_lock:
+        _require(
+            not os.get_inheritable(runtime_state.LANE_LOCK_FD),
+            "preserved Android lane lock is not close-on-exec",
+        )
+    try:
+        if preserve_lane_lock:
+            os.closerange(3, runtime_state.LANE_LOCK_FD)
+            os.closerange(runtime_state.LANE_LOCK_FD + 1, soft_limit)
         else:
-            raise
-
-
-def _canonical_concrete_adb_profile(profile: object) -> str:
-    if profile == "macos-account":
-        return "macos-account"
-    if profile == "linux-account":
-        return "linux-account"
-    if profile == "linux-system":
-        return "linux-system"
-    if profile == "linux-opt":
-        return "linux-opt"
-    _fail("Android adb profile is unsupported")
-
-
-def canonical_adb_profile(profile: object) -> str:
-    if profile == "auto":
-        available = [
-            (name, path)
-            for name, path in ADB_PROFILE_PATHS.items()
-            if os.path.lexists(path) and os.access(path, os.X_OK)
-        ]
-        _require(
-            len(available) == 1,
-            "automatic Android adb selection requires exactly one fixed profile",
-        )
-        profile = available[0][0]
-    return _canonical_concrete_adb_profile(profile)
-
-
-def resolve_adb_profile(profile: object) -> pathlib.Path:
-    return ADB_PROFILE_PATHS[canonical_adb_profile(profile)]
-
-
-def _open_private_directory(path: pathlib.Path, label: str) -> int:
-    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
-    try:
-        descriptor = os.open(path, flags)
+            os.closerange(3, soft_limit)
     except OSError as exc:
-        raise AndroidCommandError(f"cannot open {label} directory {path}: {exc}") from exc
-    try:
-        metadata = os.fstat(descriptor)
-        _require(
-            stat.S_ISDIR(metadata.st_mode)
-            and metadata.st_uid == os.geteuid()
-            and stat.S_IMODE(metadata.st_mode) == 0o700,
-            f"{label} directory must be current-user-owned with mode 0700",
-        )
-    except BaseException as primary:
-        _close_owned_descriptor(
-            descriptor,
-            label=f"rejected {label} directory",
-            primary=primary,
-        )
-        raise
-    return descriptor
-
-
-def _write_all(descriptor: int, data: bytes, *, label: str) -> None:
-    view = memoryview(data)
-    while view:
-        try:
-            written = os.write(descriptor, view)
-        except OSError as exc:
-            raise AndroidCommandError(f"cannot write {label}: {exc}") from exc
-        if written <= 0:
-            raise AndroidCommandError(f"short write while creating {label}")
-        view = view[written:]
-
-
-def _adb_snapshot_leaf(run_id: str) -> str:
-    return f"{ADB_SNAPSHOT_PREFIX}{_canonical_run_id(run_id)}"
-
-
-def _create_adb_snapshot(
-    directory_fd: int,
-    source_path: pathlib.Path,
-    run_id: str,
-) -> FileDigestSnapshot:
-    """Copy and hash one SDK adb stream into this run's private executable."""
-
-    leaf = _adb_snapshot_leaf(run_id)
-    descriptor = -1
-    created = False
-    primary: BaseException | None = None
-    try:
-        flags = (
-            os.O_WRONLY
-            | os.O_CREAT
-            | os.O_EXCL
-            | os.O_NOFOLLOW
-            | getattr(os, "O_CLOEXEC", 0)
-        )
-        descriptor = os.open(leaf, flags, 0o600, dir_fd=directory_fd)
-        created = True
-        snapshot = consume_regular_snapshot(
-            source_path,
-            maximum=MAX_TOOL_BYTES,
-            label="adb executable",
-            validate_metadata=_executable_metadata,
-            consume=lambda chunk: _write_all(
-                descriptor,
-                chunk,
-                label="Android adb snapshot",
-            ),
-        )
-        os.fchmod(descriptor, 0o500)
-        metadata = os.fstat(descriptor)
-        _private_executable_metadata(metadata)
-        _require(
-            metadata.st_size == snapshot.size,
-            "Android adb snapshot size differs from the consumed SDK executable",
-        )
-        os.fsync(descriptor)
-        os.close(descriptor)
-        descriptor = -1
-        os.fsync(directory_fd)
-        return snapshot
-    except BaseException as exc:
-        primary = exc
-        if descriptor >= 0:
-            _close_owned_descriptor(
-                descriptor,
-                label="the incomplete Android adb snapshot",
-                primary=primary,
-            )
-        if created:
-            try:
-                os.unlink(leaf, dir_fd=directory_fd)
-                os.fsync(directory_fd)
-            except BaseException as cleanup_error:
-                primary.add_note(
-                    f"removing the incomplete Android adb snapshot also failed: {cleanup_error}"
-                )
-        raise
-
-
-def _remove_adb_snapshot(
-    directory_fd: int,
-    run_id: str,
-    *,
-    missing_ok: bool,
-) -> None:
-    leaf = _adb_snapshot_leaf(run_id)
-    try:
-        metadata = os.stat(leaf, dir_fd=directory_fd, follow_symlinks=False)
-    except FileNotFoundError:
-        if missing_ok:
-            return
-        raise AndroidCommandError("Android adb snapshot is missing") from None
-    except OSError as exc:
-        raise AndroidCommandError(f"cannot inspect Android adb snapshot: {exc}") from exc
-    try:
-        _private_executable_metadata(metadata)
-    except EvidenceIOError as exc:
-        raise AndroidCommandError(str(exc)) from exc
-    try:
-        os.unlink(leaf, dir_fd=directory_fd)
-    except OSError as exc:
-        raise AndroidCommandError(f"cannot remove Android adb snapshot: {exc}") from exc
-
-
-def create_capability(
-    *,
-    adb_profile: str,
-    socket_nonce: str,
-    device_kind: str,
-    expected_serial: str,
-    run_id: str,
-    signed_apk_size: int,
-    signed_apk_sha256: str,
-) -> None:
-    validated_adb_profile = canonical_adb_profile(adb_profile)
-    validated_adb_path = ADB_PROFILE_PATHS[validated_adb_profile]
-    validated_socket_nonce = _canonical_socket_nonce(socket_nonce)
-    validated_device_kind = _canonical_device_kind(device_kind)
-    validated_serial = _canonical_expected_serial(
-        expected_serial, validated_device_kind
-    )
-    validated_run_id = _canonical_run_id(run_id)
-    _require(
-        type(signed_apk_size) is int and 0 < signed_apk_size <= MAX_APK_BYTES,
-        "signed Android APK size is invalid",
-    )
-    _require(
-        HEX_SHA256.fullmatch(signed_apk_sha256) is not None,
-        "signed Android APK digest is invalid",
-    )
-    apk_snapshot = consume_regular_snapshot(
-        SIGNED_APK_PATH,
-        maximum=MAX_APK_BYTES,
-        label="signed Android smoke APK",
-    )
-    _require(
-        apk_snapshot.size == signed_apk_size
-        and apk_snapshot.sha256 == signed_apk_sha256,
-        "signed Android APK identity differs at capability creation",
-    )
-    directory_fd = _open_private_directory(WORK_ROOT, "Android work")
-    descriptor = -1
-    capability_created = False
-    snapshot_created = False
-    primary: BaseException | None = None
-    try:
-        adb_snapshot = _create_adb_snapshot(
-            directory_fd,
-            validated_adb_path,
-            validated_run_id,
-        )
-        snapshot_created = True
-        payload = {
-            "schema_version": SCHEMA_VERSION,
-            "kind": KIND,
-            "adb_profile": validated_adb_profile,
-            "adb_size": adb_snapshot.size,
-            "adb_sha256": adb_snapshot.sha256,
-            "socket_nonce": validated_socket_nonce,
-            "device_kind": validated_device_kind,
-            "expected_serial": validated_serial,
-            "run_id": validated_run_id,
-            "signed_apk_size": signed_apk_size,
-            "signed_apk_sha256": signed_apk_sha256,
-        }
-        encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(
-            "utf-8"
-        )
-        _require(
-            len(encoded) <= MAX_CAPABILITY_BYTES,
-            "Android command capability is oversized",
-        )
-        flags = (
-            os.O_WRONLY
-            | os.O_CREAT
-            | os.O_EXCL
-            | os.O_NOFOLLOW
-            | getattr(os, "O_CLOEXEC", 0)
-        )
-        descriptor = os.open(CAPABILITY_LEAF, flags, 0o600, dir_fd=directory_fd)
-        capability_created = True
-        os.fchmod(descriptor, 0o600)
-        _private_metadata(os.fstat(descriptor))
-        _write_all(
-            descriptor,
-            encoded,
-            label="Android command capability",
-        )
-        os.fsync(descriptor)
-        os.close(descriptor)
-        descriptor = -1
-        os.fsync(directory_fd)
-    except BaseException as exc:
-        primary = exc
-        if descriptor >= 0:
-            _close_owned_descriptor(
-                descriptor,
-                label="the incomplete Android capability",
-                primary=primary,
-            )
-        if capability_created:
-            try:
-                os.unlink(CAPABILITY_LEAF, dir_fd=directory_fd)
-            except BaseException as cleanup_error:
-                primary.add_note(
-                    f"removing the incomplete Android capability also failed: {cleanup_error}"
-                )
-        if snapshot_created:
-            try:
-                _remove_adb_snapshot(
-                    directory_fd,
-                    validated_run_id,
-                    missing_ok=True,
-                )
-                os.fsync(directory_fd)
-            except BaseException as cleanup_error:
-                primary.add_note(
-                    f"removing the uncommitted Android adb snapshot also failed: {cleanup_error}"
-                )
-        raise
-    finally:
-        _close_owned_descriptor(
-            directory_fd,
-            label="the Android work directory",
-            primary=primary,
-        )
-
-
-def destroy_capability(
-    *,
-    expected_run_id: str | None = None,
-    missing_ok: bool = False,
-) -> None:
-    canonical_expected_run_id = (
-        _canonical_run_id(expected_run_id)
-        if expected_run_id is not None
-        else None
-    )
-    directory_fd = _open_private_directory(WORK_ROOT, "Android work")
-    primary: BaseException | None = None
-    try:
-        try:
-            snapshot = load_json_object_snapshot_at(
-                directory_fd,
-                CAPABILITY_LEAF,
-                display_path=CAPABILITY_PATH,
-                maximum=MAX_CAPABILITY_BYTES,
-                label="Android command capability",
-                validate_metadata=_private_metadata,
-            )
-        except EvidenceIOError as exc:
-            if missing_ok:
-                try:
-                    os.stat(
-                        CAPABILITY_LEAF,
-                        dir_fd=directory_fd,
-                        follow_symlinks=False,
-                    )
-                except FileNotFoundError:
-                    if canonical_expected_run_id is not None:
-                        _remove_adb_snapshot(
-                            directory_fd,
-                            canonical_expected_run_id,
-                            missing_ok=True,
-                        )
-                        os.fsync(directory_fd)
-                    return
-            raise AndroidCommandError(
-                f"cannot load Android command capability for removal: {exc}"
-            ) from exc
-        capability = _capability_from_snapshot(snapshot)
-        if canonical_expected_run_id is not None:
-            _require(
-                capability.run_id == canonical_expected_run_id,
-                "Android command capability belongs to a different run",
-            )
-        _validate_adb_at(directory_fd, capability)
-        os.unlink(CAPABILITY_LEAF, dir_fd=directory_fd)
-        _remove_adb_snapshot(
-            directory_fd,
-            capability.run_id,
-            missing_ok=False,
-        )
-        os.fsync(directory_fd)
-    except OSError as exc:
-        primary = AndroidCommandError(
-            f"cannot remove Android command capability: {exc}"
-        )
-        raise primary from exc
-    except BaseException as exc:
-        primary = exc
-        raise
-    finally:
-        _close_owned_descriptor(
-            directory_fd,
-            label="the Android work directory",
-            primary=primary,
-        )
-
-
-def _capability_from_snapshot(snapshot: JsonObjectSnapshot) -> AndroidCommandCapability:
-    value = snapshot.value
-    _require(set(value) == CAPABILITY_FIELDS, "Android command capability fields changed")
-    _require(
-        type(value.get("schema_version")) is int
-        and value.get("schema_version") == SCHEMA_VERSION,
-        "Android command schema changed",
-    )
-    _require(value.get("kind") == KIND, "Android command capability kind changed")
-    adb_profile = _canonical_concrete_adb_profile(value.get("adb_profile"))
-    adb_size = value.get("adb_size")
-    _require(
-        type(adb_size) is int and 0 < adb_size <= MAX_TOOL_BYTES,
-        "adb executable size changed shape",
-    )
-    adb_sha256 = value.get("adb_sha256")
-    _require(
-        isinstance(adb_sha256, str) and HEX_SHA256.fullmatch(adb_sha256) is not None,
-        "adb executable digest changed shape",
-    )
-    vendor_key = ACCOUNT_HOME / ".android/adbkey"
-    socket_nonce = _canonical_socket_nonce(value.get("socket_nonce"))
-    server_socket, socket_path = _server_socket_identity(socket_nonce)
-    device_kind = _canonical_device_kind(value.get("device_kind"))
-    expected_serial = _canonical_expected_serial(
-        value.get("expected_serial"), device_kind
-    )
-    run_id = _canonical_run_id(value.get("run_id"))
-    signed_apk_size = value.get("signed_apk_size")
-    _require(
-        type(signed_apk_size) is int and 0 < signed_apk_size <= MAX_APK_BYTES,
-        "signed APK size changed",
-    )
-    signed_apk_sha256 = value.get("signed_apk_sha256")
-    _require(
-        isinstance(signed_apk_sha256, str)
-        and HEX_SHA256.fullmatch(signed_apk_sha256) is not None,
-        "signed APK digest changed",
-    )
-    return AndroidCommandCapability(
-        adb_profile=adb_profile,
-        adb_snapshot_path=WORK_ROOT / _adb_snapshot_leaf(run_id),
-        adb_size=adb_size,
-        adb_sha256=adb_sha256,
-        socket_nonce=socket_nonce,
-        server_socket=server_socket,
-        socket_path=socket_path,
-        vendor_key=vendor_key,
-        device_kind=device_kind,
-        expected_serial=expected_serial,
-        run_id=run_id,
-        signed_apk_size=signed_apk_size,
-        signed_apk_sha256=signed_apk_sha256,
-    )
-
-
-def load_capability() -> AndroidCommandCapability:
-    snapshot = load_json_object_snapshot(
-        CAPABILITY_PATH,
-        maximum=MAX_CAPABILITY_BYTES,
-        label="Android command capability",
-        validate_metadata=_private_metadata,
-    )
-    return _capability_from_snapshot(snapshot)
+        raise AndroidCommandError(
+            f"cannot close inherited descriptors before long-lived exec: {exc}"
+        ) from exc
 
 
 def create_capability_with_deferred_signals(
@@ -777,9 +218,11 @@ def create_capability_with_deferred_signals(
     signed_apk_sha256: str,
 ) -> None:
     managed_signals = tuple(
-        getattr(signal, name)
-        for name in ("SIGHUP", "SIGINT", "SIGTERM")
-        if hasattr(signal, name)
+        (
+            getattr(signal, name)
+            for name in ("SIGHUP", "SIGINT", "SIGTERM")
+            if hasattr(signal, name)
+        )
     )
     _require(
         bool(managed_signals) and hasattr(signal, "pthread_sigmask"),
@@ -805,10 +248,7 @@ def create_capability_with_deferred_signals(
         setup_primary = exc
         for installed_signal in reversed(installed_signals):
             try:
-                signal.signal(
-                    installed_signal,
-                    original_handlers[installed_signal],
-                )
+                signal.signal(installed_signal, original_handlers[installed_signal])
             except BaseException as cleanup_error:
                 setup_primary.add_note(
                     f"restoring a partially installed signal handler also failed: {cleanup_error}"
@@ -824,12 +264,11 @@ def create_capability_with_deferred_signals(
                 )
             else:
                 raise
-
     capability_created = False
     capability_cleanup_attempted = False
     create_primary: BaseException | None = None
     try:
-        create_capability(
+        runtime_state.create_capability(
             adb_profile=adb_profile,
             socket_nonce=socket_nonce,
             device_kind=device_kind,
@@ -850,26 +289,17 @@ def create_capability_with_deferred_signals(
             if (
                 capability_created
                 and received_signal != 0
-                and not capability_cleanup_attempted
+                and (not capability_cleanup_attempted)
             ):
                 capability_cleanup_attempted = True
-                destroy_capability(
-                    expected_run_id=_canonical_run_id(run_id),
-                    missing_ok=True,
+                runtime_state.destroy_capability(
+                    run_id=runtime_state.canonical_run_id(run_id), missing_ok=True
                 )
 
         try:
             remove_interrupted_capability()
         except BaseException as cleanup_error:
             handoff_errors.append(cleanup_error)
-
-        # Keep each temporary handler installed until signal.signal atomically
-        # transfers that signal back to its original owner.  A signal delivered
-        # before its transfer records the interruption and is cleaned below;
-        # one delivered after the transfer follows the caller's original signal
-        # semantics.  Taking a sigpending() snapshot before unmasking cannot
-        # establish this boundary because a signal can become pending between
-        # those two operations.
         for managed_signal, original_handler in original_handlers.items():
             try:
                 signal.signal(managed_signal, original_handler)
@@ -879,7 +309,6 @@ def create_capability_with_deferred_signals(
                 remove_interrupted_capability()
             except BaseException as cleanup_error:
                 handoff_errors.append(cleanup_error)
-
         if handoff_errors:
             if create_primary is not None:
                 for handoff_error in handoff_errors:
@@ -904,7 +333,76 @@ def _lsof_path() -> str:
     _fail("fixed-system lsof is unavailable")
 
 
-def _adb(capability: AndroidCommandCapability, *arguments: str) -> tuple[str, ...]:
+def capture_owned_emulator_listeners(
+    *, run_id: str, emulator_pid: int, timeout_seconds: int
+) -> BoundedResult:
+    """Capture one owned emulator's fixed listeners into its run work tree."""
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    capability = runtime_state.load_capability(layout.run_id)
+    _validate_client_environment(capability)
+    _validate_adb(layout, capability)
+    return _capture_owned_emulator_listeners(
+        layout=layout,
+        capability=capability,
+        emulator_pid=emulator_pid,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _capture_owned_emulator_listeners(
+    *,
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidAdbCapability,
+    emulator_pid: int,
+    timeout_seconds: int,
+) -> BoundedResult:
+    _require(
+        type(emulator_pid) is int and emulator_pid > 1, "owned emulator pid is invalid"
+    )
+    _require(
+        type(timeout_seconds) is int and 1 <= timeout_seconds <= 5,
+        "owned emulator listener timeout must be 1 through 5 seconds",
+    )
+    console_port, adb_port = _owned_emulator_ports(capability)
+    directory_fd = runtime_state.open_private_directory(layout.work, "Android work")
+    primary: BaseException | None = None
+    try:
+        result = write_stdout_at(
+            (
+                _lsof_path(),
+                "-nP",
+                "-a",
+                "-p",
+                str(emulator_pid),
+                f"-iTCP:{console_port}",
+                f"-iTCP:{adb_port}",
+                "-sTCP:LISTEN",
+                "-Fpun",
+            ),
+            output_directory_fd=directory_fd,
+            output_name="emulator-listeners.txt.pending",
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=65536,
+            environment={
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                "LC_ALL": "C",
+                "LANG": "C",
+            },
+        )
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        runtime_state.close_descriptor(
+            directory_fd, label="the Android work directory", primary=primary
+        )
+    _require(result.returncode == 0, "owned emulator listener inspection failed")
+    return result
+
+
+def _adb(
+    capability: runtime_state.AndroidAdbCapability, *arguments: str
+) -> tuple[str, ...]:
     return (
         str(capability.adb_snapshot_path),
         "-L",
@@ -913,16 +411,46 @@ def _adb(capability: AndroidCommandCapability, *arguments: str) -> tuple[str, ..
     )
 
 
-def _device(capability: AndroidCommandCapability, *arguments: str) -> tuple[str, ...]:
+def _device(
+    capability: runtime_state.AndroidAdbCapability, *arguments: str
+) -> tuple[str, ...]:
     return _adb(capability, "-s", capability.expected_serial, *arguments)
+
+
+def _owned_emulator_ports(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[int, int]:
+    _require(
+        capability.device_kind == "emulator",
+        "emulator registration requires an emulator capability",
+    )
+    match = re.fullmatch("emulator-([0-9]{4})", capability.expected_serial)
+    _require(match is not None, "emulator registration serial is invalid")
+    console_port = int(match.group(1))
+    _require(
+        5554 <= console_port <= 5584 and console_port % 2 == 0,
+        "emulator registration port is outside the owned AVD range",
+    )
+    return (console_port, console_port + 1)
+
+
+def _emulator_registration_target(
+    capability: runtime_state.AndroidAdbCapability,
+) -> str:
+    console_port, adb_port = _owned_emulator_ports(capability)
+    return f"emu:{console_port},{adb_port}"
 
 
 def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
     proof = OutputRoot.PROOF
     work = OutputRoot.WORK
     specs = {
-        AndroidOperation.KILL_SERVER: OperationSpec(
-            "run", 15, 15, None, lambda cap: _adb(cap, "kill-server")
+        AndroidOperation.REGISTER_EMULATOR: OperationSpec(
+            "register-emulator",
+            10,
+            10,
+            None,
+            lambda cap: _adb(cap, "connect", _emulator_registration_target(cap)),
         ),
         AndroidOperation.LIST_DEVICES: OperationSpec(
             "capture", 15, 15, None, lambda cap: _adb(cap, "devices")
@@ -931,56 +459,53 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-listener-initial.txt", 65_536),
-            lambda cap: (
-                _lsof_path(),
-                "-nP",
-                "-a",
-                "-U",
-                "-Fpun",
-                cap.socket_path,
-            ),
+            OutputSpec(proof, "adb-listener-initial.txt", 65536),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            False,
         ),
         AndroidOperation.LSOF_BEFORE: OperationSpec(
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-listener-before.txt", 65_536),
-            lambda cap: (
-                _lsof_path(),
-                "-nP",
-                "-a",
-                "-U",
-                "-Fpun",
-                cap.socket_path,
-            ),
+            OutputSpec(proof, "adb-listener-before.txt", 65536),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            False,
+        ),
+        AndroidOperation.LSOF_REGISTERED: OperationSpec(
+            "write",
+            15,
+            15,
+            OutputSpec(proof, "adb-listener-registered.txt", 65536),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            False,
         ),
         AndroidOperation.LSOF_AFTER: OperationSpec(
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-listener-after.txt", 65_536),
-            lambda cap: (
-                _lsof_path(),
-                "-nP",
-                "-a",
-                "-U",
-                "-Fpun",
-                cap.socket_path,
-            ),
+            OutputSpec(proof, "adb-listener-after.txt", 65536),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            False,
         ),
         AndroidOperation.SERVER_STATUS_BEFORE: OperationSpec(
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-server-status-before.txt", 65_536),
+            OutputSpec(proof, "adb-server-status-before.txt", 65536),
+            lambda cap: _adb(cap, "server-status"),
+        ),
+        AndroidOperation.SERVER_STATUS_REGISTERED: OperationSpec(
+            "write",
+            15,
+            15,
+            OutputSpec(proof, "adb-server-status-registered.txt", 65536),
             lambda cap: _adb(cap, "server-status"),
         ),
         AndroidOperation.SERVER_STATUS_AFTER: OperationSpec(
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-server-status-after.txt", 65_536),
+            OutputSpec(proof, "adb-server-status-after.txt", 65536),
             lambda cap: _adb(cap, "server-status"),
         ),
         AndroidOperation.DEVICE_STATE: OperationSpec(
@@ -1025,7 +550,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-device-devpath.txt", 4_096),
+            OutputSpec(proof, "adb-device-devpath.txt", 4096),
             lambda cap: _device(cap, "get-devpath"),
         ),
         AndroidOperation.DEVICE_MANUFACTURER: OperationSpec(
@@ -1063,30 +588,23 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-package-query.txt", 65_536),
+            OutputSpec(proof, "adb-package-query.txt", 65536),
             lambda cap: _device(
-                cap,
-                "shell",
-                "cmd",
-                "package",
-                "list",
-                "packages",
-                "-u",
-                PACKAGE,
+                cap, "shell", "cmd", "package", "list", "packages", "-u", PACKAGE
             ),
         ),
         AndroidOperation.PACKAGE_PATH: OperationSpec(
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-package-path.txt", 65_536),
+            OutputSpec(proof, "adb-package-path.txt", 65536),
             lambda cap: _device(cap, "shell", "pm", "path", PACKAGE),
         ),
         AndroidOperation.PULL_INSTALLED_APK: OperationSpec(
             "pull-apk",
             60,
             60,
-            OutputSpec(work, "installed-smoke-base.apk", MAX_APK_BYTES),
+            OutputSpec(work, "installed-smoke-base.apk", runtime_state.MAX_APK_BYTES),
             lambda cap: (),
         ),
         AndroidOperation.INSTALL_APK: OperationSpec(
@@ -1095,20 +613,20 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             120,
             None,
             lambda cap: _device(
-                cap, "install", "--no-incremental", str(SIGNED_APK_PATH)
+                cap,
+                "install",
+                "--no-incremental",
+                str(runtime_state.AndroidRunLayout.from_run_id(cap.run_id).signed_apk),
             ),
         ),
         AndroidOperation.UNINSTALL_APP: OperationSpec(
             "run", 60, 60, None, lambda cap: _device(cap, "uninstall", PACKAGE)
         ),
-        AndroidOperation.EMULATOR_KILL: OperationSpec(
-            "run", 15, 15, None, lambda cap: _device(cap, "emu", "kill")
-        ),
         AndroidOperation.DEVICE_TIME: OperationSpec(
             "write",
             15,
             15,
-            OutputSpec(proof, "adb-device-time.txt", 4_096),
+            OutputSpec(proof, "adb-device-time.txt", 4096),
             lambda cap: _device(cap, "shell", "date", "+%s.%3N"),
         ),
         AndroidOperation.FORCE_STOP: OperationSpec(
@@ -1140,9 +658,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "write",
             15,
             15,
-            OutputSpec(
-                proof, "qperiapt-android-device-result.txt.tmp", 1_048_576
-            ),
+            OutputSpec(proof, "qperiapt-android-device-result.txt.tmp", 1048576),
             lambda cap: _device(
                 cap, "exec-out", "run-as", PACKAGE, "cat", RESULT_TEXT_REMOTE
             ),
@@ -1151,9 +667,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "write",
             15,
             15,
-            OutputSpec(
-                proof, "qperiapt-android-device-result.json", 4_194_304
-            ),
+            OutputSpec(proof, "qperiapt-android-device-result.json", 4194304),
             lambda cap: _device(
                 cap, "exec-out", "run-as", PACKAGE, "cat", RESULT_JSON_REMOTE
             ),
@@ -1162,7 +676,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "logcat",
             30,
             30,
-            OutputSpec(proof, "logcat-raw.txt", 16_777_216),
+            OutputSpec(proof, "logcat-raw.txt", 16777216),
             lambda cap: (),
         ),
     }
@@ -1172,21 +686,28 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
 OPERATION_SPECS = _operation_specs()
 
 
-def _validate_client_environment(capability: AndroidCommandCapability) -> None:
+def _validate_client_environment(
+    capability: runtime_state.AndroidAdbCapability,
+) -> None:
     exact = {
         **EXACT_CLIENT_ENVIRONMENT,
         "ADB_SERVER_SOCKET": capability.server_socket,
         "ADB_VENDOR_KEYS": str(capability.vendor_key),
     }
     for name, expected in exact.items():
-        _require(os.environ.get(name) == expected, f"Android command environment changed: {name}")
+        _require(
+            os.environ.get(name) == expected,
+            f"Android command environment changed: {name}",
+        )
     for name in FORBIDDEN_CLIENT_ENVIRONMENT:
-        _require(name not in os.environ, f"unsupported Android command environment: {name}")
+        _require(
+            name not in os.environ, f"unsupported Android command environment: {name}"
+        )
 
 
-def _base_environment(capability: AndroidCommandCapability) -> dict[str, str]:
+def _base_environment(capability: runtime_state.AndroidAdbCapability) -> dict[str, str]:
     return {
-        "HOME": str(ACCOUNT_HOME),
+        "HOME": str(runtime_state.ACCOUNT_HOME),
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "TMPDIR": "/tmp",
         "LC_ALL": "C",
@@ -1199,28 +720,29 @@ def _base_environment(capability: AndroidCommandCapability) -> dict[str, str]:
     }
 
 
-def _client_environment(capability: AndroidCommandCapability) -> dict[str, str]:
+def _client_environment(
+    capability: runtime_state.AndroidAdbCapability,
+) -> dict[str, str]:
+    return {**_base_environment(capability), "ADB_USB": "0", "ADB_EMU": "0"}
+
+
+def _server_environment(
+    capability: runtime_state.AndroidAdbCapability,
+) -> dict[str, str]:
     return {
         **_base_environment(capability),
-        "ADB_USB": "0",
+        "ADB_USB": "1" if capability.device_kind == "physical" else "0",
         "ADB_EMU": "0",
     }
 
 
-def _server_environment(capability: AndroidCommandCapability) -> dict[str, str]:
-    return {
-        **_base_environment(capability),
+def _validate_server_environment(
+    capability: runtime_state.AndroidAdbCapability,
+) -> None:
+    server_transport = {
         "ADB_USB": "1" if capability.device_kind == "physical" else "0",
-        "ADB_EMU": "0" if capability.device_kind == "physical" else "1",
+        "ADB_EMU": "0",
     }
-
-
-def _validate_server_environment(capability: AndroidCommandCapability) -> None:
-    server_transport = (
-        {"ADB_USB": "1", "ADB_EMU": "0"}
-        if capability.device_kind == "physical"
-        else {"ADB_USB": "0", "ADB_EMU": "1"}
-    )
     exact = {
         "ADB_MDNS": "0",
         "ADB_MDNS_AUTO_CONNECT": "0",
@@ -1230,22 +752,26 @@ def _validate_server_environment(capability: AndroidCommandCapability) -> None:
         **server_transport,
     }
     for name, expected in exact.items():
-        _require(os.environ.get(name) == expected, f"Android server environment changed: {name}")
+        _require(
+            os.environ.get(name) == expected,
+            f"Android server environment changed: {name}",
+        )
     for name in FORBIDDEN_CLIENT_ENVIRONMENT:
-        _require(name not in os.environ, f"unsupported Android server environment: {name}")
+        _require(
+            name not in os.environ, f"unsupported Android server environment: {name}"
+        )
 
 
 def _validate_adb_at(
-    directory_fd: int,
-    capability: AndroidCommandCapability,
+    directory_fd: int, capability: runtime_state.AndroidAdbCapability
 ) -> None:
     observed = consume_regular_snapshot_at(
         directory_fd,
-        _adb_snapshot_leaf(capability.run_id),
+        runtime_state.adb_snapshot_leaf(capability.run_id),
         display_path=capability.adb_snapshot_path,
-        maximum=MAX_TOOL_BYTES,
+        maximum=runtime_state.MAX_TOOL_BYTES,
         label="Android adb snapshot",
-        validate_metadata=_private_executable_metadata,
+        validate_metadata=runtime_state.private_executable_metadata,
     )
     _require(
         observed.size == capability.adb_size
@@ -1254,8 +780,11 @@ def _validate_adb_at(
     )
 
 
-def _validate_adb(capability: AndroidCommandCapability) -> None:
-    directory_fd = _open_private_directory(WORK_ROOT, "Android work")
+def _validate_adb(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidAdbCapability,
+) -> None:
+    directory_fd = runtime_state.open_private_directory(layout.work, "Android work")
     primary: BaseException | None = None
     try:
         _validate_adb_at(directory_fd, capability)
@@ -1263,19 +792,37 @@ def _validate_adb(capability: AndroidCommandCapability) -> None:
         primary = exc
         raise
     finally:
-        _close_owned_descriptor(
-            directory_fd,
-            label="the Android work directory",
-            primary=primary,
+        runtime_state.close_descriptor(
+            directory_fd, label="the Android work directory", primary=primary
         )
 
 
-def _validate_tool_and_apk(capability: AndroidCommandCapability, operation: AndroidOperation) -> None:
-    _validate_adb(capability)
+def _load_capability_for_layout(
+    layout: runtime_state.AndroidRunLayout,
+) -> runtime_state.AndroidCommandCapability:
+    snapshot = load_json_object_snapshot(
+        layout.capability,
+        maximum=runtime_state.MAX_CAPABILITY_BYTES,
+        label="Android command capability",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    capability = runtime_state.load_capability_snapshot_for_layout(
+        snapshot, layout=layout
+    )
+    _validate_adb(layout, capability)
+    return capability
+
+
+def _validate_tool_and_apk(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    operation: AndroidOperation,
+) -> None:
+    _validate_adb(layout, capability)
     if operation in {AndroidOperation.INSTALL_APK, AndroidOperation.PULL_INSTALLED_APK}:
         observed = consume_regular_snapshot(
-            SIGNED_APK_PATH,
-            maximum=MAX_APK_BYTES,
+            layout.signed_apk,
+            maximum=runtime_state.MAX_APK_BYTES,
             label="signed Android smoke APK",
         )
         _require(
@@ -1285,33 +832,1491 @@ def _validate_tool_and_apk(capability: AndroidCommandCapability, operation: Andr
         )
 
 
-def exec_server() -> NoReturn:
-    capability = load_capability()
+def _emulator_environment(
+    capability: runtime_state.AndroidAdbCapability,
+) -> dict[str, str]:
+    sdk_root = runtime_state.ADB_PROFILE_PATHS[capability.adb_profile].parent.parent
+    return {
+        "HOME": str(runtime_state.ACCOUNT_HOME),
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LC_ALL": "C",
+        "LANG": "C",
+        "ANDROID_HOME": str(sdk_root),
+        "ANDROID_SDK_ROOT": str(sdk_root),
+    }
+
+
+def _fixed_emulator_paths(
+    capability: runtime_state.AndroidAdbCapability,
+    device_abi: str,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    _require(
+        capability.device_kind == "emulator",
+        "owned emulator execution requires an emulator capability",
+    )
+    source_adb = runtime_state.ADB_PROFILE_PATHS[capability.adb_profile]
+    _require(
+        source_adb.parent.name == "platform-tools" and source_adb.name == "adb",
+        "fixed Android SDK adb layout changed",
+    )
+    launcher = source_adb.parent.parent / "emulator" / "emulator"
+    try:
+        backend = fixed_headless_backend_path(launcher, device_abi)
+        return launcher.resolve(strict=True), backend.resolve(strict=True)
+    except (AndroidEmulatorControlError, OSError) as exc:
+        raise AndroidCommandError(
+            f"cannot resolve the fixed Android emulator executables: {exc}"
+        ) from exc
+
+
+def _executable_file_identity(path: pathlib.Path, label: str) -> tuple[int, int]:
+    try:
+        metadata = path.lstat()
+    except OSError as exc:
+        raise AndroidCommandError(f"cannot inspect {label}: {exc}") from exc
+    _require(
+        stat.S_ISREG(metadata.st_mode)
+        and not path.is_symlink()
+        and metadata.st_mode & 0o111 != 0,
+        f"{label} must be a non-symlink executable regular file",
+    )
+    return metadata.st_dev, metadata.st_ino
+
+
+def exec_emulator(run_id: str, avd_name: str, device_abi: str) -> NoReturn:
+    """Persist recovery identity, drop the lane lock, and exec one fixed AVD."""
+    runtime_state.validate_lane_lock_descriptor()
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    prior_receipt = runtime_state.load_owned_runtime_receipt()
+    _require(prior_receipt is not None, "runtime recovery receipt is missing")
+    _require(
+        prior_receipt.run_id == layout.run_id
+        and prior_receipt.adb_server_started
+        and prior_receipt.adb_socket_directory_sealed
+        and (not prior_receipt.emulator_started),
+        "runtime recovery receipt is not awaiting this emulator",
+    )
+    capability = runtime_state.load_capability(layout.run_id)
+    _validate_adb(layout, capability)
+    _validate_owned_adb_server_for_client(capability)
+    canonical_avd = runtime_state.canonical_avd_name(avd_name)
+    canonical_abi = runtime_state.canonical_runtime_emulator_abi(device_abi)
+    launcher, backend = _fixed_emulator_paths(capability, canonical_abi)
+    try:
+        identity = process_snapshot(os.getpid())
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot identify the emulator exec process: {exc}"
+        ) from exc
+    token, token_identity = _emulator_console_auth_token()
+    del token
+    launcher_device, launcher_inode = _executable_file_identity(
+        launcher, "Android emulator launcher"
+    )
+    backend_device, backend_inode = _executable_file_identity(
+        backend, "Android emulator backend"
+    )
+    backend_snapshot = consume_regular_snapshot(
+        backend,
+        maximum=runtime_state.MAX_TOOL_BYTES,
+        label="Android emulator backend",
+        validate_metadata=runtime_state.executable_metadata,
+    )
+    confirmed_token, confirmed_token_identity = _emulator_console_auth_token(
+        token_identity
+    )
+    del confirmed_token
+    console_port, _adb_port = _owned_emulator_ports(capability)
+    receipt = runtime_state.register_emulator_child(
+        receipt=prior_receipt,
+        registration=runtime_state.EmulatorChildRegistration(
+            process=identity,
+            avd_name=canonical_avd,
+            device_abi=canonical_abi,
+            console_port=console_port,
+            console_auth_token=confirmed_token_identity,
+            launcher_path=launcher,
+            launcher_device=launcher_device,
+            launcher_inode=launcher_inode,
+            backend_path=backend,
+            backend_device=backend_device,
+            backend_inode=backend_inode,
+            backend_sha256=backend_snapshot.sha256,
+        ),
+    )
+    _validate_owned_adb_server_for_client(capability)
+    argv = [
+        str(launcher),
+        "-avd",
+        canonical_avd,
+        "-port",
+        str(receipt.console_port),
+        "-no-snapshot",
+        "-read-only",
+        "-no-window",
+        "-no-audio",
+        "-no-boot-anim",
+        "-no_direct_adb",
+        "-gpu",
+        "swiftshader_indirect",
+    ]
+    try:
+        runtime_state.arm_lane_lock_close_on_exec()
+        _close_nonstandard_descriptors(preserve_lane_lock=True)
+        os.execve(str(launcher), argv, _emulator_environment(capability))
+    except BaseException as primary:
+        if isinstance(primary, OSError):
+            raise AndroidCommandError(
+                f"cannot start the owned Android emulator: {primary}"
+            ) from primary
+        raise
+
+
+def _same_receipt_process(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> ProcessIdentity | None:
+    _require(
+        receipt.emulator_started
+        and receipt.pid is not None
+        and (receipt.process_identity is not None),
+        "pending runtime receipt has no emulator process identity",
+    )
+    try:
+        observed = process_snapshot(receipt.pid)
+    except ProcessIdentityError as exc:
+        try:
+            os.kill(receipt.pid, 0)
+        except ProcessLookupError:
+            return None
+        except PermissionError as permission_error:
+            raise AndroidCommandError(
+                "cannot inspect the owned emulator process under the current account"
+            ) from permission_error
+        except OSError as probe_error:
+            if probe_error.errno == errno.ESRCH:
+                return None
+            raise AndroidCommandError(
+                f"cannot determine whether the owned emulator still exists: {probe_error}"
+            ) from probe_error
+        raise AndroidCommandError(
+            f"owned emulator still exists but its identity cannot be read: {exc}"
+        ) from exc
+    if observed.token != receipt.process_identity:
+        return None
+    return observed
+
+
+def _same_receipt_adb_server_process(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> ProcessIdentity | None:
+    _require(
+        receipt.adb_server_started
+        and receipt.adb_server_pid is not None
+        and (receipt.adb_server_process_identity is not None),
+        "pending runtime receipt has no adb server process identity",
+    )
+    try:
+        observed = process_snapshot(receipt.adb_server_pid)
+    except ProcessIdentityError as exc:
+        try:
+            os.kill(receipt.adb_server_pid, 0)
+        except ProcessLookupError:
+            return None
+        except PermissionError as permission_error:
+            raise AndroidCommandError(
+                "cannot inspect the owned adb server process under the current account"
+            ) from permission_error
+        except OSError as probe_error:
+            if probe_error.errno == errno.ESRCH:
+                return None
+            raise AndroidCommandError(
+                f"cannot determine whether the owned adb server still exists: {probe_error}"
+            ) from probe_error
+        raise AndroidCommandError(
+            f"owned adb server still exists but its identity cannot be read: {exc}"
+        ) from exc
+    if observed.token != receipt.adb_server_process_identity:
+        return None
+    return observed
+
+
+def _validate_receipt_adb_server_executable(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    capability: runtime_state.AndroidAdbCapability,
+    observed: ProcessIdentity,
+) -> None:
+    _require(
+        receipt.adb_server_initial_executable is not None
+        and receipt.adb_server_initial_executable_device is not None
+        and (receipt.adb_server_initial_executable_inode is not None)
+        and (receipt.adb_snapshot_device is not None)
+        and (receipt.adb_snapshot_inode is not None),
+        "owned adb server receipt lacks executable identity",
+    )
+    if observed.executable == receipt.adb_server_initial_executable:
+        identity = _executable_file_identity(
+            observed.executable, "adb server initial executable"
+        )
+        _require(
+            identity
+            == (
+                receipt.adb_server_initial_executable_device,
+                receipt.adb_server_initial_executable_inode,
+            ),
+            "owned adb server initial executable identity changed",
+        )
+        return
+    _require(
+        observed.executable == capability.adb_snapshot_path,
+        "owned adb server execed an unexpected executable",
+    )
+    identity = _executable_file_identity(
+        capability.adb_snapshot_path, "Android adb snapshot"
+    )
+    _require(
+        identity == (receipt.adb_snapshot_device, receipt.adb_snapshot_inode),
+        "owned adb server snapshot identity changed",
+    )
+
+
+def _capture_recovery_adb_listener(
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> bool:
+    result = capture_stdout(
+        (_lsof_path(), "-nP", "-a", "-U", "-Fpun", capability.socket_path),
+        timeout_seconds=5,
+        maximum_bytes=65536,
+        environment={
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "LC_ALL": "C",
+            "LANG": "C",
+        },
+    )
+    if result.returncode == 1 and result.stdout == b"":
+        return False
+    _require(result.returncode == 0, "owned adb server listener inspection failed")
+    try:
+        text = result.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise AndroidCommandError(
+            "owned adb server listener output is not UTF-8"
+        ) from exc
+    try:
+        parse_owned_single_listener(
+            text,
+            expected_pid=receipt.adb_server_pid,
+            expected_uid=receipt.uid,
+            expected_endpoint=capability.socket_path,
+        )
+    except AndroidEmulatorControlError as exc:
+        raise AndroidCommandError(str(exc)) from exc
+    return True
+
+
+def _wait_for_recovery_adb_server(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    capability: runtime_state.AndroidAdbCapability,
+) -> ProcessIdentity | None:
+    """Observe only the receipt-bound Python-to-adb exec transition."""
+    deadline = time.monotonic() + 5
+    socket_path = pathlib.Path(capability.socket_path)
+    while True:
+        observed = _same_receipt_adb_server_process(receipt)
+        if observed is None:
+            return None
+        _validate_receipt_adb_server_executable(receipt, capability, observed)
+        socket_present = os.path.lexists(socket_path)
+        if observed.executable == capability.adb_snapshot_path and socket_present:
+            return observed
+        _require(
+            not socket_present,
+            "owned adb socket appeared before the receipt-bound adb exec",
+        )
+        remaining = deadline - time.monotonic()
+        _require(
+            remaining > 0,
+            "owned adb server is live but its private socket is not ready",
+        )
+        time.sleep(min(0.05, remaining))
+
+
+def _wait_for_recovered_adb_server_exit(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> None:
+    deadline = time.monotonic() + 15
+    while True:
+        if _same_receipt_adb_server_process(receipt) is None:
+            return
+        remaining = deadline - time.monotonic()
+        _require(remaining > 0, "owned adb server did not exit after protocol shutdown")
+        time.sleep(min(0.1, remaining))
+
+
+def _validate_owned_adb_server_for_client(
+    capability: runtime_state.AndroidCommandCapability,
+) -> None:
+    """Prevent adb clients from auto-starting an unowned replacement server."""
+    runtime_state.validate_lane_lock_descriptor()
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == capability.run_id
+        and receipt.adb_server_started,
+        "Android client lacks this run's started adb server receipt",
+    )
+    try:
+        current_host_boot = host_boot_identity()
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot verify adb client runtime host: {exc}"
+        ) from exc
+    _require(
+        receipt.uid == os.geteuid()
+        and receipt.host_identity == current_host_boot.host
+        and (receipt.boot_identity == current_host_boot.boot),
+        "Android client adb server receipt belongs to another runtime",
+    )
+    observed = _wait_for_recovery_adb_server(receipt, capability)
+    _require(observed is not None, "owned adb server exited before client operation")
+    receipt = _reconcile_live_adb_seal(capability, receipt, observed)
+    _require(
+        os.path.lexists(capability.socket_path),
+        "owned adb server socket disappeared before client operation",
+    )
+    _require(
+        _capture_recovery_adb_listener(capability, receipt),
+        "owned adb server listener disappeared before client operation",
+    )
+
+
+def _socket_directory_metadata(
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    *,
+    allowed_modes: frozenset[int],
+) -> os.stat_result:
+    directory = pathlib.Path(capability.socket_path).parent
+    try:
+        metadata = directory.lstat()
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect private adb socket directory: {exc}"
+        ) from exc
+    _require(
+        stat.S_ISDIR(metadata.st_mode)
+        and (not directory.is_symlink())
+        and (metadata.st_uid == os.geteuid())
+        and (
+            (metadata.st_dev, metadata.st_ino)
+            == (receipt.adb_socket_directory_device, receipt.adb_socket_directory_inode)
+        )
+        and (stat.S_IMODE(metadata.st_mode) in allowed_modes),
+        "private adb socket directory identity or mode changed",
+    )
+    return metadata
+
+
+def _reconcile_live_adb_seal(
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    observed: ProcessIdentity,
+) -> runtime_state.OwnedRuntimeReceipt:
+    """Make phase and directory mode durably safe before any adb client."""
+
+    _validate_receipt_adb_server_executable(receipt, capability, observed)
+    _require(
+        observed.executable == capability.adb_snapshot_path,
+        "cannot reconcile adb sealing before the exact adb exec",
+    )
+    _require(
+        _capture_recovery_adb_listener(capability, receipt),
+        "cannot reconcile adb sealing without the exact live listener",
+    )
+    directory = pathlib.Path(capability.socket_path).parent
+    phase = receipt.phase
+    if phase is runtime_state.RuntimePhase.ADB_CHILD_REGISTERED:
+        _socket_directory_metadata(
+            capability, receipt, allowed_modes=frozenset({0o700})
+        )
+        receipt = runtime_state.begin_adb_seal(receipt)
+        phase = receipt.phase
+    if phase is runtime_state.RuntimePhase.ADB_SEALING:
+        metadata = _socket_directory_metadata(
+            capability, receipt, allowed_modes=frozenset({0o500, 0o700})
+        )
+        if stat.S_IMODE(metadata.st_mode) == 0o700:
+            directory.chmod(0o500)
+        _socket_directory_metadata(
+            capability, receipt, allowed_modes=frozenset({0o500})
+        )
+        receipt = runtime_state.complete_adb_seal(receipt)
+        phase = receipt.phase
+    _require(
+        phase
+        in {
+            runtime_state.RuntimePhase.ADB_SEALED,
+            runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED,
+        },
+        "live adb server receipt cannot reach a client-safe phase",
+    )
+    metadata = _socket_directory_metadata(
+        capability, receipt, allowed_modes=frozenset({0o500, 0o700})
+    )
+    if stat.S_IMODE(metadata.st_mode) == 0o700:
+        directory.chmod(0o500)
+    _socket_directory_metadata(capability, receipt, allowed_modes=frozenset({0o500}))
+    return receipt
+
+
+def seal_private_adb_directory(run_id: str) -> None:
+    """Seal the exact live server directory before any adb client can auto-start."""
+    runtime_state.validate_lane_lock_descriptor()
+    capability = runtime_state.load_capability(run_id)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == capability.run_id
+        and receipt.phase is runtime_state.RuntimePhase.ADB_CHILD_REGISTERED,
+        "private adb directory is not awaiting this run's seal",
+    )
+    observed = _wait_for_recovery_adb_server(receipt, capability)
+    _require(
+        observed is not None and observed.executable == capability.adb_snapshot_path,
+        "cannot seal a private adb directory without its exact live server",
+    )
+    _require(
+        _capture_recovery_adb_listener(capability, receipt),
+        "cannot seal a private adb directory without its exact listener",
+    )
+    try:
+        _reconcile_live_adb_seal(capability, receipt, observed)
+    except OSError as exc:
+        raise AndroidCommandError(f"cannot seal private adb directory: {exc}") from exc
+
+
+def _recovery_adb_capability(
+    layout: runtime_state.AndroidRunLayout, receipt: runtime_state.OwnedRuntimeReceipt
+) -> runtime_state.AndroidAdbCapability:
+    server_socket, socket_path = runtime_state.server_socket_identity(
+        receipt.socket_nonce
+    )
+    return runtime_state.AndroidAdbCapability(
+        adb_profile=receipt.adb_profile,
+        adb_snapshot_path=layout.work / runtime_state.adb_snapshot_leaf(receipt.run_id),
+        adb_size=receipt.adb_size,
+        adb_sha256=receipt.adb_sha256,
+        socket_nonce=receipt.socket_nonce,
+        server_socket=server_socket,
+        socket_path=socket_path,
+        vendor_key=runtime_state.ACCOUNT_HOME / ".android/adbkey",
+        device_kind=receipt.device_kind,
+        expected_serial=receipt.expected_serial,
+        run_id=receipt.run_id,
+    )
+
+
+def _load_recovery_adb_capability(
+    layout: runtime_state.AndroidRunLayout, receipt: runtime_state.OwnedRuntimeReceipt
+) -> runtime_state.AndroidAdbCapability:
+    """Validate whichever capability bytes remain and reconstruct cleanup identity."""
+    recovery = _recovery_adb_capability(layout, receipt)
+    directory_fd = runtime_state.open_private_directory(
+        layout.work, "Android recovery work"
+    )
+    primary: BaseException | None = None
+    try:
+        capability_present = True
+        try:
+            snapshot = load_json_object_snapshot_at(
+                directory_fd,
+                runtime_state.CAPABILITY_LEAF,
+                display_path=layout.capability,
+                maximum=runtime_state.MAX_CAPABILITY_BYTES,
+                label="Android command capability",
+                validate_metadata=runtime_state.private_file_metadata,
+            )
+        except EvidenceIOError:
+            try:
+                os.stat(
+                    runtime_state.CAPABILITY_LEAF,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                capability_present = False
+            else:
+                raise
+        if capability_present:
+            capability = runtime_state.load_capability_snapshot_for_layout(
+                snapshot, layout=layout
+            )
+            _require(
+                capability.adb_profile == recovery.adb_profile
+                and capability.adb_size == recovery.adb_size
+                and (capability.adb_sha256 == recovery.adb_sha256)
+                and (capability.socket_nonce == recovery.socket_nonce)
+                and (capability.device_kind == recovery.device_kind)
+                and (capability.expected_serial == recovery.expected_serial),
+                "runtime recovery receipt differs from its run capability",
+            )
+        adb_present = True
+        try:
+            adb_snapshot = consume_regular_snapshot_at(
+                directory_fd,
+                runtime_state.adb_snapshot_leaf(receipt.run_id),
+                display_path=recovery.adb_snapshot_path,
+                maximum=runtime_state.MAX_TOOL_BYTES,
+                label="Android adb snapshot",
+                validate_metadata=runtime_state.private_executable_metadata,
+            )
+        except EvidenceIOError:
+            try:
+                os.stat(
+                    runtime_state.adb_snapshot_leaf(receipt.run_id),
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                adb_present = False
+            else:
+                raise
+        if adb_present:
+            _require(
+                adb_snapshot.size == recovery.adb_size
+                and adb_snapshot.sha256 == recovery.adb_sha256,
+                "runtime recovery adb snapshot differs from its receipt",
+            )
+        return recovery
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        runtime_state.close_descriptor(
+            directory_fd, label="the Android recovery work directory", primary=primary
+        )
+
+
+def _validate_recovery_receipt(
+    receipt: runtime_state.OwnedRuntimeReceipt, *, validate_active_emulator: bool = True
+) -> RecoveryContext:
+    _require(
+        receipt.uid == os.geteuid(),
+        "owned runtime receipt belongs to a different account",
+    )
+    try:
+        current_host_boot = host_boot_identity()
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot verify runtime recovery host: {exc}"
+        ) from exc
+    _require(
+        receipt.host_identity == current_host_boot.host,
+        "owned runtime receipt belongs to a different host",
+    )
+    current_boot = receipt.boot_identity == current_host_boot.boot
+    _require(
+        current_boot, "current-boot recovery validation received a prior-boot receipt"
+    )
+    try:
+        repository_metadata = receipt.repository_root.lstat()
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect the recovery repository root: {exc}"
+        ) from exc
+    _require(
+        stat.S_ISDIR(repository_metadata.st_mode)
+        and (not receipt.repository_root.is_symlink()),
+        "owned runtime recovery repository root changed type",
+    )
+    run_root = (
+        receipt.repository_root
+        / "target"
+        / runtime_state.RUNS_ROOT_LEAF
+        / receipt.run_id
+    )
+    try:
+        run_root_metadata = run_root.lstat()
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect the recovery run root: {exc}"
+        ) from exc
+    _require(
+        stat.S_ISDIR(run_root_metadata.st_mode)
+        and (not run_root.is_symlink())
+        and (run_root_metadata.st_uid == os.geteuid())
+        and (stat.S_IMODE(run_root_metadata.st_mode) == 448)
+        and (
+            (run_root_metadata.st_dev, run_root_metadata.st_ino)
+            == (receipt.run_root_device, receipt.run_root_inode)
+        ),
+        "owned runtime recovery run-root identity changed",
+    )
+    layout = runtime_state.AndroidRunLayout(
+        run_id=receipt.run_id,
+        root=run_root,
+        work=run_root / "work",
+        proof=run_root / "proof",
+        capability=run_root / "work" / runtime_state.CAPABILITY_LEAF,
+        signed_apk=run_root / "proof" / runtime_state.SIGNED_APK_LEAF,
+    )
+    capability = _load_recovery_adb_capability(layout, receipt)
+    if not receipt.emulator_started or not validate_active_emulator:
+        return RecoveryContext(
+            layout=layout,
+            capability=capability,
+            launcher=None,
+            backend=None,
+            current_boot=current_boot,
+        )
+    launcher, backend = _fixed_emulator_paths(capability, receipt.device_abi)
+    _require(
+        launcher == receipt.launcher_path and backend == receipt.backend_path,
+        "owned emulator executable paths changed after launch",
+    )
+    launcher_identity = _executable_file_identity(launcher, "Android emulator launcher")
+    backend_identity = _executable_file_identity(backend, "Android emulator backend")
+    backend_snapshot = consume_regular_snapshot(
+        backend,
+        maximum=runtime_state.MAX_TOOL_BYTES,
+        label="Android emulator backend",
+        validate_metadata=runtime_state.executable_metadata,
+    )
+    _require(
+        launcher_identity == (receipt.launcher_device, receipt.launcher_inode)
+        and backend_identity == (receipt.backend_device, receipt.backend_inode),
+        "owned emulator executable identity changed after launch",
+    )
+    _require(
+        backend_snapshot.sha256 == receipt.backend_sha256,
+        "owned emulator backend bytes changed after launch",
+    )
+    return RecoveryContext(
+        layout=layout,
+        capability=capability,
+        launcher=launcher,
+        backend=backend,
+        current_boot=current_boot,
+    )
+
+
+def _wait_for_recovery_backend(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    launcher: pathlib.Path,
+    backend: pathlib.Path,
+) -> ProcessIdentity | None:
+    deadline = time.monotonic() + 10
+    while True:
+        observed = _same_receipt_process(receipt)
+        if observed is None:
+            return None
+        if observed.executable == backend:
+            return observed
+        _require(
+            observed.executable == launcher,
+            "owned emulator execed an unexpected executable",
+        )
+        remaining = deadline - time.monotonic()
+        _require(
+            remaining > 0, "owned emulator launcher did not become its fixed backend"
+        )
+        time.sleep(min(0.05, remaining))
+
+
+def _verify_recovery_listeners(
+    *,
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> None:
+    _capture_owned_emulator_listeners(
+        layout=layout,
+        capability=capability,
+        emulator_pid=receipt.pid,
+        timeout_seconds=5,
+    )
+    pending = layout.work / "emulator-listeners.txt.pending"
+    snapshot = read_regular_snapshot(
+        pending,
+        maximum=65536,
+        label="owned emulator recovery listeners",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    try:
+        text = snapshot.data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise AndroidCommandError(
+            "owned emulator recovery listeners are not UTF-8"
+        ) from exc
+    try:
+        parse_owned_lsof_listeners(
+            text,
+            expected_pid=receipt.pid,
+            expected_uid=receipt.uid,
+            console_port=receipt.console_port,
+            adb_port=receipt.console_port + 1,
+        )
+    except AndroidEmulatorControlError as exc:
+        raise AndroidCommandError(str(exc)) from exc
+
+
+def _register_owned_emulator(
+    capability: runtime_state.AndroidAdbCapability, *, timeout_seconds: int
+) -> BoundedResult:
+    console_port, adb_port = _owned_emulator_ports(capability)
+    result = capture_stdout(
+        OPERATION_SPECS[AndroidOperation.REGISTER_EMULATOR].build_argv(capability),
+        timeout_seconds=timeout_seconds,
+        maximum_bytes=512,
+        stderr=subprocess.STDOUT,
+        environment=_client_environment(capability),
+    )
+    accepted = {
+        f"Connected to emulator on ports {console_port},{adb_port}\n".encode("ascii"),
+        f"Emulator already registered on port {adb_port}\n".encode("ascii"),
+    }
+    _require(
+        result.returncode == 0 and result.stdout in accepted,
+        f"owned emulator registration was not an exact success (returncode={result.returncode}, response_hex={result.stdout.hex()})",
+    )
+    return result
+
+
+def _emulator_console_auth_token(
+    expected: runtime_state.ConsoleAuthTokenIdentity | None = None,
+) -> tuple[bytes, runtime_state.ConsoleAuthTokenIdentity]:
+    """Read and identify the private console token without logging its bytes."""
+    token_path = runtime_state.ACCOUNT_HOME / ".emulator_console_auth_token"
+    try:
+        descriptor = os.open(
+            token_path, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+        )
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot open the Android emulator console authentication token: {exc}"
+        ) from exc
+    primary: BaseException | None = None
+    try:
+        metadata = os.fstat(descriptor)
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and metadata.st_uid == os.geteuid()
+            and (metadata.st_nlink == 1)
+            and (stat.S_IMODE(metadata.st_mode) == 384),
+            "Android emulator console authentication token must be one private regular file",
+        )
+        runtime_state.reject_macos_allow_acl(
+            descriptor, "Android emulator console authentication token"
+        )
+        chunks: list[bytes] = []
+        remaining = 4097
+        while remaining:
+            chunk = os.read(descriptor, min(remaining, 4096))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        raw = b"".join(chunks)
+        _require(
+            1 <= len(raw) <= 4096,
+            "Android emulator console authentication token size is invalid",
+        )
+        token = raw.rstrip(b"\r\n")
+        _require(
+            token
+            and len(token) <= 4094
+            and all((33 <= value <= 126 and value != 32 for value in token)),
+            "Android emulator console authentication token bytes are invalid",
+        )
+        identity = runtime_state.ConsoleAuthTokenIdentity(
+            device=metadata.st_dev,
+            inode=metadata.st_ino,
+            sha256=hashlib.sha256(raw).hexdigest(),
+        )
+        _require(
+            expected is None or identity == expected,
+            "Android emulator console authentication token changed after emulator launch",
+        )
+        return token, identity
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        runtime_state.close_descriptor(
+            descriptor,
+            label="the Android emulator console authentication token",
+            primary=primary,
+        )
+
+
+def _receive_emulator_console(sock: socket.socket, *, maximum: int = 16384) -> bytes:
+    response = bytearray()
+    while len(response) < maximum:
+        try:
+            chunk = sock.recv(min(4096, maximum - len(response)))
+        except TimeoutError as exc:
+            raise AndroidCommandError(
+                "owned emulator console response timed out"
+            ) from exc
+        except OSError as exc:
+            if response and exc.errno in {errno.ECONNRESET, errno.EPIPE}:
+                break
+            raise AndroidCommandError(
+                f"cannot read the owned emulator console response: {exc}"
+            ) from exc
+        if not chunk:
+            break
+        response.extend(chunk)
+    _require(
+        len(response) < maximum,
+        "owned emulator console response exceeded its fixed bound",
+    )
+    return bytes(response)
+
+
+def _emulator_console_exchange(
+    context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt, command: bytes
+) -> bytes:
+    _require(
+        receipt.emulator_started
+        and receipt.console_port is not None
+        and (receipt.avd_name is not None),
+        "owned emulator console shutdown lacks its receipt identity",
+    )
+    _require(
+        command in {b"avd name\nquit\n", b"kill\n"},
+        "owned emulator console command is outside the fixed set",
+    )
+    try:
+        with socket.create_connection(
+            ("127.0.0.1", receipt.console_port), timeout=5
+        ) as console:
+            console.settimeout(5)
+            fresh = _same_receipt_process(receipt)
+            _require(
+                context.backend is not None
+                and fresh is not None
+                and (fresh.executable == context.backend),
+                "owned emulator identity changed after console connection",
+            )
+            _verify_recovery_listeners(
+                layout=context.layout, capability=context.capability, receipt=receipt
+            )
+            expected_token = receipt.console_auth_token_identity
+            _require(
+                expected_token is not None,
+                "owned emulator receipt lacks its console token identity",
+            )
+            token, _identity = _emulator_console_auth_token(expected_token)
+            request = b"auth " + token + b"\n" + command
+            console.sendall(request)
+            response = _receive_emulator_console(console)
+    except AndroidCommandError:
+        raise
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot connect to the owned Android emulator console: {exc}"
+        ) from exc
+    normalized = response.replace(b"\r\n", b"\n")
+    _require(
+        normalized.startswith(b"Android Console: Authentication required\n")
+        and b"\nOK\nAndroid Console: type 'help' for a list of commands\nOK\n"
+        in normalized,
+        "owned emulator console authentication response was not exact",
+    )
+    return normalized
+
+
+def _verify_owned_emulator_console_name(
+    context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt
+) -> None:
+    response = _emulator_console_exchange(context, receipt, b"avd name\nquit\n")
+    _require(
+        response.endswith(receipt.avd_name.encode("ascii") + b"\nOK\n"),
+        "owned emulator console AVD name was not an exact match",
+    )
+
+
+def _request_owned_emulator_console_shutdown(
+    context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt
+) -> None:
+    response = _emulator_console_exchange(context, receipt, b"kill\n")
+    _require(
+        response.endswith(b"OK: killing emulator, bye bye\n"),
+        "owned emulator console rejected its authenticated shutdown request",
+    )
+
+
+def _wait_for_recovered_emulator_exit(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> None:
+    deadline = time.monotonic() + 20
+    while True:
+        if _same_receipt_process(receipt) is None:
+            return
+        remaining = deadline - time.monotonic()
+        _require(
+            remaining > 0,
+            "owned emulator did not exit after its authenticated console shutdown",
+        )
+        time.sleep(min(0.2, remaining))
+
+
+def _request_verified_owned_emulator_stop(
+    context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt
+) -> None:
+    """Use only the authenticated receipt-bound console to request shutdown."""
+    _require(
+        context.launcher is not None and context.backend is not None,
+        "active emulator shutdown lacks its executable identity",
+    )
+    observed = _wait_for_recovery_backend(receipt, context.launcher, context.backend)
+    _require(observed is not None, "owned emulator exited before protocol shutdown")
+    _verify_recovery_listeners(
+        layout=context.layout, capability=context.capability, receipt=receipt
+    )
+    _verify_owned_emulator_console_name(context, receipt)
+    fresh = _same_receipt_process(receipt)
+    _require(
+        fresh is not None and fresh.executable == context.backend,
+        "owned emulator identity changed before protocol shutdown",
+    )
+    _verify_recovery_listeners(
+        layout=context.layout, capability=context.capability, receipt=receipt
+    )
+    _request_owned_emulator_console_shutdown(context, receipt)
+
+
+def request_normal_owned_emulator_stop(run_id: str) -> None:
+    runtime_state.validate_lane_lock_descriptor()
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == runtime_state.canonical_run_id(run_id)
+        and receipt.emulator_started,
+        "owned emulator stop request lacks this run's active receipt",
+    )
+    _require(
+        _same_receipt_process(receipt) is not None,
+        "owned emulator exited before its normal protocol shutdown",
+    )
+    context = _validate_recovery_receipt(receipt, validate_active_emulator=True)
+    _request_verified_owned_emulator_stop(context, receipt)
+
+
+def request_owned_adb_stop(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> bool:
+    socket_path = pathlib.Path(capability.socket_path)
+    observed = (
+        _wait_for_recovery_adb_server(receipt, capability)
+        if receipt.adb_server_started
+        else None
+    )
+    if not os.path.lexists(socket_path):
+        _require(
+            observed is None,
+            "owned adb server is live but its private socket is not ready",
+        )
+        return False
+    try:
+        socket_metadata = socket_path.lstat()
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect private adb recovery socket: {exc}"
+        ) from exc
+    _require(
+        stat.S_ISSOCK(socket_metadata.st_mode)
+        and socket_metadata.st_uid == os.geteuid(),
+        "private adb recovery endpoint changed type or owner",
+    )
+    _socket_directory_metadata(capability, receipt, allowed_modes=frozenset({320, 448}))
+    if observed is None:
+        _require(
+            receipt.adb_server_started,
+            "private adb recovery socket lacks its started server receipt",
+        )
+        listener_present = _capture_recovery_adb_listener(capability, receipt)
+        _require(
+            not listener_present,
+            "private adb recovery socket lacks its live owned server process",
+        )
+        pathlib.Path(capability.socket_path).parent.chmod(448)
+        socket_path.unlink()
+        return False
+    listener_present = _capture_recovery_adb_listener(capability, receipt)
+    _require(
+        receipt.adb_server_started and listener_present,
+        "private adb recovery socket lacks its live owned server process",
+    )
+    receipt = _reconcile_live_adb_seal(capability, receipt, observed)
+    _validate_adb(layout, capability)
+    result = run(
+        _adb(capability, "kill-server"),
+        timeout_seconds=15,
+        environment=_client_environment(capability),
+    )
+    _require(result.returncode == 0, "private adb server rejected protocol shutdown")
+    return True
+
+
+def finalize_owned_adb_stop(
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> None:
+    """Finalize only after the receipt-bound server process is confirmed gone."""
+    if receipt.adb_server_started:
+        _require(
+            _same_receipt_adb_server_process(receipt) is None,
+            "cannot finalize private adb cleanup while its server is live",
+        )
+    socket_path = pathlib.Path(capability.socket_path)
+    socket_directory = socket_path.parent
+    if not os.path.lexists(socket_directory):
+        return
+    _socket_directory_metadata(capability, receipt, allowed_modes=frozenset({320, 448}))
+    try:
+        socket_directory.chmod(448)
+        if os.path.lexists(socket_path):
+            metadata = socket_path.lstat()
+            _require(
+                stat.S_ISSOCK(metadata.st_mode) and metadata.st_uid == os.geteuid(),
+                "private adb endpoint changed before final cleanup",
+            )
+            socket_path.unlink()
+        socket_directory.rmdir()
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot finalize private adb cleanup: {exc}"
+        ) from exc
+
+
+def request_normal_owned_adb_stop(run_id: str) -> None:
+    runtime_state.validate_lane_lock_descriptor()
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(receipt is not None, "owned runtime receipt is missing")
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    _require(
+        receipt.run_id == layout.run_id, "owned runtime receipt belongs to another run"
+    )
+    capability = _load_recovery_adb_capability(layout, receipt)
+    _require(
+        request_owned_adb_stop(layout, capability, receipt),
+        "owned adb server exited before its normal protocol shutdown",
+    )
+
+
+def finalize_normal_owned_adb_stop(run_id: str) -> None:
+    runtime_state.validate_lane_lock_descriptor()
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(receipt is not None, "owned runtime receipt is missing")
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    _require(
+        receipt.run_id == layout.run_id, "owned runtime receipt belongs to another run"
+    )
+    capability = _load_recovery_adb_capability(layout, receipt)
+    finalize_owned_adb_stop(capability, receipt)
+
+
+def _finish_recovery_resources(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> None:
+    """Stop and remove the exact prior run's private adb recovery resources."""
+    requested = request_owned_adb_stop(layout, capability, receipt)
+    if requested:
+        _wait_for_recovered_adb_server_exit(receipt)
+    finalize_owned_adb_stop(capability, receipt)
+    runtime_state.retire_recovery_capability(layout, receipt)
+
+
+def _finish_previous_boot_resources(receipt: runtime_state.OwnedRuntimeReceipt) -> None:
+    """Retire only offline files after a confirmed reboot; never signal a PID."""
+    _server_socket, socket_path_text = runtime_state.server_socket_identity(
+        receipt.socket_nonce
+    )
+    socket_directory = pathlib.Path(socket_path_text).parent
+    try:
+        directory_metadata = socket_directory.lstat()
+    except FileNotFoundError:
+        directory_metadata = None
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect prior-boot adb directory: {exc}"
+        ) from exc
+    if directory_metadata is not None:
+        _require(
+            stat.S_ISDIR(directory_metadata.st_mode)
+            and (not socket_directory.is_symlink())
+            and (directory_metadata.st_uid == os.geteuid())
+            and (
+                (directory_metadata.st_dev, directory_metadata.st_ino)
+                == (
+                    receipt.adb_socket_directory_device,
+                    receipt.adb_socket_directory_inode,
+                )
+            )
+            and (stat.S_IMODE(directory_metadata.st_mode) in {320, 448}),
+            "prior-boot adb directory identity changed",
+        )
+        socket_directory.chmod(448)
+        socket_path = pathlib.Path(socket_path_text)
+        try:
+            socket_metadata = socket_path.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            raise AndroidCommandError(
+                f"cannot inspect prior-boot adb socket: {exc}"
+            ) from exc
+        else:
+            _require(
+                stat.S_ISSOCK(socket_metadata.st_mode)
+                and socket_metadata.st_uid == os.geteuid(),
+                "prior-boot adb endpoint changed type or owner",
+            )
+            socket_path.unlink()
+        socket_directory.rmdir()
+    try:
+        repository_metadata = receipt.repository_root.lstat()
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect the prior-boot recovery repository root: {exc}"
+        ) from exc
+    if not (
+        stat.S_ISDIR(repository_metadata.st_mode)
+        and (not receipt.repository_root.is_symlink())
+    ):
+        return
+    run_root = (
+        receipt.repository_root
+        / "target"
+        / runtime_state.RUNS_ROOT_LEAF
+        / receipt.run_id
+    )
+    try:
+        run_root_metadata = run_root.lstat()
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect the prior-boot recovery run root: {exc}"
+        ) from exc
+    if not (
+        stat.S_ISDIR(run_root_metadata.st_mode)
+        and (not run_root.is_symlink())
+        and (run_root_metadata.st_uid == os.geteuid())
+        and (stat.S_IMODE(run_root_metadata.st_mode) == 448)
+        and (
+            (run_root_metadata.st_dev, run_root_metadata.st_ino)
+            == (receipt.run_root_device, receipt.run_root_inode)
+        )
+    ):
+        return
+    layout = runtime_state.AndroidRunLayout(
+        run_id=receipt.run_id,
+        root=run_root,
+        work=run_root / "work",
+        proof=run_root / "proof",
+        capability=run_root / "work" / runtime_state.CAPABILITY_LEAF,
+        signed_apk=run_root / "proof" / runtime_state.SIGNED_APK_LEAF,
+    )
+    runtime_state.retire_recovery_capability(layout, receipt)
+
+
+def _current_boot_origin_is_missing(receipt: runtime_state.OwnedRuntimeReceipt) -> bool:
+    """Distinguish an absent checkout/run from a changed existing identity."""
+    try:
+        repository_metadata = receipt.repository_root.lstat()
+    except FileNotFoundError:
+        return True
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect the recovery repository root: {exc}"
+        ) from exc
+    _require(
+        stat.S_ISDIR(repository_metadata.st_mode)
+        and (not receipt.repository_root.is_symlink()),
+        "owned runtime recovery repository root changed type",
+    )
+    run_root = (
+        receipt.repository_root
+        / "target"
+        / runtime_state.RUNS_ROOT_LEAF
+        / receipt.run_id
+    )
+    try:
+        run_metadata = run_root.lstat()
+    except FileNotFoundError:
+        return True
+    except OSError as exc:
+        raise AndroidCommandError(
+            f"cannot inspect the recovery run root: {exc}"
+        ) from exc
+    _require(
+        stat.S_ISDIR(run_metadata.st_mode)
+        and (not run_root.is_symlink())
+        and (run_metadata.st_uid == os.geteuid())
+        and (stat.S_IMODE(run_metadata.st_mode) == 448)
+        and (
+            (run_metadata.st_dev, run_metadata.st_ino)
+            == (receipt.run_root_device, receipt.run_root_inode)
+        ),
+        "owned runtime recovery run-root identity changed",
+    )
+    return False
+
+
+def _finish_missing_origin_current_boot(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> None:
+    """Narrowly retire account/socket state without protocol or PID signalling."""
+    if receipt.emulator_started:
+        _require(
+            _same_receipt_process(receipt) is None,
+            "cannot retire a missing-origin receipt while its emulator is live",
+        )
+    if receipt.adb_server_started:
+        _require(
+            _same_receipt_adb_server_process(receipt) is None,
+            "cannot retire a missing-origin receipt while its adb server is live",
+        )
+    run_root = (
+        receipt.repository_root
+        / "target"
+        / runtime_state.RUNS_ROOT_LEAF
+        / receipt.run_id
+    )
+    layout = runtime_state.AndroidRunLayout(
+        run_id=receipt.run_id,
+        root=run_root,
+        work=run_root / "work",
+        proof=run_root / "proof",
+        capability=run_root / "work" / runtime_state.CAPABILITY_LEAF,
+        signed_apk=run_root / "proof" / runtime_state.SIGNED_APK_LEAF,
+    )
+    capability = _recovery_adb_capability(layout, receipt)
+    _require(
+        not request_owned_adb_stop(layout, capability, receipt),
+        "missing-origin cleanup unexpectedly requested an adb protocol stop",
+    )
+    finalize_owned_adb_stop(capability, receipt)
+
+
+def recover_owned_runtime() -> Literal["none", "stale-retired", "recovered"]:
+    """Recover one prior SIGKILL orphan under the caller's stable lane lock."""
+    runtime_state.validate_lane_lock_descriptor()
+    runtime_state.cleanup_owned_runtime_receipt_staging_files()
+    receipt = runtime_state.load_owned_runtime_receipt(missing_ok=True)
+    if receipt is None:
+        return "none"
+    _require(
+        receipt.uid == os.geteuid(),
+        "owned runtime receipt belongs to a different account",
+    )
+    try:
+        current_host_boot = host_boot_identity()
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot verify runtime recovery host: {exc}"
+        ) from exc
+    _require(
+        receipt.host_identity == current_host_boot.host,
+        "owned runtime receipt belongs to a different host",
+    )
+    if receipt.boot_identity != current_host_boot.boot:
+        _finish_previous_boot_resources(receipt)
+        runtime_state.retire_owned_runtime_receipt(receipt)
+        return "stale-retired"
+    if _current_boot_origin_is_missing(receipt):
+        _finish_missing_origin_current_boot(receipt)
+        runtime_state.retire_owned_runtime_receipt(receipt)
+        return "stale-retired"
+    context = _validate_recovery_receipt(receipt, validate_active_emulator=False)
+    layout = context.layout
+    capability = context.capability
+    if not receipt.emulator_started:
+        _finish_recovery_resources(layout, capability, receipt)
+        runtime_state.retire_owned_runtime_receipt(receipt)
+        return "stale-retired"
+    observed = _same_receipt_process(receipt)
+    if observed is None:
+        _finish_recovery_resources(layout, capability, receipt)
+        runtime_state.retire_owned_runtime_receipt(receipt)
+        return "stale-retired"
+    active_context = _validate_recovery_receipt(receipt, validate_active_emulator=True)
+    _request_verified_owned_emulator_stop(active_context, receipt)
+    _wait_for_recovered_emulator_exit(receipt)
+    _finish_recovery_resources(layout, capability, receipt)
+    runtime_state.retire_owned_runtime_receipt(receipt)
+    return "recovered"
+
+
+def retire_stopped_owned_runtime(run_id: str) -> None:
+    """Retire a normal-run receipt only after every owned runtime is gone."""
+    runtime_state.validate_lane_lock_descriptor()
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(receipt is not None, "owned runtime receipt is missing")
+    _require(
+        receipt.run_id == runtime_state.canonical_run_id(run_id),
+        "owned runtime receipt belongs to a different run",
+    )
+    context = _validate_recovery_receipt(receipt, validate_active_emulator=False)
+    _require(
+        context.current_boot,
+        "normal runtime retirement cannot retire a prior-boot receipt",
+    )
+    if receipt.emulator_started:
+        _require(
+            _same_receipt_process(receipt) is None,
+            "cannot retire an owned runtime receipt while its process is still live",
+        )
+    if receipt.adb_server_started:
+        _require(
+            _same_receipt_adb_server_process(receipt) is None,
+            "cannot retire an owned runtime receipt while its adb server is still live",
+        )
+    socket_path = pathlib.Path(context.capability.socket_path)
+    _require(
+        not os.path.lexists(socket_path)
+        and (not os.path.lexists(context.layout.capability))
+        and (not os.path.lexists(context.capability.adb_snapshot_path)),
+        "cannot retire an owned runtime receipt while private adb resources remain",
+    )
+    runtime_state.retire_owned_runtime_receipt(receipt)
+
+
+def owned_emulator_backend_identity(run_id: str) -> str:
+    """Return the pre-exec backend inode and digest bound by this run's receipt."""
+    runtime_state.validate_lane_lock_descriptor()
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(receipt is not None, "owned runtime receipt is missing")
+    _require(
+        receipt.run_id == runtime_state.canonical_run_id(run_id),
+        "owned runtime receipt belongs to a different run",
+    )
+    return f"{receipt.backend_device}:{receipt.backend_inode}:{receipt.backend_sha256}"
+
+
+def exec_server(run_id: str) -> NoReturn:
+    runtime_state.validate_lane_lock_descriptor()
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    prior_receipt = runtime_state.load_owned_runtime_receipt()
+    _require(prior_receipt is not None, "runtime recovery receipt is missing")
+    capability = runtime_state.load_capability(layout.run_id)
     _validate_server_environment(capability)
-    _validate_adb(capability)
+    _validate_adb(layout, capability)
+    try:
+        identity = process_snapshot(os.getpid())
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot identify the adb server exec process: {exc}"
+        ) from exc
+    initial_device, initial_inode = _executable_file_identity(
+        identity.executable, "adb server initial executable"
+    )
+    adb_device, adb_inode = _executable_file_identity(
+        capability.adb_snapshot_path, "Android adb snapshot"
+    )
+    runtime_state.register_adb_child(
+        prior_receipt,
+        runtime_state.AdbChildRegistration(
+            process=identity,
+            initial_executable_device=initial_device,
+            initial_executable_inode=initial_inode,
+            adb_snapshot_device=adb_device,
+            adb_snapshot_inode=adb_inode,
+        ),
+    )
     argv = [str(capability.adb_snapshot_path), "-L", capability.server_socket]
     if capability.device_kind == "physical":
         argv.extend(("--one-device", capability.expected_serial))
     argv.extend(("server", "nodaemon"))
     try:
+        runtime_state.arm_lane_lock_close_on_exec()
+        _close_nonstandard_descriptors(preserve_lane_lock=True)
         os.execve(
-            str(capability.adb_snapshot_path),
-            argv,
-            _server_environment(capability),
+            str(capability.adb_snapshot_path), argv, _server_environment(capability)
         )
     except OSError as exc:
         raise AndroidCommandError(f"cannot start the owned adb server: {exc}") from exc
 
 
-def _output_directory(root: OutputRoot) -> int:
-    return _open_private_directory(
-        WORK_ROOT if root is OutputRoot.WORK else PROOF_ROOT,
+def wait_owned_adb_server_start(
+    *, run_id: str, expected_pid: int, timeout_seconds: int
+) -> str:
+    """Wait until the exact spawned child durably advances its runtime receipt."""
+    runtime_state.validate_lane_lock_descriptor()
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    _require(
+        type(expected_pid) is int and expected_pid > 1,
+        "owned adb startup handshake pid is invalid",
+    )
+    _require(
+        type(timeout_seconds) is int and 1 <= timeout_seconds <= 15,
+        "owned adb startup handshake timeout must be 1 through 15 seconds",
+    )
+    try:
+        spawned = process_snapshot(expected_pid)
+    except ProcessIdentityError as exc:
+        raise AndroidCommandError(
+            f"cannot identify the spawned adb server child: {exc}"
+        ) from exc
+    _require(
+        spawned.uid == os.geteuid(),
+        "spawned adb server child belongs to another account",
+    )
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        receipt = runtime_state.load_owned_runtime_receipt()
+        _require(receipt is not None, "runtime recovery receipt is missing")
+        _require(
+            receipt.run_id == layout.run_id,
+            "runtime recovery receipt belongs to another server spawn",
+        )
+        try:
+            observed = process_snapshot(expected_pid)
+        except ProcessIdentityError as exc:
+            raise AndroidCommandError(
+                "spawned adb server child exited before its receipt advance"
+            ) from exc
+        _require(
+            observed.token == spawned.token,
+            "spawned adb server child identity changed during receipt handoff",
+        )
+        if receipt.adb_server_started:
+            _require(
+                receipt.adb_server_pid == expected_pid
+                and receipt.adb_server_process_identity == spawned.token,
+                "runtime receipt advanced for a different adb server child",
+            )
+            _validate_receipt_adb_server_executable(
+                receipt, _load_recovery_adb_capability(layout, receipt), observed
+            )
+            return receipt.adb_server_process_identity
+        remaining = deadline - time.monotonic()
+        _require(
+            remaining > 0,
+            "spawned adb server child did not advance its recovery receipt",
+        )
+        time.sleep(min(0.02, remaining))
+
+
+def _output_directory(layout: runtime_state.AndroidRunLayout, root: OutputRoot) -> int:
+    return runtime_state.open_private_directory(
+        layout.work if root is OutputRoot.WORK else layout.proof,
         f"Android {root.value}",
     )
 
 
 def _write_operation(
-    capability: AndroidCommandCapability,
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
     spec: OperationSpec,
     argv: tuple[str, ...],
     timeout_seconds: int,
@@ -1319,7 +2324,7 @@ def _write_operation(
     output = spec.output
     if output is None:
         _fail("Android write operation lacks a fixed output")
-    directory_fd = _output_directory(output.root)
+    directory_fd = _output_directory(layout, output.root)
     primary: BaseException | None = None
     try:
         return write_stdout_at(
@@ -1334,27 +2339,30 @@ def _write_operation(
         primary = exc
         raise
     finally:
-        _close_owned_descriptor(
-            directory_fd,
-            label="the Android output directory",
-            primary=primary,
+        runtime_state.close_descriptor(
+            directory_fd, label="the Android output directory", primary=primary
         )
 
 
-def _remote_base_apk() -> str:
+def _remote_base_apk(layout: runtime_state.AndroidRunLayout) -> str:
     snapshot = read_regular_snapshot(
-        PROOF_ROOT / "adb-package-path.txt",
+        layout.proof / "adb-package-path.txt",
         maximum=65536,
         label="installed Android package path",
-        validate_metadata=_private_metadata,
+        validate_metadata=runtime_state.private_file_metadata,
     )
     try:
         text = snapshot.data.decode("utf-8").replace("\r", "")
     except UnicodeDecodeError as exc:
-        raise AndroidCommandError(f"installed Android package path is not UTF-8: {exc}") from exc
+        raise AndroidCommandError(
+            f"installed Android package path is not UTF-8: {exc}"
+        ) from exc
     lines = text.splitlines()
-    _require(len(lines) == 1 and lines[0].startswith("package:"), "installed Android package path is ambiguous")
-    remote = _canonical_ascii_atom(
+    _require(
+        len(lines) == 1 and lines[0].startswith("package:"),
+        "installed Android package path is ambiguous",
+    )
+    remote = runtime_state.canonical_ascii_atom(
         lines[0][len("package:") :],
         characters=_REMOTE_PATH_CHARACTERS,
         minimum=len("/a/base.apk"),
@@ -1366,24 +2374,26 @@ def _remote_base_apk() -> str:
         "installed Android base APK path is unsafe",
     )
     _require(
-        all(part not in {".", ".."} for part in pathlib.PurePosixPath(remote).parts),
+        all((part not in {".", ".."} for part in pathlib.PurePosixPath(remote).parts)),
         "installed Android base APK path is non-canonical",
     )
     return remote
 
 
-def _device_epoch() -> str:
+def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
     snapshot = read_regular_snapshot(
-        PROOF_ROOT / "adb-device-time.txt",
+        layout.proof / "adb-device-time.txt",
         maximum=4096,
         label="Android logcat start time",
-        validate_metadata=_private_metadata,
+        validate_metadata=runtime_state.private_file_metadata,
     )
     try:
         raw_value = snapshot.data.decode("ascii").replace("\r", "").strip()
     except UnicodeDecodeError as exc:
-        raise AndroidCommandError(f"Android logcat start time is not ASCII: {exc}") from exc
-    value = _canonical_ascii_atom(
+        raise AndroidCommandError(
+            f"Android logcat start time is not ASCII: {exc}"
+        ) from exc
+    value = runtime_state.canonical_ascii_atom(
         raw_value,
         characters=_EPOCH_CHARACTERS,
         minimum=14,
@@ -1398,37 +2408,43 @@ def _device_epoch() -> str:
 
 
 def invoke_operation(
-    operation: AndroidOperation, *, timeout_seconds: int | None = None
+    operation: AndroidOperation, *, run_id: str, timeout_seconds: int | None = None
 ) -> BoundedResult:
-    capability = load_capability()
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    capability = runtime_state.load_capability(layout.run_id)
     _validate_client_environment(capability)
-    _validate_tool_and_apk(capability, operation)
+    _validate_tool_and_apk(layout, capability, operation)
     spec = OPERATION_SPECS[operation]
+    if spec.requires_private_server:
+        _validate_owned_adb_server_for_client(capability)
     timeout = spec.timeout_seconds if timeout_seconds is None else timeout_seconds
     _require(
         type(timeout) is int and 1 <= timeout <= spec.timeout_maximum,
         f"{operation.value} timeout must be 1 through {spec.timeout_maximum} seconds",
     )
-
     if spec.mode == "pull-apk":
-        argv = _device(capability, "exec-out", "cat", _remote_base_apk())
+        argv = _device(capability, "exec-out", "cat", _remote_base_apk(layout))
         dynamic_spec = dataclasses.replace(
             spec,
-            output=OutputSpec(OutputRoot.WORK, "installed-smoke-base.apk", capability.signed_apk_size),
+            output=OutputSpec(
+                OutputRoot.WORK, "installed-smoke-base.apk", capability.signed_apk_size
+            ),
         )
-        result = _write_operation(capability, dynamic_spec, argv, timeout)
+        result = _write_operation(layout, capability, dynamic_spec, argv, timeout)
         if result.returncode == 0:
             observed = consume_regular_snapshot(
-                WORK_ROOT / "installed-smoke-base.apk",
-                maximum=MAX_APK_BYTES,
+                layout.work / "installed-smoke-base.apk",
+                maximum=runtime_state.MAX_APK_BYTES,
                 label="installed Android smoke APK copy",
-                validate_metadata=_private_metadata,
+                validate_metadata=runtime_state.private_file_metadata,
             )
             _require(
                 observed.size == capability.signed_apk_size
                 and observed.sha256 == capability.signed_apk_sha256,
                 "installed Android smoke APK differs from this run's signed bytes",
             )
+        if spec.requires_private_server:
+            _validate_owned_adb_server_for_client(capability)
         return result
     if spec.mode == "logcat":
         argv = _device(
@@ -1438,63 +2454,114 @@ def invoke_operation(
             "-v",
             "tag",
             "-T",
-            _device_epoch(),
+            _device_epoch(layout),
             "-s",
             "QPeriaptSmoke:*",
             "*:S",
         )
-        return _write_operation(capability, spec, argv, timeout)
-
+        result = _write_operation(layout, capability, spec, argv, timeout)
+        if spec.requires_private_server:
+            _validate_owned_adb_server_for_client(capability)
+        return result
+    if spec.mode == "register-emulator":
+        result = _register_owned_emulator(capability, timeout_seconds=timeout)
+        _validate_owned_adb_server_for_client(capability)
+        return result
     argv = spec.build_argv(capability)
     if spec.mode == "run":
-        return run(
-            argv,
-            timeout_seconds=timeout,
-            environment=_client_environment(capability),
+        result = run(
+            argv, timeout_seconds=timeout, environment=_client_environment(capability)
         )
+        _validate_owned_adb_server_for_client(capability)
+        return result
     if spec.mode == "capture":
-        return capture_stdout(
+        result = capture_stdout(
             argv,
             timeout_seconds=timeout,
             maximum_bytes=65536,
             environment=_client_environment(capability),
         )
+        _validate_owned_adb_server_for_client(capability)
+        return result
     if spec.mode == "write":
-        return _write_operation(capability, spec, argv, timeout)
+        result = _write_operation(layout, capability, spec, argv, timeout)
+        if spec.requires_private_server:
+            _validate_owned_adb_server_for_client(capability)
+        return result
     _fail(f"unsupported Android command mode: {spec.mode}")
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
-
     create = sub.add_parser("create-capability")
     create.add_argument(
         "--adb-profile",
-        choices=["auto", *ADB_PROFILE_PATHS],
+        choices=["auto", *runtime_state.ADB_PROFILE_PATHS],
         default="auto",
     )
     create.add_argument("--socket-nonce", required=True)
-    create.add_argument("--device-kind", choices=["physical", "emulator"], required=True)
+    create.add_argument(
+        "--device-kind", choices=["physical", "emulator"], required=True
+    )
     create.add_argument("--expected-serial", required=True)
     create.add_argument("--run-id", required=True)
     create.add_argument("--signed-apk-size", required=True, type=int)
     create.add_argument("--signed-apk-sha256", required=True)
-
     invoke = sub.add_parser("invoke")
-    invoke.add_argument("operation", choices=[operation.value for operation in AndroidOperation])
+    invoke.add_argument(
+        "operation", choices=[operation.value for operation in AndroidOperation]
+    )
+    invoke.add_argument("--run-id", required=True)
     invoke.add_argument("--timeout-seconds", type=int)
-
+    emulator_listeners = sub.add_parser("capture-emulator-listeners")
+    emulator_listeners.add_argument("--run-id", required=True)
+    emulator_listeners.add_argument("--emulator-pid", required=True, type=int)
+    emulator_listeners.add_argument(
+        "--timeout-seconds", required=True, type=int, choices=range(1, 6)
+    )
+    create_run = sub.add_parser("create-run")
+    create_run.add_argument("--run-id", required=True)
+    create_recovery = sub.add_parser("create-runtime-recovery")
+    create_recovery.add_argument("--run-id", required=True)
     path = sub.add_parser("adb-path")
     path.add_argument(
         "--adb-profile",
-        choices=["auto", *ADB_PROFILE_PATHS],
+        choices=["auto", *runtime_state.ADB_PROFILE_PATHS],
         default="auto",
     )
-    sub.add_parser("capability-adb-path")
-    sub.add_parser("server-nodaemon")
+    capability_path = sub.add_parser("capability-adb-path")
+    capability_path.add_argument("--run-id", required=True)
+    server = sub.add_parser("server-nodaemon")
+    server.add_argument("--run-id", required=True)
+    wait_server = sub.add_parser("wait-owned-adb-server-start")
+    wait_server.add_argument("--run-id", required=True)
+    wait_server.add_argument("--expected-pid", required=True, type=int)
+    wait_server.add_argument(
+        "--timeout-seconds", required=True, type=int, choices=range(1, 16)
+    )
+    emulator = sub.add_parser("emulator-nodaemon")
+    emulator.add_argument("--run-id", required=True)
+    emulator.add_argument("--avd-name", required=True)
+    emulator.add_argument(
+        "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
+    )
+    sub.add_parser("lane-lock-path")
+    sub.add_parser("recover-owned-runtime")
+    seal_adb = sub.add_parser("seal-private-adb-directory")
+    seal_adb.add_argument("--run-id", required=True)
+    request_adb_stop = sub.add_parser("request-owned-adb-stop")
+    request_adb_stop.add_argument("--run-id", required=True)
+    request_emulator_stop = sub.add_parser("request-owned-emulator-stop")
+    request_emulator_stop.add_argument("--run-id", required=True)
+    finalize_adb_stop = sub.add_parser("finalize-owned-adb-stop")
+    finalize_adb_stop.add_argument("--run-id", required=True)
+    retire_runtime = sub.add_parser("retire-stopped-runtime")
+    retire_runtime.add_argument("--run-id", required=True)
+    backend_identity = sub.add_parser("owned-emulator-backend-identity")
+    backend_identity.add_argument("--run-id", required=True)
     destroy = sub.add_parser("destroy-capability")
-    destroy.add_argument("--expected-run-id")
+    destroy.add_argument("--run-id", required=True)
     destroy.add_argument("--missing-ok", action="store_true")
     return parser
 
@@ -1512,25 +2579,80 @@ def main(argv: list[str]) -> int:
             signed_apk_sha256=args.signed_apk_sha256,
         )
         return 0
+    if args.action == "create-run":
+        layout = runtime_state.create_run_layout(args.run_id)
+        print(layout.root)
+        return 0
+    if args.action == "create-runtime-recovery":
+        runtime_state.create_runtime_recovery_receipt(args.run_id)
+        print("ANDROID_RUNTIME_RECOVERY_RECEIPT_CREATED")
+        return 0
+    if args.action == "capture-emulator-listeners":
+        return capture_owned_emulator_listeners(
+            run_id=args.run_id,
+            emulator_pid=args.emulator_pid,
+            timeout_seconds=args.timeout_seconds,
+        ).returncode
     if args.action == "adb-path":
-        print(resolve_adb_profile(args.adb_profile))
+        print(runtime_state.resolve_adb_profile(args.adb_profile))
+        return 0
+    if args.action == "lane-lock-path":
+        runtime_state.ensure_account_state()
+        print(runtime_state.lane_lock_path())
         return 0
     if args.action == "capability-adb-path":
-        capability = load_capability()
-        _validate_adb(capability)
+        layout = runtime_state.AndroidRunLayout.from_run_id(args.run_id)
+        capability = runtime_state.load_capability(layout.run_id)
+        _validate_adb(layout, capability)
         print(capability.adb_snapshot_path)
         return 0
     if args.action == "destroy-capability":
-        destroy_capability(
-            expected_run_id=args.expected_run_id,
-            missing_ok=args.missing_ok,
-        )
+        runtime_state.destroy_capability(run_id=args.run_id, missing_ok=args.missing_ok)
         return 0
     if args.action == "server-nodaemon":
-        exec_server()
+        exec_server(args.run_id)
+    if args.action == "wait-owned-adb-server-start":
+        identity = wait_owned_adb_server_start(
+            run_id=args.run_id,
+            expected_pid=args.expected_pid,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(identity)
+        return 0
+    if args.action == "emulator-nodaemon":
+        exec_emulator(args.run_id, args.avd_name, args.device_abi)
+    if args.action == "recover-owned-runtime":
+        status = recover_owned_runtime().upper().replace("-", "_")
+        print(f"ANDROID_OWNED_RUNTIME_RECOVERY_{status}")
+        return 0
+    if args.action == "seal-private-adb-directory":
+        seal_private_adb_directory(args.run_id)
+        print("ANDROID_PRIVATE_ADB_DIRECTORY_SEALED")
+        return 0
+    if args.action == "request-owned-adb-stop":
+        request_normal_owned_adb_stop(args.run_id)
+        print("ANDROID_OWNED_ADB_STOP_REQUESTED")
+        return 0
+    if args.action == "request-owned-emulator-stop":
+        request_normal_owned_emulator_stop(args.run_id)
+        print("ANDROID_OWNED_EMULATOR_STOP_REQUESTED")
+        return 0
+    if args.action == "finalize-owned-adb-stop":
+        finalize_normal_owned_adb_stop(args.run_id)
+        print("ANDROID_OWNED_ADB_STOP_FINALIZED")
+        return 0
+    if args.action == "retire-stopped-runtime":
+        retire_stopped_owned_runtime(args.run_id)
+        print("ANDROID_OWNED_RUNTIME_RECEIPT_RETIRED")
+        return 0
+    if args.action == "owned-emulator-backend-identity":
+        print(owned_emulator_backend_identity(args.run_id))
+        return 0
     if args.action == "invoke":
         operation = AndroidOperation(args.operation)
-        result = invoke_operation(operation, timeout_seconds=args.timeout_seconds)
+        result = invoke_operation(
+            operation, run_id=args.run_id, timeout_seconds=args.timeout_seconds
+        )
         if result.stdout:
             view = memoryview(result.stdout)
             while view:
@@ -1543,6 +2665,11 @@ def main(argv: list[str]) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main(sys.argv[1:]))
-    except (AndroidCommandError, BoundedProcessError, EvidenceIOError) as exc:
+    except (
+        AndroidCommandError,
+        runtime_state.AndroidRuntimeStateError,
+        BoundedProcessError,
+        EvidenceIOError,
+    ) as exc:
         print(f"error: Android bounded command: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc

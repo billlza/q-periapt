@@ -197,13 +197,17 @@ else
 fi
 
 if [ "$require_android_runtime" = "1" ]; then
+	if [ -z "${QPERIAPT_ANDROID_DEVICE_PROOF:-}" ]; then
+		printf 'error: QPERIAPT_ANDROID_DEVICE_PROOF is required when QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1\n' >&2
+		exit 2
+	fi
 	step "Android emulator/physical runtime proof" \
 		env QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
-		QPERIAPT_ANDROID_DEVICE_PROOF="${QPERIAPT_ANDROID_DEVICE_PROOF:-$ROOT/target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json}" \
+		QPERIAPT_ANDROID_DEVICE_PROOF="$QPERIAPT_ANDROID_DEVICE_PROOF" \
 		sh artifact/proof-to-byte.sh
 else
 	printf '\nNOTE: Android emulator/physical runtime proof not required by this run.\n'
-	printf '      Set QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 after running artifact/android-device-smoke.sh to require it.\n'
+	printf '      Set QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 and QPERIAPT_ANDROID_DEVICE_PROOF=<reported immutable proof path> after running artifact/android-device-smoke.sh.\n'
 fi
 
 printf '\nEMBEDDING_READINESS_PASS\n'

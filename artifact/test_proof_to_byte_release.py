@@ -22,15 +22,14 @@ import subprocess
 import sys
 import tempfile
 import time
-import tomllib
 import unittest
 from collections.abc import Iterator
 from unittest import mock
 
+import proof_to_byte_finalizer
+import tomllib
 from camera_ready_proof import EXPECTED_TOOLS
 from git_provenance import WorktreeInspection, git_commit
-import proof_to_byte_finalizer
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROOF_SCRIPT = ROOT / "artifact" / "proof-to-byte.sh"
@@ -90,9 +89,7 @@ EXPECTED_PROOF_TO_BYTE_STEP = (
     "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
     "        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh\n"
 )
-YAML_ALIAS = re.compile(
-    r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+"
-)
+YAML_ALIAS = re.compile(r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+")
 
 
 _RELEASE_TEST_DIRECTORY_OPEN_FLAGS = (
@@ -344,7 +341,9 @@ def _temporary_release_test_directories(
                 try:
                     os.rmdir(child.name, dir_fd=child.parent.directory_fd)
                 except OSError as exc:
-                    exc.add_note(f"while removing test-owned release child: {child.path}")
+                    exc.add_note(
+                        f"while removing test-owned release child: {child.path}"
+                    )
                     cleanup_errors.append(exc)
             return cleanup_errors
 
@@ -482,9 +481,7 @@ def _temporary_release_test_directories(
                     )
                     parent_directories.append(parent)
                 else:
-                    parent = _ReleaseTestParentDirectory(
-                        path=parent_path, owned=True
-                    )
+                    parent = _ReleaseTestParentDirectory(path=parent_path, owned=True)
                     parent_directories.append(parent)
                     parent.identity = _release_test_directory_identity(parent_path)
                 parent.directory_fd = os.open(
@@ -654,6 +651,10 @@ APPLE_DEVICE_PROOF_INPUTS = {
 BOUNDED_PROCESS_PROOF_INPUTS = {
     "bounded_process_sha256": "artifact/bounded_process.py",
     "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
+    "process_identity_sha256": "artifact/process_identity.py",
+    "android_emulator_control_sha256": "artifact/android_emulator_control.py",
+    "android_runtime_state_sha256": "artifact/android_runtime_state.py",
+    "android_runtime_state_tests_sha256": "artifact/test_android_runtime_state.py",
     "android_bounded_command_sha256": "artifact/android_bounded_command.py",
     "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
 }
@@ -667,6 +668,10 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
     "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
     "android_aar_script_sha256": "artifact/android-aar.sh",
+    "process_identity_sha256": "artifact/process_identity.py",
+    "android_emulator_control_sha256": "artifact/android_emulator_control.py",
+    "android_runtime_state_sha256": "artifact/android_runtime_state.py",
+    "android_runtime_state_tests_sha256": "artifact/test_android_runtime_state.py",
     "android_bounded_command_sha256": "artifact/android_bounded_command.py",
     "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
     "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
@@ -788,15 +793,16 @@ def validate_ci_check_checkout(check_job: str) -> None:
     proof_starts = [
         index
         for index, line in enumerate(lines)
-        if line
-        == "      - name: Proof-to-byte manifest and canonical source binding\n"
+        if line == "      - name: Proof-to-byte manifest and canonical source binding\n"
     ]
     if len(proof_starts) != 1:
         raise ValueError("CI check job must contain one explicit proof-to-byte step")
     proof_start = proof_starts[0]
     proof_step = "".join(lines[proof_start : step_end(proof_start)])
     if proof_step != EXPECTED_PROOF_TO_BYTE_STEP:
-        raise ValueError("CI proof-to-byte step differs from the audited fail-closed form")
+        raise ValueError(
+            "CI proof-to-byte step differs from the audited fail-closed form"
+        )
 
 
 def format_marker(*states: int) -> str:
@@ -896,7 +902,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("queries: security-extended", source)
         self.assertIn("threat-models: [local]", source)
 
-    def test_dependency_monitoring_and_private_reporting_policy_are_explicit(self) -> None:
+    def test_dependency_monitoring_and_private_reporting_policy_are_explicit(
+        self,
+    ) -> None:
         dependabot = DEPENDABOT_CONFIG.read_text(encoding="utf-8")
         configured = re.findall(
             r"(?m)^  - package-ecosystem: ([a-z-]+)\n"
@@ -926,8 +934,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
     def test_android_release_gate_binds_every_verifier_argument(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         gate_start = source.index(
-            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n'
-            '\ttest -f "$ANDROID_PROOF"'
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n\ttest -f "$ANDROID_PROOF"'
         )
         gate_end = source.index(
             '\nif [ "$REQUIRE_PERFORMANCE" = "1" ]; then', gate_start
@@ -1021,7 +1028,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in CONTINUITY_PROOF_INPUTS.items():
             with self.subTest(key=key):
@@ -1040,15 +1049,15 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertIn(f'"{key}": "{relative}"', source)
                 actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
                 self.assertEqual(inputs.get(key), actual)
-        self.assertIn(
-            "artifact/migration_contract_v2.py verify", source
-        )
+        self.assertIn("artifact/migration_contract_v2.py verify", source)
         self.assertIn("make -C formal/easycrypt check", source)
         self.assertIn("make -C formal/tamarin prove", source)
 
     def test_proof_to_byte_names_every_hqc_candidate_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in HQC_CANDIDATE_PROOF_INPUTS.items():
             with self.subTest(key=key):
@@ -1058,7 +1067,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_proof_to_byte_names_every_apple_distribution_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
         inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
             with self.subTest(key=key):
@@ -1104,7 +1115,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_publish_contract_fences_research_and_mlkem_provider(self) -> None:
         source = RUST_PUBLISH_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
         expected_hash = hashlib.sha256(RUST_PUBLISH_SCRIPT.read_bytes()).hexdigest()
         expected_contract_hash = hashlib.sha256(
             RUST_PUBLISH_CONTRACT.read_bytes()
@@ -1126,7 +1139,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("cargo package $ALLOW_DIRTY_ARG --locked \\", source)
         self.assertNotIn("--no-verify", source)
         self.assertIn("qperiapt-package-inspection.XXXXXX", source)
-        self.assertIn("publishable q-periapt-backends exposes retired hqc feature", source)
+        self.assertIn(
+            "publishable q-periapt-backends exposes retired hqc feature", source
+        )
         self.assertIn(
             'python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"',
             source,
@@ -1187,7 +1202,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             if python_token.search(source):
                 entrypoints.append(path)
-        self.assertTrue(entrypoints, "no repository Python shell entrypoints discovered")
+        self.assertTrue(
+            entrypoints, "no repository Python shell entrypoints discovered"
+        )
         for path in entrypoints:
             relative = path.relative_to(ROOT).as_posix()
             with self.subTest(entrypoint=relative):
@@ -1237,7 +1254,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
                     for number, line in executable_lines
                     if python_token.search(line)
                 ]
-                self.assertTrue(python_lines, f"{relative} has no Python invocation to protect")
+                self.assertTrue(
+                    python_lines, f"{relative} has no Python invocation to protect"
+                )
                 self.assertLess(
                     source_lines[0],
                     python_lines[0],
@@ -1254,7 +1273,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
     def test_shell_has_no_post_verification_selected_proof_reopen(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("manifest_selected_proof_binding", source)
-        self.assertGreaterEqual(source.count('--results-manifest "$RESULTS_MANIFEST"'), 6)
+        self.assertGreaterEqual(
+            source.count('--results-manifest "$RESULTS_MANIFEST"'), 6
+        )
         self.assertGreaterEqual(
             source.count(
                 '--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"'
@@ -1266,7 +1287,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_finalizer_is_a_named_proof_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
+        manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
         self.assertIn(
             '"proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py"',
             source,
@@ -1433,7 +1456,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 "release entrypoint executed a forged ignored timestamp pyc",
             )
 
-    def test_release_entrypoint_ignores_hostile_python_startup_environment(self) -> None:
+    def test_release_entrypoint_ignores_hostile_python_startup_environment(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             artifact = root / "artifact"
@@ -1456,7 +1481,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
             }
             clean_python_environment["PYTHONUSERBASE"] = str(user_base)
             site_query = subprocess.run(
-                [sys.executable, "-c", "import site; print(site.getusersitepackages())"],
+                [
+                    sys.executable,
+                    "-c",
+                    "import site; print(site.getusersitepackages())",
+                ],
                 cwd=root,
                 env=clean_python_environment,
                 text=True,
@@ -1507,7 +1536,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(pth_control.returncode, 0, pth_control.stderr)
-            self.assertTrue(pth_sentinel.is_file(), "hostile .pth control did not execute")
+            self.assertTrue(
+                pth_sentinel.is_file(), "hostile .pth control did not execute"
+            )
             pth_sentinel.unlink()
 
             control_environment = clean_python_environment.copy()
@@ -1570,7 +1601,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
             )
             self.assertEqual(guarded.returncode, 2, guarded.stderr)
             self.assertIn("QPERIAPT_SKIP_SMOKE must be 0 or 1", guarded.stderr)
-            self.assertFalse(pth_sentinel.exists(), "release entrypoint executed hostile .pth")
+            self.assertFalse(
+                pth_sentinel.exists(), "release entrypoint executed hostile .pth"
+            )
             self.assertFalse(
                 path_sentinel.exists(), "release entrypoint executed hostile PYTHONPATH"
             )
@@ -1724,6 +1757,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 "android device kind is recognized",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
                     "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
                 },
                 "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
@@ -1732,6 +1768,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 "android device ABI is recognized",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
                     "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "mips64",
                 },
                 "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI",
@@ -1740,6 +1779,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 "android max age is bounded",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
                     "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "604801",
                 },
                 "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
@@ -1943,9 +1985,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             with _temporary_release_test_directories((tree_parent,)) as (child,):
                 nested = child / "nested"
                 nested.mkdir()
-                (nested / "fixture-data").write_text(
-                    "fixture data\n", encoding="utf-8"
-                )
+                (nested / "fixture-data").write_text("fixture data\n", encoding="utf-8")
                 (child / "external-link").symlink_to(
                     external_tree_target, target_is_directory=True
                 )
@@ -1992,8 +2032,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             self.assertIs(type(cleanup_error), AssertionError)
             self.assertEqual(
                 str(cleanup_error),
-                "test-owned release parent is not empty after cleanup: "
-                f"{combined[1]}",
+                f"test-owned release parent is not empty after cleanup: {combined[1]}",
             )
             self.assertFalse(os.path.lexists(combined[0]))
             self.assertEqual(
@@ -2028,8 +2067,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 self.assertIs(type(error), AssertionError)
                 self.assertEqual(
                     str(error),
-                    "test-owned release parent is not empty after cleanup: "
-                    f"{parent}",
+                    f"test-owned release parent is not empty after cleanup: {parent}",
                 )
             for foreign_file_path, parent in zip(
                 multiply_foreign_files, multiply_contaminated, strict=True
@@ -2139,9 +2177,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     preexisting_replaced.rename(preexisting_original)
                     preexisting_external_child = preexisting_external / child.name
                     preexisting_external_child.mkdir()
-                    preexisting_payload = (
-                        preexisting_external_child / "foreign-data"
-                    )
+                    preexisting_payload = preexisting_external_child / "foreign-data"
                     preexisting_payload.write_text(
                         "must survive cleanup\n", encoding="utf-8"
                     )
@@ -2173,9 +2209,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             child_replacement_payload: pathlib.Path
             original_child: pathlib.Path
             with self.assertRaises(ExceptionGroup) as child_replacement_cleanup:
-                with _temporary_release_test_directories(
-                    (child_replaced_parent,)
-                ) as (child,):
+                with _temporary_release_test_directories((child_replaced_parent,)) as (
+                    child,
+                ):
                     original_child = child.with_name(f"{child.name}-original")
                     child.rename(original_child)
                     child.mkdir()
@@ -2223,9 +2259,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             child_path.rename(original_child)
             child_path.mkdir()
             replacement_payload = child_path / "foreign-data"
-            replacement_payload.write_text(
-                "must survive cleanup\n", encoding="utf-8"
-            )
+            replacement_payload.write_text("must survive cleanup\n", encoding="utf-8")
             replacement_paths.extend((original_child, replacement_payload))
             return []
 
@@ -2256,8 +2290,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             self.assertIs(type(parent_error), AssertionError)
             self.assertEqual(
                 str(parent_error),
-                "test-owned release parent is not empty after cleanup: "
-                f"{parent}",
+                f"test-owned release parent is not empty after cleanup: {parent}",
             )
             self.assertEqual(
                 replacement_payload.read_text(encoding="utf-8"),
@@ -2285,9 +2318,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 side_effect=RuntimeError("synthetic unexpected cleanup failure"),
             ):
                 with self.assertRaises(ExceptionGroup) as cleanup:
-                    with _temporary_release_test_directories((parent,)) as (
-                        child,
-                    ):
+                    with _temporary_release_test_directories((parent,)) as (child,):
                         raise ValueError("synthetic fixture body failure")
             descriptor_count_after = len(os.listdir(descriptor_directory))
             self.assertEqual(descriptor_count_after, descriptor_count_before)
@@ -2306,8 +2337,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             self.assertIs(type(parent_error), AssertionError)
             self.assertEqual(
                 str(parent_error),
-                "test-owned release parent is not empty after cleanup: "
-                f"{parent}",
+                f"test-owned release parent is not empty after cleanup: {parent}",
             )
             self.assertTrue(child.is_dir())
             child.rmdir()
@@ -2465,9 +2495,7 @@ with _temporary_release_test_directories(parents):
                 release[1].write_text("release\n", encoding="utf-8")
                 second_stdout, second_stderr = second.communicate(timeout=10)
                 self.assertEqual(second.returncode, 0, second_stderr or second_stdout)
-                self.assertTrue(
-                    all(not os.path.lexists(parent) for parent in parents)
-                )
+                self.assertTrue(all(not os.path.lexists(parent) for parent in parents))
             finally:
                 for marker in release:
                     marker.touch(exist_ok=True)
@@ -2734,7 +2762,9 @@ with _temporary_release_test_directories(parents):
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
-    def test_missing_audit_is_scoped_summary_even_if_environment_claims_pass(self) -> None:
+    def test_missing_audit_is_scoped_summary_even_if_environment_claims_pass(
+        self,
+    ) -> None:
         with mock.patch.dict(os.environ, {"DEPENDENCY_AUDIT_PASSED": "1"}):
             marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0)
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", marker)
@@ -2842,7 +2872,9 @@ with _temporary_release_test_directories(parents):
                 )
 
     def test_finalizer_rejects_digest_or_dirty_state_transition(self) -> None:
-        inspection = WorktreeInspection(commit=TEST_COMMIT, dirty=True, reasons=("changed",))
+        inspection = WorktreeInspection(
+            commit=TEST_COMMIT, dirty=True, reasons=("changed",)
+        )
         with (
             mock.patch.object(
                 proof_to_byte_finalizer,
@@ -3004,7 +3036,9 @@ with _temporary_release_test_directories(parents):
             ):
                 proof_to_byte_finalizer._load_footprint_csv(footprint)
 
-    def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(self) -> None:
+    def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             footprint = pathlib.Path(temporary) / "footprint.csv"
             trailing_rows = (
@@ -3037,7 +3071,9 @@ with _temporary_release_test_directories(parents):
                     ):
                         proof_to_byte_finalizer._load_footprint_csv(footprint)
 
-    def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(self) -> None:
+    def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             paper = root / "paper"
@@ -3168,7 +3204,9 @@ with _temporary_release_test_directories(parents):
                     sum(step.count(canonical) for step in steps),
                     expected_count - windows_count,
                 )
-                self.assertEqual(sum(step.count(windows) for step in steps), windows_count)
+                self.assertEqual(
+                    sum(step.count(windows) for step in steps), windows_count
+                )
                 for step in steps:
                     self.assertEqual(step.count(canonical) + step.count(windows), 1)
                 self.assertNotIn("cargo +stable", source)
@@ -3284,7 +3322,10 @@ with _temporary_release_test_directories(parents):
         candidate = ABI2_PLATFORM_CANDIDATE_WORKFLOW.read_text(encoding="utf-8")
         candidate_windows = extract_workflow_job(candidate, "windows")
         self.assertIn("    runs-on: windows-2022\n", candidate_windows)
-        self.assertIn(f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n", candidate_windows)
+        self.assertIn(
+            f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n",
+            candidate_windows,
+        )
         self.assertIn("          components: llvm-tools\n", candidate_windows)
         self.assertIn(
             f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} install cbindgen --version 0.29.4 --locked",
@@ -3323,7 +3364,7 @@ with _temporary_release_test_directories(parents):
             candidate_android, "Verify exact source and toolchain"
         )
         for token in (
-            "test \"$(rustc -vV | sed -n 's/^host: //p')\" = \"x86_64-unknown-linux-gnu\"",
+            'test "$(rustc -vV | sed -n \'s/^host: //p\')" = "x86_64-unknown-linux-gnu"',
             CANONICAL_RUSTC_VERSION,
             CANONICAL_CARGO_VERSION,
             "rustup target list --installed",
@@ -3355,7 +3396,7 @@ with _temporary_release_test_directories(parents):
         )
         self.assertIn('jq -e --arg commit "$commit"', preflight)
         self.assertIn(
-            "any(.workflow_runs[]; .head_sha == $commit and .conclusion == \"success\")",
+            'any(.workflow_runs[]; .head_sha == $commit and .conclusion == "success")',
             preflight,
         )
         self.assertIn('<<<"$ci_runs"', preflight)
@@ -3400,8 +3441,7 @@ with _temporary_release_test_directories(parents):
             ),
             "non-blocking provenance check": check_job.replace(
                 EXPECTED_CHECKOUT_PROVENANCE_STEP,
-                EXPECTED_CHECKOUT_PROVENANCE_STEP
-                + "        continue-on-error: true\n",
+                EXPECTED_CHECKOUT_PROVENANCE_STEP + "        continue-on-error: true\n",
                 1,
             ),
             "post-check provenance mutation": check_job.replace(
@@ -3487,9 +3527,7 @@ with _temporary_release_test_directories(parents):
                     TEST_MANIFEST_SHA256,
                     expected_commit=expected_commit,
                 )
-                output.assert_called_once_with(
-                    f"{TEST_COMMIT}:{TEST_SOURCE_SHA256}:0"
-                )
+                output.assert_called_once_with(f"{TEST_COMMIT}:{TEST_SOURCE_SHA256}:0")
 
     def test_proof_to_byte_validates_explicit_expected_commit(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -3604,12 +3642,10 @@ with _temporary_release_test_directories(parents):
 
     def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:
         setup_action = (
-            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 "
-            "# v6.3.0"
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0"
         )
         binding = (
-            "          QPERIAPT_PYTHON: "
-            "${{ steps.proof_python.outputs.python-path }}\n"
+            "          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}\n"
         )
         provisioning = (
             "      - name: Provision hardened proof Python\n"
@@ -3622,8 +3658,8 @@ with _temporary_release_test_directories(parents):
         )
         exact_version_check = (
             '          "$QPERIAPT_PYTHON" -I -S -c \'import sys; '
-            "raise SystemExit(0 if sys.implementation.name == \"cpython\" and "
-            "sys.version_info[:3] == (3, 13, 14) else 2)\'\n"
+            'raise SystemExit(0 if sys.implementation.name == "cpython" and '
+            "sys.version_info[:3] == (3, 13, 14) else 2)'\n"
         )
         cases = (
             (
@@ -3678,9 +3714,7 @@ with _temporary_release_test_directories(parents):
                 self.assertNotIn("continue-on-error:", verification_step)
                 self.assertNotRegex(verification_step, r"(?m)^        if:")
                 self.assertEqual(verification_step.count(binding), 1)
-                self.assertIn(
-                    'case "$QPERIAPT_PYTHON" in /*) ;; *)', verification_step
-                )
+                self.assertIn('case "$QPERIAPT_PYTHON" in /*) ;; *)', verification_step)
                 self.assertIn(exact_version_check, verification_step)
 
                 setup_position = job.index(provisioning)
@@ -3787,11 +3821,17 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         self.assertIn("--inh-caps=-all", source)
         self.assertIn("cgroup.kill", source)
         self.assertIn("QPERIAPT_FROZEN_LAUNCHER=1", source)
-        self.assertIn("dedicated runner account must have a nologin/false shell", source)
+        self.assertIn(
+            "dedicated runner account must have a nologin/false shell", source
+        )
         self.assertIn("source snapshot is not root-owned read-only", source)
         self.assertIn("cargo must be root-owned and not group/world writable", source)
-        self.assertIn("/sys/devices/system/cpu/cpufreq/policy*/scaling_governor", source)
-        self.assertNotIn("/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", source)
+        self.assertIn(
+            "/sys/devices/system/cpu/cpufreq/policy*/scaling_governor", source
+        )
+        self.assertNotIn(
+            "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", source
+        )
         self.assertIn("NETEM_HANDLE=51ab:", source)
         self.assertIn('qdisc del dev lo root handle "$NETEM_HANDLE"', source)
         self.assertIn("refusing to delete non-identical state", source)
@@ -3811,12 +3851,16 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         early_trap = source.index("trap early_exit EXIT")
         work = source.index('WORK=$("$MKTEMP" -d "$WORK_ROOT/qperiapt-camera-ready.')
         runner = source.index("run_as_runner()")
-        first_runner_call = source.index("FROZEN_SOURCE_TREE_SHA256=$(canonical_source_digest)")
+        first_runner_call = source.index(
+            "FROZEN_SOURCE_TREE_SHA256=$(canonical_source_digest)"
+        )
         self.assertLess(launcher, early_trap)
         self.assertLess(early_trap, work)
         self.assertLess(work, runner)
         self.assertLess(runner, first_runner_call)
-        self.assertIn("executed root-owned launcher does not match the clean Git archive", source)
+        self.assertIn(
+            "executed root-owned launcher does not match the clean Git archive", source
+        )
 
     def test_runner_descendants_and_measurement_binaries_are_frozen(self) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
@@ -3829,15 +3873,15 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
             'freeze_runner_binary "$BUILT_CT_ROOT/ct_leaky_control" '
             '"$LEAKY_CONTROL_BIN"'
         )
-        ct_run = source.index(
-            'run_memcheck "$LEAKY_CONTROL_BIN" planted leaky-control'
-        )
+        ct_run = source.index('run_memcheck "$LEAKY_CONTROL_BIN" planted leaky-control')
         self.assertLess(netem_copy, netem_run)
         self.assertLess(ct_copy, ct_run)
         self.assertIn('HOME="$VALIDATION_HOME"', source)
         self.assertIn('"$CHMOD" 0550 "$binary_target"', source)
 
-    def test_runner_sandbox_is_bounded_locked_and_cleaned_before_work_removal(self) -> None:
+    def test_runner_sandbox_is_bounded_locked_and_cleaned_before_work_removal(
+        self,
+    ) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
         sandbox = CAMERA_SANDBOX_SCRIPT.read_text(encoding="utf-8")
         lock = source.index('"$FLOCK" -n 9')
@@ -3859,7 +3903,7 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         self.assertIn("QPERIAPT_CAMERA_READY_BUNDLE", source)
         self.assertIn("must explicitly name the root-owned run-id bundle", source)
         self.assertNotIn(
-            'QPERIAPT_CAMERA_READY_BUNDLE:-$ROOT/target/camera-ready/bundle', source
+            "QPERIAPT_CAMERA_READY_BUNDLE:-$ROOT/target/camera-ready/bundle", source
         )
         self.assertIn("camera_ready_proof.py verify", source)
         self.assertIn("--bundle", source)
@@ -3870,7 +3914,9 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
 
     def test_primary_transcript_freezes_source_toolchain_and_binaries(self) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("camera-ready primary evidence requires a clean source tree", source)
+        self.assertIn(
+            "camera-ready primary evidence requires a clean source tree", source
+        )
         self.assertIn("build --frozen --release", source)
         self.assertIn('CARGO_TARGET_DIR="$RUNNER_ROOT/target-$build_lane"', source)
         self.assertIn("validate-cargo-seed", source)
@@ -3895,12 +3941,12 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         recorded = set(re.findall(r'"([a-z0-9-]+)\|\$[A-Z0-9_]+"', source))
         self.assertEqual(recorded, EXPECTED_TOOLS)
 
-    def test_success_marker_follows_complete_matrix_and_discriminator_assertions(self) -> None:
+    def test_success_marker_follows_complete_matrix_and_discriminator_assertions(
+        self,
+    ) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
         marker = source.index("CAMERA_READY_BARE_METAL_PASS")
-        matrix_gate = source.index(
-            '[ "$NETEM_RUNS" -eq "$EXPECTED_NETEM_RUNS" ]'
-        )
+        matrix_gate = source.index('[ "$NETEM_RUNS" -eq "$EXPECTED_NETEM_RUNS" ]')
         mlkem_gate = source.index('[ "$MLKEM_PROBE_ERRORS" -eq 0 ]')
         leaky_control_gate = source.index('[ "$LEAKY_CONTROL_ERRORS" -gt 0 ]')
         cleanup_gate = source.rindex("if ! restore; then")
@@ -3908,8 +3954,7 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
             '[ "$FINAL_SOURCE_TREE_SHA256" = "$FROZEN_SOURCE_TREE_SHA256" ]'
         )
         binary_recheck = source.index(
-            '[ "$(sha256_file "$LEAKY_CONTROL_BIN")" = '
-            '"$LEAKY_CONTROL_BIN_SHA256" ]'
+            '[ "$(sha256_file "$LEAKY_CONTROL_BIN")" = "$LEAKY_CONTROL_BIN_SHA256" ]'
         )
         self.assertLess(matrix_gate, marker)
         self.assertLess(mlkem_gate, marker)
