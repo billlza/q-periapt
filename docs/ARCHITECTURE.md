@@ -3,8 +3,11 @@
 Authoritative architecture document for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 
-> **Status: release-ready ABI 2 research alpha, not production.** The intended
-> publication surface is source plus a coordinated set of Rust crates. Immutable
+> **Status: published GitHub research prereleases / Rust registry pre-publication
+> package-ready ABI 2 research alpha, not production.** The no-upload Rust package
+> surface is a coordinated set of crates. It does not prove crates.io upload-API
+> acceptance, crate-name ownership, publishing credentials or authorization,
+> server-side policy acceptance, or a registry receipt. Immutable
 > research prereleases currently cover the separately evidenced Apple XCFramework
 > and Android/Linux/Windows platform SDKs; registry publication and production
 > promotion remain incomplete. Q-Periapt composes existing
@@ -500,10 +503,10 @@ linkable to a deliberately hostile same-process static consumer and are unsuppor
 All valid product outputs are cleared before validation/crypto and are committed from
 local temporaries only after success. The contract also freezes the 40-byte policy
 decision and 36-byte trusted policy state.
-This is the release-ready **ABI 2 research-alpha source/crate contract**, intended
-for coordinated source-crate publication rather than a stable or
-production binary release. No current C archive, XCFramework, AAR, or device binary is implied by
-that source readiness. A distinct Apple distribution adapter Developer ID-signs only the outer
+This is the pre-publication package-ready **ABI 2 research-alpha source/crate
+contract**; its no-upload package checks do not establish registry publication.
+No current C archive, XCFramework, AAR, or device binary is implied by that package
+readiness. A distinct Apple distribution adapter Developer ID-signs only the outer
 static XCFramework, enforces an exact static-only ZIP inventory, and binds the final ZIP, SwiftPM
 checksum, source commit, certificate, signature resources, and slice hashes in
 `APPLE_DISTRIBUTION.json`. The SDK payload contains no standalone executable or notarizable bundle,

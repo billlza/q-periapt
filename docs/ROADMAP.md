@@ -5,8 +5,8 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /
 Swift / Kotlin / Android. Deterministic conformance cells are byte-identical;
 native ABI 2 product cells use OS randomness and are checked by semantic invariants.
-ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication (not yet on crates.io), with two published
+ABI 2 / `0.1.0-alpha.2` is a pre-publication package-ready research-alpha source
+line (not yet on crates.io), with two published
 immutable GitHub research prereleases: the Apple XCFramework revision
 `v0.1.0-alpha.2-r1` and the `abi2-platforms-v0.1.0-alpha.2-r2` platform
 distribution (Android AAR, GNU/Linux x86_64+aarch64 SDKs, unsigned experimental
@@ -416,12 +416,15 @@ are the gap between research-grade and audited/production.
    independent physical results selection and bound verifier are implemented; the aggregate remains
    pending whenever the results manifest lacks a current real physical selection. Rust now has a
    crates.io pre-publication contract
-   (`artifact/rust-publish-dry-run.sh`) over the explicit ten-crate publish allow/deny list,
-   every downstream local patch, package file lists, patched `cargo publish --dry-run`, an
+   (`artifact/rust-publish-contract.sh`) over the explicit ten-crate publish allow/deny list,
+   every downstream local patch, package file lists, registry-bound `cargo package` plus
+   rebuilt-archive verification with all Cargo warnings rejected and no upload command, an
    independent sys `.crate` fixed 124-entry upstream inventory/exact 118-code-file packaged-subset
    hash/license/forbidden-path check (six upstream README files excluded), and a normalized
    backends audit with the sys crate patched in. The planned coordinated dependency-order
-   registry release defines the intended research-alpha Rust surface; independent signed
+   registry release defines the intended research-alpha Rust surface. The no-upload contract does
+   not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
+   authorization, server-side policy acceptance, or a registry receipt; independent signed
    or transparency-backed provenance remains required before production promotion.
    C now has published multi-target SDK archives — Linux x86_64+aarch64 tars and the
    unsigned experimental Windows x64 MSVC ZIP in `abi2-platforms-v0.1.0-alpha.2-r2` —
@@ -434,7 +437,7 @@ are the gap between research-grade and audited/production.
    KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves. The
    dependency-free CLI may upload independently but remains in the same ten-crate version set.
 
-   Package `0.1.0-alpha.2` is the release-ready research-alpha source/crate line and has a
+   Package `0.1.0-alpha.2` is the pre-publication package-ready research-alpha source/crate line and has a
    frozen machine-readable C **ABI 2** contract: nine exact dynamic public exports
    (and the same exact reserved public namespace in static archives), OS-random key/encapsulation,
    ABI-major library/header/package identities, 40/36-byte layouts, and forbidden
@@ -451,8 +454,9 @@ are the gap between research-grade and audited/production.
    The backend/source migration invalidated all prior package, Apple/performance, and
    binary-CT proofs, including proofs collected after the HQC tombstone change.
    `artifact/results.json` and the live verifiers are authoritative for currentness.
-   These production-promotion gates do not turn the release-ready research
-   alpha into a production or full-binary release.
+   These production-promotion gates do not turn the published GitHub research
+   prereleases or the pre-publication Rust package line into a production or
+   full-binary release.
 
 6. **Production hardening.** Backends are pre-1.0 / unaudited for this integration.
    The current graph uses portable `mlkem-native` v1.2.0, `fips204`, and `sha3`; it
@@ -571,7 +575,7 @@ are the gap between research-grade and audited/production.
 | Android AAR/JNI package proof | **Done for the published r2 AAR: the four-ABI package was rebuilt from the corrected source-bound path, audited (16 KiB alignment, exact nine-symbol exports, RELRO/NOW/NX, no text relocations or RPATH/RUNPATH), and published with its manifest in `abi2-platforms-v0.1.0-alpha.2-r2`** |
 | Android ART runtime smoke | **The r2 release binds an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. Every push and pull request now executes the package job's AAR on real x86_64 API-35/16-KiB ART; this package-face check does not replace the results-selected clean arm64-v8a canonical AVD. The independent physical results selection and manifest-bound gate are implemented and cannot replace the AVD. Any source-changing commit makes both selections stale; production requires both runtime states equal 1, and remains pending unless a real clean same-AAR physical run is selected (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`).** |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema 5 release-index validation and an append-only dynamic+static C consumer receipt are implemented. A current selection requires the exact AAR and canonical Android run in the first index, then the emitted receipt and one evidence-only `results.json` successor; the final bound gate verifies those bytes without generating a receipt. Recorded older artifacts remain historical and a fresh same-source transaction is required after source change.** |
-| C ABI 2 research-alpha release readiness | **The 0.1.0-alpha.2 source/crate contract is release-ready and intended for coordinated source-crate publication. The Apple `v0.1.0-alpha.2-r1` XCFramework and the r2 Android/Linux/Windows packages are published, attested prereleases. Same-source device/performance evidence, signed or transparency-backed source provenance, independent cryptographic/C-FFI/ABI audit, and Windows Authenticode remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
+| C ABI 2 research-alpha package readiness | **The 0.1.0-alpha.2 source/crate contract is pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a registry receipt remain unproved. The Apple `v0.1.0-alpha.2-r1` XCFramework and the r2 Android/Linux/Windows packages are published, attested prereleases. Same-source device/performance evidence, signed or transparency-backed source provenance, independent cryptographic/C-FFI/ABI audit, and Windows Authenticode remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
 | Published immutable GitHub prereleases (Apple r1 + platform r2) | **Done as research prereleases; machine-checked receipts in `results.json` (`release_publications`, `swift_xcframework.distribution`) under `platform_release_contract.py`. Not a production, registry, or store release.** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; Apple XCFramework + Android AAR + Linux/Windows C SDK GitHub prereleases are published, while a complete remote Swift package and crates.io/Maven/deb/rpm/MSIX registry publication remain pending |
 | Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |

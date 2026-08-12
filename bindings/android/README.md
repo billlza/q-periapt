@@ -20,8 +20,10 @@ The Android binding keeps the Rust C ABI as the only cryptographic implementatio
 - `qperiapt_jni.c` registers native methods from `JNI_OnLoad` and marshals Java
   arrays into the existing `q_periapt_*` C ABI.
 - `artifact/android-aar.sh` cross-builds the Rust Android `.so` slices, builds the
-  JNI shim, creates a deterministic AAR, audits the archive, and compiles an
-  isolated consumer against the AAR's `classes.jar`.
+  JNI shim, assembles the built payload with canonical AAR archive structure,
+  independently audits that structure, and compiles an isolated consumer against
+  the AAR's `classes.jar`. Canonical archive structure does not claim cross-host
+  bit reproducibility of the compiled payload.
 
 Run from the repository root:
 

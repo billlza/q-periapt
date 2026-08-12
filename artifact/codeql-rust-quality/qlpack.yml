@@ -1,0 +1,5 @@
+name: qperiapt/codeql-rust-quality
+version: 0.0.1
+library: false
+dependencies:
+  codeql/rust-all: "*"

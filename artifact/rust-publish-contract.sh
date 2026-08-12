@@ -1,9 +1,9 @@
 #!/bin/sh
-# Fail-closed Rust crate publish contract for Q-Periapt.
+# Fail-closed Rust crate package and pre-publication contract for Q-Periapt.
 #
 # Default mode is clean-tree only. For an in-progress local diagnostic run, set
-# QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1; that proves only a dirty dry-run, never
-# release readiness.
+# QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT=1; that proves only a dirty local
+# package contract, never release readiness.
 set -eu
 umask 077
 
@@ -23,8 +23,7 @@ q-periapt-wasm
 q-periapt-rustls
 q-periapt-cli
 "
-PATCHED_DRY_RUN_MODE=${QPERIAPT_RUST_PUBLISH_DRY_RUN_MODE:-patched}
-ALLOW_DIRTY=${QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN:-0}
+ALLOW_DIRTY=${QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT:-0}
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -38,26 +37,132 @@ need cargo-audit
 need git
 need python3
 
-case "$PATCHED_DRY_RUN_MODE" in
-	patched | registry) ;;
-	*)
-		printf 'error: QPERIAPT_RUST_PUBLISH_DRY_RUN_MODE must be patched or registry, got: %s\n' "$PATCHED_DRY_RUN_MODE" >&2
-		exit 2
-		;;
-esac
+run_cargo_captured() {
+	label=$1
+	stdout_log=$2
+	stderr_log=$3
+	shift 3
+	set +e
+	CARGO_TERM_COLOR=never "$@" >"$stdout_log" 2>"$stderr_log"
+	rc=$?
+	set -e
+	cat "$stdout_log"
+	cat "$stderr_log" >&2
+	if [ "$rc" -ne 0 ]; then
+		printf 'error: %s failed (exit=%s)\n' "$label" "$rc" >&2
+		exit "$rc"
+	fi
+	python3 - "$label" "$stdout_log" "$stderr_log" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import RustPublishContractError, validate_cargo_output
+
+label = sys.argv[1]
+streams = []
+for raw_path in sys.argv[2:]:
+    path = pathlib.Path(raw_path)
+    if not path.is_file() or path.is_symlink():
+        raise SystemExit(f"error: {label} did not produce a safe captured stream: {path}")
+    streams.append(path.read_text(encoding="utf-8"))
+try:
+    validate_cargo_output(label, streams)
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(f"RUST_CARGO_WARNING_FREE_PASS {label}")
+PY
+}
+
+verify_cargo_package_completion() {
+	crate=$1
+	stdout_log=$2
+	stderr_log=$3
+	python3 - "$crate" "$stdout_log" "$stderr_log" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import (
+    RustPublishContractError,
+    validate_cargo_package_completion,
+)
+
+crate = sys.argv[1]
+streams = [pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[2:]]
+try:
+    validate_cargo_package_completion(crate, streams)
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(f"RUST_PACKAGE_COMPLETION_PASS {crate}")
+PY
+}
+
+create_owned_package_target() {
+	owned_target_identity=$(python3 - "$1" <<'PY'
+import sys
+
+from rust_publish_contract import RustPublishContractError, create_owned_package_directory
+
+try:
+    path, device, inode = create_owned_package_directory(sys.argv[1])
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+if any(character in str(path) for character in ":\r\n"):
+    raise SystemExit("error: owned package directory path is not shell-safe")
+print(f"{path}:{device}:{inode}")
+PY
+	)
+	OWNED_PACKAGE_TARGET=${owned_target_identity%%:*}
+	owned_target_remainder=${owned_target_identity#*:}
+	OWNED_PACKAGE_DEVICE=${owned_target_remainder%%:*}
+	OWNED_PACKAGE_INODE=${owned_target_remainder#*:}
+	if [ -z "$OWNED_PACKAGE_TARGET" ] || [ "$owned_target_remainder" = "$owned_target_identity" ] || [ "$OWNED_PACKAGE_INODE" = "$owned_target_remainder" ]; then
+		printf 'error: owned package directory identity is malformed\n' >&2
+		exit 1
+	fi
+}
+
+cleanup_active_package_target() {
+	if [ -z "${ACTIVE_PACKAGE_TARGET:-}" ]; then
+		return
+	fi
+	cleanup_target_path=$ACTIVE_PACKAGE_TARGET
+	cleanup_target_device=$ACTIVE_PACKAGE_DEVICE
+	cleanup_target_inode=$ACTIVE_PACKAGE_INODE
+	cleanup_target_label=$ACTIVE_PACKAGE_LABEL
+	ACTIVE_PACKAGE_TARGET=
+	ACTIVE_PACKAGE_DEVICE=
+	ACTIVE_PACKAGE_INODE=
+	ACTIVE_PACKAGE_LABEL=
+	python3 - "$cleanup_target_path" "$cleanup_target_device" "$cleanup_target_inode" "$cleanup_target_label" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import RustPublishContractError, remove_owned_package_directory
+
+try:
+    remove_owned_package_directory(
+        pathlib.Path(sys.argv[1]),
+        int(sys.argv[2]),
+        int(sys.argv[3]),
+    )
+except (RustPublishContractError, ValueError) as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(f"RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS {sys.argv[4]}")
+PY
+}
 
 if [ -n "${CARGO_REGISTRY_TOKEN:-}" ]; then
-	printf 'error: CARGO_REGISTRY_TOKEN must be unset for dry-run proof\n' >&2
+	printf 'error: CARGO_REGISTRY_TOKEN must be unset for the no-upload package contract\n' >&2
 	exit 2
 fi
 
 dirty_status=$(git status --porcelain=v1)
 if [ -n "$dirty_status" ]; then
 	if [ "$ALLOW_DIRTY" != "1" ]; then
-		printf 'error: Rust publish dry-run requires a clean worktree; set QPERIAPT_ALLOW_DIRTY_PUBLISH_DRY_RUN=1 only for local diagnostics\n' >&2
+		printf 'error: Rust package contract requires a clean worktree; set QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT=1 only for local diagnostics\n' >&2
 		exit 2
 	fi
-	printf 'DIRTY_DRY_RUN_DIAGNOSTIC_ONLY\n'
+	printf 'DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY\n'
 	printf '%s\n' "$dirty_status"
 	ALLOW_DIRTY_ARG=--allow-dirty
 else
@@ -75,7 +180,9 @@ python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"
 
 mkdir -p "$ROOT/target"
 metadata_json=$(mktemp "$ROOT/target/qperiapt-cargo-metadata.XXXXXX")
-cargo metadata --locked --format-version 1 >"$metadata_json"
+metadata_stderr=$(mktemp "$ROOT/target/qperiapt-cargo-metadata-stderr.XXXXXX")
+run_cargo_captured "cargo-metadata" "$metadata_json" "$metadata_stderr" \
+	cargo +1.96.1 metadata --locked --format-version 1
 
 python3 - "$metadata_json" <<'PY'
 import json
@@ -323,7 +430,10 @@ PY
 check_package_list() {
 	crate=$1
 	list_file=$(mktemp "$ROOT/target/qperiapt-package-$crate.XXXXXX")
-	cargo package $ALLOW_DIRTY_ARG --locked -p "$crate" --list >"$list_file"
+	list_stderr=$(mktemp "$ROOT/target/qperiapt-package-$crate-stderr.XXXXXX")
+	run_cargo_captured "cargo-package-list-$crate" "$list_file" "$list_stderr" \
+		cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked --registry crates-io \
+		-p "$crate" --list
 	python3 - "$crate" "$list_file" <<'PY'
 import pathlib
 import re
@@ -358,135 +468,104 @@ for crate in $PUBLISHABLE_CRATES; do
 	check_package_list "$crate"
 done
 
-run_publish_dry_run() {
-	crate=$1
-	log=$(mktemp "$ROOT/target/qperiapt-publish-$crate.XXXXXX")
-	set +e
-	if [ "$PATCHED_DRY_RUN_MODE" = "patched" ]; then
-		case "$crate" in
-			q-periapt-mlkem-native-sys | q-periapt-core | q-periapt-cli)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" >"$log" 2>&1
-				rc=$?
-				;;
-			q-periapt-kem | q-periapt-sig)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" \
-					--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
-					>"$log" 2>&1
-				rc=$?
-				;;
-			q-periapt-backends)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" \
-					--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
-					--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
-					--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
-					--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"' \
-					>"$log" 2>&1
-				rc=$?
-				;;
-			q-periapt-policy)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" \
-					--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
-					--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
-					--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
-					--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"' \
-					>"$log" 2>&1
-				rc=$?
-				;;
-			q-periapt-ffi)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" \
-					--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
-					--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
-					--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
-					--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
-					--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
-					--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"' \
-					>"$log" 2>&1
-				rc=$?
-				;;
-			q-periapt-wasm)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" \
-					--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
-					--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
-					--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
-					--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
-					--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
-					--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"' \
-					>"$log" 2>&1
-				rc=$?
-				;;
-			q-periapt-rustls)
-				cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" \
-					--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
-					--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
-					--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
-					--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
-					--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"' \
-					>"$log" 2>&1
-				rc=$?
-				;;
-			*)
-				printf 'error: no dry-run patch plan for crate: %s\n' "$crate" >&2
-				exit 2
-				;;
-		esac
-	else
-		cargo publish --dry-run $ALLOW_DIRTY_ARG --locked -p "$crate" >"$log" 2>&1
-		rc=$?
-	fi
-	set -e
-	cat "$log"
-	if [ "$rc" -ne 0 ]; then
-		printf 'error: cargo publish dry-run failed for %s (exit=%s)\n' "$crate" "$rc" >&2
-		exit "$rc"
-	fi
-	python3 - "$crate" "$log" <<'PY'
-import pathlib
-import sys
+create_owned_package_target qperiapt-package-verification.
+PACKAGE_VERIFICATION_TARGET=$OWNED_PACKAGE_TARGET
+ACTIVE_PACKAGE_TARGET=$OWNED_PACKAGE_TARGET
+ACTIVE_PACKAGE_DEVICE=$OWNED_PACKAGE_DEVICE
+ACTIVE_PACKAGE_INODE=$OWNED_PACKAGE_INODE
+ACTIVE_PACKAGE_LABEL=package-verification
+trap cleanup_active_package_target 0 1 2 15
 
-crate = sys.argv[1]
-lines = pathlib.Path(sys.argv[2]).read_text().splitlines()
-for line in lines:
-    lower = line.lower()
-    if "warning:" in lower and "aborting upload due to dry run" not in lower:
-        raise SystemExit(f"error: cargo publish dry-run emitted unexpected warning for {crate}: {line}")
-print(f"RUST_PUBLISH_DRY_RUN_PASS {crate}")
-PY
+run_package_verification() {
+	crate=$1
+	package_stdout=$(mktemp "$ROOT/target/qperiapt-package-verification-$crate-stdout.XXXXXX")
+	package_stderr=$(mktemp "$ROOT/target/qperiapt-package-verification-$crate-stderr.XXXXXX")
+	set -- cargo +1.96.1 package --locked --registry crates-io \
+		--target-dir "$PACKAGE_VERIFICATION_TARGET" -p "$crate"
+	if [ -n "$ALLOW_DIRTY_ARG" ]; then
+		set -- "$@" "$ALLOW_DIRTY_ARG"
+	fi
+	case "$crate" in
+		q-periapt-mlkem-native-sys | q-periapt-core | q-periapt-cli) ;;
+		q-periapt-kem | q-periapt-sig)
+			set -- "$@" \
+				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"'
+			;;
+		q-periapt-backends)
+			set -- "$@" \
+				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
+				--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
+				--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
+				--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"'
+			;;
+		q-periapt-policy)
+			set -- "$@" \
+				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
+				--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
+				--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
+				--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"'
+			;;
+		q-periapt-ffi | q-periapt-wasm)
+			set -- "$@" \
+				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
+				--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
+				--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
+				--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
+				--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
+				--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"'
+			;;
+		q-periapt-rustls)
+			set -- "$@" \
+				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
+				--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
+				--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
+				--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
+				--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"'
+			;;
+		*)
+			printf 'error: no package-verification patch plan for crate: %s\n' "$crate" >&2
+			exit 2
+			;;
+	esac
+	run_cargo_captured "cargo-package-verification-$crate" \
+		"$package_stdout" "$package_stderr" env RUSTFLAGS='-D warnings' "$@"
+	verify_cargo_package_completion "$crate" "$package_stdout" "$package_stderr"
+	set -- "$PACKAGE_VERIFICATION_TARGET/package/$crate-"*.crate
+	if [ "$#" -ne 1 ] || [ ! -f "$1" ] || [ -L "$1" ]; then
+		printf 'error: cargo package verification did not produce exactly one regular archive for %s\n' "$crate" >&2
+		exit 1
+	fi
+	printf 'RUST_PACKAGE_VERIFICATION_PASS %s registry=crates-io upload=not-attempted\n' "$crate"
 }
 
 for crate in $PUBLISHABLE_CRATES; do
-	run_publish_dry_run "$crate"
+	run_package_verification "$crate"
 done
+cleanup_active_package_target
+trap - 0 1 2 15
 
-PACKAGE_INSPECTION_TARGET=$(mktemp -d /tmp/qperiapt-package-inspection.XXXXXX)
-if [ -z "$PACKAGE_INSPECTION_TARGET" ] || [ ! -d "$PACKAGE_INSPECTION_TARGET" ] || [ -L "$PACKAGE_INSPECTION_TARGET" ]; then
-	printf 'error: cannot create isolated package-inspection target directory\n' >&2
-	exit 1
-fi
-cleanup_package_inspection() {
-	if [ -n "${PACKAGE_INSPECTION_TARGET:-}" ] && [ -d "$PACKAGE_INSPECTION_TARGET" ] && [ ! -L "$PACKAGE_INSPECTION_TARGET" ]; then
-		rm -rf -- "$PACKAGE_INSPECTION_TARGET"
-	fi
-}
-trap cleanup_package_inspection 0 1 2 15
+create_owned_package_target qperiapt-package-inspection.
+PACKAGE_INSPECTION_TARGET=$OWNED_PACKAGE_TARGET
+ACTIVE_PACKAGE_TARGET=$OWNED_PACKAGE_TARGET
+ACTIVE_PACKAGE_DEVICE=$OWNED_PACKAGE_DEVICE
+ACTIVE_PACKAGE_INODE=$OWNED_PACKAGE_INODE
+ACTIVE_PACKAGE_LABEL=package-inspection
+trap cleanup_active_package_target 0 1 2 15
 
-# Cargo 1.96 no longer guarantees that `publish --dry-run` retains its archive.
 # Produce and verify fresh sys/backend archives in an isolated target after all
-# ten dry-runs have passed. Verification intentionally leaves Cargo's exact
+# ten registry-bound package verifications have passed. Verification intentionally
+# leaves Cargo's exact
 # normalized package directories available for the independent resolved-graph
 # audit below; isolation guarantees there can be only one candidate per crate.
-sys_package_inspection_log="$PACKAGE_INSPECTION_TARGET/cargo-package-mlkem-native-sys.log"
-set +e
-cargo package $ALLOW_DIRTY_ARG --locked \
-	--target-dir "$PACKAGE_INSPECTION_TARGET" \
-	-p q-periapt-mlkem-native-sys >"$sys_package_inspection_log" 2>&1
-sys_package_inspection_rc=$?
-set -e
-cat "$sys_package_inspection_log"
-if [ "$sys_package_inspection_rc" -ne 0 ]; then
-	printf 'error: isolated q-periapt-mlkem-native-sys package inspection failed (exit=%s)\n' "$sys_package_inspection_rc" >&2
-	exit "$sys_package_inspection_rc"
-fi
-python3 - "$metadata_json" "$PACKAGE_INSPECTION_TARGET/package" "$sys_package_inspection_log" <<'PY'
+sys_package_stdout="$PACKAGE_INSPECTION_TARGET/cargo-package-mlkem-native-sys.stdout"
+sys_package_stderr="$PACKAGE_INSPECTION_TARGET/cargo-package-mlkem-native-sys.stderr"
+run_cargo_captured "cargo-package-inspection-q-periapt-mlkem-native-sys" \
+	"$sys_package_stdout" "$sys_package_stderr" env RUSTFLAGS='-D warnings' \
+	cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked --registry crates-io \
+	--target-dir "$PACKAGE_INSPECTION_TARGET" -p q-periapt-mlkem-native-sys
+verify_cargo_package_completion q-periapt-mlkem-native-sys \
+	"$sys_package_stdout" "$sys_package_stderr"
+python3 - "$metadata_json" "$PACKAGE_INSPECTION_TARGET/package" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -505,13 +584,6 @@ packages = {pkg["name"]: pkg for pkg in metadata["packages"]}
 name = "q-periapt-mlkem-native-sys"
 version = packages[name]["version"]
 archive = pathlib.Path(sys.argv[2]) / f"{name}-{version}.crate"
-log_lines = pathlib.Path(sys.argv[3]).read_text().splitlines()
-for line in log_lines:
-    if "warning:" in line.lower():
-        raise SystemExit(
-            "error: isolated q-periapt-mlkem-native-sys package inspection emitted a warning: "
-            f"{line}"
-        )
 if not archive.is_file() or archive.is_symlink():
     raise SystemExit(f"error: expected a regular sys crate archive: {archive}")
 
@@ -768,34 +840,21 @@ print(
 )
 PY
 
-package_inspection_log="$PACKAGE_INSPECTION_TARGET/cargo-package.log"
-set +e
-cargo package $ALLOW_DIRTY_ARG --locked \
+package_inspection_stdout="$PACKAGE_INSPECTION_TARGET/cargo-package-backends.stdout"
+package_inspection_stderr="$PACKAGE_INSPECTION_TARGET/cargo-package-backends.stderr"
+run_cargo_captured "cargo-package-inspection-q-periapt-backends" \
+	"$package_inspection_stdout" "$package_inspection_stderr" \
+	env RUSTFLAGS='-D warnings' cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked \
+	--registry crates-io \
 	--target-dir "$PACKAGE_INSPECTION_TARGET" \
 	--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
 	--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
 	--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
 	--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"' \
-	-p q-periapt-backends >"$package_inspection_log" 2>&1
-package_inspection_rc=$?
-set -e
-cat "$package_inspection_log"
-if [ "$package_inspection_rc" -ne 0 ]; then
-	printf 'error: isolated q-periapt-backends package inspection failed (exit=%s)\n' "$package_inspection_rc" >&2
-	exit "$package_inspection_rc"
-fi
-python3 - "$package_inspection_log" <<'PY'
-import pathlib
-import sys
-
-for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
-    if "warning:" in line.lower():
-        raise SystemExit(
-            "error: isolated q-periapt-backends package inspection emitted a warning: "
-            f"{line}"
-        )
-print("RUST_BACKENDS_INSPECTION_PACKAGE_PASS")
-PY
+	-p q-periapt-backends
+verify_cargo_package_completion q-periapt-backends \
+	"$package_inspection_stdout" "$package_inspection_stderr"
+printf 'RUST_BACKENDS_INSPECTION_PACKAGE_PASS\n'
 
 python3 - "$metadata_json" "$PACKAGE_INSPECTION_TARGET/package" <<'PY'
 import json
@@ -809,7 +868,7 @@ name = "q-periapt-backends"
 version = packages[name]["version"]
 archive = pathlib.Path(sys.argv[2]) / f"{name}-{version}.crate"
 if not archive.is_file():
-    raise SystemExit(f"error: publish dry-run did not produce expected archive: {archive}")
+    raise SystemExit(f"error: package verification did not produce expected archive: {archive}")
 with tarfile.open(archive, mode="r:gz") as packaged:
     names = set(packaged.getnames())
     prefix = f"{name}-{version}/"
@@ -861,16 +920,31 @@ if [ "$#" -ne 1 ] || [ ! -f "$1" ] || [ -L "$1" ]; then
 	exit 1
 fi
 NORMALIZED_BACKENDS_DIR=${1%/Cargo.toml}
-cargo generate-lockfile --manifest-path "$NORMALIZED_BACKENDS_DIR/Cargo.toml" \
+lockfile_stdout="$PACKAGE_INSPECTION_TARGET/cargo-generate-lockfile.stdout"
+lockfile_stderr="$PACKAGE_INSPECTION_TARGET/cargo-generate-lockfile.stderr"
+run_cargo_captured "cargo-generate-normalized-backends-lockfile" \
+	"$lockfile_stdout" "$lockfile_stderr" cargo +1.96.1 generate-lockfile \
+	--manifest-path "$NORMALIZED_BACKENDS_DIR/Cargo.toml" \
 	--config "patch.crates-io.q-periapt-core.path=\"$ROOT/crates/q-periapt-core\"" \
 	--config "patch.crates-io.q-periapt-sig.path=\"$ROOT/crates/q-periapt-sig\"" \
 	--config "patch.crates-io.q-periapt-kem.path=\"$ROOT/crates/q-periapt-kem\"" \
 	--config "patch.crates-io.q-periapt-mlkem-native-sys.path=\"$ROOT/crates/q-periapt-mlkem-native-sys\""
-cargo audit --deny warnings --file "$NORMALIZED_BACKENDS_DIR/Cargo.lock"
+if [ ! -f "$NORMALIZED_BACKENDS_DIR/Cargo.lock" ] || [ -L "$NORMALIZED_BACKENDS_DIR/Cargo.lock" ]; then
+	printf 'error: normalized backend lockfile generation did not produce a regular Cargo.lock\n' >&2
+	exit 1
+fi
+audit_stdout="$PACKAGE_INSPECTION_TARGET/cargo-audit.stdout"
+audit_stderr="$PACKAGE_INSPECTION_TARGET/cargo-audit.stderr"
+run_cargo_captured "cargo-audit-normalized-backends" \
+	"$audit_stdout" "$audit_stderr" cargo +1.96.1 audit --deny warnings \
+	--file "$NORMALIZED_BACKENDS_DIR/Cargo.lock"
 printf 'RUST_BACKENDS_NORMALIZED_AUDIT_PASS\n'
 
+cleanup_active_package_target
+trap - 0 1 2 15
+
 if [ "$ALLOW_DIRTY_ARG" = "--allow-dirty" ]; then
-	printf 'RUST_PUBLISH_CONTRACT_DIAGNOSTIC_PASS dirty=1 mode=%s\n' "$PATCHED_DRY_RUN_MODE"
+	printf 'RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=1 registry=crates-io upload=not-attempted\n'
 else
-	printf 'RUST_PUBLISH_CONTRACT_PASS dirty=0 mode=%s\n' "$PATCHED_DRY_RUN_MODE"
+	printf 'RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io upload=not-attempted\n'
 fi

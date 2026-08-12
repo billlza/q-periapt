@@ -26,6 +26,10 @@ jobs:
       commit: ${{ steps.release.outputs.commit }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -64,6 +68,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -96,7 +104,7 @@ jobs:
           test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
           test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Build and consume the native Linux package
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}
@@ -136,6 +144,10 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -210,6 +222,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -250,7 +266,7 @@ jobs:
           for target in aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android; do
             printf '%s\n' "$installed_targets" | grep -Fx "$target" >/dev/null
           done
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Install pinned stable Android inputs
         run: |
           license_answers=$(printf 'y\n%.0s' {1..64})
@@ -289,6 +305,10 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -300,11 +320,17 @@ jobs:
           python-version: "3.13.14"
           check-latest: false
           update-environment: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: abi2-candidate-*
-          path: candidate
-          merge-multiple: true
+          path: target/workflow-artifact/raw
+          merge-multiple: false
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Strictly extract the platform candidate artifacts
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh artifact/workflow_artifact.py platform-candidate
       - name: Validate the exact candidate asset set and checksums
         run: |
           test -f candidate/q-periapt-android-0.1.0-alpha.2.aar

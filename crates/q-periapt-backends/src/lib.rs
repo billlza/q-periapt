@@ -156,15 +156,15 @@ macro_rules! mlkem_backend {
         $rand_len:ident = $rand:literal,
         $struct_doc:literal
     ) => {
-        #[doc = concat!($alg, " encapsulation-key (public key) length, bytes.")]
+        /// Encapsulation-key (public key) length in bytes.
         pub const $pk_len: usize = $pk;
-        #[doc = concat!($alg, " decapsulation-key (secret key) length, bytes.")]
+        /// Decapsulation-key (secret key) length in bytes.
         pub const $sk_len: usize = $sk;
-        #[doc = concat!($alg, " ciphertext length, bytes.")]
+        /// Ciphertext length in bytes.
         pub const $ct_len: usize = $ct;
-        #[doc = concat!($alg, " key-generation seed length, bytes (FIPS 203 d‖z).")]
+        /// Key-generation seed length in bytes (FIPS 203 `d || z`).
         pub const $seed_len: usize = $seed;
-        #[doc = concat!($alg, " encapsulation randomness length, bytes.")]
+        /// Encapsulation randomness length in bytes.
         pub const $rand_len: usize = $rand;
 
         const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];

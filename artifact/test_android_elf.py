@@ -52,14 +52,53 @@ def elf_header(abi: str) -> bytes:
     return bytes(header)
 
 
-def zip_bytes(entries: dict[str, bytes]) -> bytes:
+def zip_bytes(
+    entries: dict[str, bytes],
+    *,
+    entry_names: list[str] | None = None,
+    date_time: tuple[int, int, int, int, int, int] = (2000, 1, 1, 0, 0, 0),
+    create_system: int = 3,
+    external_attr: int = 0o100644 << 16,
+    compression: int = zipfile.ZIP_STORED,
+    extra: bytes = b"",
+    entry_comment: bytes = b"",
+    archive_comment: bytes = b"",
+) -> bytes:
     output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for name, data in sorted(entries.items()):
-            info = zipfile.ZipInfo(name, (2000, 1, 1, 0, 0, 0))
-            info.external_attr = 0o100644 << 16
+    with zipfile.ZipFile(output, "w") as archive:
+        names = sorted(entries) if entry_names is None else entry_names
+        for name in names:
+            info = zipfile.ZipInfo(name, date_time)
+            info.create_system = create_system
+            info.external_attr = external_attr
+            info.compress_type = compression
+            info.extra = extra
+            info.comment = entry_comment
+            data = entries[name]
             archive.writestr(info, data)
+        archive.comment = archive_comment
     return output.getvalue()
+
+
+def replace_first_zip_entry_flag_bits(data: bytes, flag_bits: int) -> bytes:
+    mutated = bytearray(data)
+    local_header = mutated.find(b"PK\x03\x04")
+    end_record = mutated.rfind(b"PK\x05\x06")
+    if local_header < 0 or end_record < 0:
+        raise AssertionError("fixture lacks required ZIP records")
+    central_header = int.from_bytes(mutated[end_record + 16 : end_record + 20], "little")
+    if mutated[central_header : central_header + 4] != b"PK\x01\x02":
+        raise AssertionError("fixture central-directory offset is malformed")
+    for header, offset in ((local_header, 6), (central_header, 8)):
+        mutated[header + offset : header + offset + 2] = flag_bits.to_bytes(2, "little")
+    return bytes(mutated)
+
+
+def zip_eocd_offset(data: bytes) -> int:
+    offset = data.rfind(b"PK\x05\x06")
+    if offset < 0 or offset + 22 > len(data):
+        raise AssertionError("fixture lacks a complete ZIP EOCD")
+    return offset
 
 
 class AndroidElfVerifierTests(unittest.TestCase):
@@ -618,6 +657,198 @@ class AndroidElfVerifierTests(unittest.TestCase):
                 llvm_readelf=readelf,
                 expected_aar_sha256="0" * 64,
             )
+
+    def test_canonical_aar_archive_structure_is_accepted(self) -> None:
+        audit_aar(self.write_aar())
+
+    def test_aar_prefix_bytes_are_rejected_before_extraction(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(b"hidden-prefix" + path.read_bytes())
+        with mock.patch.object(
+            android_elf.zipfile,
+            "ZipFile",
+            side_effect=AssertionError("ZIP decoder opened before raw framing passed"),
+        ):
+            with self.assertRaisesRegex(
+                AndroidVerificationError,
+                r"central directory has a gap|central record signature|prefix",
+            ):
+                android_elf.audit_aar_bytes(path.read_bytes(), label=str(path))
+
+    def test_aar_trailing_bytes_are_rejected_before_extraction(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(path.read_bytes() + b"hidden-trailer")
+        with self.assertRaisesRegex(AndroidVerificationError, r"EOCD|trailing framing"):
+            audit_aar(path)
+
+    def test_aar_local_and_central_metadata_mismatch_is_rejected(self) -> None:
+        path = self.write_aar()
+        mutated = bytearray(path.read_bytes())
+        self.assertEqual(mutated[:4], b"PK\x03\x04")
+        mutated[10:12] = (1).to_bytes(2, "little")
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(
+            AndroidVerificationError,
+            r"local and central metadata differ",
+        ):
+            audit_aar(path)
+
+    def test_aar_hidden_central_record_is_rejected(self) -> None:
+        path = self.write_aar()
+        data = path.read_bytes()
+        eocd = zip_eocd_offset(data)
+        hidden_record = b"PK\x05\x05\x00\x00"
+        mutated = bytearray(data[:eocd] + hidden_record + data[eocd:])
+        new_eocd = eocd + len(hidden_record)
+        central_size = int.from_bytes(
+            mutated[new_eocd + 12 : new_eocd + 16], "little"
+        )
+        mutated[new_eocd + 12 : new_eocd + 16] = (
+            central_size + len(hidden_record)
+        ).to_bytes(4, "little")
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(
+            AndroidVerificationError,
+            r"central directory contains hidden or trailing records",
+        ):
+            audit_aar(path)
+
+    def test_aar_multidisk_eocd_is_rejected(self) -> None:
+        path = self.write_aar()
+        mutated = bytearray(path.read_bytes())
+        eocd = zip_eocd_offset(mutated)
+        mutated[eocd + 4 : eocd + 6] = (1).to_bytes(2, "little")
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(AndroidVerificationError, r"single-disk"):
+            audit_aar(path)
+
+    def test_aar_zip64_eocd_sentinels_are_rejected(self) -> None:
+        path = self.write_aar()
+        mutated = bytearray(path.read_bytes())
+        eocd = zip_eocd_offset(mutated)
+        mutated[eocd + 8 : eocd + 12] = b"\xff\xff\xff\xff"
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(AndroidVerificationError, r"ZIP64"):
+            audit_aar(path)
+
+    def test_aar_archive_claims_are_canonical_but_not_cross_host(self) -> None:
+        repository_root = pathlib.Path(__file__).resolve().parent.parent
+        documents = (
+            repository_root / "artifact/android-aar.sh",
+            repository_root / "bindings/android/README.md",
+            repository_root / "docs/EMBEDDING_READINESS.md",
+        )
+        for path in documents:
+            with self.subTest(document=path.name):
+                normalized = " ".join(
+                    path.read_text(encoding="utf-8").replace("#", " ").split()
+                )
+                self.assertNotIn("deterministic AAR", normalized)
+                self.assertIn("canonical", normalized)
+                self.assertIn(
+                    "does not claim cross-host bit reproducibility of the compiled payload",
+                    normalized,
+                )
+        producer = documents[0].read_text(encoding="utf-8")
+        self.assertIn(
+            "Assemble built payload with canonical AAR archive structure",
+            producer,
+        )
+        self.assertIn("canonical AAR archive-structure", producer)
+        assembly_start = producer.index(
+            "Assemble built payload with canonical AAR archive structure"
+        )
+        assembly_end = producer.index('test -f "$AAR_PATH"', assembly_start)
+        assembly = producer[assembly_start:assembly_end]
+        for canonical_assignment in (
+            'compression=zipfile.ZIP_STORED',
+            'zf.comment = b""',
+            "info.create_system = 3",
+            "info.external_attr = 0o100644 << 16",
+            "info.compress_type = zipfile.ZIP_STORED",
+            "info.flag_bits = 0",
+            'info.extra = b""',
+            'info.comment = b""',
+        ):
+            with self.subTest(canonical_assignment=canonical_assignment):
+                self.assertEqual(assembly.count(canonical_assignment), 1)
+
+    def test_noncanonical_aar_entry_order_is_rejected(self) -> None:
+        entries = self.aar_entries()
+        path = self.write_aar()
+        path.write_bytes(
+            zip_bytes(entries, entry_names=list(reversed(sorted(entries))))
+        )
+        with self.assertRaisesRegex(AndroidVerificationError, r"entry order"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_entry_timestamp_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(
+            zip_bytes(self.aar_entries(), date_time=(2001, 1, 1, 0, 0, 0))
+        )
+        with self.assertRaisesRegex(AndroidVerificationError, r"timestamp"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_compression_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(
+            zip_bytes(self.aar_entries(), compression=zipfile.ZIP_DEFLATED)
+        )
+        with self.assertRaisesRegex(AndroidVerificationError, r"ZIP_STORED"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_mode_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), external_attr=0o100600 << 16))
+        with self.assertRaisesRegex(AndroidVerificationError, r"regular 0644"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_extra_field_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), extra=b"\x01\x00\x00\x00"))
+        with self.assertRaisesRegex(AndroidVerificationError, r"extra field"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_entry_comment_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), entry_comment=b"comment"))
+        with self.assertRaisesRegex(AndroidVerificationError, r"entry comment"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_archive_comment_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), archive_comment=b"comment"))
+        with self.assertRaisesRegex(AndroidVerificationError, r"archive comment"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_creator_system_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), create_system=0))
+        with self.assertRaisesRegex(AndroidVerificationError, r"creator system"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_flag_bits_are_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(replace_first_zip_entry_flag_bits(path.read_bytes(), 0x800))
+        with self.assertRaisesRegex(AndroidVerificationError, r"flag bits"):
+            audit_aar(path)
+
+    def test_classes_jar_metadata_is_not_mistaken_for_outer_aar_policy(self) -> None:
+        classes = zip_bytes(
+            {"dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES},
+            date_time=(2001, 1, 1, 0, 0, 0),
+            create_system=0,
+            external_attr=0o100600 << 16,
+            compression=zipfile.ZIP_DEFLATED,
+            extra=b"\x01\x00\x00\x00",
+            entry_comment=b"nested metadata",
+            archive_comment=b"nested archive metadata",
+        )
+        self.assertEqual(
+            set(audit_classes_jar(classes)),
+            {"dev/qperiapt/android/QPeriaptAndroid.class"},
+        )
 
     def test_final_aar_is_audited_and_extracted_elfs_are_reverified(self) -> None:
         nm, readelf = self.fake_tools()

@@ -91,9 +91,10 @@ fn main() {
     MlKem768.decapsulate(&dk1, &ct_garbage, &mut e1).unwrap();
     MlKem768.decapsulate(&dk2, &ct_garbage, &mut e2).unwrap();
     println!("  ss1 = {}\n  ss2 = {}", hex(&e1), hex(&e2));
+    let expanded_shared_secret_equal = e1 == e2;
     println!(
         "  -> ss1 == ss2 : {}  (Schmieg precondition met under ek1 != ek2)",
-        e1 == e2
+        expanded_shared_secret_equal
     );
 
     let lean1 =
@@ -142,9 +143,10 @@ fn main() {
     MlKem768.decapsulate(&sdk1, &ct_garbage, &mut s1).unwrap();
     MlKem768.decapsulate(&sdk2, &ct_garbage, &mut s2).unwrap();
     println!("  ss1 = {}\n  ss2 = {}", hex(&s1), hex(&s2));
+    let seed_shared_secret_equal = s1 == s2;
     println!(
         "  -> ss1 == ss2 : {}  (Schmieg precondition UNREACHABLE)",
-        s1 == s2
+        seed_shared_secret_equal
     );
 
     let sl1 = combine::<Sha3_256Xof>(

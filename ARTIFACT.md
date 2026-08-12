@@ -29,6 +29,28 @@ All commands run from the repository root. `cargo` ≥ 1.85 is the only hard pre
 host smoke; proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
 uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PATH fallback.
 
+## Rust CodeQL analysis boundary
+
+The Rust CodeQL lane uses the pinned CodeQL 2.26.2 bundle with a Rust 1.94.0 analysis sysroot
+because the bundled Rust extractor cannot completely expand this repository with the canonical
+Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.96.1
+CodeQL analysis. Before CodeQL initialization, the same commit must pass
+`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.96.1 with
+warnings denied, repository-external target directories, and no repository-local `target` entry.
+
+Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
+87 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
+format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
+sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
+complete, self-reconciling classification and reported as telemetry rather than required to be
+zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
+produce type-inference telemetry; this is not a claim of complete extractor semantics for that
+generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
+those build/runtime surfaces. Rust analysis runs with SARIF upload disabled and raw database upload
+disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may publish
+results.
+
 ## Quick start — one command
 
 ```sh
@@ -171,8 +193,8 @@ The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 The upstream tag/commit is not a signed provenance statement, and neither upstream
 mlkem-native nor this Rust/C integration has completed an independent audit.
 
-ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication (not yet uploaded to crates.io), with two
+ABI 2 / `0.1.0-alpha.2` is a pre-publication package-ready research-alpha source
+line (not yet uploaded to crates.io), with two
 published immutable GitHub research prereleases: the Apple XCFramework revision
 `v0.1.0-alpha.2-r1` (Rust 1.96.1; the earlier `v0.1.0-alpha.2` Apple build on
 Rust 1.96.0 is superseded, historical attested evidence) and the
@@ -188,7 +210,7 @@ contract. The static archive constrains that reserved public namespace but retai
 unsupported hidden `qpn_mlkem_bridge_*` link symbols; hidden visibility is not
 access control, and a same-process static consumer can deliberately call them. It removes
 raw/deterministic public product exports, uses OS randomness, major-isolates the
-binary/package identities, and rejects ABI1's four-byte state. Source/crate readiness by
+binary/package identities, and rejects ABI1's four-byte state. Package readiness by
 itself does not attest platform binaries; the published archives above are attested by
 their own release receipts, distribution manifests, `SHA256SUMS`, annotated tags, and
 GitHub immutable-release/build-provenance attestations. The Apple-only
@@ -306,18 +328,21 @@ Swift XCTest count, Swift XCFramework/binaryTarget pre-publication proof
 (`artifact/swift-xcframework.sh`) through an isolated binary consumer, Android AAR/JNI packaging
 proof (`artifact/android-aar.sh`) with four ABI slices, native/JNI symbol audits, dex conversion, and
 an isolated Java consumer compile, Kotlin/Panama tests with explicit native library loading, WASM
-Node tests, and `proof-to-byte.sh`. The Rust crate release
-surface has a separate publication-contract gate,
-`sh artifact/rust-publish-dry-run.sh`, which requires a clean tree by default, validates the
+Node tests, and `proof-to-byte.sh`. The Rust crate pre-publication package
+surface has a separate package-contract gate,
+`sh artifact/rust-publish-contract.sh`, which requires a clean tree by default, validates the
 ten-crate publish allow/deny list, checks package file lists, applies every downstream local patch,
-and runs patched `cargo publish --dry-run` for each publishable crate. It then creates fresh
+and runs registry-bound `cargo package` with rebuilt-archive verification for each publishable crate;
+all Cargo warnings fail the gate and no upload command is invoked. It then creates fresh
 isolated sys/backend archives. The sys `.crate` is inspected independently for links/special or
 forbidden paths, the fixed 124-entry upstream inventory, the exact packaged 118-code-file hash
 subset (excluding six upstream README files), the pinned upstream license and v1.2.0 provenance,
 and a portable-only build surface. Cargo's normalized backend graph is generated
-with the sys crate patched in and audited separately, so Cargo versions that discard dry-run
-archives cannot skip the provider, retired-HQC/PQCrypto, inventory, license, or normalized-graph
-checks. The coordinated registry order is sys, core, KEM/signature traits, backends, policy, then
+with the sys crate patched in and audited separately, so the provider, retired-HQC/PQCrypto,
+inventory, license, and normalized-graph checks cannot be skipped. This no-upload contract does
+not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
+authorization, server-side policy acceptance, or a registry receipt. The coordinated registry
+order is sys, core, KEM/signature traits, backends, policy, then
 the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set. The ordinary
 Swift XCFramework gate also requires a clean tree by default; set
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics. Set

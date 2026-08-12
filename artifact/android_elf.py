@@ -14,6 +14,7 @@ import pathlib
 import re
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -77,6 +78,25 @@ MAX_CLASSES_JAR_BYTES = 16 * 1024 * 1024
 MANIFEST_SCHEMA_VERSION = 4
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+AAR_CANONICAL_DATE_TIME = (2000, 1, 1, 0, 0, 0)
+AAR_CANONICAL_CREATE_SYSTEM = 3
+AAR_CANONICAL_EXTERNAL_ATTR = (stat.S_IFREG | 0o644) << 16
+AAR_CANONICAL_COMPRESSION = zipfile.ZIP_STORED
+AAR_CANONICAL_FLAG_BITS = 0
+AAR_CANONICAL_EXTRACT_VERSION = 20
+AAR_CANONICAL_CREATE_VERSION = (
+    AAR_CANONICAL_CREATE_SYSTEM << 8
+) | AAR_CANONICAL_EXTRACT_VERSION
+AAR_CANONICAL_DOS_TIME = 0
+AAR_CANONICAL_DOS_DATE = ((2000 - 1980) << 9) | (1 << 5) | 1
+
+_ZIP_LOCAL = struct.Struct("<IHHHHHIIIHH")
+_ZIP_CENTRAL = struct.Struct("<IHHHHHHIIIHHHHHII")
+_ZIP_EOCD = struct.Struct("<IHHHHIIH")
+_ZIP_LOCAL_SIGNATURE = 0x04034B50
+_ZIP_CENTRAL_SIGNATURE = 0x02014B50
+_ZIP_EOCD_SIGNATURE = 0x06054B50
+_ZIP_EOCD_SIGNATURE_BYTES = b"PK\x05\x06"
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +104,21 @@ class AbiSpec:
     elf_class: int
     machine: int
     machine_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class _AarZipRecord:
+    name_bytes: bytes
+    name: str
+    extract_version: int
+    flags: int
+    method: int
+    mod_time: int
+    mod_date: int
+    crc: int
+    compressed_size: int
+    size: int
+    local_offset: int
 
 
 ABI_SPECS = {
@@ -491,6 +526,240 @@ def _validate_zip_name(name: str, *, label: str) -> None:
     require(normalized.as_posix() == name, f"{label} entry is not canonically named: {name!r}")
 
 
+def _decode_canonical_aar_name(raw: bytes) -> str:
+    try:
+        name = raw.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise AndroidVerificationError(
+            "Android AAR entry name is not canonical ASCII"
+    ) from exc
+    _validate_zip_name(name, label="Android AAR")
+    require(
+        not name.endswith("/"),
+        f"Android AAR must not contain directory entries: {name}",
+    )
+    return name
+
+
+def _verify_canonical_aar_zip_framing(data: bytes) -> tuple[_AarZipRecord, ...]:
+    require(
+        len(data) >= _ZIP_EOCD.size,
+        "Android AAR ZIP framing is truncated before the EOCD",
+    )
+    eocd_offset = data.rfind(
+        _ZIP_EOCD_SIGNATURE_BYTES,
+        max(0, len(data) - _ZIP_EOCD.size - 0xFFFF),
+    )
+    require(
+        eocd_offset >= 0 and eocd_offset + _ZIP_EOCD.size <= len(data),
+        "Android AAR EOCD is missing or truncated",
+    )
+    (
+        signature,
+        disk,
+        central_disk,
+        disk_entries,
+        total_entries,
+        central_size,
+        central_offset,
+        comment_size,
+    ) = _ZIP_EOCD.unpack_from(data, eocd_offset)
+    require(signature == _ZIP_EOCD_SIGNATURE, "Android AAR EOCD signature is invalid")
+    require(
+        eocd_offset + _ZIP_EOCD.size + comment_size == len(data),
+        "Android AAR EOCD comment length or trailing framing differs",
+    )
+    require(
+        disk == 0 and central_disk == 0 and disk_entries == total_entries,
+        "Android AAR must be a single-disk ZIP archive",
+    )
+    require(comment_size == 0, "Android AAR archive comment must be empty")
+    require(total_entries > 0, "Android AAR ZIP archive must not be empty")
+    require(
+        total_entries != 0xFFFF
+        and central_size != 0xFFFFFFFF
+        and central_offset != 0xFFFFFFFF,
+        "Android AAR ZIP64 framing is not canonical",
+    )
+    require(
+        central_offset + central_size == eocd_offset,
+        "Android AAR central directory has a gap, overlap, or trailing framing",
+    )
+
+    records: list[_AarZipRecord] = []
+    central_cursor = central_offset
+    central_end = eocd_offset
+    for _ in range(total_entries):
+        require(
+            central_cursor + _ZIP_CENTRAL.size <= central_end,
+            "Android AAR central directory is truncated",
+        )
+        (
+            central_signature,
+            create_version,
+            extract_version,
+            flags,
+            method,
+            mod_time,
+            mod_date,
+            crc,
+            compressed_size,
+            size,
+            name_length,
+            extra_length,
+            entry_comment_length,
+            disk_start,
+            internal_attr,
+            external_attr,
+            local_offset,
+        ) = _ZIP_CENTRAL.unpack_from(data, central_cursor)
+        require(
+            central_signature == _ZIP_CENTRAL_SIGNATURE,
+            "Android AAR central record signature is invalid",
+        )
+        require(
+            create_version == AAR_CANONICAL_CREATE_VERSION
+            and extract_version == AAR_CANONICAL_EXTRACT_VERSION,
+            "Android AAR central creator system or extraction version is not canonical",
+        )
+        require(
+            flags == AAR_CANONICAL_FLAG_BITS,
+            "Android AAR central flag bits differ from the canonical producer",
+        )
+        require(
+            method == AAR_CANONICAL_COMPRESSION,
+            "Android AAR central compression differs from canonical ZIP_STORED",
+        )
+        require(
+            mod_time == AAR_CANONICAL_DOS_TIME
+            and mod_date == AAR_CANONICAL_DOS_DATE,
+            "Android AAR central timestamp differs from the canonical producer",
+        )
+        require(
+            compressed_size != 0xFFFFFFFF
+            and size != 0xFFFFFFFF
+            and local_offset != 0xFFFFFFFF,
+            "Android AAR ZIP64 entry framing is not canonical",
+        )
+        require(
+            compressed_size == size,
+            "Android AAR stored entry compressed and logical sizes differ",
+        )
+        require(
+            name_length > 0,
+            "Android AAR central record has an empty entry name",
+        )
+        require(
+            extra_length == 0 and entry_comment_length == 0,
+            "Android AAR central record contains an extra field or entry comment",
+        )
+        require(
+            disk_start == 0 and internal_attr == 0,
+            "Android AAR central disk or internal attributes are not canonical",
+        )
+        require(
+            external_attr == AAR_CANONICAL_EXTERNAL_ATTR,
+            "Android AAR central mode is not canonical Unix regular 0644",
+        )
+        name_start = central_cursor + _ZIP_CENTRAL.size
+        record_end = name_start + name_length
+        require(
+            record_end <= central_end,
+            "Android AAR central entry name exceeds the central directory",
+        )
+        name_bytes = data[name_start:record_end]
+        records.append(
+            _AarZipRecord(
+                name_bytes=name_bytes,
+                name=_decode_canonical_aar_name(name_bytes),
+                extract_version=extract_version,
+                flags=flags,
+                method=method,
+                mod_time=mod_time,
+                mod_date=mod_date,
+                crc=crc,
+                compressed_size=compressed_size,
+                size=size,
+                local_offset=local_offset,
+            )
+        )
+        central_cursor = record_end
+    require(
+        central_cursor == central_end,
+        "Android AAR central directory contains hidden or trailing records",
+    )
+
+    names = [record.name for record in records]
+    require(len(names) == len(set(names)), "Android AAR contains a duplicate entry")
+    casefolded = [name.casefold() for name in names]
+    require(
+        len(casefolded) == len(set(casefolded)),
+        "Android AAR contains case-conflicting entries",
+    )
+    require(
+        names == sorted(names),
+        "Android AAR entry order differs from the canonical producer order",
+    )
+
+    local_end = 0
+    for record in records:
+        require(
+            record.local_offset == local_end,
+            "Android AAR local records contain a prefix, gap, overlap, or noncanonical order",
+        )
+        require(
+            record.local_offset + _ZIP_LOCAL.size <= central_offset,
+            "Android AAR local header is truncated",
+        )
+        (
+            local_signature,
+            extract_version,
+            flags,
+            method,
+            mod_time,
+            mod_date,
+            crc,
+            compressed_size,
+            size,
+            name_length,
+            extra_length,
+        ) = _ZIP_LOCAL.unpack_from(data, record.local_offset)
+        require(
+            local_signature == _ZIP_LOCAL_SIGNATURE,
+            "Android AAR local record signature is invalid",
+        )
+        name_start = record.local_offset + _ZIP_LOCAL.size
+        name_end = name_start + name_length
+        extra_end = name_end + extra_length
+        data_end = extra_end + compressed_size
+        require(
+            data_end <= central_offset,
+            "Android AAR local record or payload overlaps the central directory",
+        )
+        require(
+            data[name_start:name_end] == record.name_bytes
+            and extract_version == record.extract_version
+            and flags == record.flags
+            and method == record.method
+            and mod_time == record.mod_time
+            and mod_date == record.mod_date
+            and crc == record.crc
+            and compressed_size == record.compressed_size
+            and size == record.size,
+            "Android AAR local and central metadata differ",
+        )
+        require(
+            extra_length == 0 and data[name_end:extra_end] == b"",
+            "Android AAR local record contains an extra field",
+        )
+        local_end = data_end
+    require(
+        local_end == central_offset,
+        "Android AAR local records do not end exactly at the central directory",
+    )
+    return tuple(records)
+
+
 def _read_zip_entries(
     archive: zipfile.ZipFile,
     *,
@@ -522,6 +791,78 @@ def _read_zip_entries(
         require(len(data) == info.file_size, f"{label} entry size mismatch after extraction: {name}")
         entries[name] = data
     return entries
+
+
+def _verify_canonical_aar_structure(
+    archive: zipfile.ZipFile,
+    raw_records: tuple[_AarZipRecord, ...],
+) -> None:
+    require(archive.comment == b"", "Android AAR archive comment must be empty")
+    infos = archive.infolist()
+    require(
+        len(infos) == len(raw_records),
+        "Android AAR decoded entry count differs from its raw ZIP framing",
+    )
+    names = [info.filename for info in infos]
+    require(
+        len(names) == len(set(names)),
+        "Android AAR contains a duplicate entry",
+    )
+    casefolded = [name.casefold() for name in names]
+    require(
+        len(casefolded) == len(set(casefolded)),
+        "Android AAR contains case-conflicting entries",
+    )
+    require(
+        names == sorted(names),
+        "Android AAR entry order differs from the canonical producer order",
+    )
+    for info, raw_record in zip(infos, raw_records, strict=True):
+        name = info.filename
+        require(
+            info.filename == raw_record.name
+            and info.header_offset == raw_record.local_offset
+            and info.create_version == AAR_CANONICAL_EXTRACT_VERSION
+            and info.extract_version == raw_record.extract_version
+            and info.flag_bits == raw_record.flags
+            and info.compress_type == raw_record.method
+            and info.CRC == raw_record.crc
+            and info.compress_size == raw_record.compressed_size
+            and info.file_size == raw_record.size,
+            f"Android AAR decoded central metadata differs from raw framing for {name}",
+        )
+        require(
+            info.date_time == AAR_CANONICAL_DATE_TIME,
+            f"Android AAR entry timestamp differs from the canonical producer for {name}",
+        )
+        require(
+            info.create_system == AAR_CANONICAL_CREATE_SYSTEM,
+            f"Android AAR entry creator system is not canonical Unix for {name}",
+        )
+        require(
+            info.external_attr == AAR_CANONICAL_EXTERNAL_ATTR,
+            f"Android AAR entry mode is not canonical Unix regular 0644 for {name}",
+        )
+        require(
+            info.internal_attr == 0,
+            f"Android AAR entry internal attributes are not canonical for {name}",
+        )
+        require(
+            info.compress_type == AAR_CANONICAL_COMPRESSION,
+            f"Android AAR entry compression differs from canonical ZIP_STORED for {name}",
+        )
+        require(
+            info.flag_bits == AAR_CANONICAL_FLAG_BITS,
+            f"Android AAR entry flag bits differ from the canonical producer for {name}",
+        )
+        require(
+            info.extra == b"",
+            f"Android AAR entry extra field must be empty for {name}",
+        )
+        require(
+            info.comment == b"",
+            f"Android AAR entry comment must be empty for {name}",
+        )
 
 
 def audit_classes_jar(data: bytes) -> dict[str, bytes]:
@@ -599,8 +940,10 @@ def audit_third_party_license_entries(entries: dict[str, bytes]) -> dict[str, An
 
 
 def audit_aar_bytes(data: bytes, *, label: str) -> tuple[dict[str, bytes], dict[str, bytes]]:
+    raw_records = _verify_canonical_aar_zip_framing(data)
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            _verify_canonical_aar_structure(archive, raw_records)
             entries = _read_zip_entries(
                 archive,
                 label="Android AAR",

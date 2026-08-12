@@ -23,6 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -40,7 +44,7 @@ jobs:
           toolchain: 1.96.1
           components: rustfmt, clippy, llvm-tools
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
@@ -64,19 +68,24 @@ jobs:
 
   # Crates.io pre-publication contract. This is not an upload step: it checks the
   # explicit publish allow/deny list, package file lists, patched
-  # `cargo publish --dry-run` for every publishable crate, and an isolated scan
+  # registry-bound `cargo package` plus rebuilt-archive verification for every
+  # publishable crate, and an isolated scan
   # of Cargo's normalized backend package from a clean checkout.
   rust-publish-contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
-      - run: cargo install cargo-audit --version 0.22.2 --locked
-      - run: sh artifact/rust-publish-dry-run.sh
+      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
+      - run: sh artifact/rust-publish-contract.sh
 
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs,
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
@@ -85,6 +94,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # Windows release 1.97.0
@@ -171,6 +184,10 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -247,6 +264,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -277,7 +298,7 @@ jobs:
           test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
           test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Build, archive, extract, and consume the native Linux ABI2 SDK
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
@@ -328,6 +349,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -350,6 +375,10 @@ jobs:
           - wasm32-unknown-unknown         # WASM
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -381,6 +410,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -403,6 +436,10 @@ jobs:
         toolchain: [stable, beta, nightly]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
@@ -418,6 +455,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@b39830659426cc462634adb474604619960ae92d # 1.85
@@ -430,6 +471,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -454,6 +499,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -512,6 +561,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -530,6 +583,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -547,7 +604,7 @@ jobs:
           /usr/bin/clang-18 --version
           /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
           echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
-      - run: cargo install wasm-pack --version 0.15.0 --locked
+      - run: cargo +1.96.1 install wasm-pack --version 0.15.0 --locked
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
       - name: Test lean WebAssembly face on Node
         run: wasm-pack test --node crates/q-periapt-wasm
@@ -560,10 +617,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@efcb852328a9f50117170cc43094fb6f09eaf1ae # nightly
-      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
       - run: cargo +nightly fetch --manifest-path fuzz/Cargo.toml --locked
       - run: CARGO_NET_OFFLINE=true cargo +nightly fuzz build --fuzz-dir fuzz
 
@@ -571,6 +632,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Provision hardened proof Python
@@ -598,7 +663,7 @@ jobs:
           components: llvm-tools
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - run: cargo build --locked -p q-periapt-ffi --release
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Generated C/Swift header freshness
         run: |
           mkdir -p target
@@ -617,6 +682,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -636,6 +705,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Provision hardened proof Python
@@ -669,7 +742,7 @@ jobs:
           for target in aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android; do
             printf '%s\n' "$installed_targets" | grep -Fx "$target" >/dev/null
           done
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Install pinned Android SDK/NDK inputs
         run: |
           license_answers=$(printf 'y\n%.0s' {1..64})
@@ -703,6 +776,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -738,10 +815,16 @@ jobs:
           distribution: temurin
           java-version: "22"
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: abi2-android-aar
-          path: target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2
+          path: target/workflow-artifact/raw
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Strictly extract the same-run Android AAR artifact
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh artifact/workflow_artifact.py android-aar
       - name: Install the API 35 16 KiB emulator runtime
         run: |
           command -v setfacl
@@ -844,6 +927,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -858,7 +945,7 @@ jobs:
             cbom.cdx.json
             sbom.cdx.json
           if-no-files-found: error
-      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
       # Unconditional release gates over the shipping workspace and detached
       # fuzz-harness lockfiles. No advisory is ignored.
       - run: cargo audit --deny warnings
@@ -869,6 +956,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -884,6 +975,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -891,7 +986,7 @@ jobs:
           toolchain: 1.96.1
           components: clippy
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf,aarch64-unknown-linux-gnu,x86_64-pc-windows-gnu
-      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
       - run: bash research/hqc-fips207-candidate/scripts/verify.sh
 
   # Cross-target feature fence for the shipping WASM face and dependency-free core.
@@ -899,6 +994,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -924,6 +1023,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: No admits/sorry in the mechanized proofs (hard gate)
@@ -942,6 +1045,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -970,6 +1077,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Handshake and migration lemma names present (hard gate)
@@ -1080,6 +1191,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Handshake events + six queries present (hard gate)

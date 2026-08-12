@@ -5,11 +5,299 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import pathlib
 import re
+import secrets
+import stat
+from collections.abc import Iterable
 
 
 class RustPublishContractError(RuntimeError):
-    """The packaged Rust/C build surface violates the release contract."""
+    """The packaged Rust/C build surface violates the package contract."""
+
+
+_OWNED_DIRECTORY_FLAGS = (
+    os.O_RDONLY
+    | getattr(os, "O_CLOEXEC", 0)
+    | getattr(os, "O_DIRECTORY", 0)
+    | getattr(os, "O_NOFOLLOW", 0)
+)
+_OWNED_TEMP_PREFIX = re.compile(r"qperiapt-package-(?:verification|inspection)\.$")
+_OWNED_TEMP_NAME = re.compile(
+    r"qperiapt-package-(?:verification|inspection)\.[0-9a-f]{24}$"
+)
+
+
+def _require_owned_directory_apis() -> None:
+    if (
+        os.open not in os.supports_dir_fd
+        or os.mkdir not in os.supports_dir_fd
+        or os.stat not in os.supports_dir_fd
+        or os.unlink not in os.supports_dir_fd
+        or os.rmdir not in os.supports_dir_fd
+        or not hasattr(os, "O_DIRECTORY")
+        or not hasattr(os, "O_NOFOLLOW")
+    ):
+        raise RustPublishContractError(
+            "owned package directories require POSIX openat no-follow APIs"
+        )
+
+
+def _temporary_parent() -> pathlib.Path:
+    try:
+        parent = pathlib.Path("/tmp").resolve(strict=True)
+        metadata = parent.lstat()
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot resolve the package temporary parent: {exc}"
+        ) from exc
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise RustPublishContractError(
+            f"package temporary parent must resolve to a real directory: {parent}"
+        )
+    return parent
+
+
+def _directory_identity(metadata: os.stat_result, label: pathlib.Path) -> tuple[int, int]:
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise RustPublishContractError(f"owned package path is not a directory: {label}")
+    return metadata.st_dev, metadata.st_ino
+
+
+def _validate_owned_root_metadata(
+    metadata: os.stat_result,
+    path: pathlib.Path,
+) -> tuple[int, int]:
+    identity = _directory_identity(metadata, path)
+    if metadata.st_uid != os.getuid():
+        raise RustPublishContractError(
+            f"owned package directory has the wrong owner: {path}"
+        )
+    if stat.S_IMODE(metadata.st_mode) != 0o700:
+        raise RustPublishContractError(
+            f"owned package directory must have mode 0700: {path}"
+        )
+    return identity
+
+
+def create_owned_package_directory(prefix: str) -> tuple[pathlib.Path, int, int]:
+    """Create a private package target relative to an anchored temporary parent."""
+
+    _require_owned_directory_apis()
+    if _OWNED_TEMP_PREFIX.fullmatch(prefix) is None:
+        raise RustPublishContractError("owned package directory prefix is malformed")
+    parent = _temporary_parent()
+    try:
+        parent_fd = os.open(parent, _OWNED_DIRECTORY_FLAGS)
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot open the package temporary parent: {parent}: {exc}"
+        ) from exc
+    try:
+        for _ in range(128):
+            name = prefix + secrets.token_hex(12)
+            try:
+                os.mkdir(name, mode=0o700, dir_fd=parent_fd)
+            except FileExistsError:
+                continue
+            path = parent / name
+            try:
+                directory_fd = os.open(name, _OWNED_DIRECTORY_FLAGS, dir_fd=parent_fd)
+            except OSError as exc:
+                raise RustPublishContractError(
+                    f"cannot anchor the new package directory: {path}: {exc}"
+                ) from exc
+            try:
+                descriptor_identity = _validate_owned_root_metadata(
+                    os.fstat(directory_fd), path
+                )
+                named_identity = _validate_owned_root_metadata(
+                    os.stat(name, dir_fd=parent_fd, follow_symlinks=False), path
+                )
+                if named_identity != descriptor_identity:
+                    raise RustPublishContractError(
+                        f"new package directory was replaced during creation: {path}"
+                    )
+                return path, descriptor_identity[0], descriptor_identity[1]
+            finally:
+                os.close(directory_fd)
+        raise RustPublishContractError(
+            "cannot allocate a unique owned package directory after 128 attempts"
+        )
+    finally:
+        os.close(parent_fd)
+
+
+def _clear_owned_package_directory(directory_fd: int, path: pathlib.Path) -> None:
+    try:
+        with os.scandir(directory_fd) as entries:
+            names = [entry.name for entry in entries]
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot list owned package directory: {path}: {exc}"
+        ) from exc
+
+    for name in names:
+        child_path = path / name
+        try:
+            observed = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        except OSError as exc:
+            raise RustPublishContractError(
+                f"cannot inspect owned package entry: {child_path}: {exc}"
+            ) from exc
+        if not stat.S_ISDIR(observed.st_mode):
+            try:
+                os.unlink(name, dir_fd=directory_fd)
+            except OSError as exc:
+                raise RustPublishContractError(
+                    f"cannot unlink owned package entry: {child_path}: {exc}"
+                ) from exc
+            continue
+
+        observed_identity = _directory_identity(observed, child_path)
+        try:
+            child_fd = os.open(name, _OWNED_DIRECTORY_FLAGS, dir_fd=directory_fd)
+        except OSError as exc:
+            raise RustPublishContractError(
+                f"cannot anchor owned package subdirectory: {child_path}: {exc}"
+            ) from exc
+        try:
+            descriptor_identity = _directory_identity(os.fstat(child_fd), child_path)
+            if descriptor_identity != observed_identity:
+                raise RustPublishContractError(
+                    f"owned package subdirectory was replaced before cleanup: {child_path}"
+                )
+            _clear_owned_package_directory(child_fd, child_path)
+            try:
+                final_identity = _directory_identity(
+                    os.stat(name, dir_fd=directory_fd, follow_symlinks=False),
+                    child_path,
+                )
+            except OSError as exc:
+                raise RustPublishContractError(
+                    f"cannot revalidate owned package subdirectory: {child_path}: {exc}"
+                ) from exc
+            if final_identity != descriptor_identity:
+                raise RustPublishContractError(
+                    f"owned package subdirectory was replaced during cleanup: {child_path}"
+                )
+            try:
+                os.rmdir(name, dir_fd=directory_fd)
+            except OSError as exc:
+                raise RustPublishContractError(
+                    f"cannot remove owned package subdirectory: {child_path}: {exc}"
+                ) from exc
+        finally:
+            os.close(child_fd)
+
+
+def remove_owned_package_directory(
+    path: pathlib.Path,
+    expected_device: int,
+    expected_inode: int,
+) -> None:
+    """Remove only the identity captured for a package target, using anchored paths."""
+
+    _require_owned_directory_apis()
+    path = pathlib.Path(path)
+    parent = _temporary_parent()
+    if (
+        not path.is_absolute()
+        or path.parent != parent
+        or _OWNED_TEMP_NAME.fullmatch(path.name) is None
+        or expected_device < 0
+        or expected_inode <= 0
+    ):
+        raise RustPublishContractError(
+            f"owned package directory cleanup request is malformed: {path}"
+        )
+    expected_identity = expected_device, expected_inode
+    try:
+        parent_fd = os.open(parent, _OWNED_DIRECTORY_FLAGS)
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot open the package temporary parent: {parent}: {exc}"
+        ) from exc
+    try:
+        try:
+            observed = os.stat(path.name, dir_fd=parent_fd, follow_symlinks=False)
+        except OSError as exc:
+            raise RustPublishContractError(
+                f"cannot inspect owned package directory before cleanup: {path}: {exc}"
+            ) from exc
+        observed_identity = _validate_owned_root_metadata(observed, path)
+        if observed_identity != expected_identity:
+            raise RustPublishContractError(
+                f"owned package directory identity changed before cleanup: {path}"
+            )
+        try:
+            directory_fd = os.open(path.name, _OWNED_DIRECTORY_FLAGS, dir_fd=parent_fd)
+        except OSError as exc:
+            raise RustPublishContractError(
+                f"cannot anchor owned package directory for cleanup: {path}: {exc}"
+            ) from exc
+        try:
+            descriptor_identity = _validate_owned_root_metadata(
+                os.fstat(directory_fd), path
+            )
+            if descriptor_identity != expected_identity:
+                raise RustPublishContractError(
+                    f"owned package directory was replaced before cleanup: {path}"
+                )
+            _clear_owned_package_directory(directory_fd, path)
+            final_identity = _validate_owned_root_metadata(
+                os.stat(path.name, dir_fd=parent_fd, follow_symlinks=False), path
+            )
+            if final_identity != descriptor_identity:
+                raise RustPublishContractError(
+                    f"owned package directory was replaced during cleanup: {path}"
+                )
+            try:
+                os.rmdir(path.name, dir_fd=parent_fd)
+            except OSError as exc:
+                raise RustPublishContractError(
+                    f"cannot remove owned package directory: {path}: {exc}"
+                ) from exc
+        finally:
+            os.close(directory_fd)
+    finally:
+        os.close(parent_fd)
+
+
+def validate_cargo_output(label: str, streams: Iterable[str]) -> None:
+    """Reject every Cargo warning without hiding any other diagnostic."""
+
+    if not label or any(character in label for character in "\r\n"):
+        raise RustPublishContractError("Cargo command label is malformed")
+    for stream in streams:
+        for line in stream.splitlines():
+            if "warning:" in line.casefold():
+                raise RustPublishContractError(
+                    f"{label} emitted a warning: {line}"
+                )
+
+
+def validate_cargo_package_completion(
+    crate: str,
+    streams: Iterable[str],
+) -> None:
+    """Require Cargo's complete package and rebuilt-archive verification phases."""
+
+    if re.fullmatch(r"[a-z0-9][a-z0-9-]*", crate) is None:
+        raise RustPublishContractError("Cargo package name is malformed")
+    output = "\n".join(streams)
+    required = (
+        f"Packaging {crate} ",
+        "Packaged ",
+        f"Verifying {crate} ",
+        "Finished `dev` profile",
+    )
+    missing = [marker for marker in required if marker not in output]
+    if missing:
+        raise RustPublishContractError(
+            f"Cargo package verification log for {crate} is incomplete: {missing}"
+        )
 
 
 _ALLOWED_BUILD_MODULE = '#[path = "src/build_support.rs"]\nmod build_support;'

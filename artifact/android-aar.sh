@@ -2,8 +2,10 @@
 # Build and verify the Android AAR/JNI release surface.
 #
 # This is a pre-publication packaging gate. It proves that an Android consumer can
-# compile against a deterministic AAR containing Android ELF ABI slices and a JNI
-# shim over the existing q-periapt-ffi C ABI. Runtime/device proof is intentionally
+# compile against an AAR whose built payload is assembled with a canonical outer
+# archive structure and contains Android ELF ABI slices plus a JNI shim over the
+# existing q-periapt-ffi C ABI. Canonical archive assembly does not claim cross-host
+# bit reproducibility of the compiled payload. Runtime/device proof is intentionally
 # separate: package-only output must not be described as Android device readiness.
 set -eu
 
@@ -500,7 +502,7 @@ PY
 rm -rf "$LICENSE_MATRIX"
 printf 'PASS: production Rust dependency license closure\n'
 
-printf '\n=== Create deterministic AAR ===\n'
+printf '\n=== Assemble built payload with canonical AAR archive structure ===\n'
 python3 - "$STAGE" "$AAR_PATH" <<'PY'
 import pathlib
 import zipfile
@@ -509,11 +511,17 @@ import sys
 stage = pathlib.Path(sys.argv[1])
 out = pathlib.Path(sys.argv[2])
 epoch = (2000, 1, 1, 0, 0, 0)
-with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
+    zf.comment = b""
     for path in sorted(p for p in stage.rglob("*") if p.is_file()):
         rel = path.relative_to(stage).as_posix()
         info = zipfile.ZipInfo(rel, epoch)
+        info.create_system = 3
         info.external_attr = 0o100644 << 16
+        info.compress_type = zipfile.ZIP_STORED
+        info.flag_bits = 0
+        info.extra = b""
+        info.comment = b""
         zf.writestr(info, path.read_bytes())
 PY
 test -f "$AAR_PATH" || {
@@ -526,7 +534,7 @@ PYTHONPATH=artifact python3 artifact/android_elf.py verify-aar \
 	--llvm-nm "$LLVM_NM" \
 	--llvm-readelf "$LLVM_READELF" \
 	--forbid-text "$ROOT"
-printf 'PASS: deterministic AAR exact-file/CRC/nested-JAR audit and extracted ELF re-verification\n'
+printf 'PASS: canonical AAR archive-structure, exact-file/CRC/nested-JAR audit, and extracted ELF re-verification\n'
 
 printf '\n=== Isolated Java consumer compile ===\n'
 cat >"$CONSUMER/Consumer.java" <<'EOF'

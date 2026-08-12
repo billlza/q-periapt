@@ -8,8 +8,10 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-> for coordinated Rust-crate publication (not yet on crates.io), with two published immutable
+> ABI 2 / `0.1.0-alpha.2` is a pre-publication package-ready research-alpha Rust
+> crate line (not yet on crates.io). Its no-upload package contract does not prove
+> crates.io upload-API acceptance, crate-name ownership, publishing credentials or
+> authorization, server-side policy acceptance, or a registry receipt. It has two published immutable
 > GitHub research prereleases: the Apple XCFramework `v0.1.0-alpha.2-r1` (Rust 1.96.1;
 > the earlier `v0.1.0-alpha.2` on 1.96.0 is superseded) and the
 > `abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR + API 35 / 16 KiB-page
@@ -128,8 +130,8 @@ the build enables only the portable C provider. RustSec covers the resolved Rust
 not vendored C, and neither the upstream provider nor this Rust/C integration has a
 completed independent audit.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
-ABI 2 is release-ready as a research-alpha source/Rust-crate line intended for coordinated
-registry publication (not yet on crates.io). Its published binary surface is two immutable,
+ABI 2 is pre-publication package-ready as a research-alpha source/Rust-crate line
+(not yet on crates.io); this no-upload status is not registry publication. Its published binary surface is two immutable,
 attested GitHub research prereleases: the Apple `v0.1.0-alpha.2-r1` XCFramework and the
 `abi2-platforms-v0.1.0-alpha.2-r2` Android/Linux/Windows packages. Fresh same-source
 device/performance evidence, independent cryptographic/C-FFI/ABI review,

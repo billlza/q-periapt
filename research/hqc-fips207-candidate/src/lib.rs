@@ -58,10 +58,7 @@ macro_rules! define_hqc_candidate {
         message = $message:literal,
         randomness = $randomness:literal
     ) => {
-        #[doc = concat!(
-                            $algorithm,
-                    " shadow adapter. This is a non-production HQC v5 FIPS 207 draft candidate."
-                        )]
+        /// Shadow adapter for a non-production HQC v5 FIPS 207 draft candidate.
         #[derive(Clone, Copy, Debug, Default)]
         pub struct $name;
 

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import unittest
 
 from rust_publish_contract import (
     RustPublishContractError,
+    create_owned_package_directory,
+    remove_owned_package_directory,
+    validate_cargo_output,
+    validate_cargo_package_completion,
     validate_mlkem_native_build_surface,
     validate_packaged_mlkem_native_local_sources,
 )
@@ -54,6 +59,131 @@ class RustPublishContractTests(unittest.TestCase):
 
     def test_repository_build_surface_passes(self) -> None:
         self.validate()
+
+    def test_warning_free_complete_cargo_package_output_passes(self) -> None:
+        streams = (
+            "",
+            "\n".join(
+                (
+                    "   Packaging q-periapt-core v0.1.0-alpha.2 (/source)",
+                    "    Packaged 6 files, 90.6KiB (31.5KiB compressed)",
+                    "   Verifying q-periapt-core v0.1.0-alpha.2 (/package)",
+                    "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.1s",
+                )
+            ),
+        )
+        validate_cargo_output("cargo-package-q-periapt-core", streams)
+        validate_cargo_package_completion("q-periapt-core", streams)
+
+    def test_every_cargo_warning_is_rejected_without_an_allowlist(self) -> None:
+        for warning in (
+            "warning: aborting upload due to dry run",
+            "warning: manifest has no description",
+            "WARNING: future incompatibility",
+        ):
+            with self.subTest(warning=warning):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "emitted a warning",
+                ):
+                    validate_cargo_output("cargo-package", ("normal output", warning))
+
+    def test_incomplete_cargo_package_phases_are_rejected(self) -> None:
+        complete = (
+            "Packaging q-periapt-core ",
+            "Packaged ",
+            "Verifying q-periapt-core ",
+            "Finished `dev` profile",
+        )
+        for omitted in complete:
+            with self.subTest(omitted=omitted):
+                output = "\n".join(marker for marker in complete if marker != omitted)
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "is incomplete",
+                ):
+                    validate_cargo_package_completion("q-periapt-core", (output,))
+
+    def test_owned_package_directory_cleanup_is_anchored_and_no_follow(self) -> None:
+        package_path, package_device, package_inode = create_owned_package_directory(
+            "qperiapt-package-verification."
+        )
+        external_path, external_device, external_inode = create_owned_package_directory(
+            "qperiapt-package-inspection."
+        )
+        try:
+            nested = package_path / "nested"
+            nested.mkdir()
+            (nested / "payload").write_text("package payload", encoding="utf-8")
+            (package_path / "external-link").symlink_to(
+                external_path, target_is_directory=True
+            )
+            (external_path / "must-remain").write_text("external", encoding="utf-8")
+
+            remove_owned_package_directory(
+                package_path, package_device, package_inode
+            )
+            self.assertFalse(package_path.exists())
+            self.assertEqual(
+                (external_path / "must-remain").read_text(encoding="utf-8"),
+                "external",
+            )
+        finally:
+            if package_path.exists() and not package_path.is_symlink():
+                remove_owned_package_directory(
+                    package_path, package_device, package_inode
+                )
+            if external_path.exists() and not external_path.is_symlink():
+                remove_owned_package_directory(
+                    external_path, external_device, external_inode
+                )
+
+    def test_owned_package_directory_replacement_is_preserved_and_rejected(self) -> None:
+        package_path, package_device, package_inode = create_owned_package_directory(
+            "qperiapt-package-verification."
+        )
+        detached_path = package_path.with_name(package_path.name + ".detached")
+        os.rename(package_path, detached_path)
+        package_path.mkdir(mode=0o700)
+        try:
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "identity changed before cleanup",
+            ):
+                remove_owned_package_directory(
+                    package_path, package_device, package_inode
+                )
+            self.assertTrue(package_path.is_dir())
+        finally:
+            package_path.rmdir()
+            os.rename(detached_path, package_path)
+            remove_owned_package_directory(package_path, package_device, package_inode)
+
+    def test_owned_package_directory_symlink_replacement_is_not_followed(self) -> None:
+        package_path, package_device, package_inode = create_owned_package_directory(
+            "qperiapt-package-verification."
+        )
+        external_path, external_device, external_inode = create_owned_package_directory(
+            "qperiapt-package-inspection."
+        )
+        detached_path = package_path.with_name(package_path.name + ".detached")
+        os.rename(package_path, detached_path)
+        package_path.symlink_to(external_path, target_is_directory=True)
+        try:
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "not a directory",
+            ):
+                remove_owned_package_directory(
+                    package_path, package_device, package_inode
+                )
+            self.assertTrue(package_path.is_symlink())
+            self.assertTrue(external_path.is_dir())
+        finally:
+            package_path.unlink()
+            os.rename(detached_path, package_path)
+            remove_owned_package_directory(package_path, package_device, package_inode)
+            remove_owned_package_directory(external_path, external_device, external_inode)
 
     def test_packaged_local_source_set_is_exact(self) -> None:
         repository_sources = {
