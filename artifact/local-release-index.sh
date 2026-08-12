@@ -76,8 +76,10 @@ if [ "${QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX:-0}" = "1" ]; then
 fi
 if [ "${QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME:-0}" = "1" ]; then
 	android_runtime_run=${QPERIAPT_ANDROID_RUNTIME_RUN:-}
+	# Avoid locale-sensitive ranges: some UTF-8 collations place uppercase
+	# letters inside [a-f].  The selector contract is exact lowercase ASCII.
 	case "$android_runtime_run" in
-		"" | *[!0-9a-f]*)
+		"" | *[!0123456789abcdef]*)
 			printf 'error: QPERIAPT_ANDROID_RUNTIME_RUN must be 32 lowercase hex characters\n' >&2
 			exit 2
 			;;

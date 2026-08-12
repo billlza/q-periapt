@@ -1107,13 +1107,36 @@ python3() {
                 "error: QPERIAPT_ANDROID_RUNTIME_RUN must be 32 lowercase "
                 "hex characters\n"
             )
+            collating_locale = "en_US.UTF-8" if sys.platform == "darwin" else "C"
             invalid_selectors = (
                 ("missing", {}),
                 ("empty", {"QPERIAPT_ANDROID_RUNTIME_RUN": ""}),
                 ("short", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 31}),
                 ("long", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 33}),
-                ("uppercase", {"QPERIAPT_ANDROID_RUNTIME_RUN": "A" * 32}),
+                (
+                    "uppercase-non-c-locale",
+                    {
+                        "LC_ALL": collating_locale,
+                        "QPERIAPT_ANDROID_RUNTIME_RUN": "A" * 32,
+                    },
+                ),
                 ("nonhex", {"QPERIAPT_ANDROID_RUNTIME_RUN": "g" * 32}),
+                (
+                    "unicode-non-c-locale",
+                    {
+                        "LC_ALL": collating_locale,
+                        "QPERIAPT_ANDROID_RUNTIME_RUN": "é" * 32,
+                    },
+                ),
+                (
+                    "fullwidth-non-c-locale",
+                    {
+                        "LC_ALL": collating_locale,
+                        "QPERIAPT_ANDROID_RUNTIME_RUN": "ａ" * 32,
+                    },
+                ),
+                ("newline", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 31 + "\n"}),
+                ("control", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 31 + "\x1f"}),
             )
             for label, selector_environment in invalid_selectors:
                 with self.subTest(label=label):
