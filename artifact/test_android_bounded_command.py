@@ -1087,7 +1087,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     "-iTCP:5584",
                     "-iTCP:5585",
                     "-sTCP:LISTEN",
-                    "-Fpun",
+                    "-Fpufn",
                 ),
             )
             self.assertEqual(arguments["output_name"], "emulator-listeners.txt.pending")
@@ -1226,6 +1226,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         invalid = (
             fixture + f"p424243\nu{os.geteuid()}\nf18\nn{endpoint}\n",
             fixture.replace("f17\n", ""),
+            fixture.replace("f17\n", "").replace(
+                endpoint, endpoint + " type=STREAM"
+            ),
             fixture.replace(endpoint, endpoint + ".other"),
             fixture.replace("p424242", "p0424242"),
             fixture.replace(f"u{os.geteuid()}", f"u{os.geteuid()}\nu{os.geteuid()}"),
@@ -1301,6 +1304,62 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 if not spec.requires_private_server
             },
             bypass,
+        )
+        capability = self.load_capability()
+        expected_argv = (
+            "/usr/sbin/lsof",
+            "-nP",
+            "-a",
+            "-U",
+            "-Fpufn",
+            capability.socket_path,
+        )
+        with mock.patch.object(
+            commands, "_lsof_path", return_value="/usr/sbin/lsof"
+        ):
+            for operation in sorted(bypass, key=str):
+                with self.subTest(operation=operation):
+                    self.assertEqual(
+                        commands.OPERATION_SPECS[operation].build_argv(capability),
+                        expected_argv,
+                    )
+
+    def test_recovery_listener_capture_requests_every_parsed_lsof_field(
+        self,
+    ) -> None:
+        receipt, _observed = self.start_physical_adb_server_receipt()
+        capability = self.load_capability()
+        output = (
+            f"p{receipt.adb_server_pid}\nu{receipt.uid}\nf17\n"
+            f"n{capability.socket_path} type=STREAM\n"
+        ).encode("ascii")
+        with (
+            mock.patch.object(commands, "_lsof_path", return_value="/usr/sbin/lsof"),
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, output),
+            ) as capture,
+        ):
+            self.assertTrue(
+                commands._capture_recovery_adb_listener(capability, receipt)
+            )
+        capture.assert_called_once_with(
+            (
+                "/usr/sbin/lsof",
+                "-nP",
+                "-a",
+                "-U",
+                "-Fpufn",
+                capability.socket_path,
+            ),
+            timeout_seconds=5,
+            maximum_bytes=65536,
+            environment={
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                "LC_ALL": "C",
+                "LANG": "C",
+            },
         )
 
     def test_client_guard_runs_after_command_and_detects_midcommand_exit(self) -> None:

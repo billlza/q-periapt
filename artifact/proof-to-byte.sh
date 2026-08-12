@@ -494,6 +494,8 @@ paths = {
     "proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "formal_tool_asset_sha256": "artifact/formal_tool_asset.py",
+    "formal_tool_asset_tests_sha256": "artifact/test_formal_tool_asset.py",
     "codeql_workflow_sha256": ".github/workflows/codeql.yml",
     "dependabot_config_sha256": ".github/dependabot.yml",
     "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",

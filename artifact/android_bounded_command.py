@@ -433,7 +433,7 @@ def _capture_owned_emulator_listeners(
                 f"-iTCP:{console_port}",
                 f"-iTCP:{adb_port}",
                 "-sTCP:LISTEN",
-                "-Fpun",
+                "-Fpufn",
             ),
             output_directory_fd=directory_fd,
             output_name="emulator-listeners.txt.pending",
@@ -515,7 +515,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-initial.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
             False,
         ),
         AndroidOperation.LSOF_BEFORE: OperationSpec(
@@ -523,7 +523,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-before.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
             False,
         ),
         AndroidOperation.LSOF_REGISTERED: OperationSpec(
@@ -531,7 +531,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-registered.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
             False,
         ),
         AndroidOperation.LSOF_AFTER: OperationSpec(
@@ -539,7 +539,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-after.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpun", cap.socket_path),
+            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
             False,
         ),
         AndroidOperation.SERVER_STATUS_BEFORE: OperationSpec(
@@ -1156,7 +1156,7 @@ def _capture_recovery_adb_listener(
     receipt: runtime_state.OwnedRuntimeReceipt,
 ) -> bool:
     result = capture_stdout(
-        (_lsof_path(), "-nP", "-a", "-U", "-Fpun", capability.socket_path),
+        (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", capability.socket_path),
         timeout_seconds=5,
         maximum_bytes=65536,
         environment={

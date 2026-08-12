@@ -661,6 +661,8 @@ BOUNDED_PROCESS_PROOF_INPUTS = {
 
 ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "formal_tool_asset_sha256": "artifact/formal_tool_asset.py",
+    "formal_tool_asset_tests_sha256": "artifact/test_formal_tool_asset.py",
     "codeql_workflow_sha256": ".github/workflows/codeql.yml",
     "dependabot_config_sha256": ".github/dependabot.yml",
     "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
@@ -4033,6 +4035,67 @@ with _temporary_release_test_directories(parents):
             1,
         )
         self.assertNotIn("continue-on-error", wasm_job)
+
+    def test_formal_tool_release_assets_use_one_bounded_verifier(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        tamarin_job = extract_workflow_job(workflow, "tamarin-proof")
+        tamarin_install = extract_named_workflow_step(
+            tamarin_job, "Install Maude + Tamarin"
+        )
+        proverif_job = extract_workflow_job(workflow, "proverif-proof")
+        proverif_install = extract_named_workflow_step(
+            proverif_job, "Install ProVerif"
+        )
+        calls = (
+            "sh artifact/python-run.sh artifact/formal_tool_asset.py "
+            "--asset maude-3.5.1",
+            "sh artifact/python-run.sh artifact/formal_tool_asset.py "
+            "--asset tamarin-1.12.0",
+            "sh artifact/python-run.sh artifact/formal_tool_asset.py "
+            "--asset opam-2.5.2",
+        )
+        combined = tamarin_install + proverif_install
+        self.assertEqual(combined.count("artifact/formal_tool_asset.py"), 3)
+        for call in calls:
+            with self.subTest(call=call):
+                self.assertEqual(combined.count(call), 1)
+        for token in (
+            "set -euo pipefail",
+            '"$RUNNER_TEMP"/qperiapt-formal-tool-asset.*',
+            '[ -L "$asset_path" ]',
+            'rm -- "$asset_path"',
+            'rmdir -- "$asset_parent"',
+            "trap cleanup_formal_tool_assets EXIT",
+            "trap cleanup_opam_asset EXIT",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, combined)
+        self.assertLess(
+            tamarin_install.index(calls[0]), tamarin_install.index("unzip -q")
+        )
+        self.assertLess(
+            tamarin_install.index(calls[1]), tamarin_install.index("tar -xzf")
+        )
+        self.assertLess(
+            proverif_install.index(calls[2]),
+            proverif_install.index('sudo install -m 0755 "$OPAM_BIN"'),
+        )
+        self.assertIn("make -C formal/tamarin prove", tamarin_job)
+        self.assertIn("make -C formal/proverif prove", proverif_job)
+        for forbidden in (
+            "continue-on-error",
+            "|| true",
+            "curl ",
+            "sha256sum",
+            "github.com/maude-lang",
+            "github.com/tamarin-prover",
+            "github.com/ocaml/opam/releases",
+            "--continue-at",
+            "--insecure",
+            "--retry-all-errors",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, tamarin_job + proverif_job)
 
     def test_ci_check_fetches_full_history_for_evidence_successors(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

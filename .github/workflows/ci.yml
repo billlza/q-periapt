@@ -976,38 +976,74 @@ jobs:
         run: make -C formal/tamarin check-lemma-names
       - name: Install Maude + Tamarin
         run: |
+          set -euo pipefail
+
+          cleanup_formal_tool_asset() {
+            asset_path=$1
+            expected_leaf=$2
+            test -n "$asset_path" || return 0
+            asset_parent=${asset_path%/*}
+            case "$asset_parent" in
+              "$RUNNER_TEMP"/qperiapt-formal-tool-asset.*) ;;
+              *)
+                printf 'error: refusing to clean unexpected formal-tool asset path: %s\n' \
+                  "$asset_path" >&2
+                return 1
+                ;;
+            esac
+            if [ "${asset_path##*/}" != "$expected_leaf" ] || \
+              [ -L "$asset_path" ] || [ ! -f "$asset_path" ]; then
+              printf 'error: refusing to clean invalid formal-tool asset: %s\n' \
+                "$asset_path" >&2
+              return 1
+            fi
+            rm -- "$asset_path"
+            rmdir -- "$asset_parent"
+          }
+          MAUDE_ARCHIVE=
+          TAMARIN_ARCHIVE=
+          cleanup_formal_tool_assets() {
+            cleanup_status=0
+            if [ -n "$TAMARIN_ARCHIVE" ]; then
+              cleanup_formal_tool_asset \
+                "$TAMARIN_ARCHIVE" \
+                tamarin-prover-1.12.0-linux64-ubuntu.tar.gz || cleanup_status=$?
+            fi
+            if [ -n "$MAUDE_ARCHIVE" ]; then
+              cleanup_formal_tool_asset \
+                "$MAUDE_ARCHIVE" \
+                Maude-3.5.1-linux-x86_64.zip || cleanup_status=$?
+            fi
+            return "$cleanup_status"
+          }
+          trap cleanup_formal_tool_assets EXIT
+
           sudo apt-get update
           sudo apt-get install -y graphviz unzip
 
-          MAUDE_ARCHIVE=$(mktemp)
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
-            --output "$MAUDE_ARCHIVE" \
-            https://github.com/maude-lang/Maude/releases/download/Maude3.5.1/Maude-3.5.1-linux-x86_64.zip
-          printf '%s  %s\n' \
-            72ed1ca87e3b3d0dfc6ee1436baf154bf04c45ff97d521bec040c5e8dfc8f92c \
-            "$MAUDE_ARCHIVE" | sha256sum --check --strict
+          MAUDE_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset maude-3.5.1)
           sudo mkdir -p /opt/maude-3.5.1
           sudo unzip -q "$MAUDE_ARCHIVE" -d /opt/maude-3.5.1
           sudo chmod 0755 /opt/maude-3.5.1/maude
           printf '%s\n' /opt/maude-3.5.1 >> "$GITHUB_PATH"
           export PATH="/opt/maude-3.5.1:$PATH"
-          rm -f "$MAUDE_ARCHIVE"
+          cleanup_formal_tool_asset "$MAUDE_ARCHIVE" Maude-3.5.1-linux-x86_64.zip
+          MAUDE_ARCHIVE=
 
-          TAMARIN_ARCHIVE=$(mktemp)
+          TAMARIN_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset tamarin-1.12.0)
           TAMARIN_DIR=$(mktemp -d)
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
-            --output "$TAMARIN_ARCHIVE" \
-            https://github.com/tamarin-prover/tamarin-prover/releases/download/1.12.0/tamarin-prover-1.12.0-linux64-ubuntu.tar.gz
-          printf '%s  %s\n' \
-            201be06f469e47cff554df6ca93db8366fc2c69d70c61fcbd1370a1074b469c6 \
-            "$TAMARIN_ARCHIVE" | sha256sum --check --strict
           tar -xzf "$TAMARIN_ARCHIVE" -C "$TAMARIN_DIR" tamarin-prover
           sudo install -m 0755 \
             "$TAMARIN_DIR/tamarin-prover" \
             /usr/local/bin/tamarin-prover
-          rm -rf "$TAMARIN_ARCHIVE" "$TAMARIN_DIR"
+          cleanup_formal_tool_asset \
+            "$TAMARIN_ARCHIVE" \
+            tamarin-prover-1.12.0-linux64-ubuntu.tar.gz
+          TAMARIN_ARCHIVE=
+          rm -rf "$TAMARIN_DIR"
           test "$(maude --version)" = "3.5.1"
           tamarin-prover --version
+          trap - EXIT
       - name: Machine-check handshake, migration, and countermodels (make prove)
         run: make -C formal/tamarin prove
 
@@ -1030,20 +1066,41 @@ jobs:
           test "$n" -eq 6 || { echo "expected exactly 6 queries, found $n"; exit 1; }
       - name: Install ProVerif
         run: |
+          set -euo pipefail
+
+          OPAM_BIN=
+          cleanup_opam_asset() {
+            test -n "$OPAM_BIN" || return 0
+            opam_parent=${OPAM_BIN%/*}
+            case "$opam_parent" in
+              "$RUNNER_TEMP"/qperiapt-formal-tool-asset.*) ;;
+              *)
+                printf 'error: refusing to clean unexpected opam asset path: %s\n' \
+                  "$OPAM_BIN" >&2
+                return 1
+                ;;
+            esac
+            if [ "${OPAM_BIN##*/}" != opam-2.5.2-x86_64-linux ] || \
+              [ -L "$OPAM_BIN" ] || [ ! -f "$OPAM_BIN" ]; then
+              printf 'error: refusing to clean invalid opam asset: %s\n' \
+                "$OPAM_BIN" >&2
+              return 1
+            fi
+            rm -- "$OPAM_BIN"
+            rmdir -- "$opam_parent"
+          }
+          trap cleanup_opam_asset EXIT
+
           sudo apt-get update
           sudo apt-get install -y libgtk2.0-dev ocaml pkg-config
-          OPAM_BIN=$(mktemp)
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
-            --output "$OPAM_BIN" \
-            https://github.com/ocaml/opam/releases/download/2.5.2/opam-2.5.2-x86_64-linux
-          printf '%s  %s\n' \
-            edfca2630c373b44b7ee1c2f81cd8dcf67468d0db57d6c02158de553ac63dbd4 \
-            "$OPAM_BIN" | sha256sum --check --strict
+          OPAM_BIN=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset opam-2.5.2)
           sudo install -m 0755 "$OPAM_BIN" /usr/local/bin/opam
-          rm -f "$OPAM_BIN"
+          cleanup_opam_asset
+          OPAM_BIN=
           test "$(opam --version)" = "2.5.2"
           opam init -y --disable-sandboxing --no-setup
           opam install -y proverif.2.05
+          trap - EXIT
       - name: Machine-check the handshake model (queries must hold)
         run: opam exec -- make -C formal/proverif prove
 

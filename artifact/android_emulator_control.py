@@ -470,7 +470,7 @@ def parse_owned_single_listener(
     expected_uid: int,
     expected_endpoint: str,
 ) -> int:
-    """Parse one exact owned single-endpoint ``lsof -Fpun`` listener."""
+    """Parse one exact owned single-endpoint ``lsof -Fpufn`` listener."""
 
     _require(type(text) is str, "owned single listener inspection is not text")
     _require(
@@ -566,7 +566,7 @@ def parse_owned_lsof_listeners(
     console_port: int,
     adb_port: int,
 ) -> int:
-    """Parse one exact ``lsof -Fpun`` snapshot without performing I/O."""
+    """Parse one exact ``lsof -Fpufn`` snapshot without performing I/O."""
 
     _require(type(text) is str, "owned emulator listener inspection is not text")
     _require(
