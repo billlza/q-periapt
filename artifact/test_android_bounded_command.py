@@ -1211,12 +1211,32 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ),
             os.geteuid(),
         )
+        linux_fixture = fixture.replace(
+            f"n{endpoint}\n", f"n{endpoint} type=STREAM\n"
+        )
+        self.assertEqual(
+            commands.parse_owned_single_listener(
+                linux_fixture,
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                expected_endpoint=endpoint,
+            ),
+            os.geteuid(),
+        )
         invalid = (
             fixture + f"p424243\nu{os.geteuid()}\nf18\nn{endpoint}\n",
             fixture.replace("f17\n", ""),
             fixture.replace(endpoint, endpoint + ".other"),
             fixture.replace("p424242", "p0424242"),
             fixture.replace(f"u{os.geteuid()}", f"u{os.geteuid()}\nu{os.geteuid()}"),
+            fixture.replace(endpoint, endpoint + " type=DGRAM"),
+            fixture.replace(endpoint, endpoint + " type=SEQPACKET"),
+            fixture.replace(endpoint, endpoint + " type=stream"),
+            fixture.replace(endpoint, endpoint + "  type=STREAM"),
+            fixture.replace(endpoint, endpoint + " type=STREAM "),
+            fixture.replace(endpoint, endpoint + " ->INO=42 type=STREAM"),
+            fixture.replace(endpoint, endpoint + " type=STREAM type=STREAM"),
+            fixture.replace(endpoint, endpoint + ".other type=STREAM"),
         )
         for text in invalid:
             with (

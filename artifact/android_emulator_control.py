@@ -437,6 +437,32 @@ def _canonical_decimal(value: str, label: str) -> int:
     return int(value)
 
 
+_LINUX_LSOF_UNIX_STREAM_SUFFIX = " type=STREAM"
+
+
+def canonical_owned_unix_lsof_name(value: object) -> str:
+    """Normalize the two exact lsof encodings of one owned Unix listener."""
+
+    _require(type(value) is str, "owned Unix lsof listener name is not text")
+    raw = value
+    if raw.endswith(_LINUX_LSOF_UNIX_STREAM_SUFFIX):
+        endpoint = raw[: -len(_LINUX_LSOF_UNIX_STREAM_SUFFIX)]
+    else:
+        endpoint = raw
+    _require(
+        1 <= len(endpoint) <= 4096
+        and endpoint.startswith("/")
+        and endpoint.isascii()
+        and all(character not in endpoint for character in "\x00\r\n")
+        and not any(character.isspace() for character in endpoint)
+        and "->" not in endpoint
+        and " type=" not in endpoint
+        and raw in {endpoint, endpoint + _LINUX_LSOF_UNIX_STREAM_SUFFIX},
+        f"malformed owned Unix lsof listener name: {raw!r}",
+    )
+    return endpoint
+
+
 def parse_owned_single_listener(
     text: str,
     *,
@@ -462,6 +488,13 @@ def parse_owned_single_listener(
         and all(character not in expected_endpoint for character in "\x00\r\n"),
         "owned single listener endpoint is invalid",
     )
+    expected_is_owned_unix = expected_endpoint.startswith("/")
+    if expected_is_owned_unix:
+        _require(
+            canonical_owned_unix_lsof_name(expected_endpoint)
+            == expected_endpoint,
+            "owned single listener endpoint is invalid",
+        )
     observed_pid: int | None = None
     observed_uid: int | None = None
     observed_fd: int | None = None
@@ -500,7 +533,11 @@ def parse_owned_single_listener(
                 and bool(value),
                 f"malformed owned single listener endpoint: {value!r}",
             )
-            observed_endpoint = value
+            observed_endpoint = (
+                canonical_owned_unix_lsof_name(value)
+                if expected_is_owned_unix
+                else value
+            )
         else:
             raise AndroidEmulatorControlError(
                 f"unexpected owned single listener field: {line!r}"

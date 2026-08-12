@@ -40,6 +40,7 @@ from android_emulator_control import (
     NATIVE_ADB_NOTIFIER_PORT,
     AdbIsolationCheckpoint,
     AndroidEmulatorControlError,
+    canonical_owned_unix_lsof_name,
     emulator_routing_transport_binding_sha256,
     fixed_headless_backend_path,
     parse_owned_adb_server_status,
@@ -1646,18 +1647,29 @@ def _read_registered_private_adb_evidence(
         "registered private adb status differs from its fixed run binding",
     )
 
-    listener_endpoints = [
+    raw_listener_endpoints = [
         line[1:] for line in listener_text.splitlines() if line.startswith("n")
     ]
-    require(
-        len(listener_endpoints) == 1
-        and re.fullmatch(
-            r"/tmp/qperiapt-adb\.[A-Za-z0-9]{8}/adb\.sock",
-            listener_endpoints[0],
+    try:
+        require(
+            len(raw_listener_endpoints) == 1,
+            "registered private adb listener endpoint is non-canonical",
         )
-        is not None,
-        "registered private adb listener endpoint is non-canonical",
-    )
+        listener_endpoint = canonical_owned_unix_lsof_name(
+            raw_listener_endpoints[0]
+        )
+        require(
+            re.fullmatch(
+                r"/tmp/qperiapt-adb\.[A-Za-z0-9]{8}/adb\.sock",
+                listener_endpoint,
+            )
+            is not None,
+            "registered private adb listener endpoint is non-canonical",
+        )
+    except AndroidEmulatorControlError as exc:
+        raise SystemExit(
+            f"error: registered private adb listener endpoint is non-canonical: {exc}"
+        ) from exc
     pid_lines = [
         line[1:] for line in listener_text.splitlines() if line.startswith("p")
     ]
@@ -1675,7 +1687,7 @@ def _read_registered_private_adb_evidence(
             listener_text,
             expected_pid=listener_pid,
             expected_uid=listener_uid,
-            expected_endpoint=listener_endpoints[0],
+            expected_endpoint=listener_endpoint,
         )
     except (ValueError, AndroidEmulatorControlError) as exc:
         raise SystemExit(

@@ -795,6 +795,14 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             ),
             (124, 501),
         )
+        self.assertEqual(
+            android_device_proof.parse_lsof_adb_listener(
+                "p125\nu501\nf20\n"
+                "n/tmp/qperiapt-adb.12345678/adb.sock type=STREAM\n",
+                expected_endpoint="/tmp/qperiapt-adb.12345678/adb.sock",
+            ),
+            (125, 501),
+        )
         invalid_outputs = (
             "",
             "p0123\nu501\nf18\n",
@@ -803,6 +811,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             "p123\nu501\nu501\n",
             "p123\nu501\ncunknown\n",
             "p123\nu501\nf18\nn*:5037\n",
+            "p123\nu501\nf18\nn127.0.0.1:5037 type=STREAM\n",
         )
         for output in invalid_outputs:
             with self.subTest(output=output):
@@ -1776,7 +1785,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             encoding="utf-8",
         )
         private_listener.write_text(
-            f"p321\nu{current_uid}\nf7\nn/tmp/qperiapt-adb.A1b2C3d4/adb.sock\n",
+            f"p321\nu{current_uid}\nf7\n"
+            "n/tmp/qperiapt-adb.A1b2C3d4/adb.sock type=STREAM\n",
             encoding="utf-8",
         )
         private_status.chmod(0o600)
