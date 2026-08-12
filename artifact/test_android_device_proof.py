@@ -3263,6 +3263,125 @@ os.execve(
                 archive_mtime=1_700_000_000,
             )
 
+    @unittest.skipUnless(os.name == "posix", "descriptor-safe staging is POSIX-only")
+    def test_private_bundle_staging_is_no_replace_and_archive_stays_public(
+        self,
+    ) -> None:
+        stage = self.root / "private-bundle-stage"
+        stage.mkdir(mode=0o700)
+        staged = stage / "evidence" / "proof.json"
+        payload = b"private Android evidence\n"
+
+        previous_umask = os.umask(0)
+        try:
+            android_device_proof.write_private_bundle_stage_file(staged, payload)
+        finally:
+            os.umask(previous_umask)
+
+        metadata = staged.lstat()
+        self.assertTrue(stat.S_ISREG(metadata.st_mode))
+        self.assertEqual(metadata.st_uid, os.geteuid())
+        self.assertEqual(metadata.st_nlink, 1)
+        self.assertEqual(stat.S_IMODE(metadata.st_mode), 0o600)
+        self.assertEqual(staged.read_bytes(), payload)
+        self.assertEqual(stat.S_IMODE(staged.parent.stat().st_mode), 0o700)
+
+        with self.assertRaisesRegex(SystemExit, "cannot stage Android evidence"):
+            android_device_proof.write_private_bundle_stage_file(staged, b"replacement")
+        self.assertEqual(staged.read_bytes(), payload)
+
+        victim = self.root / "symlink-victim.txt"
+        victim.write_bytes(b"unchanged\n")
+        symlink_leaf = stage / "evidence" / "symlink.json"
+        symlink_leaf.symlink_to(victim)
+        with self.assertRaisesRegex(SystemExit, "cannot stage Android evidence"):
+            android_device_proof.write_private_bundle_stage_file(
+                symlink_leaf, b"replacement"
+            )
+        self.assertEqual(victim.read_bytes(), b"unchanged\n")
+        symlink_leaf.unlink()
+
+        archive_parent = self.root.resolve(strict=True)
+        private_bundle = archive_parent / "private-source.zip"
+        private_audit = android_device_proof.create_zip(
+            stage,
+            private_bundle,
+            root_name="android-evidence-test",
+            mtime=1_700_000_000,
+        )
+        member = next(
+            entry
+            for entry in private_audit.entries
+            if entry.path == "android-evidence-test/evidence/proof.json"
+        )
+        self.assertEqual(member.mode, 0o644)
+        self.assertEqual(stat.S_IMODE(private_bundle.stat().st_mode), 0o644)
+
+    @unittest.skipUnless(os.name == "posix", "descriptor-safe staging is POSIX-only")
+    def test_private_bundle_staging_failure_removes_partial_file(self) -> None:
+        stage = self.root / "failed-private-bundle-stage"
+        stage.mkdir(mode=0o700)
+        staged = stage / "evidence" / "proof.json"
+        with (
+            mock.patch.object(os, "fsync", side_effect=OSError("injected fsync failure")),
+            self.assertRaisesRegex(SystemExit, "injected fsync failure"),
+        ):
+            android_device_proof.write_private_bundle_stage_file(staged, b"partial")
+        self.assertFalse(os.path.lexists(staged))
+
+        with (
+            mock.patch.object(
+                android_device_proof,
+                "_reject_macos_allow_acl",
+                side_effect=[None, SystemExit("error: injected allow ACL")],
+            ),
+            mock.patch.object(
+                os, "unlink", side_effect=OSError("injected unlink failure")
+            ),
+            self.assertRaisesRegex(
+                SystemExit,
+                "injected allow ACL; Android evidence staging cleanup also failed: "
+                "partial-file cleanup failed: injected unlink failure",
+            ),
+        ):
+            android_device_proof.write_private_bundle_stage_file(staged, b"partial")
+        self.assertTrue(staged.exists())
+        staged.unlink()
+
+        with (
+            mock.patch.object(
+                android_device_proof,
+                "_reject_macos_allow_acl",
+                side_effect=[None, SystemExit("error: injected allow ACL")],
+            ),
+            self.assertRaisesRegex(SystemExit, "injected allow ACL"),
+        ):
+            android_device_proof.write_private_bundle_stage_file(staged, b"partial")
+        self.assertFalse(os.path.lexists(staged))
+
+    @unittest.skipUnless(sys.platform == "darwin", "requires macOS extended ACLs")
+    def test_private_bundle_staging_rejects_inherited_allow_acl(self) -> None:
+        stage = self.root / "acl-private-bundle-stage"
+        stage.mkdir(mode=0o700)
+        subprocess.run(
+            [
+                "/bin/chmod",
+                "+a",
+                "everyone allow readattr,file_inherit,directory_inherit",
+                str(stage),
+            ],
+            check=True,
+        )
+        staged = stage / "evidence" / "proof.json"
+        try:
+            with self.assertRaisesRegex(SystemExit, "allow ACL is forbidden"):
+                android_device_proof.write_private_bundle_stage_file(
+                    staged, b"private"
+                )
+            self.assertFalse(os.path.lexists(staged))
+        finally:
+            subprocess.run(["/bin/chmod", "-RN", str(stage)], check=True)
+
     def test_physical_bundle_omits_emulator_only_receipts(self) -> None:
         bundle_root = self.root / "physical-bundle"
         proof = complete_proof_shape()

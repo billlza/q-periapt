@@ -572,7 +572,7 @@ def _reject_macos_allow_acl(file_descriptor: int, label: str) -> None:
         return
     if sys.platform != "darwin":
         raise SystemExit(
-            f"error: adb identity ACL semantics are unsupported on {sys.platform}: {label}"
+            f"error: macOS ACL semantics are unsupported on {sys.platform}: {label}"
         )
 
     import ctypes
@@ -2780,14 +2780,130 @@ def canonical_json(value: Any) -> bytes:
     return canonical_json_bytes(value)
 
 
-def write_bundle_file(path: pathlib.Path, data: bytes) -> None:
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        os.chmod(path, 0o644)
-    except OSError as exc:
+def write_private_bundle_stage_file(path: pathlib.Path, data: bytes) -> None:
+    """Create one private, no-replace input for the public bundle writer."""
+
+    if type(data) is not bytes:
+        raise SystemExit("error: Android evidence staging data must be bytes")
+    required = ("O_CLOEXEC", "O_DIRECTORY", "O_NOFOLLOW")
+    if any(not hasattr(os, name) for name in required) or not hasattr(os, "fchmod"):
         raise SystemExit(
-            f"error: cannot stage Android evidence bundle file {path}: {exc}"
+            "error: host lacks descriptor-safe Android evidence staging"
+        )
+    if path.name in {"", ".", ".."}:
+        raise SystemExit(
+            f"error: Android evidence bundle staging path has no safe leaf: {path}"
+        )
+
+    directory_descriptor = -1
+    descriptor = -1
+    created = False
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        directory_descriptor = os.open(
+            path.parent,
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | os.O_CLOEXEC,
+        )
+        directory_metadata = os.fstat(directory_descriptor)
+        if (
+            not stat.S_ISDIR(directory_metadata.st_mode)
+            or directory_metadata.st_uid != os.geteuid()
+        ):
+            raise EvidenceIOError(
+                "Android evidence staging parent must be a current-user-owned directory"
+            )
+        os.fchmod(directory_descriptor, 0o700)
+        if stat.S_IMODE(os.fstat(directory_descriptor).st_mode) != 0o700:
+            raise EvidenceIOError(
+                "Android evidence staging parent must have mode 0700"
+            )
+        _reject_macos_allow_acl(
+            directory_descriptor,
+            f"Android evidence staging directory {path.parent}",
+        )
+
+        flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | os.O_CLOEXEC
+            | getattr(os, "O_BINARY", 0)
+        )
+        descriptor = os.open(path.name, flags, 0o600, dir_fd=directory_descriptor)
+        created = True
+        os.fchmod(descriptor, 0o600)
+        private_file_metadata(os.fstat(descriptor))
+        _reject_macos_allow_acl(
+            descriptor,
+            f"Android evidence staging file {path}",
+        )
+
+        remaining = memoryview(data)
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written <= 0:
+                raise EvidenceIOError(
+                    "short write while staging Android evidence bundle file"
+                )
+            remaining = remaining[written:]
+        os.fsync(descriptor)
+        metadata = os.fstat(descriptor)
+        private_file_metadata(metadata)
+        if metadata.st_size != len(data):
+            raise EvidenceIOError(
+                "Android evidence staging file size differs after write"
+            )
+        os.close(descriptor)
+        descriptor = -1
+        os.fsync(directory_descriptor)
+        os.close(directory_descriptor)
+        directory_descriptor = -1
+    except BaseException as exc:
+        cleanup_errors: list[str] = []
+        if descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError as cleanup_exc:
+                cleanup_errors.append(f"file close failed: {cleanup_exc}")
+            descriptor = -1
+        if created and directory_descriptor >= 0:
+            try:
+                os.unlink(path.name, dir_fd=directory_descriptor)
+            except FileNotFoundError:
+                pass
+            except OSError as cleanup_exc:
+                cleanup_errors.append(f"partial-file cleanup failed: {cleanup_exc}")
+        if directory_descriptor >= 0:
+            try:
+                os.close(directory_descriptor)
+            except OSError as cleanup_exc:
+                cleanup_errors.append(f"directory close failed: {cleanup_exc}")
+        cleanup_suffix = (
+            f"; cleanup also failed: {'; '.join(cleanup_errors)}"
+            if cleanup_errors
+            else ""
+        )
+        if isinstance(exc, SystemExit):
+            if cleanup_errors:
+                raise SystemExit(
+                    f"{exc}; Android evidence staging cleanup also failed: "
+                    + "; ".join(cleanup_errors)
+                ) from exc
+            raise
+        if not isinstance(exc, (OSError, EvidenceIOError)):
+            if cleanup_errors:
+                exc.add_note(
+                    "Android evidence staging cleanup also failed: "
+                    + "; ".join(cleanup_errors)
+                )
+            raise
+        raise SystemExit(
+            f"error: cannot stage Android evidence bundle file {path}: "
+            f"{exc}{cleanup_suffix}"
         ) from exc
 
 
@@ -3575,11 +3691,13 @@ def create_bundle(args: argparse.Namespace) -> None:
             prefix="qperiapt-android-bundle-stage-", dir=output.parent
         ) as temp:
             stage = pathlib.Path(temp) / "stage"
-            stage.mkdir()
+            stage.mkdir(mode=0o700)
             sources = {"proof": proof_path, **selected_paths}
             selected_bundle_paths = bundle_file_paths(proof)
             for key, relative in selected_bundle_paths.items():
-                write_bundle_file(stage / relative, read_bytes(sources[key]))
+                write_private_bundle_stage_file(
+                    stage / relative, read_bytes(sources[key])
+                )
             file_records = {
                 key: bundle_file_record(stage / relative, relative)
                 for key, relative in selected_bundle_paths.items()
@@ -3601,7 +3719,7 @@ def create_bundle(args: argparse.Namespace) -> None:
                 "raw_serial_recorded": False,
                 "files": file_records,
             }
-            write_bundle_file(
+            write_private_bundle_stage_file(
                 stage / BUNDLE_MANIFEST_PATH, canonical_json(bundle_manifest)
             )
             staged_paths = [stage / BUNDLE_MANIFEST_PATH]
