@@ -141,7 +141,10 @@ REQUIRE_FORMAL=$(bool_flag QPERIAPT_REQUIRE_FORMAL "${QPERIAPT_REQUIRE_FORMAL:-0
 RUN_CONTINUITY_DIAGNOSTIC=$(bool_flag QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC "${QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC:-0}")
 REQUIRE_APPLE_DEVICE=$(bool_flag QPERIAPT_REQUIRE_APPLE_DEVICE "${QPERIAPT_REQUIRE_APPLE_DEVICE:-0}")
 REQUIRE_APPLE_DEVICE_MATRIX=$(bool_flag QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX "${QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX:-0}")
+REQUIRE_ANDROID_AAR=$(bool_flag QPERIAPT_REQUIRE_ANDROID_AAR "${QPERIAPT_REQUIRE_ANDROID_AAR:-0}")
 REQUIRE_ANDROID_RUNTIME=$(bool_flag QPERIAPT_REQUIRE_ANDROID_RUNTIME "${QPERIAPT_REQUIRE_ANDROID_RUNTIME:-0}")
+REQUIRE_ANDROID_PHYSICAL_RUNTIME=$(bool_flag QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME "${QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME:-0}")
+REQUIRE_LOCAL_RELEASE_CONSUMER=$(bool_flag QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER "${QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER:-0}")
 REQUIRE_PERFORMANCE=$(bool_flag QPERIAPT_REQUIRE_PERFORMANCE "${QPERIAPT_REQUIRE_PERFORMANCE:-0}")
 REQUIRE_CAMERA_READY=$(bool_flag QPERIAPT_REQUIRE_CAMERA_READY "${QPERIAPT_REQUIRE_CAMERA_READY:-0}")
 REQUIRE_DEPENDENCY_AUDIT=$(bool_flag QPERIAPT_REQUIRE_DEPENDENCY_AUDIT "${QPERIAPT_REQUIRE_DEPENDENCY_AUDIT:-0}")
@@ -165,6 +168,14 @@ fi
 
 if [ "$REQUIRE_APPLE_DEVICE" = "1" ] && [ "$REQUIRE_APPLE_DEVICE_MATRIX" = "1" ]; then
 	printf 'error: QPERIAPT_REQUIRE_APPLE_DEVICE and QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX are mutually exclusive\n' >&2
+	exit 2
+fi
+if [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then
+	printf 'error: manifest-bound Android release verification does not allow dirty proofs\n' >&2
+	exit 2
+fi
+if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ] && [ "$REQUIRE_ANDROID_RUNTIME" != "1" ]; then
+	printf 'error: QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER requires QPERIAPT_REQUIRE_ANDROID_RUNTIME=1\n' >&2
 	exit 2
 fi
 
@@ -266,8 +277,54 @@ fi
 
 ANDROID_PROOF=
 ANDROID_MAX_AGE_SECONDS=
+ANDROID_PHYSICAL_PROOF=
+ANDROID_PHYSICAL_MAX_AGE_SECONDS=
 EXPECTED_KIND=
 EXPECTED_ANDROID_DEVICE_ABI=
+ANDROID_NDK=
+VERIFY_ANDROID_AAR=$REQUIRE_ANDROID_AAR
+if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ] || \
+	[ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ] || \
+	[ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then
+	VERIFY_ANDROID_AAR=1
+fi
+if [ "$VERIFY_ANDROID_AAR" = "1" ]; then
+	if [ -n "${QPERIAPT_ANDROID_NDK_HOME:-}" ]; then
+		ANDROID_NDK=$QPERIAPT_ANDROID_NDK_HOME
+	elif [ -n "${ANDROID_NDK_HOME:-}" ]; then
+		ANDROID_NDK=$ANDROID_NDK_HOME
+	else
+		ANDROID_SDK_FOR_NDK=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-"$HOME/Library/Android/sdk"}}
+		ANDROID_NDK="$ANDROID_SDK_FOR_NDK/ndk/29.0.14206865"
+	fi
+	validate_path_text "$ANDROID_NDK" QPERIAPT_ANDROID_NDK_HOME
+	case "$ANDROID_NDK" in
+		/*) ;;
+		*)
+			printf 'error: Android NDK path must be absolute\n' >&2
+			exit 2
+			;;
+	esac
+fi
+if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then
+	if [ "${QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF+x}" = "x" ]; then
+		ANDROID_PHYSICAL_DEVICE_PROOF=$QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF
+	else
+		printf 'error: QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF is required for an explicitly selected physical Android run\n' >&2
+		exit 2
+	fi
+	ANDROID_PHYSICAL_PROOF=$(proof_path_under \
+		"$ANDROID_PHYSICAL_DEVICE_PROOF" \
+		"$ROOT/target" \
+		QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF)
+	ANDROID_PHYSICAL_MAX_AGE_SECONDS=$(proof_max_age_seconds \
+		QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS \
+		"${QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS:-86400}")
+	if [ "$ANDROID_PHYSICAL_MAX_AGE_SECONDS" != "86400" ]; then
+		printf 'error: physical Android release verification fixes proof freshness to 86400 seconds\n' >&2
+		exit 2
+	fi
+fi
 if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 	if [ "${QPERIAPT_ANDROID_DEVICE_PROOF+x}" = "x" ]; then
 		ANDROID_DEVICE_PROOF=$QPERIAPT_ANDROID_DEVICE_PROOF
@@ -282,19 +339,31 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 	ANDROID_MAX_AGE_SECONDS=$(proof_max_age_seconds \
 		QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS \
 		"${QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS:-86400}")
-	EXPECTED_KIND=${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-}
+	if [ "$ANDROID_MAX_AGE_SECONDS" != "86400" ]; then
+		printf 'error: canonical Android release verification fixes proof freshness to 86400 seconds\n' >&2
+		exit 2
+	fi
+	if [ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND+x}" = "x" ]; then
+		EXPECTED_KIND=$QPERIAPT_ANDROID_EXPECT_DEVICE_KIND
+	else
+		EXPECTED_KIND=emulator
+	fi
 	case "$EXPECTED_KIND" in
-		"" | emulator | physical) ;;
+		emulator) ;;
 		*)
-			printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND\n' >&2
+			printf 'error: canonical Android release verification requires device kind emulator\n' >&2
 			exit 2
 			;;
 	esac
-	EXPECTED_ANDROID_DEVICE_ABI=${QPERIAPT_ANDROID_EXPECT_DEVICE_ABI:-arm64-v8a}
+	if [ "${QPERIAPT_ANDROID_EXPECT_DEVICE_ABI+x}" = "x" ]; then
+		EXPECTED_ANDROID_DEVICE_ABI=$QPERIAPT_ANDROID_EXPECT_DEVICE_ABI
+	else
+		EXPECTED_ANDROID_DEVICE_ABI=arm64-v8a
+	fi
 	case "$EXPECTED_ANDROID_DEVICE_ABI" in
-		arm64-v8a | armeabi-v7a | x86 | x86_64) ;;
+		arm64-v8a) ;;
 		*)
-			printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI\n' >&2
+			printf 'error: canonical Android release verification requires device ABI arm64-v8a\n' >&2
 			exit 2
 			;;
 	esac
@@ -380,7 +449,10 @@ HOST_SMOKE_PASSED=0
 FORMAL_PASSED=0
 APPLE_DEVICE_PASSED=0
 APPLE_MATRIX_PASSED=0
+ANDROID_AAR_PASSED=0
 ANDROID_RUNTIME_PASSED=0
+ANDROID_PHYSICAL_RUNTIME_PASSED=0
+LOCAL_RELEASE_CONSUMER_PASSED=0
 PERFORMANCE_PASSED=0
 CAMERA_READY_BUNDLE_PASSED=0
 DEPENDENCY_AUDIT_PASSED=0
@@ -594,6 +666,16 @@ for key, rel in paths.items():
 print("PROOF_TO_BYTE_MANIFEST_HASHES_PASS")
 PY
 
+if [ "$VERIFY_ANDROID_AAR" = "1" ]; then
+	python3 artifact/android_elf.py verify-results-bound-aar \
+		--root "$ROOT" \
+		--results-manifest "$RESULTS_MANIFEST" \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
+		--ndk "$ANDROID_NDK"
+	ANDROID_AAR_PASSED=1
+	printf 'PROOF_TO_BYTE_ANDROID_AAR_PASS\n'
+fi
+
 sh artifact/python-run.sh artifact/migration_contract_v2.py verify \
 	--vectors models/q-periapt-migration/vectors/migration-contract-v2.json
 printf 'PROOF_TO_BYTE_MIGRATION_V2_EXACT_BYTES_PASS boundary=independent_renderer_not_formal_refinement\n'
@@ -732,61 +814,43 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 		printf 'error: required Android runtime proof JSON missing\n' >&2
 		exit 1
 	}
-	if [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then
-		if [ -n "$EXPECTED_KIND" ]; then
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-kind "$EXPECTED_KIND" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
-				--allow-dirty-proof
-		else
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
-				--allow-dirty-proof
-		fi
-	else
-		if [ -n "$EXPECTED_KIND" ]; then
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-kind "$EXPECTED_KIND" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
-		else
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
-		fi
-	fi
+	python3 artifact/android_device_proof.py verify \
+		--root "$ROOT" \
+		--proof "$ANDROID_PROOF" \
+		--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
+		--expected-device-kind "$EXPECTED_KIND" \
+		--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
+		--expected-page-size 16384 \
+		--expected-device-sdk 35 \
+		--require-release-mode \
+		--results-manifest "$RESULTS_MANIFEST" \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 	ANDROID_RUNTIME_PASSED=1
 	printf 'PROOF_TO_BYTE_ANDROID_RUNTIME_PASS\n'
+fi
+
+if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then
+	test -f "$ANDROID_PHYSICAL_PROOF" || {
+		printf 'error: required physical Android runtime proof JSON missing\n' >&2
+		exit 1
+	}
+	python3 artifact/android_device_proof.py verify \
+		--root "$ROOT" \
+		--proof "$ANDROID_PHYSICAL_PROOF" \
+		--max-age-seconds "$ANDROID_PHYSICAL_MAX_AGE_SECONDS" \
+		--expected-device-kind physical \
+		--results-binding android_physical_runtime \
+		--results-manifest "$RESULTS_MANIFEST" \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
+	ANDROID_PHYSICAL_RUNTIME_PASSED=1
+	printf 'PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS\n'
+fi
+
+if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then
+	python3 artifact/release_consumer_smoke.py verify-bound \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
+	LOCAL_RELEASE_CONSUMER_PASSED=1
+	printf 'PROOF_TO_BYTE_LOCAL_RELEASE_CONSUMER_PASS\n'
 fi
 
 if [ "$REQUIRE_PERFORMANCE" = "1" ]; then
@@ -823,7 +887,9 @@ python3 artifact/proof_to_byte_finalizer.py finalize \
 	--expected-source-sha256 "$FROZEN_SOURCE_TREE_SHA256" \
 	--expected-source-dirty "$FROZEN_SOURCE_TREE_DIRTY" \
 	"$HOST_SMOKE_PASSED" "$FORMAL_PASSED" "$APPLE_DEVICE_PASSED" \
-	"$APPLE_MATRIX_PASSED" "$ANDROID_RUNTIME_PASSED" "$PERFORMANCE_PASSED" \
+	"$APPLE_MATRIX_PASSED" "$ANDROID_AAR_PASSED" "$ANDROID_RUNTIME_PASSED" \
+	"$ANDROID_PHYSICAL_RUNTIME_PASSED" "$LOCAL_RELEASE_CONSUMER_PASSED" \
+	"$PERFORMANCE_PASSED" \
 	"$CAMERA_READY_BUNDLE_PASSED" "$REQUIRE_CAMERA_READY" \
 	"$DEPENDENCY_AUDIT_PASSED" "$ALLOW_DIRTY_APPLE_DEVICE_PROOF" \
 	"$ALLOW_DIRTY_PERFORMANCE_PROOF"

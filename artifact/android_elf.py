@@ -29,6 +29,11 @@ from git_provenance import (
     require_commit_or_evidence_successor,
     run_git_text,
 )
+from proof_manifest import (
+    ProofManifestError,
+    load_results_manifest_snapshot,
+    resolve_bound_file_declaration,
+)
 from release_binary_scan import ReleaseBinaryScanError, scan_release_file
 from third_party_licenses import (
     ThirdPartyLicenseError,
@@ -753,7 +758,7 @@ def verify_manifest(
     require_release: bool,
     forbidden_text: Iterable[str],
     source_root: pathlib.Path,
-) -> None:
+) -> dict[str, Any]:
     snapshot = read_snapshot(path, maximum=16 * 1024 * 1024, label="Android AAR manifest")
     with tempfile.TemporaryDirectory(prefix="qperiapt-android-manifest-") as temp:
         scan_path = pathlib.Path(temp) / "MANIFEST.json"
@@ -958,6 +963,7 @@ def verify_manifest(
             hashes.get("jni_so_sha256") == sha256_bytes(entries[f"jni/{abi_name}/{JNI_LIBRARY}"]),
             f"Android AAR manifest JNI hash mismatch for {abi_name}",
         )
+    return manifest
 
 
 def verify_aar(
@@ -972,7 +978,7 @@ def verify_aar(
     forbidden_text: Iterable[str] = (),
     extract_to: pathlib.Path | None = None,
     source_root: pathlib.Path | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     snapshot = read_snapshot(path, maximum=MAX_ARCHIVE_BYTES, label="Android AAR")
     if expected_aar_sha256 is not None:
         require(re.fullmatch(r"[0-9a-f]{64}", expected_aar_sha256) is not None, "invalid expected AAR SHA-256")
@@ -1018,10 +1024,11 @@ def verify_aar(
                     llvm_nm=llvm_nm,
                     llvm_readelf=llvm_readelf,
                 )
+    verified_manifest = None
     if manifest is not None:
         if source_root is None:
             raise AndroidVerificationError("manifest verification requires --source-root")
-        verify_manifest(
+        verified_manifest = verify_manifest(
             manifest,
             aar_path=path,
             entries=entries,
@@ -1033,6 +1040,79 @@ def verify_aar(
         )
     if extract_to is not None:
         extract_verified_entries(entries, extract_to)
+    return verified_manifest
+
+
+def verify_results_aar_projection(
+    results_manifest: dict[str, object], aar_manifest: dict[str, Any]
+) -> None:
+    """Bind the results AAR summary to the exact deep-verified manifest bytes."""
+
+    section = results_manifest.get("android_aar")
+    require(isinstance(section, dict), "results manifest lacks current Android AAR")
+    android = aar_manifest.get("android")
+    artifacts = aar_manifest.get("artifacts")
+    require(isinstance(android, dict), "verified Android AAR manifest lacks Android metadata")
+    require(isinstance(artifacts, dict), "verified Android AAR manifest lacks artifacts")
+    comparisons = (
+        ("manifest_schema", aar_manifest.get("schema_version")),
+        ("manifest_generated_at", aar_manifest.get("generated_at")),
+        ("source_commit", aar_manifest.get("git_commit")),
+        ("source_tree_dirty", aar_manifest.get("git_dirty")),
+        ("proof_source_tree_sha256", aar_manifest.get("source_tree_sha256")),
+        ("targets", android.get("abis")),
+        ("aar_sha256", artifacts.get("aar_sha256")),
+    )
+    for field, manifest_value in comparisons:
+        require(
+            section.get(field) == manifest_value,
+            f"Android results AAR {field} differs from the selected manifest",
+        )
+
+
+def verify_results_bound_aar(
+    *,
+    root: pathlib.Path,
+    results_manifest: pathlib.Path,
+    expected_results_manifest_sha256: str,
+    ndk: pathlib.Path,
+) -> None:
+    """Deep-verify the exact current AAR selected by artifact/results.json."""
+
+    root = root.resolve()
+    try:
+        manifest = load_results_manifest_snapshot(
+            results_manifest.resolve(),
+            expected_sha256=expected_results_manifest_sha256,
+        )
+        aar = resolve_bound_file_declaration(root, manifest, binding="android_aar")
+        aar_manifest = resolve_bound_file_declaration(
+            root, manifest, binding="android_aar_manifest"
+        )
+    except ProofManifestError as exc:
+        raise AndroidVerificationError(str(exc)) from exc
+    revision = verify_ndk_r29(ndk)
+    require(
+        revision == "29.0.14206865",
+        "results-bound Android AAR verification requires NDK 29.0.14206865",
+    )
+    toolchain = find_ndk_toolchain(ndk)
+    verified_manifest = verify_aar(
+        aar.path,
+        llvm_nm=toolchain / "bin/llvm-nm",
+        llvm_readelf=toolchain / "bin/llvm-readelf",
+        manifest=aar_manifest.path,
+        expected_aar_sha256=aar.sha256,
+        expected_manifest_sha256=aar_manifest.sha256,
+        require_release_manifest=True,
+        forbidden_text=(str(root),),
+        source_root=root,
+    )
+    require(
+        isinstance(verified_manifest, dict),
+        "results-bound Android AAR verification did not return a manifest",
+    )
+    verify_results_aar_projection(manifest.value, verified_manifest)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1068,6 +1148,15 @@ def build_parser() -> argparse.ArgumentParser:
     aar.add_argument("--forbid-text", action="append", default=[])
     aar.add_argument("--extract-to", type=pathlib.Path)
     aar.add_argument("--source-root", type=pathlib.Path)
+
+    bound_aar = subparsers.add_parser(
+        "verify-results-bound-aar",
+        help="deep-verify the current AAR selected by artifact/results.json",
+    )
+    bound_aar.add_argument("--root", required=True, type=pathlib.Path)
+    bound_aar.add_argument("--results-manifest", required=True, type=pathlib.Path)
+    bound_aar.add_argument("--expected-results-manifest-sha256", required=True)
+    bound_aar.add_argument("--ndk", required=True, type=pathlib.Path)
     return parser
 
 
@@ -1084,7 +1173,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         elif args.command == "verify-tree":
             verify_native_tree(args.root, llvm_nm=args.llvm_nm, llvm_readelf=args.llvm_readelf)
             print("ANDROID_ELF_TREE_VERIFY_PASS")
-        else:
+        elif args.command == "verify-aar":
             verify_aar(
                 args.aar,
                 llvm_nm=args.llvm_nm,
@@ -1098,6 +1187,16 @@ def main(argv: Iterable[str] | None = None) -> int:
                 source_root=args.source_root,
             )
             print("ANDROID_AAR_ELF_VERIFY_PASS")
+        else:
+            verify_results_bound_aar(
+                root=args.root,
+                results_manifest=args.results_manifest,
+                expected_results_manifest_sha256=(
+                    args.expected_results_manifest_sha256
+                ),
+                ndk=args.ndk,
+            )
+            print("ANDROID_RESULTS_BOUND_AAR_VERIFY_PASS")
     except AndroidVerificationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

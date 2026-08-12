@@ -88,8 +88,11 @@ from process_identity import (
     parse_token as parse_process_identity_token,
 )
 from proof_manifest import (
+    ANDROID_RUNTIME_BINDING_CHOICES,
     ProofManifestError,
+    current_android_runtime_section,
     load_results_manifest_snapshot,
+    select_android_runtime_results_binding,
     select_bound_json_snapshot,
 )
 from release_binary_scan import ReleaseBinaryScanError, scan_release_file
@@ -2708,6 +2711,94 @@ def verify_proof_contents(
     verify_native_hashes(paths, proof)
 
 
+def verify_results_manifest_projection(
+    manifest: dict[str, object],
+    proof: dict[str, Any],
+    *,
+    results_binding: str = "android_runtime",
+) -> str:
+    """Bind a current results declaration to the selected Android proof values."""
+
+    try:
+        selection = select_android_runtime_results_binding(results_binding)
+        section = current_android_runtime_section(
+            manifest,
+            binding=selection.binding,
+        )
+    except ProofManifestError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    expected_kind = selection.device_kind
+
+    expected_scalars = {
+        "proof_schema": proof.get("schema"),
+        "proof_generated_at": proof.get("generated_at"),
+        "proof_source_tree_sha256": proof.get("proof_source_tree_sha256"),
+        "source_commit": proof.get("git_commit"),
+        "source_tree_dirty": proof.get("source_tree_dirty"),
+        "release_candidate_mode": proof.get("release_candidate_mode"),
+        "run_id": proof.get("run_id"),
+    }
+    for field, proof_value in expected_scalars.items():
+        require(
+            section.get(field) == proof_value,
+            f"Android results manifest {field} differs from the selected proof",
+        )
+
+    device = proof.get("device")
+    require(isinstance(device, dict), "proof lacks device metadata")
+    for manifest_field, proof_field in (
+        ("device_kind", "kind"),
+        ("device_abi", "abi"),
+        ("page_size", "page_size"),
+        ("android_sdk", "sdk"),
+    ):
+        require(
+            section.get(manifest_field) == device.get(proof_field),
+            "Android results manifest "
+            f"{manifest_field} differs from the selected proof",
+        )
+    require(
+        device.get("kind") == expected_kind,
+        "Android results status differs from the selected proof device kind",
+    )
+
+    android = proof.get("android")
+    require(isinstance(android, dict), "proof lacks Android toolchain metadata")
+    require(
+        section.get("build_tools") == android.get("build_tools"),
+        "Android results manifest build_tools differs from the selected proof",
+    )
+    result = proof.get("result")
+    require(isinstance(result, dict), "proof lacks result metadata")
+    require(
+        section.get("status") == result.get("status")
+        and section.get("covered_tests") == result.get("passed_tests"),
+        "Android results manifest result differs from the selected proof",
+    )
+
+    aar = manifest.get("android_aar")
+    require(isinstance(aar, dict), "results manifest lacks current Android AAR")
+    paths = proof.get("paths")
+    artifacts = proof.get("artifacts")
+    require(isinstance(paths, dict), "proof lacks artifact paths")
+    require(isinstance(artifacts, dict), "proof lacks artifact metadata")
+    for manifest_path, proof_path, manifest_hash, proof_hash in (
+        ("aar_path", "aar", "aar_sha256", "aar_sha256"),
+        (
+            "manifest_path",
+            "aar_manifest",
+            "manifest_sha256",
+            "aar_manifest_sha256",
+        ),
+    ):
+        require(
+            aar.get(manifest_path) == paths.get(proof_path)
+            and aar.get(manifest_hash) == artifacts.get(proof_hash),
+            "current Android AAR declaration differs from the selected runtime proof",
+        )
+    return expected_kind
+
+
 def verify(args: argparse.Namespace) -> None:
     root = args.root.resolve()
     proof_path = args.proof.resolve()
@@ -2717,10 +2808,21 @@ def verify(args: argparse.Namespace) -> None:
         or args.expected_results_manifest_sha256 is None,
         "expected results manifest SHA-256 requires --results-manifest",
     )
+    require(
+        args.results_manifest is not None
+        or args.results_binding == "android_runtime",
+        "non-default Android results binding requires --results-manifest",
+    )
+    manifest = None
+    manifest_expected_kind = ""
     if args.results_manifest is not None:
         require(
             args.expected_results_manifest_sha256 is not None,
             "manifest-bound Android verification requires the expected results manifest SHA-256",
+        )
+        require(
+            not args.allow_dirty_proof,
+            "manifest-bound Android verification does not allow dirty proofs",
         )
         try:
             manifest = load_results_manifest_snapshot(
@@ -2730,13 +2832,23 @@ def verify(args: argparse.Namespace) -> None:
             proof_snapshot = select_bound_json_snapshot(
                 root,
                 manifest,
-                binding="android_runtime",
+                binding=args.results_binding,
                 selected_path=proof_path,
                 label="Android runtime proof",
             )
         except ProofManifestError as exc:
             raise SystemExit(f"error: {exc}") from exc
         proof = proof_snapshot.value
+        manifest_expected_kind = verify_results_manifest_projection(
+            manifest.value,
+            proof,
+            results_binding=args.results_binding,
+        )
+        require(
+            not args.expected_device_kind
+            or args.expected_device_kind == manifest_expected_kind,
+            "caller Android device kind conflicts with the results manifest",
+        )
     else:
         proof_snapshot = None
         proof = load_json(proof_path)
@@ -2755,7 +2867,7 @@ def verify(args: argparse.Namespace) -> None:
         root,
         proof,
         selected_paths,
-        expected_device_kind=args.expected_device_kind,
+        expected_device_kind=manifest_expected_kind or args.expected_device_kind,
         expected_device_abi=args.expected_device_abi,
         expected_page_size=args.expected_page_size,
         expected_device_sdk=args.expected_device_sdk,
@@ -2766,7 +2878,7 @@ def verify(args: argparse.Namespace) -> None:
     if proof_snapshot is not None:
         print(
             "PROOF_TO_BYTE_SELECTED_PROOF_MANIFEST_PASS "
-            f"section=android_runtime sha256={proof_snapshot.file.sha256}"
+            f"section={args.results_binding} sha256={proof_snapshot.file.sha256}"
         )
 
 
@@ -3832,6 +3944,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_freshness_gate(verify_parser)
     verify_parser.add_argument("--results-manifest", type=pathlib.Path)
     verify_parser.add_argument("--expected-results-manifest-sha256")
+    verify_parser.add_argument(
+        "--results-binding",
+        choices=ANDROID_RUNTIME_BINDING_CHOICES,
+        default="android_runtime",
+    )
     verify_parser.set_defaults(func=verify)
 
     create_bundle_parser = sub.add_parser(

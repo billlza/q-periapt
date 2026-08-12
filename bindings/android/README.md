@@ -35,23 +35,57 @@ ABI slices, `JNI_OnLoad`/`RegisterNatives` export shape, Java facade compilation
 dex conversion, and an isolated consumer compile. Runtime proof is tracked by the
 separate device/emulator smoke below, not by this package-only gate.
 
-For runtime proof, run:
+The canonical Android release proof runs the exact package-gate AAR on a script-owned,
+cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB pages,
+build-tools 36.0.0, and release mode:
 
 ```sh
-QPERIAPT_ANDROID_SERIAL=<adb-serial> \
-QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
-sh artifact/android-device-smoke.sh
-```
+sh artifact/android-aar.sh
 
-With no attached Android device, the script can boot a named local AVD:
-
-```sh
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+QPERIAPT_ANDROID_RELEASE_MODE=1 \
 QPERIAPT_ANDROID_BOOT_AVD=1 \
-QPERIAPT_ANDROID_AVD=<avd-name> \
+QPERIAPT_ANDROID_AVD=<arm64-api35-ps16k-avd> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
+QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384 \
+QPERIAPT_ANDROID_EXPECT_SDK=35 \
+QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
+QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$aar_manifest" \
+QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$(shasum -a 256 "$aar" | awk '{print $1}')" \
+QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$(shasum -a 256 "$aar_manifest" | awk '{print $1}')" \
 sh artifact/android-device-smoke.sh
 ```
+
+Provision the named AVD from the arm64 API-35 `google_apis_ps16k` image. The AVD name is only a
+selector; admission depends on the observed and proof-bound ABI, SDK, page size, release-mode, and
+build-tools values. A physical device run is a separate production add-on. It
+requires an exact serial and must reuse the same clean-source AAR and manifest; it cannot replace the
+canonical AVD in `artifact/results.json`, the release index, or manifest-bound `proof-to-byte`:
+
+```sh
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+QPERIAPT_ANDROID_SERIAL=<adb-serial> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
+QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
+QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=4096 \
+QPERIAPT_ANDROID_EXPECT_SDK=36 \
+QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
+QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$aar_manifest" \
+QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$(shasum -a 256 "$aar" | awk '{print $1}')" \
+QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$(shasum -a 256 "$aar_manifest" | awk '{print $1}')" \
+sh artifact/android-device-smoke.sh
+```
+
+The page-size and SDK values in that physical example are the observed Samsung API-36/4-KiB
+profile and must be changed to the explicitly intended device's real values. The physical add-on
+does not inherit the canonical AVD's SDK-35/16-KiB/release-mode constraints; its invariant is a
+clean source snapshot, the exact same AAR and manifest bytes, one explicit physical serial, and
+truthful device expectations. Results select it independently under `android_physical_runtime` with
+`current_clean_tree_physical_pass`; it can never occupy the canonical
+`android_device_runtime` section.
 
 The script-owned emulator uses `-no-snapshot -read-only`; runtime writes are discarded
 instead of mutating the named AVD's persistent userdata.
@@ -131,17 +165,62 @@ SDK path after capability creation cannot redirect an ordinary run. Use
 a hostile same-UID threat model requires a separate account or isolated runner with a read-only
 checkout.
 
-Reverify the proof with:
+Manifest-bound release verification accepts only the canonical AVD proof and also rechecks the
+results-selected current AAR:
 
 ```sh
+QPERIAPT_REQUIRE_ANDROID_AAR=1 \
 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
 QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json \
 sh artifact/proof-to-byte.sh
 ```
 
 The proof path is an explicit selector; consumers never search for the newest run or fall back to the
-historical canonical output. Clean-tree runtime proof is the release contract. `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1`
-and `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` are only for local diagnostics.
+historical canonical output. A complete local release transaction has one fixed order: AAR, canonical
+AVD run, first release index including the exact run id, extracted dynamic+static C consumer receipt,
+one evidence-only `artifact/results.json` successor, then the bound verifier. Produce the index and
+receipt before the successor:
+
+```sh
+QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
+sh artifact/local-release-index.sh
+sh artifact/local-release-consumer-smoke.sh
+```
+
+The consumer script appends a receipt only after both consumer modes pass. Final verification uses
+`QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER=1` together with
+`QPERIAPT_REQUIRE_ANDROID_RUNTIME=1`; it validates the selected index and existing receipt and never
+generates one. `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` is limited to producing direct local
+diagnostics. A dirty proof may be inspected only with the direct verifier's explicit dirty option;
+it cannot be selected in `artifact/results.json` or passed to manifest-bound `proof-to-byte`.
+
+Complete the real physical run before the evidence successor and have that same successor select its
+exact path/hash under `android_physical_runtime`. Then verify the complete Android local production
+transaction with both non-interchangeable runtime gates enabled:
+
+```sh
+QPERIAPT_REQUIRE_ANDROID_AAR=1 \
+QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<canonical-run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1 \
+QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<physical-run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER=1 \
+sh artifact/proof-to-byte.sh
+```
+
+The physical gate fixes freshness to 86,400 seconds and emits
+`PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS`. The finalizer emits
+`PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS` only when the AAR, canonical AVD, physical
+runtime, and local-consumer states are all 1 on a clean snapshot. This is a local product-evidence
+gate, not a Maven/public-provenance claim. The independent selection mechanism does not itself make
+a source physical-ready: a fresh real-device run must be selected, and only the bound marker records
+that current state.
+
+CI job `bindings-android-runtime-16k` consumes the exact AAR artifact produced by
+`bindings-android-aar` and executes it on real x86_64 API-35 `google_apis_ps16k` ART for every push
+and pull request. This is an independent package-face gate. It is neither the canonical arm64-v8a
+release proof nor physical-device production evidence.
 
 ## Published AAR prerelease
 
@@ -156,6 +235,6 @@ the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
 schema v5 and do not retroactively change the immutable release. Verify the AAR and its manifest with `gh release verify-asset`
 against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
 [`../../artifact/abi2-platform-release-notes.md`](../../artifact/abi2-platform-release-notes.md).
-Maven Central publication and physical-device coverage are explicitly not claimed,
-and the published emulator evidence does not replace the clean-tree runtime proof
+Maven Central publication and a current same-source physical-device production proof are explicitly
+not claimed, and the published emulator evidence does not replace the clean-tree runtime proof
 required for a source tree that has advanced past the release tag.

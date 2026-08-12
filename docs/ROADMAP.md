@@ -164,10 +164,17 @@ misuse resistance from deterministic conformance:
 - **Android** — `bindings/android` via JNI over the same C ABI. `artifact/android-aar.sh`
   builds and audits a deterministic ABI2 four-ABI AAR and compiles an isolated
   Java consumer (CI `bindings-android-aar`). The published r2 AAR ships with an
-  API 35 / 16 KiB-page emulator runtime-evidence bundle; whether a clean-tree ART
-  rerun matches the live source digest is selected by `artifact/results.json` and
-  goes stale after each source-changing commit
-  (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`).
+  API 35 / 16 KiB-page emulator runtime-evidence bundle. CI
+  `bindings-android-runtime-16k` consumes the package job's exact AAR and executes it
+  on real x86_64 API-35 `google_apis_ps16k` ART for every push and pull request. That
+  is an every-change package-face gate, not the canonical release selector. Release
+  currentness requires the clean arm64-v8a/API-35/16-KiB release-mode AVD transaction
+  selected by `artifact/results.json`, and goes stale after each source-changing
+  commit (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). A clean same-source physical
+  proof is an additional production-promotion requirement and cannot replace the AVD.
+  Its independent `android_physical_runtime` results binding and manifest-bound gate
+  are implemented; without an actual same-source physical selection, the Android local
+  production aggregate remains pending.
 
 `bindings/shared-test-vectors.json`, combiner vectors and X-Wing vectors remain
 conformance/KAT inputs. Native product faces instead resolve the same signed policy,
@@ -401,10 +408,14 @@ are the gap between research-grade and audited/production.
    URL/checksum/provenance is current. The SDK ZIP is not a complete Git-URL Swift package and does
    not contain a notarizable executable/bundle; final consuming products retain their platform
    signing, provisioning, and macOS notarization duties. Android's published r2 AAR is
-   source-bound with emulator runtime evidence; live-tree ART-rerun currentness is
-   selected by `artifact/results.json` (stale after each source-changing commit), and
-   an explicit CI-emulator or
-   physical-device release policy remains open; Rust now has a crates.io pre-publication contract
+   source-bound with emulator runtime evidence. CI executes the package job's exact AAR on real
+   x86_64 API-35/16-KiB ART on every push and pull request, while live-tree release currentness is
+   separately selected by `artifact/results.json` and requires the clean canonical arm64-v8a AVD
+   transaction. Production promotion additionally requires clean physical-device evidence over the
+   same source and AAR; neither x86_64 CI nor physical evidence substitutes for that AVD. The
+   independent physical results selection and bound verifier are implemented; the aggregate remains
+   pending whenever the results manifest lacks a current real physical selection. Rust now has a
+   crates.io pre-publication contract
    (`artifact/rust-publish-dry-run.sh`) over the explicit ten-crate publish allow/deny list,
    every downstream local patch, package file lists, patched `cargo publish --dry-run`, an
    independent sys `.crate` fixed 124-entry upstream inventory/exact 118-code-file packaged-subset
@@ -530,7 +541,7 @@ are the gap between research-grade and audited/production.
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The published r2 platform prerelease covers the Android AAR and Linux/Windows C SDK archives. Kotlin JDK 22 host tests are current CI gates; Apple/Android physical runtime and immutable release evidence remain independently source-bound as recorded in results.json.** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The published r2 platform prerelease covers the Android AAR and Linux/Windows C SDK archives. Kotlin JDK 22 host tests and the Android x86_64 API-35/16-KiB ART package face are current CI gates. The canonical Android arm64 AVD and independent physical results bindings are implemented and non-interchangeable; production requires both, and remains pending whenever either current selection is absent.** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | Authenticated Migration Contract | **Phase 1 candidate canonical commitment implemented in a publish=false model: fixed role-normalized body, policy-derived consistency checks, independent vectors, and unchanged-ABI2 integration. Transition authentication, monotonic state ownership, key confirmation, rollback/agreement/floor proofs, and hostile-local-caller isolation remain future gates.** |
@@ -553,13 +564,13 @@ are the gap between research-grade and audited/production.
 | ACVP ML-DSA internal interface (FIPS 204 Alg. 7/8) | **Pending; vendored vectors are retained as unwired reference data and are not a backend pass** |
 | Remaining ACVP modes: `externalMu=true` / non-SHAKE128 pre-hash | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
-| Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; time-varying pass state is selected by `artifact/results.json` and checked by live verifiers** |
+| Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; the opt-in Android final gate read-only verifies one results-selected AAR + canonical runtime + local-index consumer receipt transaction, while time-varying pass state remains selected by `artifact/results.json` and checked by live verifiers** |
 | Physical Apple matrix proof (iPad + iPhone, stable-Xcode lane) | **Harness/schema implemented; recorded clean-tree matrix is historical after the backend/source-digest migration and both physical lanes must be rerun** |
 | Strict evidence snapshots + selected-proof atomic manifest binding | **Implemented: duplicate/non-finite JSON and top-level hash/semantics A/B mixing fail closed; clean signed manifest provenance remains pending** |
 | Git/Python verifier-input provenance | **Implemented and negative-tested: local excludes, hidden index flags, ignored pyc, user-site/`.pth`, and caller `PYTHON*` fail closed; external interpreter/host attestation remains pending** |
 | Android AAR/JNI package proof | **Done for the published r2 AAR: the four-ABI package was rebuilt from the corrected source-bound path, audited (16 KiB alignment, exact nine-symbol exports, RELRO/NOW/NX, no text relocations or RPATH/RUNPATH), and published with its manifest in `abi2-platforms-v0.1.0-alpha.2-r2`** |
-| Android ART runtime smoke | **The r2 release binds an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR; live-tree rerun currentness is selected by `artifact/results.json` and goes stale after each source-changing commit, while clean release provenance for reruns and the physical-vs-CI-emulator policy remain pending (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`)** |
-| Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema 3 semantic diagnostic index and checks are implemented; the recorded component artifacts predate the backend/source migration and a new same-source index is required; clean release channel remains pending** |
+| Android ART runtime smoke | **The r2 release binds an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. Every push and pull request now executes the package job's AAR on real x86_64 API-35/16-KiB ART; this package-face check does not replace the results-selected clean arm64-v8a canonical AVD. The independent physical results selection and manifest-bound gate are implemented and cannot replace the AVD. Any source-changing commit makes both selections stale; production requires both runtime states equal 1, and remains pending unless a real clean same-AAR physical run is selected (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`).** |
+| Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema 5 release-index validation and an append-only dynamic+static C consumer receipt are implemented. A current selection requires the exact AAR and canonical Android run in the first index, then the emitted receipt and one evidence-only `results.json` successor; the final bound gate verifies those bytes without generating a receipt. Recorded older artifacts remain historical and a fresh same-source transaction is required after source change.** |
 | C ABI 2 research-alpha release readiness | **The 0.1.0-alpha.2 source/crate contract is release-ready and intended for coordinated source-crate publication. The Apple `v0.1.0-alpha.2-r1` XCFramework and the r2 Android/Linux/Windows packages are published, attested prereleases. Same-source device/performance evidence, signed or transparency-backed source provenance, independent cryptographic/C-FFI/ABI audit, and Windows Authenticode remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
 | Published immutable GitHub prereleases (Apple r1 + platform r2) | **Done as research prereleases; machine-checked receipts in `results.json` (`release_publications`, `swift_xcframework.distribution`) under `platform_release_contract.py`. Not a production, registry, or store release.** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; Apple XCFramework + Android AAR + Linux/Windows C SDK GitHub prereleases are published, while a complete remote Swift package and crates.io/Maven/deb/rpm/MSIX registry publication remain pending |

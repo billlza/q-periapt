@@ -694,6 +694,7 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
     "release_index_verifier_sha256": "artifact/release_index.py",
     "release_index_tests_sha256": "artifact/test_release_index.py",
+    "local_release_consumer_smoke_script_sha256": "artifact/local-release-consumer-smoke.sh",
     "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
     "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "security_policy_sha256": "SECURITY.md",
@@ -805,9 +806,16 @@ def validate_ci_check_checkout(check_job: str) -> None:
         )
 
 
-def format_marker(*states: int) -> str:
+def format_marker(**overrides: int) -> str:
+    unknown = set(overrides) - set(proof_to_byte_finalizer.STATE_NAMES)
+    if unknown:
+        raise AssertionError(f"unknown finalizer state names: {sorted(unknown)}")
+    states = {
+        name: overrides.get(name, 0)
+        for name in proof_to_byte_finalizer.STATE_NAMES
+    }
     state = proof_to_byte_finalizer.AttestationState.from_values(
-        [str(value) for value in states]
+        [str(states[name]) for name in proof_to_byte_finalizer.STATE_NAMES]
     )
     return proof_to_byte_finalizer.format_attestation_marker(
         state,
@@ -937,7 +945,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n\ttest -f "$ANDROID_PROOF"'
         )
         gate_end = source.index(
-            '\nif [ "$REQUIRE_PERFORMANCE" = "1" ]; then', gate_start
+            '\nif [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then',
+            gate_start,
         )
         gate_lines = source[gate_start:gate_end].splitlines()
 
@@ -986,16 +995,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "--expected-results-manifest-sha256",
             "$RESULTS_MANIFEST_SHA256",
         ]
-        allow_dirty = ["--allow-dirty-proof"]
         self.assertEqual(
             commands,
-            [
-                [*base, *expected_kind, *release_contract, *allow_dirty],
-                [*base, *release_contract, *allow_dirty],
-                [*base, *expected_kind, *release_contract],
-                [*base, *release_contract],
-            ],
+            [[*base, *expected_kind, *release_contract]],
         )
+        self.assertNotIn("--allow-dirty-proof", "\n".join(gate_lines))
 
         scaffold_lines = gate_lines.copy()
         for start, end in reversed(command_spans):
@@ -1003,28 +1007,267 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 : len(scaffold_lines[start]) - len(scaffold_lines[start].lstrip())
             ]
             scaffold_lines[start : end + 1] = [f"{indentation}<ANDROID_VERIFY>"]
-        branch_start = scaffold_lines.index(
-            '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then'
-        )
+        verify_marker = scaffold_lines.index("\t<ANDROID_VERIFY>")
         pass_marker = scaffold_lines.index("\tANDROID_RUNTIME_PASSED=1")
         self.assertEqual(
-            scaffold_lines[branch_start:pass_marker],
+            scaffold_lines[verify_marker:pass_marker],
+            ["\t<ANDROID_VERIFY>"],
+        )
+        self.assertNotIn("ALLOW_DIRTY_ANDROID_RUNTIME_PROOF", "\n".join(gate_lines))
+
+    def test_android_physical_gate_is_one_clean_manifest_bound_command(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        gate_start = source.index(
+            'if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then\n'
+            '\ttest -f "$ANDROID_PHYSICAL_PROOF"'
+        )
+        gate_end = source.index(
+            '\nif [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then',
+            gate_start,
+        )
+        gate_lines = source[gate_start:gate_end].splitlines()
+
+        commands: list[list[str]] = []
+        command_spans: list[tuple[int, int]] = []
+        command_prefix = "python3 artifact/android_device_proof.py verify \\"
+        for index, line in enumerate(gate_lines):
+            if line.strip() != command_prefix:
+                continue
+            fragments = [command_prefix.removesuffix(" \\")]
+            cursor = index + 1
+            while cursor < len(gate_lines):
+                fragment = gate_lines[cursor].strip()
+                continued = fragment.endswith("\\")
+                fragments.append(fragment[:-1].rstrip() if continued else fragment)
+                if not continued:
+                    break
+                cursor += 1
+            else:
+                self.fail("physical Android verifier command has no terminating argument")
+            commands.append(shlex.split(" ".join(fragments)))
+            command_spans.append((index, cursor))
+
+        self.assertEqual(
+            commands,
             [
-                '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then',
-                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\telse",
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\tfi",
-                "\telse",
-                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\telse",
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\tfi",
-                "\tfi",
+                [
+                    "python3",
+                    "artifact/android_device_proof.py",
+                    "verify",
+                    "--root",
+                    "$ROOT",
+                    "--proof",
+                    "$ANDROID_PHYSICAL_PROOF",
+                    "--max-age-seconds",
+                    "$ANDROID_PHYSICAL_MAX_AGE_SECONDS",
+                    "--expected-device-kind",
+                    "physical",
+                    "--results-binding",
+                    "android_physical_runtime",
+                    "--results-manifest",
+                    "$RESULTS_MANIFEST",
+                    "--expected-results-manifest-sha256",
+                    "$RESULTS_MANIFEST_SHA256",
+                ]
             ],
         )
+        self.assertEqual(source.count("--results-binding android_physical_runtime"), 1)
+        command = commands[0]
+        for forbidden in (
+            "--expected-device-abi",
+            "--expected-page-size",
+            "--expected-device-sdk",
+            "--require-release-mode",
+            "--allow-dirty-proof",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, command)
+
+        scaffold_lines = gate_lines.copy()
+        for start, end in reversed(command_spans):
+            indentation = scaffold_lines[start][
+                : len(scaffold_lines[start]) - len(scaffold_lines[start].lstrip())
+            ]
+            scaffold_lines[start : end + 1] = [f"{indentation}<PHYSICAL_VERIFY>"]
+        verify_marker = scaffold_lines.index("\t<PHYSICAL_VERIFY>")
+        pass_state = scaffold_lines.index("\tANDROID_PHYSICAL_RUNTIME_PASSED=1")
+        self.assertEqual(
+            scaffold_lines[verify_marker:pass_state],
+            ["\t<PHYSICAL_VERIFY>"],
+        )
+        self.assertEqual(
+            scaffold_lines[pass_state + 1],
+            "\tprintf 'PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS\\n'",
+        )
+
+    def test_android_release_gate_and_finalizer_state_wiring_are_explicit(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'REQUIRE_ANDROID_AAR=$(bool_flag QPERIAPT_REQUIRE_ANDROID_AAR ',
+            source,
+        )
+        self.assertIn(
+            "REQUIRE_ANDROID_PHYSICAL_RUNTIME=$(bool_flag "
+            "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME ",
+            source,
+        )
+        self.assertIn(
+            "REQUIRE_LOCAL_RELEASE_CONSUMER=$(bool_flag "
+            "QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER ",
+            source,
+        )
+        self.assertIn(
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ] || \\\n'
+            '\t[ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ] || \\\n'
+            '\t[ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then',
+            source,
+        )
+        self.assertIn(
+            "python3 artifact/android_elf.py verify-results-bound-aar \\",
+            source,
+        )
+        self.assertIn(
+            "python3 artifact/release_consumer_smoke.py verify-bound \\",
+            source,
+        )
+        self.assertIn(
+            'if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ] && '
+            '[ "$REQUIRE_ANDROID_RUNTIME" != "1" ]; then',
+            source,
+        )
+        aar_gate = source.index(
+            "python3 artifact/android_elf.py verify-results-bound-aar \\"
+        )
+        canonical_gate = source.index(
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then',
+            aar_gate,
+        )
+        physical_gate = source.index(
+            'if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then',
+            canonical_gate,
+        )
+        consumer_gate = source.index(
+            'if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then',
+            physical_gate,
+        )
+        self.assertLess(aar_gate, canonical_gate)
+        self.assertLess(canonical_gate, physical_gate)
+        self.assertLess(physical_gate, consumer_gate)
+
+        finalizer_call = source[source.index("python3 artifact/proof_to_byte_finalizer.py finalize \\") :]
+        expected_state_arguments = [
+            '"$HOST_SMOKE_PASSED"',
+            '"$FORMAL_PASSED"',
+            '"$APPLE_DEVICE_PASSED"',
+            '"$APPLE_MATRIX_PASSED"',
+            '"$ANDROID_AAR_PASSED"',
+            '"$ANDROID_RUNTIME_PASSED"',
+            '"$ANDROID_PHYSICAL_RUNTIME_PASSED"',
+            '"$LOCAL_RELEASE_CONSUMER_PASSED"',
+            '"$PERFORMANCE_PASSED"',
+            '"$CAMERA_READY_BUNDLE_PASSED"',
+            '"$REQUIRE_CAMERA_READY"',
+            '"$DEPENDENCY_AUDIT_PASSED"',
+            '"$ALLOW_DIRTY_APPLE_DEVICE_PROOF"',
+            '"$ALLOW_DIRTY_PERFORMANCE_PROOF"',
+        ]
+        positions = [finalizer_call.index(argument) for argument in expected_state_arguments]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('"$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF"', finalizer_call)
+
+        self.assertEqual(
+            proof_to_byte_finalizer.STATE_NAMES,
+            (
+                "host_smoke",
+                "formal",
+                "apple_device",
+                "apple_matrix",
+                "android_aar",
+                "android_runtime",
+                "android_physical_runtime",
+                "local_release_consumer",
+                "performance",
+                "camera_ready",
+                "camera_required",
+                "dependency_audit",
+                "source_tree_dirty",
+                "allow_dirty_apple",
+                "allow_dirty_performance",
+            ),
+        )
+
+    def test_ci_android_16k_runtime_consumes_same_run_aar_fail_closed(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        job = extract_workflow_job(workflow, "bindings-android-runtime-16k")
+
+        self.assertIn("    needs: bindings-android-aar\n", job)
+        self.assertIn("    runs-on: ubuntu-24.04\n", job)
+        self.assertIn("    timeout-minutes: 45\n", job)
+        self.assertIn(
+            "      - uses: actions/download-artifact@"
+            "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0\n"
+            "        with:\n"
+            "          name: abi2-android-aar\n"
+            "          path: target/qperiapt-android-aar/"
+            "q-periapt-android-0.1.0-alpha.2\n",
+            job,
+        )
+        self.assertNotIn("          run-id:", job)
+        self.assertNotIn("          github-token:", job)
+        self.assertIn('license_statuses=("${PIPESTATUS[@]}")', job)
+        self.assertIn('test "${license_statuses[1]}" -eq 0', job)
+        self.assertIn('case "${license_statuses[0]}" in', job)
+        self.assertIn("0|141) ;;", job)
+        self.assertNotIn("sdkmanager --licenses >/dev/null ||", job)
+
+        image = '"system-images;android-35;google_apis_ps16k;x86_64"'
+        self.assertGreaterEqual(job.count(image), 2)
+        for required in (
+            'QPERIAPT_ANDROID_ADB_PROFILE: linux-system',
+            'QPERIAPT_ANDROID_RELEASE_MODE: "1"',
+            'QPERIAPT_ANDROID_BOOT_AVD: "1"',
+            'QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator',
+            'QPERIAPT_ANDROID_EXPECT_ABI: x86_64',
+            'QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"',
+            'QPERIAPT_ANDROID_EXPECT_SDK: "35"',
+            'QPERIAPT_ANDROID_EXISTING_AAR="$aar"',
+            'QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest"',
+            'QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256"',
+            'QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256"',
+            "command -v setfacl",
+            "command -v lsof",
+            'test ! -e "$HOME/.android/adbkey"',
+            'test ! -e "$HOME/.emulator_console_auth_token"',
+            'sh artifact/android-device-smoke.sh',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, job)
+
+        for forbidden in (
+            "continue-on-error:",
+            "ADB_SERVER_PORT",
+            "ANDROID_ADB_SERVER_PORT",
+            "localhost:5037",
+            "127.0.0.1:5037",
+            "adb start-server",
+            "adb kill-server",
+            "QPERIAPT_ADB=",
+            "apt-get",
+            "--force",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, job)
+
+        producer = (ROOT / "artifact" / "android-device-smoke.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            'ADB_PRIVATE_SERVER_SOCKET_SPEC="localfilesystem:'
+            '$ADB_PRIVATE_SERVER_SOCKET_PATH"',
+            producer,
+        )
+        self.assertIn('export ADB_SERVER_SOCKET="$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertIn("assert_default_adb_server_absent", producer)
 
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -1336,7 +1579,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn('binding="apple_device"', apple)
         self.assertIn('binding="apple_matrix"', apple)
         self.assertIn('binding="performance"', performance)
-        self.assertIn('binding="android_runtime"', android)
+        self.assertIn("binding=args.results_binding", android)
+        self.assertIn("choices=ANDROID_RUNTIME_BINDING_CHOICES", android)
 
     def test_release_policy_cannot_be_selected_by_evidence_or_environment(self) -> None:
         matrix_script = (ROOT / "artifact" / "apple-device-matrix.sh").read_text(
@@ -1614,6 +1858,114 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
 
 class ProofToByteReleaseMarkerTests(unittest.TestCase):
+    def test_embedding_android_final_mode_is_read_only_and_exits_before_producers(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            artifact = root / "artifact"
+            artifact.mkdir()
+            for name in (
+                "embedding-readiness.sh",
+                "python-env.sh",
+                "python_bootstrap.py",
+            ):
+                shutil.copy2(ROOT / "artifact" / name, artifact / name)
+            event_log = root / "bound-events.txt"
+            (artifact / "proof-to-byte.sh").write_text(
+                """#!/bin/sh
+set -eu
+printf 'proof-to-byte\\n' >> "$BOUND_EVENT_LOG"
+test "${QPERIAPT_SKIP_SMOKE:-}" = 1
+test "${QPERIAPT_REQUIRE_ANDROID_AAR:-}" = 1
+test "${QPERIAPT_REQUIRE_ANDROID_RUNTIME:-}" = 1
+test "${QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME:-}" = "${EXPECTED_PHYSICAL:-1}"
+test "${QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER:-}" = "${EXPECTED_LOCAL_CONSUMER:-1}"
+test -n "${QPERIAPT_ANDROID_DEVICE_PROOF:-}"
+if [ "${EXPECTED_PHYSICAL:-1}" = 1 ]; then
+    test -n "${QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF:-}"
+fi
+exit "${BOUND_EXIT_CODE:-0}"
+""",
+                encoding="utf-8",
+            )
+            environment = {
+                name: value
+                for name, value in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            environment.update(
+                {
+                    "BOUND_EVENT_LOG": str(event_log),
+                    "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve()),
+                    "QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": "canonical-proof.json",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": "physical-proof.json",
+                }
+            )
+
+            completed = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(event_log.read_text(encoding="utf-8"), "proof-to-byte\n")
+            self.assertIn(
+                "EMBEDDING_ANDROID_BOUND_VERIFY_PASS canonical=1 physical=1 local_release_consumer=1",
+                completed.stdout,
+            )
+            self.assertNotIn("EMBEDDING_READINESS_PASS", completed.stdout)
+            self.assertFalse((root / "target").exists())
+
+            event_log.unlink()
+            canonical_environment = {
+                **environment,
+                "EXPECTED_PHYSICAL": "0",
+                "EXPECTED_LOCAL_CONSUMER": "0",
+                "QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "0",
+                "QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER": "0",
+            }
+            canonical_environment.pop(
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF",
+                None,
+            )
+            canonical = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=canonical_environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(canonical.returncode, 0, canonical.stderr)
+            self.assertIn(
+                "EMBEDDING_ANDROID_BOUND_VERIFY_PASS canonical=1 physical=0 local_release_consumer=0",
+                canonical.stdout,
+            )
+            self.assertEqual(event_log.read_text(encoding="utf-8"), "proof-to-byte\n")
+
+            failed_environment = {**environment, "BOUND_EXIT_CODE": "7"}
+            failed = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=failed_environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(failed.returncode, 7, failed.stderr)
+            self.assertNotIn(
+                "EMBEDDING_ANDROID_BOUND_VERIFY_PASS",
+                failed.stdout,
+            )
+            self.assertFalse((root / "target").exists())
+
     def test_embedding_gate_scopes_verified_wasm_compiler_to_wasm_child(
         self,
     ) -> None:
@@ -1828,7 +2180,10 @@ exit 0
             "QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC",
             "QPERIAPT_REQUIRE_APPLE_DEVICE",
             "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX",
+            "QPERIAPT_REQUIRE_ANDROID_AAR",
             "QPERIAPT_REQUIRE_ANDROID_RUNTIME",
+            "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME",
+            "QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER",
             "QPERIAPT_REQUIRE_PERFORMANCE",
             "QPERIAPT_REQUIRE_CAMERA_READY",
             "QPERIAPT_REQUIRE_DEPENDENCY_AUDIT",
@@ -1961,7 +2316,42 @@ exit 0
                 "QPERIAPT_ANDROID_DEVICE_PROOF must be under",
             ),
             (
-                "android device kind is recognized",
+                "physical android proof is explicitly required",
+                {"QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1"},
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF is required",
+            ),
+            (
+                "physical android proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": str(outside),
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF must be under",
+            ),
+            (
+                "physical android freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": str(
+                        ROOT / "target" / "android-physical" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes proof freshness to 86400 seconds",
+            ),
+            (
+                "physical android freshness is numeric",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": str(
+                        ROOT / "target" / "android-physical" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS": "tomorrow",
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "android device kind is canonical emulator",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
                     "QPERIAPT_ANDROID_DEVICE_PROOF": str(
@@ -1969,29 +2359,72 @@ exit 0
                     ),
                     "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
                 },
-                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+                "requires device kind emulator",
             ),
             (
-                "android device ABI is recognized",
+                "android physical proof cannot replace the canonical emulator",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
                     "QPERIAPT_ANDROID_DEVICE_PROOF": str(
                         ROOT / "target" / "android" / "proof.json"
                     ),
-                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "mips64",
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "physical",
                 },
-                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI",
+                "requires device kind emulator",
             ),
             (
-                "android max age is bounded",
+                "android device kind cannot be explicitly empty",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
                     "QPERIAPT_ANDROID_DEVICE_PROOF": str(
                         ROOT / "target" / "android" / "proof.json"
                     ),
-                    "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "604801",
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "",
                 },
-                "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+                "requires device kind emulator",
+            ),
+            (
+                "android device ABI is canonical arm64",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "x86_64",
+                },
+                "requires device ABI arm64-v8a",
+            ),
+            (
+                "android device ABI cannot be explicitly empty",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "",
+                },
+                "requires device ABI arm64-v8a",
+            ),
+            (
+                "dirty Android proof override is forbidden",
+                {"QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF": "1"},
+                "does not allow dirty proofs",
+            ),
+            (
+                "local release consumer requires canonical Android runtime",
+                {"QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER": "1"},
+                "requires QPERIAPT_REQUIRE_ANDROID_RUNTIME=1",
+            ),
+            (
+                "canonical android freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes proof freshness to 86400 seconds",
             ),
             (
                 "performance proof is contained",
@@ -2828,6 +3261,13 @@ with _temporary_release_test_directories(parents):
             ),
             (
                 {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF",
+            ),
+            (
+                {
                     "QPERIAPT_REQUIRE_PERFORMANCE": "1",
                     "QPERIAPT_PERFORMANCE_PROOF": "",
                 },
@@ -2911,6 +3351,13 @@ with _temporary_release_test_directories(parents):
             ),
             (
                 {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF",
+            ),
+            (
+                {
                     "QPERIAPT_REQUIRE_PERFORMANCE": "1",
                     "QPERIAPT_PERFORMANCE_PROOF": "",
                 },
@@ -2949,22 +3396,111 @@ with _temporary_release_test_directories(parents):
                 self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
 
     def test_clean_complete_state_requires_real_dependency_audit_pass(self) -> None:
-        marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
+        marker = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+        )
         self.assertEqual(
             marker,
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=not_required"
+            " android_aar=0 android_runtime=0 android_physical_runtime=0"
+            " local_release_consumer=0"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
+    def test_apple_candidate_marker_exposes_each_android_gate(self) -> None:
+        complete = {
+            "host_smoke": 1,
+            "formal": 1,
+            "apple_matrix": 1,
+            "performance": 1,
+            "dependency_audit": 1,
+        }
+        baseline = format_marker(**complete)
+        for state_name in (
+            "android_aar",
+            "android_runtime",
+            "android_physical_runtime",
+            "local_release_consumer",
+        ):
+            with self.subTest(state_name=state_name):
+                changed = format_marker(**complete, **{state_name: 1})
+                self.assertNotEqual(changed, baseline)
+                self.assertIn(f" {state_name}=1", changed)
+                for other_name in {
+                    "android_aar",
+                    "android_runtime",
+                    "android_physical_runtime",
+                    "local_release_consumer",
+                } - {state_name}:
+                    self.assertIn(f" {other_name}=0", changed)
+
+    def test_android_production_marker_requires_all_four_bound_gates(self) -> None:
+        required = (
+            "android_aar",
+            "android_runtime",
+            "android_physical_runtime",
+            "local_release_consumer",
+        )
+        all_pass = {name: 1 for name in required}
+        marker = format_marker(**all_pass)
+        self.assertEqual(
+            marker,
+            "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS"
+            f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
+            f" manifest_sha256={TEST_MANIFEST_SHA256}",
+        )
+        for missing in required:
+            with self.subTest(missing=missing):
+                state = dict(all_pass)
+                state[missing] = 0
+                self.assertNotIn(
+                    "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS",
+                    format_marker(**state),
+                )
+        self.assertNotIn(
+            "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS",
+            format_marker(**all_pass, source_tree_dirty=1),
+        )
+        combined = format_marker(
+            **all_pass,
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+        )
+        self.assertIn("PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS", combined)
+
     def test_required_camera_bundle_is_part_of_release_state(self) -> None:
-        missing = format_marker(1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0)
+        missing = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            camera_required=1,
+            dependency_audit=1,
+        )
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", missing)
         self.assertIn("camera_ready_bundle=0", missing)
-        verified = format_marker(1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0)
+        verified = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            camera_ready=1,
+            camera_required=1,
+            dependency_audit=1,
+        )
         self.assertEqual(
             verified,
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=verified"
+            " android_aar=0 android_runtime=0 android_physical_runtime=0"
+            " local_release_consumer=0"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
@@ -2973,7 +3509,12 @@ with _temporary_release_test_directories(parents):
         self,
     ) -> None:
         with mock.patch.dict(os.environ, {"DEPENDENCY_AUDIT_PASSED": "1"}):
-            marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0)
+            marker = format_marker(
+                host_smoke=1,
+                formal=1,
+                apple_matrix=1,
+                performance=1,
+            )
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", marker)
         self.assertIn("dependency_audit=0", marker)
         self.assertNotIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", marker)
@@ -2983,7 +3524,14 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("PROOF_TO_BYTE_APPLE_RELEASE_PASS", source)
 
     def test_dirty_source_tree_cannot_emit_release_pass(self) -> None:
-        marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0)
+        marker = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+            source_tree_dirty=1,
+        )
         self.assertEqual(
             marker,
             "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=dirty_source_tree"
@@ -2998,18 +3546,13 @@ with _temporary_release_test_directories(parents):
                 performance_override=performance_override,
             ):
                 marker = format_marker(
-                    1,
-                    1,
-                    0,
-                    1,
-                    0,
-                    1,
-                    0,
-                    0,
-                    1,
-                    0,
-                    apple_override,
-                    performance_override,
+                    host_smoke=1,
+                    formal=1,
+                    apple_matrix=1,
+                    performance=1,
+                    dependency_audit=1,
+                    allow_dirty_apple=apple_override,
+                    allow_dirty_performance=performance_override,
                 )
                 self.assertEqual(
                     marker,
@@ -3023,7 +3566,53 @@ with _temporary_release_test_directories(parents):
             proof_to_byte_finalizer.FinalizerError,
             "release attestation state must be 0 or 1",
         ):
-            format_marker(1, 1, 0, 1, 0, 1, 2, 0, 1, 0, 0, 0)
+            format_marker(android_aar=2)
+
+    def test_production_state_inserts_dirty_at_its_named_position(self) -> None:
+        state = proof_to_byte_finalizer._production_state(
+            (
+                "1",  # host_smoke
+                "0",  # formal
+                "1",  # apple_device
+                "0",  # apple_matrix
+                "1",  # android_aar
+                "0",  # android_runtime
+                "1",  # android_physical_runtime
+                "0",  # local_release_consumer
+                "1",  # performance
+                "0",  # camera_ready
+                "1",  # camera_required
+                "0",  # dependency_audit
+                "1",  # allow_dirty_apple
+                "0",  # allow_dirty_performance
+            ),
+            dirty=True,
+        )
+        self.assertEqual(
+            dataclasses.asdict(state),
+            {
+                "host_smoke": True,
+                "formal": False,
+                "apple_device": True,
+                "apple_matrix": False,
+                "android_aar": True,
+                "android_runtime": False,
+                "android_physical_runtime": True,
+                "local_release_consumer": False,
+                "performance": True,
+                "camera_ready": False,
+                "camera_required": True,
+                "dependency_audit": False,
+                "source_tree_dirty": True,
+                "allow_dirty_apple": True,
+                "allow_dirty_performance": False,
+            },
+        )
+        with self.assertRaisesRegex(
+            proof_to_byte_finalizer.FinalizerError,
+            "finalize requires exactly 14 gate state values",
+        ):
+            proof_to_byte_finalizer._production_state(("0",) * 13, dirty=False)
 
     def test_format_cli_is_not_exposed(self) -> None:
         result = subprocess.run(
@@ -3397,7 +3986,7 @@ with _temporary_release_test_directories(parents):
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
         workflows = (
-            (CI_WORKFLOW, 19, 2),
+            (CI_WORKFLOW, 20, 2),
             (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
         )
         for path, expected_count, windows_count in workflows:

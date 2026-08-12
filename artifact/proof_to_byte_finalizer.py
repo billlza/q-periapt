@@ -41,7 +41,10 @@ STATE_NAMES = (
     "formal",
     "apple_device",
     "apple_matrix",
+    "android_aar",
     "android_runtime",
+    "android_physical_runtime",
+    "local_release_consumer",
     "performance",
     "camera_ready",
     "camera_required",
@@ -70,7 +73,10 @@ class AttestationState:
     formal: bool
     apple_device: bool
     apple_matrix: bool
+    android_aar: bool
     android_runtime: bool
+    android_physical_runtime: bool
+    local_release_consumer: bool
     performance: bool
     camera_ready: bool
     camera_required: bool
@@ -405,6 +411,12 @@ def format_attestation_marker(
         f" source_sha256={snapshot.source_sha256}"
         f" manifest_sha256={snapshot.manifest_sha256}"
     )
+    android_production = (
+        state.android_aar
+        and state.android_runtime
+        and state.android_physical_runtime
+        and state.local_release_consumer
+    )
     complete = (
         state.host_smoke
         and state.formal
@@ -422,17 +434,32 @@ def format_attestation_marker(
                 "reason=diagnostic_proof_override" + provenance
             )
         camera = "verified" if state.camera_required else "not_required"
+        if android_production:
+            return (
+                "PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS "
+                f"camera_ready_bundle={camera}" + provenance
+            )
         return (
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS "
-            f"camera_ready_bundle={camera}" + provenance
+            f"camera_ready_bundle={camera}"
+            f" android_aar={int(state.android_aar)}"
+            f" android_runtime={int(state.android_runtime)}"
+            f" android_physical_runtime={int(state.android_physical_runtime)}"
+            f" local_release_consumer={int(state.local_release_consumer)}"
+            + provenance
         )
+    if android_production and not state.source_tree_dirty:
+        return "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS" + provenance
     return (
         "PROOF_TO_BYTE_RUN_FINISHED"
         f" host_smoke={int(state.host_smoke)}"
         f" formal={int(state.formal)}"
         f" apple_device={int(state.apple_device)}"
         f" apple_matrix={int(state.apple_matrix)}"
+        f" android_aar={int(state.android_aar)}"
         f" android_runtime={int(state.android_runtime)}"
+        f" android_physical_runtime={int(state.android_physical_runtime)}"
+        f" local_release_consumer={int(state.local_release_consumer)}"
         f" performance={int(state.performance)}"
         f" camera_ready_bundle={int(state.camera_ready)}"
         f" camera_ready_required={int(state.camera_required)}"
@@ -445,8 +472,15 @@ def format_attestation_marker(
 
 def _production_state(values: Sequence[str], dirty: bool) -> AttestationState:
     if len(values) != len(STATE_NAMES) - 1:
-        raise FinalizerError("finalize requires exactly 11 gate state values")
-    with_dirty = [*values[:9], str(int(dirty)), *values[9:]]
+        raise FinalizerError(
+            f"finalize requires exactly {len(STATE_NAMES) - 1} gate state values"
+        )
+    dirty_index = STATE_NAMES.index("source_tree_dirty")
+    with_dirty = [
+        *values[:dirty_index],
+        str(int(dirty)),
+        *values[dirty_index:],
+    ]
     return AttestationState.from_values(with_dirty)
 
 

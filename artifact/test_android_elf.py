@@ -15,6 +15,7 @@ import textwrap
 import unittest
 import warnings
 import zipfile
+from unittest import mock
 
 import android_elf
 from claim_ledger import canonical_tree_digest, repository_paths
@@ -68,6 +69,144 @@ class AndroidElfVerifierTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
+
+    def test_results_bound_aar_uses_only_manifest_selected_paths_and_hashes(
+        self,
+    ) -> None:
+        aar = self.root / "selected.aar"
+        manifest = self.root / "MANIFEST.json"
+        ndk = self.root / "ndk"
+        toolchain = ndk / "toolchains/llvm/prebuilt/host"
+        results_aar = {
+            "aar_sha256": "a" * 64,
+            "current_source_status": "current_clean_tree_package_pass",
+            "manifest_schema": 4,
+            "manifest_generated_at": "2026-08-12T00:00:00Z",
+            "proof_source_tree_sha256": "d" * 64,
+            "source_commit": "e" * 40,
+            "source_tree_dirty": False,
+            "targets": list(REQUIRED_ABIS),
+        }
+        manifest_snapshot = mock.Mock(value={"android_aar": results_aar})
+        verified_manifest = {
+            "schema_version": 4,
+            "generated_at": results_aar["manifest_generated_at"],
+            "git_commit": results_aar["source_commit"],
+            "git_dirty": False,
+            "source_tree_sha256": results_aar["proof_source_tree_sha256"],
+            "android": {"abis": list(REQUIRED_ABIS)},
+            "artifacts": {"aar_sha256": "a" * 64},
+        }
+        declarations = (
+            mock.Mock(path=aar, sha256="a" * 64),
+            mock.Mock(path=manifest, sha256="b" * 64),
+        )
+        with (
+            mock.patch.object(
+                android_elf,
+                "load_results_manifest_snapshot",
+                return_value=manifest_snapshot,
+            ) as load_results,
+            mock.patch.object(
+                android_elf,
+                "resolve_bound_file_declaration",
+                side_effect=declarations,
+            ) as resolve_binding,
+            mock.patch.object(
+                android_elf, "verify_ndk_r29", return_value="29.0.14206865"
+            ),
+            mock.patch.object(
+                android_elf, "find_ndk_toolchain", return_value=toolchain
+            ),
+            mock.patch.object(
+                android_elf, "verify_aar", return_value=verified_manifest
+            ) as verify_selected,
+        ):
+            android_elf.verify_results_bound_aar(
+                root=self.root,
+                results_manifest=self.root / "artifact/results.json",
+                expected_results_manifest_sha256="c" * 64,
+                ndk=ndk,
+            )
+        load_results.assert_called_once_with(
+            (self.root / "artifact/results.json").resolve(),
+            expected_sha256="c" * 64,
+        )
+        self.assertEqual(
+            [call.kwargs["binding"] for call in resolve_binding.call_args_list],
+            ["android_aar", "android_aar_manifest"],
+        )
+        self.assertEqual(verify_selected.call_args.args, (aar,))
+        self.assertEqual(
+            verify_selected.call_args.kwargs["expected_aar_sha256"], "a" * 64
+        )
+        self.assertEqual(
+            verify_selected.call_args.kwargs["expected_manifest_sha256"],
+            "b" * 64,
+        )
+        self.assertTrue(verify_selected.call_args.kwargs["require_release_manifest"])
+
+    def test_results_aar_projection_rejects_summary_drift(self) -> None:
+        results = {
+            "android_aar": {
+                "aar_sha256": "a" * 64,
+                "manifest_schema": 4,
+                "manifest_generated_at": "2026-08-12T00:00:00Z",
+                "proof_source_tree_sha256": "b" * 64,
+                "source_commit": "c" * 40,
+                "source_tree_dirty": False,
+                "targets": list(REQUIRED_ABIS),
+            }
+        }
+        verified = {
+            "schema_version": 4,
+            "generated_at": "2026-08-12T00:00:00Z",
+            "git_commit": "c" * 40,
+            "git_dirty": False,
+            "source_tree_sha256": "b" * 64,
+            "android": {"abis": list(REQUIRED_ABIS)},
+            "artifacts": {"aar_sha256": "a" * 64},
+        }
+        android_elf.verify_results_aar_projection(results, verified)
+        for field, bad_value in (
+            ("manifest_generated_at", "2026-08-12T00:00:01Z"),
+            ("source_commit", "d" * 40),
+            ("proof_source_tree_sha256", "e" * 64),
+            ("targets", list(reversed(REQUIRED_ABIS))),
+            ("aar_sha256", "f" * 64),
+        ):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(results)
+                changed["android_aar"][field] = bad_value
+                with self.assertRaisesRegex(
+                    AndroidVerificationError,
+                    f"AAR {field} differs",
+                ):
+                    android_elf.verify_results_aar_projection(changed, verified)
+
+    def test_results_bound_aar_requires_the_exact_release_ndk(self) -> None:
+        with (
+            mock.patch.object(
+                android_elf,
+                "load_results_manifest_snapshot",
+                return_value=mock.Mock(value={}),
+            ),
+            mock.patch.object(
+                android_elf,
+                "resolve_bound_file_declaration",
+                return_value=mock.Mock(path=self.root / "file", sha256="a" * 64),
+            ),
+            mock.patch.object(android_elf, "verify_ndk_r29", return_value="29.1.0"),
+        ):
+            with self.assertRaisesRegex(
+                AndroidVerificationError, "requires NDK 29.0.14206865"
+            ):
+                android_elf.verify_results_bound_aar(
+                    root=self.root,
+                    results_manifest=self.root / "artifact/results.json",
+                    expected_results_manifest_sha256="c" * 64,
+                    ndk=self.root / "ndk",
+                )
 
     def write_tool(self, name: str, body: str) -> pathlib.Path:
         path = self.root / name

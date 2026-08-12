@@ -101,32 +101,105 @@ That matrix must contain one fresh physical iPad proof and one fresh physical iP
 device lane is separate because it requires local Apple signing and attached devices; the default
 embedding gate remains usable on hosts without Apple hardware.
 
-To require Android runtime evidence too:
+The canonical Android release runtime is a script-owned, cold-boot
+`arm64-v8a` Android 15 / API 35 AVD with 16 KiB pages, build-tools 36.0.0,
+release mode, and the exact AAR produced from the same clean source snapshot. Produce that AAR and
+run it on the AVD before creating any release index:
 
 ```sh
-QPERIAPT_ANDROID_SERIAL=<adb-serial> \
-QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
+sh artifact/android-aar.sh
+
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+QPERIAPT_ANDROID_RELEASE_MODE=1 \
+QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_AVD=<arm64-api35-ps16k-avd> \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
+QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384 \
+QPERIAPT_ANDROID_EXPECT_SDK=35 \
+QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
+QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$aar_manifest" \
+QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$(shasum -a 256 "$aar" | awk '{print $1}')" \
+QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$(shasum -a 256 "$aar_manifest" | awk '{print $1}')" \
 sh artifact/android-device-smoke.sh
+```
+
+Provision the named AVD from the arm64 API-35 `google_apis_ps16k` image. The name alone is not
+evidence: admission depends on the observed and proof-bound ABI, SDK, page size, release-mode, and
+build-tools values. After the smoke reports its immutable run id, finish the release transaction in
+this order, without a source-changing edit between steps:
+
+```sh
+QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
+sh artifact/local-release-index.sh
+sh artifact/local-release-consumer-smoke.sh
+
+# After one evidence-only artifact/results.json successor selects the exact AAR,
+# AVD run, first index, emitted receipt, and (for production) physical proof:
 QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 \
+QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1 \
+QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER=1 \
 QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<physical-run-id>/proof/qperiapt-android-device-proof.json \
 sh artifact/embedding-readiness.sh
 ```
 
-If no Android device is attached, the smoke can boot a local AVD:
+`artifact/local-release-consumer-smoke.sh` is a producer: only after both extracted dynamic and
+static C consumers pass does it append a receipt. The final embedding invocation never produces or
+repairs that receipt. Its Android options enter a distinct read-only final mode before any package
+producer or build tool runs. The script makes one bound `proof-to-byte` verification with the AAR,
+canonical AVD, and local index/receipt requirements enabled against one pinned
+`artifact/results.json` digest, prints `EMBEDDING_ANDROID_BOUND_VERIFY_PASS` with explicit
+`canonical`, `physical`, and `local_release_consumer` bits, and exits. This
+ordering is mandatory: running `android-aar.sh` after the evidence-only successor would overwrite
+the fixed target AAR with successor-commit bytes and invalidate its selected source binding. For
+the production aggregate, also set `QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1` and
+`QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=<selected-physical-proof>` in the same invocation.
+
+The same harness also supports an explicitly selected physical device. A clean proof over the same
+source and exact AAR is an additional production-promotion requirement; it is not the canonical
+Android release selector and cannot replace the arm64/API-35/16-KiB AVD in the release index or
+canonical runtime gate. The independent `android_physical_runtime` results section and
+manifest-bound verifier are implemented: `current_clean_tree_physical_pass` binds the physical
+proof's exact path/hash, clean source commit/digest, current AAR/manifest bytes, device facts, and
+passing test set without weakening the canonical section. A physical device may truthfully be API
+36 with 4 KiB pages and run outside Android release mode; its required invariant is a clean source
+snapshot and the exact same AAR/manifest bytes, not imitation of the canonical AVD parameters.
+Dirty runs may set
+`QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` for diagnosis, but a dirty Android proof can never be
+selected by manifest-bound `proof-to-byte`.
+
+For production, complete the real physical run before the results successor and have that same
+successor select the proof under `android_physical_runtime`. The Android production aggregate must
+then require both independent runtime gates in the same pinned-manifest invocation:
 
 ```sh
-QPERIAPT_ANDROID_BOOT_AVD=1 \
-QPERIAPT_ANDROID_AVD=<avd-name> \
-QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
-QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
-sh artifact/android-device-smoke.sh
+QPERIAPT_REQUIRE_ANDROID_AAR=1 \
+QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<canonical-run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1 \
+QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<physical-run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER=1 \
+sh artifact/proof-to-byte.sh
 ```
 
+The two proofs are non-interchangeable. The physical gate fixes freshness to 86,400 seconds and
+emits `PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS`; the aggregate finalizer emits
+`PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS` only when AAR, canonical runtime, physical
+runtime, and local-consumer states all equal 1 on a clean source snapshot. This is a local
+production gate, not Maven publication, signed public provenance, or a generic all-platform release
+attestation. A simultaneous full Apple/core local-candidate pass uses the distinct
+`PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS` final marker rather than implying that the
+Android-only marker is generic. Production remains pending unless a current-source physical run is
+actually captured and selected; `artifact/results.json` plus the bound marker are the currentness
+authority rather than this prose.
+
 The runtime lane is separate because it requires adb plus a booted emulator or physical Android
-device. Clean-tree proof is the release contract; dirty runs must set
-`QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and are diagnostic only. External devices require an exact
-serial and `physical` expectation; emulators are accepted only when this script starts and binds
-the cold-boot AVD with a read-only userdata overlay. The smoke refuses to replace an existing exact package, validates the installed
+device. External devices require an exact serial and `physical` expectation; the canonical AVD is
+accepted only when the script starts and binds the cold-boot emulator with a read-only userdata
+overlay. The smoke refuses to replace an existing exact package, validates the installed
 APK bytes and signer before cleanup, reconciles unknown outcomes with bounded stable observations,
 and captures only run-bounded tag output without clearing global logcat
 buffers. The fixed current-account home and its `.android` identity directory must be
@@ -208,6 +281,15 @@ The release channel admits the canonical AVD runtime lane only: emulator, arm64-
 16 KiB pages, and release mode. Explicit physical proofs remain separately verifiable but are not
 substituted for this release-index contract.
 
+The release transaction is append-only and ordered: produce the exact current-source AAR; execute
+that AAR on the canonical AVD; create the first release index with
+`QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1` and the exact run id; execute the extracted
+dynamic and static C consumers to emit one receipt; then make one evidence-only
+`artifact/results.json` successor that selects the AAR, AVD proof, index, and receipt together.
+Only after that successor exists may `proof-to-byte` or the opt-in embedding gate verify the bound
+transaction. Final verification is read-only with respect to receipts; regenerating an index or
+consumer receipt during verification would create different bytes and is not accepted as repair.
+
 The index copies only the C archive, Swift XCFramework zip, Android AAR, and their manifests into
 `target/qperiapt-local-release/<channel>/<version>/<commit>/`. It may include raw-value-omitting Apple/Android proof
 summaries, but it never copies raw device proof, build logs, provisioning profiles, `.xcresult`
@@ -246,7 +328,7 @@ public publication step must deliberately create its own public-permission artif
 | Rust | The coordinated ten-crate set forms the release-ready `0.1.0-alpha.2` research-alpha source/crate line intended for crates.io publication; **no crate has been uploaded to crates.io yet**. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-dry-run.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and patched `cargo publish --dry-run`. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and portable-only build surface, then audits the normalized backend graph with the sys crate patched in. | Registry publication by itself does not establish independent signed provenance, audit the vendored C provider, or promote the crates to production. Those remain production-promotion requirements. |
 | C ABI | The release-ready research-alpha source/crate contract for `0.1.0-alpha.2` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | Published platform C archives exist: `abi2-platforms-v0.1.0-alpha.2-r2` ships Linux x86_64+aarch64 SDK tars (GLIBC 2.35 ceiling, SONAME, pkg-config/CMake, SBOM/CBOM, licenses) and an **unsigned experimental** Windows x64 MSVC SDK ZIP, all validated by attested candidate-CI native consumers and bound to `PLATFORM_DISTRIBUTION.json`/`SHA256SUMS`. Production promotion still needs independent review, clean signed or transparency-backed source provenance, Windows Authenticode, and deb/rpm/MSIX registry packaging. |
 | Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, credentialed Developer ID static-SDK lane, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | `artifact/results.json` decides whether a signed public XCFramework is current. Its exact static-only payload is not a notarizable executable/bundle and is explicitly recorded as not notarized. That Apple-only SDK ZIP is `binaryTarget` material, not a complete Git-URL Swift package. The consuming app retains signing/provisioning and, for macOS, notarization responsibilities. The physical iPad+iPhone evidence remains a separate same-source production gate. |
-| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. The rebuilt source-bound AAR (16 KiB load alignment, stable NDK r29, Rust 1.96.1) is published in `abi2-platforms-v0.1.0-alpha.2-r2` together with an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. | Live-tree ART-rerun currentness is selected by `artifact/results.json` and goes stale after each source-changing commit (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). The local release-index slot is fixed to the API 35 / 16 KiB release-mode AVD; remaining policy questions are whether CI executes that lane on every change and whether production promotion additionally requires physical-device coverage. Maven Central publication and downstream SkyBridge harnesses also remain required. |
+| Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. The rebuilt source-bound AAR (16 KiB load alignment, stable NDK r29, Rust 1.96.1) is published in `abi2-platforms-v0.1.0-alpha.2-r2` together with an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. CI now executes the AAR from `bindings-android-aar` on a real x86_64 API-35 `google_apis_ps16k` ART runtime for every push and pull request. | The CI runtime is an every-change package-face gate, not the canonical release proof. Live-tree release currentness requires the clean arm64-v8a/API-35/16-KiB release-mode AVD and the AAR -> AVD -> first index -> consumer receipt -> results successor -> bound-gate transaction; any source change makes the selection stale (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). An independent results-selected physical gate is implemented and cannot replace the canonical AVD; production requires both gates and remains pending unless a real clean same-AAR physical run is selected. Maven Central publication and downstream SkyBridge harnesses remain required and are not claimed here. |
 | Kotlin | Panama FFM is migrated to ABI2, requires an absolute ABI-major library path, and passes the current JDK 22 warning-failing CI lane. | This is host JVM evidence only and remains separate from Android runtime. |
 | WASM | Both the lean default and signed-policy feature execute their deterministic conformance tests on Node/WASM. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
 
@@ -333,10 +415,14 @@ release artifact.
   rerun against the live source tree whenever it advances; `artifact/results.json`
   selects whether the latest clean-tree rerun is current
   (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). The local release-index slot always requires the
-  canonical API 35 / 16 KiB release-mode AVD; a physical proof cannot replace it. Remaining:
-  decide whether CI runs that AVD lane on every change and whether production promotion also
-  requires physical-device coverage, publish to Maven Central, and add downstream SkyBridge
-  target-level harnesses.
+  canonical arm64-v8a API 35 / 16 KiB release-mode AVD; a physical proof cannot replace it. CI runs
+  a real x86_64 API-35/16-KiB ART package-face job on every push and pull request, but that
+  architecture-specific CI evidence is not interchangeable with the canonical release AVD.
+  The independent `android_physical_runtime` results selection and manifest-bound gate are
+  implemented. Production requires canonical and physical runtime states both equal 1 over the same
+  clean source and exact AAR; without that selected real physical run, the aggregate remains
+  pending. Remaining after the local aggregate: publish to Maven Central and add downstream
+  SkyBridge target-level harnesses.
 - Downstream SkyBridge harness: one minimal integration test per target repository using the same
   shared vectors and policy files, so Q-Periapt proof does not get mistaken for downstream product
   proof.

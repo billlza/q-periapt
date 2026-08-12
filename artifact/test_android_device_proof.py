@@ -303,6 +303,78 @@ def complete_proof_shape() -> dict[str, object]:
     }
 
 
+def current_results_for_proof(
+    proof: dict[str, object],
+    *,
+    results_binding: str = "android_runtime",
+) -> dict[str, object]:
+    """Build the exact current-results projection for one schema-v5 proof."""
+
+    if results_binding == "android_runtime":
+        runtime_section = "android_device_runtime"
+        runtime_status = "current_clean_tree_emulator_pass"
+        proof["release_candidate_mode"] = True
+    elif results_binding == "android_physical_runtime":
+        runtime_section = "android_physical_runtime"
+        runtime_status = "current_clean_tree_physical_pass"
+    else:
+        raise ValueError(f"unsupported fixture results binding: {results_binding}")
+    proof["paths"]["aar"] = proof_manifest_aar_path = (
+        "target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/"
+        "q-periapt-android-0.1.0-alpha.2.aar"
+    )
+    proof["paths"]["aar_manifest"] = proof_manifest_path = (
+        "target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+    )
+    run_id = proof["run_id"]
+    source_digest = proof["proof_source_tree_sha256"]
+    source_commit = proof["git_commit"]
+    device = proof["device"]
+    android = proof["android"]
+    result = proof["result"]
+    artifacts = proof["artifacts"]
+    return {
+        "android_aar": {
+            "aar_path": proof_manifest_aar_path,
+            "aar_sha256": artifacts["aar_sha256"],
+            "current_source_status": "current_clean_tree_package_pass",
+            "manifest_generated_at": proof["generated_at"],
+            "manifest_path": proof_manifest_path,
+            "manifest_schema": 4,
+            "manifest_sha256": artifacts["aar_manifest_sha256"],
+            "proof_source_tree_sha256": source_digest,
+            "source_commit": source_commit,
+            "source_tree_dirty": False,
+            "status": "pass",
+            "targets": list(android_device_proof.REQUIRED_NATIVE_ABIS),
+        },
+        runtime_section: {
+            "android_sdk": device["sdk"],
+            "build_tools": android["build_tools"],
+            "covered_tests": result["passed_tests"],
+            "current_source_status": runtime_status,
+            "device_abi": device["abi"],
+            "device_kind": device["kind"],
+            "page_size": device["page_size"],
+            "proof_generated_at": proof["generated_at"],
+            "proof_path": (
+                f"target/qperiapt-android-device-smoke-runs/{run_id}/proof/"
+                "qperiapt-android-device-proof.json"
+            ),
+            "proof_schema": proof["schema"],
+            "proof_sha256": "f" * 64,
+            "proof_source_tree_sha256": source_digest,
+            "release_candidate_mode": proof["release_candidate_mode"],
+            "run_id": run_id,
+            "source_commit": source_commit,
+            "source_tree_dirty": proof["source_tree_dirty"],
+            "status": result["status"],
+        },
+        "proof_source_tree_sha256": source_digest,
+        "provenance": {"snapshot_commit": source_commit},
+    }
+
+
 def write_emulator_isolation_receipts(
     directory: pathlib.Path,
     *,
@@ -1123,6 +1195,294 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
+
+    def test_results_projection_binds_every_android_runtime_summary_field(self) -> None:
+        proof = complete_proof_shape()
+        manifest = current_results_for_proof(proof)
+        self.assertEqual(
+            android_device_proof.verify_results_manifest_projection(
+                manifest, proof
+            ),
+            "emulator",
+        )
+
+        cases = (
+            (("run_id",), "0" * 32, "run_id"),
+            (("release_candidate_mode",), False, "release_candidate_mode"),
+            (("device", "kind"), "physical", "device_kind"),
+            (("device", "abi"), "x86_64", "device_abi"),
+            (("device", "page_size"), 4_096, "page_size"),
+            (("device", "sdk"), 36, "android_sdk"),
+            (("android", "build_tools"), "35.0.0", "build_tools"),
+            (("result", "passed_tests"), [], "result"),
+        )
+        for path, bad_value, message in cases:
+            with self.subTest(path=path):
+                changed = copy.deepcopy(proof)
+                target = changed
+                for component in path[:-1]:
+                    target = target[component]
+                target[path[-1]] = bad_value
+                with self.assertRaisesRegex(SystemExit, message):
+                    android_device_proof.verify_results_manifest_projection(
+                        manifest, changed
+                    )
+
+        changed = copy.deepcopy(proof)
+        changed["artifacts"]["aar_sha256"] = "0" * 64
+        with self.assertRaisesRegex(SystemExit, "AAR declaration differs"):
+            android_device_proof.verify_results_manifest_projection(manifest, changed)
+
+    def test_physical_results_projection_is_independent_and_noncanonical(self) -> None:
+        canonical_proof = complete_proof_shape()
+        canonical_manifest = current_results_for_proof(canonical_proof)
+        physical_proof = complete_proof_shape()
+        physical_proof["run_id"] = "d" * 32
+        physical_proof["device"].update(
+            {
+                "kind": "physical",
+                "abi": "x86_64",
+                "page_size": 4_096,
+                "sdk": 37,
+                "manufacturer": "Google",
+                "model": "Pixel physical fixture",
+            }
+        )
+        physical_proof["emulator_control"] = None
+        physical_proof["release_candidate_mode"] = False
+        physical_proof["android"]["build_tools"] = "37.0.0-rc1"
+        physical_manifest = current_results_for_proof(
+            physical_proof,
+            results_binding="android_physical_runtime",
+        )
+        canonical_manifest["android_physical_runtime"] = physical_manifest[
+            "android_physical_runtime"
+        ]
+
+        self.assertEqual(
+            android_device_proof.verify_results_manifest_projection(
+                canonical_manifest,
+                canonical_proof,
+            ),
+            "emulator",
+        )
+        self.assertEqual(
+            android_device_proof.verify_results_manifest_projection(
+                canonical_manifest,
+                physical_proof,
+                results_binding="android_physical_runtime",
+            ),
+            "physical",
+        )
+
+        with self.assertRaisesRegex(SystemExit, "selected proof"):
+            android_device_proof.verify_results_manifest_projection(
+                canonical_manifest,
+                physical_proof,
+            )
+        with self.assertRaisesRegex(SystemExit, "selected proof"):
+            android_device_proof.verify_results_manifest_projection(
+                canonical_manifest,
+                canonical_proof,
+                results_binding="android_physical_runtime",
+            )
+
+    def test_physical_projection_rejects_kind_status_source_and_aar_swaps(self) -> None:
+        proof = complete_proof_shape()
+        proof["run_id"] = "e" * 32
+        proof["device"]["kind"] = "physical"
+        proof["emulator_control"] = None
+        proof["release_candidate_mode"] = False
+        manifest = current_results_for_proof(
+            proof,
+            results_binding="android_physical_runtime",
+        )
+        section = manifest["android_physical_runtime"]
+        cases = (
+            (
+                "status",
+                lambda changed: changed["android_physical_runtime"].__setitem__(
+                    "current_source_status",
+                    "stale_requires_rerun",
+                ),
+            ),
+            (
+                "kind",
+                lambda changed: changed["android_physical_runtime"].__setitem__(
+                    "device_kind",
+                    "emulator",
+                ),
+            ),
+            (
+                "source",
+                lambda changed: changed["android_physical_runtime"].__setitem__(
+                    "proof_source_tree_sha256",
+                    "0" * 64,
+                ),
+            ),
+            (
+                "AAR hash",
+                lambda changed: changed["android_aar"].__setitem__(
+                    "aar_sha256",
+                    "0" * 64,
+                ),
+            ),
+            (
+                "AAR path",
+                lambda changed: changed["android_aar"].__setitem__(
+                    "aar_path",
+                    "target/other.aar",
+                ),
+            ),
+        )
+        self.assertEqual(section["release_candidate_mode"], False)
+        for label, mutate in cases:
+            with self.subTest(label=label), self.assertRaises(SystemExit):
+                changed = copy.deepcopy(manifest)
+                mutate(changed)
+                android_device_proof.verify_results_manifest_projection(
+                    changed,
+                    proof,
+                    results_binding="android_physical_runtime",
+                )
+
+    def test_manifest_bound_verify_derives_kind_and_rejects_dirty_or_conflict(
+        self,
+    ) -> None:
+        proof = complete_proof_shape()
+        manifest_value = current_results_for_proof(proof)
+        manifest_snapshot = mock.Mock(value=manifest_value)
+        proof_snapshot = mock.Mock(value=proof, file=mock.Mock(sha256="f" * 64))
+        proof_path = self.root / manifest_value["android_device_runtime"]["proof_path"]
+        arguments = argparse.Namespace(
+            root=self.root,
+            proof=proof_path,
+            results_manifest=self.root / "artifact/results.json",
+            expected_results_manifest_sha256="e" * 64,
+            results_binding="android_runtime",
+            expected_device_kind="",
+            expected_device_abi="arm64-v8a",
+            expected_page_size=16_384,
+            expected_device_sdk=35,
+            require_release_mode=True,
+            allow_dirty_proof=False,
+            max_age_seconds=86_400,
+        )
+        with (
+            mock.patch.object(
+                android_device_proof,
+                "load_results_manifest_snapshot",
+                return_value=manifest_snapshot,
+            ),
+            mock.patch.object(
+                android_device_proof,
+                "select_bound_json_snapshot",
+                return_value=proof_snapshot,
+            ),
+            mock.patch.object(android_device_proof, "verify_proof_schema"),
+            mock.patch.object(android_device_proof, "verify_proof_freshness"),
+            mock.patch.object(
+                android_device_proof, "proof_paths", return_value={}
+            ),
+            mock.patch.object(
+                android_device_proof, "validate_selected_run_layout"
+            ),
+            mock.patch.object(
+                android_device_proof, "verify_proof_contents"
+            ) as verify_contents,
+        ):
+            android_device_proof.verify(arguments)
+            self.assertEqual(
+                verify_contents.call_args.kwargs["expected_device_kind"],
+                "emulator",
+            )
+
+            arguments.expected_device_kind = "physical"
+            with self.assertRaisesRegex(SystemExit, "conflicts"):
+                android_device_proof.verify(arguments)
+
+            arguments.expected_device_kind = ""
+            arguments.allow_dirty_proof = True
+            with self.assertRaisesRegex(SystemExit, "does not allow dirty proofs"):
+                android_device_proof.verify(arguments)
+
+    def test_manifest_bound_verify_rejects_a_stale_runtime_status(self) -> None:
+        proof = complete_proof_shape()
+        manifest = current_results_for_proof(proof)
+        manifest["android_device_runtime"]["current_source_status"] = (
+            "stale_requires_rerun"
+        )
+        with self.assertRaisesRegex(
+            SystemExit,
+            "requires a current emulator runtime status",
+        ):
+            android_device_proof.verify_results_manifest_projection(manifest, proof)
+
+    def test_manifest_bound_verify_selects_the_fixed_physical_binding(self) -> None:
+        proof = complete_proof_shape()
+        proof["run_id"] = "f" * 32
+        proof["device"]["kind"] = "physical"
+        proof["emulator_control"] = None
+        proof["release_candidate_mode"] = False
+        manifest_value = current_results_for_proof(
+            proof,
+            results_binding="android_physical_runtime",
+        )
+        manifest_snapshot = mock.Mock(value=manifest_value)
+        proof_snapshot = mock.Mock(value=proof, file=mock.Mock(sha256="e" * 64))
+        proof_path = self.root / manifest_value["android_physical_runtime"][
+            "proof_path"
+        ]
+        arguments = argparse.Namespace(
+            root=self.root,
+            proof=proof_path,
+            results_manifest=self.root / "artifact/results.json",
+            expected_results_manifest_sha256="d" * 64,
+            results_binding="android_physical_runtime",
+            expected_device_kind="",
+            expected_device_abi="",
+            expected_page_size=None,
+            expected_device_sdk=None,
+            require_release_mode=False,
+            allow_dirty_proof=False,
+            max_age_seconds=86_400,
+        )
+        output = io.StringIO()
+        with (
+            mock.patch.object(
+                android_device_proof,
+                "load_results_manifest_snapshot",
+                return_value=manifest_snapshot,
+            ),
+            mock.patch.object(
+                android_device_proof,
+                "select_bound_json_snapshot",
+                return_value=proof_snapshot,
+            ) as select_bound,
+            mock.patch.object(android_device_proof, "verify_proof_schema"),
+            mock.patch.object(android_device_proof, "verify_proof_freshness"),
+            mock.patch.object(android_device_proof, "proof_paths", return_value={}),
+            mock.patch.object(android_device_proof, "validate_selected_run_layout"),
+            mock.patch.object(
+                android_device_proof,
+                "verify_proof_contents",
+            ) as verify_contents,
+            contextlib.redirect_stdout(output),
+        ):
+            android_device_proof.verify(arguments)
+
+        self.assertEqual(
+            select_bound.call_args.kwargs["binding"],
+            "android_physical_runtime",
+        )
+        self.assertEqual(
+            verify_contents.call_args.kwargs["expected_device_kind"],
+            "physical",
+        )
+        self.assertIn(
+            "section=android_physical_runtime",
+            output.getvalue(),
+        )
 
     def test_matching_clean_provenance_passes(self) -> None:
         android_device_proof.verify_git_provenance(
