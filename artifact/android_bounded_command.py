@@ -102,6 +102,9 @@ FORBIDDEN_EMULATOR_AVD_SELECTOR_ENVIRONMENT = frozenset(
         "ANDROID_USER_HOME",
     }
 )
+EMULATOR_CONSOLE_AUTHENTICATED_MARKER = (
+    b"\nOK\nAndroid Console: type 'help' for a list of commands\nOK\n"
+)
 
 
 class AndroidCommandError(RuntimeError):
@@ -1845,21 +1848,27 @@ def _emulator_console_exchange(
             f"cannot connect to the owned Android emulator console: {exc}"
         ) from exc
     normalized = response.replace(b"\r\n", b"\n")
+    return _authenticated_emulator_console_payload(normalized)
+
+
+def _authenticated_emulator_console_payload(response: bytes) -> bytes:
+    """Return the exact command payload after the authenticated console banner."""
+
     _require(
-        normalized.startswith(b"Android Console: Authentication required\n")
-        and b"\nOK\nAndroid Console: type 'help' for a list of commands\nOK\n"
-        in normalized,
+        type(response) is bytes
+        and response.startswith(b"Android Console: Authentication required\n")
+        and response.count(EMULATOR_CONSOLE_AUTHENTICATED_MARKER) == 1,
         "owned emulator console authentication response was not exact",
     )
-    return normalized
+    return response.split(EMULATOR_CONSOLE_AUTHENTICATED_MARKER, 1)[1]
 
 
 def _verify_owned_emulator_console_name(
     context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt
 ) -> None:
-    response = _emulator_console_exchange(context, receipt, b"avd name\nquit\n")
+    payload = _emulator_console_exchange(context, receipt, b"avd name\nquit\n")
     _require(
-        response.endswith(receipt.avd_name.encode("ascii") + b"\nOK\n"),
+        payload == receipt.avd_name.encode("ascii") + b"\nOK\n",
         "owned emulator console AVD name was not an exact match",
     )
 
@@ -1867,9 +1876,13 @@ def _verify_owned_emulator_console_name(
 def _request_owned_emulator_console_shutdown(
     context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt
 ) -> None:
-    response = _emulator_console_exchange(context, receipt, b"kill\n")
+    payload = _emulator_console_exchange(context, receipt, b"kill\n")
     _require(
-        response.endswith(b"OK: killing emulator, bye bye\n"),
+        payload
+        in {
+            b"OK: killing emulator, bye bye\n",
+            b"OK: killing emulator, bye bye\nOK\n",
+        },
         "owned emulator console rejected its authenticated shutdown request",
     )
 

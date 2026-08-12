@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import io
 import json
@@ -4058,23 +4059,19 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_recovery_requires_exact_avd_name_before_console_kill(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
-        accepted = (
-            b"Android Console: Authentication required\r\nOK\r\n"
-            b"Android Console: type 'help' for a list of commands\r\nOK\r\n"
-            + receipt.avd_name.encode("ascii")
-            + b"\r\nOK\r\n"
-        )
         with mock.patch.object(
             commands,
             "_emulator_console_exchange",
-            return_value=accepted.replace(b"\r\n", b"\n"),
+            return_value=(
+                receipt.avd_name.encode("ascii") + b"\nOK\n"
+            ),
         ):
             commands._verify_owned_emulator_console_name(mock.ANY, receipt)
-        for response in (
-            b"Other_AVD\nOK\n",
-            f"{receipt.avd_name}\nKO\n".encode("ascii"),
-            b"",
-            b"auth secret\n",
+        for response, message in (
+            (b"Other_AVD\nOK\n", "exact match"),
+            (f"{receipt.avd_name}\nKO\n".encode("ascii"), "exact match"),
+            (b"", "exact match"),
+            (b"auth secret\n", "exact match"),
         ):
             with (
                 mock.patch.object(
@@ -4084,7 +4081,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 ),
                 self.assertRaisesRegex(
                     (commands.AndroidCommandError, state.AndroidRuntimeStateError),
-                    "exact match",
+                    message,
                 ),
             ):
                 commands._verify_owned_emulator_console_name(mock.ANY, receipt)
@@ -4288,6 +4285,124 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             commands._request_owned_emulator_console_shutdown(context, receipt)
         self.assertEqual(order, ["connect", "process", "listeners", "token", "send"])
         self.assertEqual(console.asserted_data, b"auth private-token\nkill\n")
+
+        for payload in (
+            b"OK: killing emulator, bye bye\n",
+            b"OK: killing emulator, bye bye\nOK\n",
+        ):
+            with (
+                self.subTest(payload=payload),
+                mock.patch.object(
+                    commands,
+                    "_emulator_console_exchange",
+                    return_value=payload,
+                ),
+            ):
+                commands._request_owned_emulator_console_shutdown(context, receipt)
+        for payload in (
+            b"OK: killing emulator, bye bye",
+            b"KO: kill refused\n",
+            b"OK: killing emulator, bye bye\nOK\nextra\n",
+            b"garbage\nOK: killing emulator, bye bye\n",
+            b"OK\n",
+        ):
+            with (
+                self.subTest(rejected_payload=payload),
+                mock.patch.object(
+                    commands,
+                    "_emulator_console_exchange",
+                    return_value=payload,
+                ),
+                self.assertRaisesRegex(
+                    commands.AndroidCommandError,
+                    "rejected its authenticated shutdown request",
+                ),
+            ):
+                commands._request_owned_emulator_console_shutdown(context, receipt)
+
+    def test_console_authentication_framing_is_exact(self) -> None:
+        marker = commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
+        prefix = b"Android Console: Authentication required\n"
+        payload = b"OK: killing emulator, bye bye\nOK\n"
+        self.assertEqual(
+            commands._authenticated_emulator_console_payload(
+                prefix + marker + payload
+            ),
+            payload,
+        )
+        for response in (
+            marker + payload,
+            prefix + payload,
+            prefix + marker + b"garbage\n" + marker + payload,
+        ):
+            with (
+                self.subTest(response=response),
+                self.assertRaisesRegex(
+                    commands.AndroidCommandError,
+                    "authentication response was not exact",
+                ),
+            ):
+                commands._authenticated_emulator_console_payload(response)
+
+    def test_console_receive_accepts_only_bounded_bytes_before_peer_reset(
+        self,
+    ) -> None:
+        class ResetAfter:
+            def __init__(self, chunks: list[bytes]) -> None:
+                self.chunks = list(chunks)
+
+            def recv(self, _maximum: int) -> bytes:
+                if self.chunks:
+                    return self.chunks.pop(0)
+                raise ConnectionResetError(errno.ECONNRESET, "fixture reset")
+
+        acknowledgement = b"OK: killing emulator, bye bye\r\n"
+        self.assertEqual(
+            commands._receive_emulator_console(ResetAfter([acknowledgement])),
+            acknowledgement,
+        )
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "cannot read the owned emulator console response",
+        ):
+            commands._receive_emulator_console(ResetAfter([]))
+
+        class TimedOut:
+            def recv(self, _maximum: int) -> bytes:
+                raise TimeoutError("fixture timeout")
+
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "response timed out",
+        ):
+            commands._receive_emulator_console(TimedOut())
+
+        class FullBound:
+            def recv(self, maximum: int) -> bytes:
+                return b"x" * maximum
+
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "exceeded its fixed bound",
+        ):
+            commands._receive_emulator_console(FullBound(), maximum=16)
+
+    def test_console_ack_without_process_exit_keeps_recovery_receipt(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        with (
+            mock.patch.object(
+                commands, "_same_receipt_process", return_value=mock.sentinel.live
+            ),
+            mock.patch.object(commands.time, "monotonic", side_effect=[0.0, 21.0]),
+            mock.patch.object(commands.time, "sleep") as sleep,
+            self.assertRaisesRegex(
+                commands.AndroidCommandError,
+                "did not exit after its authenticated console shutdown",
+            ),
+        ):
+            commands._wait_for_recovered_emulator_exit(receipt)
+        sleep.assert_not_called()
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
 
     def test_complete_recovery_uses_only_verified_protocol_shutdown(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
