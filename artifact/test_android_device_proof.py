@@ -832,12 +832,24 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             ),
             uid,
         )
+        dual_stack = output + "f20\nn[::1]:5584\nf21\nn[::1]:5585\n"
+        self.assertEqual(
+            android_device_proof.parse_lsof_owned_emulator_listeners(
+                dual_stack,
+                expected_pid=123,
+                console_port=5584,
+                adb_port=5585,
+            ),
+            uid,
+        )
         invalid = (
             output.replace("p123", "p124"),
             output.replace(f"u{uid}", f"u{uid + 1}"),
             output.replace(f"u{uid}", f"u0{uid}"),
             output.replace("127.0.0.1:5585", "*:5585"),
             output + "f20\nn127.0.0.1:8554\n",
+            dual_stack.replace("[::1]:5584", "[::]:5584"),
+            dual_stack.replace("[::1]:5585", "[2001:db8::1]:5585"),
             output.replace("f19\nn127.0.0.1:5585\n", ""),
             output.replace("p123", "p0123"),
             output.replace("f19", "f18"),
@@ -1674,6 +1686,17 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
     def test_emulator_control_is_exact_sanitized_and_port_bound(self) -> None:
         proof = complete_proof_shape()
         android_device_proof.verify_emulator_control(proof, require_release_mode=True)
+        dual_stack = copy.deepcopy(proof)
+        dual_stack["emulator_control"]["listener_endpoints"].extend(
+            ["[::1]:5584", "[::1]:5585"]
+        )
+        android_device_proof.verify_emulator_control(
+            dual_stack, require_release_mode=True
+        )
+        half_dual_stack = copy.deepcopy(dual_stack)
+        half_dual_stack["emulator_control"]["listener_endpoints"].pop()
+        with self.assertRaisesRegex(SystemExit, "listener endpoints differ"):
+            android_device_proof.verify_emulator_control(half_dual_stack)
 
         for mutation, expected in (
             ("backend_identity", "backend identity differs"),
@@ -1768,7 +1791,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         emulator_identity = f"123:{current_uid}:456:789"
         private_adb_identity = f"321:{current_uid}:654:987"
         listener.write_text(
-            f"p123\nu{current_uid}\nf4\nn127.0.0.1:5584\nf5\nn127.0.0.1:5585\n",
+            f"p123\nu{current_uid}\n"
+            "f4\nn127.0.0.1:5584\nf5\nn127.0.0.1:5585\n"
+            "f6\nn[::1]:5584\nf7\nn[::1]:5585\n",
             encoding="utf-8",
         )
         registration.write_bytes(
@@ -1834,6 +1859,15 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertEqual(
             receipt["registration"]["response_sha256"],
             android_device_proof.sha256_file(registration),
+        )
+        self.assertEqual(
+            receipt["listener_endpoints"],
+            [
+                "127.0.0.1:5584",
+                "127.0.0.1:5585",
+                "[::1]:5584",
+                "[::1]:5585",
+            ],
         )
         serialized = android_device_proof.canonical_json(receipt)
         for raw_value in (

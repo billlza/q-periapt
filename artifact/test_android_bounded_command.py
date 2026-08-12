@@ -1253,6 +1253,64 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     expected_endpoint=endpoint,
                 )
 
+    def test_emulator_listener_count_error_reports_only_fixed_endpoint_presence(
+        self,
+    ) -> None:
+        fixture = f"p424242\nu{os.geteuid()}\nf17\nn127.0.0.1:5584\n"
+        with self.assertRaisesRegex(
+            commands.AndroidEmulatorControlError,
+            r"observed=1, console=1, adb=0, unexpected=0",
+        ):
+            commands.parse_owned_lsof_listeners(
+                fixture,
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                console_port=5584,
+                adb_port=5585,
+            )
+
+    def test_emulator_listener_parser_accepts_only_the_exact_optional_ipv6_pair(
+        self,
+    ) -> None:
+        fixture = (
+            f"p424242\nu{os.geteuid()}\n"
+            "f17\nn127.0.0.1:5584\n"
+            "f18\nn[::1]:5584\n"
+            "f19\nn127.0.0.1:5585\n"
+            "f20\nn[::1]:5585\n"
+        )
+        self.assertEqual(
+            commands.parse_owned_lsof_listeners(
+                fixture,
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                console_port=5584,
+                adb_port=5585,
+            ),
+            os.geteuid(),
+        )
+        invalid = (
+            fixture.replace("[::1]:5584", "[::]:5584"),
+            fixture.replace("[::1]:5585", "[2001:db8::1]:5585"),
+            fixture.replace("f18\nn[::1]:5584\n", ""),
+            fixture.replace("f20\nn[::1]:5585\n", ""),
+            fixture.replace("f17\nn127.0.0.1:5584\n", ""),
+            fixture.replace("f19\nn127.0.0.1:5585\n", ""),
+            fixture + "f21\nn127.0.0.1:5586\n",
+        )
+        for candidate in invalid:
+            with (
+                self.subTest(candidate=candidate),
+                self.assertRaises(commands.AndroidEmulatorControlError),
+            ):
+                commands.parse_owned_lsof_listeners(
+                    candidate,
+                    expected_pid=424242,
+                    expected_uid=os.geteuid(),
+                    console_port=5584,
+                    adb_port=5585,
+                )
+
     def test_capture_run_and_write_dispatch_preserve_fixed_limits(self) -> None:
         with (
             mock.patch.object(commands, "run", return_value=BoundedResult(0)) as run,

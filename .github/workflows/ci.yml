@@ -984,13 +984,38 @@ jobs:
             test -n "$asset_path" || return 0
             asset_parent=${asset_path%/*}
             case "$asset_parent" in
-              "$RUNNER_TEMP"/qperiapt-formal-tool-asset.*) ;;
+              /tmp/qperiapt-formal-tool-asset.?*) ;;
               *)
                 printf 'error: refusing to clean unexpected formal-tool asset path: %s\n' \
                   "$asset_path" >&2
                 return 1
                 ;;
             esac
+            case "${asset_parent#/tmp/}" in
+              */*)
+                printf 'error: refusing nested formal-tool asset path: %s\n' \
+                  "$asset_path" >&2
+                return 1
+                ;;
+            esac
+            asset_suffix=${asset_parent#/tmp/qperiapt-formal-tool-asset.}
+            case "$asset_suffix" in
+              "" | *[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*)
+                printf 'error: refusing malformed formal-tool asset path: %s\n' \
+                  "$asset_path" >&2
+                return 1
+                ;;
+            esac
+            if [ "${#asset_suffix}" -gt 64 ]; then
+              printf 'error: refusing oversized formal-tool asset path: %s\n' \
+                "$asset_path" >&2
+              return 1
+            fi
+            if [ -L "$asset_parent" ] || [ ! -d "$asset_parent" ]; then
+              printf 'error: refusing invalid formal-tool asset directory: %s\n' \
+                "$asset_parent" >&2
+              return 1
+            fi
             if [ "${asset_path##*/}" != "$expected_leaf" ] || \
               [ -L "$asset_path" ] || [ ! -f "$asset_path" ]; then
               printf 'error: refusing to clean invalid formal-tool asset: %s\n' \
@@ -1073,13 +1098,38 @@ jobs:
             test -n "$OPAM_BIN" || return 0
             opam_parent=${OPAM_BIN%/*}
             case "$opam_parent" in
-              "$RUNNER_TEMP"/qperiapt-formal-tool-asset.*) ;;
+              /tmp/qperiapt-formal-tool-asset.?*) ;;
               *)
                 printf 'error: refusing to clean unexpected opam asset path: %s\n' \
                   "$OPAM_BIN" >&2
                 return 1
                 ;;
             esac
+            case "${opam_parent#/tmp/}" in
+              */*)
+                printf 'error: refusing nested opam asset path: %s\n' \
+                  "$OPAM_BIN" >&2
+                return 1
+                ;;
+            esac
+            opam_suffix=${opam_parent#/tmp/qperiapt-formal-tool-asset.}
+            case "$opam_suffix" in
+              "" | *[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*)
+                printf 'error: refusing malformed opam asset path: %s\n' \
+                  "$OPAM_BIN" >&2
+                return 1
+                ;;
+            esac
+            if [ "${#opam_suffix}" -gt 64 ]; then
+              printf 'error: refusing oversized opam asset path: %s\n' \
+                "$OPAM_BIN" >&2
+              return 1
+            fi
+            if [ -L "$opam_parent" ] || [ ! -d "$opam_parent" ]; then
+              printf 'error: refusing invalid opam asset directory: %s\n' \
+                "$opam_parent" >&2
+              return 1
+            fi
             if [ "${OPAM_BIN##*/}" != opam-2.5.2-x86_64-linux ] || \
               [ -L "$OPAM_BIN" ] || [ ! -f "$OPAM_BIN" ]; then
               printf 'error: refusing to clean invalid opam asset: %s\n' \

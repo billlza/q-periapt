@@ -23,6 +23,11 @@ class FormalToolAssetTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = pathlib.Path(self.temporary.name).resolve(strict=True)
         self.root.chmod(0o700)
+        self.fixed_parent = mock.patch.object(
+            assets, "_FIXED_TEMPORARY_PARENT", self.root
+        )
+        self.fixed_parent.start()
+        self.addCleanup(self.fixed_parent.stop)
         self.payload = b"fixed formal tool asset\n"
         self.asset = assets.FormalToolAsset(
             url="https://github.com/example/tool/releases/download/v1/tool.bin",
@@ -125,9 +130,12 @@ class FormalToolAssetTests(unittest.TestCase):
             calls.append((argv, arguments))
             return self.write_result(arguments, self.payload)
 
-        path = assets.download(
-            "test-asset", runner=runner, temporary_parent=self.root
-        )
+        with mock.patch.object(
+            assets.os,
+            "chmod",
+            side_effect=AssertionError("path chmod must not be used"),
+        ):
+            path = assets.download("test-asset", runner=runner)
         self.addCleanup(self.cleanup_success, path)
         self.assertTrue(path.is_absolute())
         self.assertEqual(path.parent.parent, self.root)
@@ -177,45 +185,103 @@ class FormalToolAssetTests(unittest.TestCase):
             {"LANG": "C", "LC_ALL": "C", "PATH": "/usr/bin:/bin"},
         )
 
-    def test_default_parent_is_exact_absolute_runner_temp(self) -> None:
+    def test_hostile_runner_temp_is_ignored(self) -> None:
         def runner(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
             return self.write_result(arguments, self.payload)
 
+        hostile = self.root.parent / "hostile-runner-temp"
         with mock.patch.dict(
             os.environ,
-            {"RUNNER_TEMP": str(self.root)},
+            {"RUNNER_TEMP": str(hostile)},
             clear=True,
         ):
             path = assets.download("test-asset", runner=runner)
         self.addCleanup(self.cleanup_success, path)
         self.assertEqual(path.parent.parent, self.root)
+        self.assertFalse(hostile.exists())
 
-        with mock.patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(assets.FormalToolAssetError, "RUNNER_TEMP"):
-                assets.download("test-asset", runner=runner)
-        self.assertEqual(list(self.root.iterdir()), [path.parent])
+    def test_removed_temporary_parent_api_is_rejected(self) -> None:
+        with self.assertRaisesRegex(TypeError, "temporary_parent"):
+            assets.download("test-asset", temporary_parent=self.root)
+        self.assert_root_empty()
 
-    def test_parent_rejects_relative_symlink_and_group_writable_paths(self) -> None:
-        with self.assertRaisesRegex(assets.FormalToolAssetError, "must be absolute"):
-            assets.download("test-asset", temporary_parent="relative")
+    def test_private_fixed_parent_rejects_relative_symlink_and_wrong_mode(self) -> None:
+        with (
+            mock.patch.object(
+                assets, "_FIXED_TEMPORARY_PARENT", pathlib.Path("relative")
+            ),
+            self.assertRaisesRegex(assets.FormalToolAssetError, "must be one absolute"),
+        ):
+            assets.download("test-asset")
 
         symlink = self.root.parent / f"{self.root.name}-link"
         symlink.symlink_to(self.root, target_is_directory=True)
         self.addCleanup(symlink.unlink)
-        with self.assertRaisesRegex(
-            assets.FormalToolAssetError, "canonical.*symlink"
+        with (
+            mock.patch.object(assets, "_FIXED_TEMPORARY_PARENT", symlink),
+            self.assertRaisesRegex(
+                assets.FormalToolAssetError, "canonical.*symlink"
+            ),
         ):
-            assets.download("test-asset", temporary_parent=symlink)
+            assets.download("test-asset")
 
         self.root.chmod(0o770)
         try:
             with self.assertRaisesRegex(
-                assets.FormalToolAssetError, "group/other write"
+                assets.FormalToolAssetError, "mode-0700"
             ):
-                assets.download("test-asset", temporary_parent=self.root)
+                assets.download("test-asset")
         finally:
             self.root.chmod(0o700)
         self.assert_root_empty()
+
+    def test_production_fixed_parent_requires_linux_root_owned_exact_01777(
+        self,
+    ) -> None:
+        valid = os.stat_result(
+            (stat.S_IFDIR | 0o1777, 0, 0, 1, 0, 0, 0, 0, 0, 0)
+        )
+        self.assertEqual(assets._LINUX_TEMPORARY_PARENT, pathlib.Path("/tmp"))
+        with (
+            mock.patch.object(
+                assets, "_FIXED_TEMPORARY_PARENT", assets._LINUX_TEMPORARY_PARENT
+            ),
+            mock.patch.object(assets.sys, "platform", "darwin"),
+            self.assertRaisesRegex(assets.FormalToolAssetError, "require Linux"),
+        ):
+            assets._fixed_temporary_parent()
+
+        with (
+            mock.patch.object(
+                assets, "_FIXED_TEMPORARY_PARENT", assets._LINUX_TEMPORARY_PARENT
+            ),
+            mock.patch.object(assets.sys, "platform", "linux"),
+            mock.patch.object(
+                assets.pathlib.Path,
+                "resolve",
+                return_value=assets._LINUX_TEMPORARY_PARENT,
+            ),
+            mock.patch.object(assets.os, "lstat", return_value=valid),
+        ):
+            self.assertEqual(
+                assets._fixed_temporary_parent(),
+                assets._LINUX_TEMPORARY_PARENT,
+            )
+
+        invalid = (
+            os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 1, 0, 0, 0, 0, 0, 0)),
+            os.stat_result((stat.S_IFDIR | 0o1777, 0, 0, 1, 501, 0, 0, 0, 0, 0)),
+            os.stat_result((stat.S_IFDIR | 0o0777, 0, 0, 1, 0, 0, 0, 0, 0, 0)),
+        )
+        for metadata in invalid:
+            with (
+                self.subTest(mode=metadata.st_mode, uid=metadata.st_uid),
+                self.assertRaisesRegex(
+                    assets.FormalToolAssetError, "root-owned.*01777"
+                ),
+            ):
+                assets._linux_temporary_parent_metadata(metadata)
+        assets._linux_temporary_parent_metadata(valid)
 
     def test_two_curl_failures_retry_from_absent_target_then_succeed(self) -> None:
         attempts = 0
@@ -238,7 +304,6 @@ class FormalToolAssetTests(unittest.TestCase):
             "test-asset",
             runner=runner,
             sleeper=sleeps.append,
-            temporary_parent=self.root,
         )
         self.addCleanup(self.cleanup_success, path)
         self.assertEqual(attempts, 3)
@@ -265,7 +330,6 @@ class FormalToolAssetTests(unittest.TestCase):
             "test-asset",
             runner=runner,
             sleeper=sleeps.append,
-            temporary_parent=self.root,
         )
         self.addCleanup(self.cleanup_success, path)
         self.assertEqual(attempts, 3)
@@ -287,7 +351,6 @@ class FormalToolAssetTests(unittest.TestCase):
                 "test-asset",
                 runner=runner,
                 sleeper=lambda _delay: None,
-                temporary_parent=self.root,
             )
         self.assertEqual(attempts, 3)
         self.assert_root_empty()
@@ -307,7 +370,6 @@ class FormalToolAssetTests(unittest.TestCase):
                 "test-asset",
                 runner=runner,
                 sleeper=lambda _delay: None,
-                temporary_parent=self.root,
             )
         self.assertEqual(attempts, 3)
         self.assertIsInstance(raised.exception.__cause__, BoundedProcessError)
@@ -336,9 +398,7 @@ class FormalToolAssetTests(unittest.TestCase):
             with self.subTest(kind=kind), self.assertRaisesRegex(
                 BoundedProcessError, f"structural {kind}"
             ):
-                assets.download(
-                    "test-asset", runner=runner, temporary_parent=self.root
-                )
+                assets.download("test-asset", runner=runner)
             self.assertEqual(calls, 1)
             self.assert_root_empty()
 
@@ -366,9 +426,7 @@ class FormalToolAssetTests(unittest.TestCase):
             with self.subTest(message=message), self.assertRaisesRegex(
                 error_type, message
             ):
-                assets.download(
-                    "test-asset", runner=runner, temporary_parent=self.root
-                )
+                assets.download("test-asset", runner=runner)
             self.assertEqual(calls, 1)
             self.assert_root_empty()
 
@@ -383,9 +441,7 @@ class FormalToolAssetTests(unittest.TestCase):
             return self.write_result(arguments, self.payload + b"extra")
 
         with self.assertRaisesRegex(EvidenceIOError, "exceeds"):
-            assets.download(
-                "test-asset", runner=oversized, temporary_parent=self.root
-            )
+            assets.download("test-asset", runner=oversized)
         self.assertEqual(calls, 1)
         self.assert_root_empty()
 
@@ -404,9 +460,7 @@ class FormalToolAssetTests(unittest.TestCase):
             return BoundedResult(0)
 
         with self.assertRaisesRegex(EvidenceIOError, "safely open"):
-            assets.download(
-                "test-asset", runner=symlink, temporary_parent=self.root
-            )
+            assets.download("test-asset", runner=symlink)
         self.assertEqual(target.read_bytes(), self.payload)
         target.unlink()
         self.assert_root_empty()
@@ -429,7 +483,6 @@ class FormalToolAssetTests(unittest.TestCase):
                 "test-asset",
                 runner=runner,
                 sleeper=lambda _delay: None,
-                temporary_parent=self.root,
             )
         self.assertEqual(calls, 1)
         self.assert_root_empty()
@@ -441,9 +494,7 @@ class FormalToolAssetTests(unittest.TestCase):
             with self.subTest(result=result), self.assertRaisesRegex(
                 assets.FormalToolAssetError, "malformed result"
             ):
-                assets.download(
-                    "test-asset", runner=runner, temporary_parent=self.root
-                )
+                assets.download("test-asset", runner=runner)
             runner.assert_called_once()
             self.assert_root_empty()
 
@@ -457,9 +508,7 @@ class FormalToolAssetTests(unittest.TestCase):
             with self.subTest(error=type(error).__name__), self.assertRaises(
                 type(error)
             ):
-                assets.download(
-                    "test-asset", runner=interrupted, temporary_parent=self.root
-                )
+                assets.download("test-asset", runner=interrupted)
             self.assert_root_empty()
 
         with self.assertRaisesRegex(RuntimeError, "sleep interrupted"):
@@ -469,7 +518,6 @@ class FormalToolAssetTests(unittest.TestCase):
                 sleeper=lambda _delay: (_ for _ in ()).throw(
                     RuntimeError("sleep interrupted")
                 ),
-                temporary_parent=self.root,
             )
         self.assert_root_empty()
 
@@ -486,7 +534,6 @@ class FormalToolAssetTests(unittest.TestCase):
                     runner=lambda _argv, **_arguments: (_ for _ in ()).throw(
                         primary
                     ),
-                    temporary_parent=self.root,
                 )
         self.assertIs(raised.exception, primary)
         self.assertIn(
@@ -496,7 +543,9 @@ class FormalToolAssetTests(unittest.TestCase):
         for child in self.root.iterdir():
             child.rmdir()
 
-    def test_directory_path_replacement_is_detected_without_deleting_replacement(self) -> None:
+    def test_directory_path_replacement_is_detected_without_deleting_replacement(
+        self,
+    ) -> None:
         moved: pathlib.Path | None = None
         replacement: pathlib.Path | None = None
 
@@ -518,9 +567,7 @@ class FormalToolAssetTests(unittest.TestCase):
         with self.assertRaisesRegex(
             assets.FormalToolAssetError, "directory path changed"
         ) as raised:
-            assets.download(
-                "test-asset", runner=runner, temporary_parent=self.root
-            )
+            assets.download("test-asset", runner=runner)
         self.assertIsNotNone(replacement)
         self.assertEqual(
             (replacement / "sentinel").read_text(encoding="ascii"),
@@ -541,9 +588,7 @@ class FormalToolAssetTests(unittest.TestCase):
         def runner(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
             return self.write_result(arguments, self.payload)
 
-        path = assets.download(
-            "test-asset", runner=runner, temporary_parent=self.root
-        )
+        path = assets.download("test-asset", runner=runner)
         stdout = io.StringIO()
         stderr = io.StringIO()
         with (
@@ -571,6 +616,28 @@ class FormalToolAssetTests(unittest.TestCase):
         self.assertIn("primary", stderr.getvalue())
         self.assertIn("cleanup also failed", stderr.getvalue())
 
+    def test_published_cleanup_refuses_a_matching_directory_outside_fixed_parent(
+        self,
+    ) -> None:
+        outside_directory = pathlib.Path(
+            tempfile.mkdtemp(
+                prefix="qperiapt-formal-tool-asset.outside.",
+                dir=self.root.parent,
+            )
+        )
+        outside_directory.chmod(0o700)
+        outside_path = outside_directory / self.asset.leaf
+        outside_path.write_bytes(self.payload)
+        outside_path.chmod(0o600)
+        self.addCleanup(outside_directory.rmdir)
+        self.addCleanup(outside_path.unlink, missing_ok=True)
+
+        self.assertEqual(
+            assets._cleanup_published_download(outside_path, self.asset),
+            ["refusing to clean an unexpected published asset path"],
+        )
+        self.assertEqual(outside_path.read_bytes(), self.payload)
+
     def test_stdout_write_or_flush_failure_cleans_before_propagating(self) -> None:
         for operation in ("write", "flush"):
             def runner(
@@ -578,9 +645,7 @@ class FormalToolAssetTests(unittest.TestCase):
             ) -> BoundedResult:
                 return self.write_result(arguments, self.payload)
 
-            path = assets.download(
-                "test-asset", runner=runner, temporary_parent=self.root
-            )
+            path = assets.download("test-asset", runner=runner)
             stream = mock.Mock()
             if operation == "write":
                 stream.write.side_effect = BrokenPipeError("stdout closed")

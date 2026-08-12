@@ -40,6 +40,7 @@ from android_emulator_control import (
     NATIVE_ADB_NOTIFIER_PORT,
     AdbIsolationCheckpoint,
     AndroidEmulatorControlError,
+    canonical_owned_emulator_listener_endpoints,
     canonical_owned_unix_lsof_name,
     emulator_routing_transport_binding_sha256,
     fixed_headless_backend_path,
@@ -1804,6 +1805,11 @@ def build_emulator_control_receipt(
         console_port=console_port,
         adb_port=adb_port,
     )
+    listener_endpoints = canonical_owned_emulator_listener_endpoints(
+        [line[1:] for line in listener_text.splitlines() if line.startswith("n")],
+        console_port=console_port,
+        adb_port=adb_port,
+    )
     require(
         listener_uid == emulator_uid,
         "owned emulator listener uid differs from its process identity",
@@ -1857,10 +1863,7 @@ def build_emulator_control_receipt(
         "ports": {"console": console_port, "adb": adb_port},
         "process_identity_sha256": emulator_identity_digest,
         "listener_process_identity_sha256": emulator_identity_digest,
-        "listener_endpoints": [
-            f"127.0.0.1:{console_port}",
-            f"127.0.0.1:{adb_port}",
-        ],
+        "listener_endpoints": list(listener_endpoints),
         "listener_snapshot_sha256": listener_snapshot.sha256,
         "external_adb": external_adb,
         "native_notifier": {
@@ -1942,10 +1945,19 @@ def verify_emulator_control(
         listener_process_identity_sha256 == process_identity_sha256,
         "Android emulator listener process identity differs from the owned backend",
     )
+    try:
+        listener_endpoints = canonical_owned_emulator_listener_endpoints(
+            control.get("listener_endpoints"),
+            console_port=console_port,
+            adb_port=adb_port,
+        )
+    except AndroidEmulatorControlError as exc:
+        raise SystemExit(
+            f"error: Android emulator listener endpoints differ: {exc}"
+        ) from exc
     require(
-        control.get("listener_endpoints")
-        == [f"127.0.0.1:{console_port}", f"127.0.0.1:{adb_port}"],
-        "Android emulator listener endpoints differ from its fixed ports",
+        control.get("listener_endpoints") == list(listener_endpoints),
+        "Android emulator listener endpoints are not canonical",
     )
     require_sha256(
         control.get("listener_snapshot_sha256"),

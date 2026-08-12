@@ -4061,7 +4061,18 @@ with _temporary_release_test_directories(parents):
                 self.assertEqual(combined.count(call), 1)
         for token in (
             "set -euo pipefail",
-            '"$RUNNER_TEMP"/qperiapt-formal-tool-asset.*',
+            "/tmp/qperiapt-formal-tool-asset.?*",
+            'case "${asset_parent#/tmp/}" in',
+            'case "${opam_parent#/tmp/}" in',
+            'asset_suffix=${asset_parent#/tmp/qperiapt-formal-tool-asset.}',
+            'opam_suffix=${opam_parent#/tmp/qperiapt-formal-tool-asset.}',
+            "*[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*",
+            '[ "${#asset_suffix}" -gt 64 ]',
+            '[ "${#opam_suffix}" -gt 64 ]',
+            '[ -L "$asset_parent" ]',
+            '[ ! -d "$asset_parent" ]',
+            '[ -L "$opam_parent" ]',
+            '[ ! -d "$opam_parent" ]',
             '[ -L "$asset_path" ]',
             'rm -- "$asset_path"',
             'rmdir -- "$asset_parent"',
@@ -4070,6 +4081,7 @@ with _temporary_release_test_directories(parents):
         ):
             with self.subTest(token=token):
                 self.assertIn(token, combined)
+        self.assertNotIn("RUNNER_TEMP", combined)
         self.assertLess(
             tamarin_install.index(calls[0]), tamarin_install.index("unzip -q")
         )

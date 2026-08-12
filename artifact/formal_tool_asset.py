@@ -11,7 +11,7 @@ import stat
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from types import MappingProxyType
 from typing import NoReturn
 
@@ -83,6 +83,10 @@ _RETRY_DELAYS_SECONDS = (15, 30)
 _BOUND_TIMEOUT_SECONDS = 300
 _CURL_MAX_TIME_SECONDS = 270
 _DIRECTORY_PREFIX = "qperiapt-formal-tool-asset."
+_LINUX_TEMPORARY_PARENT = pathlib.Path("/tmp")
+# Tests replace this private constant with one current-user-owned mode-0700
+# directory. Production callers have no path-selection API.
+_FIXED_TEMPORARY_PARENT = _LINUX_TEMPORARY_PARENT
 
 
 class FormalToolAssetError(RuntimeError):
@@ -97,15 +101,27 @@ def _identity(metadata: os.stat_result) -> tuple[int, int]:
     return metadata.st_dev, metadata.st_ino
 
 
-def _private_parent_metadata(metadata: os.stat_result) -> None:
+def _linux_temporary_parent_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != 0
+        or stat.S_IMODE(metadata.st_mode) != 0o1777
+    ):
+        _fail(
+            "formal-tool production temporary parent must be the root-owned "
+            "mode-01777 /tmp directory"
+        )
+
+
+def _private_test_parent_metadata(metadata: os.stat_result) -> None:
     if (
         not stat.S_ISDIR(metadata.st_mode)
         or metadata.st_uid != os.geteuid()
-        or stat.S_IMODE(metadata.st_mode) & 0o022
+        or stat.S_IMODE(metadata.st_mode) != 0o700
     ):
         _fail(
-            "formal-tool temporary parent must be a current-user-owned directory "
-            "without group/other write permission"
+            "formal-tool test temporary parent must be a current-user-owned "
+            "mode-0700 directory"
         )
 
 
@@ -131,18 +147,13 @@ def _private_file_metadata(metadata: os.stat_result) -> None:
         )
 
 
-def _validated_temporary_parent(parent: pathlib.Path | str) -> pathlib.Path:
-    try:
-        value = os.fspath(parent)
-    except TypeError as exc:
-        raise FormalToolAssetError(
-            "formal-tool temporary parent must be one absolute path"
-        ) from exc
-    if not isinstance(value, str) or not value or "\x00" in value:
-        _fail("formal-tool temporary parent must be one absolute path")
-    candidate = pathlib.Path(value)
-    if not candidate.is_absolute():
-        _fail("formal-tool temporary parent must be absolute")
+def _fixed_temporary_parent() -> pathlib.Path:
+    candidate = _FIXED_TEMPORARY_PARENT
+    if not isinstance(candidate, pathlib.Path) or not candidate.is_absolute():
+        _fail("formal-tool fixed temporary parent must be one absolute path")
+    production = candidate == _LINUX_TEMPORARY_PARENT
+    if production and sys.platform != "linux":
+        _fail("formal-tool asset downloads require Linux with fixed /tmp storage")
     try:
         resolved = candidate.resolve(strict=True)
         metadata = os.lstat(candidate)
@@ -152,21 +163,14 @@ def _validated_temporary_parent(parent: pathlib.Path | str) -> pathlib.Path:
         ) from exc
     if candidate != resolved:
         _fail(
-            "formal-tool temporary parent must be canonical and contain no "
+            "formal-tool fixed temporary parent must be canonical and contain no "
             "symlink components"
         )
-    _private_parent_metadata(metadata)
+    if production:
+        _linux_temporary_parent_metadata(metadata)
+    else:
+        _private_test_parent_metadata(metadata)
     return candidate
-
-
-def _runner_temporary_parent(
-    environment: Mapping[str, str] | None = None,
-) -> pathlib.Path:
-    source = os.environ if environment is None else environment
-    value = source.get("RUNNER_TEMP")
-    if not isinstance(value, str) or not value:
-        _fail("RUNNER_TEMP must name the absolute formal-tool temporary parent")
-    return _validated_temporary_parent(value)
 
 
 def _directory_open_flags() -> int:
@@ -181,7 +185,14 @@ def _directory_open_flags() -> int:
 def _require_directory_path_identity(
     directory: pathlib.Path,
     expected_identity: tuple[int, int],
+    expected_parent: pathlib.Path,
 ) -> None:
+    if (
+        directory.parent != expected_parent
+        or not directory.name.startswith(_DIRECTORY_PREFIX)
+        or directory.name == _DIRECTORY_PREFIX
+    ):
+        _fail("formal-tool temporary directory is outside the fixed parent")
     try:
         metadata = os.lstat(directory)
     except OSError as exc:
@@ -202,12 +213,12 @@ def _create_private_directory(
     directory_fd = -1
     primary: BaseException | None = None
     try:
-        os.chmod(directory, 0o700)
         directory_fd = os.open(directory, _directory_open_flags())
+        os.fchmod(directory_fd, 0o700)
         metadata = os.fstat(directory_fd)
         _private_directory_metadata(metadata)
         identity = _identity(metadata)
-        _require_directory_path_identity(directory, identity)
+        _require_directory_path_identity(directory, identity, parent)
         return directory, directory_fd, identity
     except BaseException as exc:
         primary = exc
@@ -269,8 +280,9 @@ def _target_absent(directory_fd: int, leaf: str) -> None:
 def _open_cleanup_directory(
     directory: pathlib.Path,
     expected_identity: tuple[int, int],
+    expected_parent: pathlib.Path,
 ) -> int:
-    _require_directory_path_identity(directory, expected_identity)
+    _require_directory_path_identity(directory, expected_identity, expected_parent)
     descriptor = os.open(directory, _directory_open_flags())
     try:
         metadata = os.fstat(descriptor)
@@ -294,12 +306,15 @@ def _cleanup_failed_download(
     directory: pathlib.Path,
     leaf: str,
     expected_identity: tuple[int, int],
+    expected_parent: pathlib.Path,
 ) -> list[str]:
     failures: list[str] = []
     cleanup_fd = directory_fd
     if cleanup_fd < 0:
         try:
-            cleanup_fd = _open_cleanup_directory(directory, expected_identity)
+            cleanup_fd = _open_cleanup_directory(
+                directory, expected_identity, expected_parent
+            )
         except BaseException as exc:
             failures.append(f"reopen asset directory: {exc}")
     if cleanup_fd >= 0:
@@ -314,7 +329,9 @@ def _cleanup_failed_download(
         except BaseException as exc:
             failures.append(f"close asset directory: {exc}")
     try:
-        _require_directory_path_identity(directory, expected_identity)
+        _require_directory_path_identity(
+            directory, expected_identity, expected_parent
+        )
     except BaseException as exc:
         failures.append(f"retain changed asset directory path: {exc}")
     else:
@@ -343,18 +360,13 @@ def download(
     *,
     runner: Callable[..., BoundedResult] = write_stdout_at,
     sleeper: Callable[[float], None] = time.sleep,
-    temporary_parent: pathlib.Path | str | None = None,
 ) -> pathlib.Path:
     """Download, byte-bound, and hash one fixed formal-tool asset."""
 
     asset = ASSETS.get(asset_name)
     if asset is None:
         _fail("formal-tool asset is not in the fixed allowlist")
-    parent = _validated_temporary_parent(
-        temporary_parent
-        if temporary_parent is not None
-        else _runner_temporary_parent()
-    )
+    parent = _fixed_temporary_parent()
     directory, directory_fd, directory_identity = _create_private_directory(parent)
     success = False
     primary: BaseException | None = None
@@ -384,7 +396,10 @@ def download(
                 sleeper(delay)
                 continue
 
-            if not isinstance(result, BoundedResult) or type(result.returncode) is not int:
+            if (
+                not isinstance(result, BoundedResult)
+                or type(result.returncode) is not int
+            ):
                 _fail("formal-tool download runner returned a malformed result")
             if result.returncode != 0:
                 _target_absent(directory_fd, asset.leaf)
@@ -421,7 +436,9 @@ def download(
             _private_directory_metadata(descriptor_metadata)
             if _identity(descriptor_metadata) != directory_identity:
                 _fail("formal-tool directory descriptor identity changed")
-            _require_directory_path_identity(directory, directory_identity)
+            _require_directory_path_identity(
+                directory, directory_identity, parent
+            )
             owned_fd = directory_fd
             directory_fd = -1
             os.close(owned_fd)
@@ -438,6 +455,7 @@ def download(
                 directory,
                 asset.leaf,
                 directory_identity,
+                parent,
             )
             if cleanup_failures:
                 details = "; ".join(cleanup_failures)
@@ -454,17 +472,23 @@ def _cleanup_published_download(
     path: pathlib.Path,
     asset: FormalToolAsset,
 ) -> list[str]:
+    try:
+        fixed_parent = _fixed_temporary_parent()
+    except BaseException as exc:
+        return [f"validate fixed temporary parent: {exc}"]
     if (
         not path.is_absolute()
         or path.name != asset.leaf
         or not path.parent.name.startswith(_DIRECTORY_PREFIX)
+        or path.parent.name == _DIRECTORY_PREFIX
+        or path.parent.parent != fixed_parent
     ):
         return ["refusing to clean an unexpected published asset path"]
     try:
         directory_metadata = os.lstat(path.parent)
         _private_directory_metadata(directory_metadata)
         identity = _identity(directory_metadata)
-        descriptor = _open_cleanup_directory(path.parent, identity)
+        descriptor = _open_cleanup_directory(path.parent, identity, fixed_parent)
     except BaseException as exc:
         return [f"open published asset directory: {exc}"]
     return _cleanup_failed_download(
@@ -472,6 +496,7 @@ def _cleanup_published_download(
         path.parent,
         asset.leaf,
         identity,
+        fixed_parent,
     )
 
 

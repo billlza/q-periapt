@@ -558,6 +558,20 @@ def parse_owned_single_listener(
     return observed_uid
 
 
+def _owned_emulator_endpoint_sets(
+    console_port: int, adb_port: int
+) -> tuple[set[str], set[str]]:
+    required = {
+        f"127.0.0.1:{console_port}",
+        f"127.0.0.1:{adb_port}",
+    }
+    return required, {
+        *required,
+        f"[::1]:{console_port}",
+        f"[::1]:{adb_port}",
+    }
+
+
 def parse_owned_lsof_listeners(
     text: str,
     *,
@@ -646,9 +660,18 @@ def parse_owned_lsof_listeners(
         current_fd is None or fd_has_endpoint,
         "emulator listener descriptor lacks an endpoint",
     )
+    expected_console_endpoint = f"127.0.0.1:{console_port}"
+    expected_adb_endpoint = f"127.0.0.1:{adb_port}"
+    _required_endpoints, allowed_endpoints = _owned_emulator_endpoint_sets(
+        console_port, adb_port
+    )
     _require(
-        len(descriptors) == 2,
-        "emulator listener inspection must contain two descriptors",
+        len(descriptors) in (2, 4),
+        "emulator listener inspection must contain two or four descriptors "
+        f"(observed={len(descriptors)}, "
+        f"console={int(expected_console_endpoint in endpoints)}, "
+        f"adb={int(expected_adb_endpoint in endpoints)}, "
+        f"unexpected={len(endpoints - allowed_endpoints)})",
     )
     _require(
         observed_pid == expected_pid,
@@ -658,12 +681,44 @@ def parse_owned_lsof_listeners(
         observed_uid == expected_uid,
         "emulator listeners are not owned by the expected account",
     )
-    expected_endpoints = {
-        f"127.0.0.1:{console_port}",
-        f"127.0.0.1:{adb_port}",
-    }
-    _require(
-        endpoints == expected_endpoints,
-        "owned emulator listener endpoints differ",
+    canonical_owned_emulator_listener_endpoints(
+        endpoints,
+        console_port=console_port,
+        adb_port=adb_port,
     )
     return observed_uid
+
+
+def canonical_owned_emulator_listener_endpoints(
+    values: object,
+    *,
+    console_port: int,
+    adb_port: int,
+) -> tuple[str, ...]:
+    """Return the exact observed loopback endpoints in canonical order."""
+
+    _require(
+        type(console_port) is int
+        and type(adb_port) is int
+        and 5554 <= console_port <= 5584
+        and console_port % 2 == 0
+        and adb_port == console_port + 1,
+        "owned emulator ports are invalid",
+    )
+    _require(
+        isinstance(values, (list, tuple, set, frozenset))
+        and all(type(value) is str for value in values),
+        "owned emulator listener endpoints are malformed",
+    )
+    observed = tuple(values)
+    endpoints = set(observed)
+    _require(
+        len(observed) == len(endpoints),
+        "owned emulator listener endpoints are duplicated",
+    )
+    required, allowed = _owned_emulator_endpoint_sets(console_port, adb_port)
+    _require(
+        endpoints == required or endpoints == allowed,
+        "owned emulator listener endpoints differ",
+    )
+    return tuple(sorted(endpoints))
