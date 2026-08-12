@@ -324,7 +324,7 @@
     "apple_device_proof_verifier_sha256": "7d852bb3ca5b1b436c3af62dd5dec459d00799d6b2b2e2638cdfe1d9359ecde2",
     "apple_device_smoke_script_sha256": "c971b3109315865714531584f7388e5111c0278f8b21eaebd3d7fb3fd6bcac28",
     "apple_device_xcode27_gate_script_sha256": "088e22e272107945c14fb9376f3a76c4614ddba41c2fdf6498ac878acead1d74",
-    "apple_distribution_tests_sha256": "7c489a837c81010f03fffd7a982f386e8d0c372bad15452463adb397805f6c49",
+    "apple_distribution_tests_sha256": "f38f5b9c8cb85077ab9d82db9aa28d0e09f716cdcd1a6187eaf6ed7b76ac6c3a",
     "apple_distribution_verifier_sha256": "6f6a713e2d03144d35b9bb999cd8b6fe7915732a4b424723d918d5bbb6867b4e",
     "c_package_manifest_tests_sha256": "200c43a2c13c17c2bd784b8b99f85a5480244f317eb9c4658c45b8f0d6610ed0",
     "c_package_manifest_verifier_sha256": "04e81cfa597e00c879af4a1f58fa47f6f7e7c83c52f7589a2b4596c58dfb2d52",
@@ -430,7 +430,7 @@
     "proof_manifest_sha256": "91156a21a98ac3721a1c1d623343148488f3a5ca2ede5d21a6644e338f871428",
     "proof_manifest_tests_sha256": "e8c8f75ff21824816b6f3fb5f59c124b7576b82b8902965e3457874f98fa5b82",
     "proof_to_byte_finalizer_sha256": "6d60e5d8834617d125ef62505f5122e1f92ac58eed569302ac42a2b74301ecde",
-    "proof_to_byte_release_tests_sha256": "804a33f61a88073491e863b5c9717dbad7458e6fadbb2ddb88c34d134085051c",
+    "proof_to_byte_release_tests_sha256": "ebb8b3ad6a7096cd696dd5b7036ad0df9e33665925b9350eeb8c20f4b8c85852",
     "proof_to_byte_script_sha256": "a3b93581afe632f2526fbbe3a1878d465ea23f9d297c2dfa8413ae1ca1590dcb",
     "process_identity_sha256": "cc1ede6590bf8713036562060a2a9155f362ec44dfbdb856c7ff3f69f9aeed41",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
@@ -479,11 +479,11 @@
     "bounded_process_sha256": "3a47981f9d63b8554cd5b3a7c6001c21bd6e9a06e8b5d233d8245089ce08de38",
     "bounded_process_tests_sha256": "ccd8f67fbb083fbaa29bf4b614cce0847d6ef16847fb0389ee7cdc1df46ec4d2"
   },
-  "proof_source_tree_sha256": "46f61ecbb060c297cd711f1d992a90ddfbf45e31793061d754607b96f879b4f9",
+  "proof_source_tree_sha256": "c104acfc18e3dcd0644f1f31e7ab3a86034914901d8228d754899bd95830d072",
   "provenance": {
     "host_captured_on": "Darwin 27.0.0 arm64",
     "note": "proof_source_tree_sha256 records and checks consistency with the canonical execution-input tree; because this manifest is excluded from that digest, it does not bind the manifest root. snapshot_commit names the last source-changing commit for that tree; later results-only evidence successors bind the manifest and selected proofs without changing the canonical source digest. Each nested device/performance proof retains its own source digest and must be rerun after source changes. The proof's explicit source_tree_dirty field distinguishes clean provenance from diagnostics; only clean committed or signed release provenance can bind the manifest root.",
-    "snapshot_commit": "ce1f50f07fedcd3a89b2e37e8c86554ce207ca7d",
+    "snapshot_commit": "a77aea8e8a77873f98052904b88c3cbd610a081f",
     "toolchain": {
       "cargo": "1.96.1",
       "minimum_cargo": "1.85",
