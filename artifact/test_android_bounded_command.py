@@ -1498,7 +1498,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             "assert all(os.fstat(value) for value in (0, 1, 2))\n"
         )
         result = subprocess.run(
-            [sys.executable, "-c", script, str(self.adb)],
+            [sys.executable, "-B", "-c", script, str(self.adb)],
             cwd=self.root,
             env={"PYTHONPATH": str(pathlib.Path(commands.__file__).parent)},
             stdin=subprocess.DEVNULL,
@@ -1781,7 +1781,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             "state.validate_lane_lock_descriptor()\n"
         )
         result = subprocess.run(
-            [sys.executable, "-c", script, str(self.root), str(lock_fd)],
+            [sys.executable, "-B", "-c", script, str(self.root), str(lock_fd)],
             env={"PYTHONPATH": str(pathlib.Path(commands.__file__).parent)},
             pass_fds=(lock_fd,),
             stdout=subprocess.PIPE,
