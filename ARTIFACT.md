@@ -589,7 +589,10 @@ These produce the paper's primary network table and the binary constant-time dis
   files directory. The ABI2 runtime checks cover metadata, exact signed-policy decision/digest,
   OS-random atomic key generation and encapsulation, context-bound roundtrip, ABI1
   legacy-state/rollback/tamper rejection, secret wipe, and boundary fail-closed behavior;
-  raw combine/X-Wing/deterministic paths are forbidden exports. Current proof schema v5 records hashed
+  raw combine/X-Wing/deterministic paths are forbidden exports. The private adb bootstrap listener
+  descriptor is bound before the first client operation; Darwin rechecks retain it, while Linux
+  rechecks require it to remain the sole `LISTEN` descriptor and admit only exact-socket
+  `CONNECTED` descriptors alongside it. Current proof schema v6 records hashed
   adb serial and build fingerprint only, hashes the AAR/APK/result/logcat/named inputs, and freezes
   the claim-ledger canonical source-input digest before the build. It recomputes
   that digest before proof staging, so a source change during the run fails instead of binding old
@@ -652,7 +655,7 @@ These produce the paper's primary network table and the binary constant-time dis
   notifier is redirected away from 5037 to fixed closed loopback port 5586, above the automatic
   transport range ending at 5585. Four mode-0600, no-replace checkpoint receipts record IPv4 and IPv6
   `ECONNREFUSED` for both 5037 and 5586 at emulator pre-exec, post-registration, runtime pre-cleanup,
-  and post-cleanup. Runtime proof schema v5 and evidence bundle schema v2 carry the fixed checkpoint
+  and post-cleanup. Runtime proof schema v6 and evidence bundle schema v2 carry the fixed checkpoint
   bytes plus a raw-value-omitting, source-bound `emulator_control` admission receipt binding the
   run-owned external-adb digest/routing environment, native-notifier policy, backend digest/identity,
   fixed ports, listener and registration response digests, and private-adb identity/status digests.
@@ -671,8 +674,8 @@ These produce the paper's primary network table and the binary constant-time dis
   HUP/INT/TERM until its owned 0600 state is either armed or removed. The script never sends
   TERM/KILL to a cached PID.
   The private socket directory starts at mode 0700 and is durably reconciled through the receipt's
-  schema-v4 phases to `ADB_SEALED` plus an actual mode of 0500 before any adb client is admitted;
-  an interrupted seal is completed before recovery uses the endpoint. Schema-v3 runtime receipts
+  schema-v5 phases to `ADB_SEALED` plus an actual mode of 0500 before any adb client is admitted;
+  an interrupted seal is completed before recovery uses the endpoint. Schema-v4 runtime receipts
   are intentionally rejected rather than guessed or migrated. Normal success requires an accepted
   authenticated emulator-console shutdown request (for an AVD), an accepted private-adb protocol
   shutdown request, and zero exit status from both owned children. Crash recovery may finalize an

@@ -29,12 +29,16 @@ from android_emulator_control import (
     EMULATOR_ROUTING_RECEIPT_KIND,
     EMULATOR_ROUTING_RECEIPT_LEAF,
     EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
+    MAX_OWNED_LISTENER_DESCRIPTOR,
     NATIVE_ADB_NOTIFIER_PORT,
     AdbIsolationCheckpoint,
     AdbIsolationObservation,
     AndroidEmulatorControlError,
+    OwnedUnixListenerDialect,
     canonical_emulator_abi,
+    canonical_owned_adb_profile,
     emulator_routing_transport_binding_sha256,
+    owned_unix_listener_dialect_for_profile,
     parse_emulator_routing_receipt,
     probe_adb_loopback_absence,
 )
@@ -77,7 +81,7 @@ ACCOUNT_STATE_LEAF = "dev.qperiapt.android-device-smoke"
 LANE_LOCK_LEAF = "lane.lock"
 OWNED_RUNTIME_RECEIPT_LEAF = "owned-runtime.json"
 OWNED_RUNTIME_RECEIPT_KIND = "qperiapt.android_owned_runtime"
-OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 4
+OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 5
 MAX_OWNED_RUNTIME_RECEIPT_BYTES = 16 * 1024
 AVD_HOME_LEAF = "avd-home"
 MAX_AVD_INI_BYTES = 64 * 1024
@@ -160,6 +164,7 @@ OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
         "adb_server_initial_executable_inode",
         "adb_snapshot_device",
         "adb_snapshot_inode",
+        "adb_listener_descriptor",
         "adb_socket_directory_device",
         "adb_socket_directory_inode",
         "avd_name",
@@ -344,6 +349,7 @@ class OwnedRuntimeReceipt:
     adb_server_initial_executable_inode: int | None
     adb_snapshot_device: int | None
     adb_snapshot_inode: int | None
+    adb_listener_descriptor: int | None
     adb_socket_directory_device: int
     adb_socket_directory_inode: int
     avd_name: str | None
@@ -566,15 +572,10 @@ def _close_owned_descriptor(
 
 
 def _canonical_concrete_adb_profile(profile: object) -> str:
-    if profile == "macos-account":
-        return "macos-account"
-    if profile == "linux-account":
-        return "linux-account"
-    if profile == "linux-system":
-        return "linux-system"
-    if profile == "linux-opt":
-        return "linux-opt"
-    _fail("Android adb profile is unsupported")
+    try:
+        return canonical_owned_adb_profile(profile)
+    except AndroidEmulatorControlError as exc:
+        raise AndroidRuntimeStateError("Android adb profile is unsupported") from exc
 
 
 def canonical_adb_profile(profile: object) -> str:
@@ -590,6 +591,13 @@ def canonical_adb_profile(profile: object) -> str:
         )
         profile = available[0][0]
     return _canonical_concrete_adb_profile(profile)
+
+
+def owned_unix_listener_dialect(adb_profile: str) -> OwnedUnixListenerDialect:
+    """Derive the evidence grammar from the capability-bound adb profile."""
+
+    profile = _canonical_concrete_adb_profile(adb_profile)
+    return owned_unix_listener_dialect_for_profile(profile)
 
 
 def resolve_adb_profile(profile: object) -> pathlib.Path:
@@ -2368,6 +2376,7 @@ def _runtime_recovery_payload(
         "adb_server_initial_executable_inode": None,
         "adb_snapshot_device": None,
         "adb_snapshot_inode": None,
+        "adb_listener_descriptor": None,
         "adb_socket_directory_device": socket_directory_metadata.st_dev,
         "adb_socket_directory_inode": socket_directory_metadata.st_ino,
         "avd_name": None,
@@ -2429,6 +2438,7 @@ def _runtime_receipt_payload(receipt: OwnedRuntimeReceipt) -> dict[str, object]:
         ),
         "adb_snapshot_device": receipt.adb_snapshot_device,
         "adb_snapshot_inode": receipt.adb_snapshot_inode,
+        "adb_listener_descriptor": receipt.adb_listener_descriptor,
         "adb_socket_directory_device": receipt.adb_socket_directory_device,
         "adb_socket_directory_inode": receipt.adb_socket_directory_inode,
         "avd_name": receipt.avd_name,
@@ -2935,6 +2945,14 @@ def record_emulator_routing_receipt(
     )
     canonical_private_adb = dict(private_adb)
     for name, digest in canonical_private_adb.items():
+        if name == "adb_profile":
+            try:
+                canonical_private_adb[name] = _canonical_concrete_adb_profile(digest)
+            except AndroidRuntimeStateError as exc:
+                raise AndroidRuntimeStateError(
+                    "emulator routing private adb profile is invalid"
+                ) from exc
+            continue
         _require(
             isinstance(digest, str) and HEX_SHA256.fullmatch(digest) is not None,
             f"emulator routing private adb digest is invalid: {name}",
@@ -2945,8 +2963,17 @@ def record_emulator_routing_receipt(
         receipt is not None
         and receipt.run_id == canonical_run
         and receipt.phase is RuntimePhase.EMULATOR_CHILD_REGISTERED
+        and receipt.adb_listener_descriptor is not None
         and receipt.native_adb_notifier_port == NATIVE_ADB_NOTIFIER_PORT,
         "emulator routing lacks this run's registered child receipt",
+    )
+    _require(
+        canonical_private_adb["adb_profile"] == receipt.adb_profile
+        and canonical_private_adb["listener_descriptor_sha256"]
+        == hashlib.sha256(
+            str(receipt.adb_listener_descriptor).encode("ascii")
+        ).hexdigest(),
+        "emulator routing private adb listener binding differs from its runtime receipt",
     )
     capability = load_capability(canonical_run)
     _require(
@@ -3308,16 +3335,25 @@ def register_adb_child(
     return _replace_owned_runtime_receipt(receipt, payload)
 
 
-def begin_adb_seal(receipt: OwnedRuntimeReceipt) -> OwnedRuntimeReceipt:
-    """Durably record seal intent before changing the socket-directory mode."""
+def begin_adb_seal(
+    receipt: OwnedRuntimeReceipt,
+    listener_descriptor: int,
+) -> OwnedRuntimeReceipt:
+    """Bind the bootstrap listener and record seal intent before chmod."""
 
     validate_lane_lock_descriptor()
     _require(
         receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED,
         "runtime recovery receipt is not awaiting adb sealing",
     )
+    _require(
+        type(listener_descriptor) is int
+        and 0 <= listener_descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR,
+        "runtime recovery adb listener descriptor is invalid",
+    )
     payload = _runtime_receipt_payload(receipt)
     payload["phase"] = RuntimePhase.ADB_SEALING.value
+    payload["adb_listener_descriptor"] = listener_descriptor
     return _replace_owned_runtime_receipt(receipt, payload)
 
 
@@ -3567,6 +3603,23 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         adb_snapshot_device = None
         adb_snapshot_inode = None
 
+    if phase in {RuntimePhase.PREPARED, RuntimePhase.ADB_CHILD_REGISTERED}:
+        _require(
+            value.get("adb_listener_descriptor") is None,
+            "unsealed runtime receipt contains an adb listener descriptor",
+        )
+        adb_listener_descriptor = None
+    else:
+        adb_listener_descriptor = _positive_int(
+            value.get("adb_listener_descriptor"),
+            "adb listener descriptor",
+            allow_zero=True,
+        )
+        _require(
+            adb_listener_descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR,
+            "owned runtime receipt adb listener descriptor is invalid",
+        )
+
     emulator_fields = (
         "pid",
         "started_at",
@@ -3705,6 +3758,7 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         adb_server_initial_executable_inode=adb_server_initial_executable_inode,
         adb_snapshot_device=adb_snapshot_device,
         adb_snapshot_inode=adb_snapshot_inode,
+        adb_listener_descriptor=adb_listener_descriptor,
         adb_socket_directory_device=adb_socket_directory_device,
         adb_socket_directory_inode=adb_socket_directory_inode,
         avd_name=avd_name,

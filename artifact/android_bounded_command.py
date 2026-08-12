@@ -28,6 +28,7 @@ from android_emulator_control import (
     NATIVE_ADB_NOTIFIER_PORT,
     AdbIsolationCheckpoint,
     AndroidEmulatorControlError,
+    OwnedUnixListenerObservation,
     emulator_routing_environment_sha256,
     fixed_headless_backend_path,
     parse_owned_adb_server_status,
@@ -515,7 +516,15 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-initial.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
+            lambda cap: (
+                _lsof_path(),
+                "-nP",
+                "-a",
+                "-U",
+                "-Ts",
+                "-FpufnT",
+                cap.socket_path,
+            ),
             False,
         ),
         AndroidOperation.LSOF_BEFORE: OperationSpec(
@@ -523,7 +532,15 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-before.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
+            lambda cap: (
+                _lsof_path(),
+                "-nP",
+                "-a",
+                "-U",
+                "-Ts",
+                "-FpufnT",
+                cap.socket_path,
+            ),
             False,
         ),
         AndroidOperation.LSOF_REGISTERED: OperationSpec(
@@ -531,7 +548,15 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-registered.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
+            lambda cap: (
+                _lsof_path(),
+                "-nP",
+                "-a",
+                "-U",
+                "-Ts",
+                "-FpufnT",
+                cap.socket_path,
+            ),
             False,
         ),
         AndroidOperation.LSOF_AFTER: OperationSpec(
@@ -539,7 +564,15 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             OutputSpec(proof, "adb-listener-after.txt", 65536),
-            lambda cap: (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", cap.socket_path),
+            lambda cap: (
+                _lsof_path(),
+                "-nP",
+                "-a",
+                "-U",
+                "-Ts",
+                "-FpufnT",
+                cap.socket_path,
+            ),
             False,
         ),
         AndroidOperation.SERVER_STATUS_BEFORE: OperationSpec(
@@ -1154,9 +1187,17 @@ def _validate_receipt_adb_server_executable(
 def _capture_recovery_adb_listener(
     capability: runtime_state.AndroidAdbCapability,
     receipt: runtime_state.OwnedRuntimeReceipt,
-) -> bool:
+) -> OwnedUnixListenerObservation | None:
     result = capture_stdout(
-        (_lsof_path(), "-nP", "-a", "-U", "-Fpufn", capability.socket_path),
+        (
+            _lsof_path(),
+            "-nP",
+            "-a",
+            "-U",
+            "-Ts",
+            "-FpufnT",
+            capability.socket_path,
+        ),
         timeout_seconds=5,
         maximum_bytes=65536,
         environment={
@@ -1166,7 +1207,7 @@ def _capture_recovery_adb_listener(
         },
     )
     if result.returncode == 1 and result.stdout == b"":
-        return False
+        return None
     _require(result.returncode == 0, "owned adb server listener inspection failed")
     try:
         text = result.stdout.decode("utf-8")
@@ -1175,15 +1216,19 @@ def _capture_recovery_adb_listener(
             "owned adb server listener output is not UTF-8"
         ) from exc
     try:
-        parse_owned_single_listener(
+        observation = parse_owned_single_listener(
             text,
             expected_pid=receipt.adb_server_pid,
             expected_uid=receipt.uid,
             expected_endpoint=capability.socket_path,
+            dialect=runtime_state.owned_unix_listener_dialect(
+                receipt.adb_profile
+            ),
+            expected_listener_descriptor=receipt.adb_listener_descriptor,
         )
     except AndroidEmulatorControlError as exc:
         raise AndroidCommandError(str(exc)) from exc
-    return True
+    return observation
 
 
 def _wait_for_recovery_adb_server(
@@ -1301,8 +1346,9 @@ def _reconcile_live_adb_seal(
         observed.executable == capability.adb_snapshot_path,
         "cannot reconcile adb sealing before the exact adb exec",
     )
+    observation = _capture_recovery_adb_listener(capability, receipt)
     _require(
-        _capture_recovery_adb_listener(capability, receipt),
+        observation is not None,
         "cannot reconcile adb sealing without the exact live listener",
     )
     directory = pathlib.Path(capability.socket_path).parent
@@ -1311,7 +1357,15 @@ def _reconcile_live_adb_seal(
         _socket_directory_metadata(
             capability, receipt, allowed_modes=frozenset({0o700})
         )
-        receipt = runtime_state.begin_adb_seal(receipt)
+        receipt = runtime_state.begin_adb_seal(
+            receipt,
+            observation.listener_descriptor,
+        )
+        rebound = _capture_recovery_adb_listener(capability, receipt)
+        _require(
+            rebound is not None,
+            "bound adb listener changed before socket-directory sealing",
+        )
         phase = receipt.phase
     if phase is runtime_state.RuntimePhase.ADB_SEALING:
         metadata = _socket_directory_metadata(
@@ -2335,17 +2389,23 @@ def _registered_private_adb_evidence(
         "registered private adb server status differs from this run",
     )
     try:
-        parse_owned_single_listener(
+        observation = parse_owned_single_listener(
             listener_text,
             expected_pid=receipt.adb_server_pid,
             expected_uid=receipt.uid,
             expected_endpoint=capability.socket_path,
+            dialect=runtime_state.owned_unix_listener_dialect(
+                receipt.adb_profile
+            ),
+            expected_listener_descriptor=receipt.adb_listener_descriptor,
         )
     except AndroidEmulatorControlError as exc:
         raise AndroidCommandError(str(exc)) from exc
     _require(
-        receipt.adb_server_process_identity is not None,
-        "registered private adb receipt lacks its process identity",
+        receipt.adb_server_process_identity is not None
+        and receipt.adb_listener_descriptor is not None
+        and observation.listener_descriptor == receipt.adb_listener_descriptor,
+        "registered private adb receipt lacks its bound listener identity",
     )
     return {
         "identity_sha256": hashlib.sha256(
@@ -2353,6 +2413,10 @@ def _registered_private_adb_evidence(
         ).hexdigest(),
         "server_status_sha256": status.sha256,
         "listener_snapshot_sha256": listener.sha256,
+        "listener_descriptor_sha256": hashlib.sha256(
+            str(receipt.adb_listener_descriptor).encode("ascii")
+        ).hexdigest(),
+        "adb_profile": receipt.adb_profile,
     }
 
 

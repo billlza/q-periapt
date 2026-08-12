@@ -36,8 +36,10 @@ from typing import Any, Callable, Iterator, NoReturn
 
 from android_emulator_control import (
     EMULATOR_ROUTING_MODE,
+    EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
     NATIVE_ADB_NOTIFIER_MODE,
     NATIVE_ADB_NOTIFIER_PORT,
+    OWNED_ADB_PROFILE_DIALECTS,
     AdbIsolationCheckpoint,
     emulator_routing_transport_binding_sha256,
 )
@@ -2380,16 +2382,17 @@ def validate_sanitized_proof_summary(proof_name: str, proof: dict[str, Any]) -> 
         )
     private_adb = require_exact_object(
         isolation.get("private_adb"),
-        frozenset(
-            {
-                "identity_sha256",
-                "server_status_sha256",
-                "listener_snapshot_sha256",
-            }
-        ),
+        EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
         "Android private adb summary",
     )
     for field in private_adb:
+        if field == "adb_profile":
+            require(
+                type(private_adb[field]) is str
+                and private_adb[field] in OWNED_ADB_PROFILE_DIALECTS,
+                "Android private adb profile is malformed",
+            )
+            continue
         require(
             isinstance(private_adb[field], str)
             and HEX_SHA256.fullmatch(private_adb[field]) is not None,

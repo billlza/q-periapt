@@ -248,7 +248,7 @@ socket, redirects the native notifier from 5037 to closed loopback port 5586, an
 freshly PID-bound fixed listener pair through the private socket. Four no-replace checkpoint receipts
 record IPv4/IPv6 `ECONNREFUSED` for 5037 and 5586 at emulator pre-exec, post-registration, runtime
 pre-cleanup, and post-cleanup. Its localhost emulator transport still requires an exclusive trusted
-evidence host. Current schema-v5 proof and schema-v2 bundle contain those checkpoint bytes plus a
+evidence host. Current schema-v6 proof and schema-v2 bundle contain those checkpoint bytes plus a
 raw-value-omitting, source-bound admission receipt for external-adb routing, the native-notifier
 policy, backend, fixed ports, listener, exact registration response, and private-adb identities; raw
 HOME/key/socket/UID/PID/serial values are excluded. This remains trusted-local control-plane evidence,
@@ -264,8 +264,8 @@ succeeds, so a later lane can acquire it and strictly recover an interrupted run
 defers HUP/INT/TERM until its private state is armed or removed. Same-boot recovery revalidates exact
 process/listener identities, shuts an owned AVD through its authenticated console independently of
 private adb, and protocol-stops any still-live private server; confirmed prior-boot recovery is
-offline-only. The socket directory is reconciled from mode 0700 through the schema-v4 runtime phases
-to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v3 runtime receipts are rejected
+offline-only. The socket directory is reconciled from mode 0700 through the schema-v5 runtime phases
+to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v4 runtime receipts are rejected
 rather than implicitly migrated. Normal publication requires accepted protocol shutdown requests and
 zero child exit statuses; recovery may finalize an exact identity already proven absent, but never
 turns that interrupted run into a PASS. The console-token bytes are not persisted. Unsafe receipt,

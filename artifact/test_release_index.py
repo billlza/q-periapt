@@ -35,7 +35,9 @@ PRODUCER_MANIFEST_CONTRACTS = {
 
 def complete_emulator_control_summary() -> dict[str, object]:
     private_adb = {
+        "adb_profile": "macos-account",
         "identity_sha256": "6" * 64,
+        "listener_descriptor_sha256": "9" * 64,
         "server_status_sha256": "7" * 64,
         "listener_snapshot_sha256": "8" * 64,
     }
@@ -976,6 +978,21 @@ class ReleaseIndexTests(unittest.TestCase):
                     ("adb_isolation", "private_adb", "identity_sha256"),
                     "0" * 64,
                     "transport binding",
+                ),
+                (
+                    ("adb_isolation", "private_adb", "adb_profile"),
+                    [],
+                    "profile",
+                ),
+                (
+                    ("adb_isolation", "private_adb", "adb_profile"),
+                    True,
+                    "profile",
+                ),
+                (
+                    ("adb_isolation", "private_adb", "adb_profile"),
+                    "unknown",
+                    "profile",
                 ),
                 (
                     ("adb_isolation", "external_adb", "snapshot_sha256"),

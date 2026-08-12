@@ -149,8 +149,12 @@ automatic transport range ending at 5585. After the exact child PID owns its fix
 console/adb listeners, the lane explicitly registers that port pair through the private socket and
 rechecks it before selection and shutdown. The server PID/start identity, executable, key, endpoint,
 transport environment, and mDNS-disabled status are checked before selection and after the final
-device query. Four no-replace receipts record IPv4/IPv6 `ECONNREFUSED` for 5037 and 5586 at emulator
-pre-exec, post-registration, runtime pre-cleanup, and post-cleanup. Current proof schema v5 and bundle
+device query. Before any adb client runs, the unique bootstrap listener descriptor is committed to
+the private recovery receipt. Later Darwin snapshots must retain that descriptor; Linux snapshots
+must report it as the sole `LISTEN` record and may contain only exact-socket `CONNECTED` records.
+The public projection records only the fixed adb profile and a descriptor digest. Four no-replace
+receipts record IPv4/IPv6 `ECONNREFUSED` for 5037 and 5586 at emulator
+pre-exec, post-registration, runtime pre-cleanup, and post-cleanup. Current proof schema v6 and bundle
 schema v2 record those exact checkpoint bytes plus a raw-value-omitting, source-bound control-plane
 receipt for the external-adb routing, native-notifier policy, backend, fixed ports, listener, exact
 registration response, and private-adb identities. They exclude raw HOME/key/socket, UID, PID, and
@@ -167,8 +171,8 @@ runtime. Capability creation defers HUP/INT/TERM until its private state is arme
 script never signals a cached PID directly. On the same boot, recovery requires the exact recorded
 process/listener identities and uses the authenticated emulator console independently of private adb,
 then protocol-stops any still-live private server; after a confirmed reboot it performs offline
-cleanup only. The socket directory is reconciled from mode 0700 through the schema-v4 runtime phases
-to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v3 runtime receipts are rejected
+cleanup only. The socket directory is reconciled from mode 0700 through the schema-v5 runtime phases
+to `ADB_SEALED` plus actual mode 0500 before any adb client. Schema-v4 runtime receipts are rejected
 instead of implicitly migrated. Normal proof publication requires accepted protocol shutdowns and
 zero child exit statuses; exact already-absent resources can be finalized only by recovery and cannot
 make the interrupted run pass. Only the console-token file identity and digest enter the private
@@ -259,7 +263,7 @@ export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
 release also binds a runtime-evidence bundle that executed the exact public AAR on
 the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
 16 KiB pages. That historical published receipt remains schema v3; current source-tree runs require
-schema v5 and do not retroactively change the immutable release. Verify the AAR and its manifest with `gh release verify-asset`
+schema v6 and do not retroactively change the immutable release. Verify the AAR and its manifest with `gh release verify-asset`
 against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
 [`../../artifact/abi2-platform-release-notes.md`](../../artifact/abi2-platform-release-notes.md).
 Maven Central publication and a current same-source physical-device production proof are explicitly

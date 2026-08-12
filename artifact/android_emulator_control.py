@@ -27,13 +27,69 @@ class AndroidEmulatorControlError(ValueError):
 
 
 EmulatorAbi = Literal["arm64-v8a", "x86_64"]
+MAX_OWNED_LISTENER_DESCRIPTOR = 1_048_575
+
+
+class OwnedUnixListenerDialect(str, Enum):
+    """The two exact Unix-socket field grammars admitted by release lanes."""
+
+    DARWIN = "darwin"
+    LINUX = "linux"
+
+
+OWNED_ADB_PROFILE_DIALECTS = MappingProxyType(
+    {
+        "macos-account": OwnedUnixListenerDialect.DARWIN,
+        "linux-account": OwnedUnixListenerDialect.LINUX,
+        "linux-system": OwnedUnixListenerDialect.LINUX,
+        "linux-opt": OwnedUnixListenerDialect.LINUX,
+    }
+)
+
+
+def canonical_owned_adb_profile(value: object) -> str:
+    """Return one release-evidence adb profile from the shared policy table."""
+
+    _require(
+        type(value) is str and value in OWNED_ADB_PROFILE_DIALECTS,
+        "owned adb profile is unsupported",
+    )
+    return value
+
+
+def owned_unix_listener_dialect_for_profile(
+    value: object,
+) -> OwnedUnixListenerDialect:
+    """Return the listener grammar bound to one canonical adb profile."""
+
+    return OWNED_ADB_PROFILE_DIALECTS[canonical_owned_adb_profile(value)]
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedUnixListenerDescriptor:
+    """One complete descriptor record from an owned Unix-socket snapshot."""
+
+    descriptor: int
+    state: Literal["LISTEN", "CONNECTED"] | None
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedUnixListenerObservation:
+    """Strict process and descriptor identity for one owned Unix endpoint."""
+
+    pid: int
+    uid: int
+    endpoint: str
+    descriptors: tuple[OwnedUnixListenerDescriptor, ...]
+    listener_descriptor: int
+
 
 DEFAULT_ADB_SERVER_PORT = 5037
 NATIVE_ADB_NOTIFIER_PORT = 5586
 NATIVE_ADB_NOTIFIER_MODE = "closed_loopback"
 ADB_ISOLATION_RECEIPT_SCHEMA_VERSION = 1
 ADB_ISOLATION_RECEIPT_KIND = "qperiapt.android_adb_loopback_absence"
-EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION = 1
+EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION = 2
 EMULATOR_ROUTING_RECEIPT_KIND = "qperiapt.android_emulator_routing"
 EMULATOR_ROUTING_RECEIPT_LEAF = "emulator-routing.json"
 EMULATOR_ROUTING_MODE = "private_unix_external_adb_closed_native_notifier"
@@ -42,6 +98,8 @@ EMULATOR_ROUTING_PRIVATE_ADB_FIELDS = frozenset(
         "identity_sha256",
         "server_status_sha256",
         "listener_snapshot_sha256",
+        "listener_descriptor_sha256",
+        "adb_profile",
     }
 )
 EMULATOR_ROUTING_ENVIRONMENT_FIELDS = frozenset(
@@ -128,12 +186,18 @@ def emulator_routing_transport_binding_sha256(
         and set(private_adb) == EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
         "emulator routing private adb fields changed",
     )
-    for name in EMULATOR_ROUTING_PRIVATE_ADB_FIELDS:
+    for name in EMULATOR_ROUTING_PRIVATE_ADB_FIELDS - {"adb_profile"}:
         _require(
             type(private_adb[name]) is str
             and _SHA256.fullmatch(private_adb[name]) is not None,
             f"emulator routing private adb digest is invalid: {name}",
         )
+    try:
+        canonical_owned_adb_profile(private_adb["adb_profile"])
+    except AndroidEmulatorControlError as exc:
+        raise AndroidEmulatorControlError(
+            "emulator routing private adb profile is invalid"
+        ) from exc
     payload = {
         "mode": EMULATOR_ROUTING_MODE,
         "adb_snapshot_sha256": adb_snapshot_sha256,
@@ -469,8 +533,11 @@ def parse_owned_single_listener(
     expected_pid: int,
     expected_uid: int,
     expected_endpoint: str,
-) -> int:
-    """Parse one exact owned single-endpoint ``lsof -Fpufn`` listener."""
+    dialect: OwnedUnixListenerDialect,
+    expected_listener_descriptor: int | None,
+    expected_listener_descriptor_sha256: str | None = None,
+) -> OwnedUnixListenerObservation:
+    """Parse one exact owned Unix listener and any accepted connections."""
 
     _require(type(text) is str, "owned single listener inspection is not text")
     _require(
@@ -480,6 +547,31 @@ def parse_owned_single_listener(
     _require(
         type(expected_uid) is int and expected_uid >= 0,
         "owned single listener uid is invalid",
+    )
+    _require(
+        isinstance(dialect, OwnedUnixListenerDialect),
+        "owned single listener dialect is invalid",
+    )
+    _require(
+        expected_listener_descriptor is None
+        or (
+            type(expected_listener_descriptor) is int
+            and 0 <= expected_listener_descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR
+        ),
+        "owned single listener bound descriptor is invalid",
+    )
+    _require(
+        expected_listener_descriptor_sha256 is None
+        or (
+            type(expected_listener_descriptor_sha256) is str
+            and _SHA256.fullmatch(expected_listener_descriptor_sha256) is not None
+        ),
+        "owned single listener bound descriptor digest is invalid",
+    )
+    _require(
+        expected_listener_descriptor is None
+        or expected_listener_descriptor_sha256 is None,
+        "owned single listener has two bound descriptor authorities",
     )
     _require(
         type(expected_endpoint) is str
@@ -497,8 +589,40 @@ def parse_owned_single_listener(
         )
     observed_pid: int | None = None
     observed_uid: int | None = None
-    observed_fd: int | None = None
-    observed_endpoint: str | None = None
+    records: list[OwnedUnixListenerDescriptor] = []
+    observed_fds: set[int] = set()
+    current_fd: int | None = None
+    current_fd_has_endpoint = False
+    current_state: Literal["LISTEN", "CONNECTED"] | None = None
+
+    def finish_record() -> None:
+        nonlocal current_fd, current_fd_has_endpoint, current_state
+        if current_fd is None:
+            return
+        _require(
+            current_fd_has_endpoint,
+            "owned listener lacks one or more complete descriptor endpoints",
+        )
+        if dialect is OwnedUnixListenerDialect.LINUX:
+            _require(
+                current_state is not None,
+                "Linux owned listener descriptor lacks its socket state",
+            )
+        else:
+            _require(
+                current_state is None,
+                "Darwin owned listener unexpectedly reports a socket state",
+            )
+        records.append(
+            OwnedUnixListenerDescriptor(
+                descriptor=current_fd,
+                state=current_state,
+            )
+        )
+        current_fd = None
+        current_fd_has_endpoint = False
+        current_state = None
+
     for line in text.splitlines():
         _require(bool(line), "empty field in owned single listener inspection")
         prefix, value = line[0], line[1:]
@@ -506,7 +630,7 @@ def parse_owned_single_listener(
             _require(
                 observed_pid is None
                 and observed_uid is None
-                and observed_fd is None,
+                and current_fd is None,
                 f"malformed owned single listener pid: {value!r}",
             )
             observed_pid = _canonical_decimal(value, "pid")
@@ -514,7 +638,7 @@ def parse_owned_single_listener(
             _require(
                 observed_pid is not None
                 and observed_uid is None
-                and observed_fd is None,
+                and current_fd is None,
                 f"malformed owned single listener uid: {value!r}",
             )
             observed_uid = _canonical_decimal(value, "uid")
@@ -522,14 +646,22 @@ def parse_owned_single_listener(
             _require(
                 observed_pid is not None
                 and observed_uid is not None
-                and observed_fd is None,
+                and (current_fd is None or current_fd_has_endpoint),
                 f"malformed owned single listener descriptor: {value!r}",
             )
-            observed_fd = _canonical_decimal(value, "descriptor")
+            finish_record()
+            current_fd = _canonical_decimal(value, "descriptor")
+            _require(
+                current_fd <= MAX_OWNED_LISTENER_DESCRIPTOR
+                and current_fd not in observed_fds,
+                f"invalid or duplicate owned single listener descriptor: {value!r}",
+            )
+            observed_fds.add(current_fd)
+            current_fd_has_endpoint = False
         elif prefix == "n":
             _require(
-                observed_fd is not None
-                and observed_endpoint is None
+                current_fd is not None
+                and not current_fd_has_endpoint
                 and bool(value),
                 f"malformed owned single listener endpoint: {value!r}",
             )
@@ -538,6 +670,34 @@ def parse_owned_single_listener(
                 if expected_is_owned_unix
                 else value
             )
+            if expected_is_owned_unix:
+                expected_raw = (
+                    expected_endpoint + _LINUX_LSOF_UNIX_STREAM_SUFFIX
+                    if dialect is OwnedUnixListenerDialect.LINUX
+                    else expected_endpoint
+                )
+                _require(
+                    value == expected_raw,
+                    "owned single listener endpoint encoding differs from its dialect",
+                )
+            _require(
+                observed_endpoint == expected_endpoint,
+                "owned single listener endpoint differs",
+            )
+            current_fd_has_endpoint = True
+        elif prefix == "T":
+            _require(
+                current_fd is not None
+                and current_fd_has_endpoint
+                and current_state is None
+                and dialect is OwnedUnixListenerDialect.LINUX,
+                f"malformed owned single listener state: {value!r}",
+            )
+            _require(
+                value in {"ST=LISTEN", "ST=CONNECTED"},
+                f"unsupported owned single listener state: {value!r}",
+            )
+            current_state = value.removeprefix("ST=")
         else:
             raise AndroidEmulatorControlError(
                 f"unexpected owned single listener field: {line!r}"
@@ -550,12 +710,63 @@ def parse_owned_single_listener(
         observed_uid == expected_uid,
         "owned listener is not owned by the expected account",
     )
-    _require(observed_fd is not None, "owned listener lacks its descriptor")
-    _require(
-        observed_endpoint == expected_endpoint,
-        "owned single listener endpoint differs",
+    finish_record()
+    _require(bool(records), "owned listener lacks its descriptor")
+    bound_descriptor = expected_listener_descriptor
+    if expected_listener_descriptor_sha256 is not None:
+        matching = tuple(
+            record.descriptor
+            for record in records
+            if hashlib.sha256(str(record.descriptor).encode("ascii")).hexdigest()
+            == expected_listener_descriptor_sha256
+        )
+        _require(
+            len(matching) == 1,
+            "owned listener lacks its digest-bound listening descriptor",
+        )
+        bound_descriptor = matching[0]
+    if bound_descriptor is None:
+        _require(
+            len(records) == 1,
+            "unbound owned listener must expose exactly one descriptor",
+        )
+        if dialect is OwnedUnixListenerDialect.LINUX:
+            _require(
+                records[0].state == "LISTEN",
+                "unbound Linux owned listener is not listening",
+            )
+    elif dialect is OwnedUnixListenerDialect.LINUX:
+        listeners = tuple(record for record in records if record.state == "LISTEN")
+        _require(
+            len(listeners) == 1
+            and listeners[0].descriptor == bound_descriptor,
+            "Linux owned listener differs from its bound listening descriptor",
+        )
+        _require(
+            all(
+                record.state in {"LISTEN", "CONNECTED"}
+                and (
+                    record.state == "LISTEN"
+                    or record.descriptor != bound_descriptor
+                )
+                for record in records
+            ),
+            "Linux owned listener descriptor states are invalid",
+        )
+    else:
+        _require(
+            bound_descriptor in observed_fds,
+            "Darwin owned listener lacks its bound listening descriptor",
+        )
+    return OwnedUnixListenerObservation(
+        pid=observed_pid,
+        uid=observed_uid,
+        endpoint=expected_endpoint,
+        descriptors=tuple(records),
+        listener_descriptor=(
+            records[0].descriptor if bound_descriptor is None else bound_descriptor
+        ),
     )
-    return observed_uid
 
 
 def _owned_emulator_endpoint_sets(

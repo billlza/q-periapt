@@ -329,7 +329,11 @@ class ProofManifestTests(unittest.TestCase):
             ("page_size", 8_192, "page size is invalid"),
             ("android_sdk", 0, "SDK is invalid"),
             ("release_candidate_mode", 1, "release mode is invalid"),
-            ("proof_schema", 4, "proof schema 5"),
+            (
+                "proof_schema",
+                proof_manifest.ANDROID_DEVICE_PROOF_SCHEMA_VERSION - 1,
+                f"proof schema {proof_manifest.ANDROID_DEVICE_PROOF_SCHEMA_VERSION}",
+            ),
             ("status", "fail", "passing proof"),
             ("source_tree_dirty", True, "clean source provenance"),
         ):

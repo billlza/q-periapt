@@ -31,19 +31,18 @@ from android_emulator_control import (
     ADB_ISOLATION_RECEIPT_KIND,
     ADB_ISOLATION_RECEIPT_SCHEMA_VERSION,
     DEFAULT_ADB_SERVER_PORT,
-    EMULATOR_ROUTING_MODE,
     EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
-    EMULATOR_ROUTING_RECEIPT_KIND,
     EMULATOR_ROUTING_RECEIPT_LEAF,
-    EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
     NATIVE_ADB_NOTIFIER_MODE,
     NATIVE_ADB_NOTIFIER_PORT,
     AdbIsolationCheckpoint,
     AndroidEmulatorControlError,
+    OwnedUnixListenerDialect,
     canonical_owned_emulator_listener_endpoints,
     canonical_owned_unix_lsof_name,
     emulator_routing_transport_binding_sha256,
     fixed_headless_backend_path,
+    parse_emulator_routing_receipt,
     parse_owned_adb_server_status,
     parse_owned_lsof_listeners,
     parse_owned_single_listener,
@@ -900,7 +899,13 @@ def assert_default_adb_server_absent(_: argparse.Namespace) -> None:
     )
 
 
-def parse_lsof_adb_listener(text: str, *, expected_endpoint: str) -> tuple[int, int]:
+def parse_lsof_adb_listener(
+    text: str,
+    *,
+    expected_endpoint: str,
+    dialect: OwnedUnixListenerDialect,
+    expected_listener_descriptor: int | None,
+) -> tuple[int, int]:
     lines = text.splitlines()
     pid_lines = [line[1:] for line in lines if line.startswith("p")]
     uid_lines = [line[1:] for line in lines if line.startswith("u")]
@@ -914,6 +919,8 @@ def parse_lsof_adb_listener(text: str, *, expected_endpoint: str) -> tuple[int, 
             expected_pid=pid,
             expected_uid=uid,
             expected_endpoint=expected_endpoint,
+            dialect=dialect,
+            expected_listener_descriptor=expected_listener_descriptor,
         )
     except (ValueError, AndroidEmulatorControlError) as exc:
         raise SystemExit(f"error: {exc}") from exc
@@ -988,17 +995,38 @@ def resolve_emulator_backend(args: argparse.Namespace) -> None:
 
 def verify_adb_listener(args: argparse.Namespace) -> None:
     try:
+        receipt = runtime_state.load_owned_runtime_receipt()
+        canonical_run = runtime_state.canonical_run_id(args.run_id)
+    except runtime_state.AndroidRuntimeStateError as exc:
+        raise SystemExit(f"error: cannot load owned adb listener receipt: {exc}") from exc
+    require(
+        receipt is not None
+        and receipt.run_id == canonical_run
+        and receipt.adb_server_started
+        and receipt.adb_server_pid is not None,
+        "adb listener lacks this run's owned server receipt",
+    )
+    require(
+        args.expected_pid is None or args.expected_pid == receipt.adb_server_pid,
+        "adb listener expected pid differs from its owned receipt",
+    )
+    try:
         snapshot = read_regular_snapshot(
             args.lsof_output,
             maximum=MAX_ADB_LISTENER_OUTPUT_BYTES,
             label="adb listener inspection",
         )
         pid, reported_uid = parse_lsof_adb_listener(
-            snapshot.data.decode("utf-8"), expected_endpoint=args.expected_endpoint
+            snapshot.data.decode("utf-8"),
+            expected_endpoint=args.expected_endpoint,
+            dialect=runtime_state.owned_unix_listener_dialect(
+                receipt.adb_profile
+            ),
+            expected_listener_descriptor=receipt.adb_listener_descriptor,
         )
     except (EvidenceIOError, UnicodeDecodeError) as exc:
         raise SystemExit(f"error: cannot read adb listener inspection: {exc}") from exc
-    if args.expected_pid is not None and pid != args.expected_pid:
+    if pid != receipt.adb_server_pid:
         raise SystemExit(
             f"error: adb listener pid differs from the owned server: {pid}"
         )
@@ -1497,6 +1525,24 @@ def _parse_adb_isolation_receipt(
     return receipt_sha256
 
 
+def _load_validated_emulator_routing_receipt(
+    path: pathlib.Path,
+    *,
+    run_id: str,
+    bundled: bool = False,
+) -> tuple[dict[str, object], str]:
+    receipt, receipt_sha256 = _load_private_json_receipt(
+        path, label="Android emulator routing receipt", bundled=bundled
+    )
+    try:
+        validated = dict(parse_emulator_routing_receipt(receipt, run_id=run_id))
+    except AndroidEmulatorControlError as exc:
+        raise SystemExit(
+            f"error: Android emulator routing receipt is invalid: {exc}"
+        ) from exc
+    return validated, receipt_sha256
+
+
 def _parse_emulator_routing_receipt(
     path: pathlib.Path,
     *,
@@ -1504,40 +1550,10 @@ def _parse_emulator_routing_receipt(
     expected_private_adb: dict[str, str],
     bundled: bool = False,
 ) -> dict[str, str]:
-    receipt, receipt_sha256 = _load_private_json_receipt(
-        path, label="Android emulator routing receipt", bundled=bundled
-    )
-    exact_object(
-        receipt,
-        {
-            "schema",
-            "kind",
-            "run_id",
-            "mode",
-            "adb_snapshot_sha256",
-            "routing_environment_sha256",
-            "transport_binding_sha256",
-            "private_adb",
-            "native_notifier_port",
-            "private_socket_kind",
-            "raw_paths_recorded",
-        },
-        "Android emulator routing receipt",
-    )
-    require(
-        type(receipt.get("schema")) is int
-        and receipt["schema"] == EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
-        "Android emulator routing receipt schema differs",
-    )
-    require(
-        receipt.get("kind") == EMULATOR_ROUTING_RECEIPT_KIND
-        and receipt.get("run_id") == run_id
-        and receipt.get("mode") == EMULATOR_ROUTING_MODE
-        and type(receipt.get("native_notifier_port")) is int
-        and receipt["native_notifier_port"] == NATIVE_ADB_NOTIFIER_PORT
-        and receipt.get("private_socket_kind") == "localfilesystem"
-        and receipt.get("raw_paths_recorded") is False,
-        "Android emulator routing receipt contract differs",
+    receipt, receipt_sha256 = _load_validated_emulator_routing_receipt(
+        path,
+        run_id=run_id,
+        bundled=bundled,
     )
     environment_sha256 = require_sha256(
         receipt.get("routing_environment_sha256"),
@@ -1558,15 +1574,6 @@ def _parse_emulator_routing_receipt(
     transport_commitment = require_sha256(
         receipt.get("transport_binding_sha256"),
         "external adb private transport commitment",
-    )
-    require(
-        transport_commitment
-        == emulator_routing_transport_binding_sha256(
-            adb_snapshot_sha256,
-            environment_sha256,
-            expected_private_adb,
-        ),
-        "external adb private transport binding differs",
     )
     return {
         "snapshot_sha256": adb_snapshot_sha256,
@@ -1590,6 +1597,39 @@ def _registered_private_adb_paths(
     )
 
 
+def _routing_private_adb_listener_binding(
+    routing_receipt_path: pathlib.Path,
+    *,
+    run_id: str,
+) -> tuple[str, str]:
+    """Read the profile and bootstrap-listener commitment from one routing receipt."""
+
+    validated, _receipt_sha256 = _load_validated_emulator_routing_receipt(
+        routing_receipt_path,
+        run_id=run_id,
+    )
+    private_adb = exact_object(
+        validated.get("private_adb"),
+        PRIVATE_ADB_CONTROL_FIELDS,
+        "Android emulator routing private adb evidence",
+    )
+    adb_profile = private_adb.get("adb_profile")
+    listener_descriptor_sha256 = private_adb.get("listener_descriptor_sha256")
+    try:
+        runtime_state.owned_unix_listener_dialect(adb_profile)
+    except runtime_state.AndroidRuntimeStateError as exc:
+        raise SystemExit(
+            f"error: Android emulator routing adb profile is invalid: {exc}"
+        ) from exc
+    return (
+        adb_profile,
+        require_sha256(
+            listener_descriptor_sha256,
+            "Android emulator routing adb listener descriptor",
+        ),
+    )
+
+
 def _read_registered_private_adb_evidence(
     *,
     routing_receipt_path: pathlib.Path,
@@ -1598,6 +1638,12 @@ def _read_registered_private_adb_evidence(
     private_adb_status_path: pathlib.Path | None = None,
     private_adb_listener_path: pathlib.Path | None = None,
 ) -> dict[str, str]:
+    adb_profile, listener_descriptor_sha256 = (
+        _routing_private_adb_listener_binding(
+            routing_receipt_path,
+            run_id=run_id,
+        )
+    )
     expected_status_path, expected_listener_path = _registered_private_adb_paths(
         routing_receipt_path
     )
@@ -1652,13 +1698,16 @@ def _read_registered_private_adb_evidence(
         line[1:] for line in listener_text.splitlines() if line.startswith("n")
     ]
     try:
+        require(raw_listener_endpoints, "registered private adb listener is empty")
+        listener_endpoints = {
+            canonical_owned_unix_lsof_name(value)
+            for value in raw_listener_endpoints
+        }
         require(
-            len(raw_listener_endpoints) == 1,
+            len(listener_endpoints) == 1,
             "registered private adb listener endpoint is non-canonical",
         )
-        listener_endpoint = canonical_owned_unix_lsof_name(
-            raw_listener_endpoints[0]
-        )
+        listener_endpoint = next(iter(listener_endpoints))
         require(
             re.fullmatch(
                 r"/tmp/qperiapt-adb\.[A-Za-z0-9]{8}/adb\.sock",
@@ -1689,6 +1738,9 @@ def _read_registered_private_adb_evidence(
             expected_pid=listener_pid,
             expected_uid=listener_uid,
             expected_endpoint=listener_endpoint,
+            dialect=runtime_state.owned_unix_listener_dialect(adb_profile),
+            expected_listener_descriptor=None,
+            expected_listener_descriptor_sha256=listener_descriptor_sha256,
         )
     except (ValueError, AndroidEmulatorControlError) as exc:
         raise SystemExit(
@@ -1715,6 +1767,8 @@ def _read_registered_private_adb_evidence(
         "identity_sha256": identity_sha256,
         "server_status_sha256": status_snapshot.sha256,
         "listener_snapshot_sha256": listener_snapshot.sha256,
+        "listener_descriptor_sha256": listener_descriptor_sha256,
+        "adb_profile": adb_profile,
     }
 
 
@@ -1991,18 +2045,17 @@ def verify_emulator_control(
         PRIVATE_ADB_CONTROL_FIELDS,
         "Android private adb control",
     )
-    require_sha256(
-        private_adb.get("identity_sha256"),
-        "registered private adb process identity",
-    )
-    require_sha256(
-        private_adb.get("server_status_sha256"),
-        "registered private adb server status",
-    )
-    require_sha256(
-        private_adb.get("listener_snapshot_sha256"),
-        "registered private adb listener snapshot",
-    )
+    for field, label in (
+        ("identity_sha256", "registered private adb process identity"),
+        ("server_status_sha256", "registered private adb server status"),
+        ("listener_snapshot_sha256", "registered private adb listener snapshot"),
+        ("listener_descriptor_sha256", "registered private adb listener descriptor"),
+    ):
+        require_sha256(private_adb.get(field), label)
+    try:
+        runtime_state.owned_unix_listener_dialect(private_adb.get("adb_profile"))
+    except runtime_state.AndroidRuntimeStateError as exc:
+        raise SystemExit(f"error: Android private adb profile is invalid: {exc}") from exc
     external_adb = exact_object(
         control.get("external_adb"),
         EXTERNAL_ADB_CONTROL_FIELDS,
@@ -4069,6 +4122,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="bind one exact adb endpoint to the expected owned server process",
     )
     adb_listener_parser.add_argument("--lsof-output", required=True, type=pathlib.Path)
+    adb_listener_parser.add_argument("--run-id", required=True)
     adb_listener_parser.add_argument("--adb", required=True, type=pathlib.Path)
     adb_listener_parser.add_argument("--expected-endpoint", required=True)
     adb_listener_parser.add_argument("--expected-pid", type=int)

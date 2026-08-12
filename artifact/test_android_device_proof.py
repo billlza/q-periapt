@@ -7,6 +7,7 @@ import contextlib
 import copy
 import datetime as dt
 import io
+import hashlib
 import json
 import os
 import pathlib
@@ -22,10 +23,12 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
 from unittest import mock
 
 import android_device_proof
+import android_emulator_control
 from process_identity import ProcessExecutionSnapshot, ProcessIdentity
 
 # Independent immutable r2 fixture contract.  These literals intentionally do
@@ -188,7 +191,9 @@ def complete_proof_shape() -> dict[str, object]:
         adb_port=adb_port,
     )
     private_adb = {
+        "adb_profile": "macos-account",
         "identity_sha256": "4" * 64,
+        "listener_descriptor_sha256": hashlib.sha256(b"7").hexdigest(),
         "server_status_sha256": "5" * 64,
         "listener_snapshot_sha256": "6" * 64,
     }
@@ -308,7 +313,7 @@ def current_results_for_proof(
     *,
     results_binding: str = "android_runtime",
 ) -> dict[str, object]:
-    """Build the exact current-results projection for one schema-v5 proof."""
+    """Build the exact current-results projection for one schema-v6 proof."""
 
     if results_binding == "android_runtime":
         runtime_section = "android_device_runtime"
@@ -384,7 +389,7 @@ def write_emulator_isolation_receipts(
     pathlib.Path,
     dict[android_device_proof.AdbIsolationCheckpoint, pathlib.Path],
 ]:
-    """Write canonical private fixtures matching the schema-v5 projection."""
+    """Write canonical private fixtures matching the schema-v6 projection."""
 
     directory.mkdir(parents=True, exist_ok=True)
     checkpoint_paths = {}
@@ -421,10 +426,10 @@ def write_emulator_isolation_receipts(
     routing_path.write_bytes(
         android_device_proof.canonical_json(
             {
-                "schema": android_device_proof.EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
-                "kind": android_device_proof.EMULATOR_ROUTING_RECEIPT_KIND,
+                "schema": android_emulator_control.EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
+                "kind": android_emulator_control.EMULATOR_ROUTING_RECEIPT_KIND,
                 "run_id": run_id,
-                "mode": android_device_proof.EMULATOR_ROUTING_MODE,
+                "mode": android_emulator_control.EMULATOR_ROUTING_MODE,
                 "adb_snapshot_sha256": adb_snapshot_sha256,
                 "routing_environment_sha256": routing_environment_sha256,
                 "transport_binding_sha256": (
@@ -573,6 +578,112 @@ class AndroidAdbIdentityTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
+    def test_registered_linux_adb_evidence_binds_listen_state_profile_and_fd(
+        self,
+    ) -> None:
+        run_id = "d" * 32
+        run_root = (
+            self.account_home
+            / "target"
+            / android_device_proof.ANDROID_RUNS_ROOT_LEAF
+            / run_id
+        )
+        proof_root = run_root / "proof"
+        work_root = run_root / "work"
+        proof_root.mkdir(parents=True)
+        work_root.mkdir()
+        status_path = proof_root / android_device_proof.PRIVATE_ADB_STATUS_REGISTERED_LEAF
+        listener_path = (
+            proof_root / android_device_proof.PRIVATE_ADB_LISTENER_REGISTERED_LEAF
+        )
+        socket_path = "/tmp/qperiapt-adb.A1b2C3d4/adb.sock"
+        status_path.write_text(
+            f'executable_absolute_path: "{work_root / f"adb-{run_id}"}"\n'
+            f'keystore_path: "{self.account_home / ".android/adbkey"}"\n'
+            "mdns_enabled: false\n",
+            encoding="utf-8",
+        )
+        listener_bytes = (
+            f"p321\nu{os.geteuid()}\n"
+            f"f7\nn{socket_path} type=STREAM\nTST=LISTEN\n"
+            f"f8\nn{socket_path} type=STREAM\nTST=CONNECTED\n"
+        ).encode("ascii")
+        listener_path.write_bytes(listener_bytes)
+        status_path.chmod(0o600)
+        listener_path.chmod(0o600)
+        private_identity = f"321:{os.geteuid()}:456:789"
+        private_adb = {
+            "adb_profile": "linux-system",
+            "identity_sha256": android_device_proof.process_identity_sha256(
+                private_identity,
+                "private adb process identity",
+            ),
+            "listener_descriptor_sha256": hashlib.sha256(b"7").hexdigest(),
+            "listener_snapshot_sha256": hashlib.sha256(listener_bytes).hexdigest(),
+            "server_status_sha256": android_device_proof.sha256_file(status_path),
+        }
+        routing_path = proof_root / android_device_proof.EMULATOR_ROUTING_RECEIPT_LEAF
+
+        def write_routing() -> None:
+            snapshot = "2" * 64
+            environment = "3" * 64
+            routing_path.write_bytes(
+                android_device_proof.canonical_json(
+                    {
+                        "schema": android_emulator_control.EMULATOR_ROUTING_RECEIPT_SCHEMA_VERSION,
+                        "kind": android_emulator_control.EMULATOR_ROUTING_RECEIPT_KIND,
+                        "run_id": run_id,
+                        "mode": android_emulator_control.EMULATOR_ROUTING_MODE,
+                        "adb_snapshot_sha256": snapshot,
+                        "routing_environment_sha256": environment,
+                        "transport_binding_sha256": android_device_proof.emulator_routing_transport_binding_sha256(
+                            snapshot,
+                            environment,
+                            private_adb,
+                        ),
+                        "private_adb": private_adb,
+                        "native_notifier_port": android_device_proof.NATIVE_ADB_NOTIFIER_PORT,
+                        "private_socket_kind": "localfilesystem",
+                        "raw_paths_recorded": False,
+                    }
+                )
+            )
+            routing_path.chmod(0o600)
+
+        write_routing()
+        with mock.patch.object(
+            android_device_proof,
+            "current_account_home",
+            return_value=self.account_home,
+        ):
+            observed = android_device_proof._read_registered_private_adb_evidence(
+                routing_receipt_path=routing_path,
+                run_id=run_id,
+                private_adb_identity=private_identity,
+            )
+            self.assertEqual(observed, private_adb)
+
+            listener_path.write_bytes(
+                listener_bytes.replace(b"TST=LISTEN", b"TST=CONNECTED")
+            )
+            with self.assertRaisesRegex(SystemExit, "bound listening descriptor"):
+                android_device_proof._read_registered_private_adb_evidence(
+                    routing_receipt_path=routing_path,
+                    run_id=run_id,
+                    private_adb_identity=private_identity,
+                )
+            listener_path.write_bytes(listener_bytes)
+            listener_path.chmod(0o600)
+
+            private_adb["adb_profile"] = "macos-account"
+            write_routing()
+            with self.assertRaisesRegex(SystemExit, "endpoint encoding|socket state"):
+                android_device_proof._read_registered_private_adb_evidence(
+                    routing_receipt_path=routing_path,
+                    run_id=run_id,
+                    private_adb_identity=private_identity,
+                )
+
     def test_owner_controlled_identity_passes(self) -> None:
         android_device_proof.validate_adb_identity_directory(self.android_dir)
         android_device_proof.validate_account_adb_identity(
@@ -582,6 +693,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
     def test_avd_home_verifier_accepts_only_the_fixed_runtime_selection(self) -> None:
         fixed_home = self.account_home / "private-state" / "avd-home"
         arguments = argparse.Namespace(
+            run_id="a" * 32,
             avd_home=fixed_home,
             adb_profile="macos-account",
             device_abi="arm64-v8a",
@@ -785,6 +897,8 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             android_device_proof.parse_lsof_adb_listener(
                 "p123\nu501\nf18\nn127.0.0.1:5037\n",
                 expected_endpoint="127.0.0.1:5037",
+                dialect=android_device_proof.OwnedUnixListenerDialect.DARWIN,
+                expected_listener_descriptor=None,
             ),
             (123, 501),
         )
@@ -792,16 +906,31 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             android_device_proof.parse_lsof_adb_listener(
                 "p124\nu501\nf19\nn/tmp/qperiapt-adb.12345678/adb.sock\n",
                 expected_endpoint="/tmp/qperiapt-adb.12345678/adb.sock",
+                dialect=android_device_proof.OwnedUnixListenerDialect.DARWIN,
+                expected_listener_descriptor=None,
             ),
             (124, 501),
         )
         self.assertEqual(
             android_device_proof.parse_lsof_adb_listener(
                 "p125\nu501\nf20\n"
-                "n/tmp/qperiapt-adb.12345678/adb.sock type=STREAM\n",
+                "n/tmp/qperiapt-adb.12345678/adb.sock type=STREAM\nTST=LISTEN\n",
                 expected_endpoint="/tmp/qperiapt-adb.12345678/adb.sock",
+                dialect=android_device_proof.OwnedUnixListenerDialect.LINUX,
+                expected_listener_descriptor=None,
             ),
             (125, 501),
+        )
+        self.assertEqual(
+            android_device_proof.parse_lsof_adb_listener(
+                "p126\nu501\n"
+                "f20\nn/tmp/qperiapt-adb.12345678/adb.sock type=STREAM\nTST=LISTEN\n"
+                "f21\nn/tmp/qperiapt-adb.12345678/adb.sock type=STREAM\nTST=CONNECTED\n",
+                expected_endpoint="/tmp/qperiapt-adb.12345678/adb.sock",
+                dialect=android_device_proof.OwnedUnixListenerDialect.LINUX,
+                expected_listener_descriptor=20,
+            ),
+            (126, 501),
         )
         invalid_outputs = (
             "",
@@ -817,7 +946,10 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             with self.subTest(output=output):
                 with self.assertRaises(SystemExit):
                     android_device_proof.parse_lsof_adb_listener(
-                        output, expected_endpoint="127.0.0.1:5037"
+                        output,
+                        expected_endpoint="127.0.0.1:5037",
+                        dialect=android_device_proof.OwnedUnixListenerDialect.DARWIN,
+                        expected_listener_descriptor=None,
                     )
 
     def test_owned_emulator_listeners_bind_exact_child_and_port_pair(self) -> None:
@@ -1120,6 +1252,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             "ADB_LOCAL_TRANSPORT_MAX_PORT": "5585",
         }
         arguments = argparse.Namespace(
+            run_id="a" * 32,
             lsof_output=lsof_output,
             adb=pathlib.Path(sys.executable),
             expected_endpoint=endpoint,
@@ -1142,7 +1275,19 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             argv=(str(pathlib.Path(sys.executable).resolve()),),
             environment=environment,
         )
+        receipt = types.SimpleNamespace(
+            run_id=arguments.run_id,
+            adb_server_started=True,
+            adb_server_pid=123,
+            adb_profile="macos-account",
+            adb_listener_descriptor=None,
+        )
         with (
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "load_owned_runtime_receipt",
+                return_value=receipt,
+            ),
             mock.patch.object(
                 android_device_proof,
                 "process_execution_snapshot",
@@ -1154,6 +1299,12 @@ class AndroidAdbIdentityTests(unittest.TestCase):
                 return_value=self.account_home,
             ),
         ):
+            android_device_proof.verify_adb_listener(arguments)
+            receipt.adb_listener_descriptor = 18
+            lsof_output.write_text(
+                f"p123\nu{os.geteuid()}\nf19\nn{endpoint}\nf18\nn{endpoint}\n",
+                encoding="utf-8",
+            )
             android_device_proof.verify_adb_listener(arguments)
             wrong_socket = copy.copy(arguments)
             wrong_socket.expected_server_socket = (
@@ -1170,11 +1321,48 @@ class AndroidAdbIdentityTests(unittest.TestCase):
         wrong_pid.expected_pid = 124
         with (
             mock.patch.object(
+                android_device_proof.runtime_state,
+                "load_owned_runtime_receipt",
+                return_value=receipt,
+            ),
+            mock.patch.object(
                 android_device_proof, "process_execution_snapshot"
             ) as inspect,
             self.assertRaisesRegex(SystemExit, "pid differs"),
         ):
             android_device_proof.verify_adb_listener(wrong_pid)
+        inspect.assert_not_called()
+
+        wrong_run = copy.copy(arguments)
+        wrong_run.run_id = "b" * 32
+        with (
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "load_owned_runtime_receipt",
+                return_value=receipt,
+            ),
+            mock.patch.object(
+                android_device_proof, "process_execution_snapshot"
+            ) as inspect,
+            self.assertRaisesRegex(SystemExit, "owned server receipt"),
+        ):
+            android_device_proof.verify_adb_listener(wrong_run)
+        inspect.assert_not_called()
+
+        malformed_run = copy.copy(arguments)
+        malformed_run.run_id = "not-a-run-id"
+        with (
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "load_owned_runtime_receipt",
+                return_value=receipt,
+            ),
+            mock.patch.object(
+                android_device_proof, "process_execution_snapshot"
+            ) as inspect,
+            self.assertRaisesRegex(SystemExit, "cannot load owned adb listener receipt"),
+        ):
+            android_device_proof.verify_adb_listener(malformed_run)
         inspect.assert_not_called()
 
     def test_private_adb_socket_rejects_wrong_shape_and_symlink_leaf(self) -> None:
@@ -1660,11 +1848,14 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             allow_dirty_proof=True,
         )
 
-    def test_proof_schema_v5_is_required(self) -> None:
+    def test_current_proof_schema_is_required(self) -> None:
         proof = complete_proof_shape()
         wrong_schema = copy.deepcopy(proof)
         wrong_schema["schema"] = 2
-        with self.assertRaisesRegex(SystemExit, "Android proof schema must be 5"):
+        with self.assertRaisesRegex(
+            SystemExit,
+            f"Android proof schema must be {android_device_proof.PROOF_SCHEMA_VERSION}",
+        ):
             android_device_proof.verify_proof_schema(wrong_schema)
         android_device_proof.verify_proof_schema(proof)
 
@@ -1811,12 +2002,13 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         )
         private_listener.write_text(
             f"p321\nu{current_uid}\nf7\n"
-            "n/tmp/qperiapt-adb.A1b2C3d4/adb.sock type=STREAM\n",
+            "n/tmp/qperiapt-adb.A1b2C3d4/adb.sock\n",
             encoding="utf-8",
         )
         private_status.chmod(0o600)
         private_listener.chmod(0o600)
         private_adb = {
+            "adb_profile": "macos-account",
             "identity_sha256": android_device_proof.process_identity_sha256(
                 private_adb_identity, "private adb process identity"
             ),
@@ -1824,6 +2016,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             "listener_snapshot_sha256": android_device_proof.sha256_file(
                 private_listener
             ),
+            "listener_descriptor_sha256": hashlib.sha256(b"7").hexdigest(),
         }
         routing_receipt, isolation_receipts = write_emulator_isolation_receipts(
             proof_root,
@@ -1890,9 +2083,37 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         android_device_proof.verify_emulator_control_evidence(
             proof, run_evidence_paths
         )
+        routing_bytes = routing_receipt.read_bytes()
+        prior_routing = json.loads(routing_bytes)
+        prior_routing["schema"] = 1
+        routing_receipt.write_bytes(android_device_proof.canonical_json(prior_routing))
+        try:
+            with self.assertRaisesRegex(SystemExit, "routing receipt contract differs"):
+                android_device_proof.verify_emulator_control_evidence(
+                    proof, run_evidence_paths
+                )
+        finally:
+            routing_receipt.write_bytes(routing_bytes)
+            routing_receipt.chmod(0o600)
+        malformed_routing = json.loads(routing_bytes)
+        malformed_routing["private_adb"]["adb_profile"] = []
+        routing_receipt.write_bytes(
+            android_device_proof.canonical_json(malformed_routing)
+        )
+        try:
+            with self.assertRaisesRegex(SystemExit, "private adb profile is invalid"):
+                android_device_proof.verify_emulator_control_evidence(
+                    proof, run_evidence_paths
+                )
+        finally:
+            routing_receipt.write_bytes(routing_bytes)
+            routing_receipt.chmod(0o600)
         private_listener_bytes = private_listener.read_bytes()
         private_listener.write_bytes(private_listener_bytes.replace(b"f7\n", b"f8\n"))
-        with self.assertRaisesRegex(SystemExit, "differs from its proof projection"):
+        with self.assertRaisesRegex(
+            SystemExit,
+            "digest-bound listening descriptor|differs from its proof projection",
+        ):
             android_device_proof.verify_emulator_control_evidence(
                 proof, run_evidence_paths
             )
@@ -1937,7 +2158,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         tampered_routing = json.loads(bundled_routing.read_text(encoding="utf-8"))
         tampered_routing["private_adb"]["listener_snapshot_sha256"] = "0" * 64
         bundled_routing.write_bytes(android_device_proof.canonical_json(tampered_routing))
-        with self.assertRaisesRegex(SystemExit, "private adb evidence differs"):
+        with self.assertRaisesRegex(SystemExit, "transport binding differs"):
             android_device_proof.verify_emulator_control_evidence(
                 proof, bundled_paths, bundled=True
             )
@@ -2800,7 +3021,7 @@ fi
                     source,
                 )
 
-        self.assertIn("Current proof schema v5", android_readme)
+        self.assertIn("Current proof schema v6", android_readme)
         self.assertIn("historical published receipt remains schema v3", android_readme)
         self.assertIn("raw-value-omitting, source-bound", artifact_document)
         self.assertIn("raw-value-omitting, source-bound", embedding_document)
@@ -3044,7 +3265,10 @@ fi
         self.assertIn("ADB_VENDOR_KEYS is not supported", producer)
         self.assertIn("ADB_SERVER_SOCKET is not supported", producer)
         self.assertIn("QPERIAPT_ADB is not supported", producer)
-        self.assertIn("QPERIAPT_ANDROID_ADB_PROFILE is unsupported", producer)
+        self.assertNotIn("auto | macos-account | linux-account", producer)
+        self.assertIn(
+            "artifact/android_bounded_command.py adb-path", producer
+        )
         self.assertIn("ANDROID_ADB_SERVER_ADDRESS is not supported", producer)
         self.assertIn("ANDROID_ADB_SERVER_PORT is not supported", producer)
         for variable in (
@@ -3299,7 +3523,9 @@ fi
         self.assertNotIn("wait-owned-process-exec", producer)
         self.assertNotIn("verify-owned-process", producer)
         self.assertIn("EMULATOR_ADB_PORT=$((ANDROID_EMULATOR_PORT + 1))", producer)
-        self.assertIn('"schema": 5', producer)
+        self.assertIn(
+            f'"schema": {android_device_proof.PROOF_SCHEMA_VERSION}', producer
+        )
         self.assertIn('"emulator_control": emulator_control', producer)
         self.assertIn('"$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY"', producer)
         self.assertIn('"$DIST/emulator-listeners.txt"', producer)

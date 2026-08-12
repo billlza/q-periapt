@@ -18,8 +18,14 @@ import unittest
 from unittest import mock
 
 import android_bounded_command as commands
+import android_emulator_control as emulator_control
 import android_runtime_state as state
 import process_identity
+from android_emulator_control import (
+    OwnedUnixListenerDescriptor,
+    OwnedUnixListenerDialect,
+    OwnedUnixListenerObservation,
+)
 from bounded_process import BoundedResult
 from process_identity import ProcessExecutionSnapshot
 from process_identity import parse_token as parse_process_identity_token
@@ -92,6 +98,35 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    def test_shared_adb_profile_policy_rejects_non_text_and_unknown_values(
+        self,
+    ) -> None:
+        for value in ([], True, "unknown"):
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(
+                    emulator_control.AndroidEmulatorControlError,
+                    "owned adb profile is unsupported",
+                ),
+            ):
+                emulator_control.canonical_owned_adb_profile(value)
+
+    def test_listener_parser_rejects_out_of_range_bound_descriptor(self) -> None:
+        with self.assertRaisesRegex(
+            emulator_control.AndroidEmulatorControlError,
+            "bound descriptor is invalid",
+        ):
+            emulator_control.parse_owned_single_listener(
+                "p123\nu501\nf7\n/tmp/qperiapt-adb.ABCDEFGH/adb.sock\n",
+                expected_pid=123,
+                expected_uid=501,
+                expected_endpoint="/tmp/qperiapt-adb.ABCDEFGH/adb.sock",
+                dialect=emulator_control.OwnedUnixListenerDialect.DARWIN,
+                expected_listener_descriptor=(
+                    emulator_control.MAX_OWNED_LISTENER_DESCRIPTOR + 1
+                ),
+            )
 
     def capability_values(self, **overrides: object) -> dict[str, object]:
         values: dict[str, object] = {
@@ -197,7 +232,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             )
         self.private_adb_directory.chmod(0o500)
         with mock.patch.object(state, "validate_lane_lock_descriptor"):
-            sealing = state.begin_adb_seal(runtime_receipt)
+            sealing = state.begin_adb_seal(runtime_receipt, 7)
             runtime_receipt = state.complete_adb_seal(sealing)
             launcher_metadata = launcher.stat()
             backend_metadata = backend.stat()
@@ -1201,45 +1236,71 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self,
     ) -> None:
         endpoint = "/tmp/qperiapt-adb.ABCDEFGH/adb.sock"
-        fixture = f"p424242\nu{os.geteuid()}\nf17\nn{endpoint}\n"
+        darwin = f"p424242\nu{os.geteuid()}\nf17\nn{endpoint}\n"
         self.assertEqual(
             commands.parse_owned_single_listener(
-                fixture,
+                darwin,
                 expected_pid=424242,
                 expected_uid=os.geteuid(),
                 expected_endpoint=endpoint,
-            ),
+                dialect=OwnedUnixListenerDialect.DARWIN,
+                expected_listener_descriptor=None,
+            ).uid,
             os.geteuid(),
         )
-        linux_fixture = fixture.replace(
-            f"n{endpoint}\n", f"n{endpoint} type=STREAM\n"
+        linux = (
+            f"p424242\nu{os.geteuid()}\n"
+            f"f17\nn{endpoint} type=STREAM\nTST=LISTEN\n"
         )
         self.assertEqual(
             commands.parse_owned_single_listener(
-                linux_fixture,
+                linux,
                 expected_pid=424242,
                 expected_uid=os.geteuid(),
                 expected_endpoint=endpoint,
-            ),
-            os.geteuid(),
+                dialect=OwnedUnixListenerDialect.LINUX,
+                expected_listener_descriptor=None,
+            ).listener_descriptor,
+            17,
+        )
+        active_linux = (
+            f"p424242\nu{os.geteuid()}\n"
+            f"f17\nn{endpoint} type=STREAM\nTST=LISTEN\n"
+            f"f18\nn{endpoint} type=STREAM\nTST=CONNECTED\n"
+        )
+        self.assertEqual(
+            commands.parse_owned_single_listener(
+                active_linux,
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                expected_endpoint=endpoint,
+                dialect=OwnedUnixListenerDialect.LINUX,
+                expected_listener_descriptor=17,
+            ).listener_descriptor,
+            17,
+        )
+        self.assertEqual(
+            commands.parse_owned_single_listener(
+                active_linux,
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                expected_endpoint=endpoint,
+                dialect=OwnedUnixListenerDialect.LINUX,
+                expected_listener_descriptor=None,
+                expected_listener_descriptor_sha256=hashlib.sha256(
+                    b"17"
+                ).hexdigest(),
+            ).listener_descriptor,
+            17,
         )
         invalid = (
-            fixture + f"p424243\nu{os.geteuid()}\nf18\nn{endpoint}\n",
-            fixture.replace("f17\n", ""),
-            fixture.replace("f17\n", "").replace(
-                endpoint, endpoint + " type=STREAM"
-            ),
-            fixture.replace(endpoint, endpoint + ".other"),
-            fixture.replace("p424242", "p0424242"),
-            fixture.replace(f"u{os.geteuid()}", f"u{os.geteuid()}\nu{os.geteuid()}"),
-            fixture.replace(endpoint, endpoint + " type=DGRAM"),
-            fixture.replace(endpoint, endpoint + " type=SEQPACKET"),
-            fixture.replace(endpoint, endpoint + " type=stream"),
-            fixture.replace(endpoint, endpoint + "  type=STREAM"),
-            fixture.replace(endpoint, endpoint + " type=STREAM "),
-            fixture.replace(endpoint, endpoint + " ->INO=42 type=STREAM"),
-            fixture.replace(endpoint, endpoint + " type=STREAM type=STREAM"),
-            fixture.replace(endpoint, endpoint + ".other type=STREAM"),
+            active_linux.replace("TST=LISTEN", "TST=CONNECTED"),
+            active_linux.replace("TST=CONNECTED", "TST=LISTEN"),
+            active_linux.replace("TST=CONNECTED", "TST=UNCONNECTED"),
+            active_linux.replace("TST=CONNECTED\n", ""),
+            active_linux.replace("f18", "f17"),
+            active_linux.replace(endpoint + " type=STREAM", endpoint + ".other type=STREAM", 1),
+            active_linux + f"p424243\nu{os.geteuid()}\nf19\nn{endpoint}\n",
         )
         for text in invalid:
             with (
@@ -1251,7 +1312,45 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     expected_pid=424242,
                     expected_uid=os.geteuid(),
                     expected_endpoint=endpoint,
+                    dialect=OwnedUnixListenerDialect.LINUX,
+                    expected_listener_descriptor=17,
                 )
+
+        darwin_active = darwin + f"f18\nn{endpoint}\n"
+        commands.parse_owned_single_listener(
+            darwin_active,
+            expected_pid=424242,
+            expected_uid=os.geteuid(),
+            expected_endpoint=endpoint,
+            dialect=OwnedUnixListenerDialect.DARWIN,
+            expected_listener_descriptor=17,
+        )
+        reordered_darwin_active = (
+            f"p424242\nu{os.geteuid()}\nf18\nn{endpoint}\nf17\nn{endpoint}\n"
+        )
+        self.assertEqual(
+            commands.parse_owned_single_listener(
+                reordered_darwin_active,
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                expected_endpoint=endpoint,
+                dialect=OwnedUnixListenerDialect.DARWIN,
+                expected_listener_descriptor=17,
+            ).listener_descriptor,
+            17,
+        )
+        with self.assertRaisesRegex(
+            commands.AndroidEmulatorControlError,
+            "bound listening descriptor",
+        ):
+            commands.parse_owned_single_listener(
+                darwin_active.replace("f17", "f19"),
+                expected_pid=424242,
+                expected_uid=os.geteuid(),
+                expected_endpoint=endpoint,
+                dialect=OwnedUnixListenerDialect.DARWIN,
+                expected_listener_descriptor=17,
+            )
 
     def test_emulator_listener_count_error_reports_only_fixed_endpoint_presence(
         self,
@@ -1369,7 +1468,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             "-nP",
             "-a",
             "-U",
-            "-Fpufn",
+            "-Ts",
+            "-FpufnT",
             capability.socket_path,
         )
         with mock.patch.object(
@@ -1389,7 +1489,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         capability = self.load_capability()
         output = (
             f"p{receipt.adb_server_pid}\nu{receipt.uid}\nf17\n"
-            f"n{capability.socket_path} type=STREAM\n"
+            f"n{capability.socket_path}\n"
         ).encode("ascii")
         with (
             mock.patch.object(commands, "_lsof_path", return_value="/usr/sbin/lsof"),
@@ -1408,7 +1508,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 "-nP",
                 "-a",
                 "-U",
-                "-Fpufn",
+                "-Ts",
+                "-FpufnT",
                 capability.socket_path,
             ),
             timeout_seconds=5,
@@ -1419,6 +1520,45 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 "LANG": "C",
             },
         )
+
+    def test_linux_recovery_listener_requires_bound_listen_state(self) -> None:
+        receipt, _observed = self.start_physical_adb_server_receipt()
+        capability = self.load_capability()
+        receipt = commands.dataclasses.replace(
+            receipt,
+            adb_profile="linux-system",
+            adb_listener_descriptor=17,
+        )
+        output = (
+            f"p{receipt.adb_server_pid}\nu{receipt.uid}\n"
+            f"f17\nn{capability.socket_path} type=STREAM\nTST=LISTEN\n"
+            f"f18\nn{capability.socket_path} type=STREAM\nTST=CONNECTED\n"
+        ).encode("ascii")
+        with mock.patch.object(
+            commands,
+            "capture_stdout",
+            return_value=BoundedResult(0, output),
+        ):
+            observation = commands._capture_recovery_adb_listener(
+                capability,
+                receipt,
+            )
+        self.assertIsNotNone(observation)
+        self.assertEqual(observation.listener_descriptor, 17)
+
+        accepted_only = output.replace(b"TST=LISTEN", b"TST=CONNECTED")
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, accepted_only),
+            ),
+            self.assertRaisesRegex(
+                commands.AndroidCommandError,
+                "bound listening descriptor",
+            ),
+        ):
+            commands._capture_recovery_adb_listener(capability, receipt)
 
     def test_client_guard_runs_after_command_and_detects_midcommand_exit(self) -> None:
         with (
@@ -3091,9 +3231,22 @@ class AndroidBoundedCommandTests(unittest.TestCase):
     ) -> state.OwnedRuntimeReceipt:
         self.private_adb_directory.chmod(0o500)
         with mock.patch.object(state, "validate_lane_lock_descriptor"):
-            sealing = state.begin_adb_seal(receipt)
+            sealing = state.begin_adb_seal(receipt, 7)
             sealed = state.complete_adb_seal(sealing)
         return sealed  # type: ignore[return-value]
+
+    def listener_observation(
+        self,
+        receipt: state.OwnedRuntimeReceipt,
+        descriptor: int = 7,
+    ) -> OwnedUnixListenerObservation:
+        return OwnedUnixListenerObservation(
+            pid=receipt.adb_server_pid,
+            uid=receipt.uid,
+            endpoint=self.load_capability().socket_path,
+            descriptors=(OwnedUnixListenerDescriptor(descriptor, None),),
+            listener_descriptor=descriptor,
+        )
 
     def test_seal_private_adb_directory_binds_mode_and_receipt_phase(self) -> None:
         receipt, observed = self.start_physical_adb_server_receipt()
@@ -3104,7 +3257,17 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands, "_wait_for_recovery_adb_server", return_value=observed
             ),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=OwnedUnixListenerObservation(
+                    pid=receipt.adb_server_pid,
+                    uid=receipt.uid,
+                    endpoint=self.load_capability().socket_path,
+                    descriptors=(
+                        OwnedUnixListenerDescriptor(7, None),
+                    ),
+                    listener_descriptor=7,
+                ),
             ),
         ):
             commands.seal_private_adb_directory(self.run_id)
@@ -3129,7 +3292,17 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=OwnedUnixListenerObservation(
+                    pid=receipt.adb_server_pid,
+                    uid=receipt.uid,
+                    endpoint=self.load_capability().socket_path,
+                    descriptors=(
+                        OwnedUnixListenerDescriptor(7, None),
+                    ),
+                    listener_descriptor=7,
+                ),
             ),
         ):
             reconciled = commands._reconcile_live_adb_seal(
@@ -3142,12 +3315,37 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         receipt, observed = self.start_physical_adb_server_receipt()
         observed = commands.dataclasses.replace(observed, executable=self.snapshot)
         with mock.patch.object(state, "validate_lane_lock_descriptor"):
-            sealing = state.begin_adb_seal(receipt)
+            sealing = state.begin_adb_seal(receipt, 7)
         self.private_adb_directory.chmod(0o500)
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(receipt),
+            ),
+        ):
+            reconciled = commands._reconcile_live_adb_seal(
+                self.load_capability(), sealing, observed
+            )
+        self.assertIs(reconciled.phase, state.RuntimePhase.ADB_SEALED)
+        self.assertEqual(stat.S_IMODE(self.private_adb_directory.stat().st_mode), 0o500)
+
+    def test_in_progress_0700_seal_is_retried_before_clients(self) -> None:
+        receipt, observed = self.start_physical_adb_server_receipt()
+        observed = commands.dataclasses.replace(observed, executable=self.snapshot)
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            sealing = state.begin_adb_seal(receipt, 7)
+        self.assertEqual(
+            stat.S_IMODE(self.private_adb_directory.stat().st_mode),
+            0o700,
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(sealing),
             ),
         ):
             reconciled = commands._reconcile_live_adb_seal(
@@ -3164,7 +3362,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         sealed = self.seal_test_runtime_receipt(receipt)
         self.private_adb_directory.chmod(0o700)
         with mock.patch.object(
-            commands, "_capture_recovery_adb_listener", return_value=True
+            commands,
+            "_capture_recovery_adb_listener",
+            return_value=self.listener_observation(sealed),
         ):
             reconciled = commands._reconcile_live_adb_seal(
                 self.load_capability(), sealed, observed
@@ -3175,7 +3375,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
     def test_seal_publication_failure_stays_nonclient_safe_until_reconciled(
         self,
     ) -> None:
-        _receipt, observed = self.start_physical_adb_server_receipt()
+        receipt, observed = self.start_physical_adb_server_receipt()
         observed = commands.dataclasses.replace(observed, executable=self.snapshot)
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
@@ -3183,7 +3383,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands, "_wait_for_recovery_adb_server", return_value=observed
             ),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(receipt),
             ),
             mock.patch.object(
                 state,
@@ -3199,7 +3401,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(pending.adb_socket_directory_sealed)  # type: ignore[union-attr]
 
     def test_post_publish_seal_failure_never_reopens_a_sealed_directory(self) -> None:
-        _receipt, observed = self.start_physical_adb_server_receipt()
+        receipt, observed = self.start_physical_adb_server_receipt()
         observed = commands.dataclasses.replace(observed, executable=self.snapshot)
         complete = state.complete_adb_seal
 
@@ -3213,7 +3415,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands, "_wait_for_recovery_adb_server", return_value=observed
             ),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(receipt),
             ),
             mock.patch.object(
                 state, "complete_adb_seal", side_effect=publish_then_fail
@@ -3364,7 +3568,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 pathlib.Path, "lstat", autospec=True, side_effect=selective_lstat
             ),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(receipt),
             ),
             mock.patch.object(
                 commands, "run", return_value=BoundedResult(0)
@@ -3441,7 +3647,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 pathlib.Path, "rmdir", autospec=True, side_effect=path_rmdir
             ),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=False
+                commands, "_capture_recovery_adb_listener", return_value=None
             ),
             mock.patch.object(commands, "run") as bounded_run,
         ):
@@ -3497,7 +3703,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 pathlib.Path, "lstat", autospec=True, side_effect=path_lstat
             ),
             mock.patch.object(
-                commands, "_capture_recovery_adb_listener", return_value=True
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(receipt),
             ),
             mock.patch.object(commands, "run", return_value=BoundedResult(0)),
             mock.patch.object(commands.time, "monotonic", side_effect=[0.0, 0.0, 16.0]),

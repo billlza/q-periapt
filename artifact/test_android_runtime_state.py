@@ -15,10 +15,15 @@ from collections.abc import Iterator
 from unittest import mock
 
 import android_runtime_state as state
+import android_emulator_control as emulator_control
 from process_identity import ProcessIdentity
 
 
 class AndroidRuntimeStateTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.production_adb_profile_paths = frozenset(state.ADB_PROFILE_PATHS)
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.temporary.name).resolve()
@@ -128,7 +133,7 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             registered = state.register_adb_child(
                 self.receipt(), self.adb_registration()
             )
-            sealing = state.begin_adb_seal(registered)
+            sealing = state.begin_adb_seal(registered, 7)
             return state.complete_adb_seal(sealing)
 
     def emulator_registration(self) -> state.EmulatorChildRegistration:
@@ -187,10 +192,10 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
             path.chmod(0o600)
 
-    def test_schema3_uses_one_phase_and_no_lifecycle_booleans(self) -> None:
+    def test_current_schema_uses_one_phase_and_no_lifecycle_booleans(self) -> None:
         receipt = self.receipt()
         value = json.loads(state.owned_runtime_receipt_path().read_text())
-        self.assertEqual(value["schema_version"], 4)
+        self.assertEqual(value["schema_version"], 5)
         self.assertEqual(value["phase"], state.RuntimePhase.PREPARED.value)
         self.assertEqual(set(value), state.OWNED_RUNTIME_RECEIPT_FIELDS)
         for removed in (
@@ -254,11 +259,26 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             "adb profile is unsupported",
         ):
             state.runtime_avd_name("ambient", "arm64-v8a")
+        for profile in ([], True):
+            with (
+                self.subTest(profile=profile),
+                self.assertRaisesRegex(
+                    state.AndroidRuntimeStateError,
+                    "adb profile is unsupported",
+                ),
+            ):
+                state.runtime_avd_name(profile, "arm64-v8a")
         with self.assertRaisesRegex(
             state.AndroidRuntimeStateError,
             "require arm64-v8a or x86_64",
         ):
             state.runtime_avd_name("macos-account", "armeabi-v7a")
+
+    def test_runtime_paths_cover_every_shared_adb_profile(self) -> None:
+        self.assertEqual(
+            self.production_adb_profile_paths,
+            set(emulator_control.OWNED_ADB_PROFILE_DIALECTS),
+        )
 
     def test_exact_private_avd_selection_passes_with_bounded_inventory(self) -> None:
         home, directory, ini = self.create_avd_fixture()
@@ -615,7 +635,7 @@ class AndroidRuntimeStateTests(unittest.TestCase):
                 self.receipt(), self.adb_registration()
             )
             self.assertIs(registered.phase, state.RuntimePhase.ADB_CHILD_REGISTERED)
-            sealing = state.begin_adb_seal(registered)
+            sealing = state.begin_adb_seal(registered, 7)
             self.assertIs(sealing.phase, state.RuntimePhase.ADB_SEALING)
             sealed = state.complete_adb_seal(sealing)
             self.assertIs(sealed.phase, state.RuntimePhase.ADB_SEALED)
@@ -628,6 +648,49 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         self.assertTrue(active.adb_socket_directory_sealed)
         self.assertTrue(active.emulator_started)
 
+    def test_listener_descriptor_is_bound_by_one_seal_intent_cas(self) -> None:
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            registered = state.register_adb_child(
+                self.receipt(), self.adb_registration()
+            )
+            sealing = state.begin_adb_seal(registered, 7)
+            self.assertEqual(sealing.adb_listener_descriptor, 7)
+            with self.assertRaisesRegex(
+                state.AndroidRuntimeStateError,
+                "changed before lifecycle advance|concurrent lifecycle mutation",
+            ):
+                state.begin_adb_seal(registered, 8)
+        current = self.receipt()
+        self.assertIs(current.phase, state.RuntimePhase.ADB_SEALING)
+        self.assertEqual(current.adb_listener_descriptor, 7)
+
+    def test_post_replace_seal_fsync_failure_keeps_bound_recovery_state(
+        self,
+    ) -> None:
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            registered = state.register_adb_child(
+                self.receipt(), self.adb_registration()
+            )
+        real_fsync = state.os.fsync
+        calls = 0
+
+        def fail_directory_fsync(descriptor: int) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected post-replace fsync failure")
+            real_fsync(descriptor)
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fsync", side_effect=fail_directory_fsync),
+            self.assertRaisesRegex(OSError, "post-replace"),
+        ):
+            state.begin_adb_seal(registered, 7)
+        recovered = self.receipt()
+        self.assertIs(recovered.phase, state.RuntimePhase.ADB_SEALING)
+        self.assertEqual(recovered.adb_listener_descriptor, 7)
+
     def test_every_illegal_phase_jump_fails_before_replace(self) -> None:
         prepared = self.receipt()
         with (
@@ -635,7 +698,7 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             mock.patch.object(state, "_replace_owned_runtime_receipt") as replace,
         ):
             for operation in (
-                lambda: state.begin_adb_seal(prepared),
+                lambda: state.begin_adb_seal(prepared, 7),
                 lambda: state.complete_adb_seal(prepared),
                 lambda: state.register_emulator_child(
                     receipt=prepared,
@@ -766,10 +829,13 @@ class AndroidRuntimeStateTests(unittest.TestCase):
                 except ChildProcessError:
                     pass
 
-    def test_schema2_and_unknown_phase_are_rejected_without_compatibility(self) -> None:
+    def test_prior_schemas_and_unknown_phase_are_rejected_without_compatibility(
+        self,
+    ) -> None:
         path = state.owned_runtime_receipt_path()
         for mutation in (
             lambda value: value.update({"schema_version": 2}),
+            lambda value: value.update({"schema_version": 4}),
             lambda value: value.update({"phase": "unknown"}),
         ):
             value = json.loads(path.read_text())

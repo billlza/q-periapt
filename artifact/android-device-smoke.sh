@@ -306,13 +306,6 @@ if [ "${QPERIAPT_ADB+x}" = x ]; then
 	exit 2
 fi
 ADB_PROFILE=${QPERIAPT_ANDROID_ADB_PROFILE:-auto}
-case "$ADB_PROFILE" in
-	auto | macos-account | linux-account | linux-system | linux-opt) ;;
-	*)
-		printf 'error: QPERIAPT_ANDROID_ADB_PROFILE is unsupported: %s\n' "$ADB_PROFILE" >&2
-		exit 2
-		;;
-esac
 if [ "$ANDROID_BOOT_AVD" = "1" ] && [ "$ADB_PROFILE" = "auto" ]; then
 	printf 'error: a script-owned proof AVD requires an explicit fixed QPERIAPT_ANDROID_ADB_PROFILE\n' >&2
 	exit 2
@@ -2048,6 +2041,7 @@ ADB_LISTENER_INITIAL="$DIST/adb-listener-initial.txt"
 android_command lsof-initial
 ADB_PRIVATE_SERVER_PROCESS_IDENTITY=$(python3 artifact/android_device_proof.py verify-adb-listener \
 	--lsof-output "$ADB_LISTENER_INITIAL" \
+	--run-id "$RUN_ID" \
 	--adb "$ADB_SNAPSHOT" \
 	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
@@ -2071,6 +2065,7 @@ ADB_LISTENER_BEFORE="$DIST/adb-listener-before.txt"
 android_command lsof-before
 ADB_LISTENER_IDENTITY=$(python3 artifact/android_device_proof.py verify-adb-listener \
 	--lsof-output "$ADB_LISTENER_BEFORE" \
+	--run-id "$RUN_ID" \
 	--adb "$ADB_SNAPSHOT" \
 	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 	--expected-pid "$ADB_PRIVATE_SERVER_PID" \
@@ -2152,6 +2147,7 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 	android_command lsof-registered
 	python3 artifact/android_device_proof.py verify-adb-listener \
 		--lsof-output "$ADB_LISTENER_REGISTERED" \
+		--run-id "$RUN_ID" \
 		--adb "$ADB_SNAPSHOT" \
 		--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 		--expected-pid "$ADB_PRIVATE_SERVER_PID" \
@@ -2681,7 +2677,7 @@ if device_kind == "emulator":
     )
 
 payload = {
-    "schema": 5,
+    "schema": 6,
     "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
     "git_commit": git_commit(root),
     "source_tree_dirty": source_tree_dirty(root),
@@ -2765,6 +2761,7 @@ ADB_LISTENER_AFTER="$DIST/adb-listener-after.txt"
 android_command lsof-after
 python3 artifact/android_device_proof.py verify-adb-listener \
 	--lsof-output "$ADB_LISTENER_AFTER" \
+	--run-id "$RUN_ID" \
 	--adb "$ADB_SNAPSHOT" \
 	--expected-endpoint "$ADB_PRIVATE_SERVER_SOCKET_PATH" \
 	--expected-pid "$ADB_PRIVATE_SERVER_PID" \

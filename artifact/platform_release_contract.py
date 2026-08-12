@@ -48,7 +48,7 @@ PLATFORM_RELEASE_FILES = PLATFORM_INPUT_ASSETS | {RELEASE_MANIFEST, RELEASE_SUMS
 # The current repository-local Android runtime proof contract.  Keep the
 # historical public r2 receipt schema separate: an evolution of the local
 # verifier must never rewrite what an immutable release actually published.
-ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 5
+ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 6
 PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 3
 PLATFORM_RELEASE_RECEIPT_SCHEMA_VERSION = 1
 PLATFORM_RELEASE_RECEIPT_KEY = "platform_r2"
