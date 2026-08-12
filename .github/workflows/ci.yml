@@ -760,6 +760,8 @@ jobs:
           sudo setfacl -m "u:$USER:rw" /dev/kvm
           test -r /dev/kvm && test -w /dev/kvm
       - name: Create private Android identities and the cold 16 KiB AVD
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           chmod go-w "$HOME"
           test ! -L "$HOME/.android"
@@ -777,22 +779,40 @@ jobs:
           umask 077
           openssl rand -hex 32 > "$HOME/.emulator_console_auth_token"
           chmod 600 "$HOME/.emulator_console_auth_token"
-          test ! -e "$HOME/.android/avd/QPeriapt_16K_API_35_CI.avd"
-          test ! -L "$HOME/.android/avd/QPeriapt_16K_API_35_CI.avd"
-          test ! -e "$HOME/.android/avd/QPeriapt_16K_API_35_CI.ini"
-          test ! -L "$HOME/.android/avd/QPeriapt_16K_API_35_CI.ini"
-          printf 'no\n' | avdmanager create avd \
-            --name QPeriapt_16K_API_35_CI \
+          avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
+          test -n "$avd_home"
+          test ! -e "$avd_home"
+          test ! -L "$avd_home"
+          mkdir "$avd_home"
+          chmod 700 "$avd_home"
+          export ANDROID_AVD_HOME="$avd_home"
+          avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py \
+            runtime-avd-name --adb-profile linux-system --device-abi x86_64)
+          test "$avd_name" = QPeriapt_Release_16K_API_35_CI_V1
+          test ! -e "$ANDROID_AVD_HOME/$avd_name.avd"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
+          test ! -e "$ANDROID_AVD_HOME/$avd_name.ini"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
+          avdmanager create avd \
+            --name "$avd_name" \
             --package "system-images;android-35;google_apis_ps16k;x86_64" \
-            --device pixel_6
-          chmod -R go-rwx "$HOME/.android/avd"
+            --device pixel_6 <<< 'no'
+          test -d "$ANDROID_AVD_HOME/$avd_name.avd"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
+          test -f "$ANDROID_AVD_HOME/$avd_name.ini"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
+          sh artifact/python-run.sh artifact/android_device_proof.py \
+            verify-avd-home \
+            --avd-home "$ANDROID_AVD_HOME" \
+            --adb-profile linux-system \
+            --device-abi x86_64
+          unset ANDROID_AVD_HOME avd_home avd_name
       - name: Execute the hash-bound AAR on API 35 16 KiB ART
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
           QPERIAPT_ANDROID_ADB_PROFILE: linux-system
           QPERIAPT_ANDROID_RELEASE_MODE: "1"
           QPERIAPT_ANDROID_BOOT_AVD: "1"
-          QPERIAPT_ANDROID_AVD: QPeriapt_16K_API_35_CI
           QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator
           QPERIAPT_ANDROID_EXPECT_ABI: x86_64
           QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"

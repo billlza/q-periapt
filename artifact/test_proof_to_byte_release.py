@@ -1236,8 +1236,29 @@ class BoundVerifierWiringTests(unittest.TestCase):
             'QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256"',
             "command -v setfacl",
             "command -v lsof",
+            "QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}",
             'test ! -e "$HOME/.android/adbkey"',
             'test ! -e "$HOME/.emulator_console_auth_token"',
+            "sh artifact/python-run.sh",
+            "artifact/android_bounded_command.py avd-home-path",
+            "runtime-avd-name --adb-profile linux-system --device-abi x86_64",
+            'test "$avd_name" = QPeriapt_Release_16K_API_35_CI_V1',
+            'test ! -e "$avd_home"',
+            'mkdir "$avd_home"',
+            'export ANDROID_AVD_HOME="$avd_home"',
+            'test ! -e "$ANDROID_AVD_HOME/$avd_name.avd"',
+            'test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"',
+            'test ! -e "$ANDROID_AVD_HOME/$avd_name.ini"',
+            'test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"',
+            '--name "$avd_name"',
+            "--device pixel_6 <<< 'no'",
+            'test -d "$ANDROID_AVD_HOME/$avd_name.avd"',
+            'test -f "$ANDROID_AVD_HOME/$avd_name.ini"',
+            "verify-avd-home",
+            '--avd-home "$ANDROID_AVD_HOME"',
+            "--adb-profile linux-system",
+            "--device-abi x86_64",
+            "unset ANDROID_AVD_HOME avd_home avd_name",
             'sh artifact/android-device-smoke.sh',
         ):
             with self.subTest(required=required):
@@ -1254,9 +1275,36 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "QPERIAPT_ADB=",
             "apt-get",
             "--force",
+            'mkdir -p "$avd_home"',
+            'chmod -R',
+            '$HOME/.android/avd',
+            "/home/runner",
+            "ANDROID_USER_HOME",
+            "GITHUB_ENV",
+            "printf 'no\\n' | avdmanager",
+            "PYTHONPATH=artifact python3",
+            "QPERIAPT_ANDROID_AVD",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, job)
+
+        derive_home = job.index(
+            "artifact/android_bounded_command.py avd-home-path"
+        )
+        create_home = job.index('mkdir "$avd_home"', derive_home)
+        export_home = job.index(
+            'export ANDROID_AVD_HOME="$avd_home"', create_home
+        )
+        derive_name = job.index("runtime-avd-name", export_home)
+        create_avd = job.index("avdmanager create avd", derive_name)
+        verify_avd = job.index("verify-avd-home", create_avd)
+        execute_smoke = job.index("sh artifact/android-device-smoke.sh", verify_avd)
+        self.assertLess(derive_home, create_home)
+        self.assertLess(create_home, export_home)
+        self.assertLess(export_home, derive_name)
+        self.assertLess(derive_name, create_avd)
+        self.assertLess(create_avd, verify_avd)
+        self.assertLess(verify_avd, execute_smoke)
 
         producer = (ROOT / "artifact" / "android-device-smoke.sh").read_text(
             encoding="utf-8"

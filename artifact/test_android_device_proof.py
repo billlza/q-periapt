@@ -579,6 +579,63 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             self.account_home, account_home=self.account_home
         )
 
+    def test_avd_home_verifier_accepts_only_the_fixed_runtime_selection(self) -> None:
+        fixed_home = self.account_home / "private-state" / "avd-home"
+        arguments = argparse.Namespace(
+            avd_home=fixed_home,
+            adb_profile="macos-account",
+            device_abi="arm64-v8a",
+        )
+        with (
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "avd_home_directory",
+                return_value=fixed_home,
+            ),
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "validate_runtime_avd_selection",
+            ) as validate,
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            android_device_proof.verify_avd_home(arguments)
+        validate.assert_called_once_with("macos-account", "arm64-v8a")
+        self.assertEqual(output.getvalue(), "ANDROID_AVD_HOME_VERIFY_PASS\n")
+
+        wrong = copy.copy(arguments)
+        wrong.avd_home = self.android_dir / "avd"
+        with (
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "avd_home_directory",
+                return_value=fixed_home,
+            ),
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "validate_runtime_avd_selection",
+            ) as rejected_validate,
+            self.assertRaisesRegex(SystemExit, "fixed private runtime AVD"),
+        ):
+            android_device_proof.verify_avd_home(wrong)
+        rejected_validate.assert_not_called()
+
+        with (
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "avd_home_directory",
+                return_value=fixed_home,
+            ),
+            mock.patch.object(
+                android_device_proof.runtime_state,
+                "validate_runtime_avd_selection",
+                side_effect=android_device_proof.runtime_state.AndroidRuntimeStateError(
+                    "selected AVD ini is inconsistent"
+                ),
+            ),
+            self.assertRaisesRegex(SystemExit, "selected AVD ini is inconsistent"),
+        ):
+            android_device_proof.verify_avd_home(arguments)
+
     def test_different_or_group_writable_account_home_is_rejected(self) -> None:
         with self.assertRaisesRegex(SystemExit, "must match the current account home"):
             android_device_proof.validate_account_adb_identity(
@@ -2331,6 +2388,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         self.assertIn("import android_runtime_state as runtime_state", bounded)
         self.assertIn("from android_emulator_control import", bounded)
         self.assertIn("from android_emulator_control import", verifier)
+        self.assertIn("import android_runtime_state as runtime_state", verifier)
         self.assertIn("from process_identity import", bounded)
         self.assertIn("from process_identity import", verifier)
         self.assertIn("from android_emulator_control import", runtime_state)
@@ -2643,6 +2701,46 @@ fi
             with self.subTest(label=label):
                 self.assertIn(unique_proof, source)
                 self.assertIn("QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a", source)
+        for label, source in (
+            ("Android README", android_readme),
+            ("embedding guide", embedding_document),
+        ):
+            with self.subTest(avd_provisioning_document=label):
+                self.assertIn("runtime-avd-name", source)
+                self.assertIn("umask 077", source)
+                self.assertNotIn("QPERIAPT_ANDROID_AVD=", source)
+
+        for label, source, marker in (
+            (
+                "Android README",
+                android_readme,
+                "The canonical Android release proof",
+            ),
+            (
+                "embedding guide",
+                embedding_document,
+                "The canonical Android release runtime",
+            ),
+        ):
+            with self.subTest(fail_fast_document=label):
+                marker_index = source.index(marker)
+                block_start = source.index("```sh\n", marker_index) + len("```sh\n")
+                block_end = source.index("\n```", block_start)
+                block_lines = source[block_start:block_end].splitlines()
+                self.assertEqual(block_lines[:2], ["(", "set -eu"])
+                self.assertEqual(block_lines[-1], ")")
+                self.assertLess(
+                    source.index("sh artifact/android-aar.sh", block_start),
+                    block_end,
+                )
+                parsed = subprocess.run(
+                    ["/bin/sh", "-n"],
+                    input=source[block_start:block_end],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(parsed.returncode, 0, parsed.stderr)
 
         for label, source in (
             ("artifact contract", artifact_document),
@@ -3186,6 +3284,47 @@ fi
         )
         self.assertNotIn('kill -TERM "$EMULATOR_PID"', producer)
         self.assertNotIn('kill -KILL "$EMULATOR_PID"', producer)
+
+    def test_owned_avd_home_is_code_derived_and_verified_before_runtime_mutation(
+        self,
+    ) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        ambient_rejection = producer.index(
+            'if [ "${ANDROID_AVD_HOME+x}" = x ]; then'
+        )
+        fixed_selection = producer.index(
+            "artifact/android_bounded_command.py avd-home-path",
+            ambient_rejection,
+        )
+        fixed_name = producer.index(
+            "artifact/android_bounded_command.py runtime-avd-name",
+            fixed_selection,
+        )
+        verification = producer.index(
+            "artifact/android_device_proof.py verify-avd-home",
+            fixed_name,
+        )
+        capability = producer.index(
+            "artifact/android_bounded_command.py create-capability",
+            verification,
+        )
+        emulator = producer.index("emulator-nodaemon", capability)
+        self.assertLess(ambient_rejection, fixed_selection)
+        self.assertLess(fixed_selection, fixed_name)
+        self.assertLess(fixed_name, verification)
+        self.assertLess(verification, capability)
+        self.assertLess(capability, emulator)
+        self.assertIn('export ANDROID_AVD_HOME', producer)
+        self.assertIn('QPERIAPT_ANDROID_AVD is code-selected', producer)
+        self.assertIn(
+            'a script-owned proof AVD requires an explicit fixed '
+            'QPERIAPT_ANDROID_ADB_PROFILE',
+            producer,
+        )
+        self.assertNotIn('--avd-name', producer)
+        self.assertNotIn('$HOME/.android/avd', producer)
 
     def test_private_server_launcher_preserves_exec_pid_without_bytecode_cache(
         self,

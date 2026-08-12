@@ -53,6 +53,7 @@ EMULATOR_ROUTING_ENVIRONMENT_FIELDS = frozenset(
         "LANG",
         "ANDROID_HOME",
         "ANDROID_SDK_ROOT",
+        "ANDROID_AVD_HOME",
         "ADB_SERVER_SOCKET",
         "ADB_VENDOR_KEYS",
         "ADB_MDNS",

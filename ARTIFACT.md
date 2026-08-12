@@ -615,10 +615,19 @@ These produce the paper's primary network table and the binary constant-time dis
   `bindings-android-aar` and runs it on real x86_64 API-35 `google_apis_ps16k` ART on every push and
   pull request. That is an independent package-face gate; it does not enter the arm64 results
   selector and is not physical-device production evidence.
-  To boot a local AVD, set `QPERIAPT_ANDROID_BOOT_AVD=1`,
-  `QPERIAPT_ANDROID_AVD=<avd-name>`, `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`, and the exact
-  AVD ABI in `QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a` on the release host; the AVD runs with a
-  read-only userdata overlay. The smoke refuses to replace an existing package,
+  To boot the local canonical AVD, set `QPERIAPT_ANDROID_BOOT_AVD=1`,
+  `QPERIAPT_ANDROID_ADB_PROFILE=macos-account`,
+  `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`, and
+  `QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a` on the release host. The AVD name is not caller input:
+  the bounded runtime derives `QPeriapt_Release_16K_API_35_V1` from that fixed profile/ABI pair and admits it
+  only beneath the private `avd-home` child of the account runtime-state directory. CI likewise
+  derives `QPeriapt_Release_16K_API_35_CI_V1` from `linux-system` plus `x86_64`. The default
+  `~/.android/avd` fallback root, if it exists, must be current-user-owned, non-symlink, and not
+  group/other writable; its existing parent chain must meet the same ownership/writeability boundary,
+  and macOS allow ACLs are also rejected. In all cases the derived private name
+  must be absent there. The producer never chmods or deletes it, while unrelated historical AVDs may remain.
+  The AVD runs with a read-only userdata overlay.
+  The smoke refuses to replace an existing package,
   matches both installed APK bytes and signer before owned cleanup, reconciles command-unknown
   outcomes with bounded repeated observations, and never clears global logcat buffers. It requires
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb

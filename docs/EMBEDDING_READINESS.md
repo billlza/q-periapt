@@ -107,13 +107,38 @@ release mode, and the exact AAR produced from the same clean source snapshot. Pr
 run it on the AVD before creating any release index:
 
 ```sh
+(
+set -eu
 sh artifact/android-aar.sh
 
 aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
 aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
+avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py runtime-avd-name \
+  --adb-profile macos-account --device-abi arm64-v8a)
+test "$avd_name" = QPeriapt_Release_16K_API_35_V1
+umask 077
+
+# One-time, no-replace provisioning. If this fixed private root already exists,
+# validate and reuse it; never overwrite it or fall back to ~/.android/avd.
+if [ ! -e "$avd_home" ] && [ ! -L "$avd_home" ]; then
+  mkdir "$avd_home"
+  chmod 700 "$avd_home"
+  ANDROID_AVD_HOME="$avd_home" avdmanager create avd \
+    --name "$avd_name" \
+    --package "system-images;android-35;google_apis_ps16k;arm64-v8a" \
+    --device pixel_6 <<'AVD_INPUT'
+no
+AVD_INPUT
+fi
+sh artifact/python-run.sh artifact/android_device_proof.py verify-avd-home \
+  --avd-home "$avd_home" \
+  --adb-profile macos-account \
+  --device-abi arm64-v8a
+
+QPERIAPT_ANDROID_ADB_PROFILE=macos-account \
 QPERIAPT_ANDROID_RELEASE_MODE=1 \
 QPERIAPT_ANDROID_BOOT_AVD=1 \
-QPERIAPT_ANDROID_AVD=<arm64-api35-ps16k-avd> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
 QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384 \
@@ -123,11 +148,18 @@ QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$aar_manifest" \
 QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$(shasum -a 256 "$aar" | awk '{print $1}')" \
 QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$(shasum -a 256 "$aar_manifest" | awk '{print $1}')" \
 sh artifact/android-device-smoke.sh
+)
 ```
 
-Provision the named AVD from the arm64 API-35 `google_apis_ps16k` image. The name alone is not
-evidence: admission depends on the observed and proof-bound ABI, SDK, page size, release-mode, and
-build-tools values. After the smoke reports its immutable run id, finish the release transaction in
+Provisioning is no-replace: a pre-existing invalid root fails closed and must be investigated rather
+than overwritten. If the fixed fallback root `~/.android/avd` exists, it must be current-user-owned,
+non-symlink, and not writable by group or other users; its existing parent chain must meet the same
+ownership/writeability boundary, and macOS allow ACLs are also rejected. In all
+cases the derived private name must be absent there. The producer never chmods or deletes it, and
+unrelated historical AVDs may remain. The derived name alone
+is not evidence: admission also depends on descriptor-safe private-tree validation and the observed,
+proof-bound ABI, SDK, page size, release mode, and build-tools values. After the smoke reports its
+immutable run id, finish the release transaction in
 this order, without a source-changing edit between steps:
 
 ```sh

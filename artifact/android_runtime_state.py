@@ -79,6 +79,12 @@ OWNED_RUNTIME_RECEIPT_LEAF = "owned-runtime.json"
 OWNED_RUNTIME_RECEIPT_KIND = "qperiapt.android_owned_runtime"
 OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 4
 MAX_OWNED_RUNTIME_RECEIPT_BYTES = 16 * 1024
+AVD_HOME_LEAF = "avd-home"
+MAX_AVD_INI_BYTES = 64 * 1024
+MAX_AVD_TREE_ENTRIES = 8_192
+MAX_AVD_TREE_BYTES = 64 * 1024 * 1024 * 1024
+MAX_AVD_TREE_DEPTH = 64
+MAX_AVD_RELATIVE_PATH_BYTES = 4_096
 LANE_LOCK_FD = 9
 RENAME_EXCL = 0x00000004
 RENAME_NOREPLACE = 0x00000001
@@ -182,6 +188,12 @@ ADB_PROFILE_PATHS: Mapping[str, pathlib.Path] = MappingProxyType(
         "linux-opt": pathlib.Path("/opt/android-sdk/platform-tools/adb"),
     }
 )
+RUNTIME_AVD_NAMES: Mapping[tuple[str, str], str] = MappingProxyType(
+    {
+        ("macos-account", "arm64-v8a"): "QPeriapt_Release_16K_API_35_V1",
+        ("linux-system", "x86_64"): "QPeriapt_Release_16K_API_35_CI_V1",
+    }
+)
 
 
 class AndroidRuntimeStateError(RuntimeError):
@@ -235,6 +247,18 @@ class EmulatorChildRegistration:
     backend_device: int
     backend_inode: int
     backend_sha256: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class AvdSelection:
+    """One descriptor-validated AVD selected from the fixed private home."""
+
+    name: str
+    home: pathlib.Path
+    directory: pathlib.Path
+    ini: pathlib.Path
+    tree_entries: int
+    tree_bytes: int
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -671,6 +695,12 @@ def account_state_directory() -> pathlib.Path:
     """Return the fixed host/account-scoped control-state directory."""
 
     return _account_state_parent() / ACCOUNT_STATE_LEAF
+
+
+def avd_home_directory() -> pathlib.Path:
+    """Return the fixed account-scoped AVD home; never consult ambient paths."""
+
+    return account_state_directory() / AVD_HOME_LEAF
 
 
 def lane_lock_path() -> pathlib.Path:
@@ -1752,6 +1782,19 @@ def canonical_runtime_emulator_abi(
     return _canonical_emulator_abi(value)
 
 
+def runtime_avd_name(adb_profile: object, device_abi: object) -> str:
+    """Derive the only admitted AVD name from code-owned runtime identities."""
+
+    canonical_profile = _canonical_concrete_adb_profile(adb_profile)
+    canonical_abi = _canonical_emulator_abi(device_abi)
+    selected = RUNTIME_AVD_NAMES.get((canonical_profile, canonical_abi))
+    _require(
+        selected is not None,
+        "Android runtime adb profile and emulator ABI have no fixed AVD selection",
+    )
+    return _canonical_avd_name(selected)
+
+
 def _canonical_avd_name(value: object) -> str:
     rebuilt = _canonical_ascii_atom(
         value,
@@ -1762,6 +1805,480 @@ def _canonical_avd_name(value: object) -> str:
     )
     _require(AVD_NAME.fullmatch(rebuilt) is not None, "Android AVD name is invalid")
     return rebuilt
+
+
+def _avd_ini_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        raise EvidenceIOError(
+            "selected Android AVD ini must be one current-user-owned regular "
+            "file with mode 0600"
+        )
+
+
+def _read_selected_avd_ini(
+    directory_fd: int,
+    *,
+    leaf: str,
+    display_path: pathlib.Path,
+) -> bytes:
+    descriptor = -1
+    primary: BaseException | None = None
+    try:
+        descriptor = os.open(
+            leaf,
+            os.O_RDONLY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_NONBLOCK", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_fd,
+        )
+        before = os.fstat(descriptor)
+        try:
+            _avd_ini_metadata(before)
+        except EvidenceIOError as exc:
+            raise AndroidRuntimeStateError(str(exc)) from exc
+        _reject_macos_allow_acl(descriptor, "selected Android AVD ini")
+        _require(
+            before.st_size <= MAX_AVD_INI_BYTES,
+            f"selected Android AVD ini exceeds {MAX_AVD_INI_BYTES} bytes",
+        )
+        identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        chunks: list[bytes] = []
+        total = 0
+        while total <= MAX_AVD_INI_BYTES:
+            chunk = os.read(
+                descriptor,
+                min(64 * 1024, MAX_AVD_INI_BYTES + 1 - total),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+        _require(
+            total <= MAX_AVD_INI_BYTES,
+            f"selected Android AVD ini exceeds {MAX_AVD_INI_BYTES} bytes",
+        )
+        after = os.fstat(descriptor)
+        _require(
+            identity
+            == (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+                after.st_ctime_ns,
+            )
+            and total == before.st_size,
+            "selected Android AVD ini changed while it was read",
+        )
+        return b"".join(chunks)
+    except OSError as exc:
+        primary = AndroidRuntimeStateError(
+            f"cannot safely read selected Android AVD ini {display_path}: {exc}"
+        )
+        raise primary from exc
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        if descriptor >= 0:
+            _close_owned_descriptor(
+                descriptor,
+                label="the selected Android AVD ini",
+                primary=primary,
+            )
+
+
+def _parse_selected_avd_ini(data: bytes, *, expected_path: pathlib.Path) -> None:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise AndroidRuntimeStateError("selected Android AVD ini is not UTF-8") from exc
+    _require(
+        "\0" not in text and "\r" not in text,
+        "selected Android AVD ini contains unsupported control characters",
+    )
+    values: dict[str, str] = {}
+    for line in text.split("\n"):
+        if not line:
+            continue
+        _require("=" in line, "selected Android AVD ini contains a malformed assignment")
+        key, value = line.split("=", 1)
+        _require(
+            re.fullmatch(r"[A-Za-z0-9._-]{1,128}", key) is not None
+            and value
+            and value == value.strip()
+            and len(value) <= 4_096
+            and all(ord(character) >= 0x20 for character in value),
+            "selected Android AVD ini contains a malformed assignment",
+        )
+        _require(
+            key not in values,
+            f"selected Android AVD ini contains a duplicate key: {key}",
+        )
+        values[key] = value
+    expected = str(expected_path)
+    _require(
+        values.get("path") == expected,
+        "selected Android AVD ini path does not exactly name its fixed AVD directory",
+    )
+    _require(
+        "path.rel" not in values,
+        "selected Android AVD ini must not define a relative fallback path",
+    )
+
+
+def _validate_avd_tree_entry_metadata(
+    metadata: os.stat_result,
+    *,
+    relative: pathlib.PurePosixPath,
+    directory: bool,
+) -> None:
+    label = relative.as_posix()
+    _require(
+        metadata.st_uid == os.geteuid(),
+        f"selected Android AVD tree entry has the wrong owner: {label}",
+    )
+    mode = stat.S_IMODE(metadata.st_mode)
+    _require(
+        mode & 0o077 == 0,
+        f"selected Android AVD tree entry exposes group/other permissions: {label}",
+    )
+    if directory:
+        _require(
+            stat.S_ISDIR(metadata.st_mode) and mode & 0o500 == 0o500,
+            f"selected Android AVD tree directory is not owner-readable: {label}",
+        )
+    else:
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and metadata.st_nlink == 1
+            and mode & 0o400 == 0o400,
+            f"selected Android AVD tree file is not one owner-readable regular file: {label}",
+        )
+
+
+def _scan_selected_avd_tree(
+    directory_fd: int,
+    *,
+    relative: pathlib.PurePosixPath,
+    depth: int,
+    budget: list[int],
+) -> None:
+    _require(
+        depth <= MAX_AVD_TREE_DEPTH,
+        "selected Android AVD tree exceeds the maximum directory depth",
+    )
+    try:
+        iterator = os.scandir(directory_fd)
+    except OSError as exc:
+        raise AndroidRuntimeStateError(
+            f"cannot enumerate selected Android AVD tree {relative}: {exc}"
+        ) from exc
+    with iterator:
+        for entry in iterator:
+            child_relative = relative / entry.name
+            try:
+                child_relative_bytes = child_relative.as_posix().encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise AndroidRuntimeStateError(
+                    "selected Android AVD tree path is not UTF-8"
+                ) from exc
+            _require(
+                len(child_relative_bytes) <= MAX_AVD_RELATIVE_PATH_BYTES,
+                "selected Android AVD tree path is too long",
+            )
+            budget[0] += 1
+            _require(
+                budget[0] <= MAX_AVD_TREE_ENTRIES,
+                "selected Android AVD tree contains too many entries",
+            )
+            try:
+                observed = entry.stat(follow_symlinks=False)
+            except OSError as exc:
+                raise AndroidRuntimeStateError(
+                    f"cannot inspect selected Android AVD tree entry {child_relative}: {exc}"
+                ) from exc
+            if stat.S_ISDIR(observed.st_mode):
+                child_fd = _open_private_directory_at(
+                    directory_fd,
+                    entry.name,
+                    display_path=avd_home_directory() / child_relative,
+                    label=f"selected Android AVD tree {child_relative}",
+                )
+                primary: BaseException | None = None
+                try:
+                    opened = os.fstat(child_fd)
+                    _require(
+                        (opened.st_dev, opened.st_ino)
+                        == (observed.st_dev, observed.st_ino),
+                        f"selected Android AVD tree directory changed: {child_relative}",
+                    )
+                    _validate_avd_tree_entry_metadata(
+                        opened,
+                        relative=child_relative,
+                        directory=True,
+                    )
+                    _scan_selected_avd_tree(
+                        child_fd,
+                        relative=child_relative,
+                        depth=depth + 1,
+                        budget=budget,
+                    )
+                except BaseException as exc:
+                    primary = exc
+                    raise
+                finally:
+                    _close_owned_descriptor(
+                        child_fd,
+                        label=f"selected Android AVD tree {child_relative}",
+                        primary=primary,
+                    )
+                continue
+            _require(
+                stat.S_ISREG(observed.st_mode),
+                f"selected Android AVD tree contains a symlink or special entry: {child_relative}",
+            )
+            flags = (
+                os.O_RDONLY
+                | os.O_NOFOLLOW
+                | getattr(os, "O_NONBLOCK", 0)
+                | getattr(os, "O_CLOEXEC", 0)
+            )
+            descriptor = -1
+            primary = None
+            try:
+                descriptor = os.open(entry.name, flags, dir_fd=directory_fd)
+                opened = os.fstat(descriptor)
+                _require(
+                    (opened.st_dev, opened.st_ino)
+                    == (observed.st_dev, observed.st_ino),
+                    f"selected Android AVD tree file changed: {child_relative}",
+                )
+                _validate_avd_tree_entry_metadata(
+                    opened,
+                    relative=child_relative,
+                    directory=False,
+                )
+                _reject_macos_allow_acl(
+                    descriptor,
+                    f"selected Android AVD tree {child_relative}",
+                )
+                budget[1] += opened.st_size
+                _require(
+                    budget[1] <= MAX_AVD_TREE_BYTES,
+                    "selected Android AVD tree exceeds the maximum apparent size",
+                )
+            except BaseException as exc:
+                primary = exc
+                raise
+            finally:
+                if descriptor >= 0:
+                    _close_owned_descriptor(
+                        descriptor,
+                        label=f"selected Android AVD tree {child_relative}",
+                        primary=primary,
+                    )
+
+
+def _validate_avd_home_selection(avd_name: object) -> AvdSelection:
+    """Validate one exact AVD from the fixed private home without path fallback."""
+
+    canonical_name = _canonical_avd_name(avd_name)
+    state_fd = _open_account_state()
+    avd_home_fd = -1
+    selected_fd = -1
+    primary: BaseException | None = None
+    home = avd_home_directory()
+    directory = home / f"{canonical_name}.avd"
+    ini = home / f"{canonical_name}.ini"
+    try:
+        avd_home_fd = _open_private_directory_at(
+            state_fd,
+            AVD_HOME_LEAF,
+            display_path=home,
+            label="fixed Android AVD home",
+        )
+        ini_data = _read_selected_avd_ini(
+            avd_home_fd,
+            leaf=ini.name,
+            display_path=ini,
+        )
+        _parse_selected_avd_ini(ini_data, expected_path=directory)
+        selected_fd = _open_private_directory_at(
+            avd_home_fd,
+            directory.name,
+            display_path=directory,
+            label="selected Android AVD",
+        )
+        budget = [2, len(ini_data)]
+        _scan_selected_avd_tree(
+            selected_fd,
+            relative=pathlib.PurePosixPath(directory.name),
+            depth=0,
+            budget=budget,
+        )
+        return AvdSelection(
+            name=canonical_name,
+            home=home,
+            directory=directory,
+            ini=ini,
+            tree_entries=budget[0],
+            tree_bytes=budget[1],
+        )
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        if selected_fd >= 0:
+            _close_owned_descriptor(
+                selected_fd,
+                label="the selected Android AVD directory",
+                primary=primary,
+            )
+        if avd_home_fd >= 0:
+            _close_owned_descriptor(
+                avd_home_fd,
+                label="the fixed Android AVD home",
+                primary=primary,
+            )
+        _close_owned_descriptor(
+            state_fd,
+            label="the Android account-state directory",
+            primary=primary,
+        )
+
+
+def _require_avd_fallback_leaf_absent(
+    directory_fd: int,
+    leaf: str,
+    *,
+    display_path: pathlib.Path,
+) -> None:
+    try:
+        os.stat(leaf, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise AndroidRuntimeStateError(
+            f"cannot inspect Android AVD fallback path {display_path}: {exc}"
+        ) from exc
+    _fail(f"Android AVD fallback path must be absent: {display_path}")
+
+
+def _validate_default_avd_fallback_absence(avd_name: str) -> None:
+    """Prove the emulator cannot select the same name from its default root."""
+
+    home_fd = _open_protected_parent(ACCOUNT_HOME, "account home")
+    android_fd = -1
+    fallback_fd = -1
+    fallback_recheck_fd = -1
+    primary: BaseException | None = None
+    android_home = ACCOUNT_HOME / ".android"
+    fallback_home = android_home / "avd"
+    try:
+        try:
+            android_fd = _open_protected_child_directory(
+                home_fd,
+                ".android",
+                label="Android user configuration",
+                create=False,
+            )
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot open Android user configuration directory {android_home}: {exc}"
+            ) from exc
+        try:
+            fallback_fd = _open_protected_child_directory(
+                android_fd,
+                "avd",
+                label="default Android AVD fallback",
+                create=False,
+            )
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot open default Android AVD fallback directory {fallback_home}: {exc}"
+            ) from exc
+        fallback_identity = os.fstat(fallback_fd)
+        for suffix in (".ini", ".avd"):
+            leaf = f"{avd_name}{suffix}"
+            _require_avd_fallback_leaf_absent(
+                fallback_fd,
+                leaf,
+                display_path=fallback_home / leaf,
+            )
+        try:
+            fallback_recheck_fd = _open_protected_child_directory(
+                android_fd,
+                "avd",
+                label="default Android AVD fallback",
+                create=False,
+            )
+        except OSError as exc:
+            raise AndroidRuntimeStateError(
+                "default Android AVD fallback directory changed during validation: "
+                f"{exc}"
+            ) from exc
+        rechecked_identity = os.fstat(fallback_recheck_fd)
+        _require(
+            (fallback_identity.st_dev, fallback_identity.st_ino)
+            == (rechecked_identity.st_dev, rechecked_identity.st_ino),
+            "default Android AVD fallback directory changed during validation",
+        )
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        if fallback_recheck_fd >= 0:
+            _close_owned_descriptor(
+                fallback_recheck_fd,
+                label="the rechecked default Android AVD fallback directory",
+                primary=primary,
+            )
+        if fallback_fd >= 0:
+            _close_owned_descriptor(
+                fallback_fd,
+                label="the default Android AVD fallback directory",
+                primary=primary,
+            )
+        if android_fd >= 0:
+            _close_owned_descriptor(
+                android_fd,
+                label="the Android user configuration directory",
+                primary=primary,
+            )
+        _close_owned_descriptor(
+            home_fd,
+            label="the Android account home directory",
+            primary=primary,
+        )
+
+
+def validate_runtime_avd_selection(
+    adb_profile: object,
+    device_abi: object,
+) -> AvdSelection:
+    """Validate the fixed AVD and prove every same-name fallback is absent."""
+
+    avd_name = runtime_avd_name(adb_profile, device_abi)
+    selection = _validate_avd_home_selection(avd_name)
+    _validate_default_avd_fallback_absence(selection.name)
+    return selection
 
 
 def _canonical_emulator_abi(value: object) -> Literal["arm64-v8a", "x86_64"]:

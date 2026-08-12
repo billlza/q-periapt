@@ -123,6 +123,11 @@ case "$EXPECTED_DEVICE_KIND" in
 		exit 2
 		;;
 esac
+if [ "${ANDROID_AVD_HOME+x}" = x ]; then
+	printf 'error: ANDROID_AVD_HOME is controlled internally by the Android device evidence lane\n' >&2
+	exit 2
+fi
+ANDROID_AVD_HOME=
 if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 	if [ -n "${QPERIAPT_ANDROID_SERIAL:-}" ]; then
 		printf 'error: QPERIAPT_ANDROID_SERIAL is forbidden when the script owns the proof AVD\n' >&2
@@ -132,17 +137,13 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		printf 'error: a script-owned proof AVD requires QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator\n' >&2
 		exit 2
 	fi
-	case "${QPERIAPT_ANDROID_AVD:-}" in
-		"") ;;
-		*[!A-Za-z0-9._-]*)
-			printf 'error: QPERIAPT_ANDROID_AVD must contain only ASCII letters, digits, dot, underscore, or hyphen\n' >&2
-			exit 2
-			;;
-	esac
-	if [ -n "${QPERIAPT_ANDROID_AVD:-}" ] && [ "${#QPERIAPT_ANDROID_AVD}" -gt 128 ]; then
-		printf 'error: QPERIAPT_ANDROID_AVD exceeds 128 characters\n' >&2
+	if [ "${QPERIAPT_ANDROID_AVD+x}" = x ]; then
+		printf 'error: QPERIAPT_ANDROID_AVD is code-selected and must not be supplied\n' >&2
 		exit 2
 	fi
+	ANDROID_AVD_HOME=$(PYTHONPATH=artifact python3 \
+		artifact/android_bounded_command.py avd-home-path)
+	export ANDROID_AVD_HOME
 	ANDROID_EMULATOR_PORT=${QPERIAPT_ANDROID_EMULATOR_PORT:-5584}
 	case "$ANDROID_EMULATOR_PORT" in
 		[0-9][0-9][0-9][0-9]) ;;
@@ -312,6 +313,10 @@ case "$ADB_PROFILE" in
 		exit 2
 		;;
 esac
+if [ "$ANDROID_BOOT_AVD" = "1" ] && [ "$ADB_PROFILE" = "auto" ]; then
+	printf 'error: a script-owned proof AVD requires an explicit fixed QPERIAPT_ANDROID_ADB_PROFILE\n' >&2
+	exit 2
+fi
 ADB=$(PYTHONPATH=artifact python3 artifact/android_bounded_command.py adb-path \
 	--adb-profile "$ADB_PROFILE")
 if [ "$ADB" != "$ANDROID_SDK/platform-tools/adb" ]; then
@@ -411,6 +416,16 @@ if [ "${ADB_LIBUSB_START_DETACHED+x}" = x ]; then
 fi
 python3 artifact/android_device_proof.py verify-adb-identity \
 	--home-directory "$HOME"
+if [ "$ANDROID_BOOT_AVD" = "1" ]; then
+	ANDROID_AVD_NAME=$(PYTHONPATH=artifact python3 \
+		artifact/android_bounded_command.py runtime-avd-name \
+		--adb-profile "$ADB_PROFILE" \
+		--device-abi "$EXPECTED_DEVICE_ABI")
+	python3 artifact/android_device_proof.py verify-avd-home \
+		--avd-home "$ANDROID_AVD_HOME" \
+		--adb-profile "$ADB_PROFILE" \
+		--device-abi "$EXPECTED_DEVICE_ABI" >/dev/null
+fi
 
 android_command() {
 	operation=$1
@@ -2072,16 +2087,12 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		printf 'error: refusing to boot a proof AVD while another adb device is already online\n' >&2
 		exit 2
 	fi
-	if [ -z "${QPERIAPT_ANDROID_AVD:-}" ]; then
-		printf 'error: QPERIAPT_ANDROID_AVD is required when QPERIAPT_ANDROID_BOOT_AVD=1\n' >&2
-		exit 2
-	fi
 	EXPECTED_EMULATOR_SERIAL=$EXPECTED_COMMAND_SERIAL
 	if [ ! -x "$EMULATOR" ]; then
 		printf 'error: Android emulator not found: %s\n' "$EMULATOR" >&2
 		exit 2
 	fi
-	printf 'boot-avd : %s\n' "$QPERIAPT_ANDROID_AVD"
+	printf 'boot-avd : %s\n' "$ANDROID_AVD_NAME"
 	EMULATOR_PYTHON_CACHE="$WORK/emulator-python-cache"
 	if [ -e "$EMULATOR_PYTHON_CACHE" ] || [ -L "$EMULATOR_PYTHON_CACHE" ]; then
 		printf 'error: owned emulator Python cache path already exists\n' >&2
@@ -2095,7 +2106,6 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		"$QPERIAPT_PYTHON_BOOTSTRAP" artifact/android_bounded_command.py \
 		emulator-nodaemon \
 		--run-id "$RUN_ID" \
-		--avd-name "$QPERIAPT_ANDROID_AVD" \
 		--device-abi "$EXPECTED_DEVICE_ABI" \
 		>"$DIST/emulator.log" 2>&1 &
 	EMULATOR_PID=$!
@@ -2182,7 +2192,7 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 fi
 if [ -z "$SERIAL" ]; then
 	printf 'error: no Android adb device available\n' >&2
-	printf 'hint : set an explicit physical serial/kind, or run with QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_AVD=<name> QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator QPERIAPT_ANDROID_EXPECT_ABI=<abi>\n' >&2
+	printf 'hint : set an explicit physical serial/kind, or run with QPERIAPT_ANDROID_BOOT_AVD=1 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator QPERIAPT_ANDROID_EXPECT_ABI=<abi>; the AVD name is code-selected from the fixed profile and ABI\n' >&2
 	exit 2
 fi
 if ! authorized_state=$(android_command device-state 2>"$DIST/adb-authorization.err"); then

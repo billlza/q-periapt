@@ -133,6 +133,19 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ).hexdigest()
         state.create_capability(**values)  # type: ignore[arg-type]
 
+    def create_avd_fixture(self, name: str = "QPeriapt_Release_16K_API_35_V1") -> pathlib.Path:
+        home = state.avd_home_directory()
+        home.mkdir(mode=0o700, exist_ok=False)
+        directory = home / f"{name}.avd"
+        directory.mkdir(mode=0o700)
+        config = directory / "config.ini"
+        config.write_text("hw.cpu.arch=arm64\n", encoding="utf-8")
+        config.chmod(0o600)
+        ini = home / f"{name}.ini"
+        ini.write_text(f"path={directory}\ntarget=android-35\n", encoding="utf-8")
+        ini.chmod(0o600)
+        return directory
+
     def remove_capability_files(self) -> None:
         self.state.unlink(missing_ok=True)
         for snapshot in self.work.glob(f"{state.ADB_SNAPSHOT_PREFIX}*"):
@@ -192,7 +205,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 receipt=runtime_receipt,
                 registration=state.EmulatorChildRegistration(
                     process=identity,
-                    avd_name="QPeriapt_16K_API_35",
+                    avd_name="QPeriapt_Release_16K_API_35_V1",
                     device_abi="arm64-v8a",
                     console_port=5584,
                     native_adb_notifier_port=state.NATIVE_ADB_NOTIFIER_PORT,
@@ -871,7 +884,6 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "pull-apk",
                         "logcat",
                         "register-emulator",
-                        "emulator-avd-name",
                     },
                 )
                 self.assertGreaterEqual(spec.timeout_maximum, spec.timeout_seconds)
@@ -1942,6 +1954,81 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         after_metadata = lock.stat()
         self.assertEqual(before, (after_metadata.st_dev, after_metadata.st_ino))
 
+    def test_avd_home_path_cli_prints_only_fixed_absent_leaf(self) -> None:
+        expected = state.account_state_directory() / state.AVD_HOME_LEAF
+        self.assertFalse(os.path.lexists(expected))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(commands.main(["avd-home-path"]), 0)
+        self.assertEqual(output.getvalue(), f"{expected}\n")
+        self.assertFalse(os.path.lexists(expected))
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as rejected,
+        ):
+            commands.main(["avd-home-path", "--path", str(self.root / "other")])
+        self.assertEqual(rejected.exception.code, 2)
+
+    def test_runtime_avd_name_cli_prints_only_code_owned_mapping(self) -> None:
+        with mock.patch.object(
+            state,
+            "ADB_PROFILE_PATHS",
+            {
+                "macos-account": self.adb,
+                "linux-system": self.adb,
+                "linux-opt": self.adb,
+            },
+        ):
+            for profile, abi, expected in (
+                ("macos-account", "arm64-v8a", "QPeriapt_Release_16K_API_35_V1"),
+                ("linux-system", "x86_64", "QPeriapt_Release_16K_API_35_CI_V1"),
+            ):
+                with self.subTest(profile=profile, abi=abi):
+                    output = io.StringIO()
+                    with contextlib.redirect_stdout(output):
+                        self.assertEqual(
+                            commands.main(
+                                [
+                                    "runtime-avd-name",
+                                    "--adb-profile",
+                                    profile,
+                                    "--device-abi",
+                                    abi,
+                                ]
+                            ),
+                            0,
+                        )
+                    self.assertEqual(output.getvalue(), f"{expected}\n")
+            with self.assertRaisesRegex(
+                state.AndroidRuntimeStateError,
+                "no fixed AVD selection",
+            ):
+                commands.main(
+                    [
+                        "runtime-avd-name",
+                        "--adb-profile",
+                        "linux-opt",
+                        "--device-abi",
+                        "x86_64",
+                    ]
+                )
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as rejected,
+        ):
+            commands.main(
+                [
+                    "emulator-nodaemon",
+                    "--run-id",
+                    self.layout.run_id,
+                    "--device-abi",
+                    "arm64-v8a",
+                    "--avd-name",
+                    "QPeriapt_Release_16K_API_35_V1",
+                ]
+            )
+        self.assertEqual(rejected.exception.code, 2)
+
     def test_process_identity_binds_pid_uid_start_and_executable_without_environment(
         self,
     ) -> None:
@@ -2028,6 +2115,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             "ANDROID_EMULATOR_LAUNCHER_DIR": str(receipt.launcher_path.parent),
             "DYLD_LIBRARY_PATH": "/fixed/sdk/lib64",
         }
+        self.assertTrue(
+            commands.FORBIDDEN_EMULATOR_AVD_SELECTOR_ENVIRONMENT.isdisjoint(
+                commands._emulator_environment(capability)
+            )
+        )
         execution = ProcessExecutionSnapshot(identity, argv, environment)
         digest = commands._validate_emulator_execution_routing(
             execution,
@@ -2040,6 +2132,35 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands._emulator_environment(capability)
             ),
         )
+        for label, avd_environment in (
+            (
+                "missing",
+                {
+                    name: value
+                    for name, value in environment.items()
+                    if name != "ANDROID_AVD_HOME"
+                },
+            ),
+            (
+                "wrong",
+                {
+                    **environment,
+                    "ANDROID_AVD_HOME": str(self.root / "ambient-avd-home"),
+                },
+            ),
+        ):
+            with (
+                self.subTest(label=label),
+                self.assertRaisesRegex(
+                    commands.AndroidCommandError,
+                    "routing environment projection differs",
+                ),
+            ):
+                commands._validate_emulator_execution_routing(
+                    ProcessExecutionSnapshot(identity, argv, avd_environment),
+                    receipt=receipt,
+                    capability=capability,
+                )
         for name in ("ADB_TRACE", "ANDROID_ADB_SERVER_ADDRESS"):
             with (
                 self.subTest(name=name),
@@ -2050,6 +2171,25 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         identity,
                         argv,
                         {**environment, name: "forbidden"},
+                    ),
+                    receipt=receipt,
+                    capability=capability,
+                )
+        for name in sorted(
+            commands.FORBIDDEN_EMULATOR_AVD_SELECTOR_ENVIRONMENT
+        ):
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(
+                    commands.AndroidCommandError,
+                    "forbidden AVD selector variables",
+                ),
+            ):
+                commands._validate_emulator_execution_routing(
+                    ProcessExecutionSnapshot(
+                        identity,
+                        argv,
+                        {**environment, name: "/unverified-avd-root"},
                     ),
                     receipt=receipt,
                     capability=capability,
@@ -2447,6 +2587,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             device_kind="emulator",
             expected_serial="emulator-5584",
         )
+        self.create_avd_fixture()
         launcher = self.root / "fixed-emulator"
         backend = self.root / "fixed-emulator-backend"
         for executable in (launcher, backend):
@@ -2479,7 +2620,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 [
                     str(launcher),
                     "-avd",
-                    "QPeriapt_16K_API_35",
+                    "QPeriapt_Release_16K_API_35_V1",
                     "-port",
                     "5584",
                     "-no-snapshot",
@@ -2495,6 +2636,10 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(environment["HOME"], str(self.root))
+            self.assertEqual(
+                environment["ANDROID_AVD_HOME"],
+                str(state.avd_home_directory()),
+            )
             self.assertEqual(
                 environment["ANDROID_ADB_SERVER_PORT"],
                 str(state.NATIVE_ADB_NOTIFIER_PORT),
@@ -2522,9 +2667,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands.os, "execve", side_effect=reject_exec),
             self.assertRaisesRegex(RuntimeError, "exec boundary"),
         ):
-            commands.exec_emulator(
-                self.layout.run_id, "QPeriapt_16K_API_35", "arm64-v8a"
-            )
+            commands.exec_emulator(self.layout.run_id, "arm64-v8a")
         self.assertEqual(order, ["close-lock", "exec"])
         checkpoint.assert_called_once_with(
             self.layout.run_id,
@@ -2543,6 +2686,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_emulator_exec_missing_token_keeps_sealed_receipt_and_never_execs(self) -> None:
         self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        self.create_avd_fixture()
         launcher = self.root / "fixed-emulator"
         backend = self.root / "fixed-emulator-backend"
         for executable in (launcher, backend):
@@ -2561,12 +2705,92 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands.os, "execve") as execve,
             self.assertRaisesRegex(commands.AndroidCommandError, "cannot open"),
         ):
-            commands.exec_emulator(
-                self.layout.run_id, "QPeriapt_16K_API_35", "arm64-v8a"
-            )
+            commands.exec_emulator(self.layout.run_id, "arm64-v8a")
         receipt = state.load_owned_runtime_receipt()
         self.assertEqual(receipt.snapshot_sha256, sealed.snapshot_sha256)  # type: ignore[union-attr]
         self.assertIs(receipt.phase, state.RuntimePhase.ADB_SEALED)  # type: ignore[union-attr]
+        close_lock.assert_not_called()
+        execve.assert_not_called()
+
+    def test_emulator_exec_rejects_unsafe_avd_before_receipt_mutation(self) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        selected = self.create_avd_fixture()
+        (selected / "config.ini").chmod(0o640)
+        launcher = self.root / "fixed-emulator"
+        backend = self.root / "fixed-emulator-backend"
+        for executable in (launcher, backend):
+            executable.write_bytes(b"exec fixture")
+            executable.chmod(0o700)
+        started, _server = self.start_physical_adb_server_receipt(pid=os.getpid())
+        sealed = self.seal_test_runtime_receipt(started)
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "_fixed_emulator_paths",
+                return_value=(launcher, backend),
+            ),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "process_snapshot") as inspect_process,
+            mock.patch.object(state, "register_emulator_child") as register,
+            mock.patch.object(state, "arm_lane_lock_close_on_exec") as close_lock,
+            mock.patch.object(commands.os, "execve") as execve,
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError,
+                "group/other permissions",
+            ),
+        ):
+            commands.exec_emulator(
+                self.layout.run_id,
+                "arm64-v8a",
+            )
+        current = state.load_owned_runtime_receipt()
+        self.assertIsNotNone(current)
+        self.assertEqual(current.snapshot_sha256, sealed.snapshot_sha256)
+        self.assertIs(current.phase, state.RuntimePhase.ADB_SEALED)
+        inspect_process.assert_not_called()
+        register.assert_not_called()
+        close_lock.assert_not_called()
+        execve.assert_not_called()
+
+    def test_emulator_exec_missing_avd_home_never_inspects_or_mutates_runtime(
+        self,
+    ) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        launcher = self.root / "fixed-emulator"
+        backend = self.root / "fixed-emulator-backend"
+        for executable in (launcher, backend):
+            executable.write_bytes(b"exec fixture")
+            executable.chmod(0o700)
+        started, _server = self.start_physical_adb_server_receipt(pid=os.getpid())
+        sealed = self.seal_test_runtime_receipt(started)
+        self.assertFalse(os.path.lexists(state.avd_home_directory()))
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "_fixed_emulator_paths",
+                return_value=(launcher, backend),
+            ),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "process_snapshot") as inspect_process,
+            mock.patch.object(commands, "_emulator_console_auth_token") as token,
+            mock.patch.object(state, "register_emulator_child") as register,
+            mock.patch.object(state, "arm_lane_lock_close_on_exec") as close_lock,
+            mock.patch.object(commands.os, "execve") as execve,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "cannot open"),
+        ):
+            commands.exec_emulator(
+                self.layout.run_id,
+                "arm64-v8a",
+            )
+        current = state.load_owned_runtime_receipt()
+        self.assertIsNotNone(current)
+        self.assertEqual(current.snapshot_sha256, sealed.snapshot_sha256)
+        self.assertIs(current.phase, state.RuntimePhase.ADB_SEALED)
+        inspect_process.assert_not_called()
+        token.assert_not_called()
+        register.assert_not_called()
         close_lock.assert_not_called()
         execve.assert_not_called()
 
@@ -2574,6 +2798,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self,
     ) -> None:
         self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        self.create_avd_fixture()
         launcher = self.root / "fixed-emulator"
         backend = self.root / "fixed-emulator-backend"
         for executable in (launcher, backend):
@@ -2618,9 +2843,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands.os, "execve") as execve,
             self.assertRaisesRegex(commands.AndroidCommandError, "token changed"),
         ):
-            commands.exec_emulator(
-                self.layout.run_id, "QPeriapt_16K_API_35", "arm64-v8a"
-            )
+            commands.exec_emulator(self.layout.run_id, "arm64-v8a")
         receipt = state.load_owned_runtime_receipt()
         self.assertIs(receipt.phase, state.RuntimePhase.ADB_SEALED)  # type: ignore[union-attr]
         self.assertIsNone(receipt.console_auth_token_identity)  # type: ignore[union-attr]
@@ -2639,7 +2862,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 "not awaiting",
             ),
         ):
-            commands.exec_emulator(receipt.run_id, receipt.avd_name, receipt.device_abi)
+            commands.exec_emulator(receipt.run_id, receipt.device_abi)
         snapshot.assert_not_called()
         close_lock.assert_not_called()
         execve.assert_not_called()

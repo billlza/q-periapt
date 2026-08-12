@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
 import pathlib
 import select
+import stat
 import sys
 import tempfile
+import types
 import unittest
+from collections.abc import Iterator
 from unittest import mock
 
 import android_runtime_state as state
@@ -77,6 +81,30 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         self.assertIsNotNone(receipt)
         return receipt
 
+    def create_avd_fixture(
+        self,
+        name: str = "QPeriapt_Release_16K_API_35_V1",
+    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+        home = state.avd_home_directory()
+        home.mkdir(mode=0o700, exist_ok=False)
+        directory = home / f"{name}.avd"
+        directory.mkdir(mode=0o700)
+        config = directory / "config.ini"
+        config.write_text("hw.cpu.arch=arm64\n", encoding="utf-8")
+        config.chmod(0o600)
+        nested = directory / "snapshots"
+        nested.mkdir(mode=0o700)
+        marker = nested / "state.bin"
+        marker.write_bytes(b"state fixture")
+        marker.chmod(0o600)
+        ini = home / f"{name}.ini"
+        ini.write_text(
+            f"avd.ini.encoding=UTF-8\npath={directory}\ntarget=android-35\n",
+            encoding="utf-8",
+        )
+        ini.chmod(0o600)
+        return home, directory, ini
+
     def adb_registration(self, *, pid: int | None = None) -> state.AdbChildRegistration:
         process = ProcessIdentity(
             pid=os.getpid() if pid is None else pid,
@@ -120,7 +148,7 @@ class AndroidRuntimeStateTests(unittest.TestCase):
                 started_subsecond=890,
                 executable=pathlib.Path(sys.executable).resolve(),
             ),
-            avd_name="QPeriapt_16K_API_35",
+            avd_name="QPeriapt_Release_16K_API_35_V1",
             device_abi="arm64-v8a",
             console_port=5584,
             native_adb_notifier_port=state.NATIVE_ADB_NOTIFIER_PORT,
@@ -174,6 +202,412 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         self.assertFalse(receipt.adb_server_started)
         self.assertFalse(receipt.adb_socket_directory_sealed)
         self.assertFalse(receipt.emulator_started)
+
+    def test_avd_home_is_fixed_but_never_created_by_account_state_setup(self) -> None:
+        fixed = state.account_state_directory() / state.AVD_HOME_LEAF
+        self.assertEqual(state.avd_home_directory(), fixed)
+        self.assertFalse(os.path.lexists(fixed))
+        with mock.patch.dict(
+            os.environ,
+            {"ANDROID_AVD_HOME": str(self.root / "ambient-avd")},
+            clear=False,
+        ):
+            state.ensure_account_state()
+            self.assertEqual(state.avd_home_directory(), fixed)
+        self.assertFalse(os.path.lexists(fixed))
+
+    def test_runtime_avd_name_is_derived_only_from_fixed_profile_abi_pairs(
+        self,
+    ) -> None:
+        with mock.patch.object(
+            state,
+            "ADB_PROFILE_PATHS",
+            {
+                "macos-account": self.adb,
+                "linux-system": self.adb,
+                "linux-opt": self.adb,
+            },
+        ):
+            self.assertEqual(
+                state.runtime_avd_name("macos-account", "arm64-v8a"),
+                "QPeriapt_Release_16K_API_35_V1",
+            )
+            self.assertEqual(
+                state.runtime_avd_name("linux-system", "x86_64"),
+                "QPeriapt_Release_16K_API_35_CI_V1",
+            )
+            for profile, abi in (
+                ("macos-account", "x86_64"),
+                ("linux-system", "arm64-v8a"),
+                ("linux-opt", "x86_64"),
+            ):
+                with (
+                    self.subTest(profile=profile, abi=abi),
+                    self.assertRaisesRegex(
+                        state.AndroidRuntimeStateError,
+                        "no fixed AVD selection",
+                    ),
+                ):
+                    state.runtime_avd_name(profile, abi)
+        with self.assertRaisesRegex(
+            state.AndroidRuntimeStateError,
+            "adb profile is unsupported",
+        ):
+            state.runtime_avd_name("ambient", "arm64-v8a")
+        with self.assertRaisesRegex(
+            state.AndroidRuntimeStateError,
+            "require arm64-v8a or x86_64",
+        ):
+            state.runtime_avd_name("macos-account", "armeabi-v7a")
+
+    def test_exact_private_avd_selection_passes_with_bounded_inventory(self) -> None:
+        home, directory, ini = self.create_avd_fixture()
+        selected = state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        self.assertEqual(selected.home, home)
+        self.assertEqual(selected.directory, directory)
+        self.assertEqual(selected.ini, ini)
+        self.assertEqual(selected.name, "QPeriapt_Release_16K_API_35_V1")
+        # Count the top-level ini, selected .avd directory, and each descendant.
+        self.assertEqual(selected.tree_entries, 5)
+        self.assertGreater(selected.tree_bytes, 0)
+
+    def test_avd_selection_rejects_unsafe_home_and_selected_directory(self) -> None:
+        home = state.avd_home_directory()
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "cannot open"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+
+        home, directory, _ini = self.create_avd_fixture()
+        home.chmod(0o770)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "mode 0700"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        home.chmod(0o700)
+
+        directory.chmod(0o770)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "mode 0700"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        directory.chmod(0o700)
+
+        moved = home / "moved.avd"
+        directory.rename(moved)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "cannot open"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        directory.symlink_to(moved, target_is_directory=True)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "cannot open"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        directory.unlink()
+        moved.rename(directory)
+
+    def test_avd_selection_never_falls_back_to_default_android_home(self) -> None:
+        default_home = self.root / ".android/avd"
+        default_home.mkdir(parents=True, mode=0o700)
+        generic_directory = default_home / "QPeriapt_16K_API_35.avd"
+        generic_directory.mkdir(mode=0o700)
+        generic_sentinel = generic_directory / "sentinel"
+        generic_sentinel.write_bytes(b"existing generic AVD")
+        generic_sentinel.chmod(0o600)
+        generic_ini = default_home / "QPeriapt_16K_API_35.ini"
+        generic_ini.write_text(f"path={generic_directory}\n", encoding="utf-8")
+        generic_ini.chmod(0o600)
+
+        self.create_avd_fixture()
+        selected = state.validate_runtime_avd_selection(
+            "macos-account", "arm64-v8a"
+        )
+        self.assertEqual(selected.name, "QPeriapt_Release_16K_API_35_V1")
+        self.assertEqual(generic_sentinel.read_bytes(), b"existing generic AVD")
+
+        selected_name = selected.name
+        selected_ini = default_home / f"{selected_name}.ini"
+        selected_ini.write_text("must remain untouched\n", encoding="utf-8")
+        selected_ini.chmod(0o600)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "must be absent"):
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+        self.assertEqual(selected_ini.read_bytes(), b"must remain untouched\n")
+        selected_ini.unlink()
+
+        selected_directory = default_home / f"{selected_name}.avd"
+        selected_directory.mkdir(mode=0o700)
+        sentinel = selected_directory / "sentinel"
+        sentinel.write_bytes(b"must remain untouched")
+        sentinel.chmod(0o600)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "must be absent"):
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+        self.assertEqual(sentinel.read_bytes(), b"must remain untouched")
+
+    def test_avd_fallback_root_must_be_safe_and_inspectable(self) -> None:
+        default_android = self.root / ".android"
+        default_home = default_android / "avd"
+        default_home.mkdir(parents=True, mode=0o700)
+        self.create_avd_fixture()
+
+        default_home.chmod(0o775)
+        with self.assertRaisesRegex(
+            state.AndroidRuntimeStateError, "not group/other writable"
+        ):
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+        default_home.chmod(0o700)
+
+        moved = self.root / "default-avd-moved"
+        default_home.rename(moved)
+        default_home.symlink_to(moved, target_is_directory=True)
+        with self.assertRaisesRegex(
+            state.AndroidRuntimeStateError,
+            "cannot open default Android AVD fallback",
+        ):
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+    def test_avd_fallback_root_replacement_is_a_domain_error(self) -> None:
+        default_home = self.root / ".android/avd"
+        default_home.mkdir(parents=True, mode=0o700)
+        self.create_avd_fixture()
+        moved = self.root / "default-avd-replaced"
+        original = state._require_avd_fallback_leaf_absent
+        calls = 0
+
+        def replace_after_leaf_checks(
+            directory_fd: int,
+            leaf: str,
+            *,
+            display_path: pathlib.Path,
+        ) -> None:
+            nonlocal calls
+            original(
+                directory_fd,
+                leaf,
+                display_path=display_path,
+            )
+            calls += 1
+            if calls == 2:
+                default_home.rename(moved)
+
+        with (
+            mock.patch.object(
+                state,
+                "_require_avd_fallback_leaf_absent",
+                side_effect=replace_after_leaf_checks,
+            ),
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError,
+                "fallback directory changed during validation",
+            ),
+        ):
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+    def test_avd_selection_rejects_ini_alias_mode_link_acl_and_wrong_path(self) -> None:
+        _home, directory, ini = self.create_avd_fixture()
+        original = ini.read_bytes()
+        for label, mutation, message in (
+            (
+                "mode",
+                lambda: ini.chmod(0o640),
+                "mode 0600",
+            ),
+            (
+                "hardlink",
+                lambda: os.link(ini, ini.with_name("ini-hardlink")),
+                "mode 0600",
+            ),
+            (
+                "wrong-path",
+                lambda: ini.write_text(
+                    "path=/tmp/other.avd\n",
+                    encoding="utf-8",
+                ),
+                "does not exactly name",
+            ),
+            (
+                "wrong-relative-path",
+                lambda: ini.write_text(
+                    f"path={directory}\npath.rel=avd/Other.avd\n",
+                    encoding="utf-8",
+                ),
+                "must not define a relative fallback path",
+            ),
+            (
+                "duplicate-path",
+                lambda: ini.write_text(
+                    f"path={directory}\npath={directory}\n",
+                    encoding="utf-8",
+                ),
+                "duplicate key",
+            ),
+        ):
+            with self.subTest(label=label):
+                mutation()
+                ini.chmod(0o600 if label not in {"mode"} else 0o640)
+                with self.assertRaisesRegex(state.AndroidRuntimeStateError, message):
+                    state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+                ini.with_name("ini-hardlink").unlink(missing_ok=True)
+                ini.write_bytes(original)
+                ini.chmod(0o600)
+
+        def reject_ini_acl(_descriptor: int, label: str) -> None:
+            if label == "selected Android AVD ini":
+                raise state.AndroidRuntimeStateError(
+                    "selected Android AVD ini has an allow ACL"
+                )
+
+        with (
+            mock.patch.object(state, "_reject_macos_allow_acl", reject_ini_acl),
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "allow ACL"),
+        ):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+
+        ini.unlink()
+        ini.symlink_to(self.root / "outside.ini")
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "cannot safely read"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+
+    def test_avd_selection_rejects_oversized_and_non_utf8_ini(self) -> None:
+        _home, _directory, ini = self.create_avd_fixture()
+        ini.write_bytes(b"x" * (state.MAX_AVD_INI_BYTES + 1))
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "exceeds"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+
+        ini.write_bytes(b"path=\xff\n")
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "not UTF-8"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+
+    def test_avd_selection_rejects_non_utf8_tree_leaf(self) -> None:
+        _home, directory, _ini = self.create_avd_fixture()
+        directory_fd = os.open(
+            directory,
+            os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0),
+        )
+        leaf_fd = -1
+        filesystem_rejected_leaf = False
+        try:
+            try:
+                leaf_fd = os.open(
+                    b"\xff",
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                    dir_fd=directory_fd,
+                )
+            except OSError as exc:
+                if exc.errno != errno.EILSEQ:
+                    raise
+                filesystem_rejected_leaf = True
+            else:
+                os.write(leaf_fd, b"invalid UTF-8 leaf")
+        finally:
+            if leaf_fd >= 0:
+                os.close(leaf_fd)
+            os.close(directory_fd)
+        if filesystem_rejected_leaf:
+            class SurrogateScan:
+                def __enter__(self) -> "SurrogateScan":
+                    return self
+
+                def __exit__(self, *_args: object) -> None:
+                    return None
+
+                def __iter__(self) -> Iterator[types.SimpleNamespace]:
+                    return iter((types.SimpleNamespace(name=os.fsdecode(b"\xff")),))
+
+            directory_fd = os.open(
+                directory,
+                os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0),
+            )
+            try:
+                with (
+                    mock.patch.object(state.os, "scandir", return_value=SurrogateScan()),
+                    self.assertRaisesRegex(
+                        state.AndroidRuntimeStateError,
+                        "path is not UTF-8",
+                    ),
+                ):
+                    state._scan_selected_avd_tree(
+                        directory_fd,
+                        relative=pathlib.PurePosixPath(directory.name),
+                        depth=0,
+                        budget=[2, 0],
+                    )
+            finally:
+                os.close(directory_fd)
+            return
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "path is not UTF-8"):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+
+    def test_avd_selection_rejects_unsafe_tree_entries_and_bounded_limits(self) -> None:
+        _home, directory, _ini = self.create_avd_fixture()
+        config = directory / "config.ini"
+        cases = (
+            (
+                "group-permissions",
+                lambda: config.chmod(0o640),
+                "group/other permissions",
+            ),
+            (
+                "hardlink",
+                lambda: os.link(config, directory / "config-hardlink"),
+                "owner-readable regular file",
+            ),
+            (
+                "symlink",
+                lambda: (directory / "unsafe-link").symlink_to(config),
+                "symlink or special",
+            ),
+            (
+                "special",
+                lambda: os.mkfifo(directory / "unsafe-fifo", 0o600),
+                "symlink or special",
+            ),
+        )
+        original = config.read_bytes()
+        for label, mutation, message in cases:
+            with self.subTest(label=label):
+                mutation()
+                with self.assertRaisesRegex(state.AndroidRuntimeStateError, message):
+                    state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+                (directory / "config-hardlink").unlink(missing_ok=True)
+                (directory / "unsafe-link").unlink(missing_ok=True)
+                (directory / "unsafe-fifo").unlink(missing_ok=True)
+                config.write_bytes(original)
+                config.chmod(0o600)
+
+        wrong_owner = types.SimpleNamespace(
+            st_uid=os.geteuid() + 1,
+            st_mode=stat.S_IFREG | 0o600,
+            st_nlink=1,
+        )
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "wrong owner"):
+            state._validate_avd_tree_entry_metadata(
+                wrong_owner,  # type: ignore[arg-type]
+                relative=pathlib.PurePosixPath("fixture"),
+                directory=False,
+            )
+        wrong_ini_owner = types.SimpleNamespace(
+            st_uid=os.geteuid() + 1,
+            st_mode=stat.S_IFREG | 0o600,
+            st_nlink=1,
+        )
+        with self.assertRaisesRegex(state.EvidenceIOError, "mode 0600"):
+            state._avd_ini_metadata(wrong_ini_owner)  # type: ignore[arg-type]
+
+        with (
+            mock.patch.object(state, "MAX_AVD_TREE_ENTRIES", 2),
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "too many entries"),
+        ):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        with (
+            mock.patch.object(state, "MAX_AVD_TREE_BYTES", 1),
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "apparent size"),
+        ):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        with (
+            mock.patch.object(state, "MAX_AVD_TREE_DEPTH", 0),
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError,
+                "maximum directory depth",
+            ),
+        ):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
+        with (
+            mock.patch.object(state, "MAX_AVD_RELATIVE_PATH_BYTES", 1),
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "path is too long"),
+        ):
+            state._validate_avd_home_selection("QPeriapt_Release_16K_API_35_V1")
 
     def test_legal_phase_path_is_monotonic_and_derived(self) -> None:
         with mock.patch.object(state, "validate_lane_lock_descriptor"):

@@ -40,13 +40,35 @@ cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB page
 build-tools 36.0.0, and release mode:
 
 ```sh
+(
+set -eu
 sh artifact/android-aar.sh
 
 aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
 aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
+avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py runtime-avd-name \
+  --adb-profile macos-account --device-abi arm64-v8a)
+test "$avd_name" = QPeriapt_Release_16K_API_35_V1
+umask 077
+if [ ! -e "$avd_home" ] && [ ! -L "$avd_home" ]; then
+  mkdir "$avd_home"
+  chmod 700 "$avd_home"
+  ANDROID_AVD_HOME="$avd_home" avdmanager create avd \
+    --name "$avd_name" \
+    --package "system-images;android-35;google_apis_ps16k;arm64-v8a" \
+    --device pixel_6 <<'AVD_INPUT'
+no
+AVD_INPUT
+fi
+sh artifact/python-run.sh artifact/android_device_proof.py verify-avd-home \
+  --avd-home "$avd_home" \
+  --adb-profile macos-account \
+  --device-abi arm64-v8a
+
+QPERIAPT_ANDROID_ADB_PROFILE=macos-account \
 QPERIAPT_ANDROID_RELEASE_MODE=1 \
 QPERIAPT_ANDROID_BOOT_AVD=1 \
-QPERIAPT_ANDROID_AVD=<arm64-api35-ps16k-avd> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
 QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384 \
@@ -56,11 +78,16 @@ QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$aar_manifest" \
 QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$(shasum -a 256 "$aar" | awk '{print $1}')" \
 QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$(shasum -a 256 "$aar_manifest" | awk '{print $1}')" \
 sh artifact/android-device-smoke.sh
+)
 ```
 
-Provision the named AVD from the arm64 API-35 `google_apis_ps16k` image. The AVD name is only a
-selector; admission depends on the observed and proof-bound ABI, SDK, page size, release-mode, and
-build-tools values. A physical device run is a separate production add-on. It
+If the fixed fallback root `~/.android/avd` exists, it must be current-user-owned, non-symlink, and
+not writable by group or other users; its existing parent chain must meet the same ownership and
+writeability boundary, and macOS allow ACLs are also rejected. In all cases the derived
+private name must be absent there. The script never chmods or deletes it. Existing old AVDs with
+other names may remain. Admission depends on
+the descriptor-validated private tree and the observed, proof-bound ABI, SDK, page size, release
+mode, and build-tools values. A physical device run is a separate production add-on. It
 requires an exact serial and must reuse the same clean-source AAR and manifest; it cannot replace the
 canonical AVD in `artifact/results.json`, the release index, or manifest-bound `proof-to-byte`:
 

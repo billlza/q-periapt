@@ -19,6 +19,7 @@ import tempfile
 import zipfile
 from typing import Any
 
+import android_runtime_state as runtime_state
 from android_elf import (
     AndroidVerificationError,
     audit_aar,
@@ -791,6 +792,23 @@ def verify_adb_identity(args: argparse.Namespace) -> None:
     account_home = current_account_home()
     validate_account_adb_identity(args.home_directory, account_home=account_home)
     print("ANDROID_ADB_IDENTITY_VERIFY_PASS")
+
+
+def verify_avd_home(args: argparse.Namespace) -> None:
+    expected_home = runtime_state.avd_home_directory()
+    if not args.avd_home.is_absolute() or args.avd_home != expected_home:
+        raise SystemExit(
+            "error: ANDROID_AVD_HOME must be the fixed private runtime AVD directory: "
+            f"{expected_home}"
+        )
+    try:
+        runtime_state.validate_runtime_avd_selection(
+            args.adb_profile,
+            args.device_abi,
+        )
+    except runtime_state.AndroidRuntimeStateError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    print("ANDROID_AVD_HOME_VERIFY_PASS")
 
 
 def current_account_home() -> pathlib.Path:
@@ -3989,6 +4007,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--home-directory", required=True, type=pathlib.Path
     )
     adb_identity_parser.set_defaults(func=verify_adb_identity)
+
+    avd_home_parser = sub.add_parser(
+        "verify-avd-home",
+        help="verify the fixed private current-account AVD directory and selection",
+    )
+    avd_home_parser.add_argument("--avd-home", required=True, type=pathlib.Path)
+    avd_home_parser.add_argument(
+        "--adb-profile",
+        required=True,
+        choices=tuple(runtime_state.ADB_PROFILE_PATHS),
+    )
+    avd_home_parser.add_argument(
+        "--device-abi",
+        required=True,
+        choices=("arm64-v8a", "x86_64"),
+    )
+    avd_home_parser.set_defaults(func=verify_avd_home)
 
     default_adb_parser = sub.add_parser(
         "assert-default-adb-server-absent",
