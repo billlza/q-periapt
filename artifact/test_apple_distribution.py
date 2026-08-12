@@ -3,12 +3,11 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
-import io
 import json
 import os
 import pathlib
-import copy
 import stat
 import struct
 import subprocess
@@ -19,7 +18,6 @@ import zipfile
 from unittest import mock
 
 import apple_distribution
-
 
 SOURCE_COMMIT = "ab" * 20
 TEAM_ID = "YKUPL7Z869"
@@ -2001,6 +1999,7 @@ fi
         for name in (
             "RUSTFLAGS",
             "CARGO_INCREMENTAL",
+            "CC_wasm32_unknown_unknown",
             "CFLAGS_aarch64_apple_ios",
             "CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS",
             "CARGO_BUILD_TARGET_DIR",

@@ -22,12 +22,12 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 from collections.abc import Iterator
 from unittest import mock
 
 import proof_to_byte_finalizer
-import tomllib
 from camera_ready_proof import EXPECTED_TOOLS
 from git_provenance import WorktreeInspection, git_commit
 
@@ -1614,6 +1614,177 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
 
 class ProofToByteReleaseMarkerTests(unittest.TestCase):
+    def test_embedding_gate_scopes_verified_wasm_compiler_to_wasm_child(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            artifact = root / "artifact"
+            stub_bin = root / "bin"
+            artifact.mkdir()
+            stub_bin.mkdir()
+            shutil.copy2(ROOT / "artifact/embedding-readiness.sh", artifact)
+            shutil.copy2(ROOT / "artifact/python-env.sh", artifact)
+            shutil.copy2(ROOT / "artifact/python_bootstrap.py", artifact)
+            (artifact / "test_android_device_proof.py").write_text(
+                """import unittest
+
+
+class HarnessTest(unittest.TestCase):
+    def test_harness(self) -> None:
+        pass
+""",
+                encoding="utf-8",
+            )
+
+            def write_executable(name: str, source: str) -> pathlib.Path:
+                path = stub_bin / name
+                path.write_text(source, encoding="utf-8")
+                path.chmod(0o755)
+                return path
+
+            generic_stub = "#!/bin/sh\nexit 0\n"
+            for name in (
+                "cargo",
+                "cbindgen",
+                "cmake",
+                "cmp",
+                "git",
+                "gradle",
+                "lipo",
+                "node",
+                "pkg-config",
+                "rustup",
+                "shasum",
+                "uname",
+                "xcodebuild",
+                "zip",
+            ):
+                write_executable(name, generic_stub)
+
+            compiler = write_executable(
+                "clang",
+                """#!/bin/sh
+printf 'clang:%s\\n' "${1:-}" >> "$SCOPE_EVENT_LOG"
+case "${1:-}" in
+    --version) printf 'clang version 22.1.8\\n' ;;
+    --print-targets) printf '    wasm32      - WebAssembly 32-bit\\n' ;;
+    *) exit 2 ;;
+esac
+""",
+            )
+            write_executable(
+                "java",
+                """#!/bin/sh
+if [ "${CC_wasm32_unknown_unknown+x}" = x ] || [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+    printf 'compiler selector or internal state leaked into Java preflight\\n' >&2
+    exit 89
+fi
+printf 'openjdk version "22.0.2"\\n' >&2
+""",
+            )
+            swift_marker = root / "swift-environment-checked"
+            wasm_marker = root / "wasm-environment-checked"
+            event_log = root / "scope-events.txt"
+            write_executable(
+                "swift",
+                """#!/bin/sh
+if [ "${CC_wasm32_unknown_unknown+x}" = x ]; then
+    printf 'compiler override leaked into Swift binding tests\\n' >&2
+    exit 90
+fi
+if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+    printf 'internal compiler state leaked into Swift binding tests\\n' >&2
+    exit 93
+fi
+printf 'swift-binding\\n' >> "$SCOPE_EVENT_LOG"
+printf 'Executed 2 tests, with 0 failures\\n'
+""",
+            )
+            write_executable(
+                "wasm-pack",
+                """#!/bin/sh
+if [ "${CC_wasm32_unknown_unknown:-}" != "$EXPECTED_WASM_COMPILER" ]; then
+    printf 'verified compiler was not scoped to wasm-pack\\n' >&2
+    exit 91
+fi
+if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+    printf 'internal compiler state leaked into wasm-pack\\n' >&2
+    exit 94
+fi
+printf 'wasm-pack\\n' >> "$SCOPE_EVENT_LOG"
+: > "$WASM_SCOPE_MARKER"
+""",
+            )
+            write_executable(
+                "sh",
+                """#!/bin/sh
+if [ "${1:-}" = -c ]; then
+    exit 0
+fi
+if [ "${1:-}" = artifact/swift-xcframework.sh ]; then
+    if [ "${CC_wasm32_unknown_unknown+x}" = x ]; then
+        printf 'compiler override leaked into Swift XCFramework packaging\\n' >&2
+        exit 92
+    fi
+    if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ]; then
+        printf 'internal compiler state leaked into Swift XCFramework packaging\\n' >&2
+        exit 95
+    fi
+    printf 'swift-xcframework\\n' >> "$SCOPE_EVENT_LOG"
+    : > "$SWIFT_SCOPE_MARKER"
+fi
+exit 0
+""",
+            )
+
+            environment = {
+                name: value
+                for name, value in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            environment.update(
+                {
+                    "CC_wasm32_unknown_unknown": str(compiler),
+                    "WASM_C_COMPILER": "attacker-exported-internal-value",
+                    "compiler": "attacker-exported-internal-value",
+                    "compiler_version": "attacker-exported-internal-value",
+                    "EXPECTED_WASM_COMPILER": str(compiler),
+                    "HOME": str(root),
+                    "PATH": f"{stub_bin}:/usr/bin:/bin:/usr/sbin:/sbin",
+                    "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve()),
+                    "SCOPE_EVENT_LOG": str(event_log),
+                    "SWIFT_SCOPE_MARKER": str(swift_marker),
+                    "WASM_SCOPE_MARKER": str(wasm_marker),
+                    "wasm_compiler_input": "attacker-exported-internal-value",
+                }
+            )
+            completed = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("EMBEDDING_READINESS_PASS", completed.stdout)
+            self.assertTrue(swift_marker.is_file())
+            self.assertTrue(wasm_marker.is_file())
+            self.assertEqual(
+                event_log.read_text(encoding="utf-8").splitlines(),
+                [
+                    "clang:--version",
+                    "clang:--print-targets",
+                    "swift-binding",
+                    "swift-xcframework",
+                    "clang:--version",
+                    "clang:--print-targets",
+                    "wasm-pack",
+                ],
+            )
+
     def test_every_boolean_flag_fails_before_provenance_and_markers(self) -> None:
         flags = (
             "QPERIAPT_SKIP_SMOKE",

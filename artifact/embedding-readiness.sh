@@ -9,6 +9,13 @@
 # and attached devices.
 set -eu
 
+# Capture the one permitted caller compiler selector before any child process,
+# then remove caller and internal names from the exported environment. POSIX
+# shell assignments retain an existing export attribute unless first unset.
+unset wasm_compiler_input WASM_C_COMPILER compiler compiler_version
+wasm_compiler_input=${CC_wasm32_unknown_unknown:-}
+unset CC_wasm32_unknown_unknown
+
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
@@ -38,7 +45,7 @@ if major < 22:
 }
 
 require_wasm_clang() {
-	compiler=${CC_wasm32_unknown_unknown:-}
+	compiler=$1
 	if [ -z "$compiler" ]; then
 		printf 'error: CC_wasm32_unknown_unknown must name an absolute upstream LLVM clang path with the wasm32 backend\n' >&2
 		exit 2
@@ -76,6 +83,15 @@ step() {
 	printf '\n=== %s ===\n' "$name"
 	"$@"
 	printf 'PASS: %s\n' "$name"
+}
+
+wasm_binding_tests() {
+	# Revalidate immediately before use so a tool-path change during the long
+	# package gate fails closed instead of selecting unchecked compiler bytes.
+	require_wasm_clang "$wasm_compiler_input" >/dev/null
+	unset compiler compiler_version
+	env CC_wasm32_unknown_unknown="$wasm_compiler_input" \
+		wasm-pack test --node crates/q-periapt-wasm
 }
 
 swift_binding_tests() {
@@ -130,7 +146,8 @@ need gradle
 require_java_22
 need wasm-pack
 need node
-require_wasm_clang
+require_wasm_clang "$wasm_compiler_input"
+unset compiler compiler_version
 
 printf 'Q-Periapt embedding readiness gate\n'
 printf 'repo   : %s\n' "$ROOT"
@@ -171,7 +188,7 @@ step "Swift binding tests" swift_binding_tests
 step "Swift XCFramework binary consumer" sh artifact/swift-xcframework.sh
 step "Android AAR/JNI packaging proof" sh artifact/android-aar.sh
 step "Kotlin/Panama binding tests" gradle test --project-dir bindings/kotlin
-step "WASM binding tests on Node" wasm-pack test --node crates/q-periapt-wasm
+step "WASM binding tests on Node" wasm_binding_tests
 
 step "proof-to-byte manifest" env QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh
 
