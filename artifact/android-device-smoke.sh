@@ -1475,10 +1475,11 @@ verify_observed_installed_apk_signer() {
 	fi
 }
 
-observe_owned_installed_package() {
-	ownership_deadline=$1
+observe_installed_package_sample() {
+	ownership_timeout=$1
 	ownership_phase=$2
 	ownership_invocation=$3
+	ownership_attempt=$4
 	case "$ownership_phase:$ownership_invocation" in
 		postinstall:1) ownership_file_phase=postinstall ;;
 		cleanup:[1-9] | cleanup:[1-9][0-9]*)
@@ -1489,58 +1490,109 @@ observe_owned_installed_package() {
 			return 2
 			;;
 	esac
+	ownership_output="$DIST/adb-package-$ownership_file_phase-attempt-$ownership_attempt.txt"
+	ownership_error="$DIST/adb-package-$ownership_file_phase-attempt-$ownership_attempt.err"
+	OWNERSHIP_SAMPLE_STATE=
+	OWNERSHIP_SAMPLE_PATH_SHA256=
+	OWNERSHIP_SAMPLE_RETRY_REASON=
+	if android_command observe-installed-apk \
+		--timeout-seconds "$ownership_timeout" \
+		>"$ownership_output" 2>"$ownership_error"; then
+		ownership_status=0
+	else
+		ownership_status=$?
+	fi
+	if [ "$ownership_status" -ne 0 ]; then
+		printf 'phase=%s invocation=%s attempt=%s state=structural-error exit=%s consecutive=0\n' \
+			"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
+			"$ownership_status" >>"$PACKAGE_OBSERVATION_LOG"
+		remove_installed_apk_copy || return 2
+		printf 'error: Android package ownership observation failed structurally; see %s\n' \
+			"$ownership_error" >&2
+		return 2
+	fi
+	if ! ownership_result=$(/bin/cat -- "$ownership_output"); then
+		printf 'error: cannot read the typed Android package ownership observation\n' >&2
+		remove_installed_apk_copy || return 2
+		return 2
+	fi
+	if ! ownership_result_size=$(wc -c <"$ownership_output"); then
+		printf 'error: cannot measure the typed Android package ownership observation\n' >&2
+		remove_installed_apk_copy || return 2
+		return 2
+	fi
+	if [ "$ownership_result_size" -ne $((${#ownership_result} + 1)) ]; then
+		printf 'error: typed Android package ownership observation is not one exact line\n' >&2
+		remove_installed_apk_copy || return 2
+		return 2
+	fi
+	case "$ownership_result" in
+		exact:*)
+			ownership_path_sha256=${ownership_result#exact:}
+			case "$ownership_path_sha256" in
+				*[!0-9a-f]* | "")
+					printf 'error: Android package ownership observation returned a malformed path digest\n' >&2
+					remove_installed_apk_copy || return 2
+					return 2
+					;;
+			esac
+			if [ "${#ownership_path_sha256}" -ne 64 ]; then
+				printf 'error: Android package ownership path digest has the wrong length\n' >&2
+				remove_installed_apk_copy || return 2
+				return 2
+			fi
+			OWNERSHIP_SAMPLE_STATE=exact
+			OWNERSHIP_SAMPLE_PATH_SHA256=$ownership_path_sha256
+			;;
+		retryable:*)
+			ownership_reason=${ownership_result#retryable:}
+			case "$ownership_reason" in
+				package-unavailable | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
+				*)
+					printf 'error: Android package ownership observation returned a malformed retry reason\n' >&2
+					remove_installed_apk_copy || return 2
+					return 2
+					;;
+			esac
+			OWNERSHIP_SAMPLE_STATE=retryable
+			OWNERSHIP_SAMPLE_RETRY_REASON=$ownership_reason
+			remove_installed_apk_copy || return 2
+			;;
+		*)
+			printf 'error: Android package ownership observation returned an unexpected result\n' >&2
+			remove_installed_apk_copy || return 2
+			return 2
+			;;
+	esac
+}
+
+observe_owned_installed_package() {
+	ownership_deadline=$1
+	ownership_phase=$2
+	ownership_invocation=$3
 	ownership_attempt=0
 	ownership_consecutive_exact=0
 	ownership_previous_path_sha256=
 	while ownership_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); do
 		ownership_attempt=$((ownership_attempt + 1))
-		ownership_output="$DIST/adb-package-$ownership_file_phase-attempt-$ownership_attempt.txt"
-		ownership_error="$DIST/adb-package-$ownership_file_phase-attempt-$ownership_attempt.err"
-		if android_command observe-installed-apk \
-			--timeout-seconds "$ownership_timeout" \
-			>"$ownership_output" 2>"$ownership_error"; then
-			ownership_status=0
+		if observe_installed_package_sample "$ownership_timeout" \
+			"$ownership_phase" "$ownership_invocation" "$ownership_attempt"; then
+			:
 		else
-			ownership_status=$?
+			ownership_sample_status=$?
+			return "$ownership_sample_status"
 		fi
-		if [ "$ownership_status" -ne 0 ]; then
-			printf 'phase=%s invocation=%s attempt=%s state=structural-error exit=%s consecutive=0\n' \
-				"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
-				"$ownership_status" >>"$PACKAGE_OBSERVATION_LOG"
-			remove_installed_apk_copy || return 2
-			printf 'error: Android package ownership observation failed structurally; see %s\n' \
-				"$ownership_error" >&2
-			return 2
-		fi
-		if ! ownership_result=$(tr -d '\r\n' <"$ownership_output"); then
-			printf 'error: cannot normalize Android package ownership observation\n' >&2
-			remove_installed_apk_copy || return 2
-			return 2
-		fi
-		case "$ownership_result" in
-			exact:*)
-				ownership_path_sha256=${ownership_result#exact:}
-				case "$ownership_path_sha256" in
-					*[!0-9a-f]* | "")
-						printf 'error: Android package ownership observation returned a malformed path digest\n' >&2
-						remove_installed_apk_copy || return 2
-						return 2
-						;;
-				esac
-				if [ "${#ownership_path_sha256}" -ne 64 ]; then
-					printf 'error: Android package ownership path digest has the wrong length\n' >&2
-					remove_installed_apk_copy || return 2
-					return 2
-				fi
-				if [ "$ownership_path_sha256" = "$ownership_previous_path_sha256" ]; then
+		case "$OWNERSHIP_SAMPLE_STATE" in
+			exact)
+				if [ "$OWNERSHIP_SAMPLE_PATH_SHA256" = "$ownership_previous_path_sha256" ]; then
 					ownership_consecutive_exact=$((ownership_consecutive_exact + 1))
 				else
 					ownership_consecutive_exact=1
-					ownership_previous_path_sha256=$ownership_path_sha256
+					ownership_previous_path_sha256=$OWNERSHIP_SAMPLE_PATH_SHA256
 				fi
 				printf 'phase=%s invocation=%s attempt=%s state=exact path_sha256=%s consecutive=%s\n' \
 					"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
-					"$ownership_path_sha256" "$ownership_consecutive_exact" \
+					"$OWNERSHIP_SAMPLE_PATH_SHA256" "$ownership_consecutive_exact" \
 					>>"$PACKAGE_OBSERVATION_LOG"
 				if [ "$ownership_consecutive_exact" -eq 2 ]; then
 					if verify_observed_installed_apk_signer; then
@@ -1550,25 +1602,17 @@ observe_owned_installed_package() {
 					fi
 					return "$ownership_signer_status"
 				fi
+				remove_installed_apk_copy || return 2
 				;;
-			retryable:*)
-				ownership_reason=${ownership_result#retryable:}
-				case "$ownership_reason" in
-					package-unavailable | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
-					*)
-						printf 'error: Android package ownership observation returned a malformed retry reason\n' >&2
-						remove_installed_apk_copy || return 2
-						return 2
-						;;
-				esac
+			retryable)
 				ownership_consecutive_exact=0
 				ownership_previous_path_sha256=
 				printf 'phase=%s invocation=%s attempt=%s state=retryable reason=%s consecutive=0\n' \
 					"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
-					"$ownership_reason" >>"$PACKAGE_OBSERVATION_LOG"
+					"$OWNERSHIP_SAMPLE_RETRY_REASON" >>"$PACKAGE_OBSERVATION_LOG"
 				;;
 			*)
-				printf 'error: Android package ownership observation returned an unexpected result\n' >&2
+				printf 'error: Android package ownership sample lacks a typed state\n' >&2
 				remove_installed_apk_copy || return 2
 				return 2
 				;;
@@ -1596,6 +1640,8 @@ cleanup_android_app() {
 	fi
 	attempt=0
 	absent_observations=0
+	cleanup_ownership_consecutive_exact=0
+	cleanup_ownership_previous_path_sha256=
 	while cleanup_query_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 5); do
 		attempt=$((attempt + 1))
 		cleanup_query_output="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.txt"
@@ -1612,6 +1658,9 @@ cleanup_android_app() {
 		fi
 		case "$cleanup_query_status:$package_state" in
 			0:absent)
+				cleanup_ownership_consecutive_exact=0
+				cleanup_ownership_previous_path_sha256=
+				remove_installed_apk_copy || return 2
 				absent_observations=$((absent_observations + 1))
 				printf 'phase=cleanup invocation=%s attempt=%s state=absent consecutive=%s\n' \
 					"$cleanup_invocation" "$attempt" "$absent_observations" \
@@ -1626,42 +1675,93 @@ cleanup_android_app() {
 				printf 'phase=cleanup invocation=%s attempt=%s state=present consecutive=0\n' \
 					"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
 				if [ "$ANDROID_APP_UNINSTALL_REQUESTED" = "1" ]; then
+					cleanup_ownership_consecutive_exact=0
+					cleanup_ownership_previous_path_sha256=
+					remove_installed_apk_copy || return 2
 					printf 'phase=cleanup invocation=%s attempt=%s uninstall=still-present-after-request\n' \
 						"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
 				else
-					if observe_owned_installed_package \
-						"$cleanup_deadline" cleanup "$cleanup_invocation"; then
-						:
-					else
-						cleanup_ownership_status=$?
-						return "$cleanup_ownership_status"
-					fi
-					ANDROID_APP_INSTALL_CONFIRMED=1
-					required_absent_observations=3
-					if ! uninstall_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 60); then
-						printf 'error: Android cleanup deadline expired before owned uninstall\n' >&2
+					if ! cleanup_ownership_timeout=$(remaining_bounded_timeout \
+						"$cleanup_deadline" 15); then
+						printf 'error: Android cleanup deadline expired before ownership observation\n' >&2
 						return 1
 					fi
-					if ! android_command uninstall-app \
-						--timeout-seconds "$uninstall_timeout" \
-						>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
-						printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
-							"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+					if observe_installed_package_sample "$cleanup_ownership_timeout" \
+						cleanup "$cleanup_invocation" "$attempt"; then
+						:
 					else
-						printf 'phase=cleanup invocation=%s attempt=%s uninstall=request-returned-zero\n' \
-							"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+						cleanup_ownership_sample_status=$?
+						return "$cleanup_ownership_sample_status"
 					fi
-					ANDROID_APP_UNINSTALL_REQUESTED=1
+					case "$OWNERSHIP_SAMPLE_STATE" in
+						exact)
+							if [ "$OWNERSHIP_SAMPLE_PATH_SHA256" = \
+								"$cleanup_ownership_previous_path_sha256" ]; then
+								cleanup_ownership_consecutive_exact=$((cleanup_ownership_consecutive_exact + 1))
+							else
+								cleanup_ownership_consecutive_exact=1
+								cleanup_ownership_previous_path_sha256=$OWNERSHIP_SAMPLE_PATH_SHA256
+							fi
+							printf 'phase=cleanup invocation=%s attempt=%s state=exact path_sha256=%s consecutive=%s\n' \
+								"$cleanup_invocation" "$attempt" \
+								"$OWNERSHIP_SAMPLE_PATH_SHA256" \
+								"$cleanup_ownership_consecutive_exact" \
+								>>"$PACKAGE_OBSERVATION_LOG"
+							if [ "$cleanup_ownership_consecutive_exact" -lt 2 ]; then
+								remove_installed_apk_copy || return 2
+							elif verify_observed_installed_apk_signer; then
+								:
+							else
+								cleanup_ownership_signer_status=$?
+								return "$cleanup_ownership_signer_status"
+							fi
+							;;
+						retryable)
+							cleanup_ownership_consecutive_exact=0
+							cleanup_ownership_previous_path_sha256=
+							printf 'phase=cleanup invocation=%s attempt=%s state=retryable reason=%s consecutive=0\n' \
+								"$cleanup_invocation" "$attempt" \
+								"$OWNERSHIP_SAMPLE_RETRY_REASON" \
+								>>"$PACKAGE_OBSERVATION_LOG"
+							;;
+						*)
+							printf 'error: Android cleanup ownership sample lacks a typed state\n' >&2
+							remove_installed_apk_copy || return 2
+							return 2
+							;;
+					esac
+					if [ "$cleanup_ownership_consecutive_exact" -eq 2 ]; then
+						ANDROID_APP_INSTALL_CONFIRMED=1
+						required_absent_observations=3
+						if ! uninstall_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 60); then
+							printf 'error: Android cleanup deadline expired before owned uninstall\n' >&2
+							return 1
+						fi
+						if ! android_command uninstall-app \
+							--timeout-seconds "$uninstall_timeout" \
+							>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
+							printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
+								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+						else
+							printf 'phase=cleanup invocation=%s attempt=%s uninstall=request-returned-zero\n' \
+								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+						fi
+						ANDROID_APP_UNINSTALL_REQUESTED=1
+					fi
 				fi
 				;;
 			0:retryable:query-nonzero | 0:retryable:query-timeout)
 				absent_observations=0
+				cleanup_ownership_consecutive_exact=0
+				cleanup_ownership_previous_path_sha256=
+				remove_installed_apk_copy || return 2
 				cleanup_retry_reason=${package_state#retryable:}
 				printf 'phase=cleanup invocation=%s attempt=%s state=retryable reason=%s consecutive=0\n' \
 					"$cleanup_invocation" "$attempt" "$cleanup_retry_reason" \
 					>>"$PACKAGE_OBSERVATION_LOG"
 				;;
 			0:* | *:*)
+				remove_installed_apk_copy || return 2
 				printf 'phase=cleanup invocation=%s attempt=%s state=structural-error exit=%s consecutive=0\n' \
 					"$cleanup_invocation" "$attempt" "$cleanup_query_status" \
 					>>"$PACKAGE_OBSERVATION_LOG"
@@ -1674,6 +1774,7 @@ cleanup_android_app() {
 			sleep 1
 		fi
 	done
+	remove_installed_apk_copy || return 2
 	printf 'error: Android app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
 		"${SERIAL_SHA256_PREFIX:-unavailable}" "$PACKAGE_OBSERVATION_LOG" >&2
 	return 1
