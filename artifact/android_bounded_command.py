@@ -709,7 +709,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             None,
             lambda cap: _device(
-                cap, "shell", "cmd", "package", "list", "packages", "-u", PACKAGE
+                cap, "shell", "cmd", "package", "list", "packages", PACKAGE
             ),
             requires_private_server=True,
             stderr_to_stdout=True,

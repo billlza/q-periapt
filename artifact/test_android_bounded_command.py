@@ -1471,9 +1471,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             "package",
             "list",
             "packages",
-            "-u",
             commands.PACKAGE,
         )
+        self.assertNotIn("-u", expected_argv)
         for raw, expected in cases:
             with (
                 self.subTest(raw=raw),
