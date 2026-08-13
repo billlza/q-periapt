@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import dataclasses
 import os
 import pathlib
@@ -1195,6 +1196,28 @@ class CodeQLRustQualityTests(unittest.TestCase):
             )
         self.assertEqual(revalidate.call_count, 2)
 
+    def test_query_revalidates_fixed_bindings_before_and_after(self) -> None:
+        bindings = mock.Mock(
+            codeql=pathlib.Path("/codeql"),
+            database=pathlib.Path("/database"),
+        )
+        with mock.patch.object(
+            codeql_rust_quality,
+            "capture_stdout",
+            return_value=BoundedResult(0, b"query progress\n"),
+        ), mock.patch.object(
+            codeql_rust_quality.sys.stdout, "write"
+        ), mock.patch.object(
+            codeql_rust_quality,
+            "_revalidate_fixed_codeql_bindings",
+        ) as revalidate:
+            codeql_rust_quality._run_query(
+                bindings,
+                pathlib.Path("/query.ql"),
+                pathlib.Path("/result.bqrs"),
+            )
+        self.assertEqual(revalidate.call_count, 2)
+
     def test_codeql_process_boundaries_fail_closed(self) -> None:
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
@@ -1290,8 +1313,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "query",
                 "run",
                 "--warnings=error",
+                "--threads=4",
+                "--ram=14000",
                 "--database=/database",
                 "--output=/result.bqrs",
+                "--",
                 "/query.ql",
             ],
         )
@@ -1326,6 +1352,26 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "/result.bqrs",
             ],
         )
+
+    def test_query_resources_are_literal_and_not_environment_selected(self) -> None:
+        module = ast.parse(
+            pathlib.Path(codeql_rust_quality.__file__).read_bytes()
+        )
+        assignments = {
+            target.id: statement.value
+            for statement in module.body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance((target := statement.targets[0]), ast.Name)
+        }
+        self.assertEqual(
+            ast.literal_eval(assignments["CODEQL_QUERY_THREADS"]), 4
+        )
+        self.assertEqual(
+            ast.literal_eval(assignments["CODEQL_QUERY_RAM_MB"]), 14_000
+        )
+        self.assertIsInstance(assignments["CODEQL_QUERY_THREADS"], ast.Constant)
+        self.assertIsInstance(assignments["CODEQL_QUERY_RAM_MB"], ast.Constant)
 
     def test_tracked_inventory_is_nonempty_and_nul_terminated(self) -> None:
         tracked = codeql_rust_quality.tracked_rust_paths()

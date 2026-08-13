@@ -33,6 +33,8 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = 87
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
+CODEQL_QUERY_THREADS = 4
+CODEQL_QUERY_RAM_MB = 14_000
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
 MAX_CODEQL_DECODED_JSON_BYTES = 16 * 1024 * 1024
 EXPECTED_METRICS = frozenset(
@@ -486,8 +488,11 @@ def _run_query(
                 "query",
                 "run",
                 "--warnings=error",
+                f"--threads={CODEQL_QUERY_THREADS}",
+                f"--ram={CODEQL_QUERY_RAM_MB}",
                 f"--database={bindings.database}",
                 f"--output={output}",
+                "--",
                 str(query),
             ],
             timeout_seconds=CODEQL_COMMAND_TIMEOUT_SECONDS,

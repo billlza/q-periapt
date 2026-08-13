@@ -47,12 +47,18 @@ complete, self-reconciling classification and reported as telemetry rather than 
 zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
 produce type-inference telemetry; this is not a claim of complete extractor semantics for that
 generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
-those build/runtime surfaces. Rust analysis runs with SARIF upload disabled and raw database upload
-disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may publish
-results. The quality adapter accepts no environment-selected executable, database, or temporary
-path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout, rejects
-unsafe file types, requires the database paths to be current-user-owned and without cross-account
-write permission, and revalidates their open path identities around every query and decode.
+those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
+budget while retaining its 300-second process deadline and bounded diagnostic output; a resource or
+deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
+upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
+publish results. The quality adapter accepts no environment-selected executable, database, or
+temporary path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout,
+rejects unsafe file types, requires the database paths to be current-user-owned and without
+cross-account write permission, and revalidates their open path identities around every query and
+decode.
+The evaluator budget is scoped to the public-repository Rust `ubuntu-latest` lane, currently four
+vCPUs and 16 GB. A runner-label, repository-visibility, or hosted-hardware change requires
+revalidating the fixed budget rather than lowering the quality gate or extending its deadline.
 The pinned action's fixed GitHub-hosted toolcache launcher may be foreign-owned,
 group/other-writable, or multiply linked, so its owner, write mode, and link count are observed
 runner-image properties rather than gate conditions. Its regular-file type, executable mode, exact
