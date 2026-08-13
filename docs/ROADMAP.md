@@ -397,8 +397,8 @@ are the gap between research-grade and audited/production.
    backend/source-digest migration and is now historical, as are the recorded package,
    performance, and CT proofs. Time-varying status lives only in the results manifest plus the live
    domain verifier; a source document cannot promote an older device digest. A current clean,
-   same-commit schema-3 matrix remains required for production promotion or a
-   platform-binary claim. The published prerelease surface now covers Apple (signed
+   same-commit schema-5 matrix backed by schema-4 child proofs remains required for production
+   promotion or a platform-binary claim. The published prerelease surface now covers Apple (signed
    XCFramework, `v0.1.0-alpha.2-r1`), Android (four-ABI AAR + emulator runtime evidence),
    GNU/Linux (x86_64+aarch64 SDK tars), and Windows (unsigned experimental x64 MSVC SDK)
    through the immutable `abi2-platforms-v0.1.0-alpha.2-r2` release, but it is still not a

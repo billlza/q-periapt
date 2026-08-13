@@ -18,6 +18,10 @@ if [ -n "${QPERIAPT_DEVELOPER_DIR:-}" ]; then
 	DEVELOPER_DIR=$QPERIAPT_DEVELOPER_DIR
 	export DEVELOPER_DIR
 fi
+if [ -z "${DEVELOPER_DIR:-}" ]; then
+	printf 'error: QPERIAPT_DEVELOPER_DIR is required for source-bound Apple toolchain verification\n' >&2
+	exit 2
+fi
 
 if [ "$#" -ne 0 ]; then
 	printf 'error: positional device identifiers are not supported; set QPERIAPT_IOS_DEVICE_ID explicitly\n' >&2
@@ -34,6 +38,13 @@ CODE_SIGN_STYLE_VALUE=${QPERIAPT_CODE_SIGN_STYLE:-Automatic}
 MIN_PROFILE_VALID_DAYS=${QPERIAPT_MIN_PROFILE_VALID_DAYS:-30}
 DERIVED_DATA=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-device-derived"}
 RESULT_DIR=${QPERIAPT_DEVICE_RESULT_DIR:-"$ROOT/artifact/device-runs"}
+case "$RESULT_DIR" in
+	/*) ;;
+	*)
+		printf 'error: QPERIAPT_DEVICE_RESULT_DIR must be an absolute path under artifact/device-runs\n' >&2
+		exit 2
+		;;
+esac
 DEVICE_PROOF_MAX_AGE_SECONDS=${QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS:-86400}
 DEVICE_ARTIFACT_PREFIX=${QPERIAPT_DEVICE_ARTIFACT_PREFIX:-ipad}
 DEVICE_LABEL=${QPERIAPT_DEVICE_LABEL:-$DEVICE_ARTIFACT_PREFIX}
@@ -241,9 +252,9 @@ require_under(result, result_base, "QPERIAPT_DEVICE_RESULT_DIR", allow_base=True
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]{2,}", bundle_id):
     raise SystemExit(f"error: invalid QPERIAPT_IOS_BUNDLE_ID: {bundle_id}")
 if device_id and not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
-    raise SystemExit(f"error: invalid QPERIAPT_IOS_DEVICE_ID: {device_id}")
+    raise SystemExit("error: invalid QPERIAPT_IOS_DEVICE_ID")
 if not re.fullmatch(r"[A-Z0-9]{10}", team_id):
-    raise SystemExit(f"error: invalid DEVELOPMENT_TEAM: {team_id}")
+    raise SystemExit("error: invalid DEVELOPMENT_TEAM")
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}", device_label):
     raise SystemExit(f"error: invalid QPERIAPT_DEVICE_LABEL: {device_label}")
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}", artifact_prefix):
@@ -277,7 +288,7 @@ import sys
 
 device_id = sys.argv[1]
 if not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
-    raise SystemExit(f"error: invalid resolved iOS device id: {device_id}")
+    raise SystemExit("error: invalid resolved iOS device id")
 PY
 assert_device_route
 DEVICE_ID_SHA256_PREFIX=$(python3 - "$DEVICE_ID" <<'PY'
@@ -290,6 +301,14 @@ PY
 
 mkdir -p "$RESULT_DIR"
 chmod 700 "$RESULT_DIR"
+XCODE_TOOLCHAIN_RECEIPT="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-xcode-toolchain.json"
+if [ -e "$XCODE_TOOLCHAIN_RECEIPT" ] || [ -L "$XCODE_TOOLCHAIN_RECEIPT" ]; then
+	printf 'error: refusing to replace an existing Xcode toolchain receipt: %s\n' "$XCODE_TOOLCHAIN_RECEIPT" >&2
+	exit 2
+fi
+python3 artifact/apple_toolchain.py capture \
+	--developer-dir "$DEVELOPER_DIR" \
+	--output "$XCODE_TOOLCHAIN_RECEIPT"
 CLEANUP_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-cleanup.log"
 if ! rm -f -- "$CLEANUP_LOG"; then
 	printf 'error: cannot reset Apple device cleanup log: %s\n' "$CLEANUP_LOG" >&2
@@ -552,6 +571,7 @@ python3 artifact/apple_device_proof.py emit \
 	--profile-plist "$PROFILE_PLIST" \
 	--entitlements-plist "$ENTITLEMENTS_PLIST" \
 	--linkage "$LINKAGE" \
+	--xcode-toolchain-receipt "$XCODE_TOOLCHAIN_RECEIPT" \
 	--output "$PROOF_JSON" \
 	--expected-git-commit "$SOURCE_GIT_COMMIT" \
 	--expected-source-tree-sha256 "$SOURCE_TREE_SHA256" \

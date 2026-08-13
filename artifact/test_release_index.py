@@ -909,6 +909,62 @@ class ReleaseIndexTests(unittest.TestCase):
                         "android_runtime", forged
                     )
 
+    def test_apple_matrix_summary_requires_the_current_proof_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            proof_path = pathlib.Path(temporary).resolve() / "apple-matrix.json"
+            proof = {
+                "schema_version": release_index.APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+                "status": "pass",
+                "git_commit": "a" * 40,
+                "generated_at": "2026-08-13T00:00:00Z",
+                "source_tree_dirty": False,
+                "devices": [
+                    {
+                        "label": "ipad",
+                        "device_type": "iPad",
+                        "product_type": "iPad16,3",
+                        "os_version": "27.0",
+                        "os_build": "24A5408d",
+                        "device_id_sha256": "b" * 64,
+                        "run_id": "1" * 32,
+                    },
+                    {
+                        "label": "iphone",
+                        "device_type": "iPhone",
+                        "product_type": "iPhone17,1",
+                        "os_version": "26.5",
+                        "os_build": "23F77",
+                        "device_id_sha256": "c" * 64,
+                        "run_id": "2" * 32,
+                    },
+                ],
+            }
+            release_index.write_json(proof_path, proof)
+            snapshot = release_index.load_json_object_snapshot(
+                proof_path,
+                label="Apple matrix fixture",
+            )
+            release_index.proof_summary_snapshot(
+                snapshot,
+                "apple_matrix",
+                expected_commit="a" * 40,
+            )
+
+            proof["schema_version"] = (
+                release_index.APPLE_MATRIX_PROOF_SCHEMA_VERSION - 1
+            )
+            release_index.write_json(proof_path, proof)
+            old_snapshot = release_index.load_json_object_snapshot(
+                proof_path,
+                label="old Apple matrix fixture",
+            )
+            with self.assertRaisesRegex(SystemExit, "schema is not current"):
+                release_index.proof_summary_snapshot(
+                    old_snapshot,
+                    "apple_matrix",
+                    expected_commit="a" * 40,
+                )
+
     def test_offline_release_verifier_requires_canonical_android_runtime_summary(
         self,
     ) -> None:

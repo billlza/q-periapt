@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -11,6 +12,9 @@ import unittest
 from unittest import mock
 
 import apple_device_proof
+import apple_proof_contract
+import proof_manifest
+from bounded_process import BoundedResult
 from evidence_io import FileSnapshot, JsonObjectSnapshot
 
 
@@ -33,10 +37,26 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
-    def test_schema_v3_is_required(self) -> None:
-        with self.assertRaisesRegex(SystemExit, "Apple device proof schema must be 3"):
-            apple_device_proof.verify_proof_schema({"schema_version": 2}, "Apple device proof")
-        apple_device_proof.verify_proof_schema({"schema_version": 3}, "Apple device proof")
+    def test_schema_v4_is_required(self) -> None:
+        self.assertEqual(
+            apple_device_proof.SCHEMA_VERSION,
+            apple_proof_contract.APPLE_DEVICE_PROOF_SCHEMA_VERSION,
+        )
+        self.assertEqual(
+            apple_device_proof.MATRIX_SCHEMA_VERSION,
+            apple_proof_contract.APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+        )
+        self.assertEqual(
+            proof_manifest.APPLE_DEVICE_PROOF_SCHEMA_VERSION,
+            apple_proof_contract.APPLE_DEVICE_PROOF_SCHEMA_VERSION,
+        )
+        self.assertEqual(
+            proof_manifest.APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+            apple_proof_contract.APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+        )
+        with self.assertRaisesRegex(SystemExit, "Apple device proof schema must be 4"):
+            apple_device_proof.verify_proof_schema({"schema_version": 3}, "Apple device proof")
+        apple_device_proof.verify_proof_schema({"schema_version": 4}, "Apple device proof")
 
     def test_matching_canonical_source_tree_digest_passes(self) -> None:
         digest = apple_device_proof.current_source_tree_digest(self.root)
@@ -253,6 +273,245 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
             604800, True, min_profile_valid_days=0
         )
 
+    def test_selected_evidence_tree_requires_owner_only_modes_and_regular_files(self) -> None:
+        evidence = self.root / "private-evidence"
+        evidence.mkdir(mode=0o700)
+        child = evidence / "child"
+        child.mkdir(mode=0o700)
+        proof = child / "proof.json"
+        proof.write_text("{}\n", encoding="utf-8")
+        proof.chmod(0o600)
+        with mock.patch.object(apple_device_proof, "_require_no_extended_acl"):
+            apple_device_proof.inspect_private_evidence_tree(evidence, "test evidence")
+
+            proof.chmod(0o640)
+            with self.assertRaisesRegex(SystemExit, "file mode must be 0600"):
+                apple_device_proof.inspect_private_evidence_tree(evidence, "test evidence")
+            proof.chmod(0o600)
+
+            child.chmod(0o750)
+            with self.assertRaisesRegex(SystemExit, "directory mode must be 0700"):
+                apple_device_proof.inspect_private_evidence_tree(evidence, "test evidence")
+            child.chmod(0o700)
+
+            linked = child / "linked.json"
+            linked.hardlink_to(proof)
+            with self.assertRaisesRegex(SystemExit, "must not be hard-linked"):
+                apple_device_proof.inspect_private_evidence_tree(evidence, "test evidence")
+            linked.unlink()
+
+            symlink = child / "proof-link.json"
+            symlink.symlink_to(proof.name)
+            with self.assertRaisesRegex(SystemExit, "must not contain symlinks"):
+                apple_device_proof.inspect_private_evidence_tree(evidence, "test evidence")
+
+    def test_acl_inspection_rejects_non_macos_hosts(self) -> None:
+        with (
+            mock.patch.object(apple_device_proof.sys, "platform", "linux"),
+            mock.patch.object(apple_device_proof, "capture_stdout") as capture,
+            self.assertRaisesRegex(SystemExit, "ACL inspection requires macOS"),
+        ):
+            apple_device_proof._require_no_extended_acl(self.root, "test evidence")
+        capture.assert_not_called()
+
+    def test_acl_inspection_accepts_plain_mode_and_rejects_acl_marker(self) -> None:
+        for mode, accepted in (
+            (b"drwx------ 2 owner group 64 Aug 13 00:00 path\n", True),
+            (b"drwx------+ 2 owner group 64 Aug 13 00:00 path\n", False),
+        ):
+            with (
+                self.subTest(mode=mode),
+                mock.patch.object(apple_device_proof.sys, "platform", "darwin"),
+                mock.patch.object(
+                    apple_device_proof,
+                    "capture_stdout",
+                    return_value=BoundedResult(returncode=0, stdout=mode),
+                ),
+            ):
+                if accepted:
+                    apple_device_proof._require_no_extended_acl(
+                        self.root, "test evidence"
+                    )
+                else:
+                    with self.assertRaisesRegex(SystemExit, "extended ACL"):
+                        apple_device_proof._require_no_extended_acl(
+                            self.root, "test evidence"
+                        )
+
+    def test_selected_evidence_tree_rejects_extended_acl(self) -> None:
+        evidence = self.root / "private-evidence"
+        evidence.mkdir(mode=0o700)
+        with (
+            mock.patch.object(
+                apple_device_proof,
+                "_require_no_extended_acl",
+                side_effect=SystemExit("error: test evidence must not carry an extended ACL"),
+            ),
+            self.assertRaisesRegex(SystemExit, "must not carry an extended ACL"),
+        ):
+            apple_device_proof.inspect_private_evidence_tree(evidence, "test evidence")
+
+    def test_private_proof_writer_is_atomic_private_and_replaces_only_safe_output(self) -> None:
+        evidence = self.root / "private-evidence"
+        evidence.mkdir(mode=0o700)
+        output = evidence / "proof.json"
+        apple_device_proof.write_private_json_atomic(
+            output,
+            {"schema_version": 4, "status": "pass"},
+            "test proof",
+        )
+        self.assertEqual(output.stat().st_nlink, 1)
+        self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(
+            output.read_text(encoding="utf-8"),
+            '{\n  "schema_version": 4,\n  "status": "pass"\n}\n',
+        )
+        apple_device_proof.write_private_json_atomic(
+            output,
+            {"schema_version": 4, "status": "updated"},
+            "test proof",
+        )
+        self.assertIn('"status": "updated"', output.read_text(encoding="utf-8"))
+
+        output.chmod(0o644)
+        with self.assertRaisesRegex(SystemExit, "existing test proof"):
+            apple_device_proof.write_private_json_atomic(
+                output,
+                {"schema_version": 4, "status": "forged"},
+                "test proof",
+            )
+
+    def test_private_proof_writer_reports_cleanup_failure(self) -> None:
+        evidence = self.root / "private-evidence"
+        evidence.mkdir(mode=0o700)
+        output = evidence / "proof.json"
+        real_open = apple_device_proof.os.open
+        real_close = apple_device_proof.os.close
+        directory_fd: list[int] = []
+
+        def recording_open(*args: object, **kwargs: object) -> int:
+            descriptor = real_open(*args, **kwargs)
+            if not directory_fd:
+                directory_fd.append(descriptor)
+            return descriptor
+
+        def failing_directory_close(descriptor: int) -> None:
+            if directory_fd and descriptor == directory_fd[0]:
+                directory_fd.clear()
+                real_close(descriptor)
+                raise OSError("injected directory close failure")
+            real_close(descriptor)
+
+        with (
+            mock.patch.object(apple_device_proof.os, "open", side_effect=recording_open),
+            mock.patch.object(apple_device_proof.os, "close", side_effect=failing_directory_close),
+            self.assertRaisesRegex(SystemExit, "closing test proof directory failed"),
+        ):
+            apple_device_proof.write_private_json_atomic(
+                output,
+                {"schema_version": 4, "status": "pass"},
+                "test proof",
+            )
+
+    def test_private_proof_writer_preserves_old_output_on_write_failure(self) -> None:
+        evidence = self.root / "private-evidence"
+        evidence.mkdir(mode=0o700)
+        output = evidence / "proof.json"
+        output.write_text("old\n", encoding="utf-8")
+        output.chmod(0o600)
+        with (
+            mock.patch.object(
+                apple_device_proof.os,
+                "write",
+                side_effect=OSError("injected write failure"),
+            ),
+            self.assertRaisesRegex(SystemExit, "cannot publish test proof atomically"),
+        ):
+            apple_device_proof.write_private_json_atomic(
+                output,
+                {"schema_version": 4, "status": "pass"},
+                "test proof",
+            )
+        self.assertEqual(output.read_text(encoding="utf-8"), "old\n")
+        self.assertEqual(
+            [path.name for path in evidence.iterdir()],
+            ["proof.json"],
+        )
+
+    def test_private_proof_writer_rejects_unverifiable_payload_size(self) -> None:
+        evidence = self.root / "private-evidence"
+        evidence.mkdir(mode=0o700)
+        output = evidence / "proof.json"
+        with self.assertRaisesRegex(SystemExit, "test proof exceeds"):
+            apple_device_proof.write_private_json_atomic(
+                output,
+                {"payload": "x" * apple_device_proof.MAX_APPLE_PROOF_BYTES},
+                "test proof",
+            )
+        self.assertFalse(output.exists())
+
+    def test_private_apple_identifiers_are_not_echoed_in_validation_errors(self) -> None:
+        device_id = "00008132-0006452C1138801C"
+        expected_team = "YKUPL7Z869"
+        profile_team = "ABCDE12345"
+        profile = {
+            "Name": "test profile",
+            "TeamIdentifier": [profile_team],
+            "Entitlements": {"application-identifier": f"{profile_team}.*"},
+            "ProvisionedDevices": [device_id],
+            "ExpirationDate": dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=60),
+        }
+        entitlements = {
+            "com.apple.developer.team-identifier": profile_team,
+            "application-identifier": f"{profile_team}.dev.qperiapt.test",
+        }
+        with self.assertRaises(SystemExit) as caught:
+            apple_device_proof.validate_profile(
+                profile,
+                entitlements,
+                "dev.qperiapt.test",
+                device_id,
+                expected_team,
+                30,
+            )
+        message = str(caught.exception)
+        self.assertNotIn(device_id, message)
+        self.assertNotIn(expected_team, message)
+        self.assertNotIn(profile_team, message)
+
+        private_bundle = "dev.qperiapt.DeviceRunner.run0123456789abcdef"
+        duplicate_apps = {
+            "result": {
+                "matchingBundleIdentifier": private_bundle,
+                "apps": [
+                    {"bundleIdentifier": private_bundle},
+                    {"bundleIdentifier": private_bundle},
+                ],
+            }
+        }
+        with self.assertRaises(SystemExit) as duplicate_failure:
+            apple_device_proof.parse_installed_app_state(
+                duplicate_apps,
+                private_bundle,
+            )
+        self.assertNotIn(private_bundle, str(duplicate_failure.exception))
+
+        private_diagnostic = (
+            f"error: profile={device_id} team={expected_team} application-id="
+            f"{profile_team}.dev.qperiapt.test"
+        )
+        private_log_path = self.root / "private-build.log"
+        with self.assertRaises(SystemExit) as log_failure:
+            apple_device_proof.require_clean_build_log_text(
+                private_diagnostic,
+                private_log_path,
+            )
+        log_message = str(log_failure.exception)
+        self.assertIn(str(private_log_path), log_message)
+        self.assertNotIn(device_id, log_message)
+        self.assertNotIn(expected_team, log_message)
+        self.assertNotIn(profile_team, log_message)
+
     def test_smoke_script_freezes_before_build_and_passes_snapshot_to_emit(self) -> None:
         script = (pathlib.Path(__file__).parent / "apple-device-smoke.sh").read_text(encoding="utf-8")
         freeze_position = script.index("freeze-source --root")
@@ -260,6 +519,11 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         self.assertLess(freeze_position, first_build_position)
         self.assertIn('--expected-git-commit "$SOURCE_GIT_COMMIT"', script)
         self.assertIn('--expected-source-tree-sha256 "$SOURCE_TREE_SHA256"', script)
+        toolchain_capture = script.index("apple_toolchain.py capture")
+        emit = script.index("apple_device_proof.py emit")
+        self.assertLess(toolchain_capture, first_build_position)
+        self.assertLess(first_build_position, emit)
+        self.assertIn('--xcode-toolchain-receipt "$XCODE_TOOLCHAIN_RECEIPT"', script)
 
     def test_smoke_script_owns_only_a_run_unique_device_app(self) -> None:
         artifact = pathlib.Path(__file__).parent
@@ -301,6 +565,7 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         self.assertNotIn("pick_device()", script)
         self.assertNotIn("${1:-}", script)
         self.assertIn("QPERIAPT_IOS_DEVICE_ID is required", script)
+        self.assertIn("QPERIAPT_DEVICE_RESULT_DIR must be an absolute path", script)
 
         matrix = (artifact / "apple-device-matrix.sh").read_text(encoding="utf-8")
         self.assertIn("QPERIAPT_IOS_DEVICE_MATRIX is required", matrix)
@@ -424,6 +689,7 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
         self.root = pathlib.Path(self.temp_dir.name).resolve()
         self.matrix_root = self.root / "artifact" / "device-runs" / "matrix"
         self.matrix_root.mkdir(parents=True)
+        self.matrix_root.chmod(0o700)
         self.matrix_path = self.matrix_root / "apple-device-matrix-proof.json"
 
     def tearDown(self) -> None:
@@ -438,6 +704,7 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
             "source_tree_dirty": True,
             "device_id_sha256": hashlib.sha256(label.encode()).hexdigest(),
             "run_id": ("1" if label == "ipad" else "2") * 32,
+            "xcode_toolchain": {"schema_version": 1, "selected": "same"},
             "device": {
                 "label": label,
                 "type": device_type,
@@ -551,6 +818,7 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
                 "verify_proof_snapshot",
                 side_effect=verify_child,
             ),
+            mock.patch.object(apple_device_proof, "_require_no_extended_acl"),
         ):
             apple_device_proof.verify_matrix_snapshot(
                 self.root,
@@ -574,8 +842,8 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
 
     def test_matrix_rejects_old_schema_and_duplicate_physical_device(self) -> None:
         snapshot, child_snapshots, children = self.matrix_snapshot()
-        snapshot.value["schema_version"] = 3
-        with self.assertRaisesRegex(SystemExit, "schema must be 4"):
+        snapshot.value["schema_version"] = 4
+        with self.assertRaisesRegex(SystemExit, "schema must be 5"):
             self.verify_fixture(snapshot, child_snapshots, children)
 
         snapshot, child_snapshots, children = self.matrix_snapshot(
@@ -588,6 +856,15 @@ class AppleReleaseMatrixPolicyTests(unittest.TestCase):
         snapshot, child_snapshots, children = self.matrix_snapshot()
         snapshot.value["devices"][0]["transport"] = "localNetwork"
         with self.assertRaisesRegex(SystemExit, "requires wired transport"):
+            self.verify_fixture(snapshot, child_snapshots, children)
+
+    def test_matrix_rejects_different_xcode_toolchains(self) -> None:
+        snapshot, child_snapshots, children = self.matrix_snapshot()
+        children["iphone"]["xcode_toolchain"] = {
+            "schema_version": 1,
+            "selected": "different",
+        }
+        with self.assertRaisesRegex(SystemExit, "different Xcode toolchains"):
             self.verify_fixture(snapshot, child_snapshots, children)
 
 

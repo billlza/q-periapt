@@ -269,11 +269,11 @@ class ProofManifestTests(unittest.TestCase):
                     proof_manifest.validate_declared_currentness(manifest)
                 section[field] = original
 
-    def test_declared_current_apple_requires_bound_passing_schema3_attempt(self) -> None:
+    def test_declared_current_apple_requires_bound_passing_current_schema_attempt(self) -> None:
         digest = "a" * 64
         section = {
             "current_source_status": "current_clean_tree_physical_pass",
-            "current_proof_schema": 3,
+            "current_proof_schema": proof_manifest.APPLE_DEVICE_PROOF_SCHEMA_VERSION,
             "proof_source_tree_sha256": digest,
             "current_proof_path": "artifact/device-runs/ipad/proof.json",
             "current_proof_sha256": "b" * 64,
@@ -293,7 +293,7 @@ class ProofManifestTests(unittest.TestCase):
         digest = "a" * 64
         section = {
             "current_source_status": "current_dirty_diagnostic_pass",
-            "current_proof_schema": 3,
+            "current_proof_schema": proof_manifest.APPLE_DEVICE_PROOF_SCHEMA_VERSION,
             "proof_source_tree_sha256": digest,
             "current_proof_path": "artifact/device-runs/ipad/proof.json",
             "current_proof_sha256": "b" * 64,
@@ -308,11 +308,11 @@ class ProofManifestTests(unittest.TestCase):
                 {"proof_source_tree_sha256": digest, "apple_device": section}
             )
 
-    def test_declared_current_apple_matrix_requires_bound_passing_schema3_proof(self) -> None:
+    def test_declared_current_apple_matrix_requires_bound_passing_current_schema_proof(self) -> None:
         digest = "a" * 64
         section = {
             "matrix_source_status": "current_clean_tree_physical_pass",
-            "matrix_proof_schema": 4,
+            "matrix_proof_schema": proof_manifest.APPLE_MATRIX_PROOF_SCHEMA_VERSION,
             "proof_source_tree_sha256": digest,
             "matrix_proof_path": "artifact/device-runs/matrix/apple-device-matrix-proof.json",
             "matrix_proof_sha256": "b" * 64,
@@ -326,7 +326,11 @@ class ProofManifestTests(unittest.TestCase):
         for field, bad_value, message in (
             ("matrix_proof_path", "../proof.json", "selected-proof path"),
             ("matrix_proof_sha256", "bad", "selected-proof SHA-256"),
-            ("matrix_proof_schema", 3, "requires proof schema 4"),
+            (
+                "matrix_proof_schema",
+                proof_manifest.APPLE_MATRIX_PROOF_SCHEMA_VERSION - 1,
+                f"requires proof schema {proof_manifest.APPLE_MATRIX_PROOF_SCHEMA_VERSION}",
+            ),
             ("proof_source_tree_sha256", "c" * 64, "does not match"),
             ("matrix_status", "fail", "passing proof"),
             ("matrix_generated_at", None, "generation time"),

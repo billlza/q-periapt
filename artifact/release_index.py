@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Callable, Iterator, NoReturn
 
+from apple_proof_contract import APPLE_MATRIX_PROOF_SCHEMA_VERSION
 from android_emulator_control import (
     EMULATOR_ROUTING_MODE,
     EMULATOR_ROUTING_PRIVATE_ADB_FIELDS,
@@ -2088,6 +2089,10 @@ def proof_summary_snapshot(
             f"{proof_kind} proof commit differs from this index",
         )
         if proof_kind == "apple_matrix":
+            require(
+                proof.get("schema_version") == APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+                "Apple matrix proof schema is not current",
+            )
             require(
                 proof.get("status") == "pass",
                 "Apple matrix proof is not passing",

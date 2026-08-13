@@ -409,7 +409,8 @@ bind exact lock bytes to one run for accidental mismatch detection; they do not
 attest against a hostile host, crates.io, RustSec, system CA store, or network.
 The Swift XCFramework gate also requires a clean tree by default; set
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics. Set
-`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus `QPERIAPT_DEVICE_RESULT_DIR=<matrix-run-dir>` to also
+  `QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus
+  `QPERIAPT_DEVICE_RESULT_DIR=/absolute/path/to/<matrix-run-dir>` to also
 require a fresh iPad+iPhone matrix proof. The Android release transaction is ordered and must remain
 on one unchanged clean source snapshot: produce the exact AAR; execute it on the script-owned
 arm64-v8a/API-35/16-KiB release-mode AVD; create the first release index with
@@ -623,7 +624,7 @@ These produce the paper's primary network table and the binary constant-time dis
   physical iPhone/iPad, installs it, and accepts only an on-device
   `QPERIAPT_DEVICE_PASS run-id=<32 hex chars>` marker plus the matching run-bound
   result file copied from the app data container and a structured single-device
-  proof JSON. Proof schema v3 freezes the git commit and the claim-ledger canonical
+  proof JSON. Proof schema v4 freezes the git commit and the claim-ledger canonical
   source-input digest before any build, then rechecks both after the device run
   and immediately before proof emission. The verifier recomputes that digest; dirty mode never
   relaxes content or commit binding. The proof also binds the run id, readable named source hashes
@@ -631,10 +632,25 @@ These produce the paper's primary network table and the binary constant-time dis
   app/staticlib hashes, selected physical-device type and transport, Xcode build log hash,
   copied marker hash, provisioning profile
   validity, codesign entitlements, static Rust FFI linkage, and the weak AppIntents link used for
-  Xcode 27 warning-clean app builds. The verifier recomputes `device_id_sha256` from the child
+  Xcode 27 warning-clean app builds. It also binds a schema-v1 trusted-local Xcode receipt captured
+  before the first build and reverified after device execution: the resolved Developer directory,
+  Xcode/Swift versions, root-owned non-writable installation boundary, Apple code-signing
+  identity and authority chain, Gatekeeper `Apple System` assessment, CodeResources, version
+  plists, the Xcode executable, `xcodebuild`, and iPhoneOS SDK settings. This detects accidental
+  selected-toolchain replacement; it is neither a byte hash of the complete Xcode installation nor
+  independent provenance against a hostile administrator or same-UID producer. The build commands
+  still execute in a trusted local host environment; this receipt does not attest every selected
+  executable, caller environment variable, or byte executed by the build. The verifier
+  recomputes `device_id_sha256` from the child
   `device_id`; matrix distinctness cannot be supplied as an unbound self-declared hash. Verification rejects proof inputs outside
   `artifact/device-runs` and app/staticlib paths outside `target`.
-  `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` pins the Xcode 27 beta
+  The selected raw evidence tree is privacy-gated as current-user-owned directories at mode 0700
+  and regular single-link files at mode 0600, with no symlinks, special files, or extended ACLs;
+  the tree is rechecked after verification. Raw device/profile identifiers remain private local
+  evidence and are not anonymous or independently replayable from a clean clone.
+  Operator-facing validation failures use labels and truncated identifier digests; raw command
+  output remains in the private run tree and must not be uploaded as a shared console transcript.
+  `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer` pins the Xcode 27
   lane without changing global `xcode-select`. This lane requires local signing. Set
   `DEVELOPMENT_TEAM` and an explicit `QPERIAPT_IOS_DEVICE_ID` for every physical run,
   and complete the selected Xcode first-launch/CoreDevice setup before capture,
@@ -659,9 +675,10 @@ These produce the paper's primary network table and the binary constant-time dis
   `QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-matrix.sh`.
   The matrix lane writes one proof per device plus `apple-device-matrix-proof.json`, and
   `QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX=1 sh artifact/proof-to-byte.sh` verifies that both physical
-  families are present, fresh, source-bound, and artifact-bound. Matrix schema v4 requires exactly
+  families are present, fresh, source-bound, and artifact-bound. Matrix schema v5 requires exactly
   canonical `ipad`/iPad over `wired` and `iphone`/iPhone over `localNetwork`, distinct device
-  commitments, run ids, and schema-v3 child proofs; the former device-type override has been removed. For beta/GM readiness, prefer
+  commitments, run ids, one identical selected Xcode receipt, and schema-v4 child proofs; the
+  aggregate schema is v5. The former device-type override has been removed. For beta/GM readiness, prefer
   `artifact/apple-device-xcode27-gate.sh`: with `QPERIAPT_IOS_DEVICE_ID` it captures and directly
   verifies the single-device proof; with `QPERIAPT_IOS_DEVICE_MATRIX` it does the same for the
   iPhone+iPad matrix. The capture deliberately stops with `promotion=pending`: select its path and

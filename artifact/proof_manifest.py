@@ -10,6 +10,10 @@ import re
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from apple_proof_contract import (
+    APPLE_DEVICE_PROOF_SCHEMA_VERSION,
+    APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+)
 from evidence_io import (
     EvidenceIOError,
     JsonObjectSnapshot,
@@ -806,8 +810,11 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
         "current_dirty_diagnostic_pass",
     }:
         _validate_binding_declaration(apple, "apple_device")
-        if apple.get("current_proof_schema") != 3:
-            raise ProofManifestError("current Apple device status requires proof schema 3")
+        if apple.get("current_proof_schema") != APPLE_DEVICE_PROOF_SCHEMA_VERSION:
+            raise ProofManifestError(
+                "current Apple device status requires proof schema "
+                f"{APPLE_DEVICE_PROOF_SCHEMA_VERSION}"
+            )
         if root_digest is None or apple.get("proof_source_tree_sha256") != root_digest:
             raise ProofManifestError("current Apple device status does not match the manifest source digest")
         attempt = apple.get("current_attempt")
@@ -824,8 +831,11 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
         "current_dirty_diagnostic_pass",
     }:
         _validate_binding_declaration(apple, "apple_matrix")
-        if apple.get("matrix_proof_schema") != 4:
-            raise ProofManifestError("current Apple matrix requires proof schema 4")
+        if apple.get("matrix_proof_schema") != APPLE_MATRIX_PROOF_SCHEMA_VERSION:
+            raise ProofManifestError(
+                "current Apple matrix requires proof schema "
+                f"{APPLE_MATRIX_PROOF_SCHEMA_VERSION}"
+            )
         if root_digest is None or apple.get("proof_source_tree_sha256") != root_digest:
             raise ProofManifestError("current Apple matrix does not match the manifest source digest")
         if apple.get("matrix_status") != "pass":

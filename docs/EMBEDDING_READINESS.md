@@ -50,8 +50,9 @@ packaging behavior only, not release provenance.
 The optional Apple device matrix also requires a clean worktree for release proof. During local
 hardware diagnostics on an in-progress tree, set `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE=1` when
 generating proof and `QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF=1` when reverifying it; that mode is
-diagnostic only. Matrix schema v4 fixes the release requirement to a wired physical iPad and a
-distinct local-network physical iPhone, each backed by a schema-v3 child proof; callers cannot
+diagnostic only. Matrix schema v5 fixes the release requirement to a wired physical iPad and a
+distinct local-network physical iPhone, each backed by a schema-v4 child proof and the same
+trusted-local Xcode installation receipt; callers cannot
 weaken it to another transport or a single-device subset. Device-writing lanes never auto-select
 hardware: a single-device run requires `QPERIAPT_IOS_DEVICE_ID`, and a matrix capture requires
 `QPERIAPT_IOS_DEVICE_MATRIX=ipad:<udid>,iphone:<udid>`. The runner uses a random run-scoped bundle
@@ -95,7 +96,7 @@ To require physical Apple hardware evidence too:
 
 ```sh
 QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1 \
-QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/<matrix-run-dir> \
+QPERIAPT_DEVICE_RESULT_DIR=/absolute/path/to/artifact/device-runs/<matrix-run-dir> \
 sh artifact/embedding-readiness.sh
 ```
 
@@ -303,7 +304,7 @@ in-progress tree:
 ```sh
 QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1 \
 QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=1 \
-QPERIAPT_DEVICE_RESULT_DIR=artifact/device-runs/<matrix-run-dir> \
+QPERIAPT_DEVICE_RESULT_DIR=/absolute/path/to/artifact/device-runs/<matrix-run-dir> \
 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
 QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
 sh artifact/local-release-index.sh

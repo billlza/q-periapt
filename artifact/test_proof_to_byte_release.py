@@ -663,6 +663,9 @@ APPLE_DEVICE_PROOF_INPUTS = {
     "apple_device_xcode27_gate_script_sha256": "artifact/apple-device-xcode27-gate.sh",
     "apple_device_proof_verifier_sha256": "artifact/apple_device_proof.py",
     "apple_device_proof_tests_sha256": "artifact/test_apple_device_proof.py",
+    "apple_proof_contract_sha256": "artifact/apple_proof_contract.py",
+    "apple_toolchain_verifier_sha256": "artifact/apple_toolchain.py",
+    "apple_toolchain_tests_sha256": "artifact/test_apple_toolchain.py",
 }
 
 BOUNDED_PROCESS_PROOF_INPUTS = {

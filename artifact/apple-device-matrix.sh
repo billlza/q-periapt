@@ -103,12 +103,12 @@ seen_labels = set()
 seen_ids = set()
 for raw in matrix_spec.split(","):
     if ":" not in raw:
-        raise SystemExit(f"error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id, got: {raw}")
+        raise SystemExit("error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id")
     label, device_id = raw.split(":", 1)
     if label not in label_to_type:
         raise SystemExit(f"error: unsupported matrix label: {label}")
     if not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
-        raise SystemExit(f"error: invalid matrix device id for {label}: {device_id}")
+        raise SystemExit(f"error: invalid matrix device id for {label}")
     if label in seen_labels:
         raise SystemExit(f"error: duplicate matrix label: {label}")
     if device_id in seen_ids:
@@ -159,7 +159,7 @@ for raw_entry in $MATRIX_SPEC; do
 	label=${raw_entry%%:*}
 	device_id=${raw_entry#*:}
 	if [ "$label" = "$raw_entry" ] || [ -z "$label" ] || [ -z "$device_id" ]; then
-		printf 'error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id, got: %s\n' "$raw_entry" >&2
+		printf 'error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id\n' >&2
 		exit 2
 	fi
 	case "$label" in
