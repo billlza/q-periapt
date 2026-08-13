@@ -129,6 +129,15 @@ class InstalledApkRetryReason(str, enum.Enum):
     DEADLINE_EXHAUSTED = "deadline-exhausted"
 
 
+class PackageState(str, enum.Enum):
+    """Safe shell-facing package-state observations."""
+
+    ABSENT = "absent"
+    PRESENT = "present"
+    QUERY_NONZERO = "retryable:query-nonzero"
+    QUERY_TIMEOUT = "retryable:query-timeout"
+
+
 class AndroidOperation(str, enum.Enum):
     REGISTER_EMULATOR = "register-emulator"
     LIST_DEVICES = "list-devices"
@@ -151,7 +160,7 @@ class AndroidOperation(str, enum.Enum):
     DEVICE_RELEASE = "device-release"
     DEVICE_FINGERPRINT = "device-fingerprint"
     ADB_VERSION = "adb-version"
-    PACKAGE_LIST = "package-list"
+    PACKAGE_STATE = "package-state"
     OBSERVE_INSTALLED_APK = "observe-installed-apk"
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
@@ -181,6 +190,7 @@ class OperationSpec:
         "run",
         "capture",
         "write",
+        "package-state",
         "observe-apk",
         "logcat",
         "register-emulator",
@@ -693,8 +703,8 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
         AndroidOperation.ADB_VERSION: OperationSpec(
             "capture", 15, 15, None, lambda cap: _adb(cap, "version")
         ),
-        AndroidOperation.PACKAGE_LIST: OperationSpec(
-            "capture",
+        AndroidOperation.PACKAGE_STATE: OperationSpec(
+            "package-state",
             15,
             15,
             None,
@@ -3221,6 +3231,79 @@ def _invoke_installed_apk_observation(
     return result
 
 
+def _observe_package_state(
+    capability: runtime_state.AndroidCommandCapability,
+    spec: OperationSpec,
+    *,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Map the fixed raw package query to one exact, non-diagnostic token."""
+
+    try:
+        raw = capture_stdout(
+            spec.build_argv(capability),
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=65536,
+            stderr=subprocess.STDOUT,
+            environment=_client_environment(capability),
+        )
+    except BoundedProcessError as exc:
+        if exc.kind != "timeout" or getattr(exc, "__notes__", None):
+            raise
+        return BoundedResult(0, f"{PackageState.QUERY_TIMEOUT.value}\n".encode("ascii"))
+    if raw.returncode != 0:
+        return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
+    if b"\x00" in raw.stdout or b"\r" in raw.stdout:
+        _fail("Android package-state output contains a forbidden control character")
+    try:
+        text = raw.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise AndroidCommandError(
+            f"Android package-state output is not UTF-8: {exc}"
+        ) from exc
+    if text == "":
+        state = PackageState.ABSENT
+    elif text == f"package:{PACKAGE}\n":
+        state = PackageState.PRESENT
+    else:
+        _fail("Android package-state output is malformed")
+    return BoundedResult(0, f"{state.value}\n".encode("ascii"))
+
+
+def _invoke_package_state(
+    capability: runtime_state.AndroidCommandCapability,
+    spec: OperationSpec,
+    *,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Run one typed package query and preserve primary/postcheck attribution."""
+
+    result: BoundedResult | None = None
+    primary: BaseException | None = None
+    try:
+        result = _observe_package_state(
+            capability,
+            spec,
+            timeout_seconds=timeout_seconds,
+        )
+    except BaseException as exc:
+        primary = exc
+    try:
+        _validate_owned_adb_server_for_client(capability)
+    except BaseException as postcheck_error:
+        if primary is None:
+            primary = postcheck_error
+        else:
+            primary.add_note(
+                "owned adb server post-package-state validation also failed: "
+                f"{postcheck_error}"
+            )
+    if primary is not None:
+        raise primary
+    _require(result is not None, "Android package-state observation produced no result")
+    return result
+
+
 def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
     snapshot = read_regular_snapshot(
         layout.proof / "adb-device-time.txt",
@@ -3266,6 +3349,12 @@ def invoke_operation(
     if spec.mode == "observe-apk":
         return _invoke_installed_apk_observation(
             layout, capability, timeout_seconds=timeout
+        )
+    if spec.mode == "package-state":
+        return _invoke_package_state(
+            capability,
+            spec,
+            timeout_seconds=timeout,
         )
     if spec.mode == "logcat":
         argv = _device(

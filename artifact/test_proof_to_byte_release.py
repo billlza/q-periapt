@@ -1662,17 +1662,18 @@ class BoundVerifierWiringTests(unittest.TestCase):
             diagnostic_upload,
             "      - name: Upload bounded Android package diagnostics after failure\n"
             "        if: failure() && "
-            "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-*-observation.log') != ''\n"
+            "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''\n"
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n"
             "        with:\n"
             "          name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics\n"
             "          path: |\n"
-            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-*-observation.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
             "          if-no-files-found: error\n",
         )
         self.assertNotIn("attempt-*.txt", diagnostic_upload)
         self.assertNotIn("attempt-*.err", diagnostic_upload)
         self.assertNotIn("adb-uninstall-cleanup.log", diagnostic_upload)
+        self.assertNotIn("adb-package-query-", diagnostic_upload)
 
         proof_upload = extract_named_workflow_step(job, "Upload Android runtime proof")
         self.assertIn(

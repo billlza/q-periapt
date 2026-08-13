@@ -918,6 +918,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "run",
                         "capture",
                         "write",
+                        "package-state",
                         "observe-apk",
                         "logcat",
                         "register-emulator",
@@ -1444,27 +1445,161 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(write_arguments["maximum_bytes"], 65536)
             self.assertEqual(write_arguments["timeout_seconds"], 15)
 
-    def test_package_query_combines_diagnostics_under_the_capture_limit(self) -> None:
+    def test_package_state_maps_exact_absent_present_and_nonzero_results(self) -> None:
+        cases = (
+            (BoundedResult(0, b""), b"absent\n"),
+            (
+                BoundedResult(
+                    0, b"package:dev.qperiapt.androidsmoke\n"
+                ),
+                b"present\n",
+            ),
+            (
+                BoundedResult(17, b"raw package service diagnostic\n"),
+                b"retryable:query-nonzero\n",
+            ),
+            (
+                BoundedResult(-9, b"raw signal diagnostic\n"),
+                b"retryable:query-nonzero\n",
+            ),
+        )
+        capability = self.load_capability()
+        expected_argv = commands._device(
+            capability,
+            "shell",
+            "cmd",
+            "package",
+            "list",
+            "packages",
+            "-u",
+            commands.PACKAGE,
+        )
+        for raw, expected in cases:
+            with (
+                self.subTest(raw=raw),
+                mock.patch.object(
+                    commands, "capture_stdout", return_value=raw
+                ) as capture,
+            ):
+                result = self.invoke(
+                    commands.AndroidOperation.PACKAGE_STATE,
+                    timeout_seconds=5,
+                )
+            self.assertEqual(result, BoundedResult(0, expected))
+            capture.assert_called_once_with(
+                expected_argv,
+                timeout_seconds=5,
+                maximum_bytes=65536,
+                stderr=subprocess.STDOUT,
+                environment=commands._client_environment(capability),
+            )
+
+    def test_package_state_maps_only_bounded_timeout_to_retryable(self) -> None:
+        with mock.patch.object(
+            commands,
+            "capture_stdout",
+            side_effect=commands.BoundedProcessError("timeout", "query timed out"),
+        ):
+            result = self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+        self.assertEqual(result, BoundedResult(0, b"retryable:query-timeout\n"))
+
+        timeout_with_cleanup_failure = commands.BoundedProcessError(
+            "timeout", "query timed out"
+        )
+        timeout_with_cleanup_failure.add_note("bounded process cleanup failure: reap")
         with (
             mock.patch.object(
                 commands,
                 "capture_stdout",
-                return_value=BoundedResult(1, b"package service unavailable\n"),
-            ) as capture,
-            mock.patch.object(commands, "write_stdout_at") as write,
+                side_effect=timeout_with_cleanup_failure,
+            ),
+            self.assertRaisesRegex(
+                commands.BoundedProcessError, "query timed out"
+            ) as raised,
         ):
-            result = self.invoke(
-                commands.AndroidOperation.PACKAGE_LIST,
-                timeout_seconds=5,
+            self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+        self.assertIn("cleanup failure", raised.exception.__notes__[0])
+
+        for kind in ("arguments", "start", "output_limit", "io", "reap"):
+            with (
+                self.subTest(kind=kind),
+                mock.patch.object(
+                    commands,
+                    "capture_stdout",
+                    side_effect=commands.BoundedProcessError(kind, "structural"),
+                ),
+                self.assertRaisesRegex(commands.BoundedProcessError, "structural"),
+            ):
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+
+    def test_package_state_rejects_successful_malformed_output(self) -> None:
+        malformed = (
+            b"package:dev.qperiapt.androidsmoke",
+            b"package:dev.qperiapt.androidsmoke\n\n",
+            b" package:dev.qperiapt.androidsmoke\n",
+            b"package:dev.qperiapt.other\n",
+            b"package:dev.qperiapt.androidsmoke\r\n",
+            b"package:dev.qperiapt.androidsmoke\x00\n",
+            b"\xff",
+        )
+        for output in malformed:
+            with (
+                self.subTest(output=output),
+                mock.patch.object(
+                    commands,
+                    "capture_stdout",
+                    return_value=BoundedResult(0, output),
+                ),
+                self.assertRaises(
+                    (commands.AndroidCommandError, state.AndroidRuntimeStateError)
+                ),
+            ):
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+
+    def test_package_state_always_postchecks_owned_server(self) -> None:
+        for raw in (
+            BoundedResult(0, b""),
+            BoundedResult(0, b"package:dev.qperiapt.androidsmoke\n"),
+            BoundedResult(9, b"raw diagnostic\n"),
+        ):
+            with (
+                self.subTest(raw=raw),
+                mock.patch.object(commands, "capture_stdout", return_value=raw),
+                mock.patch.object(
+                    commands,
+                    "_validate_owned_adb_server_for_client",
+                    side_effect=[None, commands.AndroidCommandError("server drift")],
+                ) as guard,
+                self.assertRaisesRegex(commands.AndroidCommandError, "server drift"),
+            ):
+                commands.invoke_operation(
+                    commands.AndroidOperation.PACKAGE_STATE,
+                    run_id=self.layout.run_id,
+                )
+            self.assertEqual(guard.call_count, 2)
+
+    def test_package_state_preserves_primary_when_postcheck_also_fails(self) -> None:
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, b"malformed\n"),
+            ),
+            mock.patch.object(
+                commands,
+                "_validate_owned_adb_server_for_client",
+                side_effect=[None, commands.AndroidCommandError("server drift")],
+            ) as guard,
+            self.assertRaisesRegex(commands.AndroidCommandError, "malformed") as raised,
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.PACKAGE_STATE,
+                run_id=self.layout.run_id,
             )
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout, b"package service unavailable\n")
-        capture.assert_called_once()
-        arguments = capture.call_args.kwargs
-        self.assertEqual(arguments["timeout_seconds"], 5)
-        self.assertEqual(arguments["maximum_bytes"], 65536)
-        self.assertEqual(arguments["stderr"], subprocess.STDOUT)
-        write.assert_not_called()
+        self.assertEqual(guard.call_count, 2)
+        self.assertTrue(
+            any("post-package-state" in note for note in raised.exception.__notes__)
+        )
 
     def test_timeout_cannot_exceed_operation_profile(self) -> None:
         with mock.patch.object(commands, "capture_stdout") as capture:

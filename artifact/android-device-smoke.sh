@@ -576,6 +576,7 @@ PY
 OUT_ROOT="$ROOT/target/qperiapt-android-device-smoke-runs/$RUN_ID"
 WORK="$OUT_ROOT/work"
 DIST="$OUT_ROOT/proof"
+PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
 PACKAGE="dev.qperiapt.androidsmoke"
 RESULT_TXT="$DIST/qperiapt-android-device-result.txt"
 RESULT_JSON="$DIST/qperiapt-android-device-result.json"
@@ -1319,7 +1320,7 @@ query_package_state() {
 	package_query_timeout_seconds=${1:-15}
 	package_query_output=${2:-"$DIST/adb-package-query.txt"}
 	package_query_error=${3:-"$DIST/adb-package-query.err"}
-	if android_command package-list \
+	if android_command package-state \
 		--timeout-seconds "$package_query_timeout_seconds" \
 		>"$package_query_output" 2>"$package_query_error"; then
 		package_query_status=0
@@ -1330,15 +1331,24 @@ query_package_state() {
 		printf 'error: cannot query the Android smoke package state\n' >&2
 		return "$package_query_status"
 	fi
-	if ! package_listing=$(tr -d '\r' <"$package_query_output"); then
-		printf 'error: cannot normalize the Android smoke package state\n' >&2
+	if ! package_state=$(/bin/cat -- "$package_query_output"); then
+		printf 'error: cannot read the typed Android package state\n' >&2
 		return 2
 	fi
-	case "$package_listing" in
-		"") printf 'absent\n' ;;
-		"package:$PACKAGE") printf 'present\n' ;;
+	if ! package_query_size=$(wc -c <"$package_query_output"); then
+		printf 'error: cannot measure the typed Android package state\n' >&2
+		return 2
+	fi
+	if [ "$package_query_size" -ne $((${#package_state} + 1)) ]; then
+		printf 'error: typed Android package state is not one exact line\n' >&2
+		return 2
+	fi
+	case "$package_state" in
+		absent | present | retryable:query-nonzero | retryable:query-timeout)
+			printf '%s\n' "$package_state"
+			;;
 		*)
-			printf 'error: Android package query returned an unexpected result\n' >&2
+			printf 'error: Android package-state adapter returned an unexpected token\n' >&2
 			return 2
 			;;
 	esac
@@ -1348,17 +1358,13 @@ observe_preinstall_package_absence() {
 	preinstall_deadline=$(monotonic_deadline 45) || return 1
 	preinstall_attempt=0
 	preinstall_consecutive_absent=0
-	preinstall_log="$DIST/adb-package-preinstall-observation.log"
-	if ! : >"$preinstall_log"; then
-		printf 'error: cannot create the Android preinstall observation log\n' >&2
-		return 2
-	fi
 	while preinstall_query_timeout=$(remaining_bounded_timeout \
 		"$preinstall_deadline" 5); do
 		preinstall_attempt=$((preinstall_attempt + 1))
 		preinstall_output="$DIST/adb-package-query-preinstall-attempt-$preinstall_attempt.txt"
 		preinstall_error="$DIST/adb-package-query-preinstall-attempt-$preinstall_attempt.err"
 		preinstall_observer_error="$DIST/adb-package-query-preinstall-attempt-$preinstall_attempt.observer.err"
+		package_state=
 		if package_state=$(query_package_state \
 			"$preinstall_query_timeout" \
 			"$preinstall_output" \
@@ -1370,29 +1376,31 @@ observe_preinstall_package_absence() {
 		case "$package_query_status:$package_state" in
 			0:absent)
 				preinstall_consecutive_absent=$((preinstall_consecutive_absent + 1))
-				printf 'attempt=%s state=absent consecutive=%s\n' \
+				printf 'phase=preinstall invocation=1 attempt=%s state=absent consecutive=%s\n' \
 					"$preinstall_attempt" "$preinstall_consecutive_absent" \
-					>>"$preinstall_log"
+					>>"$PACKAGE_OBSERVATION_LOG"
 				if [ "$preinstall_consecutive_absent" -eq 3 ]; then
 					return 0
 				fi
 				;;
 			0:present)
-				printf 'attempt=%s state=present consecutive=0\n' \
-					"$preinstall_attempt" >>"$preinstall_log"
+				printf 'phase=preinstall invocation=1 attempt=%s state=present consecutive=0\n' \
+					"$preinstall_attempt" >>"$PACKAGE_OBSERVATION_LOG"
 				printf 'error: refusing to replace a pre-existing Android package: %s\n' \
 					"$PACKAGE" >&2
 				return 1
 				;;
-			1:*)
+			0:retryable:query-nonzero | 0:retryable:query-timeout)
 				preinstall_consecutive_absent=0
-				printf 'attempt=%s state=query-error exit=1 consecutive=0\n' \
-					"$preinstall_attempt" >>"$preinstall_log"
+				preinstall_reason=${package_state#retryable:}
+				printf 'phase=preinstall invocation=1 attempt=%s state=retryable reason=%s consecutive=0\n' \
+					"$preinstall_attempt" "$preinstall_reason" \
+					>>"$PACKAGE_OBSERVATION_LOG"
 				;;
 			0:* | *:*)
-				printf 'attempt=%s state=structural-error exit=%s consecutive=0\n' \
+				printf 'phase=preinstall invocation=1 attempt=%s state=structural-error exit=%s consecutive=0\n' \
 					"$preinstall_attempt" "$package_query_status" \
-					>>"$preinstall_log"
+					>>"$PACKAGE_OBSERVATION_LOG"
 				printf 'error: Android preinstall package observation failed structurally\n' >&2
 				return 2
 				;;
@@ -1401,7 +1409,8 @@ observe_preinstall_package_absence() {
 			sleep 1
 		fi
 	done
-	printf 'error: Android package absence did not stabilize within 45 seconds\n' >&2
+	printf 'error: Android package absence did not stabilize within 45 seconds; see %s\n' \
+		"$PACKAGE_OBSERVATION_LOG" >&2
 	return 1
 }
 
@@ -1469,18 +1478,24 @@ verify_observed_installed_apk_signer() {
 observe_owned_installed_package() {
 	ownership_deadline=$1
 	ownership_phase=$2
+	ownership_invocation=$3
+	case "$ownership_phase:$ownership_invocation" in
+		postinstall:1) ownership_file_phase=postinstall ;;
+		cleanup:[1-9] | cleanup:[1-9][0-9]*)
+			ownership_file_phase="cleanup-$ownership_invocation"
+			;;
+		*)
+			printf 'error: invalid Android package ownership phase\n' >&2
+			return 2
+			;;
+	esac
 	ownership_attempt=0
 	ownership_consecutive_exact=0
 	ownership_previous_path_sha256=
-	ownership_log="$DIST/adb-package-$ownership_phase-observation.log"
-	if ! : >"$ownership_log"; then
-		printf 'error: cannot create Android package ownership observation log\n' >&2
-		return 2
-	fi
 	while ownership_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); do
 		ownership_attempt=$((ownership_attempt + 1))
-		ownership_output="$DIST/adb-package-$ownership_phase-attempt-$ownership_attempt.txt"
-		ownership_error="$DIST/adb-package-$ownership_phase-attempt-$ownership_attempt.err"
+		ownership_output="$DIST/adb-package-$ownership_file_phase-attempt-$ownership_attempt.txt"
+		ownership_error="$DIST/adb-package-$ownership_file_phase-attempt-$ownership_attempt.err"
 		if android_command observe-installed-apk \
 			--timeout-seconds "$ownership_timeout" \
 			>"$ownership_output" 2>"$ownership_error"; then
@@ -1489,8 +1504,9 @@ observe_owned_installed_package() {
 			ownership_status=$?
 		fi
 		if [ "$ownership_status" -ne 0 ]; then
-			printf 'attempt=%s state=structural-error exit=%s consecutive=0\n' \
-				"$ownership_attempt" "$ownership_status" >>"$ownership_log"
+			printf 'phase=%s invocation=%s attempt=%s state=structural-error exit=%s consecutive=0\n' \
+				"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
+				"$ownership_status" >>"$PACKAGE_OBSERVATION_LOG"
 			remove_installed_apk_copy || return 2
 			printf 'error: Android package ownership observation failed structurally; see %s\n' \
 				"$ownership_error" >&2
@@ -1522,9 +1538,10 @@ observe_owned_installed_package() {
 					ownership_consecutive_exact=1
 					ownership_previous_path_sha256=$ownership_path_sha256
 				fi
-				printf 'attempt=%s state=exact path_sha256=%s consecutive=%s\n' \
-					"$ownership_attempt" "$ownership_path_sha256" \
-					"$ownership_consecutive_exact" >>"$ownership_log"
+				printf 'phase=%s invocation=%s attempt=%s state=exact path_sha256=%s consecutive=%s\n' \
+					"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
+					"$ownership_path_sha256" "$ownership_consecutive_exact" \
+					>>"$PACKAGE_OBSERVATION_LOG"
 				if [ "$ownership_consecutive_exact" -eq 2 ]; then
 					if verify_observed_installed_apk_signer; then
 						return 0
@@ -1546,8 +1563,9 @@ observe_owned_installed_package() {
 				esac
 				ownership_consecutive_exact=0
 				ownership_previous_path_sha256=
-				printf 'attempt=%s state=retryable reason=%s consecutive=0\n' \
-					"$ownership_attempt" "$ownership_reason" >>"$ownership_log"
+				printf 'phase=%s invocation=%s attempt=%s state=retryable reason=%s consecutive=0\n' \
+					"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
+					"$ownership_reason" >>"$PACKAGE_OBSERVATION_LOG"
 				;;
 			*)
 				printf 'error: Android package ownership observation returned an unexpected result\n' >&2
@@ -1561,7 +1579,7 @@ observe_owned_installed_package() {
 	done
 	remove_installed_apk_copy || return 2
 	printf 'error: Android package ownership did not converge within its total deadline; see %s\n' \
-		"$ownership_log" >&2
+		"$PACKAGE_OBSERVATION_LOG" >&2
 	return 1
 }
 
@@ -1583,44 +1601,36 @@ cleanup_android_app() {
 		cleanup_query_output="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.txt"
 		cleanup_query_error="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.err"
 		cleanup_observer_error="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.observer.err"
+		package_state=
 		if package_state=$(query_package_state \
 			"$cleanup_query_timeout" \
-			"$cleanup_query_output" \
-			"$cleanup_query_error" 2>>"$cleanup_observer_error"); then
-			printf 'attempt=%s state=%s\n' "$attempt" "$package_state" >>"$DIST/adb-uninstall-cleanup.log"
+			"$cleanup_query_output" "$cleanup_query_error" \
+			2>>"$cleanup_observer_error"); then
+			cleanup_query_status=0
 		else
 			cleanup_query_status=$?
-			case "$cleanup_query_status" in
-				1)
-					package_state=unknown
-					printf 'attempt=%s state=query-error exit=1\n' \
-						"$attempt" >>"$DIST/adb-uninstall-cleanup.log"
-					;;
-				*)
-					printf 'attempt=%s state=structural-error exit=%s\n' \
-						"$attempt" "$cleanup_query_status" >>"$DIST/adb-uninstall-cleanup.log"
-					printf 'error: Android cleanup package observation failed structurally; see %s\n' \
-						"$cleanup_observer_error" >&2
-					return 2
-					;;
-			esac
 		fi
-		case "$package_state" in
-			absent)
+		case "$cleanup_query_status:$package_state" in
+			0:absent)
 				absent_observations=$((absent_observations + 1))
+				printf 'phase=cleanup invocation=%s attempt=%s state=absent consecutive=%s\n' \
+					"$cleanup_invocation" "$attempt" "$absent_observations" \
+					>>"$PACKAGE_OBSERVATION_LOG"
 				if [ "$absent_observations" -ge "$required_absent_observations" ]; then
 					ANDROID_APP_CLEANUP_ARMED=0
 					return 0
 				fi
 				;;
-			present)
+			0:present)
 				absent_observations=0
+				printf 'phase=cleanup invocation=%s attempt=%s state=present consecutive=0\n' \
+					"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
 				if [ "$ANDROID_APP_UNINSTALL_REQUESTED" = "1" ]; then
-					printf 'attempt=%s uninstall=still-present-after-request\n' \
-						"$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+					printf 'phase=cleanup invocation=%s attempt=%s uninstall=still-present-after-request\n' \
+						"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
 				else
 					if observe_owned_installed_package \
-						"$cleanup_deadline" "cleanup-$cleanup_invocation"; then
+						"$cleanup_deadline" cleanup "$cleanup_invocation"; then
 						:
 					else
 						cleanup_ownership_status=$?
@@ -1635,15 +1645,29 @@ cleanup_android_app() {
 					if ! android_command uninstall-app \
 						--timeout-seconds "$uninstall_timeout" \
 						>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
-						printf 'attempt=%s uninstall=unknown-or-failed\n' "$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+						printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
+							"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+					else
+						printf 'phase=cleanup invocation=%s attempt=%s uninstall=request-returned-zero\n' \
+							"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
 					fi
 					ANDROID_APP_UNINSTALL_REQUESTED=1
 				fi
 				;;
-			unknown) absent_observations=0 ;;
-			*)
-				printf 'error: unexpected Android package state during cleanup: %s\n' "$package_state" >&2
-				return 1
+			0:retryable:query-nonzero | 0:retryable:query-timeout)
+				absent_observations=0
+				cleanup_retry_reason=${package_state#retryable:}
+				printf 'phase=cleanup invocation=%s attempt=%s state=retryable reason=%s consecutive=0\n' \
+					"$cleanup_invocation" "$attempt" "$cleanup_retry_reason" \
+					>>"$PACKAGE_OBSERVATION_LOG"
+				;;
+			0:* | *:*)
+				printf 'phase=cleanup invocation=%s attempt=%s state=structural-error exit=%s consecutive=0\n' \
+					"$cleanup_invocation" "$attempt" "$cleanup_query_status" \
+					>>"$PACKAGE_OBSERVATION_LOG"
+				printf 'error: Android cleanup package observation failed structurally; see %s\n' \
+					"$cleanup_observer_error" >&2
+				return 2
 				;;
 		esac
 		if remaining_bounded_timeout "$cleanup_deadline" 1 >/dev/null; then
@@ -1651,7 +1675,7 @@ cleanup_android_app() {
 		fi
 	done
 	printf 'error: Android app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
-		"${SERIAL_SHA256_PREFIX:-unavailable}" "$DIST/adb-uninstall-cleanup.log" >&2
+		"${SERIAL_SHA256_PREFIX:-unavailable}" "$PACKAGE_OBSERVATION_LOG" >&2
 	return 1
 }
 
@@ -2497,12 +2521,19 @@ printf 'page-size: %s\n' "$PAGE_SIZE"
 printf 'sdk      : %s\n' "$DEVICE_SDK"
 
 printf '\n=== Install and run Android runtime smoke ===\n'
-if ! observe_preinstall_package_absence; then
+if ! : >"$PACKAGE_OBSERVATION_LOG"; then
+	printf 'error: cannot initialize the sanitized Android package observation journal\n' >&2
 	exit 1
 fi
-if ! rm -f -- "$DIST/adb-uninstall-cleanup.log"; then
+if ! : >"$DIST/adb-uninstall-cleanup.log"; then
 	printf 'error: cannot reset Android app cleanup log\n' >&2
 	exit 1
+fi
+if observe_preinstall_package_absence; then
+	:
+else
+	preinstall_observation_status=$?
+	exit "$preinstall_observation_status"
 fi
 ANDROID_APP_CLEANUP_ARMED=1
 if ! android_command install-apk >"$DIST/adb-install.log"; then
@@ -2510,7 +2541,7 @@ if ! android_command install-apk >"$DIST/adb-install.log"; then
 	exit 1
 fi
 POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
-if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall; then
+if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
 	:
 else
 	postinstall_ownership_status=$?

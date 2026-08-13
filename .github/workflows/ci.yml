@@ -915,12 +915,12 @@ jobs:
           QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
             sh artifact/android-device-smoke.sh
       - name: Upload bounded Android package diagnostics after failure
-        if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-*-observation.log') != ''
+        if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics
           path: |
-            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-*-observation.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
           if-no-files-found: error
       - name: Upload Android runtime proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

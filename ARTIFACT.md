@@ -746,13 +746,17 @@ These produce the paper's primary network table and the binary constant-time dis
   capability exactly, followed by an exact local signer check. Cleanup uses a separate 45-second
   remote-observation budget shared by its ownership recheck, uninstall request, and repeated absence
   observations; its local signer check is outside that remote-command budget. A single
-  package-service, path, pull, or byte observation failure
-  resets convergence instead of weakening the identity check; malformed paths or
-  command-capability/owned-server drift fail immediately. Cleanup uninstalls only after its recheck
+  typed package query maps an arbitrary nonzero `adb` result or a clean bounded timeout to an
+  explicit retryable state; neither state is accepted as absence, and either resets consecutive
+  absence observations. Successful empty output alone means absent, the one exact package line
+  means present, and malformed output, resource-boundary failure, or command-capability/owned-server
+  drift fails immediately. Path, pull, or byte observation failures likewise reset ownership
+  convergence instead of weakening the identity check. Cleanup uninstalls only after its recheck
   passes, reconciles command-unknown outcomes with repeated absence observations, and never clears
-  global logcat buffers. On CI failure, only the sanitized bounded observation-state logs are uploaded
-  for diagnosis; raw command output remains in the private run tree, and a failed lane still publishes
-  no runtime proof. It requires
+  global logcat buffers. One sanitized append-only journal records phase, cleanup invocation, attempt,
+  typed state, and consecutive count without raw device output; recurring cleanup cannot truncate an
+  earlier phase. On CI failure, only that journal is uploaded for diagnosis. Raw command and uninstall
+  output remains in the private run tree, and a failed lane still publishes no runtime proof. It requires
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
   identity directory that is not group/other writable, owner-protected adb key files, and an already
   authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is

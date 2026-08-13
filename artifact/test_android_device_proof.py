@@ -1601,6 +1601,7 @@ remaining_bounded_timeout() {{
 set -eu
 umask 077
 DIST={shlex.quote(str(distribution))}
+PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
 PACKAGE=dev.qperiapt.androidsmoke
 QUERY_SEQUENCE={shlex.quote(str(sequence))}
 QUERY_COUNTER={shlex.quote(str(counter))}
@@ -1610,15 +1611,17 @@ monotonic_deadline() {{ printf '999\\n'; }}
 {remaining_function}
 sleep() {{ :; }}
 android_command() {{
+    test "$1" = package-state
     query_count=$(/bin/cat "$QUERY_COUNTER")
     query_count=$((query_count + 1))
     printf '%s\\n' "$query_count" >"$QUERY_COUNTER"
     outcome=$(/usr/bin/sed -n "${{query_count}}p" "$QUERY_SEQUENCE")
     case "$outcome" in
-        absent) return 0 ;;
-        present) printf 'package:%s\\n' "$PACKAGE"; return 0 ;;
-        error) printf 'package service unavailable\\n' >&2; return 1 ;;
-        structural) printf 'malformed package response\\n'; return 0 ;;
+        absent | present) printf '%s\\n' "$outcome"; return 0 ;;
+        nonzero) printf 'retryable:query-nonzero\\n'; return 0 ;;
+        timeout) printf 'retryable:query-timeout\\n'; return 0 ;;
+        structural) printf 'adapter structural failure\\n' >&2; return 2 ;;
+        malformed) printf 'retryable:unexpected\\n'; return 0 ;;
         *) printf 'unexpected test sequence exhaustion\\n' >&2; return 2 ;;
     esac
 }}
@@ -1652,6 +1655,7 @@ fi
         outcomes: tuple[str, ...],
         *,
         signer_status: int = 0,
+        journal_prefix: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], int, int]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
@@ -1666,6 +1670,10 @@ fi
             work = root / "work"
             distribution.mkdir(mode=0o700)
             work.mkdir(mode=0o700)
+            if journal_prefix is not None:
+                (distribution / "adb-package-state-observation.log").write_text(
+                    journal_prefix, encoding="ascii"
+                )
             sequence = root / "sequence.txt"
             sequence.write_text("\n".join(outcomes) + "\n", encoding="ascii")
             counter = root / "observation-count.txt"
@@ -1676,6 +1684,7 @@ fi
 set -eu
 umask 077
 DIST={shlex.quote(str(distribution))}
+PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
 WORK={shlex.quote(str(work))}
 installed_apk="$WORK/installed-smoke-base.apk"
 OBSERVATION_SEQUENCE={shlex.quote(str(sequence))}
@@ -1711,7 +1720,7 @@ android_command() {{
     printf '%s\n' "$outcome"
 }}
 {observe_function}
-if observe_owned_installed_package 999 postinstall; then
+if observe_owned_installed_package 999 postinstall 1; then
     exit 0
 else
     observation_status=$?
@@ -1745,6 +1754,8 @@ fi
         ownership_status: int = 0,
         install_confirmed: bool = True,
         uninstall_status: int = 0,
+        cleanup_invocations: int = 1,
+        remaining_calls_per_invocation: tuple[int, ...] | None = None,
     ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], list[str]]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
@@ -1766,20 +1777,10 @@ fi
             counter.write_text("0\n", encoding="ascii")
             calls = root / "calls.txt"
             calls.write_text("", encoding="ascii")
-            script = f"""
-set -eu
-umask 077
-DIST={shlex.quote(str(distribution))}
-PACKAGE=dev.qperiapt.androidsmoke
-PACKAGE_SEQUENCE={shlex.quote(str(sequence))}
-QUERY_COUNTER={shlex.quote(str(counter))}
-CALLS={shlex.quote(str(calls))}
-ANDROID_APP_CLEANUP_ARMED=1
-ANDROID_APP_INSTALL_CONFIRMED={1 if install_confirmed else 0}
-ANDROID_APP_CLEANUP_INVOCATION=0
-ANDROID_APP_UNINSTALL_REQUESTED=0
-SERIAL_SHA256_PREFIX=0123456789ab
-monotonic_deadline() {{ printf '999\n'; }}
+            remaining_root = root / "remaining"
+            remaining_root.mkdir(mode=0o700)
+            if remaining_calls_per_invocation is None:
+                remaining_function = f"""
 remaining_bounded_timeout() {{
     query_count=$(/bin/cat "$QUERY_COUNTER")
     if [ "$query_count" -lt {len(package_outcomes)} ]; then
@@ -1788,6 +1789,54 @@ remaining_bounded_timeout() {{
     fi
     return 1
 }}
+""".strip()
+            else:
+                if len(remaining_calls_per_invocation) != cleanup_invocations:
+                    raise AssertionError(
+                        "each cleanup invocation requires one remaining-call limit"
+                    )
+                limit_cases = "\n".join(
+                    f"        {index}) remaining_limit={limit} ;;"
+                    for index, limit in enumerate(
+                        remaining_calls_per_invocation, start=1
+                    )
+                )
+                for index in range(1, cleanup_invocations + 1):
+                    (remaining_root / str(index)).write_text("0\n", encoding="ascii")
+                remaining_function = f"""
+remaining_bounded_timeout() {{
+    remaining_file="$REMAINING_ROOT/$ANDROID_APP_CLEANUP_INVOCATION"
+    remaining_count=$(/bin/cat "$remaining_file")
+    remaining_count=$((remaining_count + 1))
+    printf '%s\n' "$remaining_count" >"$remaining_file"
+    case "$ANDROID_APP_CLEANUP_INVOCATION" in
+{limit_cases}
+        *) return 1 ;;
+    esac
+    if [ "$remaining_count" -le "$remaining_limit" ]; then
+        printf '5\n'
+        return 0
+    fi
+    return 1
+}}
+""".strip()
+            script = f"""
+set -eu
+umask 077
+DIST={shlex.quote(str(distribution))}
+PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
+PACKAGE=dev.qperiapt.androidsmoke
+PACKAGE_SEQUENCE={shlex.quote(str(sequence))}
+QUERY_COUNTER={shlex.quote(str(counter))}
+CALLS={shlex.quote(str(calls))}
+REMAINING_ROOT={shlex.quote(str(remaining_root))}
+ANDROID_APP_CLEANUP_ARMED=1
+ANDROID_APP_INSTALL_CONFIRMED={1 if install_confirmed else 0}
+ANDROID_APP_CLEANUP_INVOCATION=0
+ANDROID_APP_UNINSTALL_REQUESTED=0
+SERIAL_SHA256_PREFIX=0123456789ab
+monotonic_deadline() {{ printf '999\n'; }}
+{remaining_function}
 sleep() {{ :; }}
 observe_owned_installed_package() {{ return {ownership_status}; }}
 android_command() {{
@@ -1796,27 +1845,33 @@ android_command() {{
     if [ "$operation" = uninstall-app ]; then
         return {uninstall_status}
     fi
-    test "$operation" = package-list
+    test "$operation" = package-state
     query_count=$(/bin/cat "$QUERY_COUNTER")
     query_count=$((query_count + 1))
     printf '%s\n' "$query_count" >"$QUERY_COUNTER"
     outcome=$(/usr/bin/sed -n "${{query_count}}p" "$PACKAGE_SEQUENCE")
     case "$outcome" in
-        absent) return 0 ;;
-        present) printf 'package:%s\n' "$PACKAGE"; return 0 ;;
-        error) printf 'package service unavailable\n' >&2; return 1 ;;
-        structural) printf 'malformed package response\n'; return 0 ;;
+        absent | present) printf '%s\n' "$outcome"; return 0 ;;
+        nonzero) printf 'retryable:query-nonzero\n'; return 0 ;;
+        timeout) printf 'retryable:query-timeout\n'; return 0 ;;
+        structural) printf 'adapter structural failure\n' >&2; return 2 ;;
+        malformed) printf 'retryable:unexpected\n'; return 0 ;;
         *) return 2 ;;
     esac
 }}
 {query_function}
 {cleanup_function}
-if cleanup_android_app; then
-    exit 0
-else
-    cleanup_status=$?
-    exit "$cleanup_status"
-fi
+cleanup_iteration=0
+cleanup_status=0
+while [ "$cleanup_iteration" -lt {cleanup_invocations} ]; do
+    cleanup_iteration=$((cleanup_iteration + 1))
+    if cleanup_android_app; then
+        cleanup_status=0
+    else
+        cleanup_status=$?
+    fi
+done
+exit "$cleanup_status"
 """
             result = subprocess.run(
                 ["/bin/sh", "-c", script],
@@ -1839,7 +1894,7 @@ fi
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        phase_start = producer.index("if ! observe_preinstall_package_absence; then")
+        phase_start = producer.index("if observe_preinstall_package_absence; then")
         phase_end = producer.index("\nif android_command device-time", phase_start)
         install_phase = producer[phase_start:phase_end]
 
@@ -3553,7 +3608,7 @@ fi
         ).read_text(encoding="utf-8")
         trap_index = producer.index("trap cleanup_exit EXIT")
         preflight_index = producer.index(
-            "if ! observe_preinstall_package_absence; then", trap_index
+            "if observe_preinstall_package_absence; then", trap_index
         )
         armed_index = producer.index("ANDROID_APP_CLEANUP_ARMED=1", preflight_index)
         install_index = producer.index("android_command install-apk", armed_index)
@@ -3639,6 +3694,13 @@ fi
         cleanup_start = verifier_end
         cleanup_end = producer.index("cleanup_runtime()", cleanup_start)
         cleanup = producer[cleanup_start:cleanup_end]
+        journal_initialization = producer.index(
+            'if ! : >"$PACKAGE_OBSERVATION_LOG"', trap_index
+        )
+        self.assertLess(journal_initialization, preflight_index)
+        self.assertEqual(producer.count(': >"$PACKAGE_OBSERVATION_LOG"'), 1)
+        self.assertNotIn(': >"$PACKAGE_OBSERVATION_LOG"', cleanup)
+        self.assertIn('>>"$PACKAGE_OBSERVATION_LOG"', cleanup)
         threshold = cleanup.index(
             'if [ "$absent_observations" -ge "$required_absent_observations" ]'
         )
@@ -3653,6 +3715,7 @@ fi
         self.assertLess(owned_uninstall, unknown_outcome)
         self.assertNotIn('install -r "$SIGNED_APK"', producer)
         self.assertNotIn("logcat -c", producer)
+        self.assertNotIn("android_command package-list", producer)
         self.assertIn("QPERIAPT_ANDROID_SERIAL is required", producer)
         self.assertIn("QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical", producer)
         self.assertIn("refusing automatic Android device selection", producer)
@@ -3673,7 +3736,7 @@ fi
         self.assertNotIn("argparse.REMAINDER", command_adapter_source)
         self.assertNotIn('"argv"', command_adapter_source)
         for operation in (
-            "package-list",
+            "package-state",
             "observe-installed-apk",
             "install-apk",
             "uninstall-app",
@@ -3740,8 +3803,9 @@ fi
             'if [ "$preinstall_consecutive_absent" -eq 3 ]; then',
             preinstall_observation,
         )
-        self.assertIn("1:*)", preinstall_observation)
-        self.assertIn("state=query-error exit=1 consecutive=0", preinstall_observation)
+        self.assertIn("0:retryable:query-nonzero", preinstall_observation)
+        self.assertIn("0:retryable:query-timeout", preinstall_observation)
+        self.assertIn("state=retryable reason=%s consecutive=0", preinstall_observation)
         self.assertIn('2>>"$preinstall_observer_error"', preinstall_observation)
         self.assertIn("0:present)", preinstall_observation)
         self.assertIn("state=structural-error", preinstall_observation)
@@ -4057,7 +4121,7 @@ fi
 
     def test_preinstall_observation_recovers_without_success_stderr(self) -> None:
         result, files, query_count, install_called = self._run_preinstall_observation(
-            ("error", "absent", "absent", "absent")
+            ("nonzero", "absent", "absent", "absent")
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(result.stdout, b"")
@@ -4065,34 +4129,32 @@ fi
         self.assertEqual(query_count, 4)
         self.assertTrue(install_called)
         self.assertEqual(
-            files["adb-package-preinstall-observation.log"].decode("ascii").splitlines(),
+            files["adb-package-state-observation.log"].decode("ascii").splitlines(),
             [
-                "attempt=1 state=query-error exit=1 consecutive=0",
-                "attempt=2 state=absent consecutive=1",
-                "attempt=3 state=absent consecutive=2",
-                "attempt=4 state=absent consecutive=3",
+                "phase=preinstall invocation=1 attempt=1 state=retryable reason=query-nonzero consecutive=0",
+                "phase=preinstall invocation=1 attempt=2 state=absent consecutive=1",
+                "phase=preinstall invocation=1 attempt=3 state=absent consecutive=2",
+                "phase=preinstall invocation=1 attempt=4 state=absent consecutive=3",
             ],
         )
-        first_error = files["adb-package-query-preinstall-attempt-1.err"]
-        self.assertIn(b"package service unavailable", first_error)
-        self.assertIn(
-            b"cannot query the Android smoke package state",
-            files["adb-package-query-preinstall-attempt-1.observer.err"],
+        self.assertEqual(files["adb-package-query-preinstall-attempt-1.err"], b"")
+        self.assertEqual(
+            files["adb-package-query-preinstall-attempt-1.observer.err"], b""
         )
 
     def test_preinstall_observation_resets_interleaved_absence(self) -> None:
         result, files, query_count, install_called = self._run_preinstall_observation(
-            ("absent", "error", "absent", "absent", "absent")
+            ("absent", "timeout", "absent", "absent", "absent")
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(result.stderr, b"")
         self.assertEqual(query_count, 5)
         self.assertTrue(install_called)
-        log = files["adb-package-preinstall-observation.log"].decode("ascii")
-        self.assertIn("attempt=1 state=absent consecutive=1\n", log)
-        self.assertIn("attempt=2 state=query-error exit=1 consecutive=0\n", log)
-        self.assertIn("attempt=3 state=absent consecutive=1\n", log)
-        self.assertTrue(log.endswith("attempt=5 state=absent consecutive=3\n"))
+        log = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertIn("phase=preinstall invocation=1 attempt=1 state=absent consecutive=1\n", log)
+        self.assertIn("phase=preinstall invocation=1 attempt=2 state=retryable reason=query-timeout consecutive=0\n", log)
+        self.assertIn("phase=preinstall invocation=1 attempt=3 state=absent consecutive=1\n", log)
+        self.assertTrue(log.endswith("phase=preinstall invocation=1 attempt=5 state=absent consecutive=3\n"))
 
     def test_preinstall_observation_rejects_present_immediately(self) -> None:
         result, files, query_count, install_called = self._run_preinstall_observation(
@@ -4103,13 +4165,13 @@ fi
         self.assertFalse(install_called)
         self.assertIn(b"refusing to replace a pre-existing Android package", result.stderr)
         self.assertEqual(
-            files["adb-package-preinstall-observation.log"],
-            b"attempt=1 state=present consecutive=0\n",
+            files["adb-package-state-observation.log"],
+            b"phase=preinstall invocation=1 attempt=1 state=present consecutive=0\n",
         )
 
     def test_preinstall_observation_deadline_fails_without_install(self) -> None:
         result, files, query_count, install_called = self._run_preinstall_observation(
-            ("error", "error"),
+            ("nonzero", "timeout"),
             bounded_remaining_calls=4,
         )
         self.assertEqual(result.returncode, 1)
@@ -4119,14 +4181,29 @@ fi
             b"package absence did not stabilize within 45 seconds",
             result.stderr,
         )
-        self.assertNotIn(b"cannot query the Android smoke package state", result.stderr)
         self.assertEqual(
-            files["adb-package-preinstall-observation.log"].decode("ascii").splitlines(),
+            files["adb-package-state-observation.log"].decode("ascii").splitlines(),
             [
-                "attempt=1 state=query-error exit=1 consecutive=0",
-                "attempt=2 state=query-error exit=1 consecutive=0",
+                "phase=preinstall invocation=1 attempt=1 state=retryable reason=query-nonzero consecutive=0",
+                "phase=preinstall invocation=1 attempt=2 state=retryable reason=query-timeout consecutive=0",
             ],
         )
+
+    def test_preinstall_propagates_structural_adapter_results_without_install(
+        self,
+    ) -> None:
+        for outcome in ("structural", "malformed"):
+            with self.subTest(outcome=outcome):
+                result, files, query_count, install_called = (
+                    self._run_preinstall_observation((outcome,))
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(query_count, 1)
+                self.assertFalse(install_called)
+                self.assertEqual(
+                    files["adb-package-state-observation.log"],
+                    b"phase=preinstall invocation=1 attempt=1 state=structural-error exit=2 consecutive=0\n",
+                )
 
     def test_installed_package_ownership_requires_two_consecutive_exact_observations(
         self,
@@ -4147,14 +4224,14 @@ fi
         self.assertEqual(observation_count, 4)
         self.assertEqual(signer_count, 1)
         self.assertEqual(
-            files["adb-package-postinstall-observation.log"]
+            files["adb-package-state-observation.log"]
             .decode("ascii")
             .splitlines(),
             [
-                f"attempt=1 state=exact path_sha256={path_a} consecutive=1",
-                "attempt=2 state=retryable reason=bytes-mismatch consecutive=0",
-                f"attempt=3 state=exact path_sha256={path_a} consecutive=1",
-                f"attempt=4 state=exact path_sha256={path_a} consecutive=2",
+                f"phase=postinstall invocation=1 attempt=1 state=exact path_sha256={path_a} consecutive=1",
+                "phase=postinstall invocation=1 attempt=2 state=retryable reason=bytes-mismatch consecutive=0",
+                f"phase=postinstall invocation=1 attempt=3 state=exact path_sha256={path_a} consecutive=1",
+                f"phase=postinstall invocation=1 attempt=4 state=exact path_sha256={path_a} consecutive=2",
             ],
         )
 
@@ -4171,9 +4248,30 @@ fi
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(observation_count, 3)
         self.assertEqual(signer_count, 1)
-        log = files["adb-package-postinstall-observation.log"].decode("ascii")
+        log = files["adb-package-state-observation.log"].decode("ascii")
         self.assertIn(f"path_sha256={path_b} consecutive=1\n", log)
         self.assertTrue(log.endswith(f"path_sha256={path_b} consecutive=2\n"))
+
+    def test_ownership_observation_appends_to_the_existing_sanitized_journal(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        prefix = (
+            "phase=preinstall invocation=1 attempt=1 "
+            "state=absent consecutive=1\n"
+        )
+        result, files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (f"exact:{path_a}", f"exact:{path_a}"),
+                journal_prefix=prefix,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(observation_count, 2)
+        self.assertEqual(signer_count, 1)
+        journal = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertTrue(journal.startswith(prefix))
+        self.assertEqual(journal.count("phase=postinstall invocation=1"), 2)
 
     def test_installed_package_ownership_deadline_never_accepts_one_exact_sample(
         self,
@@ -4227,14 +4325,15 @@ fi
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(calls.count("uninstall-app"), 1)
-        self.assertEqual(calls.count("package-list"), 4)
+        self.assertEqual(calls.count("package-state"), 4)
         self.assertEqual(
-            files["adb-uninstall-cleanup.log"].decode("ascii").splitlines(),
+            files["adb-package-state-observation.log"].decode("ascii").splitlines(),
             [
-                "attempt=1 state=present",
-                "attempt=2 state=absent",
-                "attempt=3 state=absent",
-                "attempt=4 state=absent",
+                "phase=cleanup invocation=1 attempt=1 state=present consecutive=0",
+                "phase=cleanup invocation=1 attempt=1 uninstall=request-returned-zero",
+                "phase=cleanup invocation=1 attempt=2 state=absent consecutive=1",
+                "phase=cleanup invocation=1 attempt=3 state=absent consecutive=2",
+                "phase=cleanup invocation=1 attempt=4 state=absent consecutive=3",
             ],
         )
         self.assertIn("adb-package-query-cleanup-1-attempt-1.txt", files)
@@ -4247,7 +4346,19 @@ fi
                     ("present",), ownership_status=ownership_status
                 )
                 self.assertEqual(result.returncode, ownership_status)
-                self.assertEqual(calls, ["package-list"])
+                self.assertEqual(calls, ["package-state"])
+
+    def test_cleanup_propagates_structural_package_state_without_uninstall(self) -> None:
+        for outcome in ("structural", "malformed"):
+            with self.subTest(outcome=outcome):
+                result, files, calls = self._run_cleanup_observation((outcome,))
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls, ["package-state"])
+                self.assertNotIn("uninstall-app", calls)
+                self.assertEqual(
+                    files["adb-package-state-observation.log"],
+                    b"phase=cleanup invocation=1 attempt=1 state=structural-error exit=2 consecutive=0\n",
+                )
 
     def test_cleanup_reconciles_unknown_uninstall_only_after_owned_observation(
         self,
@@ -4259,8 +4370,53 @@ fi
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(calls.count("uninstall-app"), 1)
         self.assertIn(
-            "attempt=1 uninstall=unknown-or-failed",
-            files["adb-uninstall-cleanup.log"].decode("ascii"),
+            "phase=cleanup invocation=1 attempt=1 uninstall=unknown-or-failed",
+            files["adb-package-state-observation.log"].decode("ascii"),
+        )
+
+    def test_cleanup_retries_post_uninstall_query_then_requires_three_absences(
+        self,
+    ) -> None:
+        result, files, calls = self._run_cleanup_observation(
+            ("present", "nonzero", "absent", "absent", "absent")
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("package-state"), 5)
+        self.assertEqual(
+            files["adb-package-state-observation.log"].decode("ascii").splitlines(),
+            [
+                "phase=cleanup invocation=1 attempt=1 state=present consecutive=0",
+                "phase=cleanup invocation=1 attempt=1 uninstall=request-returned-zero",
+                "phase=cleanup invocation=1 attempt=2 state=retryable reason=query-nonzero consecutive=0",
+                "phase=cleanup invocation=1 attempt=3 state=absent consecutive=1",
+                "phase=cleanup invocation=1 attempt=4 state=absent consecutive=2",
+                "phase=cleanup invocation=1 attempt=5 state=absent consecutive=3",
+            ],
+        )
+
+    def test_two_cleanup_invocations_share_the_single_uninstall_state(self) -> None:
+        result, files, calls = self._run_cleanup_observation(
+            ("present", "present", "absent", "absent", "absent"),
+            cleanup_invocations=2,
+            remaining_calls_per_invocation=(2, 8),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("package-state"), 5)
+        journal = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertIn("phase=cleanup invocation=1 attempt=1 state=present", journal)
+        self.assertIn(
+            "phase=cleanup invocation=2 attempt=1 state=present", journal
+        )
+        self.assertIn(
+            "phase=cleanup invocation=2 attempt=1 uninstall=still-present-after-request",
+            journal,
+        )
+        self.assertTrue(
+            journal.endswith(
+                "phase=cleanup invocation=2 attempt=4 state=absent consecutive=3\n"
+            )
         )
 
     def test_cleanup_never_repeats_an_uninstall_request_that_remains_present(
@@ -4272,21 +4428,26 @@ fi
         )
         self.assertEqual(result.returncode, 1)
         self.assertEqual(calls.count("uninstall-app"), 1)
-        self.assertEqual(calls.count("package-list"), 3)
-        log = files["adb-uninstall-cleanup.log"].decode("ascii")
+        self.assertEqual(calls.count("package-state"), 3)
+        log = files["adb-package-state-observation.log"].decode("ascii")
         self.assertEqual(log.count("uninstall=still-present-after-request"), 2)
 
-    def test_cleanup_preserves_numbered_query_diagnostics_until_deadline(self) -> None:
+    def test_cleanup_preserves_numbered_raw_diagnostics_until_retry_deadline(self) -> None:
         result, files, calls = self._run_cleanup_observation(
-            ("error", "error")
+            ("nonzero", "timeout")
         )
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(calls, ["package-list", "package-list"])
+        self.assertEqual(calls, ["package-state", "package-state"])
         self.assertIn("adb-package-query-cleanup-1-attempt-1.err", files)
         self.assertIn("adb-package-query-cleanup-1-attempt-2.err", files)
-        self.assertIn(
-            b"package service unavailable",
-            files["adb-package-query-cleanup-1-attempt-1.err"],
+        self.assertEqual(files["adb-package-query-cleanup-1-attempt-1.err"], b"")
+        self.assertEqual(files["adb-package-query-cleanup-1-attempt-2.err"], b"")
+        self.assertEqual(
+            files["adb-package-state-observation.log"].decode("ascii").splitlines(),
+            [
+                "phase=cleanup invocation=1 attempt=1 state=retryable reason=query-nonzero consecutive=0",
+                "phase=cleanup invocation=1 attempt=2 state=retryable reason=query-timeout consecutive=0",
+            ],
         )
         self.assertIn(b"cleanup outcome is unresolved", result.stderr)
 
@@ -4298,7 +4459,7 @@ fi
             install_confirmed=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
-        self.assertEqual(calls, ["package-list"] * 8)
+        self.assertEqual(calls, ["package-state"] * 8)
         self.assertNotIn("uninstall-app", calls)
 
     def test_install_runs_once_and_confirms_only_after_ownership_converges(self) -> None:
