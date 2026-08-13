@@ -126,6 +126,7 @@ jobs:
           db-location: ${{ runner.temp }}/qperiapt-codeql-database
           languages: ${{ matrix.language }}
           queries: security-extended
+          tools: linked
 
       - name: Bind Rust quality gate to the linked CodeQL bundle
         if: matrix.language == 'rust'

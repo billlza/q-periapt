@@ -31,7 +31,9 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 
 ## Rust CodeQL analysis boundary
 
-The Rust CodeQL lane uses the pinned CodeQL 2.26.2 bundle with a Rust 1.94.0 analysis sysroot
+The Rust CodeQL lane uses the CodeQL 2.26.2 bundle linked to the exact pinned CodeQL Action
+commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
+with a Rust 1.94.0 analysis sysroot
 because the bundled Rust extractor cannot completely expand this repository with the canonical
 Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.96.1
 CodeQL analysis. Before CodeQL initialization, the same commit must pass

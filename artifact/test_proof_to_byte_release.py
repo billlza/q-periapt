@@ -1034,7 +1034,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn('            -- "$fixed_codeql"\n', fixed_bundle)
         self.assertNotIn("|| true", fixed_bundle)
         self.assertNotIn("continue-on-error:", fixed_bundle)
-        self.assertNotIn("          tools:", initialize)
+        self.assertEqual(initialize.count("          tools: linked\n"), 1)
         analyze = extract_named_workflow_step(source, "Analyze")
         self.assertIn("        id: codeql_analyze\n", analyze)
         self.assertIn(
