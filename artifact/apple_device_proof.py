@@ -321,6 +321,33 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(f"error: {message}")
 
 
+def _require_fixed_apple_toolchain_selection(
+    selected_developer_dir: object,
+    *,
+    selection_label: str,
+) -> None:
+    require(
+        selected_developer_dir == str(apple_toolchain.FIXED_DEVELOPER_DIR),
+        f"{selection_label} must select the fixed Apple release toolchain",
+    )
+
+
+def _verify_fixed_apple_toolchain_receipt(
+    receipt: dict[str, Any],
+    selected_developer_dir: object,
+    *,
+    selection_label: str,
+) -> dict[str, Any]:
+    _require_fixed_apple_toolchain_selection(
+        selected_developer_dir,
+        selection_label=selection_label,
+    )
+    try:
+        return apple_toolchain.verify_receipt(receipt)
+    except apple_toolchain.AppleToolchainError as exc:
+        raise SystemExit(f"error: Xcode toolchain verification failed: {exc}") from exc
+
+
 def require_under(path: pathlib.Path, base: pathlib.Path, label: str) -> None:
     try:
         path.resolve().relative_to(base.resolve())
@@ -524,7 +551,7 @@ def run_devicectl_json(args: list[str], label: str) -> dict[str, Any]:
     """Run devicectl with bounded stdout and parse one strict JSON object."""
 
     command = [
-        "xcrun",
+        "/usr/bin/xcrun",
         "devicectl",
         *args,
         "--timeout",
@@ -538,6 +565,7 @@ def run_devicectl_json(args: list[str], label: str) -> dict[str, Any]:
             timeout_seconds=DEVICECTL_COMMAND_TIMEOUT_SECONDS,
             maximum_bytes=MAX_DEVICECTL_JSON_BYTES,
             stderr=subprocess.DEVNULL,
+            environment=apple_toolchain.fixed_command_environment(),
         )
     except BoundedProcessError as exc:
         raise SystemExit(f"error: {label} {exc.kind}: {exc}") from exc
@@ -959,6 +987,11 @@ def load_device_metadata(
 
 
 def emit(args: argparse.Namespace) -> None:
+    selected_developer_dir = os.environ.get("DEVELOPER_DIR", "")
+    _require_fixed_apple_toolchain_selection(
+        selected_developer_dir,
+        selection_label="DEVELOPER_DIR",
+    )
     root = pathlib.Path(args.root).resolve()
     runs_root = device_runs_root(root)
     build_log = pathlib.Path(args.build_log).resolve()
@@ -1025,15 +1058,11 @@ def emit(args: argparse.Namespace) -> None:
         xcode_toolchain_receipt,
         "Xcode toolchain receipt",
     )
-    selected_developer_dir = os.environ.get("DEVELOPER_DIR", "")
-    require(bool(selected_developer_dir), "DEVELOPER_DIR is required for Apple toolchain verification")
-    try:
-        toolchain = apple_toolchain.verify_receipt(
-            pathlib.Path(selected_developer_dir),
-            toolchain_snapshot.value,
-        )
-    except apple_toolchain.AppleToolchainError as exc:
-        raise SystemExit(f"error: Xcode toolchain verification failed: {exc}") from exc
+    toolchain = _verify_fixed_apple_toolchain_receipt(
+        toolchain_snapshot.value,
+        selected_developer_dir,
+        selection_label="DEVELOPER_DIR",
+    )
     private_evidence_before = inspect_private_evidence_tree(
         output.parent,
         "selected Apple device evidence",
@@ -1327,14 +1356,11 @@ def verify_proof_snapshot(
     require(isinstance(toolchain, dict), "proof lacks Xcode toolchain metadata")
     require(toolchain_snapshot.value == toolchain, "Xcode toolchain receipt changed since proof")
     developer_dir = proof.get("developer_dir")
-    require(isinstance(developer_dir, str) and bool(developer_dir), "proof lacks developer_dir")
-    try:
-        current_toolchain = apple_toolchain.verify_receipt(
-            pathlib.Path(developer_dir),
-            toolchain,
-        )
-    except apple_toolchain.AppleToolchainError as exc:
-        raise SystemExit(f"error: Xcode toolchain verification failed: {exc}") from exc
+    current_toolchain = _verify_fixed_apple_toolchain_receipt(
+        toolchain,
+        developer_dir,
+        selection_label="proof",
+    )
     require(current_toolchain == toolchain, "selected Xcode toolchain changed since proof")
     expected_xcode_version = [
         f"Xcode {toolchain['version']['xcode_version']}",

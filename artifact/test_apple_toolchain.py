@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import copy
+import contextlib
+import inspect
+import io
 import os
 import pathlib
 import plistlib
@@ -30,14 +33,19 @@ class AppleToolchainFixture(unittest.TestCase):
         applications_patch = mock.patch.object(
             apple_toolchain, "APPLICATIONS_ROOT", self.applications
         )
+        developer_dir_patch = mock.patch.object(
+            apple_toolchain, "FIXED_DEVELOPER_DIR", self.developer_dir
+        )
         uid_patch = mock.patch.object(
             apple_toolchain, "REQUIRED_ROOT_UID", os.geteuid()
         )
         platform_patch.start()
         applications_patch.start()
+        developer_dir_patch.start()
         uid_patch.start()
         self.addCleanup(platform_patch.stop)
         self.addCleanup(applications_patch.stop)
+        self.addCleanup(developer_dir_patch.stop)
         self.addCleanup(uid_patch.stop)
 
     def _create_toolchain(self) -> None:
@@ -112,7 +120,7 @@ class AppleToolchainFixture(unittest.TestCase):
         with mock.patch.object(
             apple_toolchain, "_run_command", side_effect=self._command_result
         ):
-            return apple_toolchain.capture_receipt(self.developer_dir)
+            return apple_toolchain._capture_receipt_at(self.developer_dir)
 
 
 class AppleToolchainReceiptTests(AppleToolchainFixture):
@@ -127,8 +135,34 @@ class AppleToolchainReceiptTests(AppleToolchainFixture):
             apple_toolchain, "_run_command", side_effect=self._command_result
         ):
             self.assertEqual(
-                apple_toolchain.verify_receipt(self.developer_dir, receipt), receipt
+                apple_toolchain.verify_receipt(receipt), receipt
             )
+
+    def test_ambient_developer_dir_cannot_select_receipt_filesystem_paths(self) -> None:
+        with (
+            mock.patch.dict(
+                os.environ,
+                {"DEVELOPER_DIR": "/tmp/hostile-xcode/Contents/Developer"},
+            ),
+            mock.patch.object(
+                apple_toolchain,
+                "_inspect_layout",
+                wraps=apple_toolchain._inspect_layout,
+            ) as inspect_layout,
+            mock.patch.object(
+                apple_toolchain,
+                "_run_command",
+                side_effect=self._command_result,
+            ) as run_command,
+        ):
+            receipt = apple_toolchain.capture_receipt()
+        self.assertEqual(receipt["developer_dir"], str(self.developer_dir))
+        self.assertEqual(
+            [call.args for call in inspect_layout.call_args_list],
+            [(self.developer_dir,), (self.developer_dir,)],
+        )
+        for call in run_command.call_args_list:
+            self.assertEqual(call.kwargs["developer_dir"], self.developer_dir)
 
     def test_receipt_schema_rejects_missing_and_extra_fields(self) -> None:
         receipt = self.capture()
@@ -140,7 +174,16 @@ class AppleToolchainReceiptTests(AppleToolchainFixture):
             changed = copy.deepcopy(receipt)
             mutation(changed)
             with self.assertRaises(apple_toolchain.AppleToolchainError):
-                apple_toolchain.verify_receipt(self.developer_dir, changed)
+                apple_toolchain.verify_receipt(changed)
+
+        changed_path = copy.deepcopy(receipt)
+        changed_path["app_path"] = "/Applications/Other.app"
+        changed_path["developer_dir"] = "/Applications/Other.app/Contents/Developer"
+        with self.assertRaisesRegex(
+            apple_toolchain.AppleToolchainError,
+            "fixed Apple release toolchain",
+        ):
+            apple_toolchain.verify_receipt(changed_path)
 
     def test_codesign_parser_rejects_identity_chain_and_cdhash_drift(self) -> None:
         valid = self._codesign_display()
@@ -191,7 +234,7 @@ class AppleToolchainReceiptTests(AppleToolchainFixture):
         ), self.assertRaisesRegex(
             apple_toolchain.AppleToolchainError, "signature rejected"
         ):
-            apple_toolchain.capture_receipt(self.developer_dir)
+            apple_toolchain.capture_receipt()
 
         with self.assertRaises(apple_toolchain.AppleToolchainError):
             apple_toolchain.parse_gatekeeper_assessment(
@@ -210,7 +253,7 @@ class AppleToolchainReceiptTests(AppleToolchainFixture):
             apple_toolchain.AppleToolchainError,
             r"receipt\.artifacts\.xcodebuild\.(sha256|size) changed",
         ):
-            apple_toolchain.verify_receipt(self.developer_dir, receipt)
+            apple_toolchain.verify_receipt(receipt)
 
     def test_private_writer_is_no_replace_and_mode_0600(self) -> None:
         receipt = self.capture()
@@ -290,6 +333,100 @@ class AppleToolchainReceiptTests(AppleToolchainFixture):
         )
         with self.assertRaises(apple_toolchain.AppleToolchainError):
             apple_toolchain.parse_swift_version("Swift 6.4\n")
+
+    def test_cli_has_no_toolchain_path_override(self) -> None:
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as failure,
+        ):
+            apple_toolchain._parser().parse_args(
+                [
+                    "capture",
+                    "--developer-dir",
+                    "/tmp/hostile-xcode/Contents/Developer",
+                    "--output",
+                    "/tmp/receipt.json",
+                ]
+            )
+        self.assertEqual(failure.exception.code, 2)
+
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as failure,
+        ):
+            apple_toolchain._parser().parse_args(
+                [
+                    "verify",
+                    "--developer-dir",
+                    "/tmp/hostile-xcode/Contents/Developer",
+                    "--receipt",
+                    "/tmp/receipt.json",
+                ]
+            )
+        self.assertEqual(failure.exception.code, 2)
+
+        with (
+            mock.patch.object(apple_toolchain, "_inspect_layout") as inspect_layout,
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as main_failure,
+        ):
+            apple_toolchain.main(
+                [
+                    "capture",
+                    "--developer-dir",
+                    "/tmp/hostile-xcode/Contents/Developer",
+                    "--output",
+                    "/tmp/receipt.json",
+                ]
+            )
+        self.assertEqual(main_failure.exception.code, 2)
+        inspect_layout.assert_not_called()
+
+        with (
+            mock.patch.object(apple_toolchain, "_inspect_layout") as inspect_layout,
+            mock.patch.object(
+                apple_toolchain, "_load_private_receipt"
+            ) as load_receipt,
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as main_failure,
+        ):
+            apple_toolchain.main(
+                [
+                    "verify",
+                    "--developer-dir=/tmp/hostile-xcode/Contents/Developer",
+                    "--receipt",
+                    "/tmp/receipt.json",
+                ]
+            )
+        self.assertEqual(main_failure.exception.code, 2)
+        inspect_layout.assert_not_called()
+        load_receipt.assert_not_called()
+
+    def test_public_receipt_api_has_no_path_parameter(self) -> None:
+        self.assertEqual(
+            tuple(inspect.signature(apple_toolchain.capture_receipt).parameters),
+            (),
+        )
+        self.assertEqual(
+            tuple(inspect.signature(apple_toolchain.verify_receipt).parameters),
+            ("expected",),
+        )
+
+
+class AppleToolchainProductionBoundaryTests(unittest.TestCase):
+    def test_device_entrypoints_lock_the_same_fixed_toolchain(self) -> None:
+        artifact = pathlib.Path(__file__).parent
+        expected = "/Applications/Xcode-27.0.app/Contents/Developer"
+        self.assertEqual(str(apple_toolchain.FIXED_DEVELOPER_DIR), expected)
+        for name in ("apple-device-smoke.sh", "apple-device-xcode27-gate.sh"):
+            source = (artifact / name).read_text(encoding="utf-8")
+            self.assertIn(f"FIXED_DEVELOPER_DIR={expected}", source)
+            self.assertIn('!= "$FIXED_DEVELOPER_DIR"', source)
+            self.assertIn("DEVELOPER_DIR=$FIXED_DEVELOPER_DIR", source)
+            self.assertNotIn("DEVELOPER_DIR=$QPERIAPT_DEVELOPER_DIR", source)
+        smoke = (artifact / "apple-device-smoke.sh").read_text(encoding="utf-8")
+        capture_block = smoke[smoke.index("apple_toolchain.py capture") :]
+        self.assertNotIn("--developer-dir", capture_block.split("CLEANUP_LOG=", 1)[0])
 
 
 if __name__ == "__main__":

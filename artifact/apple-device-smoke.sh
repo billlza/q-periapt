@@ -14,14 +14,18 @@ ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
-if [ -n "${QPERIAPT_DEVELOPER_DIR:-}" ]; then
-	DEVELOPER_DIR=$QPERIAPT_DEVELOPER_DIR
-	export DEVELOPER_DIR
-fi
-if [ -z "${DEVELOPER_DIR:-}" ]; then
+FIXED_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer
+SELECTED_DEVELOPER_DIR=${QPERIAPT_DEVELOPER_DIR:-${DEVELOPER_DIR:-}}
+if [ -z "$SELECTED_DEVELOPER_DIR" ]; then
 	printf 'error: QPERIAPT_DEVELOPER_DIR is required for source-bound Apple toolchain verification\n' >&2
 	exit 2
 fi
+if [ "$SELECTED_DEVELOPER_DIR" != "$FIXED_DEVELOPER_DIR" ]; then
+	printf 'error: Apple device proof requires the fixed Xcode 27 release toolchain\n' >&2
+	exit 2
+fi
+DEVELOPER_DIR=$FIXED_DEVELOPER_DIR
+export DEVELOPER_DIR
 
 if [ "$#" -ne 0 ]; then
 	printf 'error: positional device identifiers are not supported; set QPERIAPT_IOS_DEVICE_ID explicitly\n' >&2
@@ -307,7 +311,6 @@ if [ -e "$XCODE_TOOLCHAIN_RECEIPT" ] || [ -L "$XCODE_TOOLCHAIN_RECEIPT" ]; then
 	exit 2
 fi
 python3 artifact/apple_toolchain.py capture \
-	--developer-dir "$DEVELOPER_DIR" \
 	--output "$XCODE_TOOLCHAIN_RECEIPT"
 CLEANUP_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-cleanup.log"
 if ! rm -f -- "$CLEANUP_LOG"; then

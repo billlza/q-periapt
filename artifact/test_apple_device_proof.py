@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import hashlib
 import os
@@ -57,6 +58,111 @@ class AppleDeviceProofSourceBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "Apple device proof schema must be 4"):
             apple_device_proof.verify_proof_schema({"schema_version": 3}, "Apple device proof")
         apple_device_proof.verify_proof_schema({"schema_version": 4}, "Apple device proof")
+
+    def test_toolchain_selection_rejects_paths_before_receipt_verification(self) -> None:
+        receipt = {"schema_version": 1}
+        invalid_paths = (
+            "/tmp/hostile-xcode/Contents/Developer",
+            "/Applications/Other.app/Contents/Developer",
+            "/Applications/Xcode-27.0.app/Contents/../Contents/Developer",
+        )
+        with mock.patch.object(
+            apple_device_proof.apple_toolchain,
+            "verify_receipt",
+        ) as verify_receipt:
+            for selection_label in ("DEVELOPER_DIR", "proof"):
+                for invalid_path in invalid_paths:
+                    with (
+                        self.subTest(
+                            selection_label=selection_label,
+                            invalid_path=invalid_path,
+                        ),
+                        self.assertRaisesRegex(
+                            SystemExit,
+                            "must select the fixed Apple release toolchain",
+                        ),
+                    ):
+                        apple_device_proof._verify_fixed_apple_toolchain_receipt(
+                            receipt,
+                            invalid_path,
+                            selection_label=selection_label,
+                        )
+            verify_receipt.assert_not_called()
+
+        with mock.patch.object(
+            apple_device_proof.apple_toolchain,
+            "verify_receipt",
+            return_value=receipt,
+        ) as verify_receipt:
+            self.assertEqual(
+                apple_device_proof._verify_fixed_apple_toolchain_receipt(
+                    receipt,
+                    str(apple_device_proof.apple_toolchain.FIXED_DEVELOPER_DIR),
+                    selection_label="proof",
+                ),
+                receipt,
+            )
+            verify_receipt.assert_called_once_with(receipt)
+
+    def test_emit_rejects_ambient_toolchain_before_device_or_receipt_io(self) -> None:
+        with (
+            mock.patch.dict(
+                os.environ,
+                {"DEVELOPER_DIR": "/tmp/hostile-xcode/Contents/Developer"},
+            ),
+            mock.patch.object(
+                apple_device_proof,
+                "load_device_metadata",
+            ) as load_device_metadata,
+            mock.patch.object(
+                apple_device_proof.apple_toolchain,
+                "verify_receipt",
+            ) as verify_receipt,
+            self.assertRaisesRegex(
+                SystemExit,
+                "DEVELOPER_DIR must select the fixed Apple release toolchain",
+            ),
+        ):
+            apple_device_proof.emit(argparse.Namespace())
+        load_device_metadata.assert_not_called()
+        verify_receipt.assert_not_called()
+
+    def test_devicectl_uses_absolute_xcrun_and_fixed_minimal_environment(self) -> None:
+        with (
+            mock.patch.dict(
+                os.environ,
+                {
+                    "DEVELOPER_DIR": "/tmp/hostile-xcode/Contents/Developer",
+                    "PATH": "/tmp/hostile-bin",
+                },
+            ),
+            mock.patch.object(
+                apple_device_proof,
+                "capture_stdout",
+                return_value=BoundedResult(returncode=0, stdout=b"{}"),
+            ) as capture,
+        ):
+            self.assertEqual(
+                apple_device_proof.run_devicectl_json(
+                    ["list", "devices"],
+                    "test devicectl",
+                ),
+                {},
+            )
+
+        argv = capture.call_args.args[0]
+        self.assertEqual(argv[:3], ["/usr/bin/xcrun", "devicectl", "list"])
+        self.assertEqual(
+            capture.call_args.kwargs["environment"],
+            {
+                "PATH": apple_device_proof.apple_toolchain.COMMAND_ENVIRONMENT_PATH,
+                "LC_ALL": "C",
+                "LANG": "C",
+                "DEVELOPER_DIR": str(
+                    apple_device_proof.apple_toolchain.FIXED_DEVELOPER_DIR
+                ),
+            },
+        )
 
     def test_matching_canonical_source_tree_digest_passes(self) -> None:
         digest = apple_device_proof.current_source_tree_digest(self.root)

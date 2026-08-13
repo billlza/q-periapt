@@ -27,7 +27,7 @@ machine-readable result marker to stderr and to
 Run through the repo-level wrapper:
 
 ```sh
-QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer \
 DEVELOPMENT_TEAM=<team-id> \
 QPERIAPT_IOS_DEVICE_ID=<physical-device-udid> \
 sh artifact/apple-device-smoke.sh
@@ -36,7 +36,7 @@ sh artifact/apple-device-smoke.sh
 For iPhone+iPad matrix proof, pass both physical device ids explicitly:
 
 ```sh
-QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer \
 DEVELOPMENT_TEAM=<team-id> \
 QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' \
 sh artifact/apple-device-xcode27-gate.sh

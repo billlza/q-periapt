@@ -34,6 +34,9 @@ from evidence_io import (
 SCHEMA_VERSION = 1
 RECEIPT_KIND = "qperiapt.apple_toolchain_receipt"
 APPLICATIONS_ROOT = pathlib.Path("/Applications")
+FIXED_DEVELOPER_DIR = pathlib.Path(
+    "/Applications/Xcode-27.0.app/Contents/Developer"
+)
 REQUIRED_ROOT_UID = 0
 EXPECTED_BUNDLE_IDENTIFIER = "com.apple.dt.Xcode"
 EXPECTED_TEAM_IDENTIFIER = "59GAB85EFG"
@@ -219,6 +222,12 @@ def _command_environment(developer_dir: pathlib.Path) -> dict[str, str]:
         "LANG": "C",
         "DEVELOPER_DIR": str(developer_dir),
     }
+
+
+def fixed_command_environment() -> dict[str, str]:
+    """Return a fresh minimal environment for the fixed production toolchain."""
+
+    return _command_environment(FIXED_DEVELOPER_DIR)
 
 
 def _run_command(
@@ -470,10 +479,8 @@ def _require_unchanged_snapshots(
             _fail(f"Xcode toolchain artifact changed during capture: {name}")
 
 
-def capture_receipt(
-    developer_dir: str | os.PathLike[str],
-) -> dict[str, Any]:
-    """Capture one deterministic trusted-local receipt for selected Xcode bytes."""
+def _capture_receipt_at(developer_dir: pathlib.Path) -> dict[str, Any]:
+    """Test seam for capturing one explicitly supplied toolchain fixture."""
 
     layout = _inspect_layout(developer_dir)
     initial_artifacts = _artifact_snapshots(layout.app)
@@ -568,6 +575,12 @@ def capture_receipt(
     return receipt
 
 
+def capture_receipt() -> dict[str, Any]:
+    """Capture the fixed release-lane Xcode installation receipt."""
+
+    return _capture_receipt_at(FIXED_DEVELOPER_DIR)
+
+
 def _validate_directory_identity(value: Any, label: str) -> None:
     if not isinstance(value, dict):
         _fail(f"{label} must be an object")
@@ -616,6 +629,8 @@ def _validate_receipt(receipt: dict[str, Any]) -> None:
     )
     if developer_dir != app_path / "Contents" / "Developer":
         _fail("receipt app_path and developer_dir differ")
+    if developer_dir != FIXED_DEVELOPER_DIR:
+        _fail("receipt does not select the fixed Apple release toolchain")
 
     directories = receipt["directories"]
     if not isinstance(directories, dict):
@@ -746,15 +761,13 @@ def _compare_exact(expected: Any, actual: Any, path: str = "receipt") -> None:
         _fail(f"{path} changed: expected={expected!r} actual={actual!r}")
 
 
-def verify_receipt(
-    developer_dir: str | os.PathLike[str], expected: dict[str, Any]
-) -> dict[str, Any]:
-    """Re-capture selected Xcode state and require exact receipt equality."""
+def verify_receipt(expected: dict[str, Any]) -> dict[str, Any]:
+    """Re-capture the fixed release-lane Xcode state and require equality."""
 
     if not isinstance(expected, dict):
         _fail("expected Apple toolchain receipt must be an object")
     _validate_receipt(expected)
-    current = capture_receipt(developer_dir)
+    current = capture_receipt()
     _compare_exact(expected, current)
     return current
 
@@ -889,7 +902,7 @@ def _load_private_receipt(path: pathlib.Path) -> dict[str, Any]:
 
 
 def _capture_command(args: argparse.Namespace) -> None:
-    receipt = capture_receipt(args.developer_dir)
+    receipt = capture_receipt()
     output = _canonical_absolute_path(args.output, "receipt output")
     digest = _write_new_private_json(output, receipt)
     print(f"APPLE_TOOLCHAIN_RECEIPT={output} sha256={digest}")
@@ -898,7 +911,7 @@ def _capture_command(args: argparse.Namespace) -> None:
 def _verify_command(args: argparse.Namespace) -> None:
     receipt_path = _canonical_absolute_path(args.receipt, "receipt input")
     expected = _load_private_receipt(receipt_path)
-    current = verify_receipt(args.developer_dir, expected)
+    current = verify_receipt(expected)
     digest = hashlib.sha256(_json_bytes(current)).hexdigest()
     print(f"APPLE_TOOLCHAIN_RECEIPT_PASS sha256={digest}")
 
@@ -908,12 +921,10 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     capture = subparsers.add_parser("capture")
-    capture.add_argument("--developer-dir", type=pathlib.Path, required=True)
     capture.add_argument("--output", type=pathlib.Path, required=True)
     capture.set_defaults(handler=_capture_command)
 
     verify = subparsers.add_parser("verify")
-    verify.add_argument("--developer-dir", type=pathlib.Path, required=True)
     verify.add_argument("--receipt", type=pathlib.Path, required=True)
     verify.set_defaults(handler=_verify_command)
     return parser

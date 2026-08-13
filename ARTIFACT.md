@@ -650,8 +650,12 @@ These produce the paper's primary network table and the binary constant-time dis
   evidence and are not anonymous or independently replayable from a clean clone.
   Operator-facing validation failures use labels and truncated identifier digests; raw command
   output remains in the private run tree and must not be uploaded as a shared console transcript.
-  `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer` pins the Xcode 27
-  lane without changing global `xcode-select`. This lane requires local signing. Set
+  `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer` selects the only
+  code-fixed Xcode 27 release path accepted by this lane, without changing global `xcode-select`.
+  Arbitrary CLI or environment-selected paths cannot select toolchain filesystem inputs: proof
+  entrypoints reject them before I/O, while shared read-only device inspection always discards
+  ambient selectors and invokes the fixed toolchain through an absolute system shim.
+  This lane requires local signing. Set
   `DEVELOPMENT_TEAM` and an explicit `QPERIAPT_IOS_DEVICE_ID` for every physical run,
   and complete the selected Xcode first-launch/CoreDevice setup before capture,
   and set `QPERIAPT_ALLOW_PROVISIONING_UPDATES=1` only when automatic profile changes are intended;
