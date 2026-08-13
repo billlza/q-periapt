@@ -1753,11 +1753,13 @@ fi
         package_outcomes: tuple[str, ...],
         *,
         ownership_outcomes: tuple[str, ...] = (),
+        transport_recovery_outcomes: tuple[str, ...] = (),
         signer_status: int = 0,
         install_confirmed: bool = True,
         uninstall_status: int = 0,
         cleanup_invocations: int = 1,
         remaining_calls_per_invocation: tuple[int, ...] | None = None,
+        boot_owned_emulator: bool = False,
     ) -> tuple[
         subprocess.CompletedProcess[bytes], dict[str, bytes], list[str], int, bool
     ]:
@@ -1770,6 +1772,9 @@ fi
         sample_start = producer.index("observe_installed_package_sample() {")
         sample_end = producer.index("\n}\n\nobserve_owned_installed_package()", sample_start)
         sample_function = producer[sample_start : sample_end + len("\n}\n")]
+        recovery_start = producer.index("attempt_owned_emulator_transport_recovery() {")
+        recovery_end = producer.index("\n}\n\ncleanup_android_app()", recovery_start)
+        recovery_function = producer[recovery_start : recovery_end + len("\n}\n")]
         cleanup_start = producer.index("cleanup_android_app() {")
         cleanup_end = producer.index("\n}\n\ncleanup_unconfirmed_proof()", cleanup_start)
         cleanup_function = producer[cleanup_start : cleanup_end + len("\n}\n")]
@@ -1788,6 +1793,12 @@ fi
             counter.write_text("0\n", encoding="ascii")
             ownership_counter = root / "ownership-count.txt"
             ownership_counter.write_text("0\n", encoding="ascii")
+            recovery_sequence = root / "recovery-sequence.txt"
+            recovery_sequence.write_text(
+                "\n".join(transport_recovery_outcomes) + "\n", encoding="ascii"
+            )
+            recovery_counter = root / "recovery-count.txt"
+            recovery_counter.write_text("0\n", encoding="ascii")
             signer_counter = root / "signer-count.txt"
             signer_counter.write_text("0\n", encoding="ascii")
             work = root / "work"
@@ -1845,8 +1856,10 @@ PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
 PACKAGE=dev.qperiapt.androidsmoke
 PACKAGE_SEQUENCE={shlex.quote(str(sequence))}
 OWNERSHIP_SEQUENCE={shlex.quote(str(ownership_sequence))}
+RECOVERY_SEQUENCE={shlex.quote(str(recovery_sequence))}
 QUERY_COUNTER={shlex.quote(str(counter))}
 OWNERSHIP_COUNTER={shlex.quote(str(ownership_counter))}
+RECOVERY_COUNTER={shlex.quote(str(recovery_counter))}
 SIGNER_COUNTER={shlex.quote(str(signer_counter))}
 CALLS={shlex.quote(str(calls))}
 REMAINING_ROOT={shlex.quote(str(remaining_root))}
@@ -1856,6 +1869,10 @@ ANDROID_APP_CLEANUP_ARMED=1
 ANDROID_APP_INSTALL_CONFIRMED={1 if install_confirmed else 0}
 ANDROID_APP_CLEANUP_INVOCATION=0
 ANDROID_APP_UNINSTALL_REQUESTED=0
+ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
+ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
+DEVICE_KIND={"emulator" if boot_owned_emulator else "physical"}
+EMULATOR_STARTED={1 if boot_owned_emulator else 0}
 SERIAL_SHA256_PREFIX=0123456789ab
 monotonic_deadline() {{ printf '999\n'; }}
 {remaining_function}
@@ -1885,6 +1902,22 @@ android_command() {{
         printf '%s\n' "$outcome"
         return 0
     fi
+    if [ "$operation" = recover-emulator-transport ]; then
+        recovery_count=$(/bin/cat "$RECOVERY_COUNTER")
+        recovery_count=$((recovery_count + 1))
+        printf '%s\n' "$recovery_count" >"$RECOVERY_COUNTER"
+        outcome=$(/usr/bin/sed -n "${{recovery_count}}p" "$RECOVERY_SEQUENCE")
+        case "$outcome" in
+            recovered | race-device | retryable:transport-inconclusive | \
+                retryable:registration-failed | retryable:post-state-unavailable)
+                printf '%s\n' "$outcome"; return 0 ;;
+            structural) printf 'structural fixture\n' >&2; return 2 ;;
+            signal129) printf 'signal fixture\n' >&2; return 129 ;;
+            malformed) printf 'retryable:unexpected\n'; return 0 ;;
+            diagnostic) printf 'recovered\n'; printf 'unexpected diagnostic\n' >&2; return 0 ;;
+            *) return 2 ;;
+        esac
+    fi
     test "$operation" = package-state
     query_count=$(/bin/cat "$QUERY_COUNTER")
     query_count=$((query_count + 1))
@@ -1894,6 +1927,7 @@ android_command() {{
         absent | present) printf '%s\n' "$outcome"; return 0 ;;
         nonzero) printf 'retryable:query-nonzero\n'; return 0 ;;
         timeout) printf 'retryable:query-timeout\n'; return 0 ;;
+        device-unavailable) printf 'retryable:device-unavailable\n'; return 0 ;;
         structural) printf 'adapter structural failure\n' >&2; return 2 ;;
         malformed) printf 'retryable:unexpected\n'; return 0 ;;
         *) return 2 ;;
@@ -1901,6 +1935,7 @@ android_command() {{
 }}
 {query_function}
 {sample_function}
+{recovery_function}
 {cleanup_function}
 cleanup_iteration=0
 cleanup_status=0
@@ -3660,7 +3695,7 @@ fi
         armed_index = producer.index("ANDROID_APP_CLEANUP_ARMED=1", preflight_index)
         install_index = producer.index("android_command install-apk", armed_index)
         normal_cleanup_index = producer.index(
-            "if ! cleanup_android_app; then", install_index
+            "if cleanup_android_app; then", install_index
         )
         cleanup_index = producer.index(
             'if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" = "1" ]; then'
@@ -3686,7 +3721,11 @@ fi
         self.assertLess(child_liveness_index, bound_serial_index)
         self.assertIn("adb-uninstall-cleanup.log", producer)
         self.assertIn(
-            "cleanup_android_app || runtime_internal_cleanup_status=1",
+            "app_cleanup_status=$?",
+            producer[cleanup_index:emulator_cleanup_index],
+        )
+        self.assertIn(
+            'record_runtime_cleanup_failure "$app_cleanup_status"',
             producer[cleanup_index:emulator_cleanup_index],
         )
         self.assertNotIn("\n\tcleanup_status=", producer)
@@ -3712,13 +3751,17 @@ fi
             runtime_function,
         )
         self.assertIn(
-            'if [ "$primary_exit_status" -eq 0 ]; then',
+            "retirement_exit_status=$primary_exit_status",
+            runtime_function,
+        )
+        self.assertIn(
+            'retirement_exit_status=$runtime_internal_cleanup_status',
             runtime_function,
         )
         self.assertIn("retire-stopped-runtime --run-id", runtime_function)
         self.assertIn("retire-failed-runtime --run-id", runtime_function)
         self.assertIn(
-            '--primary-exit-status "$primary_exit_status"',
+            '--primary-exit-status "$retirement_exit_status"',
             runtime_function,
         )
         cleanup_exit_start = producer.index("cleanup_exit()")
@@ -4524,6 +4567,189 @@ fi
         self.assertIn("attempt=2 state=retryable reason=query-nonzero", journal)
         self.assertEqual(journal.count("state=exact path_sha256="), 3)
         self.assertEqual(journal.count("state=exact path_sha256=" + path_a + " consecutive=1"), 2)
+
+    def test_cleanup_recovers_owned_emulator_transport_then_reconverges(self) -> None:
+        path_a = "a" * 64
+        result, files, calls, signer_count, copy_exists = (
+            self._run_cleanup_observation(
+                ("device-unavailable", "present", "present") + ("absent",) * 3,
+                ownership_outcomes=(f"exact:{path_a}", f"exact:{path_a}"),
+                transport_recovery_outcomes=("recovered",),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls.count("recover-emulator-transport"), 1)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(signer_count, 1)
+        self.assertFalse(copy_exists)
+        journal = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertIn("transport-recovery=recovered", journal)
+        recovery = journal.index("transport-recovery=recovered")
+        first_exact = journal.index("state=exact path_sha256=", recovery)
+        self.assertLess(recovery, first_exact)
+
+    def test_cleanup_transport_recovery_resets_prior_ownership_streak(self) -> None:
+        path_a = "a" * 64
+        result, files, calls, signer_count, copy_exists = (
+            self._run_cleanup_observation(
+                ("present", "device-unavailable", "present", "present")
+                + ("absent",) * 3,
+                ownership_outcomes=(
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                ),
+                transport_recovery_outcomes=("race-device",),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls.count("recover-emulator-transport"), 1)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(signer_count, 1)
+        self.assertFalse(copy_exists)
+        journal = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertIn("transport-recovery=race-device", journal)
+        self.assertEqual(
+            journal.count(
+                f"state=exact path_sha256={path_a} consecutive=1"
+            ),
+            2,
+        )
+
+    def test_cleanup_transport_recovery_is_once_per_run_and_emulator_only(self) -> None:
+        result, _files, calls, signer_count, copy_exists = (
+            self._run_cleanup_observation(
+                ("device-unavailable", "device-unavailable"),
+                transport_recovery_outcomes=("retryable:registration-failed",),
+                cleanup_invocations=2,
+                remaining_calls_per_invocation=(2, 2),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls.count("recover-emulator-transport"), 1)
+        self.assertNotIn("uninstall-app", calls)
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+
+        result, _files, calls, _signer_count, _copy_exists = (
+            self._run_cleanup_observation(("device-unavailable",))
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("recover-emulator-transport", calls)
+        self.assertNotIn("uninstall-app", calls)
+
+    def test_cleanup_recovery_flag_is_set_only_after_remaining_budget(self) -> None:
+        result, _files, calls, signer_count, copy_exists = (
+            self._run_cleanup_observation(
+                ("device-unavailable", "device-unavailable"),
+                transport_recovery_outcomes=("retryable:registration-failed",),
+                cleanup_invocations=2,
+                remaining_calls_per_invocation=(1, 2),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls.count("recover-emulator-transport"), 1)
+        self.assertNotIn("uninstall-app", calls)
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+
+    def test_cleanup_transport_recovery_preserves_signal_status(self) -> None:
+        result, _files, calls, signer_count, copy_exists = (
+            self._run_cleanup_observation(
+                ("device-unavailable",),
+                transport_recovery_outcomes=("signal129",),
+                remaining_calls_per_invocation=(2,),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 129)
+        self.assertEqual(calls.count("recover-emulator-transport"), 1)
+        self.assertNotIn("uninstall-app", calls)
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+
+    def test_runtime_cleanup_preserves_app_signal_and_failed_retirement_status(
+        self,
+    ) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        cleanup_start = producer.index("cleanup_runtime() {")
+        cleanup_end = producer.index(
+            "\n}\n\ncleanup_runtime_with_deferred_signals()", cleanup_start
+        )
+        cleanup_function = producer[cleanup_start : cleanup_end + len("\n}\n")]
+        normal_call = producer[producer.index("if cleanup_android_app; then", cleanup_end) :]
+        self.assertIn("app_cleanup_status=$?", normal_call)
+        self.assertIn('exit "$app_cleanup_status"', normal_call)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            retirement = root / "retirement.txt"
+            script = f"""
+set -eu
+RETIREMENT={shlex.quote(str(retirement))}
+RUN_ID={'a' * 32}
+ANDROID_RUNTIME_RECOVERY_PRESERVE=0
+KEYSTORE=
+ANDROID_APP_CLEANUP_ARMED=1
+ADB=owned
+SERIAL=emulator-5584
+EMULATOR_STARTED=0
+ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
+ANDROID_COMMAND_CAPABILITY_ARMED=0
+ANDROID_RUNTIME_RECOVERY_ARMED=1
+ADB_PROTOCOL_STOP_REQUESTED=1
+EMULATOR_PROTOCOL_STOP_REQUESTED=1
+ANDROID_BOOT_AVD=0
+ANDROID_RUNTIME_CLEANUP_COMPLETED=0
+cleanup_android_app() {{ return 129; }}
+python3() {{ printf '%s\n' "$*" >"$RETIREMENT"; return 0; }}
+{cleanup_function}
+if cleanup_runtime 0; then
+    exit 0
+else
+    cleanup_status=$?
+fi
+test "$cleanup_status" -eq 129
+test "$ANDROID_RUNTIME_CLEANUP_COMPLETED" -eq 0
+exit "$cleanup_status"
+"""
+            result = subprocess.run(
+                ["/bin/sh", "-c", script],
+                cwd=pathlib.Path(__file__).resolve().parent.parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(result.returncode, 129, result.stderr.decode("utf-8"))
+            retirement_args = retirement.read_text(encoding="ascii")
+            self.assertIn("retire-failed-runtime", retirement_args)
+            self.assertIn("--primary-exit-status 129", retirement_args)
+
+    def test_cleanup_transport_recovery_rejects_structural_or_malformed_results(
+        self,
+    ) -> None:
+        for outcome in ("structural", "malformed", "diagnostic"):
+            with self.subTest(outcome=outcome):
+                result, _files, calls, signer_count, copy_exists = (
+                    self._run_cleanup_observation(
+                        ("device-unavailable",),
+                        transport_recovery_outcomes=(outcome,),
+                        boot_owned_emulator=True,
+                        remaining_calls_per_invocation=(3,),
+                    )
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls.count("recover-emulator-transport"), 1)
+                self.assertNotIn("uninstall-app", calls)
+                self.assertEqual(signer_count, 0)
+                self.assertFalse(copy_exists)
 
     def test_cleanup_deadline_after_one_exact_removes_copy_without_uninstall(self) -> None:
         path_a = "a" * 64

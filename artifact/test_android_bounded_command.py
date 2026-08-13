@@ -919,6 +919,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "capture",
                         "write",
                         "package-state",
+                        "recover-emulator",
                         "observe-apk",
                         "logcat",
                         "register-emulator",
@@ -1146,7 +1147,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands, "_validate_recovery_receipt", return_value=context
             ),
             mock.patch.object(
-                commands, "_same_receipt_process", side_effect=[identity, identity]
+                commands,
+                "_same_receipt_process",
+                side_effect=[identity, identity, identity],
             ),
             mock.patch.object(commands, "_lsof_path", return_value="/usr/sbin/lsof"),
             mock.patch.object(
@@ -1208,12 +1211,34 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             encoding="ascii",
         )
         pending.chmod(0o600)
-        with mock.patch.object(commands, "_capture_owned_emulator_listeners"):
+        with mock.patch.object(
+            commands,
+            "_capture_owned_emulator_listeners",
+            return_value=BoundedResult(0),
+        ):
             commands._verify_recovery_listeners(
                 layout=self.layout,
                 capability=capability,
                 receipt=receipt,
             )
+
+        with (
+            mock.patch.object(
+                commands,
+                "_capture_owned_emulator_listeners",
+                return_value=BoundedResult(17),
+            ),
+            mock.patch.object(commands, "read_regular_snapshot") as read_snapshot,
+            self.assertRaisesRegex(
+                commands.AndroidCommandError, "listener inspection failed"
+            ),
+        ):
+            commands._verify_recovery_listeners(
+                layout=self.layout,
+                capability=capability,
+                receipt=receipt,
+            )
+        read_snapshot.assert_not_called()
 
         pending.write_text(
             f"p{receipt.pid}\nu{receipt.uid + 1}\nf18\n"
@@ -1223,7 +1248,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         )
         pending.chmod(0o600)
         with (
-            mock.patch.object(commands, "_capture_owned_emulator_listeners"),
+            mock.patch.object(
+                commands,
+                "_capture_owned_emulator_listeners",
+                return_value=BoundedResult(0),
+            ),
             self.assertRaisesRegex(
                 (commands.AndroidCommandError, state.AndroidRuntimeStateError),
                 "expected account",
@@ -1486,12 +1515,15 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     timeout_seconds=5,
                 )
             self.assertEqual(result, BoundedResult(0, expected))
-            capture.assert_called_once_with(
-                expected_argv,
-                timeout_seconds=5,
-                maximum_bytes=65536,
-                stderr=subprocess.STDOUT,
-                environment=commands._client_environment(capability),
+            capture.assert_called_once()
+            self.assertEqual(capture.call_args.args[0], expected_argv)
+            self.assertGreaterEqual(capture.call_args.kwargs["timeout_seconds"], 1)
+            self.assertLessEqual(capture.call_args.kwargs["timeout_seconds"], 5)
+            self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
+            self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
+            self.assertEqual(
+                capture.call_args.kwargs["environment"],
+                commands._client_environment(capability),
             )
 
     def test_package_state_maps_only_bounded_timeout_to_retryable(self) -> None:
@@ -1531,6 +1563,558 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 self.assertRaisesRegex(commands.BoundedProcessError, "structural"),
             ):
                 self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+
+    def test_expected_transport_table_is_exact_and_private(self) -> None:
+        self.create_capability(
+            device_kind="emulator", expected_serial="emulator-5584"
+        )
+        capability = self.load_capability()
+        cases = (
+            (
+                BoundedResult(0, b"List of devices attached\n\n"),
+                commands.ExpectedTransportState.ABSENT,
+            ),
+            (
+                BoundedResult(
+                    0, b"List of devices attached\nemulator-5584\tdevice\n\n"
+                ),
+                commands.ExpectedTransportState.DEVICE,
+            ),
+            (
+                BoundedResult(
+                    0, b"List of devices attached\nemulator-5584\toffline\n\n"
+                ),
+                commands.ExpectedTransportState.OTHER,
+            ),
+            (BoundedResult(17, b"raw diagnostic\n"), commands.ExpectedTransportState.INCONCLUSIVE),
+        )
+        for raw, expected in cases:
+            with (
+                self.subTest(raw=raw),
+                mock.patch.object(commands, "capture_stdout", return_value=raw) as capture,
+            ):
+                observed = commands._observe_expected_transport(
+                    capability, timeout_seconds=4
+                )
+            self.assertIs(observed, expected)
+            capture.assert_called_once_with(
+                commands._adb(capability, "devices"),
+                timeout_seconds=4,
+                maximum_bytes=65536,
+                stderr=subprocess.STDOUT,
+                environment=commands._client_environment(capability),
+            )
+
+        with mock.patch.object(
+            commands,
+            "capture_stdout",
+            side_effect=commands.BoundedProcessError("timeout", "transport timeout"),
+        ):
+            self.assertIs(
+                commands._observe_expected_transport(capability, timeout_seconds=4),
+                commands.ExpectedTransportState.INCONCLUSIVE,
+            )
+
+        malformed = (
+            b"",
+            b"List of devices attached\n",
+            b"List of devices attached\r\n\r\n",
+            b"List of devices attached\n\v\n",
+            b"List of devices attached\n\f\n",
+            b"List of devices attached\nSERIAL123\tdevice\n\n",
+            b"List of devices attached\nemulator-5584\tdevice\nother\tdevice\n\n",
+            b"List of devices attached\nemulator-5584\tno permissions\n\n",
+            b"\xff\n",
+        )
+        for output in malformed:
+            with (
+                self.subTest(output=output),
+                mock.patch.object(
+                    commands,
+                    "capture_stdout",
+                    return_value=BoundedResult(0, output),
+                ),
+                self.assertRaises(commands.AndroidCommandError),
+            ):
+                commands._observe_expected_transport(capability, timeout_seconds=4)
+
+    def test_package_state_distinguishes_missing_emulator_transport_only(self) -> None:
+        self.create_capability(
+            device_kind="emulator", expected_serial="emulator-5584"
+        )
+        tables = (
+            (
+                b"List of devices attached\n\n",
+                b"retryable:device-unavailable\n",
+            ),
+            (
+                b"List of devices attached\nemulator-5584\tdevice\n\n",
+                b"retryable:query-nonzero\n",
+            ),
+            (
+                b"List of devices attached\nemulator-5584\tunauthorized\n\n",
+                b"retryable:query-nonzero\n",
+            ),
+        )
+        for table, expected in tables:
+            with (
+                self.subTest(table=table),
+                mock.patch.object(
+                    commands,
+                    "capture_stdout",
+                    side_effect=[
+                        BoundedResult(17, b"raw package diagnostic\n"),
+                        BoundedResult(0, table),
+                    ],
+                ) as capture,
+            ):
+                result = self.invoke(
+                    commands.AndroidOperation.PACKAGE_STATE, timeout_seconds=5
+                )
+            self.assertEqual(result, BoundedResult(0, expected))
+            self.assertEqual(capture.call_count, 2)
+
+    def test_emulator_transport_recovery_is_receipt_bound_and_non_publishing(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+        initial_registration = self.proof / "adb-emulator-registration.txt"
+        initial_registration.write_bytes(b"initial registration proof\n")
+        initial_registration.chmod(0o600)
+        accepted = b"Connected to emulator on ports 5584,5585\n"
+        with (
+            mock.patch.object(
+                commands, "_validate_owned_adb_server_for_client"
+            ) as server_guard,
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands,
+                "_same_receipt_process",
+                side_effect=[identity, identity, identity, identity],
+            ),
+            mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+            mock.patch.object(commands, "_verify_owned_emulator_console_name") as console,
+            mock.patch.object(
+                commands,
+                "_observe_expected_transport",
+                side_effect=[
+                    commands.ExpectedTransportState.ABSENT,
+                    commands.ExpectedTransportState.ABSENT,
+                ],
+            ) as transport,
+            mock.patch.object(
+                commands, "_observe_exact_device_state", return_value=True
+            ) as device_state,
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, accepted),
+            ) as register,
+        ):
+            result = commands._recover_owned_emulator_transport(
+                self.layout, capability, timeout_seconds=15
+            )
+        self.assertEqual(result, BoundedResult(0, b"recovered\n"))
+        self.assertEqual(server_guard.call_count, 5)
+        self.assertEqual(listeners.call_count, 4)
+        self.assertEqual(transport.call_count, 2)
+        device_state.assert_called_once()
+        console.assert_called_once()
+        self.assertIn("deadline", console.call_args.kwargs)
+        register.assert_called_once()
+        self.assertEqual(
+            register.call_args.args[0],
+            commands.OPERATION_SPECS[
+                commands.AndroidOperation.REGISTER_EMULATOR
+            ].build_argv(capability),
+        )
+        self.assertEqual(
+            initial_registration.read_bytes(), b"initial registration proof\n"
+        )
+
+    def test_emulator_transport_recovery_never_connects_without_exact_absence(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+        for transport_state, expected in (
+            (commands.ExpectedTransportState.DEVICE, b"race-device\n"),
+            (
+                commands.ExpectedTransportState.OTHER,
+                b"retryable:transport-inconclusive\n",
+            ),
+            (
+                commands.ExpectedTransportState.INCONCLUSIVE,
+                b"retryable:transport-inconclusive\n",
+            ),
+        ):
+            with (
+                self.subTest(transport_state=transport_state),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+                mock.patch.object(
+                    commands, "_validate_recovery_receipt", return_value=context
+                ),
+                mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+                mock.patch.object(commands, "_verify_recovery_listeners"),
+                mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+                mock.patch.object(
+                    commands,
+                    "_observe_expected_transport",
+                    return_value=transport_state,
+                ),
+                mock.patch.object(
+                    commands, "_observe_exact_device_state", return_value=True
+                ),
+                mock.patch.object(commands, "capture_stdout") as register,
+            ):
+                result = commands._recover_owned_emulator_transport(
+                    self.layout, capability, timeout_seconds=15
+                )
+            self.assertEqual(result, BoundedResult(0, expected))
+            register.assert_not_called()
+
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client") as server_guard,
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+            mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(
+                commands,
+                "_observe_expected_transport",
+                side_effect=[
+                    commands.ExpectedTransportState.ABSENT,
+                    commands.ExpectedTransportState.DEVICE,
+                ],
+            ),
+            mock.patch.object(
+                commands, "_observe_exact_device_state", return_value=True
+            ) as state_probe,
+            mock.patch.object(commands, "capture_stdout") as register,
+        ):
+            result = commands._recover_owned_emulator_transport(
+                self.layout, capability, timeout_seconds=15
+            )
+        self.assertEqual(result, BoundedResult(0, b"race-device\n"))
+        register.assert_not_called()
+        state_probe.assert_called_once()
+        self.assertEqual(server_guard.call_count, 4)
+        self.assertEqual(listeners.call_count, 3)
+
+    def test_emulator_transport_recovery_classifies_connect_and_post_state_failures(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+
+        for registration in (
+            BoundedResult(17, b"raw failure\n"),
+            commands.BoundedProcessError("timeout", "registration timeout"),
+        ):
+            capture_arguments: dict[str, object]
+            if isinstance(registration, BaseException):
+                capture_arguments = {"side_effect": registration}
+            else:
+                capture_arguments = {"return_value": registration}
+            with (
+                self.subTest(registration=registration),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+                mock.patch.object(
+                    commands, "_validate_recovery_receipt", return_value=context
+                ),
+                mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+                mock.patch.object(commands, "_verify_recovery_listeners"),
+                mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+                mock.patch.object(
+                    commands,
+                    "_observe_expected_transport",
+                    side_effect=[
+                        commands.ExpectedTransportState.ABSENT,
+                        commands.ExpectedTransportState.ABSENT,
+                    ],
+                ),
+                mock.patch.object(commands, "_observe_exact_device_state") as state_probe,
+                mock.patch.object(commands, "capture_stdout", **capture_arguments),
+            ):
+                result = commands._recover_owned_emulator_transport(
+                    self.layout, capability, timeout_seconds=15
+                )
+            self.assertEqual(
+                result, BoundedResult(0, b"retryable:registration-failed\n")
+            )
+            state_probe.assert_not_called()
+
+        accepted = b"Emulator already registered on port 5585\n"
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(
+                commands,
+                "_observe_expected_transport",
+                side_effect=[
+                    commands.ExpectedTransportState.ABSENT,
+                    commands.ExpectedTransportState.ABSENT,
+                ],
+            ),
+            mock.patch.object(
+                commands, "_observe_exact_device_state", return_value=False
+            ),
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, accepted),
+            ),
+        ):
+            result = commands._recover_owned_emulator_transport(
+                self.layout, capability, timeout_seconds=15
+            )
+        self.assertEqual(
+            result, BoundedResult(0, b"retryable:post-state-unavailable\n")
+        )
+
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(
+                commands,
+                "_observe_expected_transport",
+                side_effect=[
+                    commands.ExpectedTransportState.ABSENT,
+                    commands.ExpectedTransportState.ABSENT,
+                ],
+            ),
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, b"unexpected success\n"),
+            ),
+            self.assertRaisesRegex(
+                commands.AndroidCommandError, "malformed success"
+            ) as raised,
+        ):
+            commands._recover_owned_emulator_transport(
+                self.layout, capability, timeout_seconds=15
+            )
+        self.assertNotIn("unexpected success", str(raised.exception))
+
+    def test_emulator_transport_recovery_identity_gate_precedes_connect(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+        for gate_name in (
+            "_verify_recovery_listeners",
+            "_verify_owned_emulator_console_name",
+        ):
+            with (
+                self.subTest(gate=gate_name),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+                mock.patch.object(
+                    commands, "_validate_recovery_receipt", return_value=context
+                ),
+                mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+                mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+                mock.patch.object(
+                    commands, "_verify_owned_emulator_console_name"
+                ) as console,
+                mock.patch.object(commands, "capture_stdout") as register,
+                self.assertRaisesRegex(commands.AndroidCommandError, "identity drift"),
+            ):
+                selected_gate = listeners if gate_name == "_verify_recovery_listeners" else console
+                selected_gate.side_effect = commands.AndroidCommandError("identity drift")
+                commands._recover_owned_emulator_transport(
+                    self.layout, capability, timeout_seconds=15
+                )
+            register.assert_not_called()
+
+        self.create_capability()
+        physical_capability = self.load_capability()
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(state, "load_owned_runtime_receipt", return_value=None),
+            mock.patch.object(commands, "capture_stdout") as register,
+            self.assertRaisesRegex(
+                commands.AndroidCommandError, "active emulator receipt"
+            ),
+        ):
+            commands._recover_owned_emulator_transport(
+                self.layout, physical_capability, timeout_seconds=15
+            )
+        register.assert_not_called()
+
+    def test_emulator_transport_recovery_revalidates_after_final_absence(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(
+                commands,
+                "_observe_expected_transport",
+                side_effect=[
+                    commands.ExpectedTransportState.ABSENT,
+                    commands.ExpectedTransportState.ABSENT,
+                ],
+            ),
+            mock.patch.object(
+                commands,
+                "_revalidate_emulator_transport_identity",
+                side_effect=[receipt, commands.AndroidCommandError("pre-connect drift")],
+            ) as identity_gate,
+            mock.patch.object(commands, "capture_stdout") as register,
+            self.assertRaisesRegex(commands.AndroidCommandError, "pre-connect drift"),
+        ):
+            commands._recover_owned_emulator_transport(
+                self.layout, capability, timeout_seconds=15
+            )
+        self.assertEqual(identity_gate.call_count, 2)
+        register.assert_not_called()
+
+    def test_emulator_transport_recovery_post_identity_failure_cannot_succeed(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        capability = self.load_capability()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid,  # type: ignore[arg-type]
+            uid=receipt.uid,
+            started_at=receipt.started_at,  # type: ignore[arg-type]
+            started_subsecond=receipt.started_subsecond,  # type: ignore[arg-type]
+            executable=receipt.backend_path,  # type: ignore[arg-type]
+        )
+        accepted = b"Connected to emulator on ports 5584,5585\n"
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(
+                commands, "_validate_recovery_receipt", return_value=context
+            ),
+            mock.patch.object(
+                commands,
+                "_same_receipt_process",
+                side_effect=[identity, identity, identity, None],
+            ),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(
+                commands,
+                "_observe_expected_transport",
+                side_effect=[
+                    commands.ExpectedTransportState.ABSENT,
+                    commands.ExpectedTransportState.ABSENT,
+                ],
+            ),
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, accepted),
+            ) as register,
+            mock.patch.object(commands, "_observe_exact_device_state") as state_probe,
+            self.assertRaisesRegex(
+                commands.AndroidCommandError, "identity changed"
+            ),
+        ):
+            commands._recover_owned_emulator_transport(
+                self.layout, capability, timeout_seconds=15
+            )
+        register.assert_called_once()
+        state_probe.assert_not_called()
 
     def test_package_state_rejects_successful_malformed_output(self) -> None:
         malformed = (
@@ -1599,6 +2183,33 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(guard.call_count, 2)
         self.assertTrue(
             any("post-package-state" in note for note in raised.exception.__notes__)
+        )
+
+    def test_package_state_pre_query_and_postcheck_share_one_deadline(self) -> None:
+        capability = self.load_capability()
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.PACKAGE_STATE]
+        with (
+            mock.patch.object(commands.time, "monotonic", side_effect=[100.0, 101.0]),
+            mock.patch.object(
+                commands, "_validate_owned_adb_server_for_client"
+            ) as guard,
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(
+                    0, b"package:dev.qperiapt.androidsmoke\n"
+                ),
+            ) as capture,
+        ):
+            result = commands._invoke_package_state(
+                capability, spec, timeout_seconds=5
+            )
+        self.assertEqual(result, BoundedResult(0, b"present\n"))
+        self.assertEqual(capture.call_args.kwargs["timeout_seconds"], 4)
+        self.assertEqual(guard.call_count, 2)
+        self.assertEqual(
+            [call.kwargs["deadline"] for call in guard.call_args_list],
+            [105.0, 105.0],
         )
 
     def test_timeout_cannot_exceed_operation_profile(self) -> None:
@@ -3783,6 +4394,85 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertIs(reconciled.phase, state.RuntimePhase.ADB_SEALED)
         self.assertEqual(stat.S_IMODE(self.private_adb_directory.stat().st_mode), 0o500)
 
+    def test_client_validation_passes_deadline_into_live_seal_reconciliation(
+        self,
+    ) -> None:
+        receipt, observed = self.start_physical_adb_server_receipt()
+        observed = commands.dataclasses.replace(observed, executable=self.snapshot)
+        capability = self.load_capability()
+        deadline = 103.0
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state, "load_owned_runtime_receipt", return_value=receipt),
+            mock.patch.object(commands, "host_boot_identity") as host_identity,
+            mock.patch.object(
+                commands, "_wait_for_recovery_adb_server", return_value=observed
+            ),
+            mock.patch.object(
+                commands, "_reconcile_live_adb_seal", return_value=receipt
+            ) as reconcile,
+            mock.patch.object(commands.os.path, "lexists", return_value=True),
+            mock.patch.object(commands.time, "monotonic", return_value=100.0),
+            mock.patch.object(
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=self.listener_observation(receipt),
+            ),
+        ):
+            host_identity.return_value = process_identity.HostBootIdentity(
+                host=receipt.host_identity,
+                boot=receipt.boot_identity,
+            )
+            commands._validate_owned_adb_server_for_client(
+                capability, deadline=deadline
+            )
+        reconcile.assert_called_once_with(
+            capability, receipt, observed, deadline=deadline
+        )
+
+    def test_live_seal_reconciliation_recomputes_listener_deadline_budget(
+        self,
+    ) -> None:
+        receipt, observed = self.start_physical_adb_server_receipt()
+        observed = commands.dataclasses.replace(observed, executable=self.snapshot)
+        listener = self.listener_observation(receipt)
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands.time, "monotonic", side_effect=[100.0, 102.0]),
+            mock.patch.object(
+                commands,
+                "_capture_recovery_adb_listener",
+                return_value=listener,
+            ) as capture,
+        ):
+            reconciled = commands._reconcile_live_adb_seal(
+                self.load_capability(), receipt, observed, deadline=106.0
+            )
+        self.assertIs(reconciled.phase, state.RuntimePhase.ADB_SEALED)
+        self.assertEqual(
+            [call.kwargs["timeout_seconds"] for call in capture.call_args_list],
+            [5, 4],
+        )
+
+    def test_live_seal_reconciliation_rejects_exhausted_listener_budget(
+        self,
+    ) -> None:
+        receipt, observed = self.start_physical_adb_server_receipt()
+        observed = commands.dataclasses.replace(observed, executable=self.snapshot)
+        with (
+            mock.patch.object(commands.time, "monotonic", return_value=102.5),
+            mock.patch.object(
+                commands, "_capture_recovery_adb_listener"
+            ) as capture,
+            self.assertRaisesRegex(
+                commands.AndroidCommandError, "validation deadline expired"
+            ),
+        ):
+            commands._reconcile_live_adb_seal(
+                self.load_capability(), receipt, observed, deadline=103.0
+            )
+        capture.assert_not_called()
+
     def test_in_progress_0500_seal_is_completed_before_clients(self) -> None:
         receipt, observed = self.start_physical_adb_server_receipt()
         observed = commands.dataclasses.replace(observed, executable=self.snapshot)
@@ -4797,6 +5487,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 return None
 
             def settimeout(self, _seconds: int) -> None:
+                order.append("timeout")
                 return None
 
             def sendall(self, data: bytes) -> None:
@@ -4843,6 +5534,50 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands._emulator_console_authenticated_prefix()
                 + b"OK: killing emulator, bye bye\n",
             ),
+        )
+
+        order.clear()
+        with (
+            mock.patch.object(
+                commands.socket, "create_connection", return_value=console
+            ),
+            mock.patch.object(
+                commands,
+                "_same_receipt_process",
+                side_effect=lambda _receipt: (order.append("process"), observed)[1],
+            ),
+            mock.patch.object(
+                commands,
+                "_verify_recovery_listeners",
+                side_effect=lambda **_kwargs: order.append("listeners"),
+            ),
+            mock.patch.object(
+                commands,
+                "_emulator_console_auth_token",
+                side_effect=lambda expected: (
+                    order.append("token"),
+                    (b"private-token", expected),
+                )[1],
+            ),
+            mock.patch.object(commands.time, "monotonic", return_value=100.0),
+            mock.patch.object(
+                commands, "_receive_emulator_console", return_value=response
+            ) as receive,
+        ):
+            commands._emulator_console_exchange(
+                context, receipt, b"kill\n", deadline=103.0
+            )
+        self.assertEqual(
+            order,
+            ["connect", "process", "listeners", "token", "timeout", "send"],
+        )
+        receive.assert_called_once_with(
+            console,
+            expected_responses=(
+                commands._emulator_console_authenticated_prefix()
+                + b"OK: killing emulator, bye bye\n",
+            ),
+            deadline=103.0,
         )
 
         with mock.patch.object(

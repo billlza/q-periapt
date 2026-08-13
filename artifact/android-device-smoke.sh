@@ -1344,7 +1344,7 @@ query_package_state() {
 		return 2
 	fi
 	case "$package_state" in
-		absent | present | retryable:query-nonzero | retryable:query-timeout)
+		absent | present | retryable:query-nonzero | retryable:query-timeout | retryable:device-unavailable)
 			printf '%s\n' "$package_state"
 			;;
 		*)
@@ -1390,7 +1390,7 @@ observe_preinstall_package_absence() {
 					"$PACKAGE" >&2
 				return 1
 				;;
-			0:retryable:query-nonzero | 0:retryable:query-timeout)
+			0:retryable:query-nonzero | 0:retryable:query-timeout | 0:retryable:device-unavailable)
 				preinstall_consecutive_absent=0
 				preinstall_reason=${package_state#retryable:}
 				printf 'phase=preinstall invocation=1 attempt=%s state=retryable reason=%s consecutive=0\n' \
@@ -1627,6 +1627,70 @@ observe_owned_installed_package() {
 	return 1
 }
 
+attempt_owned_emulator_transport_recovery() {
+	recovery_timeout=$1
+	recovery_invocation=$2
+	recovery_attempt=$3
+	if [ "$ANDROID_BOOT_AVD" != "1" ] || [ "$DEVICE_KIND" != "emulator" ] || \
+		[ "$EMULATOR_STARTED" != "1" ]; then
+		printf 'error: refusing Android transport recovery outside the script-owned emulator lane\n' >&2
+		return 2
+	fi
+	recovery_output="$WORK/adb-emulator-transport-recovery-$recovery_invocation-$recovery_attempt.txt"
+	recovery_error="$WORK/adb-emulator-transport-recovery-$recovery_invocation-$recovery_attempt.err"
+	if android_command recover-emulator-transport \
+		--timeout-seconds "$recovery_timeout" \
+		>"$recovery_output" 2>"$recovery_error"; then
+		recovery_status=0
+	else
+		recovery_status=$?
+	fi
+	if [ "$recovery_status" -ne 0 ]; then
+		printf 'phase=cleanup invocation=%s attempt=%s transport-recovery=structural-error exit=%s\n' \
+			"$recovery_invocation" "$recovery_attempt" "$recovery_status" \
+			>>"$PACKAGE_OBSERVATION_LOG"
+		case "$recovery_status" in
+			129 | 130 | 143) return "$recovery_status" ;;
+			*) return 2 ;;
+		esac
+	fi
+	if [ -s "$recovery_error" ]; then
+		printf 'error: successful Android emulator transport recovery emitted diagnostics\n' >&2
+		return 2
+	fi
+	if ! recovery_result=$(/bin/cat -- "$recovery_output"); then
+		printf 'error: cannot read the typed Android emulator transport recovery result\n' >&2
+		return 2
+	fi
+	if ! recovery_result_size=$(wc -c <"$recovery_output"); then
+		printf 'error: cannot measure the typed Android emulator transport recovery result\n' >&2
+		return 2
+	fi
+	if [ "$recovery_result_size" -ne $((${#recovery_result} + 1)) ]; then
+		printf 'error: typed Android emulator transport recovery result is not one exact line\n' >&2
+		return 2
+	fi
+	case "$recovery_result" in
+		recovered | race-device)
+			printf 'phase=cleanup invocation=%s attempt=%s transport-recovery=%s\n' \
+				"$recovery_invocation" "$recovery_attempt" "$recovery_result" \
+				>>"$PACKAGE_OBSERVATION_LOG"
+			return 0
+			;;
+		retryable:transport-inconclusive | retryable:registration-failed | retryable:post-state-unavailable)
+			recovery_reason=${recovery_result#retryable:}
+			printf 'phase=cleanup invocation=%s attempt=%s transport-recovery=retryable reason=%s\n' \
+				"$recovery_invocation" "$recovery_attempt" "$recovery_reason" \
+				>>"$PACKAGE_OBSERVATION_LOG"
+			return 1
+			;;
+		*)
+			printf 'error: Android emulator transport recovery returned an unexpected token\n' >&2
+			return 2
+			;;
+	esac
+}
+
 cleanup_android_app() {
 	if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" != "1" ]; then
 		return 0
@@ -1750,6 +1814,35 @@ cleanup_android_app() {
 					fi
 				fi
 				;;
+			0:retryable:device-unavailable)
+				absent_observations=0
+				cleanup_ownership_consecutive_exact=0
+				cleanup_ownership_previous_path_sha256=
+				remove_installed_apk_copy || return 2
+				printf 'phase=cleanup invocation=%s attempt=%s state=retryable reason=device-unavailable consecutive=0\n' \
+					"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+				if [ "$ANDROID_BOOT_AVD" = "1" ] && [ "$DEVICE_KIND" = "emulator" ] && \
+					[ "$EMULATOR_STARTED" = "1" ] && \
+					[ "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" = "0" ] && \
+					recovery_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 15); then
+					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
+					if attempt_owned_emulator_transport_recovery \
+						"$recovery_timeout" "$cleanup_invocation" "$attempt"; then
+						absent_observations=0
+						cleanup_ownership_consecutive_exact=0
+						cleanup_ownership_previous_path_sha256=
+						remove_installed_apk_copy || return 2
+						continue
+					else
+						recovery_attempt_status=$?
+					fi
+					case "$recovery_attempt_status" in
+						1) ;;
+						2 | 129 | 130 | 143) return "$recovery_attempt_status" ;;
+						*) return 2 ;;
+					esac
+				fi
+				;;
 			0:retryable:query-nonzero | 0:retryable:query-timeout)
 				absent_observations=0
 				cleanup_ownership_consecutive_exact=0
@@ -1798,6 +1891,12 @@ cleanup_unconfirmed_proof() {
 cleanup_runtime() {
 	primary_exit_status=$1
 	runtime_internal_cleanup_status=0
+	record_runtime_cleanup_failure() {
+		cleanup_failure_status=$1
+		if [ "$runtime_internal_cleanup_status" -eq 0 ]; then
+			runtime_internal_cleanup_status=$cleanup_failure_status
+		fi
+	}
 	if [ "${ANDROID_RUNTIME_RECOVERY_PRESERVE:-0}" = "1" ]; then
 		printf 'error: preserving Android runtime recovery state after an unresolved server startup handoff\n' >&2
 		return 1
@@ -1805,42 +1904,47 @@ cleanup_runtime() {
 	if [ -n "${KEYSTORE:-}" ] && [ -e "$KEYSTORE" ]; then
 		if ! rm -f -- "$KEYSTORE"; then
 			printf 'error: failed to remove temporary Android smoke keystore: %s\n' "$KEYSTORE" >&2
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		fi
 	fi
 	if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" = "1" ]; then
 		if [ -z "${ADB:-}" ] || [ -z "${SERIAL:-}" ]; then
 			printf 'error: installed Android smoke app cleanup lacks adb or device identity\n' >&2
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		else
-			cleanup_android_app || runtime_internal_cleanup_status=1
+			if cleanup_android_app; then
+				:
+			else
+				app_cleanup_status=$?
+				record_runtime_cleanup_failure "$app_cleanup_status"
+			fi
 		fi
 	fi
 	if [ "${EMULATOR_STARTED:-0}" = "1" ]; then
 		if ! request_owned_emulator_shutdown; then
 			printf 'error: failed to request shutdown of the temporary Android emulator\n' >&2
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		fi
 		if stop_emulator_process; then
 			EMULATOR_STARTED=0
 		else
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		fi
 	fi
 	if [ "${ADB_PRIVATE_SERVER_CLEANUP_ARMED:-0}" = "1" ]; then
 		if [ "${EMULATOR_STARTED:-0}" = "1" ]; then
 			printf 'error: preserving private adb recovery state because emulator cleanup is unresolved\n' >&2
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		else
-			stop_private_adb_server || runtime_internal_cleanup_status=1
+			stop_private_adb_server || record_runtime_cleanup_failure 1
 		fi
 	fi
 	if [ "${ANDROID_COMMAND_CAPABILITY_ARMED:-0}" = "1" ]; then
 		if [ "${ADB_PRIVATE_SERVER_CLEANUP_ARMED:-0}" = "1" ]; then
 			printf 'error: preserving the Android command capability because private adb cleanup is unresolved\n' >&2
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		else
-			cleanup_android_command_capability || runtime_internal_cleanup_status=1
+			cleanup_android_command_capability || record_runtime_cleanup_failure 1
 		fi
 	fi
 	if [ "${ANDROID_RUNTIME_RECOVERY_ARMED:-0}" = "1" ] && \
@@ -1851,20 +1955,25 @@ cleanup_runtime() {
 			{ [ "$ANDROID_BOOT_AVD" = "1" ] && \
 			[ "${EMULATOR_PROTOCOL_STOP_REQUESTED:-0}" != "1" ]; }; then
 			printf 'error: refusing runtime retirement without every required protocol shutdown\n' >&2
-			runtime_internal_cleanup_status=1
+			record_runtime_cleanup_failure 1
 		else
-			if [ "$primary_exit_status" -eq 0 ]; then
+			retirement_exit_status=$primary_exit_status
+			if [ "$retirement_exit_status" -eq 0 ] && \
+				[ "$runtime_internal_cleanup_status" -ne 0 ]; then
+				retirement_exit_status=$runtime_internal_cleanup_status
+			fi
+			if [ "$retirement_exit_status" -eq 0 ]; then
 				set -- retire-stopped-runtime --run-id "$RUN_ID"
 				retirement_label=completed
 			else
 				set -- retire-failed-runtime --run-id "$RUN_ID" \
-					--primary-exit-status "$primary_exit_status"
+					--primary-exit-status "$retirement_exit_status"
 				retirement_label=failed
 			fi
 			if ! PYTHONPATH=artifact python3 artifact/android_bounded_command.py "$@"; then
 				printf 'error: failed to retire the %s Android runtime recovery receipt\n' \
 					"$retirement_label" >&2
-				runtime_internal_cleanup_status=1
+				record_runtime_cleanup_failure 1
 			else
 				ANDROID_RUNTIME_RECOVERY_ARMED=0
 			fi
@@ -1915,6 +2024,7 @@ ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
 ANDROID_APP_CLEANUP_INVOCATION=0
 ANDROID_APP_UNINSTALL_REQUESTED=0
+ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
 ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
 ADB_PRIVATE_SERVER_DIRECTORY=
 ADB_PRIVATE_SERVER_SOCKET_NONCE=
@@ -2720,9 +2830,12 @@ if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|Unsa
 	printf 'error: Android logcat contains a runtime failure marker; see %s\n' "$DIST/logcat.txt" >&2
 	exit 1
 fi
-if ! cleanup_android_app; then
+if cleanup_android_app; then
+	:
+else
+	app_cleanup_status=$?
 	printf 'error: run-owned Android smoke app cleanup failed\n' >&2
-	exit 1
+	exit "$app_cleanup_status"
 fi
 
 PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'

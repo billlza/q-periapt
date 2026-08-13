@@ -750,7 +750,14 @@ These produce the paper's primary network table and the binary constant-time dis
   explicit retryable state; neither state is accepted as absence, and either resets consecutive
   absence observations. Successful empty output alone means absent, the one exact package line
   means present, and malformed output, resource-boundary failure, or command-capability/owned-server
-  drift fails immediately. Path, pull, or byte observation failures likewise reset ownership
+  drift fails immediately. On the script-owned AVD only, a package-query failure followed by an
+  exact private device table that omits the receipt-bound serial may consume the same cleanup
+  deadline to attempt one authenticated, listener-bound transport registration for the whole run.
+  An online, offline, unauthorized, ambiguous, or inconclusive table never triggers registration;
+  physical devices never use this recovery path. Recovery proves neither package absence nor
+  ownership and must return to the package query before any cleanup decision. It neither overwrites
+  the initial registration evidence nor extends the cleanup deadline. Path, pull, or byte observation
+  failures likewise reset ownership
   convergence instead of weakening the identity check. Cleanup uninstalls only after its recheck
   passes, reconciles command-unknown outcomes with repeated absence observations, and never clears
   global logcat buffers. One sanitized append-only journal records phase, cleanup invocation, attempt,

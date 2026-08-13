@@ -136,6 +136,26 @@ class PackageState(str, enum.Enum):
     PRESENT = "present"
     QUERY_NONZERO = "retryable:query-nonzero"
     QUERY_TIMEOUT = "retryable:query-timeout"
+    DEVICE_UNAVAILABLE = "retryable:device-unavailable"
+
+
+class ExpectedTransportState(str, enum.Enum):
+    """Private classification of the expected serial in one adb device table."""
+
+    ABSENT = "absent"
+    DEVICE = "device"
+    OTHER = "other"
+    INCONCLUSIVE = "inconclusive"
+
+
+class EmulatorTransportRecovery(str, enum.Enum):
+    """Safe shell-facing outcomes from one receipt-bound recovery attempt."""
+
+    RECOVERED = "recovered"
+    RACE_DEVICE = "race-device"
+    TRANSPORT_INCONCLUSIVE = "retryable:transport-inconclusive"
+    REGISTRATION_FAILED = "retryable:registration-failed"
+    POST_STATE_UNAVAILABLE = "retryable:post-state-unavailable"
 
 
 class AndroidOperation(str, enum.Enum):
@@ -161,6 +181,7 @@ class AndroidOperation(str, enum.Enum):
     DEVICE_FINGERPRINT = "device-fingerprint"
     ADB_VERSION = "adb-version"
     PACKAGE_STATE = "package-state"
+    RECOVER_EMULATOR_TRANSPORT = "recover-emulator-transport"
     OBSERVE_INSTALLED_APK = "observe-installed-apk"
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
@@ -191,6 +212,7 @@ class OperationSpec:
         "capture",
         "write",
         "package-state",
+        "recover-emulator",
         "observe-apk",
         "logcat",
         "register-emulator",
@@ -714,6 +736,13 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             requires_private_server=True,
             stderr_to_stdout=True,
         ),
+        AndroidOperation.RECOVER_EMULATOR_TRANSPORT: OperationSpec(
+            "recover-emulator",
+            15,
+            15,
+            None,
+            lambda cap: (),
+        ),
         AndroidOperation.OBSERVE_INSTALLED_APK: OperationSpec(
             "observe-apk",
             45,
@@ -1218,6 +1247,8 @@ def _validate_receipt_adb_server_executable(
 def _capture_recovery_adb_listener(
     capability: runtime_state.AndroidAdbCapability,
     receipt: runtime_state.OwnedRuntimeReceipt,
+    *,
+    timeout_seconds: int = 5,
 ) -> OwnedUnixListenerObservation | None:
     result = capture_stdout(
         (
@@ -1229,7 +1260,7 @@ def _capture_recovery_adb_listener(
             "-FpufnT",
             capability.socket_path,
         ),
-        timeout_seconds=5,
+        timeout_seconds=timeout_seconds,
         maximum_bytes=65536,
         environment={
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -1265,9 +1296,11 @@ def _capture_recovery_adb_listener(
 def _wait_for_recovery_adb_server(
     receipt: runtime_state.OwnedRuntimeReceipt,
     capability: runtime_state.AndroidAdbCapability,
+    *,
+    deadline: float | None = None,
 ) -> ProcessIdentity | None:
     """Observe only the receipt-bound Python-to-adb exec transition."""
-    deadline = time.monotonic() + 5
+    effective_deadline = time.monotonic() + 5 if deadline is None else deadline
     socket_path = pathlib.Path(capability.socket_path)
     while True:
         observed = _same_receipt_adb_server_process(receipt)
@@ -1281,7 +1314,7 @@ def _wait_for_recovery_adb_server(
             not socket_present,
             "owned adb socket appeared before the receipt-bound adb exec",
         )
-        remaining = deadline - time.monotonic()
+        remaining = effective_deadline - time.monotonic()
         _require(
             remaining > 0,
             "owned adb server is live but its private socket is not ready",
@@ -1302,7 +1335,9 @@ def _wait_for_recovered_adb_server_exit(
 
 
 def _validate_owned_adb_server_for_client(
-    capability: runtime_state.AndroidCommandCapability,
+    capability: runtime_state.AndroidAdbCapability,
+    *,
+    deadline: float | None = None,
 ) -> None:
     """Prevent adb clients from auto-starting an unowned replacement server."""
     runtime_state.validate_lane_lock_descriptor()
@@ -1325,15 +1360,22 @@ def _validate_owned_adb_server_for_client(
         and (receipt.boot_identity == current_host_boot.boot),
         "Android client adb server receipt belongs to another runtime",
     )
-    observed = _wait_for_recovery_adb_server(receipt, capability)
+    observed = _wait_for_recovery_adb_server(
+        receipt, capability, deadline=deadline
+    )
     _require(observed is not None, "owned adb server exited before client operation")
-    receipt = _reconcile_live_adb_seal(capability, receipt, observed)
+    receipt = _reconcile_live_adb_seal(
+        capability, receipt, observed, deadline=deadline
+    )
     _require(
         os.path.lexists(capability.socket_path),
         "owned adb server socket disappeared before client operation",
     )
+    listener_timeout = _remaining_adb_listener_timeout(deadline)
     _require(
-        _capture_recovery_adb_listener(capability, receipt),
+        _capture_recovery_adb_listener(
+            capability, receipt, timeout_seconds=listener_timeout
+        ),
         "owned adb server listener disappeared before client operation",
     )
 
@@ -1365,10 +1407,22 @@ def _socket_directory_metadata(
     return metadata
 
 
+def _remaining_adb_listener_timeout(deadline: float | None) -> int:
+    """Bound one listener capture by the caller's absolute deadline."""
+
+    if deadline is None:
+        return 5
+    remaining = deadline - time.monotonic()
+    _require(remaining >= 1, "owned adb server validation deadline expired")
+    return min(5, int(remaining))
+
+
 def _reconcile_live_adb_seal(
     capability: runtime_state.AndroidAdbCapability,
     receipt: runtime_state.OwnedRuntimeReceipt,
     observed: ProcessIdentity,
+    *,
+    deadline: float | None = None,
 ) -> runtime_state.OwnedRuntimeReceipt:
     """Make phase and directory mode durably safe before any adb client."""
 
@@ -1377,7 +1431,11 @@ def _reconcile_live_adb_seal(
         observed.executable == capability.adb_snapshot_path,
         "cannot reconcile adb sealing before the exact adb exec",
     )
-    observation = _capture_recovery_adb_listener(capability, receipt)
+    observation = _capture_recovery_adb_listener(
+        capability,
+        receipt,
+        timeout_seconds=_remaining_adb_listener_timeout(deadline),
+    )
     _require(
         observation is not None,
         "cannot reconcile adb sealing without the exact live listener",
@@ -1392,7 +1450,11 @@ def _reconcile_live_adb_seal(
             receipt,
             observation.listener_descriptor,
         )
-        rebound = _capture_recovery_adb_listener(capability, receipt)
+        rebound = _capture_recovery_adb_listener(
+            capability,
+            receipt,
+            timeout_seconds=_remaining_adb_listener_timeout(deadline),
+        )
         _require(
             rebound is not None,
             "bound adb listener changed before socket-directory sealing",
@@ -1686,12 +1748,17 @@ def _verify_recovery_listeners(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidAdbCapability,
     receipt: runtime_state.OwnedRuntimeReceipt,
+    timeout_seconds: int = 5,
 ) -> None:
-    _capture_owned_emulator_listeners(
+    capture = _capture_owned_emulator_listeners(
         layout=layout,
         capability=capability,
         emulator_pid=receipt.pid,
-        timeout_seconds=5,
+        timeout_seconds=timeout_seconds,
+    )
+    _require(
+        capture.returncode == 0,
+        "owned emulator listener inspection failed",
     )
     pending = layout.work / "emulator-listeners.txt.pending"
     snapshot = read_regular_snapshot(
@@ -1721,7 +1788,6 @@ def _verify_recovery_listeners(
 def _register_owned_emulator(
     capability: runtime_state.AndroidAdbCapability, *, timeout_seconds: int
 ) -> BoundedResult:
-    console_port, adb_port = _owned_emulator_ports(capability)
     result = capture_stdout(
         OPERATION_SPECS[AndroidOperation.REGISTER_EMULATOR].build_argv(capability),
         timeout_seconds=timeout_seconds,
@@ -1729,15 +1795,28 @@ def _register_owned_emulator(
         stderr=subprocess.STDOUT,
         environment=_client_environment(capability),
     )
-    accepted = {
-        f"Connected to emulator on ports {console_port},{adb_port}\n".encode("ascii"),
-        f"Emulator already registered on port {adb_port}\n".encode("ascii"),
-    }
+    accepted = _accepted_emulator_registration_responses(capability)
     _require(
         result.returncode == 0 and result.stdout in accepted,
         f"owned emulator registration was not an exact success (returncode={result.returncode}, response_hex={result.stdout.hex()})",
     )
     return result
+
+
+def _accepted_emulator_registration_responses(
+    capability: runtime_state.AndroidAdbCapability,
+) -> frozenset[bytes]:
+    """Return the complete exact response grammar for the fixed port pair."""
+
+    console_port, adb_port = _owned_emulator_ports(capability)
+    return frozenset(
+        {
+            f"Connected to emulator on ports {console_port},{adb_port}\n".encode(
+                "ascii"
+            ),
+            f"Emulator already registered on port {adb_port}\n".encode("ascii"),
+        }
+    )
 
 
 def _emulator_console_auth_token_path() -> pathlib.Path:
@@ -1822,6 +1901,7 @@ def _receive_emulator_console(
     *,
     expected_responses: tuple[bytes, ...],
     maximum: int = 16384,
+    deadline: float | None = None,
 ) -> bytes:
     """Read one exact terminal frame without requiring socket EOF.
 
@@ -1852,10 +1932,14 @@ def _receive_emulator_console(
         ),
         "owned emulator console terminal frames must not overlap",
     )
-    deadline = time.monotonic() + EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS
+    effective_deadline = (
+        time.monotonic() + EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS
+        if deadline is None
+        else deadline
+    )
     response = bytearray()
     while len(response) < maximum:
-        remaining = deadline - time.monotonic()
+        remaining = effective_deadline - time.monotonic()
         _require(
             remaining > 0,
             "owned emulator console response timed out",
@@ -1943,7 +2027,11 @@ def _emulator_console_authenticated_prefix() -> bytes:
 
 
 def _emulator_console_exchange(
-    context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt, command: bytes
+    context: RecoveryContext,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    command: bytes,
+    *,
+    deadline: float | None = None,
 ) -> bytes:
     _require(
         receipt.emulator_started
@@ -1956,9 +2044,14 @@ def _emulator_console_exchange(
         "owned emulator console command is outside the fixed set",
     )
     try:
+        connect_timeout = EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            _require(remaining > 0, "owned emulator console deadline expired")
+            connect_timeout = min(connect_timeout, remaining)
         with socket.create_connection(
             ("127.0.0.1", receipt.console_port),
-            timeout=EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS,
+            timeout=connect_timeout,
         ) as console:
             fresh = _same_receipt_process(receipt)
             _require(
@@ -1967,8 +2060,16 @@ def _emulator_console_exchange(
                 and (fresh.executable == context.backend),
                 "owned emulator identity changed after console connection",
             )
+            listener_timeout = 5
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                _require(remaining >= 1, "owned emulator console deadline expired")
+                listener_timeout = min(5, max(1, int(remaining)))
             _verify_recovery_listeners(
-                layout=context.layout, capability=context.capability, receipt=receipt
+                layout=context.layout,
+                capability=context.capability,
+                receipt=receipt,
+                timeout_seconds=listener_timeout,
             )
             expected_token = receipt.console_auth_token_identity
             _require(
@@ -1976,15 +2077,26 @@ def _emulator_console_exchange(
                 "owned emulator receipt lacks its console token identity",
             )
             token, _identity = _emulator_console_auth_token(expected_token)
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                _require(remaining > 0, "owned emulator console deadline expired")
+                console.settimeout(remaining)
             request = b"auth " + token + b"\n" + command
             console.sendall(request)
-            response = _receive_emulator_console(
-                console,
-                expected_responses=_expected_emulator_console_responses(
-                    receipt,
-                    command,
-                ),
+            expected_responses = _expected_emulator_console_responses(
+                receipt,
+                command,
             )
+            if deadline is None:
+                response = _receive_emulator_console(
+                    console, expected_responses=expected_responses
+                )
+            else:
+                response = _receive_emulator_console(
+                    console,
+                    expected_responses=expected_responses,
+                    deadline=deadline,
+                )
     except AndroidCommandError:
         raise
     except OSError as exc:
@@ -2008,9 +2120,14 @@ def _authenticated_emulator_console_payload(response: bytes) -> bytes:
 
 
 def _verify_owned_emulator_console_name(
-    context: RecoveryContext, receipt: runtime_state.OwnedRuntimeReceipt
+    context: RecoveryContext,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    *,
+    deadline: float | None = None,
 ) -> None:
-    payload = _emulator_console_exchange(context, receipt, b"avd name\nquit\n")
+    payload = _emulator_console_exchange(
+        context, receipt, b"avd name\nquit\n", deadline=deadline
+    )
     _require(
         payload == receipt.avd_name.encode("ascii") + b"\nOK\n",
         "owned emulator console AVD name was not an exact match",
@@ -3231,18 +3348,105 @@ def _invoke_installed_apk_observation(
     return result
 
 
+def _observe_expected_transport(
+    capability: runtime_state.AndroidAdbCapability,
+    *,
+    timeout_seconds: int,
+) -> ExpectedTransportState:
+    """Classify only the expected serial in the private server's exact device table."""
+
+    try:
+        raw = capture_stdout(
+            _adb(capability, "devices"),
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=65536,
+            stderr=subprocess.STDOUT,
+            environment=_client_environment(capability),
+        )
+    except BoundedProcessError as exc:
+        if exc.kind != "timeout" or getattr(exc, "__notes__", None):
+            raise
+        return ExpectedTransportState.INCONCLUSIVE
+    if raw.returncode != 0:
+        return ExpectedTransportState.INCONCLUSIVE
+    try:
+        text = raw.stdout.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise AndroidCommandError("Android device table is not ASCII") from exc
+    header = "List of devices attached\n"
+    _require(text.startswith(header), "Android device table header is malformed")
+    body = text[len(header) :]
+    if body == "\n":
+        return ExpectedTransportState.ABSENT
+    _require(
+        body.endswith("\n\n")
+        and body.count("\n") == 2
+        and all(character not in body for character in ("\x00", "\r", "\v", "\f")),
+        "Android private device table is ambiguous",
+    )
+    record = body[:-2]
+    fields = record.split("\t")
+    _require(
+        len(fields) == 2 and fields[0] == capability.expected_serial,
+        "Android private device table contains an unexpected serial",
+    )
+    state = fields[1]
+    _require(
+        re.fullmatch("[a-z][a-z0-9_-]{0,31}", state) is not None,
+        "Android private device state is malformed",
+    )
+    if state == "device":
+        return ExpectedTransportState.DEVICE
+    return ExpectedTransportState.OTHER
+
+
+def _observe_exact_device_state(
+    capability: runtime_state.AndroidAdbCapability,
+    *,
+    timeout_seconds: int,
+) -> bool:
+    """Return true only for the exact authorized online state of the fixed serial."""
+
+    try:
+        raw = capture_stdout(
+            _device(capability, "get-state"),
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=65536,
+            stderr=subprocess.STDOUT,
+            environment=_client_environment(capability),
+        )
+    except BoundedProcessError as exc:
+        if exc.kind != "timeout" or getattr(exc, "__notes__", None):
+            raise
+        return False
+    if raw.returncode != 0:
+        return False
+    _require(
+        raw.stdout == b"device\n",
+        "Android device-state success was not exact authorized/device",
+    )
+    return True
+
+
 def _observe_package_state(
     capability: runtime_state.AndroidCommandCapability,
     spec: OperationSpec,
     *,
     timeout_seconds: int,
+    deadline: float | None = None,
 ) -> BoundedResult:
     """Map the fixed raw package query to one exact, non-diagnostic token."""
 
+    effective_deadline = (
+        time.monotonic() + timeout_seconds if deadline is None else deadline
+    )
+    query_timeout = _remaining_observation_timeout(effective_deadline)
+    if query_timeout is None:
+        return BoundedResult(0, f"{PackageState.QUERY_TIMEOUT.value}\n".encode("ascii"))
     try:
         raw = capture_stdout(
             spec.build_argv(capability),
-            timeout_seconds=timeout_seconds,
+            timeout_seconds=query_timeout,
             maximum_bytes=65536,
             stderr=subprocess.STDOUT,
             environment=_client_environment(capability),
@@ -3252,6 +3456,20 @@ def _observe_package_state(
             raise
         return BoundedResult(0, f"{PackageState.QUERY_TIMEOUT.value}\n".encode("ascii"))
     if raw.returncode != 0:
+        if capability.device_kind == "emulator":
+            transport_timeout = _remaining_observation_timeout(effective_deadline)
+            if transport_timeout is None:
+                return BoundedResult(
+                    0, f"{PackageState.QUERY_TIMEOUT.value}\n".encode("ascii")
+                )
+            transport = _observe_expected_transport(
+                capability, timeout_seconds=transport_timeout
+            )
+            if transport is ExpectedTransportState.ABSENT:
+                return BoundedResult(
+                    0,
+                    f"{PackageState.DEVICE_UNAVAILABLE.value}\n".encode("ascii"),
+                )
         return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
     if b"\x00" in raw.stdout or b"\r" in raw.stdout:
         _fail("Android package-state output contains a forbidden control character")
@@ -3278,18 +3496,21 @@ def _invoke_package_state(
 ) -> BoundedResult:
     """Run one typed package query and preserve primary/postcheck attribution."""
 
+    deadline = time.monotonic() + timeout_seconds
     result: BoundedResult | None = None
     primary: BaseException | None = None
     try:
+        _validate_owned_adb_server_for_client(capability, deadline=deadline)
         result = _observe_package_state(
             capability,
             spec,
             timeout_seconds=timeout_seconds,
+            deadline=deadline,
         )
     except BaseException as exc:
         primary = exc
     try:
-        _validate_owned_adb_server_for_client(capability)
+        _validate_owned_adb_server_for_client(capability, deadline=deadline)
     except BaseException as postcheck_error:
         if primary is None:
             primary = postcheck_error
@@ -3301,6 +3522,222 @@ def _invoke_package_state(
     if primary is not None:
         raise primary
     _require(result is not None, "Android package-state observation produced no result")
+    return result
+
+
+def _command_capability_adb_identity(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[object, ...]:
+    """Project only the receipt-bound ADB fields shared by both capability types."""
+
+    return (
+        capability.adb_profile,
+        capability.adb_snapshot_path,
+        capability.adb_size,
+        capability.adb_sha256,
+        capability.socket_nonce,
+        capability.native_adb_notifier_port,
+        capability.server_socket,
+        capability.socket_path,
+        capability.vendor_key,
+        capability.device_kind,
+        capability.expected_serial,
+        capability.run_id,
+    )
+
+
+def _revalidate_emulator_transport_identity(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    context: RecoveryContext,
+    original_receipt: runtime_state.OwnedRuntimeReceipt,
+    original_process: ProcessIdentity,
+    *,
+    deadline: float,
+) -> runtime_state.OwnedRuntimeReceipt:
+    """Rebind one recovery step to the unchanged process, listeners, and server."""
+
+    _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    current = runtime_state.load_owned_runtime_receipt()
+    _require(
+        current is not None
+        and current.snapshot_sha256 == original_receipt.snapshot_sha256,
+        "owned emulator receipt changed during transport recovery",
+    )
+    observed = _same_receipt_process(current)
+    _require(
+        observed is not None
+        and observed.token == original_process.token
+        and observed.executable == original_process.executable,
+        "owned emulator identity changed during transport recovery",
+    )
+    listener_timeout = _remaining_observation_timeout(deadline)
+    _require(
+        listener_timeout is not None,
+        "emulator transport recovery deadline expired before listener validation",
+    )
+    _verify_recovery_listeners(
+        layout=layout,
+        capability=context.capability,
+        receipt=current,
+        timeout_seconds=min(5, listener_timeout),
+    )
+    return current
+
+
+def _recover_owned_emulator_transport(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Attempt one authenticated re-registration without changing proof evidence."""
+
+    deadline = time.monotonic() + timeout_seconds
+    _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    result: BoundedResult | None = None
+    primary: BaseException | None = None
+    try:
+        receipt = runtime_state.load_owned_runtime_receipt()
+        _require(
+            receipt is not None
+            and receipt.run_id == layout.run_id
+            and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
+            and receipt.device_kind == "emulator",
+            "emulator transport recovery lacks this run's active emulator receipt",
+        )
+        context = _validate_recovery_receipt(receipt)
+        _require(
+            context.layout == layout
+            and _command_capability_adb_identity(context.capability)
+            == _command_capability_adb_identity(capability),
+            "emulator transport recovery capability differs from its receipt",
+        )
+        before = _same_receipt_process(receipt)
+        _require(
+            before is not None
+            and context.backend is not None
+            and before.executable == context.backend,
+            "owned emulator is not its receipt-bound live backend",
+        )
+        listener_timeout = _remaining_observation_timeout(deadline)
+        _require(
+            listener_timeout is not None,
+            "emulator transport recovery deadline expired before listener validation",
+        )
+        _verify_recovery_listeners(
+            layout=layout,
+            capability=context.capability,
+            receipt=receipt,
+            timeout_seconds=min(5, listener_timeout),
+        )
+        _verify_owned_emulator_console_name(context, receipt, deadline=deadline)
+
+        transport_timeout = _remaining_observation_timeout(deadline)
+        _require(
+            transport_timeout is not None,
+            "emulator transport recovery deadline expired before its race check",
+        )
+        transport = _observe_expected_transport(
+            capability, timeout_seconds=transport_timeout
+        )
+        outcome = EmulatorTransportRecovery.TRANSPORT_INCONCLUSIVE
+        if transport is ExpectedTransportState.DEVICE:
+            outcome = EmulatorTransportRecovery.RACE_DEVICE
+        elif transport is ExpectedTransportState.ABSENT:
+            _revalidate_emulator_transport_identity(
+                layout,
+                capability,
+                context,
+                receipt,
+                before,
+                deadline=deadline,
+            )
+            transport_timeout = _remaining_observation_timeout(deadline)
+            _require(
+                transport_timeout is not None,
+                "emulator transport recovery deadline expired before its final race check",
+            )
+            transport = _observe_expected_transport(
+                capability, timeout_seconds=transport_timeout
+            )
+            if transport is ExpectedTransportState.DEVICE:
+                outcome = EmulatorTransportRecovery.RACE_DEVICE
+            elif transport is ExpectedTransportState.ABSENT:
+                _revalidate_emulator_transport_identity(
+                    layout,
+                    capability,
+                    context,
+                    receipt,
+                    before,
+                    deadline=deadline,
+                )
+                registration_timeout = _remaining_observation_timeout(deadline)
+                _require(
+                    registration_timeout is not None,
+                    "emulator transport recovery deadline expired before registration",
+                )
+                try:
+                    registration = capture_stdout(
+                        OPERATION_SPECS[
+                            AndroidOperation.REGISTER_EMULATOR
+                        ].build_argv(capability),
+                        timeout_seconds=registration_timeout,
+                        maximum_bytes=512,
+                        stderr=subprocess.STDOUT,
+                        environment=_client_environment(capability),
+                    )
+                except BoundedProcessError as exc:
+                    if exc.kind != "timeout" or getattr(exc, "__notes__", None):
+                        raise
+                    registration = None
+                if registration is None or registration.returncode != 0:
+                    outcome = EmulatorTransportRecovery.REGISTRATION_FAILED
+                else:
+                    _require(
+                        registration.stdout
+                        in _accepted_emulator_registration_responses(capability),
+                        "emulator transport recovery returned a malformed success",
+                    )
+                    outcome = EmulatorTransportRecovery.RECOVERED
+
+        _revalidate_emulator_transport_identity(
+            layout,
+            capability,
+            context,
+            receipt,
+            before,
+            deadline=deadline,
+        )
+        if outcome in {
+            EmulatorTransportRecovery.RECOVERED,
+            EmulatorTransportRecovery.RACE_DEVICE,
+        }:
+            state_timeout = _remaining_observation_timeout(deadline)
+            _require(
+                state_timeout is not None,
+                "emulator transport recovery deadline expired before post-state validation",
+            )
+            if not _observe_exact_device_state(
+                capability, timeout_seconds=state_timeout
+            ):
+                outcome = EmulatorTransportRecovery.POST_STATE_UNAVAILABLE
+        result = BoundedResult(0, f"{outcome.value}\n".encode("ascii"))
+    except BaseException as exc:
+        primary = exc
+    try:
+        _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    except BaseException as postcheck_error:
+        if primary is None:
+            primary = postcheck_error
+        else:
+            primary.add_note(
+                "owned adb server post-transport-recovery validation also failed: "
+                f"{postcheck_error}"
+            )
+    if primary is not None:
+        raise primary
+    _require(result is not None, "emulator transport recovery produced no result")
     return result
 
 
@@ -3339,15 +3776,13 @@ def invoke_operation(
     _validate_client_environment(capability)
     _validate_tool_and_apk(layout, capability, operation)
     spec = OPERATION_SPECS[operation]
-    if spec.requires_private_server:
-        _validate_owned_adb_server_for_client(capability)
     timeout = spec.timeout_seconds if timeout_seconds is None else timeout_seconds
     _require(
         type(timeout) is int and 1 <= timeout <= spec.timeout_maximum,
         f"{operation.value} timeout must be 1 through {spec.timeout_maximum} seconds",
     )
-    if spec.mode == "observe-apk":
-        return _invoke_installed_apk_observation(
+    if spec.mode == "recover-emulator":
+        return _recover_owned_emulator_transport(
             layout, capability, timeout_seconds=timeout
         )
     if spec.mode == "package-state":
@@ -3355,6 +3790,12 @@ def invoke_operation(
             capability,
             spec,
             timeout_seconds=timeout,
+        )
+    if spec.requires_private_server:
+        _validate_owned_adb_server_for_client(capability)
+    if spec.mode == "observe-apk":
+        return _invoke_installed_apk_observation(
+            layout, capability, timeout_seconds=timeout
         )
     if spec.mode == "logcat":
         argv = _device(
