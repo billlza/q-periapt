@@ -8,6 +8,7 @@ import dataclasses
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
@@ -23,7 +24,12 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from collections.abc import Callable, Iterable
 
-from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
+from bounded_process import (
+    REAP_TIMEOUT_SECONDS,
+    BoundedProcessError,
+    BoundedResult,
+    capture_stdout,
+)
 from evidence_io import (
     EvidenceIOError,
     parse_strict_json_bytes,
@@ -102,6 +108,38 @@ RUST_NORMALIZED_LOCAL_CRATES = frozenset(
         "q-periapt-sig",
     }
 )
+RUST_WORKSPACE_LOCAL_CRATES = frozenset(
+    {
+        "q-periapt-backends",
+        "q-periapt-cli",
+        "q-periapt-continuity-model",
+        "q-periapt-core",
+        "q-periapt-ctstats",
+        "q-periapt-ffi",
+        "q-periapt-kem",
+        "q-periapt-migration",
+        "q-periapt-mlkem-native-sys",
+        "q-periapt-policy",
+        "q-periapt-policy-agent",
+        "q-periapt-rustls",
+        "q-periapt-sig",
+        "q-periapt-tls-demo",
+        "q-periapt-wasm",
+    }
+)
+RUST_FUZZ_LOCAL_CRATES = frozenset(
+    {
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-fuzz",
+        "q-periapt-mlkem-native-sys",
+        "q-periapt-sig",
+    }
+)
+RUST_WORKSPACE_AUDIT_MARKER_PREFIX = "RUST_WORKSPACE_DEPENDENCY_AUDIT_PASS"
+RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS = 900
+RUST_DEPENDENCY_AUDIT_TIMEOUT_SECONDS = 300
+RUST_DEPENDENCY_AUDIT_MAX_OUTPUT_BYTES = 16 * 1024 * 1024
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -115,6 +153,17 @@ class RustPackageContractReceipt:
     normalized_cargo_lock_sha256: str
     registry_package_count: int
     source_commit: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class WorkspaceDependencyAuditReceipt:
+    """Bound fields from one isolated workspace-plus-fuzz dependency audit."""
+
+    workspace_registry_packages: int
+    fuzz_registry_packages: int
+    advisory_db_commit: str
+    workspace_lock_sha256: str
+    fuzz_lock_sha256: str
 
 
 def _git_environment() -> dict[str, str]:
@@ -309,31 +358,107 @@ def _is_semver(value: object) -> bool:
     )
 
 
-def _parse_normalized_cargo_lock(
+def _local_crates_for_lock_scope(scope: str) -> frozenset[str]:
+    policies = (
+        ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES),
+        ("workspace", RUST_WORKSPACE_LOCAL_CRATES),
+        ("fuzz", RUST_FUZZ_LOCAL_CRATES),
+    )
+    for name, local_crates in policies:
+        if scope == name:
+            return local_crates
+    raise RustPublishContractError(f"Cargo.lock scope is unsupported: {scope!r}")
+
+
+def _dependency_audit_stage_timeout(
+    deadline: float | None,
+    *,
+    maximum_seconds: int,
+    label: str,
+) -> int:
+    """Return a subprocess timeout that preserves one shared audit deadline."""
+
+    if type(maximum_seconds) is not int or maximum_seconds <= 0:
+        raise RustPublishContractError(
+            "dependency-audit stage timeout policy is malformed"
+        )
+    if deadline is None:
+        return maximum_seconds
+    if (
+        isinstance(deadline, bool)
+        or not isinstance(deadline, (int, float))
+        or not math.isfinite(deadline)
+    ):
+        raise RustPublishContractError(
+            "workspace dependency-audit deadline is malformed"
+        )
+    remaining = deadline - time.monotonic()
+    # Bounded subprocess cleanup may need its fixed reap window after the
+    # command timeout. Reserve that window so a timed-out child cannot turn a
+    # stage-local limit into an unbounded run-wide audit.
+    timeout_seconds = min(
+        maximum_seconds,
+        int(remaining - REAP_TIMEOUT_SECONDS),
+    )
+    if timeout_seconds < 1:
+        raise RustPublishContractError(
+            "workspace dependency audit exhausted its total deadline before "
+            f"{label}"
+        )
+    return timeout_seconds
+
+
+def _require_dependency_audit_deadline(
+    deadline: float | None,
+    *,
+    label: str,
+) -> None:
+    if deadline is None:
+        return
+    if (
+        isinstance(deadline, bool)
+        or not isinstance(deadline, (int, float))
+        or not math.isfinite(deadline)
+    ):
+        raise RustPublishContractError(
+            "workspace dependency-audit deadline is malformed"
+        )
+    if time.monotonic() >= deadline:
+        raise RustPublishContractError(
+            "workspace dependency audit exhausted its total deadline "
+            f"during {label}"
+        )
+
+
+def _parse_cargo_lock_scope(
     lock_data: bytes,
+    *,
+    scope: str = "normalized-backends",
 ) -> tuple[_LockedRegistryPackage, ...]:
+    local_crates = _local_crates_for_lock_scope(scope)
+    lock_label = f"{scope} Cargo.lock"
     if not isinstance(lock_data, bytes):
         raise RustPublishContractError(
-            "normalized Cargo.lock must be supplied as exact bytes"
+            f"{lock_label} must be supplied as exact bytes"
         )
     if len(lock_data) > RUST_SPARSE_LOCK_MAX_BYTES:
         raise RustPublishContractError(
-            "normalized Cargo.lock exceeds the byte limit"
+            f"{lock_label} exceeds the byte limit"
         )
     try:
         document = tomllib.loads(lock_data.decode("utf-8"))
     except (UnicodeError, tomllib.TOMLDecodeError) as exc:
         raise RustPublishContractError(
-            f"normalized Cargo.lock is invalid UTF-8 TOML: {exc}"
+            f"{lock_label} is invalid UTF-8 TOML: {exc}"
         ) from exc
     if type(document.get("version")) is not int or document.get("version") != 4:
         raise RustPublishContractError(
-            "normalized Cargo.lock must use schema version 4"
+            f"{lock_label} must use schema version 4"
         )
     raw_packages = document.get("package")
     if not isinstance(raw_packages, list) or not raw_packages:
         raise RustPublishContractError(
-            "normalized Cargo.lock must contain a non-empty package array"
+            f"{lock_label} must contain a non-empty package array"
         )
 
     local_names: set[str] = set()
@@ -342,31 +467,31 @@ def _parse_normalized_cargo_lock(
     for record in raw_packages:
         if not isinstance(record, dict):
             raise RustPublishContractError(
-                "normalized Cargo.lock contains a non-table package record"
+                f"{lock_label} contains a non-table package record"
             )
         name = record.get("name")
         version = record.get("version")
         if not isinstance(name, str) or _CRATE_NAME.fullmatch(name) is None:
             raise RustPublishContractError(
-                "normalized Cargo.lock contains an invalid package name"
+                f"{lock_label} contains an invalid package name"
             )
         if not _is_semver(version):
             raise RustPublishContractError(
-                f"normalized Cargo.lock contains an invalid version for {name}"
+                f"{lock_label} contains an invalid version for {name}"
             )
 
         if "source" not in record:
-            if name not in RUST_NORMALIZED_LOCAL_CRATES:
+            if name not in local_crates:
                 raise RustPublishContractError(
-                    f"normalized Cargo.lock contains an unexpected local package: {name}"
+                    f"{lock_label} contains an unexpected local package: {name}"
                 )
             if name in local_names:
                 raise RustPublishContractError(
-                    f"normalized Cargo.lock contains a duplicate local package: {name}"
+                    f"{lock_label} contains a duplicate local package: {name}"
                 )
             if "checksum" in record:
                 raise RustPublishContractError(
-                    f"normalized Cargo.lock local package has a checksum: {name}"
+                    f"{lock_label} local package has a checksum: {name}"
                 )
             local_names.add(name)
             continue
@@ -374,22 +499,22 @@ def _parse_normalized_cargo_lock(
         source = record.get("source")
         if source != RUST_CRATES_IO_REGISTRY_SOURCE:
             raise RustPublishContractError(
-                f"normalized Cargo.lock contains a non-crates.io source: {source!r}"
+                f"{lock_label} contains a non-crates.io source: {source!r}"
             )
-        if name in RUST_NORMALIZED_LOCAL_CRATES:
+        if name in local_crates:
             raise RustPublishContractError(
-                "normalized Cargo.lock resolves a required local package from crates.io: "
+                f"{lock_label} resolves a required local package from crates.io: "
                 f"{name}"
             )
         checksum = record.get("checksum")
         if not isinstance(checksum, str) or _CHECKSUM.fullmatch(checksum) is None:
             raise RustPublishContractError(
-                f"normalized Cargo.lock contains an invalid checksum for {name} {version}"
+                f"{lock_label} contains an invalid checksum for {name} {version}"
             )
         identity = name, version
         if identity in registry_identities:
             raise RustPublishContractError(
-                "normalized Cargo.lock contains a duplicate crates.io package: "
+                f"{lock_label} contains a duplicate crates.io package: "
                 f"{name} {version}"
             )
         registry_identities.add(identity)
@@ -402,18 +527,18 @@ def _parse_normalized_cargo_lock(
         )
         if len(registry_packages) > RUST_SPARSE_MAX_REGISTRY_PACKAGES:
             raise RustPublishContractError(
-                "normalized Cargo.lock exceeds the registry package limit"
+                f"{lock_label} exceeds the registry package limit"
             )
 
-    if local_names != RUST_NORMALIZED_LOCAL_CRATES:
+    if local_names != local_crates:
         raise RustPublishContractError(
-            "normalized Cargo.lock local package set differs: "
-            f"missing={sorted(RUST_NORMALIZED_LOCAL_CRATES - local_names)} "
-            f"extra={sorted(local_names - RUST_NORMALIZED_LOCAL_CRATES)}"
+            f"{lock_label} local package set differs: "
+            f"missing={sorted(local_crates - local_names)} "
+            f"extra={sorted(local_names - local_crates)}"
         )
     if not registry_packages:
         raise RustPublishContractError(
-            "normalized Cargo.lock contains no crates.io registry packages"
+            f"{lock_label} contains no crates.io registry packages"
         )
     return tuple(registry_packages)
 
@@ -582,10 +707,12 @@ def _validate_crates_io_sparse_yanked_with_fetcher(
     lock_data: bytes,
     *,
     fetcher: Callable[[str], bytes],
+    scope: str = "normalized-backends",
 ) -> int:
     """Testable worker implementation; production wraps it in a hard-wall process."""
 
-    registry_packages = _parse_normalized_cargo_lock(lock_data)
+    lock_label = f"{scope} Cargo.lock"
+    registry_packages = _parse_cargo_lock_scope(lock_data, scope=scope)
     by_name: dict[str, list[_LockedRegistryPackage]] = {}
     canonical_names: dict[str, str] = {}
     for package in registry_packages:
@@ -593,7 +720,7 @@ def _validate_crates_io_sparse_yanked_with_fetcher(
         prior = canonical_names.setdefault(canonical, package.name)
         if prior != package.name:
             raise RustPublishContractError(
-                "normalized Cargo.lock contains case-ambiguous crates.io names: "
+                f"{lock_label} contains case-ambiguous crates.io names: "
                 f"{prior}, {package.name}"
             )
         by_name.setdefault(package.name, []).append(package)
@@ -603,7 +730,7 @@ def _validate_crates_io_sparse_yanked_with_fetcher(
     names = sorted(by_name)
     if len(names) > RUST_SPARSE_MAX_REGISTRY_PACKAGES:
         raise RustPublishContractError(
-            "normalized Cargo.lock exceeds the unique registry name limit"
+            f"{lock_label} exceeds the unique registry name limit"
         )
     worker_count = min(RUST_SPARSE_INDEX_MAX_WORKERS, len(names))
     executor = ThreadPoolExecutor(
@@ -699,13 +826,21 @@ def _validate_crates_io_sparse_yanked_with_fetcher(
     return len(registry_packages)
 
 
-def _write_owned_sparse_lock(directory: pathlib.Path, lock_data: bytes) -> pathlib.Path:
-    lock_path = directory / "Cargo.lock"
+def _write_owned_regular_file(
+    directory: pathlib.Path,
+    name: str,
+    data: bytes,
+) -> pathlib.Path:
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9.-]{0,63}", name) is None:
+        raise RustPublishContractError("owned file name is malformed")
+    if not isinstance(data, bytes):
+        raise RustPublishContractError("owned file data must be exact bytes")
+    output_path = directory / name
     try:
         directory_fd = os.open(directory, _OWNED_DIRECTORY_FLAGS)
     except OSError as exc:
         raise RustPublishContractError(
-            f"cannot anchor sparse-lock helper directory: {exc}"
+            f"cannot anchor owned dependency-audit file directory: {exc}"
         ) from exc
     descriptor = -1
     try:
@@ -717,18 +852,18 @@ def _write_owned_sparse_lock(directory: pathlib.Path, lock_data: bytes) -> pathl
             | getattr(os, "O_NOFOLLOW", 0)
         )
         try:
-            descriptor = os.open("Cargo.lock", flags, 0o600, dir_fd=directory_fd)
+            descriptor = os.open(name, flags, 0o600, dir_fd=directory_fd)
         except OSError as exc:
             raise RustPublishContractError(
-                f"cannot create sparse-lock helper input: {exc}"
+                f"cannot create owned dependency-audit file: {exc}"
             ) from exc
         os.fchmod(descriptor, 0o600)
         offset = 0
-        while offset < len(lock_data):
-            written = os.write(descriptor, lock_data[offset:])
+        while offset < len(data):
+            written = os.write(descriptor, data[offset:])
             if written <= 0:
                 raise RustPublishContractError(
-                    "cannot completely write sparse-lock helper input"
+                    "cannot completely write owned dependency-audit file"
                 )
             offset += written
         os.fsync(descriptor)
@@ -738,29 +873,41 @@ def _write_owned_sparse_lock(directory: pathlib.Path, lock_data: bytes) -> pathl
             or metadata.st_uid != os.getuid()
             or metadata.st_nlink != 1
             or stat.S_IMODE(metadata.st_mode) != 0o600
-            or metadata.st_size != len(lock_data)
+            or metadata.st_size != len(data)
         ):
             raise RustPublishContractError(
-                "sparse-lock helper input lacks its private regular-file identity"
+                "owned dependency-audit file lacks its private regular-file identity"
             )
-        return lock_path
+        return output_path
     finally:
         if descriptor >= 0:
             os.close(descriptor)
         os.close(directory_fd)
 
 
+def _write_owned_sparse_lock(directory: pathlib.Path, lock_data: bytes) -> pathlib.Path:
+    return _write_owned_regular_file(directory, "Cargo.lock", lock_data)
+
+
 def _validate_crates_io_sparse_via_helper(
     lock_data: bytes,
     *,
     runner: Callable[..., BoundedResult],
+    scope: str = "normalized-backends",
+    deadline: float | None = None,
 ) -> int:
+    _local_crates_for_lock_scope(scope)
+    lock_label = f"{scope} Cargo.lock"
+    _require_dependency_audit_deadline(
+        deadline,
+        label=f"{scope} crates.io sparse verification preflight",
+    )
     if not isinstance(lock_data, bytes):
         raise RustPublishContractError(
-            "normalized Cargo.lock must be supplied as exact bytes"
+            f"{lock_label} must be supplied as exact bytes"
         )
     if len(lock_data) > RUST_SPARSE_LOCK_MAX_BYTES:
-        raise RustPublishContractError("normalized Cargo.lock exceeds the byte limit")
+        raise RustPublishContractError(f"{lock_label} exceeds the byte limit")
     lock_sha256 = hashlib.sha256(lock_data).hexdigest()
     directory, device, inode = create_owned_package_directory(
         "qperiapt-package-sparse-lock."
@@ -775,13 +922,19 @@ def _validate_crates_io_sparse_via_helper(
             str(root / "artifact" / "python-run.sh"),
             str(module_path),
             "verify-crates-io-sparse-worker",
+            scope,
             str(lock_path),
             lock_sha256,
+        )
+        helper_timeout_seconds = _dependency_audit_stage_timeout(
+            deadline,
+            maximum_seconds=RUST_SPARSE_HELPER_TIMEOUT_SECONDS,
+            label=f"{scope} crates.io sparse verification helper",
         )
         try:
             result = runner(
                 command,
-                timeout_seconds=RUST_SPARSE_HELPER_TIMEOUT_SECONDS,
+                timeout_seconds=helper_timeout_seconds,
                 maximum_bytes=RUST_SPARSE_HELPER_MAX_OUTPUT_BYTES,
                 stderr=subprocess.STDOUT,
                 environment=RUST_SPARSE_HELPER_ENVIRONMENT,
@@ -791,6 +944,10 @@ def _validate_crates_io_sparse_via_helper(
                 "crates.io sparse verification helper failed at "
                 f"{exc.kind} boundary: {exc}"
             ) from exc
+        _require_dependency_audit_deadline(
+            deadline,
+            label=f"{scope} crates.io sparse verification helper",
+        )
         if not isinstance(result, BoundedResult) or type(result.returncode) is not int:
             raise RustPublishContractError(
                 "crates.io sparse verification helper returned a malformed result"
@@ -831,7 +988,7 @@ def _validate_crates_io_sparse_via_helper(
                 f"crates.io sparse verification failed: {message}"
             )
         expected_fields = {
-            "normalized_lock_sha256",
+            "lock_sha256",
             "ok",
             "registry_packages",
             "schema",
@@ -842,7 +999,7 @@ def _validate_crates_io_sparse_via_helper(
             or result.returncode != 0
             or type(count) is not int
             or not 1 <= count <= RUST_SPARSE_MAX_REGISTRY_PACKAGES
-            or value.get("normalized_lock_sha256") != lock_sha256
+            or value.get("lock_sha256") != lock_sha256
         ):
             raise RustPublishContractError(
                 "crates.io sparse verification helper success result is malformed"
@@ -864,12 +1021,19 @@ def _validate_crates_io_sparse_via_helper(
                 raise
 
 
-def validate_crates_io_sparse_yanked(lock_data: bytes) -> int:
-    """Verify normalized registry packages under one hard-wall helper process."""
+def validate_crates_io_sparse_yanked(
+    lock_data: bytes,
+    *,
+    scope: str = "normalized-backends",
+    deadline: float | None = None,
+) -> int:
+    """Verify one fixed-scope lock under a hard-wall sparse helper process."""
 
     return _validate_crates_io_sparse_via_helper(
         lock_data,
         runner=capture_stdout,
+        scope=scope,
+        deadline=deadline,
     )
 
 
@@ -890,8 +1054,17 @@ def _owned_real_directory_identity(
     return metadata.st_dev, metadata.st_ino
 
 
-def validate_rustsec_advisory_database(database: pathlib.Path) -> str:
+def validate_rustsec_advisory_database(
+    database: pathlib.Path,
+    *,
+    deadline: float | None = None,
+) -> str:
     """Validate the exact clean RustSec database fetched for this contract run."""
+
+    _require_dependency_audit_deadline(
+        deadline,
+        label="RustSec advisory database inspection preflight",
+    )
 
     requested_database = pathlib.Path(database)
     requested_identity = _owned_real_directory_identity(
@@ -957,10 +1130,15 @@ def validate_rustsec_advisory_database(database: pathlib.Path) -> str:
 
     def git_value(operation: str, *arguments: str) -> str:
         revalidate_identities()
+        timeout_seconds = _dependency_audit_stage_timeout(
+            deadline,
+            maximum_seconds=30,
+            label=f"RustSec advisory database {operation} inspection",
+        )
         try:
             result = capture_stdout(
                 [*git_prefix, *arguments],
-                timeout_seconds=30,
+                timeout_seconds=timeout_seconds,
                 maximum_bytes=64 * 1024,
                 stderr=subprocess.STDOUT,
                 environment=_git_environment(),
@@ -970,6 +1148,10 @@ def validate_rustsec_advisory_database(database: pathlib.Path) -> str:
                 f"RustSec advisory database {operation} inspection failed at "
                 f"{exc.kind} boundary: {exc}"
             ) from exc
+        _require_dependency_audit_deadline(
+            deadline,
+            label=f"RustSec advisory database {operation} inspection",
+        )
         try:
             output = result.stdout.decode("utf-8")
         except UnicodeDecodeError as exc:
@@ -1022,7 +1204,371 @@ def validate_rustsec_advisory_database(database: pathlib.Path) -> str:
         )
 
     revalidate_identities()
+    _require_dependency_audit_deadline(
+        deadline,
+        label="RustSec advisory database inspection",
+    )
     return commit
+
+
+def _dependency_audit_executable_identity(
+    executable: pathlib.Path,
+) -> tuple[pathlib.Path, tuple[int, int]]:
+    requested = pathlib.Path(executable)
+    if not requested.is_absolute():
+        raise RustPublishContractError(
+            "cargo-audit executable path must be absolute"
+        )
+    try:
+        metadata = requested.lstat()
+        resolved = requested.resolve(strict=True)
+        resolved_metadata = resolved.lstat()
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot inspect cargo-audit executable: {requested}: {exc}"
+        ) from exc
+    identity = metadata.st_dev, metadata.st_ino
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.getuid()
+        or stat.S_IMODE(metadata.st_mode) & 0o111 == 0
+        or resolved != requested
+        or not stat.S_ISREG(resolved_metadata.st_mode)
+        or (resolved_metadata.st_dev, resolved_metadata.st_ino) != identity
+    ):
+        raise RustPublishContractError(
+            "cargo-audit must be an absolute current-user-owned real executable"
+        )
+    return resolved, identity
+
+
+def _dependency_audit_environment(cargo_home: pathlib.Path) -> dict[str, str]:
+    return {
+        "PATH": "/usr/bin:/bin",
+        "HOME": str(cargo_home),
+        "CARGO_HOME": str(cargo_home),
+        "CARGO_TERM_COLOR": "never",
+        "TERM": "dumb",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_SYSTEM": "/dev/null",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    }
+
+
+def _run_dependency_audit_command(
+    argv: tuple[str, ...],
+    *,
+    environment: dict[str, str],
+    label: str,
+    deadline: float,
+) -> BoundedResult:
+    timeout_seconds = _dependency_audit_stage_timeout(
+        deadline,
+        maximum_seconds=RUST_DEPENDENCY_AUDIT_TIMEOUT_SECONDS,
+        label=label,
+    )
+    try:
+        result = capture_stdout(
+            argv,
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=RUST_DEPENDENCY_AUDIT_MAX_OUTPUT_BYTES,
+            stderr=subprocess.STDOUT,
+            environment=environment,
+        )
+    except BoundedProcessError as exc:
+        raise RustPublishContractError(
+            f"{label} failed at {exc.kind} boundary: {exc}"
+        ) from exc
+    _require_dependency_audit_deadline(deadline, label=label)
+    if not isinstance(result, BoundedResult) or type(result.returncode) is not int:
+        raise RustPublishContractError(f"{label} returned a malformed result")
+    try:
+        output = result.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RustPublishContractError(f"{label} emitted non-UTF-8 output") from exc
+    if result.returncode != 0:
+        diagnostic_lines = [line.strip() for line in output.splitlines() if line.strip()]
+        detail = " | ".join(diagnostic_lines[-4:])
+        detail = " ".join(detail.split())[:1024]
+        suffix = f": {detail}" if detail else ""
+        raise RustPublishContractError(
+            f"{label} failed (exit={result.returncode}){suffix}"
+        )
+    validate_cargo_output(label, (output,))
+    if any(
+        line.lstrip().casefold().startswith("error:")
+        for line in output.splitlines()
+    ):
+        raise RustPublishContractError(f"{label} emitted an error diagnostic")
+    return result
+
+
+def _revalidate_dependency_audit_executable(
+    executable: pathlib.Path,
+    identity: tuple[int, int],
+) -> None:
+    current, current_identity = _dependency_audit_executable_identity(executable)
+    if current != executable or current_identity != identity:
+        raise RustPublishContractError(
+            "cargo-audit executable identity changed during dependency audit"
+        )
+
+
+def _fetch_rustsec_advisory_database(
+    database: pathlib.Path,
+    *,
+    environment: dict[str, str],
+    deadline: float,
+) -> str:
+    if database.exists() or database.is_symlink():
+        raise RustPublishContractError(
+            "fresh dependency-audit Cargo home contains an advisory database"
+        )
+    clone_argv = (
+        GIT,
+        "--no-pager",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "core.attributesFile=/dev/null",
+        "-c",
+        "core.excludesFile=/dev/null",
+        "-c",
+        "protocol.file.allow=never",
+        "clone",
+        "--depth=1",
+        "--single-branch",
+        "--no-tags",
+        "--",
+        RUSTSEC_ADVISORY_DB_URL,
+        str(database),
+    )
+    _run_dependency_audit_command(
+        clone_argv,
+        environment=environment,
+        label="git-fetch-rustsec-advisory-database",
+        deadline=deadline,
+    )
+    return validate_rustsec_advisory_database(database, deadline=deadline)
+
+
+def verify_workspace_dependency_audit(
+    root: pathlib.Path,
+    cargo_audit_bin: pathlib.Path,
+) -> WorkspaceDependencyAuditReceipt:
+    """Audit the exact workspace and fuzz locks without ambient Cargo state."""
+
+    deadline = (
+        time.monotonic() + RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS
+    )
+
+    requested_root = pathlib.Path(root)
+    try:
+        resolved_root = requested_root.resolve(strict=True)
+        root_metadata = resolved_root.lstat()
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot resolve dependency-audit source root: {requested_root}: {exc}"
+        ) from exc
+    if not stat.S_ISDIR(root_metadata.st_mode):
+        raise RustPublishContractError("dependency-audit source root is not a directory")
+
+    cargo_audit, cargo_audit_identity = _dependency_audit_executable_identity(
+        cargo_audit_bin
+    )
+    lock_inputs = (
+        (
+            "workspace",
+            resolved_root / "Cargo.lock",
+            "Workspace.lock",
+        ),
+        (
+            "fuzz",
+            resolved_root / "fuzz" / "Cargo.lock",
+            "Fuzz.lock",
+        ),
+    )
+    snapshots = {}
+    try:
+        for scope, path, _owned_name in lock_inputs:
+            snapshots[scope] = read_regular_snapshot(
+                path,
+                maximum=RUST_SPARSE_LOCK_MAX_BYTES,
+                label=f"{scope} dependency-audit Cargo.lock",
+            )
+    except EvidenceIOError as exc:
+        raise RustPublishContractError(str(exc)) from exc
+
+    _require_dependency_audit_deadline(
+        deadline,
+        label="Cargo.lock snapshot collection",
+    )
+
+    registry_counts: dict[str, int] = {}
+    for scope, _path, _owned_name in lock_inputs:
+        registry_counts[scope] = validate_crates_io_sparse_yanked(
+            snapshots[scope].data,
+            scope=scope,
+            deadline=deadline,
+        )
+        _require_dependency_audit_deadline(
+            deadline,
+            label=f"{scope} crates.io sparse verification",
+        )
+
+    cargo_home, cargo_home_device, cargo_home_inode = (
+        create_owned_package_directory("qperiapt-package-cargo-home.")
+    )
+    primary: BaseException | None = None
+    try:
+        owned_locks = {
+            scope: _write_owned_regular_file(
+                cargo_home,
+                owned_name,
+                snapshots[scope].data,
+            )
+            for scope, _path, owned_name in lock_inputs
+        }
+        advisory_database = cargo_home / "advisory-db"
+        environment = _dependency_audit_environment(cargo_home)
+        version_result = _run_dependency_audit_command(
+            (str(cargo_audit), "--version"),
+            environment=environment,
+            label="cargo-audit-version",
+            deadline=deadline,
+        )
+        if (
+            version_result.stdout.rstrip(b"\n") != b"cargo-audit 0.22.2"
+        ):
+            raise RustPublishContractError(
+                "workspace dependency audit requires cargo-audit 0.22.2"
+            )
+        _revalidate_dependency_audit_executable(
+            cargo_audit,
+            cargo_audit_identity,
+        )
+        advisory_commit = _fetch_rustsec_advisory_database(
+            advisory_database,
+            environment=environment,
+            deadline=deadline,
+        )
+
+        common = (
+            "audit",
+            "--deny",
+            "warnings",
+            "--no-yanked",
+            "--db",
+            str(advisory_database),
+            "--no-fetch",
+        )
+        _run_dependency_audit_command(
+            (str(cargo_audit), *common, "--file", str(owned_locks["workspace"])),
+            environment=environment,
+            label="cargo-audit-workspace",
+            deadline=deadline,
+        )
+        if (
+            validate_rustsec_advisory_database(
+                advisory_database,
+                deadline=deadline,
+            )
+            != advisory_commit
+        ):
+            raise RustPublishContractError(
+                "RustSec advisory database commit changed during workspace audit"
+            )
+        _revalidate_dependency_audit_executable(
+            cargo_audit,
+            cargo_audit_identity,
+        )
+        _run_dependency_audit_command(
+            (
+                str(cargo_audit),
+                *common,
+                "--file",
+                str(owned_locks["fuzz"]),
+            ),
+            environment=environment,
+            label="cargo-audit-fuzz",
+            deadline=deadline,
+        )
+        if (
+            validate_rustsec_advisory_database(
+                advisory_database,
+                deadline=deadline,
+            )
+            != advisory_commit
+        ):
+            raise RustPublishContractError(
+                "RustSec advisory database commit changed between lock audits"
+            )
+        _revalidate_dependency_audit_executable(
+            cargo_audit,
+            cargo_audit_identity,
+        )
+
+        for scope, path, owned_name in lock_inputs:
+            try:
+                source_after = read_regular_snapshot(
+                    path,
+                    maximum=RUST_SPARSE_LOCK_MAX_BYTES,
+                    label=f"post-audit {scope} Cargo.lock",
+                )
+                copy_after = read_regular_snapshot(
+                    cargo_home / owned_name,
+                    maximum=RUST_SPARSE_LOCK_MAX_BYTES,
+                    label=f"post-audit owned {scope} Cargo.lock",
+                )
+            except EvidenceIOError as exc:
+                raise RustPublishContractError(str(exc)) from exc
+            expected = snapshots[scope]
+            if (
+                source_after.sha256 != expected.sha256
+                or source_after.size != expected.size
+                or copy_after.sha256 != expected.sha256
+                or copy_after.size != expected.size
+            ):
+                raise RustPublishContractError(
+                    f"{scope} Cargo.lock changed during dependency audit"
+                )
+
+        _require_dependency_audit_deadline(
+            deadline,
+            label="dependency-audit lock stability verification",
+        )
+
+        return WorkspaceDependencyAuditReceipt(
+            workspace_registry_packages=registry_counts["workspace"],
+            fuzz_registry_packages=registry_counts["fuzz"],
+            advisory_db_commit=advisory_commit,
+            workspace_lock_sha256=snapshots["workspace"].sha256,
+            fuzz_lock_sha256=snapshots["fuzz"].sha256,
+        )
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            remove_owned_package_directory(
+                cargo_home,
+                cargo_home_device,
+                cargo_home_inode,
+            )
+        except BaseException as cleanup_exc:
+            if primary is not None:
+                primary.add_note(
+                    "dependency-audit Cargo home cleanup also failed: "
+                    f"{cleanup_exc}"
+                )
+            else:
+                raise
 
 
 _PACKAGE_LIST_MARKER = re.compile(
@@ -1785,19 +2331,21 @@ def validate_mlkem_native_build_surface(
 
 
 def _verify_crates_io_sparse_worker(arguments: list[str]) -> int:
-    if len(arguments) != 2:
+    if len(arguments) != 3:
         _print_sparse_worker_failure("sparse verification worker arguments are malformed")
         return 2
-    lock_path = pathlib.Path(arguments[0])
-    expected_sha256 = arguments[1]
+    scope = arguments[0]
+    lock_path = pathlib.Path(arguments[1])
+    expected_sha256 = arguments[2]
     if _CHECKSUM.fullmatch(expected_sha256) is None:
         _print_sparse_worker_failure("sparse verification worker hash is malformed")
         return 2
     try:
+        _local_crates_for_lock_scope(scope)
         snapshot = read_regular_snapshot(
             lock_path,
             maximum=RUST_SPARSE_LOCK_MAX_BYTES,
-            label="normalized q-periapt-backends Cargo.lock worker input",
+            label=f"{scope} Cargo.lock sparse worker input",
         )
         if snapshot.sha256 != expected_sha256:
             raise RustPublishContractError(
@@ -1806,6 +2354,7 @@ def _verify_crates_io_sparse_worker(arguments: list[str]) -> int:
         registry_packages = _validate_crates_io_sparse_yanked_with_fetcher(
             snapshot.data,
             fetcher=_fetch_crates_io_sparse_entry,
+            scope=scope,
         )
     except (EvidenceIOError, RustPublishContractError) as exc:
         _print_sparse_worker_failure(str(exc))
@@ -1813,7 +2362,7 @@ def _verify_crates_io_sparse_worker(arguments: list[str]) -> int:
     print(
         json.dumps(
             {
-                "normalized_lock_sha256": snapshot.sha256,
+                "lock_sha256": snapshot.sha256,
                 "ok": True,
                 "registry_packages": registry_packages,
                 "schema": 1,
@@ -1847,6 +2396,37 @@ def _print_sparse_worker_failure(message: str) -> None:
 def _main(arguments: list[str]) -> int:
     if arguments and arguments[0] == "verify-crates-io-sparse-worker":
         return _verify_crates_io_sparse_worker(arguments[1:])
+    if arguments and arguments[0] == "verify-workspace-dependency-audit":
+        if (
+            len(arguments) != 5
+            or arguments[1] != "--root"
+            or arguments[3] != "--cargo-audit"
+        ):
+            print(
+                "error: dependency-audit arguments must be "
+                "--root <path> --cargo-audit <absolute-path>",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            receipt = verify_workspace_dependency_audit(
+                pathlib.Path(arguments[2]),
+                pathlib.Path(arguments[4]),
+            )
+        except RustPublishContractError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"{RUST_WORKSPACE_AUDIT_MARKER_PREFIX} "
+            f"workspace_registry_packages={receipt.workspace_registry_packages} "
+            f"fuzz_registry_packages={receipt.fuzz_registry_packages} "
+            f"advisory_db_commit={receipt.advisory_db_commit} "
+            f"workspace_lock_sha256={receipt.workspace_lock_sha256} "
+            f"fuzz_lock_sha256={receipt.fuzz_lock_sha256} "
+            "locks_stable=1 sparse_checksums=exact yanked=0 "
+            "warnings=denied ambient_cargo_home_data=unused"
+        )
+        return 0
     print("error: unsupported Rust package contract command", file=sys.stderr)
     return 2
 

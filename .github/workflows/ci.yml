@@ -947,9 +947,16 @@ jobs:
           if-no-files-found: error
       - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
       # Unconditional release gates over the shipping workspace and detached
-      # fuzz-harness lockfiles. No advisory is ignored.
-      - run: cargo audit --deny warnings
-      - run: cargo audit --deny warnings --file fuzz/Cargo.lock
+      # fuzz-harness lockfiles. The shared verifier isolates Cargo/RustSec state,
+      # checks exact sparse-index checksums and yanked status, and ignores no
+      # advisory.
+      - name: Verify workspace dependency audit
+        run: |
+          cargo_audit=$(command -v cargo-audit)
+          sh artifact/python-run.sh artifact/rust_publish_contract.py \
+            verify-workspace-dependency-audit \
+            --root "$GITHUB_WORKSPACE" \
+            --cargo-audit "$cargo_audit"
 
   # Optional SLH-DSA backend (FIPS 205 via fips205).
   pq-optional-backends:

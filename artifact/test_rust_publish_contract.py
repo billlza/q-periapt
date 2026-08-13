@@ -20,6 +20,7 @@ from git_provenance import GIT, GitProvenanceError, WorktreeInspection
 from rust_publish_contract import (
     RUSTSEC_ADVISORY_DB_URL,
     RUST_CRATES_IO_SPARSE_INDEX,
+    RUST_FUZZ_LOCAL_CRATES,
     RUST_NORMALIZED_LOCAL_CRATES,
     RUST_PUBLISHABLE_CRATES,
     RUST_SPARSE_LOCK_MAX_BYTES,
@@ -32,6 +33,9 @@ from rust_publish_contract import (
     RUST_SPARSE_HELPER_TIMEOUT_SECONDS,
     RUST_SPARSE_AGGREGATE_MAX_BYTES,
     RUST_SPARSE_TOTAL_TIMEOUT_SECONDS,
+    RUST_WORKSPACE_AUDIT_MARKER_PREFIX,
+    RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS,
+    RUST_WORKSPACE_LOCAL_CRATES,
     RustPublishContractError,
     create_owned_package_directory,
     inspect_package_source,
@@ -43,6 +47,7 @@ from rust_publish_contract import (
     validate_crates_io_sparse_yanked,
     validate_rust_package_contract_transcript,
     validate_rustsec_advisory_database,
+    verify_workspace_dependency_audit,
 )
 
 
@@ -1014,7 +1019,7 @@ class RustPublishContractTests(unittest.TestCase):
                 0,
                 json.dumps(
                     {
-                        "normalized_lock_sha256": lock_sha256,
+                        "lock_sha256": lock_sha256,
                         "ok": True,
                         "registry_packages": 2,
                         "schema": 1,
@@ -1068,7 +1073,7 @@ class RustPublishContractTests(unittest.TestCase):
                 0,
                 json.dumps(
                     {
-                        "normalized_lock_sha256": "0" * 64,
+                        "lock_sha256": "0" * 64,
                         "registry_packages": 2,
                         "schema": 1,
                     }
@@ -1078,7 +1083,7 @@ class RustPublishContractTests(unittest.TestCase):
                 0,
                 json.dumps(
                     {
-                        "normalized_lock_sha256": lock_sha256,
+                        "lock_sha256": lock_sha256,
                         "registry_packages": True,
                         "schema": 1,
                     }
@@ -1141,6 +1146,8 @@ class RustPublishContractTests(unittest.TestCase):
         helper.assert_called_once_with(
             b"lock",
             runner=rust_publish_contract.capture_stdout,
+            scope="normalized-backends",
+            deadline=None,
         )
 
     def test_sparse_worker_validates_input_hash_and_returns_strict_json(self) -> None:
@@ -1157,7 +1164,7 @@ class RustPublishContractTests(unittest.TestCase):
                 with mock.patch("builtins.print") as output:
                     self.assertEqual(
                         rust_publish_contract._verify_crates_io_sparse_worker(
-                            [str(lock_path), lock_sha256]
+                            ["normalized-backends", str(lock_path), lock_sha256]
                         ),
                         0,
                     )
@@ -1166,7 +1173,7 @@ class RustPublishContractTests(unittest.TestCase):
             self.assertEqual(
                 parsed,
                 {
-                    "normalized_lock_sha256": lock_sha256,
+                    "lock_sha256": lock_sha256,
                     "ok": True,
                     "registry_packages": 2,
                     "schema": 1,
@@ -1175,9 +1182,497 @@ class RustPublishContractTests(unittest.TestCase):
             with mock.patch("builtins.print"):
                 self.assertEqual(
                     rust_publish_contract._verify_crates_io_sparse_worker(
-                        [str(lock_path), "0" * 64]
+                        ["normalized-backends", str(lock_path), "0" * 64]
                     ),
                     1,
+                )
+
+    def test_workspace_and_fuzz_lock_scopes_are_exact(self) -> None:
+        workspace = (ROOT / "Cargo.lock").read_bytes()
+        fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
+        self.assertEqual(
+            len(
+                rust_publish_contract._parse_cargo_lock_scope(
+                    workspace,
+                    scope="workspace",
+                )
+            ),
+            203,
+        )
+        self.assertEqual(
+            len(
+                rust_publish_contract._parse_cargo_lock_scope(
+                    fuzz,
+                    scope="fuzz",
+                )
+            ),
+            38,
+        )
+        for scope, local_crates in (
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES),
+            ("fuzz", RUST_FUZZ_LOCAL_CRATES),
+        ):
+            with self.subTest(scope=scope):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "local package set differs",
+                ):
+                    rust_publish_contract._parse_cargo_lock_scope(
+                        normalized_cargo_lock(
+                            local_names=set(local_crates) - {next(iter(local_crates))}
+                        ),
+                        scope=scope,
+                    )
+        with self.assertRaisesRegex(RustPublishContractError, "unsupported"):
+            rust_publish_contract._parse_cargo_lock_scope(
+                workspace,
+                scope="caller-selected",
+            )
+
+    def test_workspace_dependency_audit_isolated_argv_environment_and_cleanup(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            fixture = pathlib.Path(temporary_root)
+            source = fixture / "source"
+            (source / "fuzz").mkdir(parents=True)
+            (source / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+            )
+            (source / "fuzz" / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_FUZZ_LOCAL_CRATES)
+            )
+            executable = (fixture / "cargo-audit").resolve()
+            executable.write_bytes(b"fixture executable\n")
+            executable.chmod(0o700)
+            calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+            cargo_home: pathlib.Path | None = None
+
+            def capture(
+                argv: tuple[str, ...],
+                **kwargs: object,
+            ) -> BoundedResult:
+                nonlocal cargo_home
+                calls.append((argv, kwargs))
+                if argv[-1] == "--version":
+                    return BoundedResult(0, b"cargo-audit 0.22.2\n")
+                if argv[0] == GIT:
+                    database = pathlib.Path(argv[-1])
+                    cargo_home = database.parent
+                    database.mkdir()
+                    (database / ".git").mkdir()
+                    return BoundedResult(0, b"Cloning into advisory-db\n")
+                database = pathlib.Path(argv[argv.index("--db") + 1])
+                cargo_home = database.parent
+                if not database.exists():
+                    database.mkdir()
+                    (database / ".git").mkdir()
+                return BoundedResult(0, b"No vulnerabilities found\n")
+
+            hostile = {
+                "HOME": "/hostile/home",
+                "CARGO_HOME": "/hostile/cargo",
+                "PATH": "/hostile/bin",
+                "RUSTSEC_DB": "/hostile/db",
+            }
+            with (
+                mock.patch.dict(os.environ, hostile, clear=False),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_crates_io_sparse_yanked",
+                    side_effect=lambda _data, *, scope, deadline: {
+                        "workspace": 203,
+                        "fuzz": 38,
+                    }[scope],
+                ) as sparse,
+                mock.patch.object(
+                    rust_publish_contract,
+                    "capture_stdout",
+                    side_effect=capture,
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_rustsec_advisory_database",
+                    return_value=ADVISORY_COMMIT,
+                ) as advisory,
+            ):
+                receipt = verify_workspace_dependency_audit(source, executable)
+
+            self.assertEqual(receipt.workspace_registry_packages, 203)
+            self.assertEqual(receipt.fuzz_registry_packages, 38)
+            self.assertEqual(receipt.advisory_db_commit, ADVISORY_COMMIT)
+            self.assertEqual(sparse.call_count, 2)
+            self.assertEqual(advisory.call_count, 3)
+            sparse_deadlines = {
+                call.kwargs["deadline"] for call in sparse.call_args_list
+            }
+            advisory_deadlines = {
+                call.kwargs["deadline"] for call in advisory.call_args_list
+            }
+            self.assertEqual(len(sparse_deadlines), 1)
+            self.assertEqual(advisory_deadlines, sparse_deadlines)
+            self.assertEqual(len(calls), 4)
+            version, clone, workspace_audit, fuzz_audit = calls
+            self.assertEqual(version[0], (str(executable), "--version"))
+            self.assertEqual(clone[0][0], GIT)
+            self.assertIn("protocol.file.allow=never", clone[0])
+            self.assertIn("--depth=1", clone[0])
+            self.assertIn("--no-tags", clone[0])
+            self.assertEqual(clone[0][-2], RUSTSEC_ADVISORY_DB_URL)
+            self.assertEqual(workspace_audit[0].count("--no-fetch"), 1)
+            self.assertEqual(fuzz_audit[0].count("--no-fetch"), 1)
+            for argv, kwargs in (workspace_audit, fuzz_audit):
+                self.assertEqual(argv[0:5], (
+                    str(executable),
+                    "audit",
+                    "--deny",
+                    "warnings",
+                    "--no-yanked",
+                ))
+                self.assertNotIn("--ignore", argv)
+                self.assertNotIn("--stale", argv)
+                environment = kwargs["environment"]
+                self.assertEqual(environment["HOME"], environment["CARGO_HOME"])
+                self.assertNotEqual(environment["HOME"], hostile["HOME"])
+                self.assertEqual(environment["PATH"], "/usr/bin:/bin")
+                self.assertNotIn("RUSTSEC_DB", environment)
+            for _argv, kwargs in calls:
+                self.assertEqual(
+                    kwargs["timeout_seconds"],
+                    rust_publish_contract.RUST_DEPENDENCY_AUDIT_TIMEOUT_SECONDS,
+                )
+            self.assertEqual(
+                workspace_audit[0][workspace_audit[0].index("--db") + 1],
+                fuzz_audit[0][fuzz_audit[0].index("--db") + 1],
+            )
+            self.assertIsNotNone(cargo_home)
+            self.assertFalse(cargo_home.exists())
+
+    def test_workspace_dependency_audit_global_deadline_stops_before_second_sparse(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            fixture = pathlib.Path(temporary_root)
+            source = fixture / "source"
+            (source / "fuzz").mkdir(parents=True)
+            (source / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+            )
+            (source / "fuzz" / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_FUZZ_LOCAL_CRATES)
+            )
+            executable = (fixture / "cargo-audit").resolve()
+            executable.write_bytes(b"fixture executable\n")
+            executable.chmod(0o700)
+            started_at = 100.0
+            now = [started_at]
+            scopes: list[str] = []
+
+            def sparse(
+                _data: bytes,
+                *,
+                scope: str,
+                deadline: float,
+            ) -> int:
+                self.assertEqual(
+                    deadline,
+                    started_at
+                    + RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS,
+                )
+                scopes.append(scope)
+                now[0] = deadline
+                return 2
+
+            with (
+                mock.patch.object(
+                    rust_publish_contract.time,
+                    "monotonic",
+                    side_effect=lambda: now[0],
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_crates_io_sparse_yanked",
+                    side_effect=sparse,
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "create_owned_package_directory",
+                ) as create_owned,
+                self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "total deadline.*workspace crates.io sparse verification",
+                ),
+            ):
+                verify_workspace_dependency_audit(source, executable)
+
+            self.assertEqual(scopes, ["workspace"])
+            create_owned.assert_not_called()
+
+    def test_workspace_dependency_audit_global_deadline_cleans_later_audit(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            fixture = pathlib.Path(temporary_root)
+            source = fixture / "source"
+            (source / "fuzz").mkdir(parents=True)
+            (source / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+            )
+            (source / "fuzz" / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_FUZZ_LOCAL_CRATES)
+            )
+            executable = (fixture / "cargo-audit").resolve()
+            executable.write_bytes(b"fixture executable\n")
+            executable.chmod(0o700)
+            started_at = 200.0
+            deadline = (
+                started_at + RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS
+            )
+            now = [started_at]
+            calls: list[tuple[str, ...]] = []
+            cargo_home: pathlib.Path | None = None
+            audit_calls = 0
+
+            def capture(
+                argv: tuple[str, ...],
+                **_kwargs: object,
+            ) -> BoundedResult:
+                nonlocal audit_calls, cargo_home
+                calls.append(argv)
+                if argv[-1] == "--version":
+                    return BoundedResult(0, b"cargo-audit 0.22.2\n")
+                if argv[0] == GIT:
+                    database = pathlib.Path(argv[-1])
+                    cargo_home = database.parent
+                    database.mkdir()
+                    (database / ".git").mkdir()
+                    return BoundedResult(0, b"Cloning into advisory-db\n")
+                audit_calls += 1
+                if audit_calls == 1:
+                    now[0] = deadline
+                return BoundedResult(0, b"No vulnerabilities found\n")
+
+            with (
+                mock.patch.object(
+                    rust_publish_contract.time,
+                    "monotonic",
+                    side_effect=lambda: now[0],
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_crates_io_sparse_yanked",
+                    return_value=2,
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "capture_stdout",
+                    side_effect=capture,
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_rustsec_advisory_database",
+                    return_value=ADVISORY_COMMIT,
+                ) as advisory,
+                self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "total deadline.*cargo-audit-workspace",
+                ),
+            ):
+                verify_workspace_dependency_audit(source, executable)
+
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(audit_calls, 1)
+            self.assertEqual(advisory.call_count, 1)
+            self.assertIsNotNone(cargo_home)
+            self.assertFalse(cargo_home.exists())
+
+    def test_workspace_dependency_audit_fails_closed_and_cleans_owned_home(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            fixture = pathlib.Path(temporary_root)
+            source = fixture / "source"
+            (source / "fuzz").mkdir(parents=True)
+            (source / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+            )
+            (source / "fuzz" / "Cargo.lock").write_bytes(
+                normalized_cargo_lock(local_names=RUST_FUZZ_LOCAL_CRATES)
+            )
+            executable = (fixture / "cargo-audit").resolve()
+            executable.write_bytes(b"fixture executable\n")
+            executable.chmod(0o700)
+            owned_homes: list[pathlib.Path] = []
+
+            def capture(argv: tuple[str, ...], **_kwargs: object) -> BoundedResult:
+                if argv[-1] == "--version":
+                    return BoundedResult(0, b"cargo-audit 0.22.2\n")
+                if argv[0] == GIT:
+                    database = pathlib.Path(argv[-1])
+                    owned_homes.append(database.parent)
+                    database.mkdir()
+                    (database / ".git").mkdir()
+                    return BoundedResult(0, b"Cloning into advisory-db\n")
+                database = pathlib.Path(argv[argv.index("--db") + 1])
+                return BoundedResult(7, b"synthetic failure\n")
+
+            with (
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_crates_io_sparse_yanked",
+                    return_value=2,
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "capture_stdout",
+                    side_effect=capture,
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "validate_rustsec_advisory_database",
+                    return_value=ADVISORY_COMMIT,
+                ),
+                self.assertRaisesRegex(RustPublishContractError, r"failed \(exit=7\)"),
+            ):
+                verify_workspace_dependency_audit(source, executable)
+            self.assertEqual(len(owned_homes), 1)
+            self.assertFalse(owned_homes[0].exists())
+
+    def test_workspace_dependency_audit_rejects_lock_and_advisory_drift(self) -> None:
+        for failure in ("lock", "advisory"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary_root:
+                fixture = pathlib.Path(temporary_root)
+                source = fixture / "source"
+                (source / "fuzz").mkdir(parents=True)
+                (source / "Cargo.lock").write_bytes(
+                    normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+                )
+                fuzz_lock = source / "fuzz" / "Cargo.lock"
+                fuzz_lock.write_bytes(
+                    normalized_cargo_lock(local_names=RUST_FUZZ_LOCAL_CRATES)
+                )
+                executable = (fixture / "cargo-audit").resolve()
+                executable.write_bytes(b"fixture executable\n")
+                executable.chmod(0o700)
+                audit_count = 0
+
+                def capture(argv: tuple[str, ...], **_kwargs: object) -> BoundedResult:
+                    nonlocal audit_count
+                    if argv[-1] == "--version":
+                        return BoundedResult(0, b"cargo-audit 0.22.2\n")
+                    if argv[0] == GIT:
+                        database = pathlib.Path(argv[-1])
+                        database.mkdir()
+                        (database / ".git").mkdir()
+                        return BoundedResult(0, b"Cloning into advisory-db\n")
+                    audit_count += 1
+                    database = pathlib.Path(argv[argv.index("--db") + 1])
+                    if not database.exists():
+                        database.mkdir()
+                        (database / ".git").mkdir()
+                    if failure == "lock" and audit_count == 2:
+                        fuzz_lock.write_bytes(fuzz_lock.read_bytes() + b"# drift\n")
+                    return BoundedResult(0, b"No vulnerabilities found\n")
+
+                advisory_results = (
+                    (ADVISORY_COMMIT, "f" * 40)
+                    if failure == "advisory"
+                    else (ADVISORY_COMMIT, ADVISORY_COMMIT, ADVISORY_COMMIT)
+                )
+                with (
+                    mock.patch.object(
+                        rust_publish_contract,
+                        "validate_crates_io_sparse_yanked",
+                        return_value=2,
+                    ),
+                    mock.patch.object(
+                        rust_publish_contract,
+                        "capture_stdout",
+                        side_effect=capture,
+                    ),
+                    mock.patch.object(
+                        rust_publish_contract,
+                        "validate_rustsec_advisory_database",
+                        side_effect=advisory_results,
+                    ),
+                    self.assertRaisesRegex(
+                        RustPublishContractError,
+                        "Cargo.lock changed|database commit changed",
+                    ),
+                ):
+                    verify_workspace_dependency_audit(source, executable)
+
+    def test_workspace_dependency_audit_cli_emits_one_strict_marker(self) -> None:
+        receipt = rust_publish_contract.WorkspaceDependencyAuditReceipt(
+            workspace_registry_packages=203,
+            fuzz_registry_packages=38,
+            advisory_db_commit=ADVISORY_COMMIT,
+            workspace_lock_sha256="a" * 64,
+            fuzz_lock_sha256="b" * 64,
+        )
+        with (
+            mock.patch.object(
+                rust_publish_contract,
+                "verify_workspace_dependency_audit",
+                return_value=receipt,
+            ) as verify,
+            mock.patch("builtins.print") as output,
+        ):
+            self.assertEqual(
+                rust_publish_contract._main(
+                    [
+                        "verify-workspace-dependency-audit",
+                        "--root",
+                        str(ROOT),
+                        "--cargo-audit",
+                        "/absolute/cargo-audit",
+                    ]
+                ),
+                0,
+            )
+        verify.assert_called_once_with(ROOT, pathlib.Path("/absolute/cargo-audit"))
+        marker = output.call_args.args[0]
+        self.assertEqual(
+            marker,
+            f"{RUST_WORKSPACE_AUDIT_MARKER_PREFIX} "
+            "workspace_registry_packages=203 fuzz_registry_packages=38 "
+            f"advisory_db_commit={ADVISORY_COMMIT} "
+            f"workspace_lock_sha256={'a' * 64} "
+            f"fuzz_lock_sha256={'b' * 64} "
+            "locks_stable=1 sparse_checksums=exact yanked=0 "
+            "warnings=denied ambient_cargo_home_data=unused",
+        )
+
+    def test_workspace_dependency_audit_rejects_executable_symlink_and_drift(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            fixture = pathlib.Path(temporary_root)
+            executable = (fixture / "cargo-audit").resolve()
+            executable.write_bytes(b"fixture executable\n")
+            executable.chmod(0o700)
+            link = fixture / "cargo-audit-link"
+            link.symlink_to(executable)
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "current-user-owned real executable",
+            ):
+                rust_publish_contract._dependency_audit_executable_identity(link)
+
+            identity = rust_publish_contract._dependency_audit_executable_identity(
+                executable
+            )[1]
+            replacement = fixture / "replacement"
+            replacement.write_bytes(b"replacement executable\n")
+            replacement.chmod(0o700)
+            os.replace(replacement, executable)
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "identity changed",
+            ):
+                rust_publish_contract._revalidate_dependency_audit_executable(
+                    executable,
+                    identity,
                 )
 
     def test_rustsec_advisory_database_uses_fixed_git_and_minimal_environment(
@@ -1259,6 +1754,76 @@ class RustPublishContractTests(unittest.TestCase):
                     expected_environment,
                 )
                 self.assertEqual(call.kwargs["stderr"], subprocess.STDOUT)
+
+    def test_rustsec_advisory_database_global_deadline_stops_later_git_calls(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            database = self.advisory_database(temporary_root)
+            started_at = 300.0
+            deadline = (
+                started_at + RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS
+            )
+            now = [started_at]
+
+            def capture(
+                _argv: list[str],
+                **_kwargs: object,
+            ) -> BoundedResult:
+                now[0] = deadline
+                return BoundedResult(
+                    0,
+                    (RUSTSEC_ADVISORY_DB_URL + "\n").encode(),
+                )
+
+            with (
+                mock.patch.object(
+                    rust_publish_contract.time,
+                    "monotonic",
+                    side_effect=lambda: now[0],
+                ),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "capture_stdout",
+                    side_effect=capture,
+                ) as runner,
+                self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "total deadline.*RustSec advisory database origin inspection",
+                ),
+            ):
+                validate_rustsec_advisory_database(
+                    database,
+                    deadline=deadline,
+                )
+
+            self.assertEqual(runner.call_count, 1)
+
+    def test_dependency_audit_stage_timeout_reserves_bounded_reap_window(
+        self,
+    ) -> None:
+        with mock.patch.object(
+            rust_publish_contract.time,
+            "monotonic",
+            return_value=400.0,
+        ):
+            self.assertEqual(
+                rust_publish_contract._dependency_audit_stage_timeout(
+                    412.9,
+                    maximum_seconds=300,
+                    label="synthetic stage",
+                ),
+                7,
+            )
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "total deadline before synthetic stage",
+            ):
+                rust_publish_contract._dependency_audit_stage_timeout(
+                    405.9,
+                    maximum_seconds=300,
+                    label="synthetic stage",
+                )
 
     def test_rustsec_advisory_database_accepts_a_real_clean_pinned_repository(
         self,

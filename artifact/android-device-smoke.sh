@@ -1315,23 +1315,93 @@ request_owned_emulator_shutdown() {
 }
 
 query_package_state() {
-	package_query_output="$DIST/adb-package-query.txt"
-	if ! android_command package-list 2>"$DIST/adb-package-query.err"; then
+	package_query_timeout_seconds=${1:-15}
+	package_query_output=${2:-"$DIST/adb-package-query.txt"}
+	package_query_error=${3:-"$DIST/adb-package-query.err"}
+	if android_command package-list \
+		--timeout-seconds "$package_query_timeout_seconds" \
+		>"$package_query_output" 2>"$package_query_error"; then
+		package_query_status=0
+	else
+		package_query_status=$?
+	fi
+	if [ "$package_query_status" -ne 0 ]; then
 		printf 'error: cannot query the Android smoke package state\n' >&2
-		return 1
+		return "$package_query_status"
 	fi
 	if ! package_listing=$(tr -d '\r' <"$package_query_output"); then
 		printf 'error: cannot normalize the Android smoke package state\n' >&2
-		return 1
+		return 2
 	fi
 	case "$package_listing" in
 		"") printf 'absent\n' ;;
 		"package:$PACKAGE") printf 'present\n' ;;
 		*)
 			printf 'error: Android package query returned an unexpected result\n' >&2
-			return 1
+			return 2
 			;;
 	esac
+}
+
+observe_preinstall_package_absence() {
+	preinstall_deadline=$(monotonic_deadline 45) || return 1
+	preinstall_attempt=0
+	preinstall_consecutive_absent=0
+	preinstall_log="$DIST/adb-package-preinstall-observation.log"
+	if ! : >"$preinstall_log"; then
+		printf 'error: cannot create the Android preinstall observation log\n' >&2
+		return 2
+	fi
+	while preinstall_query_timeout=$(remaining_bounded_timeout \
+		"$preinstall_deadline" 5); do
+		preinstall_attempt=$((preinstall_attempt + 1))
+		preinstall_output="$DIST/adb-package-query-preinstall-attempt-$preinstall_attempt.txt"
+		preinstall_error="$DIST/adb-package-query-preinstall-attempt-$preinstall_attempt.err"
+		preinstall_observer_error="$DIST/adb-package-query-preinstall-attempt-$preinstall_attempt.observer.err"
+		if package_state=$(query_package_state \
+			"$preinstall_query_timeout" \
+			"$preinstall_output" \
+			"$preinstall_error" 2>>"$preinstall_observer_error"); then
+			package_query_status=0
+		else
+			package_query_status=$?
+		fi
+		case "$package_query_status:$package_state" in
+			0:absent)
+				preinstall_consecutive_absent=$((preinstall_consecutive_absent + 1))
+				printf 'attempt=%s state=absent consecutive=%s\n' \
+					"$preinstall_attempt" "$preinstall_consecutive_absent" \
+					>>"$preinstall_log"
+				if [ "$preinstall_consecutive_absent" -eq 3 ]; then
+					return 0
+				fi
+				;;
+			0:present)
+				printf 'attempt=%s state=present consecutive=0\n' \
+					"$preinstall_attempt" >>"$preinstall_log"
+				printf 'error: refusing to replace a pre-existing Android package: %s\n' \
+					"$PACKAGE" >&2
+				return 1
+				;;
+			1:*)
+				preinstall_consecutive_absent=0
+				printf 'attempt=%s state=query-error exit=1 consecutive=0\n' \
+					"$preinstall_attempt" >>"$preinstall_log"
+				;;
+			0:* | *:*)
+				printf 'attempt=%s state=structural-error exit=%s consecutive=0\n' \
+					"$preinstall_attempt" "$package_query_status" \
+					>>"$preinstall_log"
+				printf 'error: Android preinstall package observation failed structurally\n' >&2
+				return 2
+				;;
+		esac
+		if remaining_bounded_timeout "$preinstall_deadline" 1 >/dev/null; then
+			sleep 1
+		fi
+	done
+	printf 'error: Android package absence did not stabilize within 45 seconds\n' >&2
+	return 1
 }
 
 package_base_apk_path() {
@@ -1496,6 +1566,7 @@ cleanup_unconfirmed_proof() {
 }
 
 cleanup_runtime() {
+	primary_exit_status=$1
 	runtime_internal_cleanup_status=0
 	if [ "${ANDROID_RUNTIME_RECOVERY_PRESERVE:-0}" = "1" ]; then
 		printf 'error: preserving Android runtime recovery state after an unresolved server startup handoff\n' >&2
@@ -1549,16 +1620,24 @@ cleanup_runtime() {
 		if [ "${ADB_PROTOCOL_STOP_REQUESTED:-0}" != "1" ] || \
 			{ [ "$ANDROID_BOOT_AVD" = "1" ] && \
 			[ "${EMULATOR_PROTOCOL_STOP_REQUESTED:-0}" != "1" ]; }; then
-			printf 'error: refusing normal runtime retirement without every required protocol shutdown\n' >&2
+			printf 'error: refusing runtime retirement without every required protocol shutdown\n' >&2
 			runtime_internal_cleanup_status=1
 		else
-		if ! PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
-			retire-stopped-runtime --run-id "$RUN_ID"; then
-			printf 'error: failed to retire the completed Android runtime recovery receipt\n' >&2
-			runtime_internal_cleanup_status=1
-		else
-			ANDROID_RUNTIME_RECOVERY_ARMED=0
-		fi
+			if [ "$primary_exit_status" -eq 0 ]; then
+				set -- retire-stopped-runtime --run-id "$RUN_ID"
+				retirement_label=completed
+			else
+				set -- retire-failed-runtime --run-id "$RUN_ID" \
+					--primary-exit-status "$primary_exit_status"
+				retirement_label=failed
+			fi
+			if ! PYTHONPATH=artifact python3 artifact/android_bounded_command.py "$@"; then
+				printf 'error: failed to retire the %s Android runtime recovery receipt\n' \
+					"$retirement_label" >&2
+				runtime_internal_cleanup_status=1
+			else
+				ANDROID_RUNTIME_RECOVERY_ARMED=0
+			fi
 		fi
 	fi
 	if [ "$runtime_internal_cleanup_status" -eq 0 ]; then
@@ -1573,7 +1652,7 @@ cleanup_runtime_with_deferred_signals() {
 	trap 'ANDROID_CLEANUP_SIGNAL=130' INT
 	trap 'ANDROID_CLEANUP_SIGNAL=143' TERM
 	deferred_runtime_cleanup_status=0
-	cleanup_runtime || deferred_runtime_cleanup_status=$?
+	cleanup_runtime 0 || deferred_runtime_cleanup_status=$?
 	trap 'exit 129' HUP
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
@@ -1588,7 +1667,7 @@ cleanup_exit() {
 	trap 'ANDROID_EXIT_CLEANUP_SIGNAL=130' INT
 	trap 'ANDROID_EXIT_CLEANUP_SIGNAL=143' TERM
 	exit_runtime_cleanup_status=0
-	cleanup_runtime || exit_runtime_cleanup_status=$?
+	cleanup_runtime "$exit_status" || exit_runtime_cleanup_status=$?
 	exit_proof_cleanup_status=0
 	cleanup_unconfirmed_proof || exit_proof_cleanup_status=$?
 	trap - HUP INT TERM
@@ -2311,11 +2390,7 @@ printf 'page-size: %s\n' "$PAGE_SIZE"
 printf 'sdk      : %s\n' "$DEVICE_SDK"
 
 printf '\n=== Install and run Android runtime smoke ===\n'
-if ! package_state=$(query_package_state); then
-	exit 1
-fi
-if [ "$package_state" != "absent" ]; then
-	printf 'error: refusing to replace a pre-existing Android package: %s\n' "$PACKAGE" >&2
+if ! observe_preinstall_package_absence; then
 	exit 1
 fi
 if ! rm -f -- "$DIST/adb-uninstall-cleanup.log"; then

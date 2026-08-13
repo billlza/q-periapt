@@ -4446,19 +4446,31 @@ with _temporary_release_test_directories(parents):
     def test_audit_pass_state_is_set_only_after_warning_denied_command(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         initial = source.index("DEPENDENCY_AUDIT_PASSED=0")
-        command = source.index("cargo audit --deny warnings")
+        command = source.index("verify-workspace-dependency-audit")
         passed = source.index("DEPENDENCY_AUDIT_PASSED=1")
         self.assertLess(initial, command)
         self.assertLess(command, passed)
-        self.assertNotIn("cargo audit --deny warnings ||", source)
-        self.assertNotIn("cargo audit --deny warnings; true", source)
+        audit_gate = source[command:passed]
+        self.assertIn('--root "$ROOT"', audit_gate)
+        self.assertIn('--cargo-audit "$CARGO_AUDIT_BIN"', audit_gate)
+        self.assertNotIn("||", audit_gate)
+        self.assertNotIn("; true", audit_gate)
         self.assertNotIn("--ignore", source)
 
     def test_ci_uses_warning_denied_audit_without_suppression(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("- run: cargo audit --deny warnings", workflow)
-        self.assertNotIn("cargo audit --deny warnings ||", workflow)
-        self.assertNotIn("cargo audit --ignore", workflow)
+        audit_job = extract_workflow_job(workflow, "audit")
+        audit_step = extract_named_workflow_step(
+            audit_job,
+            "Verify workspace dependency audit",
+        )
+        self.assertEqual(audit_step.count("verify-workspace-dependency-audit"), 1)
+        self.assertIn('--root "$GITHUB_WORKSPACE"', audit_step)
+        self.assertIn('--cargo-audit "$cargo_audit"', audit_step)
+        self.assertNotIn("cargo audit --deny warnings", audit_job)
+        self.assertNotIn("cargo audit --ignore", audit_job)
+        self.assertNotIn("continue-on-error:", audit_step)
+        self.assertNotIn("|| true", audit_step)
 
     def test_ci_runs_lean_and_signed_policy_wasm_node_suites(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

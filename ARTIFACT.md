@@ -384,7 +384,20 @@ strict schema, exact source identity, advisory snapshot, and retained transcript
 Set `QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT=1` to make `proof-to-byte.sh` load that exact selected
 transcript, verify its full marker set and ordering, and expose a separate
 `rust_package_contract=1` finalizer state. This does not set or replace
-`dependency_audit=1`: the explicit workspace-lock audit remains a separate live gate.
+`dependency_audit=1`: the explicit workspace/fuzz lock audit remains a separate live gate.
+When `QPERIAPT_REQUIRE_DEPENDENCY_AUDIT=1`, that gate snapshots both checked-in
+lockfiles, requires their fixed local-package scopes, verifies every crates.io
+name, version, checksum, and non-yanked status through the same bounded sparse
+HTTPS verifier, and runs warning-denied advisory scans against one freshly
+fetched RustSec database in a private Cargo home. The fuzz scan reuses that exact
+clean database without fetching again, and both lock snapshots plus the database
+commit are revalidated before success. The whole acceptance sequence has one
+900-second monotonic deadline; each subprocess retains its smaller stage cap and
+the fixed reap window, while owned-directory cleanup still runs on every exit.
+CI calls the same verifier; neither path consumes the caller's Cargo-home files
+or advisory database. These SHA-256 values
+bind exact lock bytes to one run for accidental mismatch detection; they do not
+attest against a hostile host, crates.io, RustSec, system CA store, or network.
 The Swift XCFramework gate also requires a clean tree by default; set
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics. Set
 `QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus `QPERIAPT_DEVICE_RESULT_DIR=<matrix-run-dir>` to also

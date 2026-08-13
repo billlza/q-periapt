@@ -369,6 +369,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 "1",
             ],
             ["destroy-capability"],
+            ["retire-failed-runtime", "--primary-exit-status", "1"],
         ):
             with (
                 self.subTest(arguments=arguments),
@@ -1437,6 +1438,28 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(write_arguments["output_name"], "adb-listener-initial.txt")
             self.assertEqual(write_arguments["maximum_bytes"], 65536)
             self.assertEqual(write_arguments["timeout_seconds"], 15)
+
+    def test_package_query_combines_diagnostics_under_the_capture_limit(self) -> None:
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(1, b"package service unavailable\n"),
+            ) as capture,
+            mock.patch.object(commands, "write_stdout_at") as write,
+        ):
+            result = self.invoke(
+                commands.AndroidOperation.PACKAGE_LIST,
+                timeout_seconds=5,
+            )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b"package service unavailable\n")
+        capture.assert_called_once()
+        arguments = capture.call_args.kwargs
+        self.assertEqual(arguments["timeout_seconds"], 5)
+        self.assertEqual(arguments["maximum_bytes"], 65536)
+        self.assertEqual(arguments["stderr"], subprocess.STDOUT)
+        write.assert_not_called()
 
     def test_timeout_cannot_exceed_operation_profile(self) -> None:
         with mock.patch.object(commands, "capture_stdout") as capture:
@@ -4056,6 +4079,88 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             commands.retire_stopped_owned_runtime(receipt.run_id)
         checkpoint.assert_called_once_with(receipt)
         self.assertFalse(state.owned_runtime_receipt_path().exists())
+
+    def test_failed_retirement_requires_primary_failure_and_omits_checkpoints(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "nonzero primary exit status",
+        ):
+            commands.retire_failed_stopped_owned_runtime(receipt.run_id, 0)
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
+        observed = commands.ProcessIdentity(
+            pid=receipt.pid,
+            uid=receipt.uid,
+            started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond,
+            executable=receipt.backend_path,
+        )
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                commands,
+                "_same_receipt_process",
+                return_value=observed,
+            ),
+            self.assertRaisesRegex(
+                commands.AndroidCommandError,
+                "still live",
+            ),
+        ):
+            commands.retire_failed_stopped_owned_runtime(receipt.run_id, 1)
+        self.assertTrue(state.owned_runtime_receipt_path().exists())
+
+        state.retire_recovery_capability(self.layout, receipt)
+        self.private_adb_directory.rmdir()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "_same_receipt_process", return_value=None),
+            mock.patch.object(
+                commands,
+                "_same_receipt_adb_server_process",
+                return_value=None,
+            ),
+            mock.patch.object(
+                state,
+                "record_post_cleanup_adb_isolation_checkpoint",
+            ) as checkpoint,
+        ):
+            commands.retire_failed_stopped_owned_runtime(receipt.run_id, 1)
+        checkpoint.assert_not_called()
+        self.assertFalse(
+            self.proof.joinpath("adb-isolation-runtime-post-cleanup.json").exists()
+        )
+        self.assertFalse(state.owned_runtime_receipt_path().exists())
+
+    def test_failed_retirement_cli_emits_only_the_failed_marker(self) -> None:
+        output = io.StringIO()
+        with (
+            mock.patch.object(
+                commands,
+                "retire_failed_stopped_owned_runtime",
+            ) as retire,
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(
+                commands.main(
+                    [
+                        "retire-failed-runtime",
+                        "--run-id",
+                        self.run_id,
+                        "--primary-exit-status",
+                        "17",
+                    ]
+                ),
+                0,
+            )
+        retire.assert_called_once_with(self.run_id, 17)
+        self.assertEqual(
+            output.getvalue(),
+            "ANDROID_FAILED_RUNTIME_RECEIPT_RETIRED primary_exit_status=17\n",
+        )
+        self.assertNotIn("ANDROID_OWNED_RUNTIME_RECEIPT_RETIRED", output.getvalue())
 
     def test_recovery_requires_exact_avd_name_before_console_kill(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()

@@ -173,6 +173,7 @@ class OperationSpec:
     output: OutputSpec | None
     build_argv: Callable[[runtime_state.AndroidAdbCapability], tuple[str, ...]]
     requires_private_server: bool = True
+    stderr_to_stdout: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -676,13 +677,15 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "capture", 15, 15, None, lambda cap: _adb(cap, "version")
         ),
         AndroidOperation.PACKAGE_LIST: OperationSpec(
-            "write",
+            "capture",
             15,
             15,
-            OutputSpec(proof, "adb-package-query.txt", 65536),
+            None,
             lambda cap: _device(
                 cap, "shell", "cmd", "package", "list", "packages", "-u", PACKAGE
             ),
+            requires_private_server=True,
+            stderr_to_stdout=True,
         ),
         AndroidOperation.PACKAGE_PATH: OperationSpec(
             "write",
@@ -2302,8 +2305,9 @@ def recover_owned_runtime() -> Literal["none", "stale-retired", "recovered"]:
     return "recovered"
 
 
-def retire_stopped_owned_runtime(run_id: str) -> None:
-    """Retire a normal-run receipt only after every owned runtime is gone."""
+def _stopped_owned_runtime_receipt(run_id: str) -> runtime_state.OwnedRuntimeReceipt:
+    """Return the exact receipt only after every owned runtime resource is gone."""
+
     runtime_state.validate_lane_lock_descriptor()
     receipt = runtime_state.load_owned_runtime_receipt()
     _require(receipt is not None, "owned runtime receipt is missing")
@@ -2314,7 +2318,7 @@ def retire_stopped_owned_runtime(run_id: str) -> None:
     context = _validate_recovery_receipt(receipt, validate_active_emulator=False)
     _require(
         context.current_boot,
-        "normal runtime retirement cannot retire a prior-boot receipt",
+        "runtime retirement cannot retire a prior-boot receipt",
     )
     if receipt.emulator_started:
         _require(
@@ -2338,8 +2342,29 @@ def retire_stopped_owned_runtime(run_id: str) -> None:
         not os.path.lexists(socket_directory),
         "cannot retire an owned runtime receipt while its private adb directory remains",
     )
+    return receipt
+
+
+def retire_stopped_owned_runtime(run_id: str) -> None:
+    """Retire a successful normal-run receipt with complete cleanup evidence."""
+
+    receipt = _stopped_owned_runtime_receipt(run_id)
     if receipt.device_kind == "emulator":
         runtime_state.record_post_cleanup_adb_isolation_checkpoint(receipt)
+    runtime_state.retire_owned_runtime_receipt(receipt)
+
+
+def retire_failed_stopped_owned_runtime(
+    run_id: str,
+    primary_exit_status: int,
+) -> None:
+    """Retire a failed run without manufacturing successful cleanup checkpoints."""
+
+    _require(
+        type(primary_exit_status) is int and 1 <= primary_exit_status <= 255,
+        "failed runtime retirement requires a nonzero primary exit status",
+    )
+    receipt = _stopped_owned_runtime_receipt(run_id)
     runtime_state.retire_owned_runtime_receipt(receipt)
 
 
@@ -2938,6 +2963,7 @@ def invoke_operation(
             argv,
             timeout_seconds=timeout,
             maximum_bytes=65536,
+            stderr=subprocess.STDOUT if spec.stderr_to_stdout else None,
             environment=_client_environment(capability),
         )
         _validate_owned_adb_server_for_client(capability)
@@ -3041,6 +3067,14 @@ def _build_parser() -> argparse.ArgumentParser:
     finalize_adb_stop.add_argument("--run-id", required=True)
     retire_runtime = sub.add_parser("retire-stopped-runtime")
     retire_runtime.add_argument("--run-id", required=True)
+    retire_failed_runtime = sub.add_parser("retire-failed-runtime")
+    retire_failed_runtime.add_argument("--run-id", required=True)
+    retire_failed_runtime.add_argument(
+        "--primary-exit-status",
+        required=True,
+        type=int,
+        choices=range(1, 256),
+    )
     backend_identity = sub.add_parser("owned-emulator-backend-identity")
     backend_identity.add_argument("--run-id", required=True)
     destroy = sub.add_parser("destroy-capability")
@@ -3153,6 +3187,16 @@ def main(argv: list[str]) -> int:
     if args.action == "retire-stopped-runtime":
         retire_stopped_owned_runtime(args.run_id)
         print("ANDROID_OWNED_RUNTIME_RECEIPT_RETIRED")
+        return 0
+    if args.action == "retire-failed-runtime":
+        retire_failed_stopped_owned_runtime(
+            args.run_id,
+            args.primary_exit_status,
+        )
+        print(
+            "ANDROID_FAILED_RUNTIME_RECEIPT_RETIRED "
+            f"primary_exit_status={args.primary_exit_status}"
+        )
         return 0
     if args.action == "owned-emulator-backend-identity":
         print(owned_emulator_backend_identity(args.run_id))

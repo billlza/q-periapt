@@ -392,8 +392,15 @@ if [ "$REQUIRE_PERFORMANCE" = "1" ]; then
 fi
 
 if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then
-	need cargo
 	need cargo-audit
+	CARGO_AUDIT_BIN=$(command -v cargo-audit)
+	case "$CARGO_AUDIT_BIN" in
+		/*) ;;
+		*)
+			printf 'error: cargo-audit executable path must be absolute\n' >&2
+			exit 2
+			;;
+	esac
 fi
 if [ "$REQUIRE_FORMAL" = "1" ] || [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 	if [ -n "${HOME:-}" ] && [ -d "$HOME/.opam/default/bin" ]; then
@@ -743,7 +750,10 @@ if [ "$REQUIRE_CAMERA_READY" = "1" ]; then
 fi
 
 if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then
-	cargo audit --deny warnings
+	python3 artifact/rust_publish_contract.py \
+		verify-workspace-dependency-audit \
+		--root "$ROOT" \
+		--cargo-audit "$CARGO_AUDIT_BIN"
 	DEPENDENCY_AUDIT_PASSED=1
 	printf 'PROOF_TO_BYTE_DEPENDENCY_AUDIT_PASS\n'
 fi
