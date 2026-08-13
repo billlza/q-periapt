@@ -2411,7 +2411,14 @@ if ! verify_installed_apk_signer; then
 	exit 1
 fi
 ANDROID_APP_INSTALL_CONFIRMED=1
-android_command device-time
+if android_command device-time 2>"$DIST/adb-device-time.err"; then
+	:
+else
+	device_time_status=$?
+	printf 'error: Android runtime device-time capture failed (exit=%s); see %s\n' \
+		"$device_time_status" "$DIST/adb-device-time.err" >&2
+	exit 1
+fi
 LOGCAT_START_EPOCH=$(tr -d '\r\n ' <"$DIST/adb-device-time.txt")
 python3 - "$LOGCAT_START_EPOCH" <<'PY'
 import re
@@ -2421,8 +2428,22 @@ value = sys.argv[1]
 if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
     raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
 PY
-android_command force-stop >"$DIST/adb-force-stop.log"
-android_command start-app >"$DIST/adb-start.log"
+if android_command force-stop >"$DIST/adb-force-stop.log" 2>&1; then
+	:
+else
+	force_stop_status=$?
+	printf 'error: Android runtime force-stop failed (exit=%s); see %s\n' \
+		"$force_stop_status" "$DIST/adb-force-stop.log" >&2
+	exit 1
+fi
+if android_command start-app >"$DIST/adb-start.log" 2>&1; then
+	:
+else
+	start_app_status=$?
+	printf 'error: Android runtime activity start failed (exit=%s); see %s\n' \
+		"$start_app_status" "$DIST/adb-start.log" >&2
+	exit 1
+fi
 RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)
 while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 15); do
 	set +e

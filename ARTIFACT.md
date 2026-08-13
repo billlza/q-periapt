@@ -770,8 +770,10 @@ These produce the paper's primary network table and the binary constant-time dis
   exact identity already proven absent, but it cannot turn that offline cleanup into a PASS for the
   interrupted run. The console token is never written to the receipt or proof; only its file
   identity and digest are retained for strict revalidation. Console replies are parsed as fixed,
-  line-delimited terminal frames; receipt of the exact terminal frame completes the command without
-  waiting for socket EOF, and bytes after that delimiter are not interpreted as part of the frame.
+  line-delimited terminal frames. The authentication grammar includes the console's complete fixed
+  pre-authentication guidance, the exact current-account token path, both authentication acknowledgements,
+  and a command-specific terminal frame. Receipt of that exact terminal frame completes the command
+  without waiting for socket EOF, and bytes after that delimiter are not interpreted as part of the frame.
   Every adb/lsof call is selected from a finite Android operation table and executed through the
   private run capability; the generic bounded-process module has no arbitrary command or output CLI.
   Capability creation consumes the selected SDK adb from one already-open descriptor while hashing

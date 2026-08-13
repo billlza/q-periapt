@@ -105,6 +105,12 @@ FORBIDDEN_EMULATOR_AVD_SELECTOR_ENVIRONMENT = frozenset(
 EMULATOR_CONSOLE_AUTHENTICATED_MARKER = (
     b"\nOK\nAndroid Console: type 'help' for a list of commands\nOK\n"
 )
+EMULATOR_CONSOLE_AUTHENTICATION_BANNER_PREFIX = (
+    b"Android Console: Authentication required\n"
+    b"Android Console: type 'auth <auth_token>' to authenticate\n"
+    b"Android Console: you can find your <auth_token> in \n'"
+)
+EMULATOR_CONSOLE_AUTH_TOKEN_LEAF = ".emulator_console_auth_token"
 EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS = 5
 
 
@@ -725,14 +731,15 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             lambda cap: _device(cap, "shell", "date", "+%s.%3N"),
         ),
         AndroidOperation.FORCE_STOP: OperationSpec(
-            "run",
+            "capture",
             15,
             15,
             None,
             lambda cap: _device(cap, "shell", "am", "force-stop", PACKAGE),
+            stderr_to_stdout=True,
         ),
         AndroidOperation.START_APP: OperationSpec(
-            "run",
+            "capture",
             30,
             30,
             None,
@@ -748,6 +755,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
                 "qperiapt_run_id",
                 cap.run_id,
             ),
+            stderr_to_stdout=True,
         ),
         AndroidOperation.READ_RESULT_TEXT: OperationSpec(
             "write",
@@ -1716,11 +1724,17 @@ def _register_owned_emulator(
     return result
 
 
+def _emulator_console_auth_token_path() -> pathlib.Path:
+    """Return the account-bound path shared by token I/O and banner parsing."""
+
+    return runtime_state.ACCOUNT_HOME / EMULATOR_CONSOLE_AUTH_TOKEN_LEAF
+
+
 def _emulator_console_auth_token(
     expected: runtime_state.ConsoleAuthTokenIdentity | None = None,
 ) -> tuple[bytes, runtime_state.ConsoleAuthTokenIdentity]:
     """Read and identify the private console token without logging its bytes."""
-    token_path = runtime_state.ACCOUNT_HOME / ".emulator_console_auth_token"
+    token_path = _emulator_console_auth_token_path()
     try:
         descriptor = os.open(
             token_path, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
@@ -1871,10 +1885,7 @@ def _expected_emulator_console_responses(
     receipt: runtime_state.OwnedRuntimeReceipt,
     command: bytes,
 ) -> tuple[bytes, ...]:
-    authenticated_prefix = (
-        b"Android Console: Authentication required"
-        + EMULATOR_CONSOLE_AUTHENTICATED_MARKER
-    )
+    authenticated_prefix = _emulator_console_authenticated_prefix()
     if command == b"avd name\nquit\n":
         _require(
             receipt.avd_name is not None,
@@ -1891,6 +1902,27 @@ def _expected_emulator_console_responses(
     )
     return (
         authenticated_prefix + b"OK: killing emulator, bye bye\n",
+    )
+
+
+def _emulator_console_authenticated_prefix() -> bytes:
+    """Return the exact account-bound banner through successful authentication."""
+
+    token_path = os.fsencode(_emulator_console_auth_token_path())
+    _require(
+        token_path.startswith(b"/")
+        and len(token_path) <= 4096
+        and b"\0" not in token_path
+        and b"\r" not in token_path
+        and b"\n" not in token_path
+        and b"'" not in token_path,
+        "Android emulator console authentication token path bytes are invalid",
+    )
+    return (
+        EMULATOR_CONSOLE_AUTHENTICATION_BANNER_PREFIX
+        + token_path
+        + b"'"
+        + EMULATOR_CONSOLE_AUTHENTICATED_MARKER
     )
 
 
@@ -1949,13 +1981,14 @@ def _emulator_console_exchange(
 def _authenticated_emulator_console_payload(response: bytes) -> bytes:
     """Return the exact command payload after the authenticated console banner."""
 
+    authenticated_prefix = _emulator_console_authenticated_prefix()
     _require(
         type(response) is bytes
-        and response.startswith(b"Android Console: Authentication required\n")
+        and response.startswith(authenticated_prefix)
         and response.count(EMULATOR_CONSOLE_AUTHENTICATED_MARKER) == 1,
         "owned emulator console authentication response was not exact",
     )
-    return response.split(EMULATOR_CONSOLE_AUTHENTICATED_MARKER, 1)[1]
+    return response[len(authenticated_prefix) :]
 
 
 def _verify_owned_emulator_console_name(

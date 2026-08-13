@@ -1430,7 +1430,12 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             capture_result = self.invoke(commands.AndroidOperation.DEVICE_STATE)
             self.assertEqual(capture_result.stdout, b"device\n")
             capture.assert_called_once()
+            capture.reset_mock()
             self.invoke(commands.AndroidOperation.FORCE_STOP)
+            capture.assert_called_once()
+            self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
+            self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
+            self.invoke(commands.AndroidOperation.UNINSTALL_APP)
             run.assert_called_once()
             self.invoke(commands.AndroidOperation.LSOF_INITIAL)
             write.assert_called_once()
@@ -2163,6 +2168,28 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ):
                 self.invoke(commands.AndroidOperation.PULL_INSTALLED_APK)
             write.assert_not_called()
+
+    def test_runtime_control_diagnostics_are_merged_under_the_capture_limit(
+        self,
+    ) -> None:
+        for operation in (
+            commands.AndroidOperation.FORCE_STOP,
+            commands.AndroidOperation.START_APP,
+        ):
+            spec = commands.OPERATION_SPECS[operation]
+            with self.subTest(operation=operation.value):
+                self.assertEqual(spec.mode, "capture")
+                self.assertTrue(spec.stderr_to_stdout)
+                with mock.patch.object(
+                    commands,
+                    "capture_stdout",
+                    return_value=BoundedResult(224, b"bounded adb failure\n"),
+                ) as capture:
+                    result = self.invoke(operation)
+                self.assertEqual(result.returncode, 224)
+                self.assertEqual(result.stdout, b"bounded adb failure\n")
+                self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
+                self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
 
     def test_logcat_epoch_is_validated_before_it_enters_argv(self) -> None:
         epoch_path = self.proof / "adb-device-time.txt"
@@ -4357,9 +4384,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
         console = Console()
         response = (
-            b"Android Console: Authentication required\nOK\n"
-            b"Android Console: type 'help' for a list of commands\nOK\n"
-            b"OK: killing emulator, bye bye\n"
+            commands._emulator_console_authenticated_prefix()
+            + b"OK: killing emulator, bye bye\n"
         )
         with (
             mock.patch.object(
@@ -4393,8 +4419,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         receive.assert_called_once_with(
             console,
             expected_responses=(
-                b"Android Console: Authentication required"
-                + commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
+                commands._emulator_console_authenticated_prefix()
                 + b"OK: killing emulator, bye bye\n",
             ),
         )
@@ -4429,18 +4454,27 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_console_authentication_framing_is_exact(self) -> None:
         marker = commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
-        prefix = b"Android Console: Authentication required"
+        prefix = commands._emulator_console_authenticated_prefix()
         payload = b"OK: killing emulator, bye bye\nOK\n"
         self.assertEqual(
+            prefix,
+            commands.EMULATOR_CONSOLE_AUTHENTICATION_BANNER_PREFIX
+            + os.fsencode(state.ACCOUNT_HOME / ".emulator_console_auth_token")
+            + b"'"
+            + marker,
+        )
+        self.assertEqual(
             commands._authenticated_emulator_console_payload(
-                prefix + marker + payload
+                prefix + payload
             ),
             payload,
         )
         for response in (
             marker + payload,
-            prefix + payload,
-            prefix + marker + b"garbage\n" + marker + payload,
+            b"Android Console: Authentication required" + marker + payload,
+            prefix.replace(b".emulator_console_auth_token", b"other-token")
+            + payload,
+            prefix + b"garbage\n" + marker + payload,
         ):
             with (
                 self.subTest(response=response),
@@ -4453,10 +4487,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_console_terminal_frames_are_fixed_by_command_and_receipt(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
-        prefix = (
-            b"Android Console: Authentication required"
-            + commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
-        )
+        prefix = commands._emulator_console_authenticated_prefix()
         self.assertEqual(
             commands._expected_emulator_console_responses(
                 receipt,
@@ -4476,6 +4507,48 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 receipt,
                 b"poweroff\n",
             )
+
+    def test_console_terminal_frames_include_the_complete_official_auth_banner(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        with mock.patch.object(state, "ACCOUNT_HOME", pathlib.Path("/home/runner")):
+            banner = (
+                b"Android Console: Authentication required\n"
+                b"Android Console: type 'auth <auth_token>' to authenticate\n"
+                b"Android Console: you can find your <auth_token> in \n"
+                b"'/home/runner/.emulator_console_auth_token'\nOK\n"
+                b"Android Console: type 'help' for a list of commands\nOK\n"
+            )
+            self.assertEqual(
+                commands._expected_emulator_console_responses(
+                    receipt,
+                    b"avd name\nquit\n",
+                ),
+                (banner + receipt.avd_name.encode("ascii") + b"\nOK\n",),
+            )
+            self.assertEqual(
+                commands._expected_emulator_console_responses(receipt, b"kill\n"),
+                (banner + b"OK: killing emulator, bye bye\n",),
+            )
+
+        for unsafe_home in (
+            pathlib.Path("relative-home"),
+            pathlib.Path("/tmp/account'with-quote"),
+            pathlib.Path("/tmp/account\0with-nul"),
+            pathlib.Path("/tmp/account\rwith-return"),
+            pathlib.Path("/tmp/account\nwith-newline"),
+            pathlib.Path("/" + ("a" * 4096)),
+        ):
+            with (
+                self.subTest(unsafe_home=unsafe_home),
+                mock.patch.object(state, "ACCOUNT_HOME", unsafe_home),
+                self.assertRaisesRegex(
+                    commands.AndroidCommandError,
+                    "token path bytes are invalid",
+                ),
+            ):
+                commands._expected_emulator_console_responses(receipt, b"kill\n")
 
     def test_console_receive_stops_at_exact_terminal_frame_without_waiting_for_eof(
         self,

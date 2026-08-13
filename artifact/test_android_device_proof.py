@@ -1434,6 +1434,127 @@ class AndroidAdbIdentityTests(unittest.TestCase):
 
 
 class AndroidDeviceProofProvenanceTests(unittest.TestCase):
+    def _run_postinstall_runtime_steps(
+        self,
+        failing_operation: str | None,
+    ) -> tuple[subprocess.CompletedProcess[bytes], list[str], dict[str, bytes]]:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        phase = producer.index("=== Install and run Android runtime smoke ===")
+        start = producer.index("ANDROID_APP_INSTALL_CONFIRMED=1", phase)
+        end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
+        postinstall = producer[start:end]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            distribution = root / "proof"
+            distribution.mkdir(mode=0o700)
+            calls = root / "calls.txt"
+            calls.write_text("", encoding="ascii")
+            script = f"""
+set -eu
+umask 077
+DIST={shlex.quote(str(distribution))}
+CALLS={shlex.quote(str(calls))}
+FAIL_OPERATION={shlex.quote(failing_operation or "")}
+PYTHON_BIN={shlex.quote(sys.executable)}
+python3() {{ "$PYTHON_BIN" "$@"; }}
+android_command() {{
+    operation=$1
+    printf '%s\\n' "$operation" >>"$CALLS"
+    if [ "$FAIL_OPERATION" = "$operation" ]; then
+        printf 'bounded diagnostic for %s\\n' "$operation" >&2
+        case "$operation" in
+            device-time) return 17 ;;
+            force-stop) return 18 ;;
+            start-app) return 19 ;;
+        esac
+    fi
+    if [ "$operation" = device-time ]; then
+        printf '1786240000.123\\n' >"$DIST/adb-device-time.txt"
+    fi
+    return 0
+}}
+{postinstall}
+"""
+            result = subprocess.run(
+                ["/bin/sh", "-c", script],
+                cwd=pathlib.Path(__file__).resolve().parent.parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=10,
+            )
+            called_operations = calls.read_text(encoding="ascii").splitlines()
+            files = {
+                path.name: path.read_bytes()
+                for path in distribution.iterdir()
+                if path.is_file()
+            }
+            return result, called_operations, files
+
+    def test_postinstall_runtime_steps_fail_with_actionable_diagnostics(self) -> None:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        phase = producer.index("=== Install and run Android runtime smoke ===")
+        start = producer.index("ANDROID_APP_INSTALL_CONFIRMED=1", phase)
+        end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
+        postinstall = producer[start:end]
+        self.assertNotIn("\nandroid_command device-time\n", postinstall)
+        self.assertNotIn(
+            '\nandroid_command force-stop >"$DIST/adb-force-stop.log"\n',
+            postinstall,
+        )
+        self.assertNotIn(
+            '\nandroid_command start-app >"$DIST/adb-start.log"\n',
+            postinstall,
+        )
+
+        expectations = {
+            "device-time": (
+                ["device-time"],
+                "Android runtime device-time capture failed",
+                "adb-device-time.err",
+            ),
+            "force-stop": (
+                ["device-time", "force-stop"],
+                "Android runtime force-stop failed",
+                "adb-force-stop.log",
+            ),
+            "start-app": (
+                ["device-time", "force-stop", "start-app"],
+                "Android runtime activity start failed",
+                "adb-start.log",
+            ),
+        }
+        for operation, (calls, label, diagnostic_file) in expectations.items():
+            with self.subTest(failing_operation=operation):
+                result, called_operations, files = self._run_postinstall_runtime_steps(
+                    operation
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(called_operations, calls)
+                self.assertIn(label.encode("ascii"), result.stderr)
+                expected_exit = {
+                    "device-time": 17,
+                    "force-stop": 18,
+                    "start-app": 19,
+                }[operation]
+                self.assertIn(f"(exit={expected_exit})".encode("ascii"), result.stderr)
+                self.assertIn(
+                    f"bounded diagnostic for {operation}\n".encode("ascii"),
+                    files[diagnostic_file],
+                )
+
+        result, called_operations, _files = self._run_postinstall_runtime_steps(None)
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(
+            called_operations,
+            ["device-time", "force-stop", "start-app"],
+        )
+
     def _run_preinstall_observation(
         self,
         outcomes: tuple[str, ...],
