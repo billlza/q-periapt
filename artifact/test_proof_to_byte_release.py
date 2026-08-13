@@ -1023,6 +1023,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn(
             '          test "$CODEQL_BINARY" = "$fixed_codeql"\n', fixed_bundle
         )
+        self.assertIn(
+            "          stat --format='CODEQL_TOOLCACHE_STAT type=%F mode=%a "
+            "uid=%u gid=%g nlink=%h' \\\n",
+            fixed_bundle,
+        )
+        self.assertIn('            -- "$fixed_codeql"\n', fixed_bundle)
+        self.assertNotIn("|| true", fixed_bundle)
+        self.assertNotIn("continue-on-error:", fixed_bundle)
         self.assertNotIn("          tools:", initialize)
         analyze = extract_named_workflow_step(source, "Analyze")
         self.assertIn("        id: codeql_analyze\n", analyze)
@@ -1056,6 +1064,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 checkout,
             )
         self.assertLess(source.index(checkout_before), source.index(initialize))
+        self.assertLess(source.index(fixed_bundle), source.index(exact_bundle))
+        self.assertLess(source.index(exact_bundle), source.index(analyze))
         self.assertGreater(source.index(checkout_after), source.index(analyze))
 
         quality = extract_named_workflow_step(
@@ -1088,6 +1098,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
         self.assertIn("          wait-for-processing: true\n", upload)
         self.assertGreater(source.index(upload), source.index(quality))
+        self.assertLess(source.index(checkout_after), source.index(quality))
 
         quality_source = (ROOT / "artifact" / "codeql_rust_quality.py").read_text(
             encoding="utf-8"
@@ -1140,6 +1151,15 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("path-identity snapshots", normalized)
         self.assertIn("remain trusted inputs used by pathname", normalized)
         self.assertIn("inherited process environment and OS runtime are trusted", normalized)
+        for boundary in (
+            "foreign-owned",
+            "group/other-writable",
+            "multiply linked",
+            "original inode",
+            "alternate hard link",
+            "separate account alone is insufficient",
+        ):
+            self.assertIn(boundary, normalized)
 
     def test_dependency_monitoring_and_private_reporting_policy_are_explicit(
         self,

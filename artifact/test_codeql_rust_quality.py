@@ -372,24 +372,24 @@ class CodeQLRustQualityTests(unittest.TestCase):
         self,
     ) -> None:
         for case in (
-            "binary-group-writable",
             "binary-not-executable",
             "binary-not-regular",
             "binary-symlink",
             "database-group-writable",
+            "database-other-writable",
             "database-not-directory",
             "metadata-group-writable",
+            "metadata-other-writable",
             "metadata-hardlink",
             "metadata-symlink",
             "metadata-not-regular",
             "temporary-parent-group-writable",
+            "temporary-parent-other-writable",
         ):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
                 root = pathlib.Path(temporary).resolve()
                 binary, runner_temp, database, metadata = self._fixed_layout(root)
-                if case == "binary-group-writable":
-                    binary.chmod(0o520)
-                elif case == "binary-not-executable":
+                if case == "binary-not-executable":
                     binary.chmod(0o400)
                 elif case == "binary-not-regular":
                     binary.unlink()
@@ -400,12 +400,16 @@ class CodeQLRustQualityTests(unittest.TestCase):
                     binary.symlink_to(target)
                 elif case == "database-group-writable":
                     database.chmod(0o720)
+                elif case == "database-other-writable":
+                    database.chmod(0o702)
                 elif case == "database-not-directory":
                     metadata.unlink()
                     database.rmdir()
                     database.write_bytes(b"not a directory\n")
                 elif case == "metadata-group-writable":
                     metadata.chmod(0o620)
+                elif case == "metadata-other-writable":
+                    metadata.chmod(0o602)
                 elif case == "metadata-hardlink":
                     os.link(metadata, root / "second-database-metadata-link")
                 elif case == "metadata-symlink":
@@ -415,8 +419,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 elif case == "metadata-not-regular":
                     metadata.unlink()
                     metadata.mkdir(mode=0o700)
-                else:
+                elif case == "temporary-parent-group-writable":
                     runner_temp.chmod(0o720)
+                else:
+                    runner_temp.chmod(0o702)
                 with (
                     mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
                     mock.patch.object(
@@ -432,11 +438,39 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 ):
                     codeql_rust_quality._open_fixed_codeql_bindings()
 
-    def test_fixed_bindings_accept_multiply_linked_fixed_binary(self) -> None:
+    def test_fixed_binary_symlink_ancestor_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            real_root = root / "real"
+            real_root.mkdir(mode=0o700)
+            binary, runner_temp, database, _metadata = self._fixed_layout(real_root)
+            linked_root = root / "linked"
+            linked_root.symlink_to(real_root, target_is_directory=True)
+            linked_binary = linked_root / binary.name
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_BINARY", linked_binary
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "contain no symlink components",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+
+    def test_fixed_bindings_accept_hosted_toolcache_binary_shape(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             binary, runner_temp, database, _metadata = self._fixed_layout(root)
             os.link(binary, root / "second-codeql-link")
+            binary.chmod(0o777)
             with (
                 mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
                 mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
@@ -450,6 +484,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 bindings = codeql_rust_quality._open_fixed_codeql_bindings()
                 try:
                     self.assertEqual(os.fstat(bindings.codeql_descriptor).st_nlink, 2)
+                    self.assertEqual(
+                        stat.S_IMODE(os.fstat(bindings.codeql_descriptor).st_mode),
+                        0o777,
+                    )
                     codeql_rust_quality._revalidate_fixed_codeql_bindings(bindings)
                 finally:
                     codeql_rust_quality._close_fixed_codeql_bindings(bindings)
@@ -523,7 +561,18 @@ class CodeQLRustQualityTests(unittest.TestCase):
             (*regular[:4], os.geteuid() + 1000, *regular[5:])
         )
         foreign_executable = os.stat_result(
-            (*executable[:4], foreign.st_uid, *executable[5:])
+            (
+                stat.S_IFREG | 0o777,
+                executable.st_ino,
+                executable.st_dev,
+                2,
+                foreign.st_uid,
+                executable.st_gid,
+                executable.st_size,
+                executable.st_atime,
+                executable.st_mtime,
+                executable.st_ctime,
+            )
         )
         codeql_rust_quality._require_codeql_metadata(executable)
         codeql_rust_quality._require_codeql_metadata(foreign_executable)
@@ -592,11 +641,50 @@ class CodeQLRustQualityTests(unittest.TestCase):
                         bindings
                     )
 
+    def test_query_revalidation_detects_binary_executable_mode_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+            ):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings()
+                try:
+                    def remove_executable_mode(
+                        _argv: list[str], **_kwargs: object
+                    ) -> BoundedResult:
+                        binary.chmod(0o400)
+                        return BoundedResult(0, b"")
+
+                    with mock.patch.object(
+                        codeql_rust_quality,
+                        "capture_stdout",
+                        side_effect=remove_executable_mode,
+                    ), self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "must be executable",
+                    ):
+                        codeql_rust_quality._run_query(
+                            bindings,
+                            pathlib.Path("/query.ql"),
+                            pathlib.Path("/result.bqrs"),
+                        )
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+
     def test_query_revalidation_detects_database_metadata_and_parent_drift(
         self,
     ) -> None:
         for case in (
             "database-mode",
+            "metadata-hardlink",
             "metadata-mode",
             "metadata-replacement",
             "parent-mode",
@@ -623,6 +711,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
                         ) -> BoundedResult:
                             if case == "database-mode":
                                 database.chmod(0o720)
+                            elif case == "metadata-hardlink":
+                                os.link(metadata, root / "metadata-link")
                             elif case == "metadata-mode":
                                 metadata.chmod(0o620)
                             elif case == "metadata-replacement":
@@ -794,7 +884,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             binary, runner_temp, database, _metadata = self._fixed_layout(root)
-            binary.chmod(0o520)
+            binary.unlink()
+            binary.mkdir(mode=0o500)
             real_close = os.close
             binary_descriptor = -1
             real_open = os.open
@@ -835,7 +926,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 ),
                 self.assertRaisesRegex(
                     codeql_rust_quality.CodeQLRustQualityError,
-                    "group-or-other-writable.*SECONDARY_CLOSE_FAILURE",
+                    "regular file.*SECONDARY_CLOSE_FAILURE",
                 ),
             ):
                 codeql_rust_quality._open_fixed_codeql_bindings()

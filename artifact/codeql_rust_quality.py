@@ -180,10 +180,6 @@ def _require_codeql_metadata(metadata: os.stat_result) -> None:
         raise CodeQLRustQualityError(
             "fixed CodeQL binary must be a regular file"
         )
-    if mode & 0o022:
-        raise CodeQLRustQualityError(
-            "fixed CodeQL binary must not be group-or-other-writable"
-        )
     if not mode & 0o111:
         raise CodeQLRustQualityError(
             "fixed CodeQL binary must be executable"

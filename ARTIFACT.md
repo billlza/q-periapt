@@ -51,16 +51,23 @@ those build/runtime surfaces. Rust analysis runs with SARIF upload disabled and 
 disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may publish
 results. The quality adapter accepts no environment-selected executable, database, or temporary
 path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout, rejects
-unsafe file types and modes, requires the database paths to be current-user-owned, and revalidates
-their open path identities around every query and decode.
+unsafe file types, requires the database paths to be current-user-owned and without cross-account
+write permission, and revalidates their open path identities around every query and decode.
+The pinned action's fixed GitHub-hosted toolcache launcher may be foreign-owned,
+group/other-writable, or multiply linked, so its owner, write mode, and link count are observed
+runner-image properties rather than gate conditions. Its regular-file type, executable mode, exact
+path/version, and open identity remain required.
 These checks prevent accidental path drift and ordinary replacement from silently selecting a
 different analysis, but they are trusted-runner integrity checks, not isolation from hostile code
 already executing under the same runner account. The open descriptors retain path-identity
 snapshots; the CLI, database contents, adjacent bundle files, and temporary workspace remain
-trusted inputs used by pathname. The inherited process environment and OS runtime are trusted too;
-the fixed-path rule does not claim to hermetically isolate the CodeQL process. Resisting same-UID
-replace-and-restore or a hostile builder requires a separate account or a read-only isolated runner
-image.
+trusted inputs used by pathname. In-place launcher modification through its original inode or an
+alternate hard link is likewise outside this identity-only check. The inherited process environment
+and OS runtime are trusted too. The fixed-path rule does not claim to hermetically isolate the
+CodeQL process. Resisting same-UID
+replace-and-restore or a hostile builder requires an isolated runner image that prevents hostile
+local writers; a separate account alone is insufficient when the toolcache is cross-account
+writable.
 
 ## Quick start — one command
 

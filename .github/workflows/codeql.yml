@@ -127,11 +127,6 @@ jobs:
           languages: ${{ matrix.language }}
           queries: security-extended
 
-      - name: Verify linked CodeQL bundle
-        env:
-          CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
-        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"
-
       - name: Bind Rust quality gate to the linked CodeQL bundle
         if: matrix.language == 'rust'
         env:
@@ -139,6 +134,13 @@ jobs:
         run: |
           fixed_codeql=/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql
           test "$CODEQL_BINARY" = "$fixed_codeql"
+          stat --format='CODEQL_TOOLCACHE_STAT type=%F mode=%a uid=%u gid=%g nlink=%h' \
+            -- "$fixed_codeql"
+
+      - name: Verify linked CodeQL bundle
+        env:
+          CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
+        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"
 
       - name: Build Kotlin binding
         if: matrix.language == 'java-kotlin'
