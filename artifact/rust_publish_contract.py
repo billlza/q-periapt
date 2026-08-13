@@ -140,6 +140,12 @@ RUST_WORKSPACE_AUDIT_MARKER_PREFIX = "RUST_WORKSPACE_DEPENDENCY_AUDIT_PASS"
 RUST_WORKSPACE_DEPENDENCY_AUDIT_TIMEOUT_SECONDS = 900
 RUST_DEPENDENCY_AUDIT_TIMEOUT_SECONDS = 300
 RUST_DEPENDENCY_AUDIT_MAX_OUTPUT_BYTES = 16 * 1024 * 1024
+RUST_DEPENDENCY_AUDIT_TOOL_COMPONENTS = (
+    "target",
+    "qperiapt-audit-tool",
+    "bin",
+    "cargo-audit",
+)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -1242,6 +1248,29 @@ def _dependency_audit_executable_identity(
     return resolved, identity
 
 
+def _fixed_workspace_dependency_audit_paths() -> tuple[pathlib.Path, pathlib.Path]:
+    """Return code-derived source and tool paths for the release audit."""
+
+    try:
+        module_path = pathlib.Path(__file__).resolve(strict=True)
+        root = module_path.parent.parent
+        root_metadata = root.lstat()
+    except OSError as exc:
+        raise RustPublishContractError(
+            f"cannot resolve the fixed dependency-audit layout: {exc}"
+        ) from exc
+    if (
+        module_path.name != "rust_publish_contract.py"
+        or module_path.parent.name != "artifact"
+        or not stat.S_ISDIR(root_metadata.st_mode)
+        or root / "artifact" / "rust_publish_contract.py" != module_path
+    ):
+        raise RustPublishContractError(
+            "dependency-audit module is outside the fixed repository layout"
+        )
+    return root, root.joinpath(*RUST_DEPENDENCY_AUDIT_TOOL_COMPONENTS)
+
+
 def _dependency_audit_environment(cargo_home: pathlib.Path) -> dict[str, str]:
     return {
         "PATH": "/usr/bin:/bin",
@@ -1358,7 +1387,7 @@ def _fetch_rustsec_advisory_database(
     return validate_rustsec_advisory_database(database, deadline=deadline)
 
 
-def verify_workspace_dependency_audit(
+def _verify_workspace_dependency_audit(
     root: pathlib.Path,
     cargo_audit_bin: pathlib.Path,
 ) -> WorkspaceDependencyAuditReceipt:
@@ -1569,6 +1598,13 @@ def verify_workspace_dependency_audit(
                 )
             else:
                 raise
+
+
+def verify_workspace_dependency_audit() -> WorkspaceDependencyAuditReceipt:
+    """Audit fixed repository locks with the fixed repository-local tool."""
+
+    root, cargo_audit = _fixed_workspace_dependency_audit_paths()
+    return _verify_workspace_dependency_audit(root, cargo_audit)
 
 
 _PACKAGE_LIST_MARKER = re.compile(
@@ -2397,22 +2433,14 @@ def _main(arguments: list[str]) -> int:
     if arguments and arguments[0] == "verify-crates-io-sparse-worker":
         return _verify_crates_io_sparse_worker(arguments[1:])
     if arguments and arguments[0] == "verify-workspace-dependency-audit":
-        if (
-            len(arguments) != 5
-            or arguments[1] != "--root"
-            or arguments[3] != "--cargo-audit"
-        ):
+        if arguments != ["verify-workspace-dependency-audit"]:
             print(
-                "error: dependency-audit arguments must be "
-                "--root <path> --cargo-audit <absolute-path>",
+                "error: verify-workspace-dependency-audit accepts no arguments",
                 file=sys.stderr,
             )
             return 2
         try:
-            receipt = verify_workspace_dependency_audit(
-                pathlib.Path(arguments[2]),
-                pathlib.Path(arguments[4]),
-            )
+            receipt = verify_workspace_dependency_audit()
         except RustPublishContractError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1

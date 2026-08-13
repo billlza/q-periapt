@@ -47,7 +47,6 @@ from rust_publish_contract import (
     validate_crates_io_sparse_yanked,
     validate_rust_package_contract_transcript,
     validate_rustsec_advisory_database,
-    verify_workspace_dependency_audit,
 )
 
 
@@ -1296,7 +1295,10 @@ class RustPublishContractTests(unittest.TestCase):
                     return_value=ADVISORY_COMMIT,
                 ) as advisory,
             ):
-                receipt = verify_workspace_dependency_audit(source, executable)
+                receipt = rust_publish_contract._verify_workspace_dependency_audit(
+                    source,
+                    executable,
+                )
 
             self.assertEqual(receipt.workspace_registry_packages, 203)
             self.assertEqual(receipt.fuzz_registry_packages, 38)
@@ -1403,7 +1405,10 @@ class RustPublishContractTests(unittest.TestCase):
                     "total deadline.*workspace crates.io sparse verification",
                 ),
             ):
-                verify_workspace_dependency_audit(source, executable)
+                rust_publish_contract._verify_workspace_dependency_audit(
+                    source,
+                    executable,
+                )
 
             self.assertEqual(scopes, ["workspace"])
             create_owned.assert_not_called()
@@ -1478,7 +1483,10 @@ class RustPublishContractTests(unittest.TestCase):
                     "total deadline.*cargo-audit-workspace",
                 ),
             ):
-                verify_workspace_dependency_audit(source, executable)
+                rust_publish_contract._verify_workspace_dependency_audit(
+                    source,
+                    executable,
+                )
 
             self.assertEqual(len(calls), 3)
             self.assertEqual(audit_calls, 1)
@@ -1534,7 +1542,10 @@ class RustPublishContractTests(unittest.TestCase):
                 ),
                 self.assertRaisesRegex(RustPublishContractError, r"failed \(exit=7\)"),
             ):
-                verify_workspace_dependency_audit(source, executable)
+                rust_publish_contract._verify_workspace_dependency_audit(
+                    source,
+                    executable,
+                )
             self.assertEqual(len(owned_homes), 1)
             self.assertFalse(owned_homes[0].exists())
 
@@ -1600,7 +1611,10 @@ class RustPublishContractTests(unittest.TestCase):
                         "Cargo.lock changed|database commit changed",
                     ),
                 ):
-                    verify_workspace_dependency_audit(source, executable)
+                    rust_publish_contract._verify_workspace_dependency_audit(
+                        source,
+                        executable,
+                    )
 
     def test_workspace_dependency_audit_cli_emits_one_strict_marker(self) -> None:
         receipt = rust_publish_contract.WorkspaceDependencyAuditReceipt(
@@ -1620,17 +1634,11 @@ class RustPublishContractTests(unittest.TestCase):
         ):
             self.assertEqual(
                 rust_publish_contract._main(
-                    [
-                        "verify-workspace-dependency-audit",
-                        "--root",
-                        str(ROOT),
-                        "--cargo-audit",
-                        "/absolute/cargo-audit",
-                    ]
+                    ["verify-workspace-dependency-audit"]
                 ),
                 0,
             )
-        verify.assert_called_once_with(ROOT, pathlib.Path("/absolute/cargo-audit"))
+        verify.assert_called_once_with()
         marker = output.call_args.args[0]
         self.assertEqual(
             marker,
@@ -1642,6 +1650,86 @@ class RustPublishContractTests(unittest.TestCase):
             "locks_stable=1 sparse_checksums=exact yanked=0 "
             "warnings=denied ambient_cargo_home_data=unused",
         )
+
+    def test_workspace_dependency_audit_rejects_all_cli_path_arguments(self) -> None:
+        with (
+            mock.patch.object(
+                rust_publish_contract,
+                "verify_workspace_dependency_audit",
+            ) as verify,
+            mock.patch("builtins.print") as output,
+        ):
+            self.assertEqual(
+                rust_publish_contract._main(
+                    [
+                        "verify-workspace-dependency-audit",
+                        "--root",
+                        str(ROOT),
+                    ]
+                ),
+                2,
+            )
+        verify.assert_not_called()
+        self.assertEqual(
+            output.call_args.args[0],
+            "error: verify-workspace-dependency-audit accepts no arguments",
+        )
+
+    def test_workspace_dependency_audit_uses_only_fixed_code_derived_paths(
+        self,
+    ) -> None:
+        expected_root = ROOT.resolve(strict=True)
+        self.assertEqual(
+            rust_publish_contract.RUST_DEPENDENCY_AUDIT_TOOL_COMPONENTS,
+            (
+                "target",
+                "qperiapt-audit-tool",
+                "bin",
+                "cargo-audit",
+            ),
+        )
+        expected_tool = expected_root.joinpath(
+            *rust_publish_contract.RUST_DEPENDENCY_AUDIT_TOOL_COMPONENTS
+        )
+        with tempfile.TemporaryDirectory() as hostile_cwd:
+            original_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(hostile_cwd)
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "GITHUB_WORKSPACE": hostile_cwd,
+                        "QPERIAPT_ROOT": hostile_cwd,
+                        "CARGO_AUDIT": "/hostile/cargo-audit",
+                    },
+                    clear=False,
+                ):
+                    fixed_paths = (
+                        rust_publish_contract._fixed_workspace_dependency_audit_paths()
+                    )
+                    self.assertEqual(
+                        fixed_paths,
+                        (expected_root, expected_tool),
+                    )
+            finally:
+                os.chdir(original_cwd)
+        receipt = rust_publish_contract.WorkspaceDependencyAuditReceipt(
+            workspace_registry_packages=203,
+            fuzz_registry_packages=38,
+            advisory_db_commit=ADVISORY_COMMIT,
+            workspace_lock_sha256="a" * 64,
+            fuzz_lock_sha256="b" * 64,
+        )
+        with mock.patch.object(
+            rust_publish_contract,
+            "_verify_workspace_dependency_audit",
+            return_value=receipt,
+        ) as verify:
+            self.assertEqual(
+                rust_publish_contract.verify_workspace_dependency_audit(),
+                receipt,
+            )
+        verify.assert_called_once_with(expected_root, expected_tool)
 
     def test_workspace_dependency_audit_rejects_executable_symlink_and_drift(
         self,

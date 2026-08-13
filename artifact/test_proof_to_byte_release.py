@@ -4446,31 +4446,71 @@ with _temporary_release_test_directories(parents):
     def test_audit_pass_state_is_set_only_after_warning_denied_command(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         initial = source.index("DEPENDENCY_AUDIT_PASSED=0")
-        command = source.index("verify-workspace-dependency-audit")
+        gate_start = source.index(
+            'if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then',
+            initial,
+        )
+        command = source.index("verify-workspace-dependency-audit", gate_start)
         passed = source.index("DEPENDENCY_AUDIT_PASSED=1")
-        self.assertLess(initial, command)
+        self.assertLess(initial, gate_start)
+        self.assertLess(gate_start, command)
         self.assertLess(command, passed)
-        audit_gate = source[command:passed]
-        self.assertIn('--root "$ROOT"', audit_gate)
-        self.assertIn('--cargo-audit "$CARGO_AUDIT_BIN"', audit_gate)
+        audit_gate = source[gate_start:passed]
+        self.assertIn(
+            "sh artifact/python-run.sh artifact/rust_publish_contract.py",
+            audit_gate,
+        )
+        self.assertNotIn("--root", audit_gate)
+        self.assertNotIn("--cargo-audit", audit_gate)
+        self.assertNotIn("command -v cargo-audit", source)
         self.assertNotIn("||", audit_gate)
         self.assertNotIn("; true", audit_gate)
         self.assertNotIn("--ignore", source)
 
     def test_ci_uses_warning_denied_audit_without_suppression(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        guide = " ".join(ARTIFACT_GUIDE.read_text(encoding="utf-8").split())
         audit_job = extract_workflow_job(workflow, "audit")
         audit_step = extract_named_workflow_step(
             audit_job,
             "Verify workspace dependency audit",
         )
         self.assertEqual(audit_step.count("verify-workspace-dependency-audit"), 1)
-        self.assertIn('--root "$GITHUB_WORKSPACE"', audit_step)
-        self.assertIn('--cargo-audit "$cargo_audit"', audit_step)
+        self.assertEqual(
+            audit_job.count(
+                "cargo +1.96.1 install cargo-audit --version 0.22.2 "
+                "--locked \\\n"
+                "            --root target/qperiapt-audit-tool"
+            ),
+            1,
+        )
+        install_step = extract_named_workflow_step(
+            audit_job,
+            "Install fixed dependency-audit tool",
+        )
+        self.assertIn(
+            'export PATH="$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin:$PATH"',
+            install_step,
+        )
+        self.assertNotIn("--root", audit_step)
+        self.assertNotIn("--cargo-audit", audit_step)
+        self.assertNotIn("command -v cargo-audit", audit_step)
+        self.assertNotIn("GITHUB_WORKSPACE", audit_step)
         self.assertNotIn("cargo audit --deny warnings", audit_job)
         self.assertNotIn("cargo audit --ignore", audit_job)
         self.assertNotIn("continue-on-error:", audit_step)
         self.assertNotIn("|| true", audit_step)
+        self.assertIn(
+            "accepts no source-root or executable-path argument", guide
+        )
+        self.assertIn(
+            "`target/qperiapt-audit-tool/bin/cargo-audit`", guide
+        )
+        self.assertIn(
+            "path is fixed by code rather than accepted from a CLI argument "
+            "or ambient `PATH`",
+            guide,
+        )
 
     def test_ci_runs_lean_and_signed_policy_wasm_node_suites(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

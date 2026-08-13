@@ -198,8 +198,15 @@ evidence but is not a formal spec-to-Rust refinement; Signal's public SPQR basel
 reports separate hax/F* implementation checks that this artifact does not yet match.
 
 Set `QPERIAPT_REQUIRE_DEPENDENCY_AUDIT=1` together with the other release requirements to execute
-`cargo audit --deny warnings`. Omitting that flag leaves the run scoped and cannot emit the release
-marker. The research-alpha release graph now uses the portable-only `q-periapt-mlkem-native-sys`
+the fixed workspace/fuzz dependency verifier. Install its exact tool first with
+`PATH="$PWD/target/qperiapt-audit-tool/bin:$PATH" cargo +1.96.1 install cargo-audit
+--version 0.22.2 --locked --root target/qperiapt-audit-tool`. The temporary `PATH` prefix prevents
+Cargo's post-install path warning; the verifier itself still ignores ambient `PATH`.
+The verifier accepts no source-root or executable-path argument: it derives the repository root
+from its own fixed module location and executes only
+`target/qperiapt-audit-tool/bin/cargo-audit`. Omitting the requirement flag leaves the run scoped
+and cannot emit the release marker. The research-alpha release graph now uses the portable-only
+`q-periapt-mlkem-native-sys`
 boundary over vendored `mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
 `sha3` 0.10.9. This removes both the `fips203` path that failed the project binary-CT
 gate and the earlier `libcrux`/hax/`proc-macro-error2` advisory path. The current
@@ -395,7 +402,9 @@ commit are revalidated before success. The whole acceptance sequence has one
 900-second monotonic deadline; each subprocess retains its smaller stage cap and
 the fixed reap window, while owned-directory cleanup still runs on every exit.
 CI calls the same verifier; neither path consumes the caller's Cargo-home files
-or advisory database. These SHA-256 values
+or advisory database. The repository-local `cargo-audit` launcher is a selected trusted-host input,
+but its path is fixed by code rather than accepted from a CLI argument or ambient `PATH`.
+These SHA-256 values
 bind exact lock bytes to one run for accidental mismatch detection; they do not
 attest against a hostile host, crates.io, RustSec, system CA store, or network.
 The Swift XCFramework gate also requires a clean tree by default; set
