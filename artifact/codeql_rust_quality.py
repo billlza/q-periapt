@@ -102,6 +102,30 @@ def _merge_cleanup_failure(primary: BaseException, message: str) -> None:
     raise CodeQLRustQualityError(f"{primary}; {message}") from primary
 
 
+def _close_binding_descriptors(
+    descriptors: Sequence[tuple[int, str]],
+) -> None:
+    failures: list[str] = []
+    control_failure: BaseException | None = None
+    for descriptor, label in descriptors:
+        if descriptor < 0:
+            continue
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            message = f"close CodeQL {label} binding: {exc}"
+            if not isinstance(exc, Exception) and control_failure is None:
+                control_failure = exc
+            else:
+                failures.append(message)
+    if control_failure is not None:
+        if failures:
+            control_failure.add_note("; ".join(failures))
+        raise control_failure
+    if failures:
+        raise CodeQLRustQualityError("; ".join(failures))
+
+
 @dataclasses.dataclass(frozen=True)
 class _PathIdentity:
     device: int
@@ -115,6 +139,7 @@ class _FixedCodeQLPathBindings:
     runner_temp: pathlib.Path
     codeql_descriptor: int
     database_descriptor: int
+    database_metadata_descriptor: int
     runner_temp_descriptor: int
     codeql_identity: _PathIdentity
     database_identity: _PathIdentity
@@ -151,16 +176,17 @@ def _canonical_fixed_metadata(path: pathlib.Path, label: str) -> os.stat_result:
 
 def _require_codeql_metadata(metadata: os.stat_result) -> None:
     mode = stat.S_IMODE(metadata.st_mode)
-    if (
-        not stat.S_ISREG(metadata.st_mode)
-        or metadata.st_uid not in {0, os.geteuid()}
-        or metadata.st_nlink != 1
-        or mode & 0o022
-        or not mode & 0o111
-    ):
+    if not stat.S_ISREG(metadata.st_mode):
         raise CodeQLRustQualityError(
-            "fixed CodeQL binary must be one root-or-current-user-owned, "
-            "not-group-or-other-writable executable regular file with one link"
+            "fixed CodeQL binary must be a regular file"
+        )
+    if mode & 0o022:
+        raise CodeQLRustQualityError(
+            "fixed CodeQL binary must not be group-or-other-writable"
+        )
+    if not mode & 0o111:
+        raise CodeQLRustQualityError(
+            "fixed CodeQL binary must be executable"
         )
 
 
@@ -213,6 +239,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
         ) from exc
     codeql_descriptor = -1
     database_descriptor = -1
+    database_metadata_descriptor = -1
     runner_temp_descriptor = -1
     try:
         codeql_descriptor = os.open(FIXED_CODEQL_BINARY, _file_open_flags())
@@ -234,12 +261,25 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             raise CodeQLRustQualityError(
                 "fixed Rust CodeQL database changed while it was being opened"
             )
-        database_file_metadata = os.stat(
+        database_metadata_descriptor = os.open(
+            "codeql-database.yml",
+            _file_open_flags(),
+            dir_fd=database_descriptor,
+        )
+        database_file_metadata = os.fstat(database_metadata_descriptor)
+        _require_database_metadata(database_file_metadata)
+        database_file_path_metadata = os.stat(
             "codeql-database.yml",
             dir_fd=database_descriptor,
             follow_symlinks=False,
         )
-        _require_database_metadata(database_file_metadata)
+        _require_database_metadata(database_file_path_metadata)
+        if _identity(database_file_metadata) != _identity(
+            database_file_path_metadata
+        ):
+            raise CodeQLRustQualityError(
+                "Rust CodeQL database metadata changed while it was being opened"
+            )
 
         runner_temp_descriptor = os.open(FIXED_RUNNER_TEMP, _directory_open_flags())
         runner_temp_metadata = os.fstat(runner_temp_descriptor)
@@ -256,6 +296,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             runner_temp=FIXED_RUNNER_TEMP,
             codeql_descriptor=codeql_descriptor,
             database_descriptor=database_descriptor,
+            database_metadata_descriptor=database_metadata_descriptor,
             runner_temp_descriptor=runner_temp_descriptor,
             codeql_identity=_identity(codeql_metadata),
             database_identity=_identity(database_metadata),
@@ -263,32 +304,38 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             runner_temp_identity=_identity(runner_temp_metadata),
         )
     except BaseException as primary:
-        cleanup_failures: list[str] = []
-        for descriptor, label in (
-            (runner_temp_descriptor, "temporary-parent"),
-            (database_descriptor, "database"),
-            (codeql_descriptor, "binary"),
-        ):
-            if descriptor >= 0:
-                try:
-                    os.close(descriptor)
-                except BaseException as cleanup_error:
-                    cleanup_failures.append(
-                        f"close rejected CodeQL {label} binding: {cleanup_error}"
-                    )
-        if isinstance(primary, OSError):
-            failure = CodeQLRustQualityError(
-                f"cannot open fixed Rust CodeQL path binding: {primary}"
-            )
-            if cleanup_failures:
-                failure = CodeQLRustQualityError(
-                    f"{failure}; cleanup also failed: "
-                    + "; ".join(cleanup_failures)
+        cleanup_error: BaseException | None = None
+        try:
+            _close_binding_descriptors(
+                (
+                    (database_metadata_descriptor, "database-metadata"),
+                    (database_descriptor, "database"),
+                    (runner_temp_descriptor, "temporary-parent"),
+                    (codeql_descriptor, "binary"),
                 )
-            raise failure from primary
-        if cleanup_failures:
-            cleanup_message = "cleanup also failed: " + "; ".join(cleanup_failures)
+            )
+        except BaseException as exc:
+            cleanup_error = exc
+        if cleanup_error is not None:
+            cleanup_message = f"cleanup also failed: {cleanup_error}"
+            if not isinstance(primary, Exception):
+                primary.add_note(cleanup_message)
+                raise
+            if not isinstance(cleanup_error, Exception):
+                cleanup_error.add_note(
+                    f"while handling CodeQL path-binding failure: {primary}"
+                )
+                raise cleanup_error from primary
+            if isinstance(primary, OSError):
+                raise CodeQLRustQualityError(
+                    "cannot open fixed Rust CodeQL path binding: "
+                    f"{primary}; {cleanup_message}"
+                ) from primary
             _merge_cleanup_failure(primary, cleanup_message)
+        if isinstance(primary, OSError):
+            raise CodeQLRustQualityError(
+                f"cannot open fixed Rust CodeQL path binding: {primary}"
+            ) from primary
         raise
 
 
@@ -320,14 +367,20 @@ def _revalidate_fixed_codeql_bindings(
         == bindings.database_identity
     ):
         raise CodeQLRustQualityError("fixed Rust CodeQL database identity changed")
-    database_file_metadata = os.stat(
+    database_file_path_metadata = os.stat(
         "codeql-database.yml",
         dir_fd=bindings.database_descriptor,
         follow_symlinks=False,
     )
-    _require_database_metadata(database_file_metadata)
-    if _identity(database_file_metadata) != bindings.database_metadata_identity:
+    database_file_metadata = os.fstat(bindings.database_metadata_descriptor)
+    if not (
+        _identity(database_file_path_metadata)
+        == _identity(database_file_metadata)
+        == bindings.database_metadata_identity
+    ):
         raise CodeQLRustQualityError("Rust CodeQL database metadata identity changed")
+    _require_database_metadata(database_file_path_metadata)
+    _require_database_metadata(database_file_metadata)
 
     runner_temp_path_metadata = _canonical_fixed_metadata(
         bindings.runner_temp, "fixed CodeQL temporary parent"
@@ -347,27 +400,14 @@ def _revalidate_fixed_codeql_bindings(
 def _close_fixed_codeql_bindings(
     bindings: _FixedCodeQLPathBindings,
 ) -> None:
-    failures: list[str] = []
-    control_failure: BaseException | None = None
-    for descriptor, label in (
-        (bindings.runner_temp_descriptor, "temporary-parent"),
-        (bindings.database_descriptor, "database"),
-        (bindings.codeql_descriptor, "binary"),
-    ):
-        try:
-            os.close(descriptor)
-        except BaseException as exc:
-            message = f"close CodeQL {label} binding: {exc}"
-            if not isinstance(exc, Exception) and control_failure is None:
-                control_failure = exc
-            else:
-                failures.append(message)
-    if control_failure is not None:
-        if failures:
-            control_failure.add_note("; ".join(failures))
-        raise control_failure
-    if failures:
-        raise CodeQLRustQualityError("; ".join(failures))
+    _close_binding_descriptors(
+        (
+            (bindings.database_metadata_descriptor, "database-metadata"),
+            (bindings.database_descriptor, "database"),
+            (bindings.runner_temp_descriptor, "temporary-parent"),
+            (bindings.codeql_descriptor, "binary"),
+        )
+    )
 
 
 def _decode_nul_paths(raw: bytes) -> tuple[str, ...]:

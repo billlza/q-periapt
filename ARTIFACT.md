@@ -51,7 +51,8 @@ those build/runtime surfaces. Rust analysis runs with SARIF upload disabled and 
 disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may publish
 results. The quality adapter accepts no environment-selected executable, database, or temporary
 path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout, rejects
-unsafe ownership/modes, and revalidates their open path identities around every query and decode.
+unsafe file types and modes, requires the database paths to be current-user-owned, and revalidates
+their open path identities around every query and decode.
 These checks prevent accidental path drift and ordinary replacement from silently selecting a
 different analysis, but they are trusted-runner integrity checks, not isolation from hostile code
 already executing under the same runner account. The open descriptors retain path-identity

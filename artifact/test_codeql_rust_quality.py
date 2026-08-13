@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import os
 import pathlib
 import stat
@@ -167,9 +168,20 @@ class CodeQLRustQualityTests(unittest.TestCase):
                     codeql_rust_quality._revalidate_fixed_codeql_bindings(
                         bindings
                     )
+                    held_metadata = os.fstat(
+                        bindings.database_metadata_descriptor
+                    )
+                    self.assertEqual(
+                        codeql_rust_quality._identity(held_metadata),
+                        bindings.database_metadata_identity,
+                    )
                     metadata.unlink()
                     metadata.write_text("replaced: true\n", encoding="utf-8")
                     metadata.chmod(0o600)
+                    self.assertEqual(
+                        os.fstat(bindings.database_metadata_descriptor).st_nlink,
+                        0,
+                    )
                     with self.assertRaisesRegex(
                         codeql_rust_quality.CodeQLRustQualityError,
                         "metadata identity changed",
@@ -182,12 +194,185 @@ class CodeQLRustQualityTests(unittest.TestCase):
                         bindings
                     )
 
+    def test_binding_open_flags_are_fail_closed(self) -> None:
+        self.assertEqual(
+            codeql_rust_quality._file_open_flags(),
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        self.assertEqual(
+            codeql_rust_quality._directory_open_flags(),
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+
+    def test_binding_open_calls_use_fixed_flags_and_relative_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            real_open = os.open
+            calls: list[tuple[os.PathLike[str] | str, int, int | None]] = []
+
+            def record_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                dir_fd = kwargs.get("dir_fd")
+                self.assertTrue(dir_fd is None or isinstance(dir_fd, int))
+                calls.append((path, flags, dir_fd))
+                return real_open(path, flags, *args, **kwargs)
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os, "open", side_effect=record_open
+                ),
+            ):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings()
+                try:
+                    self.assertEqual(
+                        calls,
+                        [
+                            (binary, codeql_rust_quality._file_open_flags(), None),
+                            (
+                                database,
+                                codeql_rust_quality._directory_open_flags(),
+                                None,
+                            ),
+                            (
+                                "codeql-database.yml",
+                                codeql_rust_quality._file_open_flags(),
+                                bindings.database_descriptor,
+                            ),
+                            (
+                                runner_temp,
+                                codeql_rust_quality._directory_open_flags(),
+                                None,
+                            ),
+                        ],
+                    )
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+
+    def test_metadata_revalidation_uses_fd_policy_and_initial_identity(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, metadata = self._fixed_layout(root)
+            other_metadata = root / "other-metadata"
+            other_metadata.write_text("name: other\n", encoding="utf-8")
+            other_metadata.chmod(0o600)
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+            ):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings()
+                try:
+                    changed_initial = dataclasses.replace(
+                        bindings,
+                        database_metadata_identity=codeql_rust_quality._identity(
+                            other_metadata.stat()
+                        ),
+                    )
+                    with self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "metadata identity changed",
+                    ):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(
+                            changed_initial
+                        )
+
+                    real_fstat = os.fstat
+
+                    def replace_metadata_fstat(descriptor: int) -> os.stat_result:
+                        if descriptor == bindings.database_metadata_descriptor:
+                            return other_metadata.stat()
+                        return real_fstat(descriptor)
+
+                    with mock.patch.object(
+                        codeql_rust_quality.os,
+                        "fstat",
+                        side_effect=replace_metadata_fstat,
+                    ), self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "metadata identity changed",
+                    ):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(
+                            bindings
+                        )
+
+                    metadata.chmod(0o620)
+                    with self.assertRaisesRegex(
+                        codeql_rust_quality.CodeQLRustQualityError,
+                        "database metadata must be",
+                    ):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(
+                            bindings
+                        )
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+
+    def test_metadata_open_rejects_path_fd_identity_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            other_metadata = root / "other-metadata"
+            other_metadata.write_text("name: other\n", encoding="utf-8")
+            other_metadata.chmod(0o600)
+            real_stat = os.stat
+
+            def replace_metadata_path_stat(
+                path: os.PathLike[str] | str,
+                *args: object,
+                **kwargs: object,
+            ) -> os.stat_result:
+                if (
+                    os.fspath(path) == "codeql-database.yml"
+                    and kwargs.get("dir_fd") is not None
+                ):
+                    return other_metadata.stat()
+                return real_stat(path, *args, **kwargs)
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "stat",
+                    side_effect=replace_metadata_path_stat,
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "metadata changed while it was being opened",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+
     def test_fixed_bindings_reject_cross_account_write_and_unsafe_types(
         self,
     ) -> None:
         for case in (
             "binary-group-writable",
-            "binary-hardlink",
             "binary-not-executable",
             "binary-not-regular",
             "binary-symlink",
@@ -204,8 +389,6 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 binary, runner_temp, database, metadata = self._fixed_layout(root)
                 if case == "binary-group-writable":
                     binary.chmod(0o520)
-                elif case == "binary-hardlink":
-                    os.link(binary, root / "second-codeql-link")
                 elif case == "binary-not-executable":
                     binary.chmod(0o400)
                 elif case == "binary-not-regular":
@@ -248,6 +431,28 @@ class CodeQLRustQualityTests(unittest.TestCase):
                     self.assertRaises(codeql_rust_quality.CodeQLRustQualityError),
                 ):
                     codeql_rust_quality._open_fixed_codeql_bindings()
+
+    def test_fixed_bindings_accept_multiply_linked_fixed_binary(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            os.link(binary, root / "second-codeql-link")
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+            ):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings()
+                try:
+                    self.assertEqual(os.fstat(bindings.codeql_descriptor).st_nlink, 2)
+                    codeql_rust_quality._revalidate_fixed_codeql_bindings(bindings)
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
 
         with tempfile.TemporaryDirectory() as temporary:
             not_directory = pathlib.Path(temporary) / "regular"
@@ -314,14 +519,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 regular.st_ctime,
             )
         )
-        codeql_rust_quality._require_codeql_metadata(executable)
-        root_executable = os.stat_result(
-            (*executable[:4], 0, *executable[5:])
-        )
-        codeql_rust_quality._require_codeql_metadata(root_executable)
         foreign = os.stat_result(
             (*regular[:4], os.geteuid() + 1000, *regular[5:])
         )
+        foreign_executable = os.stat_result(
+            (*executable[:4], foreign.st_uid, *executable[5:])
+        )
+        codeql_rust_quality._require_codeql_metadata(executable)
+        codeql_rust_quality._require_codeql_metadata(foreign_executable)
         with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
             codeql_rust_quality._require_database_metadata(foreign)
         foreign_directory = os.stat_result(
@@ -390,7 +595,12 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_query_revalidation_detects_database_metadata_and_parent_drift(
         self,
     ) -> None:
-        for case in ("database-mode", "metadata-replacement", "parent-mode"):
+        for case in (
+            "database-mode",
+            "metadata-mode",
+            "metadata-replacement",
+            "parent-mode",
+        ):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
                 root = pathlib.Path(temporary).resolve()
                 binary, runner_temp, database, metadata = self._fixed_layout(root)
@@ -413,6 +623,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
                         ) -> BoundedResult:
                             if case == "database-mode":
                                 database.chmod(0o720)
+                            elif case == "metadata-mode":
+                                metadata.chmod(0o620)
                             elif case == "metadata-replacement":
                                 metadata.unlink()
                                 metadata.write_text(
@@ -480,6 +692,50 @@ class CodeQLRustQualityTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 os.fstat(opened_binary[0])
 
+    def test_open_failure_after_metadata_closes_every_open_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            real_open = os.open
+            opened: list[int] = []
+
+            def fail_runner_temp_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                if pathlib.Path(path) == runner_temp:
+                    raise OSError("synthetic temporary-parent open failure")
+                descriptor = real_open(path, flags, *args, **kwargs)
+                opened.append(descriptor)
+                return descriptor
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "open",
+                    side_effect=fail_runner_temp_open,
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "cannot open fixed Rust CodeQL path binding",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+            self.assertEqual(len(opened), 3)
+            for descriptor in opened:
+                with self.assertRaises(OSError):
+                    os.fstat(descriptor)
+
     def test_open_failure_reports_secondary_close_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
@@ -534,11 +790,176 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ):
                 codeql_rust_quality._open_fixed_codeql_bindings()
 
+    def test_open_domain_failure_reports_secondary_close_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            binary.chmod(0o520)
+            real_close = os.close
+            binary_descriptor = -1
+            real_open = os.open
+
+            def record_binary_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                nonlocal binary_descriptor
+                descriptor = real_open(path, flags, *args, **kwargs)
+                if pathlib.Path(path) == binary:
+                    binary_descriptor = descriptor
+                return descriptor
+
+            def fail_binary_close(descriptor: int) -> None:
+                real_close(descriptor)
+                if descriptor == binary_descriptor:
+                    raise OSError("SECONDARY_CLOSE_FAILURE")
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os, "open", side_effect=record_binary_open
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "close",
+                    side_effect=fail_binary_close,
+                ),
+                self.assertRaisesRegex(
+                    codeql_rust_quality.CodeQLRustQualityError,
+                    "group-or-other-writable.*SECONDARY_CLOSE_FAILURE",
+                ),
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+
+    def test_open_cleanup_preserves_control_exception(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            real_open = os.open
+            real_close = os.close
+            binary_descriptor = -1
+            interrupt = KeyboardInterrupt("CLEANUP_INTERRUPT")
+
+            def fail_database_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                nonlocal binary_descriptor
+                if pathlib.Path(path) == database:
+                    raise OSError("PRIMARY_OPEN_FAILURE")
+                descriptor = real_open(path, flags, *args, **kwargs)
+                if pathlib.Path(path) == binary:
+                    binary_descriptor = descriptor
+                return descriptor
+
+            def interrupt_binary_close(descriptor: int) -> None:
+                real_close(descriptor)
+                if descriptor == binary_descriptor:
+                    raise interrupt
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os, "open", side_effect=fail_database_open
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "close",
+                    side_effect=interrupt_binary_close,
+                ),
+                self.assertRaises(KeyboardInterrupt) as raised,
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+            self.assertIs(raised.exception, interrupt)
+            self.assertIn(
+                "PRIMARY_OPEN_FAILURE",
+                " ".join(getattr(interrupt, "__notes__", ())),
+            )
+            with self.assertRaises(OSError):
+                os.fstat(binary_descriptor)
+
+    def test_open_primary_control_exception_survives_cleanup_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, _metadata = self._fixed_layout(root)
+            real_open = os.open
+            real_close = os.close
+            binary_descriptor = -1
+            interrupt = KeyboardInterrupt("PRIMARY_INTERRUPT")
+
+            def interrupt_database_open(
+                path: os.PathLike[str] | str,
+                flags: int,
+                *args: object,
+                **kwargs: object,
+            ) -> int:
+                nonlocal binary_descriptor
+                if pathlib.Path(path) == database:
+                    raise interrupt
+                descriptor = real_open(path, flags, *args, **kwargs)
+                if pathlib.Path(path) == binary:
+                    binary_descriptor = descriptor
+                return descriptor
+
+            def fail_binary_close(descriptor: int) -> None:
+                real_close(descriptor)
+                if descriptor == binary_descriptor:
+                    raise OSError("SECONDARY_CLOSE_FAILURE")
+
+            with (
+                mock.patch.object(codeql_rust_quality.sys, "platform", "linux"),
+                mock.patch.object(codeql_rust_quality, "FIXED_CODEQL_BINARY", binary),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_CODEQL_DATABASE", database
+                ),
+                mock.patch.object(
+                    codeql_rust_quality, "FIXED_RUNNER_TEMP", runner_temp
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "open",
+                    side_effect=interrupt_database_open,
+                ),
+                mock.patch.object(
+                    codeql_rust_quality.os,
+                    "close",
+                    side_effect=fail_binary_close,
+                ),
+                self.assertRaises(KeyboardInterrupt) as raised,
+            ):
+                codeql_rust_quality._open_fixed_codeql_bindings()
+            self.assertIs(raised.exception, interrupt)
+            self.assertIn(
+                "SECONDARY_CLOSE_FAILURE",
+                " ".join(getattr(interrupt, "__notes__", ())),
+            )
+            with self.assertRaises(OSError):
+                os.fstat(binary_descriptor)
+
     def test_close_bindings_attempts_every_descriptor_and_aggregates(self) -> None:
         bindings = mock.Mock(
-            runner_temp_descriptor=11,
+            database_metadata_descriptor=11,
             database_descriptor=12,
-            codeql_descriptor=13,
+            runner_temp_descriptor=13,
+            codeql_descriptor=14,
         )
         closed: list[int] = []
 
@@ -550,16 +971,17 @@ class CodeQLRustQualityTests(unittest.TestCase):
             codeql_rust_quality.os, "close", side_effect=fail_close
         ), self.assertRaisesRegex(
             codeql_rust_quality.CodeQLRustQualityError,
-            "temporary-parent.*database.*binary",
+            "database-metadata.*database.*temporary-parent.*binary",
         ):
             codeql_rust_quality._close_fixed_codeql_bindings(bindings)
-        self.assertEqual(closed, [11, 12, 13])
+        self.assertEqual(closed, [11, 12, 13, 14])
 
     def test_close_bindings_preserves_control_exception_and_continues(self) -> None:
         bindings = mock.Mock(
-            runner_temp_descriptor=21,
+            database_metadata_descriptor=21,
             database_descriptor=22,
-            codeql_descriptor=23,
+            runner_temp_descriptor=23,
+            codeql_descriptor=24,
         )
         closed: list[int] = []
         interrupt = KeyboardInterrupt("PRIMARY_INTERRUPT")
@@ -576,7 +998,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         ), self.assertRaises(KeyboardInterrupt) as raised:
             codeql_rust_quality._close_fixed_codeql_bindings(bindings)
         self.assertIs(raised.exception, interrupt)
-        self.assertEqual(closed, [21, 22, 23])
+        self.assertEqual(closed, [21, 22, 23, 24])
         self.assertIn(
             "SECONDARY_CLOSE_FAILURE",
             " ".join(getattr(interrupt, "__notes__", ())),
