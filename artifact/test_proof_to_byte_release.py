@@ -69,6 +69,9 @@ PINNED_CHECKOUT_ACTION = (
 PINNED_DOWNLOAD_ARTIFACT_ACTION = (
     "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1"
 )
+PINNED_UPLOAD_ARTIFACT_ACTION = (
+    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"
+)
 PINNED_CODEQL_ACTION = (
     "github/codeql-action/{action}@5595ccaf912efad79be6eef63a5619ff05969be3 "
     "# v4.37.6"
@@ -1651,6 +1654,33 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertLess(derive_name, create_avd)
         self.assertLess(create_avd, verify_avd)
         self.assertLess(verify_avd, execute_smoke)
+
+        diagnostic_upload = extract_named_workflow_step(
+            job, "Upload bounded Android package diagnostics after failure"
+        )
+        self.assertEqual(
+            diagnostic_upload,
+            "      - name: Upload bounded Android package diagnostics after failure\n"
+            "        if: failure() && "
+            "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-*-observation.log') != ''\n"
+            f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n"
+            "        with:\n"
+            "          name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics\n"
+            "          path: |\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-*-observation.log\n"
+            "          if-no-files-found: error\n",
+        )
+        self.assertNotIn("attempt-*.txt", diagnostic_upload)
+        self.assertNotIn("attempt-*.err", diagnostic_upload)
+        self.assertNotIn("adb-uninstall-cleanup.log", diagnostic_upload)
+
+        proof_upload = extract_named_workflow_step(job, "Upload Android runtime proof")
+        self.assertIn(
+            f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
+        )
+        self.assertIn("name: abi2-android-runtime-api35-16k-x86_64\n", proof_upload)
+        self.assertNotIn("if: failure()", proof_upload)
+        self.assertIn("if-no-files-found: error\n", proof_upload)
 
         producer = (ROOT / "artifact" / "android-device-smoke.sh").read_text(
             encoding="utf-8"

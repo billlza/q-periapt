@@ -741,9 +741,18 @@ These produce the paper's primary network table and the binary constant-time dis
   and macOS allow ACLs are also rejected. In all cases the derived private name
   must be absent there. The producer never chmods or deletes it, while unrelated historical AVDs may remain.
   The AVD runs with a read-only userdata overlay.
-  The smoke refuses to replace an existing package,
-  matches both installed APK bytes and signer before owned cleanup, reconciles command-unknown
-  outcomes with bounded repeated observations, and never clears global logcat buffers. It requires
+  The smoke refuses to replace an existing package. One 45-second post-install remote-observation
+  deadline requires two consecutive path-stable reads whose installed APK bytes match the run
+  capability exactly, followed by an exact local signer check. Cleanup uses a separate 45-second
+  remote-observation budget shared by its ownership recheck, uninstall request, and repeated absence
+  observations; its local signer check is outside that remote-command budget. A single
+  package-service, path, pull, or byte observation failure
+  resets convergence instead of weakening the identity check; malformed paths or
+  command-capability/owned-server drift fail immediately. Cleanup uninstalls only after its recheck
+  passes, reconciles command-unknown outcomes with repeated absence observations, and never clears
+  global logcat buffers. On CI failure, only the sanitized bounded observation-state logs are uploaded
+  for diagnosis; raw command output remains in the private run tree, and a failed lane still publishes
+  no runtime proof. It requires
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
   identity directory that is not group/other writable, owner-protected adb key files, and an already
   authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is

@@ -582,6 +582,7 @@ RESULT_JSON="$DIST/qperiapt-android-device-result.json"
 PROOF_JSON="$DIST/qperiapt-android-device-proof.json"
 PROOF_STAGING="$WORK/qperiapt-android-device-proof.json.pending"
 EVIDENCE_BUNDLE="$DIST/qperiapt-android-runtime-evidence-v2.zip"
+installed_apk="$WORK/installed-smoke-base.apk"
 SOURCE_TREE_SHA256=$(python3 - "$ROOT" <<'PY'
 import pathlib
 import sys
@@ -1404,30 +1405,6 @@ observe_preinstall_package_absence() {
 	return 1
 }
 
-package_base_apk_path() {
-	package_path_output="$DIST/adb-package-path.txt"
-	if ! android_command package-path 2>"$DIST/adb-package-path.err"; then
-		printf 'error: cannot resolve the installed Android smoke APK\n' >&2
-		return 1
-	fi
-	if ! package_paths=$(tr -d '\r' <"$package_path_output"); then
-		printf 'error: cannot normalize the installed Android smoke APK path\n' >&2
-		return 1
-	fi
-	python3 - "$package_paths" <<'PY'
-import re
-import sys
-
-lines = sys.argv[1].splitlines()
-if len(lines) != 1 or not lines[0].startswith("package:"):
-    raise SystemExit("error: installed Android smoke package does not have one base APK")
-path = lines[0][len("package:"):]
-if re.fullmatch(r"/[A-Za-z0-9_./+=~:-]+/base\.apk", path) is None:
-    raise SystemExit("error: installed Android smoke base APK path is not canonical")
-print(path)
-PY
-}
-
 remove_installed_apk_copy() {
 	if [ -e "$installed_apk" ] && ! rm -f -- "$installed_apk"; then
 		printf 'error: failed to remove the temporary installed-APK copy\n' >&2
@@ -1451,69 +1428,182 @@ print(f"{snapshot.size}:{snapshot.sha256}")
 PY
 }
 
-verify_installed_apk_signer() {
-	if ! package_base_apk_path >/dev/null; then
-		return 1
-	fi
-	installed_apk="$WORK/installed-smoke-base.apk"
+verify_observed_installed_apk_signer() {
 	installed_signer_output="$DIST/installed-apksigner-verify.txt"
-	if ! rm -f -- "$installed_apk" "$installed_signer_output"; then
-		printf 'error: cannot reset temporary installed-APK verification files\n' >&2
-		return 1
-	fi
-	if ! android_command pull-installed-apk; then
-		printf 'error: cannot read the installed Android smoke base APK\n' >&2
-		remove_installed_apk_copy || return 1
-		return 1
+	if ! rm -f -- "$installed_signer_output"; then
+		printf 'error: cannot reset installed-APK signer diagnostics\n' >&2
+		return 2
 	fi
 	if ! installed_apk_identity=$(apk_file_identity "$installed_apk"); then
-		remove_installed_apk_copy || return 1
-		return 1
+		remove_installed_apk_copy || return 2
+		return 2
 	fi
 	if [ "$installed_apk_identity" != "$SIGNED_APK_IDENTITY" ]; then
-		printf 'error: installed Android smoke APK bytes do not match this run; refusing to uninstall it\n' >&2
-		remove_installed_apk_copy || return 1
-		return 1
+		printf 'error: observed Android smoke APK copy changed before signer verification\n' >&2
+		remove_installed_apk_copy || return 2
+		return 2
 	fi
 	if ! chmod 600 "$installed_apk"; then
 		printf 'error: cannot protect the temporary installed-APK copy\n' >&2
-		remove_installed_apk_copy || return 1
-		return 1
+		remove_installed_apk_copy || return 2
+		return 2
 	fi
 	if ! "$APKSIGNER" verify --min-sdk-version 23 --print-certs \
 		"$installed_apk" >"$installed_signer_output" 2>&1; then
 		printf 'error: installed Android smoke APK signature verification failed\n' >&2
-		remove_installed_apk_copy || return 1
-		return 1
+		remove_installed_apk_copy || return 2
+		return 2
 	fi
 	if ! installed_signer_sha256=$(PYTHONPATH=artifact python3 artifact/android_device_proof.py signer-sha256 \
 		--apksigner-output "$installed_signer_output"); then
-		remove_installed_apk_copy || return 1
-		return 1
+		remove_installed_apk_copy || return 2
+		return 2
 	fi
-	remove_installed_apk_copy || return 1
+	remove_installed_apk_copy || return 2
 	if [ "$installed_signer_sha256" != "$EXPECTED_APK_SIGNER_SHA256" ]; then
 		printf 'error: installed Android package signer does not match this run; refusing to uninstall it\n' >&2
-		return 1
+		return 2
 	fi
+}
+
+observe_owned_installed_package() {
+	ownership_deadline=$1
+	ownership_phase=$2
+	ownership_attempt=0
+	ownership_consecutive_exact=0
+	ownership_previous_path_sha256=
+	ownership_log="$DIST/adb-package-$ownership_phase-observation.log"
+	if ! : >"$ownership_log"; then
+		printf 'error: cannot create Android package ownership observation log\n' >&2
+		return 2
+	fi
+	while ownership_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); do
+		ownership_attempt=$((ownership_attempt + 1))
+		ownership_output="$DIST/adb-package-$ownership_phase-attempt-$ownership_attempt.txt"
+		ownership_error="$DIST/adb-package-$ownership_phase-attempt-$ownership_attempt.err"
+		if android_command observe-installed-apk \
+			--timeout-seconds "$ownership_timeout" \
+			>"$ownership_output" 2>"$ownership_error"; then
+			ownership_status=0
+		else
+			ownership_status=$?
+		fi
+		if [ "$ownership_status" -ne 0 ]; then
+			printf 'attempt=%s state=structural-error exit=%s consecutive=0\n' \
+				"$ownership_attempt" "$ownership_status" >>"$ownership_log"
+			remove_installed_apk_copy || return 2
+			printf 'error: Android package ownership observation failed structurally; see %s\n' \
+				"$ownership_error" >&2
+			return 2
+		fi
+		if ! ownership_result=$(tr -d '\r\n' <"$ownership_output"); then
+			printf 'error: cannot normalize Android package ownership observation\n' >&2
+			remove_installed_apk_copy || return 2
+			return 2
+		fi
+		case "$ownership_result" in
+			exact:*)
+				ownership_path_sha256=${ownership_result#exact:}
+				case "$ownership_path_sha256" in
+					*[!0-9a-f]* | "")
+						printf 'error: Android package ownership observation returned a malformed path digest\n' >&2
+						remove_installed_apk_copy || return 2
+						return 2
+						;;
+				esac
+				if [ "${#ownership_path_sha256}" -ne 64 ]; then
+					printf 'error: Android package ownership path digest has the wrong length\n' >&2
+					remove_installed_apk_copy || return 2
+					return 2
+				fi
+				if [ "$ownership_path_sha256" = "$ownership_previous_path_sha256" ]; then
+					ownership_consecutive_exact=$((ownership_consecutive_exact + 1))
+				else
+					ownership_consecutive_exact=1
+					ownership_previous_path_sha256=$ownership_path_sha256
+				fi
+				printf 'attempt=%s state=exact path_sha256=%s consecutive=%s\n' \
+					"$ownership_attempt" "$ownership_path_sha256" \
+					"$ownership_consecutive_exact" >>"$ownership_log"
+				if [ "$ownership_consecutive_exact" -eq 2 ]; then
+					if verify_observed_installed_apk_signer; then
+						return 0
+					else
+						ownership_signer_status=$?
+					fi
+					return "$ownership_signer_status"
+				fi
+				;;
+			retryable:*)
+				ownership_reason=${ownership_result#retryable:}
+				case "$ownership_reason" in
+					package-unavailable | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
+					*)
+						printf 'error: Android package ownership observation returned a malformed retry reason\n' >&2
+						remove_installed_apk_copy || return 2
+						return 2
+						;;
+				esac
+				ownership_consecutive_exact=0
+				ownership_previous_path_sha256=
+				printf 'attempt=%s state=retryable reason=%s consecutive=0\n' \
+					"$ownership_attempt" "$ownership_reason" >>"$ownership_log"
+				;;
+			*)
+				printf 'error: Android package ownership observation returned an unexpected result\n' >&2
+				remove_installed_apk_copy || return 2
+				return 2
+				;;
+		esac
+		if remaining_bounded_timeout "$ownership_deadline" 1 >/dev/null; then
+			sleep 1
+		fi
+	done
+	remove_installed_apk_copy || return 2
+	printf 'error: Android package ownership did not converge within its total deadline; see %s\n' \
+		"$ownership_log" >&2
+	return 1
 }
 
 cleanup_android_app() {
 	if [ "${ANDROID_APP_CLEANUP_ARMED:-0}" != "1" ]; then
 		return 0
 	fi
+	ANDROID_APP_CLEANUP_INVOCATION=$((ANDROID_APP_CLEANUP_INVOCATION + 1))
+	cleanup_invocation=$ANDROID_APP_CLEANUP_INVOCATION
+	cleanup_deadline=$(monotonic_deadline 45) || return 1
 	required_absent_observations=3
 	if [ "${ANDROID_APP_INSTALL_CONFIRMED:-0}" != "1" ]; then
 		required_absent_observations=8
 	fi
 	attempt=0
 	absent_observations=0
-	while [ "$attempt" -lt 12 ]; do
-		if package_state=$(query_package_state); then
+	while cleanup_query_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 5); do
+		attempt=$((attempt + 1))
+		cleanup_query_output="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.txt"
+		cleanup_query_error="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.err"
+		cleanup_observer_error="$DIST/adb-package-query-cleanup-$cleanup_invocation-attempt-$attempt.observer.err"
+		if package_state=$(query_package_state \
+			"$cleanup_query_timeout" \
+			"$cleanup_query_output" \
+			"$cleanup_query_error" 2>>"$cleanup_observer_error"); then
 			printf 'attempt=%s state=%s\n' "$attempt" "$package_state" >>"$DIST/adb-uninstall-cleanup.log"
 		else
-			package_state=unknown
-			printf 'attempt=%s state=query-error\n' "$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+			cleanup_query_status=$?
+			case "$cleanup_query_status" in
+				1)
+					package_state=unknown
+					printf 'attempt=%s state=query-error exit=1\n' \
+						"$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+					;;
+				*)
+					printf 'attempt=%s state=structural-error exit=%s\n' \
+						"$attempt" "$cleanup_query_status" >>"$DIST/adb-uninstall-cleanup.log"
+					printf 'error: Android cleanup package observation failed structurally; see %s\n' \
+						"$cleanup_observer_error" >&2
+					return 2
+					;;
+			esac
 		fi
 		case "$package_state" in
 			absent)
@@ -1525,13 +1615,29 @@ cleanup_android_app() {
 				;;
 			present)
 				absent_observations=0
-				if ! verify_installed_apk_signer; then
-					return 1
-				fi
-				ANDROID_APP_INSTALL_CONFIRMED=1
-				required_absent_observations=3
-				if ! android_command uninstall-app >>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
-					printf 'attempt=%s uninstall=unknown-or-failed\n' "$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+				if [ "$ANDROID_APP_UNINSTALL_REQUESTED" = "1" ]; then
+					printf 'attempt=%s uninstall=still-present-after-request\n' \
+						"$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+				else
+					if observe_owned_installed_package \
+						"$cleanup_deadline" "cleanup-$cleanup_invocation"; then
+						:
+					else
+						cleanup_ownership_status=$?
+						return "$cleanup_ownership_status"
+					fi
+					ANDROID_APP_INSTALL_CONFIRMED=1
+					required_absent_observations=3
+					if ! uninstall_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 60); then
+						printf 'error: Android cleanup deadline expired before owned uninstall\n' >&2
+						return 1
+					fi
+					if ! android_command uninstall-app \
+						--timeout-seconds "$uninstall_timeout" \
+						>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
+						printf 'attempt=%s uninstall=unknown-or-failed\n' "$attempt" >>"$DIST/adb-uninstall-cleanup.log"
+					fi
+					ANDROID_APP_UNINSTALL_REQUESTED=1
 				fi
 				;;
 			unknown) absent_observations=0 ;;
@@ -1540,8 +1646,7 @@ cleanup_android_app() {
 				return 1
 				;;
 		esac
-		attempt=$((attempt + 1))
-		if [ "$attempt" -lt 12 ]; then
+		if remaining_bounded_timeout "$cleanup_deadline" 1 >/dev/null; then
 			sleep 1
 		fi
 	done
@@ -1683,6 +1788,8 @@ cleanup_exit() {
 
 ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
+ANDROID_APP_CLEANUP_INVOCATION=0
+ANDROID_APP_UNINSTALL_REQUESTED=0
 ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
 ADB_PRIVATE_SERVER_DIRECTORY=
 ADB_PRIVATE_SERVER_SOCKET_NONCE=
@@ -2402,13 +2509,14 @@ if ! android_command install-apk >"$DIST/adb-install.log"; then
 	printf 'error: Android smoke APK installation failed\n' >&2
 	exit 1
 fi
-if ! package_state=$(query_package_state) || [ "$package_state" != "present" ]; then
-	printf 'error: Android smoke package was not observable after installation\n' >&2
-	exit 1
-fi
-if ! verify_installed_apk_signer; then
-	printf 'error: installed Android smoke package does not belong to this run\n' >&2
-	exit 1
+POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
+if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall; then
+	:
+else
+	postinstall_ownership_status=$?
+	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
+		"$postinstall_ownership_status" >&2
+	exit "$postinstall_ownership_status"
 fi
 ANDROID_APP_INSTALL_CONFIRMED=1
 if android_command device-time 2>"$DIST/adb-device-time.err"; then

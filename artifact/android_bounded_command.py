@@ -63,6 +63,7 @@ from process_identity import (
 )
 
 PACKAGE = "dev.qperiapt.androidsmoke"
+INSTALLED_APK_COPY_LEAF = "installed-smoke-base.apk"
 RESULT_TEXT_REMOTE = "files/qperiapt-android-device-result.txt"
 RESULT_JSON_REMOTE = "files/qperiapt-android-device-result.json"
 REMOTE_BASE_APK = re.compile("/[A-Za-z0-9_./+=~:-]+/base\\.apk")
@@ -118,6 +119,16 @@ class AndroidCommandError(RuntimeError):
     """The private Android command capability or requested operation is invalid."""
 
 
+class InstalledApkRetryReason(str, enum.Enum):
+    """Safe shell-facing reasons for an inconclusive installed-APK observation."""
+
+    PACKAGE_UNAVAILABLE = "package-unavailable"
+    PULL_FAILED = "pull-failed"
+    PATH_CHANGED = "path-changed"
+    BYTES_MISMATCH = "bytes-mismatch"
+    DEADLINE_EXHAUSTED = "deadline-exhausted"
+
+
 class AndroidOperation(str, enum.Enum):
     REGISTER_EMULATOR = "register-emulator"
     LIST_DEVICES = "list-devices"
@@ -141,8 +152,7 @@ class AndroidOperation(str, enum.Enum):
     DEVICE_FINGERPRINT = "device-fingerprint"
     ADB_VERSION = "adb-version"
     PACKAGE_LIST = "package-list"
-    PACKAGE_PATH = "package-path"
-    PULL_INSTALLED_APK = "pull-installed-apk"
+    OBSERVE_INSTALLED_APK = "observe-installed-apk"
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
     DEVICE_TIME = "device-time"
@@ -171,7 +181,7 @@ class OperationSpec:
         "run",
         "capture",
         "write",
-        "pull-apk",
+        "observe-apk",
         "logcat",
         "register-emulator",
     ]
@@ -694,18 +704,11 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             requires_private_server=True,
             stderr_to_stdout=True,
         ),
-        AndroidOperation.PACKAGE_PATH: OperationSpec(
-            "write",
-            15,
-            15,
-            OutputSpec(proof, "adb-package-path.txt", 65536),
-            lambda cap: _device(cap, "shell", "pm", "path", PACKAGE),
-        ),
-        AndroidOperation.PULL_INSTALLED_APK: OperationSpec(
-            "pull-apk",
+        AndroidOperation.OBSERVE_INSTALLED_APK: OperationSpec(
+            "observe-apk",
+            45,
             60,
-            60,
-            OutputSpec(work, "installed-smoke-base.apk", runtime_state.MAX_APK_BYTES),
+            None,
             lambda cap: (),
         ),
         AndroidOperation.INSTALL_APK: OperationSpec(
@@ -922,7 +925,10 @@ def _validate_tool_and_apk(
     operation: AndroidOperation,
 ) -> None:
     _validate_adb(layout, capability)
-    if operation in {AndroidOperation.INSTALL_APK, AndroidOperation.PULL_INSTALLED_APK}:
+    if operation in {
+        AndroidOperation.INSTALL_APK,
+        AndroidOperation.OBSERVE_INSTALLED_APK,
+    }:
         observed = consume_regular_snapshot(
             layout.signed_apk,
             maximum=runtime_state.MAX_APK_BYTES,
@@ -2949,15 +2955,9 @@ def _write_operation(
         )
 
 
-def _remote_base_apk(layout: runtime_state.AndroidRunLayout) -> str:
-    snapshot = read_regular_snapshot(
-        layout.proof / "adb-package-path.txt",
-        maximum=65536,
-        label="installed Android package path",
-        validate_metadata=runtime_state.private_file_metadata,
-    )
+def _parse_remote_base_apk_output(output: bytes) -> str:
     try:
-        text = snapshot.data.decode("utf-8").replace("\r", "")
+        text = output.decode("utf-8").replace("\r", "")
     except UnicodeDecodeError as exc:
         raise AndroidCommandError(
             f"installed Android package path is not UTF-8: {exc}"
@@ -2979,10 +2979,246 @@ def _remote_base_apk(layout: runtime_state.AndroidRunLayout) -> str:
         "installed Android base APK path is unsafe",
     )
     _require(
-        all((part not in {".", ".."} for part in pathlib.PurePosixPath(remote).parts)),
+        all(part not in {".", ".."} for part in pathlib.PurePosixPath(remote).parts),
         "installed Android base APK path is non-canonical",
     )
     return remote
+
+
+def _remaining_observation_timeout(deadline: float) -> int | None:
+    remaining = deadline - time.monotonic()
+    if remaining < 1:
+        return None
+    return min(15, int(remaining))
+
+
+def _remove_installed_apk_copy(layout: runtime_state.AndroidRunLayout) -> None:
+    directory_fd = _output_directory(layout, OutputRoot.WORK)
+    primary: BaseException | None = None
+    try:
+        try:
+            metadata = os.stat(
+                INSTALLED_APK_COPY_LEAF,
+                dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and metadata.st_uid == os.geteuid()
+            and metadata.st_nlink == 1
+            and stat.S_IMODE(metadata.st_mode) == 0o600,
+            "installed Android smoke APK copy is not one private regular file",
+        )
+        os.unlink(INSTALLED_APK_COPY_LEAF, dir_fd=directory_fd)
+        os.fsync(directory_fd)
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        runtime_state.close_descriptor(
+            directory_fd, label="the Android work directory", primary=primary
+        )
+
+
+def _capture_installed_apk_path(
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    timeout_seconds: int,
+) -> tuple[BoundedResult, str | None]:
+    try:
+        result = capture_stdout(
+            _device(capability, "shell", "pm", "path", PACKAGE),
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=65536,
+            stderr=subprocess.STDOUT,
+            environment=_client_environment(capability),
+        )
+    except BoundedProcessError as exc:
+        if exc.kind != "timeout":
+            raise
+        return BoundedResult(1), None
+    if result.returncode != 0 or not result.stdout:
+        return result, None
+    return result, _parse_remote_base_apk_output(result.stdout)
+
+
+def _observe_installed_apk(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Observe one path-stable installed APK without accepting non-exact bytes."""
+
+    deadline = time.monotonic() + timeout_seconds
+    _remove_installed_apk_copy(layout)
+
+    before_timeout = _remaining_observation_timeout(deadline)
+    if before_timeout is None:
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.DEADLINE_EXHAUSTED.value}\n".encode(
+                "ascii"
+            ),
+        )
+    before_result, before_path = _capture_installed_apk_path(
+        capability, timeout_seconds=before_timeout
+    )
+    if before_result.returncode != 0 or before_path is None:
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.PACKAGE_UNAVAILABLE.value}\n".encode(
+                "ascii"
+            ),
+        )
+
+    pull_timeout = _remaining_observation_timeout(deadline)
+    if pull_timeout is None:
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.DEADLINE_EXHAUSTED.value}\n".encode(
+                "ascii"
+            ),
+        )
+    pull_spec = OperationSpec(
+        "write",
+        pull_timeout,
+        pull_timeout,
+        OutputSpec(
+            OutputRoot.WORK,
+            INSTALLED_APK_COPY_LEAF,
+            capability.signed_apk_size,
+        ),
+        lambda cap: (),
+    )
+    try:
+        pull_result = _write_operation(
+            layout,
+            capability,
+            pull_spec,
+            _device(capability, "exec-out", "cat", before_path),
+            pull_timeout,
+        )
+    except BoundedProcessError as exc:
+        if exc.kind != "timeout":
+            raise
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.PULL_FAILED.value}\n".encode("ascii"),
+        )
+    if pull_result.returncode != 0:
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.PULL_FAILED.value}\n".encode("ascii"),
+        )
+
+    after_timeout = _remaining_observation_timeout(deadline)
+    if after_timeout is None:
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.DEADLINE_EXHAUSTED.value}\n".encode(
+                "ascii"
+            ),
+        )
+    after_result, after_path = _capture_installed_apk_path(
+        capability, timeout_seconds=after_timeout
+    )
+    if after_result.returncode != 0 or after_path is None:
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.PACKAGE_UNAVAILABLE.value}\n".encode(
+                "ascii"
+            ),
+        )
+    if after_path != before_path:
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.PATH_CHANGED.value}\n".encode("ascii"),
+        )
+
+    observed = consume_regular_snapshot(
+        layout.work / INSTALLED_APK_COPY_LEAF,
+        maximum=runtime_state.MAX_APK_BYTES,
+        label="installed Android smoke APK copy",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    if not (
+        observed.size == capability.signed_apk_size
+        and observed.sha256 == capability.signed_apk_sha256
+    ):
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.BYTES_MISMATCH.value}\n".encode(
+                "ascii"
+            ),
+        )
+    path_sha256 = hashlib.sha256(before_path.encode("ascii")).hexdigest()
+    if _remaining_observation_timeout(deadline) is None:
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.DEADLINE_EXHAUSTED.value}\n".encode(
+                "ascii"
+            ),
+        )
+    return BoundedResult(0, f"exact:{path_sha256}\n".encode("ascii"))
+
+
+def _invoke_installed_apk_observation(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Run the composite observation and preserve both primary and cleanup failures."""
+
+    result: BoundedResult | None = None
+    primary: BaseException | None = None
+    try:
+        result = _observe_installed_apk(
+            layout, capability, timeout_seconds=timeout_seconds
+        )
+    except BaseException as exc:
+        primary = exc
+    try:
+        _validate_owned_adb_server_for_client(capability)
+    except BaseException as postcheck_error:
+        if primary is None:
+            primary = postcheck_error
+        else:
+            primary.add_note(
+                "owned adb server post-observation validation also failed: "
+                f"{postcheck_error}"
+            )
+
+    keep_copy = (
+        primary is None
+        and result is not None
+        and re.fullmatch(b"exact:[0-9a-f]{64}\n", result.stdout) is not None
+    )
+    if not keep_copy:
+        try:
+            _remove_installed_apk_copy(layout)
+        except BaseException as cleanup_error:
+            if primary is None:
+                primary = cleanup_error
+            else:
+                primary.add_note(
+                    "removing the rejected installed-APK copy also failed: "
+                    f"{cleanup_error}"
+                )
+    if primary is not None:
+        raise primary
+    _require(result is not None, "installed Android APK observation produced no result")
+    return result
 
 
 def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
@@ -3027,30 +3263,10 @@ def invoke_operation(
         type(timeout) is int and 1 <= timeout <= spec.timeout_maximum,
         f"{operation.value} timeout must be 1 through {spec.timeout_maximum} seconds",
     )
-    if spec.mode == "pull-apk":
-        argv = _device(capability, "exec-out", "cat", _remote_base_apk(layout))
-        dynamic_spec = dataclasses.replace(
-            spec,
-            output=OutputSpec(
-                OutputRoot.WORK, "installed-smoke-base.apk", capability.signed_apk_size
-            ),
+    if spec.mode == "observe-apk":
+        return _invoke_installed_apk_observation(
+            layout, capability, timeout_seconds=timeout
         )
-        result = _write_operation(layout, capability, dynamic_spec, argv, timeout)
-        if result.returncode == 0:
-            observed = consume_regular_snapshot(
-                layout.work / "installed-smoke-base.apk",
-                maximum=runtime_state.MAX_APK_BYTES,
-                label="installed Android smoke APK copy",
-                validate_metadata=runtime_state.private_file_metadata,
-            )
-            _require(
-                observed.size == capability.signed_apk_size
-                and observed.sha256 == capability.signed_apk_sha256,
-                "installed Android smoke APK differs from this run's signed bytes",
-            )
-        if spec.requires_private_server:
-            _validate_owned_adb_server_for_client(capability)
-        return result
     if spec.mode == "logcat":
         argv = _device(
             capability,

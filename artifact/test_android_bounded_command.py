@@ -918,7 +918,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "run",
                         "capture",
                         "write",
-                        "pull-apk",
+                        "observe-apk",
                         "logcat",
                         "register-emulator",
                     },
@@ -2135,39 +2135,325 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             )
         self.assertEqual(output.getvalue().strip(), str(self.snapshot))
 
-    def test_remote_apk_path_is_validated_before_it_enters_argv(self) -> None:
-        package_path = self.proof / "adb-package-path.txt"
-        package_path.write_text("package:/data/app/run/base.apk\n", encoding="utf-8")
-        package_path.chmod(0o600)
+    def _invoke_installed_apk_observation(
+        self,
+        *,
+        path_results: list[BoundedResult],
+        copied_bytes: bytes | None = None,
+        pull_result: BoundedResult = BoundedResult(0),
+        timeout_seconds: int = 30,
+    ) -> tuple[BoundedResult, mock.Mock, mock.Mock]:
+        path_capture = mock.Mock(side_effect=path_results)
 
         def write_fixture(argv: tuple[str, ...], **arguments: object) -> BoundedResult:
-            output_name = arguments["output_name"]
-            self.assertEqual(output_name, "installed-smoke-base.apk")
-            output = self.work / str(output_name)
+            self.assertEqual(arguments["output_name"], commands.INSTALLED_APK_COPY_LEAF)
+            self.assertEqual(arguments["maximum_bytes"], self.apk.stat().st_size)
+            self.assertEqual(argv[-3:], ("exec-out", "cat", "/data/app/run/base.apk"))
+            if pull_result.returncode == 0 and copied_bytes is not None:
+                output = self.work / commands.INSTALLED_APK_COPY_LEAF
+                output.write_bytes(copied_bytes)
+                output.chmod(0o600)
+            return pull_result
+
+        write = mock.Mock(side_effect=write_fixture)
+        with (
+            mock.patch.object(commands, "capture_stdout", path_capture),
+            mock.patch.object(commands, "write_stdout_at", write),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+        ):
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=timeout_seconds,
+            )
+        return result, path_capture, write
+
+    def test_installed_apk_observation_keeps_only_exact_path_stable_bytes(self) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+        result, capture, write = self._invoke_installed_apk_observation(
+            path_results=[BoundedResult(0, path), BoundedResult(0, path)],
+            copied_bytes=self.apk.read_bytes(),
+        )
+        path_sha256 = hashlib.sha256(b"/data/app/run/base.apk").hexdigest()
+        self.assertEqual(result, BoundedResult(0, f"exact:{path_sha256}\n".encode()))
+        self.assertEqual(capture.call_count, 2)
+        write.assert_called_once()
+        copy = self.work / commands.INSTALLED_APK_COPY_LEAF
+        self.assertEqual(copy.read_bytes(), self.apk.read_bytes())
+        self.assertEqual(stat.S_IMODE(copy.stat().st_mode), 0o600)
+
+    def test_installed_apk_observation_retries_mismatch_without_copy(self) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+        result, _capture, _write = self._invoke_installed_apk_observation(
+            path_results=[BoundedResult(0, path), BoundedResult(0, path)],
+            copied_bytes=self.apk.read_bytes()[:-1],
+        )
+        self.assertEqual(result, BoundedResult(0, b"retryable:bytes-mismatch\n"))
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_retries_path_change_without_copy(self) -> None:
+        result, _capture, _write = self._invoke_installed_apk_observation(
+            path_results=[
+                BoundedResult(0, b"package:/data/app/run/base.apk\n"),
+                BoundedResult(0, b"package:/data/app/replaced/base.apk\n"),
+            ],
+            copied_bytes=self.apk.read_bytes(),
+        )
+        self.assertEqual(result, BoundedResult(0, b"retryable:path-changed\n"))
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_retries_nonzero_path_or_pull(self) -> None:
+        result, capture, write = self._invoke_installed_apk_observation(
+            path_results=[BoundedResult(1, b"package service unavailable\n")]
+        )
+        self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+        capture.assert_called_once()
+        write.assert_not_called()
+
+        path = b"package:/data/app/run/base.apk\n"
+        result, capture, write = self._invoke_installed_apk_observation(
+            path_results=[BoundedResult(0, path)],
+            pull_result=BoundedResult(1),
+        )
+        self.assertEqual(result, BoundedResult(0, b"retryable:pull-failed\n"))
+        capture.assert_called_once()
+        write.assert_called_once()
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_retries_only_bounded_timeouts(self) -> None:
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=commands.BoundedProcessError("timeout", "pm path timed out"),
+            ),
+            mock.patch.object(commands, "write_stdout_at") as write,
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+        ):
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+        write.assert_not_called()
+
+        path = b"package:/data/app/run/base.apk\n"
+        with (
+            mock.patch.object(
+                commands, "capture_stdout", return_value=BoundedResult(0, path)
+            ),
+            mock.patch.object(
+                commands,
+                "write_stdout_at",
+                side_effect=commands.BoundedProcessError("timeout", "pull timed out"),
+            ),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+        ):
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:pull-failed\n"))
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_respects_the_shared_deadline(self) -> None:
+        with (
+            mock.patch.object(commands.time, "monotonic", side_effect=[100.0, 130.0]),
+            mock.patch.object(commands, "capture_stdout") as capture,
+            mock.patch.object(commands, "write_stdout_at") as write,
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+        ):
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:deadline-exhausted\n"))
+        capture.assert_not_called()
+        write.assert_not_called()
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_rejects_exact_bytes_completed_after_deadline(
+        self,
+    ) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+
+        def write_fixture(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            output = self.work / str(arguments["output_name"])
             output.write_bytes(self.apk.read_bytes())
             output.chmod(0o600)
-            self.assertEqual(argv[-3:], ("exec-out", "cat", "/data/app/run/base.apk"))
             return BoundedResult(0)
 
-        with mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture):
-            self.invoke(commands.AndroidOperation.PULL_INSTALLED_APK)
-
-        for hostile in (
-            "package:--help\n",
-            "package:/data/app/../other/base.apk\n",
-            "package:/data/app/run/base.apk\npackage:/data/app/other/base.apk\n",
-            "package:/data/app/run/base.apk;sh\n",
+        with (
+            mock.patch.object(
+                commands.time,
+                "monotonic",
+                side_effect=[100.0, 100.0, 101.0, 102.0, 130.0],
+            ),
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=[BoundedResult(0, path), BoundedResult(0, path)],
+            ),
+            mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
         ):
-            package_path.write_text(hostile, encoding="utf-8")
-            package_path.chmod(0o600)
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:deadline-exhausted\n"))
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_postchecks_and_removes_exact_copy_on_failure(
+        self,
+    ) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+
+        def write_fixture(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            output = self.work / str(arguments["output_name"])
+            output.write_bytes(self.apk.read_bytes())
+            output.chmod(0o600)
+            return BoundedResult(0)
+
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=[BoundedResult(0, path), BoundedResult(0, path)],
+            ),
+            mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture),
+            mock.patch.object(
+                commands,
+                "_validate_owned_adb_server_for_client",
+                side_effect=[None, commands.AndroidCommandError("server changed")],
+            ) as guard,
+            self.assertRaisesRegex(commands.AndroidCommandError, "server changed"),
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertEqual(guard.call_count, 2)
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_preserves_primary_when_postcheck_also_fails(
+        self,
+    ) -> None:
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, b"package:--help\n"),
+            ),
+            mock.patch.object(commands, "write_stdout_at") as write,
+            mock.patch.object(
+                commands,
+                "_validate_owned_adb_server_for_client",
+                side_effect=[None, commands.AndroidCommandError("postcheck failed")],
+            ),
+            self.assertRaisesRegex(
+                (commands.AndroidCommandError, state.AndroidRuntimeStateError),
+                "installed Android base APK path",
+            ) as raised,
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        write.assert_not_called()
+        self.assertTrue(
+            any("post-observation" in note for note in raised.exception.__notes__)
+        )
+
+    def test_installed_apk_observation_output_limit_is_structural(self) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=[BoundedResult(0, path)],
+            ),
+            mock.patch.object(
+                commands,
+                "write_stdout_at",
+                side_effect=commands.BoundedProcessError(
+                    "output_limit", "installed APK exceeded the expected size"
+                ),
+            ),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            self.assertRaisesRegex(
+                commands.BoundedProcessError, "exceeded the expected size"
+            ),
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_rejects_malformed_path_structurally(self) -> None:
+        hostile = (
+            b"package:--help\n",
+            b"package:/data/app/../other/base.apk\n",
+            b"package:/data/app/run/base.apk\npackage:/data/app/other/base.apk\n",
+            b"package:/data/app/run/base.apk;sh\n",
+        )
+        for output in hostile:
             with (
+                self.subTest(output=output),
+                mock.patch.object(
+                    commands, "capture_stdout", return_value=BoundedResult(0, output)
+                ),
                 mock.patch.object(commands, "write_stdout_at") as write,
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
                 self.assertRaises(
                     (commands.AndroidCommandError, state.AndroidRuntimeStateError)
                 ),
             ):
-                self.invoke(commands.AndroidOperation.PULL_INSTALLED_APK)
+                commands.invoke_operation(
+                    commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                    run_id=self.layout.run_id,
+                    timeout_seconds=30,
+                )
             write.assert_not_called()
+            self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_removes_copy_when_after_path_is_malformed(
+        self,
+    ) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+
+        def write_fixture(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            output = self.work / str(arguments["output_name"])
+            output.write_bytes(self.apk.read_bytes())
+            output.chmod(0o600)
+            return BoundedResult(0)
+
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=[BoundedResult(0, path), BoundedResult(0, b"package:--help\n")],
+            ),
+            mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            self.assertRaises(
+                (commands.AndroidCommandError, state.AndroidRuntimeStateError)
+            ),
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
 
     def test_runtime_control_diagnostics_are_merged_under_the_capture_limit(
         self,

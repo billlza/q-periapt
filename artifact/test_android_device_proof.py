@@ -1568,7 +1568,7 @@ android_command() {{
         query_end = producer.index("\n}\n\nobserve_preinstall_package_absence()", query_start)
         query_function = producer[query_start : query_end + len("\n}\n")]
         observe_start = producer.index("observe_preinstall_package_absence() {")
-        observe_end = producer.index("\n}\n\npackage_base_apk_path()", observe_start)
+        observe_end = producer.index("\n}\n\nremove_installed_apk_copy()", observe_start)
         observe_function = producer[observe_start : observe_end + len("\n}\n")]
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -1646,6 +1646,248 @@ fi
             }
             query_count = int(counter.read_text(encoding="ascii"))
             return result, files, query_count, install_marker.exists()
+
+    def _run_installed_package_ownership_observation(
+        self,
+        outcomes: tuple[str, ...],
+        *,
+        signer_status: int = 0,
+    ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], int, int]:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        observe_start = producer.index("observe_owned_installed_package() {")
+        observe_end = producer.index("\n}\n\ncleanup_android_app()", observe_start)
+        observe_function = producer[observe_start : observe_end + len("\n}\n")]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            distribution = root / "proof"
+            work = root / "work"
+            distribution.mkdir(mode=0o700)
+            work.mkdir(mode=0o700)
+            sequence = root / "sequence.txt"
+            sequence.write_text("\n".join(outcomes) + "\n", encoding="ascii")
+            counter = root / "observation-count.txt"
+            counter.write_text("0\n", encoding="ascii")
+            signer_counter = root / "signer-count.txt"
+            signer_counter.write_text("0\n", encoding="ascii")
+            script = f"""
+set -eu
+umask 077
+DIST={shlex.quote(str(distribution))}
+WORK={shlex.quote(str(work))}
+installed_apk="$WORK/installed-smoke-base.apk"
+OBSERVATION_SEQUENCE={shlex.quote(str(sequence))}
+OBSERVATION_COUNTER={shlex.quote(str(counter))}
+SIGNER_COUNTER={shlex.quote(str(signer_counter))}
+SIGNER_STATUS={signer_status}
+remaining_bounded_timeout() {{
+    observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
+    if [ "$observation_count" -lt {len(outcomes)} ]; then
+        printf '15\n'
+        return 0
+    fi
+    return 1
+}}
+sleep() {{ :; }}
+remove_installed_apk_copy() {{ rm -f -- "$installed_apk"; }}
+verify_observed_installed_apk_signer() {{
+    signer_count=$(/bin/cat "$SIGNER_COUNTER")
+    signer_count=$((signer_count + 1))
+    printf '%s\n' "$signer_count" >"$SIGNER_COUNTER"
+    return "$SIGNER_STATUS"
+}}
+android_command() {{
+    test "$1" = observe-installed-apk
+    observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
+    observation_count=$((observation_count + 1))
+    printf '%s\n' "$observation_count" >"$OBSERVATION_COUNTER"
+    outcome=$(/usr/bin/sed -n "${{observation_count}}p" "$OBSERVATION_SEQUENCE")
+    case "$outcome" in
+        structural) printf 'structural fixture\n' >&2; return 2 ;;
+        exact:*) printf 'fixture\n' >"$installed_apk" ;;
+    esac
+    printf '%s\n' "$outcome"
+}}
+{observe_function}
+if observe_owned_installed_package 999 postinstall; then
+    exit 0
+else
+    observation_status=$?
+    exit "$observation_status"
+fi
+"""
+            result = subprocess.run(
+                ["/bin/sh", "-c", script],
+                cwd=pathlib.Path(__file__).resolve().parent.parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=10,
+            )
+            files = {
+                path.name: path.read_bytes()
+                for path in distribution.iterdir()
+                if path.is_file()
+            }
+            return (
+                result,
+                files,
+                int(counter.read_text(encoding="ascii")),
+                int(signer_counter.read_text(encoding="ascii")),
+            )
+
+    def _run_cleanup_observation(
+        self,
+        package_outcomes: tuple[str, ...],
+        *,
+        ownership_status: int = 0,
+        install_confirmed: bool = True,
+        uninstall_status: int = 0,
+    ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], list[str]]:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        query_start = producer.index("query_package_state() {")
+        query_end = producer.index("\n}\n\nobserve_preinstall_package_absence()", query_start)
+        query_function = producer[query_start : query_end + len("\n}\n")]
+        cleanup_start = producer.index("cleanup_android_app() {")
+        cleanup_end = producer.index("\n}\n\ncleanup_unconfirmed_proof()", cleanup_start)
+        cleanup_function = producer[cleanup_start : cleanup_end + len("\n}\n")]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            distribution = root / "proof"
+            distribution.mkdir(mode=0o700)
+            sequence = root / "package-sequence.txt"
+            sequence.write_text("\n".join(package_outcomes) + "\n", encoding="ascii")
+            counter = root / "query-count.txt"
+            counter.write_text("0\n", encoding="ascii")
+            calls = root / "calls.txt"
+            calls.write_text("", encoding="ascii")
+            script = f"""
+set -eu
+umask 077
+DIST={shlex.quote(str(distribution))}
+PACKAGE=dev.qperiapt.androidsmoke
+PACKAGE_SEQUENCE={shlex.quote(str(sequence))}
+QUERY_COUNTER={shlex.quote(str(counter))}
+CALLS={shlex.quote(str(calls))}
+ANDROID_APP_CLEANUP_ARMED=1
+ANDROID_APP_INSTALL_CONFIRMED={1 if install_confirmed else 0}
+ANDROID_APP_CLEANUP_INVOCATION=0
+ANDROID_APP_UNINSTALL_REQUESTED=0
+SERIAL_SHA256_PREFIX=0123456789ab
+monotonic_deadline() {{ printf '999\n'; }}
+remaining_bounded_timeout() {{
+    query_count=$(/bin/cat "$QUERY_COUNTER")
+    if [ "$query_count" -lt {len(package_outcomes)} ]; then
+        printf '5\n'
+        return 0
+    fi
+    return 1
+}}
+sleep() {{ :; }}
+observe_owned_installed_package() {{ return {ownership_status}; }}
+android_command() {{
+    operation=$1
+    printf '%s\n' "$operation" >>"$CALLS"
+    if [ "$operation" = uninstall-app ]; then
+        return {uninstall_status}
+    fi
+    test "$operation" = package-list
+    query_count=$(/bin/cat "$QUERY_COUNTER")
+    query_count=$((query_count + 1))
+    printf '%s\n' "$query_count" >"$QUERY_COUNTER"
+    outcome=$(/usr/bin/sed -n "${{query_count}}p" "$PACKAGE_SEQUENCE")
+    case "$outcome" in
+        absent) return 0 ;;
+        present) printf 'package:%s\n' "$PACKAGE"; return 0 ;;
+        error) printf 'package service unavailable\n' >&2; return 1 ;;
+        structural) printf 'malformed package response\n'; return 0 ;;
+        *) return 2 ;;
+    esac
+}}
+{query_function}
+{cleanup_function}
+if cleanup_android_app; then
+    exit 0
+else
+    cleanup_status=$?
+    exit "$cleanup_status"
+fi
+"""
+            result = subprocess.run(
+                ["/bin/sh", "-c", script],
+                cwd=pathlib.Path(__file__).resolve().parent.parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=10,
+            )
+            files = {
+                path.name: path.read_bytes()
+                for path in distribution.iterdir()
+                if path.is_file()
+            }
+            return result, files, calls.read_text(encoding="ascii").splitlines()
+
+    def _run_install_confirmation(
+        self, ownership_status: int, *, install_status: int = 0
+    ) -> tuple[subprocess.CompletedProcess[bytes], list[str], bool]:
+        producer = (
+            pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
+        ).read_text(encoding="utf-8")
+        phase_start = producer.index("if ! observe_preinstall_package_absence; then")
+        phase_end = producer.index("\nif android_command device-time", phase_start)
+        install_phase = producer[phase_start:phase_end]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            distribution = root / "proof"
+            distribution.mkdir(mode=0o700)
+            calls = root / "calls.txt"
+            calls.write_text("", encoding="ascii")
+            confirmed = root / "confirmed"
+            script = f"""
+set -eu
+umask 077
+DIST={shlex.quote(str(distribution))}
+CALLS={shlex.quote(str(calls))}
+CONFIRMED={shlex.quote(str(confirmed))}
+ANDROID_APP_CLEANUP_ARMED=0
+ANDROID_APP_INSTALL_CONFIRMED=0
+observe_preinstall_package_absence() {{ return 0; }}
+monotonic_deadline() {{ printf '999\n'; }}
+observe_owned_installed_package() {{
+    printf 'observe-owned-installed-package\n' >>"$CALLS"
+    return {ownership_status}
+}}
+android_command() {{
+    printf '%s\n' "$1" >>"$CALLS"
+    if [ "$1" = install-apk ]; then
+        return {install_status}
+    fi
+    return 0
+}}
+{install_phase}
+test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
+: >"$CONFIRMED"
+"""
+            result = subprocess.run(
+                ["/bin/sh", "-c", script],
+                cwd=pathlib.Path(__file__).resolve().parent.parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=10,
+            )
+            return (
+                result,
+                calls.read_text(encoding="ascii").splitlines(),
+                confirmed.exists(),
+            )
 
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -3387,7 +3629,7 @@ fi
             'elif [ "$exit_status" -eq 0 ] && [ "$exit_runtime_cleanup_status" -ne 0 ]; then',
             cleanup_exit,
         )
-        verifier_start = producer.index("verify_installed_apk_signer()")
+        verifier_start = producer.index("verify_observed_installed_apk_signer()")
         verifier_end = producer.index("cleanup_android_app()", verifier_start)
         verifier = producer[verifier_start:verifier_end]
         self.assertLess(
@@ -3402,7 +3644,7 @@ fi
         )
         disarm = cleanup.index("ANDROID_APP_CLEANUP_ARMED=0", threshold)
         present = cleanup.index("present)")
-        signer_gate = cleanup.index("verify_installed_apk_signer", present)
+        signer_gate = cleanup.index("observe_owned_installed_package", present)
         owned_uninstall = cleanup.index("android_command uninstall-app", signer_gate)
         unknown_outcome = cleanup.index("uninstall=unknown-or-failed", owned_uninstall)
         self.assertLess(threshold, disarm)
@@ -3432,7 +3674,7 @@ fi
         self.assertNotIn('"argv"', command_adapter_source)
         for operation in (
             "package-list",
-            "pull-installed-apk",
+            "observe-installed-apk",
             "install-apk",
             "uninstall-app",
             "read-result-text",
@@ -3885,6 +4127,206 @@ fi
                 "attempt=2 state=query-error exit=1 consecutive=0",
             ],
         )
+
+    def test_installed_package_ownership_requires_two_consecutive_exact_observations(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        result, files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (
+                    f"exact:{path_a}",
+                    "retryable:bytes-mismatch",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                )
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(result.stderr, b"")
+        self.assertEqual(observation_count, 4)
+        self.assertEqual(signer_count, 1)
+        self.assertEqual(
+            files["adb-package-postinstall-observation.log"]
+            .decode("ascii")
+            .splitlines(),
+            [
+                f"attempt=1 state=exact path_sha256={path_a} consecutive=1",
+                "attempt=2 state=retryable reason=bytes-mismatch consecutive=0",
+                f"attempt=3 state=exact path_sha256={path_a} consecutive=1",
+                f"attempt=4 state=exact path_sha256={path_a} consecutive=2",
+            ],
+        )
+
+    def test_installed_package_ownership_resets_when_canonical_path_changes(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        path_b = "b" * 64
+        result, files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (f"exact:{path_a}", f"exact:{path_b}", f"exact:{path_b}")
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(observation_count, 3)
+        self.assertEqual(signer_count, 1)
+        log = files["adb-package-postinstall-observation.log"].decode("ascii")
+        self.assertIn(f"path_sha256={path_b} consecutive=1\n", log)
+        self.assertTrue(log.endswith(f"path_sha256={path_b} consecutive=2\n"))
+
+    def test_installed_package_ownership_deadline_never_accepts_one_exact_sample(
+        self,
+    ) -> None:
+        result, _files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation((f"exact:{'a' * 64}",))
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(observation_count, 1)
+        self.assertEqual(signer_count, 0)
+        self.assertIn(b"did not converge within its total deadline", result.stderr)
+
+    def test_installed_package_ownership_propagates_structural_and_signer_failures(
+        self,
+    ) -> None:
+        result, _files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(("structural",))
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(observation_count, 1)
+        self.assertEqual(signer_count, 0)
+        self.assertIn(b"failed structurally", result.stderr)
+
+        path_a = "a" * 64
+        result, _files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (f"exact:{path_a}", f"exact:{path_a}"),
+                signer_status=2,
+            )
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(observation_count, 2)
+        self.assertEqual(signer_count, 1)
+
+    def test_installed_package_ownership_rejects_unknown_retry_reason(self) -> None:
+        result, _files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                ("retryable:unexpected",)
+            )
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(observation_count, 1)
+        self.assertEqual(signer_count, 0)
+        self.assertIn(b"malformed retry reason", result.stderr)
+
+    def test_cleanup_reverifies_ownership_before_one_uninstall_and_three_absences(
+        self,
+    ) -> None:
+        result, files, calls = self._run_cleanup_observation(
+            ("present", "absent", "absent", "absent")
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("package-list"), 4)
+        self.assertEqual(
+            files["adb-uninstall-cleanup.log"].decode("ascii").splitlines(),
+            [
+                "attempt=1 state=present",
+                "attempt=2 state=absent",
+                "attempt=3 state=absent",
+                "attempt=4 state=absent",
+            ],
+        )
+        self.assertIn("adb-package-query-cleanup-1-attempt-1.txt", files)
+        self.assertIn("adb-package-query-cleanup-1-attempt-4.txt", files)
+
+    def test_cleanup_never_uninstalls_without_converged_ownership(self) -> None:
+        for ownership_status in (1, 2):
+            with self.subTest(ownership_status=ownership_status):
+                result, _files, calls = self._run_cleanup_observation(
+                    ("present",), ownership_status=ownership_status
+                )
+                self.assertEqual(result.returncode, ownership_status)
+                self.assertEqual(calls, ["package-list"])
+
+    def test_cleanup_reconciles_unknown_uninstall_only_after_owned_observation(
+        self,
+    ) -> None:
+        result, files, calls = self._run_cleanup_observation(
+            ("present", "absent", "absent", "absent"),
+            uninstall_status=17,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertIn(
+            "attempt=1 uninstall=unknown-or-failed",
+            files["adb-uninstall-cleanup.log"].decode("ascii"),
+        )
+
+    def test_cleanup_never_repeats_an_uninstall_request_that_remains_present(
+        self,
+    ) -> None:
+        result, files, calls = self._run_cleanup_observation(
+            ("present", "present", "present"),
+            uninstall_status=17,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("package-list"), 3)
+        log = files["adb-uninstall-cleanup.log"].decode("ascii")
+        self.assertEqual(log.count("uninstall=still-present-after-request"), 2)
+
+    def test_cleanup_preserves_numbered_query_diagnostics_until_deadline(self) -> None:
+        result, files, calls = self._run_cleanup_observation(
+            ("error", "error")
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ["package-list", "package-list"])
+        self.assertIn("adb-package-query-cleanup-1-attempt-1.err", files)
+        self.assertIn("adb-package-query-cleanup-1-attempt-2.err", files)
+        self.assertIn(
+            b"package service unavailable",
+            files["adb-package-query-cleanup-1-attempt-1.err"],
+        )
+        self.assertIn(b"cleanup outcome is unresolved", result.stderr)
+
+    def test_unconfirmed_install_cleanup_requires_eight_absent_observations(
+        self,
+    ) -> None:
+        result, _files, calls = self._run_cleanup_observation(
+            ("absent",) * 8,
+            install_confirmed=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls, ["package-list"] * 8)
+        self.assertNotIn("uninstall-app", calls)
+
+    def test_install_runs_once_and_confirms_only_after_ownership_converges(self) -> None:
+        result, calls, confirmed = self._run_install_confirmation(0)
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(calls, ["install-apk", "observe-owned-installed-package"])
+        self.assertTrue(confirmed)
+
+        for ownership_status in (1, 2):
+            with self.subTest(ownership_status=ownership_status):
+                result, calls, confirmed = self._run_install_confirmation(
+                    ownership_status
+                )
+                self.assertEqual(result.returncode, ownership_status)
+                self.assertEqual(
+                    calls,
+                    ["install-apk", "observe-owned-installed-package"],
+                )
+                self.assertFalse(confirmed)
+                self.assertIn(b"ownership did not converge", result.stderr)
+
+        result, calls, confirmed = self._run_install_confirmation(
+            0, install_status=17
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ["install-apk"])
+        self.assertFalse(confirmed)
+        self.assertIn(b"APK installation failed", result.stderr)
 
     def test_owned_avd_home_is_code_derived_and_verified_before_runtime_mutation(
         self,
