@@ -1433,6 +1433,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             '"$DEPENDENCY_AUDIT_PASSED"',
             '"$ALLOW_DIRTY_APPLE_DEVICE_PROOF"',
             '"$ALLOW_DIRTY_PERFORMANCE_PROOF"',
+            '"$RUST_PACKAGE_CONTRACT_PASSED"',
         ]
         positions = [finalizer_call.index(argument) for argument in expected_state_arguments]
         self.assertEqual(positions, sorted(positions))
@@ -1456,8 +1457,72 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 "source_tree_dirty",
                 "allow_dirty_apple",
                 "allow_dirty_performance",
+                "rust_package_contract",
             ),
         )
+
+    def test_rust_package_receipt_is_an_independent_manifest_bound_gate(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'REQUIRE_RUST_PACKAGE_CONTRACT=$(bool_flag '
+            'QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT ',
+            source,
+        )
+        gate_start = source.index(
+            'if [ "$REQUIRE_RUST_PACKAGE_CONTRACT" = "1" ]; then'
+        )
+        gate_end = source.index(
+            "sh artifact/python-run.sh artifact/migration_contract_v2.py verify",
+            gate_start,
+        )
+        gate = source[gate_start:gate_end]
+        for token in (
+            "load_current_rust_package_contract_receipt(",
+            "frozen_commit=sys.argv[4]",
+            "frozen_source_sha256=sys.argv[5]",
+            "PROOF_TO_BYTE_RUST_PACKAGE_CONTRACT_PASS upload=not-attempted",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, gate)
+        pass_position = gate.index(
+            "PROOF_TO_BYTE_RUST_PACKAGE_CONTRACT_PASS upload=not-attempted"
+        )
+        state_position = gate.index("RUST_PACKAGE_CONTRACT_PASSED=1")
+        self.assertLess(pass_position, state_position)
+        self.assertNotIn("DEPENDENCY_AUDIT_PASSED=1", gate)
+
+        audit_gate = source[
+            source.index(
+                'if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then',
+                gate_end,
+            ):
+            source.index('if [ "$SKIP_SMOKE" = "0" ]; then')
+        ]
+        self.assertIn("DEPENDENCY_AUDIT_PASSED=1", audit_gate)
+        self.assertNotIn("RUST_PACKAGE_CONTRACT_PASSED=1", audit_gate)
+
+    def test_release_candidate_requires_the_independent_rust_package_gate(self) -> None:
+        without_package = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+        )
+        self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", without_package)
+        self.assertIn("rust_package_contract=0", without_package)
+        self.assertNotIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", without_package)
+
+        with_package = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+        )
+        self.assertIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", with_package)
+        self.assertIn("rust_package_contract=1", with_package)
 
     def test_ci_android_16k_runtime_consumes_same_run_aar_fail_closed(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
@@ -3834,10 +3899,12 @@ with _temporary_release_test_directories(parents):
             apple_matrix=1,
             performance=1,
             dependency_audit=1,
+            rust_package_contract=1,
         )
         self.assertEqual(
             marker,
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=not_required"
+            " rust_package_contract=1"
             " android_aar=0 android_runtime=0 android_physical_runtime=0"
             " local_release_consumer=0"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
@@ -3851,6 +3918,7 @@ with _temporary_release_test_directories(parents):
             "apple_matrix": 1,
             "performance": 1,
             "dependency_audit": 1,
+            "rust_package_contract": 1,
         }
         baseline = format_marker(**complete)
         for state_name in (
@@ -3905,6 +3973,7 @@ with _temporary_release_test_directories(parents):
             apple_matrix=1,
             performance=1,
             dependency_audit=1,
+            rust_package_contract=1,
         )
         self.assertIn("PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS", combined)
 
@@ -3916,6 +3985,7 @@ with _temporary_release_test_directories(parents):
             performance=1,
             camera_required=1,
             dependency_audit=1,
+            rust_package_contract=1,
         )
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", missing)
         self.assertIn("camera_ready_bundle=0", missing)
@@ -3927,10 +3997,12 @@ with _temporary_release_test_directories(parents):
             camera_ready=1,
             camera_required=1,
             dependency_audit=1,
+            rust_package_contract=1,
         )
         self.assertEqual(
             verified,
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=verified"
+            " rust_package_contract=1"
             " android_aar=0 android_runtime=0 android_physical_runtime=0"
             " local_release_consumer=0"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
@@ -3962,6 +4034,7 @@ with _temporary_release_test_directories(parents):
             apple_matrix=1,
             performance=1,
             dependency_audit=1,
+            rust_package_contract=1,
             source_tree_dirty=1,
         )
         self.assertEqual(
@@ -3983,6 +4056,7 @@ with _temporary_release_test_directories(parents):
                     apple_matrix=1,
                     performance=1,
                     dependency_audit=1,
+                    rust_package_contract=1,
                     allow_dirty_apple=apple_override,
                     allow_dirty_performance=performance_override,
                 )
@@ -4017,6 +4091,7 @@ with _temporary_release_test_directories(parents):
                 "0",  # dependency_audit
                 "1",  # allow_dirty_apple
                 "0",  # allow_dirty_performance
+                "1",  # rust_package_contract
             ),
             dirty=True,
         )
@@ -4038,13 +4113,14 @@ with _temporary_release_test_directories(parents):
                 "source_tree_dirty": True,
                 "allow_dirty_apple": True,
                 "allow_dirty_performance": False,
+                "rust_package_contract": True,
             },
         )
         with self.assertRaisesRegex(
             proof_to_byte_finalizer.FinalizerError,
-            "finalize requires exactly 14 gate state values",
+            "finalize requires exactly 15 gate state values",
         ):
-            proof_to_byte_finalizer._production_state(("0",) * 13, dirty=False)
+            proof_to_byte_finalizer._production_state(("0",) * 14, dirty=False)
 
     def test_format_cli_is_not_exposed(self) -> None:
         result = subprocess.run(

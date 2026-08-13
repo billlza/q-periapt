@@ -142,6 +142,7 @@ RUN_CONTINUITY_DIAGNOSTIC=$(bool_flag QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC "${QPER
 REQUIRE_APPLE_DEVICE=$(bool_flag QPERIAPT_REQUIRE_APPLE_DEVICE "${QPERIAPT_REQUIRE_APPLE_DEVICE:-0}")
 REQUIRE_APPLE_DEVICE_MATRIX=$(bool_flag QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX "${QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX:-0}")
 REQUIRE_ANDROID_AAR=$(bool_flag QPERIAPT_REQUIRE_ANDROID_AAR "${QPERIAPT_REQUIRE_ANDROID_AAR:-0}")
+REQUIRE_RUST_PACKAGE_CONTRACT=$(bool_flag QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT "${QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT:-0}")
 REQUIRE_ANDROID_RUNTIME=$(bool_flag QPERIAPT_REQUIRE_ANDROID_RUNTIME "${QPERIAPT_REQUIRE_ANDROID_RUNTIME:-0}")
 REQUIRE_ANDROID_PHYSICAL_RUNTIME=$(bool_flag QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME "${QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME:-0}")
 REQUIRE_LOCAL_RELEASE_CONSUMER=$(bool_flag QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER "${QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER:-0}")
@@ -456,6 +457,7 @@ LOCAL_RELEASE_CONSUMER_PASSED=0
 PERFORMANCE_PASSED=0
 CAMERA_READY_BUNDLE_PASSED=0
 DEPENDENCY_AUDIT_PASSED=0
+RUST_PACKAGE_CONTRACT_PASSED=0
 
 PYTHONPATH=artifact python3 - "$RESULTS_MANIFEST" "$RESULTS_MANIFEST_SHA256" <<'PY'
 import hashlib
@@ -687,6 +689,37 @@ if [ "$VERIFY_ANDROID_AAR" = "1" ]; then
 	printf 'PROOF_TO_BYTE_ANDROID_AAR_PASS\n'
 fi
 
+if [ "$REQUIRE_RUST_PACKAGE_CONTRACT" = "1" ]; then
+	python3 - "$ROOT" "$RESULTS_MANIFEST" "$RESULTS_MANIFEST_SHA256" \
+		"$FROZEN_GIT_COMMIT" "$FROZEN_SOURCE_TREE_SHA256" <<'PY'
+import pathlib
+import sys
+
+from proof_manifest import (
+    ProofManifestError,
+    load_current_rust_package_contract_receipt,
+    load_results_manifest_snapshot,
+)
+
+root = pathlib.Path(sys.argv[1])
+try:
+    manifest = load_results_manifest_snapshot(
+        pathlib.Path(sys.argv[2]),
+        expected_sha256=sys.argv[3],
+    )
+    load_current_rust_package_contract_receipt(
+        root,
+        manifest,
+        frozen_commit=sys.argv[4],
+        frozen_source_sha256=sys.argv[5],
+    )
+except ProofManifestError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print("PROOF_TO_BYTE_RUST_PACKAGE_CONTRACT_PASS upload=not-attempted")
+PY
+	RUST_PACKAGE_CONTRACT_PASSED=1
+fi
+
 sh artifact/python-run.sh artifact/migration_contract_v2.py verify \
 	--vectors models/q-periapt-migration/vectors/migration-contract-v2.json
 printf 'PROOF_TO_BYTE_MIGRATION_V2_EXACT_BYTES_PASS boundary=independent_renderer_not_formal_refinement\n'
@@ -903,4 +936,4 @@ python3 artifact/proof_to_byte_finalizer.py finalize \
 	"$PERFORMANCE_PASSED" \
 	"$CAMERA_READY_BUNDLE_PASSED" "$REQUIRE_CAMERA_READY" \
 	"$DEPENDENCY_AUDIT_PASSED" "$ALLOW_DIRTY_APPLE_DEVICE_PROOF" \
-	"$ALLOW_DIRTY_PERFORMANCE_PROOF"
+	"$ALLOW_DIRTY_PERFORMANCE_PROOF" "$RUST_PACKAGE_CONTRACT_PASSED"

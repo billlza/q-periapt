@@ -52,6 +52,7 @@ STATE_NAMES = (
     "source_tree_dirty",
     "allow_dirty_apple",
     "allow_dirty_performance",
+    "rust_package_contract",
 )
 
 
@@ -84,6 +85,7 @@ class AttestationState:
     source_tree_dirty: bool
     allow_dirty_apple: bool
     allow_dirty_performance: bool
+    rust_package_contract: bool
 
     @classmethod
     def from_values(cls, values: Sequence[str]) -> "AttestationState":
@@ -424,6 +426,7 @@ def format_attestation_marker(
         and state.performance
         and (not state.camera_required or state.camera_ready)
         and state.dependency_audit
+        and state.rust_package_contract
     )
     if complete:
         if state.source_tree_dirty:
@@ -437,11 +440,12 @@ def format_attestation_marker(
         if android_production:
             return (
                 "PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS "
-                f"camera_ready_bundle={camera}" + provenance
+                f"camera_ready_bundle={camera} rust_package_contract=1" + provenance
             )
         return (
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS "
             f"camera_ready_bundle={camera}"
+            " rust_package_contract=1"
             f" android_aar={int(state.android_aar)}"
             f" android_runtime={int(state.android_runtime)}"
             f" android_physical_runtime={int(state.android_physical_runtime)}"
@@ -464,6 +468,7 @@ def format_attestation_marker(
         f" camera_ready_bundle={int(state.camera_ready)}"
         f" camera_ready_required={int(state.camera_required)}"
         f" dependency_audit={int(state.dependency_audit)}"
+        f" rust_package_contract={int(state.rust_package_contract)}"
         f" allow_dirty_apple_proof={int(state.allow_dirty_apple)}"
         f" allow_dirty_performance_proof={int(state.allow_dirty_performance)}"
         + provenance

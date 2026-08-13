@@ -358,7 +358,18 @@ surface has a separate package-contract gate,
 ten-crate publish allow/deny list, checks package file lists, applies every downstream local patch,
 and runs registry-bound `cargo package` with rebuilt-archive verification for each publishable crate;
 all Cargo warnings fail the gate and no upload command is invoked. It then creates fresh
-isolated sys/backend archives. The sys `.crate` is inspected independently for links/special or
+isolated sys/backend archives. The contract also creates a fresh owned `0700` Cargo home instead
+of consuming the caller's Cargo/RustSec cache. The normalized audit fetches its RustSec database
+there, then requires the exact upstream origin, a canonical commit, and a clean database worktree
+before the owned directory is descriptor-bound cleaned. Cargo-home configuration, credential files,
+registry cache, and advisory state are isolated; caller environment, selected
+Rust/Cargo/cargo-audit executables, network transport, and the OS runtime remain trusted host
+inputs. Because `cargo-audit` 0.22.2's built-in yanked check requires the multi-gigabyte legacy Git
+index, the contract checks the same exact locked names, versions, and checksums against the bounded
+official crates.io sparse HTTPS index, then runs the warning-denied advisory audit with its
+incompatible duplicate yanked path disabled. A yanked, missing, malformed, or mismatched sparse
+entry fails the contract; this is a responsibility split, not a warning suppression or skipped
+registry check. The sys `.crate` is inspected independently for links/special or
 forbidden paths, the fixed 124-entry upstream inventory, the exact packaged 118-code-file hash
 subset (excluding six upstream README files), the pinned upstream license and v1.2.0 provenance,
 and a portable-only build surface. Cargo's normalized backend graph is generated
@@ -367,8 +378,14 @@ inventory, license, and normalized-graph checks cannot be skipped. This no-uploa
 not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
 authorization, server-side policy acceptance, or a registry receipt. The coordinated registry
 order is sys, core, KEM/signature traits, backends, policy, then
-the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set. The ordinary
-Swift XCFramework gate also requires a clean tree by default; set
+the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set.
+`artifact/results.json` may declare that source-bound package receipt current only through its
+strict schema, exact source identity, advisory snapshot, and retained transcript fingerprint.
+Set `QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT=1` to make `proof-to-byte.sh` load that exact selected
+transcript, verify its full marker set and ordering, and expose a separate
+`rust_package_contract=1` finalizer state. This does not set or replace
+`dependency_audit=1`: the explicit workspace-lock audit remains a separate live gate.
+The Swift XCFramework gate also requires a clean tree by default; set
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics. Set
 `QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus `QPERIAPT_DEVICE_RESULT_DIR=<matrix-run-dir>` to also
 require a fresh iPad+iPhone matrix proof. The Android release transaction is ordered and must remain

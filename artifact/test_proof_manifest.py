@@ -5,16 +5,142 @@ import json
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 import proof_manifest
+import rust_publish_contract
 from proof_manifest import (
     ProofManifestError,
+    load_current_rust_package_contract_receipt,
     load_results_manifest_snapshot,
     select_bound_json_snapshot,
 )
 
 
 class ProofManifestTests(unittest.TestCase):
+    def test_rust_package_schema_constants_match_the_live_contract(self) -> None:
+        self.assertEqual(
+            proof_manifest.RUST_PACKAGE_PUBLISHABLE_CRATES,
+            rust_publish_contract.RUST_PUBLISHABLE_CRATES,
+        )
+        self.assertEqual(
+            proof_manifest.RUST_PACKAGE_ADVISORY_DB_URL,
+            rust_publish_contract.RUSTSEC_ADVISORY_DB_URL,
+        )
+        self.assertEqual(
+            proof_manifest.RUST_CRATES_IO_SPARSE_INDEX,
+            rust_publish_contract.RUST_CRATES_IO_SPARSE_INDEX,
+        )
+
+    def current_rust_package_manifest(self) -> dict[str, object]:
+        digest = "a" * 64
+        commit = "c" * 40
+        completed_at = "2026-08-13T02:59:07Z"
+        advisory_commit = "d" * 40
+        return {
+            "proof_source_tree_sha256": digest,
+            "provenance": {"snapshot_commit": commit},
+            "rust_publish": {
+                "advisory_db_commit": advisory_commit,
+                "advisory_db_mode": proof_manifest.RUST_PACKAGE_ADVISORY_DB_MODE,
+                "advisory_db_url": proof_manifest.RUST_PACKAGE_ADVISORY_DB_URL,
+                "advisory_db_clean": True,
+                "boundary": proof_manifest.RUST_PACKAGE_BOUNDARY,
+                "cargo_audit_version": "0.22.2",
+                "cargo_home_isolated": True,
+                "cargo_version": "1.96.1",
+                "cargo_warning_free": True,
+                "command": proof_manifest.RUST_PACKAGE_COMMAND,
+                "completed_at": completed_at,
+                "crates_io_index_protocol": (
+                    proof_manifest.RUST_PACKAGE_CRATES_IO_INDEX_PROTOCOL
+                ),
+                "crates_io_index_url": proof_manifest.RUST_CRATES_IO_SPARSE_INDEX,
+                "crates_io_registry_package_count": 2,
+                "crates_io_sparse_lock_verification_pass": True,
+                "current_local_status": (
+                    "Current clean-tree Rust no-upload package contract passed at "
+                    f"source commit {commit} and canonical source digest {digest}, "
+                    f"completed at {completed_at}, using RustSec advisory database "
+                    f"commit {advisory_commit} fetched into a fresh owned Cargo home. "
+                    "Exact sparse-index lock verification passed for 2 crates.io "
+                    f"package records from normalized Cargo.lock SHA-256 {'f' * 64}. "
+                    "The retained transcript is selected by canonical path and SHA-256 "
+                    "for accidental mismatch detection; it is not an independent "
+                    "attestation."
+                ),
+                "current_source_status": (
+                    "current_clean_tree_rust_package_contract_pass"
+                ),
+                "dirty_diagnostic_command": (
+                    proof_manifest.RUST_PACKAGE_DIRTY_COMMAND
+                ),
+                "evidence_schema": 1,
+                "mode": proof_manifest.RUST_PACKAGE_MODE,
+                "nonpublishable_crates": list(
+                    proof_manifest.RUST_PACKAGE_NONPUBLISHABLE_CRATES
+                ),
+                "normalized_cargo_lock_sha256": "f" * 64,
+                "normalized_dependency_audit_pass": True,
+                "package_list_pass_crates": list(
+                    proof_manifest.RUST_PACKAGE_PUBLISHABLE_CRATES
+                ),
+                "package_verification_pass_crates": list(
+                    proof_manifest.RUST_PACKAGE_PUBLISHABLE_CRATES
+                ),
+                "proof_source_tree_sha256": digest,
+                "publishable_crates": list(
+                    proof_manifest.RUST_PACKAGE_PUBLISHABLE_CRATES
+                ),
+                "registry": "crates-io",
+                "rustc_version": "1.96.1",
+                "source_commit": commit,
+                "source_tree_dirty": False,
+                "status": "pass",
+                "transcript_path": proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH,
+                "transcript_sha256": "e" * 64,
+                "upload_attempted": False,
+            },
+        }
+
+    def current_rust_package_transcript(
+        self,
+        *,
+        source_commit: str = "c" * 40,
+        advisory_commit: str = "d" * 40,
+        completed_at: str = "2026-08-13T02:59:07Z",
+    ) -> bytes:
+        lines = [
+            rust_publish_contract.RUST_PACKAGE_CARGO_HOME_MARKER,
+            rust_publish_contract.RUST_PACKAGE_TOOLCHAIN_MARKER,
+            f"RUST_PACKAGE_SOURCE_PASS commit={source_commit} clean=1",
+        ]
+        lines.extend(
+            f"RUST_PACKAGE_LIST_PASS {crate} files=1"
+            for crate in rust_publish_contract.RUST_PUBLISHABLE_CRATES
+        )
+        lines.extend(
+            "RUST_PACKAGE_VERIFICATION_PASS "
+            f"{crate} registry=crates-io upload=not-attempted"
+            for crate in rust_publish_contract.RUST_PUBLISHABLE_CRATES
+        )
+        lines.extend(
+            (
+                "RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=2 "
+                "index=sparse-https checksums=exact yanked=0 "
+                f"normalized_lock_sha256={'f' * 64}",
+                rust_publish_contract.RUST_PACKAGE_NORMALIZED_AUDIT_MARKER,
+                "RUST_ADVISORY_DB_PASS "
+                f"origin={rust_publish_contract.RUSTSEC_ADVISORY_DB_URL} "
+                f"commit={advisory_commit} clean=1 isolated_cargo_home=1",
+                f"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256={'f' * 64}",
+                rust_publish_contract.RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER,
+                "RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io "
+                f"upload=not-attempted completed_at={completed_at}",
+            )
+        )
+        return ("\n".join(lines) + "\n").encode("utf-8")
+
     def performance_manifest(
         self,
         relative: str,
@@ -415,6 +541,248 @@ class ProofManifestTests(unittest.TestCase):
                     proof_manifest.validate_declared_currentness(manifest)
                 section[field] = original
 
+    def test_current_rust_package_contract_requires_exact_clean_no_upload_evidence(
+        self,
+    ) -> None:
+        manifest = self.current_rust_package_manifest()
+        proof_manifest.validate_declared_currentness(manifest)
+        section = manifest["rust_publish"]
+        mutations = (
+            ("evidence_schema", True, "exact evidence_schema"),
+            ("status", "diagnostic", "exact status"),
+            ("command", "cargo package", "exact command"),
+            ("dirty_diagnostic_command", "sh old.sh", "exact dirty_diagnostic"),
+            ("mode", "cargo publish --dry-run", "exact mode"),
+            ("boundary", "release ready", "exact boundary"),
+            ("current_local_status", "historical dry run", "exact current_local_status"),
+            ("registry", "other", "exact registry"),
+            ("upload_attempted", True, "exact upload_attempted"),
+            ("rustc_version", "1.96.0", "exact rustc_version"),
+            ("cargo_version", "1.96.0", "exact cargo_version"),
+            ("cargo_audit_version", "0.22.1", "exact cargo_audit_version"),
+            (
+                "crates_io_index_protocol",
+                "git",
+                "exact crates_io_index_protocol",
+            ),
+            (
+                "crates_io_index_url",
+                "https://example.invalid",
+                "exact crates_io_index_url",
+            ),
+            (
+                "crates_io_sparse_lock_verification_pass",
+                False,
+                "exact crates_io_sparse_lock_verification_pass",
+            ),
+            (
+                "crates_io_registry_package_count",
+                0,
+                "bounded crates.io registry package count",
+            ),
+            (
+                "crates_io_registry_package_count",
+                rust_publish_contract.RUST_SPARSE_MAX_REGISTRY_PACKAGES + 1,
+                "bounded crates.io registry package count",
+            ),
+            ("advisory_db_mode", "ambient", "exact advisory_db_mode"),
+            ("advisory_db_url", "https://example.invalid", "exact advisory_db_url"),
+            ("advisory_db_clean", False, "exact advisory_db_clean"),
+            ("cargo_home_isolated", False, "exact cargo_home_isolated"),
+            ("cargo_warning_free", False, "exact cargo_warning_free"),
+            (
+                "normalized_dependency_audit_pass",
+                False,
+                "exact normalized_dependency_audit_pass",
+            ),
+            (
+                "normalized_cargo_lock_sha256",
+                "bad",
+                "normalized Cargo.lock SHA-256",
+            ),
+            ("publishable_crates", [], "exact publishable_crates"),
+            ("nonpublishable_crates", [], "exact nonpublishable_crates"),
+            ("package_list_pass_crates", [], "exact package_list_pass_crates"),
+            (
+                "package_verification_pass_crates",
+                [],
+                "exact package_verification_pass_crates",
+            ),
+            ("source_commit", "0" * 40, "source commit"),
+            ("proof_source_tree_sha256", "0" * 64, "source digest"),
+            ("source_tree_dirty", True, "clean source provenance"),
+            ("advisory_db_commit", "bad", "advisory DB commit"),
+            ("completed_at", "2026-08-13", "RFC3339 UTC completion"),
+            ("completed_at", "2026-8-3T2:3:4Z", "RFC3339 UTC completion"),
+            ("transcript_path", "target/other.log", "not canonical"),
+            ("transcript_sha256", "bad", "selected-proof SHA-256"),
+        )
+        for field, bad_value, message in mutations:
+            with self.subTest(field=field):
+                original = section[field]
+                section[field] = bad_value
+                with self.assertRaisesRegex(
+                    proof_manifest.ProofManifestError,
+                    message,
+                ):
+                    proof_manifest.validate_declared_currentness(manifest)
+                section[field] = original
+
+        for field in (
+            "publishable_crates",
+            "package_list_pass_crates",
+            "package_verification_pass_crates",
+        ):
+            original = section[field]
+            for label, bad_value in (
+                ("reordered", list(reversed(original))),
+                ("duplicate", [*original, original[0]]),
+                ("extra", [*original, "q-periapt-unclassified"]),
+            ):
+                with self.subTest(field=field, mutation=label):
+                    section[field] = bad_value
+                    with self.assertRaisesRegex(
+                        ProofManifestError,
+                        f"exact {field}",
+                    ):
+                        proof_manifest.validate_declared_currentness(manifest)
+            section[field] = original
+
+    def test_current_rust_package_transcript_uses_the_canonical_file_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            transcript = root / proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH
+            transcript.parent.mkdir(parents=True)
+            transcript.write_text("receipt\n", encoding="utf-8")
+            manifest_value = self.current_rust_package_manifest()
+            manifest_value["rust_publish"]["transcript_sha256"] = hashlib.sha256(
+                transcript.read_bytes()
+            ).hexdigest()
+            artifact = root / "artifact"
+            artifact.mkdir()
+            manifest_path = artifact / "results.json"
+            manifest_path.write_text(
+                json.dumps(manifest_value, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            manifest = load_results_manifest_snapshot(manifest_path)
+            declaration = proof_manifest.resolve_bound_file_declaration(
+                root,
+                manifest,
+                binding="rust_package_transcript",
+            )
+            self.assertEqual(declaration.path, transcript)
+            self.assertEqual(
+                declaration.sha256,
+                manifest_value["rust_publish"]["transcript_sha256"],
+            )
+
+    def test_current_rust_package_receipt_loads_exact_bound_transcript(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            transcript = root / proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH
+            transcript.parent.mkdir(parents=True)
+            transcript.write_bytes(self.current_rust_package_transcript())
+            manifest_value = self.current_rust_package_manifest()
+            manifest_value["rust_publish"]["transcript_sha256"] = hashlib.sha256(
+                transcript.read_bytes()
+            ).hexdigest()
+            artifact = root / "artifact"
+            artifact.mkdir()
+            manifest_path = artifact / "results.json"
+            manifest_path.write_text(
+                json.dumps(manifest_value, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            manifest = load_results_manifest_snapshot(manifest_path)
+            with mock.patch.object(
+                proof_manifest,
+                "require_commit_or_evidence_successor",
+                return_value="e" * 40,
+            ) as source_successor:
+                receipt = load_current_rust_package_contract_receipt(
+                    root,
+                    manifest,
+                    frozen_commit="e" * 40,
+                    frozen_source_sha256="a" * 64,
+                )
+            source_successor.assert_called_once_with(root, "c" * 40)
+            self.assertEqual(receipt.source_commit, "c" * 40)
+            self.assertEqual(receipt.advisory_db_commit, "d" * 40)
+            self.assertEqual(receipt.registry_package_count, 2)
+            self.assertEqual(receipt.normalized_cargo_lock_sha256, "f" * 64)
+
+            for label, mutate, message in (
+                (
+                    "hash",
+                    lambda: transcript.write_bytes(
+                        self.current_rust_package_transcript() + b"tampered\n"
+                    ),
+                    "hash differs",
+                ),
+                (
+                    "commit",
+                    lambda: None,
+                    "source commit differs",
+                ),
+            ):
+                with self.subTest(label=label):
+                    if label == "hash":
+                        mutate()
+                        selected_source_commit = "c" * 40
+                    else:
+                        transcript.write_bytes(self.current_rust_package_transcript())
+                        selected_source_commit = "e" * 40
+                    manifest.value["provenance"]["snapshot_commit"] = (
+                        selected_source_commit
+                    )
+                    with self.assertRaisesRegex(ProofManifestError, message):
+                        with mock.patch.object(
+                            proof_manifest,
+                            "require_commit_or_evidence_successor",
+                            return_value="e" * 40,
+                        ):
+                            load_current_rust_package_contract_receipt(
+                                root,
+                                manifest,
+                                frozen_commit="e" * 40,
+                                frozen_source_sha256="a" * 64,
+                            )
+
+            transcript.write_bytes(self.current_rust_package_transcript())
+            manifest.value["provenance"]["snapshot_commit"] = "c" * 40
+            manifest.value["rust_publish"]["normalized_cargo_lock_sha256"] = (
+                "0" * 64
+            )
+            with self.assertRaisesRegex(
+                ProofManifestError,
+                "normalized Cargo.lock SHA-256 differs",
+            ):
+                with mock.patch.object(
+                    proof_manifest,
+                    "require_commit_or_evidence_successor",
+                    return_value="e" * 40,
+                ):
+                    load_current_rust_package_contract_receipt(
+                        root,
+                        manifest,
+                        frozen_commit="e" * 40,
+                        frozen_source_sha256="a" * 64,
+                    )
+
+    def test_current_rust_package_contract_rejects_missing_and_extra_fields(self) -> None:
+        for label, mutate in (
+            ("extra", lambda section: section.__setitem__("registry_uploaded", True)),
+            ("missing", lambda section: section.pop("upload_attempted")),
+        ):
+            manifest = self.current_rust_package_manifest()
+            mutate(manifest["rust_publish"])
+            with self.subTest(label=label), self.assertRaisesRegex(
+                ProofManifestError,
+                "field set differs",
+            ):
+                proof_manifest.validate_declared_currentness(manifest)
+
     def test_current_local_index_requires_exact_runtime_and_consumer_receipt(self) -> None:
         manifest = self.current_android_manifest()
         commit = manifest["provenance"]["snapshot_commit"]
@@ -486,6 +854,20 @@ class ProofManifestTests(unittest.TestCase):
             }
         )
 
+    def test_stale_rust_package_contract_does_not_require_current_fields(self) -> None:
+        proof_manifest.validate_declared_currentness(
+            {
+                "proof_source_tree_sha256": "a" * 64,
+                "rust_publish": {
+                    "current_source_status": "stale_requires_rerun"
+                },
+            }
+        )
+
+    def test_rust_package_contract_section_must_be_an_object(self) -> None:
+        with self.assertRaisesRegex(ProofManifestError, "rust_publish must be an object"):
+            proof_manifest.validate_declared_currentness({"rust_publish": "pass"})
+
     def test_unknown_currentness_statuses_fail_closed(self) -> None:
         for section, key in (
             ("performance", "current_source_status"),
@@ -495,6 +877,7 @@ class ProofManifestTests(unittest.TestCase):
             ("android_physical_runtime", "current_source_status"),
             ("android_aar", "current_source_status"),
             ("local_release_index", "current_source_status"),
+            ("rust_publish", "current_source_status"),
         ):
             with self.subTest(section=section, key=key), self.assertRaisesRegex(
                 proof_manifest.ProofManifestError,
@@ -548,6 +931,11 @@ class ProofManifestTests(unittest.TestCase):
                     "current_source_status": stale,
                     "proof_path": "target/performance/proof.json",
                     "proof_sha256": digest,
+                },
+                "rust_publish": {
+                    "current_source_status": stale,
+                    "transcript_path": proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH,
+                    "transcript_sha256": digest,
                 },
             }
             manifest_path = artifact / "results.json"

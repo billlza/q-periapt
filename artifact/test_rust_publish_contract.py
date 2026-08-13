@@ -2,23 +2,176 @@
 
 from __future__ import annotations
 
+import json
+import hashlib
 import os
 import pathlib
+import subprocess
+import tempfile
+import threading
 import unittest
+import urllib.error
+from unittest import mock
+
+import rust_publish_contract
+from bounded_process import BoundedProcessError, BoundedResult, REAP_TIMEOUT_SECONDS
+from git_provenance import GIT, GitProvenanceError, WorktreeInspection
 
 from rust_publish_contract import (
+    RUSTSEC_ADVISORY_DB_URL,
+    RUST_CRATES_IO_SPARSE_INDEX,
+    RUST_NORMALIZED_LOCAL_CRATES,
+    RUST_PUBLISHABLE_CRATES,
+    RUST_SPARSE_LOCK_MAX_BYTES,
+    RUST_SPARSE_MAX_REGISTRY_PACKAGES,
+    RUST_SPARSE_INDEX_MAX_BYTES,
+    RUST_SPARSE_REQUEST_TIMEOUT_SECONDS,
+    RUST_SPARSE_INDEX_USER_AGENT,
+    RUST_SPARSE_HELPER_ENVIRONMENT,
+    RUST_SPARSE_HELPER_MAX_OUTPUT_BYTES,
+    RUST_SPARSE_HELPER_TIMEOUT_SECONDS,
+    RUST_SPARSE_AGGREGATE_MAX_BYTES,
+    RUST_SPARSE_TOTAL_TIMEOUT_SECONDS,
     RustPublishContractError,
     create_owned_package_directory,
+    inspect_package_source,
     remove_owned_package_directory,
     validate_cargo_output,
     validate_cargo_package_completion,
     validate_mlkem_native_build_surface,
     validate_packaged_mlkem_native_local_sources,
+    validate_crates_io_sparse_yanked,
+    validate_rust_package_contract_transcript,
+    validate_rustsec_advisory_database,
 )
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SYS_CRATE = ROOT / "crates" / "q-periapt-mlkem-native-sys"
+ADVISORY_COMMIT = "0123456789abcdef0123456789abcdef01234567"
+SOURCE_COMMIT = "89abcdef0123456789abcdef0123456789abcdef"
+NORMALIZED_LOCK_SHA256 = "c" * 64
+REGISTRY_PACKAGES = (
+    ("itoa", "1.0.15", "a" * 64),
+    ("serde", "1.0.228", "b" * 64),
+)
+
+
+def normalized_cargo_lock(
+    *,
+    local_names: set[str] | frozenset[str] = RUST_NORMALIZED_LOCAL_CRATES,
+    registry_packages: tuple[tuple[str, str, str], ...] = REGISTRY_PACKAGES,
+    registry_source: str = "registry+https://github.com/rust-lang/crates.io-index",
+) -> bytes:
+    lines = ["version = 4", ""]
+    for name in sorted(local_names):
+        lines.extend(
+            (
+                "[[package]]",
+                f'name = "{name}"',
+                'version = "0.1.0-alpha.2"',
+                "",
+            )
+        )
+    for name, version, checksum in registry_packages:
+        lines.extend(
+            (
+                "[[package]]",
+                f'name = "{name}"',
+                f'version = "{version}"',
+                f'source = "{registry_source}"',
+                f'checksum = "{checksum}"',
+                "",
+            )
+        )
+    return "\n".join(lines).encode("utf-8")
+
+
+def sparse_index_payload(
+    name: str,
+    records: tuple[tuple[str, str, bool], ...],
+) -> bytes:
+    return b"".join(
+        json.dumps(
+            {
+                "name": name,
+                "vers": version,
+                "deps": [],
+                "cksum": checksum,
+                "features": {},
+                "yanked": yanked,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        + b"\n"
+        for version, checksum, yanked in records
+    )
+
+
+class SparseResponse:
+    def __init__(
+        self,
+        url: str,
+        payload: bytes,
+        *,
+        status: int = 200,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.status = status
+        self.headers = {} if headers is None else headers
+        self._url = url
+        self._payload = payload
+        self._offset = 0
+
+    def __enter__(self) -> SparseResponse:
+        return self
+
+    def __exit__(self, *_arguments: object) -> None:
+        return None
+
+    def geturl(self) -> str:
+        return self._url
+
+    def read(self, maximum: int) -> bytes:
+        chunk = self._payload[self._offset : self._offset + maximum]
+        self._offset += len(chunk)
+        return chunk
+
+
+def valid_rust_package_contract_transcript() -> list[str]:
+    lines = [
+        "RUST_CARGO_HOME_ISOLATION_PASS mode=0700 "
+        "ambient_cargo_home_data=unused",
+        "RUST_PACKAGE_TOOLCHAIN_PASS "
+        "rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2",
+        f"RUST_PACKAGE_SOURCE_PASS commit={SOURCE_COMMIT} clean=1",
+    ]
+    lines.extend(
+        f"RUST_PACKAGE_LIST_PASS {crate} files=1"
+        for crate in RUST_PUBLISHABLE_CRATES
+    )
+    lines.extend(
+            "RUST_PACKAGE_VERIFICATION_PASS "
+        f"{crate} registry=crates-io upload=not-attempted"
+        for crate in RUST_PUBLISHABLE_CRATES
+    )
+    lines.extend(
+        (
+            "RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=2 "
+            "index=sparse-https checksums=exact yanked=0 "
+            f"normalized_lock_sha256={NORMALIZED_LOCK_SHA256}",
+            "RUST_BACKENDS_NORMALIZED_AUDIT_PASS",
+            "RUST_ADVISORY_DB_PASS "
+            f"origin={RUSTSEC_ADVISORY_DB_URL} commit={ADVISORY_COMMIT} "
+            "clean=1 isolated_cargo_home=1",
+            f"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256={NORMALIZED_LOCK_SHA256}",
+            "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home",
+            "RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io "
+            "upload=not-attempted completed_at=2026-08-13T03:04:05Z",
+        )
+    )
+    return lines
 
 
 class RustPublishContractTests(unittest.TestCase):
@@ -37,6 +190,9 @@ class RustPublishContractTests(unittest.TestCase):
         cls.local_config = (SYS_CRATE / "src" / "mlkem_config.h").read_text(
             encoding="utf-8"
         )
+        cls.publish_contract_script = (
+            ROOT / "artifact" / "rust-publish-contract.sh"
+        ).read_text(encoding="utf-8")
 
     def validate(
         self,
@@ -56,6 +212,13 @@ class RustPublishContractTests(unittest.TestCase):
             bridge_h=self.bridge_h if bridge_h is None else bridge_h,
             local_config=self.local_config if local_config is None else local_config,
         )
+
+    @staticmethod
+    def advisory_database(temporary_root: str) -> pathlib.Path:
+        database = pathlib.Path(temporary_root) / "advisory-db"
+        database.mkdir()
+        (database / ".git").mkdir()
+        return database
 
     def test_repository_build_surface_passes(self) -> None:
         self.validate()
@@ -184,6 +347,1491 @@ class RustPublishContractTests(unittest.TestCase):
             os.rename(detached_path, package_path)
             remove_owned_package_directory(package_path, package_device, package_inode)
             remove_owned_package_directory(external_path, external_device, external_inode)
+
+    def test_owned_cargo_home_creation_and_cleanup_uses_the_same_boundary(self) -> None:
+        cargo_home, cargo_home_device, cargo_home_inode = (
+            create_owned_package_directory("qperiapt-package-cargo-home.")
+        )
+        try:
+            metadata = cargo_home.lstat()
+            self.assertEqual(metadata.st_uid, os.getuid())
+            self.assertEqual(metadata.st_mode & 0o777, 0o700)
+            (cargo_home / "registry").mkdir()
+            (cargo_home / "registry" / "cache").write_bytes(b"cache")
+            remove_owned_package_directory(
+                cargo_home,
+                cargo_home_device,
+                cargo_home_inode,
+            )
+            self.assertFalse(cargo_home.exists())
+        finally:
+            if cargo_home.exists() and not cargo_home.is_symlink():
+                remove_owned_package_directory(
+                    cargo_home,
+                    cargo_home_device,
+                    cargo_home_inode,
+                )
+
+    def test_package_source_inspection_ignores_hostile_git_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            repository = pathlib.Path(temporary_root) / "source"
+
+            def git(*arguments: str) -> str:
+                process = subprocess.run(
+                    [GIT, *arguments],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                return process.stdout.strip()
+
+            git("init", "--quiet", str(repository))
+            git("-C", str(repository), "config", "user.name", "Contract Test")
+            git(
+                "-C",
+                str(repository),
+                "config",
+                "user.email",
+                "contract-test@example.invalid",
+            )
+            (repository / "source.txt").write_text("source\n", encoding="utf-8")
+            git("-C", str(repository), "add", "source.txt")
+            git("-C", str(repository), "commit", "--quiet", "-m", "fixture")
+            expected_commit = git("-C", str(repository), "rev-parse", "HEAD")
+
+            hostile_environment = {
+                "GIT_DIR": "/hostile/git-dir",
+                "GIT_WORK_TREE": "/hostile/work-tree",
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "core.fsmonitor",
+                "GIT_CONFIG_VALUE_0": "!false",
+                "GIT_CONFIG_PARAMETERS": "'core.hooksPath'='/hostile/hooks'",
+                "GIT_OBJECT_DIRECTORY": "/hostile/objects",
+                "GIT_ALTERNATE_OBJECT_DIRECTORIES": "/hostile/alternates",
+                "HOME": "/hostile/home",
+                "PATH": "/hostile/bin",
+            }
+            with mock.patch.dict(os.environ, hostile_environment, clear=False):
+                self.assertEqual(
+                    inspect_package_source(repository, allow_dirty=False),
+                    (expected_commit, False),
+                )
+                (repository / "untracked.txt").write_text(
+                    "dirty\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "source worktree is dirty",
+                ):
+                    inspect_package_source(repository, allow_dirty=False)
+                self.assertEqual(
+                    inspect_package_source(repository, allow_dirty=True),
+                    (expected_commit, True),
+                )
+
+    def test_package_source_inspection_rejects_or_reports_dirty_state(self) -> None:
+        dirty = WorktreeInspection(
+            commit=SOURCE_COMMIT,
+            dirty=True,
+            reasons=("untracked source-input paths present: 1",),
+        )
+        with mock.patch.object(
+            rust_publish_contract,
+            "inspect_worktree",
+            return_value=dirty,
+        ):
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "source worktree is dirty.*untracked",
+            ):
+                inspect_package_source(ROOT, allow_dirty=False)
+            self.assertEqual(
+                inspect_package_source(ROOT, allow_dirty=True),
+                (SOURCE_COMMIT, True),
+            )
+
+    def test_package_source_inspection_translates_provenance_failures(self) -> None:
+        with mock.patch.object(
+            rust_publish_contract,
+            "inspect_worktree",
+            side_effect=GitProvenanceError("synthetic failure"),
+        ):
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "source provenance: synthetic failure",
+            ):
+                inspect_package_source(ROOT, allow_dirty=False)
+
+        malformed = WorktreeInspection(
+            commit="not-a-commit",
+            dirty=False,
+            reasons=(),
+        )
+        with mock.patch.object(
+            rust_publish_contract,
+            "inspect_worktree",
+            return_value=malformed,
+        ):
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "source commit is malformed",
+            ):
+                inspect_package_source(ROOT, allow_dirty=False)
+
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "dirty policy must be a boolean",
+        ):
+            inspect_package_source(ROOT, allow_dirty=1)
+
+    def test_sparse_yanked_verifier_accepts_exact_normalized_lock(self) -> None:
+        requested: list[str] = []
+        expected = {
+            name: sparse_index_payload(name, ((version, checksum, False),))
+            for name, version, checksum in REGISTRY_PACKAGES
+        }
+
+        def fetch(url: str) -> bytes:
+            requested.append(url)
+            return expected[url.rsplit("/", 1)[-1]]
+
+        self.assertEqual(
+            rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                normalized_cargo_lock(),
+                fetcher=fetch,
+            ),
+            2,
+        )
+        self.assertEqual(
+            requested,
+            [
+                f"{RUST_CRATES_IO_SPARSE_INDEX}/it/oa/itoa",
+                f"{RUST_CRATES_IO_SPARSE_INDEX}/se/rd/serde",
+            ],
+        )
+
+        multi_version_lock = normalized_cargo_lock(
+            registry_packages=(
+                ("serde", "1.0.227", "c" * 64),
+                ("serde", "1.0.228", "b" * 64),
+            )
+        )
+        multi_version_requests: list[str] = []
+
+        def fetch_multi_version(url: str) -> bytes:
+            multi_version_requests.append(url)
+            return sparse_index_payload(
+                "serde",
+                (
+                    ("1.0.227", "c" * 64, False),
+                    ("1.0.228", "b" * 64, False),
+                ),
+            )
+
+        self.assertEqual(
+            rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                multi_version_lock,
+                fetcher=fetch_multi_version,
+            ),
+            2,
+        )
+        self.assertEqual(
+            multi_version_requests,
+            [f"{RUST_CRATES_IO_SPARSE_INDEX}/se/rd/serde"],
+        )
+
+    def test_sparse_index_path_is_canonical_for_every_length_class(self) -> None:
+        expected = {
+            "A": "1/a",
+            "Ab": "2/ab",
+            "Abc": "3/a/abc",
+            "Abcd": "ab/cd/abcd",
+            "Serde_JSON": "se/rd/serde_json",
+        }
+        for name, path in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(
+                    rust_publish_contract._crates_io_sparse_path(name),
+                    path,
+                )
+
+    def test_sparse_yanked_verifier_rejects_malformed_lock_boundaries(self) -> None:
+        base = normalized_cargo_lock()
+        duplicate_registry = base + b"\n" + b"\n".join(
+            (
+                b"[[package]]",
+                b'name = "itoa"',
+                b'version = "1.0.15"',
+                b'source = "registry+https://github.com/rust-lang/crates.io-index"',
+                f'checksum = {json.dumps("a" * 64)}'.encode(),
+                b"",
+            )
+        )
+        local_checksum = base.replace(
+            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.2"',
+            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.2"\n'
+            + f'checksum = {json.dumps("c" * 64)}'.encode(),
+            1,
+        )
+        cases = {
+            "non-UTF-8": b"\xff",
+            "invalid TOML": b"version = [",
+            "wrong schema": base.replace(b"version = 4", b"version = 3", 1),
+            "missing local": normalized_cargo_lock(
+                local_names=set(RUST_NORMALIZED_LOCAL_CRATES)
+                - {"q-periapt-core"}
+            ),
+            "extra local": normalized_cargo_lock(
+                local_names=set(RUST_NORMALIZED_LOCAL_CRATES) | {"local-extra"}
+            ),
+            "non-crates source": normalized_cargo_lock(
+                registry_source="git+https://example.invalid/source.git"
+            ),
+            "invalid registry name": normalized_cargo_lock(
+                registry_packages=(("bad/name", "1.0.0", "a" * 64),)
+            ),
+            "invalid version": normalized_cargo_lock(
+                registry_packages=(("itoa", "01.0.0", "a" * 64),)
+            ),
+            "invalid checksum": normalized_cargo_lock(
+                registry_packages=(("itoa", "1.0.0", "A" * 64),)
+            ),
+            "local resolved from registry": normalized_cargo_lock(
+                registry_packages=(
+                    ("q-periapt-core", "0.1.0-alpha.2", "a" * 64),
+                )
+            ),
+            "duplicate registry": duplicate_registry,
+            "local checksum": local_checksum,
+            "no registry": normalized_cargo_lock(registry_packages=()),
+            "lock oversize": b"#" * (RUST_SPARSE_LOCK_MAX_BYTES + 1),
+            "package limit": normalized_cargo_lock(
+                registry_packages=tuple(
+                    (f"limit{index:03d}", "1.0.0", f"{index:064x}")
+                    for index in range(RUST_SPARSE_MAX_REGISTRY_PACKAGES + 1)
+                )
+            ),
+            "case ambiguous": normalized_cargo_lock(
+                registry_packages=(
+                    ("Serde", "1.0.227", "a" * 64),
+                    ("serde", "1.0.228", "b" * 64),
+                )
+            ),
+        }
+
+        def unused_fetch(_url: str) -> bytes:
+            self.fail("malformed lock must fail before any sparse index request")
+
+        for label, lock_data in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(RustPublishContractError):
+                    rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                        lock_data,
+                        fetcher=unused_fetch,
+                    )
+
+    def test_sparse_yanked_verifier_rejects_every_index_failure(self) -> None:
+        lock_data = normalized_cargo_lock(
+            registry_packages=(("itoa", "1.0.15", "a" * 64),)
+        )
+        valid = sparse_index_payload("itoa", (("1.0.15", "a" * 64, False),))
+        cases: dict[str, object] = {
+            "missing": sparse_index_payload(
+                "itoa", (("1.0.14", "a" * 64, False),)
+            ),
+            "duplicate": valid + valid,
+            "malformed JSON": b"{\n",
+            "duplicate JSON key": (
+                b'{"name":"itoa","name":"itoa","vers":"1.0.15",'
+                + f'"cksum":"{"a" * 64}","yanked":false}}\n'.encode()
+            ),
+            "wrong name": sparse_index_payload(
+                "other", (("1.0.15", "a" * 64, False),)
+            ),
+            "bad version": (
+                b'{"name":"itoa","vers":"01.0.0",'
+                + f'"cksum":"{"a" * 64}","yanked":false}}\n'.encode()
+            ),
+            "bad checksum": sparse_index_payload(
+                "itoa", (("1.0.15", "A" * 64, False),)
+            ),
+            "checksum mismatch": sparse_index_payload(
+                "itoa", (("1.0.15", "b" * 64, False),)
+            ),
+            "yanked": sparse_index_payload(
+                "itoa", (("1.0.15", "a" * 64, True),)
+            ),
+            "missing yanked": (
+                b'{"name":"itoa","vers":"1.0.15",'
+                + f'"cksum":"{"a" * 64}"}}\n'.encode()
+            ),
+            "bad yanked": (
+                b'{"name":"itoa","vers":"1.0.15",'
+                + f'"cksum":"{"a" * 64}","yanked":0}}\n'.encode()
+            ),
+            "no final newline": valid.rstrip(b"\n"),
+            "blank line": valid + b"\n",
+            "oversize": b"x" * (RUST_SPARSE_INDEX_MAX_BYTES + 1),
+            "non-bytes": "not bytes",
+            "network": RuntimeError("synthetic network failure"),
+        }
+        for label, outcome in cases.items():
+            with self.subTest(label=label):
+                def fetch(_url: str, result: object = outcome) -> bytes:
+                    if isinstance(result, Exception):
+                        raise result
+                    return result
+
+                with self.assertRaises(RustPublishContractError):
+                    rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                        lock_data,
+                        fetcher=fetch,
+                    )
+
+        def interrupted_fetch(_url: str) -> bytes:
+            raise KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                lock_data,
+                fetcher=interrupted_fetch,
+            )
+
+    def test_sparse_yanked_verifier_uses_at_most_eight_workers(self) -> None:
+        registry_packages = tuple(
+            (f"crate{index:02d}", "1.0.0", f"{index:064x}")
+            for index in range(12)
+        )
+        state_lock = threading.Lock()
+        eight_active = threading.Event()
+        active = 0
+        maximum_active = 0
+
+        def fetch(url: str) -> bytes:
+            nonlocal active, maximum_active
+            name = url.rsplit("/", 1)[-1]
+            index = int(name.removeprefix("crate"))
+            with state_lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+                if active == 8:
+                    eight_active.set()
+            if not eight_active.wait(timeout=2):
+                raise RuntimeError("sparse verifier did not schedule eight workers")
+            try:
+                return sparse_index_payload(
+                    name,
+                    (("1.0.0", f"{index:064x}", False),),
+                )
+            finally:
+                with state_lock:
+                    active -= 1
+
+        self.assertEqual(
+            rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                normalized_cargo_lock(registry_packages=registry_packages),
+                fetcher=fetch,
+            ),
+            12,
+        )
+        self.assertEqual(maximum_active, 8)
+
+    def test_sparse_yanked_verifier_never_submits_more_than_eight_futures(
+        self,
+    ) -> None:
+        registry_packages = tuple(
+            (f"crate{index:02d}", "1.0.0", f"{index:064x}")
+            for index in range(12)
+        )
+
+        class ImmediateFuture:
+            def __init__(
+                self,
+                owner: RecordingExecutor,
+                function: object,
+                arguments: tuple[object, ...],
+            ) -> None:
+                self.owner = owner
+                self.function = function
+                self.arguments = arguments
+                self.resolved = False
+
+            def result(self, *, timeout: float) -> bytes:
+                self.owner.timeouts.append(timeout)
+                if not self.resolved:
+                    self.resolved = True
+                    self.owner.outstanding -= 1
+                return self.function(*self.arguments)
+
+            def cancel(self) -> bool:
+                if not self.resolved:
+                    self.resolved = True
+                    self.owner.outstanding -= 1
+                return True
+
+        class RecordingExecutor:
+            instance: RecordingExecutor | None = None
+
+            def __init__(self, *, max_workers: int, thread_name_prefix: str) -> None:
+                self.max_workers = max_workers
+                self.thread_name_prefix = thread_name_prefix
+                self.outstanding = 0
+                self.maximum_outstanding = 0
+                self.timeouts: list[float] = []
+                self.shutdown_calls: list[tuple[bool, bool]] = []
+                RecordingExecutor.instance = self
+
+            def submit(
+                self,
+                function: object,
+                *arguments: object,
+            ) -> ImmediateFuture:
+                self.outstanding += 1
+                self.maximum_outstanding = max(
+                    self.maximum_outstanding,
+                    self.outstanding,
+                )
+                return ImmediateFuture(self, function, arguments)
+
+            def shutdown(
+                self,
+                *,
+                wait: bool,
+                cancel_futures: bool = False,
+            ) -> None:
+                self.shutdown_calls.append((wait, cancel_futures))
+
+        def fetch(url: str) -> bytes:
+            name = url.rsplit("/", 1)[-1]
+            index = int(name.removeprefix("crate"))
+            return sparse_index_payload(
+                name,
+                (("1.0.0", f"{index:064x}", False),),
+            )
+
+        with mock.patch.object(
+            rust_publish_contract,
+            "ThreadPoolExecutor",
+            RecordingExecutor,
+        ):
+            self.assertEqual(
+                rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                    normalized_cargo_lock(registry_packages=registry_packages),
+                    fetcher=fetch,
+                ),
+                12,
+            )
+        executor = RecordingExecutor.instance
+        self.assertIsNotNone(executor)
+        self.assertEqual(executor.max_workers, 8)
+        self.assertEqual(executor.maximum_outstanding, 8)
+        self.assertEqual(executor.outstanding, 0)
+        self.assertEqual(executor.shutdown_calls, [(True, False)])
+        self.assertEqual(len(executor.timeouts), 12)
+
+        def interrupted_fetch(_url: str) -> bytes:
+            raise KeyboardInterrupt
+
+        RecordingExecutor.instance = None
+        with (
+            mock.patch.object(
+                rust_publish_contract,
+                "ThreadPoolExecutor",
+                RecordingExecutor,
+            ),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                normalized_cargo_lock(
+                    registry_packages=(("itoa", "1.0.15", "a" * 64),)
+                ),
+                fetcher=interrupted_fetch,
+            )
+        failed_executor = RecordingExecutor.instance
+        self.assertIsNotNone(failed_executor)
+        self.assertEqual(failed_executor.outstanding, 0)
+        self.assertEqual(failed_executor.shutdown_calls, [(True, True)])
+
+        RecordingExecutor.instance = None
+        with (
+            mock.patch.object(
+                rust_publish_contract,
+                "ThreadPoolExecutor",
+                RecordingExecutor,
+            ),
+            mock.patch.object(
+                rust_publish_contract,
+                "RUST_SPARSE_AGGREGATE_MAX_BYTES",
+                2 * RUST_SPARSE_INDEX_MAX_BYTES,
+            ),
+        ):
+            self.assertEqual(
+                rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                    normalized_cargo_lock(registry_packages=registry_packages),
+                    fetcher=fetch,
+                ),
+                12,
+            )
+        reserved_executor = RecordingExecutor.instance
+        self.assertIsNotNone(reserved_executor)
+        self.assertEqual(reserved_executor.maximum_outstanding, 2)
+        self.assertEqual(reserved_executor.outstanding, 0)
+
+    def test_sparse_yanked_verifier_enforces_the_total_deadline(self) -> None:
+        lock_data = normalized_cargo_lock(
+            registry_packages=(("itoa", "1.0.15", "a" * 64),)
+        )
+        payload = sparse_index_payload(
+            "itoa",
+            (("1.0.15", "a" * 64, False),),
+        )
+        with mock.patch.object(
+            rust_publish_contract.time,
+            "monotonic",
+            side_effect=(100.0, 100.0 + RUST_SPARSE_TOTAL_TIMEOUT_SECONDS + 1),
+        ):
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "exceeded the total deadline",
+            ):
+                rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                    lock_data,
+                    fetcher=lambda _url: payload,
+                )
+
+    def test_sparse_yanked_verifier_enforces_aggregate_payload_budget(self) -> None:
+        lock_data = normalized_cargo_lock(
+            registry_packages=(
+                ("crate00", "1.0.0", "0" * 64),
+                ("crate01", "1.0.0", "1" * 64),
+            )
+        )
+
+        def fetch(url: str) -> bytes:
+            name = url.rsplit("/", 1)[-1]
+            checksum = "0" * 64 if name == "crate00" else "1" * 64
+            return sparse_index_payload(name, (("1.0.0", checksum, False),))
+
+        single_payload_size = len(fetch(f"{RUST_CRATES_IO_SPARSE_INDEX}/crate00"))
+        with mock.patch.object(
+            rust_publish_contract,
+            "RUST_SPARSE_AGGREGATE_MAX_BYTES",
+            single_payload_size,
+        ):
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "aggregate.*(?:exceeds|cannot admit)",
+            ):
+                rust_publish_contract._validate_crates_io_sparse_yanked_with_fetcher(
+                    lock_data,
+                    fetcher=fetch,
+                )
+        self.assertEqual(RUST_SPARSE_AGGREGATE_MAX_BYTES, 128 * 1024 * 1024)
+
+    def test_default_sparse_fetcher_fixes_request_and_resource_boundaries(self) -> None:
+        url = f"{RUST_CRATES_IO_SPARSE_INDEX}/it/oa/itoa"
+        payload = b"payload\n"
+        response = SparseResponse(
+            url,
+            payload,
+            headers={"Content-Length": str(len(payload))},
+        )
+        with mock.patch.object(
+            rust_publish_contract.urllib.request,
+            "urlopen",
+            return_value=response,
+        ) as urlopen:
+            self.assertEqual(
+                rust_publish_contract._fetch_crates_io_sparse_entry(url),
+                payload,
+            )
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, url)
+        self.assertEqual(
+            urlopen.call_args.kwargs["timeout"],
+            RUST_SPARSE_REQUEST_TIMEOUT_SECONDS,
+        )
+        headers = {key.casefold(): value for key, value in request.header_items()}
+        self.assertEqual(headers["user-agent"], RUST_SPARSE_INDEX_USER_AGENT)
+        self.assertEqual(headers["accept-encoding"], "identity")
+        self.assertEqual(headers["accept"], "application/json")
+
+        failures = {
+            "status": SparseResponse(url, payload, status=404),
+            "redirect": SparseResponse(
+                "https://example.invalid/redirect",
+                payload,
+            ),
+            "malformed length": SparseResponse(
+                url,
+                payload,
+                headers={"Content-Length": "unknown"},
+            ),
+            "declared oversize": SparseResponse(
+                url,
+                payload,
+                headers={
+                    "Content-Length": str(RUST_SPARSE_INDEX_MAX_BYTES + 1)
+                },
+            ),
+            "actual oversize": SparseResponse(
+                url,
+                b"x" * (RUST_SPARSE_INDEX_MAX_BYTES + 1),
+            ),
+            "network": urllib.error.URLError("synthetic network failure"),
+        }
+        for label, outcome in failures.items():
+            with self.subTest(label=label):
+                with mock.patch.object(
+                    rust_publish_contract.urllib.request,
+                    "urlopen",
+                    side_effect=outcome if isinstance(outcome, Exception) else None,
+                    return_value=None if isinstance(outcome, Exception) else outcome,
+                ):
+                    with self.assertRaises(RustPublishContractError):
+                        rust_publish_contract._fetch_crates_io_sparse_entry(url)
+
+    def test_public_sparse_verifier_uses_one_hard_wall_helper_and_cleans_input(
+        self,
+    ) -> None:
+        lock_data = normalized_cargo_lock()
+        lock_sha256 = hashlib.sha256(lock_data).hexdigest()
+        calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+        helper_input: pathlib.Path | None = None
+
+        def runner(
+            command: tuple[str, ...],
+            **arguments: object,
+        ) -> BoundedResult:
+            nonlocal helper_input
+            calls.append((command, arguments))
+            helper_input = pathlib.Path(command[-2])
+            self.assertEqual(helper_input.read_bytes(), lock_data)
+            self.assertEqual(command[-1], lock_sha256)
+            return BoundedResult(
+                0,
+                json.dumps(
+                    {
+                        "normalized_lock_sha256": lock_sha256,
+                        "ok": True,
+                        "registry_packages": 2,
+                        "schema": 1,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                ).encode("utf-8"),
+            )
+
+        self.assertEqual(
+            rust_publish_contract._validate_crates_io_sparse_via_helper(
+                lock_data,
+                runner=runner,
+            ),
+            2,
+        )
+        self.assertIsNotNone(helper_input)
+        self.assertFalse(helper_input.parent.exists())
+        self.assertEqual(len(calls), 1)
+        command, arguments = calls[0]
+        self.assertEqual(command[0], "/bin/sh")
+        self.assertTrue(command[1].endswith("/artifact/python-run.sh"))
+        self.assertTrue(command[2].endswith("/artifact/rust_publish_contract.py"))
+        self.assertEqual(command[3], "verify-crates-io-sparse-worker")
+        self.assertEqual(
+            arguments,
+            {
+                "environment": RUST_SPARSE_HELPER_ENVIRONMENT,
+                "maximum_bytes": RUST_SPARSE_HELPER_MAX_OUTPUT_BYTES,
+                "stderr": subprocess.STDOUT,
+                "timeout_seconds": RUST_SPARSE_HELPER_TIMEOUT_SECONDS,
+            },
+        )
+        self.assertEqual(
+            RUST_SPARSE_HELPER_TIMEOUT_SECONDS + REAP_TIMEOUT_SECONDS,
+            RUST_SPARSE_TOTAL_TIMEOUT_SECONDS,
+        )
+
+    def test_public_sparse_verifier_fails_closed_on_every_helper_boundary(
+        self,
+    ) -> None:
+        lock_data = normalized_cargo_lock()
+        lock_sha256 = hashlib.sha256(lock_data).hexdigest()
+        outcomes: tuple[object, ...] = (
+            BoundedProcessError("timeout", "synthetic hard timeout"),
+            BoundedResult(7, b"helper failure"),
+            BoundedResult(1, b"\xff"),
+            BoundedResult(0, b"not JSON"),
+            BoundedResult(0, b'{"schema":1,"registry_packages":2}'),
+            BoundedResult(
+                0,
+                json.dumps(
+                    {
+                        "normalized_lock_sha256": "0" * 64,
+                        "registry_packages": 2,
+                        "schema": 1,
+                    }
+                ).encode(),
+            ),
+            BoundedResult(
+                0,
+                json.dumps(
+                    {
+                        "normalized_lock_sha256": lock_sha256,
+                        "registry_packages": True,
+                        "schema": 1,
+                    }
+                ).encode(),
+            ),
+            BoundedResult(
+                1,
+                json.dumps(
+                    {
+                        "error_kind": "verification",
+                        "message": "synthetic checksum mismatch",
+                        "ok": False,
+                        "schema": 1,
+                    }
+                ).encode(),
+            ),
+        )
+        for outcome in outcomes:
+            with self.subTest(outcome=outcome):
+                directories: list[pathlib.Path] = []
+
+                def runner(
+                    command: tuple[str, ...],
+                    **_arguments: object,
+                ) -> BoundedResult:
+                    directories.append(pathlib.Path(command[-2]).parent)
+                    if isinstance(outcome, Exception):
+                        raise outcome
+                    return outcome
+
+                expected = (
+                    "synthetic checksum mismatch"
+                    if isinstance(outcome, BoundedResult)
+                    and outcome.returncode == 1
+                    and b"checksum" in outcome.stdout
+                    else None
+                )
+                if expected is None:
+                    with self.assertRaises(RustPublishContractError):
+                        rust_publish_contract._validate_crates_io_sparse_via_helper(
+                            lock_data,
+                            runner=runner,
+                        )
+                else:
+                    with self.assertRaisesRegex(RustPublishContractError, expected):
+                        rust_publish_contract._validate_crates_io_sparse_via_helper(
+                            lock_data,
+                            runner=runner,
+                        )
+                self.assertEqual(len(directories), 1)
+                self.assertFalse(directories[0].exists())
+
+    def test_public_sparse_verifier_has_no_fetcher_injection(self) -> None:
+        with mock.patch.object(
+            rust_publish_contract,
+            "_validate_crates_io_sparse_via_helper",
+            return_value=2,
+        ) as helper:
+            self.assertEqual(validate_crates_io_sparse_yanked(b"lock"), 2)
+        helper.assert_called_once_with(
+            b"lock",
+            runner=rust_publish_contract.capture_stdout,
+        )
+
+    def test_sparse_worker_validates_input_hash_and_returns_strict_json(self) -> None:
+        lock_data = normalized_cargo_lock()
+        lock_sha256 = hashlib.sha256(lock_data).hexdigest()
+        with tempfile.TemporaryDirectory() as temporary_root:
+            lock_path = pathlib.Path(temporary_root) / "Cargo.lock"
+            lock_path.write_bytes(lock_data)
+            with mock.patch.object(
+                rust_publish_contract,
+                "_validate_crates_io_sparse_yanked_with_fetcher",
+                return_value=2,
+            ) as verifier:
+                with mock.patch("builtins.print") as output:
+                    self.assertEqual(
+                        rust_publish_contract._verify_crates_io_sparse_worker(
+                            [str(lock_path), lock_sha256]
+                        ),
+                        0,
+                    )
+            verifier.assert_called_once()
+            parsed = json.loads(output.call_args.args[0])
+            self.assertEqual(
+                parsed,
+                {
+                    "normalized_lock_sha256": lock_sha256,
+                    "ok": True,
+                    "registry_packages": 2,
+                    "schema": 1,
+                },
+            )
+            with mock.patch("builtins.print"):
+                self.assertEqual(
+                    rust_publish_contract._verify_crates_io_sparse_worker(
+                        [str(lock_path), "0" * 64]
+                    ),
+                    1,
+                )
+
+    def test_rustsec_advisory_database_uses_fixed_git_and_minimal_environment(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            database = self.advisory_database(temporary_root)
+            results = [
+                BoundedResult(0, (RUSTSEC_ADVISORY_DB_URL + "\n").encode()),
+                BoundedResult(0, (ADVISORY_COMMIT + "\n").encode()),
+                BoundedResult(0, b""),
+            ]
+            hostile_environment = {
+                "GIT_DIR": "/hostile/git-dir",
+                "GIT_WORK_TREE": "/hostile/work-tree",
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "alias.status",
+                "GIT_CONFIG_VALUE_0": "!false",
+                "GIT_CONFIG_PARAMETERS": "'core.fsmonitor'='!false'",
+                "GIT_OBJECT_DIRECTORY": "/hostile/objects",
+                "GIT_ALTERNATE_OBJECT_DIRECTORIES": "/hostile/alternates",
+                "HOME": "/hostile/home",
+                "PATH": "/hostile/bin",
+            }
+            with (
+                mock.patch.dict(os.environ, hostile_environment, clear=False),
+                mock.patch.object(
+                    rust_publish_contract,
+                    "capture_stdout",
+                    side_effect=results,
+                ) as capture,
+            ):
+                self.assertEqual(
+                    validate_rustsec_advisory_database(database),
+                    ADVISORY_COMMIT,
+                )
+
+            expected_environment = {
+                "PATH": "/usr/bin:/bin",
+                "LC_ALL": "C",
+                "LANG": "C",
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_GLOBAL": "/dev/null",
+                "GIT_CONFIG_SYSTEM": "/dev/null",
+                "GIT_NO_REPLACE_OBJECTS": "1",
+                "GIT_OPTIONAL_LOCKS": "0",
+            }
+            expected_suffixes = (
+                [
+                    "config",
+                    "--local",
+                    "--no-includes",
+                    "--get-all",
+                    "remote.origin.url",
+                ],
+                ["rev-parse", "--verify", "HEAD^{commit}"],
+                [
+                    "status",
+                    "--porcelain=v1",
+                    "--untracked-files=all",
+                    "--ignored=matching",
+                    "--ignore-submodules=none",
+                    "--no-renames",
+                ],
+            )
+            self.assertEqual(capture.call_count, 3)
+            for call, expected_suffix in zip(
+                capture.call_args_list,
+                expected_suffixes,
+            ):
+                argv = call.args[0]
+                self.assertEqual(argv[0], GIT)
+                self.assertNotIn("-C", argv)
+                self.assertIn(f"--git-dir={database.resolve() / '.git'}", argv)
+                self.assertIn(f"--work-tree={database.resolve()}", argv)
+                self.assertEqual(argv[-len(expected_suffix) :], expected_suffix)
+                self.assertEqual(
+                    call.kwargs["environment"],
+                    expected_environment,
+                )
+                self.assertEqual(call.kwargs["stderr"], subprocess.STDOUT)
+
+    def test_rustsec_advisory_database_accepts_a_real_clean_pinned_repository(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            database = pathlib.Path(temporary_root) / "advisory-db"
+
+            def git(*arguments: str) -> str:
+                process = subprocess.run(
+                    [GIT, *arguments],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                return process.stdout.strip()
+
+            git("init", "--quiet", str(database))
+            git("-C", str(database), "config", "user.name", "Contract Test")
+            git(
+                "-C",
+                str(database),
+                "config",
+                "user.email",
+                "contract-test@example.invalid",
+            )
+            (database / "advisory.json").write_text("{}\n", encoding="utf-8")
+            git("-C", str(database), "add", "advisory.json")
+            git("-C", str(database), "commit", "--quiet", "-m", "fixture")
+            git(
+                "-C",
+                str(database),
+                "remote",
+                "add",
+                "origin",
+                RUSTSEC_ADVISORY_DB_URL,
+            )
+            expected_commit = git("-C", str(database), "rev-parse", "HEAD")
+
+            self.assertEqual(
+                validate_rustsec_advisory_database(database),
+                expected_commit,
+            )
+
+    def test_rustsec_advisory_database_rejects_wrong_origin(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            database = self.advisory_database(temporary_root)
+            with mock.patch.object(
+                rust_publish_contract,
+                "capture_stdout",
+                return_value=BoundedResult(0, b"https://example.invalid/db.git\n"),
+            ):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "origin differs",
+                ):
+                    validate_rustsec_advisory_database(database)
+
+    def test_rustsec_advisory_database_rejects_malformed_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            database = self.advisory_database(temporary_root)
+            with mock.patch.object(
+                rust_publish_contract,
+                "capture_stdout",
+                side_effect=(
+                    BoundedResult(0, (RUSTSEC_ADVISORY_DB_URL + "\n").encode()),
+                    BoundedResult(0, b"not-a-commit\n"),
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "commit is malformed",
+                ):
+                    validate_rustsec_advisory_database(database)
+
+    def test_rustsec_advisory_database_rejects_dirty_and_untracked_content(
+        self,
+    ) -> None:
+        for status in (b" M advisory.json\n", b"?? untracked.json\n", b"!! cache\n"):
+            with self.subTest(status=status):
+                with tempfile.TemporaryDirectory() as temporary_root:
+                    database = self.advisory_database(temporary_root)
+                    with mock.patch.object(
+                        rust_publish_contract,
+                        "capture_stdout",
+                        side_effect=(
+                            BoundedResult(
+                                0,
+                                (RUSTSEC_ADVISORY_DB_URL + "\n").encode(),
+                            ),
+                            BoundedResult(0, (ADVISORY_COMMIT + "\n").encode()),
+                            BoundedResult(0, status),
+                        ),
+                    ):
+                        with self.assertRaisesRegex(
+                            RustPublishContractError,
+                            "worktree is not clean",
+                        ):
+                            validate_rustsec_advisory_database(database)
+
+    def test_rustsec_advisory_database_translates_git_failures(self) -> None:
+        failures = (
+            BoundedProcessError("timeout", "synthetic timeout"),
+            BoundedResult(7, b"sensitive failure detail"),
+        )
+        for failure in failures:
+            with self.subTest(failure=failure):
+                with tempfile.TemporaryDirectory() as temporary_root:
+                    database = self.advisory_database(temporary_root)
+                    with mock.patch.object(
+                        rust_publish_contract,
+                        "capture_stdout",
+                        side_effect=failure
+                        if isinstance(failure, BoundedProcessError)
+                        else None,
+                        return_value=(
+                            failure if isinstance(failure, BoundedResult) else None
+                        ),
+                    ):
+                        with self.assertRaisesRegex(
+                            RustPublishContractError,
+                            "origin inspection failed",
+                        ):
+                            validate_rustsec_advisory_database(database)
+
+    def test_rustsec_advisory_database_rejects_non_utf8_git_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            database = self.advisory_database(temporary_root)
+            with mock.patch.object(
+                rust_publish_contract,
+                "capture_stdout",
+                return_value=BoundedResult(0, b"\xff"),
+            ):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "non-UTF-8",
+                ):
+                    validate_rustsec_advisory_database(database)
+
+    def test_rustsec_advisory_database_requires_real_database_and_git_dirs(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            root = pathlib.Path(temporary_root)
+            database = self.advisory_database(temporary_root)
+            database_link = root / "advisory-db-link"
+            database_link.symlink_to(database, target_is_directory=True)
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                "database must be a current-user-owned real directory",
+            ):
+                validate_rustsec_advisory_database(database_link)
+
+        with tempfile.TemporaryDirectory() as temporary_root:
+            root = pathlib.Path(temporary_root)
+            database = root / "advisory-db"
+            database.mkdir()
+            external_git = root / "external-git"
+            external_git.mkdir()
+            (database / ".git").symlink_to(
+                external_git,
+                target_is_directory=True,
+            )
+            with self.assertRaisesRegex(
+                RustPublishContractError,
+                r"\.git directory must be a current-user-owned real directory",
+            ):
+                validate_rustsec_advisory_database(database)
+
+    def test_complete_rust_package_contract_transcript_passes(self) -> None:
+        transcript = "\n".join(valid_rust_package_contract_transcript()) + "\n"
+        receipt = validate_rust_package_contract_transcript(
+            transcript.encode("utf-8")
+        )
+        self.assertEqual(receipt.advisory_db_commit, ADVISORY_COMMIT)
+        self.assertEqual(receipt.completed_at, "2026-08-13T03:04:05Z")
+        self.assertEqual(
+            receipt.normalized_cargo_lock_sha256,
+            NORMALIZED_LOCK_SHA256,
+        )
+        self.assertEqual(receipt.registry_package_count, 2)
+        self.assertEqual(receipt.source_commit, SOURCE_COMMIT)
+        self.assertEqual(receipt.package_list_crates, RUST_PUBLISHABLE_CRATES)
+        self.assertEqual(
+            receipt.package_verification_crates,
+            RUST_PUBLISHABLE_CRATES,
+        )
+
+    def test_rust_package_transcript_rejects_duplicate_missing_and_extra_crates(
+        self,
+    ) -> None:
+        base = valid_rust_package_contract_transcript()
+        first_list_index = next(
+            index
+            for index, line in enumerate(base)
+            if line.startswith("RUST_PACKAGE_LIST_PASS")
+        )
+        mutations = {
+            "duplicate": (
+                base[: first_list_index + 1]
+                + [base[first_list_index]]
+                + base[first_list_index + 1 :]
+            ),
+            "missing": [
+                line
+                for line in base
+                if line
+                != "RUST_PACKAGE_VERIFICATION_PASS q-periapt-core "
+                "registry=crates-io upload=not-attempted"
+            ],
+            "extra": base[:first_list_index]
+            + ["RUST_PACKAGE_LIST_PASS q-periapt-extra files=1"]
+            + base[first_list_index:],
+        }
+        expected_messages = {
+            "duplicate": "duplicate package-list",
+            "missing": "verification crate set differs",
+            "extra": "package-list crate set differs",
+        }
+        for label, lines in mutations.items():
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    expected_messages[label],
+                ):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_rejects_crate_and_phase_reordering(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        crate_reordered = base.copy()
+        first_list_index = next(
+            index
+            for index, line in enumerate(base)
+            if line.startswith("RUST_PACKAGE_LIST_PASS")
+        )
+        crate_reordered[first_list_index], crate_reordered[first_list_index + 1] = (
+            crate_reordered[first_list_index + 1],
+            crate_reordered[first_list_index],
+        )
+        phase_reordered = base.copy()
+        audit_index = phase_reordered.index("RUST_BACKENDS_NORMALIZED_AUDIT_PASS")
+        phase_reordered.insert(2, phase_reordered.pop(audit_index))
+        for label, lines, message in (
+            ("crate", crate_reordered, "package-list crate order differs"),
+            ("phase", phase_reordered, "phase marker order differs"),
+        ):
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(RustPublishContractError, message):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_requires_exact_contract_metadata(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        mutations = {
+            "toolchain": (
+                "cargo-audit=0.22.2",
+                "cargo-audit=0.22.1",
+            ),
+            "cargo home": (
+                "ambient_cargo_home_data=unused",
+                "ambient_cargo_home_data=used",
+            ),
+            "source": (
+                f"commit={SOURCE_COMMIT} clean=1",
+                "commit=not-a-commit clean=1",
+            ),
+            "yanked count": (
+                "registry_packages=2",
+                "registry_packages=0",
+            ),
+            "normalized lock hash": (
+                f"normalized_lock_sha256={NORMALIZED_LOCK_SHA256}",
+                "normalized_lock_sha256=invalid",
+            ),
+            "yanked count limit": (
+                "registry_packages=2 index=sparse-https checksums=exact yanked=0",
+                f"registry_packages={RUST_SPARSE_MAX_REGISTRY_PACKAGES + 1} "
+                "index=sparse-https checksums=exact yanked=0",
+            ),
+            "advisory origin": (
+                RUSTSEC_ADVISORY_DB_URL,
+                "https://example.invalid/advisory-db.git",
+            ),
+            "advisory clean": ("clean=1", "clean=0"),
+            "registry": ("registry=crates-io", "registry=other"),
+            "upload": ("upload=not-attempted", "upload=attempted"),
+        }
+        for label, (old, new) in mutations.items():
+            with self.subTest(label=label):
+                lines = base.copy()
+                matching_indices = [
+                    index for index, line in enumerate(lines) if old in line
+                ]
+                self.assertTrue(matching_indices)
+                index = matching_indices[-1]
+                lines[index] = lines[index].replace(old, new, 1)
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_requires_one_ordered_source_marker(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        source_marker = f"RUST_PACKAGE_SOURCE_PASS commit={SOURCE_COMMIT} clean=1"
+        missing = [line for line in base if line != source_marker]
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "exactly one source marker",
+        ):
+            validate_rust_package_contract_transcript("\n".join(missing))
+
+        reordered = base.copy()
+        source_index = reordered.index(source_marker)
+        source = reordered.pop(source_index)
+        first_list_index = next(
+            index
+            for index, line in enumerate(reordered)
+            if line.startswith("RUST_PACKAGE_LIST_PASS")
+        )
+        reordered.insert(first_list_index + 1, source)
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "phase marker order differs",
+        ):
+            validate_rust_package_contract_transcript("\n".join(reordered))
+
+    def test_rust_package_transcript_requires_one_ordered_lock_marker(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        yanked_marker = (
+            "RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=2 "
+            "index=sparse-https checksums=exact yanked=0 "
+            f"normalized_lock_sha256={NORMALIZED_LOCK_SHA256}"
+        )
+        missing = [line for line in base if line != yanked_marker]
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "exactly one crates.io lock marker",
+        ):
+            validate_rust_package_contract_transcript("\n".join(missing))
+
+        reordered = base.copy()
+        yanked = reordered.pop(reordered.index(yanked_marker))
+        advisory_index = next(
+            index
+            for index, line in enumerate(reordered)
+            if line.startswith("RUST_ADVISORY_DB_PASS")
+        )
+        reordered.insert(advisory_index + 1, yanked)
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "phase marker order differs",
+        ):
+            validate_rust_package_contract_transcript("\n".join(reordered))
+
+    def test_rust_package_transcript_requires_matching_lock_stability(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        stability_marker = (
+            f"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256={NORMALIZED_LOCK_SHA256}"
+        )
+        missing = [line for line in base if line != stability_marker]
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "exactly one lock stability marker",
+        ):
+            validate_rust_package_contract_transcript("\n".join(missing))
+
+        mismatch = base.copy()
+        index = mismatch.index(stability_marker)
+        mismatch[index] = "RUST_NORMALIZED_LOCK_STABILITY_PASS sha256=" + "d" * 64
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "normalized lock hashes differ",
+        ):
+            validate_rust_package_contract_transcript("\n".join(mismatch))
+
+        reordered = base.copy()
+        stability = reordered.pop(reordered.index(stability_marker))
+        audit_index = reordered.index("RUST_BACKENDS_NORMALIZED_AUDIT_PASS")
+        reordered.insert(audit_index, stability)
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "phase marker order differs",
+        ):
+            validate_rust_package_contract_transcript("\n".join(reordered))
+
+    def test_rust_package_transcript_rejects_duplicate_singleton_markers(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        singleton_markers = (
+            base[0],
+            base[1],
+            base[2],
+            "RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=2 "
+            "index=sparse-https checksums=exact yanked=0 "
+            f"normalized_lock_sha256={NORMALIZED_LOCK_SHA256}",
+            "RUST_BACKENDS_NORMALIZED_AUDIT_PASS",
+            f"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256={NORMALIZED_LOCK_SHA256}",
+            "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home",
+        )
+        for marker in singleton_markers:
+            with self.subTest(marker=marker):
+                lines = base.copy()
+                lines.insert(lines.index(marker) + 1, marker)
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_rejects_warning_and_error_lines(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        for diagnostic in (
+            "warning: dependency warning",
+            "  WARNING: indented warning",
+            "Error: package failure",
+        ):
+            with self.subTest(diagnostic=diagnostic):
+                lines = base[:-1] + [diagnostic, base[-1]]
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "warning or error diagnostic",
+                ):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_rejects_dirty_diagnostic_receipts(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        for diagnostic in (
+            "DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY",
+            "  DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY",
+            "RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS "
+            "dirty=1 registry=crates-io upload=not-attempted",
+        ):
+            with self.subTest(diagnostic=diagnostic):
+                lines = base[:-1] + [diagnostic]
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "dirty diagnostic receipt",
+                ):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_rejects_noncanonical_completion_time(self) -> None:
+        base = valid_rust_package_contract_transcript()
+        malformed_times = (
+            "2026-8-13T03:04:05Z",
+            "2026-08-32T03:04:05Z",
+            "2026-08-13T03:04:05+00:00",
+        )
+        for malformed in malformed_times:
+            with self.subTest(malformed=malformed):
+                lines = base.copy()
+                lines[-1] = lines[-1].replace(
+                    "2026-08-13T03:04:05Z",
+                    malformed,
+                )
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_requires_final_marker_to_be_last(self) -> None:
+        lines = valid_rust_package_contract_transcript() + ["trailing output"]
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "not the last non-empty line",
+        ):
+            validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_rejects_non_utf8_bytes(self) -> None:
+        with self.assertRaisesRegex(RustPublishContractError, "valid UTF-8"):
+            validate_rust_package_contract_transcript(b"\xff")
+
+    def test_rust_package_script_locks_isolated_cargo_home_and_fresh_audit(
+        self,
+    ) -> None:
+        script = self.publish_contract_script
+        cargo_home_creation = script.index(
+            "create_owned_package_target qperiapt-package-cargo-home."
+        )
+        cargo_home_export = script.index("export CARGO_HOME")
+        first_cargo_invocation = script.index("cargo +1.96.1")
+        self.assertLess(cargo_home_creation, cargo_home_export)
+        self.assertLess(cargo_home_export, first_cargo_invocation)
+        self.assertIn(
+            "RUST_CARGO_HOME_ISOLATION_PASS mode=0700 "
+            "ambient_cargo_home_data=unused",
+            script,
+        )
+        self.assertNotIn("trap cleanup_contract_state 0 1 2 15", script)
+        self.assertIn("trap 'cleanup_contract_exit $?' 0", script)
+        self.assertIn("trap 'cleanup_contract_signal 1' 1", script)
+        self.assertIn("trap 'cleanup_contract_signal 2' 2", script)
+        self.assertIn("trap 'cleanup_contract_signal 15' 15", script)
+
+        sparse_verifier = "validate_crates_io_sparse_yanked(lock_snapshot.data)"
+        sparse_marker = "RUST_CRATES_IO_LOCK_VERIFY_PASS "
+        advisory_absence_guard = (
+            'if [ -e "$CARGO_HOME/advisory-db" ] || '
+            '[ -L "$CARGO_HOME/advisory-db" ]; then'
+        )
+        audit_invocation = script.index(
+            '"$CARGO_AUDIT_BIN" audit --deny warnings'
+        )
+        self.assertIn(advisory_absence_guard, script)
+        self.assertIn(sparse_verifier, script)
+        self.assertIn(sparse_marker, script)
+        self.assertIn("checksums=exact yanked=0", script)
+        self.assertIn("normalized_lock_sha256=%s", script)
+        self.assertIn("read_regular_snapshot(", script)
+        self.assertIn("maximum=RUST_SPARSE_LOCK_MAX_BYTES", script)
+        self.assertLess(script.index(sparse_verifier), audit_invocation)
+        self.assertLess(script.index(sparse_marker), audit_invocation)
+        self.assertLess(script.index(advisory_absence_guard), audit_invocation)
+        self.assertIn(
+            'env -i \\\n\tPATH=/usr/bin:/bin HOME="$CARGO_HOME" CARGO_HOME="$CARGO_HOME"',
+            script,
+        )
+        self.assertIn('--db "$CARGO_HOME/advisory-db"', script)
+        self.assertIn("--no-yanked", script)
+        self.assertNotIn("CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git", script)
+        self.assertNotIn("git fetch", script)
+        stability_marker = "RUST_NORMALIZED_LOCK_STABILITY_PASS sha256="
+        self.assertIn(stability_marker, script)
+        self.assertEqual(script.count("lock_snapshot = read_regular_snapshot("), 1)
+        self.assertEqual(script.count("snapshot = read_regular_snapshot("), 2)
+        self.assertIn(
+            "snapshot.sha256 != sys.argv[2] or snapshot.size != expected_size",
+            script,
+        )
+        self.assertLess(audit_invocation, script.index(stability_marker))
+        self.assertIn("RUST_ADVISORY_DB_PASS ", script)
+        self.assertIn(
+            "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home",
+            script,
+        )
+
+        final_marker = "RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io"
+        explicit_cleanup = script.rindex("\ncleanup_contract_state\n")
+        self.assertLess(explicit_cleanup, script.index(final_marker))
+        self.assertIn(
+            "RUST_PACKAGE_TOOLCHAIN_PASS "
+            "rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2",
+            script,
+        )
+        self.assertNotIn("git status --porcelain", script)
+        self.assertEqual(script.count("inspect_package_source("), 2)
+        self.assertIn(
+            "RUST_PACKAGE_SOURCE_PASS commit=%s clean=1",
+            script,
+        )
+        cargo_home_marker = script.index(
+            "RUST_CARGO_HOME_ISOLATION_PASS mode=0700 "
+            "ambient_cargo_home_data=unused"
+        )
+        exit_trap = script.index("trap 'cleanup_contract_exit $?' 0")
+        self.assertLess(exit_trap, cargo_home_export)
+        self.assertLess(exit_trap, cargo_home_marker)
+        toolchain_marker = script.index(
+            "RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.96.1 "
+            "cargo=1.96.1 cargo-audit=0.22.2"
+        )
+        source_marker = script.index("RUST_PACKAGE_SOURCE_PASS commit=%s clean=1")
+        metadata_invocation = script.index(
+            "cargo +1.96.1 metadata --locked --format-version 1"
+        )
+        self.assertLess(cargo_home_marker, toolchain_marker)
+        self.assertLess(toolchain_marker, source_marker)
+        self.assertLess(source_marker, metadata_invocation)
+        self.assertIn(
+            'if [ "$final_package_source_state" != "$package_source_state" ]; then',
+            script,
+        )
+        self.assertIn(
+            "Rust package source provenance changed during the contract run",
+            script,
+        )
+        for ambient_reference in (
+            "~/.cargo",
+            "$HOME/.cargo",
+            "${HOME}/.cargo",
+            '"$HOME"/.cargo',
+        ):
+            self.assertNotIn(ambient_reference, script)
 
     def test_packaged_local_source_set_is_exact(self) -> None:
         repository_sources = {

@@ -37,6 +37,15 @@ need cargo-audit
 need git
 need python3
 
+CARGO_AUDIT_BIN=$(command -v cargo-audit)
+case "$CARGO_AUDIT_BIN" in
+	/*) ;;
+	*)
+		printf 'error: cargo-audit executable path must be absolute\n' >&2
+		exit 2
+		;;
+esac
+
 run_cargo_captured() {
 	label=$1
 	stdout_log=$2
@@ -151,19 +160,131 @@ print(f"RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS {sys.argv[4]}")
 PY
 }
 
+cleanup_owned_cargo_home() {
+	if [ -z "${OWNED_CARGO_HOME:-}" ]; then
+		return
+	fi
+	cargo_home_path=$OWNED_CARGO_HOME
+	cargo_home_device=$OWNED_CARGO_HOME_DEVICE
+	cargo_home_inode=$OWNED_CARGO_HOME_INODE
+	OWNED_CARGO_HOME=
+	OWNED_CARGO_HOME_DEVICE=
+	OWNED_CARGO_HOME_INODE=
+	python3 - "$cargo_home_path" "$cargo_home_device" "$cargo_home_inode" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import RustPublishContractError, remove_owned_package_directory
+
+try:
+    remove_owned_package_directory(
+        pathlib.Path(sys.argv[1]),
+        int(sys.argv[2]),
+        int(sys.argv[3]),
+    )
+except (RustPublishContractError, ValueError) as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print("RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home")
+PY
+}
+
+cleanup_contract_state() {
+	set +e
+	cleanup_active_package_target
+	active_cleanup_rc=$?
+	cleanup_owned_cargo_home
+	cargo_home_cleanup_rc=$?
+	set -e
+	if [ "$active_cleanup_rc" -ne 0 ]; then
+		return "$active_cleanup_rc"
+	fi
+	return "$cargo_home_cleanup_rc"
+}
+
+cleanup_contract_exit() {
+	primary_status=$1
+	trap - 0 1 2 15
+	set +e
+	cleanup_contract_state
+	cleanup_status=$?
+	set -e
+	if [ "$primary_status" -ne 0 ]; then
+		if [ "$cleanup_status" -ne 0 ]; then
+			printf 'error: Rust package contract cleanup also failed (exit=%s)\n' "$cleanup_status" >&2
+		fi
+		exit "$primary_status"
+	fi
+	exit "$cleanup_status"
+}
+
+cleanup_contract_signal() {
+	signal_number=$1
+	trap - 0 1 2 15
+	set +e
+	cleanup_contract_state
+	cleanup_status=$?
+	set -e
+	if [ "$cleanup_status" -ne 0 ]; then
+		printf 'error: Rust package contract signal cleanup failed (exit=%s)\n' "$cleanup_status" >&2
+	fi
+	exit $((128 + signal_number))
+}
+
+validate_isolated_advisory_database() {
+	python3 - "$CARGO_HOME/advisory-db" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import (
+    RUSTSEC_ADVISORY_DB_URL,
+    RustPublishContractError,
+    validate_rustsec_advisory_database,
+)
+
+try:
+    commit = validate_rustsec_advisory_database(pathlib.Path(sys.argv[1]))
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(
+    "RUST_ADVISORY_DB_PASS "
+    f"origin={RUSTSEC_ADVISORY_DB_URL} commit={commit} "
+    "clean=1 isolated_cargo_home=1"
+)
+PY
+}
+
 if [ -n "${CARGO_REGISTRY_TOKEN:-}" ]; then
 	printf 'error: CARGO_REGISTRY_TOKEN must be unset for the no-upload package contract\n' >&2
 	exit 2
 fi
 
-dirty_status=$(git status --porcelain=v1)
-if [ -n "$dirty_status" ]; then
-	if [ "$ALLOW_DIRTY" != "1" ]; then
-		printf 'error: Rust package contract requires a clean worktree; set QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT=1 only for local diagnostics\n' >&2
+case "$ALLOW_DIRTY" in
+	0 | 1) ;;
+	*)
+		printf 'error: QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT must be 0 or 1\n' >&2
 		exit 2
-	fi
+		;;
+esac
+package_source_state=$(python3 - "$ROOT" "$ALLOW_DIRTY" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import RustPublishContractError, inspect_package_source
+
+try:
+    commit, dirty = inspect_package_source(
+        pathlib.Path(sys.argv[1]),
+        allow_dirty=sys.argv[2] == "1",
+    )
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(f"{commit}:{int(dirty)}")
+PY
+)
+package_source_commit=${package_source_state%:*}
+package_source_dirty=${package_source_state##*:}
+if [ "$package_source_dirty" = "1" ]; then
 	printf 'DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY\n'
-	printf '%s\n' "$dirty_status"
 	ALLOW_DIRTY_ARG=--allow-dirty
 else
 	ALLOW_DIRTY_ARG=
@@ -177,6 +298,45 @@ for license_file in LICENSE LICENSES/Apache-2.0.txt LICENSES/MIT.txt README.md; 
 done
 
 python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"
+
+create_owned_package_target qperiapt-package-cargo-home.
+OWNED_CARGO_HOME=$OWNED_PACKAGE_TARGET
+OWNED_CARGO_HOME_DEVICE=$OWNED_PACKAGE_DEVICE
+OWNED_CARGO_HOME_INODE=$OWNED_PACKAGE_INODE
+trap 'cleanup_contract_exit $?' 0
+trap 'cleanup_contract_signal 1' 1
+trap 'cleanup_contract_signal 2' 2
+trap 'cleanup_contract_signal 15' 15
+CARGO_HOME=$OWNED_CARGO_HOME
+export CARGO_HOME
+printf 'RUST_CARGO_HOME_ISOLATION_PASS mode=0700 ambient_cargo_home_data=unused\n'
+
+rustc_version=$(rustc +1.96.1 --version)
+cargo_version=$(cargo +1.96.1 --version)
+cargo_audit_version=$(cargo-audit --version)
+python3 - "$rustc_version" "$cargo_version" "$cargo_audit_version" <<'PY'
+import re
+import sys
+
+expected = (
+    ("rustc", "1.96.1", sys.argv[1]),
+    ("cargo", "1.96.1", sys.argv[2]),
+    ("cargo-audit", "0.22.2", sys.argv[3]),
+)
+for tool, version, output in expected:
+    if re.fullmatch(
+        rf"{re.escape(tool)} {re.escape(version)}(?: \([^\r\n]+\))?",
+        output,
+    ) is None:
+        raise SystemExit(
+            f"error: Rust package contract requires {tool} {version}; got {output!r}"
+        )
+print("RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2")
+PY
+
+if [ "$package_source_dirty" = "0" ]; then
+	printf 'RUST_PACKAGE_SOURCE_PASS commit=%s clean=1\n' "$package_source_commit"
+fi
 
 mkdir -p "$ROOT/target"
 metadata_json=$(mktemp "$ROOT/target/qperiapt-cargo-metadata.XXXXXX")
@@ -474,7 +634,6 @@ ACTIVE_PACKAGE_TARGET=$OWNED_PACKAGE_TARGET
 ACTIVE_PACKAGE_DEVICE=$OWNED_PACKAGE_DEVICE
 ACTIVE_PACKAGE_INODE=$OWNED_PACKAGE_INODE
 ACTIVE_PACKAGE_LABEL=package-verification
-trap cleanup_active_package_target 0 1 2 15
 
 run_package_verification() {
 	crate=$1
@@ -542,7 +701,6 @@ for crate in $PUBLISHABLE_CRATES; do
 	run_package_verification "$crate"
 done
 cleanup_active_package_target
-trap - 0 1 2 15
 
 create_owned_package_target qperiapt-package-inspection.
 PACKAGE_INSPECTION_TARGET=$OWNED_PACKAGE_TARGET
@@ -550,7 +708,6 @@ ACTIVE_PACKAGE_TARGET=$OWNED_PACKAGE_TARGET
 ACTIVE_PACKAGE_DEVICE=$OWNED_PACKAGE_DEVICE
 ACTIVE_PACKAGE_INODE=$OWNED_PACKAGE_INODE
 ACTIVE_PACKAGE_LABEL=package-inspection
-trap cleanup_active_package_target 0 1 2 15
 
 # Produce and verify fresh sys/backend archives in an isolated target after all
 # ten registry-bound package verifications have passed. Verification intentionally
@@ -933,18 +1090,110 @@ if [ ! -f "$NORMALIZED_BACKENDS_DIR/Cargo.lock" ] || [ -L "$NORMALIZED_BACKENDS_
 	printf 'error: normalized backend lockfile generation did not produce a regular Cargo.lock\n' >&2
 	exit 1
 fi
+normalized_lock_state=$(python3 - "$NORMALIZED_BACKENDS_DIR/Cargo.lock" <<'PY'
+import pathlib
+import sys
+
+from evidence_io import EvidenceIOError, read_regular_snapshot
+from rust_publish_contract import (
+    RUST_SPARSE_LOCK_MAX_BYTES,
+    RustPublishContractError,
+    validate_crates_io_sparse_yanked,
+)
+
+try:
+    lock_snapshot = read_regular_snapshot(
+        pathlib.Path(sys.argv[1]),
+        maximum=RUST_SPARSE_LOCK_MAX_BYTES,
+        label="normalized q-periapt-backends Cargo.lock",
+    )
+    registry_packages = validate_crates_io_sparse_yanked(lock_snapshot.data)
+except (EvidenceIOError, RustPublishContractError) as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(f"{lock_snapshot.sha256}:{lock_snapshot.size}:{registry_packages}")
+PY
+)
+normalized_lock_sha256=${normalized_lock_state%%:*}
+normalized_lock_remainder=${normalized_lock_state#*:}
+normalized_lock_size=${normalized_lock_remainder%%:*}
+normalized_lock_registry_packages=${normalized_lock_remainder##*:}
+python3 - "$normalized_lock_sha256" "$normalized_lock_size" "$normalized_lock_registry_packages" <<'PY'
+import re
+import sys
+
+if re.fullmatch(r"[0-9a-f]{64}", sys.argv[1]) is None:
+    raise SystemExit("error: normalized Cargo.lock SHA-256 state is malformed")
+if re.fullmatch(r"[1-9][0-9]*", sys.argv[2]) is None:
+    raise SystemExit("error: normalized Cargo.lock size state is malformed")
+if re.fullmatch(r"[1-9][0-9]*", sys.argv[3]) is None or int(sys.argv[3]) > 256:
+    raise SystemExit("error: normalized Cargo.lock registry package state is malformed")
+PY
+printf 'RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=%s index=sparse-https checksums=exact yanked=0 normalized_lock_sha256=%s\n' \
+	"$normalized_lock_registry_packages" "$normalized_lock_sha256"
 audit_stdout="$PACKAGE_INSPECTION_TARGET/cargo-audit.stdout"
 audit_stderr="$PACKAGE_INSPECTION_TARGET/cargo-audit.stderr"
+if [ -e "$CARGO_HOME/advisory-db" ] || [ -L "$CARGO_HOME/advisory-db" ]; then
+	printf 'error: isolated Cargo home unexpectedly contains a preexisting advisory database\n' >&2
+	exit 1
+fi
 run_cargo_captured "cargo-audit-normalized-backends" \
-	"$audit_stdout" "$audit_stderr" cargo +1.96.1 audit --deny warnings \
+	"$audit_stdout" "$audit_stderr" env -i \
+	PATH=/usr/bin:/bin HOME="$CARGO_HOME" CARGO_HOME="$CARGO_HOME" \
+	CARGO_TERM_COLOR=never TERM=dumb "$CARGO_AUDIT_BIN" audit --deny warnings \
+	--no-yanked \
+	--db "$CARGO_HOME/advisory-db" \
 	--file "$NORMALIZED_BACKENDS_DIR/Cargo.lock"
 printf 'RUST_BACKENDS_NORMALIZED_AUDIT_PASS\n'
+validate_isolated_advisory_database
+python3 - "$NORMALIZED_BACKENDS_DIR/Cargo.lock" "$normalized_lock_sha256" "$normalized_lock_size" <<'PY'
+import pathlib
+import sys
 
-cleanup_active_package_target
+from evidence_io import EvidenceIOError, read_regular_snapshot
+from rust_publish_contract import RUST_SPARSE_LOCK_MAX_BYTES
+
+try:
+    snapshot = read_regular_snapshot(
+        pathlib.Path(sys.argv[1]),
+        maximum=RUST_SPARSE_LOCK_MAX_BYTES,
+        label="post-audit normalized q-periapt-backends Cargo.lock",
+    )
+    expected_size = int(sys.argv[3])
+except (EvidenceIOError, ValueError) as exc:
+    raise SystemExit(f"error: {exc}") from exc
+if snapshot.sha256 != sys.argv[2] or snapshot.size != expected_size:
+    raise SystemExit("error: normalized Cargo.lock changed during registry and advisory verification")
+print("RUST_NORMALIZED_LOCK_STABILITY_PASS sha256=" + snapshot.sha256)
+PY
+
+cleanup_contract_state
 trap - 0 1 2 15
 
+final_package_source_state=$(python3 - "$ROOT" "$ALLOW_DIRTY" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import RustPublishContractError, inspect_package_source
+
+try:
+    commit, dirty = inspect_package_source(
+        pathlib.Path(sys.argv[1]),
+        allow_dirty=sys.argv[2] == "1",
+    )
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print(f"{commit}:{int(dirty)}")
+PY
+)
+if [ "$final_package_source_state" != "$package_source_state" ]; then
+	printf 'error: Rust package source provenance changed during the contract run\n' >&2
+	exit 1
+fi
+
 if [ "$ALLOW_DIRTY_ARG" = "--allow-dirty" ]; then
-	printf 'RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=1 registry=crates-io upload=not-attempted\n'
+	completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+	printf 'RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=1 registry=crates-io upload=not-attempted completed_at=%s\n' "$completed_at"
 else
-	printf 'RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io upload=not-attempted\n'
+	completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+	printf 'RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io upload=not-attempted completed_at=%s\n' "$completed_at"
 fi

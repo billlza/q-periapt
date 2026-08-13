@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import os
 import pathlib
 import re
@@ -13,11 +14,20 @@ from evidence_io import (
     EvidenceIOError,
     JsonObjectSnapshot,
     load_json_object_snapshot,
+    read_regular_snapshot,
 )
 from platform_release_contract import (
     ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
     PlatformReleaseContractError,
     validate_release_publications,
+)
+from git_provenance import GitProvenanceError, require_commit_or_evidence_successor
+from rust_publish_contract import (
+    RUST_CRATES_IO_SPARSE_INDEX,
+    RUST_SPARSE_MAX_REGISTRY_PACKAGES,
+    RustPackageContractReceipt,
+    RustPublishContractError,
+    validate_rust_package_contract_transcript,
 )
 
 
@@ -60,6 +70,56 @@ LOCAL_RELEASE_INDEX_SOURCE_STATUSES = {
     "current_clean_tree_local_index_consumer_pass",
     "stale_requires_rerun",
 }
+RUST_PACKAGE_SOURCE_STATUSES = {
+    "current_clean_tree_rust_package_contract_pass",
+    "stale_requires_rerun",
+}
+RUST_PACKAGE_COMMAND = "sh artifact/rust-publish-contract.sh"
+RUST_PACKAGE_DIRTY_COMMAND = (
+    "QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT=1 "
+    "sh artifact/rust-publish-contract.sh"
+)
+RUST_PACKAGE_MODE = (
+    "registry-bound cargo package, exact sparse-lock verification, and "
+    "normalized-graph advisory audit no-upload contract"
+)
+RUST_PACKAGE_ADVISORY_DB_MODE = "fresh_owned_cargo_home_fetch"
+RUST_PACKAGE_ADVISORY_DB_URL = "https://github.com/RustSec/advisory-db.git"
+RUST_PACKAGE_CRATES_IO_INDEX_PROTOCOL = "sparse-https"
+RUST_PACKAGE_TRANSCRIPT_PATH = (
+    "target/qperiapt-rust-package-contract/rust-package-contract.log"
+)
+RUST_PACKAGE_BOUNDARY = (
+    "Current clean-tree source-bound Rust registry-targeted package and normalized "
+    "dependency-graph audit receipt. It proves warning-free cargo package "
+    "construction and rebuilt-archive verification for the exact ten classified "
+    "crates, plus exact locked name, version, checksum, and non-yanked verification "
+    "against the official crates.io sparse HTTPS index, with no upload attempted. "
+    "It does not prove upload API acceptance, "
+    "crate-name ownership, publishing credentials or authorization, server-side "
+    "registry policy, or a registry receipt. The selected transcript hash detects "
+    "an accidentally mismatched retained local transcript; it is not independent "
+    "hostile-builder attestation."
+)
+RUST_PACKAGE_PUBLISHABLE_CRATES = (
+    "q-periapt-mlkem-native-sys",
+    "q-periapt-core",
+    "q-periapt-kem",
+    "q-periapt-sig",
+    "q-periapt-backends",
+    "q-periapt-policy",
+    "q-periapt-ffi",
+    "q-periapt-wasm",
+    "q-periapt-rustls",
+    "q-periapt-cli",
+)
+RUST_PACKAGE_NONPUBLISHABLE_CRATES = (
+    "q-periapt-tls-demo",
+    "q-periapt-ctstats",
+    "q-periapt-continuity-model",
+    "q-periapt-migration",
+    "q-periapt-policy-agent",
+)
 ANDROID_ABIS = ("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
 ANDROID_EXPECTED_TESTS = (
     "runtimeMetadataMatches",
@@ -208,6 +268,15 @@ BINDINGS = {
             "current_clean_tree_local_index_consumer_pass",
         ),
     ),
+    "rust_package_transcript": BindingSpec(
+        section="rust_publish",
+        path_key="transcript_path",
+        hash_key="transcript_sha256",
+        status_key="current_source_status",
+        admitted_current_statuses=(
+            "current_clean_tree_rust_package_contract_pass",
+        ),
+    ),
 }
 
 
@@ -328,6 +397,162 @@ def _validate_current_android_aar(
         section.get("manifest_generated_at"),
         "current Android AAR status requires manifest generation time",
     )
+
+
+def _validate_current_rust_package_contract(
+    manifest: dict[str, object],
+    section: dict[str, object],
+    *,
+    root_digest: object,
+    source_commit: str,
+) -> None:
+    expected_fields = {
+        "advisory_db_clean",
+        "advisory_db_commit",
+        "advisory_db_mode",
+        "advisory_db_url",
+        "boundary",
+        "cargo_audit_version",
+        "cargo_home_isolated",
+        "cargo_version",
+        "cargo_warning_free",
+        "command",
+        "completed_at",
+        "crates_io_index_protocol",
+        "crates_io_index_url",
+        "crates_io_registry_package_count",
+        "crates_io_sparse_lock_verification_pass",
+        "current_local_status",
+        "current_source_status",
+        "dirty_diagnostic_command",
+        "evidence_schema",
+        "mode",
+        "nonpublishable_crates",
+        "normalized_cargo_lock_sha256",
+        "normalized_dependency_audit_pass",
+        "package_list_pass_crates",
+        "package_verification_pass_crates",
+        "proof_source_tree_sha256",
+        "publishable_crates",
+        "registry",
+        "rustc_version",
+        "source_commit",
+        "source_tree_dirty",
+        "status",
+        "transcript_path",
+        "transcript_sha256",
+        "upload_attempted",
+    }
+    if set(section) != expected_fields:
+        raise ProofManifestError(
+            "current Rust package contract field set differs: "
+            f"missing={sorted(expected_fields - set(section))}, "
+            f"extra={sorted(set(section) - expected_fields)}"
+        )
+    _require_current_source_identity(
+        section,
+        root_digest=root_digest,
+        source_commit=source_commit,
+        label="Rust package contract",
+    )
+    exact_fields: tuple[tuple[str, object], ...] = (
+        ("evidence_schema", 1),
+        ("status", "pass"),
+        ("command", RUST_PACKAGE_COMMAND),
+        ("dirty_diagnostic_command", RUST_PACKAGE_DIRTY_COMMAND),
+        ("mode", RUST_PACKAGE_MODE),
+        ("boundary", RUST_PACKAGE_BOUNDARY),
+        ("registry", "crates-io"),
+        ("upload_attempted", False),
+        ("rustc_version", "1.96.1"),
+        ("cargo_version", "1.96.1"),
+        ("cargo_audit_version", "0.22.2"),
+        ("crates_io_index_protocol", RUST_PACKAGE_CRATES_IO_INDEX_PROTOCOL),
+        ("crates_io_index_url", RUST_CRATES_IO_SPARSE_INDEX),
+        ("crates_io_sparse_lock_verification_pass", True),
+        ("advisory_db_mode", RUST_PACKAGE_ADVISORY_DB_MODE),
+        ("advisory_db_url", RUST_PACKAGE_ADVISORY_DB_URL),
+        ("advisory_db_clean", True),
+        ("cargo_home_isolated", True),
+        ("cargo_warning_free", True),
+        ("normalized_dependency_audit_pass", True),
+        ("publishable_crates", list(RUST_PACKAGE_PUBLISHABLE_CRATES)),
+        ("nonpublishable_crates", list(RUST_PACKAGE_NONPUBLISHABLE_CRATES)),
+        ("package_list_pass_crates", list(RUST_PACKAGE_PUBLISHABLE_CRATES)),
+        (
+            "package_verification_pass_crates",
+            list(RUST_PACKAGE_PUBLISHABLE_CRATES),
+        ),
+    )
+    for field, expected in exact_fields:
+        actual = section.get(field)
+        if type(actual) is not type(expected) or actual != expected:
+            raise ProofManifestError(
+                f"current Rust package contract requires exact {field}"
+            )
+    advisory_commit = section.get("advisory_db_commit")
+    if not isinstance(advisory_commit, str) or re.fullmatch(
+        r"[0-9a-f]{40}", advisory_commit
+    ) is None:
+        raise ProofManifestError(
+            "current Rust package contract requires an advisory DB commit"
+        )
+    registry_package_count = section.get("crates_io_registry_package_count")
+    if (
+        type(registry_package_count) is not int
+        or registry_package_count < 1
+        or registry_package_count > RUST_SPARSE_MAX_REGISTRY_PACKAGES
+    ):
+        raise ProofManifestError(
+            "current Rust package contract requires a bounded crates.io registry "
+            "package count"
+        )
+    normalized_lock_sha256 = section.get("normalized_cargo_lock_sha256")
+    if not isinstance(normalized_lock_sha256, str) or SHA256_RE.fullmatch(
+        normalized_lock_sha256
+    ) is None:
+        raise ProofManifestError(
+            "current Rust package contract requires a normalized Cargo.lock SHA-256"
+        )
+    completed_at = section.get("completed_at")
+    if not isinstance(completed_at, str):
+        raise ProofManifestError(
+            "current Rust package contract requires an RFC3339 UTC completion time"
+        )
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", completed_at) is None:
+        raise ProofManifestError(
+            "current Rust package contract requires an RFC3339 UTC completion time"
+        )
+    try:
+        parsed_completed_at = dt.datetime.strptime(completed_at, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise ProofManifestError(
+            "current Rust package contract requires an RFC3339 UTC completion time"
+        ) from exc
+    if parsed_completed_at.strftime("%Y-%m-%dT%H:%M:%SZ") != completed_at:
+        raise ProofManifestError(
+            "current Rust package contract requires an RFC3339 UTC completion time"
+        )
+    _validate_binding_declaration(section, "rust_package_transcript")
+    if section.get("transcript_path") != RUST_PACKAGE_TRANSCRIPT_PATH:
+        raise ProofManifestError(
+            "current Rust package contract transcript path is not canonical"
+        )
+    expected_status = (
+        "Current clean-tree Rust no-upload package contract passed at source commit "
+        f"{source_commit} and canonical source digest {root_digest}, completed at "
+        f"{completed_at}, using RustSec advisory database commit {advisory_commit} "
+        f"fetched into a fresh owned Cargo home. Exact sparse-index lock verification "
+        f"passed for {registry_package_count} crates.io package records from normalized "
+        f"Cargo.lock SHA-256 {normalized_lock_sha256}. The retained "
+        "transcript is selected "
+        "by canonical path and SHA-256 for accidental mismatch detection; it is not "
+        "an independent attestation."
+    )
+    if section.get("current_local_status") != expected_status:
+        raise ProofManifestError(
+            "current Rust package contract requires exact current_local_status"
+        )
 
 
 def _validate_current_android_runtime(
@@ -521,6 +746,27 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
         _validate_current_android_aar(
             manifest,
             android_aar,
+            root_digest=root_digest,
+            source_commit=_require_manifest_source_commit(manifest),
+        )
+
+    rust_package = manifest.get("rust_publish")
+    if rust_package is not None and not isinstance(rust_package, dict):
+        raise ProofManifestError("results manifest rust_publish must be an object")
+    if isinstance(rust_package, dict):
+        _validate_optional_status(
+            rust_package,
+            "current_source_status",
+            RUST_PACKAGE_SOURCE_STATUSES,
+        )
+    if (
+        isinstance(rust_package, dict)
+        and rust_package.get("current_source_status")
+        == "current_clean_tree_rust_package_contract_pass"
+    ):
+        _validate_current_rust_package_contract(
+            manifest,
+            rust_package,
             root_digest=root_digest,
             source_commit=_require_manifest_source_commit(manifest),
         )
@@ -807,6 +1053,98 @@ def load_bound_json_snapshot(
             f"got={snapshot.file.sha256} expected={declaration.sha256}"
         )
     return snapshot
+
+
+def load_current_rust_package_contract_receipt(
+    root: pathlib.Path,
+    manifest: JsonObjectSnapshot,
+    *,
+    frozen_commit: str,
+    frozen_source_sha256: str,
+) -> RustPackageContractReceipt:
+    """Load and verify the exact current Rust package transcript and source binding."""
+
+    if COMMIT_RE.fullmatch(frozen_commit) is None:
+        raise ProofManifestError("frozen Rust package source commit is malformed")
+    if SHA256_RE.fullmatch(frozen_source_sha256) is None:
+        raise ProofManifestError("frozen Rust package source digest is malformed")
+    declaration = resolve_bound_file_declaration(
+        root,
+        manifest,
+        binding="rust_package_transcript",
+    )
+    try:
+        transcript = read_regular_snapshot(
+            declaration.path,
+            maximum=MAX_SELECTED_PROOF_BYTES,
+            label="Rust package contract transcript",
+        )
+    except EvidenceIOError as exc:
+        raise ProofManifestError(str(exc)) from exc
+    if transcript.sha256 != declaration.sha256:
+        raise ProofManifestError(
+            "selected Rust package transcript hash differs from results manifest: "
+            f"got={transcript.sha256} expected={declaration.sha256}"
+        )
+    try:
+        receipt = validate_rust_package_contract_transcript(transcript.data)
+    except RustPublishContractError as exc:
+        raise ProofManifestError(str(exc)) from exc
+    section = manifest.value.get("rust_publish")
+    if not isinstance(section, dict):
+        raise ProofManifestError("results manifest lacks rust_publish")
+    if receipt.completed_at != section.get("completed_at"):
+        raise ProofManifestError(
+            "selected Rust package transcript completion time differs from results manifest"
+        )
+    if receipt.advisory_db_commit != section.get("advisory_db_commit"):
+        raise ProofManifestError(
+            "selected Rust package transcript advisory DB commit differs from results manifest"
+        )
+    if receipt.registry_package_count != section.get(
+        "crates_io_registry_package_count"
+    ):
+        raise ProofManifestError(
+            "selected Rust package transcript crates.io package count differs from "
+            "results manifest"
+        )
+    if receipt.normalized_cargo_lock_sha256 != section.get(
+        "normalized_cargo_lock_sha256"
+    ):
+        raise ProofManifestError(
+            "selected Rust package transcript normalized Cargo.lock SHA-256 differs "
+            "from results manifest"
+        )
+    provenance = manifest.value.get("provenance")
+    selected_source_commit = (
+        provenance.get("snapshot_commit")
+        if isinstance(provenance, dict)
+        else None
+    )
+    if not (
+        receipt.source_commit
+        == section.get("source_commit")
+        == selected_source_commit
+    ):
+        raise ProofManifestError(
+            "selected Rust package transcript source commit differs from manifest provenance"
+        )
+    try:
+        current_commit = require_commit_or_evidence_successor(
+            root,
+            receipt.source_commit,
+        )
+    except GitProvenanceError as exc:
+        raise ProofManifestError(str(exc)) from exc
+    if current_commit != frozen_commit:
+        raise ProofManifestError(
+            "selected Rust package receipt evidence successor differs from the frozen commit"
+        )
+    if section.get("proof_source_tree_sha256") != frozen_source_sha256:
+        raise ProofManifestError(
+            "selected Rust package receipt source digest differs from the frozen source"
+        )
+    return receipt
 
 
 def select_bound_json_snapshot(
