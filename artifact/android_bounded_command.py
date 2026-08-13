@@ -105,6 +105,7 @@ FORBIDDEN_EMULATOR_AVD_SELECTOR_ENVIRONMENT = frozenset(
 EMULATOR_CONSOLE_AUTHENTICATED_MARKER = (
     b"\nOK\nAndroid Console: type 'help' for a list of commands\nOK\n"
 )
+EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS = 5
 
 
 class AndroidCommandError(RuntimeError):
@@ -1782,10 +1783,55 @@ def _emulator_console_auth_token(
         )
 
 
-def _receive_emulator_console(sock: socket.socket, *, maximum: int = 16384) -> bytes:
+def _normalize_emulator_console_response(response: bytes) -> bytes:
+    return response.replace(b"\r\n", b"\n")
+
+
+def _receive_emulator_console(
+    sock: socket.socket,
+    *,
+    expected_responses: tuple[bytes, ...],
+    maximum: int = 16384,
+) -> bytes:
+    """Read one exact terminal frame without requiring socket EOF.
+
+    The fixed console protocol is line-delimited. Bytes received after the
+    terminal line belong to no command response and are not interpreted.
+    """
+    _require(
+        type(expected_responses) is tuple
+        and expected_responses
+        and type(maximum) is int
+        and 1 <= maximum <= 16384
+        and len(set(expected_responses)) == len(expected_responses)
+        and all(
+            type(expected) is bytes
+            and expected
+            and b"\r" not in expected
+            and len(expected) < maximum
+            for expected in expected_responses
+        ),
+        "owned emulator console response contract is invalid",
+    )
+    _require(
+        all(
+            not left.startswith(right)
+            for left in expected_responses
+            for right in expected_responses
+            if left != right
+        ),
+        "owned emulator console terminal frames must not overlap",
+    )
+    deadline = time.monotonic() + EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS
     response = bytearray()
     while len(response) < maximum:
+        remaining = deadline - time.monotonic()
+        _require(
+            remaining > 0,
+            "owned emulator console response timed out",
+        )
         try:
+            sock.settimeout(remaining)
             chunk = sock.recv(min(4096, maximum - len(response)))
         except TimeoutError as exc:
             raise AndroidCommandError(
@@ -1800,11 +1846,52 @@ def _receive_emulator_console(sock: socket.socket, *, maximum: int = 16384) -> b
         if not chunk:
             break
         response.extend(chunk)
+        _require(
+            len(response) <= maximum,
+            "owned emulator console response exceeded its fixed bound",
+        )
+        normalized = _normalize_emulator_console_response(bytes(response))
+        for expected in expected_responses:
+            if normalized.startswith(expected):
+                return expected
+        prefix = normalized[:-1] if normalized.endswith(b"\r") else normalized
+        _require(
+            any(expected.startswith(prefix) for expected in expected_responses),
+            "owned emulator console response was outside its exact grammar",
+        )
+    normalized = _normalize_emulator_console_response(bytes(response))
     _require(
-        len(response) < maximum,
-        "owned emulator console response exceeded its fixed bound",
+        normalized in expected_responses,
+        "owned emulator console response ended before its terminal frame",
     )
-    return bytes(response)
+    return normalized
+
+
+def _expected_emulator_console_responses(
+    receipt: runtime_state.OwnedRuntimeReceipt,
+    command: bytes,
+) -> tuple[bytes, ...]:
+    authenticated_prefix = (
+        b"Android Console: Authentication required"
+        + EMULATOR_CONSOLE_AUTHENTICATED_MARKER
+    )
+    if command == b"avd name\nquit\n":
+        _require(
+            receipt.avd_name is not None,
+            "owned emulator console name response lacks its receipt AVD name",
+        )
+        return (
+            authenticated_prefix
+            + receipt.avd_name.encode("ascii")
+            + b"\nOK\n",
+        )
+    _require(
+        command == b"kill\n",
+        "owned emulator console response command is outside the fixed set",
+    )
+    return (
+        authenticated_prefix + b"OK: killing emulator, bye bye\n",
+    )
 
 
 def _emulator_console_exchange(
@@ -1822,9 +1909,9 @@ def _emulator_console_exchange(
     )
     try:
         with socket.create_connection(
-            ("127.0.0.1", receipt.console_port), timeout=5
+            ("127.0.0.1", receipt.console_port),
+            timeout=EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS,
         ) as console:
-            console.settimeout(5)
             fresh = _same_receipt_process(receipt)
             _require(
                 context.backend is not None
@@ -1843,15 +1930,20 @@ def _emulator_console_exchange(
             token, _identity = _emulator_console_auth_token(expected_token)
             request = b"auth " + token + b"\n" + command
             console.sendall(request)
-            response = _receive_emulator_console(console)
+            response = _receive_emulator_console(
+                console,
+                expected_responses=_expected_emulator_console_responses(
+                    receipt,
+                    command,
+                ),
+            )
     except AndroidCommandError:
         raise
     except OSError as exc:
         raise AndroidCommandError(
             f"cannot connect to the owned Android emulator console: {exc}"
         ) from exc
-    normalized = response.replace(b"\r\n", b"\n")
-    return _authenticated_emulator_console_payload(normalized)
+    return _authenticated_emulator_console_payload(response)
 
 
 def _authenticated_emulator_console_payload(response: bytes) -> bytes:
@@ -1881,11 +1973,7 @@ def _request_owned_emulator_console_shutdown(
 ) -> None:
     payload = _emulator_console_exchange(context, receipt, b"kill\n")
     _require(
-        payload
-        in {
-            b"OK: killing emulator, bye bye\n",
-            b"OK: killing emulator, bye bye\nOK\n",
-        },
+        payload == b"OK: killing emulator, bye bye\n",
         "owned emulator console rejected its authenticated shutdown request",
     )
 

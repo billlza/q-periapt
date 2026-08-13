@@ -4357,9 +4357,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
         console = Console()
         response = (
-            b"Android Console: Authentication required\r\nOK\r\n"
-            b"Android Console: type 'help' for a list of commands\r\nOK\r\n"
-            b"OK: killing emulator, bye bye\r\n"
+            b"Android Console: Authentication required\nOK\n"
+            b"Android Console: type 'help' for a list of commands\nOK\n"
+            b"OK: killing emulator, bye bye\n"
         )
         with (
             mock.patch.object(
@@ -4385,27 +4385,29 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ),
             mock.patch.object(
                 commands, "_receive_emulator_console", return_value=response
-            ),
+            ) as receive,
         ):
             commands._request_owned_emulator_console_shutdown(context, receipt)
         self.assertEqual(order, ["connect", "process", "listeners", "token", "send"])
         self.assertEqual(console.asserted_data, b"auth private-token\nkill\n")
+        receive.assert_called_once_with(
+            console,
+            expected_responses=(
+                b"Android Console: Authentication required"
+                + commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
+                + b"OK: killing emulator, bye bye\n",
+            ),
+        )
 
-        for payload in (
-            b"OK: killing emulator, bye bye\n",
-            b"OK: killing emulator, bye bye\nOK\n",
+        with mock.patch.object(
+            commands,
+            "_emulator_console_exchange",
+            return_value=b"OK: killing emulator, bye bye\n",
         ):
-            with (
-                self.subTest(payload=payload),
-                mock.patch.object(
-                    commands,
-                    "_emulator_console_exchange",
-                    return_value=payload,
-                ),
-            ):
-                commands._request_owned_emulator_console_shutdown(context, receipt)
+            commands._request_owned_emulator_console_shutdown(context, receipt)
         for payload in (
             b"OK: killing emulator, bye bye",
+            b"OK: killing emulator, bye bye\nOK\n",
             b"KO: kill refused\n",
             b"OK: killing emulator, bye bye\nOK\nextra\n",
             b"garbage\nOK: killing emulator, bye bye\n",
@@ -4427,7 +4429,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_console_authentication_framing_is_exact(self) -> None:
         marker = commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
-        prefix = b"Android Console: Authentication required\n"
+        prefix = b"Android Console: Authentication required"
         payload = b"OK: killing emulator, bye bye\nOK\n"
         self.assertEqual(
             commands._authenticated_emulator_console_payload(
@@ -4449,48 +4451,240 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ):
                 commands._authenticated_emulator_console_payload(response)
 
-    def test_console_receive_accepts_only_bounded_bytes_before_peer_reset(
-        self,
-    ) -> None:
-        class ResetAfter:
-            def __init__(self, chunks: list[bytes]) -> None:
-                self.chunks = list(chunks)
-
-            def recv(self, _maximum: int) -> bytes:
-                if self.chunks:
-                    return self.chunks.pop(0)
-                raise ConnectionResetError(errno.ECONNRESET, "fixture reset")
-
-        acknowledgement = b"OK: killing emulator, bye bye\r\n"
+    def test_console_terminal_frames_are_fixed_by_command_and_receipt(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        prefix = (
+            b"Android Console: Authentication required"
+            + commands.EMULATOR_CONSOLE_AUTHENTICATED_MARKER
+        )
         self.assertEqual(
-            commands._receive_emulator_console(ResetAfter([acknowledgement])),
-            acknowledgement,
+            commands._expected_emulator_console_responses(
+                receipt,
+                b"avd name\nquit\n",
+            ),
+            (prefix + receipt.avd_name.encode("ascii") + b"\nOK\n",),
+        )
+        self.assertEqual(
+            commands._expected_emulator_console_responses(receipt, b"kill\n"),
+            (prefix + b"OK: killing emulator, bye bye\n",),
         )
         with self.assertRaisesRegex(
             commands.AndroidCommandError,
-            "cannot read the owned emulator console response",
+            "command is outside the fixed set",
         ):
-            commands._receive_emulator_console(ResetAfter([]))
+            commands._expected_emulator_console_responses(
+                receipt,
+                b"poweroff\n",
+            )
 
-        class TimedOut:
+    def test_console_receive_stops_at_exact_terminal_frame_without_waiting_for_eof(
+        self,
+    ) -> None:
+        class ChunksThen:
+            def __init__(self, chunks: list[bytes], failure: BaseException) -> None:
+                self.chunks = list(chunks)
+                self.failure = failure
+                self.calls = 0
+                self.timeouts: list[float] = []
+
+            def settimeout(self, seconds: float) -> None:
+                self.timeouts.append(seconds)
+
             def recv(self, _maximum: int) -> bytes:
-                raise TimeoutError("fixture timeout")
+                self.calls += 1
+                if self.chunks:
+                    return self.chunks.pop(0)
+                raise self.failure
+
+        acknowledgement = b"OK: killing emulator, bye bye\n"
+        fragmented = ChunksThen(
+            [b"OK: killing emulator,", b" bye bye\r", b"\n"],
+            TimeoutError("must not wait for EOF"),
+        )
+        self.assertEqual(
+            commands._receive_emulator_console(
+                fragmented,
+                expected_responses=(acknowledgement,),
+            ),
+            acknowledgement,
+        )
+        self.assertEqual(fragmented.calls, 3)
+
+        trailing = ChunksThen(
+            [b"OK: killing emulator, bye bye\nextra\n"],
+            AssertionError("unreachable"),
+        )
+        self.assertEqual(
+            commands._receive_emulator_console(
+                trailing,
+                expected_responses=(acknowledgement,),
+            ),
+            acknowledgement,
+        )
+        self.assertEqual(trailing.calls, 1)
+
+        incomplete_timeout = ChunksThen(
+            [b"OK: killing emulator,"],
+            TimeoutError("fixture timeout"),
+        )
 
         with self.assertRaisesRegex(
             commands.AndroidCommandError,
             "response timed out",
         ):
-            commands._receive_emulator_console(TimedOut())
+            commands._receive_emulator_console(
+                incomplete_timeout,
+                expected_responses=(acknowledgement,),
+            )
 
-        class FullBound:
-            def recv(self, maximum: int) -> bytes:
-                return b"x" * maximum
+        incomplete_reset = ChunksThen(
+            [b"OK: killing emulator,"],
+            ConnectionResetError(errno.ECONNRESET, "fixture reset"),
+        )
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "ended before its terminal frame",
+        ):
+            commands._receive_emulator_console(
+                incomplete_reset,
+                expected_responses=(acknowledgement,),
+            )
 
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "response contract is invalid",
+        ):
+            commands._receive_emulator_console(
+                mock.sentinel.socket,
+                expected_responses=(b"x" * 16,),
+                maximum=16,
+            )
+
+        invalid_prefix = ChunksThen(
+            [b"NO\n"],
+            AssertionError("unreachable"),
+        )
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "outside its exact grammar",
+        ):
+            commands._receive_emulator_console(
+                invalid_prefix,
+                expected_responses=(acknowledgement,),
+            )
+
+        oversized = ChunksThen(
+            [b"x" * 17],
+            AssertionError("unreachable"),
+        )
         with self.assertRaisesRegex(
             commands.AndroidCommandError,
             "exceeded its fixed bound",
         ):
-            commands._receive_emulator_console(FullBound(), maximum=16)
+            commands._receive_emulator_console(
+                oversized,
+                expected_responses=(b"x\n",),
+                maximum=16,
+            )
+
+        with self.assertRaisesRegex(
+            commands.AndroidCommandError,
+            "terminal frames must not overlap",
+        ):
+            commands._receive_emulator_console(
+                mock.sentinel.socket,
+                expected_responses=(b"OK\n", b"OK\nextra\n"),
+            )
+
+    def test_console_receive_is_chunk_invariant_for_full_protocol_frames(
+        self,
+    ) -> None:
+        class ChunksThenTimeout:
+            def __init__(self, chunks: list[bytes]) -> None:
+                self.chunks = list(chunks)
+                self.calls = 0
+                self.timeouts: list[float] = []
+
+            def settimeout(self, seconds: float) -> None:
+                self.timeouts.append(seconds)
+
+            def recv(self, _maximum: int) -> bytes:
+                self.calls += 1
+                if self.chunks:
+                    return self.chunks.pop(0)
+                raise TimeoutError("terminal frame must finish the read")
+
+        receipt = self.create_active_emulator_runtime_receipt()
+        for command in (b"avd name\nquit\n", b"kill\n"):
+            expected = commands._expected_emulator_console_responses(
+                receipt,
+                command,
+            )[0]
+            wire = expected.replace(b"\n", b"\r\n")
+            for split in range(1, len(wire)):
+                with self.subTest(command=command, split=split):
+                    fragmented = ChunksThenTimeout(
+                        [wire[:split], wire[split:]],
+                    )
+                    self.assertEqual(
+                        commands._receive_emulator_console(
+                            fragmented,
+                            expected_responses=(expected,),
+                        ),
+                        expected,
+                    )
+                    self.assertLessEqual(fragmented.calls, 2)
+
+            same_chunk_trailer = ChunksThenTimeout([wire + b"ignored trailer"])
+            self.assertEqual(
+                commands._receive_emulator_console(
+                    same_chunk_trailer,
+                    expected_responses=(expected,),
+                ),
+                expected,
+            )
+            later_trailer = ChunksThenTimeout([wire, b"ignored trailer"])
+            self.assertEqual(
+                commands._receive_emulator_console(
+                    later_trailer,
+                    expected_responses=(expected,),
+                ),
+                expected,
+            )
+            self.assertEqual(same_chunk_trailer.calls, 1)
+            self.assertEqual(later_trailer.calls, 1)
+
+    def test_console_receive_has_one_total_response_deadline(self) -> None:
+        class SlowPrefix:
+            def __init__(self) -> None:
+                self.timeouts: list[float] = []
+                self.calls = 0
+
+            def settimeout(self, seconds: float) -> None:
+                self.timeouts.append(seconds)
+
+            def recv(self, _maximum: int) -> bytes:
+                self.calls += 1
+                return b"O" if self.calls == 1 else b"K"
+
+        stream = SlowPrefix()
+        with (
+            mock.patch.object(
+                commands.time,
+                "monotonic",
+                side_effect=[100.0, 101.0, 106.0],
+            ),
+            self.assertRaisesRegex(
+                commands.AndroidCommandError,
+                "response timed out",
+            ),
+        ):
+            commands._receive_emulator_console(
+                stream,
+                expected_responses=(b"OK\n",),
+            )
+        self.assertEqual(stream.calls, 1)
+        self.assertEqual(stream.timeouts, [4.0])
 
     def test_console_ack_without_process_exit_keeps_recovery_receipt(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()

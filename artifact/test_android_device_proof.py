@@ -3044,6 +3044,15 @@ fi
         embedding_gate = (
             repository_root / "artifact/embedding-readiness.sh"
         ).read_text(encoding="utf-8")
+        normalized_artifact_document = " ".join(artifact_document.split())
+        self.assertIn(
+            "Console replies are parsed as fixed, line-delimited terminal frames",
+            normalized_artifact_document,
+        )
+        self.assertIn(
+            "completes the command without waiting for socket EOF",
+            normalized_artifact_document,
+        )
 
         unique_proof = (
             "QPERIAPT_ANDROID_DEVICE_PROOF="
