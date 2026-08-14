@@ -4,13 +4,17 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import hashlib
 import json
 import os
 import pathlib
 import stat
+import sys
 import tempfile
 import unittest
+from collections.abc import Iterator
+from types import CodeType, FrameType
 from typing import cast
 from unittest import mock
 
@@ -36,6 +40,41 @@ class PublicationReceiptIOTests(unittest.TestCase):
         path.write_bytes(payload)
         os.chmod(path, 0o600)
         return path
+
+    def _open_descriptor_count(self) -> int:
+        for root in (pathlib.Path("/proc/self/fd"), pathlib.Path("/dev/fd")):
+            if root.is_dir():
+                return len(os.listdir(root))
+        self.fail("POSIX descriptor inventory is unavailable")
+
+    @contextlib.contextmanager
+    def _interrupt_once_after_return(
+        self,
+        returned_code: CodeType,
+        caller_code: CodeType,
+        *,
+        label: str,
+    ) -> Iterator[None]:
+        previous_trace = sys.gettrace()
+        armed = False
+        injected = False
+
+        def trace(frame: FrameType, event: str, _argument: object) -> object:
+            nonlocal armed, injected
+            if event == "return" and frame.f_code is returned_code:
+                armed = True
+            elif armed and event == "line" and frame.f_code is caller_code:
+                injected = True
+                sys.settrace(None)
+                raise KeyboardInterrupt(f"injected after {label} return")
+            return trace
+
+        sys.settrace(trace)
+        try:
+            yield
+        finally:
+            sys.settrace(previous_trace)
+        self.assertTrue(injected, f"trace did not reach {label} return window")
 
     def test_descendant_sanitizer_uses_direct_scanner_visible_guard(self) -> None:
         tree = ast.parse(
@@ -84,6 +123,133 @@ class PublicationReceiptIOTests(unittest.TestCase):
                 "fixture invalid visibility",
                 visibility=cast(receipt_io.PublicationVisibility, "unknown"),
             )
+
+    def test_owned_descriptor_close_return_interrupt_is_never_retried(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        baseline_descriptors = self._open_descriptor_count()
+        real_close = receipt_io.os.close
+
+        for attempt in ("first", "retry"):
+            with self.subTest(close_attempt=attempt):
+                path = self.safe_root / f"owned-close-{attempt}"
+                descriptor = os.open(
+                    path,
+                    os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                )
+                metadata = os.fstat(descriptor)
+                owner = receipt_io._OwnedPrivateFileDescriptor(
+                    descriptor=descriptor,
+                    device=metadata.st_dev,
+                    inode=metadata.st_ino,
+                    label="fixture held file",
+                )
+
+                def close_then_return(target: int) -> None:
+                    real_close(target)
+
+                first_close = True
+
+                def close_with_optional_pre_effect(target: int) -> None:
+                    nonlocal first_close
+                    if attempt == "retry" and first_close:
+                        first_close = False
+                        raise KeyboardInterrupt(
+                            "injected pre-effect close interruption"
+                        )
+                    close_then_return(target)
+
+                try:
+                    with (
+                        mock.patch.object(
+                            receipt_io.os,
+                            "close",
+                            side_effect=close_with_optional_pre_effect,
+                        ),
+                        self._interrupt_once_after_return(
+                            close_then_return.__code__,
+                            receipt_io._OwnedPrivateFileDescriptor._close_once.__code__,
+                            label=f"{attempt} close",
+                        ),
+                        self.assertRaises(KeyboardInterrupt),
+                    ):
+                        owner.close()
+                    self.assertEqual("released", owner.status)
+                    self.assertEqual(-1, owner.descriptor)
+                    with self.assertRaises(OSError):
+                        os.fstat(descriptor)
+                finally:
+                    if owner.is_owned:
+                        real_close(owner.descriptor)
+
+        self.assertEqual(baseline_descriptors, self._open_descriptor_count())
+
+    def test_owned_descriptor_never_closes_a_reused_descriptor_number(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        baseline_descriptors = self._open_descriptor_count()
+        owned_path = self.safe_root / "owned-close-reuse"
+        replacement_path = self.safe_root / "replacement-close-reuse"
+        owned_descriptor = os.open(
+            owned_path,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        replacement_descriptor = os.open(
+            replacement_path,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        owned_metadata = os.fstat(owned_descriptor)
+        replacement_metadata = os.fstat(replacement_descriptor)
+        owner = receipt_io._OwnedPrivateFileDescriptor(
+            descriptor=owned_descriptor,
+            device=owned_metadata.st_dev,
+            inode=owned_metadata.st_ino,
+            label="fixture held file",
+        )
+        real_close = receipt_io.os.close
+        close_calls = 0
+
+        def close_and_reuse(descriptor: int) -> None:
+            nonlocal close_calls
+            close_calls += 1
+            real_close(descriptor)
+            os.dup2(replacement_descriptor, descriptor)
+            raise KeyboardInterrupt("injected post-effect descriptor reuse")
+
+        try:
+            with (
+                mock.patch.object(
+                    receipt_io.os,
+                    "close",
+                    side_effect=close_and_reuse,
+                ),
+                self.assertRaises(KeyboardInterrupt) as caught,
+            ):
+                owner.close()
+            self.assertEqual(1, close_calls)
+            self.assertEqual("released", owner.status)
+            self.assertEqual(-1, owner.descriptor)
+            reused_metadata = os.fstat(owned_descriptor)
+            self.assertEqual(replacement_metadata.st_dev, reused_metadata.st_dev)
+            self.assertEqual(replacement_metadata.st_ino, reused_metadata.st_ino)
+            self.assertTrue(
+                any(
+                    "identity changed" in note
+                    for note in caught.exception.__notes__
+                )
+            )
+        finally:
+            real_close(owned_descriptor)
+            real_close(replacement_descriptor)
+
+        self.assertEqual(baseline_descriptors, self._open_descriptor_count())
 
     def test_owned_0775_parent_bootstraps_private_transaction(self) -> None:
         path, digest = receipt_io.create_private_transaction_json(
@@ -260,7 +426,7 @@ class PublicationReceiptIOTests(unittest.TestCase):
         self.assertEqual([], list(self.safe_root.glob("*/receipt.json")))
         self.assertEqual([], list(self.safe_root.glob("*/.receipt.json.pending-*")))
 
-    def test_write_file_sync_and_staging_close_faults_leave_no_leaf(self) -> None:
+    def test_write_and_file_sync_faults_leave_no_leaf(self) -> None:
         fault_cases: list[tuple[str, object]] = []
 
         def fail_write(_descriptor: int, _payload: bytes) -> int:
@@ -279,28 +445,6 @@ class PublicationReceiptIOTests(unittest.TestCase):
 
         fault_cases.append(
             ("file-fsync", mock.patch.object(receipt_io.os, "fsync", fail_file_sync))
-        )
-
-        real_close = receipt_io.os.close
-        close_fault_injected = False
-
-        def fail_staging_close(descriptor: int) -> None:
-            nonlocal close_fault_injected
-            is_regular = False
-            try:
-                is_regular = stat.S_ISREG(os.fstat(descriptor).st_mode)
-            except OSError:
-                pass
-            real_close(descriptor)
-            if is_regular and not close_fault_injected:
-                close_fault_injected = True
-                raise OSError("injected staging close failure")
-
-        fault_cases.append(
-            (
-                "staging-close",
-                mock.patch.object(receipt_io.os, "close", fail_staging_close),
-            )
         )
 
         for label, fault in fault_cases:
@@ -886,6 +1030,144 @@ class PublicationReceiptIOTests(unittest.TestCase):
         self.assertEqual("receipt.json", caught.exception.leaf)
         self.assertTrue((transaction / "receipt.json").is_file())
 
+    def test_prepared_held_file_close_fault_after_visibility_is_committed(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.held-close"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        real_close = receipt_io.os.close
+        held_descriptor = -1
+
+        def close(descriptor: int) -> None:
+            real_close(descriptor)
+            if descriptor == held_descriptor:
+                raise OSError("injected held staging close failure")
+
+        with receipt_io.open_private_direct_child_handle(
+            safe_root=self.safe_root,
+            direct_child_name=transaction.name,
+            label="fixture transaction",
+            sync_safe_root_parent=True,
+        ) as handle:
+            with receipt_io.prepare_private_json_noreplace_at(
+                handle,
+                "receipt.json",
+                {"fixture": True},
+                label="fixture receipt",
+            ) as prepared:
+                held_descriptor = prepared.descriptor
+                with (
+                    mock.patch.object(receipt_io.os, "close", side_effect=close),
+                    self.assertRaises(
+                        receipt_io.PublicationReceiptCommittedError
+                    ) as caught,
+                ):
+                    prepared.commit_after_revalidation()
+        self.assertEqual("receipt.json", caught.exception.leaf)
+        self.assertTrue((transaction / "receipt.json").is_file())
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
+
+    def test_prepared_pre_effect_close_interrupt_is_retried_without_leak(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.pre-effect-held-close"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        baseline_descriptors = self._open_descriptor_count()
+        real_close = receipt_io.os.close
+        held_descriptor = -1
+        interrupted = False
+
+        def close(descriptor: int) -> None:
+            nonlocal interrupted
+            if descriptor == held_descriptor and not interrupted:
+                interrupted = True
+                raise KeyboardInterrupt("injected pre-effect close interruption")
+            real_close(descriptor)
+
+        with receipt_io.open_private_direct_child_handle(
+            safe_root=self.safe_root,
+            direct_child_name=transaction.name,
+            label="fixture transaction",
+            sync_safe_root_parent=True,
+        ) as handle:
+            with receipt_io.prepare_private_json_noreplace_at(
+                handle,
+                "receipt.json",
+                {"fixture": True},
+                label="fixture receipt",
+            ) as prepared:
+                held_descriptor = prepared.descriptor
+                with (
+                    mock.patch.object(receipt_io.os, "close", side_effect=close),
+                    self.assertRaises(
+                        receipt_io.PublicationReceiptCommittedError
+                    ) as caught,
+                ):
+                    prepared.commit_after_revalidation()
+
+        self.assertTrue(interrupted)
+        self.assertEqual("committed", caught.exception.visibility)
+        self.assertEqual("receipt.json", caught.exception.leaf)
+        self.assertTrue((transaction / "receipt.json").is_file())
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
+        self.assertEqual(baseline_descriptors, self._open_descriptor_count())
+
+    def test_prepared_precommit_close_fault_preserves_primary_error(self) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.precommit-close"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        real_close = receipt_io.os.close
+        held_descriptor = -1
+
+        def close(descriptor: int) -> None:
+            real_close(descriptor)
+            if descriptor == held_descriptor:
+                raise OSError("injected precommit staging close failure")
+
+        with mock.patch.object(receipt_io.os, "close", side_effect=close):
+            with self.assertRaisesRegex(
+                receipt_io.PublicationReceiptIOError,
+                "injected precommit publication failure",
+            ) as caught:
+                with receipt_io.open_private_direct_child_handle(
+                    safe_root=self.safe_root,
+                    direct_child_name=transaction.name,
+                    label="fixture transaction",
+                    sync_safe_root_parent=True,
+                ) as handle:
+                    with receipt_io.prepare_private_json_noreplace_at(
+                        handle,
+                        "receipt.json",
+                        {"fixture": True},
+                        label="fixture receipt",
+                    ) as prepared:
+                        held_descriptor = prepared.descriptor
+                        with mock.patch.object(
+                            receipt_io,
+                            "_rename_noreplace",
+                            side_effect=receipt_io.PublicationReceiptIOError(
+                                "injected precommit publication failure"
+                            ),
+                        ):
+                            prepared.commit_after_revalidation()
+        self.assertTrue(
+            any("staging cleanup failed" in note for note in caught.exception.__notes__)
+        )
+        self.assertFalse((transaction / "receipt.json").exists())
+        self.assertEqual([], list(transaction.glob(".receipt.json.pending-*")))
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
+
     def test_prepared_rename_hook_swap_reports_committed_identity_failure(
         self,
     ) -> None:
@@ -937,7 +1219,7 @@ class PublicationReceiptIOTests(unittest.TestCase):
         value = {"fixture": True}
         payload = receipt_io.canonical_json_bytes(value)
         real_rename = receipt_io._rename_noreplace
-        prepared_inode = -1
+        held_descriptor = -1
 
         def replace_after_rename(
             directory_fd: int,
@@ -945,7 +1227,10 @@ class PublicationReceiptIOTests(unittest.TestCase):
             destination_leaf: str,
         ) -> None:
             real_rename(directory_fd, source_leaf, destination_leaf)
+            held_before_unlink = os.fstat(held_descriptor)
+            self.assertEqual(1, held_before_unlink.st_nlink)
             os.unlink(destination_leaf, dir_fd=directory_fd)
+            self.assertEqual(0, os.fstat(held_descriptor).st_nlink)
             descriptor = os.open(
                 destination_leaf,
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL,
@@ -957,6 +1242,14 @@ class PublicationReceiptIOTests(unittest.TestCase):
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
+            self.assertNotEqual(
+                held_before_unlink.st_ino,
+                os.stat(
+                    destination_leaf,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                ).st_ino,
+            )
 
         with self.assertRaises(
             receipt_io.PublicationReceiptCommittedError
@@ -973,7 +1266,7 @@ class PublicationReceiptIOTests(unittest.TestCase):
                     value,
                     label="fixture receipt",
                 ) as prepared:
-                    prepared_inode = prepared.inode
+                    held_descriptor = prepared.descriptor
                     with mock.patch.object(
                         receipt_io,
                         "_rename_noreplace",
@@ -982,10 +1275,8 @@ class PublicationReceiptIOTests(unittest.TestCase):
                         prepared.commit_after_revalidation()
         self.assertEqual("receipt.json", caught.exception.leaf)
         self.assertEqual(payload, (transaction / "receipt.json").read_bytes())
-        self.assertNotEqual(
-            prepared_inode,
-            (transaction / "receipt.json").stat().st_ino,
-        )
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
 
     def test_prepared_rename_interrupt_recovers_committed_state(self) -> None:
         self.safe_root.mkdir(mode=0o700)
@@ -1027,6 +1318,105 @@ class PublicationReceiptIOTests(unittest.TestCase):
         self.assertIsInstance(caught.exception.__cause__, KeyboardInterrupt)
         self.assertEqual(payload, (transaction / "receipt.json").read_bytes())
         self.assertEqual([], list(transaction.glob(".receipt.json.pending-*")))
+
+    def test_prepared_after_return_interrupts_are_structured_committed(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        value = {"fixture": "after-return"}
+        payload = receipt_io.canonical_json_bytes(value)
+        digest = hashlib.sha256(payload).hexdigest()
+        real_rename = receipt_io._rename_noreplace
+
+        for scenario in ("rename", "classification", "helper"):
+            with self.subTest(window=f"{scenario}-return"):
+                transaction = self.safe_root / f"transaction.{scenario}-return"
+                transaction.mkdir(mode=0o700)
+                os.chmod(transaction, 0o700)
+                held_descriptor = -1
+
+                if scenario == "rename":
+                    rename_patch = contextlib.nullcontext()
+                    returned_code = real_rename.__code__
+                    caller_code = (
+                        receipt_io._publish_private_file_noreplace_at.__code__
+                    )
+                elif scenario == "classification":
+
+                    def rename_then_interrupt(
+                        *args: object,
+                        **kwargs: object,
+                    ) -> None:
+                        real_rename(*args, **kwargs)
+                        raise SystemExit("injected first visibility interruption")
+
+                    rename_patch = mock.patch.object(
+                        receipt_io,
+                        "_rename_noreplace",
+                        side_effect=rename_then_interrupt,
+                    )
+                    returned_code = (
+                        receipt_io._classify_interrupted_visibility_conservatively
+                        .__code__
+                    )
+                    caller_code = (
+                        receipt_io._raise_for_private_file_publication_visibility
+                        .__code__
+                    )
+                else:
+                    rename_patch = contextlib.nullcontext()
+                    returned_code = (
+                        receipt_io._publish_private_file_noreplace_at.__code__
+                    )
+                    caller_code = (
+                        receipt_io.PreparedPrivateJsonPublication
+                        ._commit_after_revalidation.__code__
+                    )
+
+                with self.assertRaises(
+                    receipt_io.PublicationReceiptCommittedError
+                ) as caught:
+                    with receipt_io.open_private_direct_child_handle(
+                        safe_root=self.safe_root,
+                        direct_child_name=transaction.name,
+                        label="fixture transaction",
+                        sync_safe_root_parent=True,
+                    ) as handle:
+                        with receipt_io.prepare_private_json_noreplace_at(
+                            handle,
+                            "receipt.json",
+                            value,
+                            label="fixture receipt",
+                        ) as prepared:
+                            held_descriptor = prepared.descriptor
+                            with (
+                                rename_patch,
+                                self._interrupt_once_after_return(
+                                    returned_code,
+                                    caller_code,
+                                    label=scenario,
+                                ),
+                            ):
+                                prepared.commit_after_revalidation()
+
+                self.assertEqual("committed", caught.exception.visibility)
+                self.assertEqual("receipt.json", caught.exception.leaf)
+                self.assertEqual(digest, caught.exception.digest)
+                self.assertIsInstance(
+                    caught.exception.__cause__,
+                    KeyboardInterrupt,
+                )
+                self.assertEqual(
+                    payload,
+                    (transaction / "receipt.json").read_bytes(),
+                )
+                self.assertEqual(
+                    [],
+                    list(transaction.glob(".receipt.json.pending-*")),
+                )
+                with self.assertRaises(OSError):
+                    os.fstat(held_descriptor)
 
     def test_prepared_recovery_inspection_fault_preserves_indeterminate(
         self,
@@ -1145,6 +1535,25 @@ class PublicationReceiptIOTests(unittest.TestCase):
         os.chmod(self.safe_root, 0o700)
         payload = b"exact fixture bytes\n"
         real_rename = receipt_io._rename_noreplace
+        real_open = receipt_io.os.open
+        held_descriptor = -1
+
+        def open_and_track(
+            path: str | bytes,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            nonlocal held_descriptor
+            descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+            if (
+                isinstance(path, str)
+                and path.startswith(".raw.json.pending-")
+                and (flags & os.O_RDWR) == os.O_RDWR
+            ):
+                held_descriptor = descriptor
+            return descriptor
 
         def replace_after_rename(
             directory_fd: int,
@@ -1152,7 +1561,10 @@ class PublicationReceiptIOTests(unittest.TestCase):
             destination_leaf: str,
         ) -> None:
             real_rename(directory_fd, source_leaf, destination_leaf)
+            held_before_unlink = os.fstat(held_descriptor)
+            self.assertEqual(1, held_before_unlink.st_nlink)
             os.unlink(destination_leaf, dir_fd=directory_fd)
+            self.assertEqual(0, os.fstat(held_descriptor).st_nlink)
             descriptor = os.open(
                 destination_leaf,
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL,
@@ -1164,6 +1576,14 @@ class PublicationReceiptIOTests(unittest.TestCase):
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
+            self.assertNotEqual(
+                held_before_unlink.st_ino,
+                os.stat(
+                    destination_leaf,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                ).st_ino,
+            )
 
         descriptor = receipt_io.open_private_directory(
             self.safe_root,
@@ -1175,6 +1595,11 @@ class PublicationReceiptIOTests(unittest.TestCase):
                     receipt_io,
                     "_rename_noreplace",
                     side_effect=replace_after_rename,
+                ),
+                mock.patch.object(
+                    receipt_io.os,
+                    "open",
+                    side_effect=open_and_track,
                 ),
                 self.assertRaises(
                     receipt_io.PublicationReceiptCommittedError
@@ -1191,6 +1616,138 @@ class PublicationReceiptIOTests(unittest.TestCase):
             os.close(descriptor)
         self.assertEqual("raw.json", caught.exception.leaf)
         self.assertEqual(payload, (self.safe_root / "raw.json").read_bytes())
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
+
+    def test_atomic_bytes_held_file_close_fault_is_committed(self) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        payload = b"exact held close bytes\n"
+        real_open = receipt_io.os.open
+        real_close = receipt_io.os.close
+        held_descriptor = -1
+
+        def open_and_track(
+            path: str | bytes,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            nonlocal held_descriptor
+            descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+            if (
+                isinstance(path, str)
+                and path.startswith(".raw.json.pending-")
+                and (flags & os.O_RDWR) == os.O_RDWR
+            ):
+                held_descriptor = descriptor
+            return descriptor
+
+        def close(descriptor: int) -> None:
+            real_close(descriptor)
+            if descriptor == held_descriptor:
+                raise OSError("injected held staging close failure")
+
+        directory_fd = receipt_io.open_private_directory(
+            self.safe_root,
+            label="fixture bytes root",
+        )
+        try:
+            with (
+                mock.patch.object(
+                    receipt_io.os,
+                    "open",
+                    side_effect=open_and_track,
+                ),
+                mock.patch.object(receipt_io.os, "close", side_effect=close),
+                self.assertRaises(
+                    receipt_io.PublicationReceiptCommittedError
+                ) as caught,
+            ):
+                receipt_io.write_private_bytes_noreplace_at(
+                    directory_fd,
+                    "raw.json",
+                    payload,
+                    label="fixture raw evidence",
+                    maximum=64,
+                )
+        finally:
+            os.close(directory_fd)
+        self.assertEqual("raw.json", caught.exception.leaf)
+        self.assertEqual(payload, (self.safe_root / "raw.json").read_bytes())
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
+
+    def test_atomic_bytes_pre_effect_close_interrupt_is_retried_without_leak(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        payload = b"exact pre-effect close bytes\n"
+        baseline_descriptors = self._open_descriptor_count()
+        real_open = receipt_io.os.open
+        real_close = receipt_io.os.close
+        held_descriptor = -1
+        interrupted = False
+
+        def open_and_track(
+            path: str | bytes,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            nonlocal held_descriptor
+            descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+            if (
+                isinstance(path, str)
+                and path.startswith(".raw.json.pending-")
+                and (flags & os.O_RDWR) == os.O_RDWR
+            ):
+                held_descriptor = descriptor
+            return descriptor
+
+        def close(descriptor: int) -> None:
+            nonlocal interrupted
+            if descriptor == held_descriptor and not interrupted:
+                interrupted = True
+                raise KeyboardInterrupt("injected pre-effect close interruption")
+            real_close(descriptor)
+
+        directory_fd = receipt_io.open_private_directory(
+            self.safe_root,
+            label="fixture bytes root",
+        )
+        try:
+            with (
+                mock.patch.object(
+                    receipt_io.os,
+                    "open",
+                    side_effect=open_and_track,
+                ),
+                mock.patch.object(receipt_io.os, "close", side_effect=close),
+                self.assertRaises(
+                    receipt_io.PublicationReceiptCommittedError
+                ) as caught,
+            ):
+                receipt_io.write_private_bytes_noreplace_at(
+                    directory_fd,
+                    "raw.json",
+                    payload,
+                    label="fixture raw evidence",
+                    maximum=64,
+                )
+        finally:
+            os.close(directory_fd)
+
+        self.assertTrue(interrupted)
+        self.assertEqual("committed", caught.exception.visibility)
+        self.assertEqual("raw.json", caught.exception.leaf)
+        self.assertEqual(payload, (self.safe_root / "raw.json").read_bytes())
+        with self.assertRaises(OSError):
+            os.fstat(held_descriptor)
+        self.assertEqual(baseline_descriptors, self._open_descriptor_count())
 
     def test_atomic_bytes_rename_interrupt_recovers_committed_state(self) -> None:
         self.safe_root.mkdir(mode=0o700)
@@ -1232,26 +1789,131 @@ class PublicationReceiptIOTests(unittest.TestCase):
         self.assertEqual(payload, (self.safe_root / "raw.json").read_bytes())
         self.assertEqual([], list(self.safe_root.glob(".raw.json.pending-*")))
 
+    def test_atomic_bytes_after_return_interrupts_are_structured_committed(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        payload = b"exact after-return fixture bytes\n"
+        digest = hashlib.sha256(payload).hexdigest()
+        real_rename = receipt_io._rename_noreplace
+        real_open = receipt_io.os.open
+        directory_fd = receipt_io.open_private_directory(
+            self.safe_root,
+            label="fixture bytes root",
+        )
+        try:
+            for scenario in ("rename", "classification", "helper"):
+                with self.subTest(window=f"{scenario}-return"):
+                    leaf = f"raw-{scenario}.json"
+                    held_descriptor = -1
+
+                    def open_and_track(
+                        path: str | bytes,
+                        flags: int,
+                        mode: int = 0o777,
+                        *,
+                        dir_fd: int | None = None,
+                    ) -> int:
+                        nonlocal held_descriptor
+                        opened = real_open(path, flags, mode, dir_fd=dir_fd)
+                        if (
+                            isinstance(path, str)
+                            and path.startswith(f".{leaf}.pending-")
+                            and (flags & os.O_RDWR) == os.O_RDWR
+                        ):
+                            held_descriptor = opened
+                        return opened
+
+                    if scenario == "rename":
+                        rename_patch = contextlib.nullcontext()
+                        returned_code = real_rename.__code__
+                        caller_code = (
+                            receipt_io._publish_private_file_noreplace_at.__code__
+                        )
+                    elif scenario == "classification":
+
+                        def rename_then_interrupt(
+                            *args: object,
+                            **kwargs: object,
+                        ) -> None:
+                            real_rename(*args, **kwargs)
+                            raise SystemExit(
+                                "injected first visibility interruption"
+                            )
+
+                        rename_patch = mock.patch.object(
+                            receipt_io,
+                            "_rename_noreplace",
+                            side_effect=rename_then_interrupt,
+                        )
+                        returned_code = (
+                            receipt_io
+                            ._classify_interrupted_visibility_conservatively.__code__
+                        )
+                        caller_code = (
+                            receipt_io
+                            ._raise_for_private_file_publication_visibility.__code__
+                        )
+                    else:
+                        rename_patch = contextlib.nullcontext()
+                        returned_code = (
+                            receipt_io._publish_private_file_noreplace_at.__code__
+                        )
+                        caller_code = (
+                            receipt_io._write_private_bytes_noreplace_at.__code__
+                        )
+
+                    with (
+                        self.assertRaises(
+                            receipt_io.PublicationReceiptCommittedError
+                        ) as caught,
+                        rename_patch,
+                        mock.patch.object(
+                            receipt_io.os,
+                            "open",
+                            side_effect=open_and_track,
+                        ),
+                        self._interrupt_once_after_return(
+                            returned_code,
+                            caller_code,
+                            label=scenario,
+                        ),
+                    ):
+                        receipt_io.write_private_bytes_noreplace_at(
+                            directory_fd,
+                            leaf,
+                            payload,
+                            label="fixture raw evidence",
+                            maximum=64,
+                        )
+
+                    self.assertEqual("committed", caught.exception.visibility)
+                    self.assertEqual(leaf, caught.exception.leaf)
+                    self.assertEqual(digest, caught.exception.digest)
+                    self.assertIsInstance(
+                        caught.exception.__cause__,
+                        KeyboardInterrupt,
+                    )
+                    self.assertEqual(payload, (self.safe_root / leaf).read_bytes())
+                    self.assertEqual(
+                        [],
+                        list(self.safe_root.glob(f".{leaf}.pending-*")),
+                    )
+                    with self.assertRaises(OSError):
+                        os.fstat(held_descriptor)
+        finally:
+            os.close(directory_fd)
+
     def test_atomic_bytes_recovery_inspection_fault_is_indeterminate(self) -> None:
         self.safe_root.mkdir(mode=0o700)
         os.chmod(self.safe_root, 0o700)
         payload = b"exact recovery fault bytes\n"
         real_rename = receipt_io._rename_noreplace
-        real_consume = receipt_io.consume_regular_snapshot_at
-        consume_calls = 0
 
         def rename_then_interrupt(*args: object, **kwargs: object) -> None:
             real_rename(*args, **kwargs)
             raise KeyboardInterrupt("injected visibility interruption")
-
-        def fail_destination_inspection(*args: object, **kwargs: object):
-            nonlocal consume_calls
-            consume_calls += 1
-            if consume_calls == 1:
-                raise receipt_io.EvidenceIOError(
-                    "injected recovery inspection failure"
-                )
-            return real_consume(*args, **kwargs)
 
         descriptor = receipt_io.open_private_directory(
             self.safe_root,
@@ -1266,8 +1928,10 @@ class PublicationReceiptIOTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     receipt_io,
-                    "consume_regular_snapshot_at",
-                    side_effect=fail_destination_inspection,
+                    "_classify_interrupted_visibility_at",
+                    side_effect=receipt_io.EvidenceIOError(
+                        "injected recovery inspection failure"
+                    ),
                 ),
                 self.assertRaises(
                     receipt_io.PublicationReceiptCommittedError
