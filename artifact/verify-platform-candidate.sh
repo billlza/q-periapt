@@ -13,7 +13,7 @@ fi
 
 CANDIDATE_DIR=$1
 EXPECTED_COMMIT=$2
-RELEASE_TAG=abi2-platforms-v0.1.0-alpha.2-r2
+RELEASE_TAG=abi2-platforms-v0.1.0-alpha.3-r1
 RELEASE_REF=refs/tags/$RELEASE_TAG
 REPOSITORY=billlza/q-periapt
 SIGNER_WORKFLOW=billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml
@@ -87,11 +87,11 @@ if not stat.S_ISDIR(metadata.st_mode) or root.is_symlink():
     raise SystemExit("error: candidate directory must be a non-symlink directory")
 
 assets = {
-    "q-periapt-android-0.1.0-alpha.2.aar",
-    "q-periapt-android-0.1.0-alpha.2-MANIFEST.json",
-    "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz",
-    "q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz",
-    "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip",
+    "q-periapt-android-0.1.0-alpha.3.aar",
+    "q-periapt-android-0.1.0-alpha.3-MANIFEST.json",
+    "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-unknown-linux-gnu.tar.gz",
+    "q-periapt-c-abi2-0.1.0-alpha.3-aarch64-unknown-linux-gnu.tar.gz",
+    "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip",
 }
 expected = assets | {"CANDIDATE_SHA256SUMS"}
 actual = set()
@@ -151,11 +151,11 @@ rm -rf "$ATTESTATION_DIR"
 mkdir -p "$ATTESTATION_DIR"
 
 for asset in \
-	q-periapt-android-0.1.0-alpha.2.aar \
-	q-periapt-android-0.1.0-alpha.2-MANIFEST.json \
-	q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz \
-	q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz \
-	q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip \
+	q-periapt-android-0.1.0-alpha.3.aar \
+	q-periapt-android-0.1.0-alpha.3-MANIFEST.json \
+	q-periapt-c-abi2-0.1.0-alpha.3-aarch64-unknown-linux-gnu.tar.gz \
+	q-periapt-c-abi2-0.1.0-alpha.3-x86_64-unknown-linux-gnu.tar.gz \
+	q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip \
 	CANDIDATE_SHA256SUMS
 do
 	output=$ATTESTATION_DIR/$asset.json

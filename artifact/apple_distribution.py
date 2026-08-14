@@ -37,11 +37,27 @@ MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
 BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v2"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
-PRODUCT_VERSION = "0.1.0-alpha.2"
+PRODUCT_VERSION = "0.1.0-alpha.3"
 RELEASE_REVISION = "r1"
 RELEASE_TAG = f"v{PRODUCT_VERSION}-{RELEASE_REVISION}"
 RELEASE_URL = (
     f"https://github.com/billlza/q-periapt/releases/tag/{RELEASE_TAG}"
+)
+ReleaseIdentity = tuple[str, str, str, str]
+CURRENT_RELEASE_IDENTITY: ReleaseIdentity = (
+    PRODUCT_VERSION,
+    RELEASE_REVISION,
+    RELEASE_TAG,
+    RELEASE_URL,
+)
+PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY: ReleaseIdentity = (
+    "0.1.0-alpha.2",
+    "r1",
+    "v0.1.0-alpha.2-r1",
+    "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+)
+TRUSTED_RESULTS_RELEASE_IDENTITIES = frozenset(
+    {CURRENT_RELEASE_IDENTITY, PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY}
 )
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
@@ -1445,6 +1461,33 @@ def _strict_json_object(data: bytes, *, label: str) -> dict[str, Any]:
     return value
 
 
+def _release_identity_object(identity: ReleaseIdentity) -> dict[str, str]:
+    product_version, revision, tag, url = identity
+    return {
+        "product_version": product_version,
+        "revision": revision,
+        "tag": tag,
+        "url": url,
+    }
+
+
+def _trusted_results_release_identity(
+    distribution: dict[str, Any],
+) -> ReleaseIdentity:
+    identity = (
+        _require_string(distribution["version"], "trusted results product version"),
+        _require_string(
+            distribution["release_revision"],
+            "trusted results release revision",
+        ),
+        _require_string(distribution["release_tag"], "trusted results release tag"),
+        _require_string(distribution["release_url"], "trusted results release URL"),
+    )
+    if identity not in TRUSTED_RESULTS_RELEASE_IDENTITIES:
+        _fail("trusted results release identity is neither current nor published")
+    return identity
+
+
 def _release_expectations_from_results(
     results_manifest: pathlib.Path,
 ) -> tuple[dict[str, Any], str]:
@@ -1495,14 +1538,7 @@ def _release_expectations_from_results(
         XCFRAMEWORK_ZIP_NAME,
         "trusted results artifact path",
     )
-    _require_exact_json(
-        distribution["version"], PRODUCT_VERSION, "trusted results product version"
-    )
-    _require_exact_json(
-        distribution["release_revision"],
-        RELEASE_REVISION,
-        "trusted results release revision",
-    )
+    _trusted_results_release_identity(distribution)
     _require_git_commit(distribution["source_commit"], "trusted results source commit")
     if type(distribution["artifact_size"]) is not int or distribution["artifact_size"] <= 0:
         _fail("trusted results artifact size must be a positive integer")
@@ -1517,12 +1553,6 @@ def _release_expectations_from_results(
         _require_sha256(distribution[key], f"trusted results {key}")
     _require_exact_json(
         distribution["distribution_signed"], True, "trusted results signed state"
-    )
-    _require_exact_json(
-        distribution["release_tag"], RELEASE_TAG, "trusted results release tag"
-    )
-    _require_exact_json(
-        distribution["release_url"], RELEASE_URL, "trusted results release URL"
     )
     _require_exact_json(
         distribution["notarization_applicability"],
@@ -1598,6 +1628,7 @@ def _validate_release_distribution_evidence(
     zip_data: bytes,
     expected_team_id: str,
     expected_certificate_sha256: str,
+    expected_release_identity: ReleaseIdentity,
 ) -> None:
     _require_exact_keys(
         evidence,
@@ -1627,12 +1658,7 @@ def _validate_release_distribution_evidence(
         _fail("Apple distribution source commit does not match the expected release")
     _require_exact_json(
         evidence["release_identity"],
-        {
-            "product_version": PRODUCT_VERSION,
-            "revision": RELEASE_REVISION,
-            "tag": RELEASE_TAG,
-            "url": RELEASE_URL,
-        },
+        _release_identity_object(expected_release_identity),
         "Apple distribution release identity",
     )
 
@@ -1733,6 +1759,7 @@ def _validate_release_manifest(
     apple_distribution_sha256: str,
     source_commit: str,
     zip_data: bytes,
+    expected_release_identity: ReleaseIdentity,
 ) -> None:
     _require_exact_keys(
         manifest,
@@ -1760,7 +1787,11 @@ def _validate_release_manifest(
         (manifest["schema_version"], 5, "manifest schema version"),
         (manifest["kind"], "qperiapt.swift_xcframework_manifest", "manifest kind"),
         (manifest["package"], "q-periapt-swift", "manifest package"),
-        (manifest["version"], PRODUCT_VERSION, "manifest product version"),
+        (
+            manifest["version"],
+            expected_release_identity[0],
+            "manifest product version",
+        ),
         (
             manifest["type"],
             "swiftpm-binaryTarget-xcframework",
@@ -1771,12 +1802,7 @@ def _validate_release_manifest(
         _require_exact_json(value, expected, label)
     _require_exact_json(
         manifest["release_identity"],
-        {
-            "product_version": PRODUCT_VERSION,
-            "revision": RELEASE_REVISION,
-            "tag": RELEASE_TAG,
-            "url": RELEASE_URL,
-        },
+        _release_identity_object(expected_release_identity),
         "manifest release identity",
     )
     if _require_git_commit(manifest["git_commit"], "manifest Git commit") != source_commit:
@@ -2106,6 +2132,7 @@ def verify_release_assets(
     """Verify one immutable, four-file Apple release set against trusted pins."""
 
     trusted, results_sha256 = _release_expectations_from_results(results_manifest)
+    trusted_release_identity = _trusted_results_release_identity(trusted)
     source_commit = _require_git_commit(
         expected_source_commit, "expected Apple release source commit"
     )
@@ -2203,6 +2230,7 @@ def verify_release_assets(
         expected_certificate_sha256=trusted[
             "origin_signature_certificate_sha256"
         ],
+        expected_release_identity=trusted_release_identity,
     )
     _validate_release_manifest(
         manifest,
@@ -2211,6 +2239,7 @@ def verify_release_assets(
         apple_distribution_sha256=snapshots[APPLE_DISTRIBUTION_NAME].sha256,
         source_commit=source_commit,
         zip_data=zip_snapshot.data,
+        expected_release_identity=trusted_release_identity,
     )
     return {
         "source_commit": source_commit,

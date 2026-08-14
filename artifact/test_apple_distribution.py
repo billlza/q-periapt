@@ -958,10 +958,10 @@ class DistributionEvidenceTests(ZipFixture):
         self.assertEqual(
             evidence["release_identity"],
             {
-                "product_version": "0.1.0-alpha.2",
+                "product_version": "0.1.0-alpha.3",
                 "revision": "r1",
-                "tag": "v0.1.0-alpha.2-r1",
-                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+                "tag": "v0.1.0-alpha.3-r1",
+                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.3-r1",
             },
         )
         self.assertEqual(
@@ -1222,6 +1222,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
         }
         certificate = self.distribution["origin_signature"]["certificate"]
         signature = self.distribution["origin_signature"]["signature"]
+        release_identity = self.distribution["release_identity"]
         trusted_distribution = {
             "apple_distribution_evidence_sha256": self.hashes[
                 apple_distribution.APPLE_DISTRIBUTION_NAME
@@ -1239,9 +1240,9 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "origin_signature_identity_class": "Developer ID Application",
             "origin_signature_team_id": signature["team_id"],
             "public_release": False,
-            "release_revision": apple_distribution.RELEASE_REVISION,
-            "release_tag": apple_distribution.RELEASE_TAG,
-            "release_url": apple_distribution.RELEASE_URL,
+            "release_revision": release_identity["revision"],
+            "release_tag": release_identity["tag"],
+            "release_url": release_identity["url"],
             "remote_consumer_verified": False,
             "remote_verification": {
                 "log_sha256": None,
@@ -1251,7 +1252,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "source_commit": SOURCE_COMMIT,
             "stapled": False,
             "swiftpm_checksum": self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
-            "version": apple_distribution.PRODUCT_VERSION,
+            "version": release_identity["product_version"],
         }
         self.results.write_bytes(
             apple_distribution._json_bytes(
@@ -1295,6 +1296,22 @@ class ReleaseAssetVerificationTests(ZipFixture):
             self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
         )
         self.assertEqual(len(verified), 6)
+
+    def test_preserves_verification_of_the_published_alpha2_r1_release(self) -> None:
+        legacy_identity = apple_distribution._release_identity_object(
+            apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY
+        )
+        self.distribution["release_identity"] = legacy_identity
+        self.manifest["version"] = legacy_identity["product_version"]
+        self.manifest["release_identity"] = legacy_identity.copy()
+        self._publish()
+
+        verified = self.verify()
+        self.assertEqual(verified["source_commit"], SOURCE_COMMIT)
+        self.assertEqual(
+            verified["zip_sha256"],
+            self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
+        )
 
     def test_rejects_release_identity_and_toolchain_drift(self) -> None:
         base_distribution = copy.deepcopy(self.distribution)
@@ -1720,14 +1737,23 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertIn('"schema_version": 5', self.builder)
 
     def test_release_revision_and_toolchain_are_exactly_bound(self) -> None:
-        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.0-alpha.2")
+        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.0-alpha.3")
         self.assertEqual(apple_distribution.RELEASE_REVISION, "r1")
         self.assertEqual(
-            apple_distribution.RELEASE_TAG, "v0.1.0-alpha.2-r1"
+            apple_distribution.RELEASE_TAG, "v0.1.0-alpha.3-r1"
         )
         self.assertEqual(
             apple_distribution.RELEASE_URL,
-            "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+            "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.3-r1",
+        )
+        self.assertEqual(
+            apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY,
+            (
+                "0.1.0-alpha.2",
+                "r1",
+                "v0.1.0-alpha.2-r1",
+                "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+            ),
         )
         for exact in (
             apple_distribution.EXPECTED_RUSTC_VERSION,

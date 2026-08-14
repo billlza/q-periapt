@@ -226,7 +226,7 @@ The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 The upstream tag/commit is not a signed provenance statement, and neither upstream
 mlkem-native nor this Rust/C integration has completed an independent audit.
 
-ABI 2 / `0.1.0-alpha.2` is a pre-publication package-ready research-alpha source
+ABI 2 / `0.1.0-alpha.3` is a pre-publication package-ready research-alpha source
 line (not yet uploaded to crates.io), with two
 published immutable GitHub research prereleases: the Apple XCFramework revision
 `v0.1.0-alpha.2-r1` (Rust 1.96.1; the earlier `v0.1.0-alpha.2` Apple build on

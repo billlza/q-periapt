@@ -1835,7 +1835,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self, root: pathlib.Path, *, hash_repro_payload: bool = False
     ) -> pathlib.Path:
         package = root / (
-            "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+            "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc"
         )
         for relative in windows_package.EXPECTED_PAYLOAD_FILES:
             path = package / relative
@@ -1941,7 +1941,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             package,
             self.repository_root,
             package_name=package.name,
-            version="0.1.0-alpha.2",
+            version="0.1.0-alpha.3",
             git_commit="a" * 40,
             git_tree="b" * 40,
             source_date_epoch=1_700_000_000,
@@ -2200,7 +2200,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     package,
                     self.repository_root,
                     package_name=package.name,
-                    version="0.1.0-alpha.2",
+                    version="0.1.0-alpha.3",
                     git_commit="a" * 40,
                     git_tree="b" * 40,
                     source_date_epoch=1_700_000_000,
@@ -2214,7 +2214,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     package,
                     self.repository_root,
                     package_name=package.name,
-                    version="0.1.0-alpha.2",
+                    version="0.1.0-alpha.3",
                     git_commit="not-a-commit",
                     git_tree="b" * 40,
                     source_date_epoch=1_700_000_000,
@@ -2237,7 +2237,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                             package,
                             self.repository_root,
                             package_name=package.name,
-                            version="0.1.0-alpha.2",
+                            version="0.1.0-alpha.3",
                             git_commit="a" * 40,
                             git_tree="b" * 40,
                             source_date_epoch=1_700_000_000,

@@ -284,7 +284,7 @@ class ReleaseConsumerReceiptTests(unittest.TestCase):
         self.out_dir.mkdir(mode=0o700)
         self.index_path = (
             self.target
-            / "qperiapt-local-release/release/0.1.0-alpha.2"
+            / "qperiapt-local-release/release/0.1.0-alpha.3"
             / ("a" * 40)
             / "index.json"
         )

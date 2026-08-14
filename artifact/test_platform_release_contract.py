@@ -11,6 +11,7 @@ import unittest
 import android_device_proof
 import c_abi_contract
 import platform_distribution
+import platform_distribution_contract as current_contract
 import platform_release_contract as contract
 
 
@@ -231,16 +232,31 @@ class PlatformReleaseContractTests(unittest.TestCase):
             contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
             contract.PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
         )
+        self.assertEqual(contract.PRODUCT_VERSION, "0.1.0-alpha.2")
+        self.assertEqual(contract.RELEASE_TAG, "abi2-platforms-v0.1.0-alpha.2-r2")
         self.assertEqual(
-            contract.PLATFORM_DISTRIBUTION_SCHEMA_VERSION,
+            current_contract.PLATFORM_DISTRIBUTION_SCHEMA_VERSION,
             platform_distribution.SCHEMA_VERSION,
         )
-        self.assertEqual(contract.PLATFORM_DISTRIBUTION_KIND, platform_distribution.KIND)
-        self.assertEqual(contract.PRODUCT_VERSION, platform_distribution.PRODUCT_VERSION)
-        self.assertEqual(contract.PRODUCT_VERSION, c_abi_contract.PACKAGE_SEMVER)
-        self.assertEqual(contract.RELEASE_TAG, platform_distribution.RELEASE_TAG)
-        self.assertEqual(contract.PLATFORM_INPUT_ASSETS, platform_distribution.INPUT_ASSETS)
-        self.assertEqual(contract.PLATFORM_RELEASE_FILES, platform_distribution.RELEASE_FILES)
+        self.assertEqual(
+            current_contract.PLATFORM_DISTRIBUTION_KIND,
+            platform_distribution.KIND,
+        )
+        self.assertEqual(
+            current_contract.PRODUCT_VERSION,
+            platform_distribution.PRODUCT_VERSION,
+        )
+        self.assertEqual(current_contract.PRODUCT_VERSION, c_abi_contract.PACKAGE_SEMVER)
+        self.assertEqual(current_contract.RELEASE_TAG, platform_distribution.RELEASE_TAG)
+        self.assertEqual(
+            current_contract.PLATFORM_INPUT_ASSETS,
+            platform_distribution.INPUT_ASSETS,
+        )
+        self.assertEqual(
+            current_contract.PLATFORM_RELEASE_FILES,
+            platform_distribution.RELEASE_FILES,
+        )
+        self.assertNotEqual(contract.RELEASE_TAG, current_contract.RELEASE_TAG)
 
     def test_absent_optional_publication_receipts_remain_valid(self) -> None:
         contract.validate_release_publications({})

@@ -13,12 +13,14 @@ import unittest
 
 class PlatformCandidateVerifierTests(unittest.TestCase):
     COMMIT = "a" * 40
+    PRODUCT_VERSION = "0.1.0-alpha.3"
+    RELEASE_TAG = "abi2-platforms-v0.1.0-alpha.3-r1"
     ASSETS = (
-        "q-periapt-android-0.1.0-alpha.2.aar",
-        "q-periapt-android-0.1.0-alpha.2-MANIFEST.json",
-        "q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz",
-        "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz",
-        "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip",
+        "q-periapt-android-0.1.0-alpha.3.aar",
+        "q-periapt-android-0.1.0-alpha.3-MANIFEST.json",
+        "q-periapt-c-abi2-0.1.0-alpha.3-aarch64-unknown-linux-gnu.tar.gz",
+        "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-unknown-linux-gnu.tar.gz",
+        "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip",
     )
 
     @classmethod
@@ -157,14 +159,32 @@ esac
         self.assertIn("refs/remotes/origin/main^{commit}", self.script)
         self.assertIn("git status --porcelain=v1 --untracked-files=all", self.script)
 
-    def test_platform_release_revision_converges_on_r2(self) -> None:
-        release_tag = "abi2-platforms-v0.1.0-alpha.2-r2"
+    def test_tag_preflight_binds_main_current_semver_and_abi2(self) -> None:
+        self.assertIn(
+            "test \"$commit\" = \"$(git rev-parse --verify "
+            "'refs/remotes/origin/main^{commit}')\"",
+            self.workflow,
+        )
+        self.assertIn(
+            "test \"$(jq -r '.package.semver' "
+            "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)\" "
+            f'= "{self.PRODUCT_VERSION}"',
+            self.workflow,
+        )
+        self.assertIn(
+            "test \"$(jq -r '.abi.major' "
+            "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)\" = \"2\"",
+            self.workflow,
+        )
+
+    def test_platform_release_revision_selects_alpha3_r1(self) -> None:
+        release_tag = self.RELEASE_TAG
         self.assertIn(f"RELEASE_TAG={release_tag}", self.script)
         self.assertIn(f"- {release_tag}", self.workflow)
         self.assertIn(f"group: {release_tag}", self.workflow)
         self.assertIn(f"EXPECTED_REF: refs/tags/{release_tag}", self.workflow)
-        self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r1", self.script)
-        self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r1", self.workflow)
+        self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r2", self.script)
+        self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r2", self.workflow)
 
     def test_attestation_job_reverifies_both_linux_archives(self) -> None:
         self.assertIn(
@@ -196,6 +216,17 @@ esac
             self.assertGreaterEqual(self.script.count(asset), 2)
         self.assertIn("assets=6", self.script)
 
+        subject_start = self.workflow.index("          subject-path: |\n")
+        subject_end = self.workflow.index("\n      - uses:", subject_start)
+        subject_lines = self.workflow[subject_start:subject_end].splitlines()[1:]
+        expected_subjects = {
+            f"candidate/{asset}"
+            for asset in (*self.ASSETS, "CANDIDATE_SHA256SUMS")
+        }
+        actual_subjects = [line.strip() for line in subject_lines]
+        self.assertEqual(6, len(actual_subjects))
+        self.assertEqual(expected_subjects, set(actual_subjects))
+
     def test_valid_candidate_executes_six_exact_attestation_verifications(self) -> None:
         candidate = self._candidate("valid")
         process = self._run(candidate)
@@ -223,7 +254,7 @@ esac
                     "--signer-digest",
                     self.COMMIT,
                     "--source-ref",
-                    "refs/tags/abi2-platforms-v0.1.0-alpha.2-r2",
+                    f"refs/tags/{self.RELEASE_TAG}",
                     "--source-digest",
                     self.COMMIT,
                     "--deny-self-hosted-runners",

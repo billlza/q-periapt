@@ -108,7 +108,7 @@ class StagedFileRecord:
     expected_mode: int | None = None
 
 
-_ANDROID_VERSION = "0.1.0-alpha.2"
+_ANDROID_VERSION = "0.1.0-alpha.3"
 _ANDROID_PACKAGE = f"q-periapt-android-{_ANDROID_VERSION}"
 _ANDROID_AAR = f"{_ANDROID_PACKAGE}.aar"
 
@@ -131,13 +131,13 @@ ANDROID_AAR_PROFILE = ProfileSpec(
 )
 
 _LINUX_X86_PACKAGE = (
-    "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz"
+    "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-unknown-linux-gnu.tar.gz"
 )
 _LINUX_ARM_PACKAGE = (
-    "q-periapt-c-abi2-0.1.0-alpha.2-aarch64-unknown-linux-gnu.tar.gz"
+    "q-periapt-c-abi2-0.1.0-alpha.3-aarch64-unknown-linux-gnu.tar.gz"
 )
 _WINDOWS_PACKAGE = (
-    "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip"
+    "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip"
 )
 _CANDIDATE_ANDROID_MANIFEST = f"{_ANDROID_PACKAGE}-MANIFEST.json"
 

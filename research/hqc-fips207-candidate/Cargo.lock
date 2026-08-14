@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-core"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 
 [[package]]
 name = "q-periapt-hqc-fips207-candidate"
@@ -114,7 +114,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-kem"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "q-periapt-core",
 ]

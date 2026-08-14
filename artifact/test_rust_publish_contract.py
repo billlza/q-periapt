@@ -73,7 +73,7 @@ def normalized_cargo_lock(
             (
                 "[[package]]",
                 f'name = "{name}"',
-                'version = "0.1.0-alpha.2"',
+                'version = "0.1.0-alpha.3"',
                 "",
             )
         )
@@ -232,9 +232,9 @@ class RustPublishContractTests(unittest.TestCase):
             "",
             "\n".join(
                 (
-                    "   Packaging q-periapt-core v0.1.0-alpha.2 (/source)",
+                    "   Packaging q-periapt-core v0.1.0-alpha.3 (/source)",
                     "    Packaged 6 files, 90.6KiB (31.5KiB compressed)",
-                    "   Verifying q-periapt-core v0.1.0-alpha.2 (/package)",
+                    "   Verifying q-periapt-core v0.1.0-alpha.3 (/package)",
                     "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.1s",
                 )
             ),
@@ -574,8 +574,8 @@ class RustPublishContractTests(unittest.TestCase):
             )
         )
         local_checksum = base.replace(
-            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.2"',
-            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.2"\n'
+            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.3"',
+            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.3"\n'
             + f'checksum = {json.dumps("c" * 64)}'.encode(),
             1,
         )
@@ -604,7 +604,7 @@ class RustPublishContractTests(unittest.TestCase):
             ),
             "local resolved from registry": normalized_cargo_lock(
                 registry_packages=(
-                    ("q-periapt-core", "0.1.0-alpha.2", "a" * 64),
+                    ("q-periapt-core", "0.1.0-alpha.3", "a" * 64),
                 )
             ),
             "duplicate registry": duplicate_registry,

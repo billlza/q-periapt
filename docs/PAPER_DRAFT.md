@@ -8,7 +8,7 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.0-alpha.2` is a pre-publication package-ready research-alpha Rust
+> ABI 2 / `0.1.0-alpha.3` is a pre-publication package-ready research-alpha Rust
 > crate line (not yet on crates.io). Its no-upload package contract does not prove
 > crates.io upload-API acceptance, crate-name ownership, publishing credentials or
 > authorization, server-side policy acceptance, or a registry receipt. It has two published immutable

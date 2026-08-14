@@ -85,7 +85,7 @@ The gate requires a clean worktree for release proof; use
 Credentialed Apple distribution is intentionally separate from that CI path:
 
 ```sh
-QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0-alpha.2-r1 \
+QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0-alpha.3-r1 \
 QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')" \
 sh artifact/swift-xcframework-release.sh
 ```
@@ -95,7 +95,7 @@ static XCFramework, verifies that signing did not alter the three `.a` slices, e
 ZIP extraction through the isolated consumer, and requires a fixed 22-entry static-only archive:
 three static-library slices, their headers and metadata, plus the outer code-signature resources.
 Any extra executable, dynamic library, app, framework, bundle, script, symlink, special file, or
-unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.0-alpha.2-r1` release
+unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.0-alpha.3-r1` release
 identity, source commit, ZIP and SwiftPM hashes, certificate and signature resources, and all
 slice hashes; `MANIFEST.json` additionally binds the exact Rust/Cargo, Swift, Xcode, and host
 toolchain identities. Because this SDK payload
@@ -127,8 +127,8 @@ a post-publication URL-consumer failure
 invalidates that prerelease and requires a new version; it must never be repaired by replacing the
 asset under the same tag.
 
-The current Apple revision is `v0.1.0-alpha.2-r1` (Rust 1.96.1). The earlier
-`v0.1.0-alpha.2` release was built with Rust 1.96.0; it remains available only as
-historical, attested evidence and must not be consumed as the patched-toolchain
-Apple build. Non-Apple platform packages (Android AAR, Linux/Windows C SDKs) live
-in the separate `abi2-platforms-v0.1.0-alpha.2-r2` prerelease.
+The current Apple revision is `v0.1.0-alpha.3-r1` (Rust 1.96.1). The earlier
+`v0.1.0-alpha.2-r1` patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0
+build remain available only as immutable historical evidence. Non-Apple platform
+packages (Android AAR, Linux/Windows C SDKs) live in the separate
+`abi2-platforms-v0.1.0-alpha.3-r1` prerelease.

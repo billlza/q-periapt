@@ -1,5 +1,5 @@
 #!/bin/sh
-# Re-download and independently verify the immutable alpha.2 Apple release set.
+# Re-download and independently verify the immutable alpha.3 Apple release set.
 set -eu
 
 unset CDPATH
@@ -58,7 +58,7 @@ for tool in /usr/bin/codesign /usr/bin/cmp /usr/bin/curl /usr/bin/ditto \
 	fi
 done
 
-PRODUCT_VERSION="0.1.0-alpha.2"
+PRODUCT_VERSION="0.1.0-alpha.3"
 RELEASE_REVISION="r1"
 RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"
 RELEASE_BASE="https://github.com/billlza/q-periapt/releases/download/$RELEASE_TAG"
@@ -75,7 +75,7 @@ EXPECTED_SHA256SUMS_SHA256=${QPERIAPT_SWIFT_BINARY_SHA256SUMS_SHA256:-}
 ARTIFACT_SOURCE_COMMIT=${QPERIAPT_SWIFT_BINARY_SOURCE_COMMIT:-}
 
 if [ "$URL" != "$ZIP_URL" ]; then
-	printf 'error: remote consumer URL must equal the immutable alpha.2-r1 release asset URL\n' >&2
+	printf 'error: remote consumer URL must equal the immutable alpha.3-r1 release asset URL\n' >&2
 	exit 2
 fi
 require_lower_hex() {

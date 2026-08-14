@@ -5,7 +5,7 @@
 > [!WARNING]
 > **Status: published GitHub research prereleases / crates.io pre-publication
 > package-ready pre-1.0 research alpha / doctoral-thesis project
-> (v0.1.0-alpha.2, ABI 2). The immutable, evidence-bound GitHub research prereleases
+> (v0.1.0-alpha.3, ABI 2). The immutable, evidence-bound GitHub research prereleases
 > are the Apple XCFramework revision `v0.1.0-alpha.2-r1` and the
 > `abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR,
 > GNU/Linux x86_64/aarch64 SDK archives, and an unsigned experimental Windows x64
@@ -300,7 +300,7 @@ exact phase-1 bytes and non-claims are in
 
 Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned, not started.
 
-| Dimension | Target | Today (v0.1.0-alpha.2 pre-publication package-ready ABI 2 research alpha) |
+| Dimension | Target | Today (v0.1.0-alpha.3 pre-publication package-ready ABI 2 research alpha) |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented shared secure-wipe block; builds `thumbv7em-none-eabihf`) |
 | Hybrid KEM | ML-KEM-768 + X25519, with independently bounded algorithm-diversity research | ✅ ML-KEM-768 through the portable-only `q-periapt-mlkem-native-sys` boundary (`mlkem-native` v1.2.0) + X25519 (x25519-dalek) are wired; real hybrid encap/decap round-trips under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend. The **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently cross-checked KAT) and is `ContextBound`-only. **ML-KEM-512** (L1) also has a verified backend, so the FIPS-203 family (512/768/1024) is ACVP + differential covered for agility. The old timing-leaky/unmaintained PQClean-HQC adapter and `hqc` feature are gone from the publishable graph; suite code `3` is tombstoned. RustCrypto `hqc-kem 0.1.0-rc.0` lives only in the `publish = false` HQC-v5/FIPS-207-draft shadow crate, with deterministic round-trip/size research tests but no product-suite, ABI, official-IPD-conformance, or final-standard claim. |

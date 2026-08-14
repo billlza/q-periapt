@@ -1623,13 +1623,13 @@ python3() {
             output = release_index.resolve_release_output(
                 root,
                 channel="release",
-                version="0.1.0-alpha.2",
+                version="0.1.0-alpha.3",
                 commit="a" * 40,
             )
             self.assertEqual(
                 output,
                 root
-                / "target/qperiapt-local-release/release/0.1.0-alpha.2"
+                / "target/qperiapt-local-release/release/0.1.0-alpha.3"
                 / ("a" * 40),
             )
 
@@ -2354,7 +2354,7 @@ release_index.publish_release_transaction(
     def test_sigterm_during_staging_cannot_poison_the_final_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
-            version = "0.1.0-alpha.2"
+            version = "0.1.0-alpha.3"
             commit = "a" * 40
             final_root = (
                 root / "target/qperiapt-local-release/diagnostic" / version / commit
@@ -2426,7 +2426,7 @@ time.sleep(60)
             root = pathlib.Path(temporary).resolve()
             target = root / "target"
             target.mkdir(mode=0o700)
-            version = "0.1.0-alpha.2"
+            version = "0.1.0-alpha.3"
             commit = "a" * 40
             final_root = target / "qperiapt-local-release/diagnostic" / version / commit
             pointer_path = target / "qperiapt-local-release/latest-diagnostic.json"
@@ -2490,7 +2490,7 @@ release_index.publish_release_transaction(
             target.mkdir(mode=0o700)
             commit = "a" * 40
             final_root = (
-                target / "qperiapt-local-release/diagnostic/0.1.0-alpha.2" / commit
+                target / "qperiapt-local-release/diagnostic/0.1.0-alpha.3" / commit
             )
             release_index.ensure_private_directory(final_root.parent, target)
             malformed = final_root.parent / f".{commit}.staging-not-a-token"
@@ -2966,7 +2966,7 @@ release_index.publish_release_transaction(
     def test_cross_face_core_semantics_must_match(self) -> None:
         trust_semantics = {
             "name": "fixture",
-            "version": "0.1.0-alpha.2",
+            "version": "0.1.0-alpha.3",
             "abi": {
                 "major": 2,
                 "contract_sha256": "a" * 64,

@@ -7,6 +7,7 @@ latest ABI 2 publication set while it remains current:
 
 | Publication | Scope | Supported |
 | --- | --- | --- |
+| `0.1.0-alpha.3` source line | Rust source/crates and ABI 2 contract | Yes |
 | `v0.1.0-alpha.2-r1` | Apple XCFramework | Yes |
 | `abi2-platforms-v0.1.0-alpha.2-r2` | Android, GNU/Linux, unsigned experimental Windows | Yes |
 | `v0.1.0-alpha.2` and older publications | Superseded artifacts | No |

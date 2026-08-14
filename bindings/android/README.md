@@ -46,8 +46,8 @@ build-tools 36.0.0, and release mode:
 set -eu
 sh artifact/android-aar.sh
 
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/q-periapt-android-0.1.0-alpha.3.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/MANIFEST.json"
 avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
 avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py runtime-avd-name \
   --adb-profile macos-account --device-abi arm64-v8a)
@@ -94,8 +94,8 @@ requires an exact serial and must reuse the same clean-source AAR and manifest; 
 canonical AVD in `artifact/results.json`, the release index, or manifest-bound `proof-to-byte`:
 
 ```sh
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/q-periapt-android-0.1.0-alpha.3.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/MANIFEST.json"
 QPERIAPT_ANDROID_SERIAL=<adb-serial> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
