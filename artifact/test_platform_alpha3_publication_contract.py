@@ -222,9 +222,33 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                 (
                     "observation",
                     "candidate_attestation",
+                    "workflow_run_id",
+                ),
+                contract.MAX_WORKFLOW_RUN_ID + 1,
+            ),
+            (
+                (
+                    "observation",
+                    "candidate_attestation",
                     "workflow_run_attempt",
                 ),
                 True,
+            ),
+            (
+                (
+                    "observation",
+                    "candidate_attestation",
+                    "workflow_run_attempt",
+                ),
+                0,
+            ),
+            (
+                (
+                    "observation",
+                    "candidate_attestation",
+                    "workflow_run_attempt",
+                ),
+                contract.MAX_WORKFLOW_RUN_ATTEMPT + 1,
             ),
             (
                 ("observation", "candidate_attestation", "verified"),
@@ -242,6 +266,14 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                     contract.PlatformAlpha3PublicationContractError
                 ):
                     self.validate(receipt)
+
+    def test_candidate_rerun_attempt_two_is_valid_in_both_states(self) -> None:
+        for receipt in (pending_receipt(), verified_receipt()):
+            with self.subTest(status=receipt["status"]):
+                receipt["observation"]["candidate_attestation"][
+                    "workflow_run_attempt"
+                ] = 2
+                self.validate(receipt)
 
     def test_candidate_subject_set_and_workflow_order_are_exact(self) -> None:
         for mutation in ("missing", "extra", "order", "digest-key"):

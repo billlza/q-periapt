@@ -431,10 +431,7 @@ class ApplePublicationContractTests(unittest.TestCase):
         )
         for label, previous, current in (
             ("empty", empty, empty),
-            ("add-alpha2", empty, alpha2),
             ("add-pending", empty, pending),
-            ("add-verified", empty, verified),
-            ("add-both", empty, both),
             ("same-alpha2", alpha2, copy.deepcopy(alpha2)),
             ("same-pending", pending, copy.deepcopy(pending)),
             ("same-verified", verified, copy.deepcopy(verified)),
@@ -442,6 +439,19 @@ class ApplePublicationContractTests(unittest.TestCase):
         ):
             with self.subTest(label=label):
                 contract.validate_apple_publication_transition(previous, current)
+
+        for label, current in (("add-alpha2", alpha2), ("add-both", both)):
+            with self.subTest(label=label), self.assertRaisesRegex(
+                contract.ApplePublicationContractError,
+                "historical Apple alpha.2.*cannot be introduced",
+            ):
+                contract.validate_apple_publication_transition(empty, current)
+
+        with self.assertRaisesRegex(
+            contract.ApplePublicationContractError,
+            "must first be recorded as pending",
+        ):
+            contract.validate_apple_publication_transition(empty, verified)
 
     def test_transition_rejects_removal_demotion_and_candidate_drift(self) -> None:
         alpha2 = manifest(

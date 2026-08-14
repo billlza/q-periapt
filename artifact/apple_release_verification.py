@@ -9,9 +9,9 @@ only a small PII-safe projection after all local and remote samples agree.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import datetime as dt
-import hashlib
 import json
 import os
 import pathlib
@@ -20,7 +20,7 @@ import shutil
 import stat
 import subprocess
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Never
 
 from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
@@ -28,6 +28,11 @@ from evidence_io import (
     EvidenceIOError,
     parse_strict_json_bytes,
     read_regular_snapshot,
+)
+import github_release_observation as github_release
+from publication_receipt_io import (
+    PublicationReceiptIOError,
+    write_private_bytes_noreplace_at,
 )
 
 
@@ -85,45 +90,17 @@ ASSET_CONTENT_TYPES = {
     SHA256SUMS_NAME: "application/octet-stream",
 }
 
-RELEASE_VIEW_FIELDS = (
-    "databaseId",
-    "isDraft",
-    "isImmutable",
-    "isPrerelease",
-    "publishedAt",
-    "tagName",
-    "targetCommitish",
-    "url",
-    "assets",
-)
-RELEASE_VIEW_KEYS = frozenset(RELEASE_VIEW_FIELDS)
-REPOSITORY_VIEW_FIELDS = ("nameWithOwner", "url", "visibility")
-REPOSITORY_VIEW_KEYS = frozenset(REPOSITORY_VIEW_FIELDS)
-ASSET_VIEW_KEYS = frozenset(
-    {
-        "apiUrl",
-        "contentType",
-        "createdAt",
-        "digest",
-        "downloadCount",
-        "id",
-        "label",
-        "name",
-        "size",
-        "state",
-        "updatedAt",
-        "url",
-    }
-)
-VERIFICATION_RESULT_MEDIA_TYPE = (
-    "application/vnd.dev.sigstore.verificationresult+json;version=0.1"
-)
-STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
-RELEASE_PREDICATE_TYPE = "https://in-toto.io/attestation/release/v0.2"
-RELEASE_CERTIFICATE_SAN = "https://dotcom.releases.github.com"
-RELEASE_CERTIFICATE_ISSUER = "CN=Fulcio Intermediate l1,O=GitHub\\, Inc."
-TIMESTAMP_AUTHORITY_TYPE = "TimestampAuthority"
-TIMESTAMP_AUTHORITY_URI = "timestamp.githubapp.com"
+# Backwards-compatible public fixture constants are aliases to the neutral
+# parser's single policy authority.  No Apple-local copy may drift from it.
+RELEASE_VIEW_FIELDS = github_release.RELEASE_VIEW_FIELDS
+REPOSITORY_VIEW_FIELDS = github_release.REPOSITORY_VIEW_FIELDS
+VERIFICATION_RESULT_MEDIA_TYPE = github_release.VERIFICATION_RESULT_MEDIA_TYPE
+STATEMENT_TYPE = github_release.STATEMENT_TYPE
+RELEASE_PREDICATE_TYPE = github_release.RELEASE_PREDICATE_TYPE
+RELEASE_CERTIFICATE_SAN = github_release.RELEASE_CERTIFICATE_SAN
+RELEASE_CERTIFICATE_ISSUER = github_release.RELEASE_CERTIFICATE_ISSUER
+TIMESTAMP_AUTHORITY_TYPE = github_release.TIMESTAMP_AUTHORITY_TYPE
+TIMESTAMP_AUTHORITY_URI = github_release.TIMESTAMP_AUTHORITY_URI
 
 MAX_LEDGER_BYTES = 1024 * 1024
 MAX_RELEASE_VIEW_BYTES = 4 * 1024 * 1024
@@ -141,7 +118,6 @@ PRODUCT_VERSION = re.compile(
 )
 REVISION = re.compile(r"^r[1-9][0-9]*$")
 SAFE_TAG = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._+-]*$")
-SAFE_NODE_ID = re.compile(r"^[0-9A-Za-z_-]+$")
 SAFE_DIRECTORY_LEAF = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]*$")
 
 DANGEROUS_GIT_ENVIRONMENT = frozenset(
@@ -227,21 +203,6 @@ def _exact_keys(
     )
 
 
-def _canonical_json(value: object) -> bytes:
-    try:
-        return json.dumps(
-            value,
-            allow_nan=False,
-            ensure_ascii=True,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("ascii")
-    except (TypeError, ValueError, RecursionError) as exc:
-        raise AppleReleaseVerificationError(
-            "GitHub release verification result is not canonical JSON"
-        ) from exc
-
-
 def _sha1(value: object, label: str) -> str:
     _require(
         isinstance(value, str) and HEX_40.fullmatch(value) is not None,
@@ -254,22 +215,6 @@ def _sha256(value: object, label: str) -> str:
     _require(
         isinstance(value, str) and HEX_64.fullmatch(value) is not None,
         f"{label} must be a lowercase SHA-256",
-    )
-    return value
-
-
-def _positive_integer(value: object, label: str) -> int:
-    _require(
-        type(value) is int and 0 < value <= MAX_RELEASE_ID,
-        f"{label} must be a bounded positive integer",
-    )
-    return value
-
-
-def _nonnegative_integer(value: object, label: str) -> int:
-    _require(
-        type(value) is int and 0 <= value <= MAX_RELEASE_ID,
-        f"{label} must be a bounded nonnegative integer",
     )
     return value
 
@@ -464,6 +409,35 @@ def _directory_fd(
     return descriptor
 
 
+@contextlib.contextmanager
+def _directory_handle(
+    path: pathlib.Path,
+    *,
+    label: str,
+    required_mode: int | None,
+) -> Iterator[int]:
+    """Close a pinned directory without replacing the primary exception."""
+
+    descriptor = _directory_fd(
+        path, label=label, required_mode=required_mode
+    )
+    primary: BaseException | None = None
+    try:
+        yield descriptor
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            detail = f"cannot close {label}"
+            if primary is not None:
+                primary.add_note(detail)
+            else:
+                raise AppleReleaseVerificationError(detail) from exc
+
+
 def _require_absent_at(directory_fd: int, name: str, label: str) -> None:
     try:
         os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
@@ -496,15 +470,12 @@ def _normalize_projection_path(path: pathlib.Path) -> pathlib.Path:
 
 
 def _validate_projection_absent(path: pathlib.Path) -> None:
-    parent_fd = _directory_fd(
+    with _directory_handle(
         path.parent,
         label="Apple release projection parent",
         required_mode=0o700,
-    )
-    try:
+    ) as parent_fd:
         _require_absent_at(parent_fd, PROJECTION_NAME, "Apple release projection")
-    finally:
-        os.close(parent_fd)
 
 
 def _paths_overlap(left: pathlib.Path, right: pathlib.Path) -> bool:
@@ -559,13 +530,12 @@ def _normalize_raw_directory_path(path: pathlib.Path) -> pathlib.Path:
     return normalized
 
 
-def _create_raw_directory(path: pathlib.Path) -> int:
-    parent_fd = _directory_fd(
+def _create_raw_directory(path: pathlib.Path) -> None:
+    with _directory_handle(
         APPLE_RAW_ROOT,
         label="Apple release raw parent",
         required_mode=0o700,
-    )
-    try:
+    ) as parent_fd:
         _require_absent_at(parent_fd, path.name, "Apple release raw directory")
         try:
             os.mkdir(path.name, 0o700, dir_fd=parent_fd)
@@ -574,13 +544,12 @@ def _create_raw_directory(path: pathlib.Path) -> int:
             raise AppleReleaseVerificationError(
                 "cannot create Apple release raw directory"
             ) from exc
-    finally:
-        os.close(parent_fd)
-    return _directory_fd(
+    with _directory_handle(
         path,
         label="Apple release raw directory",
         required_mode=0o700,
-    )
+    ):
+        pass
 
 
 def _write_private_bytes_at(
@@ -589,43 +558,36 @@ def _write_private_bytes_at(
     data: bytes,
     *,
     label: str,
-) -> None:
-    _require(SAFE_DIRECTORY_LEAF.fullmatch(name) is not None, f"{label} leaf is unsafe")
-    flags = (
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_CLOEXEC", 0)
-    )
-    descriptor = -1
+) -> str:
     try:
-        descriptor = os.open(name, flags, 0o600, dir_fd=directory_fd)
-        offset = 0
-        while offset < len(data):
-            written = os.write(descriptor, data[offset:])
-            _require(written > 0, f"{label} write made no progress")
-            offset += written
-        os.fchmod(descriptor, 0o600)
-        metadata = os.fstat(descriptor)
-        _require(
-            stat.S_ISREG(metadata.st_mode)
-            and metadata.st_uid == os.geteuid()
-            and metadata.st_nlink == 1
-            and stat.S_IMODE(metadata.st_mode) == 0o600,
-            f"{label} private file identity differs",
+        return write_private_bytes_noreplace_at(
+            directory_fd,
+            name,
+            data,
+            label=label,
+            maximum=max(
+                MAX_RELEASE_VERIFY_BYTES,
+                MAX_RELEASE_VIEW_BYTES,
+                MAX_REPOSITORY_VIEW_BYTES,
+            ),
         )
-        os.fsync(descriptor)
-        os.close(descriptor)
-        descriptor = -1
-        os.fsync(directory_fd)
-    except FileExistsError as exc:
-        raise AppleReleaseVerificationError(f"{label} already exists") from exc
-    except OSError as exc:
-        raise AppleReleaseVerificationError(f"cannot write {label}") from exc
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
+    except PublicationReceiptIOError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
+
+
+def _write_raw_bytes(
+    raw_directory: pathlib.Path,
+    name: str,
+    data: bytes,
+    *,
+    label: str,
+) -> None:
+    with _directory_handle(
+        raw_directory,
+        label="Apple release raw directory",
+        required_mode=0o700,
+    ) as raw_fd:
+        _write_private_bytes_at(raw_fd, name, data, label=label)
 
 
 def _write_projection(path: pathlib.Path, projection: object) -> str:
@@ -633,21 +595,17 @@ def _write_projection(path: pathlib.Path, projection: object) -> str:
     payload = (
         json.dumps(projection, indent=2, ensure_ascii=True, sort_keys=True) + "\n"
     ).encode("ascii")
-    parent_fd = _directory_fd(
+    with _directory_handle(
         path.parent,
         label="Apple release projection parent",
         required_mode=0o700,
-    )
-    try:
-        _write_private_bytes_at(
+    ) as parent_fd:
+        return _write_private_bytes_at(
             parent_fd,
             PROJECTION_NAME,
             payload,
             label="Apple release projection",
         )
-    finally:
-        os.close(parent_fd)
-    return hashlib.sha256(payload).hexdigest()
 
 
 def load_release_expectation(path: pathlib.Path) -> ReleaseExpectation:
@@ -888,131 +846,83 @@ def _verify_local_tag(
     return tag_object, tag_commit
 
 
+def _github_release_policy(
+    expectation: ReleaseExpectation,
+    *,
+    release_id: int,
+    tag_object: str | None,
+) -> github_release.ReleasePolicy:
+    return github_release.ReleasePolicy(
+        repository=REPOSITORY,
+        repository_url=REPOSITORY_URL,
+        release_url=expectation.release_url,
+        download_prefix=RELEASE_DOWNLOAD_PREFIX,
+        api_asset_prefix=API_ASSET_PREFIX,
+        tag_subject_uri=f"{TAG_SUBJECT_PREFIX}{expectation.tag}",
+        tag=expectation.tag,
+        tag_commit=expectation.tag_commit,
+        tag_object=tag_object,
+        asset_names=ASSET_NAMES,
+        expected_release_id=release_id,
+        expected_sha256=expectation.asset_sha256,
+        expected_content_types=ASSET_CONTENT_TYPES,
+        require_asset_order=True,
+    )
+
+
 def _parse_release_view(
     data: bytes,
     *,
     expectation: ReleaseExpectation,
     release_id: int,
 ) -> ReleaseView:
-    value = _parse_strict_json(data, "GitHub Apple release view")
-    view = _object(value, "GitHub Apple release view")
-    _exact_keys(view, RELEASE_VIEW_KEYS, "GitHub Apple release view")
-    _require(
-        type(view["databaseId"]) is int and view["databaseId"] == release_id,
-        "GitHub Apple release ID differs",
-    )
-    _require(
-        view["isDraft"] is False
-        and view["isImmutable"] is True
-        and view["isPrerelease"] is True,
-        "GitHub Apple release publication state differs",
-    )
-    _require(view["tagName"] == expectation.tag, "GitHub Apple release tag differs")
-    _require(view["url"] == expectation.release_url, "GitHub Apple release URL differs")
-    _require(
-        view["targetCommitish"] in {"main", expectation.tag_commit},
-        "GitHub Apple release target differs",
-    )
-    published_at = view["publishedAt"]
-    published_time = _timestamp(published_at, "GitHub Apple release publishedAt")
-    assets_value = view["assets"]
-    _require(
-        isinstance(assets_value, list) and len(assets_value) == len(ASSET_NAMES),
-        "GitHub Apple release asset count differs",
-    )
-    assets: list[dict[str, object]] = []
-    for index, expected_name in enumerate(ASSET_NAMES):
-        asset = _object(assets_value[index], "GitHub Apple release asset")
-        _exact_keys(asset, ASSET_VIEW_KEYS, "GitHub Apple release asset")
-        _require(asset["name"] == expected_name, "GitHub Apple release asset order differs")
-        size = _positive_integer(asset["size"], f"GitHub Apple asset size for {expected_name}")
-        expected_digest = expectation.asset_sha256[expected_name]
-        _require(
-            asset["digest"] == f"sha256:{expected_digest}",
-            f"GitHub Apple release digest differs for {expected_name}",
+    try:
+        parsed = github_release.parse_release_view(
+            data,
+            policy=_github_release_policy(
+                expectation,
+                release_id=release_id,
+                tag_object=None,
+            ),
+            label="GitHub Apple release view",
         )
-        _require(asset["state"] == "uploaded", "GitHub Apple asset state differs")
-        _require(
-            asset["contentType"] == ASSET_CONTENT_TYPES[expected_name],
-            f"GitHub Apple asset content type differs for {expected_name}",
-        )
-        _require(asset["label"] == "", "GitHub Apple release asset label differs")
-        expected_url = (
-            f"{RELEASE_DOWNLOAD_PREFIX}{expectation.tag}/{expected_name}"
-        )
-        _require(asset["url"] == expected_url, "GitHub Apple asset URL differs")
-        api_url = asset["apiUrl"]
-        _require(
-            isinstance(api_url, str)
-            and re.fullmatch(re.escape(API_ASSET_PREFIX) + r"[1-9][0-9]*", api_url)
-            is not None,
-            "GitHub Apple asset API URL differs",
-        )
-        node_id = asset["id"]
-        _require(
-            isinstance(node_id, str)
-            and len(node_id) <= 256
-            and SAFE_NODE_ID.fullmatch(node_id) is not None,
-            "GitHub Apple asset node ID is malformed",
-        )
-        created_at = _timestamp(
-            asset["createdAt"], f"GitHub Apple asset createdAt for {expected_name}"
-        )
-        updated_at = _timestamp(
-            asset["updatedAt"], f"GitHub Apple asset updatedAt for {expected_name}"
-        )
-        _require(
-            created_at <= updated_at <= published_time,
-            f"GitHub Apple asset timestamps are out of order for {expected_name}",
-        )
-        _nonnegative_integer(
-            asset["downloadCount"],
-            f"GitHub Apple asset download count for {expected_name}",
-        )
-        assets.append(
-            {"bytes": size, "name": expected_name, "sha256": expected_digest}
-        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
     return ReleaseView(
-        published_at=published_at,
-        assets=tuple(assets),
-        canonical=_canonical_json(
-            {"assets": assets, "published_at": published_at}
-        ),
+        published_at=parsed.published_at,
+        assets=parsed.assets,
+        canonical=parsed.canonical,
     )
 
 
 def _parse_repository_view(data: bytes) -> RepositoryView:
-    value = _parse_strict_json(data, "GitHub repository visibility view")
-    view = _object(value, "GitHub repository visibility view")
-    _exact_keys(view, REPOSITORY_VIEW_KEYS, "GitHub repository visibility view")
-    _require(
-        view["nameWithOwner"] == REPOSITORY
-        and view["url"] == REPOSITORY_URL,
-        "GitHub repository visibility identity differs",
-    )
-    _require(
-        view["visibility"] == "PUBLIC",
-        "GitHub repository visibility is not PUBLIC",
-    )
-    return RepositoryView(canonical=_canonical_json(view))
+    try:
+        parsed = github_release.parse_repository_view(
+            data,
+            policy=github_release.RepositoryPolicy(
+                repository=REPOSITORY,
+                repository_url=REPOSITORY_URL,
+            ),
+            label="GitHub repository visibility view",
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
+    return RepositoryView(canonical=parsed.canonical)
 
 
 def _expected_subjects(
     expectation: ReleaseExpectation, expected_tag_object: str
 ) -> list[dict[str, object]]:
-    return [
-        {
-            "digest": {"sha1": expected_tag_object},
-            "uri": f"{TAG_SUBJECT_PREFIX}{expectation.tag}",
-        },
-        *[
-            {
-                "digest": {"sha256": expectation.asset_sha256[name]},
-                "name": name,
-            }
-            for name in ASSET_NAMES
-        ],
-    ]
+    try:
+        return github_release.expected_subjects(
+            _github_release_policy(
+                expectation,
+                release_id=1,
+                tag_object=expected_tag_object,
+            )
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
 
 
 def _parse_release_verification(
@@ -1023,169 +933,35 @@ def _parse_release_verification(
     expected_tag_object: str,
     published_at: str,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    value = _parse_strict_json(data, "GitHub Apple release verification")
-    envelope = _object(value, "GitHub Apple release verification")
-    _exact_keys(
-        envelope,
-        frozenset({"attestation", "verificationResult"}),
-        "GitHub Apple release verification",
-    )
-    _require(
-        isinstance(envelope["attestation"], dict),
-        "GitHub Apple release attestation bundle is not an object",
-    )
-    result = _object(
-        envelope["verificationResult"], "GitHub Apple verification result"
-    )
-    _exact_keys(
-        result,
-        frozenset(
-            {
-                "mediaType",
-                "signature",
-                "statement",
-                "verifiedIdentity",
-                "verifiedTimestamps",
-            }
-        ),
-        "GitHub Apple verification result",
-    )
-    _require(
-        result["mediaType"] == VERIFICATION_RESULT_MEDIA_TYPE,
-        "GitHub Apple verification media type differs",
-    )
-    signature = _object(result["signature"], "GitHub Apple release signature")
-    _exact_keys(signature, frozenset({"certificate"}), "GitHub Apple release signature")
-    certificate = _object(
-        signature["certificate"], "GitHub Apple release certificate"
-    )
-    _exact_keys(
-        certificate,
-        frozenset({"certificateIssuer", "subjectAlternativeName"}),
-        "GitHub Apple release certificate",
-    )
-    _require(
-        certificate
-        == {
-            "certificateIssuer": RELEASE_CERTIFICATE_ISSUER,
-            "subjectAlternativeName": RELEASE_CERTIFICATE_SAN,
-        },
-        "GitHub Apple release certificate identity differs",
-    )
-    _require(
-        result["verifiedIdentity"]
-        == {
-            "issuer": {"issuer": "", "regexp": ".*"},
-            "subjectAlternativeName": {
-                "regexp": r"^https://dotcom\.releases\.github\.com$",
-                "subjectAlternativeName": "",
-            },
-        },
-        "GitHub Apple verified identity differs",
-    )
-    timestamps = result["verifiedTimestamps"]
-    _require(
-        isinstance(timestamps, list) and len(timestamps) == 1,
-        "GitHub Apple verified timestamp count differs",
-    )
-    timestamp = _object(timestamps[0], "GitHub Apple verified timestamp")
-    _exact_keys(
-        timestamp,
-        frozenset({"timestamp", "type", "uri"}),
-        "GitHub Apple verified timestamp",
-    )
-    _require(
-        timestamp["type"] == TIMESTAMP_AUTHORITY_TYPE
-        and timestamp["uri"] == TIMESTAMP_AUTHORITY_URI,
-        "GitHub Apple timestamp authority differs",
-    )
-    timestamp_time = _timestamp(
-        timestamp["timestamp"], "GitHub Apple attestation timestamp"
-    )
-    _require(
-        _timestamp(published_at, "GitHub Apple release publishedAt") <= timestamp_time,
-        "GitHub Apple attestation predates release publication",
-    )
-
-    statement = _object(result["statement"], "GitHub Apple release statement")
-    _exact_keys(
-        statement,
-        frozenset({"_type", "predicate", "predicateType", "subject"}),
-        "GitHub Apple release statement",
-    )
-    _require(statement["_type"] == STATEMENT_TYPE, "GitHub Apple statement type differs")
-    _require(
-        statement["predicateType"] == RELEASE_PREDICATE_TYPE,
-        "GitHub Apple release predicate type differs",
-    )
-    subjects = _expected_subjects(expectation, expected_tag_object)
-    _require(statement["subject"] == subjects, "GitHub Apple release subjects differ")
-    predicate = _object(statement["predicate"], "GitHub Apple release predicate")
-    _exact_keys(
-        predicate,
-        frozenset(
-            {
-                "databaseId",
-                "ownerId",
-                "packageId",
-                "purl",
-                "repository",
-                "repositoryId",
-                "tag",
-            }
-        ),
-        "GitHub Apple release predicate",
-    )
-    repository_id = predicate["repositoryId"]
-    owner_id = predicate["ownerId"]
-    _require(
-        isinstance(repository_id, str)
-        and POSITIVE_DECIMAL.fullmatch(repository_id) is not None
-        and predicate["packageId"] == repository_id
-        and isinstance(owner_id, str)
-        and POSITIVE_DECIMAL.fullmatch(owner_id) is not None,
-        "GitHub Apple release repository identity is malformed",
-    )
-    purl = f"{TAG_SUBJECT_PREFIX}{expectation.tag}"
-    _require(
-        predicate["databaseId"] == str(release_id)
-        and predicate["purl"] == purl
-        and predicate["repository"] == REPOSITORY
-        and predicate["tag"] == expectation.tag,
-        "GitHub Apple release predicate identity differs",
-    )
-    verified_at = timestamp["timestamp"]
-    attestation_projection = {
-        "certificate_san": RELEASE_CERTIFICATE_SAN,
-        "predicate_type": RELEASE_PREDICATE_TYPE,
-        "subjects": subjects,
-        "verification_record_sha256": hashlib.sha256(
-            _canonical_json(result)
-        ).hexdigest(),
-        "verified": True,
-        "verified_at": verified_at,
-    }
-    timestamp_authority = {
-        "timestamp": verified_at,
-        "type": TIMESTAMP_AUTHORITY_TYPE,
-        "uri": TIMESTAMP_AUTHORITY_URI,
-    }
-    return attestation_projection, timestamp_authority
+    try:
+        parsed = github_release.parse_release_verification(
+            data,
+            policy=_github_release_policy(
+                expectation,
+                release_id=release_id,
+                tag_object=expected_tag_object,
+            ),
+            release_id=release_id,
+            published_at=published_at,
+            label="GitHub Apple release verification",
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
+    return parsed.projection(include_verified_at=True), parsed.timestamp_authority()
 
 
 def _validate_raw_directory(path: pathlib.Path) -> None:
-    descriptor = _directory_fd(
+    with _directory_handle(
         path,
         label="Apple release raw directory",
         required_mode=0o700,
-    )
-    os.close(descriptor)
-    try:
-        actual = {entry.name for entry in path.iterdir()}
-    except OSError as exc:
-        raise AppleReleaseVerificationError(
-            "cannot enumerate Apple release raw directory"
-        ) from exc
+    ) as descriptor:
+        try:
+            actual = set(os.listdir(descriptor))
+        except OSError as exc:
+            raise AppleReleaseVerificationError(
+                "cannot enumerate Apple release raw directory"
+            ) from exc
     _require(actual == RAW_NAMES, "Apple release raw file set differs")
 
 
@@ -1226,8 +1002,7 @@ def collect_release_verification(
     )
     git = _tool("git") if git_tool is None else git_tool
     gh = _tool("gh") if gh_tool is None else gh_tool
-    raw_fd = _create_raw_directory(raw_directory)
-    os.close(raw_fd)
+    _create_raw_directory(raw_directory)
 
     local_before = _verify_local_tag(
         git,
@@ -1272,20 +1047,12 @@ def collect_release_verification(
         label="GitHub repository visibility before observation",
         runner=runner,
     )
-    raw_fd = _directory_fd(
+    _write_raw_bytes(
         raw_directory,
-        label="Apple release raw directory",
-        required_mode=0o700,
+        RAW_REPOSITORY_BEFORE_NAME,
+        repository_before_raw,
+        label="Apple release raw repository-before",
     )
-    try:
-        _write_private_bytes_at(
-            raw_fd,
-            RAW_REPOSITORY_BEFORE_NAME,
-            repository_before_raw,
-            label="Apple release raw repository-before",
-        )
-    finally:
-        os.close(raw_fd)
     repository_before = _parse_repository_view(
         _read_private_bytes(
             raw_directory / RAW_REPOSITORY_BEFORE_NAME,
@@ -1301,20 +1068,12 @@ def collect_release_verification(
         label="GitHub Apple release view-before observation",
         runner=runner,
     )
-    raw_fd = _directory_fd(
+    _write_raw_bytes(
         raw_directory,
-        label="Apple release raw directory",
-        required_mode=0o700,
+        RAW_VIEW_BEFORE_NAME,
+        view_before_raw,
+        label="Apple release raw view-before",
     )
-    try:
-        _write_private_bytes_at(
-            raw_fd,
-            RAW_VIEW_BEFORE_NAME,
-            view_before_raw,
-            label="Apple release raw view-before",
-        )
-    finally:
-        os.close(raw_fd)
 
     verify_raw = _capture_command(
         verify_arguments,
@@ -1324,20 +1083,12 @@ def collect_release_verification(
         label="GitHub Apple release attestation verification",
         runner=runner,
     )
-    raw_fd = _directory_fd(
+    _write_raw_bytes(
         raw_directory,
-        label="Apple release raw directory",
-        required_mode=0o700,
+        RAW_VERIFY_NAME,
+        verify_raw,
+        label="Apple release raw verification",
     )
-    try:
-        _write_private_bytes_at(
-            raw_fd,
-            RAW_VERIFY_NAME,
-            verify_raw,
-            label="Apple release raw verification",
-        )
-    finally:
-        os.close(raw_fd)
 
     view_after_raw = _capture_command(
         view_arguments,
@@ -1347,20 +1098,12 @@ def collect_release_verification(
         label="GitHub Apple release view-after observation",
         runner=runner,
     )
-    raw_fd = _directory_fd(
+    _write_raw_bytes(
         raw_directory,
-        label="Apple release raw directory",
-        required_mode=0o700,
+        RAW_VIEW_AFTER_NAME,
+        view_after_raw,
+        label="Apple release raw view-after",
     )
-    try:
-        _write_private_bytes_at(
-            raw_fd,
-            RAW_VIEW_AFTER_NAME,
-            view_after_raw,
-            label="Apple release raw view-after",
-        )
-    finally:
-        os.close(raw_fd)
 
     repository_after_raw = _capture_command(
         repository_arguments,
@@ -1370,20 +1113,12 @@ def collect_release_verification(
         label="GitHub repository visibility after observation",
         runner=runner,
     )
-    raw_fd = _directory_fd(
+    _write_raw_bytes(
         raw_directory,
-        label="Apple release raw directory",
-        required_mode=0o700,
+        RAW_REPOSITORY_AFTER_NAME,
+        repository_after_raw,
+        label="Apple release raw repository-after",
     )
-    try:
-        _write_private_bytes_at(
-            raw_fd,
-            RAW_REPOSITORY_AFTER_NAME,
-            repository_after_raw,
-            label="Apple release raw repository-after",
-        )
-    finally:
-        os.close(raw_fd)
 
     local_after = _verify_local_tag(
         git,

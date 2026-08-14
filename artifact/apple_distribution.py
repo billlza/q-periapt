@@ -1099,7 +1099,10 @@ def _validate_xcframework_zip_bytes(
                         or stat.S_IMODE(mode) != 0o755
                         or info.file_size != 0
                     ):
-                        _fail(f"XCFramework ZIP directory entry has invalid type or size: {name}")
+                        _fail(
+                            "XCFramework ZIP directory entry has invalid type, mode, "
+                            f"or size: {name}"
+                        )
                 else:
                     if kind != stat.S_IFREG:
                         _fail(f"unsupported XCFramework ZIP entry type: {name}")
@@ -2188,6 +2191,170 @@ def _validate_release_manifest(
         ["arm64", "x86_64"],
         "manifest macOS runtime architectures",
     )
+
+
+def project_trusted_results_candidate_distribution(
+    *,
+    zip_data: bytes,
+    apple_distribution_data: bytes,
+    manifest_data: bytes,
+    checksums_data: bytes,
+    expected_asset_sha256: dict[str, str],
+    expected_source_commit: str,
+    expected_team_id: str,
+    expected_certificate_sha256: str,
+) -> dict[str, Any]:
+    """Deep-validate four signed candidate assets and return a pending projection.
+
+    This is the I/O-free producer boundary used by the publication receipt
+    assembler.  The caller owns stable snapshots and a completed-ledger hash
+    map; this function validates their byte-level closure without reading a
+    pre-existing results manifest or accepting caller-selected publication
+    state.
+    """
+
+    expected_names = {
+        XCFRAMEWORK_ZIP_NAME,
+        APPLE_DISTRIBUTION_NAME,
+        MANIFEST_NAME,
+        SHA256SUMS_NAME,
+    }
+    if not isinstance(expected_asset_sha256, dict):
+        _fail("Apple candidate expected asset hashes must be a JSON object")
+    _require_exact_keys(
+        expected_asset_sha256,
+        expected_names,
+        "Apple candidate expected asset hashes",
+    )
+    expected_hashes = {
+        name: _require_sha256(
+            expected_asset_sha256[name],
+            f"Apple candidate expected digest for {name}",
+        )
+        for name in expected_names
+    }
+    source_commit = _require_git_commit(
+        expected_source_commit,
+        "Apple candidate source commit",
+    )
+    team_id = _require_string(
+        expected_team_id,
+        "Apple candidate signature Team ID",
+    )
+    if not TEAM_ID.fullmatch(team_id):
+        _fail("Apple candidate signature Team ID is invalid")
+    certificate_sha256 = _require_sha256(
+        expected_certificate_sha256,
+        "Apple candidate certificate SHA-256",
+    )
+    byte_values = {
+        XCFRAMEWORK_ZIP_NAME: zip_data,
+        APPLE_DISTRIBUTION_NAME: apple_distribution_data,
+        MANIFEST_NAME: manifest_data,
+        SHA256SUMS_NAME: checksums_data,
+    }
+    if any(not isinstance(data, bytes) for data in byte_values.values()):
+        _fail("Apple candidate assets must be exact byte strings")
+    actual_hashes = {
+        name: hashlib.sha256(data).hexdigest()
+        for name, data in byte_values.items()
+    }
+    if actual_hashes != expected_hashes:
+        _fail("Apple candidate asset bytes differ from the completed ledger")
+
+    canonical_checksums = "".join(
+        f"{actual_hashes[name]}  {name}\n" for name in RELEASE_CHECKSUM_MEMBERS
+    ).encode("ascii")
+    if checksums_data != canonical_checksums:
+        _fail(
+            "Apple candidate SHA256SUMS is not the exact canonical "
+            "three-asset checksum set"
+        )
+    _validate_xcframework_zip_bytes(zip_data, require_signature=True)
+    distribution_evidence = _strict_json_object(
+        apple_distribution_data,
+        label="Apple candidate distribution evidence",
+    )
+    manifest = _strict_json_object(
+        manifest_data,
+        label="Apple candidate XCFramework manifest",
+    )
+    artifact = _require_object(
+        distribution_evidence.get("artifact"),
+        "Apple candidate distribution artifact",
+    )
+    swiftpm_checksum = _require_sha256(
+        artifact.get("swiftpm_checksum"),
+        "Apple candidate SwiftPM checksum",
+    )
+    _validate_release_distribution_evidence(
+        distribution_evidence,
+        artifact_size=len(zip_data),
+        artifact_sha256=actual_hashes[XCFRAMEWORK_ZIP_NAME],
+        swiftpm_checksum=swiftpm_checksum,
+        source_commit=source_commit,
+        zip_data=zip_data,
+        expected_team_id=team_id,
+        expected_certificate_sha256=certificate_sha256,
+        expected_release_identity=CURRENT_RELEASE_IDENTITY,
+    )
+    _validate_release_manifest(
+        manifest,
+        artifact_sha256=actual_hashes[XCFRAMEWORK_ZIP_NAME],
+        swiftpm_checksum=swiftpm_checksum,
+        apple_distribution_sha256=actual_hashes[APPLE_DISTRIBUTION_NAME],
+        source_commit=source_commit,
+        zip_data=zip_data,
+        expected_release_identity=CURRENT_RELEASE_IDENTITY,
+    )
+    signing = _require_object(
+        distribution_evidence["origin_signature"],
+        "Apple candidate origin signature",
+    )
+    signature = _require_object(
+        signing["signature"],
+        "Apple candidate signature facts",
+    )
+    certificate = _require_object(
+        signing["certificate"],
+        "Apple candidate certificate facts",
+    )
+    projected: dict[str, Any] = {
+        "apple_distribution_evidence_sha256": actual_hashes[
+            APPLE_DISTRIBUTION_NAME
+        ],
+        "artifact_path": XCFRAMEWORK_ZIP_NAME,
+        "artifact_sha256": actual_hashes[XCFRAMEWORK_ZIP_NAME],
+        "artifact_size": len(zip_data),
+        "checksums_sha256": actual_hashes[SHA256SUMS_NAME],
+        "distribution_signed": True,
+        "immutable_release": False,
+        "manifest_sha256": actual_hashes[MANIFEST_NAME],
+        "notarization_applicability": "not_applicable_static_sdk_payload",
+        "notarized": False,
+        "origin_signature_certificate_sha256": _require_sha256(
+            certificate["sha256"],
+            "Apple candidate certificate SHA-256",
+        ),
+        "origin_signature_identity_class": signature["identity_class"],
+        "origin_signature_team_id": signature["team_id"],
+        "public_release": False,
+        "release_revision": RELEASE_REVISION,
+        "release_tag": RELEASE_TAG,
+        "release_url": RELEASE_URL,
+        "remote_consumer_verified": False,
+        "remote_verification": {
+            "log_sha256": None,
+            "verified_at": None,
+            "verifier_commit": None,
+        },
+        "source_commit": source_commit,
+        "stapled": False,
+        "swiftpm_checksum": swiftpm_checksum,
+        "version": PRODUCT_VERSION,
+    }
+    validate_trusted_results_distribution(projected)
+    return projected
 
 
 def verify_release_assets(

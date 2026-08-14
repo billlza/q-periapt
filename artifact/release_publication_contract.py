@@ -158,6 +158,18 @@ def validate_release_publication_transition(
     validate_release_publications(current)
     current_publications = _publication_entries(current)
 
+    alpha2_introduced = (
+        apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        not in previous_publications
+        and apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        in current_publications
+    )
+    if alpha2_introduced and not legacy_alpha2_migration:
+        _fail(
+            "historical apple_alpha2_r1 receipt can only be introduced by "
+            "the exact legacy Apple alpha.2 selector migration"
+        )
+
     if legacy_alpha2_migration:
         if (
             apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
@@ -195,6 +207,17 @@ def validate_release_publication_transition(
     previous_apple = _filtered_manifest(
         previous_publications, apple_contract.APPLE_PUBLICATION_KEYS
     )
+    if legacy_alpha2_migration:
+        # The Apple-only contract deliberately has no selector context and
+        # therefore forbids every introduction of the frozen alpha.2 leaf.
+        # The composite contract owns the sole selector-bound migration and
+        # presents that exact frozen leaf as already established while it
+        # validates any simultaneous alpha.3 transition.
+        previous_apple["release_publications"][
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ] = current_publications[
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ]
     try:
         apple_contract.validate_apple_publication_transition(
             previous_apple, current_apple

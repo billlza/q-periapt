@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import io
+import json
 import os
 import pathlib
 import stat
@@ -160,6 +161,72 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         )
         with self.assertRaises(CandidateAttestationError):
             write_candidate_snapshot(candidate, snapshot_path, projection_path)
+
+    def test_shared_atomic_snapshot_and_projection_writers_recover_without_partials(
+        self,
+    ) -> None:
+        candidate = self._candidate("atomic-writer-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "atomic-snapshot-output"
+        )
+        injected = candidate_attestation.PublicationReceiptIOError(
+            "injected shared atomic failure"
+        )
+
+        with mock.patch.object(
+            candidate_attestation,
+            "write_private_json_noreplace_at",
+            side_effect=injected,
+        ):
+            with self.assertRaisesRegex(
+                CandidateAttestationError,
+                "injected shared atomic failure",
+            ):
+                write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        self.assertFalse(snapshot_path.exists())
+        self.assertEqual(
+            [],
+            list(snapshot_path.parent.glob(f".{CANDIDATE_SNAPSHOT_NAME}.pending-*")),
+        )
+
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        self.assertEqual(
+            snapshot_candidate(candidate).document(),
+            load_candidate_snapshot(snapshot_path).document(),
+        )
+
+        _, projection_path = self._private_output_paths("atomic-projection-output")
+        projection = {"kind": "fixture", "schema_version": 1}
+        with mock.patch.object(
+            candidate_attestation,
+            "write_private_json_noreplace_at",
+            side_effect=injected,
+        ):
+            with self.assertRaisesRegex(
+                CandidateAttestationError,
+                "injected shared atomic failure",
+            ):
+                candidate_attestation._write_private_json(
+                    projection_path,
+                    PROJECTION_NAME,
+                    projection,
+                    "candidate projection",
+                )
+        self.assertFalse(projection_path.exists())
+        self.assertEqual(
+            [],
+            list(projection_path.parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+
+        digest = candidate_attestation._write_private_json(
+            projection_path,
+            PROJECTION_NAME,
+            projection,
+            "candidate projection",
+        )
+        payload = projection_path.read_bytes()
+        self.assertEqual(projection, json.loads(payload))
+        self.assertEqual(hashlib.sha256(payload).hexdigest(), digest)
 
     def test_projection_target_must_be_absolute_private_exact_and_absent(self) -> None:
         candidate = self._candidate("projection-policy-candidate")

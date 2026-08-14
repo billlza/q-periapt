@@ -601,6 +601,15 @@ def validate_apple_publication_transition(
     previous_publications = _publication_entries(previous)
     current_publications = _publication_entries(current)
 
+    if (
+        APPLE_ALPHA2_R1_PUBLICATION_KEY not in previous_publications
+        and APPLE_ALPHA2_R1_PUBLICATION_KEY in current_publications
+    ):
+        _fail(
+            "historical Apple alpha.2 publication receipt cannot be "
+            "introduced by a future Apple-domain transition"
+        )
+
     if APPLE_ALPHA2_R1_PUBLICATION_KEY in previous_publications:
         if APPLE_ALPHA2_R1_PUBLICATION_KEY not in current_publications:
             _fail("Apple alpha.2 publication receipt cannot be removed")
@@ -611,6 +620,16 @@ def validate_apple_publication_transition(
             _fail("Apple alpha.2 publication receipt cannot change")
 
     if APPLE_ALPHA3_R1_PUBLICATION_KEY not in previous_publications:
+        if APPLE_ALPHA3_R1_PUBLICATION_KEY in current_publications:
+            current_alpha3 = _object(
+                current_publications[APPLE_ALPHA3_R1_PUBLICATION_KEY],
+                "current Apple alpha.3 publication receipt",
+            )
+            if current_alpha3["status"] != APPLE_STATUS_PENDING:
+                _fail(
+                    "Apple alpha.3 publication receipt must first be "
+                    "recorded as pending"
+                )
         return
     if APPLE_ALPHA3_R1_PUBLICATION_KEY not in current_publications:
         _fail("Apple alpha.3 publication receipt cannot be removed")

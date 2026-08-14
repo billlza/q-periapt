@@ -135,6 +135,14 @@ def validate_release_publication_transition(
     previous_publications = _publication_entries(previous)
     current_publications = _publication_entries(current)
 
+    if (
+        PLATFORM_R2_PUBLICATION_KEY not in previous_publications
+        and PLATFORM_R2_PUBLICATION_KEY in current_publications
+    ):
+        raise PlatformPublicationContractError(
+            "historical platform r2 publication cannot be introduced by a future transition"
+        )
+
     _require_unchanged_publication(
         previous_publications,
         current_publications,
@@ -142,6 +150,18 @@ def validate_release_publication_transition(
     )
 
     if PLATFORM_ALPHA3_R1_PUBLICATION_KEY not in previous_publications:
+        if PLATFORM_ALPHA3_R1_PUBLICATION_KEY in current_publications:
+            current_alpha3 = _object(
+                current_publications[PLATFORM_ALPHA3_R1_PUBLICATION_KEY],
+                "new platform alpha3 publication receipt",
+            )
+            if (
+                current_alpha3["status"]
+                != alpha3_contract.PLATFORM_ALPHA3_STATUS_PENDING
+            ):
+                raise PlatformPublicationContractError(
+                    "platform alpha3 publication must first be recorded as pending"
+                )
         return
     if PLATFORM_ALPHA3_R1_PUBLICATION_KEY not in current_publications:
         raise PlatformPublicationContractError(

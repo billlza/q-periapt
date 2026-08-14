@@ -8,6 +8,7 @@ import unittest
 
 import apple_publication_contract as apple_contract
 import proof_manifest
+import release_publication_contract
 from test_apple_publication_contract import (
     alpha2_receipt,
     alpha3_pending_receipt,
@@ -99,7 +100,33 @@ class ReleasePublicationProofManifestTests(unittest.TestCase):
                 proof_manifest.ProofManifestError,
                 "status must be a string",
             ):
-                proof_manifest.validate_declared_currentness(manifest)
+                    proof_manifest.validate_declared_currentness(manifest)
+
+    def test_currentness_shape_does_not_authorize_frozen_leaf_insertion(
+        self,
+    ) -> None:
+        pending = alpha3_pending_receipt()
+        previous = _manifest_with_selector(
+            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
+            pending,
+        )
+        current = copy.deepcopy(previous)
+        current["release_publications"][
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ] = alpha2_receipt()
+
+        # Both snapshots are structurally current; only the state transition
+        # has enough context to reject a newly invented historical leaf.
+        proof_manifest.validate_declared_currentness(previous)
+        proof_manifest.validate_declared_currentness(current)
+        with self.assertRaisesRegex(
+            release_publication_contract.ReleasePublicationContractError,
+            "only be introduced by the exact legacy",
+        ):
+            release_publication_contract.validate_release_publication_transition(
+                previous,
+                current,
+            )
 
 
 if __name__ == "__main__":

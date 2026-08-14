@@ -1,0 +1,881 @@
+#!/usr/bin/env python3
+"""Direct state, projection, and remote-receipt tests for Apple alpha.3."""
+
+from __future__ import annotations
+
+import copy
+import datetime as dt
+import hashlib
+import json
+import os
+import pathlib
+import stat
+import tempfile
+import unittest
+from types import SimpleNamespace
+from unittest import mock
+
+import apple_alpha3_publication as publication
+import apple_distribution
+import apple_publication_contract as apple_contract
+
+
+SOURCE_COMMIT = "1" * 40
+VERIFIER_COMMIT = "2" * 40
+TAG_OBJECT = "3" * 40
+
+
+def _json_bytes(value: object) -> bytes:
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("ascii")
+
+
+class AppleAlpha3PublicationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = pathlib.Path(self.temporary.name).resolve() / "repository"
+        self.root.mkdir(mode=0o755)
+        self.target = self.root / "target"
+        self.target.mkdir(mode=0o775)
+        os.chmod(self.target, 0o775)
+        self.artifact = self.root / "artifact"
+        self.artifact.mkdir(mode=0o755)
+
+        self.completion_root = self.target / "qperiapt-apple-release-worktrees"
+        self.completion_root.mkdir(mode=0o700)
+        os.chmod(self.completion_root, 0o700)
+        self.completion_transaction = self.completion_root / SOURCE_COMMIT
+        self.completion_transaction.mkdir(mode=0o700)
+        os.chmod(self.completion_transaction, 0o700)
+        self.completion = (
+            self.completion_transaction / publication.COMPLETION_LEDGER_NAME
+        )
+
+        self.public_root = self.target / "qperiapt-swift-xcframework"
+        self.public_root.mkdir(mode=0o755)
+        os.chmod(self.public_root, 0o755)
+        self.public_distribution = (
+            self.public_root / publication.APPLE_PUBLIC_DISTRIBUTION_NAME
+        )
+        self.public_distribution.mkdir(mode=0o755)
+        os.chmod(self.public_distribution, 0o755)
+        xcframework = self.public_distribution / "CQPeriapt.xcframework"
+        xcframework.mkdir(mode=0o755)
+        os.chmod(xcframework, 0o755)
+        self.asset_bytes = {
+            name: f"exact fixture bytes for {name}\n".encode("ascii")
+            for name in publication.APPLE_PUBLIC_FILE_NAMES
+        }
+        self.asset_hashes = {
+            name: hashlib.sha256(data).hexdigest()
+            for name, data in self.asset_bytes.items()
+        }
+        for name, data in self.asset_bytes.items():
+            path = self.public_distribution / name
+            path.write_bytes(data)
+            os.chmod(path, 0o644)
+
+        self.distribution = {
+            "apple_distribution_evidence_sha256": self.asset_hashes[
+                apple_distribution.APPLE_DISTRIBUTION_NAME
+            ],
+            "artifact_path": apple_distribution.XCFRAMEWORK_ZIP_NAME,
+            "artifact_sha256": self.asset_hashes[
+                apple_distribution.XCFRAMEWORK_ZIP_NAME
+            ],
+            "artifact_size": len(
+                self.asset_bytes[apple_distribution.XCFRAMEWORK_ZIP_NAME]
+            ),
+            "checksums_sha256": self.asset_hashes[
+                apple_distribution.SHA256SUMS_NAME
+            ],
+            "distribution_signed": True,
+            "immutable_release": False,
+            "manifest_sha256": self.asset_hashes[
+                apple_distribution.MANIFEST_NAME
+            ],
+            "notarization_applicability": "not_applicable_static_sdk_payload",
+            "notarized": False,
+            "origin_signature_certificate_sha256": (
+                publication.APPLE_EXPECTED_CERTIFICATE_SHA256
+            ),
+            "origin_signature_identity_class": "Developer ID Application",
+            "origin_signature_team_id": publication.APPLE_EXPECTED_TEAM_ID,
+            "public_release": False,
+            "release_revision": apple_distribution.RELEASE_REVISION,
+            "release_tag": apple_distribution.RELEASE_TAG,
+            "release_url": apple_distribution.RELEASE_URL,
+            "remote_consumer_verified": False,
+            "remote_verification": {
+                "log_sha256": None,
+                "verified_at": None,
+                "verifier_commit": None,
+            },
+            "source_commit": SOURCE_COMMIT,
+            "stapled": False,
+            "swiftpm_checksum": self.asset_hashes[
+                apple_distribution.XCFRAMEWORK_ZIP_NAME
+            ],
+            "version": apple_distribution.PRODUCT_VERSION,
+        }
+        self.pending = {
+            "boundary": apple_contract.APPLE_ALPHA3_R1_BOUNDARY,
+            "distribution": copy.deepcopy(self.distribution),
+            "identity": copy.deepcopy(apple_contract.APPLE_ALPHA3_R1_IDENTITY),
+            "kind": apple_contract.APPLE_PUBLICATION_KIND,
+            "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
+            "status": apple_contract.APPLE_STATUS_PENDING,
+        }
+        self._write_completion()
+
+        self.receipt_root = self.target / "qperiapt-apple-publication-receipts"
+        self.projection_root = (
+            self.target / "qperiapt-apple-release-verification" / "projections"
+        )
+        self.projection_root.mkdir(parents=True, mode=0o700)
+        os.chmod(self.projection_root.parent, 0o700)
+        os.chmod(self.projection_root, 0o700)
+        self.remote_runs_root = (
+            self.target / "qperiapt-swift-remote-consumer-runs"
+        )
+        self.remote_runs_root.mkdir(mode=0o700)
+        os.chmod(self.remote_runs_root, 0o700)
+        self.results_path = self.artifact / "results.json"
+        self.projection_index = 0
+        self.remote_run_index = 0
+
+        patches = (
+            ("REPOSITORY_ROOT", self.root),
+            ("RESULTS_PATH", self.results_path),
+            ("APPLE_COMPLETION_ROOT", self.completion_root),
+            ("APPLE_PUBLIC_ROOT", self.public_root),
+            ("APPLE_PUBLIC_DISTRIBUTION", self.public_distribution),
+            ("APPLE_PUBLICATION_RECEIPT_ROOT", self.receipt_root),
+            ("APPLE_RELEASE_PROJECTION_ROOT", self.projection_root),
+            ("REMOTE_CONSUMER_RUNS_ROOT", self.remote_runs_root),
+        )
+        for attribute, value in patches:
+            patcher = mock.patch.object(publication, attribute, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _write_completion(self) -> None:
+        document = {
+            "kind": publication.COMPLETION_LEDGER_KIND,
+            "public_assets_sha256": dict(self.asset_hashes),
+            "release_identity": {
+                "product_version": apple_distribution.PRODUCT_VERSION,
+                "revision": apple_distribution.RELEASE_REVISION,
+                "tag": apple_distribution.RELEASE_TAG,
+            },
+            "schema_version": publication.COMPLETION_LEDGER_SCHEMA_VERSION,
+            "source_commit": SOURCE_COMMIT,
+        }
+        self.completion.write_bytes(_json_bytes(document))
+        os.chmod(self.completion, 0o600)
+
+    def _pending_results(self) -> dict[str, object]:
+        return {
+            "release_publications": {
+                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: copy.deepcopy(
+                    self.pending
+                )
+            },
+            "swift_xcframework": {
+                "distribution": copy.deepcopy(self.distribution)
+            },
+        }
+
+    def _write_current_results(self) -> str:
+        self.results_path.write_bytes(_json_bytes(self._pending_results()))
+        os.chmod(self.results_path, 0o644)
+        return hashlib.sha256(self.results_path.read_bytes()).hexdigest()
+
+    def _new_remote_run(self) -> pathlib.Path:
+        self.remote_run_index += 1
+        run = self.remote_runs_root / f"transaction.fixture-{self.remote_run_index}"
+        run.mkdir(mode=0o700)
+        os.chmod(run, 0o700)
+        return run
+
+    def _runtime_remote_inputs(
+        self,
+        run: pathlib.Path,
+    ) -> tuple[pathlib.Path, str]:
+        verifier_artifact = run / "verifier-inputs" / "artifact"
+        verifier_artifact.mkdir(parents=True, mode=0o700, exist_ok=True)
+        os.chmod(verifier_artifact.parent, 0o700)
+        os.chmod(verifier_artifact, 0o700)
+        extracted = (
+            run
+            / "verifier-inputs"
+            / "target"
+            / "extracted"
+            / "CQPeriapt.xcframework"
+        )
+        extracted.mkdir(parents=True, mode=0o755)
+        os.chmod(extracted, 0o755)
+        verifier_results = verifier_artifact / "results.json"
+        verifier_results.write_bytes(_json_bytes(self._pending_results()))
+        os.chmod(verifier_results, 0o600)
+        release_assets = run / publication.REMOTE_CONSUMER_RELEASE_ASSETS_NAME
+        release_assets.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(release_assets, 0o700)
+        for name, data in self.asset_bytes.items():
+            path = release_assets / name
+            path.write_bytes(data)
+            os.chmod(path, 0o600)
+        log = run / publication.REMOTE_CONSUMER_LOG_NAME
+        log.write_text(
+            "/Users/private/RAW_PII_SENTINEL\n"
+            "Executed 3 tests, with 0 failures\n",
+            encoding="utf-8",
+        )
+        os.chmod(log, 0o600)
+        return (
+            verifier_results,
+            hashlib.sha256(verifier_results.read_bytes()).hexdigest(),
+        )
+
+    def _write_projection(self, remote_verified_at: str) -> pathlib.Path:
+        self.projection_index += 1
+        transaction = (
+            self.projection_root
+            / f"transaction.fixture-{self.projection_index}"
+        )
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        publication_record = {
+            "draft": False,
+            "immutable_release": True,
+            "observed_at": "2026-08-14T13:00:00Z",
+            "prerelease": True,
+            "public_release": True,
+            "published_at": "2026-08-14T10:00:00Z",
+            "release_attestation": {
+                "certificate_san": apple_contract.APPLE_RELEASE_CERTIFICATE_SAN,
+                "predicate_type": apple_contract.APPLE_RELEASE_PREDICATE_TYPE,
+                "subjects": [
+                    {
+                        "digest": {"sha1": TAG_OBJECT},
+                        "uri": (
+                            apple_contract.APPLE_TAG_SUBJECT_PREFIX
+                            + apple_distribution.RELEASE_TAG
+                        ),
+                    },
+                    {
+                        "digest": {
+                            "sha256": self.asset_hashes[
+                                apple_distribution.APPLE_DISTRIBUTION_NAME
+                            ]
+                        },
+                        "name": apple_distribution.APPLE_DISTRIBUTION_NAME,
+                    },
+                    {
+                        "digest": {
+                            "sha256": self.asset_hashes[
+                                apple_distribution.XCFRAMEWORK_ZIP_NAME
+                            ]
+                        },
+                        "name": apple_distribution.XCFRAMEWORK_ZIP_NAME,
+                    },
+                    {
+                        "digest": {
+                            "sha256": self.asset_hashes[
+                                apple_distribution.MANIFEST_NAME
+                            ]
+                        },
+                        "name": apple_distribution.MANIFEST_NAME,
+                    },
+                    {
+                        "digest": {
+                            "sha256": self.asset_hashes[
+                                apple_distribution.SHA256SUMS_NAME
+                            ]
+                        },
+                        "name": apple_distribution.SHA256SUMS_NAME,
+                    },
+                ],
+                "verification_record_sha256": "4" * 64,
+                "verified": True,
+                "verified_at": "2026-08-14T10:01:00Z",
+            },
+            "release_id": 355_500_000,
+            "source": {
+                "tag_commit": SOURCE_COMMIT,
+                "tag_object": TAG_OBJECT,
+            },
+        }
+        projection = {
+            "assets": [
+                {
+                    "bytes": len(self.asset_bytes[name]),
+                    "name": name,
+                    "sha256": self.asset_hashes[name],
+                }
+                for name in publication.APPLE_PUBLIC_FILE_NAMES
+            ],
+            "kind": publication.APPLE_RELEASE_PROJECTION_KIND,
+            "publication": publication_record,
+            "release_identity": {
+                "repository": publication.APPLE_RELEASE_REPOSITORY,
+                "tag": apple_distribution.RELEASE_TAG,
+                "url": apple_distribution.RELEASE_URL,
+                "visibility": "PUBLIC",
+            },
+            "schema_version": publication.APPLE_RELEASE_PROJECTION_SCHEMA_VERSION,
+            "timestamp_authority": {
+                "timestamp": "2026-08-14T10:01:00Z",
+                "type": publication.APPLE_RELEASE_TIMESTAMP_AUTHORITY_TYPE,
+                "uri": publication.APPLE_RELEASE_TIMESTAMP_AUTHORITY_URI,
+            },
+        }
+        path = transaction / publication.APPLE_RELEASE_PROJECTION_NAME
+        path.write_bytes(_json_bytes(projection))
+        os.chmod(path, 0o600)
+        self.assertLessEqual(remote_verified_at, publication_record["observed_at"])
+        return path
+
+    def _emit_remote(self, run: pathlib.Path | None = None) -> pathlib.Path:
+        if run is None:
+            run = self._new_remote_run()
+        _results, startup = self._runtime_remote_inputs(run)
+        codesign = mock.Mock(
+            return_value=SimpleNamespace(returncode=0)
+        )
+        with (
+            mock.patch.object(
+                publication.apple_distribution,
+                "project_trusted_results_candidate_distribution",
+                return_value=copy.deepcopy(self.distribution),
+            ) as deep,
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(commit=VERIFIER_COMMIT, dirty=False),
+            ),
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+                return_value=VERIFIER_COMMIT,
+            ),
+            mock.patch.object(
+                publication,
+                "capture_stdout",
+                codesign,
+            ),
+        ):
+            path, _digest = publication.emit_remote_consumer_receipt(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                startup_results_sha256=startup,
+                clock=lambda: dt.datetime(2026, 8, 14, 12, 0, tzinfo=dt.UTC),
+            )
+        codesign.assert_called_once()
+        self.assertEqual(
+            ["/usr/bin/codesign", "--verify", "--strict", "--verbose=4"],
+            codesign.call_args.args[0][:4],
+        )
+        call = deep.call_args.kwargs
+        for name, argument in (
+            (apple_distribution.XCFRAMEWORK_ZIP_NAME, "zip_data"),
+            (apple_distribution.APPLE_DISTRIBUTION_NAME, "apple_distribution_data"),
+            (apple_distribution.MANIFEST_NAME, "manifest_data"),
+            (apple_distribution.SHA256SUMS_NAME, "checksums_data"),
+        ):
+            self.assertEqual(self.asset_bytes[name], call[argument])
+        return path
+
+    def test_completed_clean_tagged_distribution_builds_pending_leaf(self) -> None:
+        def git_result(_root: pathlib.Path, arguments: list[str]) -> str:
+            if arguments[:2] == ["cat-file", "-t"]:
+                return "tag"
+            if arguments[-1].endswith("^{commit}"):
+                return SOURCE_COMMIT
+            return TAG_OBJECT
+
+        with (
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(commit=SOURCE_COMMIT, dirty=False),
+            ),
+            mock.patch.object(publication, "run_git_text", side_effect=git_result),
+            mock.patch.object(
+                publication.apple_distribution,
+                "project_trusted_results_candidate_distribution",
+                return_value=copy.deepcopy(self.distribution),
+            ) as deep,
+        ):
+            receipt = publication.build_pending_receipt(self.completion)
+
+        self.assertEqual(self.pending, receipt)
+        apple_contract.validate_apple_publications(
+            {
+                "release_publications": {
+                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: receipt
+                }
+            }
+        )
+        self.assertEqual(SOURCE_COMMIT, deep.call_args.kwargs["expected_source_commit"])
+
+    def test_pending_rejects_hash_source_tag_cleanliness_and_incomplete_cleanup(
+        self,
+    ) -> None:
+        cases = ("hash", "source", "tag", "dirty", "leftover")
+        for case in cases:
+            with self.subTest(case=case):
+                self._write_completion()
+                leftover = self.completion_transaction / "source"
+                if case == "hash":
+                    document = json.loads(self.completion.read_text(encoding="ascii"))
+                    document["public_assets_sha256"][
+                        apple_distribution.MANIFEST_NAME
+                    ] = "f" * 64
+                    self.completion.write_bytes(_json_bytes(document))
+                elif case == "source":
+                    document = json.loads(self.completion.read_text(encoding="ascii"))
+                    document["source_commit"] = "9" * 40
+                    self.completion.write_bytes(_json_bytes(document))
+                elif case == "leftover":
+                    leftover.mkdir()
+                os.chmod(self.completion, 0o600)
+                git_commit = "8" * 40 if case == "tag" else SOURCE_COMMIT
+                dirty = case == "dirty"
+
+                def git_result(_root: pathlib.Path, arguments: list[str]) -> str:
+                    if arguments[:2] == ["cat-file", "-t"]:
+                        return "tag"
+                    if arguments[-1].endswith("^{commit}"):
+                        return git_commit
+                    return TAG_OBJECT
+
+                with (
+                    mock.patch.object(
+                        publication,
+                        "inspect_worktree",
+                        return_value=SimpleNamespace(
+                            commit=SOURCE_COMMIT,
+                            dirty=dirty,
+                        ),
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "run_git_text",
+                        side_effect=git_result,
+                    ),
+                    mock.patch.object(
+                        publication.apple_distribution,
+                        "project_trusted_results_candidate_distribution",
+                        return_value=copy.deepcopy(self.distribution),
+                    ),
+                ):
+                    with self.assertRaises(publication.AppleAlpha3PublicationError):
+                        publication.build_pending_receipt(self.completion)
+                if leftover.exists():
+                    leftover.rmdir()
+
+    def test_remote_receipt_derives_fixed_bytes_results_log_and_clean_head(
+        self,
+    ) -> None:
+        path = self._emit_remote()
+        receipt = json.loads(path.read_text(encoding="ascii"))
+        self.assertEqual(publication.REMOTE_CONSUMER_BOUNDARY, receipt["boundary"])
+        self.assertNotIn("cleanup_verified", receipt["verification"])
+        self.assertTrue(receipt["verification"]["codesign_verified"])
+        self.assertEqual(self.asset_hashes, receipt["assets_sha256"])
+        self.assertEqual(SOURCE_COMMIT, receipt["source_commit"])
+        self.assertEqual(VERIFIER_COMMIT, receipt["verifier_commit"])
+        self.assertEqual("2026-08-14T12:00:00Z", receipt["verified_at"])
+        self.assertEqual(
+            hashlib.sha256(
+                (
+                    path.parent / publication.REMOTE_CONSUMER_LOG_NAME
+                ).read_bytes()
+            ).hexdigest(),
+            receipt["log_sha256"],
+        )
+        text = path.read_text(encoding="ascii")
+        marker = publication._remote_success_marker(
+            path,
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+            self.root,
+        )
+        self.assertNotIn("RAW_PII_SENTINEL", text)
+        self.assertNotIn("/Users/", text)
+        self.assertNotIn("RAW_PII_SENTINEL", marker)
+        self.assertNotIn("/Users/", marker)
+        self.assertIn(
+            "path=target/qperiapt-swift-remote-consumer-runs/transaction.",
+            marker,
+        )
+        self.assertNotIn("path", json.dumps(receipt).lower())
+        self.assertEqual(0o600, stat.S_IMODE(path.stat().st_mode))
+        self.assertEqual(1, path.stat().st_nlink)
+
+    def test_run_parent_sync_and_codesign_precede_receipt_commit(self) -> None:
+        run = self._new_remote_run()
+        _results, startup = self._runtime_remote_inputs(run)
+        events: list[str] = []
+        real_sync = publication.verify_private_direct_child_and_sync_parent
+        real_write = publication.write_fixed_private_json
+
+        def sync_parent(**kwargs: object):
+            events.append("sync-parent")
+            return real_sync(**kwargs)
+
+        def codesign(*_args: object, **_kwargs: object):
+            events.append("codesign")
+            return SimpleNamespace(returncode=0)
+
+        def write_receipt(**kwargs: object):
+            events.append("write-receipt")
+            return real_write(**kwargs)
+
+        with (
+            mock.patch.object(
+                publication.apple_distribution,
+                "project_trusted_results_candidate_distribution",
+                return_value=copy.deepcopy(self.distribution),
+            ),
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(commit=VERIFIER_COMMIT, dirty=False),
+            ),
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+                return_value=VERIFIER_COMMIT,
+            ),
+            mock.patch.object(
+                publication,
+                "verify_private_direct_child_and_sync_parent",
+                side_effect=sync_parent,
+            ),
+            mock.patch.object(
+                publication,
+                "write_fixed_private_json",
+                side_effect=write_receipt,
+            ),
+            mock.patch.object(
+                publication,
+                "capture_stdout",
+                side_effect=codesign,
+            ),
+        ):
+            path, _digest = publication.emit_remote_consumer_receipt(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                startup_results_sha256=startup,
+            )
+        self.assertEqual(
+            ["sync-parent", "codesign", "write-receipt"],
+            events,
+        )
+        self.assertTrue(path.is_file())
+
+        for label, sync_effect, codesign_result in (
+            (
+                "parent-sync",
+                publication.PublicationReceiptIOError(
+                    "injected run parent sync failure"
+                ),
+                SimpleNamespace(returncode=0),
+            ),
+            ("codesign", None, SimpleNamespace(returncode=1)),
+        ):
+            with self.subTest(label=label):
+                failed_run = self._new_remote_run()
+                _results, failed_startup = self._runtime_remote_inputs(
+                    failed_run
+                )
+                sync_patch = (
+                    mock.Mock(side_effect=sync_effect)
+                    if sync_effect is not None
+                    else mock.Mock(side_effect=real_sync)
+                )
+                with (
+                    mock.patch.object(
+                        publication.apple_distribution,
+                        "project_trusted_results_candidate_distribution",
+                        return_value=copy.deepcopy(self.distribution),
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "inspect_worktree",
+                        return_value=SimpleNamespace(
+                            commit=VERIFIER_COMMIT,
+                            dirty=False,
+                        ),
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "require_commit_or_evidence_successor",
+                        return_value=VERIFIER_COMMIT,
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "verify_private_direct_child_and_sync_parent",
+                        sync_patch,
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "capture_stdout",
+                        return_value=codesign_result,
+                    ),
+                ):
+                    with self.assertRaises(
+                        (
+                            publication.PublicationReceiptIOError,
+                            publication.AppleAlpha3PublicationError,
+                        )
+                    ):
+                        publication.emit_remote_consumer_receipt(
+                            runtime_repository_root=self.root,
+                            run_directory_name=failed_run.name,
+                            startup_results_sha256=failed_startup,
+                        )
+                self.assertFalse(
+                    (
+                        failed_run
+                        / publication.REMOTE_CONSUMER_RECEIPT_NAME
+                    ).exists()
+                )
+
+    def test_remote_receipt_rejects_asset_log_results_checkout_and_no_replace(
+        self,
+    ) -> None:
+        successful = self._emit_remote()
+        successful_bytes = successful.read_bytes()
+        for case in ("asset", "warning", "startup", "end-results", "dirty"):
+            with self.subTest(case=case):
+                run = self._new_remote_run()
+                verifier_results, startup = self._runtime_remote_inputs(run)
+                if case == "asset":
+                    asset = (
+                        run
+                        / publication.REMOTE_CONSUMER_RELEASE_ASSETS_NAME
+                        / apple_distribution.MANIFEST_NAME
+                    )
+                    asset.write_bytes(b"changed bytes\n")
+                    os.chmod(asset, 0o600)
+                if case == "warning":
+                    log = run / publication.REMOTE_CONSUMER_LOG_NAME
+                    log.write_text(
+                        "warning: injected\nExecuted 3 tests, with 0 failures\n",
+                        encoding="utf-8",
+                    )
+                    os.chmod(log, 0o600)
+                if case == "startup":
+                    startup = "f" * 64
+
+                real_snapshot = publication._private_runtime_snapshot
+
+                def snapshot_then_mutate(*args: object, **kwargs: object):
+                    result = real_snapshot(*args, **kwargs)
+                    if (
+                        case == "end-results"
+                        and kwargs.get("label") == "remote consumer test log"
+                    ):
+                        verifier_results.write_bytes(b'{"changed":true}\n')
+                        os.chmod(verifier_results, 0o600)
+                    return result
+
+                with (
+                    mock.patch.object(
+                        publication.apple_distribution,
+                        "project_trusted_results_candidate_distribution",
+                        return_value=copy.deepcopy(self.distribution),
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "inspect_worktree",
+                        return_value=SimpleNamespace(
+                            commit=VERIFIER_COMMIT,
+                            dirty=case == "dirty",
+                        ),
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "require_commit_or_evidence_successor",
+                        return_value=VERIFIER_COMMIT,
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "_private_runtime_snapshot",
+                        side_effect=snapshot_then_mutate,
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "capture_stdout",
+                        return_value=SimpleNamespace(returncode=0),
+                    ),
+                ):
+                    with self.assertRaises(publication.AppleAlpha3PublicationError):
+                        publication.emit_remote_consumer_receipt(
+                            runtime_repository_root=self.root,
+                            run_directory_name=run.name,
+                            startup_results_sha256=startup,
+                        )
+                self.assertFalse(
+                    (run / publication.REMOTE_CONSUMER_RECEIPT_NAME).exists()
+                )
+                self.assertEqual(successful_bytes, successful.read_bytes())
+
+        competing_run = self._new_remote_run()
+        _results, startup = self._runtime_remote_inputs(competing_run)
+        competing = (
+            competing_run / publication.REMOTE_CONSUMER_RECEIPT_NAME
+        )
+        competing.write_bytes(b"competing complete receipt\n")
+        os.chmod(competing, 0o600)
+        original = competing.read_bytes()
+        with self.assertRaises(publication.PublicationReceiptIOError):
+            with (
+                mock.patch.object(
+                    publication.apple_distribution,
+                    "project_trusted_results_candidate_distribution",
+                    return_value=copy.deepcopy(self.distribution),
+                ),
+                mock.patch.object(
+                    publication,
+                    "inspect_worktree",
+                    return_value=SimpleNamespace(
+                        commit=VERIFIER_COMMIT,
+                        dirty=False,
+                    ),
+                ),
+                mock.patch.object(
+                    publication,
+                    "require_commit_or_evidence_successor",
+                    return_value=VERIFIER_COMMIT,
+                ),
+                mock.patch.object(
+                    publication,
+                    "capture_stdout",
+                    return_value=SimpleNamespace(returncode=0),
+                ),
+            ):
+                publication.emit_remote_consumer_receipt(
+                    runtime_repository_root=self.root,
+                    run_directory_name=competing_run.name,
+                    startup_results_sha256=startup,
+                )
+        self.assertEqual(original, competing.read_bytes())
+
+        second_success = self._emit_remote()
+        self.assertNotEqual(successful.parent, second_success.parent)
+        self.assertEqual(successful_bytes, successful.read_bytes())
+
+    def test_pending_results_promote_with_exact_projection_and_remote_receipt(
+        self,
+    ) -> None:
+        results_sha256 = self._write_current_results()
+        remote_path = self._emit_remote()
+        projection_path = self._write_projection("2026-08-14T12:00:00Z")
+        with (
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(commit=VERIFIER_COMMIT, dirty=False),
+            ),
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+                return_value=VERIFIER_COMMIT,
+            ),
+        ):
+            verified = publication.promote_receipt(
+                results_sha256,
+                projection_path,
+                remote_path,
+            )
+        self.assertEqual(apple_contract.APPLE_STATUS_VERIFIED, verified["status"])
+        self.assertEqual(
+            self.pending["distribution"]["artifact_sha256"],
+            verified["distribution"]["artifact_sha256"],
+        )
+        self.assertTrue(verified["distribution"]["remote_consumer_verified"])
+        apple_contract.validate_apple_publication_transition(
+            {
+                "release_publications": {
+                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: self.pending
+                }
+            },
+            {
+                "release_publications": {
+                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: verified
+                }
+            },
+        )
+
+    def test_promotion_rejects_wrong_selector_asset_source_and_timestamps(self) -> None:
+        for case in ("selector", "asset", "source", "timestamp", "boundary"):
+            with self.subTest(case=case):
+                results_sha256 = self._write_current_results()
+                remote_path = self._emit_remote()
+                projection_path = self._write_projection("2026-08-14T12:00:00Z")
+                if case == "selector":
+                    current = json.loads(self.results_path.read_text(encoding="ascii"))
+                    current["swift_xcframework"]["distribution"][
+                        "artifact_size"
+                    ] += 1
+                    self.results_path.write_bytes(_json_bytes(current))
+                    os.chmod(self.results_path, 0o644)
+                    results_sha256 = hashlib.sha256(
+                        self.results_path.read_bytes()
+                    ).hexdigest()
+                elif case == "asset":
+                    projection = json.loads(
+                        projection_path.read_text(encoding="ascii")
+                    )
+                    projection["assets"][0]["sha256"] = "f" * 64
+                    projection_path.write_bytes(_json_bytes(projection))
+                    os.chmod(projection_path, 0o600)
+                elif case == "source":
+                    remote = json.loads(remote_path.read_text(encoding="ascii"))
+                    remote["source_commit"] = "9" * 40
+                    remote_path.write_bytes(_json_bytes(remote))
+                    os.chmod(remote_path, 0o600)
+                elif case == "timestamp":
+                    projection = json.loads(
+                        projection_path.read_text(encoding="ascii")
+                    )
+                    projection["publication"]["observed_at"] = (
+                        "2026-08-14T11:59:59Z"
+                    )
+                    projection_path.write_bytes(_json_bytes(projection))
+                    os.chmod(projection_path, 0o600)
+                else:
+                    remote = json.loads(remote_path.read_text(encoding="ascii"))
+                    remote["boundary"] = "forged cleanup-inclusive boundary"
+                    remote_path.write_bytes(_json_bytes(remote))
+                    os.chmod(remote_path, 0o600)
+                with (
+                    mock.patch.object(
+                        publication,
+                        "inspect_worktree",
+                        return_value=SimpleNamespace(
+                            commit=VERIFIER_COMMIT,
+                            dirty=False,
+                        ),
+                    ),
+                    mock.patch.object(
+                        publication,
+                        "require_commit_or_evidence_successor",
+                        return_value=VERIFIER_COMMIT,
+                    ),
+                ):
+                    with self.assertRaises(
+                        publication.AppleAlpha3PublicationError
+                    ):
+                        publication.promote_receipt(
+                            results_sha256,
+                            projection_path,
+                            remote_path,
+                        )
+
+
+if __name__ == "__main__":
+    unittest.main()

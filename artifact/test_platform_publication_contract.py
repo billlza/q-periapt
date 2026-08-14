@@ -151,10 +151,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
 
         for label, previous, current in (
             ("empty", empty, empty),
-            ("add-r2", empty, r2),
             ("add-alpha3-pending", empty, alpha3_pending),
-            ("add-alpha3-verified", empty, alpha3_verified),
-            ("add-both", empty, both),
             ("same-r2", r2, copy.deepcopy(r2)),
             (
                 "same-alpha3-pending",
@@ -172,6 +169,21 @@ class PlatformPublicationContractTests(unittest.TestCase):
                 contract.validate_release_publication_transition(
                     previous, current
                 )
+
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "must first be recorded as pending",
+        ):
+            contract.validate_release_publication_transition(
+                empty, alpha3_verified
+            )
+
+        for label, current in (("add-r2", r2), ("add-both", both)):
+            with self.subTest(label=label), self.assertRaisesRegex(
+                contract.PlatformPublicationContractError,
+                "historical platform r2 publication cannot be introduced",
+            ):
+                contract.validate_release_publication_transition(empty, current)
 
     def test_transition_rejects_removal_or_change_of_recorded_receipts(self) -> None:
         r2_verified = {

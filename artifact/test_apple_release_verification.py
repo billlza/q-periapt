@@ -101,6 +101,24 @@ class FixtureRunner:
 
 
 class AppleReleaseVerificationTests(unittest.TestCase):
+    def test_neutral_github_parser_is_the_single_policy_authority(self) -> None:
+        shared = verification.github_release
+        self.assertIs(verification.RELEASE_VIEW_FIELDS, shared.RELEASE_VIEW_FIELDS)
+        self.assertIs(
+            verification.REPOSITORY_VIEW_FIELDS,
+            shared.REPOSITORY_VIEW_FIELDS,
+        )
+        for name in (
+            "VERIFICATION_RESULT_MEDIA_TYPE",
+            "STATEMENT_TYPE",
+            "RELEASE_PREDICATE_TYPE",
+            "RELEASE_CERTIFICATE_SAN",
+            "RELEASE_CERTIFICATE_ISSUER",
+            "TIMESTAMP_AUTHORITY_TYPE",
+            "TIMESTAMP_AUTHORITY_URI",
+        ):
+            self.assertEqual(getattr(shared, name), getattr(verification, name))
+
     RELEASE_ID = 412_345_678
     TAG_OBJECT = "2" * 40
     TAG_COMMIT = "1" * 40
@@ -875,6 +893,70 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 gh_tool="/fixture/gh",
             )
         self.assertEqual([], runner.calls)
+
+    def test_shared_atomic_raw_and_projection_writers_recover_without_partials(
+        self,
+    ) -> None:
+        raw = self.raw_root / "raw-atomic-writer"
+        raw.mkdir(mode=0o700)
+        os.chmod(raw, 0o700)
+        raw_name = verification.RAW_REPOSITORY_BEFORE_NAME
+        projection_parent = self.projection_root / "projection-atomic-writer"
+        projection_parent.mkdir(mode=0o700)
+        os.chmod(projection_parent, 0o700)
+        projection = projection_parent / verification.PROJECTION_NAME
+
+        with mock.patch.object(
+            verification,
+            "write_private_bytes_noreplace_at",
+            side_effect=verification.PublicationReceiptIOError(
+                "injected shared atomic failure"
+            ),
+        ):
+            with self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                "injected shared atomic failure",
+            ):
+                verification._write_raw_bytes(
+                    raw,
+                    raw_name,
+                    b'{"visibility":"PUBLIC"}\n',
+                    label="fixture Apple raw",
+                )
+            with self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                "injected shared atomic failure",
+            ):
+                verification._write_projection(
+                    projection,
+                    {"kind": "fixture", "schema_version": 1},
+                )
+        self.assertFalse((raw / raw_name).exists())
+        self.assertFalse(projection.exists())
+        self.assertEqual([], list(raw.glob(f".{raw_name}.pending-*")))
+        self.assertEqual(
+            [], list(projection_parent.glob(f".{verification.PROJECTION_NAME}.pending-*"))
+        )
+
+        verification._write_raw_bytes(
+            raw,
+            raw_name,
+            b'{"visibility":"PUBLIC"}\n',
+            label="fixture Apple raw",
+        )
+        projection_value = {"kind": "fixture", "schema_version": 1}
+        digest = verification._write_projection(projection, projection_value)
+        expected = (
+            json.dumps(
+                projection_value,
+                indent=2,
+                ensure_ascii=True,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("ascii")
+        self.assertEqual(expected, projection.read_bytes())
+        self.assertEqual(hashlib.sha256(expected).hexdigest(), digest)
 
     def test_fixed_roots_reject_tmp_prefix_traversal_and_symlink_escape(self) -> None:
         ledger, hashes, tag = self._ledger("fixed-root-policy")

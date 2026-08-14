@@ -17,6 +17,7 @@ from test_apple_publication_contract import (
 )
 from test_platform_alpha3_publication_contract import (
     pending_receipt as platform_alpha3_pending_receipt,
+    verified_receipt as platform_alpha3_verified_receipt,
 )
 
 
@@ -204,6 +205,15 @@ class ReleasePublicationContractTests(unittest.TestCase):
         previous = _selector_manifest(
             apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2
         )
+        pending = _selector_manifest(
+            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
+            alpha3_pending_receipt(),
+            extra_receipts={
+                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY: copy.deepcopy(
+                    alpha2
+                )
+            },
+        )
         current = _selector_manifest(
             apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
             alpha3_verified_receipt(),
@@ -213,7 +223,13 @@ class ReleasePublicationContractTests(unittest.TestCase):
                 )
             },
         )
-        contract.validate_release_publication_transition(previous, current)
+        contract.validate_release_publication_transition(previous, pending)
+        contract.validate_release_publication_transition(pending, current)
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError,
+            "must first be recorded as pending",
+        ):
+            contract.validate_release_publication_transition(previous, current)
 
         removed = copy.deepcopy(current)
         removed["release_publications"].pop(
@@ -224,6 +240,69 @@ class ReleasePublicationContractTests(unittest.TestCase):
             "alpha.2.*cannot be removed",
         ):
             contract.validate_release_publication_transition(current, removed)
+
+    def test_platform_alpha3_must_be_recorded_pending_before_verified(self) -> None:
+        previous = {
+            "release_publications": {
+                "platform_r2": copy.deepcopy(self.platform_r2)
+            }
+        }
+        pending = copy.deepcopy(previous)
+        pending["release_publications"]["platform_alpha3_r1"] = (
+            platform_alpha3_pending_receipt()
+        )
+        verified = copy.deepcopy(previous)
+        verified["release_publications"]["platform_alpha3_r1"] = (
+            platform_alpha3_verified_receipt()
+        )
+
+        contract.validate_release_publication_transition(previous, pending)
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError,
+            "platform alpha3 publication must first be recorded as pending",
+        ):
+            contract.validate_release_publication_transition(previous, verified)
+
+    def test_historical_platform_r2_cannot_be_added_by_future_transition(self) -> None:
+        current = {
+            "release_publications": {
+                "platform_r2": copy.deepcopy(self.platform_r2)
+            }
+        }
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError,
+            "historical platform r2 publication cannot be introduced",
+        ):
+            contract.validate_release_publication_transition({}, current)
+
+    def test_historical_alpha2_cannot_be_added_outside_exact_legacy_migration(
+        self,
+    ) -> None:
+        alpha2 = alpha2_receipt()
+        from_empty = _selector_manifest(
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+            alpha2,
+        )
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError,
+            "only be introduced by the exact legacy",
+        ):
+            contract.validate_release_publication_transition({}, from_empty)
+
+        alpha3 = alpha3_pending_receipt()
+        previous = _selector_manifest(
+            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
+            alpha3,
+        )
+        current = copy.deepcopy(previous)
+        current["release_publications"][
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ] = alpha2
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError,
+            "only be introduced by the exact legacy",
+        ):
+            contract.validate_release_publication_transition(previous, current)
 
     def test_unknown_union_key_fails_before_leaf_dispatch(self) -> None:
         with self.assertRaisesRegex(

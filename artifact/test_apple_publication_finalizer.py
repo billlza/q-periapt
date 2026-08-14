@@ -12,7 +12,11 @@ import unittest
 
 import apple_publication_contract as apple_contract
 import proof_to_byte_finalizer
-from test_apple_publication_contract import alpha2_receipt, alpha3_pending_receipt
+from test_apple_publication_contract import (
+    alpha2_receipt,
+    alpha3_pending_receipt,
+    alpha3_verified_receipt,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -152,6 +156,30 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
                     root, rollback
                 )
 
+    def test_first_parent_cannot_skip_pending_and_add_verified_alpha3(self) -> None:
+        migrated = copy.deepcopy(self.legacy)
+        migrated["release_publications"][
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ] = alpha2_receipt()
+        direct_verified = copy.deepcopy(migrated)
+        verified = alpha3_verified_receipt()
+        direct_verified["release_publications"][
+            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
+        ] = verified
+        direct_verified["swift_xcframework"]["distribution"] = copy.deepcopy(
+            verified["distribution"]
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "repository"
+            _repository_with_parent_results(root, migrated)
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "must first be recorded as pending",
+            ):
+                proof_to_byte_finalizer.validate_release_publication_history(
+                    root, direct_verified
+                )
+
     def test_nonexact_legacy_projection_does_not_receive_migration_exception(
         self,
     ) -> None:
@@ -171,6 +199,45 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
                 proof_to_byte_finalizer.validate_release_publication_history(
                     root, current
                 )
+
+    def test_first_parent_rejects_nonlegacy_alpha2_introduction(self) -> None:
+        no_selector = copy.deepcopy(self.legacy)
+        no_selector["swift_xcframework"].pop("distribution")
+        from_no_selector = copy.deepcopy(no_selector)
+        from_no_selector["release_publications"][
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ] = alpha2_receipt()
+        from_no_selector["swift_xcframework"]["distribution"] = (
+            apple_contract.frozen_alpha2_r1_distribution()
+        )
+
+        alpha3_parent = copy.deepcopy(no_selector)
+        pending = alpha3_pending_receipt()
+        alpha3_parent["release_publications"][
+            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
+        ] = pending
+        alpha3_parent["swift_xcframework"]["distribution"] = copy.deepcopy(
+            pending["distribution"]
+        )
+        after_alpha3 = copy.deepcopy(alpha3_parent)
+        after_alpha3["release_publications"][
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        ] = alpha2_receipt()
+
+        for label, previous, current in (
+            ("no-selector", no_selector, from_no_selector),
+            ("alpha3-already-recorded", alpha3_parent, after_alpha3),
+        ):
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary) / "repository"
+                _repository_with_parent_results(root, previous)
+                with self.assertRaisesRegex(
+                    proof_to_byte_finalizer.FinalizerError,
+                    "only be introduced by the exact legacy",
+                ):
+                    proof_to_byte_finalizer.validate_release_publication_history(
+                        root, current
+                    )
 
 
 if __name__ == "__main__":

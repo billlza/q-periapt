@@ -8,6 +8,7 @@ pre/post candidate comparison, and publication of one PII-safe projection.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -17,6 +18,7 @@ import re
 import stat
 import sys
 from dataclasses import dataclass
+from collections.abc import Iterator
 from typing import Any, NoReturn, Sequence
 
 from evidence_io import (
@@ -24,6 +26,10 @@ from evidence_io import (
     FileSnapshot,
     parse_strict_json_bytes,
     read_regular_snapshot,
+)
+from publication_receipt_io import (
+    PublicationReceiptIOError,
+    write_private_json_noreplace_at,
 )
 from platform_distribution_contract import (
     PLATFORM_CANDIDATE_ASSETS,
@@ -38,6 +44,7 @@ MAX_CHECKSUM_BYTES = 1024 * 1024
 MAX_PRIVATE_STDERR_BYTES = 1024 * 1024
 MAX_SNAPSHOT_BYTES = 1024 * 1024
 MAX_RUN_ID = (1 << 63) - 1
+MAX_RUN_ATTEMPT = (1 << 31) - 1
 REPOSITORY = "billlza/q-periapt"
 REPOSITORY_URL = f"https://github.com/{REPOSITORY}"
 REPOSITORY_OWNER_URL = "https://github.com/billlza"
@@ -126,6 +133,7 @@ class VerifiedRecord:
     statement: bytes
     record: bytes
     run_id: int
+    run_attempt: int
     verified_at: str
 
 
@@ -461,6 +469,28 @@ def _private_directory(path: pathlib.Path, label: str) -> int:
     return descriptor
 
 
+@contextlib.contextmanager
+def _private_directory_handle(path: pathlib.Path, label: str) -> Iterator[int]:
+    """Close a pinned directory without replacing the primary exception."""
+
+    descriptor = _private_directory(path, label)
+    primary: BaseException | None = None
+    try:
+        yield descriptor
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            detail = f"cannot close {label}"
+            if primary is not None:
+                primary.add_note(detail)
+            else:
+                raise CandidateAttestationError(detail) from exc
+
+
 def _normalize_fixed_output_path(
     path: pathlib.Path,
     *,
@@ -493,8 +523,9 @@ def _validate_output_absent(
     expected_name: str,
     label: str,
 ) -> None:
-    parent_fd = _private_directory(path.parent, f"{label} parent")
-    try:
+    with _private_directory_handle(
+        path.parent, f"{label} parent"
+    ) as parent_fd:
         try:
             os.stat(expected_name, dir_fd=parent_fd, follow_symlinks=False)
         except FileNotFoundError:
@@ -502,8 +533,6 @@ def _validate_output_absent(
         except OSError as exc:
             raise CandidateAttestationError(f"cannot inspect {label}") from exc
         _fail(f"{label} already exists")
-    finally:
-        os.close(parent_fd)
 
 
 def _validate_projection_target(
@@ -537,38 +566,19 @@ def _write_private_json(
     path: pathlib.Path, expected_name: str, value: object, label: str
 ) -> str:
     _validate_output_absent(path, expected_name=expected_name, label=label)
-    payload = (
-        json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
-    ).encode("ascii")
-    digest = hashlib.sha256(payload).hexdigest()
-    parent_fd = _private_directory(path.parent, f"{label} parent")
-    file_fd = -1
-    flags = (
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_CLOEXEC", 0)
-    )
-    try:
-        file_fd = os.open(expected_name, flags, 0o600, dir_fd=parent_fd)
-        written = 0
-        while written < len(payload):
-            count = os.write(file_fd, payload[written:])
-            _require(count > 0, f"{label} write made no progress")
-            written += count
-        os.fchmod(file_fd, 0o600)
-        os.fsync(file_fd)
-        os.close(file_fd)
-        file_fd = -1
-        os.fsync(parent_fd)
-    except OSError as exc:
-        raise CandidateAttestationError(f"cannot publish {label}") from exc
-    finally:
-        if file_fd >= 0:
-            os.close(file_fd)
-        os.close(parent_fd)
-    return digest
+    with _private_directory_handle(
+        path.parent, f"{label} parent"
+    ) as parent_fd:
+        try:
+            return write_private_json_noreplace_at(
+                parent_fd,
+                expected_name,
+                value,
+                label=label,
+                maximum=MAX_SNAPSHOT_BYTES,
+            )
+        except PublicationReceiptIOError as exc:
+            raise CandidateAttestationError(str(exc)) from exc
 
 
 def write_candidate_snapshot(
@@ -622,6 +632,19 @@ def _utc_timestamp(value: object) -> str:
         raise CandidateAttestationError("verified timestamp is malformed") from exc
     _require(parsed.tzinfo is not None, "verified timestamp lacks a timezone")
     return parsed.astimezone(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _bounded_positive_decimal(value: str, *, maximum: int, label: str) -> int:
+    """Parse a positive decimal without exposing Python's unbounded-int limit."""
+
+    maximum_text = str(maximum)
+    _require(
+        len(value) <= len(maximum_text)
+        and re.fullmatch(r"[1-9][0-9]*", value) is not None
+        and (len(value) < len(maximum_text) or value <= maximum_text),
+        f"{label} is out of range",
+    )
+    return int(value)
 
 
 def _verification_record(
@@ -821,11 +844,21 @@ def _verification_record(
     run_uri = certificate["runInvocationURI"]
     _require(isinstance(run_uri, str), "attestation run URI is not a string")
     run_match = re.fullmatch(
-        re.escape(RUN_URI_PREFIX) + r"([1-9][0-9]*)/attempts/1", run_uri
+        re.escape(RUN_URI_PREFIX)
+        + r"([1-9][0-9]*)/attempts/([1-9][0-9]*)",
+        run_uri,
     )
-    _require(run_match is not None, "attestation run URI is not attempt 1")
-    run_id = int(run_match.group(1))
-    _require(run_id <= MAX_RUN_ID, "attestation run ID is too large")
+    _require(run_match is not None, "attestation run URI is malformed")
+    run_id = _bounded_positive_decimal(
+        run_match.group(1),
+        maximum=MAX_RUN_ID,
+        label="attestation run ID",
+    )
+    run_attempt = _bounded_positive_decimal(
+        run_match.group(2),
+        maximum=MAX_RUN_ATTEMPT,
+        label="attestation run attempt",
+    )
 
     run_details = _object(predicate["runDetails"], "attestation run details")
     _require(
@@ -866,6 +899,7 @@ def _verification_record(
         statement=_canonical_json(statement),
         record=_canonical_json(result),
         run_id=run_id,
+        run_attempt=run_attempt,
         verified_at=verified_at,
     )
 
@@ -885,21 +919,19 @@ def _raw_attestation_directory(path: pathlib.Path) -> pathlib.Path:
         SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
         "candidate attestation directory leaf is unsafe",
     )
-    descriptor = _private_directory(
-        normalized,
-        "candidate attestation directory",
-    )
-    os.close(descriptor)
     expected = {CANDIDATE_SNAPSHOT_NAME}
     for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
         expected.add(f"{subject}.json")
         expected.add(f"{subject}.stderr")
-    try:
-        actual = {entry.name for entry in normalized.iterdir()}
-    except OSError as exc:
-        raise CandidateAttestationError(
-            "cannot enumerate candidate attestation directory"
-        ) from exc
+    with _private_directory_handle(
+        normalized, "candidate attestation directory"
+    ) as descriptor:
+        try:
+            actual = set(os.listdir(descriptor))
+        except OSError as exc:
+            raise CandidateAttestationError(
+                "cannot enumerate candidate attestation directory"
+            ) from exc
     _require(actual == expected, "candidate attestation file set differs")
     for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
         _snapshot_file(
@@ -959,6 +991,10 @@ def verify_candidate_attestations(
             _require(record.record == shared.record, "candidate records differ")
             _require(record.run_id == shared.run_id, "candidate run IDs differ")
             _require(
+                record.run_attempt == shared.run_attempt,
+                "candidate run attempts differ",
+            )
+            _require(
                 record.verified_at == shared.verified_at,
                 "candidate verification timestamps differ",
             )
@@ -974,7 +1010,7 @@ def verify_candidate_attestations(
         "verification_record_sha256": hashlib.sha256(shared.record).hexdigest(),
         "verified": True,
         "verified_at": shared.verified_at,
-        "workflow_run_attempt": 1,
+        "workflow_run_attempt": shared.run_attempt,
         "workflow_run_id": shared.run_id,
     }
     projection_sha256 = _write_private_json(

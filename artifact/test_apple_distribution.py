@@ -18,6 +18,7 @@ import zipfile
 from unittest import mock
 
 import apple_distribution
+import deterministic_archive
 
 SOURCE_COMMIT = "ab" * 20
 TEAM_ID = "YKUPL7Z869"
@@ -443,6 +444,7 @@ class ZipFixture(unittest.TestCase):
         symlink_name: str | None = None,
         library_override: tuple[str, bytes] | None = None,
         file_override: tuple[str, bytes] | None = None,
+        directory_override: tuple[str, int, bytes] | None = None,
         metadata_extra_name: str | None = None,
         non_unix_origin_name: str | None = None,
         compression: int = zipfile.ZIP_DEFLATED,
@@ -460,11 +462,15 @@ class ZipFixture(unittest.TestCase):
         with zipfile.ZipFile(self.archive, "w") as archive:
             for name in sorted(entries):
                 if name.endswith("/"):
+                    mode = stat.S_IFDIR | 0o755
+                    data = b""
+                    if directory_override and name == directory_override[0]:
+                        _, mode, data = directory_override
                     write_zip_entry(
                         archive,
                         name,
-                        b"",
-                        mode=stat.S_IFDIR | 0o755,
+                        data,
+                        mode=mode,
                         compression=compression,
                     )
                     continue
@@ -563,6 +569,49 @@ class ExactZipLayoutTests(ZipFixture):
             apple_distribution.validate_xcframework_zip(
                 self.archive, require_signature=True
             )
+
+    def test_rejects_noncanonical_directory_mode(self) -> None:
+        name = "CQPeriapt.xcframework/"
+        self.write_archive(
+            directory_override=(name, stat.S_IFDIR | 0o700, b"")
+        )
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "invalid type, mode, or size",
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_nonempty_directory_payload(self) -> None:
+        name = "CQPeriapt.xcframework/"
+        self.write_archive(
+            directory_override=(name, stat.S_IFDIR | 0o755, b"payload")
+        )
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "invalid type, mode, or size",
+        ):
+            apple_distribution.validate_xcframework_zip(
+                self.archive, require_signature=True
+            )
+
+    def test_rejects_directory_name_with_non_directory_type(self) -> None:
+        name = "CQPeriapt.xcframework/"
+        for mode in (
+            stat.S_IFREG | 0o755,
+            stat.S_IFLNK | 0o777,
+            stat.S_IFIFO | 0o644,
+        ):
+            with self.subTest(mode=oct(mode)):
+                self.write_archive(directory_override=(name, mode, b""))
+                with self.assertRaisesRegex(
+                    apple_distribution.AppleDistributionError,
+                    "invalid type, mode, or size",
+                ):
+                    apple_distribution.validate_xcframework_zip(
+                        self.archive, require_signature=True
+                    )
 
     def test_rejects_duplicate_entry(self) -> None:
         with mock.patch("warnings.warn"):
@@ -789,6 +838,71 @@ class ExactZipLayoutTests(ZipFixture):
             apple_distribution.validate_xcframework_zip(
                 self.archive, require_signature=True
             )
+
+
+class DeterministicXCFrameworkZipTests(unittest.TestCase):
+    @staticmethod
+    def _restrictive_unsigned_xcframework(root: pathlib.Path) -> pathlib.Path:
+        xcframework = root / "CQPeriapt.xcframework"
+        for name in sorted(apple_distribution.EXPECTED_XCFRAMEWORK_DIRECTORIES):
+            relative = name.removeprefix("CQPeriapt.xcframework/").rstrip("/")
+            (xcframework / relative).mkdir(parents=True, exist_ok=True)
+        for name in sorted(apple_distribution.EXPECTED_XCFRAMEWORK_FILES):
+            relative = name.removeprefix("CQPeriapt.xcframework/")
+            path = xcframework / relative
+            if relative in apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES:
+                path.write_bytes(archive_bytes(relative))
+            else:
+                path.write_bytes(f"fixture:{name}".encode("utf-8"))
+        for path in xcframework.rglob("*"):
+            path.chmod(0o700 if path.is_dir() else 0o600)
+        xcframework.chmod(0o700)
+        return xcframework
+
+    def test_restrictive_source_modes_and_umasks_produce_identical_zip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            xcframework = self._restrictive_unsigned_xcframework(root)
+            first = root / "umask-077.zip"
+            second = root / "umask-022.zip"
+
+            previous_umask = os.umask(0o077)
+            try:
+                first_audit = deterministic_archive.create_zip(
+                    xcframework,
+                    first,
+                    root_name="CQPeriapt.xcframework",
+                    mtime=946684800,
+                )
+            finally:
+                os.umask(previous_umask)
+
+            previous_umask = os.umask(0o022)
+            try:
+                second_audit = deterministic_archive.create_zip(
+                    xcframework,
+                    second,
+                    root_name="CQPeriapt.xcframework",
+                    mtime=946684800,
+                )
+            finally:
+                os.umask(previous_umask)
+
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            self.assertEqual(first_audit.archive_sha256, second_audit.archive_sha256)
+            apple_distribution.validate_xcframework_zip(
+                first, require_signature=False
+            )
+            with zipfile.ZipFile(first) as archive:
+                for info in archive.infolist():
+                    mode = (info.external_attr >> 16) & 0o177777
+                    if info.filename.endswith("/"):
+                        self.assertEqual(mode, stat.S_IFDIR | 0o755)
+                        self.assertEqual(info.file_size, 0)
+                        self.assertEqual(info.compress_size, 0)
+                        self.assertEqual(info.compress_type, zipfile.ZIP_STORED)
+                    else:
+                        self.assertEqual(mode, stat.S_IFREG | 0o644)
 
 
 class CodesignDisplayTests(unittest.TestCase):
@@ -1297,6 +1411,63 @@ class ReleaseAssetVerificationTests(ZipFixture):
         )
         self.assertEqual(len(verified), 6)
 
+    def test_public_candidate_projector_deep_validates_without_results_input(
+        self,
+    ) -> None:
+        signature = self.distribution["origin_signature"]["signature"]
+        certificate = self.distribution["origin_signature"]["certificate"]
+        projected = (
+            apple_distribution.project_trusted_results_candidate_distribution(
+                zip_data=(
+                    self.release / apple_distribution.XCFRAMEWORK_ZIP_NAME
+                ).read_bytes(),
+                apple_distribution_data=(
+                    self.release / apple_distribution.APPLE_DISTRIBUTION_NAME
+                ).read_bytes(),
+                manifest_data=(
+                    self.release / apple_distribution.MANIFEST_NAME
+                ).read_bytes(),
+                checksums_data=(
+                    self.release / apple_distribution.SHA256SUMS_NAME
+                ).read_bytes(),
+                expected_asset_sha256=dict(self.hashes),
+                expected_source_commit=SOURCE_COMMIT,
+                expected_team_id=signature["team_id"],
+                expected_certificate_sha256=certificate["sha256"],
+            )
+        )
+        trusted = json.loads(self.results.read_text(encoding="utf-8"))[
+            "swift_xcframework"
+        ]["distribution"]
+        self.assertEqual(trusted, projected)
+        self.assertFalse(projected["public_release"])
+        self.assertFalse(projected["remote_consumer_verified"])
+
+        wrong_hashes = dict(self.hashes)
+        wrong_hashes[apple_distribution.MANIFEST_NAME] = "f" * 64
+        with self.assertRaisesRegex(
+            apple_distribution.AppleDistributionError,
+            "differ from the completed ledger",
+        ):
+            apple_distribution.project_trusted_results_candidate_distribution(
+                zip_data=(
+                    self.release / apple_distribution.XCFRAMEWORK_ZIP_NAME
+                ).read_bytes(),
+                apple_distribution_data=(
+                    self.release / apple_distribution.APPLE_DISTRIBUTION_NAME
+                ).read_bytes(),
+                manifest_data=(
+                    self.release / apple_distribution.MANIFEST_NAME
+                ).read_bytes(),
+                checksums_data=(
+                    self.release / apple_distribution.SHA256SUMS_NAME
+                ).read_bytes(),
+                expected_asset_sha256=wrong_hashes,
+                expected_source_commit=SOURCE_COMMIT,
+                expected_team_id=signature["team_id"],
+                expected_certificate_sha256=certificate["sha256"],
+            )
+
     def test_preserves_verification_of_the_published_alpha2_r1_release(self) -> None:
         legacy_identity = apple_distribution._release_identity_object(
             apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY
@@ -1654,6 +1825,65 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         cls.workflow = (cls.root / ".github/workflows/ci.yml").read_text(
             encoding="utf-8"
         )
+
+    @classmethod
+    def _completion_publish_program(cls) -> str:
+        marker = (
+            'python3 - "$COMPLETION_PENDING" "$COMPLETION_LEDGER" '
+            "<<'PY'\n"
+        )
+        start = cls.release.index(marker) + len(marker)
+        end = cls.release.index("\nPY\n", start)
+        return cls.release[start:end] + "\n"
+
+    def _run_completion_publish(
+        self,
+        pending: pathlib.Path,
+        completed: pathlib.Path,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                str(pathlib.Path(sys.executable).resolve(strict=True)),
+                "-",
+                str(pending),
+                str(completed),
+            ],
+            input=self._completion_publish_program(),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_builder_uses_the_deterministic_xcframework_zip_contract(self) -> None:
+        create = self.builder.index(
+            "python3 artifact/deterministic_archive.py create-zip"
+        )
+        validate = self.builder.index(
+            'validate_apple_xcframework_zip_paths unsigned "$ZIP_PATH"'
+        )
+        self.assertLess(create, validate)
+        self.assertIn("XCFRAMEWORK_ARCHIVE_MTIME=946684800", self.builder)
+        self.assertIn('--source "$XCFRAMEWORK"', self.builder)
+        self.assertIn('--output "$ZIP_PATH"', self.builder)
+        self.assertIn('--root "CQPeriapt.xcframework"', self.builder)
+        self.assertIn('--mtime "$XCFRAMEWORK_ARCHIVE_MTIME"', self.builder)
+        self.assertNotIn("need zip\n", self.builder)
+        self.assertNotIn("touch -h -t", self.builder)
+        self.assertNotIn('rm -f "$ZIP_PATH"', self.builder)
+        self.assertNotIn("zip -q -X", self.builder)
+
+    def test_release_umask_is_fixed_inside_the_verified_private_root(self) -> None:
+        private_root = self.release.index(
+            "private Apple release root must be a current-user 0700 directory"
+        )
+        fixed_umask = self.release.index("umask 022")
+        worktree_add = self.release.index(
+            'release_main_git worktree add --detach "$WORKTREE_ROOT" "$SOURCE_COMMIT"'
+        )
+        self.assertLess(self.release.index('chmod 700 "$RELEASE_ROOT"'), private_root)
+        self.assertLess(private_root, fixed_umask)
+        self.assertLess(fixed_umask, worktree_add)
+        self.assertEqual(self.release.count("umask 022"), 1)
 
     def test_release_path_is_signing_only_and_has_no_notary_credentials(self) -> None:
         source = self.builder + self.release
@@ -2100,9 +2330,70 @@ fi
             'python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST"'
         )
         cleanup = self.release.rindex("cleanup_owned_release_worktree")
-        ledger_rename = self.release.index("os.rename(pending, completed)")
+        ledger_rename = self.release.index("result = rename_noreplace(")
         self.assertLess(pending_write, cleanup)
         self.assertLess(cleanup, ledger_rename)
+        completion_program = self._completion_publish_program()
+        self.assertIn("renameatx_np", completion_program)
+        self.assertIn("RENAME_EXCL", completion_program)
+        self.assertIn("renameat2", completion_program)
+        self.assertIn("RENAME_NOREPLACE", completion_program)
+        self.assertIn("os.fsync(directory)", completion_program)
+        self.assertNotIn("os.rename(", completion_program)
+        self.assertNotIn("lexists", completion_program)
+
+    def test_completion_publish_never_replaces_a_competing_final_ledger(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            release_root = pathlib.Path(raw) / "release"
+            release_root.mkdir(mode=0o700)
+            os.chmod(release_root, 0o700)
+            pending = release_root / "completed.json.pending"
+            completed = release_root / "completed.json"
+            pending.write_bytes(b"new complete ledger\n")
+            completed.write_bytes(b"competing complete ledger\n")
+            os.chmod(pending, 0o600)
+            os.chmod(completed, 0o600)
+            competing_identity = (completed.stat().st_dev, completed.stat().st_ino)
+
+            process = self._run_completion_publish(pending, completed)
+
+            self.assertNotEqual(0, process.returncode, process.stderr)
+            self.assertIn("completion ledger already exists", process.stderr)
+            self.assertEqual(b"competing complete ledger\n", completed.read_bytes())
+            self.assertEqual(
+                competing_identity,
+                (completed.stat().st_dev, completed.stat().st_ino),
+            )
+            self.assertEqual(b"new complete ledger\n", pending.read_bytes())
+            self.assertEqual(0o600, stat.S_IMODE(pending.stat().st_mode))
+
+    def test_completion_publish_is_durable_no_replace_and_removes_pending(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            release_root = pathlib.Path(raw) / "release"
+            release_root.mkdir(mode=0o700)
+            os.chmod(release_root, 0o700)
+            pending = release_root / "completed.json.pending"
+            completed = release_root / "completed.json"
+            payload = b"one complete release ledger\n"
+            pending.write_bytes(payload)
+            os.chmod(pending, 0o600)
+            pending_identity = (pending.stat().st_dev, pending.stat().st_ino)
+
+            process = self._run_completion_publish(pending, completed)
+
+            self.assertEqual(0, process.returncode, process.stderr)
+            self.assertFalse(pending.exists())
+            self.assertEqual(payload, completed.read_bytes())
+            self.assertEqual(
+                pending_identity,
+                (completed.stat().st_dev, completed.stat().st_ino),
+            )
+            self.assertEqual(0o600, stat.S_IMODE(completed.stat().st_mode))
+            self.assertEqual(1, completed.stat().st_nlink)
 
     def test_remote_consumer_download_is_hash_pinned_and_atomic(self) -> None:
         self.assertIn("curl -q --fail --location", self.remote)
@@ -2138,8 +2429,13 @@ fi
         )
         for relative in (
             "artifact/swift-xcframework-remote-consumer.sh",
+            "artifact/apple_alpha3_publication.py",
             "artifact/apple_distribution.py",
+            "artifact/apple_publication_contract.py",
+            "artifact/bounded_process.py",
             "artifact/evidence_io.py",
+            "artifact/git_provenance.py",
+            "artifact/publication_receipt_io.py",
             "artifact/swift-xcframework-consumer-check.sh",
             "artifact/python-env.sh",
             "artifact/python_bootstrap.py",
@@ -2163,11 +2459,178 @@ fi
             self.remote.index(".binaryTarget"),
         )
         self.assertGreaterEqual(self.remote.count("verify_release_assets"), 4)
+        self.assertIn("START_RESULTS_SHA256=", self.remote)
+        self.assertIn('/bin/chmod 600 "$LOG"', self.remote)
+        self.assertIn("emit-remote-consumer", self.remote)
+        self.assertLess(
+            self.remote.index("emit-remote-consumer"),
+            self.remote.rindex('rm -rf "$ARTIFACT_SNAPSHOT" "$VERIFIER_SNAPSHOT"'),
+        )
         self.assertIn('rm -rf "$ARTIFACT_SNAPSHOT" "$VERIFIER_SNAPSHOT"', self.remote)
+        self.assertIn(
+            'RUNS_ROOT="$ROOT/target/qperiapt-swift-remote-consumer-runs"',
+            self.remote,
+        )
+        self.assertIn(
+            'mktemp -d "$RUNS_ROOT/transaction.XXXXXXXX"',
+            self.remote,
+        )
+        self.assertNotIn('/bin/rm -rf "$OUT"', self.remote)
+        self.assertNotIn('/bin/cat "$LOG"', self.remote)
+        self.assertNotIn('tee "$LOG"', self.remote)
+        self.assertIn(
+            "receipt committed but post-commit cleanup failed",
+            self.remote,
+        )
+        self.assertLess(
+            self.remote.index("emit-remote-consumer"),
+            self.remote.rindex('if ! /bin/rm -rf "$ARTIFACT_SNAPSHOT"'),
+        )
+        self.assertLess(
+            self.remote.rindex('if ! /bin/rmdir "$LOCK_DIR"'),
+            self.remote.index("SWIFT_REMOTE_BINARY_CONSUMER_PASS"),
+        )
+        self.assertLess(
+            self.remote.index('run_private_gate "consumer-check.log"'),
+            self.remote.index("emit-remote-consumer"),
+        )
+        self.assertIn(
+            'run_private_gate "codesign-post-extract.log"',
+            self.remote,
+        )
+        self.assertIn(
+            'run_private_gate "codesign-pre-receipt.log"',
+            self.remote,
+        )
+        self.assertIn(
+            'run_private_gate "ditto-extract.log"',
+            self.remote,
+        )
         self.assertIn("artifact_source_commit=%s verifier_commit=%s", self.remote)
         self.assertNotIn("SOURCE_WORKTREE", self.remote)
         self.assertNotIn("qperiapt-apple-release-worktrees", self.remote)
         self.assertNotIn("--insecure", self.remote)
+
+    def test_post_commit_cleanup_failure_preserves_receipt_and_is_nonzero(
+        self,
+    ) -> None:
+        start = self.remote.index("cleanup_remote_state() {")
+        end = self.remote.index("\n}\nvalidate_private_directory()", start) + 3
+        cleanup_function = self.remote[start:end]
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw)
+            artifacts = root / "artifact-source-inputs"
+            verifier = root / "verifier-inputs"
+            assets = root / "release-assets"
+            lock = root / "lock"
+            for directory in (artifacts, verifier, assets, lock):
+                directory.mkdir(mode=0o700)
+            (lock / "force-rmdir-failure").write_bytes(b"keep lock busy\n")
+            receipt = root / "apple-remote-consumer-receipt.json"
+            receipt_bytes = b"complete receipt bytes\n"
+            receipt.write_bytes(receipt_bytes)
+            os.chmod(receipt, 0o600)
+            program = (
+                cleanup_function
+                + "\nARTIFACT_SNAPSHOT=$1\n"
+                + "VERIFIER_SNAPSHOT=$2\n"
+                + "RELEASE_ASSETS=$3\n"
+                + "LOCK_DIR=$4\n"
+                + "LOCK_RELEASED=0\n"
+                + "RECEIPT_COMMITTED=1\n"
+                + "REMOTE_RECEIPT_RELATIVE=target/qperiapt-swift-remote-"
+                + "consumer-runs/transaction.fixture/"
+                + "apple-remote-consumer-receipt.json\n"
+                + "REMOTE_RECEIPT_SHA256="
+                + hashlib.sha256(receipt_bytes).hexdigest()
+                + "\ncleanup_remote_state\n"
+            )
+            completed = subprocess.run(
+                [
+                    "/bin/sh",
+                    "-c",
+                    program,
+                    "cleanup-test",
+                    str(artifacts),
+                    str(verifier),
+                    str(assets),
+                    str(lock),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            self.assertEqual(125, completed.returncode)
+            self.assertEqual("", completed.stdout)
+            self.assertIn(
+                "receipt committed but post-commit cleanup failed",
+                completed.stderr,
+            )
+            self.assertNotIn(str(root), completed.stderr)
+            self.assertEqual(receipt_bytes, receipt.read_bytes())
+            self.assertFalse(artifacts.exists())
+            self.assertFalse(verifier.exists())
+
+    def test_private_gate_logs_never_replay_child_output(self) -> None:
+        require_start = self.remote.index("require_lower_hex() {")
+        require_end = self.remote.index(
+            '\n}\nrequire_lower_hex "$CHECKSUM"',
+            require_start,
+        ) + 3
+        gate_start = self.remote.index("run_private_gate() {")
+        gate_end = self.remote.index(
+            "\n}\nif [ -L \"$ROOT/target\" ]",
+            gate_start,
+        ) + 3
+        functions = (
+            self.remote[require_start:require_end]
+            + "\n"
+            + self.remote[gate_start:gate_end]
+        )
+        sentinel = "PRIVATE_SENTINEL /Users/private-checkout"
+
+        for label, child_status in (("success", 0), ("failure", 7)):
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
+                run = pathlib.Path(raw) / "transaction.fixture"
+                run.mkdir(mode=0o700)
+                program = (
+                    functions
+                    + "\nOUT=$1\n"
+                    + "RUN_DIRECTORY_NAME=transaction.fixture\n"
+                    + "MAX_PRIVATE_GATE_LOG_BLOCKS=2048\n"
+                    + "MAX_PRIVATE_GATE_LOG_BYTES=1048576\n"
+                    + "run_private_gate child.log child_gate /bin/sh -c "
+                    + "'printf \"PRIVATE_SENTINEL /Users/private-checkout\\n\"; "
+                    + f"exit {child_status}'\n"
+                    + "printf 'TERMINAL_SAFE\\n'\n"
+                )
+                completed = subprocess.run(
+                    ["/bin/sh", "-c", program, "private-gate-test", str(run)],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                log = run / "child.log"
+                self.assertEqual(0o600, stat.S_IMODE(log.stat().st_mode))
+                self.assertIn(sentinel, log.read_text(encoding="utf-8"))
+                self.assertNotIn(sentinel, completed.stdout)
+                self.assertNotIn(sentinel, completed.stderr)
+                self.assertNotIn(str(pathlib.Path(raw)), completed.stderr)
+                if child_status == 0:
+                    self.assertEqual(0, completed.returncode)
+                    self.assertEqual("TERMINAL_SAFE\n", completed.stdout)
+                    self.assertEqual("", completed.stderr)
+                else:
+                    self.assertEqual(1, completed.returncode)
+                    self.assertEqual("", completed.stdout)
+                    self.assertIn(
+                        "private_log=target/qperiapt-swift-remote-consumer-runs/"
+                        "transaction.fixture/child.log",
+                        completed.stderr,
+                    )
 
 
 if __name__ == "__main__":

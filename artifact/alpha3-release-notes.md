@@ -89,49 +89,151 @@ path escapes those roots. Raw GitHub responses remain in a script-owned `0700`
 directory under `target/abi2-platform-candidate-verification/raw`; neither their
 path nor their contents appear in the success marker.
 
-After the Apple GitHub prerelease is immutable and its fresh remote consumer check
-has completed, use the private source-bound completion ledger as the exact four-asset
-expectation while collecting GitHub release metadata and its five-subject release
-attestation. The raw, ledger, and projection paths must be separate trees:
+Publication receipts advance through `pending` before `verified`; a domain receipt
+never edits `artifact/results.json` directly. First bind the two pending receipts to
+their private candidate/completion evidence. The platform verifier must be a clean
+standalone checkout named `M` with its own non-symlink `.git` directory:
 
 ```sh
+platform_tag=abi2-platforms-v0.1.0-alpha.3-r1
+platform_worktree_root=$PWD/target/abi2-platform-publication-worktrees
+(umask 077 && mkdir -p "$platform_worktree_root")
+chmod 0700 "$platform_worktree_root"
+test ! -e "$platform_worktree_root/M"
+(umask 077 && git clone --no-local "$PWD" "$platform_worktree_root/M")
+git -C "$platform_worktree_root/M" checkout --detach "$platform_tag"
+test -z "$(git -C "$platform_worktree_root/M" status --porcelain=v1 \
+  --untracked-files=all)"
+sh artifact/python-run.sh artifact/platform_alpha3_publication.py pending \
+  --candidate-projection "$projection" \
+  --verifier-checkout "$platform_worktree_root/M"
+
 apple_tag=v0.1.0-alpha.3-r1
 source_commit=$(git rev-parse --verify "refs/tags/$apple_tag^{commit}")
 apple_worktrees=$PWD/target/qperiapt-apple-release-worktrees
+completed=$apple_worktrees/$source_commit/completed.json
+sh artifact/python-run.sh artifact/apple_alpha3_publication.py pending \
+  "$completed"
+```
+
+Set `platform_pending_receipt` and `apple_pending_receipt` to `$PWD/` plus the
+repo-relative `receipt=`/`path=` values printed by those commands. Pin the current
+results bytes and ask the neutral finalizer for a separate pending results
+candidate. Review that candidate and advance it through the normal results-only
+commit; neither receipt is itself a results file:
+
+```sh
+results_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
+sh artifact/python-run.sh artifact/release_receipt_finalizer.py finalize \
+  "$results_sha256" \
+  --apple-receipt "$apple_pending_receipt" \
+  --platform-receipt "$platform_pending_receipt"
+```
+
+After selecting that pending candidate, run the external consumer from its clean
+verifier checkout with the seven existing `QPERIAPT_SWIFT_BINARY_*` pins. Map
+`QPERIAPT_SWIFT_BINARY_CHECKSUM`, `QPERIAPT_SWIFT_BINARY_SHA256`,
+`QPERIAPT_SWIFT_BINARY_APPLE_DISTRIBUTION_SHA256`,
+`QPERIAPT_SWIFT_BINARY_MANIFEST_SHA256`,
+`QPERIAPT_SWIFT_BINARY_SHA256SUMS_SHA256`, and
+`QPERIAPT_SWIFT_BINARY_SOURCE_COMMIT` to the current pending distribution's
+`swiftpm_checksum`, `artifact_sha256`, `apple_distribution_evidence_sha256`,
+`manifest_sha256`, `checksums_sha256`, and `source_commit` respectively.
+`QPERIAPT_SWIFT_BINARY_URL` is exactly
+`https://github.com/billlza/q-periapt/releases/download/v0.1.0-alpha.3-r1/CQPeriapt.xcframework.zip`.
+These are cross-checked facts, not new caller claims:
+
+```sh
+/bin/sh artifact/swift-xcframework-remote-consumer.sh
+```
+
+The script accepts no arguments. It snapshots and pins the startup
+`artifact/results.json` internally, performs the remote checks, and invokes the
+receipt emitter only from that source-bound snapshot. Its
+`APPLE_REMOTE_CONSUMER_RECEIPT_PASS` marker reports the fixed path under
+`target/qperiapt-swift-remote-consumer-runs/transaction.<fresh>/`.
+That marker and leaf are the atomic evidence commit. The terminal
+`SWIFT_REMOTE_BINARY_CONSUMER_PASS` marker is emitted only after the source
+snapshots are removed and the global lock is released. If the script exits 125
+with `remote-consumer receipt committed but post-commit cleanup failed`, the
+committed receipt facts remain available for independent read-only verification,
+but the run's hygiene failure still requires handling and the nonzero script run
+must not be recorded as a PASS.
+
+After the Apple prerelease is immutable, collect its five-subject GitHub release
+attestation into disjoint private raw and projection transactions:
+
+```sh
 apple_verification=$PWD/target/qperiapt-apple-release-verification
 apple_raw_root=$apple_verification/raw
 apple_projection_root=$apple_verification/projections
-(umask 077 && mkdir -p \
-  "$apple_worktrees" "$apple_raw_root" "$apple_projection_root")
-chmod 0700 "$apple_worktrees" "$apple_verification" \
-  "$apple_raw_root" "$apple_projection_root"
-completed=$apple_worktrees/$source_commit/completed.json
+(umask 077 && mkdir -p "$apple_raw_root" "$apple_projection_root")
+chmod 0700 "$apple_verification" "$apple_raw_root" "$apple_projection_root"
 release_id=$(gh release view "$apple_tag" --repo billlza/q-periapt \
   --json databaseId --jq .databaseId)
 tag_object=$(git rev-parse --verify "refs/tags/$apple_tag")
-raw=$apple_raw_root/release-$release_id
-test ! -e "$raw"
+apple_transaction=release-$release_id-UNIQUE_OPERATOR_TRANSACTION
+apple_raw=$apple_raw_root/$apple_transaction
+test ! -e "$apple_raw"
 apple_projection_parent=$(umask 077 && \
   mktemp -d "$apple_projection_root/transaction.XXXXXXXX")
 chmod 0700 "$apple_projection_parent"
 apple_projection=$apple_projection_parent/apple-github-release-verification.json
 sh artifact/python-run.sh artifact/apple_release_verification.py collect \
-  "$completed" "$release_id" "$tag_object" "$raw" "$apple_projection"
+  "$completed" "$release_id" "$tag_object" "$apple_raw" "$apple_projection"
 ```
 
-The adapter verifies the annotated tag object and peeled commit before and after the
-remote transaction. It requires the fixed repository to be `PUBLIC` in matching
-bounded pre/post observations, and requires stable security-relevant release fields
-from the bounded `gh release view` observations around `gh release verify`. Mutable
-download-count telemetry is validated but excluded from the stability comparison.
-The worktree-ledger, raw, and projection roots must each be current-user-owned
-`0700` non-symlink directories. The adapter canonicalizes each input once, rejects
-`/tmp`, traversal, sibling-prefix, and symlink escapes before any subprocess, and
-then uses only the normalized paths. The five raw files remain `0600` under the new
-`0700` raw directory. Only after those samples agree does it exclusively create a
-`0600` PII-safe projection. Its
-`publication` member is the exact pure receipt-contract shape; the four asset hashes
-and TimestampAuthority metadata remain alongside it for adapter self-verification.
+Set `apple_remote_receipt` to `$PWD/` plus the emitted repo-relative path. Promote
+Apple, then collect the platform release into fresh absent raw/download paths. Set
+the four Android variables below to canonical absolute executable paths from the
+fixed SDK/NDK installation selected for this transaction:
+
+```sh
+pending_results_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
+sh artifact/python-run.sh artifact/apple_alpha3_publication.py promote \
+  "$pending_results_sha256" "$apple_projection" "$apple_remote_receipt"
+
+platform_transaction=release-UNIQUE_OPERATOR_TRANSACTION
+platform_raw=$PWD/target/abi2-platform-publication-verification/raw/$platform_transaction
+platform_downloads=$PWD/target/abi2-platform-publication-verification/downloads/$platform_transaction
+test ! -e "$platform_raw" && test ! -e "$platform_downloads"
+sh artifact/python-run.sh artifact/platform_alpha3_publication.py collect \
+  --pending-receipt "$platform_pending_receipt" \
+  --verifier-checkout "$platform_worktree_root/M" \
+  --raw-directory "$platform_raw" \
+  --download-directory "$platform_downloads" \
+  --android-llvm-nm "$android_llvm_nm" \
+  --android-llvm-readelf "$android_llvm_readelf" \
+  --android-apksigner "$android_apksigner" \
+  --android-zipalign "$android_zipalign"
+```
+
+Set `apple_verified_receipt` and `platform_verified_receipt` to `$PWD/` plus their
+printed repo-relative paths. Finalize against the still-pinned pending results;
+after selecting the reviewed verified candidate, `verify` is read-only and
+idempotent:
+
+```sh
+sh artifact/python-run.sh artifact/release_receipt_finalizer.py finalize \
+  "$pending_results_sha256" \
+  --apple-receipt "$apple_verified_receipt" \
+  --platform-receipt "$platform_verified_receipt"
+
+verified_results_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
+sh artifact/python-run.sh artifact/release_receipt_finalizer.py verify \
+  "$verified_results_sha256" \
+  --apple-receipt "$apple_verified_receipt" \
+  --platform-receipt "$platform_verified_receipt"
+```
+
+Both collectors use bounded pre/post `PUBLIC` repository and immutable prerelease
+views around exact release attestation checks. Platform collection then streams all
+eight assets into one new private directory, rechecks their size/hash inventory,
+and runs the deep verifier from `M`; GitHub CLI authentication may be configured,
+so this is not an anonymous-availability claim. All receipt, raw, download,
+projection, remote-consumer, and results-candidate outputs stay below fixed roots.
+A failed raw/download collection requires a new transaction leaf. Successful
+outputs are no-replace; already-selected receipts are checked only with `verify`.
 
 ```sh
 gh release verify v0.1.0-alpha.3-r1 --repo billlza/q-periapt

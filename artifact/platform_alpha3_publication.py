@@ -1,0 +1,1657 @@
+#!/usr/bin/env python3
+"""Collect the frozen alpha.3 platform publication transaction.
+
+``pending`` turns one verified candidate-attestation projection plus a clean,
+annotated-tag verifier checkout into the exact pending domain receipt.
+``collect`` promotes that receipt only after stable GitHub metadata, exact
+release attestation, bounded fresh downloads, and the tagged checkout's deep
+platform-distribution verifier all agree.
+
+GitHub CLI observations may use the caller's configured authentication.  This
+collector therefore proves PUBLIC repository/release metadata and the bytes
+returned by that authenticated CLI context; it does not claim anonymous
+download availability.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import dataclasses
+import datetime as dt
+import hashlib
+import math
+import os
+import pathlib
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import time
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from typing import Any, Never
+
+from bounded_process import (
+    BoundedProcessError,
+    BoundedResult,
+    capture_stdout,
+    write_stdout_at,
+)
+from claim_ledger import LedgerError, canonical_tree_digest, repository_paths
+from evidence_io import (
+    EvidenceIOError,
+    FileSnapshot,
+    read_regular_snapshot,
+)
+import github_release_observation as github_release
+import platform_candidate_attestation as candidate_attestation
+from publication_receipt_io import (
+    PRIVATE_FILE_MODE,
+    PublicationReceiptIOError,
+    canonical_json_bytes,
+    create_private_transaction_json,
+    ensure_private_safe_root,
+    normalize_safe_root,
+    open_private_directory,
+    read_fixed_file_snapshot,
+    read_fixed_json_snapshot,
+    write_private_bytes_noreplace_at,
+)
+from platform_alpha3_publication_contract import (
+    ANDROID_AAR,
+    ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+    ANDROID_MANIFEST,
+    ANDROID_RUNTIME_BUNDLE,
+    ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
+    CANDIDATE_PUBLIC_ASSET_NAMES,
+    DISTRIBUTION_REVISION,
+    PLATFORM_ALPHA3_PUBLICATION_BOUNDARY,
+    PlatformAlpha3PublicationContractError,
+    PLATFORM_ALPHA3_PUBLICATION_KIND,
+    PLATFORM_ALPHA3_PUBLICATION_SCHEMA_VERSION,
+    PLATFORM_ALPHA3_STATUS_PENDING,
+    PLATFORM_ALPHA3_STATUS_VERIFIED,
+    PRODUCT_VERSION,
+    PUBLIC_ASSET_NAMES,
+    REGISTRY_STATES,
+    RELEASE_MANIFEST,
+    RELEASE_SUMS,
+    RELEASE_TAG,
+    RELEASE_URL,
+    TAG_SUBJECT_URI,
+    WINDOWS_RELEASE_CLASS,
+    parse_utc_timestamp,
+    validate_alpha3_publication_receipt,
+)
+
+
+REPOSITORY = "billlza/q-periapt"
+GH_REPOSITORY_ARGUMENT = f"github.com/{REPOSITORY}"
+REPOSITORY_URL = f"https://github.com/{REPOSITORY}"
+API_ASSET_PREFIX = f"https://api.github.com/repos/{REPOSITORY}/releases/assets/"
+RELEASE_DOWNLOAD_PREFIX = f"{REPOSITORY_URL}/releases/download/"
+RELEASE_REF = f"refs/tags/{RELEASE_TAG}"
+
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
+PLATFORM_PUBLICATION_RECEIPT_ROOT = (
+    REPOSITORY_ROOT / "target" / "abi2-platform-publication-receipts"
+)
+PLATFORM_PUBLICATION_VERIFICATION_ROOT = (
+    REPOSITORY_ROOT / "target" / "abi2-platform-publication-verification"
+)
+PLATFORM_PUBLICATION_RAW_ROOT = PLATFORM_PUBLICATION_VERIFICATION_ROOT / "raw"
+PLATFORM_PUBLICATION_DOWNLOAD_ROOT = (
+    PLATFORM_PUBLICATION_VERIFICATION_ROOT / "downloads"
+)
+PLATFORM_PUBLICATION_WORKTREE_ROOT = (
+    REPOSITORY_ROOT / "target" / "abi2-platform-publication-worktrees"
+)
+
+RECEIPT_NAME = "platform-alpha3-publication-receipt.json"
+RAW_REPOSITORY_BEFORE_NAME = "repository-view-before.json"
+RAW_RELEASE_BEFORE_NAME = "release-view-before.json"
+RAW_RELEASE_VERIFY_NAME = "release-verify.json"
+RAW_RELEASE_AFTER_NAME = "release-view-after.json"
+RAW_REPOSITORY_AFTER_NAME = "repository-view-after.json"
+RAW_DEEP_VERIFY_NAME = "deep-distribution-verifier-stdout.txt"
+RAW_FRESH_RECORD_NAME = "fresh-download-verification.json"
+RAW_NAMES = frozenset(
+    {
+        RAW_REPOSITORY_BEFORE_NAME,
+        RAW_RELEASE_BEFORE_NAME,
+        RAW_RELEASE_VERIFY_NAME,
+        RAW_RELEASE_AFTER_NAME,
+        RAW_REPOSITORY_AFTER_NAME,
+        RAW_DEEP_VERIFY_NAME,
+        RAW_FRESH_RECORD_NAME,
+    }
+)
+
+FRESH_RECORD_KIND = "qperiapt.platform_alpha3_fresh_download_verification"
+FRESH_RECORD_SCHEMA_VERSION = 1
+MAX_PRIVATE_JSON_BYTES = 16 * 1024 * 1024
+MAX_REPOSITORY_VIEW_BYTES = 1024 * 1024
+MAX_RELEASE_VIEW_BYTES = 4 * 1024 * 1024
+MAX_RELEASE_VERIFY_BYTES = 16 * 1024 * 1024
+MAX_ASSET_BYTES = 512 * 1024 * 1024
+MAX_TOTAL_ASSET_BYTES = 2 * 1024 * 1024 * 1024
+MAX_TOOL_BYTES = 512 * 1024 * 1024
+MAX_DEEP_VERIFY_OUTPUT_BYTES = 16 * 1024
+GH_TIMEOUT_SECONDS = 120
+GIT_TIMEOUT_SECONDS = 30
+DEEP_VERIFY_TIMEOUT_SECONDS = 300
+DOWNLOAD_TRANSACTION_TIMEOUT_SECONDS = 900
+
+HEX_40 = re.compile(r"^[0-9a-f]{40}$")
+HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+SAFE_DIRECTORY_LEAF = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]*$")
+DEEP_VERIFY_PASS = re.compile(
+    r"^ABI2_PLATFORM_DISTRIBUTION_VERIFY_PASS "
+    r"commit=([0-9a-f]{40}) assets=6\n$"
+)
+
+
+class PlatformAlpha3PublicationError(ValueError):
+    """The platform publication transaction violates a local or remote gate."""
+
+
+class PlatformAlpha3PublicationRetryableError(PlatformAlpha3PublicationError):
+    """One explicit remote observation can be retried as a new transaction."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SourceObservation:
+    canonical_source_tree_sha256: str
+    tag_commit: str
+    tag_object: str
+    tag_tree: str
+    verifier_commit: str
+
+    def document(self) -> dict[str, str]:
+        return dataclasses.asdict(self)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class AndroidVerificationTools:
+    llvm_nm: pathlib.Path
+    llvm_readelf: pathlib.Path
+    apksigner: pathlib.Path
+    zipalign: pathlib.Path
+
+    def ordered(self) -> tuple[tuple[str, pathlib.Path], ...]:
+        return (
+            ("llvm_nm", self.llvm_nm),
+            ("llvm_readelf", self.llvm_readelf),
+            ("apksigner", self.apksigner),
+            ("zipalign", self.zipalign),
+        )
+
+
+CaptureRunner = Callable[..., BoundedResult]
+SinkRunner = Callable[..., BoundedResult]
+Clock = Callable[[], dt.datetime]
+MonotonicClock = Callable[[], float]
+SourceInspector = Callable[..., SourceObservation]
+
+
+def _fail(message: str) -> Never:
+    raise PlatformAlpha3PublicationError(message)
+
+
+def _retryable(reason: str) -> Never:
+    raise PlatformAlpha3PublicationRetryableError(f"retryable:{reason}")
+
+
+def _require(condition: bool, message: str) -> None:
+    if not condition:
+        _fail(message)
+
+
+def _object(value: object, label: str) -> dict[str, Any]:
+    _require(
+        isinstance(value, dict) and all(isinstance(key, str) for key in value),
+        f"{label} must be a JSON object with string keys",
+    )
+    return value
+
+
+def _canonical_pretty_json(value: object) -> bytes:
+    try:
+        return canonical_json_bytes(value)
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _private_file_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        raise EvidenceIOError("private platform publication file metadata differs")
+
+
+def _read_private_snapshot(
+    path: pathlib.Path, *, maximum: int, label: str
+) -> FileSnapshot:
+    try:
+        return read_regular_snapshot(
+            path,
+            maximum=maximum,
+            label=label,
+            validate_metadata=_private_file_metadata,
+        )
+    except EvidenceIOError as exc:
+        raise PlatformAlpha3PublicationError(
+            f"cannot safely read {label}"
+        ) from exc
+
+
+def _normalized_safe_root(
+    safe_root: pathlib.Path, *, label: str
+) -> pathlib.Path:
+    try:
+        return normalize_safe_root(safe_root, label=f"{label} safe root")
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _ensure_platform_safe_roots() -> None:
+    """Bootstrap only the module-owned 0700 roots below owned safe parents."""
+
+    ordered = (
+        (PLATFORM_PUBLICATION_RECEIPT_ROOT, "platform publication receipt root"),
+        (
+            PLATFORM_PUBLICATION_VERIFICATION_ROOT,
+            "platform publication verification root",
+        ),
+        (PLATFORM_PUBLICATION_RAW_ROOT, "platform publication raw root"),
+        (
+            PLATFORM_PUBLICATION_DOWNLOAD_ROOT,
+            "platform publication download root",
+        ),
+        (PLATFORM_PUBLICATION_WORKTREE_ROOT, "platform publication worktree root"),
+    )
+    for root, label in ordered:
+        try:
+            ensure_private_safe_root(root, label=label)
+        except PublicationReceiptIOError as exc:
+            raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _normalize_direct_child(
+    path: pathlib.Path,
+    *,
+    safe_root: pathlib.Path,
+    label: str,
+    must_exist: bool,
+) -> pathlib.Path:
+    _require(path.is_absolute(), f"{label} must be absolute")
+    root = _normalized_safe_root(safe_root, label=label)
+    supplied = os.fspath(path)
+    normalized_text = os.path.realpath(supplied)
+    _require(
+        normalized_text == os.path.abspath(supplied),
+        f"{label} must contain no symlink or traversal aliases",
+    )
+    normalized = pathlib.Path(normalized_text)
+    _require(normalized.parent == root, f"{label} must be a direct safe-root child")
+    _require(
+        SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
+        f"{label} leaf is unsafe",
+    )
+    try:
+        metadata = normalized.lstat()
+    except FileNotFoundError:
+        _require(not must_exist, f"{label} does not exist")
+        return normalized
+    except OSError as exc:
+        raise PlatformAlpha3PublicationError(f"cannot inspect {label}") from exc
+    _require(must_exist, f"{label} already exists")
+    _require(
+        stat.S_ISDIR(metadata.st_mode)
+        and not normalized.is_symlink()
+        and metadata.st_uid == os.geteuid()
+        and stat.S_IMODE(metadata.st_mode) == 0o700,
+        f"{label} is not an owned mode-0700 non-symlink directory",
+    )
+    return normalized
+
+
+def _directory_fd(path: pathlib.Path, *, label: str) -> int:
+    try:
+        return open_private_directory(path, label=label)
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+@contextlib.contextmanager
+def _private_directory_handle(
+    path: pathlib.Path, *, label: str
+) -> Iterator[int]:
+    """Close a pinned directory without replacing an operation's primary error."""
+
+    descriptor = _directory_fd(path, label=label)
+    primary: BaseException | None = None
+    try:
+        yield descriptor
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            detail = f"cannot close {label}"
+            if primary is not None:
+                primary.add_note(detail)
+            else:
+                raise PlatformAlpha3PublicationError(detail) from exc
+
+
+def _require_absent_at(directory_fd: int, name: str, label: str) -> None:
+    try:
+        os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise PlatformAlpha3PublicationError(f"cannot inspect {label}") from exc
+    _fail(f"{label} already exists")
+
+
+def _create_private_directory(path: pathlib.Path, *, safe_root: pathlib.Path, label: str) -> None:
+    path = _normalize_direct_child(
+        path, safe_root=safe_root, label=label, must_exist=False
+    )
+    root = _normalized_safe_root(safe_root, label=label)
+    with _private_directory_handle(root, label=f"{label} root") as root_fd:
+        _require_absent_at(root_fd, path.name, label)
+        try:
+            os.mkdir(path.name, 0o700, dir_fd=root_fd)
+            os.fsync(root_fd)
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(f"cannot create {label}") from exc
+    with _private_directory_handle(path, label=label):
+        pass
+
+
+def _write_receipt(
+    receipt: dict[str, object], *, transaction_prefix: str
+) -> tuple[pathlib.Path, str]:
+    try:
+        validate_alpha3_publication_receipt(receipt)
+    except PlatformAlpha3PublicationContractError as exc:
+        raise PlatformAlpha3PublicationError(
+            "platform publication receipt violates its domain contract: "
+            f"{exc}"
+        ) from exc
+    try:
+        return create_private_transaction_json(
+            safe_root=PLATFORM_PUBLICATION_RECEIPT_ROOT,
+            transaction_prefix=transaction_prefix,
+            expected_leaf=RECEIPT_NAME,
+            value=receipt,
+            label="platform publication receipt",
+            maximum=MAX_PRIVATE_JSON_BYTES,
+        )
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _system_clock() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
+
+
+def _utc_now(
+    clock: Clock, *, label: str, not_before: Sequence[dt.datetime]
+) -> str:
+    observed = clock()
+    _require(
+        isinstance(observed, dt.datetime)
+        and observed.tzinfo is not None
+        and observed.utcoffset() is not None,
+        f"{label} clock must return a timezone-aware datetime",
+    )
+    normalized = observed.astimezone(dt.UTC).replace(microsecond=0)
+    _require(
+        all(boundary <= normalized for boundary in not_before),
+        f"{label} predates already-observed evidence",
+    )
+    return normalized.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _contract_timestamp(value: object, label: str) -> dt.datetime:
+    try:
+        return parse_utc_timestamp(value, label)
+    except PlatformAlpha3PublicationContractError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _tool(name: str) -> str:
+    located = shutil.which(name)
+    _require(located is not None, f"required platform publication tool is unavailable: {name}")
+    try:
+        resolved = pathlib.Path(located).resolve(strict=True)
+    except OSError as exc:
+        raise PlatformAlpha3PublicationError(
+            f"cannot resolve platform publication tool: {name}"
+        ) from exc
+    _require(
+        resolved.is_file() and os.access(resolved, os.X_OK),
+        f"platform publication tool is not executable: {name}",
+    )
+    return str(resolved)
+
+
+def _process_environment(source: Mapping[str, str]) -> dict[str, str]:
+    overridden = sorted(name for name in source if name.startswith("GIT_"))
+    _require(
+        not overridden,
+        "platform publication rejects caller Git environment overrides",
+    )
+    environment = dict(source)
+    environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "LANG": "C",
+            "LC_ALL": "C",
+        }
+    )
+    environment.pop("GH_HOST", None)
+    environment.pop("GH_REPO", None)
+    return environment
+
+
+def _capture_command(
+    argv: Sequence[str],
+    *,
+    timeout_seconds: int,
+    maximum_bytes: int,
+    environment: Mapping[str, str],
+    label: str,
+    runner: CaptureRunner,
+    remote: bool,
+    require_output: bool = True,
+) -> bytes:
+    try:
+        result = runner(
+            argv,
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=maximum_bytes,
+            stderr=subprocess.DEVNULL,
+            environment=environment,
+        )
+    except BoundedProcessError as exc:
+        if remote and exc.kind in {"timeout", "io", "reap"}:
+            _retryable("github-observation-unavailable")
+        raise PlatformAlpha3PublicationError(f"{label} failed safely") from exc
+    if result.returncode != 0:
+        if remote and result.returncode == 1:
+            _retryable("github-command-nonzero")
+        _fail(f"{label} was rejected")
+    if require_output:
+        _require(result.stdout, f"{label} returned empty output")
+    return result.stdout
+
+
+def _git_base(git: str, verifier: pathlib.Path) -> list[str]:
+    return [
+        git,
+        "-C",
+        str(verifier),
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "core.attributesFile=/dev/null",
+        "-c",
+        "core.excludesFile=/dev/null",
+    ]
+
+
+def _git_bytes(
+    git: str,
+    verifier: pathlib.Path,
+    arguments: Sequence[str],
+    *,
+    maximum_bytes: int,
+    environment: Mapping[str, str],
+    label: str,
+    runner: CaptureRunner,
+) -> bytes:
+    return _capture_command(
+        [*_git_base(git, verifier), *arguments],
+        timeout_seconds=GIT_TIMEOUT_SECONDS,
+        maximum_bytes=maximum_bytes,
+        environment=environment,
+        label=label,
+        runner=runner,
+        remote=False,
+        require_output=False,
+    )
+
+
+def _git_line(
+    git: str,
+    verifier: pathlib.Path,
+    arguments: Sequence[str],
+    *,
+    environment: Mapping[str, str],
+    label: str,
+    runner: CaptureRunner,
+) -> str:
+    raw = _git_bytes(
+        git,
+        verifier,
+        arguments,
+        maximum_bytes=1024,
+        environment=environment,
+        label=label,
+        runner=runner,
+    )
+    try:
+        value = raw.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise PlatformAlpha3PublicationError(f"{label} is not ASCII") from exc
+    _require(value.endswith("\n") and value.count("\n") == 1, f"{label} differs")
+    return value[:-1]
+
+
+def _normalize_verifier_checkout(path: pathlib.Path) -> pathlib.Path:
+    verifier = _normalize_direct_child(
+        path,
+        safe_root=PLATFORM_PUBLICATION_WORKTREE_ROOT,
+        label="platform verifier checkout",
+        must_exist=True,
+    )
+    git_directory = verifier / ".git"
+    try:
+        metadata = git_directory.lstat()
+    except OSError as exc:
+        raise PlatformAlpha3PublicationError(
+            "platform verifier checkout lacks a .git directory"
+        ) from exc
+    _require(
+        stat.S_ISDIR(metadata.st_mode) and not git_directory.is_symlink(),
+        "platform verifier checkout requires a non-symlink .git directory",
+    )
+    return verifier
+
+
+def inspect_verifier_source(
+    verifier_checkout: pathlib.Path,
+    *,
+    git: str,
+    environment: Mapping[str, str],
+    runner: CaptureRunner,
+) -> SourceObservation:
+    """Observe one clean annotated-tag checkout before any release claim."""
+
+    verifier = _normalize_verifier_checkout(verifier_checkout)
+
+    def metadata_snapshot() -> tuple[str, str, str, str, bytes]:
+        tag_type = _git_line(
+            git,
+            verifier,
+            ["cat-file", "-t", RELEASE_REF],
+            environment=environment,
+            label="platform release tag type",
+            runner=runner,
+        )
+        tag_object = _git_line(
+            git,
+            verifier,
+            ["rev-parse", "--verify", RELEASE_REF],
+            environment=environment,
+            label="platform release tag object",
+            runner=runner,
+        )
+        tag_commit = _git_line(
+            git,
+            verifier,
+            ["rev-parse", "--verify", f"{RELEASE_REF}^{{commit}}"],
+            environment=environment,
+            label="platform release tag commit",
+            runner=runner,
+        )
+        tag_tree = _git_line(
+            git,
+            verifier,
+            ["rev-parse", "--verify", f"{RELEASE_REF}^{{tree}}"],
+            environment=environment,
+            label="platform release tag tree",
+            runner=runner,
+        )
+        head = _git_line(
+            git,
+            verifier,
+            ["rev-parse", "--verify", "HEAD^{commit}"],
+            environment=environment,
+            label="platform verifier HEAD",
+            runner=runner,
+        )
+        status = _git_bytes(
+            git,
+            verifier,
+            ["status", "--porcelain=v1", "--untracked-files=all"],
+            maximum_bytes=1024 * 1024,
+            environment=environment,
+            label="platform verifier status",
+            runner=runner,
+        )
+        _require(tag_type == "tag", "platform release tag is not annotated")
+        _require(
+            all(
+                HEX_40.fullmatch(value) is not None
+                for value in (tag_object, tag_commit, tag_tree, head)
+            ),
+            "platform verifier Git identity is malformed",
+        )
+        _require(tag_object != tag_commit, "platform release tag is not annotated")
+        _require(
+            head == tag_commit,
+            "platform verifier checkout is not at the release tag",
+        )
+        _require(status == b"", "platform verifier checkout is dirty")
+        return tag_object, tag_commit, tag_tree, head, status
+
+    before = metadata_snapshot()
+    try:
+        source_digest = canonical_tree_digest(
+            verifier, repository_paths(verifier)
+        )
+    except (LedgerError, ValueError) as exc:
+        raise PlatformAlpha3PublicationError(
+            "cannot compute the platform verifier canonical source digest"
+        ) from exc
+    _require(
+        HEX_64.fullmatch(source_digest) is not None,
+        "platform verifier source digest is malformed",
+    )
+    after = metadata_snapshot()
+    _require(
+        after == before,
+        "platform verifier checkout changed during source observation",
+    )
+    tag_object, tag_commit, tag_tree, head, _status = before
+    return SourceObservation(
+        canonical_source_tree_sha256=source_digest,
+        tag_commit=tag_commit,
+        tag_object=tag_object,
+        tag_tree=tag_tree,
+        verifier_commit=head,
+    )
+
+
+def _load_candidate_projection(path: pathlib.Path) -> dict[str, Any]:
+    try:
+        return read_fixed_json_snapshot(
+            path,
+            safe_root=candidate_attestation.CANDIDATE_PROJECTION_ROOT,
+            expected_leaf=candidate_attestation.PROJECTION_NAME,
+            label="candidate attestation projection",
+            parent_depth=1,
+            maximum=MAX_PRIVATE_JSON_BYTES,
+            file_mode=PRIVATE_FILE_MODE,
+        ).value
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _load_receipt(path: pathlib.Path, *, expected_status: str) -> dict[str, Any]:
+    try:
+        receipt = read_fixed_json_snapshot(
+            path,
+            safe_root=PLATFORM_PUBLICATION_RECEIPT_ROOT,
+            expected_leaf=RECEIPT_NAME,
+            label="platform publication receipt input",
+            parent_depth=1,
+            maximum=MAX_PRIVATE_JSON_BYTES,
+            file_mode=PRIVATE_FILE_MODE,
+        ).value
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+    try:
+        validate_alpha3_publication_receipt(receipt)
+    except PlatformAlpha3PublicationContractError as exc:
+        raise PlatformAlpha3PublicationError(
+            "platform publication receipt input violates its domain contract: "
+            f"{exc}"
+        ) from exc
+    _require(
+        receipt["status"] == expected_status,
+        "platform publication receipt input status differs",
+    )
+    return receipt
+
+
+def assemble_pending_receipt(
+    candidate_projection: pathlib.Path,
+    verifier_checkout: pathlib.Path,
+    *,
+    runner: CaptureRunner = capture_stdout,
+    clock: Clock = _system_clock,
+    source_environment: Mapping[str, str] | None = None,
+    git_tool: str | None = None,
+    source_inspector: SourceInspector = inspect_verifier_source,
+) -> tuple[pathlib.Path, str, SourceObservation]:
+    """Publish one exact pending receipt without any remote-publication claim."""
+
+    _ensure_platform_safe_roots()
+    candidate = _load_candidate_projection(candidate_projection)
+    environment = _process_environment(
+        os.environ if source_environment is None else source_environment
+    )
+    git = _tool("git") if git_tool is None else git_tool
+    source = source_inspector(
+        verifier_checkout,
+        git=git,
+        environment=environment,
+        runner=runner,
+    )
+    candidate_verified_at = _contract_timestamp(
+        candidate.get("verified_at"), "candidate projection verified_at"
+    )
+    observed_at = _utc_now(
+        clock,
+        label="platform pending observation",
+        not_before=(candidate_verified_at,),
+    )
+    receipt: dict[str, object] = {
+        "boundary": PLATFORM_ALPHA3_PUBLICATION_BOUNDARY,
+        "identity": {
+            "distribution_revision": DISTRIBUTION_REVISION,
+            "product_version": PRODUCT_VERSION,
+            "release_tag": RELEASE_TAG,
+            "release_url": RELEASE_URL,
+        },
+        "kind": PLATFORM_ALPHA3_PUBLICATION_KIND,
+        "observation": {
+            "candidate_attestation": candidate,
+            "observed_at": observed_at,
+            "source": source.document(),
+        },
+        "schema_version": PLATFORM_ALPHA3_PUBLICATION_SCHEMA_VERSION,
+        "status": PLATFORM_ALPHA3_STATUS_PENDING,
+    }
+    output, digest = _write_receipt(
+        receipt, transaction_prefix="transaction.pending."
+    )
+    return output, digest, source
+
+
+def _release_policy(
+    source: SourceObservation,
+    *,
+    release_id: int | None,
+    asset_sha256: Mapping[str, str] | None,
+) -> github_release.ReleasePolicy:
+    return github_release.ReleasePolicy(
+        repository=REPOSITORY,
+        repository_url=REPOSITORY_URL,
+        release_url=RELEASE_URL,
+        download_prefix=RELEASE_DOWNLOAD_PREFIX,
+        api_asset_prefix=API_ASSET_PREFIX,
+        tag_subject_uri=TAG_SUBJECT_URI,
+        tag=RELEASE_TAG,
+        tag_commit=source.tag_commit,
+        tag_object=source.tag_object,
+        asset_names=PUBLIC_ASSET_NAMES,
+        expected_release_id=release_id,
+        expected_sha256=asset_sha256,
+        expected_content_types=None,
+        require_asset_order=False,
+    )
+
+
+def _write_raw(
+    raw_directory: pathlib.Path, name: str, data: bytes, *, label: str
+) -> str:
+    with _private_directory_handle(
+        raw_directory, label="platform publication raw directory"
+    ) as directory_fd:
+        try:
+            return write_private_bytes_noreplace_at(
+                directory_fd,
+                name,
+                data,
+                label=label,
+                maximum=MAX_RELEASE_VERIFY_BYTES,
+            )
+        except PublicationReceiptIOError as exc:
+            raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _read_raw(raw_directory: pathlib.Path, name: str, *, maximum: int, label: str) -> bytes:
+    try:
+        return read_fixed_file_snapshot(
+            raw_directory / name,
+            safe_root=PLATFORM_PUBLICATION_RAW_ROOT,
+            expected_leaf=name,
+            label=label,
+            parent_depth=1,
+            maximum=maximum,
+            file_mode=PRIVATE_FILE_MODE,
+        ).data
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+
+def _observe_remote_json(
+    arguments: Sequence[str],
+    *,
+    raw_directory: pathlib.Path,
+    raw_name: str,
+    maximum_bytes: int,
+    environment: Mapping[str, str],
+    label: str,
+    runner: CaptureRunner,
+) -> bytes:
+    raw = _capture_command(
+        arguments,
+        timeout_seconds=GH_TIMEOUT_SECONDS,
+        maximum_bytes=maximum_bytes,
+        environment=environment,
+        label=label,
+        runner=runner,
+        remote=True,
+    )
+    _write_raw(raw_directory, raw_name, raw, label=f"raw {label}")
+    return _read_raw(
+        raw_directory,
+        raw_name,
+        maximum=maximum_bytes,
+        label=f"raw {label}",
+    )
+
+
+def _remaining_download_timeout(deadline: float, monotonic: MonotonicClock) -> int:
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        _retryable("github-download-deadline-exhausted")
+    return min(300, max(1, math.ceil(remaining)))
+
+
+def _download_asset(
+    gh: str,
+    name: str,
+    expected: Mapping[str, object],
+    *,
+    index: int,
+    download_directory: pathlib.Path,
+    deadline: float,
+    environment: Mapping[str, str],
+    runner: SinkRunner,
+    monotonic: MonotonicClock,
+) -> FileSnapshot:
+    expected_size = expected["bytes"]
+    expected_sha256 = expected["sha256"]
+    _require(
+        type(expected_size) is int and 0 < expected_size <= MAX_ASSET_BYTES,
+        f"GitHub release asset size is out of policy for {name}",
+    )
+    _require(
+        isinstance(expected_sha256, str)
+        and HEX_64.fullmatch(expected_sha256) is not None,
+        f"GitHub release asset digest is malformed for {name}",
+    )
+    temporary_name = f"download-{index:02d}.tmp"
+    with _private_directory_handle(
+        download_directory, label="fresh platform download directory"
+    ) as directory_fd:
+        _require_absent_at(directory_fd, temporary_name, f"temporary download for {name}")
+        _require_absent_at(directory_fd, name, f"fresh download for {name}")
+        try:
+            result = runner(
+                [
+                    gh,
+                    "release",
+                    "download",
+                    RELEASE_TAG,
+                    "--repo",
+                    GH_REPOSITORY_ARGUMENT,
+                    "--pattern",
+                    name,
+                    "--output",
+                    "-",
+                ],
+                output_directory_fd=directory_fd,
+                output_name=temporary_name,
+                timeout_seconds=_remaining_download_timeout(deadline, monotonic),
+                maximum_bytes=expected_size,
+                stderr=subprocess.DEVNULL,
+                environment=environment,
+            )
+        except BoundedProcessError as exc:
+            if exc.kind in {"timeout", "io", "reap"}:
+                _retryable("github-download-unavailable")
+            raise PlatformAlpha3PublicationError(
+                f"bounded GitHub download failed safely for {name}"
+            ) from exc
+        if result.returncode != 0:
+            if result.returncode == 1:
+                _retryable("github-download-nonzero")
+            _fail(f"GitHub download was rejected for {name}")
+    temporary = _read_private_snapshot(
+        download_directory / temporary_name,
+        maximum=expected_size,
+        label=f"temporary fresh download for {name}",
+    )
+    _require(
+        temporary.size == expected_size and temporary.sha256 == expected_sha256,
+        f"fresh download size or digest differs for {name}",
+    )
+    with _private_directory_handle(
+        download_directory, label="fresh platform download directory"
+    ) as directory_fd:
+        _require_absent_at(directory_fd, name, f"fresh download for {name}")
+        try:
+            os.link(
+                temporary_name,
+                name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+            os.fsync(directory_fd)
+            os.unlink(temporary_name, dir_fd=directory_fd)
+            os.fsync(directory_fd)
+        except FileExistsError as exc:
+            raise PlatformAlpha3PublicationError(
+                f"fresh download already exists for {name}"
+            ) from exc
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(
+                f"cannot exclusively publish fresh download for {name}"
+            ) from exc
+    return _read_private_snapshot(
+        download_directory / name,
+        maximum=expected_size,
+        label=f"fresh download for {name}",
+    )
+
+
+def _inventory_fresh_downloads(
+    directory: pathlib.Path,
+    expected_assets: Mapping[str, Mapping[str, object]],
+) -> dict[str, FileSnapshot]:
+    with _private_directory_handle(
+        directory, label="fresh platform download directory"
+    ) as descriptor:
+        try:
+            actual = set(os.listdir(descriptor))
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(
+                "cannot enumerate fresh platform downloads"
+            ) from exc
+    _require(actual == set(PUBLIC_ASSET_NAMES), "fresh platform download asset set differs")
+    snapshots: dict[str, FileSnapshot] = {}
+    for name in PUBLIC_ASSET_NAMES:
+        path = directory / name
+        try:
+            metadata = path.lstat()
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(
+                f"cannot inspect fresh platform download {name}"
+            ) from exc
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and not path.is_symlink()
+            and metadata.st_uid == os.geteuid()
+            and stat.S_IMODE(metadata.st_mode) == 0o600
+            and metadata.st_nlink == 1,
+            f"fresh platform download metadata differs for {name}",
+        )
+        expected_size = expected_assets[name]["bytes"]
+        snapshot = _read_private_snapshot(
+            path,
+            maximum=expected_size,
+            label=f"fresh platform download {name}",
+        )
+        _require(
+            snapshot.size == expected_size
+            and snapshot.sha256 == expected_assets[name]["sha256"],
+            f"fresh platform download bytes differ for {name}",
+        )
+        snapshots[name] = snapshot
+    return snapshots
+
+
+def _normalize_android_tools(tools: AndroidVerificationTools) -> AndroidVerificationTools:
+    normalized: dict[str, pathlib.Path] = {}
+    for label, path in tools.ordered():
+        _require(path.is_absolute(), f"Android {label} path must be absolute")
+        supplied = os.path.abspath(os.fspath(path))
+        resolved_text = os.path.realpath(supplied)
+        _require(resolved_text == supplied, f"Android {label} path must be canonical")
+        resolved = pathlib.Path(resolved_text)
+        try:
+            metadata = resolved.lstat()
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(
+                f"cannot inspect Android {label} tool"
+            ) from exc
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and not resolved.is_symlink()
+            and os.access(resolved, os.X_OK),
+            f"Android {label} tool is not an executable regular file",
+        )
+        normalized[label] = resolved
+    return AndroidVerificationTools(**normalized)
+
+
+def _run_deep_distribution_verifier(
+    verifier_checkout: pathlib.Path,
+    download_directory: pathlib.Path,
+    tools: AndroidVerificationTools,
+    *,
+    expected_commit: str,
+    environment: Mapping[str, str],
+    runner: CaptureRunner,
+) -> tuple[dict[str, Any], bytes]:
+    verifier = _normalize_verifier_checkout(verifier_checkout)
+    script = verifier / "artifact" / "python-run.sh"
+    module = verifier / "artifact" / "platform_distribution.py"
+    for path, label in ((script, "tagged Python runner"), (module, "tagged platform verifier")):
+        try:
+            metadata = path.lstat()
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(f"cannot inspect {label}") from exc
+        _require(
+            stat.S_ISREG(metadata.st_mode) and not path.is_symlink(),
+            f"{label} must be a non-symlink regular file",
+        )
+    stdout = _capture_command(
+        [
+            "/bin/sh",
+            str(script),
+            "artifact/platform_distribution.py",
+            "verify",
+            "--root",
+            str(verifier),
+            "--release-dir",
+            str(download_directory),
+            "--android-llvm-nm",
+            str(tools.llvm_nm),
+            "--android-llvm-readelf",
+            str(tools.llvm_readelf),
+            "--android-apksigner",
+            str(tools.apksigner),
+            "--android-zipalign",
+            str(tools.zipalign),
+        ],
+        timeout_seconds=DEEP_VERIFY_TIMEOUT_SECONDS,
+        maximum_bytes=MAX_DEEP_VERIFY_OUTPUT_BYTES,
+        environment=environment,
+        label="tagged platform deep distribution verifier",
+        runner=runner,
+        remote=False,
+    )
+    try:
+        text = stdout.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise PlatformAlpha3PublicationError(
+            "tagged platform deep verifier output is not ASCII"
+        ) from exc
+    match = DEEP_VERIFY_PASS.fullmatch(text)
+    _require(match is not None, "tagged platform deep verifier PASS marker differs")
+    _require(match.group(1) == expected_commit, "tagged platform deep verifier commit differs")
+    try:
+        manifest = read_fixed_json_snapshot(
+            download_directory / RELEASE_MANIFEST,
+            safe_root=PLATFORM_PUBLICATION_DOWNLOAD_ROOT,
+            expected_leaf=RELEASE_MANIFEST,
+            label="fresh platform distribution manifest",
+            parent_depth=1,
+            maximum=MAX_PRIVATE_JSON_BYTES,
+            file_mode=PRIVATE_FILE_MODE,
+        ).value
+    except PublicationReceiptIOError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+    return manifest, stdout
+
+
+def _runtime_projection(
+    manifest: Mapping[str, object],
+    assets: Mapping[str, Mapping[str, object]],
+) -> dict[str, object]:
+    values = manifest.get("assets")
+    _require(isinstance(values, list), "deep platform manifest assets are missing")
+    records: dict[str, dict[str, Any]] = {}
+    for value in values:
+        record = _object(value, "deep platform manifest asset")
+        name = record.get("name")
+        _require(
+            isinstance(name, str) and name not in records,
+            "deep platform manifest asset names differ",
+        )
+        records[name] = record
+    _require(
+        ANDROID_RUNTIME_BUNDLE in records
+        and ANDROID_AAR in records
+        and ANDROID_MANIFEST in records,
+        "deep platform manifest lacks Android release records",
+    )
+    runtime = records[ANDROID_RUNTIME_BUNDLE]
+    device = _object(runtime.get("device"), "deep Android runtime device")
+    return {
+        "bundle_manifest_sha256": runtime.get("bundle_manifest_sha256"),
+        "bundle_schema": ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
+        "bundle_sha256": assets[ANDROID_RUNTIME_BUNDLE]["sha256"],
+        "device_abi": device.get("abi"),
+        "device_kind": device.get("kind"),
+        "device_sdk": device.get("sdk"),
+        "page_size": device.get("page_size"),
+        "proof_schema": ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+        "proof_sha256": runtime.get("proof_sha256"),
+        "release_mode": True,
+        "tested_aar_manifest_sha256": assets[ANDROID_MANIFEST]["sha256"],
+        "tested_aar_sha256": runtime.get("tested_aar_sha256"),
+    }
+
+
+def _tool_record(tools: AndroidVerificationTools) -> dict[str, dict[str, object]]:
+    records: dict[str, dict[str, object]] = {}
+    for label, path in tools.ordered():
+        try:
+            snapshot = read_regular_snapshot(
+                path, maximum=MAX_TOOL_BYTES, label=f"Android {label} tool"
+            )
+        except EvidenceIOError as exc:
+            raise PlatformAlpha3PublicationError(
+                f"cannot snapshot Android {label} tool"
+            ) from exc
+        records[label] = {"name": path.name, "sha256": snapshot.sha256}
+    return records
+
+
+def _validate_raw_directory(
+    path: pathlib.Path, expected_sha256: Mapping[str, str]
+) -> None:
+    _require(
+        frozenset(expected_sha256) == RAW_NAMES,
+        "platform publication raw digest set differs",
+    )
+    with _private_directory_handle(
+        path, label="platform publication raw directory"
+    ) as descriptor:
+        try:
+            actual = set(os.listdir(descriptor))
+        except OSError as exc:
+            raise PlatformAlpha3PublicationError(
+                "cannot enumerate platform publication raw directory"
+            ) from exc
+    _require(
+        actual == RAW_NAMES,
+        "platform publication raw file set differs",
+    )
+    for name in RAW_NAMES:
+        raw = _read_raw(
+            path,
+            name,
+            maximum=MAX_RELEASE_VERIFY_BYTES,
+            label=f"platform publication raw file {name}",
+        )
+        _require(
+            hashlib.sha256(raw).hexdigest() == expected_sha256[name],
+            f"platform publication raw bytes changed for {name}",
+        )
+
+
+def collect_verified_receipt(
+    pending_receipt: pathlib.Path,
+    verifier_checkout: pathlib.Path,
+    raw_directory: pathlib.Path,
+    download_directory: pathlib.Path,
+    *,
+    android_tools: AndroidVerificationTools,
+    runner: CaptureRunner = capture_stdout,
+    sink_runner: SinkRunner = write_stdout_at,
+    clock: Clock = _system_clock,
+    monotonic: MonotonicClock = time.monotonic,
+    source_environment: Mapping[str, str] | None = None,
+    git_tool: str | None = None,
+    gh_tool: str | None = None,
+    source_inspector: SourceInspector = inspect_verifier_source,
+    deep_verifier: Callable[..., tuple[dict[str, Any], bytes]] = _run_deep_distribution_verifier,
+) -> tuple[pathlib.Path, str, int]:
+    """Collect one fail-closed pending-to-verified publication promotion."""
+
+    _ensure_platform_safe_roots()
+    receipt = _load_receipt(
+        pending_receipt, expected_status=PLATFORM_ALPHA3_STATUS_PENDING
+    )
+    raw = _normalize_direct_child(
+        raw_directory,
+        safe_root=PLATFORM_PUBLICATION_RAW_ROOT,
+        label="platform publication raw directory",
+        must_exist=False,
+    )
+    downloads = _normalize_direct_child(
+        download_directory,
+        safe_root=PLATFORM_PUBLICATION_DOWNLOAD_ROOT,
+        label="fresh platform download directory",
+        must_exist=False,
+    )
+    _require(raw != downloads, "platform publication raw and download directories overlap")
+    environment = _process_environment(
+        os.environ if source_environment is None else source_environment
+    )
+    git = _tool("git") if git_tool is None else git_tool
+    gh = _tool("gh") if gh_tool is None else gh_tool
+    tools = _normalize_android_tools(android_tools)
+    source_before = source_inspector(
+        verifier_checkout,
+        git=git,
+        environment=environment,
+        runner=runner,
+    )
+    pending_observation = _object(receipt["observation"], "pending platform observation")
+    _require(
+        source_before.document() == pending_observation["source"],
+        "platform verifier source differs from the pending receipt",
+    )
+    _create_private_directory(
+        raw, safe_root=PLATFORM_PUBLICATION_RAW_ROOT, label="platform publication raw directory"
+    )
+    _create_private_directory(
+        downloads,
+        safe_root=PLATFORM_PUBLICATION_DOWNLOAD_ROOT,
+        label="fresh platform download directory",
+    )
+    raw_sha256: dict[str, str] = {}
+
+    repository_arguments = [
+        gh,
+        "repo",
+        "view",
+        GH_REPOSITORY_ARGUMENT,
+        "--json",
+        ",".join(github_release.REPOSITORY_VIEW_FIELDS),
+    ]
+    release_arguments = [
+        gh,
+        "release",
+        "view",
+        RELEASE_TAG,
+        "--repo",
+        GH_REPOSITORY_ARGUMENT,
+        "--json",
+        ",".join(github_release.RELEASE_VIEW_FIELDS),
+    ]
+    verify_arguments = [
+        gh,
+        "release",
+        "verify",
+        RELEASE_TAG,
+        "--repo",
+        GH_REPOSITORY_ARGUMENT,
+        "--format",
+        "json",
+    ]
+    repository_policy = github_release.RepositoryPolicy(
+        repository=REPOSITORY, repository_url=REPOSITORY_URL
+    )
+    repository_before_raw = _observe_remote_json(
+        repository_arguments,
+        raw_directory=raw,
+        raw_name=RAW_REPOSITORY_BEFORE_NAME,
+        maximum_bytes=MAX_REPOSITORY_VIEW_BYTES,
+        environment=environment,
+        label="GitHub platform repository view-before",
+        runner=runner,
+    )
+    raw_sha256[RAW_REPOSITORY_BEFORE_NAME] = hashlib.sha256(
+        repository_before_raw
+    ).hexdigest()
+    try:
+        repository_before = github_release.parse_repository_view(
+            repository_before_raw,
+            policy=repository_policy,
+            label="GitHub platform repository view-before",
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+    release_before_raw = _observe_remote_json(
+        release_arguments,
+        raw_directory=raw,
+        raw_name=RAW_RELEASE_BEFORE_NAME,
+        maximum_bytes=MAX_RELEASE_VIEW_BYTES,
+        environment=environment,
+        label="GitHub platform release view-before",
+        runner=runner,
+    )
+    raw_sha256[RAW_RELEASE_BEFORE_NAME] = hashlib.sha256(
+        release_before_raw
+    ).hexdigest()
+    try:
+        release_before = github_release.parse_release_view(
+            release_before_raw,
+            policy=_release_policy(
+                source_before, release_id=None, asset_sha256=None
+            ),
+            label="GitHub platform release view-before",
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+    assets = {asset["name"]: asset for asset in release_before.assets}
+    _require(
+        all(
+            type(assets[name]["bytes"]) is int
+            and 0 < assets[name]["bytes"] <= MAX_ASSET_BYTES
+            for name in PUBLIC_ASSET_NAMES
+        )
+        and sum(assets[name]["bytes"] for name in PUBLIC_ASSET_NAMES)
+        <= MAX_TOTAL_ASSET_BYTES,
+        "GitHub platform release asset sizes exceed the bounded download policy",
+    )
+    candidate_projection = _object(
+        pending_observation["candidate_attestation"],
+        "pending candidate attestation",
+    )
+    candidate_subjects = {
+        subject["name"]: subject["digest"]["sha256"]
+        for subject in candidate_projection["subjects"]
+    }
+    for name in CANDIDATE_PUBLIC_ASSET_NAMES:
+        _require(
+            candidate_subjects[name] == assets[name]["sha256"],
+            f"candidate/public GitHub asset digest differs for {name}",
+        )
+
+    verify_raw = _observe_remote_json(
+        verify_arguments,
+        raw_directory=raw,
+        raw_name=RAW_RELEASE_VERIFY_NAME,
+        maximum_bytes=MAX_RELEASE_VERIFY_BYTES,
+        environment=environment,
+        label="GitHub platform release verification",
+        runner=runner,
+    )
+    raw_sha256[RAW_RELEASE_VERIFY_NAME] = hashlib.sha256(verify_raw).hexdigest()
+    expected_hashes = {name: assets[name]["sha256"] for name in PUBLIC_ASSET_NAMES}
+    policy = _release_policy(
+        source_before,
+        release_id=release_before.release_id,
+        asset_sha256=expected_hashes,
+    )
+    try:
+        release_verification = github_release.parse_release_verification(
+            verify_raw,
+            policy=policy,
+            release_id=release_before.release_id,
+            published_at=release_before.published_at,
+            label="GitHub platform release verification",
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+
+    tool_record_before = _tool_record(tools)
+    deadline = monotonic() + DOWNLOAD_TRANSACTION_TIMEOUT_SECONDS
+    downloaded: dict[str, FileSnapshot] = {}
+    for index, name in enumerate(PUBLIC_ASSET_NAMES):
+        downloaded[name] = _download_asset(
+            gh,
+            name,
+            assets[name],
+            index=index,
+            download_directory=downloads,
+            deadline=deadline,
+            environment=environment,
+            runner=sink_runner,
+            monotonic=monotonic,
+        )
+    inventoried = _inventory_fresh_downloads(downloads, assets)
+    _require(
+        {name: (item.size, item.sha256) for name, item in downloaded.items()}
+        == {name: (item.size, item.sha256) for name, item in inventoried.items()},
+        "fresh platform downloads changed after publication",
+    )
+    manifest, deep_stdout = deep_verifier(
+        verifier_checkout,
+        downloads,
+        tools,
+        expected_commit=source_before.tag_commit,
+        environment=environment,
+        runner=runner,
+    )
+    tool_record_after = _tool_record(tools)
+    _require(
+        tool_record_after == tool_record_before,
+        "Android verification tools changed during platform deep verification",
+    )
+    post_deep = _inventory_fresh_downloads(downloads, assets)
+    _require(
+        {name: (item.size, item.sha256) for name, item in post_deep.items()}
+        == {name: (item.size, item.sha256) for name, item in inventoried.items()},
+        "fresh platform downloads changed during deep verification",
+    )
+    raw_sha256[RAW_DEEP_VERIFY_NAME] = _write_raw(
+        raw,
+        RAW_DEEP_VERIFY_NAME,
+        deep_stdout,
+        label="raw tagged deep verifier output",
+    )
+    runtime = _runtime_projection(manifest, assets)
+    fresh_verified_at = _utc_now(
+        clock,
+        label="fresh platform verification",
+        not_before=(
+            _contract_timestamp(release_before.published_at, "platform published_at"),
+            _contract_timestamp(
+                release_verification.verified_at,
+                "platform release attestation verified_at",
+            ),
+        ),
+    )
+    fresh_record: dict[str, object] = {
+        "android_tools": tool_record_before,
+        "anonymous_availability_verified": False,
+        "assets": list(release_before.assets),
+        "deep_distribution_verified": True,
+        "download_transport": "github_cli_configured_auth_context",
+        "kind": FRESH_RECORD_KIND,
+        "schema_version": FRESH_RECORD_SCHEMA_VERSION,
+        "verified_at": fresh_verified_at,
+        "verifier": {
+            "clean_annotated_tag_checkout": True,
+            "commit": source_before.verifier_commit,
+            "release_tag": RELEASE_TAG,
+        },
+        "verifier_stdout_sha256": hashlib.sha256(deep_stdout).hexdigest(),
+    }
+    fresh_record_payload = _canonical_pretty_json(fresh_record)
+    fresh_record_sha256 = hashlib.sha256(fresh_record_payload).hexdigest()
+    stored_fresh_record_sha256 = _write_raw(
+        raw,
+        RAW_FRESH_RECORD_NAME,
+        fresh_record_payload,
+        label="raw fresh download verification record",
+    )
+    _require(
+        stored_fresh_record_sha256 == fresh_record_sha256,
+        "fresh download verification record digest changed while publishing",
+    )
+    raw_sha256[RAW_FRESH_RECORD_NAME] = stored_fresh_record_sha256
+
+    release_after_raw = _observe_remote_json(
+        release_arguments,
+        raw_directory=raw,
+        raw_name=RAW_RELEASE_AFTER_NAME,
+        maximum_bytes=MAX_RELEASE_VIEW_BYTES,
+        environment=environment,
+        label="GitHub platform release view-after",
+        runner=runner,
+    )
+    raw_sha256[RAW_RELEASE_AFTER_NAME] = hashlib.sha256(
+        release_after_raw
+    ).hexdigest()
+    repository_after_raw = _observe_remote_json(
+        repository_arguments,
+        raw_directory=raw,
+        raw_name=RAW_REPOSITORY_AFTER_NAME,
+        maximum_bytes=MAX_REPOSITORY_VIEW_BYTES,
+        environment=environment,
+        label="GitHub platform repository view-after",
+        runner=runner,
+    )
+    raw_sha256[RAW_REPOSITORY_AFTER_NAME] = hashlib.sha256(
+        repository_after_raw
+    ).hexdigest()
+    try:
+        release_after = github_release.parse_release_view(
+            release_after_raw,
+            policy=policy,
+            label="GitHub platform release view-after",
+        )
+        repository_after = github_release.parse_repository_view(
+            repository_after_raw,
+            policy=repository_policy,
+            label="GitHub platform repository view-after",
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise PlatformAlpha3PublicationError(str(exc)) from exc
+    _require(
+        release_after.canonical == release_before.canonical,
+        "GitHub platform release changed during verification",
+    )
+    _require(
+        repository_after.canonical == repository_before.canonical,
+        "GitHub repository visibility changed during platform verification",
+    )
+    source_after = source_inspector(
+        verifier_checkout,
+        git=git,
+        environment=environment,
+        runner=runner,
+    )
+    _require(source_after == source_before, "platform verifier checkout changed during collection")
+    _validate_raw_directory(raw, raw_sha256)
+    observed_at = _utc_now(
+        clock,
+        label="platform verified observation",
+        not_before=(
+            _contract_timestamp(
+                pending_observation["observed_at"], "pending platform observed_at"
+            ),
+            _contract_timestamp(fresh_verified_at, "fresh platform verified_at"),
+        ),
+    )
+    verified_observation = dict(pending_observation)
+    verified_observation["observed_at"] = observed_at
+    verified_observation.update(
+        {
+            "android_runtime_evidence": runtime,
+            "assets": list(release_before.assets),
+            "checksums_sha256": assets[RELEASE_SUMS]["sha256"],
+            "draft": False,
+            "fresh_download_verification": {
+                "asset_count": len(PUBLIC_ASSET_NAMES),
+                "deep_distribution_verified": True,
+                "record_sha256": fresh_record_sha256,
+                "verified_at": fresh_verified_at,
+                "verifier_commit": source_before.verifier_commit,
+            },
+            "immutable_release": True,
+            "platform_distribution_sha256": assets[RELEASE_MANIFEST]["sha256"],
+            "prerelease": True,
+            "public_release": True,
+            "published_at": release_before.published_at,
+            "registries": dict(REGISTRY_STATES),
+            "release_asset_verification_count": len(PUBLIC_ASSET_NAMES),
+            "release_attestation": release_verification.projection(
+                include_verified_at=False
+            ),
+            "release_id": release_before.release_id,
+            "windows_distribution": {
+                "authenticode_signed": False,
+                "release_class": WINDOWS_RELEASE_CLASS,
+            },
+        }
+    )
+    verified_receipt = dict(receipt)
+    verified_receipt["observation"] = verified_observation
+    verified_receipt["status"] = PLATFORM_ALPHA3_STATUS_VERIFIED
+    output, digest = _write_receipt(
+        verified_receipt, transaction_prefix="transaction.verified."
+    )
+    return output, digest, release_before.release_id
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    pending = subparsers.add_parser("pending")
+    pending.add_argument("--candidate-projection", required=True, type=pathlib.Path)
+    pending.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
+    collect = subparsers.add_parser("collect")
+    collect.add_argument("--pending-receipt", required=True, type=pathlib.Path)
+    collect.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
+    collect.add_argument("--raw-directory", required=True, type=pathlib.Path)
+    collect.add_argument("--download-directory", required=True, type=pathlib.Path)
+    collect.add_argument("--android-llvm-nm", required=True, type=pathlib.Path)
+    collect.add_argument("--android-llvm-readelf", required=True, type=pathlib.Path)
+    collect.add_argument("--android-apksigner", required=True, type=pathlib.Path)
+    collect.add_argument("--android-zipalign", required=True, type=pathlib.Path)
+    return parser
+
+
+def _relative_output(path: pathlib.Path) -> str:
+    try:
+        return path.relative_to(REPOSITORY_ROOT).as_posix()
+    except ValueError as exc:
+        raise PlatformAlpha3PublicationError(
+            "platform publication receipt output escaped the repository"
+        ) from exc
+
+
+def main(argv: Sequence[str]) -> int:
+    arguments = build_parser().parse_args(argv)
+    try:
+        if arguments.command == "pending":
+            output, digest, source = assemble_pending_receipt(
+                arguments.candidate_projection,
+                arguments.verifier_checkout,
+            )
+            print(
+                "ABI2_PLATFORM_ALPHA3_PENDING_RECEIPT_PASS "
+                f"commit={source.tag_commit} receipt_sha256={digest} "
+                f"receipt={_relative_output(output)}"
+            )
+        else:
+            output, digest, release_id = collect_verified_receipt(
+                arguments.pending_receipt,
+                arguments.verifier_checkout,
+                arguments.raw_directory,
+                arguments.download_directory,
+                android_tools=AndroidVerificationTools(
+                    llvm_nm=arguments.android_llvm_nm,
+                    llvm_readelf=arguments.android_llvm_readelf,
+                    apksigner=arguments.android_apksigner,
+                    zipalign=arguments.android_zipalign,
+                ),
+            )
+            print(
+                "ABI2_PLATFORM_ALPHA3_VERIFIED_RECEIPT_PASS "
+                f"assets={len(PUBLIC_ASSET_NAMES)} release_id={release_id} "
+                f"receipt_sha256={digest} "
+                f"receipt={_relative_output(output)}"
+            )
+    except PlatformAlpha3PublicationRetryableError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except (OSError, PlatformAlpha3PublicationError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

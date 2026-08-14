@@ -46,7 +46,9 @@ PLATFORM_ALPHA3_PUBLICATION_BOUNDARY = (
     "redownload and deep verification, API 35 arm64-v8a 16 KiB emulator "
     "runtime evidence, unsigned Windows boundary, and unpublished external "
     "registries. It is a research prerelease, not a production, registry, "
-    "store, Authenticode, or physical-device claim. Dynamic digests provide "
+    "store, Authenticode, physical-device, or anonymous-download claim; the "
+    "GitHub CLI observation may use its configured authentication. Dynamic "
+    "digests provide "
     "Level-1 accidental-mismatch detection within repository-trusted evidence; "
     "they do not attest a hostile builder or host."
 )
@@ -116,6 +118,8 @@ CANDIDATE_SIGNER_WORKFLOW = (
 CANDIDATE_PREDICATE_TYPE = "https://slsa.dev/provenance/v1"
 RELEASE_CERTIFICATE_SAN = "https://dotcom.releases.github.com"
 RELEASE_PREDICATE_TYPE = "https://in-toto.io/attestation/release/v0.2"
+MAX_WORKFLOW_RUN_ID = (1 << 63) - 1
+MAX_WORKFLOW_RUN_ATTEMPT = (1 << 31) - 1
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -308,14 +312,21 @@ def _validate_candidate_attestation(
         candidate["verified"] is True,
         "platform alpha3 candidate attestation must be verified",
     )
-    _require(
-        type(candidate["workflow_run_attempt"]) is int
-        and candidate["workflow_run_attempt"] == 1,
-        "platform alpha3 candidate workflow run attempt differs",
+    workflow_run_attempt = _positive_integer(
+        candidate["workflow_run_attempt"],
+        "platform alpha3 candidate workflow run attempt",
     )
-    _positive_integer(
+    _require(
+        workflow_run_attempt <= MAX_WORKFLOW_RUN_ATTEMPT,
+        "platform alpha3 candidate workflow run attempt is too large",
+    )
+    workflow_run_id = _positive_integer(
         candidate["workflow_run_id"],
         "platform alpha3 candidate workflow run id",
+    )
+    _require(
+        workflow_run_id <= MAX_WORKFLOW_RUN_ID,
+        "platform alpha3 candidate workflow run id is too large",
     )
     _sha256(
         candidate["verification_record_sha256"],

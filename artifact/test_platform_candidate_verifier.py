@@ -62,6 +62,7 @@ class PlatformCandidateVerifierTests(unittest.TestCase):
             "artifact/python-env.sh",
             "artifact/python_bootstrap.py",
             "artifact/evidence_io.py",
+            "artifact/publication_receipt_io.py",
             "artifact/platform_candidate_attestation.py",
             "artifact/platform_distribution_contract.py",
         ):
@@ -161,13 +162,17 @@ esac
             for asset in self.SUBJECTS
         ]
 
-    def _verification_envelope(self, candidate: pathlib.Path) -> dict[str, object]:
+    def _verification_envelope(
+        self, candidate: pathlib.Path, *, run_attempt: int = 1
+    ) -> dict[str, object]:
         repository = "billlza/q-periapt"
         repository_url = f"https://github.com/{repository}"
         workflow_path = ".github/workflows/abi2-platform-candidate.yml"
         source_ref = f"refs/tags/{self.RELEASE_TAG}"
         workflow_uri = f"{repository_url}/{workflow_path}@{source_ref}"
-        run_uri = f"{repository_url}/actions/runs/{self.RUN_ID}/attempts/1"
+        run_uri = (
+            f"{repository_url}/actions/runs/{self.RUN_ID}/attempts/{run_attempt}"
+        )
         repository_id = "1279236693"
         owner_id = "149552943"
         certificate = {
@@ -261,8 +266,12 @@ esac
             encoding="utf-8",
         )
 
-    def _install_valid_gh_outputs(self, candidate: pathlib.Path) -> None:
-        envelope = self._verification_envelope(candidate)
+    def _install_valid_gh_outputs(
+        self, candidate: pathlib.Path, *, run_attempt: int = 1
+    ) -> None:
+        envelope = self._verification_envelope(
+            candidate, run_attempt=run_attempt
+        )
         for asset in self.SUBJECTS:
             self._write_gh_response(asset, [copy.deepcopy(envelope)])
 
@@ -636,6 +645,17 @@ esac
         self.assertNotIn("RAW_ATTESTATION_SENTINEL", combined_output)
         self.assertNotIn(str(raw_directory), combined_output)
 
+    def test_rerun_attempt_two_is_projected_without_weakening_identity(self) -> None:
+        candidate = self._candidate("attempt-two")
+        self._install_valid_gh_outputs(candidate, run_attempt=2)
+
+        process = self._run(candidate)
+
+        self.assertEqual(0, process.returncode, process.stderr)
+        projection = json.loads(self._projection_path(candidate).read_bytes())
+        self.assertEqual(2, projection["workflow_run_attempt"])
+        self.assertEqual(self.RUN_ID, projection["workflow_run_id"])
+
     def test_empty_legacy_or_ambiguous_gh_results_fail_closed(self) -> None:
         cases: tuple[tuple[str, object | None], ...] = (
             ("legacy-empty-object", [{}]),
@@ -683,11 +703,55 @@ esac
                 "sourceRepositoryDigest"
             ] = "b" * 40
 
-        def wrong_run_attempt(envelope: dict[str, Any]) -> None:
+        def mismatched_run_attempt(envelope: dict[str, Any]) -> None:
             result = envelope["verificationResult"]
             run_uri = (
                 "https://github.com/billlza/q-periapt/actions/runs/"
                 f"{self.RUN_ID}/attempts/2"
+            )
+            result["signature"]["certificate"]["runInvocationURI"] = run_uri
+            result["statement"]["predicate"]["runDetails"]["metadata"][
+                "invocationId"
+            ] = run_uri
+
+        def zero_run_attempt(envelope: dict[str, Any]) -> None:
+            result = envelope["verificationResult"]
+            run_uri = (
+                "https://github.com/billlza/q-periapt/actions/runs/"
+                f"{self.RUN_ID}/attempts/0"
+            )
+            result["signature"]["certificate"]["runInvocationURI"] = run_uri
+            result["statement"]["predicate"]["runDetails"]["metadata"][
+                "invocationId"
+            ] = run_uri
+
+        def oversized_run_attempt(envelope: dict[str, Any]) -> None:
+            result = envelope["verificationResult"]
+            run_uri = (
+                "https://github.com/billlza/q-periapt/actions/runs/"
+                f"{self.RUN_ID}/attempts/{1 << 31}"
+            )
+            result["signature"]["certificate"]["runInvocationURI"] = run_uri
+            result["statement"]["predicate"]["runDetails"]["metadata"][
+                "invocationId"
+            ] = run_uri
+
+        def unbounded_decimal_run_attempt(envelope: dict[str, Any]) -> None:
+            result = envelope["verificationResult"]
+            run_uri = (
+                "https://github.com/billlza/q-periapt/actions/runs/"
+                f"{self.RUN_ID}/attempts/{'9' * 5000}"
+            )
+            result["signature"]["certificate"]["runInvocationURI"] = run_uri
+            result["statement"]["predicate"]["runDetails"]["metadata"][
+                "invocationId"
+            ] = run_uri
+
+        def unbounded_decimal_run_id(envelope: dict[str, Any]) -> None:
+            result = envelope["verificationResult"]
+            run_uri = (
+                "https://github.com/billlza/q-periapt/actions/runs/"
+                f"{'9' * 5000}/attempts/2"
             )
             result["signature"]["certificate"]["runInvocationURI"] = run_uri
             result["statement"]["predicate"]["runDetails"]["metadata"][
@@ -716,7 +780,19 @@ esac
             ("different-statement", "CANDIDATE_SHA256SUMS", different_statement),
             ("wrong-subject", self.ASSETS[0], wrong_subject),
             ("wrong-source", self.ASSETS[0], wrong_source),
-            ("wrong-run-attempt", self.ASSETS[0], wrong_run_attempt),
+            ("mismatched-run-attempt", self.ASSETS[0], mismatched_run_attempt),
+            ("zero-run-attempt", self.ASSETS[0], zero_run_attempt),
+            ("oversized-run-attempt", self.ASSETS[0], oversized_run_attempt),
+            (
+                "unbounded-decimal-run-attempt",
+                self.ASSETS[0],
+                unbounded_decimal_run_attempt,
+            ),
+            (
+                "unbounded-decimal-run-id",
+                self.ASSETS[0],
+                unbounded_decimal_run_id,
+            ),
             ("wrong-certificate", self.ASSETS[0], wrong_certificate),
             ("self-hosted", self.ASSETS[0], self_hosted),
             ("wrong-predicate", self.ASSETS[0], wrong_predicate),
