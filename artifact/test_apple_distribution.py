@@ -2579,7 +2579,7 @@ fi
             '\n}\nrequire_lower_hex "$CHECKSUM"',
             require_start,
         ) + 3
-        gate_start = self.remote.index("run_private_gate() {")
+        gate_start = self.remote.index("private_path_identity() {")
         gate_end = self.remote.index(
             "\n}\nif [ -L \"$ROOT/target\" ]",
             gate_start,

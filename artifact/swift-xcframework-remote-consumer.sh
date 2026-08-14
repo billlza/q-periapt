@@ -53,7 +53,7 @@ fi
 
 for tool in /usr/bin/awk /usr/bin/codesign /usr/bin/cmp /usr/bin/curl \
 	/usr/bin/ditto /usr/bin/git /usr/bin/id /usr/bin/mktemp /usr/bin/shasum \
-	/usr/bin/stat /usr/bin/swift /usr/bin/wc; do
+	/usr/bin/stat /usr/bin/swift /usr/bin/uname /usr/bin/wc; do
 	if [ ! -x "$tool" ]; then
 		printf 'error: required remote-consumer tool is unavailable: %s\n' "$tool" >&2
 		exit 2
@@ -186,7 +186,7 @@ validate_private_directory() {
 		printf 'error: %s must be a non-symlink directory\n' "$label" >&2
 		exit 2
 	fi
-	directory_identity=$(/usr/bin/stat -f '%u:%Lp' "$directory") || {
+	directory_identity=$(private_path_identity "$directory" directory) || {
 		printf 'error: cannot inspect %s\n' "$label" >&2
 		exit 2
 	}
@@ -194,6 +194,28 @@ validate_private_directory() {
 		printf 'error: %s must be an owned mode-0700 directory\n' "$label" >&2
 		exit 2
 	fi
+}
+private_path_identity() {
+	identity_path=$1
+	identity_kind=$2
+	identity_kernel=$(/usr/bin/uname -s 2>/dev/null) || return 1
+	case "$identity_kernel:$identity_kind" in
+		Darwin:directory)
+			/usr/bin/stat -f '%u:%Lp' "$identity_path" 2>/dev/null
+			;;
+		Darwin:file)
+			/usr/bin/stat -f '%u:%Lp:%l' "$identity_path" 2>/dev/null
+			;;
+		Linux:directory)
+			/usr/bin/stat -c '%u:%a' "$identity_path" 2>/dev/null
+			;;
+		Linux:file)
+			/usr/bin/stat -c '%u:%a:%h' "$identity_path" 2>/dev/null
+			;;
+		*)
+			return 1
+			;;
+	esac
 }
 run_private_gate() {
 	gate_log_leaf=$1
@@ -227,7 +249,7 @@ run_private_gate() {
 		exit 2
 	fi
 	/bin/chmod 600 "$gate_log"
-	gate_identity=$(/usr/bin/stat -f '%u:%Lp:%l' "$gate_log") || {
+	gate_identity=$(private_path_identity "$gate_log" file) || {
 		printf 'error: cannot inspect remote-consumer private gate log reason=%s\n' \
 			"$gate_reason" >&2
 		exit 2
@@ -486,7 +508,7 @@ if [ ! -f "$CHECKSUM_VALUE" ] || [ -L "$CHECKSUM_VALUE" ]; then
 	exit 2
 fi
 /bin/chmod 600 "$CHECKSUM_VALUE"
-CHECKSUM_VALUE_IDENTITY=$(/usr/bin/stat -f '%u:%Lp:%l' "$CHECKSUM_VALUE") || {
+CHECKSUM_VALUE_IDENTITY=$(private_path_identity "$CHECKSUM_VALUE" file) || {
 	printf 'error: cannot inspect remote-consumer SwiftPM checksum value\n' >&2
 	exit 2
 }
@@ -580,7 +602,7 @@ if [ ! -f "$LOG" ] || [ -L "$LOG" ]; then
 	exit 2
 fi
 /bin/chmod 600 "$LOG"
-PRIVATE_LOG_IDENTITY=$(/usr/bin/stat -f '%u:%Lp:%l' "$LOG") || {
+PRIVATE_LOG_IDENTITY=$(private_path_identity "$LOG" file) || {
 	printf 'error: cannot inspect remote Swift URL binary consumer private log\n' >&2
 	exit 2
 }
