@@ -509,6 +509,99 @@
   },
   "purpose": "Expected-result manifest so a reviewer can detect data drift. Selected hashes and the canonical execution-input digest are checked before execution. That digest excludes only artifact/results.json and paper/camera-ready-results.txt to avoid self-reference. The transcript and selected proofs are bound by named path/hash fields in this manifest; the manifest root itself must be bound by clean committed or signed release provenance. Formal, package, and device evidence remain separately scoped.",
   "release_publications": {
+    "apple_alpha2_r1": {
+      "boundary": "Frozen ABI 2 Apple alpha.2 r1 publication receipt. It binds the exact historical signed static XCFramework ZIP, source commit, Developer ID identity, four published asset digests, annotated tag, five-subject GitHub release attestation, immutable GitHub prerelease state, and fresh remote SwiftPM consumer verification recorded in trusted results. It is not notarization, App Store, physical-device, or hostile-host evidence.",
+      "distribution": {
+        "apple_distribution_evidence_sha256": "5d92029803d66864b1b964ccb539f6e613a97be57b084cc845e178cbcb2b415b",
+        "artifact_path": "CQPeriapt.xcframework.zip",
+        "artifact_sha256": "4480061244b5844cd1ff2349c05d261d0455db68c459449be33cbab63c94be0f",
+        "artifact_size": 33325898,
+        "checksums_sha256": "253a5888eb0f4eaae301ce2b7d59e1554369c4eeaa594f5939cdd6b9b0874e98",
+        "distribution_signed": true,
+        "immutable_release": true,
+        "manifest_sha256": "0eafcf6989fe40835e9f2550098d1165d958b6bbe27373ba5ead9ee1a1757439",
+        "notarization_applicability": "not_applicable_static_sdk_payload",
+        "notarized": false,
+        "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
+        "origin_signature_identity_class": "Developer ID Application",
+        "origin_signature_team_id": "YKUPL7Z869",
+        "public_release": true,
+        "release_revision": "r1",
+        "release_tag": "v0.1.0-alpha.2-r1",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
+        "remote_consumer_verified": true,
+        "remote_verification": {
+          "log_sha256": "a6bfd03d1f9c558d99929ced8e2580c02bb7ea61dd395984c1fcb87be5c14d38",
+          "verified_at": "2026-07-17T05:25:50Z",
+          "verifier_commit": "d93a7cab2e00ce1036f6b218eef01bb889cb60a9"
+        },
+        "source_commit": "5664fd86a617f92b620ea37e7692d3417d0e307d",
+        "stapled": false,
+        "swiftpm_checksum": "4480061244b5844cd1ff2349c05d261d0455db68c459449be33cbab63c94be0f",
+        "version": "0.1.0-alpha.2"
+      },
+      "identity": {
+        "distribution_revision": "r1",
+        "product_version": "0.1.0-alpha.2",
+        "release_tag": "v0.1.0-alpha.2-r1",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1"
+      },
+      "kind": "qperiapt.apple_xcframework_publication_receipt",
+      "publication": {
+        "draft": false,
+        "immutable_release": true,
+        "observed_at": "2026-08-14T03:00:09Z",
+        "prerelease": true,
+        "public_release": true,
+        "published_at": "2026-07-17T03:16:01Z",
+        "release_attestation": {
+          "certificate_san": "https://dotcom.releases.github.com",
+          "predicate_type": "https://in-toto.io/attestation/release/v0.2",
+          "subjects": [
+            {
+              "digest": {
+                "sha1": "6fd8d410c078c50906dcaad885a4361e08702fc2"
+              },
+              "uri": "pkg:github/billlza/q-periapt@v0.1.0-alpha.2-r1"
+            },
+            {
+              "digest": {
+                "sha256": "5d92029803d66864b1b964ccb539f6e613a97be57b084cc845e178cbcb2b415b"
+              },
+              "name": "APPLE_DISTRIBUTION.json"
+            },
+            {
+              "digest": {
+                "sha256": "4480061244b5844cd1ff2349c05d261d0455db68c459449be33cbab63c94be0f"
+              },
+              "name": "CQPeriapt.xcframework.zip"
+            },
+            {
+              "digest": {
+                "sha256": "0eafcf6989fe40835e9f2550098d1165d958b6bbe27373ba5ead9ee1a1757439"
+              },
+              "name": "MANIFEST.json"
+            },
+            {
+              "digest": {
+                "sha256": "253a5888eb0f4eaae301ce2b7d59e1554369c4eeaa594f5939cdd6b9b0874e98"
+              },
+              "name": "SHA256SUMS"
+            }
+          ],
+          "verification_record_sha256": "1f48b1891211b1bec543a5925fc3561f106d2da6e073e21031c0b06ef17081de",
+          "verified": true,
+          "verified_at": "2026-07-17T03:16:02Z"
+        },
+        "release_id": 355454389,
+        "source": {
+          "tag_commit": "5664fd86a617f92b620ea37e7692d3417d0e307d",
+          "tag_object": "6fd8d410c078c50906dcaad885a4361e08702fc2"
+        }
+      },
+      "schema_version": 1,
+      "status": "observed_public_immutable_remote_consumer_verified"
+    },
     "platform_r2": {
       "boundary": "Historical repository-local receipt for the public immutable ABI 2 Android, GNU/Linux, and unsigned Windows r2 prerelease. It binds the annotated tag, exact assets, candidate build provenance, release attestation, fresh redownload, and deep verifier results. Android coverage is API 35 arm64-v8a 16 KiB emulator only; Windows has no Authenticode publisher identity; external registries are not published.",
       "identity": {

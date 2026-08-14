@@ -14,14 +14,28 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from claim_ledger import LedgerError, verify as verify_claim_ledger
-from evidence_io import EvidenceIOError, read_regular_snapshot
+from evidence_io import (
+    EvidenceIOError,
+    parse_strict_json_bytes,
+    read_regular_snapshot,
+)
 from git_provenance import (
     GitProvenanceError,
     git_commit,
     inspect_worktree,
     require_commit_or_evidence_successor,
+    run_git_bytes,
+    run_git_text,
 )
-from proof_manifest import ProofManifestError, load_results_manifest_snapshot
+from release_publication_contract import (
+    ReleasePublicationContractError,
+    validate_release_publication_transition,
+)
+from proof_manifest import (
+    MAX_RESULTS_MANIFEST_BYTES,
+    ProofManifestError,
+    load_results_manifest_snapshot,
+)
 
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
@@ -36,6 +50,7 @@ FOOTPRINT_ARTIFACTS = {
     "wasm-lean-default": "wasm_lean_default",
     "wasm-signed-policy": "wasm_signed_policy",
 }
+PREVIOUS_RESULTS_OBJECT_PATH = "artifact/results.json"
 STATE_NAMES = (
     "host_smoke",
     "formal",
@@ -243,6 +258,72 @@ def _load_footprint_csv(path: pathlib.Path) -> tuple[dict[str, object], str]:
     return values, snapshot.sha256
 
 
+def _load_first_parent_results_manifest(
+    root: pathlib.Path,
+) -> dict[str, object]:
+    """Strict-load the bounded results blob from HEAD's first parent."""
+
+    try:
+        parent_commit = run_git_text(
+            root, ["rev-parse", "--verify", "HEAD^1^{commit}"]
+        )
+        _require_commit(parent_commit, "first-parent Git commit")
+        object_name = f"{parent_commit}:{PREVIOUS_RESULTS_OBJECT_PATH}"
+        object_type = run_git_text(root, ["cat-file", "-t", object_name])
+        if object_type != "blob":
+            raise FinalizerError(
+                "first-parent artifact/results.json is not a Git blob"
+            )
+        raw_size = run_git_text(root, ["cat-file", "-s", object_name])
+        if re.fullmatch(r"(?:0|[1-9][0-9]*)", raw_size) is None:
+            raise FinalizerError(
+                "first-parent artifact/results.json has a malformed Git object size"
+            )
+        size = int(raw_size, 10)
+        if size > MAX_RESULTS_MANIFEST_BYTES:
+            raise FinalizerError(
+                "first-parent artifact/results.json exceeds maximum size "
+                f"{MAX_RESULTS_MANIFEST_BYTES}"
+            )
+        data = run_git_bytes(root, ["cat-file", "blob", object_name])
+    except GitProvenanceError as exc:
+        raise FinalizerError(
+            "cannot load first-parent artifact/results.json: " + str(exc)
+        ) from exc
+
+    if len(data) != size:
+        raise FinalizerError(
+            "first-parent artifact/results.json Git blob size changed while reading"
+        )
+    try:
+        value = parse_strict_json_bytes(
+            data, label="first-parent results manifest"
+        )
+    except EvidenceIOError as exc:
+        raise FinalizerError(str(exc)) from exc
+    if not isinstance(value, dict):
+        raise FinalizerError(
+            "first-parent results manifest root must be a JSON object"
+        )
+    return value
+
+
+def validate_release_publication_history(
+    root: pathlib.Path, current_manifest: dict[str, object]
+) -> None:
+    """Enforce publication-receipt monotonicity along HEAD's first parent."""
+
+    previous_manifest = _load_first_parent_results_manifest(root)
+    try:
+        validate_release_publication_transition(
+            previous_manifest, current_manifest
+        )
+    except ReleasePublicationContractError as exc:
+        raise FinalizerError(
+            f"release publication first-parent transition is invalid: {exc}"
+        ) from exc
+
+
 def validate_release_metadata(
     root: pathlib.Path,
     manifest: pathlib.Path,
@@ -257,6 +338,7 @@ def validate_release_metadata(
         ).value
     except ProofManifestError as exc:
         raise FinalizerError(str(exc)) from exc
+    validate_release_publication_history(root, document)
     provenance = document.get("provenance")
     if not isinstance(provenance, dict):
         raise FinalizerError("results manifest lacks provenance metadata")

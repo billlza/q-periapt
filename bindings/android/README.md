@@ -255,19 +255,21 @@ CI job `bindings-android-runtime-16k` consumes the exact AAR artifact produced b
 and pull request. This is an independent package-face gate. It is neither the canonical arm64-v8a
 release proof nor physical-device production evidence.
 
-## Published AAR prerelease
+## AAR prerelease transaction
 
-A prebuilt research-prerelease AAR is published in the immutable
-`abi2-platforms-v0.1.0-alpha.2-r2` GitHub release: one AAR containing `arm64-v8a`,
+The alpha.3 transaction targets a prebuilt research-prerelease AAR in
+`abi2-platforms-v0.1.0-alpha.3-r1`, which becomes immutable only after publication:
+one AAR containing `arm64-v8a`,
 `armeabi-v7a`, `x86`, and `x86_64` JNI libraries built with stable NDK r29 and
 Rust 1.96.1. Every ELF has 16 KiB load alignment, the exact nine-symbol ABI 2
 export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
-release also binds a runtime-evidence bundle that executed the exact public AAR on
+verified release also binds a runtime-evidence bundle that executed the exact public AAR on
 the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
-16 KiB pages. That historical published receipt remains schema v3; current source-tree runs require
-schema v6 and do not retroactively change the immutable release. Verify the AAR and its manifest with `gh release verify-asset`
+16 KiB pages. Public/current status requires the alpha.3 verified receipt; the historical published receipt remains schema v3
+for alpha.2, while current source-tree runs require schema v6
+and do not retroactively change an immutable release. Verify the AAR and its manifest with `gh release verify-asset`
 against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
-[`../../artifact/abi2-platform-release-notes.md`](../../artifact/abi2-platform-release-notes.md).
+[`../../artifact/alpha3-release-notes.md`](../../artifact/alpha3-release-notes.md).
 Maven Central publication and a current same-source physical-device production proof are explicitly
-not claimed, and the published emulator evidence does not replace the clean-tree runtime proof
+not claimed, and published emulator evidence does not replace the clean-tree runtime proof
 required for a source tree that has advanced past the release tag.

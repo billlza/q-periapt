@@ -221,7 +221,7 @@ class PlatformReleaseContractTests(unittest.TestCase):
 
     def test_schema_and_distribution_constants_cannot_drift(self) -> None:
         self.assertEqual(
-            contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+            current_contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
             android_device_proof.PROOF_SCHEMA_VERSION,
         )
         self.assertEqual(
@@ -229,7 +229,7 @@ class PlatformReleaseContractTests(unittest.TestCase):
             self.receipt["observation"]["android_runtime_evidence"]["proof_schema"],
         )
         self.assertNotEqual(
-            contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+            current_contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
             contract.PUBLISHED_ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
         )
         self.assertEqual(contract.PRODUCT_VERSION, "0.1.0-alpha.2")

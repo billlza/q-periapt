@@ -4,8 +4,9 @@ This prerelease keeps the public C ABI at major version 2 and the exact nine-sym
 export surface. It advances the package version from `0.1.0-alpha.2` to
 `0.1.0-alpha.3`; it is not an ABI 2.1 change and requires no ABI migration.
 
-The release is published as two independently verifiable GitHub transactions for
-the same product SemVer:
+The release plan uses two independently verifiable GitHub transactions for the
+same product SemVer. Each becomes public/current only after its verified receipt
+records the immutable release:
 
 - Apple: `v0.1.0-alpha.3-r1`
 - Android, GNU/Linux, and Windows: `abi2-platforms-v0.1.0-alpha.3-r1`
@@ -43,7 +44,7 @@ performance evidence remains stale until a fresh performance run is selected.
   retain their own signing, provisioning, and notarization responsibilities.
 - Android: one AAR with `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` JNI
   libraries, exact ABI 2 exports, ELF hardening, and 16 KiB load alignment. The
-  release includes a source- and AAR-bound API 35 arm64 16 KiB emulator runtime
+  platform target includes a source- and AAR-bound API 35 arm64 16 KiB emulator runtime
   evidence bundle.
 - GNU/Linux: x86_64 and aarch64 C SDK archives with shared/static libraries,
   headers, ABI contract, pkg-config/CMake metadata, SBOM/CBOM, licenses, GLIBC
@@ -57,6 +58,62 @@ by GitHub build provenance. Final manifests and checksum sets bind the selected
 assets; post-publication consumers re-download and verify the immutable releases.
 
 ## Verification
+
+Before assembling the non-Apple platform distribution, verify the exact six-subject
+CI candidate transaction and write its sanitized projection to a caller-selected,
+private, previously absent output path:
+
+```sh
+candidate_dir=/absolute/path/to/alpha3-platform-candidate
+tag_commit=$(git rev-parse --verify \
+  'refs/tags/abi2-platforms-v0.1.0-alpha.3-r1^{commit}')
+mkdir -p target
+projection_parent=$(umask 077 && \
+  mktemp -d "$PWD/target/abi2-platform-candidate-projection.XXXXXXXX")
+chmod 0700 "$projection_parent"
+projection=$projection_parent/candidate-attestation-projection.json
+sh artifact/verify-platform-candidate.sh \
+  "$candidate_dir" "$tag_commit" "$projection"
+```
+
+The verifier records one private preflight snapshot, runs the six exact GitHub
+attestation checks, then re-samples the candidate with the same parser. It publishes
+the `0600` projection with exclusive creation only when every result contains the
+same statement, verification record, run, and timestamp and the candidate bytes are
+unchanged. Raw GitHub responses remain in a script-owned `0700` directory under
+`target`; neither their path nor their contents appear in the success marker.
+
+After the Apple GitHub prerelease is immutable and its fresh remote consumer check
+has completed, use the private source-bound completion ledger as the exact four-asset
+expectation while collecting GitHub release metadata and its five-subject release
+attestation. The raw, ledger, and projection paths must be separate trees:
+
+```sh
+apple_tag=v0.1.0-alpha.3-r1
+completed=/absolute/path/to/apple-release/completed.json
+release_id=$(gh release view "$apple_tag" --repo billlza/q-periapt \
+  --json databaseId --jq .databaseId)
+tag_object=$(git rev-parse --verify "refs/tags/$apple_tag")
+mkdir -p target
+raw=$PWD/target/apple-github-release-raw-$release_id
+test ! -e "$raw"
+apple_projection_parent=$(umask 077 && \
+  mktemp -d "$PWD/target/apple-github-release-projection.XXXXXXXX")
+chmod 0700 "$apple_projection_parent"
+apple_projection=$apple_projection_parent/apple-github-release-verification.json
+sh artifact/python-run.sh artifact/apple_release_verification.py collect \
+  "$completed" "$release_id" "$tag_object" "$raw" "$apple_projection"
+```
+
+The adapter verifies the annotated tag object and peeled commit before and after the
+remote transaction. It requires the fixed repository to be `PUBLIC` in matching
+bounded pre/post observations, and requires stable security-relevant release fields
+from the bounded `gh release view` observations around `gh release verify`. Mutable
+download-count telemetry is validated but excluded from the stability comparison.
+The five raw files remain `0600` under the new `0700` raw directory. Only after those
+samples agree does it exclusively create a `0600` PII-safe projection. Its
+`publication` member is the exact pure receipt-contract shape; the four asset hashes
+and TimestampAuthority metadata remain alongside it for adapter self-verification.
 
 ```sh
 gh release verify v0.1.0-alpha.3-r1 --repo billlza/q-periapt

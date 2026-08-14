@@ -412,9 +412,15 @@ RESULTS_MANIFEST_SHA256=$(PYTHONPATH=artifact python3 - "$RESULTS_MANIFEST" <<'P
 import pathlib
 import sys
 
-from proof_manifest import load_results_manifest_snapshot
+from evidence_io import read_regular_snapshot
 
-print(load_results_manifest_snapshot(pathlib.Path(sys.argv[1])).file.sha256)
+print(
+    read_regular_snapshot(
+        pathlib.Path(sys.argv[1]),
+        maximum=4 * 1024 * 1024,
+        label="results manifest",
+    ).sha256
+)
 PY
 )
 
@@ -506,6 +512,8 @@ paths = {
     "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
     "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
     "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
+    "platform_candidate_attestation_sha256": "artifact/platform_candidate_attestation.py",
+    "platform_candidate_attestation_tests_sha256": "artifact/test_platform_candidate_attestation.py",
     "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
     "alpha3_release_notes_sha256": "artifact/alpha3-release-notes.md",
     "evidence_io_sha256": "artifact/evidence_io.py",
@@ -610,12 +618,24 @@ paths = {
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
     "platform_release_contract_sha256": "artifact/platform_release_contract.py",
     "platform_release_contract_tests_sha256": "artifact/test_platform_release_contract.py",
+    "platform_alpha3_publication_contract_sha256": "artifact/platform_alpha3_publication_contract.py",
+    "platform_alpha3_publication_contract_tests_sha256": "artifact/test_platform_alpha3_publication_contract.py",
+    "platform_publication_contract_sha256": "artifact/platform_publication_contract.py",
+    "platform_publication_contract_tests_sha256": "artifact/test_platform_publication_contract.py",
+    "release_publication_contract_sha256": "artifact/release_publication_contract.py",
+    "release_publication_contract_tests_sha256": "artifact/test_release_publication_contract.py",
     "swift_xcframework_script_sha256": "artifact/swift-xcframework.sh",
     "swift_xcframework_release_script_sha256": "artifact/swift-xcframework-release.sh",
     "swift_xcframework_consumer_check_script_sha256": "artifact/swift-xcframework-consumer-check.sh",
     "swift_xcframework_remote_consumer_script_sha256": "artifact/swift-xcframework-remote-consumer.sh",
     "apple_distribution_verifier_sha256": "artifact/apple_distribution.py",
     "apple_distribution_tests_sha256": "artifact/test_apple_distribution.py",
+    "apple_release_verification_sha256": "artifact/apple_release_verification.py",
+    "apple_release_verification_tests_sha256": "artifact/test_apple_release_verification.py",
+    "apple_publication_contract_sha256": "artifact/apple_publication_contract.py",
+    "apple_publication_contract_tests_sha256": "artifact/test_apple_publication_contract.py",
+    "apple_publication_finalizer_tests_sha256": "artifact/test_apple_publication_finalizer.py",
+    "release_publication_proof_manifest_tests_sha256": "artifact/test_release_publication_proof_manifest.py",
     "swift_binary_consumer_link_probe_sha256": "bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift",
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
     "local_release_index_script_sha256": "artifact/local-release-index.sh",

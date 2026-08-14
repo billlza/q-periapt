@@ -8,12 +8,13 @@ latest ABI 2 publication set while it remains current:
 | Publication | Scope | Supported |
 | --- | --- | --- |
 | `0.1.0-alpha.3` source line | Rust source/crates and ABI 2 contract | Yes |
-| `v0.1.0-alpha.2-r1` | Apple XCFramework | Yes |
-| `abi2-platforms-v0.1.0-alpha.2-r2` | Android, GNU/Linux, unsigned experimental Windows | Yes |
-| `v0.1.0-alpha.2` and older publications | Superseded artifacts | No |
+| `v0.1.0-alpha.3-r1` | Apple XCFramework | When selected by a verified current receipt |
+| `abi2-platforms-v0.1.0-alpha.3-r1` | Android, GNU/Linux, unsigned experimental Windows | When selected by a verified current receipt |
+| `v0.1.0-alpha.2-r1`, `abi2-platforms-v0.1.0-alpha.2-r2` | Published predecessors | Until superseded by verified alpha.3 receipts |
+| Older publications | Superseded historical artifacts | No |
 
-The Windows r2 archive is intentionally an unsigned experimental prerelease. A
-GitHub attestation and published SHA-256 digests establish provenance and byte
+The Windows alpha.3-r1 target is intentionally an unsigned experimental prerelease. Once
+verified, its GitHub attestation and published SHA-256 digests establish provenance and byte
 integrity, but they do not provide Authenticode publisher identity or SmartScreen
 reputation.
 

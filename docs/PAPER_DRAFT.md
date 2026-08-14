@@ -11,13 +11,14 @@
 > ABI 2 / `0.1.0-alpha.3` is a pre-publication package-ready research-alpha Rust
 > crate line (not yet on crates.io). Its no-upload package contract does not prove
 > crates.io upload-API acceptance, crate-name ownership, publishing credentials or
-> authorization, server-side policy acceptance, or a registry receipt. It has two published immutable
-> GitHub research prereleases: the Apple XCFramework `v0.1.0-alpha.2-r1` (Rust 1.96.1;
+> authorization, server-side policy acceptance, or a registry receipt. Its next two immutable
+> GitHub research prerelease targets are the Apple XCFramework `v0.1.0-alpha.3-r1` (Rust 1.96.1;
 > the earlier `v0.1.0-alpha.2` on 1.96.0 is superseded) and the
-> `abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR + API 35 / 16 KiB-page
+> `abi2-platforms-v0.1.0-alpha.3-r1` platform distribution (Android AAR + API 35 / 16 KiB-page
 > emulator runtime evidence; Linux x86_64+aarch64 SDKs; unsigned experimental Windows x64 MSVC SDK
-> on Rust 1.97.0). Tag-scoped receipts live in `artifact/results.json`. These are attested research
-> prereleases, not a production claim, and they do not promote historical measurements below.
+> on Rust 1.97.0). Tag-scoped receipts live in `artifact/results.json`; only a verified receipt may
+> promote either target to public/current. These are research prereleases, not a production claim,
+> and they do not promote historical measurements below.
 >
 > **Backend-migration note (2026-07-13).** The living artifact now uses portable
 > `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204` 0.4.6,
@@ -131,9 +132,10 @@ not vendored C, and neither the upstream provider nor this Rust/C integration ha
 completed independent audit.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
 ABI 2 is pre-publication package-ready as a research-alpha source/Rust-crate line
-(not yet on crates.io); this no-upload status is not registry publication. Its published binary surface is two immutable,
-attested GitHub research prereleases: the Apple `v0.1.0-alpha.2-r1` XCFramework and the
-`abi2-platforms-v0.1.0-alpha.2-r2` Android/Linux/Windows packages. Fresh same-source
+(not yet on crates.io); this no-upload status is not registry publication. Its alpha.3 binary
+targets are the Apple `v0.1.0-alpha.3-r1` XCFramework and the
+`abi2-platforms-v0.1.0-alpha.3-r1` Android/Linux/Windows packages; publication/currentness is
+asserted only by their verified receipts. Fresh same-source
 device/performance evidence, independent cryptographic/C-FFI/ABI review,
 signed or transparency-backed source provenance, registry publication, and Windows
 Authenticode remain requirements for production promotion.

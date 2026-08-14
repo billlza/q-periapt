@@ -20,9 +20,11 @@ from evidence_io import (
     load_json_object_snapshot,
     read_regular_snapshot,
 )
-from platform_release_contract import (
+from platform_distribution_contract import (
     ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
-    PlatformReleaseContractError,
+)
+from release_publication_contract import (
+    ReleasePublicationContractError,
     validate_release_publications,
 )
 from git_provenance import GitProvenanceError, require_commit_or_evidence_successor
@@ -907,7 +909,7 @@ def validate_declared_currentness(manifest: dict[str, object]) -> None:
 
     try:
         validate_release_publications(manifest)
-    except PlatformReleaseContractError as exc:
+    except ReleasePublicationContractError as exc:
         raise ProofManifestError(str(exc)) from exc
 
 

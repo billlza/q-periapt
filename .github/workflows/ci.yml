@@ -330,7 +330,7 @@ jobs:
           }
           if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$wrong_target" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
           rm -rf \

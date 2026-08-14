@@ -127,8 +127,8 @@ a post-publication URL-consumer failure
 invalidates that prerelease and requires a new version; it must never be repaired by replacing the
 asset under the same tag.
 
-The current Apple revision is `v0.1.0-alpha.3-r1` (Rust 1.96.1). The earlier
-`v0.1.0-alpha.2-r1` patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0
-build remain available only as immutable historical evidence. Non-Apple platform
-packages (Android AAR, Linux/Windows C SDKs) live in the separate
-`abi2-platforms-v0.1.0-alpha.3-r1` prerelease.
+The alpha.3 Apple target is `v0.1.0-alpha.3-r1` (Rust 1.96.1) and becomes
+public/current only through its verified receipt. The earlier `v0.1.0-alpha.2-r1`
+patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0 build remain immutable
+published evidence. Non-Apple alpha.3 packages (Android AAR, Linux/Windows C SDKs)
+target the separate `abi2-platforms-v0.1.0-alpha.3-r1` transaction.

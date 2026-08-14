@@ -27,9 +27,11 @@ import unittest
 from collections.abc import Iterator
 from unittest import mock
 
+import apple_publication_contract
 import proof_to_byte_finalizer
 from camera_ready_proof import EXPECTED_TOOLS
 from git_provenance import WorktreeInspection, git_commit
+from test_apple_publication_contract import alpha2_receipt
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROOF_SCRIPT = ROOT / "artifact" / "proof-to-byte.sh"
@@ -656,6 +658,14 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
     "swift_xcframework_remote_consumer_script_sha256": "artifact/swift-xcframework-remote-consumer.sh",
     "apple_distribution_verifier_sha256": "artifact/apple_distribution.py",
     "apple_distribution_tests_sha256": "artifact/test_apple_distribution.py",
+    "apple_release_verification_sha256": "artifact/apple_release_verification.py",
+    "apple_release_verification_tests_sha256": "artifact/test_apple_release_verification.py",
+    "apple_publication_contract_sha256": "artifact/apple_publication_contract.py",
+    "apple_publication_contract_tests_sha256": "artifact/test_apple_publication_contract.py",
+    "release_publication_contract_sha256": "artifact/release_publication_contract.py",
+    "release_publication_contract_tests_sha256": "artifact/test_release_publication_contract.py",
+    "apple_publication_finalizer_tests_sha256": "artifact/test_apple_publication_finalizer.py",
+    "release_publication_proof_manifest_tests_sha256": "artifact/test_release_publication_proof_manifest.py",
     "swift_binary_consumer_link_probe_sha256": "bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift",
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
 }
@@ -698,6 +708,8 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
     "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
     "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
+    "platform_candidate_attestation_sha256": "artifact/platform_candidate_attestation.py",
+    "platform_candidate_attestation_tests_sha256": "artifact/test_platform_candidate_attestation.py",
     "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
     "alpha3_release_notes_sha256": "artifact/alpha3-release-notes.md",
     "workflow_artifact_extractor_sha256": "artifact/workflow_artifact.py",
@@ -725,6 +737,10 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
     "platform_release_contract_sha256": "artifact/platform_release_contract.py",
     "platform_release_contract_tests_sha256": "artifact/test_platform_release_contract.py",
+    "platform_alpha3_publication_contract_sha256": "artifact/platform_alpha3_publication_contract.py",
+    "platform_alpha3_publication_contract_tests_sha256": "artifact/test_platform_alpha3_publication_contract.py",
+    "platform_publication_contract_sha256": "artifact/platform_publication_contract.py",
+    "platform_publication_contract_tests_sha256": "artifact/test_platform_publication_contract.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "release_binary_scan_sha256": "artifact/release_binary_scan.py",
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
@@ -785,6 +801,48 @@ def repository_head() -> str:
     if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
         raise AssertionError(f"repository HEAD is not a 40-character commit: {commit}")
     return commit
+
+
+def _git_fixture_command(root: pathlib.Path, *arguments: str) -> None:
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(root), *arguments],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def _git_fixture_commit(root: pathlib.Path, message: str) -> None:
+    _git_fixture_command(root, "add", "--all")
+    _git_fixture_command(
+        root,
+        "-c",
+        "user.name=Proof Test",
+        "-c",
+        "user.email=proof@example.invalid",
+        "commit",
+        "-qm",
+        message,
+    )
+
+
+def _initialize_first_parent_results_fixture(
+    root: pathlib.Path, parent_results: bytes | None
+) -> None:
+    subprocess.run(
+        ["/usr/bin/git", "init", "-q", str(root)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if parent_results is not None:
+        artifact = root / "artifact"
+        artifact.mkdir()
+        (artifact / "results.json").write_bytes(parent_results)
+    (root / "fixture.txt").write_text("parent\n", encoding="utf-8")
+    _git_fixture_commit(root, "Record parent results")
+    (root / "fixture.txt").write_text("successor\n", encoding="utf-8")
+    _git_fixture_commit(root, "Record successor")
 
 
 def validate_ci_check_checkout(check_job: str) -> None:
@@ -4321,6 +4379,10 @@ with _temporary_release_test_directories(parents):
                     proof_to_byte_finalizer,
                     "require_commit_or_evidence_successor",
                 ) as require_successor,
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "validate_release_publication_history",
+                ) as validate_publication_history,
             ):
                 self.assertEqual(
                     proof_to_byte_finalizer.validate_release_metadata(
@@ -4331,6 +4393,9 @@ with _temporary_release_test_directories(parents):
                     (TEST_COMMIT, footprint_sha256),
                 )
                 require_successor.assert_called_once_with(root, TEST_COMMIT)
+                validate_publication_history.assert_called_once_with(
+                    root, document
+                )
 
                 document["footprint_bytes"] = dict(expected)
                 document["footprint_bytes"]["wasm_lean_default"] = {
@@ -4346,6 +4411,138 @@ with _temporary_release_test_directories(parents):
                         root / "artifact" / "results.json",
                         TEST_MANIFEST_SHA256,
                     )
+
+    def test_first_parent_publication_history_is_loaded_and_enforced(self) -> None:
+        parent_manifest = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        parent_bytes = json.dumps(
+            parent_manifest,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "repository"
+            _initialize_first_parent_results_fixture(root, parent_bytes)
+            self.assertEqual(
+                proof_to_byte_finalizer._load_first_parent_results_manifest(
+                    root
+                ),
+                parent_manifest,
+            )
+            migrated_manifest = copy.deepcopy(parent_manifest)
+            migrated_manifest["release_publications"][
+                apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+            ] = alpha2_receipt()
+            proof_to_byte_finalizer.validate_release_publication_history(
+                root, migrated_manifest
+            )
+
+            current_without_recorded_publications = copy.deepcopy(
+                migrated_manifest
+            )
+            current_without_recorded_publications["release_publications"].pop(
+                "platform_r2"
+            )
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "first-parent transition.*cannot be removed",
+            ):
+                proof_to_byte_finalizer.validate_release_publication_history(
+                    root, current_without_recorded_publications
+                )
+
+    def test_first_parent_results_loading_fails_closed(self) -> None:
+        valid_empty = b"{}\n"
+        cases = (
+            ("missing", None, "cannot load first-parent"),
+            (
+                "duplicate-key",
+                b'{"release_publications":{},"release_publications":{}}',
+                "duplicate JSON key",
+            ),
+            (
+                "oversized",
+                b" " * (proof_to_byte_finalizer.MAX_RESULTS_MANIFEST_BYTES + 1),
+                "exceeds maximum size",
+            ),
+            ("non-object", b"[]", "root must be a JSON object"),
+        )
+        for label, parent_bytes, message in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary) / "repository"
+                _initialize_first_parent_results_fixture(root, parent_bytes)
+                with self.assertRaisesRegex(
+                    proof_to_byte_finalizer.FinalizerError, message
+                ):
+                    proof_to_byte_finalizer._load_first_parent_results_manifest(
+                        root
+                    )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "root-commit-repository"
+            subprocess.run(
+                ["/usr/bin/git", "init", "-q", str(root)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            artifact = root / "artifact"
+            artifact.mkdir()
+            (artifact / "results.json").write_bytes(valid_empty)
+            _git_fixture_commit(root, "Record root results")
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "cannot load first-parent",
+            ):
+                proof_to_byte_finalizer._load_first_parent_results_manifest(
+                    root
+                )
+
+    def test_first_parent_history_does_not_read_a_merge_second_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "merge-repository"
+            _initialize_first_parent_results_fixture(root, b"{}\n")
+            main_branch = subprocess.run(
+                [
+                    "/usr/bin/git",
+                    "-C",
+                    str(root),
+                    "branch",
+                    "--show-current",
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            ).stdout.strip()
+            self.assertTrue(main_branch)
+            _git_fixture_command(root, "checkout", "-qb", "publication-side")
+            (root / "artifact" / "results.json").write_text(
+                '{"second_parent":true}\n', encoding="utf-8"
+            )
+            _git_fixture_commit(root, "Record side publication data")
+            _git_fixture_command(root, "checkout", "-q", main_branch)
+            (root / "main-only.txt").write_text("main\n", encoding="utf-8")
+            _git_fixture_commit(root, "Record main data")
+            _git_fixture_command(
+                root,
+                "-c",
+                "user.name=Proof Test",
+                "-c",
+                "user.email=proof@example.invalid",
+                "merge",
+                "--no-ff",
+                "-qm",
+                "Merge publication side",
+                "publication-side",
+            )
+            self.assertEqual(
+                proof_to_byte_finalizer._load_first_parent_results_manifest(
+                    root
+                ),
+                {},
+            )
 
     def test_footprint_csv_rejects_duplicate_and_inconsistent_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -4441,6 +4638,10 @@ with _temporary_release_test_directories(parents):
                 mock.patch.object(
                     proof_to_byte_finalizer,
                     "require_commit_or_evidence_successor",
+                ),
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "validate_release_publication_history",
                 ),
             ):
                 invalid_cases = (
@@ -5170,7 +5371,14 @@ with _temporary_release_test_directories(parents):
 
     def test_ci_release_package_paths_use_the_current_alpha3_version(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-        self.assertNotIn("0.1.0-alpha.2", workflow)
+        wrong_version_probe = (
+            'if verify_archive "$archive_sha256" "$EXPECTED_TARGET" '
+            '"0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; '
+            "then exit 1; fi"
+        )
+        self.assertEqual(workflow.count(wrong_version_probe), 1)
+        self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
+        self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
         for expected in (
             "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip",
             "q-periapt-c-abi2-0.1.0-alpha.3-$EXPECTED_TARGET",

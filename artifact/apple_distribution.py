@@ -1488,20 +1488,19 @@ def _trusted_results_release_identity(
     return identity
 
 
-def _release_expectations_from_results(
-    results_manifest: pathlib.Path,
-) -> tuple[dict[str, Any], str]:
-    results_snapshot = load_json_object_snapshot(
-        results_manifest,
-        maximum=MAX_TEXT_BYTES,
-        label="trusted release results manifest",
-    )
-    swift_xcframework = _require_object(
-        results_snapshot.value.get("swift_xcframework"),
-        "trusted results swift_xcframework",
-    )
+def validate_trusted_results_distribution_shape(
+    distribution_value: object,
+) -> dict[str, Any]:
+    """Validate the stable 23-field trusted-results distribution shape.
+
+    Publication-receipt contracts reuse this boundary so the historical
+    ``swift_xcframework.distribution`` shape has one parser and one set of
+    scalar/state rules. Release identities and current producer policy are
+    deliberately outside this frozen shape boundary.
+    """
+
     distribution = _require_object(
-        swift_xcframework.get("distribution"),
+        distribution_value,
         "trusted results Swift distribution",
     )
     _require_exact_keys(
@@ -1533,14 +1532,16 @@ def _release_expectations_from_results(
         },
         "trusted results Swift distribution",
     )
-    _require_exact_json(
-        distribution["artifact_path"],
-        XCFRAMEWORK_ZIP_NAME,
-        "trusted results artifact path",
+    _require_string(distribution["artifact_path"], "trusted results artifact path")
+    for key in ("version", "release_revision", "release_tag", "release_url"):
+        _require_string(distribution[key], f"trusted results {key}")
+    _require_git_commit(
+        distribution["source_commit"], "trusted results source commit"
     )
-    _trusted_results_release_identity(distribution)
-    _require_git_commit(distribution["source_commit"], "trusted results source commit")
-    if type(distribution["artifact_size"]) is not int or distribution["artifact_size"] <= 0:
+    if (
+        type(distribution["artifact_size"]) is not int
+        or distribution["artifact_size"] <= 0
+    ):
         _fail("trusted results artifact size must be a positive integer")
     for key in (
         "artifact_sha256",
@@ -1551,29 +1552,30 @@ def _release_expectations_from_results(
         "origin_signature_certificate_sha256",
     ):
         _require_sha256(distribution[key], f"trusted results {key}")
-    _require_exact_json(
-        distribution["distribution_signed"], True, "trusted results signed state"
-    )
-    _require_exact_json(
+    if type(distribution["distribution_signed"]) is not bool:
+        _fail("trusted results signed state must be a boolean")
+    _require_string(
         distribution["notarization_applicability"],
-        "not_applicable_static_sdk_payload",
         "trusted results notarization applicability",
     )
-    _require_exact_json(
-        distribution["notarized"], False, "trusted results notarized state"
-    )
-    _require_exact_json(distribution["stapled"], False, "trusted results stapled state")
-    _require_exact_json(
+    for key in ("notarized", "stapled"):
+        if type(distribution[key]) is not bool:
+            _fail(f"trusted results {key} must be a boolean")
+    _require_string(
         distribution["origin_signature_identity_class"],
-        EXPECTED_IDENTITY_CLASS,
         "trusted results signature identity class",
     )
     team_id = _require_string(
-        distribution["origin_signature_team_id"], "trusted results signature Team ID"
+        distribution["origin_signature_team_id"],
+        "trusted results signature Team ID",
     )
     if not TEAM_ID.fullmatch(team_id):
         _fail("trusted results signature Team ID is invalid")
-    for key in ("public_release", "immutable_release", "remote_consumer_verified"):
+    for key in (
+        "public_release",
+        "immutable_release",
+        "remote_consumer_verified",
+    ):
         if type(distribution[key]) is not bool:
             _fail(f"trusted results {key} must be a boolean")
     if distribution["public_release"] != distribution["immutable_release"]:
@@ -1590,7 +1592,10 @@ def _release_expectations_from_results(
         "trusted results remote verification",
     )
     if distribution["remote_consumer_verified"]:
-        if not distribution["public_release"] or not distribution["immutable_release"]:
+        if (
+            not distribution["public_release"]
+            or not distribution["immutable_release"]
+        ):
             _fail("trusted remote verification requires a public immutable release")
         _require_sha256(
             remote_verification["log_sha256"],
@@ -1604,12 +1609,79 @@ def _release_expectations_from_results(
             remote_verification["verified_at"],
             "trusted remote verification time",
         )
-        if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", verified_at) is None:
+        if (
+            re.fullmatch(
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z",
+                verified_at,
+            )
+            is None
+        ):
             _fail("trusted remote verification time must be UTC RFC 3339 seconds")
     elif any(value is not None for value in remote_verification.values()):
         _fail("unverified remote release must not carry verification evidence")
-    if distribution["artifact_sha256"].lower() != distribution["swiftpm_checksum"].lower():
+    if (
+        distribution["artifact_sha256"].lower()
+        != distribution["swiftpm_checksum"].lower()
+    ):
         _fail("trusted results SwiftPM checksum differs from the artifact SHA-256")
+    return distribution
+
+
+def validate_trusted_results_distribution(
+    distribution_value: object,
+) -> dict[str, Any]:
+    """Validate trusted results against current/published producer policy."""
+
+    distribution = validate_trusted_results_distribution_shape(
+        distribution_value
+    )
+    _require_exact_json(
+        distribution["artifact_path"],
+        XCFRAMEWORK_ZIP_NAME,
+        "trusted results artifact path",
+    )
+    _trusted_results_release_identity(distribution)
+    _require_exact_json(
+        distribution["distribution_signed"],
+        True,
+        "trusted results signed state",
+    )
+    _require_exact_json(
+        distribution["notarization_applicability"],
+        "not_applicable_static_sdk_payload",
+        "trusted results notarization applicability",
+    )
+    _require_exact_json(
+        distribution["notarized"],
+        False,
+        "trusted results notarized state",
+    )
+    _require_exact_json(
+        distribution["stapled"], False, "trusted results stapled state"
+    )
+    _require_exact_json(
+        distribution["origin_signature_identity_class"],
+        EXPECTED_IDENTITY_CLASS,
+        "trusted results signature identity class",
+    )
+    return distribution
+
+
+def _release_expectations_from_results(
+    results_manifest: pathlib.Path,
+) -> tuple[dict[str, Any], str]:
+    results_snapshot = load_json_object_snapshot(
+        results_manifest,
+        maximum=MAX_TEXT_BYTES,
+        label="trusted release results manifest",
+    )
+    swift_xcframework = _require_object(
+        results_snapshot.value.get("swift_xcframework"),
+        "trusted results swift_xcframework",
+    )
+    distribution = validate_trusted_results_distribution(
+        swift_xcframework.get("distribution"),
+    )
     return distribution, results_snapshot.file.sha256
 
 

@@ -227,25 +227,31 @@ The upstream tag/commit is not a signed provenance statement, and neither upstre
 mlkem-native nor this Rust/C integration has completed an independent audit.
 
 ABI 2 / `0.1.0-alpha.3` is a pre-publication package-ready research-alpha source
-line (not yet uploaded to crates.io), with two
-published immutable GitHub research prereleases: the Apple XCFramework revision
-`v0.1.0-alpha.2-r1` (Rust 1.96.1; the earlier `v0.1.0-alpha.2` Apple build on
-Rust 1.96.0 is superseded, historical attested evidence) and the
-`abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR plus API 35 /
+line (not yet uploaded to crates.io). Its coordinated alpha.3 GitHub research
+prerelease transaction targets are the Apple XCFramework revision
+`v0.1.0-alpha.3-r1` and the
+`abi2-platforms-v0.1.0-alpha.3-r1` platform distribution (Android AAR plus API 35 /
 16 KiB-page emulator runtime evidence, GNU/Linux x86_64+aarch64 SDK archives, and an
 unsigned experimental Windows x64 MSVC SDK built with Rust 1.97.0 as a bounded,
-documented toolchain difference). Machine-checked publication receipts live in
-`artifact/results.json` (`release_publications`, `swift_xcframework.distribution`)
-under `artifact/platform_release_contract.py`; scope, verification commands, and
-explicit non-goals are in `artifact/abi2-platform-release-notes.md`. The line has a
+documented toolchain difference). Machine-checked, versioned Apple and platform
+publication receipts live under `release_publications` in `artifact/results.json`;
+`swift_xcframework.distribution` is only the active Apple projection and must match
+one of those receipts exactly. Scope, verification commands, and explicit
+non-goals are in `artifact/alpha3-release-notes.md`. The alpha.2 tags and frozen r2
+receipt remain immutable historical evidence. The `platform_alpha3_r1` receipt has
+two exact states: candidate verification pending release verification omits every
+remote-publication field (absence means unrecorded, not no release), while verified
+adds the exact eight public assets, immutable prerelease metadata, tag-plus-assets
+attestation, and fresh-download deep verification. Receipt transitions are monotonic.
+The line has a
 frozen exact-nine dynamic `q_periapt_*` export
 contract. The static archive constrains that reserved public namespace but retains
 unsupported hidden `qpn_mlkem_bridge_*` link symbols; hidden visibility is not
 access control, and a same-process static consumer can deliberately call them. It removes
 raw/deterministic public product exports, uses OS randomness, major-isolates the
 binary/package identities, and rejects ABI1's four-byte state. Package readiness by
-itself does not attest platform binaries; the published archives above are attested by
-their own release receipts, distribution manifests, `SHA256SUMS`, annotated tags, and
+itself does not attest platform binaries; any archive promoted to public/current is
+attested by its own release receipt, distribution manifest, `SHA256SUMS`, annotated tag, and
 GitHub immutable-release/build-provenance attestations. The Apple-only
 credentialed lane separately produces the Developer ID-signed, exact-static-only
 XCFramework ZIP whose payload has no notarizable executable or bundle; only
@@ -507,10 +513,10 @@ ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slic
 `APPLE_DISTRIBUTION.json`. This SDK payload has no standalone executable or notarizable bundle, so
 notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
 product retains its own signing and notarization responsibility.
-The published research prereleases are not a production release claim. The Apple
-`v0.1.0-alpha.2-r1` XCFramework and the `abi2-platforms-v0.1.0-alpha.2-r2` Android
-AAR / Linux x86_64+aarch64 / Windows x64 MSVC SDK archives are immutable, attested,
-remote-consumer-verified GitHub prereleases; the r2 packages carry exact-version
+The published research prereleases are not a production release claim. The alpha.3
+targets `v0.1.0-alpha.3-r1` and `abi2-platforms-v0.1.0-alpha.3-r1` become public,
+immutable, attested prereleases only when their current verified receipts say so;
+the published alpha.2 receipts remain immutable historical evidence. The platform packages carry exact-version
 pkg-config/CMake configs, ABI contracts, SBOM/CBOM, and license material. What still
 separates them from production promotion: a fresh same-source Apple device matrix,
 a current-source canonical Android arm64 AVD transaction plus a clean physical-device proof over

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 PLATFORM_DISTRIBUTION_SCHEMA_VERSION = 1
 PLATFORM_DISTRIBUTION_KIND = "qperiapt.abi2_platform_distribution"
+ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 6
 
 PRODUCT_VERSION = "0.1.0-alpha.3"
 DISTRIBUTION_REVISION = "r1"
@@ -35,6 +36,21 @@ LINUX_AARCH64 = (
 )
 WINDOWS_X86_64 = (
     f"q-periapt-c-abi2-{PRODUCT_VERSION}-x86_64-pc-windows-msvc.zip"
+)
+
+# Exact order used by the tag-bound candidate workflow and its one shared
+# provenance statement.  The runtime bundle is assembled locally afterwards
+# and therefore is deliberately absent from this CI-candidate set.
+PLATFORM_CANDIDATE_ASSETS = (
+    ANDROID_AAR,
+    ANDROID_MANIFEST,
+    LINUX_X86_64,
+    LINUX_AARCH64,
+    WINDOWS_X86_64,
+)
+PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS = (
+    *PLATFORM_CANDIDATE_ASSETS,
+    CANDIDATE_SUMS,
 )
 
 PLATFORM_INPUT_ASSETS = frozenset(
