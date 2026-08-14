@@ -5168,6 +5168,19 @@ with _temporary_release_test_directories(parents):
             self.assertIn(f"expected {alternate_head}", spoofed.stderr)
             self.assertEqual(spoofed.stdout, "")
 
+    def test_ci_release_package_paths_use_the_current_alpha3_version(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("0.1.0-alpha.2", workflow)
+        for expected in (
+            "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.1.0-alpha.3-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.1.0-alpha.3-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.1.0-alpha.3.aar",
+            "q-periapt-android-0.1.0-alpha.3/MANIFEST.json",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, workflow)
+
     def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:
         setup_action = (
             "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0"
