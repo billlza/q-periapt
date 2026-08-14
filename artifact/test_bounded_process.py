@@ -1153,6 +1153,33 @@ class BoundedProcessTests(unittest.TestCase):
                     call()
                 self.assertEqual(raised.exception.kind, "arguments")
 
+    def test_process_start_separates_executable_and_never_uses_a_shell(self) -> None:
+        command = [sys.executable, "-c", "print('bounded')"]
+        process = mock.Mock(spec=subprocess.Popen)
+        with mock.patch.object(
+            bounded_process.subprocess,
+            "Popen",
+            return_value=process,
+        ) as popen:
+            started = bounded_process._start_process(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                environment={"LANG": "C"},
+            )
+        self.assertIs(process, started)
+        popen.assert_called_once_with(
+            args=command,
+            executable=sys.executable,
+            shell=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env={"LANG": "C"},
+            bufsize=0,
+            start_new_session=True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

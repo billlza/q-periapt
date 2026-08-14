@@ -9,16 +9,17 @@ receipt.  Neither CLI accepts a status or an output path.
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime as dt
-import hashlib
 import os
 import pathlib
 import re
 import stat
 import subprocess
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, Never
 
 import apple_distribution
@@ -27,6 +28,7 @@ from bounded_process import BoundedProcessError, capture_stdout
 from evidence_io import (
     EvidenceIOError,
     FileSnapshot,
+    consume_regular_snapshot_at,
     parse_strict_json_bytes,
     read_regular_snapshot,
 )
@@ -39,13 +41,19 @@ from git_provenance import (
 from publication_receipt_io import (
     PRIVATE_FILE_MODE,
     PUBLIC_FILE_MODE,
+    PrivateDirectoryHandle,
+    PublicationReceiptCommittedError,
     PublicationReceiptIOError,
     create_private_transaction_json,
     normalize_safe_root,
+    open_private_direct_child_handle,
+    open_private_directory_at,
+    prepare_private_json_noreplace_at,
     read_fixed_file_snapshot,
     read_fixed_json_snapshot,
-    verify_private_direct_child_and_sync_parent,
-    write_fixed_private_json,
+    verify_exact_directory_inventory_at,
+    verify_private_directory_handle_identity,
+    sync_private_directory_parent,
 )
 
 
@@ -126,6 +134,16 @@ Clock = Callable[[], dt.datetime]
 
 class AppleAlpha3PublicationError(ValueError):
     """Apple alpha.3 receipt evidence or state transition is invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class _RemoteConsumerLayout:
+    verifier_source: PrivateDirectoryHandle
+    verifier_artifact: PrivateDirectoryHandle
+    verifier_target: PrivateDirectoryHandle
+    release_assets: PrivateDirectoryHandle
+    extracted: PrivateDirectoryHandle
+    extracted_xcframework: PrivateDirectoryHandle
 
 
 def _fail(message: str) -> Never:
@@ -283,29 +301,25 @@ def _validate_clean_annotated_tag(source_commit: str) -> None:
 
 
 def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
-    snapshot = read_fixed_json_snapshot(
-        path,
-        safe_root=APPLE_COMPLETION_ROOT,
-        expected_leaf=COMPLETION_LEDGER_NAME,
-        label="Apple release completion ledger",
-        parent_depth=1,
-        maximum=MAX_LEDGER_BYTES,
-        file_mode=PRIVATE_FILE_MODE,
-    )
-    parent = path.parent
+    try:
+        snapshot = read_fixed_json_snapshot(
+            path,
+            safe_root=APPLE_COMPLETION_ROOT,
+            expected_leaf=COMPLETION_LEDGER_NAME,
+            label="Apple release completion ledger",
+            parent_depth=1,
+            maximum=MAX_LEDGER_BYTES,
+            file_mode=PRIVATE_FILE_MODE,
+            expected_parent_entries=frozenset({COMPLETION_LEDGER_NAME}),
+        )
+    except PublicationReceiptIOError as exc:
+        raise AppleAlpha3PublicationError(
+            "cannot safely read the Apple release completion ledger"
+        ) from exc
+    parent = snapshot.file.path.parent
     _require(
         HEX_40.fullmatch(parent.name) is not None,
         "Apple completion transaction directory name is malformed",
-    )
-    try:
-        entries_before = frozenset(os.listdir(parent))
-    except OSError as exc:
-        raise AppleAlpha3PublicationError(
-            "cannot enumerate Apple completion transaction"
-        ) from exc
-    _require(
-        entries_before == frozenset({COMPLETION_LEDGER_NAME}),
-        "Apple completion transaction is not fully cleaned",
     )
     ledger = snapshot.value
     _exact_keys(
@@ -354,16 +368,6 @@ def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
     )
     for name in APPLE_PUBLIC_FILE_NAMES:
         _sha256(hashes[name], f"Apple completion asset digest for {name}")
-    try:
-        entries_after = frozenset(os.listdir(parent))
-    except OSError as exc:
-        raise AppleAlpha3PublicationError(
-            "cannot resample Apple completion transaction"
-        ) from exc
-    _require(
-        entries_after == entries_before,
-        "Apple completion transaction changed while reading",
-    )
     return ledger, source_commit
 
 
@@ -828,17 +832,22 @@ def promote_receipt(
     return verified
 
 
-def _private_runtime_snapshot(
-    path: pathlib.Path,
+def _private_runtime_snapshot_at(
+    directory: PrivateDirectoryHandle,
+    name: str,
     *,
     maximum: int,
     label: str,
 ) -> FileSnapshot:
+    chunks: list[bytes] = []
     try:
-        return read_regular_snapshot(
-            path,
+        digest = consume_regular_snapshot_at(
+            directory.descriptor,
+            name,
+            display_path=directory.path / name,
             maximum=maximum,
             label=label,
+            consume=chunks.append,
             validate_metadata=lambda metadata: _owned_file_metadata(
                 metadata,
                 mode=PRIVATE_FILE_MODE,
@@ -849,6 +858,154 @@ def _private_runtime_snapshot(
         raise AppleAlpha3PublicationError(
             f"cannot safely read {label}"
         ) from exc
+    data = b"".join(chunks)
+    _require(
+        len(data) == digest.size,
+        f"{label} consumer byte count changed unexpectedly",
+    )
+    return FileSnapshot(
+        path=digest.path,
+        data=data,
+        size=digest.size,
+        sha256=digest.sha256,
+    )
+
+
+def _remote_runtime_from_verifier_snapshot(
+    run_directory_name: str,
+) -> tuple[pathlib.Path, str]:
+    """Derive the outer checkout from this run's fixed verifier snapshot layout."""
+
+    _require(
+        isinstance(run_directory_name, str)
+        and REMOTE_CONSUMER_TRANSACTION.fullmatch(run_directory_name)
+        is not None,
+        "remote consumer run directory name is malformed",
+    )
+    source_supplied = os.fspath(REPOSITORY_ROOT)
+    source_absolute = os.path.abspath(source_supplied)
+    source_text = os.path.realpath(source_supplied)
+    _require(
+        source_text == source_absolute,
+        "remote consumer verifier source root must be canonical",
+    )
+    source_root = pathlib.Path(source_text)
+    _require(
+        source_root.name == "verifier-inputs",
+        "remote consumer verifier source root has the wrong fixed leaf",
+    )
+    run_directory = source_root.parent
+    safe_run_directory_name = run_directory.name
+    _require(
+        REMOTE_CONSUMER_TRANSACTION.fullmatch(safe_run_directory_name)
+        is not None
+        and safe_run_directory_name == run_directory_name,
+        "remote consumer verifier source/run binding differs",
+    )
+    runs_root = run_directory.parent
+    _require(
+        runs_root.name == "qperiapt-swift-remote-consumer-runs",
+        "remote consumer verifier source runs-root binding differs",
+    )
+    target_root = runs_root.parent
+    _require(
+        target_root.name == "target",
+        "remote consumer verifier source target-root binding differs",
+    )
+    runtime_root = target_root.parent
+    runtime_prefix = os.fspath(runtime_root) + os.sep
+    if not source_text.startswith(runtime_prefix):
+        raise AppleAlpha3PublicationError(
+            "remote consumer verifier source escaped its runtime checkout"
+        )
+    expected_source = (
+        runtime_root
+        / "target"
+        / "qperiapt-swift-remote-consumer-runs"
+        / safe_run_directory_name
+        / "verifier-inputs"
+    )
+    _require(
+        source_root == expected_source,
+        "remote consumer verifier source hierarchy differs",
+    )
+    for directory, label in (
+        (runs_root, "remote consumer runs root"),
+        (run_directory, "remote consumer run directory"),
+        (source_root, "remote consumer verifier source root"),
+    ):
+        try:
+            metadata = directory.lstat()
+        except OSError as exc:
+            raise AppleAlpha3PublicationError(f"cannot inspect {label}") from exc
+        _require(
+            stat.S_ISDIR(metadata.st_mode)
+            and not directory.is_symlink()
+            and metadata.st_uid == os.geteuid()
+            and stat.S_IMODE(metadata.st_mode) == 0o700,
+            f"{label} must be an owned mode-0700 non-symlink directory",
+        )
+    return runtime_root, safe_run_directory_name
+
+
+@contextlib.contextmanager
+def _open_remote_consumer_layout(
+    output_root: PrivateDirectoryHandle,
+) -> Iterator[_RemoteConsumerLayout]:
+    """Pin the fixed evidence hierarchy below one held remote run."""
+
+    with contextlib.ExitStack() as resources:
+        verifier_source = resources.enter_context(
+            open_private_directory_at(
+                parent=output_root,
+                direct_child_name="verifier-inputs",
+                label="remote consumer verifier source",
+            )
+        )
+        verifier_artifact = resources.enter_context(
+            open_private_directory_at(
+                parent=verifier_source,
+                direct_child_name="artifact",
+                label="remote consumer verifier artifact directory",
+            )
+        )
+        verifier_target = resources.enter_context(
+            open_private_directory_at(
+                parent=verifier_source,
+                direct_child_name="target",
+                label="remote consumer verifier target directory",
+            )
+        )
+        release_assets = resources.enter_context(
+            open_private_directory_at(
+                parent=output_root,
+                direct_child_name=REMOTE_CONSUMER_RELEASE_ASSETS_NAME,
+                label="remote consumer downloaded asset directory",
+            )
+        )
+        extracted = resources.enter_context(
+            open_private_directory_at(
+                parent=verifier_target,
+                direct_child_name="extracted",
+                label="remote consumer extraction directory",
+            )
+        )
+        extracted_xcframework = resources.enter_context(
+            open_private_directory_at(
+                parent=extracted,
+                direct_child_name="CQPeriapt.xcframework",
+                label="remote consumer extracted XCFramework",
+                required_mode=0o755,
+            )
+        )
+        yield _RemoteConsumerLayout(
+            verifier_source=verifier_source,
+            verifier_artifact=verifier_artifact,
+            verifier_target=verifier_target,
+            release_assets=release_assets,
+            extracted=extracted,
+            extracted_xcframework=extracted_xcframework,
+        )
 
 
 def emit_remote_consumer_receipt(
@@ -858,7 +1015,7 @@ def emit_remote_consumer_receipt(
     startup_results_sha256: str,
     clock: Clock = _system_clock,
 ) -> tuple[pathlib.Path, str]:
-    """Emit the fixed structured receipt after all remote-consumer gates pass."""
+    """Pin the complete remote-consumer layout and emit its structured receipt."""
 
     _require(
         runtime_repository_root.is_absolute()
@@ -880,24 +1037,136 @@ def emit_remote_consumer_receipt(
         runs_root,
         label="remote consumer runs root",
     )
-    output_root = verify_private_direct_child_and_sync_parent(
+    try:
+        with open_private_direct_child_handle(
+            safe_root=normalized_runs_root,
+            direct_child_name=run_directory_name,
+            label="remote consumer run",
+            sync_safe_root_parent=True,
+        ) as output_root:
+            sync_private_directory_parent(
+                output_root,
+                label="remote consumer run",
+            )
+            with _open_remote_consumer_layout(output_root) as layout:
+                receipt = _emit_remote_consumer_receipt_pinned(
+                    runtime_root=runtime_root,
+                    output_root=output_root,
+                    verifier_source=layout.verifier_source,
+                    verifier_artifact=layout.verifier_artifact,
+                    verifier_target=layout.verifier_target,
+                    release_assets=layout.release_assets,
+                    extracted=layout.extracted,
+                    extracted_xcframework=layout.extracted_xcframework,
+                    startup_results_sha256=startup_results_sha256,
+                    clock=clock,
+                )
+        return _commit_remote_consumer_receipt(
+            runtime_root=runtime_root,
+            normalized_runs_root=normalized_runs_root,
+            run_directory_name=run_directory_name,
+            startup_results_sha256=startup_results_sha256,
+            receipt=receipt,
+        )
+    except PublicationReceiptCommittedError:
+        raise
+    except PublicationReceiptIOError as exc:
+        raise AppleAlpha3PublicationError(str(exc)) from exc
+
+
+def _commit_remote_consumer_receipt(
+    *,
+    runtime_root: pathlib.Path,
+    normalized_runs_root: pathlib.Path,
+    run_directory_name: str,
+    startup_results_sha256: str,
+    receipt: dict[str, object],
+) -> tuple[pathlib.Path, str]:
+    """Re-pin, rebuild, and atomically commit one already-validated receipt."""
+
+    verified_at = _timestamp(
+        receipt.get("verified_at"),
+        "remote consumer receipt verified_at",
+    )
+    with open_private_direct_child_handle(
         safe_root=normalized_runs_root,
         direct_child_name=run_directory_name,
         label="remote consumer run",
+        sync_safe_root_parent=True,
+    ) as output_root:
+        sync_private_directory_parent(
+            output_root,
+            label="remote consumer run",
+        )
+        with prepare_private_json_noreplace_at(
+            output_root,
+            REMOTE_CONSUMER_RECEIPT_NAME,
+            receipt,
+            label="Apple remote consumer receipt",
+            maximum=MAX_REMOTE_RECEIPT_BYTES,
+        ) as prepared:
+            with _open_remote_consumer_layout(output_root) as layout:
+                rebuilt = _emit_remote_consumer_receipt_pinned(
+                    runtime_root=runtime_root,
+                    output_root=output_root,
+                    verifier_source=layout.verifier_source,
+                    verifier_artifact=layout.verifier_artifact,
+                    verifier_target=layout.verifier_target,
+                    release_assets=layout.release_assets,
+                    extracted=layout.extracted,
+                    extracted_xcframework=layout.extracted_xcframework,
+                    startup_results_sha256=startup_results_sha256,
+                    clock=lambda: verified_at,
+                )
+                _require(
+                    rebuilt == receipt,
+                    "remote consumer facts changed before receipt commit",
+                )
+            digest = prepared.commit_after_revalidation()
+        return output_root.path / REMOTE_CONSUMER_RECEIPT_NAME, digest
+
+
+def _emit_remote_consumer_receipt_pinned(
+    *,
+    runtime_root: pathlib.Path,
+    output_root: PrivateDirectoryHandle,
+    verifier_source: PrivateDirectoryHandle,
+    verifier_artifact: PrivateDirectoryHandle,
+    verifier_target: PrivateDirectoryHandle,
+    release_assets: PrivateDirectoryHandle,
+    extracted: PrivateDirectoryHandle,
+    extracted_xcframework: PrivateDirectoryHandle,
+    startup_results_sha256: str,
+    clock: Clock,
+) -> dict[str, object]:
+    """Consume one fully pinned remote-consumer transaction."""
+
+    transaction_handles = (
+        (output_root, "remote consumer run"),
+        (verifier_source, "remote consumer verifier source"),
+        (verifier_artifact, "remote consumer verifier artifact directory"),
+        (verifier_target, "remote consumer verifier target directory"),
+        (release_assets, "remote consumer downloaded asset directory"),
+        (extracted, "remote consumer extraction directory"),
+        (extracted_xcframework, "remote consumer extracted XCFramework"),
     )
-    _require(
-        output_root.parent == normalized_runs_root,
-        "remote consumer run escaped its fixed root",
-    )
-    log_path = output_root / REMOTE_CONSUMER_LOG_NAME
-    results_path = output_root.joinpath(*REMOTE_CONSUMER_RESULTS_RELATIVE.parts)
+
+    def verify_transaction_handles() -> None:
+        for handle, label in transaction_handles:
+            try:
+                verify_private_directory_handle_identity(handle, label=label)
+            except PublicationReceiptIOError as exc:
+                raise AppleAlpha3PublicationError(str(exc)) from exc
+
+    verify_transaction_handles()
     startup_results_sha256 = _sha256(
         startup_results_sha256,
         "remote consumer startup results SHA-256",
     )
 
-    results_before = _private_runtime_snapshot(
-        results_path,
+    results_before = _private_runtime_snapshot_at(
+        verifier_artifact,
+        "results.json",
         maximum=MAX_RESULTS_BYTES,
         label="remote consumer verifier results snapshot",
     )
@@ -933,26 +1202,21 @@ def emit_remote_consumer_receipt(
         apple_distribution.MANIFEST_NAME: distribution["manifest_sha256"],
         apple_distribution.SHA256SUMS_NAME: distribution["checksums_sha256"],
     }
-    release_assets = output_root / REMOTE_CONSUMER_RELEASE_ASSETS_NAME
     try:
-        asset_directory_metadata = release_assets.lstat()
-        asset_entries = frozenset(os.listdir(release_assets))
-    except OSError as exc:
+        verify_exact_directory_inventory_at(
+            release_assets.descriptor,
+            frozenset(APPLE_PUBLIC_FILE_NAMES),
+            label="remote consumer downloaded assets before snapshot",
+        )
+    except PublicationReceiptIOError as exc:
         raise AppleAlpha3PublicationError(
             "cannot inspect remote consumer downloaded assets"
         ) from exc
-    _require(
-        stat.S_ISDIR(asset_directory_metadata.st_mode)
-        and not release_assets.is_symlink()
-        and asset_directory_metadata.st_uid == os.geteuid()
-        and stat.S_IMODE(asset_directory_metadata.st_mode) == 0o700
-        and asset_entries == frozenset(APPLE_PUBLIC_FILE_NAMES),
-        "remote consumer downloaded asset directory differs",
-    )
     downloaded: dict[str, FileSnapshot] = {}
     for name in APPLE_PUBLIC_FILE_NAMES:
-        downloaded[name] = _private_runtime_snapshot(
-            release_assets / name,
+        downloaded[name] = _private_runtime_snapshot_at(
+            release_assets,
+            name,
             maximum=(
                 apple_distribution.MAX_ARTIFACT_BYTES
                 if name == apple_distribution.XCFRAMEWORK_ZIP_NAME
@@ -960,6 +1224,17 @@ def emit_remote_consumer_receipt(
             ),
             label=f"remote consumer downloaded asset {name}",
         )
+    try:
+        verify_exact_directory_inventory_at(
+            release_assets.descriptor,
+            frozenset(APPLE_PUBLIC_FILE_NAMES),
+            label="remote consumer downloaded assets after snapshot",
+        )
+    except PublicationReceiptIOError as exc:
+        raise AppleAlpha3PublicationError(
+            "remote consumer downloaded asset directory changed"
+        ) from exc
+    verify_transaction_handles()
     normalized_assets = {
         name: downloaded[name].sha256 for name in APPLE_PUBLIC_FILE_NAMES
     }
@@ -1011,27 +1286,7 @@ def emit_remote_consumer_receipt(
         swiftpm_checksum == distribution["swiftpm_checksum"],
         "remote consumer downloaded SwiftPM checksum differs",
     )
-    extracted_xcframework = (
-        output_root
-        / "verifier-inputs"
-        / "target"
-        / "extracted"
-        / "CQPeriapt.xcframework"
-    )
-    try:
-        extracted_metadata = extracted_xcframework.lstat()
-    except OSError as exc:
-        raise AppleAlpha3PublicationError(
-            "cannot inspect remote consumer extracted XCFramework"
-        ) from exc
-    _require(
-        stat.S_ISDIR(extracted_metadata.st_mode)
-        and not extracted_xcframework.is_symlink()
-        and extracted_metadata.st_uid == os.geteuid()
-        and os.path.realpath(extracted_xcframework)
-        == os.path.abspath(extracted_xcframework),
-        "remote consumer extracted XCFramework metadata differs",
-    )
+    verify_transaction_handles()
     try:
         codesign_result = capture_stdout(
             [
@@ -1039,7 +1294,7 @@ def emit_remote_consumer_receipt(
                 "--verify",
                 "--strict",
                 "--verbose=4",
-                os.fspath(extracted_xcframework),
+                os.fspath(extracted_xcframework.path),
             ],
             timeout_seconds=60,
             maximum_bytes=1024 * 1024,
@@ -1054,6 +1309,7 @@ def emit_remote_consumer_receipt(
         codesign_result.returncode == 0,
         "remote consumer extracted XCFramework code signature is invalid",
     )
+    verify_transaction_handles()
     try:
         inspection = inspect_worktree(runtime_root)
         verifier_commit = require_commit_or_evidence_successor(
@@ -1068,9 +1324,11 @@ def emit_remote_consumer_receipt(
         not inspection.dirty and inspection.commit == verifier_commit,
         "remote consumer receipt requires its clean verifier checkout",
     )
+    verify_transaction_handles()
 
-    log = _private_runtime_snapshot(
-        log_path,
+    log = _private_runtime_snapshot_at(
+        output_root,
+        REMOTE_CONSUMER_LOG_NAME,
         maximum=MAX_REMOTE_LOG_BYTES,
         label="remote consumer test log",
     )
@@ -1120,8 +1378,9 @@ def emit_remote_consumer_receipt(
         "verifier_commit": verifier_commit,
     }
     _validate_remote_receipt(receipt)
-    results_after = _private_runtime_snapshot(
-        results_path,
+    results_after = _private_runtime_snapshot_at(
+        verifier_artifact,
+        "results.json",
         maximum=MAX_RESULTS_BYTES,
         label="remote consumer verifier results resample",
     )
@@ -1130,13 +1389,8 @@ def emit_remote_consumer_receipt(
         and results_after.data == results_before.data,
         "remote consumer verifier results changed before receipt publication",
     )
-    return write_fixed_private_json(
-        safe_root=output_root,
-        expected_leaf=REMOTE_CONSUMER_RECEIPT_NAME,
-        value=receipt,
-        label="Apple remote consumer receipt",
-        maximum=MAX_REMOTE_RECEIPT_BYTES,
-    )
+    verify_transaction_handles()
+    return receipt
 
 
 def _publish_receipt(receipt: object) -> tuple[pathlib.Path, str]:
@@ -1185,7 +1439,7 @@ def _usage() -> str:
         "usage: apple_alpha3_publication.py pending COMPLETION_LEDGER | "
         "promote EXPECTED_PENDING_RESULTS_SHA256 RELEASE_PROJECTION "
         "REMOTE_CONSUMER_RECEIPT | emit-remote-consumer "
-        "RUNTIME_REPOSITORY_ROOT RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256"
+        "RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256"
     )
 
 
@@ -1204,12 +1458,14 @@ def _main(arguments: Sequence[str]) -> int:
         path, digest = _publish_receipt(receipt)
         print(_success_marker(path, digest, apple_contract.APPLE_STATUS_VERIFIED))
         return 0
-    if len(arguments) == 4 and arguments[0] == "emit-remote-consumer":
-        runtime_root = pathlib.Path(arguments[1])
+    if len(arguments) == 3 and arguments[0] == "emit-remote-consumer":
+        runtime_root, run_directory_name = _remote_runtime_from_verifier_snapshot(
+            arguments[1]
+        )
         path, digest = emit_remote_consumer_receipt(
             runtime_repository_root=runtime_root,
-            run_directory_name=arguments[2],
-            startup_results_sha256=arguments[3],
+            run_directory_name=run_directory_name,
+            startup_results_sha256=arguments[2],
         )
         print(_remote_success_marker(path, digest, runtime_root))
         return 0
@@ -1220,6 +1476,19 @@ def _main(arguments: Sequence[str]) -> int:
 def main() -> int:
     try:
         return _main(sys.argv[1:])
+    except PublicationReceiptCommittedError as exc:
+        if exc.leaf is not None and exc.digest is not None:
+            print(
+                "PUBLICATION_RECEIPT_COMMITTED_ERROR "
+                f"visibility={exc.visibility} leaf={exc.leaf} "
+                f"sha256={exc.digest}"
+            )
+        else:
+            print(
+                "error: publication receipt committed with incomplete durability",
+                file=sys.stderr,
+            )
+        return 125
     except (
         AppleAlpha3PublicationError,
         PublicationReceiptIOError,

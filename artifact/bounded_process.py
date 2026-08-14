@@ -270,7 +270,9 @@ def _start_process(
         )
     try:
         return subprocess.Popen(
-            command,
+            args=command,
+            executable=command[0],
+            shell=False,
             stdin=subprocess.DEVNULL,
             stdout=stdout,
             stderr=stderr,

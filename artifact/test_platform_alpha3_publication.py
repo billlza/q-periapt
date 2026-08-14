@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import contextlib
 import datetime as dt
@@ -23,6 +24,7 @@ from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
 import platform_alpha3_publication as publication
 import platform_alpha3_publication_contract as contract
 import platform_candidate_attestation as candidate_attestation
+import publication_receipt_io as receipt_io
 
 
 def _canonical_json(value: object) -> bytes:
@@ -199,8 +201,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         for module, attribute, value in replacements:
             patcher = mock.patch.object(module, attribute, value)
             patcher.start()
-            self.addCleanup(patcher.stop)
-
+        self.addCleanup(patcher.stop)
         self.source = publication.SourceObservation(
             canonical_source_tree_sha256=self.SOURCE_DIGEST,
             tag_commit=self.TAG_COMMIT,
@@ -214,6 +215,47 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             apksigner=self._tool("apksigner", b"apksigner fixture\n"),
             zipalign=self._tool("zipalign", b"zipalign fixture\n"),
         )
+
+    def test_direct_child_sanitizer_uses_scanner_visible_guard(self) -> None:
+        tree = ast.parse(
+            pathlib.Path(publication.__file__).read_text(encoding="utf-8")
+        )
+        function = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_normalize_direct_child"
+        )
+        for call in (
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_require"
+        ):
+            self.assertFalse(
+                any(
+                    isinstance(node, ast.Attribute)
+                    and node.attr == "startswith"
+                    for node in ast.walk(call)
+                )
+            )
+        guards = [
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.If)
+            and isinstance(node.test, ast.UnaryOp)
+            and isinstance(node.test.op, ast.Not)
+            and isinstance(node.test.operand, ast.Call)
+            and isinstance(node.test.operand.func, ast.Attribute)
+            and node.test.operand.func.attr == "startswith"
+        ]
+        self.assertEqual(1, len(guards))
+        raised = guards[0].body[0]
+        self.assertIsInstance(raised, ast.Raise)
+        self.assertIsInstance(raised.exc, ast.Call)
+        self.assertIsInstance(raised.exc.func, ast.Name)
+        self.assertEqual("PlatformAlpha3PublicationError", raised.exc.func.id)
 
     def _tool(self, name: str, data: bytes) -> pathlib.Path:
         directory = self.root / "tools"
@@ -458,6 +500,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         sink_mutation: Callable[[str, bytes], bytes] | None = None,
         deep_mutation: Callable[[], None] | None = None,
         remote_runner: RemoteFixtureRunner | None = None,
+        before_collect: Callable[[], None] | None = None,
     ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, RemoteFixtureRunner, AssetSinkRunner]:
         assets, manifest = self._asset_fixture()
         candidate = self._candidate_for_assets(f"candidate-{name}", assets)
@@ -498,6 +541,8 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 f"commit={self.TAG_COMMIT} assets=6\n"
             ).encode("ascii")
 
+        if before_collect is not None:
+            before_collect()
         output, _digest, _release_id = publication.collect_verified_receipt(
             pending,
             self.verifier,
@@ -601,6 +646,121 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             self.assertEqual(0, publication.main(["collect"]))
         self.assertIn(f"receipt_sha256={'b' * 64}", verified_stdout.getvalue())
         self.assertNotIn("projection_sha256=", verified_stdout.getvalue())
+
+    def test_cli_preserves_structured_and_incomplete_committed_errors(self) -> None:
+        structured = publication.PublicationReceiptCommittedError(
+            "fixture committed",
+            leaf=publication.RECEIPT_NAME,
+            digest="a" * 64,
+        )
+        collect_arguments = mock.Mock(
+            command="collect",
+            pending_receipt=self.root / "pending.json",
+            verifier_checkout=self.verifier,
+            raw_directory=self.raw_root / "raw-cli-committed",
+            download_directory=self.download_root / "downloads-cli-committed",
+            android_llvm_nm=self.tools.llvm_nm,
+            android_llvm_readelf=self.tools.llvm_readelf,
+            android_apksigner=self.tools.apksigner,
+            android_zipalign=self.tools.zipalign,
+        )
+        collect_parser = mock.Mock()
+        collect_parser.parse_args.return_value = collect_arguments
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(
+                publication,
+                "build_parser",
+                return_value=collect_parser,
+            ),
+            mock.patch.object(
+                publication,
+                "collect_verified_receipt",
+                side_effect=structured,
+            ),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(125, publication.main(["collect"]))
+        self.assertEqual("", stdout.getvalue())
+        self.assertEqual(
+            "PUBLICATION_RECEIPT_COMMITTED_ERROR "
+            "visibility=committed "
+            f"leaf={publication.RECEIPT_NAME} sha256={'a' * 64}\n",
+            stderr.getvalue(),
+        )
+        self.assertNotIn("PASS", stdout.getvalue() + stderr.getvalue())
+
+        indeterminate = publication.PublicationReceiptCommittedError(
+            "fixture indeterminate visibility",
+            leaf=publication.RECEIPT_NAME,
+            digest="b" * 64,
+            visibility="indeterminate",
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(
+                publication,
+                "build_parser",
+                return_value=collect_parser,
+            ),
+            mock.patch.object(
+                publication,
+                "collect_verified_receipt",
+                side_effect=indeterminate,
+            ),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(125, publication.main(["collect"]))
+        self.assertEqual("", stdout.getvalue())
+        self.assertEqual(
+            "PUBLICATION_RECEIPT_COMMITTED_ERROR "
+            "visibility=indeterminate "
+            f"leaf={publication.RECEIPT_NAME} sha256={'b' * 64}\n",
+            stderr.getvalue(),
+        )
+        self.assertNotIn("PASS", stdout.getvalue() + stderr.getvalue())
+
+        incomplete = publication.PublicationReceiptCommittedError(
+            "fixture incomplete committed state"
+        )
+        pending_arguments = mock.Mock(
+            command="pending",
+            candidate_projection=self.root / "candidate.json",
+            verifier_checkout=self.verifier,
+        )
+        pending_parser = mock.Mock()
+        pending_parser.parse_args.return_value = pending_arguments
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(
+                publication,
+                "build_parser",
+                return_value=pending_parser,
+            ),
+            mock.patch.object(
+                publication,
+                "assemble_pending_receipt",
+                side_effect=incomplete,
+            ),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(125, publication.main(["pending"]))
+        self.assertEqual("", stdout.getvalue())
+        self.assertEqual(
+            "error: publication receipt committed with incomplete durability\n",
+            stderr.getvalue(),
+        )
+        self.assertNotIn(
+            "PUBLICATION_RECEIPT_COMMITTED_ERROR",
+            stderr.getvalue(),
+        )
+        self.assertNotIn("PASS", stdout.getvalue() + stderr.getvalue())
 
     def test_fixed_root_bootstrap_accepts_owned_0775_parent_only(self) -> None:
         bootstrap = self.root / "bootstrap-target"
@@ -799,7 +959,12 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             publication.PlatformAlpha3PublicationError,
             "raw bytes changed",
         ):
-            publication._validate_raw_directory(raw, expected)
+            with publication.open_private_direct_child_handle(
+                safe_root=self.raw_root,
+                direct_child_name=raw.name,
+                label="fixture raw transaction",
+            ) as raw_handle:
+                publication._validate_raw_directory(raw_handle, expected)
 
     def test_android_tool_drift_during_deep_verification_fails_closed(self) -> None:
         verified_before = set(self.receipt_root.glob("transaction.verified.*"))
@@ -819,6 +984,81 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             verified_before,
             set(self.receipt_root.glob("transaction.verified.*")),
         )
+
+    def test_pinned_raw_directory_swap_during_deep_fails_closed(self) -> None:
+        raw = self.raw_root / "raw-pinned-swap"
+        moved = self.raw_root / "raw-pinned-swap-moved"
+        verified_before = set(self.receipt_root.glob("transaction.verified.*"))
+
+        def swap_raw_directory() -> None:
+            raw.rename(moved)
+            raw.mkdir(mode=0o700)
+            os.chmod(raw, 0o700)
+
+        with self.assertRaisesRegex(
+            publication.PlatformAlpha3PublicationError,
+            "identity changed while pinned",
+        ):
+            self._collect_fixture(
+                "pinned-swap",
+                deep_mutation=swap_raw_directory,
+            )
+        self.assertEqual(
+            verified_before,
+            set(self.receipt_root.glob("transaction.verified.*")),
+        )
+
+    def test_raw_swap_at_commit_window_leaves_receipt_root_unchanged(self) -> None:
+        raw = self.raw_root / "raw-commit-window"
+        moved = self.raw_root / "raw-commit-window-moved"
+
+        def receipt_snapshot() -> dict[pathlib.Path, bytes | None]:
+            return {
+                path.relative_to(self.receipt_root): (
+                    path.read_bytes() if path.is_file() else None
+                )
+                for path in self.receipt_root.rglob("*")
+            }
+
+        before: dict[pathlib.Path, bytes | None] | None = None
+
+        def capture_before() -> None:
+            nonlocal before
+            before = receipt_snapshot()
+        real_validate = publication.validate_alpha3_publication_receipt
+        swapped = False
+
+        def validate_and_swap(value: object) -> None:
+            nonlocal swapped
+            real_validate(value)
+            if (
+                not swapped
+                and isinstance(value, dict)
+                and value.get("status") == contract.PLATFORM_ALPHA3_STATUS_VERIFIED
+            ):
+                swapped = True
+                raw.rename(moved)
+                raw.mkdir(mode=0o700)
+                os.chmod(raw, 0o700)
+
+        with (
+            mock.patch.object(
+                publication,
+                "validate_alpha3_publication_receipt",
+                side_effect=validate_and_swap,
+            ),
+            self.assertRaisesRegex(
+                publication.PlatformAlpha3PublicationError,
+                "identity changed while pinned",
+            ),
+        ):
+            self._collect_fixture(
+                "commit-window",
+                before_collect=capture_before,
+            )
+        self.assertTrue(swapped)
+        self.assertIsNotNone(before)
+        self.assertEqual(before, receipt_snapshot())
 
     def test_retryable_remote_failure_is_not_retried(self) -> None:
         assets, _manifest = self._asset_fixture()
@@ -899,38 +1139,120 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         )
         self.assertTrue(output.is_file())
 
-        raw = self.raw_root / "raw-atomic-failure"
-        publication._create_private_directory(
-            raw,
-            safe_root=self.raw_root,
-            label="fixture raw transaction",
+    def test_receipt_committed_error_is_not_downgraded(self) -> None:
+        candidate = self._candidate_projection("committed-error-candidate")
+        committed = publication.PublicationReceiptCommittedError(
+            "fixture receipt committed",
+            leaf=publication.RECEIPT_NAME,
+            digest="a" * 64,
         )
-        raw_leaf = publication.RAW_REPOSITORY_BEFORE_NAME
-        with mock.patch.object(
-            publication,
-            "write_private_bytes_noreplace_at",
-            side_effect=publication.PublicationReceiptIOError(
-                "injected atomic raw failure"
+        with (
+            mock.patch.object(
+                publication,
+                "create_private_transaction_json",
+                side_effect=committed,
             ),
+            self.assertRaises(
+                publication.PublicationReceiptCommittedError
+            ) as caught,
         ):
-            with self.assertRaisesRegex(
-                publication.PlatformAlpha3PublicationError,
-                "injected atomic raw failure",
-            ):
-                publication._write_raw(
-                    raw,
-                    raw_leaf,
-                    b'{"visibility":"PUBLIC"}\n',
-                    label="fixture raw evidence",
-                )
-        self.assertFalse((raw / raw_leaf).exists())
-        self.assertEqual([], list(raw.glob(f".{raw_leaf}.pending-*")))
-        publication._write_raw(
-            raw,
-            raw_leaf,
-            b'{"visibility":"PUBLIC"}\n',
-            label="fixture raw evidence",
+            publication.assemble_pending_receipt(
+                candidate,
+                self.verifier,
+                runner=lambda *_args, **_kwargs: BoundedResult(0),
+                clock=QueueClock("2026-08-14T02:00:00Z"),
+                source_environment={},
+                git_tool="/usr/bin/git",
+                source_inspector=self._source_inspector,
+            )
+        self.assertIs(committed, caught.exception)
+
+    def test_platform_writer_detects_same_bytes_rename_competitor(self) -> None:
+        candidate = self._candidate_projection("writer-competitor-candidate")
+        pending = self._pending_receipt(
+            "writer-competitor",
+            candidate_path=candidate,
         )
+        receipt = json.loads(pending.read_bytes())
+        payload = receipt_io.canonical_json_bytes(receipt)
+        real_rename = receipt_io._rename_noreplace
+
+        def replace_after_rename(
+            directory_fd: int,
+            source_leaf: str,
+            destination_leaf: str,
+        ) -> None:
+            real_rename(directory_fd, source_leaf, destination_leaf)
+            os.unlink(destination_leaf, dir_fd=directory_fd)
+            descriptor = os.open(
+                destination_leaf,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=directory_fd,
+            )
+            try:
+                os.write(descriptor, payload)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+
+        with (
+            mock.patch.object(
+                receipt_io,
+                "_rename_noreplace",
+                side_effect=replace_after_rename,
+            ),
+            self.assertRaises(
+                publication.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            publication._write_receipt(
+                receipt,
+                transaction_prefix="transaction.pending.",
+            )
+        self.assertEqual(publication.RECEIPT_NAME, caught.exception.leaf)
+        matching = [
+            path
+            for path in self.receipt_root.glob(
+                f"transaction.pending.*/{publication.RECEIPT_NAME}"
+            )
+            if path != pending
+        ]
+        self.assertEqual(1, len(matching))
+        self.assertEqual(payload, matching[0].read_bytes())
+
+        raw = self.raw_root / "raw-atomic-failure"
+        with publication.create_private_direct_child_handle(
+            safe_root=self.raw_root,
+            direct_child_name=raw.name,
+            label="fixture raw transaction",
+        ) as raw_handle:
+            raw_leaf = publication.RAW_REPOSITORY_BEFORE_NAME
+            with mock.patch.object(
+                publication,
+                "write_private_bytes_noreplace_at",
+                side_effect=publication.PublicationReceiptIOError(
+                    "injected atomic raw failure"
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    publication.PlatformAlpha3PublicationError,
+                    "injected atomic raw failure",
+                ):
+                    publication._write_raw(
+                        raw_handle,
+                        raw_leaf,
+                        b'{"visibility":"PUBLIC"}\n',
+                        label="fixture raw evidence",
+                    )
+            self.assertFalse((raw / raw_leaf).exists())
+            self.assertEqual([], list(raw.glob(f".{raw_leaf}.pending-*")))
+            publication._write_raw(
+                raw_handle,
+                raw_leaf,
+                b'{"visibility":"PUBLIC"}\n',
+                label="fixture raw evidence",
+            )
         self.assertEqual(
             b'{"visibility":"PUBLIC"}\n', (raw / raw_leaf).read_bytes()
         )
@@ -973,7 +1295,87 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 else:
                     os.link(selected, directory / "hardlink-copy")
                 with self.assertRaises(publication.PlatformAlpha3PublicationError):
-                    publication._inventory_fresh_downloads(directory, expected)
+                    with publication.open_private_direct_child_handle(
+                        safe_root=self.download_root,
+                        direct_child_name=directory.name,
+                        label="fixture fresh download directory",
+                    ) as handle:
+                        publication._inventory_fresh_downloads(handle, expected)
+
+    def test_fresh_inventory_uses_one_pinned_fd_and_resamples_entries(self) -> None:
+        assets, _manifest = self._asset_fixture()
+        expected = {
+            name: {
+                "bytes": len(data),
+                "name": name,
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+            for name, data in assets.items()
+        }
+        directory = self.download_root / "inventory-held-fd"
+        directory.mkdir(mode=0o700)
+        os.chmod(directory, 0o700)
+        for name, data in assets.items():
+            path = directory / name
+            path.write_bytes(data)
+            os.chmod(path, 0o600)
+
+        observed_descriptors: list[int] = []
+        real_consume = publication.consume_regular_snapshot_at
+
+        def consume_and_inject(
+            directory_fd: int,
+            leaf: str,
+            **kwargs: object,
+        ):
+            observed_descriptors.append(directory_fd)
+            digest = real_consume(directory_fd, leaf, **kwargs)
+            if len(observed_descriptors) == len(contract.PUBLIC_ASSET_NAMES):
+                extra = directory / "injected-after-snapshot"
+                extra.write_bytes(b"changed directory inventory\n")
+                os.chmod(extra, 0o600)
+            return digest
+
+        with publication.open_private_direct_child_handle(
+            safe_root=self.download_root,
+            direct_child_name=directory.name,
+            label="fixture fresh download directory",
+        ) as handle:
+            with (
+                mock.patch.object(
+                    publication,
+                    "consume_regular_snapshot_at",
+                    side_effect=consume_and_inject,
+                ),
+                self.assertRaisesRegex(
+                    publication.PlatformAlpha3PublicationError,
+                    "safely inventory",
+                ),
+            ):
+                publication._inventory_fresh_downloads(handle, expected)
+        self.assertEqual(len(contract.PUBLIC_ASSET_NAMES), len(observed_descriptors))
+        self.assertEqual(1, len(set(observed_descriptors)))
+
+    def test_direct_child_normalization_rejects_root_siblings_and_depth(self) -> None:
+        sibling = self.root / "raw-evil"
+        sibling.mkdir(mode=0o700)
+        os.chmod(sibling, 0o700)
+        deeper = self.raw_root / "parent" / "child"
+        for unsafe in (
+            self.raw_root,
+            sibling,
+            deeper,
+            self.raw_root / "child" / ".." / "other",
+            pathlib.Path("relative-child"),
+        ):
+            with self.subTest(path=unsafe):
+                with self.assertRaises(publication.PlatformAlpha3PublicationError):
+                    publication._normalize_direct_child(
+                        unsafe,
+                        safe_root=self.raw_root,
+                        label="fixture raw directory",
+                        must_exist=False,
+                    )
 
     def test_fixed_roots_reject_prefix_traversal_and_symlink_aliases(self) -> None:
         candidate = self._candidate_projection("safe-path-candidate")
@@ -1036,14 +1438,20 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 ).encode("ascii"),
             )
 
-        parsed, stdout = publication._run_deep_distribution_verifier(
-            self.verifier,
-            downloads,
-            self.tools,
-            expected_commit=self.TAG_COMMIT,
-            environment={},
-            runner=runner,
-        )
+        with publication.open_private_direct_child_handle(
+            safe_root=self.download_root,
+            direct_child_name=downloads.name,
+            label="fixture fresh download directory",
+        ) as download_handle:
+            parsed, stdout = publication._run_deep_distribution_verifier(
+                self.verifier,
+                downloads,
+                self.tools,
+                download_directory_handle=download_handle,
+                expected_commit=self.TAG_COMMIT,
+                environment={},
+                runner=runner,
+            )
         self.assertEqual(manifest, parsed)
         self.assertIn(self.TAG_COMMIT.encode("ascii"), stdout)
         self.assertEqual(1, len(calls))

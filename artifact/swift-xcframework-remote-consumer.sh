@@ -1,6 +1,7 @@
 #!/bin/sh
 # Re-download and independently verify the immutable alpha.3 Apple release set.
 set -eu
+umask 077
 
 unset CDPATH
 if [ "${GIT_DIR+x}" = "x" ] || \
@@ -23,7 +24,6 @@ if [ "${GIT_DIR+x}" = "x" ] || \
 	exit 2
 fi
 ROOT=$(cd -- "$(dirname "$0")/.." && pwd) || exit 2
-RUNTIME_REPOSITORY_ROOT=$ROOT
 cd "$ROOT" || exit 2
 
 remote_git() {
@@ -140,6 +140,7 @@ LOCK_RELEASED=0
 RECEIPT_COMMITTED=0
 REMOTE_RECEIPT_RELATIVE=
 REMOTE_RECEIPT_SHA256=
+REMOTE_RECEIPT_VISIBILITY=
 MAX_SOURCE_BLOB_BYTES=4194304
 MAX_TEXT_ASSET_BYTES=262144
 MAX_ZIP_ASSET_BYTES=536870912
@@ -158,13 +159,14 @@ cleanup_remote_state() {
 			cleanup_failed=1
 		fi
 	fi
-	if [ -n "$ARTIFACT_SNAPSHOT" ] && [ -n "$VERIFIER_SNAPSHOT" ]; then
+	if [ "$RECEIPT_COMMITTED" -eq 0 ] && \
+		[ -n "$ARTIFACT_SNAPSHOT" ] && [ -n "$VERIFIER_SNAPSHOT" ]; then
 		if ! /bin/rm -rf "$ARTIFACT_SNAPSHOT" "$VERIFIER_SNAPSHOT" 2>/dev/null; then
 			printf 'error: remote-consumer snapshot cleanup failed\n' >&2
 			cleanup_failed=1
 		fi
 	fi
-	if [ "$LOCK_RELEASED" -eq 0 ]; then
+	if [ "$RECEIPT_COMMITTED" -eq 0 ] && [ "$LOCK_RELEASED" -eq 0 ]; then
 		if ! /bin/rmdir "$LOCK_DIR" 2>/dev/null; then
 			printf 'error: remote-consumer lock cleanup failed\n' >&2
 			cleanup_failed=1
@@ -658,10 +660,38 @@ run_private_gate "codesign-pre-receipt.log" "codesign_pre_receipt" \
 	/usr/bin/codesign --verify --strict --verbose=4 \
 	"$REMOTE_EXTRACT/CQPeriapt.xcframework"
 REMOTE_RECEIPT_RELATIVE="target/qperiapt-swift-remote-consumer-runs/$RUN_DIRECTORY_NAME/apple-remote-consumer-receipt.json"
-if ! REMOTE_RECEIPT_MARKER=$(snapshot_python \
+set +e
+REMOTE_RECEIPT_MARKER=$(snapshot_python \
 	"$VERIFIER_SNAPSHOT/artifact/apple_alpha3_publication.py" \
-	emit-remote-consumer "$RUNTIME_REPOSITORY_ROOT" "$RUN_DIRECTORY_NAME" \
-	"$START_RESULTS_SHA256"); then
+	emit-remote-consumer "$RUN_DIRECTORY_NAME" \
+	"$START_RESULTS_SHA256")
+receipt_status=$?
+set -e
+if [ "$receipt_status" -ne 0 ]; then
+	case "$receipt_status:$REMOTE_RECEIPT_MARKER" in
+		125:"PUBLICATION_RECEIPT_COMMITTED_ERROR visibility=committed leaf=apple-remote-consumer-receipt.json sha256="*)
+			REMOTE_RECEIPT_VISIBILITY=committed
+			;;
+		125:"PUBLICATION_RECEIPT_COMMITTED_ERROR visibility=indeterminate leaf=apple-remote-consumer-receipt.json sha256="*)
+			REMOTE_RECEIPT_VISIBILITY=indeterminate
+			;;
+	esac
+	case "$REMOTE_RECEIPT_VISIBILITY" in
+		committed|indeterminate)
+			RECEIPT_COMMITTED=1
+			REMOTE_RECEIPT_SHA256=${REMOTE_RECEIPT_MARKER##* sha256=}
+			require_lower_hex "$REMOTE_RECEIPT_SHA256" 64 \
+				"intended remote-consumer receipt SHA-256"
+			if [ "$REMOTE_RECEIPT_VISIBILITY" = committed ]; then
+				printf 'error: remote-consumer receipt committed with incomplete durability; preserving transaction intended_receipt_path=%s intended_receipt_sha256=%s\n' \
+					"$REMOTE_RECEIPT_RELATIVE" "$REMOTE_RECEIPT_SHA256" >&2
+			else
+				printf 'error: remote-consumer receipt visibility indeterminate; preserving transaction intended_receipt_path=%s intended_receipt_sha256=%s\n' \
+					"$REMOTE_RECEIPT_RELATIVE" "$REMOTE_RECEIPT_SHA256" >&2
+			fi
+			exit 125
+			;;
+	esac
 	printf 'error: remote-consumer receipt emission failed\n' >&2
 	exit 1
 fi

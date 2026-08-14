@@ -1822,6 +1822,9 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         cls.remote = (
             cls.root / "artifact/swift-xcframework-remote-consumer.sh"
         ).read_text(encoding="utf-8")
+        cls.release_notes = (
+            cls.root / "artifact/alpha3-release-notes.md"
+        ).read_text(encoding="utf-8")
         cls.workflow = (cls.root / ".github/workflows/ci.yml").read_text(
             encoding="utf-8"
         )
@@ -1835,6 +1838,31 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         start = cls.release.index(marker) + len(marker)
         end = cls.release.index("\nPY\n", start)
         return cls.release[start:end] + "\n"
+
+    def test_release_notes_distinguish_committed_and_indeterminate_visibility(
+        self,
+    ) -> None:
+        self.assertIn(
+            "current named path identity, availability, or durability is\n"
+            "not established by that marker alone",
+            self.release_notes,
+        )
+        self.assertIn(
+            "the bytes at the visibility point, not the later pathname state",
+            self.release_notes,
+        )
+        self.assertIn(
+            "it does not confirm that the named leaf exists",
+            self.release_notes,
+        )
+        self.assertIn(
+            "with those bytes",
+            self.release_notes,
+        )
+        self.assertNotIn(
+            "exact receipt leaf was committed and remains available",
+            self.release_notes,
+        )
 
     def _run_completion_publish(
         self,
@@ -2460,8 +2488,17 @@ fi
         )
         self.assertGreaterEqual(self.remote.count("verify_release_assets"), 4)
         self.assertIn("START_RESULTS_SHA256=", self.remote)
+        self.assertLess(
+            self.remote.index("umask 077"),
+            self.remote.index('RUNS_ROOT="$ROOT/target/'),
+        )
         self.assertIn('/bin/chmod 600 "$LOG"', self.remote)
         self.assertIn("emit-remote-consumer", self.remote)
+        self.assertNotIn("RUNTIME_REPOSITORY_ROOT", self.remote)
+        self.assertIn(
+            'emit-remote-consumer "$RUN_DIRECTORY_NAME"',
+            self.remote,
+        )
         self.assertLess(
             self.remote.index("emit-remote-consumer"),
             self.remote.rindex('rm -rf "$ARTIFACT_SNAPSHOT" "$VERIFIER_SNAPSHOT"'),
@@ -2482,6 +2519,18 @@ fi
             "receipt committed but post-commit cleanup failed",
             self.remote,
         )
+        self.assertIn(
+            "PUBLICATION_RECEIPT_COMMITTED_ERROR "
+            "visibility=committed leaf=apple-remote-consumer-receipt.json",
+            self.remote,
+        )
+        self.assertIn(
+            "PUBLICATION_RECEIPT_COMMITTED_ERROR "
+            "visibility=indeterminate "
+            "leaf=apple-remote-consumer-receipt.json",
+            self.remote,
+        )
+        self.assertIn('RECEIPT_COMMITTED=1', self.remote)
         self.assertLess(
             self.remote.index("emit-remote-consumer"),
             self.remote.rindex('if ! /bin/rm -rf "$ARTIFACT_SNAPSHOT"'),
@@ -2511,7 +2560,7 @@ fi
         self.assertNotIn("qperiapt-apple-release-worktrees", self.remote)
         self.assertNotIn("--insecure", self.remote)
 
-    def test_post_commit_cleanup_failure_preserves_receipt_and_is_nonzero(
+    def test_committed_error_cleanup_preserves_receipt_and_snapshots(
         self,
     ) -> None:
         start = self.remote.index("cleanup_remote_state() {")
@@ -2525,7 +2574,6 @@ fi
             lock = root / "lock"
             for directory in (artifacts, verifier, assets, lock):
                 directory.mkdir(mode=0o700)
-            (lock / "force-rmdir-failure").write_bytes(b"keep lock busy\n")
             receipt = root / "apple-remote-consumer-receipt.json"
             receipt_bytes = b"complete receipt bytes\n"
             receipt.write_bytes(receipt_bytes)
@@ -2543,7 +2591,8 @@ fi
                 + "apple-remote-consumer-receipt.json\n"
                 + "REMOTE_RECEIPT_SHA256="
                 + hashlib.sha256(receipt_bytes).hexdigest()
-                + "\ncleanup_remote_state\n"
+                + "\n/bin/sh -c 'exit 125'\n"
+                + "cleanup_remote_state\n"
             )
             completed = subprocess.run(
                 [
@@ -2564,14 +2613,187 @@ fi
 
             self.assertEqual(125, completed.returncode)
             self.assertEqual("", completed.stdout)
-            self.assertIn(
-                "receipt committed but post-commit cleanup failed",
-                completed.stderr,
-            )
+            self.assertEqual("", completed.stderr)
             self.assertNotIn(str(root), completed.stderr)
             self.assertEqual(receipt_bytes, receipt.read_bytes())
-            self.assertFalse(artifacts.exists())
-            self.assertFalse(verifier.exists())
+            self.assertTrue(artifacts.is_dir())
+            self.assertTrue(verifier.is_dir())
+            self.assertTrue(assets.is_dir())
+            self.assertTrue(lock.is_dir())
+
+    def test_remote_private_directories_are_0700_under_ambient_022(self) -> None:
+        validate_start = self.remote.index("validate_private_directory() {")
+        validate_end = self.remote.index("\nrun_private_gate() {", validate_start)
+        validation_functions = self.remote[validate_start:validate_end]
+        creation_start = self.remote.index('if [ -L "$ROOT/target" ]')
+        creation_end = self.remote.index(
+            "\n\nmaterialize_source_input() {",
+            creation_start,
+        )
+        creation_block = self.remote[creation_start:creation_end]
+        consumer_mkdir_start = self.remote.index(
+            '/bin/mkdir -p \\\n\t"$REMOTE_EXTRACT"'
+        )
+        consumer_mkdir_end = self.remote.index(
+            '\nrun_private_gate "ditto-extract.log"',
+            consumer_mkdir_start,
+        )
+        consumer_mkdir = self.remote[consumer_mkdir_start:consumer_mkdir_end]
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw).resolve() / "repository"
+            root.mkdir(mode=0o700)
+            program = (
+                "set -eu\n"
+                "umask 022\n"
+                "umask 077\n"
+                "ROOT=$1\n"
+                'RUNS_ROOT="$ROOT/target/qperiapt-swift-remote-consumer-runs"\n'
+                'LOCK_DIR="$ROOT/target/.qperiapt-swift-remote-consumer.lock"\n'
+                "OUT=\nARTIFACT_SNAPSHOT=\nVERIFIER_SNAPSHOT=\n"
+                "RELEASE_ASSETS=\nLOCK_RELEASED=0\nRECEIPT_COMMITTED=0\n"
+                "cleanup_remote_state() { exit 99; }\n"
+                + validation_functions
+                + "\n"
+                + creation_block
+                + "\n"
+                + consumer_mkdir
+                + "\ntrap - EXIT INT TERM\n"
+            )
+            completed = subprocess.run(
+                ["/bin/sh", "-c", program, "mode-test", str(root)],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            runs_root = root / "target/qperiapt-swift-remote-consumer-runs"
+            transactions = list(runs_root.glob("transaction.*"))
+            self.assertEqual(1, len(transactions))
+            transaction = transactions[0]
+            for directory in (
+                root / "target",
+                runs_root,
+                transaction,
+                transaction / "artifact-source-inputs",
+                transaction / "verifier-inputs",
+                transaction / "release-assets",
+                transaction / "verifier-inputs/target/extracted",
+                transaction / "verifier-inputs/target/consumer",
+            ):
+                with self.subTest(directory=directory.name):
+                    self.assertTrue(directory.is_dir())
+                    self.assertEqual(0o700, stat.S_IMODE(directory.stat().st_mode))
+
+    def _assert_shell_visibility_marker(
+        self,
+        visibility: str,
+        expected_diagnostic: str,
+    ) -> None:
+        cleanup_start = self.remote.index("cleanup_remote_state() {")
+        cleanup_end = self.remote.index(
+            "\n}\nvalidate_private_directory()",
+            cleanup_start,
+        ) + 3
+        cleanup_function = self.remote[cleanup_start:cleanup_end]
+        require_start = self.remote.index("require_lower_hex() {")
+        require_end = self.remote.index(
+            '\n}\nrequire_lower_hex "$CHECKSUM"',
+            require_start,
+        ) + 3
+        require_function = self.remote[require_start:require_end]
+        receipt_start = self.remote.rindex('REMOTE_RECEIPT_RELATIVE="target/')
+        receipt_end = self.remote.index(
+            "\nfi\nRECEIPT_COMMITTED=1",
+            receipt_start,
+        ) + len("\nfi\n")
+        receipt_block = self.remote[receipt_start:receipt_end]
+        digest = "a" * 64
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw)
+            artifacts = root / "artifact-source-inputs"
+            verifier = root / "verifier-inputs"
+            assets = root / "release-assets"
+            lock = root / "lock"
+            run = root / "transaction.fixture"
+            for directory in (artifacts, verifier, assets, lock, run):
+                directory.mkdir(mode=0o700)
+            receipt = run / "apple-remote-consumer-receipt.json"
+            if visibility == "committed":
+                receipt.write_bytes(b"committed receipt\n")
+                os.chmod(receipt, 0o600)
+            program = (
+                "set -eu\n"
+                + cleanup_function
+                + "\n"
+                + require_function
+                + "\nARTIFACT_SNAPSHOT=$1\nVERIFIER_SNAPSHOT=$2\n"
+                + "RELEASE_ASSETS=$3\nLOCK_DIR=$4\nLOCK_RELEASED=0\n"
+                + "RECEIPT_COMMITTED=0\nRUN_DIRECTORY_NAME=transaction.fixture\n"
+                + "START_RESULTS_SHA256="
+                + digest
+                + "\n"
+                + "snapshot_python() {\n"
+                + "printf '%s\\n' 'PUBLICATION_RECEIPT_COMMITTED_ERROR "
+                + "visibility="
+                + visibility
+                + " "
+                + "leaf=apple-remote-consumer-receipt.json sha256="
+                + digest
+                + "'\nreturn 125\n}\n"
+                + "trap cleanup_remote_state EXIT\n"
+                + receipt_block
+            )
+            completed = subprocess.run(
+                [
+                    "/bin/sh",
+                    "-c",
+                    program,
+                    "visibility-marker-test",
+                    str(artifacts),
+                    str(verifier),
+                    str(assets),
+                    str(lock),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.assertEqual(125, completed.returncode)
+            self.assertEqual("", completed.stdout)
+            self.assertIn("preserving transaction", completed.stderr)
+            self.assertIn(expected_diagnostic, completed.stderr)
+            self.assertIn(
+                "intended_receipt_path=target/qperiapt-swift-remote-"
+                "consumer-runs/transaction.fixture/"
+                "apple-remote-consumer-receipt.json",
+                completed.stderr,
+            )
+            self.assertIn(
+                f"intended_receipt_sha256={digest}",
+                completed.stderr,
+            )
+            self.assertNotIn(" receipt_path=", completed.stderr)
+            self.assertNotIn("PASS", completed.stdout + completed.stderr)
+            self.assertEqual(visibility == "committed", receipt.is_file())
+            self.assertTrue(artifacts.is_dir())
+            self.assertTrue(verifier.is_dir())
+            self.assertTrue(assets.is_dir())
+            self.assertTrue(lock.is_dir())
+
+    def test_shell_recognizes_visibility_markers_and_preserves_transaction(
+        self,
+    ) -> None:
+        for visibility, diagnostic in (
+            ("committed", "receipt committed with incomplete durability"),
+            ("indeterminate", "receipt visibility indeterminate"),
+        ):
+            with self.subTest(visibility=visibility):
+                self._assert_shell_visibility_marker(
+                    visibility,
+                    diagnostic,
+                )
 
     def test_private_gate_logs_never_replay_child_output(self) -> None:
         require_start = self.remote.index("require_lower_hex() {")

@@ -155,10 +155,21 @@ receipt emitter only from that source-bound snapshot. Its
 That marker and leaf are the atomic evidence commit. The terminal
 `SWIFT_REMOTE_BINARY_CONSUMER_PASS` marker is emitted only after the source
 snapshots are removed and the global lock is released. If the script exits 125
-with `remote-consumer receipt committed but post-commit cleanup failed`, the
-committed receipt facts remain available for independent read-only verification,
-but the run's hygiene failure still requires handling and the nonzero script run
-must not be recorded as a PASS.
+with `remote-consumer receipt committed with incomplete durability` or
+`remote-consumer receipt committed but post-commit cleanup failed`, the atomic
+no-replace visibility point completed for the intended receipt bytes. The
+failure means the current named path identity, availability, or durability is
+not established by that marker alone. Preserve the transaction and independently
+verify its current leaf and bytes read-only; the reported receipt SHA-256 binds
+the bytes at the visibility point, not the later pathname state. The run's
+durability or hygiene failure still requires handling, and the nonzero script
+run must not be recorded as a PASS. A distinct exit-125 `remote-consumer receipt
+visibility indeterminate` diagnostic preserves the entire transaction and global
+lock for read-only inspection and manual disposition. In that state,
+`intended_receipt_sha256` records only the bytes that the emitter attempted to
+publish; it does not confirm that the named leaf exists with those bytes. Do not
+clean, retry, finalize, or record a PASS from either failed transaction until its
+state has been resolved explicitly.
 
 After the Apple prerelease is immutable, collect its five-subject GitHub release
 attestation into disjoint private raw and projection transactions:
