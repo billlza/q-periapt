@@ -8,6 +8,7 @@ import pathlib
 import stat
 import tempfile
 import unittest
+from unittest import mock
 
 import platform_candidate_attestation as candidate_attestation
 from platform_candidate_attestation import (
@@ -31,9 +32,26 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = pathlib.Path(self.temporary.name).resolve()
+        self.candidate_root = self.root / "abi2-platform-candidate-inputs"
+        self.verification_root = self.root / "abi2-platform-candidate-verification"
+        self.raw_root = self.verification_root / "raw"
+        self.projection_root = self.root / "abi2-platform-candidate-projections"
+        for path in (self.candidate_root, self.raw_root, self.projection_root):
+            path.mkdir(parents=True, mode=0o700)
+            os.chmod(path, 0o700)
+        os.chmod(self.verification_root, 0o700)
+        for attribute, value in (
+            ("CANDIDATE_INPUT_ROOT", self.candidate_root),
+            ("CANDIDATE_VERIFICATION_ROOT", self.verification_root),
+            ("CANDIDATE_RAW_ROOT", self.raw_root),
+            ("CANDIDATE_PROJECTION_ROOT", self.projection_root),
+        ):
+            patcher = mock.patch.object(candidate_attestation, attribute, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def _candidate(self, name: str) -> pathlib.Path:
-        candidate = self.root / name
+        candidate = self.candidate_root / name
         candidate.mkdir()
         checksums: list[tuple[str, str]] = []
         for asset in PLATFORM_CANDIDATE_ASSETS:
@@ -49,10 +67,16 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         return candidate
 
     def _private_output_paths(self, name: str) -> tuple[pathlib.Path, pathlib.Path]:
-        parent = self.root / name
-        parent.mkdir(mode=0o700)
-        os.chmod(parent, 0o700)
-        return parent / CANDIDATE_SNAPSHOT_NAME, parent / PROJECTION_NAME
+        raw_parent = self.raw_root / name
+        projection_parent = self.projection_root / name
+        raw_parent.mkdir(mode=0o700)
+        projection_parent.mkdir(mode=0o700)
+        os.chmod(raw_parent, 0o700)
+        os.chmod(projection_parent, 0o700)
+        return (
+            raw_parent / CANDIDATE_SNAPSHOT_NAME,
+            projection_parent / PROJECTION_NAME,
+        )
 
     def test_current_contract_is_the_exact_six_subject_tuple(self) -> None:
         self.assertEqual(5, len(PLATFORM_CANDIDATE_ASSETS))
@@ -180,46 +204,93 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         snapshot_path, _ = self._private_output_paths("disjoint-snapshot")
         projection_in_root = candidate / PROJECTION_NAME
 
-        with self.assertRaisesRegex(
-            CandidateAttestationError,
-            "projection parent is inside the candidate directory",
+        with mock.patch.object(
+            candidate_attestation,
+            "CANDIDATE_PROJECTION_ROOT",
+            self.candidate_root,
         ):
-            write_candidate_snapshot(
-                candidate,
-                snapshot_path,
-                projection_in_root,
-            )
-        self.assertFalse(snapshot_path.exists())
-        self.assertFalse(projection_in_root.exists())
+            with self.assertRaisesRegex(
+                CandidateAttestationError,
+                "projection parent is inside the candidate directory",
+            ):
+                write_candidate_snapshot(
+                    candidate,
+                    snapshot_path,
+                    projection_in_root,
+                )
+            self.assertFalse(snapshot_path.exists())
+            self.assertFalse(projection_in_root.exists())
 
-        with self.assertRaisesRegex(
-            CandidateAttestationError,
-            "projection parent is inside the candidate directory",
-        ):
-            candidate_attestation.verify_candidate_attestations(
-                candidate,
-                "a" * 40,
-                projection_in_root,
-                self.root / "unread-raw-attestations",
-                self.root / "unread-candidate-snapshot.json",
-            )
-        self.assertFalse(projection_in_root.exists())
+            with self.assertRaisesRegex(
+                CandidateAttestationError,
+                "projection parent is inside the candidate directory",
+            ):
+                candidate_attestation.verify_candidate_attestations(
+                    candidate,
+                    "a" * 40,
+                    projection_in_root,
+                    self.raw_root / "unread-raw-attestations",
+                    self.raw_root / "unread-candidate-snapshot.json",
+                )
+            self.assertFalse(projection_in_root.exists())
 
         descendant = candidate / "private-projection-output"
         descendant.mkdir(mode=0o700)
         os.chmod(descendant, 0o700)
         projection_in_descendant = descendant / PROJECTION_NAME
-        with self.assertRaisesRegex(
-            CandidateAttestationError,
-            "projection parent is inside the candidate directory",
-        ):
-            write_candidate_snapshot(
-                candidate,
-                snapshot_path,
-                projection_in_descendant,
-            )
+        with self.assertRaises(CandidateAttestationError):
+            write_candidate_snapshot(candidate, snapshot_path, projection_in_descendant)
         self.assertFalse(snapshot_path.exists())
         self.assertFalse(projection_in_descendant.exists())
+
+    def test_fixed_roots_reject_prefix_traversal_tmp_and_symlink_escape(self) -> None:
+        candidate = self._candidate("safe-candidate")
+        _snapshot_path, projection = self._private_output_paths("safe-output")
+        outside = self.root / "outside"
+        outside.mkdir(mode=0o700)
+
+        evil_prefix = self.root / "abi2-platform-candidate-inputs-evil"
+        evil_prefix.mkdir()
+        tmp_candidate = pathlib.Path("/tmp/qperiapt-unsafe-candidate")
+        traversal_candidate = self.candidate_root / "child" / ".." / ".." / "outside"
+        symlink_candidate = self.candidate_root / "candidate-link"
+        symlink_candidate.symlink_to(outside, target_is_directory=True)
+
+        for unsafe in (
+            tmp_candidate,
+            evil_prefix,
+            traversal_candidate,
+            symlink_candidate,
+        ):
+            with self.subTest(candidate=unsafe):
+                with self.assertRaises(CandidateAttestationError):
+                    candidate_attestation.preflight_candidate_paths(
+                        unsafe,
+                        projection,
+                    )
+                self.assertFalse(projection.exists())
+
+        symlink_parent = self.projection_root / "projection-link"
+        symlink_parent.symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(CandidateAttestationError):
+            candidate_attestation.preflight_candidate_paths(
+                candidate,
+                symlink_parent / PROJECTION_NAME,
+            )
+        self.assertFalse((outside / PROJECTION_NAME).exists())
+
+        os.chmod(self.candidate_root, 0o755)
+        try:
+            with self.assertRaisesRegex(
+                CandidateAttestationError,
+                "safe root is not an owned non-symlink directory",
+            ):
+                candidate_attestation.preflight_candidate_paths(
+                    candidate,
+                    projection,
+                )
+        finally:
+            os.chmod(self.candidate_root, 0o700)
 
     def test_private_snapshot_rejects_mode_and_hardlink_changes(self) -> None:
         candidate = self._candidate("metadata-candidate")

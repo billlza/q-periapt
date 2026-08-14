@@ -53,7 +53,7 @@ class PlatformCandidateVerifierTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = pathlib.Path(self.temporary.name) / "repository"
+        self.root = pathlib.Path(self.temporary.name).resolve() / "repository"
         artifact = self.root / "artifact"
         artifact.mkdir(parents=True)
         for relative in (
@@ -71,6 +71,16 @@ class PlatformCandidateVerifierTests(unittest.TestCase):
 
         self.fake_bin = self.root / "fake-bin"
         self.fake_bin.mkdir()
+        self.candidate_input_root = (
+            self.root / "target" / "abi2-platform-candidate-inputs"
+        )
+        self.projection_root = (
+            self.root / "target" / "abi2-platform-candidate-projections"
+        )
+        for path in (self.candidate_input_root, self.projection_root):
+            path.mkdir(parents=True, mode=0o700)
+            os.chmod(path, 0o700)
+        self.git_log = self.root / "git-invocations.log"
         self.gh_log = self.root / "gh-invocations.log"
         self.gh_outputs = self.root / "gh-outputs"
         self.gh_outputs.mkdir()
@@ -78,6 +88,7 @@ class PlatformCandidateVerifierTests(unittest.TestCase):
             self.fake_bin / "git",
             """#!/bin/sh
 set -eu
+printf '%s\n' "$*" >> "$FAKE_GIT_LOG"
 case "$1:$2" in
     cat-file:-t)
         printf 'tag\\n'
@@ -123,7 +134,7 @@ esac
         os.chmod(path, 0o755)
 
     def _candidate(self, name: str) -> pathlib.Path:
-        candidate = self.root / f"candidate-{name}"
+        candidate = self.candidate_input_root / f"candidate-{name}"
         candidate.mkdir()
         records: list[tuple[str, str]] = []
         for asset in self.ASSETS:
@@ -266,15 +277,19 @@ esac
         self._write_gh_response(asset, value)
 
     def _attestation_directories(self) -> set[pathlib.Path]:
-        target = self.root / "target"
-        if not target.exists():
+        raw_root = (
+            self.root
+            / "target"
+            / "abi2-platform-candidate-verification"
+            / "raw"
+        )
+        if not raw_root.exists():
             return set()
-        return set(target.glob("abi2-platform-candidate-attestations.*"))
+        return set(raw_root.glob("transaction.*"))
 
     def _projection_path(self, candidate: pathlib.Path) -> pathlib.Path:
         return (
-            self.root
-            / "candidate-projections"
+            self.projection_root
             / candidate.name
             / "candidate-attestation-projection.json"
         )
@@ -295,6 +310,7 @@ esac
             {
                 "FAKE_GH_LOG": str(self.gh_log),
                 "FAKE_GH_OUTPUTS": str(self.gh_outputs),
+                "FAKE_GIT_LOG": str(self.git_log),
                 "FAKE_GIT_COMMIT": self.COMMIT,
                 "PATH": f"{self.fake_bin}{os.pathsep}{environment['PATH']}",
                 "QPERIAPT_PYTHON": sys.executable,
@@ -326,6 +342,14 @@ esac
             for line in self.gh_log.read_text(encoding="utf-8").splitlines()
         ]
 
+    def _git_invocations(self) -> list[list[str]]:
+        if not self.git_log.exists():
+            return []
+        return [
+            shlex.split(line)
+            for line in self.git_log.read_text(encoding="utf-8").splitlines()
+        ]
+
     def test_attestation_policy_is_exact_and_rejects_self_hosted_runners(self) -> None:
         self.assertEqual(
             stat.S_IMODE(self.production_script.stat().st_mode),
@@ -346,11 +370,25 @@ esac
         self.assertIn("mktemp -d", self.script)
         self.assertIn('chmod 0700 "$ATTESTATION_DIR"', self.script)
         self.assertNotIn('chmod 0700 "$PRIVATE_PARENT"', self.script)
+        self.assertNotIn('chmod 0700 "$TARGET_ROOT"', self.script)
         self.assertNotIn('rm -rf "$ATTESTATION_DIR"', self.script)
         self.assertNotIn("<<'PY'", self.script)
         self.assertNotIn("PYTHONPATH=", self.script)
         self.assertIn("platform_candidate_attestation.py snapshot", self.script)
         self.assertIn("platform_candidate_attestation.py verify", self.script)
+        self.assertIn("platform_candidate_attestation.py preflight", self.script)
+        self.assertIn(
+            "platform_candidate_attestation.py validate-raw-root",
+            self.script,
+        )
+        self.assertLess(
+            self.script.index("platform_candidate_attestation.py preflight"),
+            self.script.index("git cat-file"),
+        )
+        self.assertLess(
+            self.script.index("platform_candidate_attestation.py validate-raw-root"),
+            self.script.index("git cat-file"),
+        )
         self.assertLess(
             self.script.index("platform_candidate_attestation.py snapshot"),
             self.script.index("gh auth status"),
@@ -415,6 +453,31 @@ esac
         )
         self.assertIn(
             '"$candidate_dir" "$tag_commit" "$projection"',
+            self.alpha3_notes,
+        )
+        self.assertIn(
+            "target/abi2-platform-candidate-inputs",
+            self.alpha3_notes,
+        )
+        self.assertIn(
+            "target/abi2-platform-candidate-projections",
+            self.alpha3_notes,
+        )
+        self.assertIn(
+            "target/abi2-platform-candidate-verification/raw",
+            self.alpha3_notes,
+        )
+        self.assertNotIn(
+            "candidate_dir=/absolute/path/to/alpha3-platform-candidate",
+            self.alpha3_notes,
+        )
+        for fixed_apple_root in (
+            "target/qperiapt-apple-release-worktrees",
+            "target/qperiapt-apple-release-verification",
+        ):
+            self.assertIn(fixed_apple_root, self.alpha3_notes)
+        self.assertNotIn(
+            "completed=/absolute/path/to/apple-release/completed.json",
             self.alpha3_notes,
         )
 
@@ -725,7 +788,7 @@ esac
     def test_non_private_projection_parent_fails_before_gh(self) -> None:
         candidate = self._candidate("broad-projection-parent")
         self._install_valid_gh_outputs(candidate)
-        parent = self.root / "broad-projection-parent"
+        parent = self.projection_root / "broad-projection-parent"
         parent.mkdir(mode=0o755)
         os.chmod(parent, 0o755)
         projection = parent / "candidate-attestation-projection.json"
@@ -772,12 +835,86 @@ esac
         process = self._run(candidate, projection_path=projection)
 
         self.assertNotEqual(0, process.returncode, process.stdout)
-        self.assertIn(
-            "candidate projection parent is inside the candidate directory",
-            process.stderr,
-        )
+        self.assertIn("outside its fixed safe root", process.stderr)
         self.assertEqual([], self._gh_invocations())
         self.assertFalse(projection.exists())
+
+    def test_unsafe_fixed_root_paths_fail_before_git_or_gh(self) -> None:
+        safe_candidate = self._candidate("path-policy-safe")
+        safe_projection = self._projection_path(safe_candidate)
+        safe_projection.parent.mkdir(parents=True, mode=0o700)
+        os.chmod(safe_projection.parent, 0o700)
+
+        outside = self.root / "outside"
+        outside.mkdir(mode=0o700)
+        evil_prefix = (
+            self.root / "target" / "abi2-platform-candidate-inputs-evil"
+        )
+        evil_prefix.mkdir()
+        symlink_candidate = self.candidate_input_root / "candidate-link"
+        symlink_candidate.symlink_to(outside, target_is_directory=True)
+        projection_link = self.projection_root / "projection-link"
+        projection_link.symlink_to(outside, target_is_directory=True)
+
+        cases = (
+            (
+                "tmp",
+                pathlib.Path("/tmp/qperiapt-platform-candidate"),
+                safe_projection,
+            ),
+            ("target-evil", evil_prefix, safe_projection),
+            (
+                "traversal",
+                self.candidate_input_root / "child" / ".." / ".." / "outside",
+                safe_projection,
+            ),
+            ("candidate-symlink", symlink_candidate, safe_projection),
+            (
+                "projection-symlink",
+                safe_candidate,
+                projection_link / "candidate-attestation-projection.json",
+            ),
+        )
+        for name, candidate, projection in cases:
+            with self.subTest(name=name):
+                self.git_log.unlink(missing_ok=True)
+                self.gh_log.unlink(missing_ok=True)
+                process = self._run(candidate, projection_path=projection)
+                self.assertNotEqual(0, process.returncode, process.stdout)
+                self.assertEqual([], self._git_invocations())
+                self.assertEqual([], self._gh_invocations())
+                self.assertFalse(projection.exists())
+
+    def test_non_private_fixed_verification_roots_fail_before_git_or_gh(self) -> None:
+        candidate = self._candidate("raw-root-mode")
+        verification_root = (
+            self.root
+            / "target"
+            / "abi2-platform-candidate-verification"
+        )
+        raw_root = verification_root / "raw"
+        raw_root.mkdir(parents=True, mode=0o700)
+        os.chmod(verification_root, 0o700)
+        os.chmod(raw_root, 0o700)
+
+        for unsafe_root in (verification_root, raw_root):
+            with self.subTest(root=unsafe_root):
+                self.git_log.unlink(missing_ok=True)
+                self.gh_log.unlink(missing_ok=True)
+                os.chmod(unsafe_root, 0o755)
+                try:
+                    process = self._run(candidate)
+                finally:
+                    os.chmod(unsafe_root, 0o700)
+
+                self.assertNotEqual(0, process.returncode, process.stdout)
+                self.assertIn(
+                    "safe root is not an owned non-symlink directory",
+                    process.stderr,
+                )
+                self.assertEqual([], self._git_invocations())
+                self.assertEqual([], self._gh_invocations())
+                self.assertEqual(set(), self._attestation_directories())
 
 
 if __name__ == "__main__":

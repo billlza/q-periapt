@@ -59,17 +59,20 @@ assets; post-publication consumers re-download and verify the immutable releases
 
 ## Verification
 
-Before assembling the non-Apple platform distribution, verify the exact six-subject
-CI candidate transaction and write its sanitized projection to a caller-selected,
-private, previously absent output path:
+Before assembling the non-Apple platform distribution, place the exact six-subject
+CI candidate transaction below the fixed private candidate-input root and write its
+sanitized projection below the separate fixed private projection root:
 
 ```sh
-candidate_dir=/absolute/path/to/alpha3-platform-candidate
+candidate_inputs=$PWD/target/abi2-platform-candidate-inputs
+candidate_projections=$PWD/target/abi2-platform-candidate-projections
+(umask 077 && mkdir -p "$candidate_inputs" "$candidate_projections")
+chmod 0700 "$candidate_inputs" "$candidate_projections"
+candidate_dir=$candidate_inputs/alpha3-platform-candidate
 tag_commit=$(git rev-parse --verify \
   'refs/tags/abi2-platforms-v0.1.0-alpha.3-r1^{commit}')
-mkdir -p target
 projection_parent=$(umask 077 && \
-  mktemp -d "$PWD/target/abi2-platform-candidate-projection.XXXXXXXX")
+  mktemp -d "$candidate_projections/transaction.XXXXXXXX")
 chmod 0700 "$projection_parent"
 projection=$projection_parent/candidate-attestation-projection.json
 sh artifact/verify-platform-candidate.sh \
@@ -80,8 +83,11 @@ The verifier records one private preflight snapshot, runs the six exact GitHub
 attestation checks, then re-samples the candidate with the same parser. It publishes
 the `0600` projection with exclusive creation only when every result contains the
 same statement, verification record, run, and timestamp and the candidate bytes are
-unchanged. Raw GitHub responses remain in a script-owned `0700` directory under
-`target`; neither their path nor their contents appear in the success marker.
+unchanged. The fixed input, projection, and raw-verification roots must be owned by
+the current user with mode `0700`; the verifier fails before Git or GitHub when a
+path escapes those roots. Raw GitHub responses remain in a script-owned `0700`
+directory under `target/abi2-platform-candidate-verification/raw`; neither their
+path nor their contents appear in the success marker.
 
 After the Apple GitHub prerelease is immutable and its fresh remote consumer check
 has completed, use the private source-bound completion ledger as the exact four-asset
@@ -90,15 +96,23 @@ attestation. The raw, ledger, and projection paths must be separate trees:
 
 ```sh
 apple_tag=v0.1.0-alpha.3-r1
-completed=/absolute/path/to/apple-release/completed.json
+source_commit=$(git rev-parse --verify "refs/tags/$apple_tag^{commit}")
+apple_worktrees=$PWD/target/qperiapt-apple-release-worktrees
+apple_verification=$PWD/target/qperiapt-apple-release-verification
+apple_raw_root=$apple_verification/raw
+apple_projection_root=$apple_verification/projections
+(umask 077 && mkdir -p \
+  "$apple_worktrees" "$apple_raw_root" "$apple_projection_root")
+chmod 0700 "$apple_worktrees" "$apple_verification" \
+  "$apple_raw_root" "$apple_projection_root"
+completed=$apple_worktrees/$source_commit/completed.json
 release_id=$(gh release view "$apple_tag" --repo billlza/q-periapt \
   --json databaseId --jq .databaseId)
 tag_object=$(git rev-parse --verify "refs/tags/$apple_tag")
-mkdir -p target
-raw=$PWD/target/apple-github-release-raw-$release_id
+raw=$apple_raw_root/release-$release_id
 test ! -e "$raw"
 apple_projection_parent=$(umask 077 && \
-  mktemp -d "$PWD/target/apple-github-release-projection.XXXXXXXX")
+  mktemp -d "$apple_projection_root/transaction.XXXXXXXX")
 chmod 0700 "$apple_projection_parent"
 apple_projection=$apple_projection_parent/apple-github-release-verification.json
 sh artifact/python-run.sh artifact/apple_release_verification.py collect \
@@ -110,8 +124,12 @@ remote transaction. It requires the fixed repository to be `PUBLIC` in matching
 bounded pre/post observations, and requires stable security-relevant release fields
 from the bounded `gh release view` observations around `gh release verify`. Mutable
 download-count telemetry is validated but excluded from the stability comparison.
-The five raw files remain `0600` under the new `0700` raw directory. Only after those
-samples agree does it exclusively create a `0600` PII-safe projection. Its
+The worktree-ledger, raw, and projection roots must each be current-user-owned
+`0700` non-symlink directories. The adapter canonicalizes each input once, rejects
+`/tmp`, traversal, sibling-prefix, and symlink escapes before any subprocess, and
+then uses only the normalized paths. The five raw files remain `0600` under the new
+`0700` raw directory. Only after those samples agree does it exclusively create a
+`0600` PII-safe projection. Its
 `publication` member is the exact pure receipt-contract shape; the four asset hashes
 and TimestampAuthority metadata remain alongside it for adapter self-verification.
 

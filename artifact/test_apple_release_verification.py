@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import unittest
 from typing import Any
+from unittest import mock
 
 import apple_release_verification as verification
 import apple_publication_contract as apple_contract
@@ -109,9 +110,31 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = pathlib.Path(self.temporary.name).resolve()
+        self.ledger_root = self.root / "qperiapt-apple-release-worktrees"
+        self.verification_root = self.root / "qperiapt-apple-release-verification"
+        self.raw_root = self.verification_root / "raw"
+        self.projection_root = self.verification_root / "projections"
+        for path in (self.ledger_root, self.raw_root, self.projection_root):
+            path.mkdir(parents=True, mode=0o700)
+            os.chmod(path, 0o700)
+        os.chmod(self.verification_root, 0o700)
+        for attribute, value in (
+            ("APPLE_LEDGER_ROOT", self.ledger_root),
+            ("APPLE_VERIFICATION_ROOT", self.verification_root),
+            ("APPLE_RAW_ROOT", self.raw_root),
+            ("APPLE_PROJECTION_ROOT", self.projection_root),
+        ):
+            patcher = mock.patch.object(verification, attribute, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
-    def _private_directory(self, name: str) -> pathlib.Path:
-        path = self.root / name
+    def _private_directory(
+        self,
+        name: str,
+        *,
+        parent: pathlib.Path | None = None,
+    ) -> pathlib.Path:
+        path = (self.root if parent is None else parent) / name
         path.mkdir(mode=0o700)
         os.chmod(path, 0o700)
         return path
@@ -142,7 +165,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             "schema_version": schema_version,
             "source_commit": tag_commit or self.TAG_COMMIT,
         }
-        parent = self._private_directory(f"ledger-{name}")
+        parent = self._private_directory(f"ledger-{name}", parent=self.ledger_root)
         path = parent / "asset-ledger.json"
         path.write_text(json.dumps(document, sort_keys=True) + "\n", encoding="ascii")
         os.chmod(path, 0o600)
@@ -249,10 +272,12 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         }
 
     def _paths(self, name: str) -> tuple[pathlib.Path, pathlib.Path]:
-        raw_parent = self._private_directory(f"raw-parent-{name}")
-        projection_parent = self._private_directory(f"projection-parent-{name}")
+        projection_parent = self._private_directory(
+            f"projection-parent-{name}",
+            parent=self.projection_root,
+        )
         return (
-            raw_parent / f"raw-{name}",
+            self.raw_root / f"raw-{name}",
             projection_parent / verification.PROJECTION_NAME,
         )
 
@@ -488,7 +513,10 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             verification.MANIFEST_NAME: distribution["manifest_sha256"],
             verification.SHA256SUMS_NAME: distribution["checksums_sha256"],
         }
-        ledger_parent = self._private_directory("alpha2-contract-ledger")
+        ledger_parent = self._private_directory(
+            "alpha2-contract-ledger",
+            parent=self.ledger_root,
+        )
         ledger = ledger_parent / "asset-ledger.json"
         ledger.write_text(
             json.dumps(
@@ -575,7 +603,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 with self.assertRaises(verification.AppleReleaseVerificationError):
                     self._collect(f"view-{name}", mutate_view_before=mutation)
                 projection = (
-                    self.root
+                    self.projection_root
                     / f"projection-parent-view-{name}"
                     / verification.PROJECTION_NAME
                 )
@@ -635,7 +663,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 with self.assertRaises(verification.AppleReleaseVerificationError):
                     self._collect(f"verify-{name}", mutate_verify=mutation)
                 projection = (
-                    self.root
+                    self.projection_root
                     / f"projection-parent-verify-{name}"
                     / verification.PROJECTION_NAME
                 )
@@ -678,7 +706,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                     )
                 self.assertFalse(
                     (
-                        self.root
+                        self.projection_root
                         / f"projection-parent-remote-security-{name}"
                         / verification.PROJECTION_NAME
                     ).exists()
@@ -691,7 +719,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             self._collect("local-toctou", tag_object_after="9" * 40)
         self.assertFalse(
             (
-                self.root
+                self.projection_root
                 / "projection-parent-local-toctou"
                 / verification.PROJECTION_NAME
             ).exists()
@@ -738,7 +766,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                     self._collect(f"visibility-{name}", **arguments)
                 self.assertFalse(
                     (
-                        self.root
+                        self.projection_root
                         / f"projection-parent-visibility-{name}"
                         / verification.PROJECTION_NAME
                     ).exists()
@@ -804,47 +832,34 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             )
         self.assertEqual([], runner.calls)
 
-        disjoint_raw = self._private_directory("disjoint-raw-parent") / "raw"
-        same_ledger_parent_projection = ledger.parent / verification.PROJECTION_NAME
-        with self.assertRaisesRegex(
-            verification.AppleReleaseVerificationError, "must be disjoint"
+        with mock.patch.object(
+            verification,
+            "APPLE_PROJECTION_ROOT",
+            self.ledger_root,
         ):
-            verification.collect_release_verification(
-                ledger,
-                str(self.RELEASE_ID),
-                self.TAG_OBJECT,
-                disjoint_raw,
-                same_ledger_parent_projection,
-                runner=runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
-            )
+            overlapping_projection = ledger.parent / verification.PROJECTION_NAME
+            with self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                "must be disjoint",
+            ):
+                verification.collect_release_verification(
+                    ledger,
+                    str(self.RELEASE_ID),
+                    self.TAG_OBJECT,
+                    raw,
+                    overlapping_projection,
+                    runner=runner,
+                    source_environment={},
+                    git_tool="/fixture/git",
+                    gh_tool="/fixture/gh",
+                )
+            self.assertFalse(overlapping_projection.exists())
         self.assertEqual([], runner.calls)
-        self.assertFalse(disjoint_raw.exists())
-        self.assertFalse(same_ledger_parent_projection.exists())
 
-        projection_parent = self._private_directory("disjoint-projection-parent")
-        raw_over_ledger_parent = ledger.parent
-        with self.assertRaisesRegex(
-            verification.AppleReleaseVerificationError, "must be disjoint"
-        ):
-            verification.collect_release_verification(
-                ledger,
-                str(self.RELEASE_ID),
-                self.TAG_OBJECT,
-                raw_over_ledger_parent,
-                projection_parent / verification.PROJECTION_NAME,
-                runner=runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
-            )
-        self.assertEqual([], runner.calls)
         self.assertEqual(b"do not overwrite\n", projection.read_bytes())
         self.assertFalse(raw.exists())
 
-        broad_parent = self.root / "broad-projection-parent"
+        broad_parent = self.projection_root / "broad-projection-parent"
         broad_parent.mkdir(mode=0o755)
         os.chmod(broad_parent, 0o755)
         with self.assertRaises(verification.AppleReleaseVerificationError):
@@ -852,7 +867,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 ledger,
                 str(self.RELEASE_ID),
                 self.TAG_OBJECT,
-                self.root / "never-created-raw",
+                self.raw_root / "never-created-raw",
                 broad_parent / verification.PROJECTION_NAME,
                 runner=runner,
                 source_environment={},
@@ -860,6 +875,119 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 gh_tool="/fixture/gh",
             )
         self.assertEqual([], runner.calls)
+
+    def test_fixed_roots_reject_tmp_prefix_traversal_and_symlink_escape(self) -> None:
+        ledger, hashes, tag = self._ledger("fixed-root-policy")
+        view = self._view(tag=tag, hashes=hashes)
+        runner = FixtureRunner(
+            view_before=view,
+            verify=self._verify(tag=tag, hashes=hashes),
+            view_after=copy.deepcopy(view),
+            tag_object=self.TAG_OBJECT,
+            tag_commit=self.TAG_COMMIT,
+        )
+        raw, projection = self._paths("fixed-root-policy")
+        outside = self._private_directory("outside")
+        outside_ledger = outside / "completed.json"
+        outside_ledger.write_bytes(ledger.read_bytes())
+        os.chmod(outside_ledger, 0o600)
+        ledger_link = self.ledger_root / "ledger-link"
+        ledger_link.symlink_to(outside_ledger)
+        raw_link = self.raw_root / "raw-link"
+        raw_link.symlink_to(outside, target_is_directory=True)
+        projection_link = self.projection_root / "projection-link"
+        projection_link.symlink_to(outside, target_is_directory=True)
+        raw_evil_root = self.raw_root.parent / "raw-evil"
+        raw_evil_root.mkdir(mode=0o700)
+
+        cases = (
+            (
+                "tmp-ledger",
+                pathlib.Path("/tmp/qperiapt-completed.json"),
+                raw,
+                projection,
+            ),
+            (
+                "target-evil",
+                ledger,
+                raw_evil_root / "raw-output",
+                projection,
+            ),
+            (
+                "traversal",
+                ledger,
+                self.raw_root / "child" / ".." / ".." / "outside-raw",
+                projection,
+            ),
+            ("ledger-symlink", ledger_link, raw, projection),
+            ("raw-symlink", ledger, raw_link, projection),
+            (
+                "projection-symlink",
+                ledger,
+                raw,
+                projection_link / verification.PROJECTION_NAME,
+            ),
+        )
+        for name, selected_ledger, selected_raw, selected_projection in cases:
+            with self.subTest(name=name):
+                with self.assertRaises(verification.AppleReleaseVerificationError):
+                    verification.collect_release_verification(
+                        selected_ledger,
+                        str(self.RELEASE_ID),
+                        self.TAG_OBJECT,
+                        selected_raw,
+                        selected_projection,
+                        runner=runner,
+                        source_environment={},
+                        git_tool="/fixture/git",
+                        gh_tool="/fixture/gh",
+                    )
+                self.assertEqual([], runner.calls)
+                self.assertFalse(selected_projection.exists())
+
+        os.chmod(self.ledger_root, 0o755)
+        try:
+            with self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                "safe root is not an owned non-symlink directory",
+            ):
+                verification.collect_release_verification(
+                    ledger,
+                    str(self.RELEASE_ID),
+                    self.TAG_OBJECT,
+                    raw,
+                    projection,
+                    runner=runner,
+                    source_environment={},
+                    git_tool="/fixture/git",
+                    gh_tool="/fixture/gh",
+                )
+        finally:
+            os.chmod(self.ledger_root, 0o700)
+        self.assertEqual([], runner.calls)
+
+        os.chmod(self.verification_root, 0o755)
+        try:
+            with self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                "safe root is not an owned non-symlink directory",
+            ):
+                verification.collect_release_verification(
+                    ledger,
+                    str(self.RELEASE_ID),
+                    self.TAG_OBJECT,
+                    raw,
+                    projection,
+                    runner=runner,
+                    source_environment={},
+                    git_tool="/fixture/git",
+                    gh_tool="/fixture/gh",
+                )
+        finally:
+            os.chmod(self.verification_root, 0o700)
+        self.assertEqual([], runner.calls)
+        self.assertFalse(raw.exists())
+        self.assertFalse(projection.exists())
 
     def test_existing_raw_and_dangerous_git_environment_fail_before_commands(self) -> None:
         ledger, hashes, tag = self._ledger("preflight-policy")

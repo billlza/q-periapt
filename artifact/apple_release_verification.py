@@ -44,6 +44,15 @@ HISTORICAL_EXPECTATION_KIND = "qperiapt.apple_public_asset_expectation"
 PROJECTION_KIND = "qperiapt.apple_github_release_verification"
 PROJECTION_SCHEMA_VERSION = 1
 PROJECTION_NAME = "apple-github-release-verification.json"
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
+APPLE_LEDGER_ROOT = (
+    REPOSITORY_ROOT / "target" / "qperiapt-apple-release-worktrees"
+)
+APPLE_VERIFICATION_ROOT = (
+    REPOSITORY_ROOT / "target" / "qperiapt-apple-release-verification"
+)
+APPLE_RAW_ROOT = APPLE_VERIFICATION_ROOT / "raw"
+APPLE_PROJECTION_ROOT = APPLE_VERIFICATION_ROOT / "projections"
 RAW_VIEW_BEFORE_NAME = "release-view-before.json"
 RAW_VERIFY_NAME = "release-verify.json"
 RAW_VIEW_AFTER_NAME = "release-view-after.json"
@@ -307,6 +316,88 @@ def _private_file_metadata(metadata: os.stat_result) -> None:
         raise EvidenceIOError("private Apple release file metadata differs")
 
 
+def _normalized_safe_root(
+    safe_root: pathlib.Path,
+    *,
+    label: str,
+    required_mode: int | None = None,
+) -> pathlib.Path:
+    """Return one fixed, owned, canonical directory used as an I/O boundary."""
+
+    root_text = os.path.realpath(os.fspath(safe_root))
+    _require(
+        safe_root.is_absolute()
+        and root_text == os.path.abspath(os.fspath(safe_root)),
+        f"{label} safe root must be canonical",
+    )
+    root = pathlib.Path(root_text)
+    try:
+        metadata = root.lstat()
+    except OSError as exc:
+        raise AppleReleaseVerificationError(
+            f"cannot inspect {label} safe root"
+        ) from exc
+    valid = (
+        stat.S_ISDIR(metadata.st_mode)
+        and not root.is_symlink()
+        and metadata.st_uid == os.geteuid()
+    )
+    if required_mode is not None:
+        valid = valid and stat.S_IMODE(metadata.st_mode) == required_mode
+    _require(valid, f"{label} safe root is not an owned non-symlink directory")
+    return root
+
+
+def _normalize_path_under_root(
+    path: pathlib.Path,
+    *,
+    safe_root: pathlib.Path,
+    label: str,
+    required_root_mode: int | None = None,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    """Resolve a CLI path once and prove containment below one fixed root."""
+
+    if not path.is_absolute():
+        raise AppleReleaseVerificationError(f"{label} must be absolute")
+    root = _normalized_safe_root(
+        safe_root,
+        label=label,
+        required_mode=required_root_mode,
+    )
+    supplied_text = os.fspath(path)
+    normalized_text = os.path.realpath(supplied_text)
+    root_text = os.fspath(root)
+    if not normalized_text.startswith(root_text + os.sep):
+        raise AppleReleaseVerificationError(
+            f"{label} is outside its fixed safe root"
+        )
+    if normalized_text != os.path.abspath(supplied_text):
+        raise AppleReleaseVerificationError(
+            f"{label} must contain no symlink or traversal aliases"
+        )
+    return pathlib.Path(normalized_text), root
+
+
+def _normalize_asset_ledger(path: pathlib.Path) -> pathlib.Path:
+    normalized, _root = _normalize_path_under_root(
+        path,
+        safe_root=APPLE_LEDGER_ROOT,
+        label="Apple release asset ledger",
+        required_root_mode=0o700,
+    )
+    try:
+        metadata = normalized.lstat()
+    except OSError as exc:
+        raise AppleReleaseVerificationError(
+            "cannot inspect Apple release asset ledger"
+        ) from exc
+    _require(
+        stat.S_ISREG(metadata.st_mode) and not normalized.is_symlink(),
+        "Apple release asset ledger must be a non-symlink regular file",
+    )
+    return normalized
+
+
 def _read_private_bytes(
     path: pathlib.Path, *, maximum: int, label: str
 ) -> bytes:
@@ -383,9 +474,28 @@ def _require_absent_at(directory_fd: int, name: str, label: str) -> None:
     _fail(f"{label} already exists")
 
 
-def _validate_projection_path(path: pathlib.Path) -> None:
+def _normalize_projection_path(path: pathlib.Path) -> pathlib.Path:
     _require(path.is_absolute(), "Apple release projection must be absolute")
     _require(path.name == PROJECTION_NAME, "Apple release projection leaf differs")
+    parent, root = _normalize_path_under_root(
+        path.parent,
+        safe_root=APPLE_PROJECTION_ROOT,
+        label="Apple release projection parent",
+        required_root_mode=0o700,
+    )
+    _require(
+        parent.parent == root,
+        "Apple release projection parent must be a direct safe-root child",
+    )
+    normalized = parent / PROJECTION_NAME
+    if os.path.realpath(os.fspath(normalized)) != os.fspath(normalized):
+        raise AppleReleaseVerificationError(
+            "Apple release projection must contain no symlink aliases"
+        )
+    return normalized
+
+
+def _validate_projection_absent(path: pathlib.Path) -> None:
     parent_fd = _directory_fd(
         path.parent,
         label="Apple release projection parent",
@@ -431,16 +541,29 @@ def _validate_io_path_disjointness(
             )
 
 
-def _create_raw_directory(path: pathlib.Path) -> int:
-    _require(path.is_absolute(), "Apple release raw directory must be absolute")
+def _normalize_raw_directory_path(path: pathlib.Path) -> pathlib.Path:
+    normalized, root = _normalize_path_under_root(
+        path,
+        safe_root=APPLE_RAW_ROOT,
+        label="Apple release raw directory",
+        required_root_mode=0o700,
+    )
     _require(
-        SAFE_DIRECTORY_LEAF.fullmatch(path.name) is not None,
+        normalized.parent == root,
+        "Apple release raw directory must be a direct safe-root child",
+    )
+    _require(
+        SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
         "Apple release raw directory leaf is unsafe",
     )
+    return normalized
+
+
+def _create_raw_directory(path: pathlib.Path) -> int:
     parent_fd = _directory_fd(
-        path.parent,
+        APPLE_RAW_ROOT,
         label="Apple release raw parent",
-        required_mode=None,
+        required_mode=0o700,
     )
     try:
         _require_absent_at(parent_fd, path.name, "Apple release raw directory")
@@ -506,7 +629,7 @@ def _write_private_bytes_at(
 
 
 def _write_projection(path: pathlib.Path, projection: object) -> str:
-    _validate_projection_path(path)
+    _validate_projection_absent(path)
     payload = (
         json.dumps(projection, indent=2, ensure_ascii=True, sort_keys=True) + "\n"
     ).encode("ascii")
@@ -530,7 +653,7 @@ def _write_projection(path: pathlib.Path, projection: object) -> str:
 def load_release_expectation(path: pathlib.Path) -> ReleaseExpectation:
     """Load one private completion or historical expected-assets ledger."""
 
-    _require(path.is_absolute(), "Apple release asset ledger must be absolute")
+    path = _normalize_asset_ledger(path)
     value = _parse_strict_json(
         _read_private_bytes(
             path,
@@ -1081,15 +1204,23 @@ def collect_release_verification(
 ) -> tuple[str, ReleaseExpectation, int]:
     """Collect one local/remote transaction and publish its safe projection."""
 
-    expectation = load_release_expectation(asset_ledger)
-    release_id = _release_id(expected_release_id)
-    tag_object = _sha1(expected_tag_object, "expected Apple release tag object")
+    _normalized_safe_root(
+        APPLE_VERIFICATION_ROOT,
+        label="Apple release verification",
+        required_mode=0o700,
+    )
+    asset_ledger = _normalize_asset_ledger(asset_ledger)
+    raw_directory = _normalize_raw_directory_path(raw_directory)
+    projection_output = _normalize_projection_path(projection_output)
     _validate_io_path_disjointness(
         asset_ledger,
         raw_directory,
         projection_output,
     )
-    _validate_projection_path(projection_output)
+    _validate_projection_absent(projection_output)
+    expectation = load_release_expectation(asset_ledger)
+    release_id = _release_id(expected_release_id)
+    tag_object = _sha1(expected_tag_object, "expected Apple release tag object")
     environment = _process_environment(
         os.environ if source_environment is None else source_environment
     )

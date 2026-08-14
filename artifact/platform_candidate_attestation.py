@@ -52,11 +52,23 @@ VERIFICATION_MEDIA_TYPE = (
 )
 CANDIDATE_SNAPSHOT_NAME = "candidate-snapshot.json"
 PROJECTION_NAME = "candidate-attestation-projection.json"
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
+CANDIDATE_INPUT_ROOT = REPOSITORY_ROOT / "target" / "abi2-platform-candidate-inputs"
+CANDIDATE_VERIFICATION_ROOT = (
+    REPOSITORY_ROOT
+    / "target"
+    / "abi2-platform-candidate-verification"
+)
+CANDIDATE_RAW_ROOT = CANDIDATE_VERIFICATION_ROOT / "raw"
+CANDIDATE_PROJECTION_ROOT = (
+    REPOSITORY_ROOT / "target" / "abi2-platform-candidate-projections"
+)
 SNAPSHOT_SCHEMA_VERSION = 1
 SNAPSHOT_KIND = "qperiapt.platform_candidate_snapshot"
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 SAFE_SUBJECT_NAME = re.compile(r"^[A-Za-z0-9._+-]+$")
+SAFE_DIRECTORY_LEAF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 STRICT_TIMESTAMP = re.compile(
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
     r"(?:Z|[+-][0-9]{2}:[0-9]{2})$"
@@ -197,25 +209,88 @@ def _validate_contract_names() -> None:
     )
 
 
-def _candidate_directory(path: pathlib.Path) -> pathlib.Path:
-    _require(path.is_absolute(), "candidate directory must be absolute")
+def _normalized_safe_root(
+    safe_root: pathlib.Path,
+    *,
+    label: str,
+    required_mode: int | None = None,
+) -> pathlib.Path:
+    """Return one fixed, owned, canonical directory used as an I/O boundary."""
+
+    root_text = os.path.realpath(os.fspath(safe_root))
+    _require(
+        safe_root.is_absolute()
+        and root_text == os.path.abspath(os.fspath(safe_root)),
+        f"{label} safe root must be canonical",
+    )
+    root = pathlib.Path(root_text)
     try:
-        metadata = path.lstat()
-        resolved = path.resolve(strict=True)
+        metadata = root.lstat()
+    except OSError as exc:
+        raise CandidateAttestationError(f"cannot inspect {label} safe root") from exc
+    valid = (
+        stat.S_ISDIR(metadata.st_mode)
+        and not root.is_symlink()
+        and metadata.st_uid == os.geteuid()
+    )
+    if required_mode is not None:
+        valid = valid and stat.S_IMODE(metadata.st_mode) == required_mode
+    _require(valid, f"{label} safe root is not an owned non-symlink directory")
+    return root
+
+
+def _normalize_path_under_root(
+    path: pathlib.Path,
+    *,
+    safe_root: pathlib.Path,
+    label: str,
+    required_root_mode: int | None = None,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    """Resolve a CLI path once and prove containment below one fixed root."""
+
+    if not path.is_absolute():
+        raise CandidateAttestationError(f"{label} must be absolute")
+    root = _normalized_safe_root(
+        safe_root,
+        label=label,
+        required_mode=required_root_mode,
+    )
+    supplied_text = os.fspath(path)
+    normalized_text = os.path.realpath(supplied_text)
+    root_text = os.fspath(root)
+    if not normalized_text.startswith(root_text + os.sep):
+        raise CandidateAttestationError(
+            f"{label} is outside its fixed safe root"
+        )
+    if normalized_text != os.path.abspath(supplied_text):
+        raise CandidateAttestationError(
+            f"{label} must contain no symlink or traversal aliases"
+        )
+    return pathlib.Path(normalized_text), root
+
+
+def _candidate_directory(path: pathlib.Path) -> pathlib.Path:
+    normalized, _root = _normalize_path_under_root(
+        path,
+        safe_root=CANDIDATE_INPUT_ROOT,
+        label="candidate directory",
+        required_root_mode=0o700,
+    )
+    try:
+        metadata = normalized.lstat()
     except OSError as exc:
         raise CandidateAttestationError("cannot inspect candidate directory") from exc
     _require(
-        stat.S_ISDIR(metadata.st_mode) and not path.is_symlink(),
+        stat.S_ISDIR(metadata.st_mode) and not normalized.is_symlink(),
         "candidate directory must be a non-symlink directory",
     )
-    return resolved
+    return normalized
 
 
-def snapshot_candidate(path: pathlib.Path) -> CandidateSnapshot:
-    """Sample and fully checksum the fixed candidate set."""
+def _snapshot_candidate_root(root: pathlib.Path) -> CandidateSnapshot:
+    """Sample an already-normalized candidate directory."""
 
     _validate_contract_names()
-    root = _candidate_directory(path)
     try:
         entries = list(root.iterdir())
     except OSError as exc:
@@ -278,6 +353,12 @@ def snapshot_candidate(path: pathlib.Path) -> CandidateSnapshot:
     return CandidateSnapshot(tuple(files))
 
 
+def snapshot_candidate(path: pathlib.Path) -> CandidateSnapshot:
+    """Sample and fully checksum the fixed candidate set."""
+
+    return _snapshot_candidate_root(_candidate_directory(path))
+
+
 def _parse_snapshot_document(value: object) -> CandidateSnapshot:
     document = _object(value, "candidate snapshot")
     _exact_keys(
@@ -325,6 +406,12 @@ def _parse_snapshot_document(value: object) -> CandidateSnapshot:
 def load_candidate_snapshot(path: pathlib.Path) -> CandidateSnapshot:
     """Load one private preflight snapshot through strict JSON parsing."""
 
+    path = _normalize_fixed_output_path(
+        path,
+        safe_root=CANDIDATE_RAW_ROOT,
+        expected_name=CANDIDATE_SNAPSHOT_NAME,
+        label="candidate preflight snapshot",
+    )
     raw = _snapshot_file(
         path,
         maximum=MAX_SNAPSHOT_BYTES,
@@ -374,9 +461,38 @@ def _private_directory(path: pathlib.Path, label: str) -> int:
     return descriptor
 
 
-def _validate_output_path(path: pathlib.Path, expected_name: str, label: str) -> None:
+def _normalize_fixed_output_path(
+    path: pathlib.Path,
+    *,
+    safe_root: pathlib.Path,
+    expected_name: str,
+    label: str,
+) -> pathlib.Path:
+    """Normalize one absent fixed-leaf output below a private direct child."""
+
     _require(path.is_absolute(), f"{label} must be absolute")
     _require(path.name == expected_name, f"{label} leaf differs")
+    parent, root = _normalize_path_under_root(
+        path.parent,
+        safe_root=safe_root,
+        label=f"{label} parent",
+        required_root_mode=0o700,
+    )
+    _require(parent.parent == root, f"{label} parent must be a direct safe-root child")
+    normalized = parent / expected_name
+    if os.path.realpath(os.fspath(normalized)) != os.fspath(normalized):
+        raise CandidateAttestationError(
+            f"{label} must contain no symlink aliases"
+        )
+    return normalized
+
+
+def _validate_output_absent(
+    path: pathlib.Path,
+    *,
+    expected_name: str,
+    label: str,
+) -> None:
     parent_fd = _private_directory(path.parent, f"{label} parent")
     try:
         try:
@@ -392,30 +508,35 @@ def _validate_output_path(path: pathlib.Path, expected_name: str, label: str) ->
 
 def _validate_projection_target(
     candidate: pathlib.Path, projection_path: pathlib.Path
-) -> None:
+) -> tuple[pathlib.Path, pathlib.Path]:
     """Require the projection tree to be disjoint from candidate source bytes."""
 
     candidate_root = _candidate_directory(candidate)
-    _require(projection_path.is_absolute(), "candidate projection must be absolute")
-    try:
-        projection_parent = projection_path.parent.resolve(strict=True)
-    except OSError as exc:
-        raise CandidateAttestationError(
-            "cannot resolve candidate projection parent"
-        ) from exc
+    normalized_projection = _normalize_fixed_output_path(
+        projection_path,
+        safe_root=CANDIDATE_PROJECTION_ROOT,
+        expected_name=PROJECTION_NAME,
+        label="candidate projection",
+    )
+    projection_parent = normalized_projection.parent
     try:
         projection_parent.relative_to(candidate_root)
     except ValueError:
         pass
     else:
         _fail("candidate projection parent is inside the candidate directory")
-    _validate_output_path(projection_path, PROJECTION_NAME, "candidate projection")
+    _validate_output_absent(
+        normalized_projection,
+        expected_name=PROJECTION_NAME,
+        label="candidate projection",
+    )
+    return candidate_root, normalized_projection
 
 
 def _write_private_json(
     path: pathlib.Path, expected_name: str, value: object, label: str
 ) -> str:
-    _validate_output_path(path, expected_name, label)
+    _validate_output_absent(path, expected_name=expected_name, label=label)
     payload = (
         json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
     ).encode("ascii")
@@ -457,14 +578,37 @@ def write_candidate_snapshot(
 ) -> None:
     """Capture preflight bytes and prevalidate the explicit projection target."""
 
-    _validate_projection_target(candidate, projection_path)
-    snapshot = snapshot_candidate(candidate)
+    candidate_root, projection_path = _validate_projection_target(
+        candidate,
+        projection_path,
+    )
+    snapshot_path = _normalize_fixed_output_path(
+        snapshot_path,
+        safe_root=CANDIDATE_RAW_ROOT,
+        expected_name=CANDIDATE_SNAPSHOT_NAME,
+        label="candidate snapshot",
+    )
+    _validate_output_absent(
+        snapshot_path,
+        expected_name=CANDIDATE_SNAPSHOT_NAME,
+        label="candidate snapshot",
+    )
+    snapshot = _snapshot_candidate_root(candidate_root)
     _write_private_json(
         snapshot_path,
         CANDIDATE_SNAPSHOT_NAME,
         snapshot.document(),
         "candidate snapshot",
     )
+
+
+def preflight_candidate_paths(
+    candidate: pathlib.Path,
+    projection_path: pathlib.Path,
+) -> None:
+    """Validate caller-controlled paths before the shell invokes Git or GitHub."""
+
+    _validate_projection_target(candidate, projection_path)
 
 
 def _utc_timestamp(value: object) -> str:
@@ -726,15 +870,32 @@ def _verification_record(
     )
 
 
-def _raw_attestation_directory(path: pathlib.Path) -> None:
-    descriptor = _private_directory(path, "candidate attestation directory")
+def _raw_attestation_directory(path: pathlib.Path) -> pathlib.Path:
+    normalized, root = _normalize_path_under_root(
+        path,
+        safe_root=CANDIDATE_RAW_ROOT,
+        label="candidate attestation directory",
+        required_root_mode=0o700,
+    )
+    _require(
+        normalized.parent == root,
+        "candidate attestation directory must be a direct safe-root child",
+    )
+    _require(
+        SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
+        "candidate attestation directory leaf is unsafe",
+    )
+    descriptor = _private_directory(
+        normalized,
+        "candidate attestation directory",
+    )
     os.close(descriptor)
     expected = {CANDIDATE_SNAPSHOT_NAME}
     for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
         expected.add(f"{subject}.json")
         expected.add(f"{subject}.stderr")
     try:
-        actual = {entry.name for entry in path.iterdir()}
+        actual = {entry.name for entry in normalized.iterdir()}
     except OSError as exc:
         raise CandidateAttestationError(
             "cannot enumerate candidate attestation directory"
@@ -742,11 +903,12 @@ def _raw_attestation_directory(path: pathlib.Path) -> None:
     _require(actual == expected, "candidate attestation file set differs")
     for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
         _snapshot_file(
-            path / f"{subject}.stderr",
+            normalized / f"{subject}.stderr",
             maximum=MAX_PRIVATE_STDERR_BYTES,
             label=f"candidate attestation stderr for {subject}",
             private=True,
         )
+    return normalized
 
 
 def verify_candidate_attestations(
@@ -759,14 +921,23 @@ def verify_candidate_attestations(
     """Re-snapshot candidate bytes, verify six records, and publish projection."""
 
     _require(HEX_40.fullmatch(expected_commit) is not None, "expected commit is malformed")
-    _validate_projection_target(candidate, projection_path)
-    _raw_attestation_directory(attestation_dir)
+    candidate, projection_path = _validate_projection_target(
+        candidate,
+        projection_path,
+    )
+    attestation_dir = _raw_attestation_directory(attestation_dir)
+    preflight_snapshot_path = _normalize_fixed_output_path(
+        preflight_snapshot_path,
+        safe_root=CANDIDATE_RAW_ROOT,
+        expected_name=CANDIDATE_SNAPSHOT_NAME,
+        label="candidate preflight snapshot",
+    )
     _require(
         preflight_snapshot_path == attestation_dir / CANDIDATE_SNAPSHOT_NAME,
         "candidate preflight snapshot path differs",
     )
     preflight = load_candidate_snapshot(preflight_snapshot_path)
-    post_gh = snapshot_candidate(candidate)
+    post_gh = _snapshot_candidate_root(candidate)
     _require(
         post_gh.document() == preflight.document(),
         "candidate bytes changed during GitHub verification",
@@ -818,6 +989,8 @@ def verify_candidate_attestations(
 def _usage() -> str:
     return (
         "usage: platform_candidate_attestation.py release-tag | subject-names | "
+        "validate-raw-root | "
+        "preflight CANDIDATE_DIRECTORY PROJECTION_OUTPUT | "
         "snapshot CANDIDATE_DIRECTORY SNAPSHOT_OUTPUT PROJECTION_OUTPUT | "
         "verify CANDIDATE_DIRECTORY EXPECTED_COMMIT PROJECTION_OUTPUT "
         "RAW_ATTESTATION_DIRECTORY SNAPSHOT_INPUT"
@@ -830,6 +1003,24 @@ def _main(arguments: Sequence[str]) -> int:
         return 0
     if list(arguments) == ["subject-names"]:
         print("\n".join(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS))
+        return 0
+    if list(arguments) == ["validate-raw-root"]:
+        _normalized_safe_root(
+            CANDIDATE_VERIFICATION_ROOT,
+            label="candidate verification",
+            required_mode=0o700,
+        )
+        _normalized_safe_root(
+            CANDIDATE_RAW_ROOT,
+            label="candidate attestation",
+            required_mode=0o700,
+        )
+        return 0
+    if len(arguments) == 3 and arguments[0] == "preflight":
+        preflight_candidate_paths(
+            pathlib.Path(arguments[1]),
+            pathlib.Path(arguments[2]),
+        )
         return 0
     if len(arguments) == 4 and arguments[0] == "snapshot":
         write_candidate_snapshot(

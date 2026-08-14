@@ -52,6 +52,28 @@ for tool in gh git python3; do
 	}
 done
 
+# Reject every caller-controlled filesystem path before invoking Git or GitHub.
+sh artifact/python-run.sh artifact/platform_candidate_attestation.py preflight \
+	"$CANDIDATE_DIR" "$PROJECTION_OUTPUT"
+
+TARGET_ROOT=$ROOT/target
+VERIFICATION_ROOT=$TARGET_ROOT/abi2-platform-candidate-verification
+PRIVATE_PARENT=$VERIFICATION_ROOT/raw
+for private_root in "$TARGET_ROOT" "$VERIFICATION_ROOT" "$PRIVATE_PARENT"; do
+	if [ -e "$private_root" ]; then
+		test -d "$private_root" && test ! -L "$private_root" || {
+			printf 'error: candidate verification root must be a non-symlink directory: %s\n' "$private_root" >&2
+			exit 1
+		}
+	else
+		(umask 077 && mkdir "$private_root") || {
+			printf 'error: cannot create candidate verification root: %s\n' "$private_root" >&2
+			exit 1
+		}
+	fi
+done
+sh artifact/python-run.sh artifact/platform_candidate_attestation.py validate-raw-root
+
 RELEASE_TAG=$(sh artifact/python-run.sh artifact/platform_candidate_attestation.py release-tag)
 case "$RELEASE_TAG" in
 	'' | *[!A-Za-z0-9._+-]*)
@@ -83,21 +105,9 @@ test -z "$(git status --porcelain=v1 --untracked-files=all)" || {
 	exit 1
 }
 
-PRIVATE_PARENT=$ROOT/target
-if [ -e "$PRIVATE_PARENT" ]; then
-	test -d "$PRIVATE_PARENT" && test ! -L "$PRIVATE_PARENT" || {
-		printf 'error: candidate attestation parent must be a non-symlink directory\n' >&2
-		exit 1
-	}
-else
-	(umask 077 && mkdir "$PRIVATE_PARENT") || {
-		printf 'error: cannot create candidate attestation parent\n' >&2
-		exit 1
-	}
-fi
 ATTESTATION_DIR=$(
 	umask 077
-	mktemp -d "$PRIVATE_PARENT/abi2-platform-candidate-attestations.XXXXXXXX"
+	mktemp -d "$PRIVATE_PARENT/transaction.XXXXXXXX"
 ) || {
 	printf 'error: cannot create private candidate attestation directory\n' >&2
 	exit 1
