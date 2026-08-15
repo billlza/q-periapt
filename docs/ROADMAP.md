@@ -284,12 +284,13 @@ controlled-host, exact-sample proof is selected; exact results require proof sch
 v6 under budget schema v8. The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
-Budget schema v8 preserves the profile thresholds, 20,480-sample corpus, and
+Budget schema v8 preserves the profile thresholds, 20,480 samples per
+variant/operation, and
 1,024-pair primary percentile-estimate blocks, yielding 11 nearest-rank p99 tail
 observations per block. It also retains the former 256-pair estimator as a regression
 guard and applies the same limits at both scales; separately parameterized temporal-
 stability windows retain the same 5% CV limit.
-Proof schema v6 and the schema-v7 policy also bind the final dual-implementation
+Proof schema v6 and the schema-v8 policy also bind the final dual-implementation
 binary, portable archive/source, raw data, rustup toolchain and target, Cargo, Rustc,
 Xcode Clang/ar, and the canonical macOS SDK path/version/settings digest. The producer rejects repository/ancestor/user Cargo
 configuration and caller compiler/wrapper/loader controls, and builds offline in a
