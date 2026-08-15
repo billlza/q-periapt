@@ -1919,15 +1919,13 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "version": 1,
             "metadata": {"component": {"name": "q-periapt-hybrid-suite"}},
         }
-        (package / "share/q-periapt/bom/cbom.cdx.json").write_text(
-            json.dumps({**common, "components": crypto_components}, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
+        (package / "share/q-periapt/bom/cbom.cdx.json").write_bytes(
+            windows_package._canonical_json(
+                {**common, "components": crypto_components}
+            )
         )
-        (package / "share/q-periapt/bom/sbom.cdx.json").write_text(
-            json.dumps({**common, "components": sbom_components}, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
+        (package / "share/q-periapt/bom/sbom.cdx.json").write_bytes(
+            windows_package._canonical_json({**common, "components": sbom_components})
         )
         return package
 
@@ -2357,11 +2355,27 @@ class WindowsPackageManifestTests(unittest.TestCase):
             sbom_path = invalid / "share/q-periapt/bom/sbom.cdx.json"
             sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
             sbom["components"].pop()
-            sbom_path.write_text(json.dumps(sbom, sort_keys=True) + "\n", encoding="utf-8")
+            sbom_path.write_bytes(windows_package._canonical_json(sbom))
             with self.assertRaisesRegex(
                 WindowsPackageError, "SBOM components do not match Cargo.lock",
             ):
                 self._create(invalid)
+
+    def test_bom_fixtures_are_canonical_lf_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            for relative in (
+                "share/q-periapt/bom/cbom.cdx.json",
+                "share/q-periapt/bom/sbom.cdx.json",
+            ):
+                with self.subTest(relative=relative):
+                    data = (package / relative).read_bytes()
+                    self.assertEqual(
+                        data,
+                        windows_package._canonical_json(json.loads(data)),
+                    )
+                    self.assertTrue(data.endswith(b"\n"))
+                    self.assertFalse(data.endswith(b"\r\n"))
 
     def test_powershell_diagnostic_wiring_preserves_source_and_external_trust_roots(self) -> None:
         script = (self.repository_root / "artifact/windows-package.ps1").read_text(

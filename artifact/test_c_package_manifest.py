@@ -66,9 +66,10 @@ class CPackageManifestTests(unittest.TestCase):
         ):
             path = package / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                json.dumps({**common, "components": components}, sort_keys=True) + "\n",
-                encoding="utf-8",
+            path.write_bytes(
+                c_package_manifest.canonical_json(
+                    {**common, "components": components}
+                )
             )
 
     def _package(self, root: pathlib.Path, target: str = "x86_64-unknown-linux-gnu") -> pathlib.Path:
@@ -255,6 +256,22 @@ class CPackageManifestTests(unittest.TestCase):
                             package,
                             cargo_lock=self.repository / "Cargo.lock",
                         )
+
+    def test_bom_fixtures_are_canonical_lf_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            for relative in (
+                "share/q-periapt/bom/cbom.cdx.json",
+                "share/q-periapt/bom/sbom.cdx.json",
+            ):
+                with self.subTest(relative=relative):
+                    data = (package / relative).read_bytes()
+                    self.assertEqual(
+                        data,
+                        c_package_manifest.canonical_json(json.loads(data)),
+                    )
+                    self.assertTrue(data.endswith(b"\n"))
+                    self.assertFalse(data.endswith(b"\r\n"))
 
     def test_rust_workspace_source_digest_uses_global_path_order(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
