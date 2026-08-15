@@ -368,6 +368,7 @@ from crates_io_publication import (
     MAX_TRANSCRIPT_BYTES,
     persist_rust_package_contract_capture,
     persist_rust_package_diagnostic_capture,
+    validated_rust_package_contract_failure_marker,
 )
 from publication_receipt_io import PublicationReceiptIOError
 
@@ -411,6 +412,13 @@ try:
         maximum_stderr_bytes=MAX_HANDOFF_STDERR_BYTES,
         environment=environment,
     )
+    if result.returncode != 0:
+        marker = validated_rust_package_contract_failure_marker(result)
+        written = sys.stderr.buffer.write(marker)
+        sys.stderr.buffer.flush()
+        if written != len(marker):
+            raise OSError("Rust package failure marker replay was incomplete")
+        raise SystemExit(1)
     if allow_dirty == "0":
         persist_rust_package_contract_capture(descriptor, result)
     else:
@@ -1013,15 +1021,44 @@ try:
         staging_inode=int(sys.argv[6]),
     )
 except PublicationReceiptCommittedError as exc:
+    del exc
     print(
-        "error: Rust package handoff staging stopped after a leaf became visible "
-        f"leaf={exc.leaf or 'unavailable'} sha256={exc.digest or 'unavailable'}",
+        "RUST_PACKAGE_CONTRACT_FAILURE "
+        "stage=handoff-staging category=committed",
         file=sys.stderr,
     )
     raise SystemExit(125) from None
-except (CratesIoPublicationError, PublicationReceiptIOError, OSError, ValueError) as exc:
+except CratesIoPublicationError as exc:
     del exc
-    print("error: Rust package handoff staging failed", file=sys.stderr)
+    print(
+        "RUST_PACKAGE_CONTRACT_FAILURE "
+        "stage=handoff-staging category=contract",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from None
+except PublicationReceiptIOError as exc:
+    del exc
+    print(
+        "RUST_PACKAGE_CONTRACT_FAILURE "
+        "stage=handoff-staging category=publication-io",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from None
+except OSError as exc:
+    del exc
+    print(
+        "RUST_PACKAGE_CONTRACT_FAILURE "
+        "stage=handoff-staging category=filesystem",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from None
+except ValueError as exc:
+    del exc
+    print(
+        "RUST_PACKAGE_CONTRACT_FAILURE "
+        "stage=handoff-staging category=input",
+        file=sys.stderr,
+    )
     raise SystemExit(1) from None
 PY
 fi

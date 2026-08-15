@@ -129,7 +129,15 @@ class RegistryFixture:
 
 class CratesIoPublicationTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = tempfile.TemporaryDirectory()
+        self.assertIsNotNone(publication.pwd)
+        account_record = publication.pwd.getpwuid(os.geteuid())
+        trusted_test_parent = pathlib.Path(account_record.pw_dir).resolve(
+            strict=True
+        )
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix=".qperiapt-crates-test.",
+            dir=trusted_test_parent,
+        )
         self.addCleanup(self.temporary.cleanup)
         self.root = pathlib.Path(self.temporary.name).resolve()
         os.chmod(self.root, 0o700)
@@ -143,7 +151,6 @@ class CratesIoPublicationTests(unittest.TestCase):
             publication_state / "crates.io-v0.1.0"
         )
         self.production_state_root.mkdir(mode=0o700)
-        self.assertIsNotNone(publication.pwd)
         passwd_patch = mock.patch.object(
             publication.pwd,
             "getpwuid",
@@ -189,11 +196,16 @@ class CratesIoPublicationTests(unittest.TestCase):
         self.stderr_path = (
             self.staging_root / publication.RUST_PACKAGE_HANDOFF_STDERR_NAME
         )
+        self.package_archive_root = self.package_root / "package"
+        self.package_archive_root.mkdir(mode=0o700)
         self.package_paths: list[pathlib.Path] = []
         for index, (name, _dependencies) in enumerate(
             contract.CRATE_PUBLICATION_TOPOLOGY, start=1
         ):
-            path = self.package_root / f"{name}-{contract.PRODUCT_VERSION}.crate"
+            path = (
+                self.package_archive_root
+                / f"{name}-{contract.PRODUCT_VERSION}.crate"
+            )
             path.write_bytes(f"exact crate fixture {index} {name}\n".encode("ascii"))
             os.chmod(path, 0o600)
             self.package_paths.append(path)
@@ -512,6 +524,112 @@ finalize_rust_package_handoff_for_cli(
         self.assertEqual(contract.PUBLISHABLE_CRATES, result.planned_crates)
         self.assertEqual((), result.upload_attempts)
 
+    def test_handoff_stager_rejects_legacy_root_archive_layout(self) -> None:
+        rust_module = rust_contract_tests.rust_publish_contract
+        legacy_root, legacy_device, legacy_inode = (
+            rust_module.create_owned_package_directory(
+                "qperiapt-package-verification."
+            )
+        )
+        stage, stage_device, stage_inode = (
+            rust_module.create_owned_package_directory(
+                "qperiapt-rust-package-handoff-stage."
+            )
+        )
+        self.addCleanup(
+            self._remove_owned_if_present,
+            legacy_root,
+            legacy_device,
+            legacy_inode,
+        )
+        self.addCleanup(
+            self._remove_owned_if_present,
+            stage,
+            stage_device,
+            stage_inode,
+        )
+        for index, (name, _dependencies) in enumerate(
+            contract.CRATE_PUBLICATION_TOPOLOGY,
+            start=1,
+        ):
+            archive = legacy_root / f"{name}-{contract.PRODUCT_VERSION}.crate"
+            archive.write_bytes(f"legacy fixture {index}\n".encode("ascii"))
+            os.chmod(archive, 0o600)
+
+        with self.assertRaisesRegex(
+            receipt_io.PublicationReceiptIOError,
+            "cannot open Rust Cargo package archive directory",
+        ):
+            publication.stage_verified_crate_handoff(
+                legacy_root,
+                stage,
+                package_device=legacy_device,
+                package_inode=legacy_inode,
+                staging_device=stage_device,
+                staging_inode=stage_inode,
+            )
+        self.assertEqual((), tuple(stage.iterdir()))
+
+    def test_handoff_stager_rejects_inexact_cargo_archive_inventory(
+        self,
+    ) -> None:
+        rust_module = rust_contract_tests.rust_publish_contract
+
+        def new_stage() -> tuple[pathlib.Path, int, int]:
+            stage, device, inode = rust_module.create_owned_package_directory(
+                "qperiapt-rust-package-handoff-stage."
+            )
+            self.addCleanup(
+                self._remove_owned_if_present,
+                stage,
+                device,
+                inode,
+            )
+            return stage, device, inode
+
+        first = self.package_paths[0]
+        first_payload = first.read_bytes()
+        first.unlink()
+        missing_stage, missing_device, missing_inode = new_stage()
+        try:
+            with self.assertRaisesRegex(
+                publication.CratesIoPublicationError,
+                "archive inventory differs",
+            ):
+                publication.stage_verified_crate_handoff(
+                    self.package_root,
+                    missing_stage,
+                    package_device=self.package_device,
+                    package_inode=self.package_inode,
+                    staging_device=missing_device,
+                    staging_inode=missing_inode,
+                )
+            self.assertEqual((), tuple(missing_stage.iterdir()))
+        finally:
+            first.write_bytes(first_payload)
+            os.chmod(first, 0o600)
+
+        extra = self.package_archive_root / "unexpected.crate"
+        extra.write_bytes(b"unexpected\n")
+        os.chmod(extra, 0o600)
+        extra_stage, extra_device, extra_inode = new_stage()
+        try:
+            with self.assertRaisesRegex(
+                publication.CratesIoPublicationError,
+                "archive inventory differs",
+            ):
+                publication.stage_verified_crate_handoff(
+                    self.package_root,
+                    extra_stage,
+                    package_device=self.package_device,
+                    package_inode=self.package_inode,
+                    staging_device=extra_device,
+                    staging_inode=extra_inode,
+                )
+            self.assertEqual((), tuple(extra_stage.iterdir()))
+        finally:
+            extra.unlink()
+
     def test_verify_binds_api_sparse_and_exact_local_archive_hashes(self) -> None:
         evidence = self.evidence()
         registry = RegistryFixture(evidence.crates, published_count=10)
@@ -671,6 +789,54 @@ finalize_rust_package_handoff_for_cli(
 
     def test_handoff_stderr_is_bounded_filtered_and_never_committed(self) -> None:
         publication.validate_rust_package_contract_stderr(b"safe progress\n")
+        safe_failure = (
+            b"RUST_PACKAGE_CONTRACT_FAILURE "
+            b"stage=handoff-staging category=contract\n"
+        )
+        self.assertEqual(
+            safe_failure,
+            publication.validated_rust_package_contract_failure_marker(
+                BoundedResult(
+                    returncode=1,
+                    stdout=b"must not be replayed",
+                    stderr=safe_failure,
+                )
+            ),
+        )
+        for category in (
+            b"filesystem",
+            b"input",
+            b"publication-io",
+            b"committed",
+        ):
+            marker = (
+                b"RUST_PACKAGE_CONTRACT_FAILURE "
+                b"stage=handoff-staging category=" + category + b"\n"
+            )
+            self.assertEqual(
+                marker,
+                publication.validated_rust_package_contract_failure_marker(
+                    BoundedResult(returncode=125, stderr=marker)
+                ),
+            )
+        for invalid_result in (
+            BoundedResult(returncode=0, stderr=safe_failure),
+            BoundedResult(returncode=1, stderr=b""),
+            BoundedResult(
+                returncode=1,
+                stderr=safe_failure + safe_failure,
+            ),
+            BoundedResult(
+                returncode=1,
+                stderr=b"RUST_PACKAGE_CONTRACT_FAILURE stage=other category=contract\n",
+            ),
+        ):
+            with self.subTest(invalid_result=invalid_result), self.assertRaises(
+                publication.CratesIoPublicationError
+            ):
+                publication.validated_rust_package_contract_failure_marker(
+                    invalid_result
+                )
         hostile = (
             b"RUST_PACKAGE_HANDOFF_PASS path=fake sha256=" + b"a" * 64,
             b"error: RUST_PACKAGE_HANDOFF_COMMITTED visibility=committed",
@@ -2521,6 +2687,36 @@ signal.pause()
                 "lstat",
                 autospec=True,
                 side_effect=lstat_with_foreign_ancestor,
+            ),
+            self.assertRaisesRegex(
+                publication.CratesIoPublicationError,
+                "ancestry is not trusted",
+            ),
+        ):
+            publication._publication_account_home()
+
+    def test_publication_account_home_rejects_world_writable_ancestor(
+        self,
+    ) -> None:
+        writable_ancestor = self.account_home.parent
+        original_lstat = pathlib.Path.lstat
+
+        def lstat_with_writable_ancestor(
+            path: pathlib.Path,
+        ) -> os.stat_result:
+            metadata = original_lstat(path)
+            if path != writable_ancestor:
+                return metadata
+            fields = list(metadata)
+            fields[0] |= 0o002
+            return os.stat_result(fields)
+
+        with (
+            mock.patch.object(
+                pathlib.Path,
+                "lstat",
+                autospec=True,
+                side_effect=lstat_with_writable_ancestor,
             ),
             self.assertRaisesRegex(
                 publication.CratesIoPublicationError,

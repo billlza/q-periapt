@@ -80,6 +80,7 @@ from git_provenance import (
 from publication_receipt_io import (
     PRIVATE_DIRECTORY_MODE,
     PRIVATE_FILE_MODE,
+    PrivateDirectoryHandle,
     PublicationReceiptCommittedError,
     PublicationReceiptIOError,
     canonical_json_bytes,
@@ -88,6 +89,7 @@ from publication_receipt_io import (
     ensure_private_safe_root,
     normalize_safe_root,
     open_private_directory,
+    open_private_directory_at,
     prepare_private_json_noreplace_at,
     read_fixed_json_snapshot,
     verify_exact_directory_inventory_at,
@@ -189,6 +191,11 @@ _CREDENTIAL_DIAGNOSTIC_TERMS = (
     b"cargo_registry_token",
     b"credential-provider",
     b"credential_provider",
+)
+_RUST_PACKAGE_CONTRACT_FAILURE_RE = re.compile(
+    rb"^RUST_PACKAGE_CONTRACT_FAILURE "
+    rb"stage=(handoff-staging) "
+    rb"category=(contract|filesystem|input|publication-io|committed)\n$"
 )
 _DANGEROUS_REMOTE_TRUST_ENVIRONMENT = frozenset(
     {
@@ -1130,6 +1137,25 @@ def validate_rust_package_contract_stderr(stderr: bytes) -> None:
     )
 
 
+def validated_rust_package_contract_failure_marker(
+    result: BoundedResult,
+) -> bytes:
+    """Return one allowlisted inner failure marker without exposing raw output."""
+
+    _require(
+        isinstance(result, BoundedResult)
+        and type(result.returncode) is int
+        and result.returncode != 0,
+        "Rust package contract failure result is invalid",
+    )
+    validate_rust_package_contract_stderr(result.stderr)
+    _require(
+        _RUST_PACKAGE_CONTRACT_FAILURE_RE.fullmatch(result.stderr) is not None,
+        "inner Rust package contract failure marker is not allowlisted",
+    )
+    return result.stderr
+
+
 def _validated_rust_package_capture(
     result: BoundedResult,
 ) -> tuple[bytes, bytes]:
@@ -1345,104 +1371,142 @@ def stage_verified_crate_handoff(
     package_fd = open_private_directory(
         package_root, label="Rust package verification root"
     )
-    staging_fd = open_private_directory(
-        staging_root, label="Rust package handoff stage"
+    try:
+        package_metadata = os.fstat(package_fd)
+    except OSError as exc:
+        try:
+            os.close(package_fd)
+        except OSError as close_error:
+            exc.add_note("cannot close failed Rust package verification root")
+        raise CratesIoPublicationError(
+            "cannot inspect Rust package verification root"
+        ) from exc
+    package_handle = PrivateDirectoryHandle(
+        path=package_root,
+        descriptor=package_fd,
+        parent_descriptor=-1,
+        name=package_root.name,
+        device=package_metadata.st_dev,
+        inode=package_metadata.st_ino,
+        mode=PRIVATE_DIRECTORY_MODE,
     )
+    try:
+        staging_fd = open_private_directory(
+            staging_root, label="Rust package handoff stage"
+        )
+    except BaseException as exc:
+        try:
+            os.close(package_fd)
+        except OSError as close_error:
+            exc.add_note("cannot close Rust package verification root")
+        raise
     primary_error: BaseException | None = None
     try:
-        with os.scandir(package_fd) as iterator:
-            archive_entries = frozenset(
-                entry.name for entry in iterator if entry.name.endswith(".crate")
-            )
-        expected_files = frozenset(_expected_crate_files())
-        _require(
-            archive_entries == expected_files,
-            "Rust package verification root .crate inventory differs",
-        )
-        with os.scandir(staging_fd) as iterator:
-            initial_stage_entries = frozenset(entry.name for entry in iterator)
-        _require(
-            not initial_stage_entries,
-            "Rust package handoff stage contains an unexpected preexisting entry",
-        )
-        records: list[dict[str, object]] = []
-        total_size = 0
-        for (name, dependencies), crate_file in zip(
-            CRATE_PUBLICATION_TOPOLOGY, _expected_crate_files()
-        ):
-            snapshot = _read_private_file_at(
-                package_fd,
-                crate_file,
-                display_path=package_root / crate_file,
-                maximum=MAX_CRATE_BYTES,
-                label=f"verified {name} .crate archive",
-            )
-            _require(snapshot.size > 0, f"verified {name} archive is empty")
-            total_size += snapshot.size
+        with open_private_directory_at(
+            parent=package_handle,
+            direct_child_name="package",
+            label="Rust Cargo package archive directory",
+        ) as archive_handle:
+            archive_fd = archive_handle.descriptor
+            archive_root = archive_handle.path
+            with os.scandir(archive_fd) as iterator:
+                archive_entries = frozenset(
+                    entry.name
+                    for entry in iterator
+                    if entry.name.endswith(".crate")
+                )
+            expected_files = frozenset(_expected_crate_files())
             _require(
-                total_size <= MAX_TOTAL_CRATE_BYTES,
-                "verified aggregate .crate input exceeds the byte limit",
+                archive_entries == expected_files,
+                "Rust Cargo package archive inventory differs",
             )
-            written_digest = write_private_bytes_noreplace_at(
+            with os.scandir(staging_fd) as iterator:
+                initial_stage_entries = frozenset(entry.name for entry in iterator)
+            _require(
+                not initial_stage_entries,
+                "Rust package handoff stage contains an unexpected preexisting entry",
+            )
+            records: list[dict[str, object]] = []
+            total_size = 0
+            for (name, dependencies), crate_file in zip(
+                CRATE_PUBLICATION_TOPOLOGY, _expected_crate_files()
+            ):
+                snapshot = _read_private_file_at(
+                    archive_fd,
+                    crate_file,
+                    display_path=archive_root / crate_file,
+                    maximum=MAX_CRATE_BYTES,
+                    label=f"verified {name} .crate archive",
+                )
+                _require(snapshot.size > 0, f"verified {name} archive is empty")
+                total_size += snapshot.size
+                _require(
+                    total_size <= MAX_TOTAL_CRATE_BYTES,
+                    "verified aggregate .crate input exceeds the byte limit",
+                )
+                written_digest = write_private_bytes_noreplace_at(
+                    staging_fd,
+                    crate_file,
+                    snapshot.data,
+                    label=f"staged {name} .crate archive",
+                    maximum=MAX_CRATE_BYTES,
+                )
+                _require(
+                    written_digest == snapshot.sha256,
+                    f"staged {name} archive digest differs",
+                )
+                records.append(
+                    {
+                        "crate_file": crate_file,
+                        "crate_sha256": snapshot.sha256,
+                        "crate_size": snapshot.size,
+                        "dependencies": list(dependencies),
+                        "name": name,
+                        "version": PRODUCT_VERSION,
+                    }
+                )
+            staging_manifest = {
+                "crates": records,
+                "kind": RUST_PACKAGE_HANDOFF_STAGING_KIND,
+                "schema_version": RUST_PACKAGE_HANDOFF_SCHEMA_VERSION,
+            }
+            manifest_payload = canonical_json_bytes(staging_manifest)
+            manifest_digest = write_private_bytes_noreplace_at(
                 staging_fd,
-                crate_file,
-                snapshot.data,
-                label=f"staged {name} .crate archive",
-                maximum=MAX_CRATE_BYTES,
+                RUST_PACKAGE_HANDOFF_STAGING_MANIFEST_NAME,
+                manifest_payload,
+                label="Rust package staging manifest",
+                maximum=MAX_HANDOFF_MANIFEST_BYTES,
             )
-            _require(
-                written_digest == snapshot.sha256,
-                f"staged {name} archive digest differs",
+            verify_exact_directory_inventory_at(
+                staging_fd,
+                frozenset(
+                    {
+                        *_expected_crate_files(),
+                        RUST_PACKAGE_HANDOFF_STAGING_MANIFEST_NAME,
+                    }
+                ),
+                label="Rust package handoff stage",
             )
-            records.append(
-                {
-                    "crate_file": crate_file,
-                    "crate_sha256": snapshot.sha256,
-                    "crate_size": snapshot.size,
-                    "dependencies": list(dependencies),
-                    "name": name,
-                    "version": PRODUCT_VERSION,
-                }
-            )
-        staging_manifest = {
-            "crates": records,
-            "kind": RUST_PACKAGE_HANDOFF_STAGING_KIND,
-            "schema_version": RUST_PACKAGE_HANDOFF_SCHEMA_VERSION,
-        }
-        manifest_payload = canonical_json_bytes(staging_manifest)
-        manifest_digest = write_private_bytes_noreplace_at(
-            staging_fd,
-            RUST_PACKAGE_HANDOFF_STAGING_MANIFEST_NAME,
-            manifest_payload,
-            label="Rust package staging manifest",
-            maximum=MAX_HANDOFF_MANIFEST_BYTES,
-        )
-        verify_exact_directory_inventory_at(
-            staging_fd,
-            frozenset(
-                {
-                    *_expected_crate_files(),
-                    RUST_PACKAGE_HANDOFF_STAGING_MANIFEST_NAME,
-                }
-            ),
-            label="Rust package handoff stage",
-        )
-        for record in records:
-            crate_file = record["crate_file"]
-            _require(isinstance(crate_file, str), "staged archive name type differs")
-            source_snapshot = _read_private_file_at(
-                package_fd,
-                crate_file,
-                display_path=package_root / crate_file,
-                maximum=MAX_CRATE_BYTES,
-                label=f"resampled {record['name']} .crate archive",
-            )
-            _require(
-                source_snapshot.size == record["crate_size"]
-                and source_snapshot.sha256 == record["crate_sha256"],
-                f"verified {record['name']} archive changed while staging",
-            )
-        return manifest_digest
+            for record in records:
+                crate_file = record["crate_file"]
+                _require(
+                    isinstance(crate_file, str),
+                    "staged archive name type differs",
+                )
+                source_snapshot = _read_private_file_at(
+                    archive_fd,
+                    crate_file,
+                    display_path=archive_root / crate_file,
+                    maximum=MAX_CRATE_BYTES,
+                    label=f"resampled {record['name']} .crate archive",
+                )
+                _require(
+                    source_snapshot.size == record["crate_size"]
+                    and source_snapshot.sha256 == record["crate_sha256"],
+                    f"verified {record['name']} archive changed while staging",
+                )
+            return manifest_digest
     except BaseException as exc:
         primary_error = exc
         raise

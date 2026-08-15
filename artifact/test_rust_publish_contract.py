@@ -2940,6 +2940,10 @@ class RustPublishContractTests(unittest.TestCase):
             script,
         )
         self.assertIn("persist_rust_package_contract_capture", script)
+        self.assertIn(
+            "validated_rust_package_contract_failure_marker",
+            script,
+        )
         self.assertIn("timeout_seconds=300", script)
         self.assertIn("maximum_stdout_bytes=MAX_TRANSCRIPT_BYTES", script)
         self.assertIn("maximum_stderr_bytes=MAX_HANDOFF_STDERR_BYTES", script)
@@ -2961,9 +2965,24 @@ class RustPublishContractTests(unittest.TestCase):
         self.assertLess(capture_call, diagnostic_capture_commit)
         self.assertLess(clean_capture_commit, bounded_failure)
         self.assertLess(diagnostic_capture_commit, bounded_failure)
+        failure_validation = script.index(
+            "marker = validated_rust_package_contract_failure_marker(result)"
+        )
+        failure_replay = script.index(
+            "written = sys.stderr.buffer.write(marker)",
+            failure_validation,
+        )
+        self.assertLess(capture_call, failure_validation)
+        self.assertLess(failure_validation, failure_replay)
+        self.assertLess(failure_replay, clean_capture_commit)
+        self.assertNotIn("sys.stderr.buffer.write(result.stderr)", script)
         self.assertNotIn("require_clean_transcript", script)
         self.assertIn('if [ "$ALLOW_DIRTY" = "0" ]; then', script)
         self.assertIn("stage_verified_crate_handoff(", script)
+        self.assertIn(
+            '"stage=handoff-staging category=contract"',
+            script,
+        )
         stage_call = script.index("    stage_verified_crate_handoff(")
         stage_guard = script.rindex(
             'if [ "$ALLOW_DIRTY" = "0" ]; then',
