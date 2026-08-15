@@ -178,7 +178,7 @@ public enum QPeriaptHybrid {
 
     /// Encapsulate under one authenticated policy decision. The native core
     /// canonically commits the exact policy digest and `applicationContext`;
-    /// a CompatXWing decision is rejected because that profile ignores context.
+    /// a CompatXWing decision is rejected because that profile has no context input.
     public static func encapsulate(
         decision: QPeriaptPolicyDecision,
         pkPq: [UInt8], pkTrad: [UInt8], applicationContext: [UInt8]

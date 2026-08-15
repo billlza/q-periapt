@@ -52,7 +52,7 @@ production superiority.
 | [Signal Sesame](https://signal.org/docs/specifications/sesame/) | Asynchronous multi-device session management | Per-device active/inactive sessions, convergence, retries, stale devices, bounded storage/error handling | Q-Periapt has no user/device/session graph, queue, retry, revocation, or recovery implementation. |
 | [Apple PQ3](https://security.apple.com/blog/imessage-pq3/) | Deployed messaging protocol with asynchronous establishment and ongoing PQ ratcheting | Pairwise per-device sessions, Contact Key Verification, hardware-backed classical device authentication, periodic PQ healing, protocol analysis, external review, huge deployment | Authentication remains classical against an active quantum attacker; cadence and platform infrastructure are product trade-offs. Q-Periapt still has no comparable ratchet, transparency service, audit, telemetry, or scale. |
 | [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current software `mlkem-native`/`fips204` keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
-| Q-Periapt `CompatXWing` | Byte-exact X-Wing comparison profile | Three official-vector KATs; seed-`dk` guard | Intentionally ignores suite/version/context; native X-Wing has no context parameter, so the local K-CTX wrapper property is inapplicable. |
+| Q-Periapt `CompatXWing` | Byte-exact X-Wing comparison profile | Three official-vector KATs; seed-`dk` guard; noncanonical metadata rejection | Native X-Wing has no suite/version/context inputs, so the local K-CTX wrapper property is inapplicable. Q-Periapt requires canonical absence (`[]`, `0`, `[]`) and rejects supplied values instead of implying that they are bound. |
 | Q-Periapt `ContextBound` | Non-standard committing hybrid profile | Binds suite/version/all ct/pk/context; machine-checked reductions and countermodels | Research profile; no standards adoption, external audit, or formal spec-to-Rust refinement. |
 
 For operational KEM guidance, NIST’s [SP 800-227](https://csrc.nist.gov/pubs/sp/800/227/final)
@@ -346,15 +346,18 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Standards/interoperability | X-Wing/CFRG/TLS **lead** | deployed proprietary protocols | **behind** for ContextBound |
 | Third-party audit/deployment | major **lead** | major **lead** | **behind**: none |
 | Constant-time/FIPS backend maturity | production implementations vary, best are strong | production-hardened | **behind/partial**; per-backend/ISA only |
-| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v3/proof schema v6/budget schema v8 carries profile non-regression and a distinct byte-equivalent native/portable ContextBound implementation-improvement estimand in one same-process ABBA/BAAB slot; it binds the SDK/toolchain, final binary, portable archive/source, and canonical source, while mutable registry/sysroot/OS and collector honesty remain trusted |
+| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v4/proof schema v7/budget schema v9 carries profile non-regression with strict profile-specific canonical inputs and a distinct byte-equivalent native/portable ContextBound implementation-improvement estimand in one same-process ABBA/BAAB slot; it binds the SDK/toolchain, final binary, portable archive/source, and canonical source, while mutable registry/sysroot/OS and collector honesty remain trusted |
 | End-to-end/device performance | optimized baseline | optimized deployed code | **pending**; rustls/backend, energy, and device gaps remain |
 
 ## 4. Performance: the only acceptable claim after fresh capture
 
-Raw schema v3 carries two separately named estimands in one same-process harness.
+Raw schema v4 carries two separately named estimands in one same-process harness.
 For profile non-regression, ContextBound and CompatXWing use the same native
 `MlKem768XWingSeed + X25519` backend, keys/coins/ciphertexts, and 64-case
-deterministic corpus. For implementation improvement, native and evidence-only
+deterministic corpus under the same ABBA/BAAB schedule. Strict nested
+`profile_inputs` fixes ContextBound's suite/version/application context and
+CompatXWing's canonical absence of those inputs (`[]`, `0`, `[]`). For implementation
+improvement, native and evidence-only
 portable ML-KEM-768 execute ContextBound encapsulation and decapsulation only after
 the harness establishes byte-identical keys, ciphertexts, and shared secrets. Both
 use a 5 s warm-up, 20,480 paired samples per applicable operation and variant, and
@@ -364,7 +367,7 @@ normalizes only after the strict budget-bound iteration-map check.
 
 Consecutive 1,024-pair blocks define the primary paired percentile ratio/delta
 estimand and moving-block-bootstrap upper bound. Under the nearest-rank rule, each
-block's p99 has 11 tail observations. Budget schema v8 preserves the v6 profile
+block's p99 has 11 tail observations. Budget schema v9 preserves the v6 profile
 contract, including its former 256-pair regression guard, and requires the published
 profile limits at both block scales. Separately parameterized 64/256/256-pair
 stability windows retain the 5% CV limit. The profile's nine bounds remain
@@ -381,7 +384,7 @@ product-path improvement. This narrows the implementation-performance hypothesis
 that host only. It has no checked-in canonical-source/toolchain-bound raw and analysis
 bundle and is not formal release evidence, an optimized X-Wing comparison, or a
 protocol/device lead. Exact quantitative results require a fresh
-raw-schema-v3/proof-schema-v6 run under budget schema v8.
+raw-schema-v4/proof-schema-v7 run under budget schema v9.
 
 Historical proof schema v5 additionally bound the exact rustup toolchain name so byte-identical mutable aliases
 cannot make tool selection ambiguous. An earlier 256-pair-primary attempt failed the decapsulation
@@ -410,10 +413,10 @@ the required domain verifier, not manifest prose alone, checks the actual proof,
 freshness. The target-selection/source migration invalidated all recorded portable-derived performance proofs,
 including the later matched-backend capture; a fresh same-source controlled-host run
 is required. The old single-call proof also remains invalid and must not be cited.
-The fixed budget-schema-v8 policy additionally pins the macOS SDK path, version,
+The fixed budget-schema-v9 policy additionally pins the macOS SDK path, version,
 and settings digest, together with the rustup toolchain and target plus Cargo,
 Rustc, Xcode Clang, and Xcode `ar` executable paths and hashes (and version output
-where available). Proof schema v6 also binds the final harness binary and the
+where available). Proof schema v7 also binds the final harness binary and the
 evidence-only portable reference source/archive. Collection selects those fixed tools, rejects
 repository/ancestor/user Cargo configuration, clears
 caller compiler/wrapper/loader controls, fixes system-tool lookup, builds offline in a fresh private

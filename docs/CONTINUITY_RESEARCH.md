@@ -44,8 +44,9 @@ The work therefore proceeds in **two non-interchangeable session lanes**:
 | **Continuity research lane** | Evaluate Q-Periapt-specific identity, context-policy, prekey-accountability, recovery, and proof-to-byte ideas | Use a distinct protocol identifier and wire version. Every delta is compared against the same-device reference lane and justified by a proof, attack, or measured Pareto improvement. |
 
 `CompatXWing` remains the byte-exact construction/control lane for hybrid-KEM work.
-It is not a runtime-selectable session profile because it intentionally ignores
-external context. `ContextBound` remains available to the research lane, but it may
+It is not a runtime-selectable session profile because X-Wing defines no external
+context input; q-periapt therefore rejects any non-empty Compat context rather than
+accepting and discarding caller intent. `ContextBound` remains available to the research lane, but it may
 only bind canonical bytes whose protocol meaning is independently authenticated.
 
 ## 2. The 2026 comparison baseline

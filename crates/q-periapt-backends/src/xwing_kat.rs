@@ -59,7 +59,7 @@ fn xwing_draft_kat_byte_exact() {
             .encapsulate(
                 &pk_m,
                 &pk_x,
-                b"", // CompatXWing ignores context (X-Wing has none)
+                b"", // Canonical empty context: X-Wing has no context input.
                 &eseed[0..32],
                 &eseed[32..64],
                 &mut ct_pq,

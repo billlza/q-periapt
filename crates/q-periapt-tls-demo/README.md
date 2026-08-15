@@ -65,9 +65,11 @@ historical methodology evidence, not current-provider or production parity.
 
 - **Is:** a server-authenticated, HPKE-base-shaped handshake — server static hybrid
   key + ML-DSA-65 identity (its verifying key **pinned** by the client out-of-band);
-  client encapsulates; both derive a session secret bound to the transcript
-  (`ContextBound`, context = `SHA3(ClientHello ‖ ServerHello)`); the server signs
-  the full transcript and sends a constant-time-checked key-confirmation.
+  client encapsulates; `ContextBound` binds
+  `SHA3(ClientHello ‖ ServerHello)` in the KEM, while `CompatXWing` supplies the
+  KEM its required empty suite/version/context metadata. In both profiles the
+  server signs the full transcript and sends a constant-time-checked confirmation
+  that binds the same transcript to the derived secret.
 - **Isn't:** the TLS 1.3 wire format. Identity here is a pinned key (no X.509 chain);
   the combiner is our standalone one, not the TLS key schedule (see below).
 - **Isn't:** PQXDH, Signal's SPQR/Triple Ratchet or Sesame, Apple PQ3, or the

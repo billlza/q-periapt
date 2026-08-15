@@ -1,9 +1,21 @@
 {
-  "schema_version": 8,
-  "harness_schema_version": 3,
+  "schema_version": 9,
+  "harness_schema_version": 4,
   "mode": "release_evidence",
   "target": "aarch64-apple-darwin",
   "schedule": "ABBA/BAAB",
+  "profile_inputs": {
+    "ContextBound": {
+      "suite_id_hex": "4d4c2d4b454d2d3736382b583235353139",
+      "policy_version": 1,
+      "application_context_hex": "712d706572696170742f706572666f726d616e63652d676174652f7631"
+    },
+    "CompatXWing": {
+      "suite_id_hex": "",
+      "policy_version": 0,
+      "application_context_hex": ""
+    }
+  },
   "corpus_size": 64,
   "iterations_per_sample": {
     "combine": 256,

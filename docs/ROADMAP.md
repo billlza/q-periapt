@@ -269,9 +269,11 @@ the BOMs as artifacts.
 [`paired_profile_perf.rs`](../crates/q-periapt-backends/examples/paired_profile_perf.rs)
 keeps the matched ContextBound/CompatXWing estimand and adds an independent
 native/portable implementation estimand for ContextBound product encapsulation and
-decapsulation. Both use the same seed-dk ML-KEM/X25519 keys, coins, ciphertext corpus,
-suite/version/context inputs, and paired ABBA/BAAB ordering. The evidence-only portable
-archive is private to this harness, and byte equality is required for keypair and every
+decapsulation. Both profiles use the same seed-dk ML-KEM/X25519 keys, coins,
+ciphertext corpus, and paired ABBA/BAAB ordering; strict `profile_inputs` fixes the
+ContextBound suite/version/application context and CompatXWing's canonical `[]`/`0`/`[]`.
+The evidence-only portable archive is private to this harness, and byte equality is
+required for keypair and every
 per-case encapsulation/decapsulation output before timing.
 [`performance_gate.py`](../artifact/performance_gate.py) enforces schema, sample inventory,
 host stability, source/binary/portable-archive/budget hashes, and both published budgets.
@@ -281,16 +283,16 @@ digest equals the live verifier digest and the host satisfies the controlled-pow
 thermal contract. The time-varying formal proof state is recorded in
 `artifact/results.json`. The gate is implemented, but no fresh clean-source,
 controlled-host, exact-sample proof is selected; exact results require proof schema
-v6 under budget schema v8. The older Criterion combiner harness remains a
+v7 under budget schema v9. The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
-Budget schema v8 preserves the profile thresholds, 20,480 samples per
+Budget schema v9 preserves the profile thresholds, 20,480 samples per
 variant/operation, and
 1,024-pair primary percentile-estimate blocks, yielding 11 nearest-rank p99 tail
 observations per block. It also retains the former 256-pair estimator as a regression
 guard and applies the same limits at both scales; separately parameterized temporal-
 stability windows retain the same 5% CV limit.
-Proof schema v6 and the schema-v8 policy also bind the final dual-implementation
+Proof schema v7 and the schema-v9 policy also bind the final dual-implementation
 binary, portable archive/source, raw data, rustup toolchain and target, Cargo, Rustc,
 Xcode Clang/ar, and the canonical macOS SDK path/version/settings digest. The producer rejects repository/ancestor/user Cargo
 configuration and caller compiler/wrapper/loader controls, and builds offline in a
@@ -588,7 +590,7 @@ are the gap between research-grade and audited/production.
 | Tamarin symbolic handshake model (auth, authenticated context agreement, hybrid robustness; 5 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (6 exact queries) | **Done** |
 | CI gate for the Tamarin proof (hard lemma-presence gate + hard `make prove`) | **Done** |
-| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** The same-process harness preserves profile non-regression and separately requires byte-equivalent native/portable ContextBound product operations to meet preregistered material thresholds. Exact results require a fresh clean proof-schema-v6 run under budget schema v8 selected by the results manifest. Verifier policy fixes the repository budget and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
+| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** The same-process harness preserves profile non-regression with strict profile-specific canonical inputs and separately requires byte-equivalent native/portable ContextBound product operations to meet preregistered material thresholds. Exact results require a fresh clean proof-schema-v7 run under budget schema v9 selected by the results manifest. Verifier policy fixes the repository budget and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Deterministic `ContextBound`/`CompatXWing` conformance vectors | **Done in Rust/WASM; intentionally not exported by native ABI2** |

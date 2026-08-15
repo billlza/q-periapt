@@ -12,6 +12,8 @@ use rustls::crypto::CryptoProvider;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{ClientConnection, NamedGroup, RootCertStore, ServerConnection};
 
+use q_periapt_policy::Policy;
+
 fn self_signed() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
     let cert_der = cert.cert.der().clone();
@@ -136,6 +138,27 @@ fn tls13_handshake_over_q_periapt_private_hybrid() {
         0x11EC,
         "private group used RFC 10024 codepoint"
     );
+}
+
+#[test]
+fn tls13_handshake_forces_actual_compat_xwing_group() {
+    let policy = Policy::from_toml(
+        "schema_version = 1\n\
+         policy_version = 1\n\
+         min_nist_level = 3\n\
+         default_profile = \"CompatXWing\"\n\
+         allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+         allowed_sigs = [\"ML-DSA-65\"]\n\
+         deprecated = []\n",
+    )
+    .unwrap();
+    let server_provider = q_periapt_rustls::provider_with_policy(&policy).unwrap();
+    let client_provider = q_periapt_rustls::provider_with_policy(&policy).unwrap();
+
+    assert_eq!(server_provider.kx_groups.len(), 1);
+    assert_eq!(client_provider.kx_groups.len(), 1);
+    let group = tls13_round_trip(server_provider, client_provider);
+    assert_eq!(group, q_periapt_rustls::Q_PERIAPT_COMPATXWING);
 }
 
 #[cfg(feature = "bench-baseline")]

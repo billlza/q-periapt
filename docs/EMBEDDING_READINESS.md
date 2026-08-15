@@ -395,9 +395,10 @@ reassembly, this Rust/C integration, the full ABI, or the packages above. A loca
 dirty native/portable diagnostic indicated material primitive and product-path
 improvement, but it has no checked-in canonical-source/toolchain-bound raw and
 analysis bundle and is not release evidence. The current release gate uses raw
-schema v3, proof schema v6, and budget schema v8: one same-process ABBA/BAAB slot
-preserves the ContextBound/CompatXWing profile estimand and separately requires
-byte-equivalent native/portable ContextBound encapsulation and decapsulation, with
+schema v4, proof schema v7, and budget schema v9: one same-process ABBA/BAAB slot
+preserves the ContextBound/CompatXWing profile estimand with strict fixed
+ContextBound inputs and canonical `[]`/`0`/`[]` CompatXWing inputs, and separately
+requires byte-equivalent native/portable ContextBound encapsulation and decapsulation, with
 p50/p95 upper ratios at most 0.95 and p99 at most 1.0. The proof additionally binds
 the selected SDK/toolchain, final harness binary, portable reference archive, and
 canonical source. Exact results require a fresh current-source proof selected by

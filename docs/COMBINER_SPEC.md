@@ -82,15 +82,15 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>)
 
   | Field | Type | Bound by `CompatXWing` | Bound by `ContextBound` |
   |-------|------|------------------------|-------------------------|
-  | `suite_id` | `&[u8]` | no | yes (field 1) |
-  | `policy_version` | `u32` | no | yes (field 2, 4-byte BE) |
+  | `suite_id` | `&[u8]` | no; must be empty | yes (field 1) |
+  | `policy_version` | `u32` | no; must be zero | yes (field 2, 4-byte BE) |
   | `ss_pq` | `&[u8]` | yes | yes (field 3) |
   | `ss_trad` | `&[u8]` | yes | yes (field 4) |
   | `ct_pq` | `&[u8]` | **no** (omitted — see §4) | yes (field 5) |
   | `pk_pq` | `&[u8]` | **no** (omitted — see §4) | yes (field 6) |
   | `ct_trad` | `&[u8]` | yes | yes (field 7) |
   | `pk_trad` | `&[u8]` | yes | yes (field 8) |
-  | `context` | `&[u8]` | no | yes (field 9, mandatory non-empty) |
+  | `context` | `&[u8]` | no; must be empty | yes (field 9, mandatory non-empty) |
 
 - Return: `Secret` on success, or `Error` (`InvalidLength` / `PolicyDenied` /
   `InvalidKeyShare` / `Backend`). `Error` is deliberately coarse and carries
@@ -134,6 +134,13 @@ The implementation (the `Profile::CompatXWing` arm of `combine`,
 5. `XWING_LABEL` (6 B)
 
 then squeezes 32 bytes.
+
+The three inputs that X-Wing does not define have one canonical representation:
+`suite_id = b""`, `policy_version = 0`, and `context = b""`. Supplying a non-empty
+suite or context, or a nonzero policy version, returns `Error::PolicyDenied`
+**before the XOF is constructed or any component KEM work is performed**. The
+implementation never accepts and silently normalizes those values. Callers that
+need suite, policy, or application-context binding must use `ContextBound`.
 
 ### 2.2 Hard 32-byte length checks (no length prefixes)
 
@@ -290,11 +297,11 @@ width + injectivity of `to_be_bytes`) plus collision-resistance of SHA3. See
 ### 3.4 Mandatory non-empty context
 
 `ContextBound` rejects an empty `context` with `Error::InvalidLength`
-**before absorbing anything** (the non-empty-context guard in the `Profile::ContextBound` arm of
+**before absorbing anything** (the profile-operation validator called before the profile arm in
 `combine`, [`crates/q-periapt-core/src/lib.rs`](../crates/q-periapt-core/src/lib.rs)):
 
 ```rust
-if input.context.is_empty() { return Err(Error::InvalidLength); }
+profile.validate_operation_inputs(input.suite_id, input.policy_version, input.context)?;
 ```
 
 This is a **profile-level semantic guard**, not an injectivity or CR-proof
@@ -406,7 +413,8 @@ has a small, non-exhaustive set of variants:
   diagnostic cause is not exposed to the caller.
 - `InvalidKeyShare` — a public invalid peer key, such as a noncanonical ML-KEM
   encapsulation key or a low-order/non-contributory X25519 input.
-- `PolicyDenied` — a forbidden profile/KEM combination (§4).
+- `PolicyDenied` — a forbidden profile/KEM combination (§4), or non-canonical
+  suite/version/context metadata supplied to `CompatXWing` (§2.1).
 
 No variant encodes secret-dependent information — in particular, **none** signals
 whether or why a correct-length FO-KEM ciphertext was invalid. Component KEMs use

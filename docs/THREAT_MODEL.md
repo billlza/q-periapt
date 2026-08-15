@@ -495,9 +495,10 @@ run passed. A fresh clean controlled-host proof and physical-device matrix must 
 collected against the release source. Until that exact-sample proof is selected, the
 implemented gate is not a demonstrated quantitative result.
 Currentness is determined only by `artifact/results.json`
-plus live verification against the canonical tree. Performance proof schema v6 and
-budget schema v8 bind both implementation IDs, the final binary, portable archive and
-source, raw data, source tree, rustup toolchain and target, Cargo, Rustc, Xcode
+plus live verification against the canonical tree. Performance proof schema v7 and
+budget schema v9 bind the strict profile-specific canonical inputs, both
+implementation IDs, the final binary, portable archive and source, raw data, source
+tree, rustup toolchain and target, Cargo, Rustc, Xcode
 Clang/ar, and the canonical macOS SDK path/version/settings digest.
 The producer rejects repository/ancestor/user Cargo configuration and caller
 compiler/wrapper/loader controls and builds offline in a fresh private target. The gate

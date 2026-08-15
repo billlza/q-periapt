@@ -28,7 +28,7 @@ use serde::Serialize;
 #[cfg(qperiapt_performance_evidence)]
 use sha3::{Digest, Sha3_256};
 
-const SCHEMA_VERSION: u32 = 3;
+const SCHEMA_VERSION: u32 = 4;
 const SCHEDULE: &str = "ABBA/BAAB";
 const PROFILE_NON_REGRESSION: &str = "profile_non_regression";
 #[cfg(qperiapt_performance_evidence)]
@@ -43,9 +43,9 @@ const PORTABLE_REFERENCE_IMPLEMENTATION_ID: &str =
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_SCOPE: &str = "evidence_only_non_product_reference";
 const CORPUS_SIZE: usize = 64;
-const SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
-const POLICY_VERSION: u32 = 1;
-const APPLICATION_CONTEXT: &[u8] = b"q-periapt/performance-gate/v1";
+const CONTEXT_BOUND_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
+const CONTEXT_BOUND_POLICY_VERSION: u32 = 1;
+const CONTEXT_BOUND_APPLICATION_CONTEXT: &[u8] = b"q-periapt/performance-gate/v1";
 const COMBINE_ITERATIONS_PER_SAMPLE: usize = 256;
 const ENCAPSULATE_ITERATIONS_PER_SAMPLE: usize = 1;
 const DECAPSULATE_ITERATIONS_PER_SAMPLE: usize = 2;
@@ -67,6 +67,13 @@ enum MeasuredProfile {
     CompatXWing,
 }
 
+#[derive(Clone, Copy)]
+struct CanonicalProfileInputs {
+    suite_id: &'static [u8],
+    policy_version: u32,
+    application_context: &'static [u8],
+}
+
 impl MeasuredProfile {
     const fn core(self) -> Profile {
         match self {
@@ -79,6 +86,21 @@ impl MeasuredProfile {
         match self {
             Self::ContextBound => "ContextBound",
             Self::CompatXWing => "CompatXWing",
+        }
+    }
+
+    const fn inputs(self) -> CanonicalProfileInputs {
+        match self {
+            Self::ContextBound => CanonicalProfileInputs {
+                suite_id: CONTEXT_BOUND_SUITE_ID,
+                policy_version: CONTEXT_BOUND_POLICY_VERSION,
+                application_context: CONTEXT_BOUND_APPLICATION_CONTEXT,
+            },
+            Self::CompatXWing => CanonicalProfileInputs {
+                suite_id: b"",
+                policy_version: 0,
+                application_context: b"",
+            },
         }
     }
 }
@@ -141,11 +163,24 @@ struct MetadataRecord {
     samples_per_variant_operation: usize,
     iterations_per_sample: IterationsPerSample,
     warmup_ms: u64,
+    profile_inputs: ProfileInputsRecord,
+    profile_non_regression: ProfileContract,
+    implementation_improvement: Option<ImplementationContract>,
+}
+
+#[derive(Serialize)]
+struct ProfileInputsRecord {
+    #[serde(rename = "ContextBound")]
+    context_bound: ProfileInputRecord,
+    #[serde(rename = "CompatXWing")]
+    compat_xwing: ProfileInputRecord,
+}
+
+#[derive(Serialize)]
+struct ProfileInputRecord {
     suite_id_hex: String,
     policy_version: u32,
     application_context_hex: String,
-    profile_non_regression: ProfileContract,
-    implementation_improvement: Option<ImplementationContract>,
 }
 
 #[derive(Serialize)]
@@ -330,6 +365,8 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
     let mut corpus = Vec::with_capacity(CORPUS_SIZE);
     let mut combine_ss_pq = [0u8; 32];
     let mut combine_ss_trad = [0u8; 32];
+    let bound_inputs = MeasuredProfile::ContextBound.inputs();
+    let compat_inputs = MeasuredProfile::CompatXWing.inputs();
 
     for index in 0..CORPUS_SIZE {
         let rand_pq = derive32(3, index);
@@ -340,7 +377,7 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
             .encapsulate(
                 &pk_pq,
                 &pk_trad,
-                APPLICATION_CONTEXT,
+                bound_inputs.application_context,
                 &rand_pq,
                 &rand_trad,
                 &mut ct_pq,
@@ -353,7 +390,7 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
             .encapsulate(
                 &pk_pq,
                 &pk_trad,
-                APPLICATION_CONTEXT,
+                compat_inputs.application_context,
                 &rand_pq,
                 &rand_trad,
                 &mut compat_ct_pq,
@@ -407,6 +444,7 @@ fn run_profile_once(
     fixture: &Fixture,
     corpus_index: usize,
 ) -> Result<(), BenchError> {
+    let inputs = profile.inputs();
     let kem = match profile {
         MeasuredProfile::ContextBound => bound,
         MeasuredProfile::CompatXWing => compat,
@@ -418,15 +456,15 @@ fn run_profile_once(
     match operation {
         Operation::Combine => {
             let input = CombineInput {
-                suite_id: SUITE_ID,
-                policy_version: POLICY_VERSION,
+                suite_id: inputs.suite_id,
+                policy_version: inputs.policy_version,
                 ss_pq: &fixture.combine_ss_pq,
                 ss_trad: &fixture.combine_ss_trad,
                 ct_pq: &entry.ct_pq,
                 pk_pq: &fixture.pk_pq,
                 ct_trad: &entry.ct_trad,
                 pk_trad: &fixture.pk_trad,
-                context: APPLICATION_CONTEXT,
+                context: inputs.application_context,
             };
             black_box(combine::<Sha3_256Xof>(profile.core(), black_box(&input)))
                 .map_err(|error| kem_error("combine measurement", error))?;
@@ -438,7 +476,7 @@ fn run_profile_once(
                 kem.encapsulate(
                     black_box(&fixture.pk_pq),
                     &fixture.pk_trad,
-                    APPLICATION_CONTEXT,
+                    inputs.application_context,
                     &entry.rand_pq,
                     &entry.rand_trad,
                     &mut ct_pq,
@@ -456,7 +494,7 @@ fn run_profile_once(
                     &fixture.sk_trad,
                     &entry.ct_trad,
                     &fixture.pk_trad,
-                    APPLICATION_CONTEXT,
+                    inputs.application_context,
                 )
                 .map_err(|error| kem_error("decapsulation measurement", error))?,
             );
@@ -739,8 +777,15 @@ fn build_portable_bound<'a>(
     pq: &'a portable_reference::PortableMlKem768XWingSeed,
     trad: &'a X25519,
 ) -> Result<PortableMatchedKem<'a>, BenchError> {
-    HybridKem::<_, _, Sha3_256Xof>::new(pq, trad, Profile::ContextBound, SUITE_ID, POLICY_VERSION)
-        .map_err(|error| kem_error("construct portable ContextBound harness", error))
+    let inputs = MeasuredProfile::ContextBound.inputs();
+    HybridKem::<_, _, Sha3_256Xof>::new(
+        pq,
+        trad,
+        Profile::ContextBound,
+        inputs.suite_id,
+        inputs.policy_version,
+    )
+    .map_err(|error| kem_error("construct portable ContextBound harness", error))
 }
 
 #[cfg(qperiapt_performance_evidence)]
@@ -750,6 +795,7 @@ fn verify_implementation_equivalence(
     fixture: &Fixture,
 ) -> Result<Vec<EquivalenceRecord>, BenchError> {
     portable_reference::ensure_native_identity(ML_KEM_IMPLEMENTATION_ID)?;
+    let application_context = MeasuredProfile::ContextBound.inputs().application_context;
     let seed = derive32(1, 0);
     let (portable_sk, portable_pk) = portable_reference::PortableMlKem768XWingSeed::generate(seed)
         .map_err(|error| kem_error("portable reference keypair", error))?;
@@ -778,7 +824,7 @@ fn verify_implementation_equivalence(
             .encapsulate(
                 &fixture.pk_pq,
                 &fixture.pk_trad,
-                APPLICATION_CONTEXT,
+                application_context,
                 &entry.rand_pq,
                 &entry.rand_trad,
                 &mut native_ct_pq,
@@ -791,7 +837,7 @@ fn verify_implementation_equivalence(
             .encapsulate(
                 &fixture.pk_pq,
                 &fixture.pk_trad,
-                APPLICATION_CONTEXT,
+                application_context,
                 &entry.rand_pq,
                 &entry.rand_trad,
                 &mut portable_ct_pq,
@@ -812,7 +858,7 @@ fn verify_implementation_equivalence(
         let encapsulate_input = digest_parts(&[
             &fixture.pk_pq,
             &fixture.pk_trad,
-            APPLICATION_CONTEXT,
+            application_context,
             &entry.rand_pq,
             &entry.rand_trad,
         ])?;
@@ -837,7 +883,7 @@ fn verify_implementation_equivalence(
                 &fixture.sk_trad,
                 &entry.ct_trad,
                 &fixture.pk_trad,
-                APPLICATION_CONTEXT,
+                application_context,
             )
             .map_err(|error| kem_error("native equivalence decapsulation", error))?;
         let portable_decapsulated = portable
@@ -848,7 +894,7 @@ fn verify_implementation_equivalence(
                 &fixture.sk_trad,
                 &entry.ct_trad,
                 &fixture.pk_trad,
-                APPLICATION_CONTEXT,
+                application_context,
             )
             .map_err(|error| kem_error("portable equivalence decapsulation", error))?;
         if native_decapsulated.as_bytes() != &entry.bound_secret
@@ -865,7 +911,7 @@ fn verify_implementation_equivalence(
             &fixture.sk_trad,
             &entry.ct_trad,
             &fixture.pk_trad,
-            APPLICATION_CONTEXT,
+            application_context,
         ])?;
         let decapsulate_output = digest_parts(&[native_decapsulated.as_bytes()])?;
         records.push(EquivalenceRecord {
@@ -891,6 +937,7 @@ fn run_implementation_once(
     fixture: &Fixture,
     corpus_index: usize,
 ) -> Result<(), BenchError> {
+    let application_context = MeasuredProfile::ContextBound.inputs().application_context;
     let entry = fixture
         .corpus
         .get(corpus_index)
@@ -910,7 +957,7 @@ fn run_implementation_once(
                         .encapsulate(
                             black_box(&fixture.pk_pq),
                             &fixture.pk_trad,
-                            APPLICATION_CONTEXT,
+                            application_context,
                             &entry.rand_pq,
                             &entry.rand_trad,
                             &mut ct_pq,
@@ -923,7 +970,7 @@ fn run_implementation_once(
                         .encapsulate(
                             black_box(&fixture.pk_pq),
                             &fixture.pk_trad,
-                            APPLICATION_CONTEXT,
+                            application_context,
                             &entry.rand_pq,
                             &entry.rand_trad,
                             &mut ct_pq,
@@ -944,7 +991,7 @@ fn run_implementation_once(
                             &fixture.sk_trad,
                             &entry.ct_trad,
                             &fixture.pk_trad,
-                            APPLICATION_CONTEXT,
+                            application_context,
                         )
                         .map_err(|error| kem_error("native decapsulation measurement", error))?,
                 ),
@@ -957,7 +1004,7 @@ fn run_implementation_once(
                             &fixture.sk_trad,
                             &entry.ct_trad,
                             &fixture.pk_trad,
-                            APPLICATION_CONTEXT,
+                            application_context,
                         )
                         .map_err(|error| kem_error("portable decapsulation measurement", error))?,
                 ),
@@ -1125,20 +1172,22 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let pq = MlKem768XWingSeed;
     let trad = X25519;
+    let bound_inputs = MeasuredProfile::ContextBound.inputs();
     let bound = HybridKem::<_, _, Sha3_256Xof>::new(
         &pq,
         &trad,
         Profile::ContextBound,
-        SUITE_ID,
-        POLICY_VERSION,
+        bound_inputs.suite_id,
+        bound_inputs.policy_version,
     )
     .map_err(|error| kem_error("construct ContextBound harness", error))?;
+    let compat_inputs = MeasuredProfile::CompatXWing.inputs();
     let compat = HybridKem::<_, _, Sha3_256Xof>::new(
         &pq,
         &trad,
         Profile::CompatXWing,
-        SUITE_ID,
-        POLICY_VERSION,
+        compat_inputs.suite_id,
+        compat_inputs.policy_version,
     )
     .map_err(|error| kem_error("construct CompatXWing harness", error))?;
     let fixture = build_fixture(&bound, &compat)?;
@@ -1214,9 +1263,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 decapsulate: Operation::Decapsulate.iterations_per_sample(),
             },
             warmup_ms: args.warmup_ms,
-            suite_id_hex: hex(SUITE_ID)?,
-            policy_version: POLICY_VERSION,
-            application_context_hex: hex(APPLICATION_CONTEXT)?,
+            profile_inputs: ProfileInputsRecord {
+                context_bound: ProfileInputRecord {
+                    suite_id_hex: hex(bound_inputs.suite_id)?,
+                    policy_version: bound_inputs.policy_version,
+                    application_context_hex: hex(bound_inputs.application_context)?,
+                },
+                compat_xwing: ProfileInputRecord {
+                    suite_id_hex: hex(compat_inputs.suite_id)?,
+                    policy_version: compat_inputs.policy_version,
+                    application_context_hex: hex(compat_inputs.application_context)?,
+                },
+            },
             profile_non_regression: ProfileContract {
                 backend: backend_id(),
                 direction: "ContextBound/CompatXWing",

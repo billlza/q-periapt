@@ -24,16 +24,22 @@ class CommandOutput(Protocol):
 
 
 class PerformanceGateTests(unittest.TestCase):
+    def test_performance_schema_versions_are_the_canonical_migration(self) -> None:
+        self.assertEqual(performance_gate.HARNESS_SCHEMA_VERSION, 4)
+        self.assertEqual(performance_gate.PROOF_SCHEMA_VERSION, 7)
+        self.assertEqual(performance_gate.BUDGET_SCHEMA_VERSION, 9)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.temp.name)
         self.raw = self.root / "raw.jsonl"
         self.budget = {
-            "schema_version": 8,
-            "harness_schema_version": 3,
+            "schema_version": performance_gate.BUDGET_SCHEMA_VERSION,
+            "harness_schema_version": performance_gate.HARNESS_SCHEMA_VERSION,
             "mode": "release_evidence",
             "target": "aarch64-apple-darwin",
             "schedule": "ABBA/BAAB",
+            "profile_inputs": performance_gate.canonical_profile_inputs(),
             "corpus_size": 2,
             "iterations_per_sample": {
                 "combine": 256,
@@ -131,7 +137,7 @@ class PerformanceGateTests(unittest.TestCase):
         slow_native: bool = False,
     ) -> None:
         metadata = {
-            "schema_version": 3,
+            "schema_version": performance_gate.HARNESS_SCHEMA_VERSION,
             "record_type": "metadata",
             "mode": "release_evidence",
             "target": "aarch64-apple-darwin",
@@ -144,9 +150,7 @@ class PerformanceGateTests(unittest.TestCase):
                 "decapsulate": 2,
             },
             "warmup_ms": 1,
-            "suite_id_hex": "00",
-            "policy_version": 1,
-            "application_context_hex": "01",
+            "profile_inputs": performance_gate.canonical_profile_inputs(),
             "profile_non_regression": {
                 "backend": "matched-test-backend",
                 "direction": "ContextBound/CompatXWing",
@@ -176,7 +180,7 @@ class PerformanceGateTests(unittest.TestCase):
             for case_id in range(case_count):
                 records.append(
                     {
-                        "schema_version": 3,
+                        "schema_version": performance_gate.HARNESS_SCHEMA_VERSION,
                         "record_type": "equivalence",
                         "operation": operation,
                         "case_id": case_id,
@@ -254,7 +258,7 @@ class PerformanceGateTests(unittest.TestCase):
                         elapsed_ns_total *= 2
                     records.append(
                         {
-                            "schema_version": 3,
+                            "schema_version": performance_gate.HARNESS_SCHEMA_VERSION,
                             "record_type": "sample",
                             "estimand": estimand,
                             "operation": operation,
@@ -1444,6 +1448,10 @@ class PerformanceGateTests(unittest.TestCase):
         )
         self.assertEqual(production["schema_version"], performance_gate.BUDGET_SCHEMA_VERSION)
         self.assertEqual(production["harness_schema_version"], performance_gate.HARNESS_SCHEMA_VERSION)
+        self.assertEqual(
+            production["profile_inputs"],
+            performance_gate.canonical_profile_inputs(),
+        )
         self.assertEqual(production["mode"], performance_gate.RELEASE_EVIDENCE_MODE)
         self.assertEqual(production["target"], "aarch64-apple-darwin")
         self.assertEqual(production["pair_block_size"], 1024)
@@ -1639,11 +1647,72 @@ class PerformanceGateTests(unittest.TestCase):
     def test_noncanonical_metadata_fails(self) -> None:
         lines = self.raw.read_text(encoding="utf-8").splitlines()
         metadata = json.loads(lines[0])
-        metadata["application_context_hex"] = "ABC"
+        metadata["profile_inputs"]["ContextBound"]["application_context_hex"] = "ABC"
         lines[0] = json.dumps(metadata)
         self.raw.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        with self.assertRaisesRegex(performance_gate.GateError, "invalid metadata application_context_hex"):
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "invalid metadata profile_inputs/ContextBound/application_context_hex",
+        ):
             performance_gate.parse_raw(self.raw)
+
+    def test_profile_inputs_require_exact_profile_specific_shape(self) -> None:
+        canonical = performance_gate.canonical_profile_inputs()
+        mutations = (
+            ("bound-suite", ("ContextBound", "suite_id_hex"), ""),
+            ("bound-version", ("ContextBound", "policy_version"), 0),
+            ("bound-context", ("ContextBound", "application_context_hex"), ""),
+            ("compat-suite", ("CompatXWing", "suite_id_hex"), "00"),
+            ("compat-version", ("CompatXWing", "policy_version"), 1),
+            ("compat-context", ("CompatXWing", "application_context_hex"), "00"),
+            ("boolean-version", ("ContextBound", "policy_version"), True),
+        )
+        for label, path, replacement in mutations:
+            with self.subTest(label=label):
+                changed = json.loads(json.dumps(canonical))
+                changed[path[0]][path[1]] = replacement
+                with self.assertRaises(performance_gate.GateError):
+                    performance_gate.validate_profile_inputs(changed, "test profile_inputs")
+
+        malformed_shapes = (
+            {"ContextBound": canonical["ContextBound"]},
+            {**canonical, "Unexpected": canonical["ContextBound"]},
+            {
+                **canonical,
+                "CompatXWing": {
+                    **canonical["CompatXWing"],
+                    "unexpected": 0,
+                },
+            },
+        )
+        for changed in malformed_shapes:
+            with self.subTest(shape=changed):
+                with self.assertRaises(performance_gate.GateError):
+                    performance_gate.validate_profile_inputs(changed, "test profile_inputs")
+
+    def test_legacy_global_profile_metadata_is_rejected(self) -> None:
+        lines = self.raw.read_text(encoding="utf-8").splitlines()
+        metadata = json.loads(lines[0])
+        del metadata["profile_inputs"]
+        metadata.update(
+            {
+                "suite_id_hex": "00",
+                "policy_version": 1,
+                "application_context_hex": "01",
+            }
+        )
+        lines[0] = json.dumps(metadata)
+        self.raw.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(performance_gate.GateError, "metadata record has unknown fields"):
+            performance_gate.parse_raw(self.raw)
+
+    def test_budget_profile_inputs_cannot_drift_from_the_harness_contract(self) -> None:
+        self.budget["profile_inputs"]["CompatXWing"]["policy_version"] = 1
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "budget profile_inputs/CompatXWing does not match",
+        ):
+            self.parse_and_analyse()
 
     def test_missing_pair_fails(self) -> None:
         lines = self.raw.read_text(encoding="utf-8").splitlines()

@@ -42,7 +42,7 @@ use ml_kem::{
     MlKem512 as RcMlKem512, MlKem768 as RcMlKem768, B32,
 };
 use orion::hazardous::ecc::x25519 as ox;
-use q_periapt_core::{Kem, Profile, XWING_LABEL};
+use q_periapt_core::{Error, Kem, Profile, XWING_LABEL};
 use q_periapt_kem::HybridKem;
 use q_periapt_sig::{Signer, Verifier};
 use sha3::{Digest, Sha3_256};
@@ -300,22 +300,28 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
 /// binds `ct_pq` and `pk_pq` directly.
 #[test]
 fn expanded_mlkem_backends_are_rejected_with_compat_xwing() {
-    assert!(HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
-        &MlKem768,
-        &X25519,
-        Profile::CompatXWing,
-        b"",
-        0
-    )
-    .is_err());
-    assert!(HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(
-        &MlKem1024,
-        &X25519,
-        Profile::CompatXWing,
-        b"",
-        0
-    )
-    .is_err());
+    assert_eq!(
+        HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+            &MlKem768,
+            &X25519,
+            Profile::CompatXWing,
+            b"",
+            0,
+        )
+        .err(),
+        Some(Error::PolicyDenied)
+    );
+    assert_eq!(
+        HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(
+            &MlKem1024,
+            &X25519,
+            Profile::CompatXWing,
+            b"",
+            0,
+        )
+        .err(),
+        Some(Error::PolicyDenied)
+    );
 }
 
 /// Separately written X-Wing transcript:

@@ -115,8 +115,8 @@ ranges from every live inline/heap copy and fails closed to whole-buffer erasure
 input or invalid metadata. This is a candidate implementation optimization with a local
 secret-hygiene property and a controlled-host matched-backend non-regression diagnostic.
 `artifact/results.json` selects the time-varying proof and the live domain verifier checks its
-source, artifacts, budget, host contract, and freshness. A selected raw-schema-v3 /
-proof-schema-v6 / budget-schema-v8 proof authorizes only its separately measured
+source, artifacts, budget, host contract, and freshness. A selected raw-schema-v4 /
+proof-schema-v7 / budget-schema-v9 proof authorizes only its separately measured
 native-over-portable ContextBound implementation improvement; it is not a
 ContextBound-over-X-Wing speed, energy, cross-platform, or optimized-production
 parity claim. This is not a new reduction or a full-runtime zeroization guarantee.
@@ -125,7 +125,7 @@ A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive
 product-path improvement. It has no checked-in canonical-source/toolchain-bound raw
 and analysis bundle, so it is not formal release evidence, a device result, or a
 cross-platform performance claim. Exact quantitative results require a fresh
-raw-schema-v3/proof-schema-v6 run under budget schema v8.
+raw-schema-v4/proof-schema-v7 run under budget schema v9.
 
 The PQClean-HQC dependency/runtime path has since been removed; numeric suite code `3`
 is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
@@ -272,8 +272,9 @@ producer/verifier and certificate/timestamp-authority gate exist.
 - **Do NOT** claim any X-BIND-CT-* notion (structurally unachievable for implicitly-rejecting KEMs).
 - **Do NOT** claim a ContextBound-over-X-Wing speed edge or overall parity:
   ContextBound hashes more bytes than X-Wing. The matched Mac core gate accepts only
-  a controlled current-source raw-schema-v3/proof-schema-v6 proof under budget
-  schema v8. Its profile estimand is non-regression, while its distinct same-process
+  a controlled current-source raw-schema-v4/proof-schema-v7 proof under budget
+  schema v9. Its profile estimand is non-regression with strict ContextBound fixed
+  inputs and CompatXWing canonical `[]`/`0`/`[]`, while its distinct same-process
   ABBA/BAAB implementation estimand requires byte-equivalent native/portable
   ContextBound encapsulation and decapsulation with p50/p95 upper ratios at most
   0.95 and p99 at most 1.0. The proof binds the final binary, evidence-only portable
@@ -515,10 +516,12 @@ producer/verifier and certificate/timestamp-authority gate exist.
 - ~~Add local netem baselines~~ — **historical supporting data present** for classical X25519,
   IANA `X25519MLKEM768`, CompatXWing, and ContextBound.
 - ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE as a gate; fresh
-  release evidence remains pending.** Raw schema v3 carries two separately named
+  release evidence remains pending.** Raw schema v4 carries two separately named
   estimands in one same-process ABBA/BAAB slot: profile non-regression and
   output-equivalent native/portable ContextBound implementation improvement.
-  Proof schema v6 and budget schema v8 retain 1,024-pair primary estimate blocks,
+  Its nested `profile_inputs` fixes the distinct canonical metadata inputs for both
+  profiles. Proof schema v7 and budget schema v9 retain 1,024-pair primary estimate
+  blocks,
   at least 10 nearest-rank p99 tail observations per block, the former 256-pair
   profile regression guard, and separately parameterized 5% CV stability windows.
   They additionally bind the SDK/toolchain, final harness binary, portable archive,

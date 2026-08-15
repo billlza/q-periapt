@@ -369,8 +369,10 @@ KEM to be binding---trading a KEM-self-binding assumption for a single, well-stu
 collision-resistance assumption. The dual profile \code{CompatXWing} reproduces X-Wing's lean
 combiner byte-for-byte for construction compatibility and therefore binds \emph{only}
 $ss_{\mathrm{pq}}\,\|\,ss_{\mathrm{trad}}\,\|\,ct_{\mathrm{trad}}\,\|\,pk_{\mathrm{trad}}$: any
-suite identifier, policy version, or context handed to it is \emph{intentionally ignored} (these are
-bound \emph{exclusively} by \code{ContextBound}, never by \code{CompatXWing}). \code{ContextBound}
+suite identifier, policy version, or context is absent from the X-Wing construction. Q-Periapt
+requires their canonical absence (empty, zero, empty) and rejects supplied values instead of
+silently discarding them; these fields are bound \emph{exclusively} by \code{ContextBound}, never
+by \code{CompatXWing}. \code{ContextBound}
 is the hash-everything profile and is policy-selected when an application needs context binding or
 wishes to avoid the serialization-format dependence of \cref{sec:assurance}. The suite is open
 source.\footnote{Anonymized artifact repository provided to reviewers via the editor.}
@@ -805,18 +807,21 @@ PQC deployments.
 We therefore added one dual-estimand paired gate.  The profile-non-regression
 estimand removes the earlier backend/key-format confound: ContextBound and
 CompatXWing use the same native ML-KEM-768 seed-\code{dk} + X25519 backend, keys,
-coins, 64-case deterministic ciphertext corpus, and suite/version/context inputs.
+coins, 64-case deterministic ciphertext corpus, and ABBA/BAAB schedule. Raw schema
+v4 fixes their canonical inputs separately: ContextBound uses the fixed suite,
+policy version, and application context, whereas CompatXWing uses their canonical
+absence (empty, zero, empty).
 The separately named implementation-improvement estimand compares native and
 evidence-only portable ML-KEM-768 implementations for ContextBound encapsulation
 and decapsulation in the same harness process, after requiring byte-identical
 keys, ciphertexts, and shared-secret outputs.  Both use the fixed ABBA/BAAB
-schedule.  After a 5-s warm-up, raw schema v3 records 20,480 paired samples per
+schedule.  After a 5-s warm-up, raw schema v4 records 20,480 paired samples per
 applicable operation and variant.  Each timed sample batches 256/1/2 calls for
 combine/encapsulation/decapsulation, records the unrounded total, and normalizes
 only after a strict iteration-map check. Consecutive 1,024-pair,
 corpus-balanced blocks define both the primary paired point estimate and its
 span-5 moving-block-bootstrap upper bound. Under the nearest-rank rule each
-block's p99 has 11 tail observations. Budget schema v8 preserves the v6 profile
+block's p99 has 11 tail observations. Budget schema v9 preserves the v6 profile
 estimator and its former 256-pair regression guard, requiring every published
 profile limit to pass at both scales. Separate 64/256/256-pair windows test
 temporal stability without changing the 5\% CV limit.
@@ -829,7 +834,7 @@ The profile bounds retain p50/p95/p99 ratios of 1.10/1.15/1.20 and a
 $15\,\mu$s p95 absolute delta for encapsulation/decapsulation, plus a
 $10\,\mu$s combiner p95 delta.  For both native/portable ContextBound product
 operations, the implementation bounds require p50 and p95 upper ratios at most
-0.95 and p99 at most 1.0.  Proof schema v6 binds the raw samples, final harness
+0.95 and p99 at most 1.0.  Proof schema v7 binds the raw samples, final harness
 binary, evidence-only portable archive and source, verifier-fixed repository
 budget, commit, canonical source-input tree, selected Rust target/toolchain,
 and the macOS SDK path, version, and settings digest. This is not yet a
@@ -859,8 +864,8 @@ A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive
 product-path improvement. It has no checked-in canonical-source/toolchain-bound raw
 and analysis bundle and therefore is not formal release evidence, an optimized
 production-X-Wing comparison, or a device/protocol performance claim. Exact
-quantitative results require a fresh raw-schema-v3/proof-schema-v6 run under
-budget schema v8, selected by the current results manifest.
+quantitative results require a fresh raw-schema-v4/proof-schema-v7 run under
+budget schema v9, selected by the current results manifest.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}

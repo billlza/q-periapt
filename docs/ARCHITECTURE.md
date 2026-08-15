@@ -215,7 +215,10 @@ collapse domain separation; a wrong length returns `Error::InvalidLength`. The
 absorbed input is a single 134-byte block (<= Keccak rate 136) and the path is
 allocation-free. This profile deliberately does **not** bind the PQ ciphertext/
 pubkey, nor `suite_id` / `policy_version` / `context` — it relies on the PQ KEM
-being exposed through an X-Wing-safe seed-dk backend (§3.4). The admitted
+being exposed through an X-Wing-safe seed-dk backend (§3.4). The three metadata
+inputs must therefore be canonically absent (`[]`, `0`, `[]`); supplying values
+returns `Error::PolicyDenied` before XOF construction, component KEM work, or output
+mutation rather than accepting caller intent that the construction cannot bind. The admitted
 `HybridKem<MlKem768XWingSeed, X25519>` construction reproduces all three official draft-10
 vectors; the profile alone is only its combiner encoding. Independent endpoint/HPKE
 interoperability is not established (§6).
@@ -254,7 +257,9 @@ The current gate in
 [`paired_profile_perf.rs`](../crates/q-periapt-backends/examples/paired_profile_perf.rs)
 records two independent estimands in one process. The profile estimand gives both
 profiles identical ML-KEM-768 seed-dk + X25519 backends, keys, coins, ciphertext
-corpus, suite/version/context inputs, and ABBA/BAAB ordering:
+corpus, and ABBA/BAAB ordering. Its strict `profile_inputs` metadata fixes the
+ContextBound suite/version/application context and the CompatXWing canonical absence
+of those inputs (`[]`, `0`, `[]`):
 
 - `CompatXWing` is byte-exact against the X-Wing draft vectors. Historical
   single-host measurements put the generic wrapper within tens of ns of a hand-rolled
@@ -271,11 +276,11 @@ encapsulation and decapsulation on the same keys, coins, corpus, and toolchain. 
 private symbol-renamed portable archive is linked only into the evidence harness; no
 product backend, Cargo feature, runtime override, or public API is added. The harness
 requires byte-identical keypair and per-case encapsulation/decapsulation outputs before
-timing. Budget schema v8 preregisters one-sided 95% upper native/portable limits of
+timing. Budget schema v9 preregisters one-sided 95% upper native/portable limits of
 0.95 for primary p50/p95 and 1.0 for p99. The proof binds both implementation IDs,
 the final binary, portable archive/source, raw records, source tree, and toolchain.
 This is a gate definition, not a measured claim: quantitative results require a fresh
-clean controlled proof-schema-v6 run selected by the results manifest.
+clean controlled proof-schema-v7 run selected by the results manifest.
 
 **We never claim "faster than X-Wing."** There is no primitive or speed edge — the
 primitives are the standard ones via standard backends. The wins are provable
@@ -912,8 +917,8 @@ claims.
 Modifying a Signal KDF, header, state transition, or limit creates a different
 protocol. It must use a new identifier and must not be described as Signal-compatible
 without an external interoperability suite. `CompatXWing` also cannot be used as a
-session context-binding profile: its byte-compatible definition intentionally ignores
-external context.
+session context-binding profile: its byte-compatible definition has no external
+context input, and q-periapt rejects a supplied context rather than discarding it.
 
 The current signed-policy abstraction may inspire a future closed
 `ResolvedSessionPolicy`, but it cannot simply be reused as-is. A stateful decision
@@ -950,7 +955,7 @@ cleared `PYTHON*` state, standard-library-first import roots, and repository-con
 dispatch. This prevents ignored timestamp/hash-pyc replacement and user-site/`.pth` startup
 code, but does not attest the external interpreter or host. Release policy
 fixes matrix membership and the performance budget outside proof-authored data. Performance
-proof schema v6 and budget schema v8 also fix the rustup toolchain and target plus
+proof schema v7 and budget schema v9 also fix the rustup toolchain and target plus
 Cargo, Rustc, Xcode Clang, and Xcode `ar` paths and hashes, and the canonical macOS
 SDK path, version, and settings digest (with version output where available); collection rejects repository/ancestor/user Cargo configuration and caller
 compiler/wrapper/loader controls, uses fixed tool paths plus a fresh private target,

@@ -1129,6 +1129,7 @@ dependencies = [
 name = "q-periapt-wasm"
 version = "0.1.0"
 dependencies = [
+ "js-sys",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-kem",

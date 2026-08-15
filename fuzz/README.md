@@ -45,4 +45,6 @@ cargo run -p q-periapt-backends --example gen_fuzz_corpus   # from the workspace
   rejection, no oracle). The generator asserts that invariant on every seed it writes.
 - **`combine`** keeps its fuzzer-discovered corpus; the generator adds a few raw blobs
   (empty, zeros, `0xff`, ascending) that decode via `arbitrary` into edge-case field
-  shapes (e.g. empty fields hit the `CompatXWing`/`ContextBound` guard paths).
+  shapes. Each fuzz case exercises the raw Compat metadata-rejection path, a second
+  canonical-empty Compat call that reaches its length/hash path, and the raw
+  `ContextBound` path, so fail-closed metadata checks cannot starve deeper coverage.

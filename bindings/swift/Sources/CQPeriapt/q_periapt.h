@@ -236,7 +236,7 @@ int32_t q_periapt_generate_keypair(const uint8_t *decision,
  * This is the only product encapsulation entry point. It derives suite/profile/version from one
  * canonical decision and injectively wraps `application_context` together with the exact signed
  * policy digest before invoking the context-bound combiner. `CompatXWing` decisions are rejected
- * because that profile intentionally ignores context and therefore cannot commit the digest.
+ * because that profile has no context input and therefore cannot commit the digest.
  * Encapsulation coins come from the operating-system CSPRNG; deterministic coins are not exposed
  * by the product ABI.
  *

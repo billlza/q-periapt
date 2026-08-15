@@ -9,6 +9,7 @@ from unittest import mock
 
 import performance_gate
 import proof_manifest
+import release_publication_contract
 import rust_package_handoff
 import rust_publish_contract
 from evidence_io import FileSnapshot
@@ -31,9 +32,14 @@ class ProofManifestTests(unittest.TestCase):
         f"{RUST_HANDOFF_TRANSACTION}/rust-package-contract.log"
     )
     def test_performance_schema_constant_matches_the_live_gate(self) -> None:
+        self.assertEqual(proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION, 7)
         self.assertEqual(
             proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
             performance_gate.PROOF_SCHEMA_VERSION,
+        )
+        self.assertEqual(
+            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
+            release_publication_contract._STABLE_PERFORMANCE_PROOF_SCHEMA,
         )
 
     def test_rust_package_schema_constants_match_the_live_contract(self) -> None:
@@ -280,7 +286,9 @@ class ProofManifestTests(unittest.TestCase):
             },
         }
         proof_manifest.validate_declared_currentness(current)
-        current["performance"]["proof_schema"] = 4
+        current["performance"]["proof_schema"] = (
+            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION - 1
+        )
         with self.assertRaisesRegex(
                 proof_manifest.ProofManifestError,
                 f"requires proof schema {proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION}",

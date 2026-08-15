@@ -48,6 +48,16 @@ const SUPPORTED_POLICY_VERSION: u32 = 1;
 // the transcript separately.
 const TLS_CONTEXT: &[u8] = b"q-periapt-tls/v1";
 
+/// Project a trusted, statically configured TLS group onto the metadata
+/// contract of its combiner profile. CompatXWing has no metadata slots; the
+/// TLS transcript remains bound by the TLS 1.3 key schedule.
+fn kem_metadata(profile: Profile) -> (&'static [u8], u32, &'static [u8]) {
+    match profile {
+        Profile::ContextBound => (SUITE_ID, SUPPORTED_POLICY_VERSION, TLS_CONTEXT),
+        Profile::CompatXWing => (&[], 0, &[]),
+    }
+}
+
 /// A Q-Periapt hybrid key-exchange group (one combiner profile).
 pub struct QPeriaptKxGroup {
     profile: Profile,
@@ -62,13 +72,6 @@ impl fmt::Debug for QPeriaptKxGroup {
 }
 
 impl QPeriaptKxGroup {
-    fn context(&self) -> &'static [u8] {
-        match self.profile {
-            Profile::ContextBound => TLS_CONTEXT,
-            Profile::CompatXWing => &[],
-        }
-    }
-
     fn invalid_pairing() -> Error {
         Error::General("q-periapt: invalid profile/backend pairing".into())
     }
@@ -148,6 +151,7 @@ impl SupportedKxGroup for QPeriaptKxGroup {
 
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];
+        let (suite_id, policy_version, context) = kem_metadata(self.profile);
         // Compute, then wipe the encapsulation coins on EVERY path — a peer InvalidKeyShare
         // (e.g. a low-order X25519 share) must not leave rand_pq/rand_trad in the frame.
         let result = match self.profile {
@@ -155,15 +159,15 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                 &MlKem768,
                 &X25519,
                 self.profile,
-                SUITE_ID,
-                SUPPORTED_POLICY_VERSION,
+                suite_id,
+                policy_version,
             )
             .map_err(|_| Self::invalid_pairing())
             .and_then(|kem| {
                 kem.encapsulate(
                     pk_pq,
                     pk_trad,
-                    self.context(),
+                    context,
                     rand_pq.as_bytes(),
                     rand_trad.as_bytes(),
                     &mut ct_pq,
@@ -175,15 +179,15 @@ impl SupportedKxGroup for QPeriaptKxGroup {
                 &MlKem768XWingSeed,
                 &X25519,
                 self.profile,
-                SUITE_ID,
-                SUPPORTED_POLICY_VERSION,
+                suite_id,
+                policy_version,
             )
             .map_err(|_| Self::invalid_pairing())
             .and_then(|kem| {
                 kem.encapsulate(
                     pk_pq,
                     pk_trad,
-                    self.context(),
+                    context,
                     rand_pq.as_bytes(),
                     rand_trad.as_bytes(),
                     &mut ct_pq,
@@ -243,18 +247,15 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
         }
         let (ct_pq, ct_trad) = server_share.split_at(PQ_SERVER_SHARE);
 
-        let context: &[u8] = match self.profile {
-            Profile::ContextBound => TLS_CONTEXT,
-            Profile::CompatXWing => &[],
-        };
+        let (suite_id, policy_version, context) = kem_metadata(self.profile);
         let secret = match self.profile {
             Profile::ContextBound => {
                 let kem = HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
                     &MlKem768,
                     &X25519,
                     self.profile,
-                    SUITE_ID,
-                    SUPPORTED_POLICY_VERSION,
+                    suite_id,
+                    policy_version,
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate(
@@ -272,8 +273,8 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
                     &MlKem768XWingSeed,
                     &X25519,
                     self.profile,
-                    SUITE_ID,
-                    SUPPORTED_POLICY_VERSION,
+                    suite_id,
+                    policy_version,
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate(
@@ -359,12 +360,16 @@ impl From<PolicyResolutionError> for ProviderPolicyError {
 }
 
 /// Build a provider only when `policy` resolves atomically to the exact suite,
-/// profile, key representation, and policy version this static wire group runs.
+/// profile, key representation, and policy version represented by this static
+/// wire-group selection.
 ///
 /// This version implements ML-KEM-768 + X25519 only. L5/enhanced policies and
 /// newer policy versions fail closed; they are never silently mapped onto L3 or
-/// version 1. The rustls KX API supplies only a fixed protocol-domain context,
-/// so this path must not be described as per-session transcript K-CTX binding.
+/// version 1. For `ContextBound`, the rustls KX API supplies only a fixed
+/// protocol-domain context, so this path must not be described as per-session
+/// transcript K-CTX binding. For `CompatXWing`, the policy selects the private
+/// wire group but the KEM receives canonical absent metadata (`[]`, `0`, `[]`);
+/// the TLS 1.3 key schedule independently binds the handshake transcript.
 /// `policy` is already parsed but is not cryptographically authenticated by this
 /// function; no signed-policy digest or monotonic state crosses this API. A caller
 /// making an authorization claim must authenticate the policy and own rollback
@@ -491,5 +496,26 @@ mod tests {
         assert_eq!(u16::from(Q_PERIAPT_COMPATXWING), 0xFE02);
         assert_ne!(u16::from(Q_PERIAPT_CONTEXTBOUND), 0x11EC);
         assert_ne!(u16::from(Q_PERIAPT_COMPATXWING), 0x11EC);
+    }
+
+    #[test]
+    fn private_groups_project_canonical_profile_metadata() {
+        static RANDOM: DistinctTestRandom = DistinctTestRandom(AtomicU8::new(0));
+        let context_bound = QPeriaptKxGroup {
+            profile: Profile::ContextBound,
+            group: Q_PERIAPT_CONTEXTBOUND,
+            rng: &RANDOM,
+        };
+        let compat = QPeriaptKxGroup {
+            profile: Profile::CompatXWing,
+            group: Q_PERIAPT_COMPATXWING,
+            rng: &RANDOM,
+        };
+
+        assert_eq!(
+            kem_metadata(context_bound.profile),
+            (SUITE_ID, SUPPORTED_POLICY_VERSION, TLS_CONTEXT)
+        );
+        assert_eq!(kem_metadata(compat.profile), (&[][..], 0, &[][..]));
     }
 }

@@ -69,8 +69,15 @@ cannot be selected into `R`.
 
 ## Reliability and security hardening
 
-The 0.1.0 source line strengthens the Android release transaction without
-weakening package ownership checks:
+The 0.1.0 source line makes a deliberate fail-closed Rust/WASM behavior change:
+`CompatXWing` calls must use canonical absent suite/version/context metadata
+(`[]`, `0`, `[]`). Calls that previously succeeded while those values were ignored
+now return the existing policy error before XOF construction, backend execution, or
+output mutation. Valid X-Wing inputs, official KAT bytes, private rustls group wire
+encoding, and the ContextBound-only exact-nine C ABI 2 surface are unchanged.
+
+This source line also strengthens the Android release transaction without weakening
+package ownership checks:
 
 - installed-package state and installed-APK ownership are observed through fixed,
   typed, bounded operations;
@@ -86,10 +93,12 @@ weakening package ownership checks:
   not raw ADB output, device identifiers, host paths, credentials, or signing data.
 
 These source notes cannot by themselves assert a performance improvement. The final
-release earns that claim only if `R` selects the mandatory raw-schema-v3 /
-proof-schema-v6 / budget-schema-v8 proof for `S`, and the coordinated verified
+release earns that claim only if `R` selects the mandatory raw-schema-v4 /
+proof-schema-v7 / budget-schema-v9 proof for `S`, and the coordinated verified
 receipt `V` preserves and revalidates that exact selection. The proof requires both
-the preserved ContextBound/CompatXWing profile non-regression estimand and a
+the preserved ContextBound/CompatXWing profile non-regression estimand with strict
+ContextBound fixed suite/version/application-context inputs and CompatXWing canonical
+`[]`/`0`/`[]` inputs, and a
 same-process, output-equivalent native/portable ContextBound
 implementation-improvement estimand for encapsulation and decapsulation under the
 fixed ABBA/BAAB schedule. The latter preregisters one-sided 95% upper

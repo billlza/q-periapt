@@ -22,9 +22,10 @@
 //! ## What this is (and isn't)
 //! - It is an **HPKE-base-shaped, server-authenticated** handshake: the server has a
 //!   static hybrid KEM key and an ML-DSA identity key (its verifying key is *pinned*
-//!   by the client out-of-band). The client encapsulates; both derive a session secret
-//!   bound to the transcript via [`Profile::ContextBound`]; the server signs the
-//!   transcript and sends a key-confirmation.
+//!   by the client out-of-band). The client encapsulates; `ContextBound` binds the
+//!   transcript in the KEM, while `CompatXWing` uses canonical absent KEM metadata.
+//!   In both profiles the server signs the transcript and the key-confirmation binds
+//!   the transcript to the derived secret.
 //! - It is **not** the TLS 1.3 wire format. Real TLS 1.3 hybrid key exchange uses the
 //!   RFC 10024 `X25519MLKEM768` named group (`0x11EC`) with the RFC 9954
 //!   concatenated secret entering the RFC 9846 TLS key schedule. See
@@ -43,12 +44,12 @@ use q_periapt_core::{ct_eq, Kem, Profile, Secret, Xof256, ZeroizingBytes};
 use q_periapt_kem::HybridKem;
 use q_periapt_sig::{Signer, Verifier};
 
-/// Canonical suite identifier for the default suite, bound into the combiner.
+/// Canonical suite identifier for the default suite, bound by `ContextBound`.
 pub const SUITE_ID: &[u8] = DefaultSuite::SUITE_ID;
-/// Canonical suite identifier for the enhanced (L5) suite.
+/// Canonical suite identifier for the enhanced (L5) `ContextBound` suite.
 pub const SUITE_ID_ENHANCED: &[u8] = EnhancedSuite::SUITE_ID;
-/// Algorithm-policy version bound into the combiner (shared by both suites — the
-/// suite_id, not the policy version, distinguishes them).
+/// Algorithm-policy version bound by `ContextBound` (shared by both suites —
+/// the suite id, not the policy version, distinguishes them).
 pub const POLICY_VERSION: u32 = 1;
 const NONCE_LEN: usize = 32;
 const SERVER_FINISHED_LABEL: &[u8] = b"q-periapt/v1/server-finished";
@@ -64,7 +65,7 @@ pub trait HandshakeSuite {
     type Pq: Kem + Default;
     /// The server-authentication signature backend.
     type Sig: Signer + Verifier + Default;
-    /// Suite identifier bound into the combiner agility block.
+    /// Suite identifier bound into the `ContextBound` combiner agility block.
     const SUITE_ID: &'static [u8];
     /// PQ encapsulation-key (public key) length, bytes.
     const PQ_PK_LEN: usize;
@@ -358,6 +359,19 @@ fn server_finished(secret: &Secret, context: &[u8]) -> [u8; 32] {
     x.squeeze32()
 }
 
+/// Project the demo's trusted profile selection onto the hybrid-KEM metadata
+/// contract. The transcript remains available to authentication and Finished
+/// processing even when CompatXWing requires canonical absent KEM metadata.
+fn kem_metadata<Su: HandshakeSuite>(
+    profile: Profile,
+    transcript_context: &[u8],
+) -> (&'static [u8], u32, &[u8]) {
+    match profile {
+        Profile::ContextBound => (Su::SUITE_ID, POLICY_VERSION, transcript_context),
+        Profile::CompatXWing => (&[], 0, &[]),
+    }
+}
+
 /// Generic **client** side, parameterized by the [`HandshakeSuite`].
 fn client_core<Su: HandshakeSuite, S: Read + Write>(
     stream: &mut S,
@@ -384,14 +398,15 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
     let _server_nonce = cur.take(NONCE_LEN)?;
     cur.finish()?;
 
-    // 3. Transcript context for the combiner (binds nonces, profile, server keys).
-    let context = sha3_public(&[&ch, &sh]);
+    // 3. Transcript context. ContextBound passes it to the KEM; both profiles
+    // retain it for authentication and key confirmation.
+    let transcript_context = sha3_public(&[&ch, &sh]);
 
     // 4. Encapsulate to the server's static hybrid key.
     let pq = Su::Pq::default();
     let trad = X25519;
-    let kem =
-        HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
+    let (suite_id, policy_version, kem_context) = kem_metadata::<Su>(profile, &transcript_context);
+    let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite_id, policy_version)?;
     let mut coins = ZeroizingBytes::<64>::zeroed();
     getrandom::fill(coins.as_mut_bytes()).map_err(|_| DemoError::Crypto)?;
     let mut ct_pq = vec![0u8; Su::PQ_CT_LEN];
@@ -402,7 +417,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
         kem.encapsulate(
             ek_pq,
             pk_x,
-            &context,
+            kem_context,
             rand_pq,
             rand_trad,
             &mut ct_pq,
@@ -433,7 +448,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
         .map_err(|_| DemoError::AuthFailed)?;
 
     // Key confirmation (constant-time).
-    let expected = server_finished(&secret, &context);
+    let expected = server_finished(&secret, &transcript_context);
     if ct_eq(confirm, &expected) != 0xFF {
         return Err(DemoError::ConfirmFailed);
     }
@@ -466,7 +481,7 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     stats.bytes_sent += write_msg(stream, &sh)?;
     stats.messages += 1;
 
-    let context = sha3_public(&[&ch, &sh]);
+    let transcript_context = sha3_public(&[&ch, &sh]);
 
     // 3. ClientKem
     let kem_msg = read_msg(stream)?;
@@ -479,8 +494,8 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     // 4. Decapsulate.
     let pq = Su::Pq::default();
     let trad = X25519;
-    let kem =
-        HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, Su::SUITE_ID, POLICY_VERSION)?;
+    let (suite_id, policy_version, kem_context) = kem_metadata::<Su>(profile, &transcript_context);
+    let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite_id, policy_version)?;
     let secret = kem.decapsulate(
         &keys.dk_pq,
         ct_pq,
@@ -488,7 +503,7 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
         &keys.sk_x,
         ct_trad,
         &keys.pk_x,
-        &context,
+        kem_context,
     )?;
 
     // 5. ServerFinished = sign(transcript) || key_confirmation
@@ -505,7 +520,7 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
         &mut sig,
     );
     sign_res.map_err(|_| DemoError::Crypto)?;
-    let confirm = server_finished(&secret, &context);
+    let confirm = server_finished(&secret, &transcript_context);
 
     let mut sf = Vec::with_capacity(Su::SIG_LEN + 32);
     sf.extend_from_slice(&sig);

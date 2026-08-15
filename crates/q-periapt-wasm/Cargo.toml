@@ -33,5 +33,6 @@ wasm-bindgen = "0.2"
 signed-policy = ["dep:q-periapt-policy"]
 
 [dev-dependencies]
+js-sys = "0.3"
 wasm-bindgen-test = "0.3"
 q-periapt-sig = { version = "=0.1.0", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the profile test

@@ -979,14 +979,8 @@ mod tests {
         {
             let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]).unwrap();
             let (pq, trad) = (MlKem768XWingSeed, X25519);
-            let kem = HybridKem::<_, _, Sha3_256Xof>::new(
-                &pq,
-                &trad,
-                Profile::CompatXWing,
-                b"ML-KEM-768+X25519",
-                1,
-            )
-            .unwrap();
+            let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, Profile::CompatXWing, b"", 0)
+                .unwrap();
             let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
             let mut ct_trad = [0u8; X25519_LEN];
             let enc = kem
@@ -1020,8 +1014,8 @@ mod tests {
             &X25519,
             &MlKem768XWingSeed,
             Profile::CompatXWing,
-            b"reversed-slots",
-            1,
+            b"",
+            0,
         );
         assert!(matches!(result.err(), Some(Error::PolicyDenied)));
     }
@@ -1073,14 +1067,11 @@ mod tests {
                 "enhanced ContextBound hybrid encap/decap must agree"
             );
         }
-        assert!(HybridKem::<_, _, Sha3_256Xof>::new(
-            &MlKem1024,
-            &X25519,
-            Profile::CompatXWing,
-            b"ML-KEM-1024+X25519",
-            1
-        )
-        .is_err());
+        assert!(matches!(
+            HybridKem::<_, _, Sha3_256Xof>::new(&MlKem1024, &X25519, Profile::CompatXWing, b"", 0)
+                .err(),
+            Some(Error::PolicyDenied)
+        ));
     }
 
     #[test]

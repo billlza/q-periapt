@@ -61,8 +61,9 @@ pub enum Error {
     /// secret-dependent decapsulation oracle: an FO-KEM's ciphertext validity remains hidden by
     /// implicit rejection.
     InvalidKeyShare,
-    /// The active algorithm policy / profile combination is forbidden
-    /// (e.g. a first-slot KEM lacking either required `CompatXWing` capability).
+    /// The active algorithm policy / profile combination is forbidden, for example because a
+    /// first-slot KEM lacks a required `CompatXWing` capability or because a caller supplied
+    /// suite/version/context metadata that the selected profile cannot bind.
     PolicyDenied,
 }
 
@@ -271,11 +272,11 @@ pub enum Profile {
     /// both [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`] to *not* hash that slot's
     /// ct/pk. Requires all four absorbed fields to be exactly 32 bytes.
     ///
-    /// **Footgun:** X-Wing has no `suite_id`/`policy_version`/`context` fields, so this profile
-    /// **silently ignores** any you pass — it does **not** bind external context or the agility
-    /// block. If you need that binding, you **must** use [`Profile::ContextBound`]; passing a
-    /// context here is accepted and discarded with no error (a deliberate compatibility limitation,
-    /// not context binding).
+    /// X-Wing has no `suite_id`/`policy_version`/`context` fields, so q-periapt requires their
+    /// canonical absence: an empty suite identifier, policy version zero, and an empty context.
+    /// Supplying any of those fields returns [`Error::PolicyDenied`] rather than silently
+    /// discarding caller intent. Use [`Profile::ContextBound`] when the derived key must bind
+    /// suite, policy, or application context metadata.
     CompatXWing = 1,
     /// Full-transcript context-bound profile: domain-separated, injective fixed-width
     /// length-prefixed, binds a first-class agility block (`suite_id`,
@@ -306,6 +307,39 @@ impl Profile {
             _ => None,
         }
     }
+
+    /// Validate profile-level metadata fixed when a hybrid KEM is constructed.
+    ///
+    /// [`Profile::CompatXWing`] has no suite or policy-version inputs, so their canonical
+    /// representation is `b""` and `0`. Rejecting any supplied value prevents a caller from
+    /// mistaking accepted-but-unbound metadata for authenticated key-derivation input.
+    /// [`Profile::ContextBound`] binds both values and therefore accepts their complete Rust
+    /// representations; higher policy layers may impose narrower semantic constraints.
+    pub fn validate_static_inputs(self, suite_id: &[u8], policy_version: u32) -> Result<(), Error> {
+        if matches!(self, Profile::CompatXWing) && (!suite_id.is_empty() || policy_version != 0) {
+            return Err(Error::PolicyDenied);
+        }
+        Ok(())
+    }
+
+    /// Validate every profile-specific metadata input before an operation performs work.
+    ///
+    /// CompatXWing requires canonical empty metadata and context. ContextBound retains its
+    /// mandatory non-empty-context rule; an empty ContextBound context is an input-length error,
+    /// while metadata forbidden by the selected profile is a policy error.
+    pub fn validate_operation_inputs(
+        self,
+        suite_id: &[u8],
+        policy_version: u32,
+        context: &[u8],
+    ) -> Result<(), Error> {
+        self.validate_static_inputs(suite_id, policy_version)?;
+        match self {
+            Profile::CompatXWing if !context.is_empty() => Err(Error::PolicyDenied),
+            Profile::ContextBound if context.is_empty() => Err(Error::InvalidLength),
+            _ => Ok(()),
+        }
+    }
 }
 
 /// The values fed to [`combine`]. Slices, so it works for any parameter set.
@@ -313,10 +347,10 @@ impl Profile {
 pub struct CombineInput<'a> {
     /// Canonical suite identifier (e.g. `b"ML-KEM-768+X25519"`). Bound
     /// first-class by [`Profile::ContextBound`] for downgrade/substitution
-    /// resistance; ignored by [`Profile::CompatXWing`].
+    /// resistance; must be empty under [`Profile::CompatXWing`].
     pub suite_id: &'a [u8],
     /// Algorithm-policy / agility version. Bound first-class by
-    /// [`Profile::ContextBound`]; ignored by [`Profile::CompatXWing`].
+    /// [`Profile::ContextBound`]; must be zero under [`Profile::CompatXWing`].
     pub policy_version: u32,
     /// Post-quantum (ML-KEM) shared secret.
     pub ss_pq: &'a [u8],
@@ -330,8 +364,9 @@ pub struct CombineInput<'a> {
     pub ct_trad: &'a [u8],
     /// Traditional recipient public key.
     pub pk_trad: &'a [u8],
-    /// Caller context to bind (transcript hash, etc.). Used only by
-    /// [`Profile::ContextBound`]. Downgrade resistance does NOT rely on this
+    /// Caller context to bind (transcript hash, etc.). Used by
+    /// [`Profile::ContextBound`] and required to be empty under
+    /// [`Profile::CompatXWing`]. Downgrade resistance does NOT rely on this
     /// field — it is bound *in addition to* the structured agility block. The
     /// staging XOF treats it conservatively as potentially sensitive because the
     /// public API does not require callers to supply only attacker-visible bytes.
@@ -469,7 +504,10 @@ pub fn encode_policy_bound_context(
 /// X-Wing byte-exactness and to avoid canonical-encoding ambiguity), or if a
 /// [`Profile::ContextBound`] call has an empty `context` (the profile requires an
 /// explicit protocol/application label; this is not an encoding-injectivity precondition).
+/// Returns [`Error::PolicyDenied`] if a [`Profile::CompatXWing`] call supplies a suite,
+/// nonzero policy version, or context that X-Wing cannot bind.
 pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<Secret, Error> {
+    profile.validate_operation_inputs(input.suite_id, input.policy_version, input.context)?;
     let mut x = X::new();
     match profile {
         // X-Wing: SHA3-256(ss_M || ss_X || ct_X || pk_X || label). All four
@@ -502,13 +540,10 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
         // cross-profile separation; suite_id + policy_version are bound
         // first-class for downgrade/substitution resistance.
         Profile::ContextBound => {
-            // Mandatory non-empty context as a semantic profile guard
-            // (docs/BINDING_SECURITY.md §3.3). Fixed-width length prefixes would
-            // encode an empty field injectively, but callers must make protocol /
+            // The mandatory non-empty-context semantic guard is checked before XOF
+            // construction by `validate_operation_inputs`. Fixed-width length prefixes
+            // would encode an empty field injectively, but callers must make protocol /
             // role / version intent explicit through a fixed or application label.
-            if input.context.is_empty() {
-                return Err(Error::InvalidLength);
-            }
             // Pre-reserve the whole length-prefixed transcript so a staging XOF allocates once and
             // never reallocates mid-absorb (no un-zeroizable secret residue). Each field costs its
             // 8-byte BE length prefix plus its body.
@@ -584,6 +619,7 @@ mod tests {
     // Toy test helpers index slices / unwrap freely; the lints target library code.
     #![allow(clippy::indexing_slicing, clippy::unwrap_used)]
     use super::*;
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
     /// Toy, NON-cryptographic XOF used only to exercise the wiring/determinism
     /// of the combiner. Never use outside tests.
@@ -606,6 +642,24 @@ mod tests {
                 chunk.copy_from_slice(&bytes[..chunk.len()]);
             }
             out
+        }
+    }
+
+    static XOF_CONSTRUCTIONS: AtomicUsize = AtomicUsize::new(0);
+
+    /// XOF spy used to prove policy validation happens before constructing a hashing state.
+    struct ConstructionCountingXof;
+
+    impl Xof256 for ConstructionCountingXof {
+        fn new() -> Self {
+            XOF_CONSTRUCTIONS.fetch_add(1, Ordering::SeqCst);
+            Self
+        }
+
+        fn absorb(&mut self, _data: &[u8]) {}
+
+        fn squeeze32(self) -> [u8; SHARED_SECRET_LEN] {
+            [0u8; SHARED_SECRET_LEN]
         }
     }
 
@@ -667,10 +721,11 @@ mod tests {
 
     #[test]
     fn deterministic_and_profiles_differ() {
-        let inp = input_with(b"suite-A", 1, b"ctx");
-        let a = combine::<ToyXof>(Profile::CompatXWing, &inp).unwrap();
-        let a2 = combine::<ToyXof>(Profile::CompatXWing, &inp).unwrap();
-        let b = combine::<ToyXof>(Profile::ContextBound, &inp).unwrap();
+        let compat_input = input_with(b"", 0, b"");
+        let context_bound_input = input_with(b"suite-A", 1, b"ctx");
+        let a = combine::<ToyXof>(Profile::CompatXWing, &compat_input).unwrap();
+        let a2 = combine::<ToyXof>(Profile::CompatXWing, &compat_input).unwrap();
+        let b = combine::<ToyXof>(Profile::ContextBound, &context_bound_input).unwrap();
         assert_eq!(
             a.as_bytes(),
             a2.as_bytes(),
@@ -685,13 +740,14 @@ mod tests {
 
     #[test]
     fn combiner_classifies_component_secrets_and_caller_context_as_sensitive() {
-        let input = input_with(b"suite-A", 1, b"ctx");
-        let compat = combine::<ClassifyingXof>(Profile::CompatXWing, &input).unwrap();
+        let compat_input = input_with(b"", 0, b"");
+        let compat = combine::<ClassifyingXof>(Profile::CompatXWing, &compat_input).unwrap();
         assert_eq!(compat.as_bytes()[0], 0, "legacy absorb must not be used");
         assert_eq!(compat.as_bytes()[1], 3, "ct, pk, and label are public");
         assert_eq!(compat.as_bytes()[2], 2, "both component secrets are secret");
 
-        let context = combine::<ClassifyingXof>(Profile::ContextBound, &input).unwrap();
+        let context_input = input_with(b"suite-A", 1, b"ctx");
+        let context = combine::<ClassifyingXof>(Profile::ContextBound, &context_input).unwrap();
         assert_eq!(context.as_bytes()[0], 0, "legacy absorb must not be used");
         assert_eq!(
             context.as_bytes()[1],
@@ -708,7 +764,7 @@ mod tests {
     #[test]
     fn compat_rejects_wrong_length() {
         // 33-byte ss_pq must be rejected (canonical-encoding guard).
-        let mut inp = input_with(b"s", 1, b"");
+        let mut inp = input_with(b"", 0, b"");
         inp.ss_pq = &[1u8; 33];
         assert_eq!(
             combine::<ToyXof>(Profile::CompatXWing, &inp).err(),
@@ -757,18 +813,44 @@ mod tests {
     }
 
     #[test]
-    fn compat_xwing_silently_discards_context_use_contextbound_to_bind() {
-        // DELIBERATE COMPATIBILITY LIMITATION, *not* a security feature: CompatXWing is byte-exact
-        // X-Wing, which has no suite_id/policy_version/context, so it SILENTLY IGNORES them. A caller
-        // that needs to bind context or the agility block MUST select `Profile::ContextBound`;
-        // choosing CompatXWing and passing a context yields NO context binding (the footgun the
-        // `Profile::CompatXWing` doc warns about). We pin the discard so a regression cannot start
-        // binding here, which would break X-Wing byte-compatibility.
-        let x =
-            combine::<ToyXof>(Profile::CompatXWing, &input_with(b"suite-A", 1, b"ctx-A")).unwrap();
-        let y =
-            combine::<ToyXof>(Profile::CompatXWing, &input_with(b"suite-B", 9, b"ctx-B")).unwrap();
-        assert_eq!(x.as_bytes(), y.as_bytes()); // identical despite different ctx => discarded
+    fn compat_xwing_rejects_noncanonical_metadata_before_xof_construction() {
+        XOF_CONSTRUCTIONS.store(0, Ordering::SeqCst);
+        let mut all_noncanonical_with_bad_length = input_with(b"suite-A", 1, b"ctx");
+        all_noncanonical_with_bad_length.ss_pq = &[0x11u8; 33];
+
+        for input in [
+            input_with(b"suite-A", 0, b""),
+            input_with(b"", 1, b""),
+            input_with(b"", 0, b"ctx"),
+            all_noncanonical_with_bad_length,
+        ] {
+            assert_eq!(
+                combine::<ConstructionCountingXof>(Profile::CompatXWing, &input).err(),
+                Some(Error::PolicyDenied)
+            );
+        }
+
+        assert_eq!(
+            XOF_CONSTRUCTIONS.load(Ordering::SeqCst),
+            0,
+            "noncanonical CompatXWing metadata must fail before XOF construction"
+        );
+    }
+
+    #[test]
+    fn compat_xwing_permits_and_omits_pq_ciphertext_and_public_key() {
+        let base = input_with(b"", 0, b"");
+        let mut changed = base;
+        changed.ct_pq = &[0xA5u8; 47];
+        changed.pk_pq = &[0x5Au8; 65];
+
+        let base_secret = combine::<ToyXof>(Profile::CompatXWing, &base).unwrap();
+        let changed_secret = combine::<ToyXof>(Profile::CompatXWing, &changed).unwrap();
+        assert_eq!(
+            base_secret.as_bytes(),
+            changed_secret.as_bytes(),
+            "CompatXWing must remain byte-exact X-Wing and omit ct_pq/pk_pq"
+        );
     }
 
     #[test]

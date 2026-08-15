@@ -43,7 +43,8 @@ transition-vector corpus described in
   independent SHA3 implementation.
 - **Generative property tests** ✅ — `q-periapt-backends/src/proptests.rs` (proptest)
   holds the combiner/hybrid invariants over random inputs: determinism, the
-  CompatXWing length guard + ContextBound non-empty-context guard, encoding
+  CompatXWing canonical-empty metadata and 32-byte length guards + ContextBound
+  non-empty-context guard, encoding
   injectivity under a field-boundary shift (the binding property), profile domain
   separation, context bit-sensitivity, and hybrid KEM round-trip.
 - **ContextBound reference vectors** ✅ — `q-periapt-backends/src/contextbound_kat.rs`

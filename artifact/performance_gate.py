@@ -48,9 +48,9 @@ from proof_manifest import (
 )
 
 
-PROOF_SCHEMA_VERSION = 6
-HARNESS_SCHEMA_VERSION = 3
-BUDGET_SCHEMA_VERSION = 8
+PROOF_SCHEMA_VERSION = 7
+HARNESS_SCHEMA_VERSION = 4
+BUDGET_SCHEMA_VERSION = 9
 PROFILE_NON_REGRESSION = "profile_non_regression"
 IMPLEMENTATION_IMPROVEMENT = "implementation_improvement"
 ESTIMANDS = (PROFILE_NON_REGRESSION, IMPLEMENTATION_IMPROVEMENT)
@@ -93,7 +93,7 @@ EXPECTED_ITERATIONS_PER_SAMPLE = {
 }
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
-HEX_RE = re.compile(r"^(?:[0-9a-f]{2})+$")
+HEX_BYTES_RE = re.compile(r"^(?:[0-9a-f]{2})*$")
 RUSTUP_TOOLCHAIN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 MAX_EXACT_ELAPSED_NS_TOTAL = 1 << 53
@@ -324,6 +324,55 @@ def positive_operation_map(value: Any, label: str) -> dict[str, int]:
     return value
 
 
+def canonical_profile_inputs() -> dict[str, dict[str, Any]]:
+    """Return the exact profile-specific inputs admitted by the paired harness."""
+
+    return {
+        "ContextBound": {
+            "suite_id_hex": b"ML-KEM-768+X25519".hex(),
+            "policy_version": 1,
+            "application_context_hex": b"q-periapt/performance-gate/v1".hex(),
+        },
+        "CompatXWing": {
+            "suite_id_hex": "",
+            "policy_version": 0,
+            "application_context_hex": "",
+        },
+    }
+
+
+def validate_profile_inputs(value: Any, label: str) -> dict[str, Any]:
+    """Require the strict nested shape and canonical inputs for both profiles."""
+
+    require(isinstance(value, dict), f"{label} must be an object")
+    _strict_keys(value, set(PROFILES), label)
+    fields = {"suite_id_hex", "policy_version", "application_context_hex"}
+    expected = canonical_profile_inputs()
+    for profile in PROFILES:
+        profile_inputs = value[profile]
+        require(
+            isinstance(profile_inputs, dict),
+            f"{label}/{profile} must be an object",
+        )
+        _strict_keys(profile_inputs, fields, f"{label}/{profile}")
+        for field in ("suite_id_hex", "application_context_hex"):
+            encoded = profile_inputs[field]
+            require(
+                isinstance(encoded, str)
+                and HEX_BYTES_RE.fullmatch(encoded) is not None,
+                f"invalid {label}/{profile}/{field}",
+            )
+        require(
+            type(profile_inputs["policy_version"]) is int,
+            f"{label}/{profile}/policy_version must be an integer",
+        )
+        require(
+            profile_inputs == expected[profile],
+            f"{label}/{profile} does not match the canonical performance inputs",
+        )
+    return value
+
+
 def parse_raw_bytes(
     data: bytes,
 ) -> tuple[
@@ -348,18 +397,16 @@ def parse_raw_bytes(
 
     metadata = records[0]
     metadata_fields = {
-        "application_context_hex",
         "corpus_size",
         "implementation_improvement",
         "iterations_per_sample",
         "mode",
-        "policy_version",
+        "profile_inputs",
         "profile_non_regression",
         "record_type",
         "samples_per_variant_operation",
         "schedule",
         "schema_version",
-        "suite_id_hex",
         "target",
         "warmup_ms",
     }
@@ -381,10 +428,7 @@ def parse_raw_bytes(
         and "\\" not in target,
         "invalid metadata target",
     )
-    for field in ("suite_id_hex", "application_context_hex"):
-        value = metadata.get(field)
-        require(isinstance(value, str) and HEX_RE.fullmatch(value) is not None, f"invalid metadata {field}")
-    require(type(metadata.get("policy_version")) is int and metadata["policy_version"] > 0, "invalid policy version")
+    validate_profile_inputs(metadata.get("profile_inputs"), "metadata profile_inputs")
     require(type(metadata.get("warmup_ms")) is int and metadata["warmup_ms"] > 0, "invalid warmup duration")
     iterations_per_sample = positive_operation_map(
         metadata.get("iterations_per_sample"),
@@ -874,6 +918,7 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
         "min_samples_per_variant_operation",
         "mode",
         "pair_block_size",
+        "profile_inputs",
         "profile_non_regression",
         "regression_guard_pair_block_size",
         "schedule",
@@ -891,6 +936,7 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
     )
     require(type(budget.get("harness_schema_version")) is int, "budget harness schema must be an integer")
     require(budget.get("harness_schema_version") == HARNESS_SCHEMA_VERSION, "budget harness schema mismatch")
+    validate_profile_inputs(budget.get("profile_inputs"), "budget profile_inputs")
     toolchain_policy = validate_toolchain_policy(budget.get("toolchain"))
     require(
         budget.get("mode") == RELEASE_EVIDENCE_MODE,
@@ -1009,7 +1055,7 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
 
 def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
     minimum, collection_samples, warmup = validate_budget_policy(budget)
-    for field in ("mode", "schedule", "target", "corpus_size"):
+    for field in ("mode", "schedule", "target", "corpus_size", "profile_inputs"):
         require(metadata.get(field) == budget.get(field), f"metadata/budget mismatch for {field}")
     require(
         metadata.get("iterations_per_sample") == EXPECTED_ITERATIONS_PER_SAMPLE,

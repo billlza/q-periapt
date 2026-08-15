@@ -66,7 +66,7 @@ _STABLE_ANDROID_AAR_STATUS = "current_clean_tree_package_pass"
 _STABLE_PHYSICAL_ABI = "arm64-v8a"
 _STABLE_ANDROID_AAR_MANIFEST_SCHEMA = 4
 _STABLE_ANDROID_DEVICE_PROOF_SCHEMA = 6
-_STABLE_PERFORMANCE_PROOF_SCHEMA = 6
+_STABLE_PERFORMANCE_PROOF_SCHEMA = 7
 _STABLE_ANDROID_AAR_PATH = (
     "target/qperiapt-android-aar/q-periapt-android-0.1.0/"
     "q-periapt-android-0.1.0.aar"
