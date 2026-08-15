@@ -32,7 +32,7 @@ class ProofManifestTests(unittest.TestCase):
         f"{RUST_HANDOFF_TRANSACTION}/rust-package-contract.log"
     )
     def test_performance_schema_constant_matches_the_live_gate(self) -> None:
-        self.assertEqual(proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION, 7)
+        self.assertEqual(proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION, 8)
         self.assertEqual(
             proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
             performance_gate.PROOF_SCHEMA_VERSION,

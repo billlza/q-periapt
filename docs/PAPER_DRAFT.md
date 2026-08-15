@@ -115,17 +115,19 @@ ranges from every live inline/heap copy and fails closed to whole-buffer erasure
 input or invalid metadata. This is a candidate implementation optimization with a local
 secret-hygiene property and a controlled-host matched-backend non-regression diagnostic.
 `artifact/results.json` selects the time-varying proof and the live domain verifier checks its
-source, artifacts, budget, host contract, and freshness. A selected raw-schema-v4 /
-proof-schema-v7 / budget-schema-v9 proof authorizes only its separately measured
-native-over-portable ContextBound implementation improvement; it is not a
+source, artifacts, budget, host contract, and freshness. A selected raw-schema-v5 /
+proof-schema-v8 / budget-schema-v10 proof authorizes only its separately measured,
+O3/codegen-matched native-over-portable ContextBound `hybrid_core` implementation
+improvement over one generated `expanded_fips203_2400` keypair supplied to both
+implementations; it excludes FFI and OS RNG and is not a
 ContextBound-over-X-Wing speed, energy, cross-platform, or optimized-production
 parity claim. This is not a new reduction or a full-runtime zeroization guarantee.
 
 A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive and
-product-path improvement. It has no checked-in canonical-source/toolchain-bound raw
+hybrid-core improvement. It has no checked-in canonical-source/toolchain-bound raw
 and analysis bundle, so it is not formal release evidence, a device result, or a
 cross-platform performance claim. Exact quantitative results require a fresh
-raw-schema-v4/proof-schema-v7 run under budget schema v9.
+raw-schema-v5/proof-schema-v8 run under budget schema v10.
 
 The PQClean-HQC dependency/runtime path has since been removed; numeric suite code `3`
 is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
@@ -180,7 +182,10 @@ producer/verifier and certificate/timestamp-authority gate exist.
   intentionally tested by semantic product invariants rather than replaying caller-selected
   randomness. The predecessor evidence executed four ISA targets and only cross-compiled
   thumbv7em; it was not a face × OS × ISA Cartesian-product claim. The harness set comprises
-  a six-method conformance matrix (fixed KATs incl. X-Wing + RFC 7748; NIST ACVP; independent
+  a six-method conformance matrix (fixed KATs incl. the current CFRG
+  concrete-hybrid-kems-04 Appendix B.2 MLKEM768-X25519 vector (stored as the
+  repository vector-0 fixture), three retained
+  X-Wing draft-10 vectors, and RFC 7748; NIST ACVP; independent
   multi-backend differential; the EasyCrypt proof; cross-platform byte-identity; generative
   property tests). *(This is the structural answer to the prior "only Apple" rejection.)*
 - **C3 — CI-gated assurance that catches the deployment-failure classes.** (a) A **self-validating
@@ -199,16 +204,23 @@ producer/verifier and certificate/timestamp-authority gate exist.
   `formal/{tamarin,proverif}`.)*
 - **C4 — Production-library research integration + real-link evaluation.** A rustls TLS 1.3
   `CryptoProvider` runs the combiner under private-use `0xFE01`/`0xFE02` groups (the
-  handshake passes) and is evaluated for tail latency under real `tc netem`. This is
+  handshake passes). Its Compat client expands the stable 32-byte seed exactly once
+  per in-flight handshake, retains the 2,400-byte expanded key in a non-Clone
+  zeroizing prepared owner, and reuses that owner for completion; there is no global
+  secret-key cache or C-ABI prepared-key surface. Historical predecessor-source
+  `tc netem` data remains supporting evidence only. This is
   not the RFC 10024 `0x11EC` group or independent standards-interoperability evidence.
-  *(`crates/q-periapt-rustls`; commit 778aeec.)*
+  *(`crates/q-periapt-rustls`.)*
 - **C5 — Policy-to-byte fail closure.** A domain-separated signed policy with persisted
   `(version,digest)` state resolves to one private-field `ResolvedSuite`; fixed L3 faces reject L5
   documents, and decision-controlled ContextBound APIs commit the policy digest plus application
   context. The native ABI 2 product surface exposes no raw hybrid, deterministic key-generation,
   X-Wing, or combine operation; its 40-byte decision descriptor and WASM's raw/conformance APIs
   remain forgeable trusted-caller values, not authorization capabilities, and are outside this
-  claim. A hostile
+  claim. Its first dynamically allocated Rust-owned policy-bound-context copy has one
+  RAII owner that reserves before writing and wipes on normal return, error, or unwind;
+  caller/marshalling copies, registers, paging, and abort remain outside that local
+  guarantee. A hostile
   local caller requires an external service/process that owns the pinned verification key and
   monotonic state.
 
@@ -272,16 +284,19 @@ producer/verifier and certificate/timestamp-authority gate exist.
 - **Do NOT** claim any X-BIND-CT-* notion (structurally unachievable for implicitly-rejecting KEMs).
 - **Do NOT** claim a ContextBound-over-X-Wing speed edge or overall parity:
   ContextBound hashes more bytes than X-Wing. The matched Mac core gate accepts only
-  a controlled current-source raw-schema-v4/proof-schema-v7 proof under budget
-  schema v9. Its profile estimand is non-regression with strict ContextBound fixed
+  a controlled current-source raw-schema-v5/proof-schema-v8 proof under budget
+  schema v10. Its profile estimand is non-regression with strict ContextBound fixed
   inputs and CompatXWing canonical `[]`/`0`/`[]`, while its distinct same-process
-  ABBA/BAAB implementation estimand requires byte-equivalent native/portable
-  ContextBound encapsulation and decapsulation with p50/p95 upper ratios at most
-  0.95 and p99 at most 1.0. The proof binds the final binary, evidence-only portable
+  ABBA/BAAB implementation estimand uses one generated `expanded_fips203_2400`
+  keypair as the common input to O3/codegen-matched native/portable ContextBound
+  `hybrid_core` encapsulation and decapsulation, requiring byte-equivalent per-case
+  outputs with p50/p95 upper ratios at most
+  0.95 and p99 at most 1.0. It excludes FFI and OS RNG. The proof binds the final binary, evidence-only portable
   archive/source, rustup toolchain and target, and macOS SDK identity, plus Cargo,
   Rustc, Xcode Clang, and Xcode `ar` executable paths and hashes. The producer uses
   a configuration-rejecting fresh-target build, but still trusts the mutable Cargo
-  registry/Rust sysroot/OS and collector.
+  registry/Rust sysroot/OS and collector. Each estimand/operation is warmed
+  independently immediately before its collection under the raw/budget contract.
   iPad/iPhone energy, clean baseline history, rustls end-to-end, and optimized production
   comparison remain pending.
 
@@ -316,7 +331,10 @@ producer/verifier and certificate/timestamp-authority gate exist.
 
 ### §4 Proof-to-byte cross-substrate realization (C2)  ← the Apple-only answer
 - The single-core / multi-face architecture (`docs/ARCHITECTURE.md`).
-- The **six-method verification matrix** (Table): fixed KATs (X-Wing draft + RFC 7748) · NIST ACVP
+- The **six-method verification matrix** (Table): fixed KATs (current CFRG
+  concrete-hybrid-kems-04 Appendix B.2 MLKEM768-X25519 vector (stored as the
+  repository vector-0 fixture), three historical X-Wing
+  draft-10 vectors, and RFC 7748) · NIST ACVP
   (full FIPS family: ML-KEM-512/768/1024, ML-DSA-44/65/87, SLH-DSA) · independent multi-backend
   differential (RustCrypto ml-kem/ml-dsa, orion X25519) · EasyCrypt proof · cross-platform
   byte-identity · generative property tests.
@@ -396,7 +414,9 @@ producer/verifier and certificate/timestamp-authority gate exist.
 - Side-channel: KyberSlash (TCHES'25); ctgrind/TIMECOP/dudect; the predecessor
   `libcrux`/HACL* + `libcrux-secrets`/hax assurance as historical related work,
   not an inherited property of `mlkem-native`.
-- Hybrids in deployment: X-Wing (draft-connolly-cfrg-xwing-kem); TLS
+- Hybrids in deployment: the MLKEM768-X25519 construction in CFRG
+  `draft-irtf-cfrg-concrete-hybrid-kems-04` (identical to X-Wing and still not an
+  RFC), with draft-10 retained only as historical KAT provenance; TLS
   X25519MLKEM768; Signal PQXDH **plus its 2025 SPQR/ML-KEM-Braid Triple Ratchet**;
   Sesame multi-device session management; Apple PQ3. Do not repeat the obsolete
   comparison that Signal has only initial PQ protection.
@@ -490,7 +510,7 @@ producer/verifier and certificate/timestamp-authority gate exist.
 | C3a | source→binary CT: target-selected `mlkem-native` ML-KEM-512/768/1024 zero / synthetic-positive discriminator | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Gate migrated; `fips203`, former `libcrux`, PQClean-HQC, and pre-selection portable rows are historical, and fresh x86_64-portable/aarch64-native capture is pending |
 | C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (target-selected release-graph `mlkem-native`) | Adapter migrated; report the live current-source result separately; predecessor commit result is historical |
 | C3c | Tamarin 5 lemmas + ProVerif 6 exact queries + EasyCrypt computational proof | `formal/{tamarin,proverif,easycrypt}` | Proof artifacts present; report fresh local and remote execution separately |
-| C4a | rustls TLS 1.3 handshake over the combiner | `crates/q-periapt-rustls/tests/handshake.rs` | ✔ (778aeec) |
+| C4a | rustls TLS 1.3 handshake over the combiner; Compat prepares one process-local key owner per in-flight handshake | `crates/q-periapt-rustls/tests/handshake.rs` plus exact-once preparation and concurrent-owner tests | Implemented; stable private bytes remain the 32-byte seed, each active Compat owner holds 2,400 secret bytes, and no global secret-key cache or C-ABI prepared-key surface is claimed |
 | C4b | historical netem measurements and repaired benchmark harness | `crates/q-periapt-rustls/examples/netem_bench.rs`, `paper/camera-ready-results.txt` | Supporting host data only; optimized-baseline/device parity pending |
 | C5 | signed policy → closed decision → policy/application-context bytes | `q-periapt-policy`, decision-controlled native/WASM tests | Native ABI2 raw crypto bypass removed; decision descriptor and WASM raw surface remain trusted-caller inputs |
 
@@ -516,11 +536,14 @@ producer/verifier and certificate/timestamp-authority gate exist.
 - ~~Add local netem baselines~~ — **historical supporting data present** for classical X25519,
   IANA `X25519MLKEM768`, CompatXWing, and ContextBound.
 - ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE as a gate; fresh
-  release evidence remains pending.** Raw schema v4 carries two separately named
+  release evidence remains pending.** Raw schema v5 carries two separately named
   estimands in one same-process ABBA/BAAB slot: profile non-regression and
   output-equivalent native/portable ContextBound implementation improvement.
   Its nested `profile_inputs` fixes the distinct canonical metadata inputs for both
-  profiles. Proof schema v7 and budget schema v9 retain 1,024-pair primary estimate
+  profiles. The implementation estimand feeds one generated
+  `expanded_fips203_2400` keypair, coins, and corpus to O3/codegen-matched native and
+  portable `hybrid_core` encap/decap paths, excluding FFI and OS RNG. Proof schema v8
+  and budget schema v10 retain 1,024-pair primary estimate
   blocks,
   at least 10 nearest-rank p99 tail observations per block, the former 256-pair
   profile regression guard, and separately parameterized 5% CV stability windows.

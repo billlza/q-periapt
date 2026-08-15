@@ -57,7 +57,7 @@ PERFORMANCE_SOURCE_STATUSES = {
     "current_controlled_pass",
     "stale_requires_rerun",
 }
-PERFORMANCE_PROOF_SCHEMA_VERSION = 7
+PERFORMANCE_PROOF_SCHEMA_VERSION = 8
 APPLE_SOURCE_STATUSES = {
     "current_clean_tree_physical_pass",
     "current_dirty_diagnostic_pass",

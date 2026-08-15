@@ -24,7 +24,8 @@
 
 use core::marker::PhantomData;
 use q_periapt_core::{
-    combine, CombineInput, Error, Kem, Profile, Secret, Xof256, ZeroizingBytes, SHARED_SECRET_LEN,
+    combine, CombineInput, Error, Kem, PreparedKem, Profile, Secret, Xof256, ZeroizingBytes,
+    SHARED_SECRET_LEN,
 };
 
 /// A PQ/T hybrid KEM binding a post-quantum and a traditional component.
@@ -41,6 +42,16 @@ pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
     suite_id: &'a [u8],
     policy_version: u32,
     _xof: PhantomData<X>,
+}
+
+/// Borrowed inputs shared by serialized-key and prepared-key decapsulation.
+struct DecapsulationInput<'a> {
+    ct_pq: &'a [u8],
+    pk_pq: &'a [u8],
+    sk_trad: &'a [u8],
+    ct_trad: &'a [u8],
+    pk_trad: &'a [u8],
+    context: &'a [u8],
 }
 
 impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
@@ -151,11 +162,35 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     ) -> Result<Secret, Error> {
         self.profile
             .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.decapsulate_validated(
+            DecapsulationInput {
+                ct_pq,
+                pk_pq,
+                sk_trad,
+                ct_trad,
+                pk_trad,
+                context,
+            },
+            |ss_pq| self.pq.decapsulate(sk_pq, ct_pq, ss_pq),
+        )
+    }
+
+    /// Finish a decapsulation after the public profile inputs have been
+    /// validated, sharing the traditional-component and combiner path between
+    /// serialized and prepared PQ keys.
+    fn decapsulate_validated<F>(
+        &self,
+        input: DecapsulationInput<'_>,
+        decapsulate_pq: F,
+    ) -> Result<Secret, Error>
+    where
+        F: FnOnce(&mut [u8]) -> Result<(), Error>,
+    {
         let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
-        self.pq.decapsulate(sk_pq, ct_pq, ss_pq.as_mut_bytes())?;
+        decapsulate_pq(ss_pq.as_mut_bytes())?;
         self.trad
-            .decapsulate(sk_trad, ct_trad, ss_trad.as_mut_bytes())?;
+            .decapsulate(input.sk_trad, input.ct_trad, ss_trad.as_mut_bytes())?;
         combine::<X>(
             self.profile,
             &CombineInput {
@@ -163,12 +198,47 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
                 policy_version: self.policy_version,
                 ss_pq: ss_pq.as_bytes(),
                 ss_trad: ss_trad.as_bytes(),
+                ct_pq: input.ct_pq,
+                pk_pq: input.pk_pq,
+                ct_trad: input.ct_trad,
+                pk_trad: input.pk_trad,
+                context: input.context,
+            },
+        )
+    }
+}
+
+impl<'a, P: PreparedKem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
+    /// Decapsulate with a process-local prepared PQ key and the serialized
+    /// traditional key.
+    ///
+    /// The prepared owner supplies its paired public key, so callers cannot
+    /// accidentally combine an unrelated PQ public key. Profile validation runs
+    /// before either component backend. After that guard, this method reuses the
+    /// exact traditional decapsulation and combiner path used by
+    /// [`HybridKem::decapsulate`].
+    pub fn decapsulate_prepared(
+        &self,
+        prepared_pq: &P::PreparedKey,
+        ct_pq: &[u8],
+        sk_trad: &[u8],
+        ct_trad: &[u8],
+        pk_trad: &[u8],
+        context: &[u8],
+    ) -> Result<Secret, Error> {
+        self.profile
+            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        let pk_pq = self.pq.prepared_encapsulation_key(prepared_pq);
+        self.decapsulate_validated(
+            DecapsulationInput {
                 ct_pq,
                 pk_pq,
+                sk_trad,
                 ct_trad,
                 pk_trad,
                 context,
             },
+            |ss_pq| self.pq.decapsulate_prepared(prepared_pq, ct_pq, ss_pq),
         )
     }
 }
@@ -284,6 +354,25 @@ mod tests {
         }
 
         fn decapsulate(&self, _sk: &[u8], _ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+            self.calls.set(self.calls.get() + 1);
+            ss.fill(0x33);
+            Ok(())
+        }
+    }
+
+    impl PreparedKem for CountingKem<'_> {
+        type PreparedKey = [u8; 32];
+
+        fn prepared_encapsulation_key<'a>(&self, key: &'a Self::PreparedKey) -> &'a [u8] {
+            key
+        }
+
+        fn decapsulate_prepared(
+            &self,
+            _key: &Self::PreparedKey,
+            _ct: &[u8],
+            ss: &mut [u8],
+        ) -> Result<(), Error> {
             self.calls.set(self.calls.get() + 1);
             ss.fill(0x33);
             Ok(())
@@ -475,5 +564,47 @@ mod tests {
         assert_eq!(decapsulation.err(), Some(Error::PolicyDenied));
         assert_eq!(pq_calls.get(), 0, "PQ decapsulation backend must not run");
         assert_eq!(trad_calls.get(), 0, "traditional backend must not run");
+
+        let prepared_decapsulation = kem.decapsulate_prepared(
+            &[0x50u8; 32],
+            &ct_pq,
+            &[0x60u8; 32],
+            &ct_trad,
+            &[0x20u8; 32],
+            b"forbidden-context",
+        );
+        assert_eq!(prepared_decapsulation.err(), Some(Error::PolicyDenied));
+        assert_eq!(
+            pq_calls.get(),
+            0,
+            "prepared PQ decapsulation must not run before profile validation"
+        );
+        assert_eq!(
+            trad_calls.get(),
+            0,
+            "traditional backend must not run before profile validation"
+        );
+    }
+
+    #[test]
+    fn prepared_context_bound_empty_context_fails_before_backends() {
+        let pq_calls = Cell::new(0);
+        let trad_calls = Cell::new(0);
+        let pq = CountingKem { calls: &pq_calls };
+        let trad = CountingKem { calls: &trad_calls };
+        let kem =
+            HybridKem::<_, _, ToyXof>::new(&pq, &trad, Profile::ContextBound, b"suite", 1).unwrap();
+
+        let result = kem.decapsulate_prepared(
+            &[0x11; 32],
+            &[0x22; 1],
+            &[0x33; 1],
+            &[0x44; 1],
+            &[0x55; 1],
+            b"",
+        );
+        assert_eq!(result.err(), Some(Error::InvalidLength));
+        assert_eq!(pq_calls.get(), 0);
+        assert_eq!(trad_calls.get(), 0);
     }
 }

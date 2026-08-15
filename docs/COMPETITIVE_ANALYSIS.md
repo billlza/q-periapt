@@ -1,25 +1,27 @@
-# Competitive analysis — where Q-Periapt can lead, and where it cannot yet compete
+# Comparative evidence analysis — capabilities, boundaries, and unclosed claims
 
-> **External comparison baseline: 2026-08-15; local model status: 2026-08-15.**
+> **External comparison baseline: 2026-08-16; local model status: 2026-08-16.**
 > Q-Periapt is a pre-1.0, unaudited research
 > artifact. This document separates construction-level security, protocol scope,
 > implementation assurance, performance, standardization, and deployment. A win on
 > one axis is never reported as a win on all axes. Machine-readable claim status is
 > in [`../artifact/claim-ledger.json`](../artifact/claim-ledger.json).
+> External rows are scoped to the linked standard, specification, vendor documentation,
+> or project repository—the primary source for what that baseline publicly claims.
+> They are not independent audits, an exhaustive market survey, or an aggregate ranking.
 
 ## Executive answer
 
-An honest “all-dimensional crush” is **not currently possible**. X-Wing has a
-published construction, vectors, analyses, and multiple implementations; the IRTF hybrid-KEM draft now
+No aggregate ranking is supported by these unlike-for-like artifacts. The
+MLKEM768-X25519/X-Wing construction has published vectors and analyses; the IRTF hybrid-KEM draft now
 specifies a proposed general hash-everything `UniversalCombiner`; RFC 10024 defines the
 Standards Track `X25519MLKEM768` TLS 1.3 group under the RFC 9954 framework; PQ3 has deployment, ratcheting,
 external review, and protocol-level formal analysis. Signal's current baseline is not
 PQXDH alone: the 2025 public stack adds SPQR/ML-KEM Braid and Triple Ratchet, and
 Signal reports ProVerif design analysis plus hax/F* checks of core Rust invariants and
-panic freedom in CI. Q-Periapt cannot beat those facts with more local tests.
+panic freedom in CI. Local tests do not substitute for those different forms of evidence.
 
-A narrower but valuable lead **is feasible**: become the reference artifact for the
-conjunction of:
+A narrower artifact contribution is feasible around the conjunction of:
 
 1. field-resolved standard K-CT/K-PK reasoning plus a separately scoped local
    context-wrapper game and explicit countermodels;
@@ -29,9 +31,9 @@ conjunction of:
 5. a formal-source/conformance ledger with named binary/device evidence boundaries;
 6. a matched-performance diagnostic contract with a published non-regression budget.
 
-Among the explicitly compared public baselines, none demonstrates that entire conjunction in one
-open artifact. That is the defensible “multi-layer assurance” position, not an exhaustive priority
-claim; a systematic novelty review remains pending. It is not stronger
+This table does not establish whether every other public or private artifact demonstrates
+that entire conjunction. The defensible position is a scoped “multi-layer assurance”
+artifact claim subject to systematic novelty review, not priority or rank. It is not stronger
 cryptographic primitives, a higher binding ceiling than correct seed-`dk` X-Wing, or
 production superiority.
 
@@ -44,15 +46,15 @@ production superiority.
 | [OpenSSL 3.5 LTS](https://openssl-library.org/post/2025-04-08-openssl-35-final-release/) | General-purpose provider and TLS stack with native ML-KEM, ML-DSA, SLH-DSA, multiple key shares, and support through 2030 | A maintained ecosystem baseline with a stable provider surface and a long security-support horizon | Q-Periapt does not gain OpenSSL's lifecycle, audit, or deployment assurance by using the same primitives. A standards claim needs an independent OpenSSL 3.5 wire-interoperability lane, not another same-backend round trip. |
 | [AWS-LC PQ integrations](https://github.com/aws/aws-lc/blob/main/crypto/fipsmodule/PQREADME.md) and [AWS PQ readiness](https://aws.amazon.com/security/post-quantum-cryptography/aws-pq-readiness-confidentiality/) | FIPS-oriented primitive implementation plus large-service hybrid-PQ TLS rollout | Supports the standardized `0x11EC` group, publishes primitive benchmarks, and exposes negotiated key-exchange evidence in service/access logs where available | A downstream build is not automatically covered by AWS-LC's validation. The transferable lesson is explicit rollout policy plus evidence of the group actually negotiated, not merely a configured algorithm list. |
 | [Cloudflare hybrid-PQ deployment](https://blog.cloudflare.com/post-quantum-ipsec/) | Internet-scale TLS deployment and cross-vendor hybrid-ML-KEM IPsec interoperability | Reports hybrid protection for more than two-thirds of human-generated TLS traffic and tests an emerging IPsec profile against independent Cisco, Fortinet, and strongSwan implementations | Early private ciphersuites created real interoperability gaps. Q-Periapt must keep private research groups out of its standards lane and add independent wire, HRR, and network-middlebox evidence before claiming production interoperability. |
-| [X-Wing draft-10](https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem-10) | Individual, intended-Informational ML-KEM-768 + X25519 KEM | Lean fixed construction, seed-`dk` format, peer-reviewed analysis, implementations | Not an IETF Standards Track or CFRG WG item. No external context or policy input. Draft-10 itself warns that transmitting expanded `dk` loses MAL-BIND K-PK/K-CT guarantees. |
-| [IRTF hybrid KEMs draft-12](https://datatracker.ietf.org/doc/draft-irtf-cfrg-hybrid-kems/) | General hybrid-KEM constructions; CFRG RG Last Call as of 2026-07-11 | `UniversalCombiner` binds secrets, ciphertexts, public keys, and a label; C2PRI route captures the X-Wing shape | This eliminates any claim that “hash every field” is unique. Section 6.4.2 labels its LEAK-BIND analyses informal sketches and defers rigorous proofs; it also does not prove the possible MAL strengthening of common-seed keys. Q-Periapt's narrower possible lead is machine-checked, field-resolved standard MAL-BIND-K-CT/K-PK reductions, a separately scoped local K-CTX wrapper reduction, countermodels, and implementation evidence—not the field list. |
+| [CFRG concrete hybrid KEMs draft-04](https://www.ietf.org/archive/id/draft-irtf-cfrg-concrete-hybrid-kems-04.html), with historical [X-Wing draft-10](https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem-10) | CFRG/IRTF intended-Informational MLKEM768-X25519 construction; the current draft states it is identical to X-Wing | Lean fixed construction, 32-byte seed-`dk` format, analyses, and official vectors | The current document is an Internet-Draft, not an RFC or Standards-Track standard. It has no external context or policy input. The expanded-`dk` binding boundary remains a key-format concern rather than a claim that the specified seed-`dk` construction is broken. |
+| [IRTF hybrid KEMs draft-12](https://datatracker.ietf.org/doc/draft-irtf-cfrg-hybrid-kems/) | General hybrid-KEM constructions; CFRG RG Last Call as of 2026-07-11 | `UniversalCombiner` binds secrets, ciphertexts, public keys, and a label; C2PRI route captures the X-Wing shape | This eliminates any claim that “hash every field” is unique. Section 6.4.2 labels its LEAK-BIND analyses informal sketches and defers rigorous proofs; it also does not prove the possible MAL strengthening of common-seed keys. Q-Periapt's distinct scoped evidence is machine-checked, field-resolved standard MAL-BIND-K-CT/K-PK reductions, a separately scoped local K-CTX wrapper reduction, countermodels, and implementation evidence—not the field list. |
 | [NIST CSWP 39upd1](https://csrc.nist.gov/pubs/cswp/39/upd1/considerations-for-achieving-crypto-agility/final) | Crypto-agility strategies and operational continuity, updated 2026-06-29 | Treats replacement/migration across protocols, software, hardware, and infrastructure as an operational discipline | “Crypto agility” is established practice, not novelty. Q-Periapt must justify its closed decision, semantic security floor, migration order, and exact execution evidence as a scoped realization. |
 | [Signal PQXDH](https://signal.org/docs/specifications/pqxdh/) | Asynchronous initial key agreement | Identity, signed/one-time classical and PQ prekeys, offline first ciphertext, replay and server-trust analysis; its published analyses include conditional KCI resistance | Authentication is classical in the current revision; one-time-key exhaustion, last-resort keys, replay, and directory trust remain protocol concerns. Any modified hybrid/PQ identity mode must re-prove KCI for its own assumptions and compromise schedules. PQXDH is only the bootstrap component. |
 | [Signal SPQR / Triple Ratchet](https://signal.org/docs/specifications/doubleratchet/) + [ML-KEM Braid](https://signal.org/docs/specifications/mlkembraid/) | Ongoing hybrid FS/PCS | Sparse PQ continuous key agreement, bounded epoch/skipped-key state, dropped-message analysis, heterogeneous migration, public specifications | This removes the old comparison claim that Signal has only initial PQ protection. Q-Periapt has no comparable state machine or implementation-level proof. |
 | [Signal Sesame](https://signal.org/docs/specifications/sesame/) | Asynchronous multi-device session management | Per-device active/inactive sessions, convergence, retries, stale devices, bounded storage/error handling | Q-Periapt has no user/device/session graph, queue, retry, revocation, or recovery implementation. |
 | [Apple PQ3](https://security.apple.com/blog/imessage-pq3/) | Deployed messaging protocol with asynchronous establishment and ongoing PQ ratcheting | Pairwise per-device sessions, Contact Key Verification, hardware-backed classical device authentication, periodic PQ healing, protocol analysis, external review, huge deployment | Authentication remains classical against an active quantum attacker; cadence and platform infrastructure are product trade-offs. Q-Periapt still has no comparable ratchet, transparency service, audit, telemetry, or scale. |
 | [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current software `mlkem-native`/`fips204` keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
-| Q-Periapt `CompatXWing` | Byte-exact X-Wing comparison profile | Three official-vector KATs; seed-`dk` guard; noncanonical metadata rejection | Native X-Wing has no suite/version/context inputs, so the local K-CTX wrapper property is inapplicable. Q-Periapt requires canonical absence (`[]`, `0`, `[]`) and rejects supplied values instead of implying that they are bound. |
+| Q-Periapt `CompatXWing` | Byte-exact MLKEM768-X25519 construction/control profile | Three retained X-Wing draft-10 vectors plus the official `concrete-hybrid-kems-04` Appendix B.2 vector (stored as the repository vector-0 fixture); seed-`dk` guard; noncanonical metadata rejection | The construction has no suite/version/context inputs, so the local K-CTX wrapper property is inapplicable. Q-Periapt requires canonical absence (`[]`, `0`, `[]`) and rejects supplied values instead of implying that they are bound. KAT equality is not independent endpoint interoperability or RFC status. |
 | Q-Periapt `ContextBound` | Non-standard committing hybrid profile | Binds suite/version/all ct/pk/context; machine-checked reductions and countermodels | Research profile; no standards adoption, external audit, or formal spec-to-Rust refinement. |
 
 For operational KEM guidance, NIST’s [SP 800-227](https://csrc.nist.gov/pubs/sp/800/227/final)
@@ -80,7 +82,7 @@ combiner, context, state machine, or key lifecycle. FIPS conformance alone canno
 - whether two implementations encode the same tuple;
 - whether the proven source is the binary that ran.
 
-Q-Periapt can lead here only by keeping these links explicit. It must never translate
+Q-Periapt contributes here only by keeping these links explicit. It must never translate
 “ACVP/KAT passed” into “hybrid protocol is secure.”
 
 ### 2.2 Lean combiners inherit hidden component and key-format assumptions
@@ -196,7 +198,7 @@ correctness research only and owns no suite code or ABI. NIST’s
 does not turn an RC into a production implementation. The crate says it tracks an IPD,
 but as of 2026-07-12 the official FIPS 207 IPD is unavailable and NIST says it is coming soon.
 
-The native selection is an implementation optimization, not a formal-assurance lead.
+The native selection is an implementation optimization, not formal-assurance evidence.
 Upstream HOL-Light evidence is limited to selected upstream assembly source/object
 routines under its stated preconditions; it does not prove downstream reassembly,
 the Rust/C wrapper, the full ABI, or a released package. This integration has no
@@ -324,67 +326,75 @@ That chain is **not implemented today**: the repository has candidate codecs and
 non-production lifecycle model, but no authenticated prekey service, durable WAL,
 receipt protocol, ratchet implementation, model-to-Rust refinement, or end-to-end trace.
 
-## 3. Scorecard after this hardening
+## 3. Capability and evidence matrix
 
-Legend: **lead** = defensible current advantage; **parity** = same ceiling/capability;
-**behind** = baseline has material evidence Q-Periapt lacks; **pending** = no current claim.
+This is a scope matrix, not a score or rank. “Same primitive/ceiling” means only
+that narrow property; “absent” and “pending” identify an unimplemented capability
+or unclosed evidence claim without assigning an overall position.
 
 | Dimension | X-Wing / CFRG / TLS | PQ3 / current Signal stack | Q-Periapt status |
 |---|---|---|---|
-| Standardized primitives | mature baseline | mature baseline | **parity**: same ML-KEM/X25519 primitives |
-| Seed-`dk` X-Wing bytes | reference | n/a | **parity**: byte-exact CompatXWing KAT |
-| MAL K-CT/K-PK ceiling | seed-`dk` X-Wing reaches MAL | protocol-specific | **parity**, not stronger |
+| Standardized primitives | mature baseline | mature baseline | same ML-KEM/X25519 primitive family; no additional primitive claim |
+| Seed-`dk` MLKEM768-X25519 bytes | current CFRG draft plus historical X-Wing vectors | n/a | construction-byte KATs cover the current Appendix B.2 vector (stored as the repository vector-0 fixture) and retained draft-10 vectors; no endpoint claim |
+| MAL K-CT/K-PK ceiling | seed-`dk` X-Wing reaches MAL | protocol-specific | same stated ceiling, not stronger |
 | Field-resolved combiner reductions | CFRG general construction + evolving binding analysis | protocol-specific KDF/proof models | potential artifact delta in executable standard MAL-BIND-K-CT/K-PK reductions plus a separately scoped local K-CTX wrapper reduction; still no refinement or exhaustive novelty proof |
-| Authenticated external context | no X-Wing context; TLS binds transcript elsewhere | both protocols authenticate extensive transcript/state data | potential reusable-API delta only; not a current protocol lead, and the rustls KEM-layer path is partial |
+| Authenticated external context | no construction-level X-Wing context; TLS binds transcript elsewhere | both protocols authenticate extensive transcript/state data | potential reusable-API distinction only; not a current protocol result, and the rustls KEM-layer path is partial |
 | Signed policy/execution coupling | fixed suites or stack-specific config | versioned product protocols | potential open-artifact delta among the explicitly compared baselines: atomic decision + digest state + fail-closed fixed-suite boundary; systematic novelty review pending |
 | Source/claim/binary/device ledger | implementation-specific | Signal reports CI implementation proofs; product evidence is otherwise partly internal | potential **public reproducibility** delta: strict single-byte proof/auxiliary snapshots, environment-independent HEAD/index/actual-byte Git checks, ignore-independent untracked-input inventory, isolated source-only Python startup, manifest path/hash binding, and fixed release policy; not refinement superiority. The recorded schema-3 physical iPad+iPhone matrix is historical after target selection; fresh target-specific evidence is required. |
-| Asynchronous identity/prekeys | outside KEM scope | both have deployed device/key-directory paths; Signal specifies independent classical/PQ one-time/fallback semantics | **behind**: no protocol/service; only a strict model-level 16-field selection codec and outer-scope graft controls |
-| Ongoing hybrid PQ ratchet | outside KEM scope | PQ3 and Signal Triple Ratchet **lead** | **behind / absent** |
-| Multi-device/recovery | outside KEM scope | major deployed capability | **behind / absent** |
-| Crash/effect refinement | transport stack specific | deployed systems plus published protocol/implementation analyses; storage internals are not a public interoperability profile | **pending potential delta**: diagnostic model now includes canonical trusted-context/prekey admission, exact version+digest CAS and effect ordering, but no prekey tombstone/lease state, authenticated context advancement or real WAL/adapter/refinement evidence |
-| Spec-to-implementation refinement | implementation-specific | Signal reports hax/F* checks for its Rust ratchet crate | **behind / pending** |
-| Standards/interoperability | X-Wing/CFRG/TLS **lead** | deployed proprietary protocols | **behind** for ContextBound |
-| Third-party audit/deployment | major **lead** | major **lead** | **behind**: none |
-| Constant-time/FIPS backend maturity | production implementations vary, best are strong | production-hardened | **behind/partial**; per-backend/ISA only |
-| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v4/proof schema v7/budget schema v9 carries profile non-regression with strict profile-specific canonical inputs and a distinct byte-equivalent native/portable ContextBound implementation-improvement estimand in one same-process ABBA/BAAB slot; it binds the SDK/toolchain, final binary, portable archive/source, and canonical source, while mutable registry/sysroot/OS and collector honesty remain trusted |
+| Asynchronous identity/prekeys | outside KEM scope | both have deployed device/key-directory paths; Signal specifies independent classical/PQ one-time/fallback semantics | absent as a protocol/service; only a strict model-level 16-field selection codec and outer-scope graft controls exist |
+| Ongoing hybrid PQ ratchet | outside KEM scope | PQ3 and Signal publish ongoing-ratchet designs | absent |
+| Multi-device/recovery | outside KEM scope | deployed capability | absent |
+| Crash/effect refinement | transport stack specific | deployed systems plus published protocol/implementation analyses; storage internals are not a public interoperability profile | pending research: the diagnostic model includes canonical trusted-context/prekey admission, exact version+digest CAS and effect ordering, but no prekey tombstone/lease state, authenticated context advancement or real WAL/adapter/refinement evidence |
+| Spec-to-implementation refinement | implementation-specific | Signal reports hax/F* checks for its Rust ratchet crate | pending / not established |
+| Standards/interoperability | current CFRG draft and standardized TLS groups | deployed proprietary protocols | ContextBound is non-standard; independent endpoint interoperability is absent |
+| Third-party audit/deployment | available for named implementations | available for named products | none claimed |
+| Constant-time/FIPS backend maturity | implementation-specific | product-specific | partial and per-backend/ISA only |
+| Matched-core performance | implementation-specific | implementation-specific | raw schema v5/proof schema v8/budget schema v10 preserves the seed-dk profile estimand and separately compares O3/codegen-matched native/portable ContextBound `hybrid_core` encap/decap using one generated `expanded_fips203_2400` keypair and identical key bytes/coins/corpus. It excludes FFI and OS RNG, binds stable Rust/Cargo 1.96.1 plus the SDK/toolchain, final binary, portable archive/source, and canonical source, and remains pending without a fresh selected proof. |
 | End-to-end/device performance | optimized baseline | optimized deployed code | **pending**; rustls/backend, energy, and device gaps remain |
 
-## 4. Performance: the only acceptable claim after fresh capture
+## 4. Performance: scoped evidence only after fresh capture
 
-Raw schema v4 carries two separately named estimands in one same-process harness.
+Raw schema v5 carries two separately named estimands in one same-process harness.
 For profile non-regression, ContextBound and CompatXWing use the same native
 `MlKem768XWingSeed + X25519` backend, keys/coins/ciphertexts, and 64-case
 deterministic corpus under the same ABBA/BAAB schedule. Strict nested
 `profile_inputs` fixes ContextBound's suite/version/application context and
 CompatXWing's canonical absence of those inputs (`[]`, `0`, `[]`). For implementation
-improvement, native and evidence-only
-portable ML-KEM-768 execute ContextBound encapsulation and decapsulation only after
-the harness establishes byte-identical keys, ciphertexts, and shared secrets. Both
-use a 5 s warm-up, 20,480 paired samples per applicable operation and variant, and
-ABBA/BAAB ordering. Fixed 256/1/2-call batches cover
+improvement, native and evidence-only portable ML-KEM-768 execute only the
+ContextBound `hybrid_core` encapsulation and decapsulation surface over one generated
+`expanded_fips203_2400` keypair. The same expanded key bytes, coins, and corpus enter
+both implementations, and every encapsulation/decapsulation output is compared before
+timing; portable key generation is not invoked. FFI, policy handling, OS RNG, rustls,
+and full ABI overhead are excluded. Both C paths use the same
+O3/PIC/Armv8-A/macOS-11/section-codegen contract, while the O3 Rust harness uses thin
+LTO and one codegen unit. Each estimand/operation receives its own 5 s warm-up
+immediately before collection, as bound by raw and budget metadata, followed by
+20,480 paired samples per applicable operation and variant and ABBA/BAAB ordering.
+Fixed 256/1/2-call batches cover
 combine/encapsulation/decapsulation and record unrounded totals; verification
 normalizes only after the strict budget-bound iteration-map check.
 
 Consecutive 1,024-pair blocks define the primary paired percentile ratio/delta
 estimand and moving-block-bootstrap upper bound. Under the nearest-rank rule, each
-block's p99 has 11 tail observations. Budget schema v9 preserves the v6 profile
+block's p99 has 11 tail observations. Budget schema v10 preserves the v6 profile
 contract, including its former 256-pair regression guard, and requires the published
 profile limits at both block scales. Separately parameterized 64/256/256-pair
 stability windows retain the 5% CV limit. The profile's nine bounds remain
 per-metric one-sided 95% bounds. The implementation estimand adds six: for both
-ContextBound product operations, native/portable p50 and p95 upper ratios must be at
+ContextBound hybrid-core operations, native/portable p50 and p95 upper ratios must be at
 most 0.95 and p99 at most 1.0. These are not a simultaneous 95% family guarantee;
 span-5 coverage under autocorrelation has not been independently calibrated. A
-passing current proof therefore supports only the registered native-over-portable
-implementation result, not a population, device, or ContextBound-over-X-Wing speed
+passing current proof therefore supports only the registered expanded-key hybrid-core
+native-over-portable implementation result, not a population, complete ABI, device,
+rustls, or ContextBound-over-X-Wing speed
 claim.
 
-A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive and
-product-path improvement. This narrows the implementation-performance hypothesis on
-that host only. It has no checked-in canonical-source/toolchain-bound raw and analysis
+A local dirty native/portable diagnostic motivated a native/portable expanded-key
+hybrid-core performance hypothesis on that host only. It has no checked-in
+canonical-source/toolchain-bound raw and analysis
 bundle and is not formal release evidence, an optimized X-Wing comparison, or a
-protocol/device lead. Exact quantitative results require a fresh
-raw-schema-v4/proof-schema-v7 run under budget schema v9.
+protocol/device result. Exact quantitative results require a fresh
+raw-schema-v5/proof-schema-v8 run under budget schema v10.
 
 Historical proof schema v5 additionally bound the exact rustup toolchain name so byte-identical mutable aliases
 cannot make tool selection ambiguous. An earlier 256-pair-primary attempt failed the decapsulation
@@ -399,7 +409,7 @@ missed it by 0.000220. An older complete 81,920-pair-per-profile collection belo
 were not evaluated. A later clean-tree collection at the same preregistered sample count passed the
 unchanged stability and non-regression budgets. The selected path/hash/source status is recorded in
 `artifact/results.json` and must pass the live verifier; neither the failed raw nor this prose can
-establish a current-source or performance-lead claim.
+establish a current-source or performance claim.
 
 This redesign invalidates the earlier single-call controlled-Mac diagnostic: its 334/375 ns
 CompatXWing combine block medians were timer-quantization levels, so their mixture could cross the
@@ -413,19 +423,22 @@ the required domain verifier, not manifest prose alone, checks the actual proof,
 freshness. The target-selection/source migration invalidated all recorded portable-derived performance proofs,
 including the later matched-backend capture; a fresh same-source controlled-host run
 is required. The old single-call proof also remains invalid and must not be cited.
-The fixed budget-schema-v9 policy additionally pins the macOS SDK path, version,
-and settings digest, together with the rustup toolchain and target plus Cargo,
+The fixed budget-schema-v10 policy additionally pins the macOS SDK path, version,
+and settings digest, together with the stable Rust/Cargo 1.96.1 rustup toolchain and target plus Cargo,
 Rustc, Xcode Clang, and Xcode `ar` executable paths and hashes (and version output
-where available). Proof schema v7 also binds the final harness binary and the
+where available). Proof schema v8 also binds the final harness binary and the
 evidence-only portable reference source/archive. Collection selects those fixed tools, rejects
 repository/ancestor/user Cargo configuration, clears
 caller compiler/wrapper/loader controls, fixes system-tool lookup, builds offline in a fresh private
 target, and rechecks the four executables. The user-writable Cargo registry, Rust sysroot/driver, OS
 tools/libraries, same-UID host, and local collector's source-to-binary honesty remain trusted; this is
 not a hermetic producer attestation.
-The current rustls path still has a backend-related gap versus the optimized IANA group,
-and there is no paired iPad/iPhone energy/thermal evidence, allocations/RSS budget, stable
-multi-run clean baseline, or direct optimized production-X-Wing comparison. Shared CI
+The Compat rustls path now expands its stable 32-byte seed once per in-flight client
+handshake and reuses one zeroizing 2,400-byte prepared owner at completion, rather
+than repeating key generation. This process-local change has no global secret-key
+cache or C-ABI surface. There is still no current paired IANA-group comparison,
+iPad/iPhone energy/thermal evidence, allocations/RSS budget, stable multi-run clean
+baseline, or direct optimized production MLKEM768-X25519 comparison. Shared CI
 runners verify the harness/schema, not noisy microseconds.
 
 This section is strictly a KEM/core diagnostic. It says nothing about asynchronous
@@ -445,7 +458,7 @@ loss/reassembly tests, and physical-device latency/energy evidence before it bec
 claim. `CompatXWing` remains the fast, byte-exact comparison profile—not evidence that
 `ContextBound` can match its combiner cycles by weakening its transcript.
 
-## 5. What would make a multi-layer lead publishable
+## 5. What would make a multi-layer assurance claim publishable
 
 Priority order:
 
@@ -480,10 +493,9 @@ Priority order:
     asynchronous bootstrap.
 
 If items 1–5 land while performance stays within a published budget, Q-Periapt can
-credibly claim a strong **open assurance stack** among compared hybrid-KEM research
-artifacts. “Strongest” still requires a systematic comparison, especially because
-Signal now reports implementation-level verification. Without items 5–9, it cannot
-honestly claim protocol or production superiority.
+credibly claim the specifically enumerated **open assurance stack** for this artifact.
+That would still not establish an aggregate rank or exhaustive novelty result.
+Without items 5–9, protocol or production superiority remains unsupported.
 
 ## 6. Claim discipline
 
@@ -492,9 +504,11 @@ Allowed:
 - “ContextBound has a machine-checked, field-resolved binding argument under the stated model.”
 - “The signed-policy execution path binds exact policy identity and application context and
   rejects an incompatible fixed suite.”
-- “CompatXWing is byte-exact against the official X-Wing vectors and remains the
-  construction/control profile.” Independent endpoint or HPKE interoperability is a
-  separate, currently unclosed claim.
+- “CompatXWing retains byte equality for three historical X-Wing draft-10 vectors
+  and the current CFRG `concrete-hybrid-kems-04` Appendix B.2 vector (stored as the
+  repository vector-0 fixture), and remains the
+  construction/control profile.” Independent endpoint or HPKE interoperability and
+  RFC status are separate, currently unclosed claims.
 - “The artifact exposes proof, implementation, package, and device boundaries separately.”
 - “The non-normative model rejects session/device/current-context grafts before
   reservation and preserves that trusted authority across abstract reconstruction.”

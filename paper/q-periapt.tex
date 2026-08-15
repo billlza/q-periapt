@@ -114,8 +114,8 @@ conservatively, through \emph{hybrids}: a PQ KEM (ML-KEM~\cite{fips203}) run alo
 classical KEM (X25519), with the two shared secrets combined so that the session key is
 secure if \emph{either} component holds. Hybrid KEMs are now shipping in TLS~1.3
 (\code{X25519MLKEM768}), in Signal's PQXDH and subsequent Triple Ratchet,
-and in MLS; designs such as X-Wing are also proposed
-in individual Internet-Drafts~\cite{xwing}.
+and in MLS; the MLKEM768-X25519 construction historically known as X-Wing is now
+specified, unchanged, in a CFRG Internet-Draft~\cite{concretehybrid,xwing}.
 
 \paragraph*{The gap this paper addresses}
 Hybrids are being deployed faster than their \emph{deployment safety} can be assured, and the
@@ -178,7 +178,7 @@ $J$-injective setting (the shared secret already binds it). Thus public-key abso
 over expanded-\code{dk}, context absorption is necessary only for that explicit wrapper property,
 and ciphertext absorption is redundant only under the stated injectivity. The X-Wing field shape,
 instantiated over the FIPS-203 expanded-\code{dk} form, loses standard \mbox{K-PK} while keeping
-\mbox{K-CT}; a correctly deployed seed-\code{dk} X-Wing (which its individual draft mandates)
+\mbox{K-CT}; a correctly deployed seed-\code{dk} MLKEM768-X25519 construction (whose current CFRG draft specifies a 32-byte \code{dk})
 reaches \mbox{MAL-BIND-K-\{CT,PK\}} (\cref{sec:sep}). Native X-Wing has no context parameter, so
 K-CTX is not a well-typed comparison; only a hypothetical context wrapper around that shape which
 ignores its context fails our local wrapper game.
@@ -499,13 +499,21 @@ WASM paths consume that decision and absorb its policy digest into a domain-sepa
 context. Signed-policy documents and policy-bound application contexts are each capped at 64\,KiB
 before Rust-side verification, parsing, or derived-context allocation; Java/Kotlin/JNI also check
 before their explicit native copies, while host-runtime marshalling and service-level quotas remain
-outside this bound. Oversized inputs fail explicitly. The rustls demonstrator is intentionally
+outside this bound. Oversized inputs fail explicitly. The first dynamically allocated Rust-owned
+policy-bound-context copy reserves capacity before sensitive bytes are written and is wiped by one
+RAII owner on normal return, error, or unwind. Valid-length allocation failure maps to opaque
+internal/backend failure rather than a false length error. This does not erase caller/marshalling
+copies, registers, paging, or abort residue. The rustls demonstrator is intentionally
 separate: from an already parsed but not cryptographically authenticated \code{Policy}, it accepts
 only the ML-KEM-768\,+\,X25519 suite at policy version~1, selecting either
 ContextBound/expanded-key or CompatXWing/seed-dk exactly as resolved. It does not consume an
 authenticated decision, policy digest, or monotonic store. Its fixed protocol-domain context
 demonstrates fail-closed suite/profile selection, but not signed-policy authorization or arbitrary
-per-session K-CTX binding. The core's owned shared-secret storage is zeroized on drop, and the
+per-session K-CTX binding. For Compat, the stable private-key representation remains a 32-byte
+seed; each in-flight client handshake expands it exactly once into a non-Clone, boxed zeroizing
+2,400-byte prepared owner and reuses that owner at completion. Concurrent handshakes have
+independent owners, the global group registry holds only a stateless preparer, and there is no
+global secret-key cache or C-ABI prepared-key surface. The core's owned shared-secret storage is zeroized on drop, and the
 concrete SHA3 staging owner marks public and secret absorptions without changing their byte stream:
 it volatile-wipes component-secret and conservatively sensitive caller-context ranges from both
 inline and heap copies and fails closed to a whole-buffer wipe for unclassified input or invalid
@@ -552,7 +560,7 @@ predecessor-source buildability on that target, not current package/runtime evid
 \toprule
 \textbf{Method} & \textbf{Reference / oracle} & \textbf{Independence} & \textbf{What it catches} \\
 \midrule
-Fixed KATs & X-Wing draft vectors; RFC 7748 & published vectors & combiner and X25519 spec-conformance regressions \\
+Fixed KATs & CFRG concrete-hybrid-kems-04 Appendix B.2 vector (repository vector-0 fixture); three retained X-Wing draft-10 vectors; RFC 7748 & published vectors & combiner and X25519 spec-conformance regressions \\
 NIST ACVP & \emph{usnistgov} ACVP, wired FIPS parameter sets/modes & NIST ground truth & primitive non-conformance (FIPS 203/204/205); ML-DSA internal-interface vectors remain unwired reference data \\
 Multi-backend differential & RustCrypto \code{ml-kem}/\code{ml-dsa}; orion X25519 & independent re-implementations & implementation bugs (output must stay byte-identical) \\
 EasyCrypt proof & machine-checked; CR(SHA3) & formal (computational) & binding-design flaws in the combiner \\
@@ -808,20 +816,27 @@ We therefore added one dual-estimand paired gate.  The profile-non-regression
 estimand removes the earlier backend/key-format confound: ContextBound and
 CompatXWing use the same native ML-KEM-768 seed-\code{dk} + X25519 backend, keys,
 coins, 64-case deterministic ciphertext corpus, and ABBA/BAAB schedule. Raw schema
-v4 fixes their canonical inputs separately: ContextBound uses the fixed suite,
+v5 fixes their canonical inputs separately: ContextBound uses the fixed suite,
 policy version, and application context, whereas CompatXWing uses their canonical
 absence (empty, zero, empty).
-The separately named implementation-improvement estimand compares native and
-evidence-only portable ML-KEM-768 implementations for ContextBound encapsulation
-and decapsulation in the same harness process, after requiring byte-identical
-keys, ciphertexts, and shared-secret outputs.  Both use the fixed ABBA/BAAB
-schedule.  After a 5-s warm-up, raw schema v4 records 20,480 paired samples per
+The separately named implementation-improvement estimand compares the native and
+evidence-only portable ML-KEM-768 implementations only at the ContextBound
+\code{hybrid\_core} encapsulation/decapsulation surface over
+\code{expanded\_fips203\_2400}.  The harness generates one expanded keypair, feeds
+the same key bytes, coins, and corpus to both implementations, and requires
+byte-identical per-case ciphertexts and shared-secret outputs; portable key
+generation is not invoked. Both C paths share the O3/PIC/Armv8-A/macOS-11 and
+function/data-section code-generation contract; the O3 Rust harness uses thin LTO
+and one codegen unit under the stable Rust/Cargo~1.96.1 producer. FFI, policy
+handling, OS randomness, rustls, and complete-ABI overhead are excluded. Both use
+the fixed ABBA/BAAB schedule. Raw schema v5 gives each estimand/operation its own 5-s warm-up
+immediately before collection, then records 20,480 paired samples per
 applicable operation and variant.  Each timed sample batches 256/1/2 calls for
 combine/encapsulation/decapsulation, records the unrounded total, and normalizes
 only after a strict iteration-map check. Consecutive 1,024-pair,
 corpus-balanced blocks define both the primary paired point estimate and its
 span-5 moving-block-bootstrap upper bound. Under the nearest-rank rule each
-block's p99 has 11 tail observations. Budget schema v9 preserves the v6 profile
+block's p99 has 11 tail observations. Budget schema v10 preserves the v6 profile
 estimator and its former 256-pair regression guard, requiring every published
 profile limit to pass at both scales. Separate 64/256/256-pair windows test
 temporal stability without changing the 5\% CV limit.
@@ -832,11 +847,11 @@ one-sided 95\% bootstrap budgets (not a simultaneous 95\% family guarantee;
 span-5 coverage under autocorrelation has not been independently calibrated).
 The profile bounds retain p50/p95/p99 ratios of 1.10/1.15/1.20 and a
 $15\,\mu$s p95 absolute delta for encapsulation/decapsulation, plus a
-$10\,\mu$s combiner p95 delta.  For both native/portable ContextBound product
+$10\,\mu$s combiner p95 delta.  For both registered native/portable ContextBound hybrid-core
 operations, the implementation bounds require p50 and p95 upper ratios at most
-0.95 and p99 at most 1.0.  Proof schema v7 binds the raw samples, final harness
+0.95 and p99 at most 1.0.  Proof schema v8 binds the raw samples, final harness
 binary, evidence-only portable archive and source, verifier-fixed repository
-budget, commit, canonical source-input tree, selected Rust target/toolchain,
+budget, commit, canonical source-input tree, stable Rust/Cargo~1.96.1 target/toolchain,
 and the macOS SDK path, version, and settings digest. This is not yet a
 hermetic build-input closure. Raw, budget, and proof semantics share their
 digest snapshots; four boundary power/thermal observations are gated. The
@@ -856,16 +871,18 @@ its path/hash/schema/source/pass summary, while the required domain verifier che
 artifacts, and freshness. This source text cannot self-promote a stale run. A passing snapshot
 closes only a single-host matched-core diagnostic for those bytes, not device energy, rustls
 end-to-end, or optimized production-X-Wing parity.
-The migrated harness identifies \code{mlkem-native}~v1.2.0 + \code{sha3}~0.10.9 +
-x25519-dalek~2.0.1; every previously recorded paired proof has a different source/backend identity
-and must be recollected.
+The migrated harness's canonical source and locked dependency inputs select
+\code{mlkem-native}~v1.2.0, \code{sha3}~0.10.9, and
+\code{x25519-dalek}~3.0.0. The emitted backend identifier names the component families,
+while the proof binds the complete source/lock identity; every previously recorded paired proof
+has a different source/backend identity and must be recollected.
 
 A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive and
-product-path improvement. It has no checked-in canonical-source/toolchain-bound raw
+expanded-key hybrid-core performance hypothesis. It has no checked-in canonical-source/toolchain-bound raw
 and analysis bundle and therefore is not formal release evidence, an optimized
 production-X-Wing comparison, or a device/protocol performance claim. Exact
-quantitative results require a fresh raw-schema-v4/proof-schema-v7 run under
-budget schema v9, selected by the current results manifest.
+quantitative results require a fresh raw-schema-v5/proof-schema-v8 run under
+budget schema v10, selected by the current results manifest.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
@@ -1005,8 +1022,11 @@ within run-to-run noise (error bars span the two repetitions and cross zero at R
 
 \section{Discussion}\label{sec:disc}
 \paragraph*{When to use which profile}
-\code{CompatXWing} is the construction-compatible control: it is byte-exact against the official
-X-Wing vectors, but independent endpoint/HPKE interoperability remains untested. \code{ContextBound}
+\code{CompatXWing} is the construction-compatible control: it is byte-exact against the vector
+from CFRG concrete-hybrid-kems-04 Appendix B.2 (stored as the repository vector-0 fixture) and three retained historical X-Wing draft-10
+vectors. A separately derived same-length ciphertext mutation tests deterministic implicit
+rejection without an official expected rejected-secret oracle. The current CFRG document remains
+a non-RFC Internet-Draft, and independent endpoint/HPKE interoperability remains untested. \code{ContextBound}
 is the default for first-party deployments and is
 preferable whenever (i) the application has a meaningful context (a protocol/role/version label, a
 channel binding) that the session key should commit to; or (ii) the deployment cannot guarantee that
@@ -1079,14 +1099,16 @@ not current-source evidence or a blanket verification of any dependency.
 \paragraph*{Hybrids in deployment}
 Hybrid key exchange is being standardized and shipped: the IRTF combiner draft's
 \code{UniversalCombiner} and C2PRI profiles~\cite{hybridkems}, the IETF hybrid framework~\cite{rfc9954} and
-the \code{X25519MLKEM768} group~\cite{rfc10024} for TLS~1.3~\cite{rfc9846,rfc7748}, the X-Wing
-KEM~\cite{xwing}, Signal's PQXDH (formally analyzed in~\cite{pqxdh}) followed by its
+the \code{X25519MLKEM768} group~\cite{rfc10024} for TLS~1.3~\cite{rfc9846,rfc7748}, the
+MLKEM768-X25519 construction in CFRG concrete-hybrid-kems-04~\cite{concretehybrid}, with
+X-Wing draft-10 as historical provenance~\cite{xwing}, Signal's PQXDH (formally analyzed in~\cite{pqxdh}) followed by its
 SPQR/ML-KEM-Braid Triple Ratchet~\cite{signaldr4,mlkembraid,signalspqr} and Sesame
 multi-device session management~\cite{sesame}, and Apple's PQ3~\cite{pq3}.
-X-Wing is presently an individual, intended-Informational Internet-Draft rather than an IETF
-Standards-Track RFC. These are the baselines we position against; our \code{CompatXWing} profile
-reproduces the official X-Wing KEM vectors, while our rustls integration targets the same TLS~1.3
-deployment path. We do not claim interoperability with an independent X-Wing or HPKE endpoint.
+The current concrete-hybrid-kems document is a CFRG/IRTF intended-Informational
+Internet-Draft, not an RFC. Our \code{CompatXWing} profile reproduces its official Appendix B.2
+vector, stored as the repository vector-0 fixture, and retains three historical X-Wing draft-10
+vectors; neither KAT scope nor our private-use
+rustls integration establishes interoperability with an independent MLKEM768-X25519 or HPKE endpoint.
 The current IRTF hybrid-KEM draft-12 labels its Section~6.4.2 binding arguments informal
 LEAK-BIND sketches, defers rigorous proofs, and does not prove the potential common-seed MAL
 strengthening~\cite{hybridkems}. Thus our defensible delta is machine-checked, field-resolved
@@ -1395,6 +1417,9 @@ MAL-BIND-K-PK,'' IACR ePrint 2024/523, 2024.
 An Analysis of Real-World KEM Combiners,'' IACR ePrint 2025/1416, 2025.
 \bibitem{xwing} D.~Connolly, P.~Schwabe, and B.~Westerbaan, ``X-Wing: The Hybrid KEM You've Been
 Looking For,'' draft-connolly-cfrg-xwing-kem-10, individual Internet-Draft (work in progress), 2026.
+\bibitem{concretehybrid} D.~Connolly and R.~Barnes, ``Concrete Hybrid PQ/T Key Encapsulation
+Mechanisms,'' draft-irtf-cfrg-concrete-hybrid-kems-04, CFRG/IRTF Internet-Draft (work in
+progress), July 2026.
 \bibitem{kyberslash} D.~J.~Bernstein, K.~Bhargavan, S.~Bhasin, A.~Chattopadhyay, T.~K.~Chia,
 M.~J.~Kannwischer, F.~Kiefer, T.~B.~Paiva, P.~Ravi, and G.~Tamvada, ``KyberSlash: Exploiting
 Secret-Dependent Division Timings in Kyber Implementations,'' \emph{IACR TCHES}, 2025.

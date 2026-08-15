@@ -46,7 +46,8 @@ use q_periapt_backends::{
 #[cfg(test)]
 use q_periapt_core::{combine, CombineInput};
 use q_periapt_core::{
-    encode_policy_bound_context, policy_bound_context_len, Error, Profile, ZeroizingBytes,
+    encode_policy_bound_context, policy_bound_context_len, secure_wipe, Error, Profile,
+    ZeroizingBytes,
 };
 use q_periapt_kem::HybridKem;
 use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
@@ -281,22 +282,140 @@ fn parse_policy_decision(encoded: &[u8]) -> Option<ParsedPolicyDecision> {
     })
 }
 
+/// Single RAII owner for a dynamically-sized buffer that may contain sensitive context.
+///
+/// Ownership is established before allocation, and capacity is reserved before any sensitive
+/// byte is written. Consequently, fallible allocation, later errors, and unwinding all converge
+/// on the same `Drop` implementation without leaving an unreachable reallocation copy.
+struct ZeroizingVec {
+    bytes: Vec<u8>,
+    #[cfg(test)]
+    drop_probe: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PolicyContextError {
+    Core(Error),
+    Allocation,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static FAIL_NEXT_POLICY_CONTEXT_ALLOCATION: std::cell::Cell<bool> = const {
+        std::cell::Cell::new(false)
+    };
+}
+
+#[cfg(test)]
+fn fail_next_policy_context_allocation_for_test() {
+    FAIL_NEXT_POLICY_CONTEXT_ALLOCATION.with(|failure| failure.set(true));
+}
+
+#[cfg(test)]
+fn take_policy_context_allocation_failure() -> bool {
+    FAIL_NEXT_POLICY_CONTEXT_ALLOCATION.with(|failure| failure.replace(false))
+}
+
+#[cfg(not(test))]
+fn take_policy_context_allocation_failure() -> bool {
+    false
+}
+
+impl From<Error> for PolicyContextError {
+    fn from(error: Error) -> Self {
+        Self::Core(error)
+    }
+}
+
+fn policy_context_err_code(error: PolicyContextError) -> i32 {
+    match error {
+        PolicyContextError::Core(error) => err_code(error),
+        // The public length cap is checked before allocation. A reserve failure
+        // after that check is local resource exhaustion, not caller input error.
+        PolicyContextError::Allocation => Q_PERIAPT_ERR_INTERNAL,
+    }
+}
+
+impl ZeroizingVec {
+    fn empty() -> Self {
+        Self {
+            bytes: Vec::new(),
+            #[cfg(test)]
+            drop_probe: None,
+        }
+    }
+
+    fn try_zeroed(len: usize) -> Result<Self, PolicyContextError> {
+        let mut owner = Self::empty();
+        owner.try_resize_zeroed(len)?;
+        Ok(owner)
+    }
+
+    fn try_resize_zeroed(&mut self, len: usize) -> Result<(), PolicyContextError> {
+        if take_policy_context_allocation_failure() {
+            return Err(PolicyContextError::Allocation);
+        }
+        self.bytes
+            .try_reserve_exact(len)
+            .map_err(|_| PolicyContextError::Allocation)?;
+        self.bytes.resize(len, 0);
+        Ok(())
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    fn as_mut_bytes(&mut self) -> &mut [u8] {
+        &mut self.bytes
+    }
+
+    fn clear(&mut self) {
+        secure_wipe(self.bytes.as_mut_slice());
+    }
+
+    #[cfg(test)]
+    fn try_zeroed_with_drop_probe(
+        len: usize,
+        drop_probe: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<Self, PolicyContextError> {
+        let mut owner = Self {
+            bytes: Vec::new(),
+            drop_probe: Some(drop_probe),
+        };
+        owner.try_resize_zeroed(len)?;
+        Ok(owner)
+    }
+}
+
+impl Drop for ZeroizingVec {
+    fn drop(&mut self) {
+        self.clear();
+        #[cfg(test)]
+        if let Some(drop_probe) = &self.drop_probe {
+            drop_probe.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+}
+
 fn policy_bound_context(
     decision: ParsedPolicyDecision,
     application_context: &[u8],
-) -> Result<Vec<u8>, Error> {
+) -> Result<ZeroizingVec, PolicyContextError> {
     // CompatXWing has no context input. Refuse it here rather than pretending
     // the authenticated policy digest was committed by the KDF.
     if decision.profile != Profile::ContextBound {
-        return Err(Error::PolicyDenied);
+        return Err(Error::PolicyDenied.into());
     }
-    let len = policy_bound_context_len(application_context.len()).ok_or(Error::InvalidLength)?;
-    let mut context = Vec::new();
-    context
-        .try_reserve_exact(len)
-        .map_err(|_| Error::InvalidLength)?;
-    context.resize(len, 0);
-    encode_policy_bound_context(&decision.policy_digest, application_context, &mut context)?;
+    let len = policy_bound_context_len(application_context.len())
+        .ok_or(PolicyContextError::Core(Error::InvalidLength))?;
+    let mut context = ZeroizingVec::try_zeroed(len)?;
+    encode_policy_bound_context(
+        &decision.policy_digest,
+        application_context,
+        context.as_mut_bytes(),
+    )
+    .map_err(PolicyContextError::Core)?;
     Ok(context)
 }
 
@@ -984,7 +1103,7 @@ pub unsafe extern "C" fn q_periapt_encapsulate(
         };
         let context = match policy_bound_context(decision, application_context) {
             Ok(context) => context,
-            Err(error) => return err_code(error),
+            Err(error) => return policy_context_err_code(error),
         };
         let mut rand_pq = ZeroizingBytes::from_bytes([0u8; 32]);
         let mut rand_trad = ZeroizingBytes::from_bytes([0u8; 32]);
@@ -1005,8 +1124,8 @@ pub unsafe extern "C" fn q_periapt_encapsulate(
             pk_pq_len,
             pk_trad,
             pk_trad_len,
-            context.as_ptr(),
-            context.len(),
+            context.as_bytes().as_ptr(),
+            context.as_bytes().len(),
             rand_pq.as_bytes().as_ptr(),
             rand_pq.as_bytes().len(),
             rand_trad.as_bytes().as_ptr(),
@@ -1120,7 +1239,7 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
         };
         let context = match policy_bound_context(decision, application_context) {
             Ok(context) => context,
-            Err(error) => return err_code(error),
+            Err(error) => return policy_context_err_code(error),
         };
         let mut secret = ZeroizingBytes::from_bytes([0u8; Q_PERIAPT_SECRET_LEN]);
         let rc = hybrid_decapsulate_raw(
@@ -1140,8 +1259,8 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
             ct_trad_len,
             pk_trad,
             pk_trad_len,
-            context.as_ptr(),
-            context.len(),
+            context.as_bytes().as_ptr(),
+            context.as_bytes().len(),
             secret.as_mut_bytes().as_mut_ptr(),
             secret.as_bytes().len(),
         );
@@ -1262,10 +1381,10 @@ mod tests {
         let boundary = vec![0x11; Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES];
         assert!(policy_bound_context(decision, &boundary).is_ok());
         let oversized = vec![0x22; Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES + 1];
-        assert_eq!(
-            policy_bound_context(decision, &oversized).unwrap_err(),
-            Error::InvalidLength
-        );
+        assert!(matches!(
+            policy_bound_context(decision, &oversized),
+            Err(PolicyContextError::Core(Error::InvalidLength))
+        ));
 
         let mut encoded = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
         encoded[0] = Q_PERIAPT_POLICY_DECISION_VERSION;
@@ -1273,17 +1392,19 @@ mod tests {
         encoded[2] = Q_PERIAPT_PROFILE_CONTEXT_BOUND;
         encoded[3] = Q_PERIAPT_KEY_FORMAT_EXPANDED;
         encoded[7] = 1;
-        let mut ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
-        let mut ct_trad = [0u8; Q_PERIAPT_X25519_LEN];
-        let mut secret = [0u8; Q_PERIAPT_SECRET_LEN];
+        let pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut ct_pq = [0xA5u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0xA5u8; Q_PERIAPT_X25519_LEN];
+        let mut secret = [0xA5u8; Q_PERIAPT_SECRET_LEN];
         let rc = unsafe {
             q_periapt_encapsulate(
                 encoded.as_ptr(),
                 encoded.len(),
-                core::ptr::null(),
-                0,
-                core::ptr::null(),
-                0,
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                pk_trad.as_ptr(),
+                pk_trad.len(),
                 oversized.as_ptr(),
                 oversized.len(),
                 ct_pq.as_mut_ptr(),
@@ -1295,6 +1416,88 @@ mod tests {
             )
         };
         assert_eq!(rc, Q_PERIAPT_ERR_LENGTH);
+        assert!(ct_pq.iter().all(|byte| *byte == 0));
+        assert!(ct_trad.iter().all(|byte| *byte == 0));
+        assert!(secret.iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn valid_length_policy_context_allocation_failure_is_internal_and_atomic() {
+        let mut encoded = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
+        encoded[0] = Q_PERIAPT_POLICY_DECISION_VERSION;
+        encoded[1] = Q_PERIAPT_SUITE_MLKEM768_X25519;
+        encoded[2] = Q_PERIAPT_PROFILE_CONTEXT_BOUND;
+        encoded[3] = Q_PERIAPT_KEY_FORMAT_EXPANDED;
+        encoded[7] = 1;
+        let pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let application_context = b"valid-public-context";
+        let mut ct_pq = [0xA5u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0xA5u8; Q_PERIAPT_X25519_LEN];
+        let mut secret = [0xA5u8; Q_PERIAPT_SECRET_LEN];
+
+        fail_next_policy_context_allocation_for_test();
+        let rc = unsafe {
+            q_periapt_encapsulate(
+                encoded.as_ptr(),
+                encoded.len(),
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                pk_trad.as_ptr(),
+                pk_trad.len(),
+                application_context.as_ptr(),
+                application_context.len(),
+                ct_pq.as_mut_ptr(),
+                ct_pq.len(),
+                ct_trad.as_mut_ptr(),
+                ct_trad.len(),
+                secret.as_mut_ptr(),
+                secret.len(),
+            )
+        };
+
+        assert_eq!(rc, Q_PERIAPT_ERR_INTERNAL);
+        assert!(ct_pq.iter().all(|byte| *byte == 0));
+        assert!(ct_trad.iter().all(|byte| *byte == 0));
+        assert!(secret.iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn zeroizing_vec_wipes_and_drops_on_error_and_unwind() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+
+        let mut owner = ZeroizingVec::try_zeroed(32).unwrap();
+        owner.as_mut_bytes().fill(0xA5);
+        owner.clear();
+        assert!(owner.as_bytes().iter().all(|byte| *byte == 0));
+
+        let error_drop = Arc::new(AtomicBool::new(false));
+        let result = ZeroizingVec::try_zeroed_with_drop_probe(usize::MAX, Arc::clone(&error_drop));
+        assert!(matches!(result, Err(PolicyContextError::Allocation)));
+        assert_eq!(
+            policy_context_err_code(PolicyContextError::Allocation),
+            Q_PERIAPT_ERR_INTERNAL
+        );
+        assert!(
+            error_drop.load(Ordering::SeqCst),
+            "fallible allocation must drop its RAII owner"
+        );
+
+        let unwind_drop = Arc::new(AtomicBool::new(false));
+        let probe = Arc::clone(&unwind_drop);
+        let result = catch_unwind(AssertUnwindSafe(move || {
+            let mut owner = ZeroizingVec::try_zeroed_with_drop_probe(32, probe).unwrap();
+            owner.as_mut_bytes().fill(0x5A);
+            std::panic::resume_unwind(Box::new("exercise the unwind path"));
+        }));
+        assert!(result.is_err());
+        assert!(
+            unwind_drop.load(Ordering::SeqCst),
+            "unwinding must drop its RAII owner"
+        );
     }
 
     #[test]

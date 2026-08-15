@@ -48,9 +48,9 @@ from proof_manifest import (
 )
 
 
-PROOF_SCHEMA_VERSION = 7
-HARNESS_SCHEMA_VERSION = 4
-BUDGET_SCHEMA_VERSION = 9
+PROOF_SCHEMA_VERSION = 8
+HARNESS_SCHEMA_VERSION = 5
+BUDGET_SCHEMA_VERSION = 10
 PROFILE_NON_REGRESSION = "profile_non_regression"
 IMPLEMENTATION_IMPROVEMENT = "implementation_improvement"
 ESTIMANDS = (PROFILE_NON_REGRESSION, IMPLEMENTATION_IMPROVEMENT)
@@ -67,6 +67,11 @@ PORTABLE_REFERENCE_IMPLEMENTATION_ID = (
     "mlkem-native-1.2.0/portable-c/evidence-only-reference"
 )
 PORTABLE_REFERENCE_SCOPE = "evidence_only_non_product_reference"
+IMPLEMENTATION_SURFACE = "hybrid_core"
+IMPLEMENTATION_KEY_FORMAT = "expanded_fips203_2400"
+IMPLEMENTATION_KEYPAIR_GENERATION_COUNT = 1
+IMPLEMENTATION_INCLUDES_FFI = False
+IMPLEMENTATION_INCLUDES_OS_RNG = False
 PORTABLE_REFERENCE_SOURCE_RELATIVE = pathlib.PurePosixPath(
     "crates/q-periapt-mlkem-native-sys/src/mlkem_bridge_portable.c"
 )
@@ -105,6 +110,7 @@ MAX_PERFORMANCE_RAW_BYTES = 128 * 1024 * 1024
 # cap keeps the producer below the independent 128 MiB raw-evidence bound.
 MAX_COLLECTION_SAMPLES = 40_000
 MAX_COLLECTION_WARMUP_MS = 60_000
+WARMUP_SCOPE = "per_estimand_operation_immediately_before_collection"
 XCODE_DEFAULT_TOOLCHAIN_BIN = pathlib.Path(
     "/Applications/Xcode.app/Contents/Developer/Toolchains/"
     "XcodeDefault.xctoolchain/usr/bin"
@@ -113,6 +119,21 @@ MACOS_SDK_RELATIVE_TO_DEVELOPER = pathlib.PurePosixPath(
     "Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 )
 MACOS_SDK_SETTINGS_NAME = "SDKSettings.json"
+MACOS_DEPLOYMENT_TARGET = "11.0"
+C_ARCHITECTURE = "armv8-a"
+C_OPTIMIZATION = "O3"
+C_LANGUAGE_STANDARD = "c99"
+C_VISIBILITY = "hidden"
+RUST_OPTIMIZATION = "O3"
+RUST_LTO = "thin"
+RUST_CODEGEN_UNITS = 1
+MATCHED_C_CODEGEN_FLAGS = (
+    f"-{C_OPTIMIZATION}",
+    "-fPIC",
+    "-ffunction-sections",
+    "-fdata-sections",
+    f"-mmacosx-version-min={MACOS_DEPLOYMENT_TARGET}",
+)
 
 
 class GateError(ValueError):
@@ -341,6 +362,114 @@ def canonical_profile_inputs() -> dict[str, dict[str, Any]]:
     }
 
 
+def canonical_build_contract() -> dict[str, Any]:
+    """Return the exact matched code-generation contract for release evidence."""
+
+    c_build = {
+        "architecture": C_ARCHITECTURE,
+        "data_sections": True,
+        "function_sections": True,
+        "language_standard": C_LANGUAGE_STANDARD,
+        "macos_deployment_target": MACOS_DEPLOYMENT_TARGET,
+        "optimization": C_OPTIMIZATION,
+        "position_independent_code": True,
+        "visibility": C_VISIBILITY,
+    }
+    return {
+        "c_implementations": {
+            "product_native": dict(c_build),
+            "portable_reference": dict(c_build),
+        },
+        "rust_harness": {
+            "codegen_units": RUST_CODEGEN_UNITS,
+            "lto": RUST_LTO,
+            "optimization": RUST_OPTIMIZATION,
+        },
+    }
+
+
+def validate_build_contract(value: Any, label: str) -> dict[str, Any]:
+    """Fail closed unless every native/reference code-generation input is pinned."""
+
+    require(isinstance(value, dict), f"{label} must be an object")
+    _strict_keys(value, {"c_implementations", "rust_harness"}, label)
+    c_implementations = value.get("c_implementations")
+    require(
+        isinstance(c_implementations, dict),
+        f"{label}/c_implementations must be an object",
+    )
+    _strict_keys(
+        c_implementations,
+        {"product_native", "portable_reference"},
+        f"{label}/c_implementations",
+    )
+    c_fields = {
+        "architecture",
+        "data_sections",
+        "function_sections",
+        "language_standard",
+        "macos_deployment_target",
+        "optimization",
+        "position_independent_code",
+        "visibility",
+    }
+    for implementation in ("product_native", "portable_reference"):
+        settings = c_implementations.get(implementation)
+        require(
+            isinstance(settings, dict),
+            f"{label}/c_implementations/{implementation} must be an object",
+        )
+        _strict_keys(
+            settings,
+            c_fields,
+            f"{label}/c_implementations/{implementation}",
+        )
+        for field in (
+            "data_sections",
+            "function_sections",
+            "position_independent_code",
+        ):
+            require(
+                type(settings.get(field)) is bool,
+                f"{label}/c_implementations/{implementation}/{field} must be boolean",
+            )
+        for field in (
+            "architecture",
+            "language_standard",
+            "macos_deployment_target",
+            "optimization",
+            "visibility",
+        ):
+            require(
+                isinstance(settings.get(field), str) and bool(settings[field]),
+                f"{label}/c_implementations/{implementation}/{field} must be text",
+            )
+    rust_harness = value.get("rust_harness")
+    require(isinstance(rust_harness, dict), f"{label}/rust_harness must be an object")
+    _strict_keys(
+        rust_harness,
+        {"codegen_units", "lto", "optimization"},
+        f"{label}/rust_harness",
+    )
+    require(
+        type(rust_harness.get("codegen_units")) is int,
+        f"{label}/rust_harness/codegen_units must be an integer",
+    )
+    for field in ("lto", "optimization"):
+        require(
+            isinstance(rust_harness.get(field), str) and bool(rust_harness[field]),
+            f"{label}/rust_harness/{field} must be text",
+        )
+    expected = canonical_build_contract()
+    require(
+        c_implementations["product_native"]
+        == c_implementations["portable_reference"],
+        f"{label} does not compile native and portable C implementations equivalently",
+    )
+    require(value == expected, f"{label} does not match the canonical build contract")
+    return value
+
+
 def validate_profile_inputs(value: Any, label: str) -> dict[str, Any]:
     """Require the strict nested shape and canonical inputs for both profiles."""
 
@@ -397,6 +526,7 @@ def parse_raw_bytes(
 
     metadata = records[0]
     metadata_fields = {
+        "build_contract",
         "corpus_size",
         "implementation_improvement",
         "iterations_per_sample",
@@ -409,6 +539,7 @@ def parse_raw_bytes(
         "schema_version",
         "target",
         "warmup_ms",
+        "warmup_scope",
     }
     _strict_keys(metadata, metadata_fields, "metadata record")
     require(type(metadata.get("schema_version")) is int, "harness schema must be an integer")
@@ -430,6 +561,10 @@ def parse_raw_bytes(
     )
     validate_profile_inputs(metadata.get("profile_inputs"), "metadata profile_inputs")
     require(type(metadata.get("warmup_ms")) is int and metadata["warmup_ms"] > 0, "invalid warmup duration")
+    require(
+        metadata.get("warmup_scope") == WARMUP_SCOPE,
+        "metadata warmup scope is invalid",
+    )
     iterations_per_sample = positive_operation_map(
         metadata.get("iterations_per_sample"),
         "metadata iterations_per_sample",
@@ -470,6 +605,10 @@ def parse_raw_bytes(
     implementation_contract = metadata.get(IMPLEMENTATION_IMPROVEMENT)
     if mode == PROFILE_DIAGNOSTIC_MODE:
         require(
+            metadata.get("build_contract") is None,
+            "profile diagnostic raw data cannot claim the release build contract",
+        )
+        require(
             implementation_contract is None,
             "profile diagnostic raw data cannot claim implementation improvement",
         )
@@ -478,6 +617,7 @@ def parse_raw_bytes(
             target == "aarch64-apple-darwin",
             "release implementation evidence requires aarch64-apple-darwin",
         )
+        validate_build_contract(metadata.get("build_contract"), "metadata build_contract")
         require(
             isinstance(implementation_contract, dict),
             "release raw data lacks implementation_improvement contract",
@@ -488,11 +628,16 @@ def parse_raw_bytes(
                 "digest_algorithm",
                 "direction",
                 "equivalence_cases_per_operation",
+                "includes_ffi",
+                "includes_os_rng",
+                "key_format",
+                "keypair_generation_count",
                 "native_implementation_id",
                 "operations",
                 "portable_implementation_id",
                 "product_profile",
                 "reference_scope",
+                "surface",
                 "variants",
             },
             "implementation_improvement metadata",
@@ -512,8 +657,31 @@ def parse_raw_bytes(
         )
         require(
             implementation_contract.get("product_profile") == "ContextBound",
-            "implementation improvement must measure the ContextBound product path",
+            "implementation improvement must measure the ContextBound hybrid-core surface",
         )
+        expected_surface = {
+            "surface": IMPLEMENTATION_SURFACE,
+            "key_format": IMPLEMENTATION_KEY_FORMAT,
+            "keypair_generation_count": IMPLEMENTATION_KEYPAIR_GENERATION_COUNT,
+            "includes_ffi": IMPLEMENTATION_INCLUDES_FFI,
+            "includes_os_rng": IMPLEMENTATION_INCLUDES_OS_RNG,
+        }
+        for field, expected in expected_surface.items():
+            actual = implementation_contract.get(field)
+            if field in {"includes_ffi", "includes_os_rng"}:
+                require(
+                    type(actual) is bool,
+                    f"implementation improvement {field} must be boolean",
+                )
+            elif field == "keypair_generation_count":
+                require(
+                    type(actual) is int,
+                    "implementation improvement keypair_generation_count must be an integer",
+                )
+            require(
+                actual == expected,
+                f"implementation improvement {field} is invalid",
+            )
         require(
             implementation_contract.get("native_implementation_id")
             == NATIVE_IMPLEMENTATION_ID,
@@ -568,7 +736,7 @@ def parse_raw_bytes(
             )
             operation = record.get("operation")
             require(
-                operation in {"keypair", *IMPLEMENTATION_OPERATIONS},
+                operation in IMPLEMENTATION_OPERATIONS,
                 f"unknown equivalence operation at line {index}: {operation}",
             )
             for field in ("case_id", "corpus_index"):
@@ -711,7 +879,6 @@ def parse_raw_bytes(
         require(not equivalence, "profile diagnostic raw data contains equivalence records")
     else:
         expected_equivalence_counts = {
-            "keypair": 1,
             "encapsulate": corpus_size,
             "decapsulate": corpus_size,
         }
@@ -732,9 +899,8 @@ def parse_raw_bytes(
             )
             for case_id in range(count):
                 record = equivalence[(operation, case_id)]
-                expected_corpus_index = 0 if operation == "keypair" else case_id
                 require(
-                    record["corpus_index"] == expected_corpus_index,
+                    record["corpus_index"] == case_id,
                     f"{operation} equivalence case {case_id} has the wrong corpus index",
                 )
 
@@ -908,6 +1074,7 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
 
     expected_fields = {
         "bootstrap_estimate_block_span",
+        "build_contract",
         "collection_samples_per_variant_operation",
         "corpus_size",
         "harness_schema_version",
@@ -927,6 +1094,7 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
         "target",
         "toolchain",
         "warmup_ms",
+        "warmup_scope",
     }
     _strict_keys(budget, expected_fields, "performance budget")
     require(type(budget.get("schema_version")) is int, "performance budget schema must be an integer")
@@ -937,6 +1105,7 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
     require(type(budget.get("harness_schema_version")) is int, "budget harness schema must be an integer")
     require(budget.get("harness_schema_version") == HARNESS_SCHEMA_VERSION, "budget harness schema mismatch")
     validate_profile_inputs(budget.get("profile_inputs"), "budget profile_inputs")
+    validate_build_contract(budget.get("build_contract"), "budget build_contract")
     toolchain_policy = validate_toolchain_policy(budget.get("toolchain"))
     require(
         budget.get("mode") == RELEASE_EVIDENCE_MODE,
@@ -978,6 +1147,10 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
     require(
         warmup <= MAX_COLLECTION_WARMUP_MS,
         "performance budget warmup exceeds the collector resource limit",
+    )
+    require(
+        budget.get("warmup_scope") == WARMUP_SCOPE,
+        "performance budget warmup scope mismatch",
     )
     corpus_size = budget.get("corpus_size")
     require(
@@ -1023,21 +1196,40 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
         implementation_budget,
         {
             "direction",
+            "includes_ffi",
+            "includes_os_rng",
+            "key_format",
+            "keypair_generation_count",
             "native_implementation_id",
             "operations",
             "portable_implementation_id",
             "product_profile",
             "reference_scope",
+            "surface",
         },
         "implementation_improvement budget",
     )
     expected_implementation_contract = {
         "direction": "native/portable",
+        "includes_ffi": IMPLEMENTATION_INCLUDES_FFI,
+        "includes_os_rng": IMPLEMENTATION_INCLUDES_OS_RNG,
+        "key_format": IMPLEMENTATION_KEY_FORMAT,
+        "keypair_generation_count": IMPLEMENTATION_KEYPAIR_GENERATION_COUNT,
         "native_implementation_id": NATIVE_IMPLEMENTATION_ID,
         "portable_implementation_id": PORTABLE_REFERENCE_IMPLEMENTATION_ID,
         "product_profile": "ContextBound",
         "reference_scope": PORTABLE_REFERENCE_SCOPE,
+        "surface": IMPLEMENTATION_SURFACE,
     }
+    for field in ("includes_ffi", "includes_os_rng"):
+        require(
+            type(implementation_budget.get(field)) is bool,
+            f"implementation_improvement budget {field} must be boolean",
+        )
+    require(
+        type(implementation_budget.get("keypair_generation_count")) is int,
+        "implementation_improvement budget keypair_generation_count must be an integer",
+    )
     for field, expected in expected_implementation_contract.items():
         require(
             implementation_budget.get(field) == expected,
@@ -1055,7 +1247,15 @@ def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
 
 def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
     minimum, collection_samples, warmup = validate_budget_policy(budget)
-    for field in ("mode", "schedule", "target", "corpus_size", "profile_inputs"):
+    for field in (
+        "mode",
+        "schedule",
+        "target",
+        "corpus_size",
+        "profile_inputs",
+        "build_contract",
+        "warmup_scope",
+    ):
         require(metadata.get(field) == budget.get(field), f"metadata/budget mismatch for {field}")
     require(
         metadata.get("iterations_per_sample") == EXPECTED_ITERATIONS_PER_SAMPLE,
@@ -1089,10 +1289,15 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
     )
     for field in (
         "direction",
+        "includes_ffi",
+        "includes_os_rng",
+        "key_format",
+        "keypair_generation_count",
         "native_implementation_id",
         "portable_implementation_id",
         "product_profile",
         "reference_scope",
+        "surface",
     ):
         require(
             implementation_metadata.get(field)
@@ -1609,6 +1814,23 @@ def host_target(
     raise GateError("rustc -vV did not report a host target")
 
 
+def rustc_macos_deployment_target(
+    root: pathlib.Path,
+    rustc: pathlib.Path,
+    target: str,
+    *,
+    environment: dict[str, str],
+) -> str:
+    output = run_line(
+        [str(rustc), "--print", "deployment-target", "--target", target],
+        root,
+        environment=environment,
+    )
+    expected = f"MACOSX_DEPLOYMENT_TARGET={MACOS_DEPLOYMENT_TARGET}"
+    require(output == expected, "rustc deployment target differs from performance policy")
+    return MACOS_DEPLOYMENT_TARGET
+
+
 def binary_path(target_dir: pathlib.Path, target: str) -> pathlib.Path:
     suffix = ".exe" if os.name == "nt" else ""
     return target_dir / target / "release" / "examples" / f"paired_profile_perf{suffix}"
@@ -1786,6 +2008,12 @@ def verified_toolchain(
     target = host_target(
         root, str(resolved["rustc"]), environment=command_environment
     )
+    rustc_macos_deployment_target(
+        root,
+        resolved["rustc"],
+        target,
+        environment=command_environment,
+    )
     identity = {
         "ar_path": str(resolved["ar"]),
         "ar_sha256": sha256_file(resolved["ar"]),
@@ -1898,6 +2126,12 @@ def require_toolchain_unchanged(
         == toolchain["target"],
         "rustc target changed during performance evidence processing",
     )
+    rustc_macos_deployment_target(
+        root,
+        rustc,
+        toolchain["target"],
+        environment=command_environment,
+    )
     for name, path in paths.items():
         require(
             sha256_file(path) == toolchain[f"{name}_sha256"],
@@ -1987,7 +2221,8 @@ def build_portable_reference_archive(
         "-Ivendor/mlkem-native",
         "-isysroot",
         sdk_root,
-        "-std=c99",
+        f"-std={C_LANGUAGE_STANDARD}",
+        *MATCHED_C_CODEGEN_FLAGS,
         "-pedantic-errors",
         "-Wall",
         "-Wextra",
@@ -1999,8 +2234,8 @@ def build_portable_reference_archive(
         "-Wmissing-prototypes",
         "-Wstrict-prototypes",
         "-Wundef",
-        "-fvisibility=hidden",
-        "-march=armv8-a",
+        f"-fvisibility={C_VISIBILITY}",
+        f"-march={C_ARCHITECTURE}",
     ]
     for symbol in PORTABLE_REFERENCE_SYMBOLS:
         evidence_symbol = symbol.replace(
@@ -2064,6 +2299,15 @@ def performance_harness_environment(
         )
     )
     configured["QPERIAPT_PERFORMANCE_TARGET"] = target
+    configured["QPERIAPT_PERFORMANCE_C_ARCHITECTURE"] = C_ARCHITECTURE
+    configured["QPERIAPT_PERFORMANCE_C_LANGUAGE_STANDARD"] = C_LANGUAGE_STANDARD
+    configured["QPERIAPT_PERFORMANCE_C_OPTIMIZATION"] = C_OPTIMIZATION
+    configured["QPERIAPT_PERFORMANCE_C_VISIBILITY"] = C_VISIBILITY
+    configured["QPERIAPT_PERFORMANCE_MACOS_DEPLOYMENT_TARGET"] = (
+        MACOS_DEPLOYMENT_TARGET
+    )
+    configured["QPERIAPT_PERFORMANCE_RUST_LTO"] = RUST_LTO
+    configured["QPERIAPT_PERFORMANCE_RUST_OPTIMIZATION"] = RUST_OPTIMIZATION
     return configured
 
 
@@ -2179,6 +2423,7 @@ def hardened_cargo_environment(
     target_linker_key = (
         "CARGO_TARGET_" + re.sub(r"[^A-Za-z0-9]", "_", target).upper() + "_LINKER"
     )
+    target_cflags_key = "CFLAGS_" + re.sub(r"[^A-Za-z0-9]", "_", target)
     return {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(private_home),
@@ -2188,11 +2433,16 @@ def hardened_cargo_environment(
         "CARGO_TERM_COLOR": "never",
         "CARGO_NET_OFFLINE": "true",
         "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": str(RUST_CODEGEN_UNITS),
+        "CARGO_PROFILE_RELEASE_LTO": RUST_LTO,
+        "CARGO_PROFILE_RELEASE_OPT_LEVEL": "3",
         "RUSTC": str(rustc),
         "CC": str(clang),
         "AR": str(ar),
         "SDKROOT": str(resolved_sdk),
+        "MACOSX_DEPLOYMENT_TARGET": MACOS_DEPLOYMENT_TARGET,
         target_linker_key: str(clang),
+        target_cflags_key: " ".join(MATCHED_C_CODEGEN_FLAGS),
         "LC_ALL": "C",
         "LANG": "C",
     }
@@ -2288,6 +2538,9 @@ def emit_proof(
         "portable reference source changed before proof emission",
     )
     validate_toolchain_identity(toolchain)
+    build_contract = validate_build_contract(
+        metadata.get("build_contract"), "proof build_contract"
+    )
     payload = {
         "schema_version": PROOF_SCHEMA_VERSION,
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -2296,6 +2549,7 @@ def emit_proof(
         "proof_source_tree_sha256": tree_digest,
         "environment": environment_observations,
         "toolchain": toolchain,
+        "build_contract": build_contract,
         "harness": metadata,
         "artifacts": {
             "raw_path": relative_to_root(raw_path, root, "raw performance data"),
@@ -2699,6 +2953,7 @@ def verify(args: argparse.Namespace) -> None:
         proof,
         {
             "schema_version",
+            "build_contract",
             "generated_at",
             "git_commit",
             "source_tree_dirty",
@@ -2713,6 +2968,9 @@ def verify(args: argparse.Namespace) -> None:
         "performance proof",
     )
     validate_proof_schema(proof)
+    proof_build_contract = validate_build_contract(
+        proof.get("build_contract"), "performance proof build_contract"
+    )
     generated = parse_generated_at(proof.get("generated_at"))
     age = (dt.datetime.now(dt.timezone.utc) - generated).total_seconds()
     require(age >= 0, "performance proof generated_at is in the future")
@@ -2848,6 +3106,11 @@ def verify(args: argparse.Namespace) -> None:
         "performance budget changed during verification",
     )
     analysis = analyse(metadata, grouped, budget_snapshot.value)
+    require(
+        proof_build_contract == metadata.get("build_contract")
+        and proof_build_contract == budget_snapshot.value.get("build_contract"),
+        "performance proof build contract differs from raw data or budget",
+    )
     require(proof.get("harness") == metadata, "performance proof harness metadata changed")
     require(proof.get("analysis") == analysis, "performance proof analysis changed")
     require(proof.get("gate") == {"passed": True}, "performance proof is not a passing gate")

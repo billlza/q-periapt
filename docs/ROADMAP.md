@@ -40,8 +40,9 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
 
 **What we explicitly do NOT claim:**
 
-- **Not faster than X-Wing / the component primitives.** `Profile::CompatXWing` is
-  byte-exact against the X-Wing draft vectors. The combiner micro-benchmark
+- **Not faster than MLKEM768-X25519 / the component primitives.** `Profile::CompatXWing`
+  is byte-exact against the current CFRG draft vector and retained historical X-Wing
+  draft-10 vectors. The combiner micro-benchmark
   ([`crates/q-periapt-backends/benches/combiner.rs`](../crates/q-periapt-backends/benches/combiner.rs))
   has historical single-host data against a streaming X-Wing reference; it does not
   establish current production or device parity. `Profile::ContextBound` deliberately
@@ -53,8 +54,9 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
   2025-11-17 planning note for a future update; each release review must therefore
   pin the exact standard revision and reconcile its official errata before claiming
   current conformance.
-- **We track standards; we do not set them.** X-Wing is an IETF draft, not a
-  ratified standard.
+- **We track standards; we do not set them.** The identical MLKEM768-X25519
+  construction is now in CFRG `draft-irtf-cfrg-concrete-hybrid-kems-04`, which is
+  still an Internet-Draft, not an RFC.
 - **No completed third-party audit.** This is **research-grade, not
   production**: the target-selected `q-periapt-mlkem-native-sys` integration over
   `mlkem-native` v1.2.0, pinned `fips204` 0.4.6, `sha3` 0.10.9,
@@ -114,7 +116,7 @@ the shipped path:
   validates the embedded public key's canonical encoding and stored hash before
   decapsulation; malformed keys fail without publishing temporary output. No
   source-CT/hax assurance from a replaced backend is inherited.
-- **X25519** via `x25519-dalek` 2 (`default-features = false`, `static_secrets`).
+- **X25519** via `x25519-dalek` 3.0.0 (`default-features = false`, `static_secrets`).
 - **SHA3-256 / SHAKE-256** via RustCrypto `sha3` 0.10.9.
 - **SLH-DSA** (FIPS 205) via `fips205 0.4.1`, **off by default** behind the
   `slh-dsa` feature. The former `pqcrypto-hqc`/PQClean dependencies and `hqc` feature
@@ -125,15 +127,18 @@ the shipped path:
   That crate is `publish = false`, has no public suite
   code or ABI, and is not a vetted production fallback.
 
-### 2. X-Wing byte-exact KAT
+### 2. MLKEM768-X25519 byte-exact KAT
 [`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs)
-reproduces all **3 official `draft-connolly-cfrg-xwing-kem` vectors**
-byte-for-byte — public key, ciphertext, **and** shared secret, for encaps **and**
-decaps. This **reproduces FIPS 203 reference output on those three happy-path
-vectors** (the broader ACVP set is covered separately; this is not CMVP/FIPS
-module validation) and confirms
-the admitted `HybridKem<MlKem768XWingSeed, X25519>` construction reproduces those
-vectors. `CompatXWing` is its byte-exact combiner profile; independent endpoint/HPKE
+retains all **3 official historical `draft-connolly-cfrg-xwing-kem-10` vectors**
+byte-for-byte and adds the official MLKEM768-X25519 vector from CFRG
+`draft-irtf-cfrg-concrete-hybrid-kems-04` Appendix B.2 vector (stored as the repository
+vector-0 fixture). The official vector checks
+the component key material, public key, ciphertext, and shared secret across keygen,
+encapsulation, and decapsulation. A locally derived same-length ciphertext mutation
+separately checks deterministic implicit rejection; its rejected secret is not an
+official-vector oracle. The broader ACVP set is covered separately; none of this is
+CMVP/FIPS module validation. `CompatXWing` is the byte-exact combiner profile;
+the CFRG document remains a non-RFC Internet-Draft, and independent endpoint/HPKE
 interoperability is not proved. See [`tests/kat/README.md`](../tests/kat/README.md).
 
 ### 3. Both combiner profiles + backend-safety guard
@@ -169,7 +174,12 @@ misuse resistance from deterministic conformance:
 - **C ABI / FFI** — `q-periapt-ffi`: exact-nine dynamic `q_periapt_*`
   policy-controlled product ABI; the static archive constrains only that public
   namespace and retains unsupported hidden bridge link symbols, so it assumes a
-  trusted same-process consumer. Raw deterministic KAT helpers remain private Rust tests.
+  trusted same-process consumer. Its first dynamically allocated Rust-owned
+  policy-bound-context copy reserves before sensitive bytes are written and is wiped
+  by one RAII owner on normal return, error, or unwind. Valid-length allocation failure
+  remains an opaque internal/backend error, while oversized input remains a length
+  error. Caller/marshalling copies and process abort are outside this local guarantee.
+  Raw deterministic KAT helpers remain private Rust tests.
 - **WASM** — `q-periapt-wasm`; both the lean default and opt-in signed-policy
   surfaces run on a real Node runtime via `wasm-pack test` (CI `bindings-wasm`).
 - **Swift** — `bindings/swift` over ABI2; host product test passes.
@@ -208,6 +218,12 @@ public framing/ciphertext/key bytes are left alone,
 and legacy/unclassified input or range-metadata failure falls back to a full wipe. KATs prove the
 classification does not alter digest bytes; this remains local storage hygiene, not full-stack
 zeroization.
+The direct Rust/rustls Compat path also keeps the stable serialized private key as a
+32-byte seed while one active client handshake owns a non-Clone, zeroizing 2,400-byte
+prepared expanded key until completion or abandonment. The owner is prepared once and
+reused for completion; concurrent handshakes remain independent. The process-global
+group registry carries only a stateless preparer, not secret keys, and no prepared-key
+capability is exported through the C ABI.
 
 ### 7. Machine-checked binding proof + CI formal-proof gate
 [`formal/easycrypt/BindingViaCR.ec`](../formal/easycrypt/BindingViaCR.ec):
@@ -267,14 +283,20 @@ the BOMs as artifacts.
 
 ### 10. Profile and implementation performance gate
 [`paired_profile_perf.rs`](../crates/q-periapt-backends/examples/paired_profile_perf.rs)
-keeps the matched ContextBound/CompatXWing estimand and adds an independent
-native/portable implementation estimand for ContextBound product encapsulation and
-decapsulation. Both profiles use the same seed-dk ML-KEM/X25519 keys, coins,
+keeps the matched ContextBound/CompatXWing profile estimand and adds an independent
+native/portable implementation estimand for ContextBound `hybrid_core` encapsulation
+and decapsulation over `expanded_fips203_2400`. Both profiles continue to use the same
+seed-dk ML-KEM/X25519 keys, coins,
 ciphertext corpus, and paired ABBA/BAAB ordering; strict `profile_inputs` fixes the
 ContextBound suite/version/application context and CompatXWing's canonical `[]`/`0`/`[]`.
-The evidence-only portable archive is private to this harness, and byte equality is
-required for keypair and every
-per-case encapsulation/decapsulation output before timing.
+The implementation estimand generates one expanded keypair, supplies the same key
+bytes/coins/corpus to both implementations, and requires byte equality for every
+per-case encapsulation/decapsulation output before timing; portable key generation is
+not invoked. FFI and OS RNG are excluded. The evidence-only portable archive is
+private to this harness. Native and portable C share the O3/PIC/Armv8-A/macOS-11/
+section-codegen contract; the O3 Rust harness uses thin LTO and one codegen unit under
+the stable Rust/Cargo 1.96.1 producer. Each estimand/operation is warmed independently
+immediately before collection as bound by raw and budget metadata.
 [`performance_gate.py`](../artifact/performance_gate.py) enforces schema, sample inventory,
 host stability, source/binary/portable-archive/budget hashes, and both published budgets.
 The implementation budget preregisters one-sided 95% upper native/portable limits of
@@ -282,17 +304,17 @@ The implementation budget preregisters one-sided 95% upper native/portable limit
 digest equals the live verifier digest and the host satisfies the controlled-power and
 thermal contract. The time-varying formal proof state is recorded in
 `artifact/results.json`. The gate is implemented, but no fresh clean-source,
-controlled-host, exact-sample proof is selected; exact results require proof schema
-v7 under budget schema v9. The older Criterion combiner harness remains a
+controlled-host, exact-sample proof is selected; exact results require raw schema v5,
+proof schema v8, and budget schema v10. The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
-Budget schema v9 preserves the profile thresholds, 20,480 samples per
+Budget schema v10 preserves the profile thresholds, 20,480 samples per
 variant/operation, and
 1,024-pair primary percentile-estimate blocks, yielding 11 nearest-rank p99 tail
 observations per block. It also retains the former 256-pair estimator as a regression
 guard and applies the same limits at both scales; separately parameterized temporal-
 stability windows retain the same 5% CV limit.
-Proof schema v7 and the schema-v9 policy also bind the final dual-implementation
+Proof schema v8 and the schema-v10 policy also bind the final dual-implementation
 binary, portable archive/source, raw data, rustup toolchain and target, Cargo, Rustc,
 Xcode Clang/ar, and the canonical macOS SDK path/version/settings digest. The producer rejects repository/ancestor/user Cargo
 configuration and caller compiler/wrapper/loader controls, and builds offline in a
@@ -578,11 +600,11 @@ are the gap between research-grade and audited/production.
 | --- | --- |
 | Third-party release backends wired (ML-KEM/ML-DSA/SHA3/X25519; opt-in SLH-DSA) | **Done; retired PQClean-HQC removed, HQC-v5/FIPS-207-draft RC isolated in a publish=false shadow** |
 | Fixed ML-KEM target selection | **Implemented in source:** exactly five little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic plus fixed Armv8-A x1/x4 FIPS 202 assembly; every other target remains portable, with no runtime dispatch or v8.4-A SHA3 path. **Release-receipt contract implemented, evidence pending:** the exact-R tag transaction must attest the fixed x86_64-portable and aarch64-native CT jobs plus six CodeQL jobs, bind `main` to R, require six exact-R Code Scanning analyses with zero results/positive rule counts/no diagnostics and no open main-ref alerts, and carry that R/S-bound structure through pending and verified platform receipts. All portable-derived CT/device/package/performance receipts remain stale until freshly produced for this source. ABI 2/key/wire remain unchanged. |
-| X-Wing byte-exact KAT (3 draft vectors) | **Done** |
+| MLKEM768-X25519 byte-exact KAT | **Done for the stated draft scope:** current CFRG `concrete-hybrid-kems-04` Appendix B.2 vector (stored as the repository vector-0 fixture) plus three retained historical X-Wing draft-10 vectors; the current document remains a non-RFC Internet-Draft, and the derived invalid-ciphertext regression is local rather than an official oracle |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
 | Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only stable XCFramework lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The stable platform target covers the Android AAR and Linux C SDK archives and becomes public/current only through a verified receipt; unsigned Windows remains an unsupported CI diagnostic outside the release. Kotlin JDK 22 host tests and the Android x86_64 API-35/16-KiB ART package face are current CI gates. The canonical Android arm64 AVD and independent physical results bindings are implemented and non-interchangeable; production requires both, and remains pending whenever either current selection is absent.** |
-| Hardened `Secret` zeroization | **Done** |
+| Owned-secret zeroization | **Done for named owners:** core `Secret`, SHA3 staging ranges, one prepared 2,400-byte Compat owner per in-flight rustls client handshake, and the FFI's first Rust-owned dynamic policy-context copy. Caller/marshalling copies, registers, paging, and abort are not covered; prepared keys are not global-cached or exposed through C ABI. |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | Authenticated Migration Contract | **Phase 1 candidate canonical commitment implemented in a publish=false model: fixed role-normalized body, policy-derived consistency checks, independent vectors, and unchanged-ABI2 integration. Transition authentication, monotonic state ownership, key confirmation, rollback/agreement/floor proofs, and hostile-local-caller isolation remain future gates.** |
 | CBOM / SBOM (CycloneDX) + migration scanner | **Done** |
@@ -590,7 +612,7 @@ are the gap between research-grade and audited/production.
 | Tamarin symbolic handshake model (auth, authenticated context agreement, hybrid robustness; 5 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (6 exact queries) | **Done** |
 | CI gate for the Tamarin proof (hard lemma-presence gate + hard `make prove`) | **Done** |
-| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** The same-process harness preserves profile non-regression with strict profile-specific canonical inputs and separately requires byte-equivalent native/portable ContextBound product operations to meet preregistered material thresholds. Exact results require a fresh clean proof-schema-v7 run under budget schema v9 selected by the results manifest. Verifier policy fixes the repository budget and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
+| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** Raw v5 preserves seed-dk profile non-regression with strict profile-specific canonical inputs. The separate implementation estimand feeds one generated `expanded_fips203_2400` keypair/coins/corpus to O3/codegen-matched native and portable ContextBound `hybrid_core` encap/decap paths and compares per-case outputs; it excludes FFI and OS RNG. Each estimand/operation is warmed immediately before its own collection. Exact results require a fresh clean proof-schema-v8 run under budget schema v10 selected by the results manifest. Verifier policy fixes the repository budget and stable Rust/Cargo 1.96.1 producer and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Deterministic `ContextBound`/`CompatXWing` conformance vectors | **Done in Rust/WASM; intentionally not exported by native ABI2** |

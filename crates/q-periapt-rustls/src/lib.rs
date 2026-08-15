@@ -23,8 +23,9 @@ use rustls::crypto::{
 use rustls::{Error, NamedGroup, PeerMisbehaved};
 
 use q_periapt_backends::{
-    MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_ENCAPS_RAND_LEN,
-    ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
+    MlKem768, MlKem768XWingSeed, PreparedMlKem768XWingKey, Sha3_256Xof, ML_KEM_768_CT_LEN,
+    ML_KEM_768_ENCAPS_RAND_LEN, ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN,
+    ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{Error as KemError, Profile, ZeroizingBytes, SHARED_SECRET_LEN};
 use q_periapt_kem::HybridKem;
@@ -63,7 +64,31 @@ pub struct QPeriaptKxGroup {
     profile: Profile,
     group: NamedGroup,
     rng: &'static dyn SecureRandom,
+    compat_key_preparer: &'static dyn CompatKeyPreparer,
 }
+
+/// Internal injection boundary used to verify that a Compat handshake invokes
+/// the production preparation path exactly once. It carries no cache or key
+/// state; production uses the stateless implementation below.
+trait CompatKeyPreparer: Sync {
+    fn prepare(
+        &self,
+        seed: ZeroizingBytes<ML_KEM_768_XWING_SEED_LEN>,
+    ) -> Result<PreparedMlKem768XWingKey, KemError>;
+}
+
+struct BackendCompatKeyPreparer;
+
+impl CompatKeyPreparer for BackendCompatKeyPreparer {
+    fn prepare(
+        &self,
+        seed: ZeroizingBytes<ML_KEM_768_XWING_SEED_LEN>,
+    ) -> Result<PreparedMlKem768XWingKey, KemError> {
+        MlKem768XWingSeed::prepare(seed)
+    }
+}
+
+static BACKEND_COMPAT_KEY_PREPARER: BackendCompatKeyPreparer = BackendCompatKeyPreparer;
 
 impl fmt::Debug for QPeriaptKxGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -101,35 +126,36 @@ impl SupportedKxGroup for QPeriaptKxGroup {
         self.rng
             .fill(seed.as_mut_bytes())
             .and_then(|()| self.rng.fill(scalar.as_mut_bytes()))?;
-        let (sk_pq, pk_pq) = match self.profile {
+        let pq_key = match self.profile {
             Profile::ContextBound => {
                 let (sk, pk) = MlKem768::generate(*seed.as_bytes()).map_err(|_| {
                     Error::General("q-periapt: ML-KEM key generation failed".into())
                 })?;
-                (sk.to_vec(), pk)
+                QPeriaptClientPqKey::ContextBound {
+                    decapsulation_key: Box::new(ZeroizingBytes::from_bytes(sk)),
+                    encapsulation_key: pk,
+                }
             }
             Profile::CompatXWing => {
                 let mut seed32 = ZeroizingBytes::<ML_KEM_768_XWING_SEED_LEN>::zeroed();
                 seed32
                     .as_mut_bytes()
                     .copy_from_slice(&seed.as_bytes()[..ML_KEM_768_XWING_SEED_LEN]);
-                let (sk, pk) = MlKem768XWingSeed::generate(*seed32.as_bytes()).map_err(|_| {
+                let prepared = self.compat_key_preparer.prepare(seed32).map_err(|_| {
                     Error::General("q-periapt: ML-KEM key generation failed".into())
                 })?;
-                (sk.to_vec(), pk)
+                QPeriaptClientPqKey::CompatXWing(prepared)
             }
         };
         let (sk_trad, pk_trad) = X25519::generate(*scalar.as_bytes());
 
         let mut pub_key = Vec::with_capacity(CLIENT_SHARE);
-        pub_key.extend_from_slice(&pk_pq);
+        pub_key.extend_from_slice(pq_key.encapsulation_key());
         pub_key.extend_from_slice(&pk_trad);
 
         Ok(Box::new(QPeriaptActiveKx {
-            profile: self.profile,
             group: self.group,
-            sk_pq,
-            pk_pq,
+            pq_key,
             sk_trad,
             pk_trad,
             pub_key,
@@ -210,12 +236,30 @@ impl SupportedKxGroup for QPeriaptKxGroup {
     }
 }
 
+/// Profile-specific PQ key owner for an in-flight client exchange.
+enum QPeriaptClientPqKey {
+    ContextBound {
+        decapsulation_key: Box<ZeroizingBytes<ML_KEM_768_SK_LEN>>,
+        encapsulation_key: [u8; ML_KEM_768_PK_LEN],
+    },
+    CompatXWing(PreparedMlKem768XWingKey),
+}
+
+impl QPeriaptClientPqKey {
+    fn encapsulation_key(&self) -> &[u8; ML_KEM_768_PK_LEN] {
+        match self {
+            Self::ContextBound {
+                encapsulation_key, ..
+            } => encapsulation_key,
+            Self::CompatXWing(prepared) => prepared.encapsulation_key(),
+        }
+    }
+}
+
 /// In-flight client key exchange: holds the local key pairs until the server share arrives.
 struct QPeriaptActiveKx {
-    profile: Profile,
     group: NamedGroup,
-    sk_pq: Vec<u8>,
-    pk_pq: [u8; ML_KEM_768_PK_LEN],
+    pq_key: QPeriaptClientPqKey,
     sk_trad: [u8; X25519_LEN],
     pk_trad: [u8; X25519_LEN],
     pub_key: Vec<u8>,
@@ -223,10 +267,9 @@ struct QPeriaptActiveKx {
 
 impl Drop for QPeriaptActiveKx {
     fn drop(&mut self) {
-        // Wipe the secret keys if this kx is dropped without completing the exchange
-        // (HelloRetryRequest, a connection abort) — the zeroize-on-drop property the API
-        // documents. `pk_*`/`pub_key` are public and need no wipe.
-        q_periapt_core::secure_wipe(self.sk_pq.as_mut_slice());
+        // Both PQ variants own their secret material through ZeroizingBytes (the
+        // Compat variant transitively through PreparedMlKem768XWingKey). Wipe the
+        // traditional key explicitly if this exchange is abandoned or completed.
         q_periapt_core::secure_wipe(&mut self.sk_trad);
     }
 }
@@ -247,40 +290,43 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
         }
         let (ct_pq, ct_trad) = server_share.split_at(PQ_SERVER_SHARE);
 
-        let (suite_id, policy_version, context) = kem_metadata(self.profile);
-        let secret = match self.profile {
-            Profile::ContextBound => {
+        let secret = match &self.pq_key {
+            QPeriaptClientPqKey::ContextBound {
+                decapsulation_key,
+                encapsulation_key,
+            } => {
+                let (suite_id, policy_version, context) = kem_metadata(Profile::ContextBound);
                 let kem = HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
                     &MlKem768,
                     &X25519,
-                    self.profile,
+                    Profile::ContextBound,
                     suite_id,
                     policy_version,
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate(
-                    &self.sk_pq,
+                    decapsulation_key.as_bytes(),
                     ct_pq,
-                    &self.pk_pq,
+                    encapsulation_key,
                     &self.sk_trad,
                     ct_trad,
                     &self.pk_trad,
                     context,
                 )
             }
-            Profile::CompatXWing => {
+            QPeriaptClientPqKey::CompatXWing(prepared) => {
+                let (suite_id, policy_version, context) = kem_metadata(Profile::CompatXWing);
                 let kem = HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(
                     &MlKem768XWingSeed,
                     &X25519,
-                    self.profile,
+                    Profile::CompatXWing,
                     suite_id,
                     policy_version,
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
-                kem.decapsulate(
-                    &self.sk_pq,
+                kem.decapsulate_prepared(
+                    prepared,
                     ct_pq,
-                    &self.pk_pq,
                     &self.sk_trad,
                     ct_trad,
                     &self.pk_trad,
@@ -304,11 +350,13 @@ fn kx_groups(rng: &'static dyn SecureRandom) -> Vec<&'static dyn SupportedKxGrou
             profile: Profile::ContextBound,
             group: Q_PERIAPT_CONTEXTBOUND,
             rng,
+            compat_key_preparer: &BACKEND_COMPAT_KEY_PREPARER,
         }));
         let compat_xwing: &'static dyn SupportedKxGroup = Box::leak(Box::new(QPeriaptKxGroup {
             profile: Profile::CompatXWing,
             group: Q_PERIAPT_COMPATXWING,
             rng,
+            compat_key_preparer: &BACKEND_COMPAT_KEY_PREPARER,
         }));
         [context_bound, compat_xwing]
     })
@@ -399,7 +447,7 @@ pub fn provider_with_policy(
 #[cfg(test)]
 mod tests {
     #![allow(clippy::indexing_slicing, clippy::unwrap_used)]
-    use core::sync::atomic::{AtomicU8, Ordering};
+    use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
     use super::*;
     use q_periapt_policy::Policy;
@@ -414,6 +462,30 @@ mod tests {
                 *byte = domain.wrapping_add(index as u8);
             }
             Ok(())
+        }
+    }
+
+    struct CountingCompatKeyPreparer(AtomicUsize);
+
+    impl CompatKeyPreparer for CountingCompatKeyPreparer {
+        fn prepare(
+            &self,
+            seed: ZeroizingBytes<ML_KEM_768_XWING_SEED_LEN>,
+        ) -> Result<PreparedMlKem768XWingKey, KemError> {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            MlKem768XWingSeed::prepare(seed)
+        }
+    }
+
+    struct FailingCompatKeyPreparer(AtomicUsize);
+
+    impl CompatKeyPreparer for FailingCompatKeyPreparer {
+        fn prepare(
+            &self,
+            _seed: ZeroizingBytes<ML_KEM_768_XWING_SEED_LEN>,
+        ) -> Result<PreparedMlKem768XWingKey, KemError> {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            Err(KemError::Backend)
         }
     }
 
@@ -486,6 +558,7 @@ mod tests {
             profile: Profile::ContextBound,
             group: Q_PERIAPT_CONTEXTBOUND,
             rng: &RANDOM,
+            compat_key_preparer: &BACKEND_COMPAT_KEY_PREPARER,
         };
         let first = group.start().unwrap();
         let second = group.start().unwrap();
@@ -499,17 +572,128 @@ mod tests {
     }
 
     #[test]
+    fn compat_handshake_prepares_the_backend_key_exactly_once() {
+        static RANDOM: DistinctTestRandom = DistinctTestRandom(AtomicU8::new(0x40));
+        static PREPARER: CountingCompatKeyPreparer = CountingCompatKeyPreparer(AtomicUsize::new(0));
+        PREPARER.0.store(0, Ordering::Relaxed);
+        let group = QPeriaptKxGroup {
+            profile: Profile::CompatXWing,
+            group: Q_PERIAPT_COMPATXWING,
+            rng: &RANDOM,
+            compat_key_preparer: &PREPARER,
+        };
+
+        let client = group.start().unwrap();
+        assert_eq!(PREPARER.0.load(Ordering::Relaxed), 1);
+        let server = group.start_and_complete(client.pub_key()).unwrap();
+        assert_eq!(
+            PREPARER.0.load(Ordering::Relaxed),
+            1,
+            "server encapsulation must not generate a recipient key"
+        );
+        let client_secret = client.complete(&server.pub_key).unwrap();
+        assert_eq!(client_secret.secret_bytes(), server.secret.secret_bytes());
+        assert_eq!(
+            PREPARER.0.load(Ordering::Relaxed),
+            1,
+            "client completion must reuse the prepared expanded key"
+        );
+    }
+
+    #[test]
+    fn compat_preparation_failure_creates_no_active_exchange() {
+        static RANDOM: DistinctTestRandom = DistinctTestRandom(AtomicU8::new(0x50));
+        static PREPARER: FailingCompatKeyPreparer = FailingCompatKeyPreparer(AtomicUsize::new(0));
+        PREPARER.0.store(0, Ordering::Relaxed);
+        let group = QPeriaptKxGroup {
+            profile: Profile::CompatXWing,
+            group: Q_PERIAPT_COMPATXWING,
+            rng: &RANDOM,
+            compat_key_preparer: &PREPARER,
+        };
+
+        let result = group.start();
+        assert!(result.is_err());
+        assert_eq!(PREPARER.0.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn failed_completion_neither_reprepares_nor_reuses_the_next_key() {
+        static RANDOM: DistinctTestRandom = DistinctTestRandom(AtomicU8::new(0x60));
+        static PREPARER: CountingCompatKeyPreparer = CountingCompatKeyPreparer(AtomicUsize::new(0));
+        PREPARER.0.store(0, Ordering::Relaxed);
+        let group = QPeriaptKxGroup {
+            profile: Profile::CompatXWing,
+            group: Q_PERIAPT_COMPATXWING,
+            rng: &RANDOM,
+            compat_key_preparer: &PREPARER,
+        };
+
+        let first = group.start().unwrap();
+        let first_public = first.pub_key().to_vec();
+        assert!(first.complete(&[0u8; 1]).is_err());
+        assert_eq!(
+            PREPARER.0.load(Ordering::Relaxed),
+            1,
+            "failed completion must not re-run key preparation"
+        );
+
+        let second = group.start().unwrap();
+        assert_eq!(PREPARER.0.load(Ordering::Relaxed), 2);
+        assert_ne!(first_public, second.pub_key());
+    }
+
+    #[test]
+    fn concurrent_compat_active_exchanges_keep_independent_keys() {
+        let provider = provider();
+        let group = provider
+            .kx_groups
+            .iter()
+            .copied()
+            .find(|candidate| candidate.name() == Q_PERIAPT_COMPATXWING)
+            .unwrap();
+
+        let results = std::thread::scope(|scope| {
+            let workers = (0..4)
+                .map(|_| {
+                    scope.spawn(move || {
+                        let client = group.start().unwrap();
+                        let client_share = client.pub_key().to_vec();
+                        let server = group.start_and_complete(&client_share).unwrap();
+                        let client_secret = client.complete(&server.pub_key).unwrap();
+                        assert_eq!(client_secret.secret_bytes(), server.secret.secret_bytes());
+                        (client_share, client_secret.secret_bytes().to_vec())
+                    })
+                })
+                .collect::<Vec<_>>();
+            workers
+                .into_iter()
+                .map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+
+        for left in 0..results.len() {
+            for right in (left + 1)..results.len() {
+                assert_ne!(results[left].0, results[right].0);
+                assert_ne!(results[left].1, results[right].1);
+            }
+        }
+    }
+
+    #[test]
     fn private_groups_project_canonical_profile_metadata() {
         static RANDOM: DistinctTestRandom = DistinctTestRandom(AtomicU8::new(0));
         let context_bound = QPeriaptKxGroup {
             profile: Profile::ContextBound,
             group: Q_PERIAPT_CONTEXTBOUND,
             rng: &RANDOM,
+            compat_key_preparer: &BACKEND_COMPAT_KEY_PREPARER,
         };
         let compat = QPeriaptKxGroup {
             profile: Profile::CompatXWing,
             group: Q_PERIAPT_COMPATXWING,
             rng: &RANDOM,
+            compat_key_preparer: &BACKEND_COMPAT_KEY_PREPARER,
         };
 
         assert_eq!(

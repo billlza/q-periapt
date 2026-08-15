@@ -25,9 +25,9 @@ class CommandOutput(Protocol):
 
 class PerformanceGateTests(unittest.TestCase):
     def test_performance_schema_versions_are_the_canonical_migration(self) -> None:
-        self.assertEqual(performance_gate.HARNESS_SCHEMA_VERSION, 4)
-        self.assertEqual(performance_gate.PROOF_SCHEMA_VERSION, 7)
-        self.assertEqual(performance_gate.BUDGET_SCHEMA_VERSION, 9)
+        self.assertEqual(performance_gate.HARNESS_SCHEMA_VERSION, 5)
+        self.assertEqual(performance_gate.PROOF_SCHEMA_VERSION, 8)
+        self.assertEqual(performance_gate.BUDGET_SCHEMA_VERSION, 10)
 
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -39,6 +39,7 @@ class PerformanceGateTests(unittest.TestCase):
             "mode": "release_evidence",
             "target": "aarch64-apple-darwin",
             "schedule": "ABBA/BAAB",
+            "build_contract": performance_gate.canonical_build_contract(),
             "profile_inputs": performance_gate.canonical_profile_inputs(),
             "corpus_size": 2,
             "iterations_per_sample": {
@@ -49,6 +50,7 @@ class PerformanceGateTests(unittest.TestCase):
             "min_samples_per_variant_operation": 8,
             "collection_samples_per_variant_operation": 8,
             "warmup_ms": 1,
+            "warmup_scope": performance_gate.WARMUP_SCOPE,
             "pair_block_size": 4,
             "regression_guard_pair_block_size": 2,
             "min_p99_tail_observations_per_pair_block": 1,
@@ -104,12 +106,17 @@ class PerformanceGateTests(unittest.TestCase):
             },
             "implementation_improvement": {
                 "direction": "native/portable",
+                "includes_ffi": False,
+                "includes_os_rng": False,
+                "key_format": performance_gate.IMPLEMENTATION_KEY_FORMAT,
+                "keypair_generation_count": 1,
                 "native_implementation_id": performance_gate.NATIVE_IMPLEMENTATION_ID,
                 "portable_implementation_id": (
                     performance_gate.PORTABLE_REFERENCE_IMPLEMENTATION_ID
                 ),
                 "product_profile": "ContextBound",
                 "reference_scope": performance_gate.PORTABLE_REFERENCE_SCOPE,
+                "surface": performance_gate.IMPLEMENTATION_SURFACE,
                 "operations": {
                     "encapsulate": dict(
                         performance_gate.IMPLEMENTATION_IMPROVEMENT_LIMITS
@@ -142,6 +149,7 @@ class PerformanceGateTests(unittest.TestCase):
             "mode": "release_evidence",
             "target": "aarch64-apple-darwin",
             "schedule": "ABBA/BAAB",
+            "build_contract": performance_gate.canonical_build_contract(),
             "corpus_size": 2,
             "samples_per_variant_operation": 8,
             "iterations_per_sample": {
@@ -150,6 +158,7 @@ class PerformanceGateTests(unittest.TestCase):
                 "decapsulate": 2,
             },
             "warmup_ms": 1,
+            "warmup_scope": performance_gate.WARMUP_SCOPE,
             "profile_inputs": performance_gate.canonical_profile_inputs(),
             "profile_non_regression": {
                 "backend": "matched-test-backend",
@@ -161,10 +170,13 @@ class PerformanceGateTests(unittest.TestCase):
                 "digest_algorithm": "SHA3-256",
                 "direction": "native/portable",
                 "equivalence_cases_per_operation": {
-                    "keypair": 1,
                     "encapsulate": 2,
                     "decapsulate": 2,
                 },
+                "includes_ffi": False,
+                "includes_os_rng": False,
+                "key_format": performance_gate.IMPLEMENTATION_KEY_FORMAT,
+                "keypair_generation_count": 1,
                 "native_implementation_id": performance_gate.NATIVE_IMPLEMENTATION_ID,
                 "operations": ["encapsulate", "decapsulate"],
                 "portable_implementation_id": (
@@ -172,11 +184,12 @@ class PerformanceGateTests(unittest.TestCase):
                 ),
                 "product_profile": "ContextBound",
                 "reference_scope": performance_gate.PORTABLE_REFERENCE_SCOPE,
+                "surface": performance_gate.IMPLEMENTATION_SURFACE,
                 "variants": ["native", "portable"],
             },
         }
         records = [metadata]
-        for operation, case_count in (("keypair", 1), ("encapsulate", 2), ("decapsulate", 2)):
+        for operation, case_count in (("encapsulate", 2), ("decapsulate", 2)):
             for case_id in range(case_count):
                 records.append(
                     {
@@ -184,7 +197,7 @@ class PerformanceGateTests(unittest.TestCase):
                         "record_type": "equivalence",
                         "operation": operation,
                         "case_id": case_id,
-                        "corpus_index": 0 if operation == "keypair" else case_id,
+                        "corpus_index": case_id,
                         "input_digest_hex": f"{case_id + 1:064x}",
                         "native_output_digest_hex": "b" * 64,
                         "portable_output_digest_hex": "b" * 64,
@@ -408,6 +421,15 @@ class PerformanceGateTests(unittest.TestCase):
                 return "Apple clang version pinned\nTarget: aarch64-test-target"
             if args == [str(rustc), "-vV"]:
                 return "host: aarch64-test-target"
+            if (
+                len(args) == 5
+                and args[:3] == [str(rustc), "--print", "deployment-target"]
+                and args[3] == "--target"
+            ):
+                return (
+                    "MACOSX_DEPLOYMENT_TARGET="
+                    f"{performance_gate.MACOS_DEPLOYMENT_TARGET}"
+                )
             self.fail(f"unexpected command: {args}")
 
         return cargo, rustc, clang, ar, policy, command_output
@@ -966,6 +988,7 @@ class PerformanceGateTests(unittest.TestCase):
             ("portable archive", "performance artifact changed"),
             ("portable source", "performance artifact changed"),
             ("budget", "performance artifact changed"),
+            ("build contract", "build.contract"),
             ("analysis", "performance proof analysis changed"),
             ("freshness", "performance proof is stale"),
             ("toolchain", "toolchain differs"),
@@ -1015,7 +1038,7 @@ class PerformanceGateTests(unittest.TestCase):
                         json.dumps(budget, indent=2, sort_keys=True) + "\n",
                         encoding="utf-8",
                     )
-                elif case in ("analysis", "freshness", "toolchain"):
+                elif case in ("analysis", "build contract", "freshness", "toolchain"):
                     proof = json.loads(
                         fixture["proof"].read_text(encoding="utf-8")
                     )
@@ -1025,6 +1048,10 @@ class PerformanceGateTests(unittest.TestCase):
                         ]["paired"][
                             "block_median_p50_ratio"
                         ] = 1.0
+                    elif case == "build contract":
+                        proof["build_contract"]["c_implementations"][
+                            "portable_reference"
+                        ]["optimization"] = "O2"
                     elif case == "freshness":
                         proof["generated_at"] = "2000-01-01T00:00:00Z"
                     else:
@@ -1173,6 +1200,7 @@ class PerformanceGateTests(unittest.TestCase):
         metadata = records[0]
         metadata["mode"] = performance_gate.PROFILE_DIAGNOSTIC_MODE
         metadata["target"] = "diagnostic-arm64"
+        metadata["build_contract"] = None
         metadata[performance_gate.IMPLEMENTATION_IMPROVEMENT] = None
         records = [
             record
@@ -1236,7 +1264,16 @@ class PerformanceGateTests(unittest.TestCase):
                 "portable identity is invalid",
             ),
             ("reference_scope", "shipping_backend", "not evidence-only"),
-            ("product_profile", "CompatXWing", "ContextBound product path"),
+            (
+                "product_profile",
+                "CompatXWing",
+                "ContextBound hybrid-core surface",
+            ),
+            ("surface", "ffi", "surface is invalid"),
+            ("key_format", "seed_dk", "key_format is invalid"),
+            ("includes_ffi", True, "includes_ffi is invalid"),
+            ("includes_os_rng", True, "includes_os_rng is invalid"),
+            ("keypair_generation_count", 2, "keypair_generation_count is invalid"),
         )
         for field, value, message in cases:
             with self.subTest(field=field):
@@ -1248,6 +1285,95 @@ class PerformanceGateTests(unittest.TestCase):
                 self.raw.write_text("\n".join(lines) + "\n", encoding="utf-8")
                 with self.assertRaisesRegex(performance_gate.GateError, message):
                     performance_gate.parse_raw(self.raw)
+
+    def test_every_build_contract_parameter_is_bound_in_raw_and_budget(self) -> None:
+        mutations = (
+            (("c_implementations", "product_native", "architecture"), "armv8.4-a"),
+            (("c_implementations", "product_native", "data_sections"), False),
+            (("c_implementations", "product_native", "function_sections"), False),
+            (("c_implementations", "product_native", "language_standard"), "c11"),
+            (
+                ("c_implementations", "product_native", "macos_deployment_target"),
+                "12.0",
+            ),
+            (("c_implementations", "product_native", "optimization"), "O2"),
+            (
+                (
+                    "c_implementations",
+                    "product_native",
+                    "position_independent_code",
+                ),
+                False,
+            ),
+            (("c_implementations", "product_native", "visibility"), "default"),
+            (
+                ("c_implementations", "portable_reference", "architecture"),
+                "armv8.4-a",
+            ),
+            (("c_implementations", "portable_reference", "data_sections"), False),
+            (
+                ("c_implementations", "portable_reference", "function_sections"),
+                False,
+            ),
+            (
+                ("c_implementations", "portable_reference", "language_standard"),
+                "c11",
+            ),
+            (
+                (
+                    "c_implementations",
+                    "portable_reference",
+                    "macos_deployment_target",
+                ),
+                "12.0",
+            ),
+            (("c_implementations", "portable_reference", "optimization"), "O2"),
+            (
+                (
+                    "c_implementations",
+                    "portable_reference",
+                    "position_independent_code",
+                ),
+                False,
+            ),
+            (
+                ("c_implementations", "portable_reference", "visibility"),
+                "default",
+            ),
+            (("rust_harness", "codegen_units"), 2),
+            (("rust_harness", "lto"), "off"),
+            (("rust_harness", "optimization"), "O2"),
+        )
+        for path, replacement in mutations:
+            with self.subTest(binding="raw", path=path):
+                self.write_raw()
+                records = [
+                    json.loads(line)
+                    for line in self.raw.read_text(encoding="utf-8").splitlines()
+                ]
+                parent = records[0]["build_contract"]
+                for component in path[:-1]:
+                    parent = parent[component]
+                parent[path[-1]] = replacement
+                self.raw.write_text(
+                    "".join(json.dumps(record) + "\n" for record in records),
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(
+                    performance_gate.GateError, "build.contract"
+                ):
+                    performance_gate.parse_raw(self.raw)
+
+            with self.subTest(binding="budget", path=path):
+                changed = json.loads(json.dumps(self.budget))
+                parent = changed["build_contract"]
+                for component in path[:-1]:
+                    parent = parent[component]
+                parent[path[-1]] = replacement
+                with self.assertRaisesRegex(
+                    performance_gate.GateError, "build.contract"
+                ):
+                    performance_gate.collection_parameters_from_budget(changed)
 
     def test_all_environment_observations_must_remain_controlled(self) -> None:
         controlled = {
@@ -1318,6 +1444,26 @@ class PerformanceGateTests(unittest.TestCase):
         self.budget["warmup_ms"] = 2
         with self.assertRaisesRegex(
             performance_gate.GateError, "metadata/budget mismatch for warmup_ms"
+        ):
+            self.parse_and_analyse()
+
+    def test_warmup_scope_is_fixed_by_the_budget_and_harness(self) -> None:
+        self.budget["warmup_scope"] = "once_before_all_estimands"
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "performance budget warmup scope mismatch",
+        ):
+            self.parse_and_analyse()
+
+        self.budget["warmup_scope"] = performance_gate.WARMUP_SCOPE
+        lines = self.raw.read_text(encoding="utf-8").splitlines()
+        metadata = json.loads(lines[0])
+        metadata["warmup_scope"] = "once_before_all_estimands"
+        lines[0] = json.dumps(metadata)
+        self.raw.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "metadata warmup scope is invalid",
         ):
             self.parse_and_analyse()
 
@@ -1452,6 +1598,13 @@ class PerformanceGateTests(unittest.TestCase):
             production["profile_inputs"],
             performance_gate.canonical_profile_inputs(),
         )
+        self.assertEqual(
+            production["build_contract"],
+            performance_gate.canonical_build_contract(),
+        )
+        performance_gate.validate_build_contract(
+            production["build_contract"], "production build contract"
+        )
         self.assertEqual(production["mode"], performance_gate.RELEASE_EVIDENCE_MODE)
         self.assertEqual(production["target"], "aarch64-apple-darwin")
         self.assertEqual(production["pair_block_size"], 1024)
@@ -1506,6 +1659,24 @@ class PerformanceGateTests(unittest.TestCase):
         self.assertEqual(
             implementation["reference_scope"],
             performance_gate.PORTABLE_REFERENCE_SCOPE,
+        )
+        self.assertEqual(
+            {
+                "surface": implementation["surface"],
+                "key_format": implementation["key_format"],
+                "keypair_generation_count": implementation[
+                    "keypair_generation_count"
+                ],
+                "includes_ffi": implementation["includes_ffi"],
+                "includes_os_rng": implementation["includes_os_rng"],
+            },
+            {
+                "surface": "hybrid_core",
+                "key_format": "expanded_fips203_2400",
+                "keypair_generation_count": 1,
+                "includes_ffi": False,
+                "includes_os_rng": False,
+            },
         )
         for operation in performance_gate.IMPLEMENTATION_OPERATIONS:
             self.assertEqual(
@@ -2245,11 +2416,25 @@ class PerformanceGateTests(unittest.TestCase):
                 return "host: wrong-target"
             return command_output(args, cwd, environment=environment)
 
+        def wrong_deployment_target(
+            args: list[str],
+            cwd: pathlib.Path,
+            *,
+            environment: dict[str, str] | None = None,
+        ) -> str:
+            if "deployment-target" in args:
+                return "MACOSX_DEPLOYMENT_TARGET=12.0"
+            return command_output(args, cwd, environment=environment)
+
         cases = (
             (wrong_cargo_version, "cargo version differs from performance policy"),
             (wrong_rustc_version, "rustc version differs from performance policy"),
             (wrong_clang_version, "clang version differs from performance policy"),
             (wrong_target, "rustc target differs from performance policy"),
+            (
+                wrong_deployment_target,
+                "rustc deployment target differs from performance policy",
+            ),
         )
         for output, message in cases:
             with (
@@ -2303,9 +2488,17 @@ class PerformanceGateTests(unittest.TestCase):
         self.assertEqual(environment["SDKROOT"], str(sdk))
         self.assertEqual(environment["CARGO_TARGET_DIR"], str(target))
         self.assertEqual(environment["CARGO_NET_OFFLINE"], "true")
+        self.assertEqual(environment["MACOSX_DEPLOYMENT_TARGET"], "11.0")
+        self.assertEqual(environment["CARGO_PROFILE_RELEASE_OPT_LEVEL"], "3")
+        self.assertEqual(environment["CARGO_PROFILE_RELEASE_LTO"], "thin")
+        self.assertEqual(environment["CARGO_PROFILE_RELEASE_CODEGEN_UNITS"], "1")
         self.assertEqual(
             environment["CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER"],
             "/trusted/Xcode/clang",
+        )
+        self.assertEqual(
+            environment["CFLAGS_aarch64_apple_darwin"],
+            " ".join(performance_gate.MATCHED_C_CODEGEN_FLAGS),
         )
 
     def test_evidence_harness_link_contract_is_private_and_fixed(self) -> None:
@@ -2320,6 +2513,36 @@ class PerformanceGateTests(unittest.TestCase):
         self.assertEqual(base, {"PATH": "/trusted/bin"})
         self.assertEqual(
             environment["QPERIAPT_PERFORMANCE_TARGET"], "aarch64-apple-darwin"
+        )
+        self.assertEqual(
+            {
+                "architecture": environment[
+                    "QPERIAPT_PERFORMANCE_C_ARCHITECTURE"
+                ],
+                "language_standard": environment[
+                    "QPERIAPT_PERFORMANCE_C_LANGUAGE_STANDARD"
+                ],
+                "optimization": environment[
+                    "QPERIAPT_PERFORMANCE_C_OPTIMIZATION"
+                ],
+                "visibility": environment["QPERIAPT_PERFORMANCE_C_VISIBILITY"],
+                "deployment_target": environment[
+                    "QPERIAPT_PERFORMANCE_MACOS_DEPLOYMENT_TARGET"
+                ],
+                "rust_lto": environment["QPERIAPT_PERFORMANCE_RUST_LTO"],
+                "rust_optimization": environment[
+                    "QPERIAPT_PERFORMANCE_RUST_OPTIMIZATION"
+                ],
+            },
+            {
+                "architecture": "armv8-a",
+                "language_standard": "c99",
+                "optimization": "O3",
+                "visibility": "hidden",
+                "deployment_target": "11.0",
+                "rust_lto": "thin",
+                "rust_optimization": "O3",
+            },
         )
         self.assertEqual(
             environment["CARGO_ENCODED_RUSTFLAGS"].split("\x1f"),
@@ -2350,6 +2573,67 @@ class PerformanceGateTests(unittest.TestCase):
                 target="aarch64-apple-darwin",
                 portable_archive=archive,
             )
+
+    def test_portable_reference_uses_the_matched_native_codegen_contract(self) -> None:
+        source = self.root.joinpath(
+            *performance_gate.PORTABLE_REFERENCE_SOURCE_RELATIVE.parts
+        )
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(b"portable source")
+        output_dir = self.root / "target" / "portable-build"
+        output_dir.mkdir(parents=True)
+        clang = pathlib.Path("/trusted/Xcode/clang")
+        ar = pathlib.Path("/trusted/Xcode/ar")
+        commands: list[list[str]] = []
+
+        def run_command(
+            command: list[str],
+            *,
+            cwd: pathlib.Path,
+            env: dict[str, str],
+            check: bool,
+        ) -> types.SimpleNamespace:
+            del cwd, env, check
+            commands.append(command)
+            if command[0] == str(clang):
+                object_path = pathlib.Path(command[command.index("-o") + 1])
+                object_path.write_bytes(b"object")
+            else:
+                pathlib.Path(command[2]).write_bytes(b"archive")
+            return types.SimpleNamespace(returncode=0)
+
+        with mock.patch.object(
+            performance_gate.subprocess, "run", side_effect=run_command
+        ):
+            performance_gate.build_portable_reference_archive(
+                self.root,
+                "aarch64-apple-darwin",
+                clang,
+                ar,
+                output_dir,
+                {"SDKROOT": "/trusted/MacOSX.sdk"},
+            )
+
+        compile_command = commands[0]
+        for flag in (
+            "-O3",
+            "-fPIC",
+            "-ffunction-sections",
+            "-fdata-sections",
+            "-mmacosx-version-min=11.0",
+            "-std=c99",
+            "-fvisibility=hidden",
+            "-march=armv8-a",
+        ):
+            self.assertEqual(compile_command.count(flag), 1, flag)
+        self.assertEqual(
+            performance_gate.canonical_build_contract()["c_implementations"][
+                "product_native"
+            ],
+            performance_gate.canonical_build_contract()["c_implementations"][
+                "portable_reference"
+            ],
+        )
 
     def test_hardened_cargo_environment_rejects_ancestor_configuration(self) -> None:
         account_home = self.root / "account"

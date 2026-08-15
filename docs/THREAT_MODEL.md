@@ -44,7 +44,7 @@ What an adversary wants and what the suite is built to protect:
 | Asset | Description | Where it lives |
 |-------|-------------|----------------|
 | **A1 — Combined hybrid shared secret `K`** | The 32-byte output of the combiner ([`q_periapt_core::Secret`](../crates/q-periapt-core/src/lib.rs)). Compromise breaks the session that uses it as keying material. | Derived in [`q_periapt_core::combine`](../crates/q-periapt-core/src/lib.rs); transient. |
-| **A2 — Long-term secret keys** | ML-KEM-768 decapsulation key, X25519 static secret, and the signing keys (ML-DSA / SLH-DSA). | Backend types in `q-periapt-backends`; held by the application. The standalone HQC shadow is not a product-key lifecycle. |
+| **A2 — Secret keys and process-local prepared owners** | Stable ML-KEM private-key representations, an in-flight Compat client's expanded ML-KEM owner, X25519 secrets, and signing keys (ML-DSA / SLH-DSA). | Stable Compat serialization remains a 32-byte seed. Direct Rust/rustls may retain one 2,400-byte expanded owner per active client handshake; it is not persisted, globally shared, or exposed through C ABI. Other backend/application key owners remain caller-managed. The standalone HQC shadow is not a product-key lifecycle. |
 | **A3 — Component shared secrets `ss_pq`, `ss_trad`** | The per-component KEM outputs that feed the combiner. Transient, but leakage of either degrades the hybrid toward its surviving half. | Caller-provided buffers passed to [`HybridKem::encapsulate`/`decapsulate`](../crates/q-periapt-kem/src/lib.rs). |
 | **A4 — Policy authenticity / integrity** | The active algorithm policy (`min_nist_level`, allowed KEMs/sigs, combiner profile). A forged or tampered policy can silently weaken the whole suite. | [`q_periapt_policy::Policy`](../crates/q-periapt-policy/src/lib.rs), loaded from `*.policy.toml`. |
 | **A5 — Binding integrity of the transcript** | The guarantee that one derived `K` is reachable from exactly one tuple of `(suite_id, policy_version, every ct/pk, context)`. Compromise enables key-reuse / re-encapsulation / cross-context confusion attacks. | Established by the combiner encoding; see [§4.1](#binding-proof). |
@@ -293,6 +293,9 @@ allocation; Java, Kotlin, and JNI facades also reject before their own explicit 
 Swift/wasm-bindgen/runtime marshalling may already have copied a caller-owned input before
 Rust receives it, so this is not a whole-runtime memory quota. Oversized input is an explicit
 error, never truncation or fallback. Network-facing services still need request/body limits.
+For a valid-length native request, failure to allocate the Rust-owned derived context is
+an opaque `Backend`/`ERR_INTERNAL` failure rather than a false input-length diagnosis;
+oversized application context still fails before allocation as `InvalidLength`/`ERR_LENGTH`.
 
 The phase-1 `MigrationContextV1` model does not strengthen this caller boundary.
 It builds a fixed, typed application body and checks local consistency, but the
@@ -323,6 +326,13 @@ through C/Swift/Kotlin/JavaScript are caller-managed. Swift copy-on-write, JVM/J
 garbage collection, FFI marshalling, and OS paging can create copies the core cannot erase.
 Upstream primitive containers may also retain transient private-key/shared-secret storage
 without a zeroizing `Drop`; the core-owned guarantee must not be projected onto those internals.
+The named exceptions are explicit owners rather than a blanket backend guarantee. A Compat
+rustls client expands the stable 32-byte seed once per active handshake into a non-Clone,
+boxed zeroizing 2,400-byte prepared key and reuses it at completion; concurrent exchanges
+have independent owners, the global group/preparer is stateless, and no secret-key cache or
+C-ABI prepared-key surface exists. The FFI's first dynamically allocated Rust-owned
+policy-bound-context copy reserves capacity before sensitive bytes are written and shares one
+RAII wipe path across normal return, error, and unwind.
 The concrete `Sha3_256Xof` staging owner marks component shared-secret bodies and the
 caller-context body separately from public transcript bytes and volatile-wipes every tracked
 inline/heap copy on `Drop`; ordinary
@@ -333,6 +343,8 @@ compiler/register copies, freed
 storage outside the controlled migration path, crash/hibernate images, or secrets misclassified
 as public by an external caller. Allocation/invariant failures synchronously wipe live staging
 before terminating because abort does not run Drop. The formal models do not model memory erasure.
+The FFI owner likewise cannot wipe the caller buffer, earlier host-language/marshalling copies,
+registers, paging, or process-abort residue.
 Swift/Kotlin expose explicit best-effort wipe operations; Android result objects are
 `AutoCloseable` and wipe their retained internal secret, while caller clones must be wiped
 separately. These lifecycle APIs reduce residue but do not establish full-stack zeroization.
@@ -352,9 +364,13 @@ A Developer ID-signed, exact-static-only XCFramework, when selected by `artifact
 covers only the hash-bound Apple SDK ZIP. The SDK contains no standalone executable or notarizable
 bundle and is explicitly not reported as notarized. It does not attest an iOS app, physical-device runtime behavior,
 Linux/Windows binaries, Android ART, or the source tag itself.
-The X-Wing byte-exact KAT
-(`q-periapt-backends`) **reproduces the `draft-connolly-cfrg-xwing-kem` reference
-output on its 3 happy-path vectors**, and the NIST ACVP sets (ML-KEM-512/768/1024,
+The MLKEM768-X25519 byte-exact KAT (`q-periapt-backends`) retains the three
+historical `draft-connolly-cfrg-xwing-kem-10` vectors and checks vector 0 from
+CFRG `draft-irtf-cfrg-concrete-hybrid-kems-04` Appendix B.2 over the official
+valid keygen/encapsulation/decapsulation fields. A separately derived same-length
+ciphertext mutation checks deterministic implicit rejection; the draft supplies no
+expected secret for that rejected case. The current CFRG document remains a non-RFC
+Internet-Draft. The NIST ACVP sets (ML-KEM-512/768/1024,
 ML-DSA-44/65/87 external/pure, context, hedged, and SHAKE-128 pre-hash modes, plus
 SLH-DSA) and the `ContextBound` reference vectors pass too —
 this is conformance to the published vectors, not certification (see
@@ -478,12 +494,18 @@ the current product CT claim); and the application's own use of `K` after the su
 ### 5.8 No speed advantage is claimed without a current implementation proof
 
 This suite ships the **same** NIST primitive family as its baselines through third-party
-backends. `CompatXWing` is byte-exact against the draft vectors. One same-process gate
+backends. `CompatXWing` is byte-exact against the stated current and historical draft
+vectors. One same-process gate
 preserves the paired matched-backend profile comparison and adds a distinct
-implementation-improvement estimand for native/portable ContextBound product
-encapsulation and decapsulation on identical seed-dk/X25519 keys, coins, and corpus.
-The harness requires byte-equivalent keypair and every per-case product output before
-timing; the portable archive is evidence-only and is not a product backend, Cargo
+implementation-improvement estimand for native/portable ContextBound `hybrid_core`
+encapsulation and decapsulation. It generates one `expanded_fips203_2400` keypair,
+feeds the same expanded key bytes/coins/corpus to both implementations, and requires
+byte-equivalent per-case outputs before timing; portable key generation is not invoked.
+FFI, OS RNG, rustls, and complete-ABI overhead are excluded. Native and portable C
+use the same O3/PIC/Armv8-A/macOS-11/section-codegen contract; the O3 Rust harness
+uses thin LTO and one codegen unit under the stable Rust/Cargo 1.96.1 producer. Each
+estimand/operation is warmed independently immediately before collection. The portable
+archive is evidence-only and is not a product backend, Cargo
 feature, runtime override, or public API. The preregistered primary one-sided 95% upper
 native/portable limits are 0.95 for p50/p95 and 1.0 for p99. A proof counts as current only
 when its source digest matches the live canonical tree and the host satisfies the
@@ -495,8 +517,8 @@ run passed. A fresh clean controlled-host proof and physical-device matrix must 
 collected against the release source. Until that exact-sample proof is selected, the
 implemented gate is not a demonstrated quantitative result.
 Currentness is determined only by `artifact/results.json`
-plus live verification against the canonical tree. Performance proof schema v7 and
-budget schema v9 bind the strict profile-specific canonical inputs, both
+plus live verification against the canonical tree. Performance raw schema v5, proof
+schema v8, and budget schema v10 bind the strict profile-specific canonical inputs, both
 implementation IDs, the final binary, portable archive and source, raw data, source
 tree, rustup toolchain and target, Cargo, Rustc, Xcode
 Clang/ar, and the canonical macOS SDK path/version/settings digest.
@@ -679,13 +701,13 @@ See [`migration/MIGRATION_CONTEXT_V1.md`](migration/MIGRATION_CONTEXT_V1.md).
 | 4.1 | Binding to CR(SHA3); no KEM binding assumption | ADV-MAL | `ContextBound` injective hash-everything encoding | **PROVED** (`bind_le_cr`, 0 admits) + no-admits CI gate + mirror KAT |
 | 4.2 | No decapsulation oracle; correct-length ciphertext failure-path indistinguishable; public input classifiable and local failure opaque | ADV-CCA | Implicit rejection; coarse `Error`; `ct_select32` | **ENFORCED** (ctstats hard gate) |
 | 4.3 | Downgrade/equivocation protection and policy/execution coupling | ADV-POLICY | strict signed document; `(version,digest)` state; closed `ResolvedSuite`; `C2PRI && COMPAT_XWING_SAFE` guard | **ENFORCED on decision APIs** (logic/type + four-quadrant unit gate); native ABI2 raw bypass removed, forgeable decision descriptor and separate WASM conformance surface explicit |
-| 4.4 | Core-owned combined-key storage zeroization | post-use exposure | volatile wipe + fence; core `Secret` is not `Clone` | **ENFORCED only for owned Rust storage**; binding/OS copies are caller-managed best effort |
+| 4.4 | Named Rust-owned secret storage zeroization | post-use exposure | volatile wipe + fence; non-Clone core `Secret`, per-handshake prepared Compat owner, and FFI dynamic-context RAII owner | **ENFORCED only for those owners**; caller/marshalling/register/OS copies and abort are outside scope; no global secret-key cache or C-ABI prepared key |
 | 4.5 | Byte-identical output in reported deterministic host/ISA cells; semantic parity in native product cells | binding divergence / adapter drift | shared-vector conformance plus policy/round-trip/context/failure-atomicity product tests | **ENFORCED only in explicitly reported cells**; product randomness is not replay evidence, and neither result alone is a clean release attestation |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **LOCAL DIAGNOSTIC** (not run in shared CI; not gated) |
 | 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (job `constant-time`); fresh release-source capture required |
 | 5.2 | Binary-level CT — target-selected `mlkem-native` ML-KEM-512/768/1024 decapsulation | ADV-TIME | parameter-specific ŝ+z Memcheck probes + planted-leak and embedded-public-key diagnostics | **HARD-GATE + RELEASE-RECEIPT CONTRACT PRESENT**; earlier portable-only results are historical, and promotion requires fresh exact-R x86_64-portable plus aarch64-native jobs in the attested source-security receipt |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
-| 5.5 | NIST ACVP conformance (wired FIPS modes) | — | X-Wing KAT + wired ACVP sets (`acvp.rs`) | **CONFORMANCE DONE for the stated modes**; internal-interface vectors are reference-only; not CMVP-certified |
+| 5.5 | NIST ACVP conformance (wired FIPS modes) | — | current CFRG vector-0 + retained X-Wing draft-10 KATs + wired ACVP sets (`acvp.rs`) | **CONFORMANCE DONE for the stated modes**; current CFRG draft is not an RFC, derived invalid-ciphertext regression is not an official oracle, internal-interface vectors are reference-only, and none of this is CMVP certification |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |
 | 5.10 | Async identity/prekeys/ratchet/multi-device/recovery | directory, replay, compromise, rollback, DoS | Test-only model checks canonical role-ordered context admission, a strict four-quadrant prekey-selection record with atomic B21-B23 derivation, exact version+digest CAS, no-op-anchor rejection and abstract reconstruction; independent Python/Rust full-byte vectors and structural EasyCrypt diagnostics agree, but fields still enter through trusted genesis and there is no manifest verifier, lease/tombstone state, context-advance API, credential/prekey/directory authentication, ratchet, manager, or production protocol mechanism | **OUT OF SCOPE / G1 PARTIAL** |
 | 5.11 | Authenticated migration history, rollback/agreement/floor enforcement | ADV-POLICY plus hostile host/network | Phase-1 model provides only canonical role-normalized application bytes and typed consistency checks over externally asserted commitments | **TODO beyond canonical commitment**; no transition authentication, monotonic state owner, key confirmation, MIG-ROLLBACK/MIG-AGREE/MIG-FLOOR, or same-process isolation |

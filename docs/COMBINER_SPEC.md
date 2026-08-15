@@ -7,7 +7,7 @@
 > (`combine`, `Profile`, `absorb_lp`, `CombineInput`, `Secret`, `DOMAIN`,
 > `XWING_LABEL`) and the `CompatXWing` backend-safety guard in
 > [`crates/q-periapt-kem/src/lib.rs`](../crates/q-periapt-kem/src/lib.rs)
-> (`HybridKem::new`). Byte-exactness of `CompatXWing` is proved by the KAT in
+> (`HybridKem::new`). Byte-exactness of `CompatXWing` is regression-tested by the KAT in
 > [`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs).
 > The security argument lives in
 > [`docs/BINDING_SECURITY.md`](./BINDING_SECURITY.md) — read it for the binding
@@ -112,8 +112,9 @@ profile can never alias the other.
 
 ### 2.1 Definition
 
-`CompatXWing` reproduces the X-Wing combiner encoding of
-`draft-connolly-cfrg-xwing-kem` **byte-for-byte**:
+`CompatXWing` reproduces **byte-for-byte** the MLKEM768-X25519 combiner encoding
+recorded historically by `draft-connolly-cfrg-xwing-kem-10` and now specified,
+unchanged, by CFRG `draft-irtf-cfrg-concrete-hybrid-kems-04`:
 
 ```
 K = SHA3-256( ss_pq ‖ ss_trad ‖ ct_trad ‖ pk_trad ‖ XWingLabel )
@@ -173,13 +174,15 @@ The absorbed input is `32 + 32 + 32 + 32 + 6 = 134` bytes. SHA3-256 has a Keccak
 rate of `136` bytes (`1088` bits), so `134` input bytes plus SHA3 domain-separation
 and padding fit in **exactly one Keccak-f[1600] permutation**. The path performs
 no heap allocation: each field is absorbed directly from the caller's slice into
-the sponge state and 32 bytes are squeezed out. This is the parity-fast path.
+the sponge state and 32 bytes are squeezed out. This is the single-block
+construction-compatible path.
 
-### 2.4 Byte-exactness is proved, not asserted
+### 2.4 Byte-exactness is KAT-checked against both draft generations
 
 `crates/q-periapt-backends/src/xwing_kat.rs::xwing_draft_kat_byte_exact` drives
 `HybridKem::<MlKem768XWingSeed, X25519, Sha3_256Xof>::new(.., Profile::CompatXWing, b"", 0)`
-through three official `draft-connolly-cfrg-xwing-kem` vectors (`XWING_VECTORS`).
+through three official historical `draft-connolly-cfrg-xwing-kem-10` vectors
+(`XWING_VECTORS`).
 For each vector it reconstructs X-Wing's own key expansion
 (`SHAKE256(seed, 96) = ML-KEM(d‖z) ‖ skX`) and encapsulation-coin split
 (`m = eseed[0..32]`, `ekX = eseed[32..64]`), then asserts **byte equality** on:
@@ -196,8 +199,19 @@ Because the public-key, ciphertext and shared-secret assertions all pass against
 the published vectors, the test also exercises the target-selected release-graph
 `mlkem-native` ML-KEM-768 backend for the compilation target on which it runs.
 
-**Honest scope:** this reproduces the FIPS 203 reference output on those **three
-happy-path X-Wing draft vectors**. The broader ACVP vector suite is covered
+The adjacent `concrete_hybrid_kems_04_mlkem768_x25519_byte_exact` test checks the
+official `draft-irtf-cfrg-concrete-hybrid-kems-04` Appendix B.2 vector's seed,
+component decapsulation keys, encapsulation key, ciphertext, and shared secret for
+key generation, encapsulation, and decapsulation. A separate local regression mutates
+that vector's ML-KEM ciphertext without changing its length and checks deterministic
+implicit rejection plus non-recovery of the valid secret; the draft does not supply
+an expected invalid-ciphertext secret for that derived case.
+
+**Honest scope:** this retains three historical draft-10 vectors and pins one official
+current-draft Appendix B.2 vector, stored as the repository vector-0 fixture. Both
+specifications are Internet-Drafts, and the
+current CFRG draft is not an RFC. This is not the whole current vector corpus or
+independent endpoint interoperability. The broader ACVP vector suite is covered
 separately by `q-periapt-backends/src/acvp.rs`, but neither test is CMVP/FIPS-module
 validation; do not describe it as "FIPS-validated."
 
@@ -331,8 +345,9 @@ single-block X-Wing path (measured in
 binding everything with **no** assumption on the component KEMs; it is **not** a
 speed win and **not** a stronger notion on the standard CT/PK axes (both profiles
 hit the same `MAL` ceiling — see [`docs/BINDING_SECURITY.md`](./BINDING_SECURITY.md)
-§5). The combiner is well under 1% of a handshake, so the absolute cost is
-negligible.
+§5). Historical single-host measurements placed the combiner below 1% of their
+handshake path, but no current source-bound rustls proof establishes that fraction
+across hosts or deployments.
 
 ---
 
@@ -364,8 +379,11 @@ Backends declare it explicitly:
   binds its ciphertext via the FO transform, but this backend accepts expanded/imported keys
   and is therefore confined to `ContextBound`.
 - `MlKem768XWingSeed`: `const C2PRI: bool = true; const COMPAT_XWING_SAFE: bool = true;`
-  — this backend stores the 32-byte X-Wing seed and derives `(d||z)` internally, so it is
-  admitted to `CompatXWing`.
+  — its stable serialized private-key form is the 32-byte seed, so it is admitted to
+  `CompatXWing`. The optional `PreparedKem` capability expands that seed once into a
+  process-local, non-Clone, zeroizing 2,400-byte owner for latency-sensitive Rust
+  integrations. That owner is wiped on `Drop`; it is not a persistence format, global
+  secret-key cache, or C-ABI surface.
 - `X25519`: inherits both `false` defaults (`impl Kem for X25519`,
   [`crates/q-periapt-backends/src/lib.rs`](../crates/q-periapt-backends/src/lib.rs)).
   It is valid in X-Wing's absorbed traditional slot, but cannot be substituted into
@@ -455,7 +473,9 @@ against `combine()` **and** an independent recomputation (RustCrypto SHA3-256 ov
 from-scratch encoder of this §3 layout), plus a length-prefix **collision pair** —
 two transcripts with byte-identical naive concatenation but distinct keys — that makes
 the injectivity property load-bearing. `CompatXWing`'s reference vectors are the
-official `draft-connolly-cfrg-xwing-kem` set (`xwing_kat.rs`).
+three retained `draft-connolly-cfrg-xwing-kem-10` vectors plus the official
+`draft-irtf-cfrg-concrete-hybrid-kems-04` Appendix B.2 vector, stored as the repository
+vector-0 fixture (`xwing_kat.rs`).
 
 The **enhanced suite** (ML-KEM-1024 + X25519, NIST level 5) is pinned end-to-end by
 [`crates/q-periapt-backends/src/enhanced_kat.rs`](../crates/q-periapt-backends/src/enhanced_kat.rs):
@@ -499,7 +519,8 @@ establishes, with the honest caveats:
 - Any change to the absorbed bytes, field order, length-prefix width, label, or
   domain string of `ContextBound` is **wire-incompatible** and **must** bump
   `DOMAIN` (`…/v1` → `…/v2`).
-- `CompatXWing` is pinned to `draft-connolly-cfrg-xwing-kem`; it **must not** be
+- `CompatXWing` is pinned to the identical MLKEM768-X25519 bytes shared by the
+  historical X-Wing draft-10 and CFRG concrete-hybrid-kems-04; it **must not** be
   "optimized" or extended — its only correctness oracle is byte-equality with the
   X-Wing vectors (§2.4). Changing it breaks construction/vector compatibility;
   passing those vectors alone does not establish independent endpoint or HPKE

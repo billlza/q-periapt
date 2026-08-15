@@ -42,8 +42,9 @@ pub const DOMAIN: &[u8] = b"Q-PERIAPT-HYBRID-KEM/v1";
 /// policy digest together with an application transcript/context.
 pub const POLICY_CONTEXT_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-CONTEXT/v1";
 
-/// The X-Wing combiner label `\.//^\` (6 bytes), per
-/// `draft-connolly-cfrg-xwing-kem`. Used only by [`Profile::CompatXWing`].
+/// The MLKEM768-X25519 combiner label `\.//^\` (6 bytes), as specified by
+/// `draft-irtf-cfrg-concrete-hybrid-kems-04` and historically by the X-Wing
+/// draft-10 construction. Used only by [`Profile::CompatXWing`].
 pub const XWING_LABEL: [u8; 6] = [0x5c, 0x2e, 0x2f, 0x2f, 0x5e, 0x5c];
 
 /// Coarse, side-channel-safe error type. Variants carry no secret information;
@@ -263,11 +264,42 @@ pub trait Kem {
     fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error>;
 }
 
+/// Optional capability for a KEM backend that can retain a strongly typed,
+/// process-local decapsulation key between key generation and decapsulation.
+///
+/// The prepared key type is backend-defined so callers cannot accidentally pass
+/// an arbitrary byte string where the backend requires a key produced by its own
+/// validated key schedule. This capability does not replace [`Kem::decapsulate`]:
+/// serialized/private-storage formats continue to use that byte-oriented API,
+/// while latency-sensitive in-process protocols may explicitly retain the
+/// backend's prepared owner. Implementations remain responsible for securely
+/// erasing secret-bearing prepared storage when its owner is dropped.
+pub trait PreparedKem: Kem {
+    /// Backend-owned process-local prepared key representation.
+    type PreparedKey: ?Sized;
+
+    /// Borrow the public encapsulation key paired with `key`.
+    ///
+    /// Returning it through the prepared owner prevents a composition layer from
+    /// accidentally combining a decapsulation key with an unrelated public key.
+    fn prepared_encapsulation_key<'a>(&self, key: &'a Self::PreparedKey) -> &'a [u8];
+
+    /// Decapsulate with a previously prepared key, writing the component secret
+    /// to `ss` under the same failure and implicit-rejection contract as
+    /// [`Kem::decapsulate`].
+    fn decapsulate_prepared(
+        &self,
+        key: &Self::PreparedKey,
+        ct: &[u8],
+        ss: &mut [u8],
+    ) -> Result<(), Error>;
+}
+
 /// Which combiner construction to use.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum Profile {
-    /// Fast, byte-exact X-Wing-compatible combiner (parity with mainstream).
+    /// Byte-exact MLKEM768-X25519 / X-Wing-compatible combiner.
     /// Binds the traditional ciphertext+pubkey; relies on the first-slot backend being
     /// both [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`] to *not* hash that slot's
     /// ct/pk. Requires all four absorbed fields to be exactly 32 bytes.

@@ -3,10 +3,10 @@
 //! `profile_non_regression` compares ContextBound with CompatXWing over the
 //! target-selected product backend. A release-evidence build additionally links
 //! one symbol-renamed portable C reference and measures
-//! `implementation_improvement` as native/portable over the ContextBound product
-//! encapsulation and decapsulation paths. The portable implementation is private
-//! to this example build; it is not a product backend, Cargo feature, runtime
-//! override, or shipping API.
+//! `implementation_improvement` as native/portable over an independent
+//! ContextBound expanded-key `HybridKem` surface. The portable implementation is
+//! private to this example build; it is not a product backend, Cargo feature,
+//! runtime override, or shipping API.
 
 use std::error::Error;
 use std::fmt;
@@ -16,20 +16,23 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+#[cfg(qperiapt_performance_evidence)]
+use q_periapt_backends::{MlKem768, ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_SK_LEN};
 use q_periapt_backends::{
     MlKem768XWingSeed, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN,
     ML_KEM_768_XWING_SEED_LEN, ML_KEM_IMPLEMENTATION_ID, X25519, X25519_LEN,
 };
 #[cfg(qperiapt_performance_evidence)]
 use q_periapt_core::SHARED_SECRET_LEN;
-use q_periapt_core::{combine, CombineInput, Kem, Profile, Xof256};
+use q_periapt_core::{combine, CombineInput, Kem, Profile, Xof256, ZeroizingBytes};
 use q_periapt_kem::HybridKem;
 use serde::Serialize;
 #[cfg(qperiapt_performance_evidence)]
 use sha3::{Digest, Sha3_256};
 
-const SCHEMA_VERSION: u32 = 4;
+const SCHEMA_VERSION: u32 = 5;
 const SCHEDULE: &str = "ABBA/BAAB";
+const WARMUP_SCOPE: &str = "per_estimand_operation_immediately_before_collection";
 const PROFILE_NON_REGRESSION: &str = "profile_non_regression";
 #[cfg(qperiapt_performance_evidence)]
 const IMPLEMENTATION_IMPROVEMENT: &str = "implementation_improvement";
@@ -42,6 +45,10 @@ const PORTABLE_REFERENCE_IMPLEMENTATION_ID: &str =
     "mlkem-native-1.2.0/portable-c/evidence-only-reference";
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_SCOPE: &str = "evidence_only_non_product_reference";
+#[cfg(qperiapt_performance_evidence)]
+const IMPLEMENTATION_SURFACE: &str = "hybrid_core";
+#[cfg(qperiapt_performance_evidence)]
+const IMPLEMENTATION_KEY_FORMAT: &str = "expanded_fips203_2400";
 const CORPUS_SIZE: usize = 64;
 const CONTEXT_BOUND_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
 const CONTEXT_BOUND_POLICY_VERSION: u32 = 1;
@@ -132,7 +139,7 @@ enum Operation {
 impl Operation {
     const ALL: [Self; 3] = [Self::Combine, Self::Encapsulate, Self::Decapsulate];
 
-    #[cfg(qperiapt_performance_evidence)]
+    #[cfg(any(test, qperiapt_performance_evidence))]
     const IMPLEMENTATION: [Self; 2] = [Self::Encapsulate, Self::Decapsulate];
 
     const fn name(self) -> &'static str {
@@ -152,6 +159,18 @@ impl Operation {
     }
 }
 
+fn for_each_warmed_operation<E>(
+    operations: impl IntoIterator<Item = Operation>,
+    mut warm_up: impl FnMut(Operation) -> Result<(), E>,
+    mut collect: impl FnMut(Operation) -> Result<(), E>,
+) -> Result<(), E> {
+    for operation in operations {
+        warm_up(operation)?;
+        collect(operation)?;
+    }
+    Ok(())
+}
+
 #[derive(Serialize)]
 struct MetadataRecord {
     schema_version: u32,
@@ -163,6 +182,8 @@ struct MetadataRecord {
     samples_per_variant_operation: usize,
     iterations_per_sample: IterationsPerSample,
     warmup_ms: u64,
+    warmup_scope: &'static str,
+    build_contract: Option<BuildContract>,
     profile_inputs: ProfileInputsRecord,
     profile_non_regression: ProfileContract,
     implementation_improvement: Option<ImplementationContract>,
@@ -196,19 +217,54 @@ struct ImplementationContract {
     digest_algorithm: &'static str,
     direction: &'static str,
     equivalence_cases_per_operation: EquivalenceCaseCounts,
+    includes_ffi: bool,
+    includes_os_rng: bool,
+    key_format: &'static str,
+    keypair_generation_count: usize,
     native_implementation_id: &'static str,
     operations: [&'static str; 2],
     portable_implementation_id: &'static str,
     product_profile: &'static str,
     reference_scope: &'static str,
+    surface: &'static str,
     variants: [&'static str; 2],
 }
 
 #[derive(Serialize)]
 struct EquivalenceCaseCounts {
-    keypair: usize,
     encapsulate: usize,
     decapsulate: usize,
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct BuildContract {
+    c_implementations: CImplementationBuilds,
+    rust_harness: RustHarnessBuild,
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct CImplementationBuilds {
+    product_native: CImplementationBuild,
+    portable_reference: CImplementationBuild,
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct CImplementationBuild {
+    architecture: &'static str,
+    data_sections: bool,
+    function_sections: bool,
+    language_standard: &'static str,
+    macos_deployment_target: &'static str,
+    optimization: &'static str,
+    position_independent_code: bool,
+    visibility: &'static str,
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct RustHarnessBuild {
+    codegen_units: usize,
+    lto: &'static str,
+    optimization: &'static str,
 }
 
 #[derive(Serialize)]
@@ -334,22 +390,20 @@ fn backend_id() -> String {
 }
 
 struct CorpusEntry {
-    rand_pq: [u8; 32],
-    rand_trad: [u8; 32],
+    rand_pq: ZeroizingBytes<32>,
+    rand_trad: ZeroizingBytes<32>,
     ct_pq: [u8; ML_KEM_768_CT_LEN],
     ct_trad: [u8; X25519_LEN],
-    #[cfg(qperiapt_performance_evidence)]
-    bound_secret: [u8; SHARED_SECRET_LEN],
 }
 
 struct Fixture {
-    sk_pq: [u8; ML_KEM_768_XWING_SEED_LEN],
+    sk_pq: ZeroizingBytes<ML_KEM_768_XWING_SEED_LEN>,
     pk_pq: [u8; ML_KEM_768_PK_LEN],
-    sk_trad: [u8; X25519_LEN],
+    sk_trad: ZeroizingBytes<X25519_LEN>,
     pk_trad: [u8; X25519_LEN],
     corpus: Vec<CorpusEntry>,
-    combine_ss_pq: [u8; 32],
-    combine_ss_trad: [u8; 32],
+    combine_ss_pq: ZeroizingBytes<32>,
+    combine_ss_trad: ZeroizingBytes<32>,
 }
 
 type MatchedKem<'a> = HybridKem<'a, MlKem768XWingSeed, X25519, Sha3_256Xof>;
@@ -359,18 +413,22 @@ fn kem_error(context: &str, error: q_periapt_core::Error) -> BenchError {
 }
 
 fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixture, BenchError> {
-    let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(derive32(1, 0))
+    let pq_seed = ZeroizingBytes::from_bytes(derive32(1, 0));
+    let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(*pq_seed.as_bytes())
         .map_err(|error| kem_error("prepare ML-KEM key pair", error))?;
-    let (sk_trad, pk_trad) = X25519::generate(derive32(2, 0));
+    let sk_pq = ZeroizingBytes::from_bytes(sk_pq);
+    let trad_seed = ZeroizingBytes::from_bytes(derive32(2, 0));
+    let (sk_trad, pk_trad) = X25519::generate(*trad_seed.as_bytes());
+    let sk_trad = ZeroizingBytes::from_bytes(sk_trad);
     let mut corpus = Vec::with_capacity(CORPUS_SIZE);
-    let mut combine_ss_pq = [0u8; 32];
-    let mut combine_ss_trad = [0u8; 32];
+    let mut combine_ss_pq = ZeroizingBytes::<32>::zeroed();
+    let mut combine_ss_trad = ZeroizingBytes::<32>::zeroed();
     let bound_inputs = MeasuredProfile::ContextBound.inputs();
     let compat_inputs = MeasuredProfile::CompatXWing.inputs();
 
     for index in 0..CORPUS_SIZE {
-        let rand_pq = derive32(3, index);
-        let rand_trad = derive32(4, index);
+        let rand_pq = ZeroizingBytes::from_bytes(derive32(3, index));
+        let rand_trad = ZeroizingBytes::from_bytes(derive32(4, index));
         let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut ct_trad = [0u8; X25519_LEN];
         let bound_secret = bound
@@ -378,8 +436,8 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
                 &pk_pq,
                 &pk_trad,
                 bound_inputs.application_context,
-                &rand_pq,
-                &rand_trad,
+                rand_pq.as_bytes(),
+                rand_trad.as_bytes(),
                 &mut ct_pq,
                 &mut ct_trad,
             )
@@ -391,8 +449,8 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
                 &pk_pq,
                 &pk_trad,
                 compat_inputs.application_context,
-                &rand_pq,
-                &rand_trad,
+                rand_pq.as_bytes(),
+                rand_trad.as_bytes(),
                 &mut compat_ct_pq,
                 &mut compat_ct_trad,
             )
@@ -409,10 +467,10 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
         }
         if index == 0 {
             MlKem768XWingSeed
-                .decapsulate(&sk_pq, &ct_pq, &mut combine_ss_pq)
+                .decapsulate(sk_pq.as_bytes(), &ct_pq, combine_ss_pq.as_mut_bytes())
                 .map_err(|error| kem_error("prepare PQ shared secret", error))?;
             X25519
-                .decapsulate(&sk_trad, &ct_trad, &mut combine_ss_trad)
+                .decapsulate(sk_trad.as_bytes(), &ct_trad, combine_ss_trad.as_mut_bytes())
                 .map_err(|error| kem_error("prepare traditional shared secret", error))?;
         }
         corpus.push(CorpusEntry {
@@ -420,8 +478,6 @@ fn build_fixture(bound: &MatchedKem<'_>, compat: &MatchedKem<'_>) -> Result<Fixt
             rand_trad,
             ct_pq,
             ct_trad,
-            #[cfg(qperiapt_performance_evidence)]
-            bound_secret: *bound_secret.as_bytes(),
         });
     }
 
@@ -458,8 +514,8 @@ fn run_profile_once(
             let input = CombineInput {
                 suite_id: inputs.suite_id,
                 policy_version: inputs.policy_version,
-                ss_pq: &fixture.combine_ss_pq,
-                ss_trad: &fixture.combine_ss_trad,
+                ss_pq: fixture.combine_ss_pq.as_bytes(),
+                ss_trad: fixture.combine_ss_trad.as_bytes(),
                 ct_pq: &entry.ct_pq,
                 pk_pq: &fixture.pk_pq,
                 ct_trad: &entry.ct_trad,
@@ -477,8 +533,8 @@ fn run_profile_once(
                     black_box(&fixture.pk_pq),
                     &fixture.pk_trad,
                     inputs.application_context,
-                    &entry.rand_pq,
-                    &entry.rand_trad,
+                    entry.rand_pq.as_bytes(),
+                    entry.rand_trad.as_bytes(),
                     &mut ct_pq,
                     &mut ct_trad,
                 )
@@ -488,10 +544,10 @@ fn run_profile_once(
         Operation::Decapsulate => {
             black_box(
                 kem.decapsulate(
-                    black_box(&fixture.sk_pq),
+                    black_box(fixture.sk_pq.as_bytes()),
                     &entry.ct_pq,
                     &fixture.pk_pq,
-                    &fixture.sk_trad,
+                    fixture.sk_trad.as_bytes(),
                     &entry.ct_trad,
                     &fixture.pk_trad,
                     inputs.application_context,
@@ -503,8 +559,9 @@ fn run_profile_once(
     Ok(())
 }
 
-fn warm_up_profiles(
+fn warm_up_profile_operation(
     duration: Duration,
+    operation: Operation,
     bound: &MatchedKem<'_>,
     compat: &MatchedKem<'_>,
     fixture: &Fixture,
@@ -512,24 +569,22 @@ fn warm_up_profiles(
     let start = Instant::now();
     let mut iteration = 0usize;
     while start.elapsed() < duration {
-        for operation in Operation::ALL {
-            run_profile_once(
-                operation,
-                MeasuredProfile::ContextBound,
-                bound,
-                compat,
-                fixture,
-                iteration % CORPUS_SIZE,
-            )?;
-            run_profile_once(
-                operation,
-                MeasuredProfile::CompatXWing,
-                bound,
-                compat,
-                fixture,
-                iteration % CORPUS_SIZE,
-            )?;
-        }
+        run_profile_once(
+            operation,
+            MeasuredProfile::ContextBound,
+            bound,
+            compat,
+            fixture,
+            iteration % CORPUS_SIZE,
+        )?;
+        run_profile_once(
+            operation,
+            MeasuredProfile::CompatXWing,
+            bound,
+            compat,
+            fixture,
+            iteration % CORPUS_SIZE,
+        )?;
         iteration = iteration.wrapping_add(1);
     }
     Ok(())
@@ -602,22 +657,10 @@ fn collect_profiles(
 
 #[cfg(qperiapt_performance_evidence)]
 mod portable_reference {
-    use super::{BenchError, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_XWING_SEED_LEN};
-    use q_periapt_core::{Error, Kem, SHARED_SECRET_LEN};
-    use sha3::{
-        digest::{ExtendableOutput, Update, XofReader},
-        Shake256,
-    };
-
-    const EXPANDED_SK_LEN: usize = 2400;
-    const KEYGEN_SEED_LEN: usize = 64;
+    use super::{BenchError, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN};
+    use q_periapt_core::{Error, Kem, ZeroizingBytes, SHARED_SECRET_LEN};
 
     unsafe extern "C" {
-        fn qpn_mlkem_evidence_portable_v1_2_0_768_keypair_derand(
-            public_key: *mut u8,
-            decapsulation_key: *mut u8,
-            seed: *const u8,
-        ) -> i32;
         fn qpn_mlkem_evidence_portable_v1_2_0_768_encapsulate_derand(
             ciphertext: *mut u8,
             shared_secret: *mut u8,
@@ -632,16 +675,7 @@ mod portable_reference {
     }
 
     #[derive(Clone, Copy)]
-    pub(super) struct PortableMlKem768XWingSeed;
-
-    fn expand_seed(seed: &[u8; ML_KEM_768_XWING_SEED_LEN]) -> [u8; KEYGEN_SEED_LEN] {
-        let mut state = Shake256::default();
-        state.update(seed);
-        let mut reader = state.finalize_xof();
-        let mut output = [0u8; KEYGEN_SEED_LEN];
-        reader.read(&mut output);
-        output
-    }
+    pub(super) struct PortableMlKem768Expanded;
 
     fn require_status(status: i32, operation: &str) -> Result<(), Error> {
         if status == 0 {
@@ -652,34 +686,12 @@ mod portable_reference {
         }
     }
 
-    impl PortableMlKem768XWingSeed {
-        pub(super) fn generate(
-            seed: [u8; ML_KEM_768_XWING_SEED_LEN],
-        ) -> Result<([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]), Error> {
-            let expanded_seed = expand_seed(&seed);
-            let mut public_key = [0u8; ML_KEM_768_PK_LEN];
-            let mut expanded_key = [0u8; EXPANDED_SK_LEN];
-            // SAFETY: all pointers name exact-size, non-overlapping live arrays
-            // for the duration of the private C reference call.
-            let status = unsafe {
-                qpn_mlkem_evidence_portable_v1_2_0_768_keypair_derand(
-                    public_key.as_mut_ptr(),
-                    expanded_key.as_mut_ptr(),
-                    expanded_seed.as_ptr(),
-                )
-            };
-            require_status(status, "portable keypair")?;
-            expanded_key.fill(0);
-            Ok((seed, public_key))
-        }
-    }
-
-    impl Kem for PortableMlKem768XWingSeed {
+    impl Kem for PortableMlKem768Expanded {
         const C2PRI: bool = true;
-        const COMPAT_XWING_SAFE: bool = true;
+        const COMPAT_XWING_SAFE: bool = false;
 
         fn algorithm(&self) -> &'static str {
-            "ML-KEM-768(seed-dk)/portable-evidence-reference"
+            "ML-KEM-768(expanded-fips203-2400)/portable-evidence-reference"
         }
 
         fn encapsulate(
@@ -689,70 +701,59 @@ mod portable_reference {
             ciphertext: &mut [u8],
             shared_secret: &mut [u8],
         ) -> Result<(), Error> {
-            let public_key: &[u8; ML_KEM_768_PK_LEN] =
+            let public_key: [u8; ML_KEM_768_PK_LEN] =
                 public_key.try_into().map_err(|_| Error::InvalidLength)?;
-            let randomness: &[u8; 32] = randomness.try_into().map_err(|_| Error::InvalidLength)?;
-            let ciphertext: &mut [u8; ML_KEM_768_CT_LEN] =
-                ciphertext.try_into().map_err(|_| Error::InvalidLength)?;
-            let shared_secret: &mut [u8; SHARED_SECRET_LEN] =
-                shared_secret.try_into().map_err(|_| Error::InvalidLength)?;
-            ciphertext.fill(0);
-            shared_secret.fill(0);
+            if randomness.len() != 32
+                || ciphertext.len() != ML_KEM_768_CT_LEN
+                || shared_secret.len() != SHARED_SECRET_LEN
+            {
+                return Err(Error::InvalidLength);
+            }
+            let mut randomness_owner = ZeroizingBytes::<32>::zeroed();
+            randomness_owner.as_mut_bytes().copy_from_slice(randomness);
+            let mut output_ciphertext = [0u8; ML_KEM_768_CT_LEN];
+            let mut output_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
             // SAFETY: the four exact-size arrays are live and non-overlapping.
             let status = unsafe {
                 qpn_mlkem_evidence_portable_v1_2_0_768_encapsulate_derand(
-                    ciphertext.as_mut_ptr(),
-                    shared_secret.as_mut_ptr(),
+                    output_ciphertext.as_mut_ptr(),
+                    output_secret.as_mut_bytes().as_mut_ptr(),
                     public_key.as_ptr(),
-                    randomness.as_ptr(),
+                    randomness_owner.as_bytes().as_ptr(),
                 )
             };
-            if let Err(error) = require_status(status, "portable encapsulate") {
-                ciphertext.fill(0);
-                shared_secret.fill(0);
-                return Err(error);
-            }
+            require_status(status, "portable encapsulate")?;
+            ciphertext.copy_from_slice(&output_ciphertext);
+            shared_secret.copy_from_slice(output_secret.as_bytes());
             Ok(())
         }
 
         fn decapsulate(
             &self,
-            seed: &[u8],
+            expanded_key: &[u8],
             ciphertext: &[u8],
             shared_secret: &mut [u8],
         ) -> Result<(), Error> {
-            let seed: &[u8; ML_KEM_768_XWING_SEED_LEN] =
-                seed.try_into().map_err(|_| Error::InvalidLength)?;
-            let ciphertext: &[u8; ML_KEM_768_CT_LEN] =
+            let ciphertext: [u8; ML_KEM_768_CT_LEN] =
                 ciphertext.try_into().map_err(|_| Error::InvalidLength)?;
-            let shared_secret: &mut [u8; SHARED_SECRET_LEN] =
-                shared_secret.try_into().map_err(|_| Error::InvalidLength)?;
-            let expanded_seed = expand_seed(seed);
-            let mut public_key = [0u8; ML_KEM_768_PK_LEN];
-            let mut expanded_key = [0u8; EXPANDED_SK_LEN];
-            // SAFETY: all pointers name exact-size, non-overlapping live arrays.
-            let keypair_status = unsafe {
-                qpn_mlkem_evidence_portable_v1_2_0_768_keypair_derand(
-                    public_key.as_mut_ptr(),
-                    expanded_key.as_mut_ptr(),
-                    expanded_seed.as_ptr(),
-                )
-            };
-            require_status(keypair_status, "portable decapsulation key expansion")?;
-            shared_secret.fill(0);
+            if expanded_key.len() != ML_KEM_768_SK_LEN || shared_secret.len() != SHARED_SECRET_LEN {
+                return Err(Error::InvalidLength);
+            }
+            let mut expanded_key_owner = ZeroizingBytes::<ML_KEM_768_SK_LEN>::zeroed();
+            expanded_key_owner
+                .as_mut_bytes()
+                .copy_from_slice(expanded_key);
+            let mut output_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
             // SAFETY: all pointers name exact-size, non-overlapping live arrays.
             let status = unsafe {
                 qpn_mlkem_evidence_portable_v1_2_0_768_decapsulate(
-                    shared_secret.as_mut_ptr(),
+                    output_secret.as_mut_bytes().as_mut_ptr(),
                     ciphertext.as_ptr(),
-                    expanded_key.as_ptr(),
+                    expanded_key_owner.as_bytes().as_ptr(),
                 )
             };
-            expanded_key.fill(0);
-            if let Err(error) = require_status(status, "portable decapsulate") {
-                shared_secret.fill(0);
-                return Err(error);
-            }
+            require_status(status, "portable decapsulate")?;
+            shared_secret.copy_from_slice(output_secret.as_bytes());
             Ok(())
         }
     }
@@ -769,14 +770,17 @@ mod portable_reference {
 }
 
 #[cfg(qperiapt_performance_evidence)]
-type PortableMatchedKem<'a> =
-    HybridKem<'a, portable_reference::PortableMlKem768XWingSeed, X25519, Sha3_256Xof>;
+type NativeExpandedMatchedKem<'a> = HybridKem<'a, MlKem768, X25519, Sha3_256Xof>;
 
 #[cfg(qperiapt_performance_evidence)]
-fn build_portable_bound<'a>(
-    pq: &'a portable_reference::PortableMlKem768XWingSeed,
+type PortableExpandedMatchedKem<'a> =
+    HybridKem<'a, portable_reference::PortableMlKem768Expanded, X25519, Sha3_256Xof>;
+
+#[cfg(qperiapt_performance_evidence)]
+fn build_expanded_bound<'a, P: Kem>(
+    pq: &'a P,
     trad: &'a X25519,
-) -> Result<PortableMatchedKem<'a>, BenchError> {
+) -> Result<HybridKem<'a, P, X25519, Sha3_256Xof>, BenchError> {
     let inputs = MeasuredProfile::ContextBound.inputs();
     HybridKem::<_, _, Sha3_256Xof>::new(
         pq,
@@ -785,38 +789,93 @@ fn build_portable_bound<'a>(
         inputs.suite_id,
         inputs.policy_version,
     )
-    .map_err(|error| kem_error("construct portable ContextBound harness", error))
+    .map_err(|error| kem_error("construct expanded-key ContextBound harness", error))
+}
+
+#[cfg(qperiapt_performance_evidence)]
+struct ImplementationCorpusEntry {
+    rand_pq: ZeroizingBytes<32>,
+    rand_trad: ZeroizingBytes<32>,
+    ct_pq: [u8; ML_KEM_768_CT_LEN],
+    ct_trad: [u8; X25519_LEN],
+    bound_secret: ZeroizingBytes<SHARED_SECRET_LEN>,
+}
+
+#[cfg(qperiapt_performance_evidence)]
+struct ImplementationFixture {
+    sk_pq: ZeroizingBytes<ML_KEM_768_SK_LEN>,
+    pk_pq: [u8; ML_KEM_768_PK_LEN],
+    sk_trad: ZeroizingBytes<X25519_LEN>,
+    pk_trad: [u8; X25519_LEN],
+    corpus: Vec<ImplementationCorpusEntry>,
+}
+
+#[cfg(qperiapt_performance_evidence)]
+fn implementation_keygen_seed() -> ZeroizingBytes<ML_KEM_768_KEYGEN_SEED_LEN> {
+    let left = ZeroizingBytes::from_bytes(derive32(11, 0));
+    let right = ZeroizingBytes::from_bytes(derive32(11, 1));
+    let mut seed = ZeroizingBytes::<ML_KEM_768_KEYGEN_SEED_LEN>::zeroed();
+    let (left_output, right_output) = seed.as_mut_bytes().split_at_mut(32);
+    left_output.copy_from_slice(left.as_bytes());
+    right_output.copy_from_slice(right.as_bytes());
+    seed
+}
+
+#[cfg(qperiapt_performance_evidence)]
+fn build_implementation_fixture(
+    native: &NativeExpandedMatchedKem<'_>,
+) -> Result<ImplementationFixture, BenchError> {
+    portable_reference::ensure_native_identity(ML_KEM_IMPLEMENTATION_ID)?;
+    let keygen_seed = implementation_keygen_seed();
+    let (sk_pq, pk_pq) = MlKem768::generate(*keygen_seed.as_bytes())
+        .map_err(|error| kem_error("prepare expanded ML-KEM key pair", error))?;
+    let sk_pq = ZeroizingBytes::from_bytes(sk_pq);
+    let trad_seed = ZeroizingBytes::from_bytes(derive32(12, 0));
+    let (sk_trad, pk_trad) = X25519::generate(*trad_seed.as_bytes());
+    let sk_trad = ZeroizingBytes::from_bytes(sk_trad);
+    let application_context = MeasuredProfile::ContextBound.inputs().application_context;
+    let mut corpus = Vec::with_capacity(CORPUS_SIZE);
+    for index in 0..CORPUS_SIZE {
+        let rand_pq = ZeroizingBytes::from_bytes(derive32(13, index));
+        let rand_trad = ZeroizingBytes::from_bytes(derive32(14, index));
+        let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
+        let mut ct_trad = [0u8; X25519_LEN];
+        let bound_secret = native
+            .encapsulate(
+                &pk_pq,
+                &pk_trad,
+                application_context,
+                rand_pq.as_bytes(),
+                rand_trad.as_bytes(),
+                &mut ct_pq,
+                &mut ct_trad,
+            )
+            .map_err(|error| kem_error("prepare expanded-key corpus", error))?;
+        corpus.push(ImplementationCorpusEntry {
+            rand_pq,
+            rand_trad,
+            ct_pq,
+            ct_trad,
+            bound_secret: ZeroizingBytes::from_bytes(*bound_secret.as_bytes()),
+        });
+    }
+    Ok(ImplementationFixture {
+        sk_pq,
+        pk_pq,
+        sk_trad,
+        pk_trad,
+        corpus,
+    })
 }
 
 #[cfg(qperiapt_performance_evidence)]
 fn verify_implementation_equivalence(
-    native: &MatchedKem<'_>,
-    portable: &PortableMatchedKem<'_>,
-    fixture: &Fixture,
+    native: &NativeExpandedMatchedKem<'_>,
+    portable: &PortableExpandedMatchedKem<'_>,
+    fixture: &ImplementationFixture,
 ) -> Result<Vec<EquivalenceRecord>, BenchError> {
-    portable_reference::ensure_native_identity(ML_KEM_IMPLEMENTATION_ID)?;
     let application_context = MeasuredProfile::ContextBound.inputs().application_context;
-    let seed = derive32(1, 0);
-    let (portable_sk, portable_pk) = portable_reference::PortableMlKem768XWingSeed::generate(seed)
-        .map_err(|error| kem_error("portable reference keypair", error))?;
-    if portable_sk != fixture.sk_pq || portable_pk != fixture.pk_pq {
-        return Err(BenchError(
-            "native and portable keypair outputs differ".into(),
-        ));
-    }
-    let keypair_input = digest_parts(&[&seed])?;
-    let keypair_output = digest_parts(&[&fixture.sk_pq, &fixture.pk_pq])?;
-    let mut records = vec![EquivalenceRecord {
-        schema_version: SCHEMA_VERSION,
-        record_type: "equivalence",
-        operation: "keypair",
-        case_id: 0,
-        corpus_index: 0,
-        input_digest_hex: keypair_input,
-        native_output_digest_hex: keypair_output.clone(),
-        portable_output_digest_hex: keypair_output,
-    }];
-
+    let mut records = Vec::with_capacity(CORPUS_SIZE * Operation::IMPLEMENTATION.len());
     for (case_id, entry) in fixture.corpus.iter().enumerate() {
         let mut native_ct_pq = [0u8; ML_KEM_768_CT_LEN];
         let mut native_ct_trad = [0u8; X25519_LEN];
@@ -825,8 +884,8 @@ fn verify_implementation_equivalence(
                 &fixture.pk_pq,
                 &fixture.pk_trad,
                 application_context,
-                &entry.rand_pq,
-                &entry.rand_trad,
+                entry.rand_pq.as_bytes(),
+                entry.rand_trad.as_bytes(),
                 &mut native_ct_pq,
                 &mut native_ct_trad,
             )
@@ -838,15 +897,15 @@ fn verify_implementation_equivalence(
                 &fixture.pk_pq,
                 &fixture.pk_trad,
                 application_context,
-                &entry.rand_pq,
-                &entry.rand_trad,
+                entry.rand_pq.as_bytes(),
+                entry.rand_trad.as_bytes(),
                 &mut portable_ct_pq,
                 &mut portable_ct_trad,
             )
             .map_err(|error| kem_error("portable equivalence encapsulation", error))?;
         if native_ct_pq != entry.ct_pq
             || native_ct_trad != entry.ct_trad
-            || native_secret.as_bytes() != &entry.bound_secret
+            || native_secret.as_bytes() != entry.bound_secret.as_bytes()
             || native_ct_pq != portable_ct_pq
             || native_ct_trad != portable_ct_trad
             || native_secret.as_bytes() != portable_secret.as_bytes()
@@ -859,8 +918,8 @@ fn verify_implementation_equivalence(
             &fixture.pk_pq,
             &fixture.pk_trad,
             application_context,
-            &entry.rand_pq,
-            &entry.rand_trad,
+            entry.rand_pq.as_bytes(),
+            entry.rand_trad.as_bytes(),
         ])?;
         let encapsulate_output =
             digest_parts(&[&native_ct_pq, &native_ct_trad, native_secret.as_bytes()])?;
@@ -877,10 +936,10 @@ fn verify_implementation_equivalence(
 
         let native_decapsulated = native
             .decapsulate(
-                &fixture.sk_pq,
+                fixture.sk_pq.as_bytes(),
                 &entry.ct_pq,
                 &fixture.pk_pq,
-                &fixture.sk_trad,
+                fixture.sk_trad.as_bytes(),
                 &entry.ct_trad,
                 &fixture.pk_trad,
                 application_context,
@@ -888,27 +947,27 @@ fn verify_implementation_equivalence(
             .map_err(|error| kem_error("native equivalence decapsulation", error))?;
         let portable_decapsulated = portable
             .decapsulate(
-                &fixture.sk_pq,
+                fixture.sk_pq.as_bytes(),
                 &entry.ct_pq,
                 &fixture.pk_pq,
-                &fixture.sk_trad,
+                fixture.sk_trad.as_bytes(),
                 &entry.ct_trad,
                 &fixture.pk_trad,
                 application_context,
             )
             .map_err(|error| kem_error("portable equivalence decapsulation", error))?;
-        if native_decapsulated.as_bytes() != &entry.bound_secret
+        if native_decapsulated.as_bytes() != entry.bound_secret.as_bytes()
             || native_decapsulated.as_bytes() != portable_decapsulated.as_bytes()
         {
             return Err(BenchError(format!(
                 "native and portable decapsulation outputs differ for corpus case {case_id}"
             )));
         }
+        // Both variants borrow the same RAII-owned private keys. Bind the public
+        // decapsulation case without publishing a private-key-derived digest.
         let decapsulate_input = digest_parts(&[
-            &fixture.sk_pq,
             &entry.ct_pq,
             &fixture.pk_pq,
-            &fixture.sk_trad,
             &entry.ct_trad,
             &fixture.pk_trad,
             application_context,
@@ -932,9 +991,9 @@ fn verify_implementation_equivalence(
 fn run_implementation_once(
     operation: Operation,
     implementation: MeasuredImplementation,
-    native: &MatchedKem<'_>,
-    portable: &PortableMatchedKem<'_>,
-    fixture: &Fixture,
+    native: &NativeExpandedMatchedKem<'_>,
+    portable: &PortableExpandedMatchedKem<'_>,
+    fixture: &ImplementationFixture,
     corpus_index: usize,
 ) -> Result<(), BenchError> {
     let application_context = MeasuredProfile::ContextBound.inputs().application_context;
@@ -958,8 +1017,8 @@ fn run_implementation_once(
                             black_box(&fixture.pk_pq),
                             &fixture.pk_trad,
                             application_context,
-                            &entry.rand_pq,
-                            &entry.rand_trad,
+                            entry.rand_pq.as_bytes(),
+                            entry.rand_trad.as_bytes(),
                             &mut ct_pq,
                             &mut ct_trad,
                         )
@@ -971,8 +1030,8 @@ fn run_implementation_once(
                             black_box(&fixture.pk_pq),
                             &fixture.pk_trad,
                             application_context,
-                            &entry.rand_pq,
-                            &entry.rand_trad,
+                            entry.rand_pq.as_bytes(),
+                            entry.rand_trad.as_bytes(),
                             &mut ct_pq,
                             &mut ct_trad,
                         )
@@ -985,10 +1044,10 @@ fn run_implementation_once(
                 MeasuredImplementation::Native => black_box(
                     native
                         .decapsulate(
-                            black_box(&fixture.sk_pq),
+                            black_box(fixture.sk_pq.as_bytes()),
                             &entry.ct_pq,
                             &fixture.pk_pq,
-                            &fixture.sk_trad,
+                            fixture.sk_trad.as_bytes(),
                             &entry.ct_trad,
                             &fixture.pk_trad,
                             application_context,
@@ -998,10 +1057,10 @@ fn run_implementation_once(
                 MeasuredImplementation::Portable => black_box(
                     portable
                         .decapsulate(
-                            black_box(&fixture.sk_pq),
+                            black_box(fixture.sk_pq.as_bytes()),
                             &entry.ct_pq,
                             &fixture.pk_pq,
-                            &fixture.sk_trad,
+                            fixture.sk_trad.as_bytes(),
                             &entry.ct_trad,
                             &fixture.pk_trad,
                             application_context,
@@ -1015,33 +1074,32 @@ fn run_implementation_once(
 }
 
 #[cfg(qperiapt_performance_evidence)]
-fn warm_up_implementations(
+fn warm_up_implementation_operation(
     duration: Duration,
-    native: &MatchedKem<'_>,
-    portable: &PortableMatchedKem<'_>,
-    fixture: &Fixture,
+    operation: Operation,
+    native: &NativeExpandedMatchedKem<'_>,
+    portable: &PortableExpandedMatchedKem<'_>,
+    fixture: &ImplementationFixture,
 ) -> Result<(), BenchError> {
     let start = Instant::now();
     let mut iteration = 0usize;
     while start.elapsed() < duration {
-        for operation in Operation::IMPLEMENTATION {
-            run_implementation_once(
-                operation,
-                MeasuredImplementation::Native,
-                native,
-                portable,
-                fixture,
-                iteration % CORPUS_SIZE,
-            )?;
-            run_implementation_once(
-                operation,
-                MeasuredImplementation::Portable,
-                native,
-                portable,
-                fixture,
-                iteration % CORPUS_SIZE,
-            )?;
-        }
+        run_implementation_once(
+            operation,
+            MeasuredImplementation::Native,
+            native,
+            portable,
+            fixture,
+            iteration % CORPUS_SIZE,
+        )?;
+        run_implementation_once(
+            operation,
+            MeasuredImplementation::Portable,
+            native,
+            portable,
+            fixture,
+            iteration % CORPUS_SIZE,
+        )?;
         iteration = iteration.wrapping_add(1);
     }
     Ok(())
@@ -1051,9 +1109,9 @@ fn warm_up_implementations(
 fn collect_implementations(
     operation: Operation,
     samples: usize,
-    native: &MatchedKem<'_>,
-    portable: &PortableMatchedKem<'_>,
-    fixture: &Fixture,
+    native: &NativeExpandedMatchedKem<'_>,
+    portable: &PortableExpandedMatchedKem<'_>,
+    fixture: &ImplementationFixture,
     records: &mut Vec<SampleRecord>,
 ) -> Result<(), BenchError> {
     for cycle in 0..samples / 2 {
@@ -1139,6 +1197,37 @@ fn harness_target() -> String {
     }
 }
 
+fn build_contract() -> Option<BuildContract> {
+    #[cfg(qperiapt_performance_evidence)]
+    {
+        let c_build = CImplementationBuild {
+            architecture: env!("QPERIAPT_PERFORMANCE_C_ARCHITECTURE"),
+            data_sections: true,
+            function_sections: true,
+            language_standard: env!("QPERIAPT_PERFORMANCE_C_LANGUAGE_STANDARD"),
+            macos_deployment_target: env!("QPERIAPT_PERFORMANCE_MACOS_DEPLOYMENT_TARGET"),
+            optimization: env!("QPERIAPT_PERFORMANCE_C_OPTIMIZATION"),
+            position_independent_code: true,
+            visibility: env!("QPERIAPT_PERFORMANCE_C_VISIBILITY"),
+        };
+        Some(BuildContract {
+            c_implementations: CImplementationBuilds {
+                product_native: c_build,
+                portable_reference: c_build,
+            },
+            rust_harness: RustHarnessBuild {
+                codegen_units: 1,
+                lto: env!("QPERIAPT_PERFORMANCE_RUST_LTO"),
+                optimization: env!("QPERIAPT_PERFORMANCE_RUST_OPTIMIZATION"),
+            },
+        })
+    }
+    #[cfg(not(qperiapt_performance_evidence))]
+    {
+        None
+    }
+}
+
 fn implementation_contract() -> Option<ImplementationContract> {
     #[cfg(qperiapt_performance_evidence)]
     {
@@ -1146,15 +1235,19 @@ fn implementation_contract() -> Option<ImplementationContract> {
             digest_algorithm: "SHA3-256",
             direction: "native/portable",
             equivalence_cases_per_operation: EquivalenceCaseCounts {
-                keypair: 1,
                 encapsulate: CORPUS_SIZE,
                 decapsulate: CORPUS_SIZE,
             },
+            includes_ffi: false,
+            includes_os_rng: false,
+            key_format: IMPLEMENTATION_KEY_FORMAT,
+            keypair_generation_count: 1,
             native_implementation_id: NATIVE_IMPLEMENTATION_ID,
             operations: ["encapsulate", "decapsulate"],
             portable_implementation_id: PORTABLE_REFERENCE_IMPLEMENTATION_ID,
             product_profile: "ContextBound",
             reference_scope: PORTABLE_REFERENCE_SCOPE,
+            surface: IMPLEMENTATION_SURFACE,
             variants: ["native", "portable"],
         })
     }
@@ -1193,24 +1286,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let fixture = build_fixture(&bound, &compat)?;
 
     #[cfg(qperiapt_performance_evidence)]
-    let portable_pq = portable_reference::PortableMlKem768XWingSeed;
+    let native_expanded_pq = MlKem768;
     #[cfg(qperiapt_performance_evidence)]
-    let portable_bound = build_portable_bound(&portable_pq, &trad)?;
+    let native_expanded_bound = build_expanded_bound(&native_expanded_pq, &trad)?;
     #[cfg(qperiapt_performance_evidence)]
-    let equivalence = verify_implementation_equivalence(&bound, &portable_bound, &fixture)?;
-
-    warm_up_profiles(
-        Duration::from_millis(args.warmup_ms),
-        &bound,
-        &compat,
-        &fixture,
-    )?;
+    let portable_expanded_pq = portable_reference::PortableMlKem768Expanded;
     #[cfg(qperiapt_performance_evidence)]
-    warm_up_implementations(
-        Duration::from_millis(args.warmup_ms),
-        &bound,
-        &portable_bound,
-        &fixture,
+    let portable_expanded_bound = build_expanded_bound(&portable_expanded_pq, &trad)?;
+    #[cfg(qperiapt_performance_evidence)]
+    let implementation_fixture = build_implementation_fixture(&native_expanded_bound)?;
+    #[cfg(qperiapt_performance_evidence)]
+    let equivalence = verify_implementation_equivalence(
+        &native_expanded_bound,
+        &portable_expanded_bound,
+        &implementation_fixture,
     )?;
 
     let multiplier = if cfg!(qperiapt_performance_evidence) {
@@ -1223,27 +1312,51 @@ fn main() -> Result<(), Box<dyn Error>> {
         .checked_mul(multiplier)
         .ok_or_else(|| BenchError("sample capacity overflow".into()))?;
     let mut records = Vec::with_capacity(capacity);
-    for operation in Operation::ALL {
-        collect_profiles(
-            operation,
-            args.samples,
-            &bound,
-            &compat,
-            &fixture,
-            &mut records,
-        )?;
-    }
+    for_each_warmed_operation(
+        Operation::ALL,
+        |operation| {
+            warm_up_profile_operation(
+                Duration::from_millis(args.warmup_ms),
+                operation,
+                &bound,
+                &compat,
+                &fixture,
+            )
+        },
+        |operation| {
+            collect_profiles(
+                operation,
+                args.samples,
+                &bound,
+                &compat,
+                &fixture,
+                &mut records,
+            )
+        },
+    )?;
     #[cfg(qperiapt_performance_evidence)]
-    for operation in Operation::IMPLEMENTATION {
-        collect_implementations(
-            operation,
-            args.samples,
-            &bound,
-            &portable_bound,
-            &fixture,
-            &mut records,
-        )?;
-    }
+    for_each_warmed_operation(
+        Operation::IMPLEMENTATION,
+        |operation| {
+            warm_up_implementation_operation(
+                Duration::from_millis(args.warmup_ms),
+                operation,
+                &native_expanded_bound,
+                &portable_expanded_bound,
+                &implementation_fixture,
+            )
+        },
+        |operation| {
+            collect_implementations(
+                operation,
+                args.samples,
+                &native_expanded_bound,
+                &portable_expanded_bound,
+                &implementation_fixture,
+                &mut records,
+            )
+        },
+    )?;
 
     let file = File::create(&args.raw_out)?;
     let mut writer = BufWriter::new(file);
@@ -1263,6 +1376,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 decapsulate: Operation::Decapsulate.iterations_per_sample(),
             },
             warmup_ms: args.warmup_ms,
+            warmup_scope: WARMUP_SCOPE,
+            build_contract: build_contract(),
             profile_inputs: ProfileInputsRecord {
                 context_bound: ProfileInputRecord {
                     suite_id_hex: hex(bound_inputs.suite_id)?,
@@ -1300,4 +1415,53 @@ fn main() -> Result<(), Box<dyn Error>> {
         args.raw_out.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    #[test]
+    fn every_operation_is_warmed_immediately_before_collection() {
+        fn record(
+            operations: impl IntoIterator<Item = Operation>,
+        ) -> Vec<(&'static str, &'static str)> {
+            let events = RefCell::new(Vec::new());
+            for_each_warmed_operation(
+                operations,
+                |operation| {
+                    events.borrow_mut().push(("warm-up", operation.name()));
+                    Ok::<(), ()>(())
+                },
+                |operation| {
+                    events.borrow_mut().push(("collect", operation.name()));
+                    Ok::<(), ()>(())
+                },
+            )
+            .unwrap();
+            events.into_inner()
+        }
+
+        assert_eq!(
+            record(Operation::ALL),
+            [
+                ("warm-up", "combine"),
+                ("collect", "combine"),
+                ("warm-up", "encapsulate"),
+                ("collect", "encapsulate"),
+                ("warm-up", "decapsulate"),
+                ("collect", "decapsulate"),
+            ]
+        );
+        assert_eq!(
+            record(Operation::IMPLEMENTATION),
+            [
+                ("warm-up", "encapsulate"),
+                ("collect", "encapsulate"),
+                ("warm-up", "decapsulate"),
+                ("collect", "decapsulate"),
+            ]
+        );
+    }
 }

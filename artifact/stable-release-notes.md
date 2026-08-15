@@ -73,8 +73,26 @@ The 0.1.0 source line makes a deliberate fail-closed Rust/WASM behavior change:
 `CompatXWing` calls must use canonical absent suite/version/context metadata
 (`[]`, `0`, `[]`). Calls that previously succeeded while those values were ignored
 now return the existing policy error before XOF construction, backend execution, or
-output mutation. Valid X-Wing inputs, official KAT bytes, private rustls group wire
-encoding, and the ContextBound-only exact-nine C ABI 2 surface are unchanged.
+output mutation. The three historical X-Wing draft-10 KAT vectors remain unchanged;
+the source line additionally pins the CFRG
+`draft-irtf-cfrg-concrete-hybrid-kems-04` Appendix B.2 vector, stored as the repository
+vector-0 fixture. That document remains a
+non-RFC Internet-Draft. The official vector covers valid keygen, encapsulation, and
+decapsulation; a separate locally derived same-length ciphertext mutation checks
+implicit rejection; the draft supplies no expected secret for that rejected case. Private
+rustls group wire encoding and the ContextBound-only exact-nine C ABI 2 surface are
+unchanged.
+
+Two ownership changes likewise leave ABI 2 and wire bytes unchanged. The Compat
+rustls client retains the stable 32-byte seed representation, expands it exactly once
+per in-flight handshake into a non-Clone zeroizing 2,400-byte prepared owner, and
+reuses that owner at completion. There is no global/shared secret-key cache or C-ABI
+prepared-key surface. Separately, the native FFI's first dynamically allocated
+Rust-owned policy-bound-context copy reserves before writing sensitive bytes and is
+wiped by one RAII owner on normal return, error, or unwind. Valid-length allocation
+failure remains opaque internal/backend failure, while oversized input remains an
+explicit length error. Caller/marshalling copies, registers, paging, and process abort
+remain outside this local erasure boundary.
 
 This source line also strengthens the Android release transaction without weakening
 package ownership checks:
@@ -93,15 +111,21 @@ package ownership checks:
   not raw ADB output, device identifiers, host paths, credentials, or signing data.
 
 These source notes cannot by themselves assert a performance improvement. The final
-release earns that claim only if `R` selects the mandatory raw-schema-v4 /
-proof-schema-v7 / budget-schema-v9 proof for `S`, and the coordinated verified
+release earns that claim only if `R` selects the mandatory raw-schema-v5 /
+proof-schema-v8 / budget-schema-v10 proof for `S`, and the coordinated verified
 receipt `V` preserves and revalidates that exact selection. The proof requires both
 the preserved ContextBound/CompatXWing profile non-regression estimand with strict
 ContextBound fixed suite/version/application-context inputs and CompatXWing canonical
 `[]`/`0`/`[]` inputs, and a
-same-process, output-equivalent native/portable ContextBound
-implementation-improvement estimand for encapsulation and decapsulation under the
-fixed ABBA/BAAB schedule. The latter preregisters one-sided 95% upper
+same-process native/portable ContextBound `hybrid_core` implementation estimand for
+encapsulation and decapsulation over `expanded_fips203_2400`. The harness generates
+one expanded keypair, supplies the same key bytes/coins/corpus to both implementations,
+and requires per-case output equality; portable key generation is not invoked. Both C
+paths use the same O3/PIC/Armv8-A/macOS-11/section-codegen contract, and the O3 Rust
+harness uses thin LTO and one codegen unit under the stable Rust/Cargo 1.96.1 producer.
+Each estimand/operation is warmed independently immediately before collection. The
+implementation estimand excludes FFI and OS RNG and is not complete ABI, rustls,
+device, or competitor performance. The latter preregisters one-sided 95% upper
 native/portable limits of 0.95 for primary p50/p95 and 1.0 for p99. Performance
 remains pending until one fresh clean-source, controlled-host, exact-sample proof
 for this tree is selected; no historical or small diagnostic run is promoted by

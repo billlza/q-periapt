@@ -91,7 +91,9 @@ encoders/decoders plus full-byte vectors, isolation rules, and both separate Eas
 projection/omission developments. Its pass marker does not
 enter the ABI 2 release-attestation state machine.
 
-Runs the minimal closed loop (core tests, shared/reference vectors, the C-ABI face + a real C
+Runs the minimal closed loop (core tests, shared/reference vectors including the three retained
+X-Wing draft-10 vectors and the CFRG `concrete-hybrid-kems-04` Appendix B.2 vector 0
+MLKEM768-X25519 vector, the C-ABI face + a real C
 link-and-run, the WASM face's shared vector on the host, a real loopback TLS 1.3 handshake over the
 hybrid group, and the EasyCrypt no-`admit` gate) and prints `ALL PASS` (exit 0). Needs a Rust
 toolchain and a C compiler — no Docker, wasm-pack, Node, or device hardware.
@@ -104,6 +106,16 @@ actual checkout explicitly with a 40-character lowercase hexadecimal
 synthetic merge commit for a pull request rather than `pull_request.head.sha`. The hardened
 source freeze validates this commitment before emitting any proof marker, and malformed or
 mismatched values fail with exit status 2.
+
+The host tests also pin two process-local ownership boundaries. For Compat rustls,
+the stable private-key representation remains a 32-byte seed; one in-flight client
+exchange expands it once into a non-Clone, zeroizing 2,400-byte prepared owner and
+reuses that owner at completion. No secret-key cache is global or shared between
+handshakes, and the capability is not exported through ABI 2. In the native FFI,
+the first dynamically allocated Rust-owned policy-bound-context copy reserves capacity
+before sensitive bytes are written and has one RAII wipe owner across normal return,
+error, and unwind. Neither assertion covers caller/marshalling copies, registers,
+paging, process abort, or full-runtime memory erasure.
 
 The canonical source digest covers tracked plus ignored and visible untracked canonical source
 inputs under a fixed, verifier-owned non-input policy: exact untracked regular files whose
@@ -1034,31 +1046,38 @@ These produce the paper's primary network table and the binary constant-time dis
     --proof target/performance/paired-profile-proof.json
   ```
 
-  Raw schema v4 carries two separately named estimands in one process. `profile_non_regression`
+  Raw schema v5 carries two separately named estimands in one process. `profile_non_regression`
   preserves the matched ContextBound/CompatXWing comparison over the same ML-KEM-768 seed-dk +
   X25519 backend, keys, coins, deterministic ciphertext corpus, and ABBA/BAAB schedule. Its strict
   nested `profile_inputs` records the fixed suite/version/application context for ContextBound and
-  canonical absence (`[]`, `0`, `[]`) for CompatXWing. `implementation_improvement` compares ContextBound
-  product encapsulation and decapsulation over the same keys, coins, corpus, suite, version, and
-  context, in native/portable direction. The portable implementation is a symbol-renamed static
+  canonical absence (`[]`, `0`, `[]`) for CompatXWing. `implementation_improvement` is a
+  separate ContextBound `hybrid_core` native/portable comparison over an
+  `expanded_fips203_2400` key and the same coins, corpus, suite, version, and context.
+  It covers encapsulation and decapsulation only; `includes_ffi=false` and
+  `includes_os_rng=false`, so it is not a C-ABI, policy, entropy, rustls, or complete-product
+  measurement. The portable implementation is a symbol-renamed static
   archive compiled only for this evidence build; it is not a product backend, Cargo feature,
-  runtime override, or shipping API. The harness checks byte-identical native and portable
-  keypair output and every per-case encapsulation/decapsulation output before timing, then uses
-  ABBA/BAAB ordering for both estimands. The 5 s warm-up and 20,480 samples apply per
-  variant/operation. Budget schema v9 records that exact collection size separately
+  runtime override, or shipping API. The harness generates one expanded keypair, supplies
+  the same key bytes/coins/corpus to both implementations, and checks every per-case
+  encapsulation/decapsulation output for byte equality before timing; portable key generation
+  is neither invoked nor compared. It then uses ABBA/BAAB ordering for both estimands.
+  Native and portable C compile under the same
+  O3/PIC/Armv8-A/macOS-11/function-and-data-section contract; the Rust harness is O3 with thin LTO
+  and one codegen unit under the stable Rust/Cargo 1.96.1 producer. The 5 s warm-up and 20,480
+  samples apply per variant/operation. Budget schema v10 records that exact collection size separately
   from its statistical minimum, and the collection CLI cannot override either samples
   or warm-up. Unrounded batch totals use 256/1/2 calls for
   combine/encapsulate/decapsulate, and analysis divides by the authenticated iteration count.
 
-  Budget schema v9 preregisters the implementation-improvement primary one-sided 95% upper
+  Budget schema v10 preregisters the implementation-improvement primary one-sided 95% upper
   limits before any formal collection: native/portable p50 and p95 must be at most 0.95 and p99
-  at most 1.0 for both ContextBound product operations. The verifier rejects threshold drift and
+  at most 1.0 for both registered ContextBound hybrid-core operations. The verifier rejects threshold drift and
   blocks any failure. This implemented gate is not itself a performance result: do not report a
-  quantitative improvement until a fresh clean-source, controlled-host proof-schema-v7 run meets
+  quantitative improvement until a fresh clean-source, controlled-host proof-schema-v8 run meets
   the full sample budget and is selected by `artifact/results.json`.
 
   Paired primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
-  therefore has 11 tail observations in each estimate block rather than three. Budget schema v9
+  therefore has 11 tail observations in each estimate block rather than three. Budget schema v10
   preserves the profile statistical contract: it pins a minimum of 10 and also recomputes the former
   256-pair estimator as a regression guard;
   every published ratio/delta limit must pass at both block scales. Separately parameterized
@@ -1082,7 +1101,7 @@ These produce the paper's primary network table and the binary constant-time dis
   replace-and-restore races remain trusted. The verifier also trusts the local collector to have
   built the content-addressed binary it records; it does not independently rebuild it. Therefore
   this is a strengthened single-host diagnostic, not hermetic or hostile-builder attestation.
-  Proof schema v7, raw schema v4, and budget schema v9 are required; older files
+  Proof schema v8, raw schema v5, and budget schema v10 are required; older files
   fail closed and must be recollected. Shared CI runs only a short schema exercise; numeric
   decisions require controlled hardware. Reverify with
   `QPERIAPT_REQUIRE_PERFORMANCE=1 sh artifact/proof-to-byte.sh`. Dirty diagnostic collection and
