@@ -5,8 +5,10 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
 
-//! Safe, allocation-free Rust boundary for the portable `mlkem-native` C
-//! implementation.
+//! Safe, allocation-free Rust boundary for the target-selected `mlkem-native`
+//! implementation. Five reviewed little-endian AArch64 targets use the pinned
+//! upstream native arithmetic and fixed Armv8-A FIPS 202 assembly profile;
+//! every other target uses portable C.
 //!
 //! All public operations use exact-size arrays and caller-owned output
 //! buffers. Outputs are zero before entering C and are zeroed again whenever
@@ -22,6 +24,9 @@ mod build_support_tests;
 
 #[allow(unsafe_code)]
 mod raw;
+
+/// Exact implementation selected by the build for this target.
+pub const IMPLEMENTATION_ID: &str = env!("QPN_MLKEM_IMPLEMENTATION_ID");
 
 /// Length in bytes of deterministic ML-KEM key-generation input (`d || z`).
 pub const KEY_GENERATION_SEED_LEN: usize = 64;
@@ -190,7 +195,7 @@ macro_rules! define_parameter_set {
 }
 
 define_parameter_set!(
-    /// ML-KEM-512 portable backend.
+    /// ML-KEM-512 backend using this target's [`IMPLEMENTATION_ID`].
     MlKem512,
     public_key_len = 800,
     decapsulation_key_len = 1632,
@@ -201,7 +206,7 @@ define_parameter_set!(
 );
 
 define_parameter_set!(
-    /// ML-KEM-768 portable backend.
+    /// ML-KEM-768 backend using this target's [`IMPLEMENTATION_ID`].
     MlKem768,
     public_key_len = 1184,
     decapsulation_key_len = 2400,
@@ -212,7 +217,7 @@ define_parameter_set!(
 );
 
 define_parameter_set!(
-    /// ML-KEM-1024 portable backend.
+    /// ML-KEM-1024 backend using this target's [`IMPLEMENTATION_ID`].
     MlKem1024,
     public_key_len = 1568,
     decapsulation_key_len = 3168,

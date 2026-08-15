@@ -37,9 +37,9 @@ MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
 BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v2"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
-PRODUCT_VERSION = "0.1.0-alpha.3"
+PRODUCT_VERSION = "0.1.0"
 RELEASE_REVISION = "r1"
-RELEASE_TAG = f"v{PRODUCT_VERSION}-{RELEASE_REVISION}"
+RELEASE_TAG = f"v{PRODUCT_VERSION}"
 RELEASE_URL = (
     f"https://github.com/billlza/q-periapt/releases/tag/{RELEASE_TAG}"
 )
@@ -1670,24 +1670,6 @@ def validate_trusted_results_distribution(
     return distribution
 
 
-def _release_expectations_from_results(
-    results_manifest: pathlib.Path,
-) -> tuple[dict[str, Any], str]:
-    results_snapshot = load_json_object_snapshot(
-        results_manifest,
-        maximum=MAX_TEXT_BYTES,
-        label="trusted release results manifest",
-    )
-    swift_xcframework = _require_object(
-        results_snapshot.value.get("swift_xcframework"),
-        "trusted results swift_xcframework",
-    )
-    distribution = validate_trusted_results_distribution(
-        swift_xcframework.get("distribution"),
-    )
-    return distribution, results_snapshot.file.sha256
-
-
 def _zip_regular_entry_hash(data: bytes, name: str) -> str:
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         return hashlib.sha256(archive.read(name)).hexdigest()
@@ -2360,7 +2342,8 @@ def project_trusted_results_candidate_distribution(
 def verify_release_assets(
     *,
     release_directory: pathlib.Path,
-    results_manifest: pathlib.Path,
+    trusted_distribution: object,
+    trusted_results_sha256: str,
     expected_source_commit: str,
     expected_zip_sha256: str,
     expected_apple_distribution_sha256: str,
@@ -2368,9 +2351,13 @@ def verify_release_assets(
     expected_sha256sums_sha256: str,
     expected_swiftpm_checksum: str,
 ) -> dict[str, str]:
-    """Verify one immutable, four-file Apple release set against trusted pins."""
+    """Verify four Apple assets against one already-selected distribution leaf."""
 
-    trusted, results_sha256 = _release_expectations_from_results(results_manifest)
+    trusted = validate_trusted_results_distribution(trusted_distribution)
+    results_sha256 = _require_sha256(
+        trusted_results_sha256,
+        "trusted release results SHA-256",
+    )
     trusted_release_identity = _trusted_results_release_identity(trusted)
     source_commit = _require_git_commit(
         expected_source_commit, "expected Apple release source commit"
@@ -2541,23 +2528,6 @@ def _command_distribution_evidence(args: argparse.Namespace) -> None:
     _write_new_json(args.output, evidence)
 
 
-def _command_verify_release_assets(args: argparse.Namespace) -> None:
-    verified = verify_release_assets(
-        release_directory=args.release_directory,
-        results_manifest=args.results_manifest,
-        expected_source_commit=args.expected_source_commit,
-        expected_zip_sha256=args.expected_zip_sha256,
-        expected_apple_distribution_sha256=args.expected_apple_distribution_sha256,
-        expected_manifest_sha256=args.expected_manifest_sha256,
-        expected_sha256sums_sha256=args.expected_sha256sums_sha256,
-        expected_swiftpm_checksum=args.expected_swiftpm_checksum,
-    )
-    print(
-        "APPLE_RELEASE_ASSETS_PASS "
-        + " ".join(f"{name}={value}" for name, value in verified.items())
-    )
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2596,22 +2566,6 @@ def _parser() -> argparse.ArgumentParser:
     distribution.add_argument("--output", type=pathlib.Path, required=True)
     distribution.set_defaults(handler=_command_distribution_evidence)
 
-    release_assets = subparsers.add_parser("verify-release-assets")
-    release_assets.add_argument(
-        "--release-directory", type=pathlib.Path, required=True
-    )
-    release_assets.add_argument(
-        "--results-manifest", type=pathlib.Path, required=True
-    )
-    release_assets.add_argument("--expected-source-commit", required=True)
-    release_assets.add_argument("--expected-zip-sha256", required=True)
-    release_assets.add_argument(
-        "--expected-apple-distribution-sha256", required=True
-    )
-    release_assets.add_argument("--expected-manifest-sha256", required=True)
-    release_assets.add_argument("--expected-sha256sums-sha256", required=True)
-    release_assets.add_argument("--expected-swiftpm-checksum", required=True)
-    release_assets.set_defaults(handler=_command_verify_release_assets)
     return parser
 
 

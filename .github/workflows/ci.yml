@@ -51,10 +51,25 @@ jobs:
       # Discover every artifact/test_*.py module so newly added fail-closed
       # verifiers cannot silently remain local-only because an explicit list drifted.
       - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
-      - name: Proof-to-byte manifest and canonical source binding
+      - name: Exact source-transition or installed proof-to-byte gate
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
-        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh
+        run: |
+          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)
+          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
+            ci-source-gate \
+            "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
+          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226 declared_delta=36"
+          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226"
+          if [ "$source_gate" = "$initial_gate" ]; then
+            printf '%s\n' "$source_gate"
+          elif [ "$source_gate" = "$installed_gate" ]; then
+            printf '%s\n' "$source_gate"
+            QPERIAPT_SKIP_SMOKE=1 /bin/sh artifact/proof-to-byte.sh
+          else
+            printf 'unexpected source CI gate result\n' >&2
+            exit 2
+          fi
       - name: Paired performance harness schema (shared-runner, no numeric claim)
         run: |
           cargo run --release --locked -p q-periapt-backends --example paired_profile_perf -- \
@@ -127,8 +142,8 @@ jobs:
       - name: Reconsume only the Windows candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -174,7 +189,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-windows-x86_64-msvc
-          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip
+          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip
           if-no-files-found: error
 
   # Pre-tag package gate on the same Windows generation used by the immutable
@@ -225,8 +240,8 @@ jobs:
       - name: Reconsume only the Windows 2022 candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -308,7 +323,7 @@ jobs:
           EXPECTED_TARGET: ${{ matrix.target }}
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          package="q-periapt-c-abi2-0.1.0-alpha.3-$EXPECTED_TARGET"
+          package="q-periapt-c-abi2-0.1.0-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
           archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
@@ -328,20 +343,20 @@ jobs:
             QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$5" \
               sh artifact/c-package.sh
           }
-          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$wrong_target" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$wrong_target" "0.1.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
           rm -rf \
             target/release \
             "target/qperiapt-c-abi2/$package" \
             "target/qperiapt-c-abi2/verify-$package"
-          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"
+          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0" "$manifest_sha256" "$contract_sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-linux-${{ matrix.target }}
-          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.0-alpha.3-${{ matrix.target }}.tar.gz
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.0-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
   # no_std build of the auditable core for an embedded target (must not pull std).
@@ -487,6 +502,7 @@ jobs:
   # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code and every
   # shipped ML-KEM-{512,768,1024} expanded-DK decapsulation wrapper.
   constant-time:
+    name: Binary CT [${{ matrix.gate_identity }}]
     # Dataflow CT gate on BOTH architectures: Memcheck/TIMECOP marks secrets undefined and
     # flags any secret-dependent branch/index in our composition code. x86_64 + aarch64 —
     # the emitted assembly differs per target, so each is an independent check. (Verified
@@ -495,7 +511,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - runner: ubuntu-latest
+            gate_identity: x86_64-portable
+            rust_host: x86_64-unknown-linux-gnu
+            uname_machine: x86_64
+          - runner: ubuntu-24.04-arm
+            gate_identity: aarch64-native
+            rust_host: aarch64-unknown-linux-gnu
+            uname_machine: aarch64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -508,6 +532,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
+      - name: Verify the fixed CT architecture identity
+        env:
+          EXPECTED_GATE_IDENTITY: ${{ matrix.gate_identity }}
+          EXPECTED_RUST_HOST: ${{ matrix.rust_host }}
+          EXPECTED_UNAME_MACHINE: ${{ matrix.uname_machine }}
+        run: |
+          case "$EXPECTED_GATE_IDENTITY:$EXPECTED_RUST_HOST:$EXPECTED_UNAME_MACHINE" in
+            x86_64-portable:x86_64-unknown-linux-gnu:x86_64) ;;
+            aarch64-native:aarch64-unknown-linux-gnu:aarch64) ;;
+            *) echo "invalid binary-CT matrix identity" >&2; exit 2 ;;
+          esac
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_RUST_HOST"
+          test "$(uname -m)" = "$EXPECTED_UNAME_MACHINE"
       - name: Install Valgrind (provides valgrind/memcheck.h for the shim)
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - name: Build the ct_verify harness (real Memcheck client requests)
@@ -761,9 +798,9 @@ jobs:
         with:
           name: abi2-android-aar
           path: |
-            target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/q-periapt-android-0.1.0-alpha.3.aar
-            target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/MANIFEST.json
-            target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/SHA256SUMS
+            target/qperiapt-android-aar/q-periapt-android-0.1.0/q-periapt-android-0.1.0.aar
+            target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json
+            target/qperiapt-android-aar/q-periapt-android-0.1.0/SHA256SUMS
           if-no-files-found: error
 
   # Execute the exact four-ABI AAR produced above on a real Android 15/API 35
@@ -901,8 +938,8 @@ jobs:
           QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"
           QPERIAPT_ANDROID_EXPECT_SDK: "35"
         run: |
-          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/q-periapt-android-0.1.0-alpha.3.aar"
-          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/MANIFEST.json"
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.0/q-periapt-android-0.1.0.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json"
           test -f "$aar" && test -f "$manifest"
           aar_sha256=$(sha256sum "$aar" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "$manifest" | cut -d' ' -f1)

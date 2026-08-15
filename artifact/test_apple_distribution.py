@@ -18,7 +18,17 @@ import zipfile
 from unittest import mock
 
 import apple_distribution
+import apple_publication_contract
+import apple_stable_publication
 import deterministic_archive
+import platform_publication_contract
+import release_publication_contract
+from test_release_publication_contract import (
+    _rebind_platform,
+    pending_manifest_fixture,
+    rebind_rust_publish_source,
+    rebind_stable_current_source,
+)
 
 SOURCE_COMMIT = "ab" * 20
 TEAM_ID = "YKUPL7Z869"
@@ -1072,10 +1082,10 @@ class DistributionEvidenceTests(ZipFixture):
         self.assertEqual(
             evidence["release_identity"],
             {
-                "product_version": "0.1.0-alpha.3",
+                "product_version": "0.1.0",
                 "revision": "r1",
-                "tag": "v0.1.0-alpha.3-r1",
-                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.3-r1",
+                "tag": "v0.1.0",
+                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.0",
             },
         )
         self.assertEqual(
@@ -1368,13 +1378,71 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "swiftpm_checksum": self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
             "version": release_identity["product_version"],
         }
-        self.results.write_bytes(
-            apple_distribution._json_bytes(
-                {"swift_xcframework": {"distribution": trusted_distribution}}
-            )
+        pending = pending_manifest_fixture()
+        stable = pending["release_publications"][
+            apple_publication_contract.APPLE_V0_1_0_PUBLICATION_KEY
+        ]
+        stable_source = stable["source"]
+        stable_source["source_parent_commit"] = SOURCE_COMMIT
+        stable["distribution"] = copy.deepcopy(trusted_distribution)
+        platform_key = (
+            platform_publication_contract.PLATFORM_V0_1_0_PUBLICATION_KEY
         )
+        pending["release_publications"][platform_key] = _rebind_platform(
+            pending["release_publications"][platform_key],
+            stable_source,
+        )
+        pending["provenance"]["snapshot_commit"] = SOURCE_COMMIT
+        pending["rust_publish"] = rebind_rust_publish_source(
+            pending["rust_publish"],
+            source_commit=SOURCE_COMMIT,
+            source_digest=stable_source["canonical_source_tree_sha256"],
+        )
+        rebind_stable_current_source(
+            pending,
+            source_commit=SOURCE_COMMIT,
+            source_digest=stable_source["canonical_source_tree_sha256"],
+        )
+        self.trusted_distribution = trusted_distribution
+        self.results.write_bytes(apple_distribution._json_bytes(pending))
+
+    @staticmethod
+    def _stable_results_distribution(
+        results: dict[str, object],
+    ) -> dict[str, object]:
+        return results["release_publications"][
+            apple_publication_contract.APPLE_V0_1_0_PUBLICATION_KEY
+        ]["distribution"]
 
     def verify(self, **overrides: object) -> dict[str, str]:
+        results = json.loads(self.results.read_text(encoding="utf-8"))
+        arguments: dict[str, object] = {
+            "release_directory": self.release,
+            "trusted_distribution": self._stable_results_distribution(results),
+            "trusted_results_sha256": hashlib.sha256(
+                self.results.read_bytes()
+            ).hexdigest(),
+            "expected_source_commit": SOURCE_COMMIT,
+            "expected_zip_sha256": self.hashes[
+                apple_distribution.XCFRAMEWORK_ZIP_NAME
+            ],
+            "expected_apple_distribution_sha256": self.hashes[
+                apple_distribution.APPLE_DISTRIBUTION_NAME
+            ],
+            "expected_manifest_sha256": self.hashes[
+                apple_distribution.MANIFEST_NAME
+            ],
+            "expected_sha256sums_sha256": self.hashes[
+                apple_distribution.SHA256SUMS_NAME
+            ],
+            "expected_swiftpm_checksum": self.hashes[
+                apple_distribution.XCFRAMEWORK_ZIP_NAME
+            ],
+        }
+        arguments.update(overrides)
+        return apple_distribution.verify_release_assets(**arguments)
+
+    def verify_pending(self, **overrides: object) -> dict[str, str]:
         arguments: dict[str, object] = {
             "release_directory": self.release,
             "results_manifest": self.results,
@@ -1396,14 +1464,18 @@ class ReleaseAssetVerificationTests(ZipFixture):
             ],
         }
         arguments.update(overrides)
-        return apple_distribution.verify_release_assets(**arguments)
+        return apple_stable_publication.verify_pending_release_assets(**arguments)
 
     def test_accepts_exact_results_pinned_four_asset_set(self) -> None:
         self.assertEqual(
             apple_distribution.BUILD_PATH_HYGIENE_POLICY,
             "qperiapt.apple_static_archive_build_paths.v2",
         )
+        release_publication_contract.validate_release_publications(
+            json.loads(self.results.read_text(encoding="utf-8"))
+        )
         verified = self.verify()
+        self.assertEqual(verified, self.verify_pending())
         self.assertEqual(verified["source_commit"], SOURCE_COMMIT)
         self.assertEqual(
             verified["zip_sha256"],
@@ -1436,9 +1508,9 @@ class ReleaseAssetVerificationTests(ZipFixture):
                 expected_certificate_sha256=certificate["sha256"],
             )
         )
-        trusted = json.loads(self.results.read_text(encoding="utf-8"))[
-            "swift_xcframework"
-        ]["distribution"]
+        trusted = self._stable_results_distribution(
+            json.loads(self.results.read_text(encoding="utf-8"))
+        )
         self.assertEqual(trusted, projected)
         self.assertFalse(projected["public_release"])
         self.assertFalse(projected["remote_consumer_verified"])
@@ -1468,7 +1540,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
                 expected_certificate_sha256=certificate["sha256"],
             )
 
-    def test_preserves_verification_of_the_published_alpha2_r1_release(self) -> None:
+    def test_preserves_historical_alpha2_shape_but_stable_lane_rejects_it(self) -> None:
         legacy_identity = apple_distribution._release_identity_object(
             apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY
         )
@@ -1476,13 +1548,17 @@ class ReleaseAssetVerificationTests(ZipFixture):
         self.manifest["version"] = legacy_identity["product_version"]
         self.manifest["release_identity"] = legacy_identity.copy()
         self._publish()
-
-        verified = self.verify()
-        self.assertEqual(verified["source_commit"], SOURCE_COMMIT)
-        self.assertEqual(
-            verified["zip_sha256"],
-            self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
+        historical = apple_distribution.validate_trusted_results_distribution(
+            self.trusted_distribution
         )
+        self.assertEqual(
+            historical["version"],
+            apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY[0],
+        )
+        with self.assertRaises(
+            apple_stable_publication.AppleStablePublicationError
+        ):
+            self.verify_pending()
 
     def test_rejects_release_identity_and_toolchain_drift(self) -> None:
         base_distribution = copy.deepcopy(self.distribution)
@@ -1531,8 +1607,10 @@ class ReleaseAssetVerificationTests(ZipFixture):
                 self.manifest = copy.deepcopy(base_manifest)
                 mutate()
                 self._publish()
-                with self.assertRaises(apple_distribution.AppleDistributionError):
-                    self.verify()
+                with self.assertRaises(
+                    apple_stable_publication.AppleStablePublicationError
+                ):
+                    self.verify_pending()
 
     def test_results_release_identity_and_publication_state_are_exact(self) -> None:
         for key, value in (
@@ -1545,7 +1623,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
         ):
             with self.subTest(key=key):
                 results = json.loads(self.results.read_text(encoding="utf-8"))
-                results["swift_xcframework"]["distribution"][key] = value
+                self._stable_results_distribution(results)[key] = value
                 self.results.write_bytes(apple_distribution._json_bytes(results))
                 with self.assertRaises(apple_distribution.AppleDistributionError):
                     self.verify()
@@ -1554,15 +1632,15 @@ class ReleaseAssetVerificationTests(ZipFixture):
         for public, immutable in ((True, False), (False, True)):
             with self.subTest(public=public, immutable=immutable):
                 results = json.loads(self.results.read_text(encoding="utf-8"))
-                distribution = results["swift_xcframework"]["distribution"]
+                distribution = self._stable_results_distribution(results)
                 distribution["public_release"] = public
                 distribution["immutable_release"] = immutable
                 self.results.write_bytes(apple_distribution._json_bytes(results))
                 with self.assertRaisesRegex(
-                    apple_distribution.AppleDistributionError,
+                    apple_stable_publication.AppleStablePublicationError,
                     "must advance together",
                 ):
-                    self.verify()
+                    self.verify_pending()
                 self._publish()
 
     def test_rejects_path_hygiene_policy_downgrade_or_allowlist(self) -> None:
@@ -1678,12 +1756,14 @@ class ReleaseAssetVerificationTests(ZipFixture):
                         manifest_path.read_bytes()
                     ).hexdigest()
                     results = json.loads(self.results.read_text(encoding="utf-8"))
-                    results["swift_xcframework"]["distribution"][
+                    self._stable_results_distribution(results)[
                         "manifest_sha256"
                     ] = self.hashes[apple_distribution.MANIFEST_NAME]
                     self.results.write_bytes(apple_distribution._json_bytes(results))
-                with self.assertRaises(apple_distribution.AppleDistributionError):
-                    self.verify()
+                with self.assertRaises(
+                    apple_stable_publication.AppleStablePublicationError
+                ):
+                    self.verify_pending()
 
     def test_rejects_missing_duplicate_and_extra_checksum_entries(self) -> None:
         canonical = (
@@ -1701,7 +1781,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
                 digest = hashlib.sha256(payload).hexdigest()
                 self.hashes[apple_distribution.SHA256SUMS_NAME] = digest
                 results = json.loads(self.results.read_text(encoding="utf-8"))
-                results["swift_xcframework"]["distribution"][
+                self._stable_results_distribution(results)[
                     "checksums_sha256"
                 ] = digest
                 self.results.write_bytes(apple_distribution._json_bytes(results))
@@ -1744,40 +1824,41 @@ class ReleaseAssetVerificationTests(ZipFixture):
         ):
             with self.subTest(label=label):
                 results = json.loads(self.results.read_text(encoding="utf-8"))
-                results["swift_xcframework"]["distribution"][key] = value
+                self._stable_results_distribution(results)[key] = value
                 self.results.write_bytes(apple_distribution._json_bytes(results))
                 with self.assertRaises(apple_distribution.AppleDistributionError):
                     self.verify()
                 self._publish()
 
     def test_remote_verification_evidence_is_all_or_nothing(self) -> None:
-        results = json.loads(self.results.read_text(encoding="utf-8"))
-        distribution = results["swift_xcframework"]["distribution"]
+        distribution = copy.deepcopy(self.trusted_distribution)
         distribution["remote_consumer_verified"] = True
         distribution["remote_verification"] = {
             "log_sha256": "11" * 32,
             "verified_at": "2026-07-15T00:00:00Z",
             "verifier_commit": "ab" * 20,
         }
-        self.results.write_bytes(apple_distribution._json_bytes(results))
         with self.assertRaisesRegex(
             apple_distribution.AppleDistributionError,
             "requires a public immutable release",
         ):
-            self.verify()
+            apple_distribution.validate_trusted_results_distribution(distribution)
 
         distribution["public_release"] = True
         distribution["immutable_release"] = True
-        self.results.write_bytes(apple_distribution._json_bytes(results))
-        self.assertEqual(self.verify()["source_commit"], SOURCE_COMMIT)
+        self.assertEqual(
+            apple_distribution.validate_trusted_results_distribution(distribution)[
+                "source_commit"
+            ],
+            SOURCE_COMMIT,
+        )
 
         distribution["remote_consumer_verified"] = False
-        self.results.write_bytes(apple_distribution._json_bytes(results))
         with self.assertRaisesRegex(
             apple_distribution.AppleDistributionError,
             "must not carry verification evidence",
         ):
-            self.verify()
+            apple_distribution.validate_trusted_results_distribution(distribution)
 
 
 class AtomicEvidenceWriterTests(unittest.TestCase):
@@ -1823,7 +1904,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             cls.root / "artifact/swift-xcframework-remote-consumer.sh"
         ).read_text(encoding="utf-8")
         cls.release_notes = (
-            cls.root / "artifact/alpha3-release-notes.md"
+            cls.root / "artifact/stable-release-notes.md"
         ).read_text(encoding="utf-8")
         cls.workflow = (cls.root / ".github/workflows/ci.yml").read_text(
             encoding="utf-8"
@@ -1995,14 +2076,14 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertIn('"schema_version": 5', self.builder)
 
     def test_release_revision_and_toolchain_are_exactly_bound(self) -> None:
-        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.0-alpha.3")
+        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.0")
         self.assertEqual(apple_distribution.RELEASE_REVISION, "r1")
         self.assertEqual(
-            apple_distribution.RELEASE_TAG, "v0.1.0-alpha.3-r1"
+            apple_distribution.RELEASE_TAG, "v0.1.0"
         )
         self.assertEqual(
             apple_distribution.RELEASE_URL,
-            "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.3-r1",
+            "https://github.com/billlza/q-periapt/releases/tag/v0.1.0",
         )
         self.assertEqual(
             apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY,
@@ -2035,7 +2116,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         )
 
     def test_signed_release_authorization_is_revision_and_commit_specific(self) -> None:
-        self.assertIn('RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"', self.release)
+        self.assertIn('RELEASE_TAG="v$PRODUCT_VERSION"', self.release)
         self.assertIn(
             '[ "${QPERIAPT_APPLE_RELEASE_CONFIRM:-}" != "$RELEASE_TAG" ]',
             self.release,
@@ -2055,7 +2136,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertIn('"release_identity": {', self.release)
 
     def test_remote_consumer_is_fixed_to_the_r1_release(self) -> None:
-        self.assertIn('RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"', self.remote)
+        self.assertIn('RELEASE_TAG="v$PRODUCT_VERSION"', self.remote)
         self.assertIn(
             'RELEASE_BASE="https://github.com/billlza/q-periapt/releases/download/$RELEASE_TAG"',
             self.remote,
@@ -2457,7 +2538,7 @@ fi
         )
         for relative in (
             "artifact/swift-xcframework-remote-consumer.sh",
-            "artifact/apple_alpha3_publication.py",
+            "artifact/apple_stable_publication.py",
             "artifact/apple_distribution.py",
             "artifact/apple_publication_contract.py",
             "artifact/bounded_process.py",
@@ -2481,7 +2562,11 @@ fi
             self.remote,
         )
         self.assertIn("verify-release-assets", self.remote)
-        self.assertIn('--results-manifest "$VERIFIER_SNAPSHOT/artifact/results.json"', self.remote)
+        self.assertIn(
+            '"$VERIFIER_SNAPSHOT/artifact/results.json" \\\n'
+            '\t\t"$RELEASE_ASSETS"',
+            self.remote,
+        )
         self.assertLess(
             self.remote.index("# This gate precedes every URL consumer or extractor."),
             self.remote.index(".binaryTarget"),

@@ -88,7 +88,7 @@ no ABI 1/unversioned aliases or symlinks and contains:
 - the frozen machine-readable ABI contract, CBOM/SBOM, licenses, manifest, and
   checksums.
 
-The CMake ABI compatibility version is `2.0.0`; the prerelease semver is exposed
+The CMake ABI compatibility version is `2.0.0`; the product SemVer is exposed
 separately as `QPeriaptABI2_RELEASE_VERSION`. Manifest schema 2 binds the embedded
 contract hash, exact platform runtime identity, and the dynamic export-set digest. The
 `contract_path` field names the repository trust root at
@@ -113,18 +113,17 @@ physically inaccessible.
 
 ## SDK archive release transaction
 
-Beyond the local host gate, the alpha.3 transaction targets the
-`abi2-platforms-v0.1.0-alpha.3-r1` GitHub prerelease, which becomes immutable only
-after publication, with Linux x86_64 and aarch64
-tarballs (GLIBC 2.35 ceiling, fixed system-library dependency set) and a Windows
-x64 MSVC ZIP with DLL, import library, and separate static library. Each carries
+Beyond the local host gate, the stable transaction targets the
+`abi2-platforms-v0.1.0` non-prerelease GitHub release, which becomes immutable only
+after publication, with Linux x86_64 and aarch64 tarballs (GLIBC 2.35 ceiling,
+fixed system-library dependency set). Each formal release asset carries
 ABI-major headers, exact-version pkg-config (Linux) and CMake configs, the frozen
-ABI contract, SBOM/CBOM, and license material, and was validated by `/W4 /WX` or
-warnings-as-errors native consumers in the attested candidate CI. Public/current status is
-asserted only by the verified release receipt. The Windows
-archive is an **unsigned experimental prerelease** (no Authenticode); Windows
-consumers must select `/MD` (`MultiThreadedDLL`) to match the static library's
-frozen `msvcrt` contract. Verify assets with `gh release verify-asset` against
+ABI contract, SBOM/CBOM, and license material, and is validated by warnings-as-errors
+native consumers in attested candidate CI. Public/current status is asserted only
+by the verified release receipt. The separately built Windows archive remains an
+unsigned, unsupported CI diagnostic and is excluded from the stable candidate,
+manifest, attestation, receipt, and release assets. Verify formal assets with
+`gh release verify-asset` against
 `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
-[`../../artifact/alpha3-release-notes.md`](../../artifact/alpha3-release-notes.md).
+[`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
 deb/rpm/MSIX registry packaging is explicitly not claimed.

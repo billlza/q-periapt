@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct state, projection, and remote-receipt tests for Apple alpha.3."""
+"""Direct state, projection, and remote-receipt tests for Apple 0.1.0."""
 
 from __future__ import annotations
 
@@ -18,22 +18,32 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-import apple_alpha3_publication as publication
+import apple_stable_publication as publication
 import apple_distribution
 import apple_publication_contract as apple_contract
+import platform_publication_contract
 import publication_receipt_io as receipt_io
+import release_publication_contract
+from test_release_publication_contract import (
+    pending_manifest_fixture,
+    rebind_rust_publish_source,
+    rebind_stable_current_source,
+)
 
 
 SOURCE_COMMIT = "1" * 40
 VERIFIER_COMMIT = "2" * 40
 TAG_OBJECT = "3" * 40
+TAG_COMMIT = "4" * 40
+TAG_TREE = "5" * 40
+SOURCE_DIGEST = "6" * 64
 
 
 def _json_bytes(value: object) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("ascii")
 
 
-class AppleAlpha3PublicationTests(unittest.TestCase):
+class AppleStablePublicationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -123,11 +133,18 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
             "version": apple_distribution.PRODUCT_VERSION,
         }
         self.pending = {
-            "boundary": apple_contract.APPLE_ALPHA3_R1_BOUNDARY,
+            "boundary": apple_contract.APPLE_V0_1_0_BOUNDARY,
             "distribution": copy.deepcopy(self.distribution),
-            "identity": copy.deepcopy(apple_contract.APPLE_ALPHA3_R1_IDENTITY),
+            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_0_IDENTITY),
             "kind": apple_contract.APPLE_PUBLICATION_KIND,
             "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
+            "source": {
+                "canonical_source_tree_sha256": SOURCE_DIGEST,
+                "source_parent_commit": SOURCE_COMMIT,
+                "tag_commit": TAG_COMMIT,
+                "tag_object": TAG_OBJECT,
+                "tag_tree": TAG_TREE,
+            },
             "status": apple_contract.APPLE_STATUS_PENDING,
         }
         self._write_completion()
@@ -202,7 +219,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         self.assertIsInstance(raised, ast.Raise)
         self.assertIsInstance(raised.exc, ast.Call)
         self.assertIsInstance(raised.exc.func, ast.Name)
-        self.assertEqual("AppleAlpha3PublicationError", raised.exc.func.id)
+        self.assertEqual("AppleStablePublicationError", raised.exc.func.id)
 
     def _write_completion(self) -> None:
         document = {
@@ -220,21 +237,56 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         os.chmod(self.completion, 0o600)
 
     def _pending_results(self) -> dict[str, object]:
-        return {
-            "release_publications": {
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: copy.deepcopy(
-                    self.pending
-                )
-            },
-            "swift_xcframework": {
-                "distribution": copy.deepcopy(self.distribution)
-            },
-        }
+        manifest = pending_manifest_fixture()
+        manifest["proof_source_tree_sha256"] = SOURCE_DIGEST
+        manifest["provenance"]["snapshot_commit"] = SOURCE_COMMIT
+        manifest["rust_publish"] = rebind_rust_publish_source(
+            manifest["rust_publish"],
+            source_commit=SOURCE_COMMIT,
+            source_digest=SOURCE_DIGEST,
+        )
+        rebind_stable_current_source(
+            manifest,
+            source_commit=SOURCE_COMMIT,
+            source_digest=SOURCE_DIGEST,
+        )
+        manifest["release_publications"][
+            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+        ] = copy.deepcopy(self.pending)
+        platform = manifest["release_publications"][
+            platform_publication_contract.PLATFORM_V0_1_0_PUBLICATION_KEY
+        ]
+        platform_source = platform["observation"]["source"]
+        platform_source.update(
+            {
+                "canonical_source_tree_sha256": SOURCE_DIGEST,
+                "source_parent_commit": SOURCE_COMMIT,
+                "tag_commit": TAG_COMMIT,
+                "tag_tree": TAG_TREE,
+                "verifier_commit": TAG_COMMIT,
+            }
+        )
+        platform["observation"]["candidate_attestation"][
+            "source_digest"
+        ] = TAG_COMMIT
+        release_publication_contract.validate_release_publications(manifest)
+        return manifest
 
     def _write_current_results(self) -> str:
         self.results_path.write_bytes(_json_bytes(self._pending_results()))
         os.chmod(self.results_path, 0o644)
         return hashlib.sha256(self.results_path.read_bytes()).hexdigest()
+
+    def _read_results_fixture(
+        self, expected_sha256: str
+    ) -> tuple[dict[str, object], str]:
+        data = self.results_path.read_bytes()
+        actual_sha256 = hashlib.sha256(data).hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise publication.AppleStablePublicationError(
+                "fixture results hash differs"
+            )
+        return json.loads(data), actual_sha256
 
     def _new_remote_run(self) -> pathlib.Path:
         self.remote_run_index += 1
@@ -298,7 +350,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
             "draft": False,
             "immutable_release": True,
             "observed_at": "2026-08-14T13:00:00Z",
-            "prerelease": True,
+            "prerelease": False,
             "public_release": True,
             "published_at": "2026-08-14T10:00:00Z",
             "release_attestation": {
@@ -351,7 +403,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
             },
             "release_id": 355_500_000,
             "source": {
-                "tag_commit": SOURCE_COMMIT,
+                "tag_commit": TAG_COMMIT,
                 "tag_object": TAG_OBJECT,
             },
         }
@@ -468,8 +520,36 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
             status = publication._main(
                 ["emit-remote-consumer", str(self.root), run.name, startup]
             )
+            self.assertEqual(2, status)
+            emitter.assert_not_called()
+
+    def test_pending_cli_requires_the_pinned_results_digest(self) -> None:
+        with (
+            mock.patch.object(
+                publication,
+                "build_pending_receipt",
+                return_value=copy.deepcopy(self.pending),
+            ) as builder,
+            mock.patch.object(
+                publication,
+                "_publish_receipt",
+                return_value=(self.completion, "b" * 64),
+            ),
+            mock.patch("builtins.print"),
+        ):
+            status = publication._main(
+                ["pending", str(self.completion), "a" * 64]
+            )
+        self.assertEqual(0, status)
+        builder.assert_called_once_with(self.completion, "a" * 64)
+
+        with (
+            mock.patch.object(publication, "build_pending_receipt") as builder,
+            mock.patch("builtins.print"),
+        ):
+            status = publication._main(["pending", str(self.completion)])
         self.assertEqual(2, status)
-        emitter.assert_not_called()
+        builder.assert_not_called()
 
     def test_verifier_snapshot_layout_rejects_alias_and_wrong_bindings(self) -> None:
         run = self._new_remote_run()
@@ -480,7 +560,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                 (self.root, run.name),
                 publication._remote_runtime_from_verifier_snapshot(run.name),
             )
-            with self.assertRaises(publication.AppleAlpha3PublicationError):
+            with self.assertRaises(publication.AppleStablePublicationError):
                 publication._remote_runtime_from_verifier_snapshot(
                     "transaction.fixture-other"
                 )
@@ -489,7 +569,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         source_alias.symlink_to(verifier_source, target_is_directory=True)
         with mock.patch.object(publication, "REPOSITORY_ROOT", source_alias):
             with self.assertRaisesRegex(
-                publication.AppleAlpha3PublicationError,
+                publication.AppleStablePublicationError,
                 "canonical",
             ):
                 publication._remote_runtime_from_verifier_snapshot(run.name)
@@ -502,43 +582,86 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         os.chmod(wrong_source, 0o700)
         with mock.patch.object(publication, "REPOSITORY_ROOT", wrong_source):
             with self.assertRaisesRegex(
-                publication.AppleAlpha3PublicationError,
+                publication.AppleStablePublicationError,
                 "runs-root binding",
             ):
                 publication._remote_runtime_from_verifier_snapshot(run.name)
 
     def test_completed_clean_tagged_distribution_builds_pending_leaf(self) -> None:
-        def git_result(_root: pathlib.Path, arguments: list[str]) -> str:
-            if arguments[:2] == ["cat-file", "-t"]:
-                return "tag"
-            if arguments[-1].endswith("^{commit}"):
-                return SOURCE_COMMIT
-            return TAG_OBJECT
-
         with (
             mock.patch.object(
                 publication,
-                "inspect_worktree",
-                return_value=SimpleNamespace(commit=SOURCE_COMMIT, dirty=False),
+                "_read_results_snapshot",
+                return_value=(self._pending_results(), "a" * 64),
             ),
-            mock.patch.object(publication, "run_git_text", side_effect=git_result),
+            mock.patch.object(
+                publication,
+                "_validate_clean_annotated_tag",
+                return_value=copy.deepcopy(self.pending["source"]),
+            ) as tagged_source,
             mock.patch.object(
                 publication.apple_distribution,
                 "project_trusted_results_candidate_distribution",
                 return_value=copy.deepcopy(self.distribution),
             ) as deep,
         ):
-            receipt = publication.build_pending_receipt(self.completion)
+            receipt = publication.build_pending_receipt(
+                self.completion, "a" * 64
+            )
 
         self.assertEqual(self.pending, receipt)
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: receipt
                 }
             }
         )
         self.assertEqual(SOURCE_COMMIT, deep.call_args.kwargs["expected_source_commit"])
+        tagged_source.assert_called_once_with(SOURCE_COMMIT, SOURCE_DIGEST)
+
+    def test_tag_source_identity_binds_results_only_child_and_tree(self) -> None:
+        def git_result(_root: pathlib.Path, arguments: list[str]) -> str:
+            if arguments[:2] == ["cat-file", "-t"]:
+                return "tag"
+            revision = arguments[-1]
+            if revision.endswith("^{commit}"):
+                return TAG_COMMIT
+            if revision.endswith("^{tree}"):
+                return TAG_TREE
+            return TAG_OBJECT
+
+        with (
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(commit=TAG_COMMIT, dirty=False),
+            ),
+            mock.patch.object(
+                publication, "run_git_text", side_effect=git_result
+            ),
+            mock.patch.object(
+                publication, "require_direct_results_only_child"
+            ) as direct_child,
+            mock.patch.object(
+                publication,
+                "repository_paths",
+                return_value=["artifact/results.json"],
+            ),
+            mock.patch.object(
+                publication,
+                "canonical_tree_digest",
+                return_value=SOURCE_DIGEST,
+            ),
+        ):
+            source = publication._validate_clean_annotated_tag(
+                SOURCE_COMMIT, SOURCE_DIGEST
+            )
+
+        self.assertEqual(self.pending["source"], source)
+        direct_child.assert_called_once_with(
+            self.root, SOURCE_COMMIT, TAG_COMMIT
+        )
 
     def test_pending_rejects_hash_source_tag_cleanliness_and_incomplete_cleanup(
         self,
@@ -561,29 +684,25 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                 elif case == "leftover":
                     leftover.mkdir()
                 os.chmod(self.completion, 0o600)
-                git_commit = "8" * 40 if case == "tag" else SOURCE_COMMIT
-                dirty = case == "dirty"
-
-                def git_result(_root: pathlib.Path, arguments: list[str]) -> str:
-                    if arguments[:2] == ["cat-file", "-t"]:
-                        return "tag"
-                    if arguments[-1].endswith("^{commit}"):
-                        return git_commit
-                    return TAG_OBJECT
+                tag_error = (
+                    publication.AppleStablePublicationError(
+                        f"fixture {case} source/tag rejection"
+                    )
+                    if case in {"tag", "dirty"}
+                    else None
+                )
 
                 with (
                     mock.patch.object(
                         publication,
-                        "inspect_worktree",
-                        return_value=SimpleNamespace(
-                            commit=SOURCE_COMMIT,
-                            dirty=dirty,
-                        ),
+                        "_read_results_snapshot",
+                        return_value=(self._pending_results(), "a" * 64),
                     ),
                     mock.patch.object(
                         publication,
-                        "run_git_text",
-                        side_effect=git_result,
+                        "_validate_clean_annotated_tag",
+                        return_value=copy.deepcopy(self.pending["source"]),
+                        side_effect=tag_error,
                     ),
                     mock.patch.object(
                         publication.apple_distribution,
@@ -591,8 +710,10 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                         return_value=copy.deepcopy(self.distribution),
                     ),
                 ):
-                    with self.assertRaises(publication.AppleAlpha3PublicationError):
-                        publication.build_pending_receipt(self.completion)
+                    with self.assertRaises(publication.AppleStablePublicationError):
+                        publication.build_pending_receipt(
+                            self.completion, "a" * 64
+                        )
                 if leftover.exists():
                     leftover.rmdir()
 
@@ -792,7 +913,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                     with self.assertRaises(
                         (
                             publication.PublicationReceiptIOError,
-                            publication.AppleAlpha3PublicationError,
+                            publication.AppleStablePublicationError,
                         )
                     ):
                         publication.emit_remote_consumer_receipt(
@@ -840,7 +961,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                 side_effect=codesign_and_swap,
             ),
             self.assertRaisesRegex(
-                publication.AppleAlpha3PublicationError,
+                publication.AppleStablePublicationError,
                 "identity changed while pinned",
             ),
         ):
@@ -902,7 +1023,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                 side_effect=codesign_and_swap_second_phase,
             ),
             self.assertRaisesRegex(
-                publication.AppleAlpha3PublicationError,
+                publication.AppleStablePublicationError,
                 "identity changed while pinned",
             ),
         ):
@@ -1082,7 +1203,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                         return_value=SimpleNamespace(returncode=0),
                     ),
                 ):
-                    with self.assertRaises(publication.AppleAlpha3PublicationError):
+                    with self.assertRaises(publication.AppleStablePublicationError):
                         publication.emit_remote_consumer_receipt(
                             runtime_repository_root=self.root,
                             run_directory_name=run.name,
@@ -1101,7 +1222,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         competing.write_bytes(b"competing complete receipt\n")
         os.chmod(competing, 0o600)
         original = competing.read_bytes()
-        with self.assertRaises(publication.AppleAlpha3PublicationError):
+        with self.assertRaises(publication.AppleStablePublicationError):
             with (
                 mock.patch.object(
                     publication.apple_distribution,
@@ -1147,6 +1268,11 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         with (
             mock.patch.object(
                 publication,
+                "_read_results_snapshot",
+                side_effect=self._read_results_fixture,
+            ),
+            mock.patch.object(
+                publication,
                 "inspect_worktree",
                 return_value=SimpleNamespace(commit=VERIFIER_COMMIT, dirty=False),
             ),
@@ -1170,33 +1296,23 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: self.pending
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: self.pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: verified
                 }
             },
         )
 
-    def test_promotion_rejects_wrong_selector_asset_source_and_timestamps(self) -> None:
-        for case in ("selector", "asset", "source", "timestamp", "boundary"):
+    def test_promotion_rejects_wrong_asset_source_and_timestamps(self) -> None:
+        for case in ("asset", "source", "timestamp", "boundary"):
             with self.subTest(case=case):
                 results_sha256 = self._write_current_results()
                 remote_path = self._emit_remote()
                 projection_path = self._write_projection("2026-08-14T12:00:00Z")
-                if case == "selector":
-                    current = json.loads(self.results_path.read_text(encoding="ascii"))
-                    current["swift_xcframework"]["distribution"][
-                        "artifact_size"
-                    ] += 1
-                    self.results_path.write_bytes(_json_bytes(current))
-                    os.chmod(self.results_path, 0o644)
-                    results_sha256 = hashlib.sha256(
-                        self.results_path.read_bytes()
-                    ).hexdigest()
-                elif case == "asset":
+                if case == "asset":
                     projection = json.loads(
                         projection_path.read_text(encoding="ascii")
                     )
@@ -1225,6 +1341,11 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                 with (
                     mock.patch.object(
                         publication,
+                        "_read_results_snapshot",
+                        side_effect=self._read_results_fixture,
+                    ),
+                    mock.patch.object(
+                        publication,
                         "inspect_worktree",
                         return_value=SimpleNamespace(
                             commit=VERIFIER_COMMIT,
@@ -1238,7 +1359,7 @@ class AppleAlpha3PublicationTests(unittest.TestCase):
                     ),
                 ):
                     with self.assertRaises(
-                        publication.AppleAlpha3PublicationError
+                        publication.AppleStablePublicationError
                     ):
                         publication.promote_receipt(
                             results_sha256,

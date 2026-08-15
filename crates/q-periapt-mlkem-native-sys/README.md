@@ -3,9 +3,10 @@
 # q-periapt-mlkem-native-sys
 
 This crate is the single native-code and `unsafe` boundary for Q-Periapt's
-portable ML-KEM implementation. It vendors the `mlkem/` subtree from
+target-selected ML-KEM implementation. It vendors the `mlkem/` subtree from
 `pq-code-package/mlkem-native` v1.2.0 and exposes only safe, allocation-free,
-exact-array Rust operations for ML-KEM-512, ML-KEM-768, and ML-KEM-1024.
+exact-array Rust operations for ML-KEM-512, ML-KEM-768, and ML-KEM-1024. The
+public `IMPLEMENTATION_ID` reports the exact backend selected by the build.
 
 Despite the `-sys` suffix, raw C declarations are private. Callers use
 `MlKem512`, `MlKem768`, or `MlKem1024` and provide all output storage in place.
@@ -29,18 +30,27 @@ An error always leaves every output filled with zeroes.
 - Malformed ciphertext is handled by FIPS 203 implicit rejection and is not
   reported as an API failure.
 
-The crate is portable-C only. Its configuration rejects the upstream native
-arithmetic and FIPS 202 backend selectors, and the build compiles no upstream
-`.S` file. It contains no Cargo feature that enables a native backend or
-compile-time CPU assumptions. Native builds retain mlkem-native's small inline
-value barrier, which is part of the portable C constant-time strategy rather
-than an optimized arithmetic/Keccak implementation. Freestanding targets that
-cannot support it select the integration's fixed-loop memory/zeroization
-helpers and upstream's C value barrier. This applies to Wasm and bare-metal
-builds so their C object does not depend on target C-library headers. Windows
-uses its normal C runtime functions and upstream's `SecureZeroMemory` path. Those
-small helpers are part of this crate's integration TCB. The crate is `no_std`
-at the Rust runtime boundary, but building it requires a supported C compiler.
+The build selects upstream AArch64 native arithmetic and a fixed Armv8-A FIPS
+202 assembly profile only for these five little-endian targets:
+
+- `aarch64-apple-darwin`
+- `aarch64-apple-ios`
+- `aarch64-apple-ios-sim`
+- `aarch64-unknown-linux-gnu`
+- `aarch64-linux-android`
+
+Those builds require GCC or Clang, force `-march=armv8-a`, compile the upstream
+assembly SCU exactly once, and use the upstream scalar x1 plus Armv8-A scalar/
+Neon x4 Keccak implementations. SHA3-extension selection is deliberately
+rejected, so the resulting artifacts have no compiler-dependent v8.4-A path or
+runtime CPU dispatch. Every other target remains portable C, including x86,
+Windows/MSVC, Wasm, and freestanding targets. There is no Cargo feature that can
+change this mapping. Freestanding targets select the integration's fixed-loop
+memory/zeroization helpers and upstream's C value barrier, so their C object does
+not depend on target C-library headers. Windows uses its normal C runtime
+functions and upstream's `SecureZeroMemory` path. These helpers and the selected
+assembly are part of this crate's integration TCB. The crate is `no_std` at the
+Rust runtime boundary, but building it requires a supported C compiler.
 
 mlkem-native v1.2.0 declares its randomized functions even when their
 definitions are disabled, which conflicts with strict GCC diagnostics once the
@@ -51,10 +61,12 @@ function has a bridge or Rust declaration, and deterministic operations never
 call this provider. It is neither a public API nor a runtime fallback.
 
 The upstream project provides CBMC memory/type-safety evidence for C and
-separate formal evidence for selected assembly backends. This crate does not
-use those assembly backends, and it does not claim that portable C has a full
-functional-correctness or source-level constant-time proof. It has not received
-an independent security audit.
+separate formal evidence for selected assembly routines. The allowlisted
+AArch64 builds use upstream routines from that source tree, but this crate does
+not reproduce the proofs or claim end-to-end functional correctness or
+source-level constant-time verification for the integration. Portable targets
+do not inherit assembly evidence. The crate has not received an independent
+security audit.
 
 ELF and Mach-O builds mark the bridge and remaining versioned helpers hidden.
 COFF has no equivalent source-level visibility class; the bridge deliberately
@@ -106,8 +118,10 @@ members, and replaces the subtree only after complete staging.
 
 ## Resource bounds
 
-The upstream v1.2.0 headers report the following maximum cumulative stack
-allocations for the portable configurations used here:
+The upstream v1.2.0 headers report the following maximum cumulative C stack
+allocations. The table applies directly to portable builds; allowlisted AArch64
+builds additionally enter bounded assembly frames and require separate
+source-bound stack verification:
 
 | Parameter set | Key generation | Encapsulation | Decapsulation |
 | --- | ---: | ---: | ---: |
@@ -115,4 +129,4 @@ allocations for the portable configurations used here:
 | ML-KEM-768 | 10,176 bytes | 13,248 bytes | 14,336 bytes |
 | ML-KEM-1024 | 15,552 bytes | 19,136 bytes | 20,704 bytes |
 
-These are C implementation bounds and do not include caller or Rust stack use.
+These bounds do not include caller, Rust, or native assembly stack use.

@@ -1,10 +1,11 @@
 # Threat Model — Q-Periapt PQ/T Hybrid Suite
 
-> **Status: release-ready ABI 2 research alpha, pre-1.0, NOT for production deployment.**
-> The intended publication surface is source plus a planned coordinated set of Rust crates and a
-> separately evidenced Apple-only XCFramework research prerelease, not an attested multi-platform
-> binary bundle.
-> No third-party audit. The portable-only `q-periapt-mlkem-native-sys` integration
+> **Status: stable-version ABI 2 source line, NOT for production deployment.**
+> GitHub and Rust-registry publication remain independently receipt-gated.
+> Historical Apple/Android/Linux/Windows research-prerelease receipts bind only their exact
+> portable-derived artifacts; the current target-selected source has no fresh attested
+> multi-platform binary bundle.
+> No third-party audit. The target-selected `q-periapt-mlkem-native-sys` integration
 > over vendored `mlkem-native` v1.2.0, pinned `fips204` 0.4.6,
 > `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations are unaudited
 > as this suite and ABI. This document is the
@@ -80,7 +81,7 @@ corresponding guarantee fails:
   SHAKE-256.** This is the single primitive assumption under the binding proof.
 - **Each selected release-graph backend correctly implements its primitive, and any
   constant-time claim is limited to the backend/ISA evidence actually checked.**
-  The vendored portable `mlkem-native` ML-KEM, `fips204` ML-DSA, RustCrypto SHA3, x25519-dalek, and
+  The vendored target-selected `mlkem-native` ML-KEM, `fips204` ML-DSA, RustCrypto SHA3, x25519-dalek, and
   fips205 SLH-DSA integrations are
   third-party implementations and remain **unaudited for this use**. The known-leaky,
   unmaintained `pqcrypto-hqc` adapter was removed from the publishable/runtime graph.
@@ -89,16 +90,30 @@ corresponding guarantee fails:
 - **The Rust/C ML-KEM boundary preserves its documented FFI preconditions.** The
   sys facade's fixed local arrays must remain initialized, correctly sized, mutually
   non-aliasing, and alive for each call; C return codes must be mapped explicitly and
-  temporary output must not reach callers on failure. The portable C compiler, build
-  script/configuration, value barriers, private unsafe declarations and zeroization are
-  part of the TCB. Upstream CBMC/HOL-Light and dynamic CT evidence does not prove this
-  wrapper or arbitrary downstream compiler output.
+  temporary output must not reach callers on failure. Exactly five little-endian
+  AArch64 targets (`aarch64-apple-darwin`, `aarch64-apple-ios`,
+  `aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
+  `aarch64-linux-android`) use upstream native arithmetic plus fixed Armv8-A scalar
+  x1 and scalar/Neon x4 FIPS 202 assembly. All other targets, including Wasm, use
+  portable C. The compiler, build script/configuration, selected C/assembly objects,
+  value barriers, private unsafe declarations, and zeroization are part of the TCB.
+  The native profile has no runtime dispatch or Armv8.4-A SHA3-extension path.
+  Upstream HOL-Light evidence is scoped to the selected upstream assembly
+  source/object routines; it does not prove downstream reassembly, this wrapper, the
+  full ABI, or arbitrary compiler output. Upstream CBMC evidence retains its own C scope.
 - **The host OS CSPRNG is sound.** The dependency-free core remains deterministic
   for KATs, while native ABI2 key generation and encapsulation call the OS CSPRNG
   internally and return explicit `ERR_ENTROPY` on failure. WASM remains a separately
   scoped caller-randomness conformance surface.
 - **The policy verification key is a genuine trust anchor** (out-of-band
   provisioned), and the intended SLH-DSA root signer is honest.
+
+The target-selection change is source-bound and therefore makes all earlier
+portable-derived CT, device, package, and performance receipts stale for the current
+source. They remain historical evidence for their named artifacts, not evidence for a
+native-selected rebuild. ABI 2, key encodings, and wire bytes are unchanged, but each
+affected target still needs fresh evidence because implementation and object identity
+changed.
 
 ---
 
@@ -377,7 +392,7 @@ The `constant-time` CI job is configured to run the dataflow gate on x86_64 and
 aarch64 (matrix `[ubuntu-latest, ubuntu-24.04-arm]`); the local container harness
 ([`ctstats/scripts/ct-in-container.sh`](../ctstats/scripts/ct-in-container.sh)) includes
 a planted-secret-branch negative control so a zero result cannot pass vacuously.
-The same job now targets the release-graph portable `mlkem-native` ML-KEM-512/768/1024
+The same job is specified to target the release-graph `mlkem-native` ML-KEM-512/768/1024
 decapsulation wrappers. Each secret probe marks only that parameter set's ŝ + z;
 its planted secret-indexed control must report positive, while embedded-public-key
 and whole-dk runs are diagnostic only because an expanded FIPS 203 dk contains public
@@ -388,10 +403,16 @@ The earlier 0-report `libcrux` captures and their hax/source-level argument are
 failed the corrected gate in [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107):
 34,306 errors / 100 contexts on x86_64 and 30,464 / 70 on aarch64. Those are
 historical `fips203` failure counts; they do not transfer to `mlkem-native`. The
-backend/source migration changed the canonical digest. The current main CI source now
-passes the x86_64+aarch64 ML-KEM binary-CT cells; future source changes still require
-their own run and immutable release receipts remain separately scoped. No result is
-inherited from the former provider. Other
+target-selection/source migration changed the canonical digest. Earlier
+portable-only `mlkem-native` results are historical too: a fresh x86_64-portable cell
+and a fresh aarch64-native cell, each source-bound to the current target mapping, are
+required before release. Promotion additionally requires the exact-R tag transaction
+to attest a sanitized receipt for those two fixed successful CI jobs and all six fixed
+successful CodeQL language jobs. The receipt binds R, S, selected run IDs/attempts,
+relative workflow paths, and workflow-source digests; the candidate verifier and both
+platform publication states retain and crosslink it. It is not a public product asset,
+and the contract does not turn an absent exact-R run into evidence. No result is inherited from the former provider or the
+pre-selection portable build. Other
 primitive backends remain outside this hard gate.
 Also TODO: promoting a quiesced-hardware **timing** check to a gate (the statistical dudect
 test is currently a local diagnostic). Binary-CT tooling is configured on
@@ -410,7 +431,7 @@ proof is a strong internal artifact, not an external attestation.
 ### 5.4 Pre-1.0 / unaudited backends
 
 The cryptographic primitives come from external pre-1.0 sources and remain unaudited
-for this integration. The research-alpha release path uses portable `mlkem-native` v1.2.0,
+for this integration. The `0.1.0` stable-version source path uses target-selected `mlkem-native` v1.2.0,
 `fips204` 0.4.6, and `sha3` 0.10.9, removing both the failed `fips203` path and the
 earlier `libcrux`/hax/`proc-macro-error2` advisory edge. The vendored ML-KEM trust
 anchors are commit `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub
@@ -451,27 +472,37 @@ not magic if both fall); the retired PQClean-HQC historical leak and the isolate
 HQC-v5/FIPS-207-draft candidate's implementation/standardization posture (neither is part of
 the current product CT claim); and the application's own use of `K` after the suite returns it.
 
-### 5.8 No speed advantage is claimed (and none should be inferred)
+### 5.8 No speed advantage is claimed without a current implementation proof
 
 This suite ships the **same** NIST primitive family as its baselines through third-party
-backends, with **no demonstrated** primitive/speed edge. `CompatXWing` is byte-exact against the
-draft vectors. A paired matched-backend gate measures identical seed-dk/X25519 inputs
-against a published single-Mac non-regression budget. A proof counts as current only
+backends. `CompatXWing` is byte-exact against the draft vectors. One same-process gate
+preserves the paired matched-backend profile comparison and adds a distinct
+implementation-improvement estimand for native/portable ContextBound product
+encapsulation and decapsulation on identical seed-dk/X25519 keys, coins, and corpus.
+The harness requires byte-equivalent keypair and every per-case product output before
+timing; the portable archive is evidence-only and is not a product backend, Cargo
+feature, runtime override, or public API. The preregistered primary one-sided 95% upper
+native/portable limits are 0.95 for p50/p95 and 1.0 for p99. A proof counts as current only
 when its source digest matches the live canonical tree and the host satisfies the
 controlled-environment contract; `artifact/results.json` carries a path/hash/schema/source/pass
 summary, while the required performance verifier checks the selected proof and artifacts. The
-backend/source migration changed that digest, so every recorded package, device,
+target-selection/source migration changed that digest, so every portable-derived package, device,
 performance, and binary-CT proof is historical regardless of whether its older-source
-run passed. A fresh controlled-host proof and physical-device matrix must be collected
-against the release source. Currentness is determined only by `artifact/results.json`
-plus live verification against the canonical tree. The
-budget-schema-v5 producer fixes the exact rustup toolchain name plus Cargo/Rustc executable hashes,
-versions, and target; rejects repository/ancestor/user Cargo configuration and caller compiler/wrapper/loader controls; fixes system-tool
-lookup; and builds offline in a fresh private target. It still trusts the user-writable Cargo
+run passed. A fresh clean controlled-host proof and physical-device matrix must be
+collected against the release source. Until that minimum-sample proof is selected, the
+implemented gate is not a demonstrated quantitative result.
+Currentness is determined only by `artifact/results.json`
+plus live verification against the canonical tree. Performance proof schema v6 and
+budget schema v7 bind both implementation IDs, the final binary, portable archive and
+source, raw data, source tree, rustup toolchain and target, Cargo, Rustc, Xcode
+Clang/ar, and the canonical macOS SDK path/version/settings digest.
+The producer rejects repository/ancestor/user Cargo configuration and caller
+compiler/wrapper/loader controls and builds offline in a fresh private target. The gate
+still trusts the user-writable Cargo
 registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector source-to-binary
 honesty; standalone verification does not independently rebuild the binary. Even
-a passing result remains diagnostic host evidence, not cross-device energy, rustls
-end-to-end, or optimized production parity.
+a passing result remains single-host evidence, not cross-device energy or rustls
+end-to-end performance.
 `ContextBound` is **slower on the extra-hashing axis, not stronger** there. The value of Q-Periapt
 is **auditability, crypto-agility, side-channel CI, cross-platform byte-identical
 consistency, and the machine-checked binding proof** — never speed.
@@ -520,6 +551,17 @@ It does not atomically snapshot the complete writable worktree or resist
 a privileged local writer that can replace and restore every input between processes.
 That adversary still requires an immutable clean checkout plus signed, transparent, or
 independently attested release provenance.
+
+The stable crates.io transaction is a separate publication boundary, not a
+cryptographic authenticity mechanism. SHA-256 fields detect accidental selection of
+different local handoff, transcript, or `.crate` bytes (Level 1); crates.io account
+authorization remains entirely in `CARGO_REGISTRY_TOKEN`. Real upload is permitted
+only on an isolated, trusted same-UID host through one passwd-derived, versioned
+mode-`0700` lock/journal root shared by every worktree of that OS account. That lock
+does not coordinate another UID or host, so the same credential must not be used
+elsewhere while an upload intent is unresolved. Same-UID hostile code, host
+compromise, credential theft, registry compromise, CA compromise, and malicious
+compiler/toolchain behavior remain outside this local transaction guarantee.
 
 ### 5.10 No asynchronous identity, prekey, ratchet, or recovery guarantee
 
@@ -622,7 +664,7 @@ See [`migration/MIGRATION_CONTEXT_V1.md`](migration/MIGRATION_CONTEXT_V1.md).
 | 4.5 | Byte-identical output in reported deterministic host/ISA cells; semantic parity in native product cells | binding divergence / adapter drift | shared-vector conformance plus policy/round-trip/context/failure-atomicity product tests | **ENFORCED only in explicitly reported cells**; product randomness is not replay evidence, and neither result alone is a clean release attestation |
 | 5.1 | Empirical timing equality | ADV-TIME | dudect Welch-t | **LOCAL DIAGNOSTIC** (not run in shared CI; not gated) |
 | 5.2 | Binary-level CT — our composition (`ct_eq`/`ct_select32`/combiner) | ADV-TIME | Memcheck/TIMECOP `ct_verify` | CI matrix x86_64+aarch64 (job `constant-time`); fresh release-source capture required |
-| 5.2 | Binary-level CT — portable `mlkem-native` ML-KEM-512/768/1024 decapsulation | ADV-TIME | parameter-specific ŝ+z Memcheck probes + planted-leak and embedded-public-key diagnostics | **HARD GATE PASSING on current main x86_64+aarch64 CI**; each future source revision must pass independently |
+| 5.2 | Binary-level CT — target-selected `mlkem-native` ML-KEM-512/768/1024 decapsulation | ADV-TIME | parameter-specific ŝ+z Memcheck probes + planted-leak and embedded-public-key diagnostics | **HARD-GATE + RELEASE-RECEIPT CONTRACT PRESENT**; earlier portable-only results are historical, and promotion requires fresh exact-R x86_64-portable plus aarch64-native jobs in the attested source-security receipt |
 | 5.2 | Binary-level CT — riscv64 / wasm32 + timing-as-gate | ADV-TIME | — | TODO |
 | 5.5 | NIST ACVP conformance (wired FIPS modes) | — | X-Wing KAT + wired ACVP sets (`acvp.rs`) | **CONFORMANCE DONE for the stated modes**; internal-interface vectors are reference-only; not CMVP-certified |
 | 5.6 | Spec↔impl refinement | — | human review + mirror KAT | **NOT PROVED** |

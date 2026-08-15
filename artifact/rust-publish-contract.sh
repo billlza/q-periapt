@@ -2,8 +2,9 @@
 # Fail-closed Rust crate package and pre-publication contract for Q-Periapt.
 #
 # Default mode is clean-tree only. For an in-progress local diagnostic run, set
-# QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT=1; that proves only a dirty local
-# package contract, never release readiness.
+# QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT=1; that always produces only a
+# diagnostic transcript recording the observed dirty state, never release
+# readiness or a committed package handoff.
 set -eu
 umask 077
 
@@ -24,6 +25,7 @@ q-periapt-rustls
 q-periapt-cli
 "
 ALLOW_DIRTY=${QPERIAPT_ALLOW_DIRTY_RUST_PACKAGE_CONTRACT:-0}
+HANDOFF_INNER=${QPERIAPT_RUST_PACKAGE_CONTRACT_INNER:-0}
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -56,7 +58,6 @@ run_cargo_captured() {
 	rc=$?
 	set -e
 	cat "$stdout_log"
-	cat "$stderr_log" >&2
 	if [ "$rc" -ne 0 ]; then
 		printf 'error: %s failed (exit=%s)\n' "$label" "$rc" >&2
 		exit "$rc"
@@ -230,6 +231,63 @@ cleanup_contract_signal() {
 	exit $((128 + signal_number))
 }
 
+cleanup_outer_handoff_stage() {
+	if [ -z "${OUTER_HANDOFF_STAGE:-}" ]; then
+		return
+	fi
+	stage_path=$OUTER_HANDOFF_STAGE
+	stage_device=$OUTER_HANDOFF_STAGE_DEVICE
+	stage_inode=$OUTER_HANDOFF_STAGE_INODE
+	OUTER_HANDOFF_STAGE=
+	OUTER_HANDOFF_STAGE_DEVICE=
+	OUTER_HANDOFF_STAGE_INODE=
+	python3 - "$stage_path" "$stage_device" "$stage_inode" <<'PY'
+import pathlib
+import sys
+
+from rust_publish_contract import RustPublishContractError, remove_owned_package_directory
+
+try:
+    remove_owned_package_directory(
+        pathlib.Path(sys.argv[1]),
+        int(sys.argv[2]),
+        int(sys.argv[3]),
+    )
+except (RustPublishContractError, ValueError) as exc:
+    del exc
+    raise SystemExit("error: Rust package handoff stage cleanup failed") from None
+PY
+}
+
+cleanup_outer_handoff_exit() {
+	primary_status=$1
+	trap - 0 1 2 15
+	set +e
+	cleanup_outer_handoff_stage
+	cleanup_status=$?
+	set -e
+	if [ "$primary_status" -ne 0 ]; then
+		if [ "$cleanup_status" -ne 0 ]; then
+			printf 'error: Rust package handoff stage cleanup also failed (exit=%s)\n' "$cleanup_status" >&2
+		fi
+		exit "$primary_status"
+	fi
+	exit "$cleanup_status"
+}
+
+cleanup_outer_handoff_signal() {
+	signal_number=$1
+	trap - 0 1 2 15
+	set +e
+	cleanup_outer_handoff_stage
+	cleanup_status=$?
+	set -e
+	if [ "$cleanup_status" -ne 0 ]; then
+		printf 'error: Rust package handoff signal cleanup failed (exit=%s)\n' "$cleanup_status" >&2
+	fi
+	exit $((128 + signal_number))
+}
+
 validate_isolated_advisory_database() {
 	python3 - "$CARGO_HOME/advisory-db" <<'PY'
 import pathlib
@@ -253,10 +311,16 @@ print(
 PY
 }
 
-if [ -n "${CARGO_REGISTRY_TOKEN:-}" ]; then
-	printf 'error: CARGO_REGISTRY_TOKEN must be unset for the no-upload package contract\n' >&2
-	exit 2
-fi
+python3 - <<'PY'
+import os
+
+from rust_publish_contract import RustPublishContractError, validate_no_registry_credentials
+
+try:
+    validate_no_registry_credentials(os.environ)
+except RustPublishContractError as exc:
+    raise SystemExit(f"error: {exc}") from None
+PY
 
 case "$ALLOW_DIRTY" in
 	0 | 1) ;;
@@ -265,6 +329,197 @@ case "$ALLOW_DIRTY" in
 		exit 2
 		;;
 esac
+case "$HANDOFF_INNER" in
+	0 | 1) ;;
+	*)
+		printf 'error: QPERIAPT_RUST_PACKAGE_CONTRACT_INNER must be 0 or 1\n' >&2
+		exit 2
+		;;
+esac
+
+if [ "$HANDOFF_INNER" = "0" ]; then
+	if [ -n "${QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE:-}" ] || \
+		[ -n "${QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_DEVICE:-}" ] || \
+		[ -n "${QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_INODE:-}" ]; then
+		printf 'error: Rust package handoff inner variables are reserved\n' >&2
+		exit 2
+	fi
+	create_owned_package_target qperiapt-rust-package-handoff-stage.
+	OUTER_HANDOFF_STAGE=$OWNED_PACKAGE_TARGET
+	OUTER_HANDOFF_STAGE_DEVICE=$OWNED_PACKAGE_DEVICE
+	OUTER_HANDOFF_STAGE_INODE=$OWNED_PACKAGE_INODE
+	trap 'cleanup_outer_handoff_exit $?' 0
+	trap 'cleanup_outer_handoff_signal 1' 1
+	trap 'cleanup_outer_handoff_signal 2' 2
+	trap 'cleanup_outer_handoff_signal 15' 15
+	set +e
+	python3 - "$ROOT" "$OUTER_HANDOFF_STAGE" \
+		"$OUTER_HANDOFF_STAGE_DEVICE" "$OUTER_HANDOFF_STAGE_INODE" \
+		"$ALLOW_DIRTY" <<'PY'
+import os
+import pathlib
+import stat
+import sys
+
+from bounded_process import BoundedProcessError, capture_output
+from crates_io_publication import (
+    CratesIoPublicationError,
+    MAX_HANDOFF_STDERR_BYTES,
+    MAX_TRANSCRIPT_BYTES,
+    persist_rust_package_contract_capture,
+    persist_rust_package_diagnostic_capture,
+)
+from publication_receipt_io import PublicationReceiptIOError
+
+root = pathlib.Path(sys.argv[1])
+stage = pathlib.Path(sys.argv[2])
+expected_device = int(sys.argv[3])
+expected_inode = int(sys.argv[4])
+allow_dirty = sys.argv[5]
+if allow_dirty not in {"0", "1"}:
+    raise SystemExit("error: invalid bounded Rust package contract mode")
+flags = (
+    os.O_RDONLY
+    | getattr(os, "O_DIRECTORY", 0)
+    | getattr(os, "O_NOFOLLOW", 0)
+    | getattr(os, "O_CLOEXEC", 0)
+)
+descriptor = -1
+try:
+    descriptor = os.open(stage, flags)
+    metadata = os.fstat(descriptor)
+    named = stage.lstat()
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+        or metadata.st_dev != expected_device
+        or metadata.st_ino != expected_inode
+        or named.st_dev != expected_device
+        or named.st_ino != expected_inode
+    ):
+        raise BoundedProcessError("output_path", "Rust package handoff stage identity differs")
+    environment = dict(os.environ)
+    environment["QPERIAPT_RUST_PACKAGE_CONTRACT_INNER"] = "1"
+    environment["QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE"] = str(stage)
+    environment["QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_DEVICE"] = sys.argv[3]
+    environment["QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_INODE"] = sys.argv[4]
+    result = capture_output(
+        ["/bin/sh", str(root / "artifact" / "rust-publish-contract.sh")],
+        timeout_seconds=300,
+        maximum_stdout_bytes=MAX_TRANSCRIPT_BYTES,
+        maximum_stderr_bytes=MAX_HANDOFF_STDERR_BYTES,
+        environment=environment,
+    )
+    if allow_dirty == "0":
+        persist_rust_package_contract_capture(descriptor, result)
+    else:
+        persist_rust_package_diagnostic_capture(descriptor, result)
+except (
+    BoundedProcessError,
+    CratesIoPublicationError,
+    OSError,
+    PublicationReceiptIOError,
+    ValueError,
+) as exc:
+    del exc
+    print("error: bounded Rust package contract failed", file=sys.stderr)
+    raise SystemExit(1) from None
+finally:
+    if descriptor >= 0:
+        os.close(descriptor)
+PY
+	inner_status=$?
+	set -e
+	if [ "$inner_status" -ne 0 ]; then
+		exit "$inner_status"
+	fi
+	python3 - "$OUTER_HANDOFF_STAGE/rust-package-contract.log" <<'PY'
+import os
+import pathlib
+import stat
+import sys
+
+from evidence_io import EvidenceIOError, read_regular_snapshot
+
+path = pathlib.Path(sys.argv[1])
+
+def validate_transcript_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        raise EvidenceIOError(
+            "bounded Rust package contract transcript metadata differs"
+        )
+
+try:
+    snapshot = read_regular_snapshot(
+        path,
+        maximum=16 * 1024 * 1024,
+        label="bounded Rust package contract transcript",
+        validate_metadata=validate_transcript_metadata,
+    )
+    written = sys.stdout.buffer.write(snapshot.data)
+    sys.stdout.buffer.flush()
+except (BrokenPipeError, EvidenceIOError, OSError) as exc:
+    del exc
+    print("error: cannot replay bounded Rust package contract transcript", file=sys.stderr)
+    raise SystemExit(1) from None
+if written != snapshot.size:
+    raise SystemExit("error: Rust package contract transcript replay was incomplete")
+PY
+	if [ "$ALLOW_DIRTY" = "1" ]; then
+		cleanup_outer_handoff_stage
+		trap - 0 1 2 15
+		exit 0
+	fi
+	# The Python finalizer owns catchable signals from the manifest commit
+	# boundary through the sole marker. Do not race it with the shell cleanup
+	# handler in that interval.
+	trap '' 1 2 15
+	set +e
+	python3 - "$OUTER_HANDOFF_STAGE" \
+		"$OUTER_HANDOFF_STAGE_DEVICE" "$OUTER_HANDOFF_STAGE_INODE" <<'PY'
+import pathlib
+import sys
+
+from crates_io_publication import (
+    CratesIoPublicationError,
+    finalize_rust_package_handoff_for_cli,
+)
+from publication_receipt_io import PublicationReceiptIOError
+
+try:
+    finalize_rust_package_handoff_for_cli(
+        pathlib.Path(sys.argv[1]),
+        staging_device=int(sys.argv[2]),
+        staging_inode=int(sys.argv[3]),
+    )
+except (CratesIoPublicationError, PublicationReceiptIOError, OSError, ValueError) as exc:
+    del exc
+    print("error: Rust package handoff finalization failed", file=sys.stderr)
+    raise SystemExit(1) from None
+PY
+	handoff_status=$?
+	set -e
+	if [ ! -e "$OUTER_HANDOFF_STAGE" ] && [ ! -L "$OUTER_HANDOFF_STAGE" ]; then
+		OUTER_HANDOFF_STAGE=
+		OUTER_HANDOFF_STAGE_DEVICE=
+		OUTER_HANDOFF_STAGE_INODE=
+	fi
+	trap - 1 2 15
+	exit "$handoff_status"
+fi
+
+if [ -z "${QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE:-}" ] || \
+	[ -z "${QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_DEVICE:-}" ] || \
+	[ -z "${QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_INODE:-}" ]; then
+	printf 'error: inner Rust package contract requires an owned handoff stage identity\n' >&2
+	exit 2
+fi
 package_source_state=$(python3 - "$ROOT" "$ALLOW_DIRTY" <<'PY'
 import pathlib
 import sys
@@ -283,7 +538,7 @@ PY
 )
 package_source_commit=${package_source_state%:*}
 package_source_dirty=${package_source_state##*:}
-if [ "$package_source_dirty" = "1" ]; then
+if [ "$ALLOW_DIRTY" = "1" ]; then
 	printf 'DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY\n'
 	ALLOW_DIRTY_ARG=--allow-dirty
 else
@@ -312,8 +567,22 @@ export CARGO_HOME
 printf 'RUST_CARGO_HOME_ISOLATION_PASS mode=0700 ambient_cargo_home_data=unused\n'
 
 rustc_version=$(rustc +1.96.1 --version)
+rustc_verbose=$(rustc +1.96.1 -vV)
 cargo_version=$(cargo +1.96.1 --version)
 cargo_audit_version=$(cargo-audit --version)
+rustc_host=$(python3 - "$rustc_verbose" <<'PY'
+import re
+import sys
+
+host_lines = [line for line in sys.argv[1].splitlines() if line.startswith("host: ")]
+if len(host_lines) != 1:
+    raise SystemExit(f"error: rustc -vV must report exactly one host target: {host_lines}")
+host = host_lines[0].removeprefix("host: ")
+if re.fullmatch(r"[a-z0-9][a-z0-9_.-]*", host) is None:
+    raise SystemExit(f"error: rustc -vV reported a malformed host target: {host!r}")
+print(host)
+PY
+)
 python3 - "$rustc_version" "$cargo_version" "$cargo_audit_version" <<'PY'
 import re
 import sys
@@ -334,8 +603,11 @@ for tool, version, output in expected:
 print("RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2")
 PY
 
-if [ "$package_source_dirty" = "0" ]; then
+if [ "$ALLOW_DIRTY" = "0" ]; then
 	printf 'RUST_PACKAGE_SOURCE_PASS commit=%s clean=1\n' "$package_source_commit"
+else
+	printf 'RUST_PACKAGE_SOURCE_DIAGNOSTIC commit=%s dirty=%s\n' \
+		"$package_source_commit" "$package_source_dirty"
 fi
 
 mkdir -p "$ROOT/target"
@@ -348,6 +620,8 @@ python3 - "$metadata_json" <<'PY'
 import json
 import pathlib
 import sys
+
+from rust_publish_contract import exact_internal_dependency_requirement
 
 metadata = json.loads(pathlib.Path(sys.argv[1]).read_text())
 publishable = {
@@ -394,10 +668,9 @@ workspace_versions = {packages[name]["version"] for name in publishable | nonpub
 if len(workspace_versions) != 1:
     raise SystemExit(f"error: workspace package versions diverged: {sorted(workspace_versions)}")
 version = workspace_versions.pop()
-# Alpha/beta/rc packages must move as one audited set; exact internal
-# requirements prevent Cargo from resolving a mixed prerelease graph. Stable
-# packages retain the workspace's normal caret-compatible contract.
-expected_req = f"={version}" if "-" in version else f"^{version}"
+# Every release channel moves as one audited set. Exact internal requirements
+# prevent Cargo from resolving a mixed stable or prerelease package graph.
+expected_req = exact_internal_dependency_requirement(version)
 for name in publishable:
     pkg = packages[name]
     if pkg.get("publish") == []:
@@ -434,6 +707,20 @@ if actual_forbidden_dependencies:
     )
 if "hqc" in backends.get("features", {}):
     raise SystemExit("error: publishable q-periapt-backends exposes retired hqc feature")
+performance_reference_features = {
+    "implementation-improvement",
+    "performance-evidence",
+    "portable-reference",
+    "portable-runtime",
+}
+exposed_performance_features = sorted(
+    performance_reference_features.intersection(backends.get("features", {}))
+)
+if exposed_performance_features:
+    raise SystemExit(
+        "error: publishable q-periapt-backends exposes performance-reference features: "
+        f"{exposed_performance_features}"
+    )
 mlkem_sys_dependencies = [
     dep
     for dep in backends.get("dependencies", [])
@@ -584,7 +871,11 @@ for pkg in packages.values():
                 raise SystemExit(
                     f"error: internal dependency {pkg['name']} -> {dep['name']} has req {dep.get('req')}, expected {expected_req}"
                 )
-print("RUST_PUBLISH_METADATA_PASS")
+print(
+    "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 "
+    "mlkem_provider=q-periapt-mlkem-native-sys "
+    "sys_build_dependency=cc@1.2.67"
+)
 PY
 
 check_package_list() {
@@ -700,6 +991,40 @@ run_package_verification() {
 for crate in $PUBLISHABLE_CRATES; do
 	run_package_verification "$crate"
 done
+if [ "$ALLOW_DIRTY" = "0" ]; then
+	python3 - "$PACKAGE_VERIFICATION_TARGET" \
+		"$ACTIVE_PACKAGE_DEVICE" "$ACTIVE_PACKAGE_INODE" \
+		"$QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE" \
+		"$QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_DEVICE" \
+		"$QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_INODE" <<'PY'
+import pathlib
+import sys
+
+from crates_io_publication import CratesIoPublicationError, stage_verified_crate_handoff
+from publication_receipt_io import PublicationReceiptCommittedError, PublicationReceiptIOError
+
+try:
+    stage_verified_crate_handoff(
+        pathlib.Path(sys.argv[1]),
+        pathlib.Path(sys.argv[4]),
+        package_device=int(sys.argv[2]),
+        package_inode=int(sys.argv[3]),
+        staging_device=int(sys.argv[5]),
+        staging_inode=int(sys.argv[6]),
+    )
+except PublicationReceiptCommittedError as exc:
+    print(
+        "error: Rust package handoff staging stopped after a leaf became visible "
+        f"leaf={exc.leaf or 'unavailable'} sha256={exc.digest or 'unavailable'}",
+        file=sys.stderr,
+    )
+    raise SystemExit(125) from None
+except (CratesIoPublicationError, PublicationReceiptIOError, OSError, ValueError) as exc:
+    del exc
+    print("error: Rust package handoff staging failed", file=sys.stderr)
+    raise SystemExit(1) from None
+PY
+fi
 cleanup_active_package_target
 
 create_owned_package_target qperiapt-package-inspection.
@@ -722,17 +1047,26 @@ run_cargo_captured "cargo-package-inspection-q-periapt-mlkem-native-sys" \
 	--target-dir "$PACKAGE_INSPECTION_TARGET" -p q-periapt-mlkem-native-sys
 verify_cargo_package_completion q-periapt-mlkem-native-sys \
 	"$sys_package_stdout" "$sys_package_stderr"
-python3 - "$metadata_json" "$PACKAGE_INSPECTION_TARGET/package" <<'PY'
+python3 - "$metadata_json" "$PACKAGE_INSPECTION_TARGET/package" \
+	"$PACKAGE_INSPECTION_TARGET" "$rustc_host" <<'PY'
 import hashlib
 import json
+import os
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 import tarfile
 
+from bounded_process import BoundedProcessError, capture_stdout
+from evidence_io import EvidenceIOError, read_regular_snapshot
 from rust_publish_contract import (
     RustPublishContractError,
+    parse_mlkem_archive_defined_symbols,
     validate_mlkem_native_build_surface,
+    validate_mlkem_native_archive_contract,
+    validate_packaged_mlkem_native_local_source_digests,
     validate_packaged_mlkem_native_local_sources,
 )
 
@@ -757,8 +1091,12 @@ required_files = {
     "src/build_support_tests.rs",
     "src/lib.rs",
     "src/mlkem_bridge.c",
+    "src/mlkem_bridge_asm.S",
     "src/mlkem_bridge.h",
+    "src/mlkem_bridge_native.c",
+    "src/mlkem_bridge_portable.c",
     "src/mlkem_config.h",
+    "src/mlkem_fips202_aarch64.h",
     "src/raw.rs",
     "src/tests.rs",
     "vendor/INVENTORY.sha256",
@@ -790,6 +1128,7 @@ bad_suffixes = {
     ".xcresult",
 }
 allowed_vendor_suffixes = {".S", ".c", ".h", ".inc"}
+maximum_packaged_member_bytes = 8 * 1024 * 1024
 
 with tarfile.open(archive, mode="r:gz") as packaged:
     members = packaged.getmembers()
@@ -840,10 +1179,31 @@ with tarfile.open(archive, mode="r:gz") as packaged:
         member = packaged.getmember(prefix + relative)
         if not member.isfile():
             raise SystemExit(f"error: expected regular packaged file: {relative}")
+        if member.size < 0 or member.size > maximum_packaged_member_bytes:
+            raise SystemExit(
+                f"error: packaged file exceeds the inspection limit: {relative} "
+                f"size={member.size}"
+            )
         extracted = packaged.extractfile(member)
         if extracted is None:
             raise SystemExit(f"error: cannot read packaged file: {relative}")
-        return extracted.read()
+        data = extracted.read(maximum_packaged_member_bytes + 1)
+        if len(data) != member.size:
+            raise SystemExit(
+                f"error: packaged file size changed while reading: {relative} "
+                f"declared={member.size} actual={len(data)}"
+            )
+        return data
+
+    try:
+        validate_packaged_mlkem_native_local_source_digests(
+            {
+                relative: read_file(relative)
+                for relative in sorted({"build.rs"} | packaged_local_sources)
+            }
+        )
+    except RustPublishContractError as source:
+        raise SystemExit(f"error: {source}") from source
 
     provenance = read_file("vendor/PROVENANCE.md").decode("utf-8")
     required_provenance_tokens = {
@@ -977,19 +1337,135 @@ with tarfile.open(archive, mode="r:gz") as packaged:
     build_rs = read_file("build.rs").decode("utf-8")
     build_support = read_file("src/build_support.rs").decode("utf-8")
     bridge_c = read_file("src/mlkem_bridge.c").decode("utf-8")
+    bridge_native_c = read_file("src/mlkem_bridge_native.c").decode("utf-8")
+    bridge_portable_c = read_file("src/mlkem_bridge_portable.c").decode("utf-8")
+    bridge_asm = read_file("src/mlkem_bridge_asm.S").decode("utf-8")
     bridge_h = read_file("src/mlkem_bridge.h").decode("utf-8")
     local_config = read_file("src/mlkem_config.h").decode("utf-8")
+    aarch64_fips202 = read_file("src/mlkem_fips202_aarch64.h").decode("utf-8")
     try:
         validate_mlkem_native_build_surface(
             build_rs=build_rs,
             build_support=build_support,
             bridge_c=bridge_c,
+            bridge_native_c=bridge_native_c,
+            bridge_portable_c=bridge_portable_c,
+            bridge_asm=bridge_asm,
             bridge_h=bridge_h,
             local_config=local_config,
+            aarch64_fips202=aarch64_fips202,
         )
     except RustPublishContractError as source:
         raise SystemExit(f"error: {source}") from source
 
+
+def required_tool(name: str) -> str:
+    tool = shutil.which(name)
+    if tool is None:
+        raise SystemExit(f"error: required archive inspection tool not found: {name}")
+    path = pathlib.Path(tool)
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as source:
+        raise SystemExit(
+            f"error: archive inspection tool cannot be resolved: {tool}: {source}"
+        ) from source
+    if not path.is_absolute() or not resolved.is_file():
+        raise SystemExit(
+            f"error: archive inspection tool must be an absolute regular file: {tool}"
+        )
+    if not os.access(resolved, os.X_OK):
+        raise SystemExit(f"error: archive inspection tool is not executable: {tool}")
+    return str(resolved)
+
+
+def run_tool(label: str, arguments: list[str]) -> str:
+    try:
+        completed = capture_stdout(
+            arguments,
+            timeout_seconds=30,
+            maximum_bytes=256 * 1024,
+            stderr=subprocess.STDOUT,
+            environment={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+        )
+    except BoundedProcessError as source:
+        raise SystemExit(
+            f"error: {label} failed at its {source.kind} boundary: {source}"
+        ) from source
+    if completed.returncode != 0:
+        raise SystemExit(
+            f"error: {label} failed with exit {completed.returncode}: "
+            f"{completed.stdout.decode('utf-8', errors='replace')!r}"
+        )
+    try:
+        return completed.stdout.decode("utf-8")
+    except UnicodeDecodeError as source:
+        raise SystemExit(f"error: {label} emitted non-UTF-8 output") from source
+
+
+build_root = pathlib.Path(sys.argv[3])
+built_archives = sorted(
+    build_root.glob(
+        "debug/build/q-periapt-mlkem-native-sys-*/out/libq_periapt_mlkem_native.a"
+    )
+)
+if (
+    len(built_archives) != 1
+    or not built_archives[0].is_file()
+    or built_archives[0].is_symlink()
+):
+    raise SystemExit(
+        "error: packaged sys verification must produce exactly one regular C archive: "
+        f"{built_archives}"
+    )
+built_archive = built_archives[0]
+build_output_path = built_archive.parent.parent / "output"
+if not build_output_path.is_file() or build_output_path.is_symlink():
+    raise SystemExit(
+        f"error: packaged sys verification lacks a regular build output: {build_output_path}"
+    )
+archive_members = run_tool(
+    "ar member inspection",
+    [required_tool("ar"), "-t", str(built_archive)],
+).splitlines()
+nm = required_tool("nm")
+if sys.platform == "darwin":
+    nm_arguments = [nm, "-gUj", str(built_archive)]
+    leading_underscore = True
+elif sys.platform.startswith("linux"):
+    nm_arguments = [nm, "-g", "--defined-only", "-j", str(built_archive)]
+    leading_underscore = False
+else:
+    raise SystemExit(
+        f"error: packaged sys archive inspection is unsupported on {sys.platform!r}"
+    )
+try:
+    build_output = read_regular_snapshot(
+        build_output_path,
+        maximum=1024 * 1024,
+        label="packaged sys build output",
+    ).data.decode("utf-8")
+    defined_symbols = parse_mlkem_archive_defined_symbols(
+        run_tool("nm defined-symbol inspection", nm_arguments),
+        leading_underscore=leading_underscore,
+    )
+    archive_receipt = validate_mlkem_native_archive_contract(
+        target=sys.argv[4],
+        archive_members=archive_members,
+        defined_symbols=defined_symbols,
+        build_output=build_output,
+    )
+except (EvidenceIOError, RustPublishContractError, UnicodeDecodeError) as source:
+    raise SystemExit(f"error: {source}") from source
+
+print(
+    "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
+    f"target={sys.argv[4]} "
+    f"implementation={archive_receipt.implementation} "
+    f"implementation_id={archive_receipt.implementation_id} "
+    f"objects={archive_receipt.object_count} "
+    f"symbols={archive_receipt.symbol_count} reserved_dynamic_abi=none"
+)
 print(
     "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS "
     f"vendor_files={len(packaged_vendor_files)} "
@@ -1011,7 +1487,7 @@ run_cargo_captured "cargo-package-inspection-q-periapt-backends" \
 	-p q-periapt-backends
 verify_cargo_package_completion q-periapt-backends \
 	"$package_inspection_stdout" "$package_inspection_stderr"
-printf 'RUST_BACKENDS_INSPECTION_PACKAGE_PASS\n'
+printf '%s\n' 'RUST_BACKENDS_INSPECTION_PACKAGE_PASS package=q-periapt-backends normalized_archive=present'
 
 python3 - "$metadata_json" "$PACKAGE_INSPECTION_TARGET/package" <<'PY'
 import json
@@ -1061,16 +1537,54 @@ with tarfile.open(archive, mode="r:gz") as packaged:
         raise SystemExit(
             "error: normalized q-periapt-backends manifest lacks q-periapt-mlkem-native-sys"
         )
+    forbidden_performance_manifest_tokens = (
+        "implementation-improvement",
+        "performance-evidence",
+        "portable-reference",
+        "portable-runtime",
+    )
+    present_performance_tokens = sorted(
+        token for token in forbidden_performance_manifest_tokens if token in manifest
+    )
+    if present_performance_tokens:
+        raise SystemExit(
+            "error: normalized q-periapt-backends manifest exposes the evidence-only "
+            f"performance reference: {present_performance_tokens}"
+        )
+    shipping_source_tokens = (
+        "qperiapt_performance_evidence",
+        "evidence_only_non_product_reference",
+        "mlkem-native-1.2.0/portable-c/evidence-only-reference",
+    )
+    for packaged_name in sorted(names):
+        if not packaged_name.startswith(prefix + "src/") or not packaged_name.endswith(".rs"):
+            continue
+        source_file = packaged.extractfile(packaged_name)
+        if source_file is None:
+            raise SystemExit(f"error: cannot read packaged Rust source: {packaged_name}")
+        source = source_file.read().decode("utf-8")
+        present_source_tokens = sorted(
+            token for token in shipping_source_tokens if token in source
+        )
+        if present_source_tokens:
+            raise SystemExit(
+                "error: q-periapt-backends shipping source exposes the evidence-only "
+                f"performance reference in {packaged_name}: {present_source_tokens}"
+            )
     if any(name.startswith(prefix + "vendor/mlkem-native/") for name in names):
         raise SystemExit(
             "error: q-periapt-backends duplicates the sys crate's vendored mlkem-native tree"
         )
-print("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS")
+print(
+    "RUST_BACKENDS_NORMALIZED_MANIFEST_PASS package=q-periapt-backends "
+    "mlkem_provider=q-periapt-mlkem-native-sys retired=none vendored_mlkem=none "
+    "performance_reference_api=absent"
+)
 PY
 
 # Audit the graph Cargo resolves from the normalized publish manifest, not only
 # the workspace lockfile. Local patches stand in for the exact-version
-# q-periapt crates until the coordinated prerelease set exists on crates.io.
+# q-periapt crates until the coordinated stable set exists on crates.io.
 set -- "$PACKAGE_INSPECTION_TARGET"/package/q-periapt-backends-*/Cargo.toml
 if [ "$#" -ne 1 ] || [ ! -f "$1" ] || [ -L "$1" ]; then
 	printf 'error: expected exactly one normalized q-periapt-backends package directory\n' >&2
@@ -1190,9 +1704,10 @@ if [ "$final_package_source_state" != "$package_source_state" ]; then
 	exit 1
 fi
 
-if [ "$ALLOW_DIRTY_ARG" = "--allow-dirty" ]; then
+if [ "$ALLOW_DIRTY" = "1" ]; then
 	completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-	printf 'RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=1 registry=crates-io upload=not-attempted completed_at=%s\n' "$completed_at"
+	printf 'RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=%s registry=crates-io upload=not-attempted completed_at=%s\n' \
+		"$package_source_dirty" "$completed_at"
 else
 	completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 	printf 'RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io upload=not-attempted completed_at=%s\n' "$completed_at"

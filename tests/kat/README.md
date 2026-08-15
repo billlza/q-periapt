@@ -15,10 +15,11 @@ transition-vector corpus described in
   decaps. This proves `CompatXWing` ≡ X-Wing, and — since `pk`/`ct`/`ss` are
   asserted against published reference values — **reproduces the FIPS 203
   reference output on these 3 happy-path vectors** (keygen/encaps/decaps). It is
-  **not** itself a full ACVP / FIPS 203 validation — that breadth is provided by the
-  NIST ACVP test below.
+  neither full ACVP coverage nor a FIPS 203 validation. The NIST ACVP test below
+  adds broader vector conformance coverage; it is not a validation certificate.
 - **NIST ACVP ground-truth conformance** ✅ — `q-periapt-backends/src/acvp.rs` validates
-  the portable `mlkem-native` v1.2.0 (through
+  the target-selected `mlkem-native` v1.2.0 implementation for the compilation target
+  (through
   `q-periapt-mlkem-native-sys`) / `fips204` 0.4.6 adapters against the authoritative NIST
   vectors (vendored under
   `crates/q-periapt-backends/vectors/`, from `usnistgov/ACVP-Server`): the **full FIPS

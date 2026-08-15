@@ -12,7 +12,6 @@ from unittest import mock
 import android_device_proof
 import platform_distribution
 import platform_distribution_contract
-import windows_package
 from deterministic_archive import create_tar_gz, create_zip
 
 
@@ -61,26 +60,6 @@ class PlatformDistributionTests(unittest.TestCase):
             "contract_sha256": self.abi["contract_sha256"],
             "exports_sha256": self.abi["exports_sha256"],
             "export_count": self.abi["export_count"],
-        }
-
-    @staticmethod
-    def _windows_hardening() -> dict:
-        return {
-            "machine": "x86_64",
-            "dynamic_base": True,
-            "nx_compatible": True,
-            "high_entropy_va": True,
-            "linker_warnings_as_errors": True,
-            "base_relocations": {
-                "directory_present": True,
-                "dir64_count": 1,
-            },
-            "debug_directory": {
-                "entry_count": 1,
-                "entry_type": "IMAGE_DEBUG_TYPE_REPRO",
-                "payload_kind": "empty",
-                "hash_bytes": 0,
-            },
         }
 
     def _android_manifest(self) -> tuple[dict, bytes]:
@@ -205,39 +184,6 @@ class PlatformDistributionTests(unittest.TestCase):
             mtime=self.source.source_date_epoch,
         )
 
-    def _build_windows(self) -> None:
-        target = "x86_64-pc-windows-msvc"
-        package_name = (
-            f"q-periapt-c-abi2-{platform_distribution.PRODUCT_VERSION}-{target}"
-        )
-        package = self.root / "stage-windows"
-        package.mkdir()
-        manifest = {
-            "schema_version": windows_package.SCHEMA_VERSION,
-            "kind": "qperiapt.windows_c_package_manifest",
-            "package": package_name,
-            "version": platform_distribution.PRODUCT_VERSION,
-            "source_date_epoch": self.source.source_date_epoch,
-            "git_commit": self.source.commit,
-            "git_dirty": False,
-            "target": target,
-            "release_class": "unsigned_experimental_prerelease",
-            "authenticode": {
-                "signed": False,
-                "certificate_directory_present": False,
-                "reason": "fixture",
-            },
-            "hardening": self._windows_hardening(),
-            "abi": self._abi_manifest(),
-        }
-        self._write_json(package / "MANIFEST.json", manifest)
-        create_zip(
-            package,
-            self.assets / platform_distribution.WINDOWS_X86_64,
-            root_name=package_name,
-            mtime=self.source.source_date_epoch,
-        )
-
     def _build_assets(self) -> None:
         (self.assets / platform_distribution.ANDROID_AAR).write_bytes(self.aar_bytes)
         android_manifest, manifest_bytes = self._android_manifest()
@@ -257,32 +203,10 @@ class PlatformDistributionTests(unittest.TestCase):
             "aarch64-unknown-linux-gnu",
             platform_distribution.LINUX_AARCH64,
         )
-        self._build_windows()
 
     @staticmethod
     def _verified_manifest(package_root: pathlib.Path, *_args, **_kwargs) -> dict:
         return json.loads((package_root / "MANIFEST.json").read_text(encoding="utf-8"))
-
-    def _verified_windows_manifest(
-        self, package_root: pathlib.Path, *_args, **_kwargs
-    ) -> dict:
-        manifest = json.loads(
-            (package_root / "MANIFEST.json").read_text(encoding="utf-8")
-        )
-        expected_authenticode = {
-            "signed": False,
-            "certificate_directory_present": False,
-            "reason": "fixture",
-        }
-        if not (
-            manifest.get("schema_version") == windows_package.SCHEMA_VERSION
-            and manifest.get("hardening") == self._windows_hardening()
-            and manifest.get("authenticode") == expected_authenticode
-        ):
-            raise windows_package.WindowsPackageError(
-                "fixture Windows PE evidence differs"
-            )
-        return manifest
 
     def _verified_current_android_bundle(self, **kwargs):
         bundle = kwargs["bundle"]
@@ -324,11 +248,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 "verify_c_package",
                 side_effect=self._verified_manifest,
             ),
-            mock.patch.object(
-                platform_distribution,
-                "verify_windows_package",
-                side_effect=self._verified_windows_manifest,
-            ),
         )
 
     def _assemble(self, output: pathlib.Path) -> dict:
@@ -343,7 +262,6 @@ class PlatformDistributionTests(unittest.TestCase):
             validators[1],
             validators[2],
             validators[3],
-            validators[4],
         ):
             return platform_distribution.assemble(
                 self.repository,
@@ -364,7 +282,6 @@ class PlatformDistributionTests(unittest.TestCase):
             validators[1],
             validators[2],
             validators[3],
-            validators[4],
         ):
             return platform_distribution.verify_distribution(
                 self.repository,
@@ -375,17 +292,10 @@ class PlatformDistributionTests(unittest.TestCase):
     def test_assemble_verify_and_rebuild_are_byte_deterministic(self) -> None:
         first_output = self.root / "release-first"
         first = self._assemble(first_output)
-        self.assertEqual(6, len(first["assets"]))
+        self.assertEqual(5, len(first["assets"]))
         self.assertEqual("r1", first["distribution_revision"])
         self.assertEqual(
-            "abi2-platforms-v0.1.0-alpha.3-r1", first["release_tag"]
-        )
-        self.assertFalse(
-            next(
-                asset
-                for asset in first["assets"]
-                if asset["name"] == platform_distribution.WINDOWS_X86_64
-            )["authenticode_signed"]
+            "abi2-platforms-v0.1.0", first["release_tag"]
         )
         self.assertEqual(first, self._verify(first_output))
         first_bytes = {
@@ -400,11 +310,11 @@ class PlatformDistributionTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first_bytes, second_bytes)
 
-    def test_current_contract_is_alpha3_identity_without_published_hashes(self) -> None:
-        self.assertEqual("0.1.0-alpha.3", platform_distribution_contract.PRODUCT_VERSION)
+    def test_current_contract_is_stable_identity_without_published_hashes(self) -> None:
+        self.assertEqual("0.1.0", platform_distribution_contract.PRODUCT_VERSION)
         self.assertEqual("r1", platform_distribution_contract.DISTRIBUTION_REVISION)
         self.assertEqual(
-            "abi2-platforms-v0.1.0-alpha.3-r1",
+            "abi2-platforms-v0.1.0",
             platform_distribution_contract.RELEASE_TAG,
         )
         self.assertEqual(
@@ -526,49 +436,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 ["verify", "--root", "/repository", "--release-dir", "/release"]
             )
 
-    def test_windows_fixture_validator_rejects_schema_and_pe_evidence_drift(self) -> None:
-        package = self.root / "stage-windows"
-        manifest_path = package / "MANIFEST.json"
-        original = json.loads(manifest_path.read_text(encoding="utf-8"))
-        self.assertEqual(
-            self._verified_windows_manifest(package),
-            original,
-        )
-        mutations = {
-            "schema": lambda value: value.__setitem__("schema_version", 2),
-            "dynamic base": lambda value: value["hardening"].__setitem__(
-                "dynamic_base", False
-            ),
-            "NX": lambda value: value["hardening"].__setitem__(
-                "nx_compatible", False
-            ),
-            "high entropy": lambda value: value["hardening"].__setitem__(
-                "high_entropy_va", False
-            ),
-            "link warnings": lambda value: value["hardening"].__setitem__(
-                "linker_warnings_as_errors", False
-            ),
-            "entry type": lambda value: value["hardening"][
-                "debug_directory"
-            ].__setitem__("entry_type", "IMAGE_DEBUG_TYPE_CODEVIEW"),
-            "entry count": lambda value: value["hardening"][
-                "debug_directory"
-            ].__setitem__("entry_count", 2),
-            "base relocations": lambda value: value["hardening"][
-                "base_relocations"
-            ].__setitem__("dir64_count", 0),
-            "certificate": lambda value: value["authenticode"].__setitem__(
-                "certificate_directory_present", True
-            ),
-        }
-        for label, mutate in mutations.items():
-            with self.subTest(label=label):
-                changed = json.loads(json.dumps(original))
-                mutate(changed)
-                self._write_json(manifest_path, changed)
-                with self.assertRaises(windows_package.WindowsPackageError):
-                    self._verified_windows_manifest(package)
-
     def test_tampered_asset_or_checksum_fails_closed(self) -> None:
         output = self.root / "release"
         self._assemble(output)
@@ -667,11 +534,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 "verify_c_package",
                 side_effect=self._verified_manifest,
             ) as linux_verify,
-            mock.patch.object(
-                platform_distribution,
-                "verify_windows_package",
-                side_effect=self._verified_windows_manifest,
-            ) as windows_verify,
         ):
             platform_distribution.assemble(
                 self.repository,
@@ -683,7 +545,6 @@ class PlatformDistributionTests(unittest.TestCase):
         self.assertEqual(2, bundle_verify.call_count)
         self.assertEqual(1, freshness_verify.call_count)
         self.assertEqual(4, linux_verify.call_count)
-        self.assertEqual(2, windows_verify.call_count)
         for call in android_verify.call_args_list:
             self.assertEqual(
                 hashlib.sha256(call.kwargs["bundle"].read_bytes()).hexdigest(),
@@ -709,10 +570,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 self.source.source_date_epoch,
                 call.kwargs["expected_source_date_epoch"],
             )
-        for call in windows_verify.call_args_list:
-            self.assertEqual(self.source.commit, call.kwargs["expected_git_commit"])
-            self.assertEqual(self.source.tree, call.kwargs["expected_git_tree"])
-
     def test_each_minimal_forged_platform_is_rejected_by_its_real_validator(self) -> None:
         def common_android_mocks():
             return (
@@ -732,7 +589,6 @@ class PlatformDistributionTests(unittest.TestCase):
         with (
             mock.patch.object(platform_distribution, "_source_identity", return_value=self.source),
             mock.patch.object(platform_distribution, "verify_c_package", side_effect=self._verified_manifest),
-            mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_windows_manifest),
             self.assertRaisesRegex(
                 platform_distribution.PlatformDistributionError,
                 "Android runtime evidence bundle verification failed",
@@ -751,7 +607,6 @@ class PlatformDistributionTests(unittest.TestCase):
             android_mocks[0],
             android_mocks[1],
             android_mocks[2],
-            mock.patch.object(platform_distribution, "verify_windows_package", side_effect=self._verified_windows_manifest),
             self.assertRaisesRegex(
                 platform_distribution.PlatformDistributionError,
                 "Linux x86_64-unknown-linux-gnu package verification failed",
@@ -763,26 +618,6 @@ class PlatformDistributionTests(unittest.TestCase):
                 self.root / "release-forged-linux",
                 android_tools=self.android_tools,
             )
-
-        android_mocks = common_android_mocks()
-        with (
-            mock.patch.object(platform_distribution, "_source_identity", return_value=self.source),
-            android_mocks[0],
-            android_mocks[1],
-            android_mocks[2],
-            mock.patch.object(platform_distribution, "verify_c_package", side_effect=self._verified_manifest),
-            self.assertRaisesRegex(
-                platform_distribution.PlatformDistributionError,
-                "Windows package verification failed",
-            ),
-        ):
-            platform_distribution.assemble(
-                self.repository,
-                self.assets,
-                self.root / "release-forged-windows",
-                android_tools=self.android_tools,
-            )
-
 
 if __name__ == "__main__":
     unittest.main()

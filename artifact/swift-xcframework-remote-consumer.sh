@@ -1,5 +1,5 @@
 #!/bin/sh
-# Re-download and independently verify the immutable alpha.3 Apple release set.
+# Re-download and independently verify the immutable 0.1.0 Apple release set.
 set -eu
 umask 077
 
@@ -60,9 +60,8 @@ for tool in /usr/bin/awk /usr/bin/codesign /usr/bin/cmp /usr/bin/curl \
 	fi
 done
 
-PRODUCT_VERSION="0.1.0-alpha.3"
-RELEASE_REVISION="r1"
-RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"
+PRODUCT_VERSION="0.1.0"
+RELEASE_TAG="v$PRODUCT_VERSION"
 RELEASE_BASE="https://github.com/billlza/q-periapt/releases/download/$RELEASE_TAG"
 ZIP_URL="$RELEASE_BASE/CQPeriapt.xcframework.zip"
 APPLE_DISTRIBUTION_URL="$RELEASE_BASE/APPLE_DISTRIBUTION.json"
@@ -77,7 +76,7 @@ EXPECTED_SHA256SUMS_SHA256=${QPERIAPT_SWIFT_BINARY_SHA256SUMS_SHA256:-}
 ARTIFACT_SOURCE_COMMIT=${QPERIAPT_SWIFT_BINARY_SOURCE_COMMIT:-}
 
 if [ "$URL" != "$ZIP_URL" ]; then
-	printf 'error: remote consumer URL must equal the immutable alpha.3-r1 release asset URL\n' >&2
+	printf 'error: remote consumer URL must equal the immutable 0.1.0 release asset URL\n' >&2
 	exit 2
 fi
 require_lower_hex() {
@@ -118,7 +117,7 @@ bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPe
 bindings/signed-policy-vectors.json
 crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json'
 VERIFIER_INPUTS='artifact/swift-xcframework-remote-consumer.sh
-artifact/apple_alpha3_publication.py
+artifact/apple_stable_publication.py
 artifact/apple_distribution.py
 artifact/apple_publication_contract.py
 artifact/bounded_process.py
@@ -479,16 +478,16 @@ download_asset "$SHA256SUMS_URL" "$RELEASE_ASSETS/SHA256SUMS" \
 	"$MAX_TEXT_ASSET_BYTES" "SHA256SUMS"
 
 verify_release_assets() {
-	snapshot_python "$VERIFIER_SNAPSHOT/artifact/apple_distribution.py" \
+	snapshot_python "$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
 		verify-release-assets \
-		--release-directory "$RELEASE_ASSETS" \
-		--results-manifest "$VERIFIER_SNAPSHOT/artifact/results.json" \
-		--expected-source-commit "$ARTIFACT_SOURCE_COMMIT" \
-		--expected-zip-sha256 "$EXPECTED_ZIP_SHA256" \
-		--expected-apple-distribution-sha256 "$EXPECTED_APPLE_DISTRIBUTION_SHA256" \
-		--expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \
-		--expected-sha256sums-sha256 "$EXPECTED_SHA256SUMS_SHA256" \
-		--expected-swiftpm-checksum "$CHECKSUM"
+		"$VERIFIER_SNAPSHOT/artifact/results.json" \
+		"$RELEASE_ASSETS" \
+		"$ARTIFACT_SOURCE_COMMIT" \
+		"$EXPECTED_ZIP_SHA256" \
+		"$EXPECTED_APPLE_DISTRIBUTION_SHA256" \
+		"$EXPECTED_MANIFEST_SHA256" \
+		"$EXPECTED_SHA256SUMS_SHA256" \
+		"$CHECKSUM"
 }
 verify_release_assets_private() {
 	phase=$1
@@ -662,7 +661,7 @@ run_private_gate "codesign-pre-receipt.log" "codesign_pre_receipt" \
 REMOTE_RECEIPT_RELATIVE="target/qperiapt-swift-remote-consumer-runs/$RUN_DIRECTORY_NAME/apple-remote-consumer-receipt.json"
 set +e
 REMOTE_RECEIPT_MARKER=$(snapshot_python \
-	"$VERIFIER_SNAPSHOT/artifact/apple_alpha3_publication.py" \
+	"$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
 	emit-remote-consumer "$RUN_DIRECTORY_NAME" \
 	"$START_RESULTS_SHA256")
 receipt_status=$?

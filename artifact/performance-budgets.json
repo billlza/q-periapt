@@ -1,7 +1,8 @@
 {
-  "schema_version": 5,
-  "harness_schema_version": 2,
-  "backend": "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0+sha3+x25519-dalek",
+  "schema_version": 7,
+  "harness_schema_version": 3,
+  "mode": "release_evidence",
+  "target": "aarch64-apple-darwin",
   "schedule": "ABBA/BAAB",
   "corpus_size": 64,
   "iterations_per_sample": {
@@ -9,7 +10,7 @@
     "encapsulate": 1,
     "decapsulate": 2
   },
-  "min_samples_per_profile_operation": 20480,
+  "min_samples_per_variant_operation": 20480,
   "warmup_ms": 5000,
   "pair_block_size": 1024,
   "regression_guard_pair_block_size": 256,
@@ -26,24 +27,55 @@
     "cargo_version": "cargo 1.96.0 (30a34c682 2026-05-25)",
     "rustc_sha256": "c5922366bfe3d6d028a65d626f4e629b3adad066995cf0b60c8a4b617bba5ffe",
     "rustc_version": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+    "clang_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+    "clang_sha256": "7def90dd8829726686213a747fc5bff1583df933dae5edc55d755479e0bfe00a",
+    "clang_version": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+    "ar_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar",
+    "ar_sha256": "e49ffad64ad1cee722540fc5ecb00a230fd8071680682c60d9c851029d20e814",
     "rustup_toolchain": "1.96.0-aarch64-apple-darwin",
+    "sdk_path": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+    "sdk_settings_sha256": "f8d005f09381389167f9e0aeaa169bc9e7dff162ef22ca2fd8e98df7ff1acafe",
+    "sdk_version": "26.5",
     "target": "aarch64-apple-darwin"
   },
-  "operations": {
-    "combine": {
-      "max_block_median_p95_delta_ns_upper_95": 10000
-    },
-    "encapsulate": {
-      "max_block_median_p50_ratio_upper_95": 1.10,
-      "max_block_median_p95_ratio_upper_95": 1.15,
-      "max_block_median_p99_ratio_upper_95": 1.20,
-      "max_block_median_p95_delta_ns_upper_95": 15000
-    },
-    "decapsulate": {
-      "max_block_median_p50_ratio_upper_95": 1.10,
-      "max_block_median_p95_ratio_upper_95": 1.15,
-      "max_block_median_p99_ratio_upper_95": 1.20,
-      "max_block_median_p95_delta_ns_upper_95": 15000
+  "profile_non_regression": {
+    "backend": "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar+sha3+x25519-dalek",
+    "direction": "ContextBound/CompatXWing",
+    "operations": {
+      "combine": {
+        "max_block_median_p95_delta_ns_upper_95": 10000
+      },
+      "encapsulate": {
+        "max_block_median_p50_ratio_upper_95": 1.10,
+        "max_block_median_p95_ratio_upper_95": 1.15,
+        "max_block_median_p99_ratio_upper_95": 1.20,
+        "max_block_median_p95_delta_ns_upper_95": 15000
+      },
+      "decapsulate": {
+        "max_block_median_p50_ratio_upper_95": 1.10,
+        "max_block_median_p95_ratio_upper_95": 1.15,
+        "max_block_median_p99_ratio_upper_95": 1.20,
+        "max_block_median_p95_delta_ns_upper_95": 15000
+      }
+    }
+  },
+  "implementation_improvement": {
+    "direction": "native/portable",
+    "native_implementation_id": "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+    "portable_implementation_id": "mlkem-native-1.2.0/portable-c/evidence-only-reference",
+    "product_profile": "ContextBound",
+    "reference_scope": "evidence_only_non_product_reference",
+    "operations": {
+      "encapsulate": {
+        "max_block_median_p50_ratio_upper_95": 0.95,
+        "max_block_median_p95_ratio_upper_95": 0.95,
+        "max_block_median_p99_ratio_upper_95": 1.0
+      },
+      "decapsulate": {
+        "max_block_median_p50_ratio_upper_95": 0.95,
+        "max_block_median_p95_ratio_upper_95": 0.95,
+        "max_block_median_p99_ratio_upper_95": 1.0
+      }
     }
   }
 }

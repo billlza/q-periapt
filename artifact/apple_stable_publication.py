@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble and promote the exact Apple alpha.3 publication receipt.
+"""Assemble and promote the exact Apple 0.1.0 stable publication receipt.
 
 The pending producer consumes only the completed credentialed-build ledger and
 the fixed public distribution copy.  Promotion consumes the pending results
@@ -25,16 +25,19 @@ from typing import Any, Never
 import apple_distribution
 import apple_publication_contract as apple_contract
 from bounded_process import BoundedProcessError, capture_stdout
+from claim_ledger import LedgerError, canonical_tree_digest, repository_paths
 from evidence_io import (
     EvidenceIOError,
     FileSnapshot,
     consume_regular_snapshot_at,
+    load_json_object_snapshot,
     parse_strict_json_bytes,
     read_regular_snapshot,
 )
 from git_provenance import (
     GitProvenanceError,
     inspect_worktree,
+    require_direct_results_only_child,
     require_commit_or_evidence_successor,
     run_git_text,
 )
@@ -63,12 +66,12 @@ APPLE_COMPLETION_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-apple-release-worktrees"
 )
 APPLE_PUBLIC_ROOT = REPOSITORY_ROOT / "target" / "qperiapt-swift-xcframework"
-APPLE_PUBLIC_DISTRIBUTION_NAME = "q-periapt-swift-0.1.0-alpha.3"
+APPLE_PUBLIC_DISTRIBUTION_NAME = "q-periapt-swift-0.1.0"
 APPLE_PUBLIC_DISTRIBUTION = APPLE_PUBLIC_ROOT / APPLE_PUBLIC_DISTRIBUTION_NAME
 APPLE_PUBLICATION_RECEIPT_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-apple-publication-receipts"
 )
-APPLE_PUBLICATION_RECEIPT_NAME = "apple-alpha3-publication-receipt.json"
+APPLE_PUBLICATION_RECEIPT_NAME = "apple-v0.1.0-publication-receipt.json"
 APPLE_RELEASE_PROJECTION_ROOT = (
     REPOSITORY_ROOT
     / "target"
@@ -100,7 +103,7 @@ COMPLETION_LEDGER_SCHEMA_VERSION = 2
 REMOTE_CONSUMER_RECEIPT_KIND = "qperiapt.apple_remote_consumer_receipt"
 REMOTE_CONSUMER_RECEIPT_SCHEMA_VERSION = 1
 REMOTE_CONSUMER_BOUNDARY = (
-    "Atomic evidence commit for one fresh Apple alpha.3 URL binary consumer "
+    "Atomic evidence commit for one fresh Apple 0.1.0 stable URL binary consumer "
     "run: four exact downloaded assets, deep distribution and code-signature "
     "verification, three passing Swift tests without warning/error diagnostics, "
     "the pinned pending results bytes, artifact source commit, and clean verifier "
@@ -132,8 +135,8 @@ WARNING_OR_ERROR = re.compile(r"(^|[^A-Za-z])(warning|error):", re.IGNORECASE)
 Clock = Callable[[], dt.datetime]
 
 
-class AppleAlpha3PublicationError(ValueError):
-    """Apple alpha.3 receipt evidence or state transition is invalid."""
+class AppleStablePublicationError(ValueError):
+    """Apple 0.1.0 stable receipt evidence or state transition is invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,7 +150,7 @@ class _RemoteConsumerLayout:
 
 
 def _fail(message: str) -> Never:
-    raise AppleAlpha3PublicationError(message)
+    raise AppleStablePublicationError(message)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -198,7 +201,7 @@ def _timestamp(value: object, label: str) -> dt.datetime:
     try:
         parsed = dt.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             f"{label} must be an RFC3339 UTC timestamp"
         ) from exc
     return parsed.replace(tzinfo=dt.UTC)
@@ -243,7 +246,7 @@ def _read_results_snapshot(expected_sha256: str) -> tuple[dict[str, Any], str]:
             label="current results manifest",
         )
     except EvidenceIOError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot safely read current results manifest"
         ) from exc
     _require(
@@ -255,20 +258,41 @@ def _read_results_snapshot(expected_sha256: str) -> tuple[dict[str, Any], str]:
     from release_publication_contract import (
         ReleasePublicationContractError,
         validate_release_publications,
+        validate_stable_source_currentness,
     )
 
     try:
         validate_declared_currentness(manifest)
+        validate_stable_source_currentness(manifest)
         validate_release_publications(manifest)
     except (ProofManifestError, ReleasePublicationContractError) as exc:
-        raise AppleAlpha3PublicationError(str(exc)) from exc
+        raise AppleStablePublicationError(str(exc)) from exc
     return manifest, snapshot.sha256
 
 
-def _validate_clean_annotated_tag(source_commit: str) -> None:
-    """Bind pending production to clean HEAD and the fixed annotated tag."""
+def _source_identity_from_results(
+    manifest: dict[str, Any],
+) -> tuple[str, str]:
+    provenance = _object(
+        manifest.get("provenance"), "current results provenance"
+    )
+    source_parent_commit = _sha1(
+        provenance.get("snapshot_commit"), "current results source parent"
+    )
+    canonical_source_tree_sha256 = _sha256(
+        manifest.get("proof_source_tree_sha256"),
+        "current results canonical source tree",
+    )
+    return source_parent_commit, canonical_source_tree_sha256
 
-    tag = apple_contract.APPLE_ALPHA3_R1_IDENTITY["release_tag"]
+
+def _validate_clean_annotated_tag(
+    source_parent_commit: str,
+    canonical_source_tree_sha256: str,
+) -> dict[str, str]:
+    """Bind source parent S to clean results-only tagged commit R."""
+
+    tag = apple_contract.APPLE_V0_1_0_IDENTITY["release_tag"]
     try:
         inspection = inspect_worktree(REPOSITORY_ROOT)
         tag_type = run_git_text(
@@ -283,21 +307,51 @@ def _validate_clean_annotated_tag(source_commit: str) -> None:
             REPOSITORY_ROOT,
             ["rev-parse", "--verify", f"refs/tags/{tag}"],
         )
-    except GitProvenanceError as exc:
-        raise AppleAlpha3PublicationError(
-            "cannot establish the Apple alpha.3 source/tag boundary"
+        tag_tree = run_git_text(
+            REPOSITORY_ROOT,
+            ["rev-parse", "--verify", f"refs/tags/{tag}^{{tree}}"],
+        )
+        require_direct_results_only_child(
+            REPOSITORY_ROOT,
+            source_parent_commit,
+            tag_commit,
+        )
+        actual_source_digest = canonical_tree_digest(
+            REPOSITORY_ROOT,
+            repository_paths(REPOSITORY_ROOT),
+        )
+    except (GitProvenanceError, LedgerError, ValueError) as exc:
+        raise AppleStablePublicationError(
+            "cannot establish the Apple 0.1.0 stable source/tag boundary"
         ) from exc
     _require(not inspection.dirty, "Apple pending receipt requires a clean worktree")
     _require(
-        inspection.commit == source_commit == tag_commit,
-        "Apple completion, clean HEAD, and release tag source differ",
+        inspection.commit == tag_commit,
+        "Apple clean HEAD and release tag commit differ",
     )
     _require(
         tag_type == "tag"
+        and HEX_40.fullmatch(tag_commit) is not None
         and HEX_40.fullmatch(tag_object) is not None
+        and HEX_40.fullmatch(tag_tree) is not None
         and tag_object != tag_commit,
-        "Apple alpha.3 release tag must be one annotated tag object",
+        "Apple 0.1.0 stable release tag must be one annotated tag object",
     )
+    _require(
+        source_parent_commit != tag_commit,
+        "Apple tag commit must differ from its source parent",
+    )
+    _require(
+        actual_source_digest == canonical_source_tree_sha256,
+        "Apple tagged checkout canonical source digest differs from results",
+    )
+    return {
+        "canonical_source_tree_sha256": canonical_source_tree_sha256,
+        "source_parent_commit": source_parent_commit,
+        "tag_commit": tag_commit,
+        "tag_object": tag_object,
+        "tag_tree": tag_tree,
+    }
 
 
 def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
@@ -313,7 +367,7 @@ def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
             expected_parent_entries=frozenset({COMPLETION_LEDGER_NAME}),
         )
     except PublicationReceiptIOError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot safely read the Apple release completion ledger"
         ) from exc
     parent = snapshot.file.path.parent
@@ -385,7 +439,7 @@ def _public_distribution_entries() -> frozenset[str]:
         metadata = APPLE_PUBLIC_DISTRIBUTION.lstat()
         entries = frozenset(os.listdir(APPLE_PUBLIC_DISTRIBUTION))
     except OSError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot inspect Apple public distribution"
         ) from exc
     _require(
@@ -403,7 +457,7 @@ def _public_distribution_entries() -> frozenset[str]:
     try:
         xcframework_metadata = xcframework.lstat()
     except OSError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot inspect Apple public XCFramework"
         ) from exc
     _require(
@@ -468,7 +522,7 @@ def _load_public_distribution(
             )
         )
     except (apple_distribution.AppleDistributionError, EvidenceIOError) as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "Apple public distribution deep validation failed"
         ) from exc
     entries_after = _public_distribution_entries()
@@ -479,34 +533,44 @@ def _load_public_distribution(
     return distribution
 
 
-def build_pending_receipt(completion_ledger: pathlib.Path) -> dict[str, object]:
+def build_pending_receipt(
+    completion_ledger: pathlib.Path,
+    expected_results_sha256: str,
+) -> dict[str, object]:
     """Build the exact pending leaf from a completed signed distribution."""
 
-    ledger, source_commit = _load_completion_ledger(completion_ledger)
-    _validate_clean_annotated_tag(source_commit)
+    manifest, _results_sha256 = _read_results_snapshot(expected_results_sha256)
+    source_parent_commit, source_digest = _source_identity_from_results(manifest)
+    ledger, completion_source_commit = _load_completion_ledger(completion_ledger)
+    _require(
+        completion_source_commit == source_parent_commit,
+        "Apple completion source differs from current results provenance",
+    )
+    source = _validate_clean_annotated_tag(source_parent_commit, source_digest)
     hashes = _object(
         ledger["public_assets_sha256"],
         "Apple completion public asset hashes",
     )
-    distribution = _load_public_distribution(hashes, source_commit)
+    distribution = _load_public_distribution(hashes, source_parent_commit)
     receipt: dict[str, object] = {
-        "boundary": apple_contract.APPLE_ALPHA3_R1_BOUNDARY,
+        "boundary": apple_contract.APPLE_V0_1_0_BOUNDARY,
         "distribution": distribution,
-        "identity": copy.deepcopy(apple_contract.APPLE_ALPHA3_R1_IDENTITY),
+        "identity": copy.deepcopy(apple_contract.APPLE_V0_1_0_IDENTITY),
         "kind": apple_contract.APPLE_PUBLICATION_KIND,
         "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
+        "source": source,
         "status": apple_contract.APPLE_STATUS_PENDING,
     }
     try:
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: receipt
                 }
             }
         )
     except apple_contract.ApplePublicationContractError as exc:
-        raise AppleAlpha3PublicationError(str(exc)) from exc
+        raise AppleStablePublicationError(str(exc)) from exc
     return receipt
 
 
@@ -609,7 +673,7 @@ def _validate_remote_receipt(value: object) -> dict[str, Any]:
     )
     _require(
         receipt["release_identity"]
-        == apple_contract.APPLE_ALPHA3_R1_IDENTITY,
+        == apple_contract.APPLE_V0_1_0_IDENTITY,
         "Apple remote consumer release identity differs",
     )
     _sha1(receipt["source_commit"], "Apple remote artifact source commit")
@@ -673,26 +737,86 @@ def _load_remote_receipt(path: pathlib.Path) -> dict[str, Any]:
 def _pending_leaf_from_results(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
+    """Return the stable pending leaf from a composite-validated manifest.
+
+    ``_read_results_snapshot`` has already required the coordinated pending
+    cohort and its still-active historical Apple selector.  Promotion consumes
+    the stable leaf by publication key; the selector moves only in the later
+    all-domain verified results transition.
+    """
+
     publications = _object(
         manifest.get("release_publications"),
         "current release_publications",
     )
     pending = _object(
-        publications.get(apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY),
-        "current Apple alpha.3 publication receipt",
+        publications.get(apple_contract.APPLE_V0_1_0_PUBLICATION_KEY),
+        "current Apple 0.1.0 stable publication receipt",
     )
     _require(
         pending.get("status") == apple_contract.APPLE_STATUS_PENDING,
-        "Apple promotion requires a current pending alpha.3 receipt",
-    )
-    swift = _object(manifest.get("swift_xcframework"), "swift_xcframework")
-    _require(
-        apple_contract.publication_values_equal(
-            swift.get("distribution"), pending.get("distribution")
-        ),
-        "current Apple selector differs from the pending receipt",
+        "Apple promotion requires a current pending 0.1.0 stable receipt",
     )
     return pending
+
+
+def verify_pending_release_assets(
+    *,
+    release_directory: pathlib.Path,
+    results_manifest: pathlib.Path,
+    expected_source_commit: str,
+    expected_zip_sha256: str,
+    expected_apple_distribution_sha256: str,
+    expected_manifest_sha256: str,
+    expected_sha256sums_sha256: str,
+    expected_swiftpm_checksum: str,
+) -> dict[str, str]:
+    """Select the stable leaf from a valid P, then run the leaf byte gate."""
+
+    try:
+        snapshot = load_json_object_snapshot(
+            results_manifest,
+            maximum=MAX_RESULTS_BYTES,
+            label="trusted pending release results manifest",
+        )
+    except EvidenceIOError as exc:
+        raise AppleStablePublicationError(
+            "cannot safely read trusted pending release results"
+        ) from exc
+    results = _object(snapshot.value, "trusted pending release results")
+    from release_publication_contract import (
+        PUBLICATION_STATE_PENDING,
+        ReleasePublicationContractError,
+        publication_state,
+        validate_release_publications,
+    )
+
+    try:
+        validate_release_publications(results)
+        state = publication_state(results)
+    except ReleasePublicationContractError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+    _require(
+        state == PUBLICATION_STATE_PENDING,
+        "Apple release assets require the coordinated pending publication state",
+    )
+    pending = _pending_leaf_from_results(results)
+    try:
+        return apple_distribution.verify_release_assets(
+            release_directory=release_directory,
+            trusted_distribution=pending["distribution"],
+            trusted_results_sha256=snapshot.file.sha256,
+            expected_source_commit=expected_source_commit,
+            expected_zip_sha256=expected_zip_sha256,
+            expected_apple_distribution_sha256=(
+                expected_apple_distribution_sha256
+            ),
+            expected_manifest_sha256=expected_manifest_sha256,
+            expected_sha256sums_sha256=expected_sha256sums_sha256,
+            expected_swiftpm_checksum=expected_swiftpm_checksum,
+        )
+    except apple_distribution.AppleDistributionError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
 
 
 def promote_receipt(
@@ -705,7 +829,7 @@ def promote_receipt(
     manifest, results_sha256 = _read_results_snapshot(expected_results_sha256)
     pending = _pending_leaf_from_results(manifest)
     distribution = _object(
-        pending["distribution"], "pending Apple alpha.3 distribution"
+        pending["distribution"], "pending Apple 0.1.0 stable distribution"
     )
     projection = _load_release_projection(release_projection_path)
     remote = _load_remote_receipt(remote_receipt_path)
@@ -740,7 +864,7 @@ def promote_receipt(
             distribution["source_commit"],
         )
     except GitProvenanceError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot establish Apple promotion source provenance"
         ) from exc
     _require(not inspection.dirty, "Apple promotion requires a clean worktree")
@@ -796,7 +920,7 @@ def promote_receipt(
     verified = copy.deepcopy(pending)
     verified["status"] = apple_contract.APPLE_STATUS_VERIFIED
     verified_distribution = _object(
-        verified["distribution"], "verified Apple alpha.3 distribution"
+        verified["distribution"], "verified Apple 0.1.0 stable distribution"
     )
     verified_distribution["public_release"] = True
     verified_distribution["immutable_release"] = True
@@ -811,24 +935,24 @@ def promote_receipt(
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: verified
                 }
             }
         )
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: pending
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: verified
                 }
             },
         )
     except apple_contract.ApplePublicationContractError as exc:
-        raise AppleAlpha3PublicationError(str(exc)) from exc
+        raise AppleStablePublicationError(str(exc)) from exc
     return verified
 
 
@@ -855,7 +979,7 @@ def _private_runtime_snapshot_at(
             ),
         )
     except EvidenceIOError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             f"cannot safely read {label}"
         ) from exc
     data = b"".join(chunks)
@@ -915,7 +1039,7 @@ def _remote_runtime_from_verifier_snapshot(
     runtime_root = target_root.parent
     runtime_prefix = os.fspath(runtime_root) + os.sep
     if not source_text.startswith(runtime_prefix):
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer verifier source escaped its runtime checkout"
         )
     expected_source = (
@@ -937,7 +1061,7 @@ def _remote_runtime_from_verifier_snapshot(
         try:
             metadata = directory.lstat()
         except OSError as exc:
-            raise AppleAlpha3PublicationError(f"cannot inspect {label}") from exc
+            raise AppleStablePublicationError(f"cannot inspect {label}") from exc
         _require(
             stat.S_ISDIR(metadata.st_mode)
             and not directory.is_symlink()
@@ -1071,7 +1195,7 @@ def emit_remote_consumer_receipt(
     except PublicationReceiptCommittedError:
         raise
     except PublicationReceiptIOError as exc:
-        raise AppleAlpha3PublicationError(str(exc)) from exc
+        raise AppleStablePublicationError(str(exc)) from exc
 
 
 def _commit_remote_consumer_receipt(
@@ -1156,7 +1280,7 @@ def _emit_remote_consumer_receipt_pinned(
             try:
                 verify_private_directory_handle_identity(handle, label=label)
             except PublicationReceiptIOError as exc:
-                raise AppleAlpha3PublicationError(str(exc)) from exc
+                raise AppleStablePublicationError(str(exc)) from exc
 
     verify_transaction_handles()
     startup_results_sha256 = _sha256(
@@ -1180,14 +1304,26 @@ def _emit_remote_consumer_receipt_pinned(
             label="remote consumer verifier results snapshot",
         )
     except EvidenceIOError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer verifier results are not strict JSON"
         ) from exc
     results = _object(results_value, "remote consumer verifier results")
+    from release_publication_contract import (
+        PUBLICATION_STATE_PENDING,
+        ReleasePublicationContractError,
+        publication_state,
+        validate_release_publications,
+    )
+
     try:
-        apple_contract.validate_apple_publications(results)
-    except apple_contract.ApplePublicationContractError as exc:
-        raise AppleAlpha3PublicationError(str(exc)) from exc
+        validate_release_publications(results)
+        state = publication_state(results)
+    except ReleasePublicationContractError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+    _require(
+        state == PUBLICATION_STATE_PENDING,
+        "remote consumer receipt requires the coordinated pending publication state",
+    )
     pending = _pending_leaf_from_results(results)
     distribution = _object(
         pending["distribution"], "remote consumer pending distribution"
@@ -1209,7 +1345,7 @@ def _emit_remote_consumer_receipt_pinned(
             label="remote consumer downloaded assets before snapshot",
         )
     except PublicationReceiptIOError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot inspect remote consumer downloaded assets"
         ) from exc
     downloaded: dict[str, FileSnapshot] = {}
@@ -1231,7 +1367,7 @@ def _emit_remote_consumer_receipt_pinned(
             label="remote consumer downloaded assets after snapshot",
         )
     except PublicationReceiptIOError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer downloaded asset directory changed"
         ) from exc
     verify_transaction_handles()
@@ -1269,7 +1405,7 @@ def _emit_remote_consumer_receipt_pinned(
             )
         )
     except (apple_distribution.AppleDistributionError, EvidenceIOError) as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer downloaded asset deep validation failed"
         ) from exc
     _require(
@@ -1302,7 +1438,7 @@ def _emit_remote_consumer_receipt_pinned(
             environment={"LANG": "C", "LC_ALL": "C", "PATH": "/usr/bin:/bin"},
         )
     except BoundedProcessError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer code-signature verification could not complete"
         ) from exc
     _require(
@@ -1317,7 +1453,7 @@ def _emit_remote_consumer_receipt_pinned(
             source_commit,
         )
     except GitProvenanceError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "cannot establish remote consumer checkout provenance"
         ) from exc
     _require(
@@ -1335,7 +1471,7 @@ def _emit_remote_consumer_receipt_pinned(
     try:
         log_text = log.data.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer test log is not UTF-8"
         ) from exc
     _require(
@@ -1362,7 +1498,7 @@ def _emit_remote_consumer_receipt_pinned(
         "kind": REMOTE_CONSUMER_RECEIPT_KIND,
         "log_sha256": log.sha256,
         "release_identity": copy.deepcopy(
-            apple_contract.APPLE_ALPHA3_R1_IDENTITY
+            apple_contract.APPLE_V0_1_0_IDENTITY
         ),
         "results_sha256": startup_results_sha256,
         "schema_version": REMOTE_CONSUMER_RECEIPT_SCHEMA_VERSION,
@@ -1399,7 +1535,7 @@ def _publish_receipt(receipt: object) -> tuple[pathlib.Path, str]:
         transaction_prefix="transaction.",
         expected_leaf=APPLE_PUBLICATION_RECEIPT_NAME,
         value=receipt,
-        label="Apple alpha.3 publication receipt",
+        label="Apple 0.1.0 stable publication receipt",
         maximum=MAX_REMOTE_RECEIPT_BYTES,
     )
 
@@ -1408,11 +1544,11 @@ def _success_marker(path: pathlib.Path, digest: str, status: str) -> str:
     try:
         relative = path.relative_to(REPOSITORY_ROOT).as_posix()
     except ValueError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "Apple receipt output escaped the repository"
         ) from exc
     return (
-        "APPLE_ALPHA3_PUBLICATION_RECEIPT_PASS "
+        "APPLE_V0_1_0_PUBLICATION_RECEIPT_PASS "
         f"status={status} path={relative} sha256={digest}"
     )
 
@@ -1425,7 +1561,7 @@ def _remote_success_marker(
     try:
         relative = path.relative_to(runtime_repository_root).as_posix()
     except ValueError as exc:
-        raise AppleAlpha3PublicationError(
+        raise AppleStablePublicationError(
             "remote consumer receipt escaped its runtime repository"
         ) from exc
     return (
@@ -1436,16 +1572,22 @@ def _remote_success_marker(
 
 def _usage() -> str:
     return (
-        "usage: apple_alpha3_publication.py pending COMPLETION_LEDGER | "
+        "usage: apple_stable_publication.py pending COMPLETION_LEDGER "
+        "EXPECTED_RESULTS_SHA256 | "
         "promote EXPECTED_PENDING_RESULTS_SHA256 RELEASE_PROJECTION "
         "REMOTE_CONSUMER_RECEIPT | emit-remote-consumer "
-        "RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256"
+        "RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256 | verify-release-assets "
+        "RESULTS_MANIFEST RELEASE_DIRECTORY SOURCE_COMMIT ZIP_SHA256 "
+        "APPLE_DISTRIBUTION_SHA256 MANIFEST_SHA256 SHA256SUMS_SHA256 "
+        "SWIFTPM_CHECKSUM"
     )
 
 
 def _main(arguments: Sequence[str]) -> int:
-    if len(arguments) == 2 and arguments[0] == "pending":
-        receipt = build_pending_receipt(pathlib.Path(arguments[1]))
+    if len(arguments) == 3 and arguments[0] == "pending":
+        receipt = build_pending_receipt(
+            pathlib.Path(arguments[1]), arguments[2]
+        )
         path, digest = _publish_receipt(receipt)
         print(_success_marker(path, digest, apple_contract.APPLE_STATUS_PENDING))
         return 0
@@ -1469,6 +1611,22 @@ def _main(arguments: Sequence[str]) -> int:
         )
         print(_remote_success_marker(path, digest, runtime_root))
         return 0
+    if len(arguments) == 9 and arguments[0] == "verify-release-assets":
+        verified = verify_pending_release_assets(
+            results_manifest=pathlib.Path(arguments[1]),
+            release_directory=pathlib.Path(arguments[2]),
+            expected_source_commit=arguments[3],
+            expected_zip_sha256=arguments[4],
+            expected_apple_distribution_sha256=arguments[5],
+            expected_manifest_sha256=arguments[6],
+            expected_sha256sums_sha256=arguments[7],
+            expected_swiftpm_checksum=arguments[8],
+        )
+        print(
+            "APPLE_RELEASE_ASSETS_PASS "
+            + " ".join(f"{name}={value}" for name, value in verified.items())
+        )
+        return 0
     print(f"error: {_usage()}", file=sys.stderr)
     return 2
 
@@ -1490,7 +1648,7 @@ def main() -> int:
             )
         return 125
     except (
-        AppleAlpha3PublicationError,
+        AppleStablePublicationError,
         PublicationReceiptIOError,
         OSError,
     ) as exc:

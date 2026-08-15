@@ -19,6 +19,7 @@ from unittest import mock
 import apple_release_verification as verification
 import apple_publication_contract as apple_contract
 from bounded_process import BoundedProcessError, BoundedResult
+from git_provenance import GitProvenanceError
 
 
 def _digest(index: int) -> str:
@@ -122,12 +123,31 @@ class AppleReleaseVerificationTests(unittest.TestCase):
     RELEASE_ID = 412_345_678
     TAG_OBJECT = "2" * 40
     TAG_COMMIT = "1" * 40
+    SOURCE_PARENT_COMMIT = "0" * 40
     OBSERVED_AT = dt.datetime(2026, 8, 14, 3, 0, 0, tzinfo=dt.UTC)
 
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = pathlib.Path(self.temporary.name).resolve()
+        self.gh_tool = self.root / "gh"
+        self.gh_tool.write_bytes(b"fixture GitHub CLI\n")
+        os.chmod(self.gh_tool, 0o500)
+        for attribute, value in (
+            ("GITHUB_CLI_PATH", self.gh_tool),
+            (
+                "GITHUB_CLI_SHA256",
+                hashlib.sha256(self.gh_tool.read_bytes()).hexdigest(),
+            ),
+        ):
+            patcher = mock.patch.object(
+                verification.github_release,
+                attribute,
+                value,
+            )
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.fixture_environment = {"GH_TOKEN": "fixture_token_123456789"}
         self.ledger_root = self.root / "qperiapt-apple-release-worktrees"
         self.verification_root = self.root / "qperiapt-apple-release-verification"
         self.raw_root = self.verification_root / "raw"
@@ -145,6 +165,12 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             patcher = mock.patch.object(verification, attribute, value)
             patcher.start()
             self.addCleanup(patcher.stop)
+        provenance_patcher = mock.patch.object(
+            verification,
+            "require_direct_results_only_child",
+        )
+        self.require_direct_results_only_child = provenance_patcher.start()
+        self.addCleanup(provenance_patcher.stop)
 
     def _private_directory(
         self,
@@ -161,12 +187,13 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self,
         name: str,
         *,
-        version: str = "0.1.0-alpha.3",
+        version: str = "0.1.0",
         kind: str = verification.COMPLETION_LEDGER_KIND,
-        tag_commit: str | None = None,
+        source_commit: str | None = None,
     ) -> tuple[pathlib.Path, dict[str, str], str]:
         revision = "r1"
-        tag = f"v{version}-{revision}"
+        is_historical = kind == verification.HISTORICAL_EXPECTATION_KIND
+        tag = f"v{version}-{revision}" if is_historical else f"v{version}"
         hashes = {
             asset: _digest(index)
             for index, asset in enumerate(verification.ASSET_NAMES, start=20)
@@ -181,7 +208,12 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 "tag": tag,
             },
             "schema_version": schema_version,
-            "source_commit": tag_commit or self.TAG_COMMIT,
+            "source_commit": source_commit
+            or (
+                self.TAG_COMMIT
+                if is_historical
+                else self.SOURCE_PARENT_COMMIT
+            ),
         }
         parent = self._private_directory(f"ledger-{name}", parent=self.ledger_root)
         path = parent / "asset-ledger.json"
@@ -223,7 +255,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             "databaseId": release_id or self.RELEASE_ID,
             "isDraft": False,
             "isImmutable": True,
-            "isPrerelease": True,
+            "isPrerelease": "-" in tag,
             "publishedAt": "2026-08-14T02:02:00Z",
             "tagName": tag,
             "targetCommitish": "main",
@@ -303,8 +335,9 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self,
         name: str,
         *,
-        version: str = "0.1.0-alpha.3",
+        version: str = "0.1.0",
         kind: str = verification.COMPLETION_LEDGER_KIND,
+        source_commit: str | None = None,
         mutate_view_before: Any = None,
         mutate_verify: Any = None,
         mutate_view_after: Any = None,
@@ -317,7 +350,12 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         FixtureRunner,
         dict[str, object],
     ]:
-        ledger, hashes, tag = self._ledger(name, version=version, kind=kind)
+        ledger, hashes, tag = self._ledger(
+            name,
+            version=version,
+            kind=kind,
+            source_commit=source_commit,
+        )
         view_before = self._view(tag=tag, hashes=hashes)
         view_after = copy.deepcopy(view_before)
         verify = self._verify(tag=tag, hashes=hashes)
@@ -356,14 +394,12 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             projection,
             runner=runner,
             clock=lambda: self.OBSERVED_AT,
-            source_environment={},
-            git_tool="/fixture/git",
-            gh_tool="/fixture/gh",
+            source_environment=self.fixture_environment,
         )
         return raw, projection, runner, verify
 
-    def test_alpha3_completion_collects_one_private_safe_transaction(self) -> None:
-        raw, projection, runner, verify = self._collect("alpha3-valid")
+    def test_stable_completion_collects_one_private_safe_transaction(self) -> None:
+        raw, projection, runner, verify = self._collect("stable-valid")
 
         self.assertEqual(0o700, stat.S_IMODE(raw.stat().st_mode))
         self.assertEqual(verification.RAW_NAMES, {path.name for path in raw.iterdir()})
@@ -390,6 +426,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self.assertEqual("PUBLIC", document["release_identity"]["visibility"])
         publication = document["publication"]
         self.assertEqual(self.RELEASE_ID, publication["release_id"])
+        self.assertFalse(publication["prerelease"])
         self.assertEqual(self.TAG_OBJECT, publication["source"]["tag_object"])
         self.assertEqual(self.TAG_COMMIT, publication["source"]["tag_commit"])
         self.assertEqual("2026-08-14T03:00:00Z", publication["observed_at"])
@@ -421,8 +458,18 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         for arguments, keyword_arguments in runner.calls:
             self.assertEqual(subprocess.DEVNULL, keyword_arguments["stderr"])
             if "cat-file" in arguments:
+                self.assertEqual(verification.GIT, arguments[0])
+                self.assertNotIn(
+                    "GH_TOKEN",
+                    keyword_arguments["environment"],
+                )
                 command_kinds.append("git-type")
             elif "rev-parse" in arguments:
+                self.assertEqual(verification.GIT, arguments[0])
+                self.assertNotIn(
+                    "GH_TOKEN",
+                    keyword_arguments["environment"],
+                )
                 command_kinds.append(
                     "git-commit" if arguments[-1].endswith("^{commit}") else "git-tag"
                 )
@@ -454,7 +501,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             if "repo" in arguments and "view" in arguments
         ]
         expected_repository_view = [
-            "/fixture/gh",
+            str(self.gh_tool),
             "repo",
             "view",
             verification.GH_REPOSITORY_ARGUMENT,
@@ -474,20 +521,20 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             if "release" in arguments
         ]
         expected_view = [
-            "/fixture/gh",
+            str(self.gh_tool),
             "release",
             "view",
-            "v0.1.0-alpha.3-r1",
+            "v0.1.0",
             "--repo",
             verification.GH_REPOSITORY_ARGUMENT,
             "--json",
             ",".join(verification.RELEASE_VIEW_FIELDS),
         ]
         expected_verify = [
-            "/fixture/gh",
+            str(self.gh_tool),
             "release",
             "verify",
-            "v0.1.0-alpha.3-r1",
+            "v0.1.0",
             "--repo",
             verification.GH_REPOSITORY_ARGUMENT,
             "--format",
@@ -504,6 +551,209 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             verification.MAX_RELEASE_VERIFY_BYTES,
             gh_calls[1][1]["maximum_bytes"],
         )
+        self.assertEqual(
+            [
+                mock.call(
+                    verification.REPOSITORY_ROOT,
+                    self.SOURCE_PARENT_COMMIT,
+                    self.TAG_COMMIT,
+                ),
+                mock.call(
+                    verification.REPOSITORY_ROOT,
+                    self.SOURCE_PARENT_COMMIT,
+                    self.TAG_COMMIT,
+                ),
+            ],
+            self.require_direct_results_only_child.call_args_list,
+        )
+
+    def test_github_environment_is_minimal_and_fails_closed(self) -> None:
+        environment = verification._process_environment(
+            self.fixture_environment
+        )
+        self.assertEqual(
+            {
+                "GH_NO_EXTENSION_UPDATE_NOTIFIER",
+                "GH_NO_UPDATE_NOTIFIER",
+                "GH_PAGER",
+                "GH_PROMPT_DISABLED",
+                "GH_TELEMETRY",
+                "GH_TOKEN",
+                "GIT_CONFIG_GLOBAL",
+                "GIT_CONFIG_NOSYSTEM",
+                "GIT_CONFIG_SYSTEM",
+                "GIT_NO_REPLACE_OBJECTS",
+                "HOME",
+                "LANG",
+                "LC_ALL",
+                "PAGER",
+                "PATH",
+                "TERM",
+            },
+            set(environment),
+        )
+        self.assertEqual("/usr/bin:/bin", environment["PATH"])
+        self.assertNotIn("GH_TOKEN", verification._git_environment())
+        for source, message in (
+            ({}, "exactly one GitHub credential"),
+            (
+                {
+                    "GH_TOKEN": "fixture_one_123456",
+                    "GITHUB_TOKEN": "fixture_two_123456",
+                },
+                "exactly one GitHub credential",
+            ),
+            (
+                {
+                    **self.fixture_environment,
+                    "HTTPS_PROXY": "https://proxy.invalid",
+                },
+                "network trust overrides",
+            ),
+            (
+                {
+                    **self.fixture_environment,
+                    "SSL_CERT_FILE": "/fixture/ca.pem",
+                },
+                "network trust overrides",
+            ),
+            (
+                {
+                    **self.fixture_environment,
+                    "GH_HOST": "example.invalid",
+                },
+                "network trust overrides",
+            ),
+        ):
+            with self.subTest(source_keys=sorted(source)), self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                message,
+            ):
+                verification._process_environment(source)
+
+    def test_fixed_bootstrap_observations_replace_ambient_gh_and_git(self) -> None:
+        ledger, _hashes, tag = self._ledger("bootstrap")
+        github_calls: list[tuple[list[str], dict[str, object]]] = []
+
+        def github_runner(
+            argv: list[str], **kwargs: object
+        ) -> BoundedResult:
+            github_calls.append((argv, kwargs))
+            return BoundedResult(
+                0,
+                json.dumps({"databaseId": self.RELEASE_ID}).encode("ascii")
+                + b"\n",
+            )
+
+        self.assertEqual(
+            self.RELEASE_ID,
+            verification.observe_release_id(
+                ledger,
+                runner=github_runner,
+                source_environment=self.fixture_environment,
+            ),
+        )
+        self.assertEqual(
+            [
+                str(self.gh_tool),
+                "release",
+                "view",
+                tag,
+                "--repo",
+                verification.GH_REPOSITORY_ARGUMENT,
+                "--json",
+                "databaseId",
+            ],
+            github_calls[0][0],
+        )
+        self.assertEqual(
+            subprocess.DEVNULL,
+            github_calls[0][1]["stderr"],
+        )
+        config_directory = pathlib.Path(
+            github_calls[0][1]["environment"]["GH_CONFIG_DIR"]
+        )
+        self.assertFalse(config_directory.exists())
+
+        git_outputs = iter((b"tag\n", f"{self.TAG_OBJECT}\n".encode("ascii")))
+        git_calls: list[tuple[list[str], dict[str, object]]] = []
+
+        def git_runner(argv: list[str], **kwargs: object) -> BoundedResult:
+            git_calls.append((argv, kwargs))
+            return BoundedResult(0, next(git_outputs))
+
+        self.assertEqual(
+            self.TAG_OBJECT,
+            verification.observe_tag_object(
+                ledger,
+                runner=git_runner,
+                source_environment={},
+            ),
+        )
+        self.assertEqual(2, len(git_calls))
+        for argv, kwargs in git_calls:
+            self.assertEqual(verification.GIT, argv[0])
+            self.assertNotIn("GH_TOKEN", kwargs["environment"])
+        with self.assertRaisesRegex(
+            verification.AppleReleaseVerificationError,
+            "Git environment overrides",
+        ):
+            verification.observe_tag_object(
+                ledger,
+                runner=git_runner,
+                source_environment={"GIT_DIR": "/fixture/forged"},
+            )
+
+        def malformed_id_runner(
+            _argv: list[str], **_kwargs: object
+        ) -> BoundedResult:
+            return BoundedResult(0, b'{"databaseId":true}\n')
+
+        with self.assertRaisesRegex(
+            verification.AppleReleaseVerificationError,
+            "bounded positive integer",
+        ):
+            verification.observe_release_id(
+                ledger,
+                runner=malformed_id_runner,
+                source_environment=self.fixture_environment,
+            )
+
+    def test_github_tool_requires_safe_canonical_bytes_and_resampling(self) -> None:
+        identity = verification._gh_tool_identity()
+        self.assertEqual(str(self.gh_tool), identity.path)
+        verification._resample_gh_tool(identity)
+
+        link = self.root / "gh-link"
+        link.symlink_to(self.gh_tool)
+        with (
+            mock.patch.object(
+                verification.github_release,
+                "GITHUB_CLI_PATH",
+                link,
+            ),
+            self.assertRaisesRegex(
+                verification.AppleReleaseVerificationError,
+                "canonical|symlink",
+            ),
+        ):
+            verification._gh_tool_identity()
+
+        os.chmod(self.gh_tool, 0o700)
+        self.gh_tool.write_bytes(b"mutated fixture GitHub CLI\n")
+        os.chmod(self.gh_tool, 0o500)
+        with self.assertRaisesRegex(
+            verification.AppleReleaseVerificationError,
+            "identity or bytes changed",
+        ):
+            verification._resample_gh_tool(identity)
+
+        os.chmod(self.gh_tool, 0o522)
+        with self.assertRaisesRegex(
+            verification.AppleReleaseVerificationError,
+            "metadata is unsafe",
+        ):
+            verification._gh_tool_identity()
 
     def test_alpha2_historical_expectation_uses_the_same_adapter(self) -> None:
         _, projection, _, _ = self._collect(
@@ -516,6 +766,36 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             "v0.1.0-alpha.2-r1", document["release_identity"]["tag"]
         )
         self.assertEqual(4, len(document["assets"]))
+        self.assertTrue(document["publication"]["prerelease"])
+        self.require_direct_results_only_child.assert_not_called()
+
+    def test_stable_tag_requires_a_direct_results_only_child(self) -> None:
+        self.require_direct_results_only_child.side_effect = GitProvenanceError(
+            "fixture topology differs"
+        )
+        with self.assertRaisesRegex(
+            verification.AppleReleaseVerificationError,
+            "stable source/tag boundary",
+        ):
+            self._collect("stable-invalid-topology")
+        self.assertFalse(
+            (
+                self.projection_root
+                / "projection-parent-stable-invalid-topology"
+                / verification.PROJECTION_NAME
+            ).exists()
+        )
+
+        self.require_direct_results_only_child.reset_mock(side_effect=True)
+        with self.assertRaisesRegex(
+            verification.AppleReleaseVerificationError,
+            "must differ from its source parent",
+        ):
+            self._collect(
+                "stable-source-equals-tag",
+                source_commit=self.TAG_COMMIT,
+            )
+        self.require_direct_results_only_child.assert_not_called()
 
     def test_publication_projection_directly_satisfies_pure_contract(self) -> None:
         distribution = apple_contract.frozen_alpha2_r1_distribution()
@@ -586,9 +866,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             projection,
             runner=runner,
             clock=lambda: dt.datetime(2026, 8, 14, 3, 0, 9, tzinfo=dt.UTC),
-            source_environment={},
-            git_tool="/fixture/git",
-            gh_tool="/fixture/gh",
+            source_environment=self.fixture_environment,
         )
 
         publication = json.loads(projection.read_text(encoding="ascii"))[
@@ -598,6 +876,8 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             publication,
             identity=dict(apple_contract.APPLE_ALPHA2_R1_IDENTITY),
             distribution=distribution,
+            stable_source=None,
+            expected_prerelease=True,
             label="adapter cross-module fixture",
         )
 
@@ -606,6 +886,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             ("release-id", lambda value: value.__setitem__("databaseId", 7)),
             ("release-url", lambda value: value.__setitem__("url", "https://example.invalid")),
             ("draft", lambda value: value.__setitem__("isDraft", True)),
+            ("prerelease", lambda value: value.__setitem__("isPrerelease", True)),
             ("asset-order", lambda value: value["assets"].reverse()),
             (
                 "asset-hash",
@@ -797,7 +1078,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             (
                 "identity",
                 lambda value: value["release_identity"].__setitem__(
-                    "tag", "v0.1.0-alpha.3-r2"
+                    "tag", "v0.1.0-r2"
                 ),
             ),
             (
@@ -844,9 +1125,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 raw,
                 projection,
                 runner=runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
+                source_environment=self.fixture_environment,
             )
         self.assertEqual([], runner.calls)
 
@@ -867,9 +1146,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                     raw,
                     overlapping_projection,
                     runner=runner,
-                    source_environment={},
-                    git_tool="/fixture/git",
-                    gh_tool="/fixture/gh",
+                    source_environment=self.fixture_environment,
                 )
             self.assertFalse(overlapping_projection.exists())
         self.assertEqual([], runner.calls)
@@ -888,9 +1165,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 self.raw_root / "never-created-raw",
                 broad_parent / verification.PROJECTION_NAME,
                 runner=runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
+                source_environment=self.fixture_environment,
             )
         self.assertEqual([], runner.calls)
 
@@ -1020,9 +1295,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                         selected_raw,
                         selected_projection,
                         runner=runner,
-                        source_environment={},
-                        git_tool="/fixture/git",
-                        gh_tool="/fixture/gh",
+                        source_environment=self.fixture_environment,
                     )
                 self.assertEqual([], runner.calls)
                 self.assertFalse(selected_projection.exists())
@@ -1040,9 +1313,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                     raw,
                     projection,
                     runner=runner,
-                    source_environment={},
-                    git_tool="/fixture/git",
-                    gh_tool="/fixture/gh",
+                    source_environment=self.fixture_environment,
                 )
         finally:
             os.chmod(self.ledger_root, 0o700)
@@ -1061,9 +1332,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                     raw,
                     projection,
                     runner=runner,
-                    source_environment={},
-                    git_tool="/fixture/git",
-                    gh_tool="/fixture/gh",
+                    source_environment=self.fixture_environment,
                 )
         finally:
             os.chmod(self.verification_root, 0o700)
@@ -1093,16 +1362,14 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 raw,
                 projection,
                 runner=runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
+                source_environment=self.fixture_environment,
             )
         self.assertEqual([], runner.calls)
 
         raw_two, projection_two = self._paths("git-env-policy")
         with self.assertRaisesRegex(
             verification.AppleReleaseVerificationError,
-            "Git environment overrides",
+            "Git/GitHub/network trust overrides",
         ):
             verification.collect_release_verification(
                 ledger,
@@ -1111,9 +1378,10 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 raw_two,
                 projection_two,
                 runner=runner,
-                source_environment={"GIT_DIR": "/tmp/forged"},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
+                source_environment={
+                    **self.fixture_environment,
+                    "GIT_DIR": "/tmp/forged",
+                },
             )
         self.assertEqual([], runner.calls)
         self.assertFalse(raw_two.exists())
@@ -1130,9 +1398,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 raw_three,
                 projection_three,
                 runner=runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
+                source_environment=self.fixture_environment,
             )
         self.assertEqual([], runner.calls)
         self.assertFalse(raw_three.exists())
@@ -1155,9 +1421,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
                 raw,
                 projection,
                 runner=fail_runner,
-                source_environment={},
-                git_tool="/fixture/git",
-                gh_tool="/fixture/gh",
+                source_environment=self.fixture_environment,
             )
         self.assertTrue(raw.is_dir())
         self.assertEqual([], list(raw.iterdir()))

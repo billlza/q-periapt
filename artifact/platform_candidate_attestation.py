@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Verify one fixed alpha.3 platform-candidate provenance transaction.
+"""Verify one fixed stable platform-candidate provenance transaction.
 
-The shell entrypoint owns only Git and ``gh`` orchestration.  This module owns
-the candidate byte snapshot, strict GitHub verification-result parsing, the
-pre/post candidate comparison, and publication of one PII-safe projection.
+This module owns fixed-system Git observations, pinned GitHub CLI execution,
+candidate byte snapshots, strict verification-result parsing, the pre/post
+comparison, and one PII-safe projection.  Shell entrypoints only sequence these
+typed, fail-closed boundaries.
 """
 
 from __future__ import annotations
@@ -16,35 +17,61 @@ import os
 import pathlib
 import re
 import stat
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from typing import Any, NoReturn, Sequence
 
+from bounded_process import BoundedProcessError, capture_stdout
+import github_release_observation as github_release
 from evidence_io import (
     EvidenceIOError,
+    FileDigestSnapshot,
     FileSnapshot,
+    consume_regular_snapshot,
     parse_strict_json_bytes,
     read_regular_snapshot,
 )
 from publication_receipt_io import (
+    PublicationReceiptCommittedError,
     PublicationReceiptIOError,
+    write_private_bytes_noreplace_at,
     write_private_json_noreplace_at,
 )
+from git_provenance import GIT
 from platform_distribution_contract import (
+    CI_WORKFLOW_NAME,
+    CI_WORKFLOW_PATH,
+    CODEQL_JOB_CONTRACT,
+    CODEQL_WORKFLOW_NAME,
+    CODEQL_WORKFLOW_PATH,
+    CONSTANT_TIME_JOB_CONTRACT,
+    MAX_WORKFLOW_RUN_ATTEMPT,
+    MAX_WORKFLOW_RUN_ID,
     PLATFORM_CANDIDATE_ASSETS,
     PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS,
+    PlatformDistributionContractError,
     RELEASE_TAG,
+    REPOSITORY as CONTRACT_REPOSITORY,
+    SOURCE_SECURITY_GATE,
+    SOURCE_SECURITY_GATE_KIND,
+    SOURCE_SECURITY_GATE_SCHEMA_VERSION,
+    validate_source_security_gate,
 )
 
 
 MAX_ATTESTATION_BYTES = 16 * 1024 * 1024
 MAX_ASSET_BYTES = 512 * 1024 * 1024
 MAX_CHECKSUM_BYTES = 1024 * 1024
-MAX_PRIVATE_STDERR_BYTES = 1024 * 1024
 MAX_SNAPSHOT_BYTES = 1024 * 1024
-MAX_RUN_ID = (1 << 63) - 1
-MAX_RUN_ATTEMPT = (1 << 31) - 1
+MAX_SECURITY_GATE_BYTES = 1024 * 1024
+MAX_GITHUB_API_BYTES = 16 * 1024 * 1024
+MAX_GIT_OUTPUT_BYTES = 1024 * 1024
+MAX_WORKFLOW_TOOL_BYTES = 512 * 1024 * 1024
+MAX_RUN_ID = MAX_WORKFLOW_RUN_ID
+MAX_RUN_ATTEMPT = MAX_WORKFLOW_RUN_ATTEMPT
 REPOSITORY = "billlza/q-periapt"
 REPOSITORY_URL = f"https://github.com/{REPOSITORY}"
 REPOSITORY_OWNER_URL = "https://github.com/billlza"
@@ -70,7 +97,10 @@ CANDIDATE_RAW_ROOT = CANDIDATE_VERIFICATION_ROOT / "raw"
 CANDIDATE_PROJECTION_ROOT = (
     REPOSITORY_ROOT / "target" / "abi2-platform-candidate-projections"
 )
-SNAPSHOT_SCHEMA_VERSION = 1
+WORKFLOW_CANDIDATE_ROOT = REPOSITORY_ROOT / "candidate"
+WORKFLOW_GITHUB_CLI = pathlib.Path("/usr/bin/gh")
+RESULTS_PATH = REPOSITORY_ROOT / "artifact" / "results.json"
+SNAPSHOT_SCHEMA_VERSION = 2
 SNAPSHOT_KIND = "qperiapt.platform_candidate_snapshot"
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
@@ -104,6 +134,19 @@ class CandidateFile:
 
         return {"digest": {"sha256": self.sha256}, "name": self.name}
 
+
+@dataclass(frozen=True, slots=True)
+class WorkflowToolIdentity:
+    """One immutable hosted-workflow tool sample used during API observation."""
+
+    path: str
+    device: int
+    inode: int
+    mode: int
+    uid: int
+    link_count: int
+    size: int
+    sha256: str
 
 @dataclass(frozen=True, slots=True)
 class CandidateSnapshot:
@@ -203,8 +246,846 @@ def _snapshot_file(
         raise CandidateAttestationError(f"cannot safely read {label}") from exc
 
 
+def _results_manifest() -> dict[str, Any]:
+    snapshot = _snapshot_file(
+        RESULTS_PATH,
+        maximum=16 * 1024 * 1024,
+        label="tagged results manifest",
+    )
+    try:
+        value = parse_strict_json_bytes(snapshot.data, label="tagged results manifest")
+    except EvidenceIOError as exc:
+        raise CandidateAttestationError("tagged results manifest is invalid") from exc
+    manifest = _object(value, "tagged results manifest")
+    return manifest
+
+
+def _source_parent_from_results() -> str:
+    manifest = _results_manifest()
+    provenance = _object(manifest.get("provenance"), "tagged results provenance")
+    source_parent = provenance.get("snapshot_commit")
+    _require(
+        isinstance(source_parent, str) and HEX_40.fullmatch(source_parent) is not None,
+        "tagged results source parent is malformed",
+    )
+    return source_parent
+
+
+def validate_tag_source_currentness(expected_source_parent: str) -> None:
+    """Apply the central stable-source authority to the tagged results bytes."""
+
+    _require(
+        HEX_40.fullmatch(expected_source_parent) is not None,
+        "expected source parent is malformed",
+    )
+    manifest = _results_manifest()
+    provenance = _object(manifest.get("provenance"), "tagged results provenance")
+    _require(
+        provenance.get("snapshot_commit") == expected_source_parent,
+        "tagged stable-source authority differs from S",
+    )
+    try:
+        import release_publication_contract
+
+        release_publication_contract.validate_stable_source_currentness(manifest)
+    except release_publication_contract.ReleasePublicationContractError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
+
+
+def _workflow_sha256(relative: str, *, label: str) -> str:
+    snapshot = _snapshot_file(
+        REPOSITORY_ROOT / relative,
+        maximum=4 * 1024 * 1024,
+        label=label,
+    )
+    return snapshot.sha256
+
+
+def _api_positive_integer(value: object, *, maximum: int, label: str) -> int:
+    _require(
+        type(value) is int and 0 < value <= maximum,
+        f"{label} must be a bounded positive integer",
+    )
+    return value
+
+
+def _api_collection(
+    value: object, *, items_key: str, label: str
+) -> list[dict[str, Any]]:
+    collection = _object(value, label)
+    _exact_keys(collection, frozenset({"total_count", items_key}), label)
+    items = collection[items_key]
+    _require(isinstance(items, list), f"{label} items must be a list")
+    _require(
+        type(collection["total_count"]) is int
+        and collection["total_count"] == len(items),
+        f"{label} is incomplete or has an invalid count",
+    )
+    parsed = [_object(item, f"{label} item") for item in items]
+    return parsed
+
+
+def _workflow_github_cli_identity() -> WorkflowToolIdentity:
+    path = WORKFLOW_GITHUB_CLI
+    _require(path.is_absolute(), "workflow GitHub CLI path is not absolute")
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise CandidateAttestationError(
+            "cannot resolve the workflow GitHub CLI"
+        ) from exc
+    _require(
+        resolved == path,
+        "workflow GitHub CLI path must be canonical and not a symlink",
+    )
+    observed: os.stat_result | None = None
+
+    def validate_metadata(metadata: os.stat_result) -> None:
+        nonlocal observed
+        mode = stat.S_IMODE(metadata.st_mode)
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and metadata.st_uid == 0
+            and metadata.st_nlink == 1
+            and mode & 0o111 != 0
+            and mode & 0o022 == 0,
+            "workflow GitHub CLI metadata is unsafe",
+        )
+        observed = metadata
+
+    try:
+        snapshot: FileDigestSnapshot = consume_regular_snapshot(
+            path,
+            maximum=MAX_WORKFLOW_TOOL_BYTES,
+            label="workflow GitHub CLI",
+            validate_metadata=validate_metadata,
+        )
+    except EvidenceIOError as exc:
+        raise CandidateAttestationError(
+            "cannot safely snapshot the workflow GitHub CLI"
+        ) from exc
+    _require(snapshot.size > 0 and observed is not None, "workflow GitHub CLI is empty")
+    assert observed is not None
+    return WorkflowToolIdentity(
+        path=str(path),
+        device=observed.st_dev,
+        inode=observed.st_ino,
+        mode=observed.st_mode,
+        uid=observed.st_uid,
+        link_count=observed.st_nlink,
+        size=snapshot.size,
+        sha256=snapshot.sha256,
+    )
+
+
+def _workflow_github_environment(source: Mapping[str, str]) -> dict[str, str]:
+    forbidden = sorted(
+        name
+        for name in source
+        if name.startswith("GIT_")
+        or (name.startswith("GH_") and name != "GH_TOKEN")
+        or name in github_release.DANGEROUS_GITHUB_ENVIRONMENT
+    )
+    _require(not forbidden, "workflow GitHub environment contains trust overrides")
+    _require(
+        isinstance(source.get("GH_TOKEN"), str)
+        and 0 < len(source["GH_TOKEN"]) <= 4_096
+        and "\x00" not in source["GH_TOKEN"]
+        and not source.get("GITHUB_TOKEN"),
+        "workflow GitHub environment requires exactly GH_TOKEN",
+    )
+    return {
+        "GH_NO_EXTENSION_UPDATE_NOTIFIER": "1",
+        "GH_NO_UPDATE_NOTIFIER": "1",
+        "GH_PAGER": "cat",
+        "GH_PROMPT_DISABLED": "1",
+        "GH_TELEMETRY": "0",
+        "GH_TOKEN": source["GH_TOKEN"],
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_SYSTEM": "/dev/null",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "PAGER": "cat",
+        "PATH": "/usr/bin:/bin",
+        "TERM": "dumb",
+    }
+
+
+@contextlib.contextmanager
+def _isolated_workflow_github_environment(
+    environment: Mapping[str, str],
+) -> Iterator[dict[str, str]]:
+    temporary: tempfile.TemporaryDirectory[str] | None = None
+    try:
+        temporary = tempfile.TemporaryDirectory(
+            prefix="qperiapt-workflow-gh-",
+            dir="/tmp",
+        )
+        directory = pathlib.Path(temporary.name)
+        os.chmod(directory, 0o700)
+        before = directory.lstat()
+        _require(
+            stat.S_ISDIR(before.st_mode)
+            and before.st_uid == os.geteuid()
+            and stat.S_IMODE(before.st_mode) == 0o700
+            and not any(directory.iterdir()),
+            "workflow GitHub configuration directory is unsafe",
+        )
+        yield {
+            **environment,
+            "GH_CONFIG_DIR": str(directory),
+            "HOME": str(directory),
+        }
+        after = directory.lstat()
+        _require(
+            (after.st_dev, after.st_ino, after.st_mode, after.st_uid)
+            == (before.st_dev, before.st_ino, before.st_mode, before.st_uid)
+            and not any(directory.iterdir()),
+            "workflow GitHub configuration changed during observation",
+        )
+    except OSError as exc:
+        raise CandidateAttestationError(
+            "cannot isolate the workflow GitHub configuration"
+        ) from exc
+    finally:
+        if temporary is not None:
+            try:
+                temporary.cleanup()
+            except OSError as exc:
+                raise CandidateAttestationError(
+                    "cannot remove the workflow GitHub configuration"
+                ) from exc
+
+
+def _capture_workflow_github_cli(
+    tool: WorkflowToolIdentity,
+    arguments: Sequence[str],
+    *,
+    environment: Mapping[str, str],
+    maximum_bytes: int,
+    label: str,
+) -> bytes:
+    _require(
+        isinstance(tool, WorkflowToolIdentity)
+        and bool(arguments)
+        and all(
+            isinstance(argument, str) and argument and "\x00" not in argument
+            for argument in arguments
+        ),
+        "workflow GitHub command is malformed",
+    )
+    _require(
+        _workflow_github_cli_identity() == tool,
+        "workflow GitHub CLI changed before observation",
+    )
+    try:
+        with _isolated_workflow_github_environment(environment) as isolated:
+            result = capture_stdout(
+                [tool.path, *arguments],
+                timeout_seconds=120,
+                maximum_bytes=maximum_bytes,
+                stderr=subprocess.DEVNULL,
+                environment=isolated,
+            )
+    except BoundedProcessError as exc:
+        raise CandidateAttestationError(f"{label} failed safely") from exc
+    finally:
+        _require(
+            _workflow_github_cli_identity() == tool,
+            "workflow GitHub CLI changed during observation",
+        )
+    _require(result.returncode == 0 and result.stdout, f"{label} was rejected")
+    return result.stdout
+
+
+def _select_latest_exact_run(
+    value: object,
+    *,
+    expected_commit: str,
+    workflow_name: str,
+    workflow_path: str,
+    label: str,
+) -> dict[str, Any]:
+    runs = _api_collection(value, items_key="workflow_runs", label=label)
+    ids: set[int] = set()
+    candidates: list[dict[str, Any]] = []
+    for run in runs:
+        run_id = _api_positive_integer(
+            run.get("id"), maximum=MAX_RUN_ID, label=f"{label} run id"
+        )
+        _require(run_id not in ids, f"{label} contains duplicate run ids")
+        ids.add(run_id)
+        if (
+            run.get("name") == workflow_name
+            and run.get("path") == workflow_path
+            and run.get("head_sha") == expected_commit
+            and run.get("head_branch") == "main"
+            and run.get("event") == "push"
+        ):
+            _api_positive_integer(
+                run.get("run_attempt"),
+                maximum=MAX_RUN_ATTEMPT,
+                label=f"{label} run attempt",
+            )
+            candidates.append(run)
+    _require(candidates, f"{label} has no exact run at R")
+    selected = max(candidates, key=lambda run: run["id"])
+    _require(
+        selected.get("status") == "completed"
+        and selected.get("conclusion") == "success",
+        f"{label} latest exact run at R did not complete successfully",
+    )
+    return selected
+
+
+def _job_record(
+    raw: dict[str, Any],
+    *,
+    run_id: int,
+    run_attempt: int,
+    label: str,
+) -> tuple[int, str]:
+    job_id = _api_positive_integer(
+        raw.get("id"), maximum=MAX_RUN_ID, label=f"{label} id"
+    )
+    _require(raw.get("run_id") == run_id, f"{label} run id differs")
+    _require(raw.get("run_attempt") == run_attempt, f"{label} run attempt differs")
+    name = raw.get("name")
+    _require(isinstance(name, str), f"{label} name is malformed")
+    return job_id, name
+
+
+def _selected_job_map(
+    value: object,
+    *,
+    run_id: int,
+    run_attempt: int,
+    required_names: frozenset[str],
+    exact_names: bool,
+    label: str,
+) -> dict[str, int]:
+    jobs = _api_collection(value, items_key="jobs", label=label)
+    by_name: dict[str, int] = {}
+    ids: set[int] = set()
+    all_names: set[str] = set()
+    for raw in jobs:
+        job_id, name = _job_record(
+            raw,
+            run_id=run_id,
+            run_attempt=run_attempt,
+            label=f"{label} job",
+        )
+        _require(job_id not in ids, f"{label} job ids are not unique")
+        _require(name not in all_names, f"{label} job names are not unique")
+        ids.add(job_id)
+        all_names.add(name)
+        if name in required_names:
+            _require(
+                raw.get("status") == "completed"
+                and raw.get("conclusion") == "success",
+                f"{label} required job did not complete successfully: {name}",
+            )
+            by_name[name] = job_id
+        elif exact_names:
+            _fail(f"{label} contains an unexpected job: {name}")
+    _require(set(by_name) == set(required_names), f"{label} required job set differs")
+    return by_name
+
+
+def _selected_source_security_observations(
+    ci_runs: object,
+    ci_jobs: object,
+    codeql_runs: object,
+    codeql_jobs: object,
+    *,
+    expected_commit: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, int], dict[str, int]]:
+    """Validate and select the exact latest runs, attempts, and required jobs."""
+
+    ci_run = _select_latest_exact_run(
+        ci_runs,
+        expected_commit=expected_commit,
+        workflow_name=CI_WORKFLOW_NAME,
+        workflow_path=CI_WORKFLOW_PATH,
+        label="CI workflow runs",
+    )
+    codeql_run = _select_latest_exact_run(
+        codeql_runs,
+        expected_commit=expected_commit,
+        workflow_name=CODEQL_WORKFLOW_NAME,
+        workflow_path=CODEQL_WORKFLOW_PATH,
+        label="CodeQL workflow runs",
+    )
+    ci_by_name = _selected_job_map(
+        ci_jobs,
+        run_id=ci_run["id"],
+        run_attempt=ci_run["run_attempt"],
+        required_names=frozenset(
+            name for _arch, _implementation, name in CONSTANT_TIME_JOB_CONTRACT
+        ),
+        exact_names=False,
+        label="CI workflow jobs",
+    )
+    codeql_by_name = _selected_job_map(
+        codeql_jobs,
+        run_id=codeql_run["id"],
+        run_attempt=codeql_run["run_attempt"],
+        required_names=frozenset(name for _language, name in CODEQL_JOB_CONTRACT),
+        exact_names=True,
+        label="CodeQL workflow jobs",
+    )
+    return ci_run, codeql_run, ci_by_name, codeql_by_name
+
+
+def _query_source_security_api(
+    api: Callable[[str, str], object],
+    *,
+    expected_commit: str,
+) -> tuple[
+    object,
+    object,
+    object,
+    object,
+    dict[str, Any],
+    dict[str, Any],
+]:
+    """Query and validate one complete exact-R CI/CodeQL observation set."""
+
+    ci_runs = api(
+        f"repos/{REPOSITORY}/actions/workflows/ci.yml/runs?"
+        f"head_sha={expected_commit}&branch=main&event=push&per_page=100",
+        "CI workflow runs API response",
+    )
+    codeql_runs = api(
+        f"repos/{REPOSITORY}/actions/workflows/codeql.yml/runs?"
+        f"head_sha={expected_commit}&branch=main&event=push&per_page=100",
+        "CodeQL workflow runs API response",
+    )
+    ci_run = _select_latest_exact_run(
+        ci_runs,
+        expected_commit=expected_commit,
+        workflow_name=CI_WORKFLOW_NAME,
+        workflow_path=CI_WORKFLOW_PATH,
+        label="CI workflow runs",
+    )
+    codeql_run = _select_latest_exact_run(
+        codeql_runs,
+        expected_commit=expected_commit,
+        workflow_name=CODEQL_WORKFLOW_NAME,
+        workflow_path=CODEQL_WORKFLOW_PATH,
+        label="CodeQL workflow runs",
+    )
+    ci_jobs = api(
+        f"repos/{REPOSITORY}/actions/runs/{ci_run['id']}/attempts/"
+        f"{ci_run['run_attempt']}/jobs?filter=all&per_page=100",
+        "CI workflow jobs API response",
+    )
+    codeql_jobs = api(
+        f"repos/{REPOSITORY}/actions/runs/{codeql_run['id']}/attempts/"
+        f"{codeql_run['run_attempt']}/jobs?filter=all&per_page=100",
+        "CodeQL workflow jobs API response",
+    )
+    selected_ci, selected_codeql, _ci_jobs, _codeql_jobs = (
+        _selected_source_security_observations(
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            expected_commit=expected_commit,
+        )
+    )
+    return (
+        ci_runs,
+        ci_jobs,
+        codeql_runs,
+        codeql_jobs,
+        selected_ci,
+        selected_codeql,
+    )
+
+
+def _github_api_arguments(endpoint: str) -> list[str]:
+    """Bind every source-security observation to one explicit REST contract."""
+
+    return [
+        "api",
+        "-H",
+        "Accept: application/vnd.github+json",
+        "-H",
+        f"X-GitHub-Api-Version: {github_release.GITHUB_API_VERSION}",
+        endpoint,
+    ]
+
+
+def build_source_security_gate(
+    ci_runs: object,
+    ci_jobs: object,
+    codeql_runs: object,
+    codeql_jobs: object,
+    *,
+    expected_tag_commit: str,
+    expected_source_parent_commit: str,
+    ci_workflow_sha256: str,
+    codeql_workflow_sha256: str,
+    github_cli_sha256: str,
+    github_cli_version: str,
+) -> dict[str, object]:
+    """Select the highest exact-R runs and project only bounded public fields."""
+
+    _require(CONTRACT_REPOSITORY == REPOSITORY, "repository contracts differ")
+    _require(
+        HEX_40.fullmatch(expected_tag_commit) is not None,
+        "security gate tag commit is malformed",
+    )
+    _require(
+        HEX_40.fullmatch(expected_source_parent_commit) is not None,
+        "security gate source parent is malformed",
+    )
+    ci_run, codeql_run, ci_by_name, codeql_by_name = (
+        _selected_source_security_observations(
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            expected_commit=expected_tag_commit,
+        )
+    )
+    ci_run_id = ci_run["id"]
+    ci_attempt = ci_run["run_attempt"]
+    codeql_run_id = codeql_run["id"]
+    codeql_attempt = codeql_run["run_attempt"]
+    constant_time_jobs = []
+    for architecture, implementation, name in CONSTANT_TIME_JOB_CONTRACT:
+        _require(name in ci_by_name, f"required constant-time job is absent: {name}")
+        constant_time_jobs.append(
+            {
+                "architecture": architecture,
+                "conclusion": "success",
+                "implementation": implementation,
+                "job_id": ci_by_name[name],
+                "name": name,
+                "status": "completed",
+            }
+        )
+    codeql_job_records = [
+        {
+            "conclusion": "success",
+            "job_id": codeql_by_name[name],
+            "language": language,
+            "name": name,
+            "status": "completed",
+        }
+        for language, name in CODEQL_JOB_CONTRACT
+    ]
+
+    def workflow_record(
+        run: dict[str, Any],
+        *,
+        workflow_name: str,
+        workflow_path: str,
+        workflow_sha256: str,
+        jobs: list[dict[str, object]],
+    ) -> dict[str, object]:
+        return {
+            "conclusion": "success",
+            "event": "push",
+            "head_branch": "main",
+            "head_sha": expected_tag_commit,
+            "jobs": jobs,
+            "run_attempt": run["run_attempt"],
+            "run_id": run["id"],
+            "status": "completed",
+            "workflow_name": workflow_name,
+            "workflow_path": workflow_path,
+            "workflow_sha256": workflow_sha256,
+        }
+
+    gate: dict[str, object] = {
+        "kind": SOURCE_SECURITY_GATE_KIND,
+        "observation_tools": {
+            "github_cli": {
+                "name": "gh",
+                "path": "/usr/bin/gh",
+                "sha256": github_cli_sha256,
+                "version": github_cli_version,
+            },
+        },
+        "repository": REPOSITORY,
+        "schema_version": SOURCE_SECURITY_GATE_SCHEMA_VERSION,
+        "source_parent_commit": expected_source_parent_commit,
+        "tag_commit": expected_tag_commit,
+        "workflows": {
+            "ci": workflow_record(
+                ci_run,
+                workflow_name=CI_WORKFLOW_NAME,
+                workflow_path=CI_WORKFLOW_PATH,
+                workflow_sha256=ci_workflow_sha256,
+                jobs=constant_time_jobs,
+            ),
+            "codeql": workflow_record(
+                codeql_run,
+                workflow_name=CODEQL_WORKFLOW_NAME,
+                workflow_path=CODEQL_WORKFLOW_PATH,
+                workflow_sha256=codeql_workflow_sha256,
+                jobs=codeql_job_records,
+            ),
+        },
+    }
+    try:
+        validate_source_security_gate(
+            gate,
+            expected_tag_commit=expected_tag_commit,
+            expected_source_parent_commit=expected_source_parent_commit,
+            expected_ci_workflow_sha256=ci_workflow_sha256,
+            expected_codeql_workflow_sha256=codeql_workflow_sha256,
+        )
+    except PlatformDistributionContractError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
+    return gate
+
+
+def _load_api_json(path: pathlib.Path, *, label: str) -> object:
+    _require(path.is_absolute(), f"{label} path must be absolute")
+    snapshot = _snapshot_file(path, maximum=MAX_GITHUB_API_BYTES, label=label)
+    try:
+        return parse_strict_json_bytes(snapshot.data, label=label)
+    except EvidenceIOError as exc:
+        raise CandidateAttestationError(f"{label} JSON is invalid") from exc
+
+
+def _write_public_gate_noreplace(path: pathlib.Path, value: object) -> str:
+    _require(path.is_absolute(), "source security gate output must be absolute")
+    _require(path.name == SOURCE_SECURITY_GATE, "source security gate output leaf differs")
+    root_text = os.path.realpath(os.fspath(WORKFLOW_CANDIDATE_ROOT))
+    supplied_parent = os.path.abspath(os.fspath(path.parent))
+    _require(root_text == supplied_parent, "source security gate output parent differs")
+    try:
+        metadata = path.parent.lstat()
+    except OSError as exc:
+        raise CandidateAttestationError("cannot inspect source security gate parent") from exc
+    _require(
+        stat.S_ISDIR(metadata.st_mode)
+        and not path.parent.is_symlink()
+        and metadata.st_uid == os.geteuid(),
+        "source security gate parent is not an owned non-symlink directory",
+    )
+    _require(
+        stat.S_IMODE(metadata.st_mode) == 0o700,
+        "source security gate parent must have mode 0700",
+    )
+    try:
+        payload = (
+            json.dumps(value, allow_nan=False, ensure_ascii=True, indent=2, sort_keys=True)
+            + "\n"
+        ).encode("ascii")
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise CandidateAttestationError("source security gate is not JSON") from exc
+    _require(
+        0 < len(payload) <= MAX_SECURITY_GATE_BYTES,
+        "source security gate size is outside bounds",
+    )
+    with _private_directory_handle(
+        path.parent,
+        "source security gate parent",
+    ) as directory_fd:
+        try:
+            return write_private_bytes_noreplace_at(
+                directory_fd,
+                SOURCE_SECURITY_GATE,
+                payload,
+                label="source security gate",
+                maximum=MAX_SECURITY_GATE_BYTES,
+            )
+        except PublicationReceiptCommittedError:
+            raise
+        except PublicationReceiptIOError as exc:
+            raise CandidateAttestationError(str(exc)) from exc
+
+
+def assemble_source_security_gate(
+    ci_runs_path: pathlib.Path,
+    ci_jobs_path: pathlib.Path,
+    codeql_runs_path: pathlib.Path,
+    codeql_jobs_path: pathlib.Path,
+    expected_tag_commit: str,
+    expected_source_parent_commit: str,
+    output_path: pathlib.Path,
+    github_cli_sha256: str,
+    github_cli_version: str,
+) -> str:
+    """Create the fixed attested security-gate subject from bounded API snapshots."""
+
+    _require(
+        _source_parent_from_results() == expected_source_parent_commit,
+        "source security gate S differs from tagged results",
+    )
+    ci_sha256 = _workflow_sha256(CI_WORKFLOW_PATH, label="CI workflow source")
+    codeql_sha256 = _workflow_sha256(
+        CODEQL_WORKFLOW_PATH, label="CodeQL workflow source"
+    )
+    gate = build_source_security_gate(
+        _load_api_json(ci_runs_path, label="CI workflow runs API response"),
+        _load_api_json(ci_jobs_path, label="CI workflow jobs API response"),
+        _load_api_json(codeql_runs_path, label="CodeQL workflow runs API response"),
+        _load_api_json(codeql_jobs_path, label="CodeQL workflow jobs API response"),
+        expected_tag_commit=expected_tag_commit,
+        expected_source_parent_commit=expected_source_parent_commit,
+        ci_workflow_sha256=ci_sha256,
+        codeql_workflow_sha256=codeql_sha256,
+        github_cli_sha256=github_cli_sha256,
+        github_cli_version=github_cli_version,
+    )
+    return _write_public_gate_noreplace(output_path, gate)
+
+
+def assemble_live_source_security_gate(
+    expected_tag_commit: str,
+    expected_source_parent_commit: str,
+    output_path: pathlib.Path,
+    *,
+    source_environment: Mapping[str, str] | None = None,
+) -> str:
+    """Query exact-R hosted runs with one resampled workflow-owned CLI."""
+
+    _require(
+        _source_parent_from_results() == expected_source_parent_commit,
+        "source security gate S differs from tagged results",
+    )
+    environment = _workflow_github_environment(
+        os.environ if source_environment is None else source_environment
+    )
+    tool = _workflow_github_cli_identity()
+    version_bytes = _capture_workflow_github_cli(
+        tool,
+        ["version"],
+        environment=environment,
+        maximum_bytes=4 * 1024,
+        label="workflow GitHub CLI version",
+    )
+    try:
+        version_lines = version_bytes.decode("ascii").splitlines()
+    except UnicodeDecodeError as exc:
+        raise CandidateAttestationError(
+            "workflow GitHub CLI version is not ASCII"
+        ) from exc
+    _require(version_lines, "workflow GitHub CLI version is empty")
+    github_cli_version = version_lines[0]
+
+    def api(endpoint: str, label: str) -> object:
+        raw = _capture_workflow_github_cli(
+            tool,
+            _github_api_arguments(endpoint),
+            environment=environment,
+            maximum_bytes=MAX_GITHUB_API_BYTES,
+            label=label,
+        )
+        try:
+            return parse_strict_json_bytes(raw, label=label)
+        except EvidenceIOError as exc:
+            raise CandidateAttestationError(f"{label} JSON is invalid") from exc
+
+    ci_runs, ci_jobs, codeql_runs, codeql_jobs, _ci_run, _codeql_run = (
+        _query_source_security_api(api, expected_commit=expected_tag_commit)
+    )
+    gate = build_source_security_gate(
+        ci_runs,
+        ci_jobs,
+        codeql_runs,
+        codeql_jobs,
+        expected_tag_commit=expected_tag_commit,
+        expected_source_parent_commit=expected_source_parent_commit,
+        ci_workflow_sha256=_workflow_sha256(
+            CI_WORKFLOW_PATH,
+            label="CI workflow source",
+        ),
+        codeql_workflow_sha256=_workflow_sha256(
+            CODEQL_WORKFLOW_PATH,
+            label="CodeQL workflow source",
+        ),
+        github_cli_sha256=tool.sha256,
+        github_cli_version=github_cli_version,
+    )
+    return _write_public_gate_noreplace(output_path, gate)
+
+
+def verify_pretag_security_readiness(
+    expected_tag_commit: str,
+    expected_source_parent_commit: str,
+    *,
+    source_environment: Mapping[str, str] | None = None,
+) -> tuple[int, int, int, int, str]:
+    """Double-sample the exact-R CI/CodeQL authority before immutable tags exist."""
+
+    _require(
+        HEX_40.fullmatch(expected_tag_commit) is not None,
+        "pre-tag security R is malformed",
+    )
+    _require(
+        HEX_40.fullmatch(expected_source_parent_commit) is not None,
+        "pre-tag security S is malformed",
+    )
+    _require(
+        _source_parent_from_results() == expected_source_parent_commit,
+        "pre-tag security S differs from results",
+    )
+    validate_tag_source_currentness(expected_source_parent_commit)
+    try:
+        environment = github_release.github_cli_environment(
+            os.environ if source_environment is None else source_environment
+        )
+        tool = github_release.select_github_cli()
+
+        def api(endpoint: str, label: str) -> object:
+            raw = github_release.capture_github_cli(
+                tool,
+                _github_api_arguments(endpoint),
+                timeout_seconds=120,
+                maximum_bytes=MAX_GITHUB_API_BYTES,
+                environment=environment,
+                label=label,
+            )
+            try:
+                return parse_strict_json_bytes(raw, label=label)
+            except EvidenceIOError as exc:
+                raise CandidateAttestationError(f"{label} JSON is invalid") from exc
+
+        before = _query_source_security_api(
+            api,
+            expected_commit=expected_tag_commit,
+        )
+        after = _query_source_security_api(
+            api,
+            expected_commit=expected_tag_commit,
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
+    _require(
+        before[:4] == after[:4]
+        and before[4]["id"] == after[4]["id"]
+        and before[4]["run_attempt"] == after[4]["run_attempt"]
+        and before[5]["id"] == after[5]["id"]
+        and before[5]["run_attempt"] == after[5]["run_attempt"],
+        "pre-tag security observations changed between samples",
+    )
+    ci_run = before[4]
+    codeql_run = before[5]
+    return (
+        ci_run["id"],
+        ci_run["run_attempt"],
+        codeql_run["id"],
+        codeql_run["run_attempt"],
+        tool.sha256,
+    )
+
+
 def _validate_contract_names() -> None:
-    expected = (*PLATFORM_CANDIDATE_ASSETS, "CANDIDATE_SHA256SUMS")
+    expected = (
+        *PLATFORM_CANDIDATE_ASSETS,
+        "CANDIDATE_SHA256SUMS",
+        SOURCE_SECURITY_GATE,
+    )
     _require(
         PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS == expected,
         "candidate subject contract order differs",
@@ -358,6 +1239,19 @@ def _snapshot_candidate_root(root: pathlib.Path) -> CandidateSnapshot:
         files.append(CandidateFile(name, asset.size, asset.sha256))
     _require(sums_snapshot.size > 0, "candidate checksums are empty")
     files.append(CandidateFile(sums_name, sums_snapshot.size, sums_snapshot.sha256))
+    gate_snapshot = _snapshot_file(
+        root / SOURCE_SECURITY_GATE,
+        maximum=MAX_SECURITY_GATE_BYTES,
+        label="candidate source security gate",
+    )
+    _require(gate_snapshot.size > 0, "candidate source security gate is empty")
+    files.append(
+        CandidateFile(
+            SOURCE_SECURITY_GATE,
+            gate_snapshot.size,
+            gate_snapshot.sha256,
+        )
+    )
     return CandidateSnapshot(tuple(files))
 
 
@@ -585,6 +1479,7 @@ def write_candidate_snapshot(
     candidate: pathlib.Path,
     snapshot_path: pathlib.Path,
     projection_path: pathlib.Path,
+    expected_commit: str | None = None,
 ) -> None:
     """Capture preflight bytes and prevalidate the explicit projection target."""
 
@@ -592,6 +1487,8 @@ def write_candidate_snapshot(
         candidate,
         projection_path,
     )
+    if expected_commit is not None:
+        _security_gate_projection(candidate_root, expected_commit)
     snapshot_path = _normalize_fixed_output_path(
         snapshot_path,
         safe_root=CANDIDATE_RAW_ROOT,
@@ -612,13 +1509,232 @@ def write_candidate_snapshot(
     )
 
 
+def collect_candidate_attestations(
+    candidate: pathlib.Path,
+    expected_commit: str,
+    attestation_directory: pathlib.Path,
+    *,
+    source_environment: Mapping[str, str] | None = None,
+) -> None:
+    """Collect six bounded candidate verification results with the pinned CLI."""
+
+    _require(HEX_40.fullmatch(expected_commit) is not None, "expected commit is malformed")
+    candidate_root = _candidate_directory(candidate)
+    normalized, raw_root = _normalize_path_under_root(
+        attestation_directory,
+        safe_root=CANDIDATE_RAW_ROOT,
+        label="candidate attestation directory",
+        required_root_mode=0o700,
+    )
+    _require(
+        normalized.parent == raw_root
+        and SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
+        "candidate attestation directory is not a safe direct child",
+    )
+    with _private_directory_handle(
+        normalized,
+        "candidate attestation directory",
+    ) as descriptor:
+        try:
+            existing = set(os.listdir(descriptor))
+        except OSError as exc:
+            raise CandidateAttestationError(
+                "cannot enumerate candidate attestation directory"
+            ) from exc
+        _require(
+            existing == {CANDIDATE_SNAPSHOT_NAME},
+            "candidate attestation directory is not at its preflight state",
+        )
+        _snapshot_file(
+            normalized / CANDIDATE_SNAPSHOT_NAME,
+            maximum=MAX_SNAPSHOT_BYTES,
+            label="candidate preflight snapshot",
+            private=True,
+        )
+        try:
+            environment = github_release.github_cli_environment(
+                os.environ if source_environment is None else source_environment
+            )
+            tool = github_release.select_github_cli()
+            for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
+                payload = github_release.capture_github_cli(
+                    tool,
+                    [
+                        "attestation",
+                        "verify",
+                        str(candidate_root / subject),
+                        "--repo",
+                        REPOSITORY,
+                        "--signer-workflow",
+                        f"{REPOSITORY}/{WORKFLOW_PATH}",
+                        "--signer-digest",
+                        expected_commit,
+                        "--source-ref",
+                        RELEASE_REF,
+                        "--source-digest",
+                        expected_commit,
+                        "--deny-self-hosted-runners",
+                        "--format",
+                        "json",
+                    ],
+                    timeout_seconds=120,
+                    maximum_bytes=MAX_ATTESTATION_BYTES,
+                    environment=environment,
+                    label=f"GitHub candidate attestation for {subject}",
+                )
+                write_private_bytes_noreplace_at(
+                    descriptor,
+                    f"{subject}.json",
+                    payload,
+                    label=f"raw candidate attestation for {subject}",
+                    maximum=MAX_ATTESTATION_BYTES,
+                )
+        except github_release.GitHubReleaseObservationError as exc:
+            raise CandidateAttestationError(str(exc)) from exc
+        except PublicationReceiptIOError as exc:
+            raise CandidateAttestationError(str(exc)) from exc
+
+
+def verify_candidate_checkout(
+    expected_commit: str,
+    *,
+    expected_source_parent: str | None = None,
+    include_untracked: bool = True,
+    source_environment: Mapping[str, str] | None = None,
+) -> str:
+    """Verify the exact annotated-tag checkout with fixed Git and no ambient config."""
+
+    _require(HEX_40.fullmatch(expected_commit) is not None, "expected commit is malformed")
+    if expected_source_parent is not None:
+        _require(
+            HEX_40.fullmatch(expected_source_parent) is not None,
+            "expected source parent is malformed",
+        )
+        _require(
+            expected_source_parent != expected_commit,
+            "source parent must differ from the candidate commit",
+        )
+    source = os.environ if source_environment is None else source_environment
+    _require(
+        not any(name.startswith("GIT_") for name in source),
+        "candidate checkout rejects caller Git environment overrides",
+    )
+    environment = github_release.git_observation_environment()
+    base = [
+        GIT,
+        "-C",
+        str(REPOSITORY_ROOT),
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "core.attributesFile=/dev/null",
+        "-c",
+        "core.excludesFile=/dev/null",
+    ]
+
+    def git_output(arguments: Sequence[str], *, label: str) -> bytes:
+        try:
+            result = capture_stdout(
+                [*base, *arguments],
+                timeout_seconds=30,
+                maximum_bytes=MAX_GIT_OUTPUT_BYTES,
+                stderr=subprocess.DEVNULL,
+                environment=environment,
+            )
+        except BoundedProcessError as exc:
+            raise CandidateAttestationError(f"{label} failed safely") from exc
+        _require(result.returncode == 0, f"{label} was rejected")
+        return result.stdout
+
+    def git_line(arguments: Sequence[str], *, label: str) -> str:
+        raw = git_output(arguments, label=label)
+        try:
+            text = raw.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise CandidateAttestationError(f"{label} is not ASCII") from exc
+        _require(
+            text.endswith("\n") and text.count("\n") == 1,
+            f"{label} output differs",
+        )
+        return text[:-1]
+
+    release_ref = f"refs/tags/{RELEASE_TAG}"
+    _require(
+        git_line(["cat-file", "-t", release_ref], label="platform release tag type")
+        == "tag",
+        "platform release tag is not annotated",
+    )
+    for arguments, label in (
+        (["rev-parse", "--verify", f"{release_ref}^{{commit}}"], "tag commit"),
+        (["rev-parse", "--verify", "HEAD^{commit}"], "checkout commit"),
+        (
+            ["rev-parse", "--verify", "refs/remotes/origin/main^{commit}"],
+            "origin/main commit",
+        ),
+    ):
+        _require(
+            git_line(arguments, label=f"platform {label}") == expected_commit,
+            f"platform {label} differs from the expected candidate commit",
+        )
+    if expected_source_parent is not None:
+        _require(
+            git_line(
+                ["rev-list", "--parents", "-n", "1", expected_commit],
+                label="platform candidate parent",
+            )
+            == f"{expected_commit} {expected_source_parent}",
+            "platform candidate is not the direct results-only child of S",
+        )
+        _require(
+            git_output(
+                [
+                    "diff",
+                    "--name-only",
+                    expected_source_parent,
+                    expected_commit,
+                    "--",
+                ],
+                label="platform candidate changed paths",
+            )
+            == b"artifact/results.json\n",
+            "platform candidate changed paths differ from artifact/results.json",
+        )
+    _require(
+        git_output(
+            [
+                "status",
+                "--porcelain=v1",
+                f"--untracked-files={'all' if include_untracked else 'no'}",
+            ],
+            label="platform candidate worktree status",
+        )
+        == b"",
+        "candidate verification requires a clean worktree",
+    )
+    source_epoch = git_line(
+        ["show", "-s", "--format=%ct", expected_commit],
+        label="platform candidate source epoch",
+    )
+    _require(
+        re.fullmatch(r"[1-9][0-9]{0,11}", source_epoch) is not None
+        and int(source_epoch) <= 253_402_300_799,
+        "platform candidate source epoch is malformed",
+    )
+    return source_epoch
+
+
 def preflight_candidate_paths(
     candidate: pathlib.Path,
     projection_path: pathlib.Path,
+    expected_commit: str | None = None,
 ) -> None:
     """Validate caller-controlled paths before the shell invokes Git or GitHub."""
 
-    _validate_projection_target(candidate, projection_path)
+    candidate_root, _projection = _validate_projection_target(candidate, projection_path)
+    if expected_commit is not None:
+        _security_gate_projection(candidate_root, expected_commit)
 
 
 def _utc_timestamp(value: object) -> str:
@@ -823,7 +1939,7 @@ def _verification_record(
         "buildSignerURI": WORKFLOW_URI,
         "buildTrigger": "push",
         "certificateIssuer": "https://token.actions.githubusercontent.com",
-        "githubWorkflowName": "ABI2 platform release candidate",
+        "githubWorkflowName": "ABI2 stable platform release",
         "githubWorkflowRef": RELEASE_REF,
         "githubWorkflowRepository": REPOSITORY,
         "githubWorkflowSHA": expected_commit,
@@ -922,7 +2038,6 @@ def _raw_attestation_directory(path: pathlib.Path) -> pathlib.Path:
     expected = {CANDIDATE_SNAPSHOT_NAME}
     for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
         expected.add(f"{subject}.json")
-        expected.add(f"{subject}.stderr")
     with _private_directory_handle(
         normalized, "candidate attestation directory"
     ) as descriptor:
@@ -933,14 +2048,47 @@ def _raw_attestation_directory(path: pathlib.Path) -> pathlib.Path:
                 "cannot enumerate candidate attestation directory"
             ) from exc
     _require(actual == expected, "candidate attestation file set differs")
-    for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
-        _snapshot_file(
-            normalized / f"{subject}.stderr",
-            maximum=MAX_PRIVATE_STDERR_BYTES,
-            label=f"candidate attestation stderr for {subject}",
-            private=True,
-        )
     return normalized
+
+
+def _security_gate_projection(
+    candidate: pathlib.Path, expected_commit: str
+) -> dict[str, object]:
+    _require(
+        HEX_40.fullmatch(expected_commit) is not None,
+        "source security gate expected commit is malformed",
+    )
+    snapshot = _snapshot_file(
+        candidate / SOURCE_SECURITY_GATE,
+        maximum=MAX_SECURITY_GATE_BYTES,
+        label="candidate source security gate",
+    )
+    try:
+        value = parse_strict_json_bytes(
+            snapshot.data,
+            label="candidate source security gate",
+        )
+    except EvidenceIOError as exc:
+        raise CandidateAttestationError(
+            "candidate source security gate JSON is invalid"
+        ) from exc
+    source_parent = _source_parent_from_results()
+    ci_sha256 = _workflow_sha256(CI_WORKFLOW_PATH, label="CI workflow source")
+    codeql_sha256 = _workflow_sha256(
+        CODEQL_WORKFLOW_PATH,
+        label="CodeQL workflow source",
+    )
+    try:
+        gate = validate_source_security_gate(
+            value,
+            expected_tag_commit=expected_commit,
+            expected_source_parent_commit=source_parent,
+            expected_ci_workflow_sha256=ci_sha256,
+            expected_codeql_workflow_sha256=codeql_sha256,
+        )
+    except PlatformDistributionContractError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
+    return {"receipt_sha256": snapshot.sha256, **gate}
 
 
 def verify_candidate_attestations(
@@ -975,6 +2123,21 @@ def verify_candidate_attestations(
         "candidate bytes changed during GitHub verification",
     )
     expected_subjects = preflight.subjects()
+    security_gate = _security_gate_projection(candidate, expected_commit)
+    gate_subject = next(
+        (
+            subject
+            for subject in expected_subjects
+            if subject.get("name") == SOURCE_SECURITY_GATE
+        ),
+        None,
+    )
+    _require(gate_subject is not None, "source security gate subject is absent")
+    gate_digest = _object(gate_subject.get("digest"), "source security gate subject digest")
+    _require(
+        gate_digest == {"sha256": security_gate["receipt_sha256"]},
+        "source security gate projection differs from its attested subject",
+    )
 
     shared: VerifiedRecord | None = None
     for asset in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
@@ -1003,6 +2166,7 @@ def verify_candidate_attestations(
     projection: dict[str, object] = {
         "certificate_san": WORKFLOW_URI,
         "predicate_type": PREDICATE_TYPE,
+        "security_gate": security_gate,
         "signer_workflow": WORKFLOW_URI,
         "source_digest": expected_commit,
         "source_ref": RELEASE_REF,
@@ -1026,8 +2190,18 @@ def _usage() -> str:
     return (
         "usage: platform_candidate_attestation.py release-tag | subject-names | "
         "validate-raw-root | "
-        "preflight CANDIDATE_DIRECTORY PROJECTION_OUTPUT | "
-        "snapshot CANDIDATE_DIRECTORY SNAPSHOT_OUTPUT PROJECTION_OUTPUT | "
+        "security-gate CI_RUNS CI_JOBS CODEQL_RUNS CODEQL_JOBS R S OUTPUT "
+        "GH_SHA256 GH_VERSION | "
+        "security-gate-live R S OUTPUT | "
+        "pretag-security-readiness R S | "
+        "stable-source-currentness EXPECTED_SOURCE_PARENT | "
+        "checkout-verify EXPECTED_COMMIT | "
+        "checkout-verify-release EXPECTED_COMMIT EXPECTED_SOURCE_PARENT | "
+        "checkout-verify-tracked EXPECTED_COMMIT | "
+        "github-verify CANDIDATE_DIRECTORY EXPECTED_COMMIT RAW_DIRECTORY | "
+        "preflight CANDIDATE_DIRECTORY PROJECTION_OUTPUT EXPECTED_COMMIT | "
+        "snapshot CANDIDATE_DIRECTORY SNAPSHOT_OUTPUT PROJECTION_OUTPUT "
+        "EXPECTED_COMMIT | "
         "verify CANDIDATE_DIRECTORY EXPECTED_COMMIT PROJECTION_OUTPUT "
         "RAW_ATTESTATION_DIRECTORY SNAPSHOT_INPUT"
     )
@@ -1052,17 +2226,81 @@ def _main(arguments: Sequence[str]) -> int:
             required_mode=0o700,
         )
         return 0
-    if len(arguments) == 3 and arguments[0] == "preflight":
+    if len(arguments) == 10 and arguments[0] == "security-gate":
+        digest = assemble_source_security_gate(
+            pathlib.Path(arguments[1]),
+            pathlib.Path(arguments[2]),
+            pathlib.Path(arguments[3]),
+            pathlib.Path(arguments[4]),
+            arguments[5],
+            arguments[6],
+            pathlib.Path(arguments[7]),
+            arguments[8],
+            arguments[9],
+        )
+        print(
+            "ABI2_SOURCE_SECURITY_GATE_PASS "
+            f"sha256={digest} tag_commit={arguments[5]}"
+        )
+        return 0
+    if len(arguments) == 4 and arguments[0] == "security-gate-live":
+        digest = assemble_live_source_security_gate(
+            arguments[1],
+            arguments[2],
+            pathlib.Path(arguments[3]),
+        )
+        print(
+            "ABI2_SOURCE_SECURITY_GATE_PASS "
+            f"sha256={digest} tag_commit={arguments[1]}"
+        )
+        return 0
+    if len(arguments) == 3 and arguments[0] == "pretag-security-readiness":
+        ci_run, ci_attempt, codeql_run, codeql_attempt, tool_sha256 = (
+            verify_pretag_security_readiness(arguments[1], arguments[2])
+        )
+        print(
+            "PRETAG_SECURITY_READINESS_PASS "
+            f"tag_commit={arguments[1]} source_parent={arguments[2]} "
+            f"ci_run={ci_run} ci_attempt={ci_attempt} "
+            f"codeql_run={codeql_run} codeql_attempt={codeql_attempt} "
+            f"github_cli_sha256={tool_sha256}"
+        )
+        return 0
+    if len(arguments) == 4 and arguments[0] == "github-verify":
+        collect_candidate_attestations(
+            pathlib.Path(arguments[1]),
+            arguments[2],
+            pathlib.Path(arguments[3]),
+        )
+        return 0
+    if len(arguments) == 2 and arguments[0] == "checkout-verify":
+        verify_candidate_checkout(arguments[1])
+        return 0
+    if len(arguments) == 3 and arguments[0] == "checkout-verify-release":
+        verify_candidate_checkout(
+            arguments[1],
+            expected_source_parent=arguments[2],
+        )
+        return 0
+    if len(arguments) == 2 and arguments[0] == "checkout-verify-tracked":
+        print(verify_candidate_checkout(arguments[1], include_untracked=False))
+        return 0
+    if len(arguments) == 2 and arguments[0] == "stable-source-currentness":
+        validate_tag_source_currentness(arguments[1])
+        return 0
+    if len(arguments) == 4 and arguments[0] == "preflight":
         preflight_candidate_paths(
             pathlib.Path(arguments[1]),
             pathlib.Path(arguments[2]),
+            arguments[3],
         )
         return 0
-    if len(arguments) == 4 and arguments[0] == "snapshot":
+    if len(arguments) == 5 and arguments[0] == "snapshot":
         write_candidate_snapshot(
             pathlib.Path(arguments[1]),
             pathlib.Path(arguments[2]),
             pathlib.Path(arguments[3]),
+            arguments[4],
         )
         return 0
     if len(arguments) == 6 and arguments[0] == "verify":
@@ -1075,7 +2313,8 @@ def _main(arguments: Sequence[str]) -> int:
         )
         print(
             "ABI2_PLATFORM_CANDIDATE_ATTESTATION_VERIFY_PASS "
-            f"assets=6 commit={arguments[2]} "
+            f"assets={len(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS)} "
+            f"commit={arguments[2]} "
             f"projection_sha256={digest} run_id={run_id}"
         )
         return 0
@@ -1086,5 +2325,12 @@ def _main(arguments: Sequence[str]) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(_main(sys.argv[1:]))
+    except PublicationReceiptCommittedError as exc:
+        detail = f"visibility={exc.visibility}"
+        if exc.leaf is not None and exc.digest is not None:
+            detail += f" leaf={exc.leaf} sha256={exc.digest}"
+        raise SystemExit(
+            f"error: source security gate publication {detail}"
+        ) from None
     except CandidateAttestationError as exc:
         raise SystemExit(f"error: {exc}") from None

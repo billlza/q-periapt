@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focused transaction and mutation tests for alpha.3 publication collection."""
+"""Focused transaction and mutation tests for stable publication collection."""
 
 from __future__ import annotations
 
@@ -21,9 +21,10 @@ from typing import Any
 from unittest import mock
 
 from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
-import platform_alpha3_publication as publication
-import platform_alpha3_publication_contract as contract
+import platform_stable_publication as publication
+import platform_stable_publication_contract as contract
 import platform_candidate_attestation as candidate_attestation
+import platform_distribution_contract as distribution_contract
 import publication_receipt_io as receipt_io
 
 
@@ -142,8 +143,9 @@ class AssetSinkRunner:
         return BoundedResult(0)
 
 
-class PlatformAlpha3PublicationTests(unittest.TestCase):
+class PlatformV010PublicationTests(unittest.TestCase):
     TAG_COMMIT = "1" * 40
+    SOURCE_PARENT_COMMIT = "4" * 40
     TAG_OBJECT = "2" * 40
     TAG_TREE = "3" * 40
     SOURCE_DIGEST = "4" * 64
@@ -204,6 +206,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.source = publication.SourceObservation(
             canonical_source_tree_sha256=self.SOURCE_DIGEST,
+            source_parent_commit=self.SOURCE_PARENT_COMMIT,
             tag_commit=self.TAG_COMMIT,
             tag_object=self.TAG_OBJECT,
             tag_tree=self.TAG_TREE,
@@ -215,6 +218,29 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             apksigner=self._tool("apksigner", b"apksigner fixture\n"),
             zipalign=self._tool("zipalign", b"zipalign fixture\n"),
         )
+        self.github_cli = publication.github_release.GitHubCliIdentity(
+            path="/fixture/gh",
+            device=1,
+            inode=2,
+            mode=stat.S_IFREG | 0o755,
+            uid=os.geteuid(),
+            link_count=1,
+            size=10,
+            sha256="a" * 64,
+        )
+        self.select_github_cli = mock.Mock(return_value=self.github_cli)
+        self.resample_github_cli = mock.Mock(return_value=None)
+        for attribute, replacement in (
+            ("select_github_cli", self.select_github_cli),
+            ("resample_github_cli", self.resample_github_cli),
+        ):
+            patcher = mock.patch.object(
+                publication.github_release,
+                attribute,
+                replacement,
+            )
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def test_direct_child_sanitizer_uses_scanner_visible_guard(self) -> None:
         tree = ast.parse(
@@ -255,7 +281,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         self.assertIsInstance(raised, ast.Raise)
         self.assertIsInstance(raised.exc, ast.Call)
         self.assertIsInstance(raised.exc.func, ast.Name)
-        self.assertEqual("PlatformAlpha3PublicationError", raised.exc.func.id)
+        self.assertEqual("PlatformV010PublicationError", raised.exc.func.id)
 
     def _tool(self, name: str, data: bytes) -> pathlib.Path:
         directory = self.root / "tools"
@@ -288,6 +314,9 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         return {
             "certificate_san": contract.CANDIDATE_SIGNER_WORKFLOW,
             "predicate_type": contract.CANDIDATE_PREDICATE_TYPE,
+            "security_gate": self._security_gate_projection(
+                digests[distribution_contract.SOURCE_SECURITY_GATE]
+            ),
             "signer_workflow": contract.CANDIDATE_SIGNER_WORKFLOW,
             "source_digest": self.TAG_COMMIT,
             "source_ref": contract.RELEASE_REF,
@@ -300,6 +329,91 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             "verified_at": "2026-08-14T01:00:00Z",
             "workflow_run_attempt": 2,
             "workflow_run_id": 31_700_000_001,
+        }
+
+    def _security_gate_projection(
+        self, receipt_sha256: str
+    ) -> dict[str, object]:
+        def workflow(
+            *,
+            name: str,
+            path: str,
+            run_id: int,
+            jobs: list[dict[str, object]],
+            digest: str,
+        ) -> dict[str, object]:
+            return {
+                "conclusion": "success",
+                "event": "push",
+                "head_branch": "main",
+                "head_sha": self.TAG_COMMIT,
+                "jobs": jobs,
+                "run_attempt": 1,
+                "run_id": run_id,
+                "status": "completed",
+                "workflow_name": name,
+                "workflow_path": path,
+                "workflow_sha256": digest,
+            }
+
+        constant_time_jobs = [
+            {
+                "architecture": architecture,
+                "conclusion": "success",
+                "implementation": implementation,
+                "job_id": 100 + index,
+                "name": name,
+                "status": "completed",
+            }
+            for index, (architecture, implementation, name) in enumerate(
+                distribution_contract.CONSTANT_TIME_JOB_CONTRACT
+            )
+        ]
+        codeql_jobs = [
+            {
+                "conclusion": "success",
+                "job_id": 200 + index,
+                "language": language,
+                "name": name,
+                "status": "completed",
+            }
+            for index, (language, name) in enumerate(
+                distribution_contract.CODEQL_JOB_CONTRACT
+            )
+        ]
+        return {
+            "kind": distribution_contract.SOURCE_SECURITY_GATE_KIND,
+            "observation_tools": {
+                "github_cli": {
+                    "name": "gh",
+                    "path": "/usr/bin/gh",
+                    "sha256": "c" * 64,
+                    "version": "gh version 2.94.0 (2026-08-01)",
+                }
+            },
+            "receipt_sha256": receipt_sha256,
+            "repository": distribution_contract.REPOSITORY,
+            "schema_version": (
+                distribution_contract.SOURCE_SECURITY_GATE_SCHEMA_VERSION
+            ),
+            "source_parent_commit": self.SOURCE_PARENT_COMMIT,
+            "tag_commit": self.TAG_COMMIT,
+            "workflows": {
+                "ci": workflow(
+                    name=distribution_contract.CI_WORKFLOW_NAME,
+                    path=distribution_contract.CI_WORKFLOW_PATH,
+                    run_id=10,
+                    jobs=constant_time_jobs,
+                    digest="a" * 64,
+                ),
+                "codeql": workflow(
+                    name=distribution_contract.CODEQL_WORKFLOW_NAME,
+                    path=distribution_contract.CODEQL_WORKFLOW_PATH,
+                    run_id=20,
+                    jobs=codeql_jobs,
+                    digest="b" * 64,
+                ),
+            },
         }
 
     def _source_inspector(
@@ -396,7 +510,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             "databaseId": self.RELEASE_ID,
             "isDraft": False,
             "isImmutable": True,
-            "isPrerelease": True,
+            "isPrerelease": False,
             "publishedAt": "2026-08-14T02:30:00Z",
             "tagName": contract.RELEASE_TAG,
             "targetCommitish": "main",
@@ -538,7 +652,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 deep_mutation()
             return copy.deepcopy(manifest), (
                 "ABI2_PLATFORM_DISTRIBUTION_VERIFY_PASS "
-                f"commit={self.TAG_COMMIT} assets=6\n"
+                f"commit={self.TAG_COMMIT} assets=5\n"
             ).encode("ascii")
 
         if before_collect is not None:
@@ -555,9 +669,8 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 "2026-08-14T04:00:00Z", "2026-08-14T05:00:00Z"
             ),
             monotonic=lambda: 100.0,
-            source_environment={},
+            source_environment={"GH_TOKEN": "fixture-token"},
             git_tool="/usr/bin/git",
-            gh_tool="/fixture/gh",
             source_inspector=self._source_inspector,
             deep_verifier=deep_verifier,
         )
@@ -568,8 +681,8 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         output = self._pending_receipt("pending-exact", candidate_path=candidate)
 
         receipt = json.loads(output.read_bytes())
-        contract.validate_alpha3_publication_receipt(receipt)
-        self.assertEqual(contract.PLATFORM_ALPHA3_STATUS_PENDING, receipt["status"])
+        contract.validate_v0_1_0_publication_receipt(receipt)
+        self.assertEqual(contract.PLATFORM_V0_1_0_STATUS_PENDING, receipt["status"])
         self.assertEqual(
             {"candidate_attestation", "observed_at", "source"},
             set(receipt["observation"]),
@@ -585,7 +698,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         self.assertEqual(1, output.stat().st_nlink)
 
     def test_cli_markers_identify_receipt_digest_for_both_states(self) -> None:
-        output = self.root / "platform-alpha3-publication-receipt.json"
+        output = self.root / "platform-v0.1.0-publication-receipt.json"
 
         pending_arguments = mock.Mock(
             command="pending",
@@ -800,7 +913,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             unsafe_parent / "receipts",
         ):
             with self.assertRaisesRegex(
-                publication.PlatformAlpha3PublicationError,
+                publication.PlatformV010PublicationError,
                 "non-world-writable",
             ):
                 publication._ensure_platform_safe_roots()
@@ -815,7 +928,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             "PLATFORM_PUBLICATION_RECEIPT_ROOT",
             symlink_parent / "receipts",
         ):
-            with self.assertRaises(publication.PlatformAlpha3PublicationError):
+            with self.assertRaises(publication.PlatformV010PublicationError):
                 publication._ensure_platform_safe_roots()
 
     def test_verified_transaction_uses_exact_bounded_commands_and_private_bytes(self) -> None:
@@ -823,8 +936,8 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
 
         receipt_bytes = output.read_bytes()
         receipt = json.loads(receipt_bytes)
-        contract.validate_alpha3_publication_receipt(receipt)
-        self.assertEqual(contract.PLATFORM_ALPHA3_STATUS_VERIFIED, receipt["status"])
+        contract.validate_v0_1_0_publication_receipt(receipt)
+        self.assertEqual(contract.PLATFORM_V0_1_0_STATUS_VERIFIED, receipt["status"])
         self.assertEqual(self.RELEASE_ID, receipt["observation"]["release_id"])
         self.assertEqual(self.source.document(), receipt["observation"]["source"])
         self.assertEqual(
@@ -856,7 +969,12 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             self.assertTrue(entry.is_file())
             self.assertFalse(entry.is_symlink())
         self.assertEqual(5, len(runner.calls))
-        self.assertEqual(8, len(sink.calls))
+        self.assertEqual(len(contract.PUBLIC_ASSET_NAMES), len(sink.calls))
+        self.select_github_cli.assert_called_once_with()
+        self.assertEqual(
+            2 * (len(runner.calls) + len(sink.calls)),
+            self.resample_github_cli.call_count,
+        )
         for command, name in zip(sink.calls, contract.PUBLIC_ASSET_NAMES, strict=True):
             self.assertEqual(
                 (
@@ -922,7 +1040,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 verified_before = set(
                     self.receipt_root.glob("transaction.verified.*")
                 )
-                with self.assertRaises(publication.PlatformAlpha3PublicationError):
+                with self.assertRaises(publication.PlatformV010PublicationError):
                     self._collect_fixture(name, **mutations)
                 self.assertEqual(
                     verified_before,
@@ -936,7 +1054,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             return data
 
         verified_before = set(self.receipt_root.glob("transaction.verified.*"))
-        with self.assertRaises(publication.PlatformAlpha3PublicationError):
+        with self.assertRaises(publication.PlatformV010PublicationError):
             self._collect_fixture("download-mismatch", sink_mutation=mutate)
         self.assertEqual(
             verified_before,
@@ -956,7 +1074,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         os.chmod(changed, 0o600)
 
         with self.assertRaisesRegex(
-            publication.PlatformAlpha3PublicationError,
+            publication.PlatformV010PublicationError,
             "raw bytes changed",
         ):
             with publication.open_private_direct_child_handle(
@@ -973,7 +1091,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             self.tools.llvm_nm.write_bytes(b"changed llvm-nm fixture\n")
 
         with self.assertRaisesRegex(
-            publication.PlatformAlpha3PublicationError,
+            publication.PlatformV010PublicationError,
             "Android verification tools changed",
         ):
             self._collect_fixture(
@@ -996,7 +1114,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             os.chmod(raw, 0o700)
 
         with self.assertRaisesRegex(
-            publication.PlatformAlpha3PublicationError,
+            publication.PlatformV010PublicationError,
             "identity changed while pinned",
         ):
             self._collect_fixture(
@@ -1025,7 +1143,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         def capture_before() -> None:
             nonlocal before
             before = receipt_snapshot()
-        real_validate = publication.validate_alpha3_publication_receipt
+        real_validate = publication.validate_v0_1_0_publication_receipt
         swapped = False
 
         def validate_and_swap(value: object) -> None:
@@ -1034,7 +1152,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             if (
                 not swapped
                 and isinstance(value, dict)
-                and value.get("status") == contract.PLATFORM_ALPHA3_STATUS_VERIFIED
+                and value.get("status") == contract.PLATFORM_V0_1_0_STATUS_VERIFIED
             ):
                 swapped = True
                 raw.rename(moved)
@@ -1044,11 +1162,11 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         with (
             mock.patch.object(
                 publication,
-                "validate_alpha3_publication_receipt",
+                "validate_v0_1_0_publication_receipt",
                 side_effect=validate_and_swap,
             ),
             self.assertRaisesRegex(
-                publication.PlatformAlpha3PublicationError,
+                publication.PlatformV010PublicationError,
                 "identity changed while pinned",
             ),
         ):
@@ -1072,7 +1190,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
 
         verified_before = set(self.receipt_root.glob("transaction.verified.*"))
         with self.assertRaisesRegex(
-            publication.PlatformAlpha3PublicationRetryableError,
+            publication.PlatformV010PublicationRetryableError,
             r"^retryable:github-command-nonzero$",
         ):
             publication.collect_verified_receipt(
@@ -1082,9 +1200,8 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 self.download_root / "downloads-retryable",
                 android_tools=self.tools,
                 runner=failed_runner,
-                source_environment={},
+                source_environment={"GH_TOKEN": "fixture-token"},
                 git_tool="/usr/bin/git",
-                gh_tool="/fixture/gh",
                 source_inspector=self._source_inspector,
             )
         self.assertEqual(1, len(calls))
@@ -1114,7 +1231,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             ),
         ):
             with self.assertRaisesRegex(
-                publication.PlatformAlpha3PublicationError,
+                publication.PlatformV010PublicationError,
                 "injected atomic receipt failure",
             ):
                 publication.assemble_pending_receipt(
@@ -1236,7 +1353,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 ),
             ):
                 with self.assertRaisesRegex(
-                    publication.PlatformAlpha3PublicationError,
+                    publication.PlatformV010PublicationError,
                     "injected atomic raw failure",
                 ):
                     publication._write_raw(
@@ -1294,7 +1411,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                     os.mkfifo(selected, 0o600)
                 else:
                     os.link(selected, directory / "hardlink-copy")
-                with self.assertRaises(publication.PlatformAlpha3PublicationError):
+                with self.assertRaises(publication.PlatformV010PublicationError):
                     with publication.open_private_direct_child_handle(
                         safe_root=self.download_root,
                         direct_child_name=directory.name,
@@ -1348,7 +1465,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                     side_effect=consume_and_inject,
                 ),
                 self.assertRaisesRegex(
-                    publication.PlatformAlpha3PublicationError,
+                    publication.PlatformV010PublicationError,
                     "safely inventory",
                 ),
             ):
@@ -1369,7 +1486,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             pathlib.Path("relative-child"),
         ):
             with self.subTest(path=unsafe):
-                with self.assertRaises(publication.PlatformAlpha3PublicationError):
+                with self.assertRaises(publication.PlatformV010PublicationError):
                     publication._normalize_direct_child(
                         unsafe,
                         safe_root=self.raw_root,
@@ -1399,7 +1516,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         )
         for unsafe in unsafe_paths:
             with self.subTest(path=unsafe):
-                with self.assertRaises(publication.PlatformAlpha3PublicationError):
+                with self.assertRaises(publication.PlatformV010PublicationError):
                     publication.assemble_pending_receipt(
                         unsafe,
                         self.verifier,
@@ -1434,7 +1551,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 0,
                 (
                     "ABI2_PLATFORM_DISTRIBUTION_VERIFY_PASS "
-                    f"commit={self.TAG_COMMIT} assets=6\n"
+                    f"commit={self.TAG_COMMIT} assets=5\n"
                 ).encode("ascii"),
             )
 
@@ -1505,7 +1622,57 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
                 "commit",
                 "-q",
                 "-m",
-                "release fixture",
+                "source fixture",
+            ],
+            check=True,
+        )
+        source_parent_commit = subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "rev-parse",
+                "HEAD",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        source_digest = publication.canonical_tree_digest(
+            self.verifier,
+            publication.repository_paths(self.verifier),
+        )
+        artifact = self.verifier / "artifact"
+        artifact.mkdir()
+        (artifact / "results.json").write_bytes(
+            _canonical_json(
+                {
+                    "proof_source_tree_sha256": source_digest,
+                    "provenance": {
+                        "snapshot_commit": source_parent_commit,
+                    },
+                }
+            )
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "add",
+                "artifact/results.json",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "commit",
+                "-q",
+                "-m",
+                "results-only fixture",
             ],
             check=True,
         )
@@ -1522,7 +1689,7 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
             ],
             check=True,
         )
-        environment = publication._process_environment({})
+        environment = publication._git_environment({})
 
         observed = publication.inspect_verifier_source(
             self.verifier,
@@ -1532,11 +1699,102 @@ class PlatformAlpha3PublicationTests(unittest.TestCase):
         )
 
         self.assertEqual(observed.tag_commit, observed.verifier_commit)
+        self.assertEqual(source_parent_commit, observed.source_parent_commit)
         self.assertNotEqual(observed.tag_object, observed.tag_commit)
         self.assertRegex(observed.canonical_source_tree_sha256, r"^[0-9a-f]{64}$")
         source_file.write_text("dirty source\n", encoding="ascii")
         with self.assertRaisesRegex(
-            publication.PlatformAlpha3PublicationError, "dirty"
+            publication.PlatformV010PublicationError, "dirty"
+        ):
+            publication.inspect_verifier_source(
+                self.verifier,
+                git="/usr/bin/git",
+                environment=environment,
+                runner=capture_stdout,
+            )
+
+        # A second excluded file must not be hidden by the canonical source
+        # digest.  Rebuild the tagged child from the same S with exactly that
+        # forbidden extra mutation and require the shared Git transition gate
+        # to reject it.
+        source_file.write_text("tagged source\n", encoding="ascii")
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "checkout",
+                "-q",
+                "--detach",
+                source_parent_commit,
+            ],
+            check=True,
+        )
+        artifact.mkdir(exist_ok=True)
+        (artifact / "results.json").write_bytes(
+            _canonical_json(
+                {
+                    "proof_source_tree_sha256": source_digest,
+                    "provenance": {"snapshot_commit": source_parent_commit},
+                }
+            )
+        )
+        paper = self.verifier / "paper"
+        paper.mkdir()
+        (paper / "camera-ready-results.txt").write_text(
+            "forbidden second result\n", encoding="ascii"
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "add",
+                "artifact/results.json",
+                "paper/camera-ready-results.txt",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "commit",
+                "-q",
+                "-m",
+                "invalid two-file results fixture",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "tag",
+                "-d",
+                contract.RELEASE_TAG,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(self.verifier),
+                "tag",
+                "-a",
+                contract.RELEASE_TAG,
+                "-m",
+                "invalid release fixture tag",
+            ],
+            check=True,
+        )
+        with self.assertRaisesRegex(
+            publication.PlatformV010PublicationError,
+            "direct results-only child",
         ):
             publication.inspect_verifier_source(
                 self.verifier,

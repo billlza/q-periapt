@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed tests for the frozen alpha.3 publication receipt."""
+"""Fail-closed tests for the frozen stable publication receipt."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import copy
 import unittest
 
 import android_device_proof
-import platform_alpha3_publication_contract as contract
+import platform_stable_publication_contract as contract
 import platform_distribution_contract as current_distribution_contract
 
 
@@ -19,8 +19,95 @@ def _sha256_subject(name: str, digest: str) -> dict[str, object]:
     return {"digest": {"sha256": digest}, "name": name}
 
 
+def _security_gate_projection(
+    tag_commit: str, source_parent_commit: str, receipt_sha256: str
+) -> dict[str, object]:
+    def workflow(
+        *,
+        name: str,
+        path: str,
+        run_id: int,
+        jobs: list[dict[str, object]],
+        digest: str,
+    ) -> dict[str, object]:
+        return {
+            "conclusion": "success",
+            "event": "push",
+            "head_branch": "main",
+            "head_sha": tag_commit,
+            "jobs": jobs,
+            "run_attempt": 1,
+            "run_id": run_id,
+            "status": "completed",
+            "workflow_name": name,
+            "workflow_path": path,
+            "workflow_sha256": digest,
+        }
+
+    ct_jobs = [
+        {
+            "architecture": architecture,
+            "conclusion": "success",
+            "implementation": implementation,
+            "job_id": 100 + index,
+            "name": name,
+            "status": "completed",
+        }
+        for index, (architecture, implementation, name) in enumerate(
+            current_distribution_contract.CONSTANT_TIME_JOB_CONTRACT
+        )
+    ]
+    codeql_jobs = [
+        {
+            "conclusion": "success",
+            "job_id": 200 + index,
+            "language": language,
+            "name": name,
+            "status": "completed",
+        }
+        for index, (language, name) in enumerate(
+            current_distribution_contract.CODEQL_JOB_CONTRACT
+        )
+    ]
+    return {
+        "kind": current_distribution_contract.SOURCE_SECURITY_GATE_KIND,
+        "observation_tools": {
+            "github_cli": {
+                "name": "gh",
+                "path": "/usr/bin/gh",
+                "sha256": _digest(12),
+                "version": "gh version 2.94.0 (2026-08-01)",
+            }
+        },
+        "receipt_sha256": receipt_sha256,
+        "repository": current_distribution_contract.REPOSITORY,
+        "schema_version": (
+            current_distribution_contract.SOURCE_SECURITY_GATE_SCHEMA_VERSION
+        ),
+        "source_parent_commit": source_parent_commit,
+        "tag_commit": tag_commit,
+        "workflows": {
+            "ci": workflow(
+                name=current_distribution_contract.CI_WORKFLOW_NAME,
+                path=current_distribution_contract.CI_WORKFLOW_PATH,
+                run_id=10,
+                jobs=ct_jobs,
+                digest=_digest(10),
+            ),
+            "codeql": workflow(
+                name=current_distribution_contract.CODEQL_WORKFLOW_NAME,
+                path=current_distribution_contract.CODEQL_WORKFLOW_PATH,
+                run_id=20,
+                jobs=codeql_jobs,
+                digest=_digest(11),
+            ),
+        },
+    }
+
+
 def pending_receipt() -> dict[str, object]:
     tag_commit = "1" * 40
+    source_parent_commit = "4" * 40
     candidate_digests = {
         name: _digest(index)
         for index, name in enumerate(
@@ -28,18 +115,25 @@ def pending_receipt() -> dict[str, object]:
         )
     }
     return {
-        "boundary": contract.PLATFORM_ALPHA3_PUBLICATION_BOUNDARY,
+        "boundary": contract.PLATFORM_V0_1_0_PUBLICATION_BOUNDARY,
         "identity": {
             "distribution_revision": contract.DISTRIBUTION_REVISION,
             "product_version": contract.PRODUCT_VERSION,
             "release_tag": contract.RELEASE_TAG,
             "release_url": contract.RELEASE_URL,
         },
-        "kind": contract.PLATFORM_ALPHA3_PUBLICATION_KIND,
+        "kind": contract.PLATFORM_V0_1_0_PUBLICATION_KIND,
         "observation": {
             "candidate_attestation": {
                 "certificate_san": contract.CANDIDATE_SIGNER_WORKFLOW,
                 "predicate_type": contract.CANDIDATE_PREDICATE_TYPE,
+                "security_gate": _security_gate_projection(
+                    tag_commit,
+                    source_parent_commit,
+                    candidate_digests[
+                        current_distribution_contract.SOURCE_SECURITY_GATE
+                    ],
+                ),
                 "signer_workflow": contract.CANDIDATE_SIGNER_WORKFLOW,
                 "source_digest": tag_commit,
                 "source_ref": contract.RELEASE_REF,
@@ -56,20 +150,21 @@ def pending_receipt() -> dict[str, object]:
             "observed_at": "2026-08-14T04:00:00Z",
             "source": {
                 "canonical_source_tree_sha256": _digest(41),
+                "source_parent_commit": source_parent_commit,
                 "tag_commit": tag_commit,
                 "tag_object": "2" * 40,
                 "tag_tree": "3" * 40,
                 "verifier_commit": tag_commit,
             },
         },
-        "schema_version": contract.PLATFORM_ALPHA3_PUBLICATION_SCHEMA_VERSION,
-        "status": contract.PLATFORM_ALPHA3_STATUS_PENDING,
+        "schema_version": contract.PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION,
+        "status": contract.PLATFORM_V0_1_0_STATUS_PENDING,
     }
 
 
 def verified_receipt() -> dict[str, object]:
     receipt = pending_receipt()
-    receipt["status"] = contract.PLATFORM_ALPHA3_STATUS_VERIFIED
+    receipt["status"] = contract.PLATFORM_V0_1_0_STATUS_VERIFIED
     observation = receipt["observation"]
     candidate_subjects = {
         subject["name"]: subject["digest"]["sha256"]
@@ -115,7 +210,7 @@ def verified_receipt() -> dict[str, object]:
             "checksums_sha256": asset_digests[contract.RELEASE_SUMS],
             "draft": False,
             "fresh_download_verification": {
-                "asset_count": 8,
+                "asset_count": len(contract.PUBLIC_ASSET_NAMES),
                 "deep_distribution_verified": True,
                 "record_sha256": _digest(82),
                 "verified_at": "2026-08-14T03:00:00Z",
@@ -125,11 +220,13 @@ def verified_receipt() -> dict[str, object]:
             "platform_distribution_sha256": asset_digests[
                 contract.RELEASE_MANIFEST
             ],
-            "prerelease": True,
+            "prerelease": False,
             "public_release": True,
             "published_at": "2026-08-14T02:00:00Z",
             "registries": dict(contract.REGISTRY_STATES),
-            "release_asset_verification_count": 8,
+            "release_asset_verification_count": len(
+                contract.PUBLIC_ASSET_NAMES
+            ),
             "release_attestation": {
                 "certificate_san": contract.RELEASE_CERTIFICATE_SAN,
                 "predicate_type": contract.RELEASE_PREDICATE_TYPE,
@@ -149,18 +246,14 @@ def verified_receipt() -> dict[str, object]:
                 "verified": True,
             },
             "release_id": 2_345_678,
-            "windows_distribution": {
-                "authenticode_signed": False,
-                "release_class": contract.WINDOWS_RELEASE_CLASS,
-            },
         }
     )
     return receipt
 
 
-class PlatformAlpha3PublicationContractTests(unittest.TestCase):
+class PlatformV010PublicationContractTests(unittest.TestCase):
     def validate(self, receipt: object) -> None:
-        contract.validate_alpha3_publication_receipt(receipt)
+        contract.validate_v0_1_0_publication_receipt(receipt)
 
     def test_public_utc_parser_is_exact_and_timezone_aware(self) -> None:
         parsed = contract.parse_utc_timestamp(
@@ -175,7 +268,7 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
         ):
             with self.subTest(value=value):
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     contract.parse_utc_timestamp(value, "test timestamp")
 
@@ -199,7 +292,7 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                         "runner_environment"
                     ] = "github-hosted"
                 with self.assertRaisesRegex(
-                    contract.PlatformAlpha3PublicationContractError,
+                    contract.PlatformV010PublicationContractError,
                     "keys differ",
                 ):
                     self.validate(changed)
@@ -254,6 +347,10 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                 ("observation", "candidate_attestation", "verified"),
                 1,
             ),
+            (
+                ("observation", "source", "source_parent_commit"),
+                "1" * 40,
+            ),
         )
         for path, value in mutations:
             with self.subTest(path=path):
@@ -263,7 +360,7 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                     target = target[key]
                 target[path[-1]] = value
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -291,7 +388,36 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                 else:
                     subjects[0]["digest"] = {"sha512": _digest(99)}
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
+                ):
+                    self.validate(receipt)
+
+    def test_source_security_gate_is_structural_and_subject_crosslinked(self) -> None:
+        for mutation in (
+            "receipt-digest",
+            "source-parent",
+            "failed-ct",
+            "missing-codeql",
+            "workflow-path",
+        ):
+            with self.subTest(mutation=mutation):
+                receipt = pending_receipt()
+                candidate = receipt["observation"]["candidate_attestation"]
+                gate = candidate["security_gate"]
+                if mutation == "receipt-digest":
+                    gate["receipt_sha256"] = _digest(140)
+                elif mutation == "source-parent":
+                    gate["source_parent_commit"] = "9" * 40
+                elif mutation == "failed-ct":
+                    gate["workflows"]["ci"]["jobs"][0]["conclusion"] = "failure"
+                elif mutation == "missing-codeql":
+                    gate["workflows"]["codeql"]["jobs"].pop()
+                else:
+                    gate["workflows"]["ci"]["workflow_path"] = (
+                        ".github/workflows/other.yml"
+                    )
+                with self.assertRaises(
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -341,7 +467,7 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                     else:
                         subjects[0]["uri"] += "-other"
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -396,7 +522,7 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                         "verifier_commit"
                     ] = "9" * 40
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -406,7 +532,7 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
             "verified_at"
         ] = "2026-08-14T04:00:01Z"
         with self.assertRaisesRegex(
-            contract.PlatformAlpha3PublicationContractError,
+            contract.PlatformV010PublicationContractError,
             "postdates observation",
         ):
             self.validate(pending)
@@ -426,11 +552,11 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                 else:
                     receipt["observation"][field] = value
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
-    def test_verified_runtime_windows_registry_and_release_state_are_exact(
+    def test_verified_runtime_registry_and_release_state_are_exact(
         self,
     ) -> None:
         mutations = (
@@ -447,29 +573,20 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                 receipt = verified_receipt()
                 receipt["observation"]["android_runtime_evidence"][field] = value
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
         receipt = verified_receipt()
-        receipt["observation"]["windows_distribution"][
-            "authenticode_signed"
-        ] = True
-        with self.assertRaises(
-            contract.PlatformAlpha3PublicationContractError
-        ):
-            self.validate(receipt)
-
-        receipt = verified_receipt()
         receipt["observation"]["registries"]["crates_io"] = "published"
         with self.assertRaises(
-            contract.PlatformAlpha3PublicationContractError
+            contract.PlatformV010PublicationContractError
         ):
             self.validate(receipt)
 
         for field, value in (
             ("draft", True),
-            ("prerelease", False),
+            ("prerelease", True),
             ("public_release", False),
             ("immutable_release", False),
             ("release_asset_verification_count", True),
@@ -479,25 +596,29 @@ class PlatformAlpha3PublicationContractTests(unittest.TestCase):
                 receipt = verified_receipt()
                 receipt["observation"][field] = value
                 with self.assertRaises(
-                    contract.PlatformAlpha3PublicationContractError
+                    contract.PlatformV010PublicationContractError
                 ):
                     self.validate(receipt)
 
-    def test_alpha3_identity_and_current_proof_schema_authority_are_explicit(
+    def test_v0_1_0_identity_and_current_proof_schema_authority_are_explicit(
         self,
     ) -> None:
-        self.assertEqual(contract.PRODUCT_VERSION, "0.1.0-alpha.3")
+        self.assertEqual(contract.PRODUCT_VERSION, "0.1.0")
         self.assertEqual(contract.DISTRIBUTION_REVISION, "r1")
         self.assertEqual(
-            contract.RELEASE_TAG, "abi2-platforms-v0.1.0-alpha.3-r1"
+            contract.RELEASE_TAG, "abi2-platforms-v0.1.0"
         )
         self.assertEqual(
-            contract.PLATFORM_ALPHA3_PUBLICATION_KEY,
-            "platform_alpha3_r1",
+            contract.PLATFORM_V0_1_0_PUBLICATION_KEY,
+            "platform_v0_1_0",
         )
         self.assertEqual(
             contract.CANDIDATE_SUBJECT_NAMES,
             current_distribution_contract.PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS,
+        )
+        self.assertEqual(
+            contract.CANDIDATE_PUBLIC_ASSET_NAMES,
+            frozenset(current_distribution_contract.PLATFORM_CANDIDATE_ASSETS),
         )
         self.assertEqual(
             contract.PUBLIC_ASSET_NAMES,

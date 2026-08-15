@@ -5,15 +5,19 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /
 Swift / Kotlin / Android. Deterministic conformance cells are byte-identical;
 native ABI 2 product cells use OS randomness and are checked by semantic invariants.
-ABI 2 / `0.1.0-alpha.3` is a pre-publication package-ready research-alpha source
-line (not yet on crates.io), with two planned immutable GitHub research prerelease
-transactions whose public/current state requires verified receipts: the Apple XCFramework revision
-`v0.1.0-alpha.3-r1` and the `abi2-platforms-v0.1.0-alpha.3-r1` platform
-distribution (Android AAR, GNU/Linux x86_64+aarch64 SDKs, unsigned experimental
-Windows x64 MSVC SDK). Once verified, these are attested research prereleases,
-not a production release; registry publication, Authenticode, physical-device coverage, and
+ABI 2 / `0.1.0` is the stable-version source line, with registry publication
+separately receipt-gated and two immutable GitHub stable transactions whose
+public/current state requires verified receipts and `prerelease=false`: the Apple XCFramework
+`v0.1.0` and the `abi2-platforms-v0.1.0` platform
+distribution (Android AAR and GNU/Linux x86_64+aarch64 SDKs). The unsigned Windows
+x64 MSVC package remains an unsupported CI diagnostic outside the formal stable assets.
+Verified stable publication is not a production-readiness claim; registry publication,
+physical-device coverage, and
 independent audit remain open (see
-[`../artifact/alpha3-release-notes.md`](../artifact/alpha3-release-notes.md)).
+[`../artifact/stable-release-notes.md`](../artifact/stable-release-notes.md)).
+Any recorded receipt for a portable-derived artifact remains immutable history only;
+the current target-selected source requires a fresh target-specific transaction before
+it can be described as published/current.
 
 This file is the single source of truth for *what is done* vs *what is pending*.
 Where a claim is subtle, it cross-references the authoritative spec
@@ -45,11 +49,14 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
   speed edge or current parity with X-Wing.**
 - **No own FIPS validation.** The artifact reproduces NIST ACVP vectors for the
   implemented FIPS 203/204/205 parameter sets, but local vector conformance is not
-  CAVP/CMVP validation or a FIPS 140-3 certificate.
+  CAVP/CMVP validation or a FIPS 140-3 certificate. NIST's FIPS 203 page carries a
+  2025-11-17 planning note for a future update; each release review must therefore
+  pin the exact standard revision and reconcile its official errata before claiming
+  current conformance.
 - **We track standards; we do not set them.** X-Wing is an IETF draft, not a
   ratified standard.
 - **No completed third-party audit.** This is **research-grade, not
-  production**: the portable-only `q-periapt-mlkem-native-sys` integration over
+  production**: the target-selected `q-periapt-mlkem-native-sys` integration over
   `mlkem-native` v1.2.0, pinned `fips204` 0.4.6, `sha3` 0.10.9,
   x25519-dalek, and optional fips205 integrations have not been independently
   audited as this suite or ABI. **Do not deploy.**
@@ -94,8 +101,15 @@ Every item below is grounded in code/commits in this repository.
 traits (`Kem`, `Xof256`, `Signer`/`Verifier`) to real implementations — no toy primitives in
 the shipped path:
 
-- **ML-KEM-512/768/1024** through `q-periapt-mlkem-native-sys` over portable
-  `mlkem-native` v1.2.0 and **ML-DSA-44/65/87** via `fips204` 0.4.6. Explicit
+- **ML-KEM-512/768/1024** through the target-selected
+  `q-periapt-mlkem-native-sys` boundary over `mlkem-native` v1.2.0 and
+  **ML-DSA-44/65/87** via `fips204` 0.4.6. Exactly five little-endian targets
+  (`aarch64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`,
+  `aarch64-unknown-linux-gnu`, and `aarch64-linux-android`) select upstream
+  native arithmetic plus the fixed Armv8-A scalar x1 and scalar/Neon x4 FIPS 202
+  assembly paths. Every other target, including Wasm, uses portable C; there is no
+  runtime dispatch or Armv8.4-A SHA3-extension path. The implementation change is
+  below the frozen ABI 2/key/wire contracts. Explicit
   seed/randomness inputs preserve deterministic conformance testing. Expanded-DK import
   validates the embedded public key's canonical encoding and stored hash before
   decapsulation; malformed keys fail without publishing temporary output. No
@@ -163,7 +177,7 @@ misuse resistance from deterministic conformance:
   compiles, loads the ABI-major native library, and runs with warnings treated as failures.
 - **Android** — `bindings/android` via JNI over the same C ABI. `artifact/android-aar.sh`
   builds and audits a deterministic ABI2 four-ABI AAR and compiles an isolated
-  Java consumer (CI `bindings-android-aar`). The alpha.3-r1 transaction pairs the AAR
+  Java consumer (CI `bindings-android-aar`). The stable transaction pairs the AAR
   with an API 35 / 16 KiB-page emulator runtime-evidence bundle once its verified
   receipt records publication. CI
   `bindings-android-runtime-16k` consumes the package job's exact AAR and executes it
@@ -251,26 +265,35 @@ CycloneDX 1.6 **SBOM** (`sbom`) from `Cargo.lock`, plus a legacy/quantum-
 vulnerable **migration scanner** (`scan`). CI `audit` job runs all and uploads
 the BOMs as artifacts.
 
-### 10. Matched-backend performance gate
+### 10. Profile and implementation performance gate
 [`paired_profile_perf.rs`](../crates/q-periapt-backends/examples/paired_profile_perf.rs)
-gives ContextBound and CompatXWing the same seed-dk ML-KEM/X25519 backend, keys,
-coins, ciphertext corpus, suite/version/context inputs, and paired ABBA/BAAB ordering.
+keeps the matched ContextBound/CompatXWing estimand and adds an independent
+native/portable implementation estimand for ContextBound product encapsulation and
+decapsulation. Both use the same seed-dk ML-KEM/X25519 keys, coins, ciphertext corpus,
+suite/version/context inputs, and paired ABBA/BAAB ordering. The evidence-only portable
+archive is private to this harness, and byte equality is required for keypair and every
+per-case encapsulation/decapsulation output before timing.
 [`performance_gate.py`](../artifact/performance_gate.py) enforces schema, sample inventory,
-host stability, source/binary/budget hashes, and the published p50/p95/p99 plus absolute
-delta budgets. A performance proof counts as current only when its canonical source
+host stability, source/binary/portable-archive/budget hashes, and both published budgets.
+The implementation budget preregisters one-sided 95% upper native/portable limits of
+0.95 for primary p50/p95 and 1.0 for p99; drift or failure blocks the proof. A performance proof counts as current only when its canonical source
 digest equals the live verifier digest and the host satisfies the controlled-power and
-thermal contract. The time-varying proof state is recorded in `artifact/results.json`,
-not copied into this source document. The older Criterion combiner harness remains a
+thermal contract. The time-varying formal proof state is recorded in
+`artifact/results.json`. The gate is implemented, but no fresh clean-source,
+controlled-host, minimum-sample proof is selected; exact results require proof schema
+v6 under budget schema v7. The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
-Budget schema v5 preserves the v4 thresholds, 20,480-sample corpus, and
+Budget schema v7 preserves the profile thresholds, 20,480-sample corpus, and
 1,024-pair primary percentile-estimate blocks, yielding 11 nearest-rank p99 tail
 observations per block. It also retains the former 256-pair estimator as a regression
 guard and applies the same limits at both scales; separately parameterized temporal-
 stability windows retain the same 5% CV limit.
-The schema-v5 policy also fixes the exact rustup toolchain name plus Cargo/Rustc executable
-hashes, versions, and target. The producer rejects repository/ancestor/user Cargo configuration
-and caller compiler/wrapper/loader controls, and builds offline in a fresh private target. It still trusts the user-writable
+Proof schema v6 and the schema-v7 policy also bind the final dual-implementation
+binary, portable archive/source, raw data, rustup toolchain and target, Cargo, Rustc,
+Xcode Clang/ar, and the canonical macOS SDK path/version/settings digest. The producer rejects repository/ancestor/user Cargo
+configuration and caller compiler/wrapper/loader controls, and builds offline in a
+fresh private target. It still trusts the user-writable
 Cargo registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector
 source-to-binary honesty, so hermetic producer attestation remains pending.
 
@@ -280,7 +303,7 @@ cross-validates the primitives **and the full hybrid** against independent
 implementations on random `SHAKE-256(counter)` inputs (no RNG) — an assurance method
 orthogonal to KATs and the proof, catching integration/encoding bugs that 3 fixed
 vectors would miss:
-- **ML-KEM-512/768/1024** — release-graph portable `mlkem-native` vs independent RustCrypto `ml-kem`
+- **ML-KEM-512/768/1024** — target-selected release-graph `mlkem-native` vs independent RustCrypto `ml-kem`
   (byte-identical keygen, encapsulation, decapsulation over 64 inputs each).
 - **X25519** — our `x25519-dalek` backend vs the independent `orion` implementation,
   plus the authoritative **RFC 7748 §6.1** ground-truth Diffie–Hellman vector.
@@ -368,9 +391,10 @@ are the gap between research-grade and audited/production.
    ML-KEM-512/768/1024 shipped-provider decapsulation probes with planted controls.
    The superseded `fips203` provider failed this gate on both ISAs in
    [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107),
-   and those historical counts do not describe portable `mlkem-native`. The backend/source
-   migration also invalidated previous `libcrux` captures, so a fresh two-ISA pass
-   for the release digest is required. No source-CT/hax result transfers. Still TODO: other component
+   and those historical counts do not describe `mlkem-native`. Earlier
+   portable-only `mlkem-native` captures also predate target selection, so fresh
+   x86_64-portable and aarch64-native passes for the release digest are required.
+   No source-CT/hax result transfers. Still TODO: other component
    primitive paths, riscv64/wasm32 binary-CT, and promoting a quiesced-hardware
    **timing** check to a gate (the
    statistical dudect test is still local-only, so *timing* is not yet gated).
@@ -395,21 +419,21 @@ are the gap between research-grade and audited/production.
    or caller `PYTHON*`. The Apple device matrix is also real proof when explicitly required
    (`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1`). The HQC graph/tombstone change invalidated the
    earlier Apple evidence. The later clean-tree schema-3 matrix also predates the
-   backend/source-digest migration and is now historical, as are the recorded package,
+   target-selection/source-digest migration and is now historical, as are the recorded package,
    performance, and CT proofs. Time-varying status lives only in the results manifest plus the live
    domain verifier; a source document cannot promote an older device digest. A current clean,
    same-commit schema-5 matrix backed by schema-4 child proofs remains required for production
-   promotion or a platform-binary claim. The alpha.3 target surface covers Apple (signed
-   XCFramework, `v0.1.0-alpha.3-r1`), Android (four-ABI AAR + emulator runtime evidence),
-   GNU/Linux (x86_64+aarch64 SDK tars), and Windows (unsigned experimental x64 MSVC SDK)
-   through the `abi2-platforms-v0.1.0-alpha.3-r1` transaction once its immutable-public
+   promotion or a platform-binary claim. The stable target surface covers Apple (signed
+   XCFramework, `v0.1.0`), Android (four-ABI AAR + emulator runtime evidence),
+   and GNU/Linux (x86_64+aarch64 SDK tars)
+   through the `abi2-platforms-v0.1.0` transaction once its immutable-public
    receipt is verified, but it is still not a
    liboqs-style production distribution surface:
    Swift has both a credential-free XCFramework gate and a separately scoped detached-source
-   Developer ID-signed static-SDK prerelease lane; `artifact/results.json` alone decides whether its public
+   Developer ID-signed static-SDK stable lane; `artifact/results.json` alone decides whether its public
    URL/checksum/provenance is current. The SDK ZIP is not a complete Git-URL Swift package and does
    not contain a notarizable executable/bundle; final consuming products retain their platform
-   signing, provisioning, and macOS notarization duties. Android's alpha.3-r1 AAR is
+   signing, provisioning, and macOS notarization duties. Android's stable AAR is
    source-bound with emulator runtime evidence. CI executes the package job's exact AAR on real
    x86_64 API-35/16-KiB ART on every push and pull request, while live-tree release currentness is
    separately selected by `artifact/results.json` and requires the clean canonical arm64-v8a AVD
@@ -424,52 +448,57 @@ are the gap between research-grade and audited/production.
    independent sys `.crate` fixed 124-entry upstream inventory/exact 118-code-file packaged-subset
    hash/license/forbidden-path check (six upstream README files excluded), and a normalized
    backends audit with the sys crate patched in. The planned coordinated dependency-order
-   registry release defines the intended research-alpha Rust surface. The no-upload contract does
+   registry release defines the intended stable Rust surface. The package contract alone does
    not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
    authorization, server-side policy acceptance, or a registry receipt; independent signed
    or transparency-backed provenance remains required before production promotion.
-   The alpha.3 platform target includes multi-target C SDK archives — Linux x86_64+aarch64 tars and the
-   unsigned experimental Windows x64 MSVC ZIP in `abi2-platforms-v0.1.0-alpha.3-r1` —
+   The stable platform target includes the Linux x86_64+aarch64 C SDK tars in
+   `abi2-platforms-v0.1.0` —
    each with ABI-major headers, exact-version pkg-config/CMake configs, the frozen ABI
    contract, SBOM/CBOM, and license material. The tag-bound candidate pipeline must
    validate them with native consumers and attested provenance; deb/rpm/MSIX registry
-   packaging and Windows Authenticode remain open. See
+   packaging remains open. The unsigned Windows package remains a separate unsupported
+   CI diagnostic until a signed producer/verifier and certificate/timestamp-authority
+   gate exist. See
    [`docs/EMBEDDING_READINESS.md`](EMBEDDING_READINESS.md).
 
    The coordinated Rust registry order is `q-periapt-mlkem-native-sys`, core,
    KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves. The
    dependency-free CLI may upload independently but remains in the same ten-crate version set.
 
-   Package `0.1.0-alpha.3` is the pre-publication package-ready research-alpha source/crate line and has a
+   Package `0.1.0` is the stable-version source/crate line and has a
    frozen machine-readable C **ABI 2** contract: nine exact dynamic public exports
    (and the same exact reserved public namespace in static archives), OS-random key/encapsulation,
    ABI-major library/header/package identities, 40/36-byte layouts, and forbidden
    raw/deterministic symbols. ABI1 is an explicit hard cut—its version-only state is
    rejected and requires authorized re-enrollment/reset, not a synthetic migration.
    The source publication by itself implies no prebuilt binary; the prebuilt platform
-   alpha.3 binary targets are the independently evidence-selected Apple `v0.1.0-alpha.3-r1`
-   XCFramework and `abi2-platforms-v0.1.0-alpha.3-r1` Android/Linux/Windows packages,
+   stable binary targets are the independently evidence-selected Apple `v0.1.0`
+   XCFramework and `abi2-platforms-v0.1.0` Android/Linux packages,
    each bound to its own release receipt. Production promotion remains blocked on
    warning-clean dependency audit currency, clean signed or
    transparency-backed source provenance, independent cryptographic/C-FFI/ABI review,
    and live verification of same-source Apple matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
-   The backend/source migration invalidated all prior package, Apple/performance, and
-   binary-CT proofs, including proofs collected after the HQC tombstone change.
+   The target-selection/source migration invalidated all prior portable-derived
+   package, Apple/Android-device, performance, and binary-CT proofs, including proofs
+   collected after the HQC tombstone change.
    `artifact/results.json` and the live verifiers are authoritative for currentness.
-   These production-promotion gates do not turn the published GitHub research
-   prereleases or the pre-publication Rust package line into a production or
+   These production-promotion gates do not turn stable GitHub publication or the
+   Rust package line into a production or
    full-binary release.
 
 6. **Production hardening.** Backends are pre-1.0 / unaudited for this integration.
-   The current graph uses portable `mlkem-native` v1.2.0, `fips204`, and `sha3`; it
+   The current graph uses target-selected `mlkem-native` v1.2.0, `fips204`, and `sha3`; it
    removes both the `fips203` path that failed the project CT gate and the earlier
    `libcrux`/hax/`proc-macro-error2` advisory edge. The ML-KEM trust anchors are commit
    `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit archive SHA-256
    `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
    Current `cargo audit --deny warnings` passes with `.cargo/audit.toml` still carrying
    `ignore = []`, but RustSec does not inspect vendored C. This closes the Rust dependency-
-   advisory gate only; independent cryptographic/C-FFI/code/ABI review, fresh per-source
+   advisory gate only. Upstream HOL-Light evidence is limited to selected upstream
+   assembly source/object routines; it does not prove downstream reassembly or the
+   full ABI. Independent cryptographic/C-FFI/code/ABI review, fresh per-target source-bound
    CT and platform evidence, and signed distribution provenance remain mandatory.
 
 7. **Q-Periapt Continuity session research.** This is a separate, gated workstream,
@@ -545,10 +574,11 @@ are the gap between research-grade and audited/production.
 | Area | Status |
 | --- | --- |
 | Third-party release backends wired (ML-KEM/ML-DSA/SHA3/X25519; opt-in SLH-DSA) | **Done; retired PQClean-HQC removed, HQC-v5/FIPS-207-draft RC isolated in a publish=false shadow** |
+| Fixed ML-KEM target selection | **Implemented in source:** exactly five little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic plus fixed Armv8-A x1/x4 FIPS 202 assembly; every other target remains portable, with no runtime dispatch or v8.4-A SHA3 path. **Release-receipt contract implemented, evidence pending:** the exact-R tag transaction must attest the fixed x86_64-portable and aarch64-native CT jobs plus six CodeQL jobs and carry that R/S-bound structure through pending and verified platform receipts. All portable-derived CT/device/package/performance receipts remain stale until freshly produced for this source. ABI 2/key/wire remain unchanged. |
 | X-Wing byte-exact KAT (3 draft vectors) | **Done** |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only XCFramework prerelease lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The alpha.3-r1 platform target covers the Android AAR and Linux/Windows C SDK archives and becomes public/current only through a verified receipt. Kotlin JDK 22 host tests and the Android x86_64 API-35/16-KiB ART package face are current CI gates. The canonical Android arm64 AVD and independent physical results bindings are implemented and non-interchangeable; production requires both, and remains pending whenever either current selection is absent.** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only stable XCFramework lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The stable platform target covers the Android AAR and Linux C SDK archives and becomes public/current only through a verified receipt; unsigned Windows remains an unsupported CI diagnostic outside the release. Kotlin JDK 22 host tests and the Android x86_64 API-35/16-KiB ART package face are current CI gates. The canonical Android arm64 AVD and independent physical results bindings are implemented and non-interchangeable; production requires both, and remains pending whenever either current selection is absent.** |
 | Hardened `Secret` zeroization | **Done** |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | Authenticated Migration Contract | **Phase 1 candidate canonical commitment implemented in a publish=false model: fixed role-normalized body, policy-derived consistency checks, independent vectors, and unchanged-ABI2 integration. Transition authentication, monotonic state ownership, key confirmation, rollback/agreement/floor proofs, and hostile-local-caller isolation remain future gates.** |
@@ -557,7 +587,7 @@ are the gap between research-grade and audited/production.
 | Tamarin symbolic handshake model (auth, authenticated context agreement, hybrid robustness; 5 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (6 exact queries) | **Done** |
 | CI gate for the Tamarin proof (hard lemma-presence gate + hard `make prove`) | **Done** |
-| Matched-backend paired performance budget | **Canonical-source, controlled-host diagnostic implemented; verifier policy fixes the repository budget, manifest currentness requires a path/hash/schema/source/pass summary, and the required domain verifier checks the actual proof/freshness/artifacts; hermetic producer provenance, clean baseline history, device energy, and optimized-production parity pending** |
+| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** The same-process harness preserves profile non-regression and separately requires byte-equivalent native/portable ContextBound product operations to meet preregistered material thresholds. Exact results require a fresh clean proof-schema-v6 run under budget schema v7 selected by the results manifest. Verifier policy fixes the repository budget and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Deterministic `ContextBound`/`CompatXWing` conformance vectors | **Done in Rust/WASM; intentionally not exported by native ABI2** |
@@ -572,15 +602,15 @@ are the gap between research-grade and audited/production.
 | Remaining ACVP modes: `externalMu=true` / non-SHAKE128 pre-hash | Pending |
 | Dataflow CT gate (Memcheck/TIMECOP, our composition code) | **Done** |
 | Embedding readiness gate across Rust/C/Swift/Android/Kotlin/WASM package/runtime-tested faces | **Implemented; the opt-in Android final gate read-only verifies one results-selected AAR + canonical runtime + local-index consumer receipt transaction, while time-varying pass state remains selected by `artifact/results.json` and checked by live verifiers** |
-| Physical Apple matrix proof (iPad + iPhone, stable-Xcode lane) | **Harness/schema implemented; recorded clean-tree matrix is historical after the backend/source-digest migration and both physical lanes must be rerun** |
+| Physical Apple matrix proof (iPad + iPhone, stable-Xcode lane) | **Harness/schema implemented; recorded clean-tree matrix is historical after the target-selection/source-digest migration and both physical lanes must be rerun on the target-selected build** |
 | Strict evidence snapshots + selected-proof atomic manifest binding | **Implemented: duplicate/non-finite JSON and top-level hash/semantics A/B mixing fail closed; clean signed manifest provenance remains pending** |
 | Git/Python verifier-input provenance | **Implemented and negative-tested: local excludes, hidden index flags, ignored pyc, user-site/`.pth`, and caller `PYTHON*` fail closed; external interpreter/host attestation remains pending** |
-| Android AAR/JNI package proof | **Implemented for the alpha.3-r1 transaction: the four-ABI package is rebuilt from the source-bound path and audited (16 KiB alignment, exact nine-symbol exports, RELRO/NOW/NX, no text relocations or RPATH/RUNPATH); public immutable status requires the verified `abi2-platforms-v0.1.0-alpha.3-r1` receipt** |
-| Android ART runtime smoke | **The r2 release binds an API 35 / 16 KiB-page emulator runtime-evidence bundle executed on the exact public AAR. Every push and pull request now executes the package job's AAR on real x86_64 API-35/16-KiB ART; this package-face check does not replace the results-selected clean arm64-v8a canonical AVD. The independent physical results selection and manifest-bound gate are implemented and cannot replace the AVD. Any source-changing commit makes both selections stale; production requires both runtime states equal 1, and remains pending unless a real clean same-AAR physical run is selected (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`).** |
+| Android AAR/JNI package proof | **Harness implemented:** the four-ABI package is audited for 16 KiB alignment, exact nine-symbol exports, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The recorded alpha.2 portable-derived package/receipt is immutable historical evidence and does not attest the target-selected rebuild; a fresh source-bound AAR and verified stable publication transaction are required. |
+| Android ART runtime smoke | **Harness implemented.** Historical release evidence binds an API 35 / 16 KiB-page emulator run to its exact public AAR, and CI is configured to execute the package job's AAR on x86_64 API-35/16-KiB ART. Neither replaces the results-selected clean arm64-v8a canonical AVD or physical proof. Target selection is a source change and makes earlier selections stale; production remains pending until fresh same-source, same-AAR canonical and physical runs are selected (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema 5 release-index validation and an append-only dynamic+static C consumer receipt are implemented. A current selection requires the exact AAR and canonical Android run in the first index, then the emitted receipt and one evidence-only `results.json` successor; the final bound gate verifies those bytes without generating a receipt. Recorded older artifacts remain historical and a fresh same-source transaction is required after source change.** |
-| C ABI 2 research-alpha package readiness | **The 0.1.0-alpha.3 source/crate contract is pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a registry receipt remain unproved. The Apple `v0.1.0-alpha.3-r1` XCFramework and alpha.3-r1 Android/Linux/Windows packages are the coordinated GitHub prerelease targets; attested public status requires verified receipts. Same-source device/performance evidence, signed or transparency-backed source provenance, independent cryptographic/C-FFI/ABI audit, and Windows Authenticode remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
-| Alpha.3 immutable GitHub prerelease targets (Apple r1 + platform r1) | **Research prerelease transaction target; public immutable status is machine-selected by versioned Apple and platform receipts under `results.json.release_publications`. The legacy `swift_xcframework.distribution` field is only an exact active projection. Not a production, registry, or store release.** |
-| liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; Apple XCFramework + Android AAR + Linux/Windows C SDK GitHub prereleases are selected as published only when their receipts verify, while a complete remote Swift package and crates.io/Maven/deb/rpm/MSIX registry publication remain pending |
+| C ABI 2 stable package readiness | **The 0.1.0 source/crate contract is stable-version and pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a verified registry receipt remain separate gates. The Apple `v0.1.0` XCFramework and stable Android/Linux packages are the coordinated GitHub targets; attested public status requires verified receipts and `prerelease=false`. Same-source device/performance evidence, signed or transparency-backed source provenance, and independent cryptographic/C-FFI/ABI audit remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
+| Stable immutable GitHub targets (`v0.1.0` Apple receipt + `abi2-platforms-v0.1.0` receipt) | **Stable targets remain governed by versioned receipts under `results.json.release_publications`; historical alpha.2 receipts remain immutable. A receipt does not promote unrelated device/performance evidence. The legacy `swift_xcframework.distribution` field is only an exact active projection. Stable publication is not a production, registry, or store-readiness claim.** |
+| liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; historical Apple XCFramework + Android AAR + Linux/Windows C SDK GitHub prereleases are bound to their exact receipts, while current target-selected rebuilds, a complete remote Swift package, and crates.io/Maven/deb/rpm/MSIX registry publication remain pending |
 | Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
 | Independent third-party audit | Pending |

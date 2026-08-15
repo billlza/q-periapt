@@ -165,7 +165,9 @@ def _format_kib(byte_count: int) -> str:
     return f"{tenths // 10}.{tenths % 10}"
 
 
-def _load_footprint_csv(path: pathlib.Path) -> tuple[dict[str, object], str]:
+def load_footprint_manifest_section(
+    path: pathlib.Path,
+) -> tuple[dict[str, object], str]:
     """Strict-load the canonical footprint CSV and derive its manifest value."""
 
     try:
@@ -351,7 +353,7 @@ def validate_release_metadata(
     except GitProvenanceError as exc:
         raise FinalizerError(str(exc)) from exc
 
-    expected_footprint, footprint_sha256 = _load_footprint_csv(
+    expected_footprint, footprint_sha256 = load_footprint_manifest_section(
         root / "paper" / "footprint.csv"
     )
     actual_footprint = document.get("footprint_bytes")

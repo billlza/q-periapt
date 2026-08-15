@@ -29,6 +29,8 @@ from unittest import mock
 
 import apple_publication_contract
 import proof_to_byte_finalizer
+import proof_to_byte_inputs
+import release_publication_contract
 from camera_ready_proof import EXPECTED_TOOLS
 from git_provenance import WorktreeInspection, git_commit
 from test_apple_publication_contract import alpha2_receipt
@@ -106,10 +108,25 @@ EXPECTED_CHECKOUT_PROVENANCE_STEP = (
     "          fi\n"
 )
 EXPECTED_PROOF_TO_BYTE_STEP = (
-    "      - name: Proof-to-byte manifest and canonical source binding\n"
+    "      - name: Exact source-transition or installed proof-to-byte gate\n"
     "        env:\n"
     "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
-    "        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh\n"
+    "        run: |\n"
+    "          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)\n"
+    "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
+    "            ci-source-gate \\\n"
+    "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
+    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226 declared_delta=36\"\n"
+    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226\"\n"
+    "          if [ \"$source_gate\" = \"$initial_gate\" ]; then\n"
+    "            printf '%s\\n' \"$source_gate\"\n"
+    "          elif [ \"$source_gate\" = \"$installed_gate\" ]; then\n"
+    "            printf '%s\\n' \"$source_gate\"\n"
+    "            QPERIAPT_SKIP_SMOKE=1 /bin/sh artifact/proof-to-byte.sh\n"
+    "          else\n"
+    "            printf 'unexpected source CI gate result\\n' >&2\n"
+    "            exit 2\n"
+    "          fi\n"
 )
 YAML_ALIAS = re.compile(r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+")
 
@@ -662,8 +679,8 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
     "apple_release_verification_tests_sha256": "artifact/test_apple_release_verification.py",
     "apple_publication_contract_sha256": "artifact/apple_publication_contract.py",
     "apple_publication_contract_tests_sha256": "artifact/test_apple_publication_contract.py",
-    "apple_alpha3_publication_sha256": "artifact/apple_alpha3_publication.py",
-    "apple_alpha3_publication_tests_sha256": "artifact/test_apple_alpha3_publication.py",
+    "apple_stable_publication_sha256": "artifact/apple_stable_publication.py",
+    "apple_stable_publication_tests_sha256": "artifact/test_apple_stable_publication.py",
     "github_release_observation_sha256": "artifact/github_release_observation.py",
     "github_release_observation_tests_sha256": "artifact/test_github_release_observation.py",
     "publication_receipt_io_sha256": "artifact/publication_receipt_io.py",
@@ -722,12 +739,12 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "github_release_observation_tests_sha256": "artifact/test_github_release_observation.py",
     "publication_receipt_io_sha256": "artifact/publication_receipt_io.py",
     "publication_receipt_io_tests_sha256": "artifact/test_publication_receipt_io.py",
-    "platform_alpha3_publication_sha256": "artifact/platform_alpha3_publication.py",
-    "platform_alpha3_publication_tests_sha256": "artifact/test_platform_alpha3_publication.py",
+    "platform_stable_publication_sha256": "artifact/platform_stable_publication.py",
+    "platform_stable_publication_tests_sha256": "artifact/test_platform_stable_publication.py",
     "release_receipt_finalizer_sha256": "artifact/release_receipt_finalizer.py",
     "release_receipt_finalizer_tests_sha256": "artifact/test_release_receipt_finalizer.py",
     "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
-    "alpha3_release_notes_sha256": "artifact/alpha3-release-notes.md",
+    "stable_release_notes_sha256": "artifact/stable-release-notes.md",
     "workflow_artifact_extractor_sha256": "artifact/workflow_artifact.py",
     "workflow_artifact_tests_sha256": "artifact/test_workflow_artifact.py",
     "android_aar_script_sha256": "artifact/android-aar.sh",
@@ -753,8 +770,8 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
     "platform_release_contract_sha256": "artifact/platform_release_contract.py",
     "platform_release_contract_tests_sha256": "artifact/test_platform_release_contract.py",
-    "platform_alpha3_publication_contract_sha256": "artifact/platform_alpha3_publication_contract.py",
-    "platform_alpha3_publication_contract_tests_sha256": "artifact/test_platform_alpha3_publication_contract.py",
+    "platform_stable_publication_contract_sha256": "artifact/platform_stable_publication_contract.py",
+    "platform_stable_publication_contract_tests_sha256": "artifact/test_platform_stable_publication_contract.py",
     "platform_publication_contract_sha256": "artifact/platform_publication_contract.py",
     "platform_publication_contract_tests_sha256": "artifact/test_platform_publication_contract.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
@@ -773,6 +790,23 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "windows_package_verifier_sha256": "artifact/windows_package.py",
     "windows_package_tests_sha256": "artifact/test_windows_package.py",
     "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
+}
+
+CRATES_IO_PUBLICATION_PROOF_INPUTS = {
+    "rust_package_handoff_sha256": "artifact/rust_package_handoff.py",
+    "rust_package_handoff_tests_sha256": (
+        "artifact/test_rust_package_handoff.py"
+    ),
+    "crates_io_publication_contract_sha256": (
+        "artifact/crates_io_publication_contract.py"
+    ),
+    "crates_io_publication_contract_tests_sha256": (
+        "artifact/test_crates_io_publication_contract.py"
+    ),
+    "crates_io_publication_sha256": "artifact/crates_io_publication.py",
+    "crates_io_publication_tests_sha256": (
+        "artifact/test_crates_io_publication.py"
+    ),
 }
 
 
@@ -904,7 +938,7 @@ def validate_ci_check_checkout(check_job: str) -> None:
     proof_starts = [
         index
         for index, line in enumerate(lines)
-        if line == "      - name: Proof-to-byte manifest and canonical source binding\n"
+        if line == "      - name: Exact source-transition or installed proof-to-byte gate\n"
     ]
     if len(proof_starts) != 1:
         raise ValueError("CI check job must contain one explicit proof-to-byte step")
@@ -939,6 +973,25 @@ def format_marker(**overrides: int) -> str:
 
 
 class BoundVerifierWiringTests(unittest.TestCase):
+    current_proof_inputs: dict[str, str]
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.current_proof_inputs = (
+            proof_to_byte_inputs.capture_proof_input_digests(ROOT)
+        )
+
+    def assert_named_proof_input(self, key: str, relative: str) -> None:
+        self.assertEqual(
+            proof_to_byte_inputs.PROOF_TO_BYTE_INPUT_PATHS.get(key),
+            relative,
+        )
+        self.assertEqual(
+            self.current_proof_inputs.get(key),
+            hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(),
+        )
+
     def test_every_workflow_action_is_full_sha_pinned(self) -> None:
         action_ref = re.compile(
             r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
@@ -1280,9 +1333,16 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertNotIn("ignore:", dependabot)
         self.assertNotIn("groups:", dependabot)
         policy = SECURITY_POLICY.read_text(encoding="utf-8")
-        self.assertIn("Report a vulnerability", policy)
-        self.assertIn("unsigned experimental prerelease", policy)
-        self.assertIn("do not provide Authenticode publisher identity", policy)
+        normalized_policy = " ".join(policy.split())
+        self.assertIn("Report a vulnerability", normalized_policy)
+        self.assertIn(
+            "unsigned and is excluded from the stable candidate",
+            normalized_policy,
+        )
+        self.assertIn(
+            "does not establish Windows publisher identity",
+            normalized_policy,
+        )
 
     def test_android_release_gate_binds_every_verifier_argument(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -1820,106 +1880,51 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertNotIn('sdkmanager --licenses <<< "$license_answers" ||', combined)
 
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in CONTINUITY_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_migration_v2_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in MIGRATION_V2_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
         self.assertIn("artifact/migration_contract_v2.py verify", source)
         self.assertIn("make -C formal/easycrypt check", source)
         self.assertIn("make -C formal/tamarin prove", source)
 
     def test_proof_to_byte_names_every_hqc_candidate_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in HQC_CANDIDATE_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_apple_distribution_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_apple_device_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DEVICE_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_bounded_process_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in BOUNDED_PROCESS_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_abi2_platform_release_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in ABI2_PLATFORM_RELEASE_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
+
+    def test_proof_to_byte_names_every_crates_io_publication_input(self) -> None:
+        for key, relative in CRATES_IO_PUBLICATION_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assert_named_proof_input(key, relative)
 
     def test_publish_contract_fences_research_and_mlkem_provider(self) -> None:
         source = RUST_PACKAGE_CONTRACT_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        expected_hash = hashlib.sha256(
-            RUST_PACKAGE_CONTRACT_SCRIPT.read_bytes()
-        ).hexdigest()
-        expected_contract_hash = hashlib.sha256(
-            RUST_PUBLISH_CONTRACT.read_bytes()
-        ).hexdigest()
-        expected_contract_tests_hash = hashlib.sha256(
-            RUST_PUBLISH_CONTRACT_TESTS.read_bytes()
-        ).hexdigest()
         for token in (
             "pqcrypto-hqc",
             "pqcrypto-internals",
@@ -1965,17 +1970,17 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn('"src/build_support.rs"', source)
         self.assertIn("from rust_publish_contract import", source)
         self.assertIn("validate_mlkem_native_build_surface", source)
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("rust_publish_contract_script_sha256"),
-            expected_hash,
+        self.assert_named_proof_input(
+            "rust_publish_contract_script_sha256",
+            "artifact/rust-publish-contract.sh",
         )
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("rust_publish_contract_sha256"),
-            expected_contract_hash,
+        self.assert_named_proof_input(
+            "rust_publish_contract_sha256",
+            "artifact/rust_publish_contract.py",
         )
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("rust_publish_contract_tests_sha256"),
-            expected_contract_tests_hash,
+        self.assert_named_proof_input(
+            "rust_publish_contract_tests_sha256",
+            "artifact/test_rust_publish_contract.py",
         )
 
     def test_rust_package_claims_preserve_the_no_upload_boundary(self) -> None:
@@ -2000,7 +2005,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "**Status: release-ready",
             "release-ready research-alpha source line intended",
             "release-ready research-alpha source/crate",
-            "release-ready `0.1.0-alpha.3` research-alpha source/crate",
+            "release-ready `0.1.0` research-alpha source/crate",
             "release-ready as a research-alpha source/Rust-crate",
             "release-ready research\n   alpha",
             "release-ready **ABI 2 research-alpha source/crate contract**",
@@ -2137,17 +2142,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_finalizer_is_a_named_proof_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        self.assert_named_proof_input(
+            "proof_to_byte_finalizer_sha256",
+            "artifact/proof_to_byte_finalizer.py",
         )
-        self.assertIn(
-            '"proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py"',
-            source,
-        )
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("proof_to_byte_finalizer_sha256"),
-            hashlib.sha256(FINALIZER_SCRIPT.read_bytes()).hexdigest(),
-        )
+        self.assertIn("from proof_to_byte_inputs import (", source)
 
     def test_finalizer_freezes_before_domains_and_rechecks_after_them(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -4372,8 +4371,8 @@ with _temporary_release_test_directories(parents):
                 "Darwin 27.0.0 arm64,1.96.0,wasm-signed-policy,340625,332.6\n",
                 encoding="utf-8",
             )
-            expected, footprint_sha256 = proof_to_byte_finalizer._load_footprint_csv(
-                footprint
+            expected, footprint_sha256 = (
+                proof_to_byte_finalizer.load_footprint_manifest_section(footprint)
             )
             self.assertEqual(expected["platform"], "Darwin 27.0.0 arm64, rustc 1.96.0")
             self.assertEqual(
@@ -4450,6 +4449,11 @@ with _temporary_release_test_directories(parents):
             migrated_manifest["release_publications"][
                 apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
             ] = alpha2_receipt()
+            migrated_manifest["swift_xcframework"] = (
+                release_publication_contract.neutral_swift_selector(
+                    migrated_manifest
+                )
+            )
             proof_to_byte_finalizer.validate_release_publication_history(
                 root, migrated_manifest
             )
@@ -4462,7 +4466,7 @@ with _temporary_release_test_directories(parents):
             )
             with self.assertRaisesRegex(
                 proof_to_byte_finalizer.FinalizerError,
-                "first-parent transition.*cannot be removed",
+                "first-parent transition.*changed or was removed",
             ):
                 proof_to_byte_finalizer.validate_release_publication_history(
                     root, current_without_recorded_publications
@@ -4574,7 +4578,7 @@ with _temporary_release_test_directories(parents):
                 proof_to_byte_finalizer.FinalizerError,
                 "unknown or duplicate artifact",
             ):
-                proof_to_byte_finalizer._load_footprint_csv(footprint)
+                proof_to_byte_finalizer.load_footprint_manifest_section(footprint)
 
             footprint.write_text(
                 "host,rustc,artifact,bytes,kib\n"
@@ -4587,7 +4591,7 @@ with _temporary_release_test_directories(parents):
                 proof_to_byte_finalizer.FinalizerError,
                 "share one host",
             ):
-                proof_to_byte_finalizer._load_footprint_csv(footprint)
+                proof_to_byte_finalizer.load_footprint_manifest_section(footprint)
 
     def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(
         self,
@@ -4622,7 +4626,9 @@ with _temporary_release_test_directories(parents):
                         proof_to_byte_finalizer.FinalizerError,
                         message,
                     ):
-                        proof_to_byte_finalizer._load_footprint_csv(footprint)
+                        proof_to_byte_finalizer.load_footprint_manifest_section(
+                            footprint
+                        )
 
     def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(
         self,
@@ -4639,7 +4645,9 @@ with _temporary_release_test_directories(parents):
                 "host,1.96.0,wasm-signed-policy,3072,3.0\n",
                 encoding="utf-8",
             )
-            expected, _ = proof_to_byte_finalizer._load_footprint_csv(footprint)
+            expected, _ = proof_to_byte_finalizer.load_footprint_manifest_section(
+                footprint
+            )
             document = {
                 "provenance": {"snapshot_commit": TEST_COMMIT},
                 "footprint_bytes": expected,
@@ -5119,7 +5127,8 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("rustc +", candidate_android_toolchain)
         self.assertNotIn("cargo +", candidate_android_toolchain)
         candidate_build = extract_named_workflow_step(
-            candidate_windows, "Build, archive, extract, and consume the Windows SDK"
+            candidate_windows,
+            "Build, archive, extract, and consume the unsupported Windows diagnostic SDK",
         )
         self.assertIn(
             "QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}",
@@ -5127,7 +5136,8 @@ with _temporary_release_test_directories(parents):
         )
         self.assertIn("run: artifact/windows-package.ps1", candidate_build)
         candidate_verify = extract_named_workflow_step(
-            candidate_windows, "Reconsume only the Windows candidate archive"
+            candidate_windows,
+            "Reconsume only the unsupported Windows diagnostic archive",
         )
         self.assertNotIn("SilentlyContinue", candidate_verify)
         self.assertIn("-ErrorAction Stop", candidate_verify)
@@ -5136,15 +5146,29 @@ with _temporary_release_test_directories(parents):
         self.assertIn("-ExpectedGitTree $gitTree", candidate_verify)
         preflight = extract_workflow_job(candidate, "preflight")
         self.assertIn(
-            "actions/workflows/ci.yml/runs?head_sha=$commit&branch=main&event=push&status=success",
+            "source_parent=$(/usr/bin/jq -er "
+            "'.provenance.snapshot_commit' artifact/results.json)",
             preflight,
         )
-        self.assertIn('jq -e --arg commit "$commit"', preflight)
         self.assertIn(
-            'any(.workflow_runs[]; .head_sha == $commit and .conclusion == "success")',
+            'checkout-verify-release "$commit" "$source_parent"',
             preflight,
         )
-        self.assertIn('<<<"$ci_runs"', preflight)
+        self.assertIn(
+            "platform_candidate_attestation.py \\\n            stable-source-currentness \"$source_parent\"",
+            preflight,
+        )
+        self.assertIn(
+            "release_publication_contract.validate_stable_source_currentness",
+            (ROOT / "artifact" / "platform_candidate_attestation.py").read_text(
+                encoding="utf-8"
+            ),
+        )
+        self.assertIn(
+            "printf 'source_parent=%s\\n' \"$source_parent\" >> \"$GITHUB_OUTPUT\"",
+            preflight,
+        )
+        self.assertNotIn("actions/workflows/ci.yml/runs?", preflight)
         for job_name in ("linux", "windows", "android"):
             with self.subTest(candidate_job=job_name):
                 self.assertIn(
@@ -5152,9 +5176,59 @@ with _temporary_release_test_directories(parents):
                     extract_workflow_job(candidate, job_name),
                 )
         self.assertIn(
-            "    needs: [preflight, linux, windows, android]\n",
-            extract_workflow_job(candidate, "attest"),
+            "    name: Windows compatibility diagnostic (not a stable release asset)\n",
+            candidate_windows,
         )
+        self.assertNotIn(PINNED_UPLOAD_ARTIFACT_ACTION, candidate_windows)
+        attest = extract_workflow_job(candidate, "attest")
+        self.assertIn("    needs: [preflight, linux, android]\n", attest)
+        self.assertNotIn("windows", attest)
+        self.assertIn("      actions: read\n", attest)
+        source_security_gate = extract_named_workflow_step(
+            attest, "Bind the exact-R CI and CodeQL security gates"
+        )
+        for token in (
+            'test -n "$GH_TOKEN" && test -z "${GITHUB_TOKEN:-}"',
+            "platform_candidate_attestation.py \\\n            security-gate-live",
+            "ABI2_SOURCE_SECURITY_GATE.json",
+        ):
+            self.assertIn(token, source_security_gate)
+        self.assertNotIn("/usr/bin/gh", source_security_gate)
+        candidate_attestation_source = (
+            ROOT / "artifact" / "platform_candidate_attestation.py"
+        ).read_text(encoding="utf-8")
+        for token in (
+            'WORKFLOW_GITHUB_CLI = pathlib.Path("/usr/bin/gh")',
+            'selected = max(candidates, key=lambda run: run["id"])',
+            "actions/workflows/ci.yml/runs?",
+            "actions/workflows/codeql.yml/runs?",
+            "/jobs?filter=all&per_page=100",
+            "_workflow_github_cli_identity() == tool",
+            '"GH_CONFIG_DIR": str(directory)',
+        ):
+            self.assertIn(token, candidate_attestation_source)
+        self.assertIn(
+            "candidate/ABI2_SOURCE_SECURITY_GATE.json",
+            extract_named_workflow_step(
+                attest, "Generate GitHub build provenance attestations"
+            ),
+        )
+
+        constant_time = extract_workflow_job(workflow, "constant-time")
+        for token in (
+            "    name: Binary CT [${{ matrix.gate_identity }}]\n",
+            "gate_identity: x86_64-portable",
+            "rust_host: x86_64-unknown-linux-gnu",
+            "uname_machine: x86_64",
+            "gate_identity: aarch64-native",
+            "rust_host: aarch64-unknown-linux-gnu",
+            "uname_machine: aarch64",
+            "Verify the fixed CT architecture identity",
+            "EXPECTED_GATE_IDENTITY: ${{ matrix.gate_identity }}",
+            "x86_64-portable:x86_64-unknown-linux-gnu:x86_64",
+            "aarch64-native:aarch64-unknown-linux-gnu:aarch64",
+        ):
+            self.assertIn(token, constant_time)
 
     def test_ci_checkout_mutations_fail_closed(self) -> None:
         check_job = extract_ci_check_job(CI_WORKFLOW.read_text(encoding="utf-8"))
@@ -5385,7 +5459,7 @@ with _temporary_release_test_directories(parents):
             self.assertIn(f"expected {alternate_head}", spoofed.stderr)
             self.assertEqual(spoofed.stdout, "")
 
-    def test_ci_release_package_paths_use_the_current_alpha3_version(self) -> None:
+    def test_ci_release_package_paths_use_the_current_stable_version(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         wrong_version_probe = (
             'if verify_archive "$archive_sha256" "$EXPECTED_TARGET" '
@@ -5396,11 +5470,11 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
         self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
         for expected in (
-            "q-periapt-c-abi2-0.1.0-alpha.3-x86_64-pc-windows-msvc.zip",
-            "q-periapt-c-abi2-0.1.0-alpha.3-$EXPECTED_TARGET",
-            "q-periapt-c-abi2-0.1.0-alpha.3-${{ matrix.target }}.tar.gz",
-            "q-periapt-android-0.1.0-alpha.3.aar",
-            "q-periapt-android-0.1.0-alpha.3/MANIFEST.json",
+            "q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.1.0-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.1.0-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.1.0.aar",
+            "q-periapt-android-0.1.0/MANIFEST.json",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)
@@ -5446,6 +5520,7 @@ with _temporary_release_test_directories(parents):
                 ABI2_PLATFORM_CANDIDATE_WORKFLOW,
                 "linux",
                 (
+                    "Verify exact source and native host",
                     "Build and consume the native Linux package",
                     "Reconsume only the candidate archive",
                 ),
@@ -5454,7 +5529,10 @@ with _temporary_release_test_directories(parents):
             (
                 ABI2_PLATFORM_CANDIDATE_WORKFLOW,
                 "android",
-                ("Build and verify the four-ABI 16 KiB-compatible AAR",),
+                (
+                    "Verify exact source and toolchain",
+                    "Build and verify the four-ABI 16 KiB-compatible AAR",
+                ),
                 False,
             ),
         )
@@ -5698,8 +5776,12 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         self.assertIn("mlkem-ct-binary-sha256", source)
         self.assertIn("leaky-control-ct-binary-sha256", source)
         self.assertNotIn("hqc-ct-binary-sha256", source)
-        proof_source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("camera_ready_sandbox_script_sha256", proof_source)
+        self.assertEqual(
+            proof_to_byte_inputs.PROOF_TO_BYTE_INPUT_PATHS.get(
+                "camera_ready_sandbox_script_sha256"
+            ),
+            "artifact/camera-ready-sandbox.sh",
+        )
 
     def test_camera_harness_and_verifier_tool_sets_match(self) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")

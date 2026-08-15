@@ -27,7 +27,7 @@ conjunction of:
 3. typed, fail-closed suite resolution rather than caller-assembled metadata;
 4. one implementation across native/WASM/Apple/JVM faces;
 5. a formal-source/conformance ledger with named binary/device evidence boundaries;
-6. matched performance with a published non-regression budget.
+6. a matched-performance diagnostic contract with a published non-regression budget.
 
 Among the explicitly compared public baselines, none demonstrates that entire conjunction in one
 open artifact. That is the defensible “multi-layer assurance” position, not an exhaustive priority
@@ -39,7 +39,7 @@ production superiority.
 
 | Baseline | Actual scope | What it already does well | Boundary relevant to Q-Periapt |
 |---|---|---|---|
-| [NIST FIPS 203 ML-KEM](https://csrc.nist.gov/pubs/fips/203/final) | Standardized PQ KEM primitive | Stable parameter sets, conformance target, broad ecosystem | A primitive standard does not specify hybrid composition, negotiation, authenticated context, deployment migration, or proof-to-binary evidence. |
+| [NIST FIPS 203 ML-KEM](https://csrc.nist.gov/pubs/fips/203/final) | Standardized PQ KEM primitive | Stable parameter sets, conformance target, broad ecosystem | A primitive standard does not specify hybrid composition, negotiation, authenticated context, deployment migration, or proof-to-binary evidence. NIST's 2025-11-17 planning note also identifies a future publication update, so release claims must pin the reviewed revision and track the official errata rather than treating one ACVP run as timeless. |
 | [TLS `X25519MLKEM768` draft-05](https://datatracker.ietf.org/doc/html/draft-ietf-tls-ecdhe-mlkem-05) | Standards Track Internet-Draft defining a TLS 1.3 group | Simple ecosystem path; transcript is bound by the TLS key schedule | Concatenates component secrets at the group layer; its goal is TLS interoperability, not a reusable committing hybrid-KEM API. |
 | [X-Wing draft-10](https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem-10) | Individual, intended-Informational ML-KEM-768 + X25519 KEM | Lean fixed construction, seed-`dk` format, peer-reviewed analysis, implementations | Not an IETF Standards Track or CFRG WG item. No external context or policy input. Draft-10 itself warns that transmitting expanded `dk` loses MAL-BIND K-PK/K-CT guarantees. |
 | [IRTF hybrid KEMs draft-12](https://datatracker.ietf.org/doc/draft-irtf-cfrg-hybrid-kems/) | General hybrid-KEM constructions; CFRG RG Last Call as of 2026-07-11 | `UniversalCombiner` binds secrets, ciphertexts, public keys, and a label; C2PRI route captures the X-Wing shape | This eliminates any claim that “hash every field” is unique. Section 6.4.2 labels its LEAK-BIND analyses informal sketches and defers rigorous proofs; it also does not prove the possible MAL strengthening of common-seed keys. Q-Periapt's narrower possible lead is machine-checked, field-resolved standard MAL-BIND-K-CT/K-PK reductions, a separately scoped local K-CTX wrapper reduction, countermodels, and implementation evidence—not the field list. |
@@ -162,9 +162,16 @@ KEM core and current paper must not absorb server/database/session responsibilit
 ### 2.7 Side channels are backend-and-architecture properties
 
 Q-Periapt configures ML-KEM-768 decapsulation binary-level constant-time gates on x86_64 and
-aarch64, and implicit-rejection behavior is tested. The production migration to portable
-`mlkem-native` invalidated all former-provider captures; a fresh two-ISA pass for the release
-source is required, and no predecessor source-CT/hax claim transfers. In particular,
+aarch64, and implicit-rejection behavior is tested. The earlier provider migration to
+portable `mlkem-native` invalidated former-provider captures. The current source then
+selected upstream native arithmetic plus fixed Armv8-A x1/x4 FIPS 202 assembly on
+exactly the little-endian targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
+`aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
+`aarch64-linux-android`, while retaining portable C everywhere else, including
+Wasm. It has no runtime dispatch or Armv8.4-A SHA3 path.
+That source change also makes the pre-selection portable captures historical; fresh
+x86_64-portable and aarch64-native passes are required, and no predecessor
+source-CT/hax claim transfers. In particular,
 `fips203` 0.4.3's historical probe failed on both ISAs in
 [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107);
 those counts do not transfer to the current provider. This cannot be generalized to every
@@ -178,6 +185,12 @@ correctness research only and owns no suite code or ABI. NIST’s
 [HQC selection announcement](https://csrc.nist.gov/News/2025/hqc-announced-as-a-4th-round-selection)
 does not turn an RC into a production implementation. The crate says it tracks an IPD,
 but as of 2026-07-12 the official FIPS 207 IPD is unavailable and NIST says it is coming soon.
+
+The native selection is an implementation optimization, not a formal-assurance lead.
+Upstream HOL-Light evidence is limited to selected upstream assembly source/object
+routines under its stated preconditions; it does not prove downstream reassembly,
+the Rust/C wrapper, the full ABI, or a released package. This integration has no
+independent audit.
 
 ### 2.8 Evidence islands create false green claims
 
@@ -314,7 +327,7 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Field-resolved combiner reductions | CFRG general construction + evolving binding analysis | protocol-specific KDF/proof models | potential artifact delta in executable standard MAL-BIND-K-CT/K-PK reductions plus a separately scoped local K-CTX wrapper reduction; still no refinement or exhaustive novelty proof |
 | Authenticated external context | no X-Wing context; TLS binds transcript elsewhere | both protocols authenticate extensive transcript/state data | potential reusable-API delta only; not a current protocol lead, and the rustls KEM-layer path is partial |
 | Signed policy/execution coupling | fixed suites or stack-specific config | versioned product protocols | potential open-artifact delta among the explicitly compared baselines: atomic decision + digest state + fail-closed fixed-suite boundary; systematic novelty review pending |
-| Source/claim/binary/device ledger | implementation-specific | Signal reports CI implementation proofs; product evidence is otherwise partly internal | potential **public reproducibility** delta: strict single-byte proof/auxiliary snapshots, environment-independent HEAD/index/actual-byte Git checks, ignore-independent untracked-input inventory, isolated source-only Python startup, manifest path/hash binding, and fixed release policy; not refinement superiority. A clean schema-3 physical iPad+iPhone matrix exists, but its currentness is established only by the live verifier. |
+| Source/claim/binary/device ledger | implementation-specific | Signal reports CI implementation proofs; product evidence is otherwise partly internal | potential **public reproducibility** delta: strict single-byte proof/auxiliary snapshots, environment-independent HEAD/index/actual-byte Git checks, ignore-independent untracked-input inventory, isolated source-only Python startup, manifest path/hash binding, and fixed release policy; not refinement superiority. The recorded schema-3 physical iPad+iPhone matrix is historical after target selection; fresh target-specific evidence is required. |
 | Asynchronous identity/prekeys | outside KEM scope | both have deployed device/key-directory paths; Signal specifies independent classical/PQ one-time/fallback semantics | **behind**: no protocol/service; only a strict model-level 16-field selection codec and outer-scope graft controls |
 | Ongoing hybrid PQ ratchet | outside KEM scope | PQ3 and Signal Triple Ratchet **lead** | **behind / absent** |
 | Multi-device/recovery | outside KEM scope | major deployed capability | **behind / absent** |
@@ -323,32 +336,44 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Standards/interoperability | X-Wing/CFRG/TLS **lead** | deployed proprietary protocols | **behind** for ContextBound |
 | Third-party audit/deployment | major **lead** | major **lead** | **behind**: none |
 | Constant-time/FIPS backend maturity | production implementations vary, best are strong | production-hardened | **behind/partial**; per-backend/ISA only |
-| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v2/proof schema v4/budget schema v5 gate fixes the exact rustup toolchain plus Cargo/Rustc executable identity, rejects Cargo/wrapper configuration, uses an offline fresh target, and records controlled pre-build/pre-run/post-run/post-analysis observations; mutable registry/sysroot/OS and collector honesty remain trusted |
+| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v3/proof schema v6/budget schema v7 carries profile non-regression and a distinct byte-equivalent native/portable ContextBound implementation-improvement estimand in one same-process ABBA/BAAB slot; it binds the SDK/toolchain, final binary, portable archive/source, and canonical source, while mutable registry/sysroot/OS and collector honesty remain trusted |
 | End-to-end/device performance | optimized baseline | optimized deployed code | **pending**; rustls/backend, energy, and device gaps remain |
 
 ## 4. Performance: the only acceptable claim after fresh capture
 
-The paired harness removes the earlier backend comparison confound: both profiles use
-`MlKem768XWingSeed + X25519`, the same keys/coins/ciphertexts, a 64-case deterministic
-corpus, 5 s warm-up, 20,480 paired samples per operation/profile, and ABBA/BAAB ordering.
-Raw schema v2 times fixed 256/1/2-call batches for combine/encapsulation/decapsulation in both
-profiles and records the unrounded total. Verification normalizes by a strict, budget-bound
-iteration map. Consecutive 1,024-pair blocks define the primary paired percentile ratio/delta
-estimand and its moving-block-bootstrap upper bound. Under the nearest-rank rule, each block's p99
-is supported by 11 tail observations; budget schema v5 preserves the v4 estimator and requires at
-least 10 instead of allowing the three tail observations produced by the previous 256-pair primary
-blocks. Because that changes the estimand rather than monotonically shrinking its acceptance set,
-schema v5 continues to recompute the
-former 256-pair estimator as a regression guard and requires the same published limits at both
-block scales. Separately parameterized 64/256/256-pair stability windows prevent
-environment CV from sharing that statistical role. Every block preserves complete ABBA cycles and
-the 64-case corpus balance. The 5% stability threshold and published ratio/delta limits remain
-unchanged. The nine budgeted bounds are **per-metric** one-sided 95% bootstrap bounds, not a
-simultaneous 95% family guarantee. The span-5 bootstrap is deterministic and threshold-conservative,
-but its coverage under autocorrelation has not been independently calibrated; this is another reason
-the result remains a diagnostic non-regression gate rather than a population-level performance claim.
+Raw schema v3 carries two separately named estimands in one same-process harness.
+For profile non-regression, ContextBound and CompatXWing use the same native
+`MlKem768XWingSeed + X25519` backend, keys/coins/ciphertexts, and 64-case
+deterministic corpus. For implementation improvement, native and evidence-only
+portable ML-KEM-768 execute ContextBound encapsulation and decapsulation only after
+the harness establishes byte-identical keys, ciphertexts, and shared secrets. Both
+use a 5 s warm-up, 20,480 paired samples per applicable operation and variant, and
+ABBA/BAAB ordering. Fixed 256/1/2-call batches cover
+combine/encapsulation/decapsulation and record unrounded totals; verification
+normalizes only after the strict budget-bound iteration-map check.
 
-Schema v5 additionally binds the exact rustup toolchain name so byte-identical mutable aliases
+Consecutive 1,024-pair blocks define the primary paired percentile ratio/delta
+estimand and moving-block-bootstrap upper bound. Under the nearest-rank rule, each
+block's p99 has 11 tail observations. Budget schema v7 preserves the v6 profile
+contract, including its former 256-pair regression guard, and requires the published
+profile limits at both block scales. Separately parameterized 64/256/256-pair
+stability windows retain the 5% CV limit. The profile's nine bounds remain
+per-metric one-sided 95% bounds. The implementation estimand adds six: for both
+ContextBound product operations, native/portable p50 and p95 upper ratios must be at
+most 0.95 and p99 at most 1.0. These are not a simultaneous 95% family guarantee;
+span-5 coverage under autocorrelation has not been independently calibrated. A
+passing current proof therefore supports only the registered native-over-portable
+implementation result, not a population, device, or ContextBound-over-X-Wing speed
+claim.
+
+A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive and
+product-path improvement. This narrows the implementation-performance hypothesis on
+that host only. It has no checked-in canonical-source/toolchain-bound raw and analysis
+bundle and is not formal release evidence, an optimized X-Wing comparison, or a
+protocol/device lead. Exact quantitative results require a fresh
+raw-schema-v3/proof-schema-v6 run under budget schema v7.
+
+Historical proof schema v5 additionally bound the exact rustup toolchain name so byte-identical mutable aliases
 cannot make tool selection ambiguous. An earlier 256-pair-primary attempt failed the decapsulation
 p99 bootstrap upper bound: its block
 ratios ranged from 0.24 to 4.28 while the global ContextBound p99 was below CompatXWing and both
@@ -365,20 +390,24 @@ establish a current-source or performance-lead claim.
 
 This redesign invalidates the earlier single-call controlled-Mac diagnostic: its 334/375 ns
 CompatXWing combine block medians were timer-quantization levels, so their mixture could cross the
-5% CV line without establishing host instability. Raw-schema-v2/proof-schema-v4 controlled runs
-are accepted only when the proof's canonical source digest equals the live verifier digest and the
-host satisfies the power/thermal contract. The verifier, rather than the proof, fixes
+5% CV line without establishing host instability. Those historical
+raw-schema-v2/proof-schema-v5 controlled runs were accepted only when the proof's
+canonical source digest equalled the live verifier digest and the host satisfied the
+power/thermal contract. The current verifier, rather than the proof, fixes
 `artifact/performance-budgets.json` as the release policy. The machine-readable manifest carries the current proof
 summary and selected path/hash so updating this source document cannot self-promote a stale run;
 the required domain verifier, not manifest prose alone, checks the actual proof, artifacts, and
-freshness. The backend/source migration invalidated all recorded performance proofs,
+freshness. The target-selection/source migration invalidated all recorded portable-derived performance proofs,
 including the later matched-backend capture; a fresh same-source controlled-host run
 is required. The old single-call proof also remains invalid and must not be cited.
-The fixed budget-schema-v5 policy pins the exact rustup toolchain name plus Cargo/Rustc executable
-hashes, versions, and target. Collection selects that named same-directory pair, rejects
+The fixed budget-schema-v7 policy additionally pins the macOS SDK path, version,
+and settings digest, together with the rustup toolchain and target plus Cargo,
+Rustc, Xcode Clang, and Xcode `ar` executable paths and hashes (and version output
+where available). Proof schema v6 also binds the final harness binary and the
+evidence-only portable reference source/archive. Collection selects those fixed tools, rejects
 repository/ancestor/user Cargo configuration, clears
 caller compiler/wrapper/loader controls, fixes system-tool lookup, builds offline in a fresh private
-target, and rechecks the two executables. The user-writable Cargo registry, Rust sysroot/driver, OS
+target, and rechecks the four executables. The user-writable Cargo registry, Rust sysroot/driver, OS
 tools/libraries, same-UID host, and local collector's source-to-binary honesty remain trusted; this is
 not a hermetic producer attestation.
 The current rustls path still has a backend-related gap versus the optimized IANA group,

@@ -207,9 +207,9 @@ Cargo's post-install path warning; the verifier itself still ignores ambient `PA
 The verifier accepts no source-root or executable-path argument: it derives the repository root
 from its own fixed module location and executes only
 `target/qperiapt-audit-tool/bin/cargo-audit`. Omitting the requirement flag leaves the run scoped
-and cannot emit the release marker. The research-alpha release graph now uses the portable-only
-`q-periapt-mlkem-native-sys`
-boundary over vendored `mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
+and cannot emit the release marker. The `0.1.0` stable-version release graph now uses the
+target-selected `q-periapt-mlkem-native-sys` boundary over vendored
+`mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
 `sha3` 0.10.9. This removes both the `fips203` path that failed the project binary-CT
 gate and the earlier `libcrux`/hax/`proc-macro-error2` advisory path. The current
 lockfile passes `cargo audit --deny warnings` with no advisory ignore. RustSec covers
@@ -223,25 +223,33 @@ archive SHA-256
 `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
 The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 `77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`.
-The upstream tag/commit is not a signed provenance statement, and neither upstream
-mlkem-native nor this Rust/C integration has completed an independent audit.
+Exactly `aarch64-apple-darwin`, `aarch64-apple-ios`,
+`aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
+`aarch64-linux-android`, all little-endian, use upstream native arithmetic plus
+fixed Armv8-A scalar x1 and scalar/Neon x4 FIPS 202 assembly. Every other target,
+including Wasm, remains portable C; there is no runtime dispatch or Armv8.4-A SHA3
+path. This selection does not change ABI 2, key formats, or wire bytes. Upstream
+HOL-Light evidence applies only to selected upstream assembly source/object routines,
+not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
+tag/commit is not a signed provenance statement, and neither upstream mlkem-native
+nor this integration has completed an independent audit.
 
-ABI 2 / `0.1.0-alpha.3` is a pre-publication package-ready research-alpha source
-line (not yet uploaded to crates.io). Its coordinated alpha.3 GitHub research
-prerelease transaction targets are the Apple XCFramework revision
-`v0.1.0-alpha.3-r1` and the
-`abi2-platforms-v0.1.0-alpha.3-r1` platform distribution (Android AAR plus API 35 /
-16 KiB-page emulator runtime evidence, GNU/Linux x86_64+aarch64 SDK archives, and an
-unsigned experimental Windows x64 MSVC SDK built with Rust 1.97.0 as a bounded,
-documented toolchain difference). Machine-checked, versioned Apple and platform
+ABI 2 / `0.1.0` is the stable-version source line (registry publication remains
+receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
+`v0.1.0` and the
+`abi2-platforms-v0.1.0` platform distribution (Android AAR plus API 35 /
+16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
+The unsigned Windows x64 MSVC package remains an unsupported CI diagnostic and is
+excluded from the formal candidate, manifest, attestation, receipt, and release assets.
+Machine-checked, versioned Apple and platform
 publication receipts live under `release_publications` in `artifact/results.json`;
 `swift_xcframework.distribution` is only the active Apple projection and must match
 one of those receipts exactly. Scope, verification commands, and explicit
-non-goals are in `artifact/alpha3-release-notes.md`. The alpha.2 tags and frozen r2
-receipt remain immutable historical evidence. The `platform_alpha3_r1` receipt has
+non-goals are in `artifact/stable-release-notes.md`. The alpha.2 tags and frozen r2
+receipt remain immutable historical evidence. The `platform_v0_1_0` receipt has
 two exact states: candidate verification pending release verification omits every
 remote-publication field (absence means unrecorded, not no release), while verified
-adds the exact eight public assets, immutable prerelease metadata, tag-plus-assets
+adds the exact seven public assets, immutable stable-release metadata, tag-plus-assets
 attestation, and fresh-download deep verification. Receipt transitions are monotonic.
 The line has a
 frozen exact-nine dynamic `q_periapt_*` export
@@ -263,15 +271,150 @@ transparency-backed provenance, and fresh same-source device/performance proof m
 still pass. ABI1 needs explicit authorized
 re-enrollment/reset; a version alone cannot be converted into an exact-policy digest.
 The noncanonical Continuity research snapshot shape is unrelated and never a release substitute.
-The backend/source migration changed the canonical source-input digest. Consequently,
-the later clean-tree Apple schema-3 matrix, controlled-host matched-backend proof,
-package artifacts, and `libcrux` binary-CT captures are all historical even if they
-passed on their recorded source. Each release-scoped package/device/performance/CT lane
-must be rebuilt or re-collected against the new digest. Time-varying currentness is
+The target-selection/source migration changed the canonical source-input digest.
+Consequently, portable-derived Apple/Android device results, the controlled-host
+matched-backend proof, package artifacts, and binary-CT captures are all historical
+even if they passed on their recorded source. Existing publication receipts remain
+immutable evidence for the exact artifacts they name, not the target-selected rebuild.
+Each release-scoped package/device/performance/CT lane must be rebuilt or re-collected
+for its selected target against the new digest. Time-varying currentness is
 authoritative only through `artifact/results.json` plus the required live domain
 verifiers; source prose cannot promote an old proof after a source change. Even fresh
 local product-execution and single-host results will not substitute for independent
 signed release provenance, device-energy evidence, or cross-implementation performance parity.
+
+`artifact/source_results_assembler.py` is the deliberately one-time stable-source
+190-to-226 proof-input migration entrypoint, not a reusable release finalizer. Once the
+generated results-only successor R is installed, the 226 baseline makes its initial
+mode logically retired: re-running it is expected to fail closed because
+`require_initial=True` requires the exact pre-migration shape. That failure must not be
+bypassed by relabelling or hand-editing `artifact/results.json`. Do not physically edit,
+extract, or delete the assembler between R and verified publication V; doing so would
+create a new source change after the evidence freeze. Physical removal of the one-time
+`finalize` path belongs only to the next source cycle after V, together with an
+explicitly reviewed current-to-current state machine and a new S. Retain
+`verify-installed` and the exact CI dispatch until their durable 226-key
+verifiers are extracted into a neutral module; deleting the whole file would also
+delete the installed-successor and main-CI gates.
+
+The main CI source gate deliberately recognizes exactly two manifest states. For
+the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
+one-shot Level-1 byte authority
+`c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50`,
+pins the worktree manifest to the HEAD blob, validates the exact initial publication state
+and fixed 36-key delta, requires a clean expected commit/tree identity, and samples
+the complete 226-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 226-key installed map it emits
+only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
+Malformed, mixed, or changing states fail; an initial-readiness failure never falls
+back to the installed path.
+
+The source authority `S` must exist on the final, non-rewritten `main` history
+*before* any release-scoped handoff, device, or performance evidence is collected.
+Merge every source change first, fetch `origin/main`, require a clean checkout with
+`HEAD == refs/remotes/origin/main`, and record that 40-hex commit as `S`. Evidence
+from a feature-branch SHA, a pull-request synthetic merge commit, or any predecessor
+that is later merged/rebased is stale and cannot be selected into `R`.
+
+```sh
+git fetch --no-tags origin main
+S=$(git rev-parse --verify 'HEAD^{commit}')
+case "$S" in ''|*[!0-9a-f]*) exit 1 ;; esac
+test "${#S}" -eq 40
+test "$S" = "$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')"
+test -z "$(git status --porcelain=v1 --untracked-files=all)"
+```
+
+Use this exact source-results transition after all selected domain producers have
+completed against that one clean `S`. The run IDs and performance proof filename
+below are operator-selected evidence identifiers, not examples that may be copied
+unchanged. `PERFORMANCE_PROOF` is a safe basename beneath `target/performance/`, not a
+path. First run the Rust package contract once on that same clean source checkout and
+record the one controlled `RUST_PACKAGE_HANDOFF_PASS` path and digest from stderr; its
+manifest-last transaction is the only Rust transcript/archive source accepted by the
+assembler or later crates.io coordinator. A nonzero exit or anything other than one
+controlled PASS marker is failure: never scan for or select a private orphan; after
+checking that S is still clean, run a new transaction:
+
+```sh
+sh artifact/rust-publish-contract.sh
+# Set both values verbatim from the single RUST_PACKAGE_HANDOFF_PASS marker.
+: "${RUST_HANDOFF_MANIFEST:?set the emitted repository-relative handoff manifest path}"
+: "${RUST_HANDOFF_SHA256:?set the emitted handoff manifest SHA-256}"
+case "$RUST_HANDOFF_MANIFEST" in
+  target/qperiapt-rust-package-handoffs/transaction.*-*/rust-package-handoff.json) ;;
+  *) exit 1 ;;
+esac
+case "$RUST_HANDOFF_SHA256" in ''|*[!0-9a-f]*) exit 1 ;; esac
+test "${#RUST_HANDOFF_SHA256}" -eq 64
+test "$(shasum -a 256 "$RUST_HANDOFF_MANIFEST" | awk '{print $1}')" = \
+  "$RUST_HANDOFF_SHA256"
+
+: "${ANDROID_RUNTIME_RUN:?set the selected Android runtime run ID}"
+: "${APPLE_MATRIX_RUN:?set the selected Apple matrix run ID}"
+: "${CONSUMER_RUN:?set the selected consumer run ID}"
+: "${ANDROID_PHYSICAL_RUN:?set the selected physical Android run ID}"
+: "${PERFORMANCE_PROOF:?set the selected performance proof filename}"
+baseline_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
+sh artifact/python-run.sh artifact/source_results_assembler.py finalize \
+  "$baseline_sha256" \
+  --rust-handoff-manifest "$RUST_HANDOFF_MANIFEST" \
+  --rust-handoff-sha256 "$RUST_HANDOFF_SHA256" \
+  --android-runtime-run "$ANDROID_RUNTIME_RUN" \
+  --apple-matrix-run "$APPLE_MATRIX_RUN" \
+  --consumer-run "$CONSUMER_RUN" \
+  --android-physical-run "$ANDROID_PHYSICAL_RUN" \
+  --performance-proof "$PERFORMANCE_PROOF"
+```
+
+The command emits one controlled `SOURCE_RESULTS_SUCCESSOR_PASS` marker containing a
+repository-relative candidate path and SHA-256. Set the following two values from that
+exact marker, require the candidate bytes to match, and install those bytes without
+editing their JSON content:
+
+```sh
+candidate=target/source-results-successors/transaction.EMITTED_ID/results.json
+candidate_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
+test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$candidate_sha256"
+install -m 0644 "$candidate" artifact/results.json
+test "$(shasum -a 256 artifact/results.json | awk '{print $1}')" = "$candidate_sha256"
+cmp -s "$candidate" artifact/results.json
+test "$(git diff --name-only -- artifact/results.json)" = artifact/results.json
+git diff --exit-code -- . ':(exclude)artifact/results.json'
+test -z "$(git ls-files --others --exclude-standard)"
+# Re-sample both pathnames immediately before staging.
+test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$candidate_sha256"
+test "$(shasum -a 256 artifact/results.json | awk '{print $1}')" = "$candidate_sha256"
+cmp -s "$candidate" artifact/results.json
+git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  add -- artifact/results.json
+test "$(git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  diff --cached --name-only)" = artifact/results.json
+# Re-sample once more after staging and before the hook-disabled commit.
+test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$candidate_sha256"
+test "$(shasum -a 256 artifact/results.json | awk '{print $1}')" = "$candidate_sha256"
+cmp -s "$candidate" artifact/results.json
+test "$(git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  show :artifact/results.json | shasum -a 256 | awk '{print $1}')" = \
+  "$candidate_sha256"
+git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null commit \
+  -m 'release: install stable source results successor'
+test "$(git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  show HEAD:artifact/results.json | shasum -a 256 | awk '{print $1}')" = \
+  "$candidate_sha256"
+sh artifact/python-run.sh artifact/source_results_assembler.py verify-installed \
+  "$candidate_sha256"
+```
+
+The source commit must already be clean before `finalize`; the next commit must change
+only `artifact/results.json` and be its direct child. Do not tag, publish, delete the
+retained candidate, or run any downstream release finalizer unless `verify-installed`
+prints `SOURCE_RESULTS_INSTALLED_VERIFY_PASS` for that exact commit.
 
 The expected per-step counts, toolchain, current-source local footprint sizes, and data-file pointers are pinned in
 [`artifact/results.json`](artifact/results.json) (every value measured, so drift is visible). A
@@ -296,8 +439,8 @@ KATs, NIST ACVP conformance, the independent-crate differential checks, and that
 EasyCrypt proof has no `admit`/`sorry`.
 
 The dk-format separation (Theorem 1, item 5) is witnessed by a runnable example — both the
-expanded-`dk` break and its seed-`dk` negative control, against the release-graph portable
-`mlkem-native` backend:
+expanded-`dk` break and its seed-`dk` negative control, against the target-selected
+release-graph `mlkem-native` backend for the compilation target:
 
 ```sh
 cargo run -p q-periapt-backends --example binding_dk_format_witness
@@ -367,7 +510,7 @@ Swift XCTest count, Swift XCFramework/binaryTarget pre-publication proof
 (`artifact/swift-xcframework.sh`) through an isolated binary consumer, Android AAR/JNI packaging
 proof (`artifact/android-aar.sh`) with four ABI slices, native/JNI symbol audits, dex conversion, and
 an isolated Java consumer compile, Kotlin/Panama tests with explicit native library loading, WASM
-Node tests, and `proof-to-byte.sh`. The Rust crate pre-publication package
+Node tests, and `proof-to-byte.sh`. The Rust crate pre-publication package-ready
 surface has a separate package-contract gate,
 `sh artifact/rust-publish-contract.sh`, which requires a clean tree by default, validates the
 ten-crate publish allow/deny list, checks package file lists, applies every downstream local patch,
@@ -387,7 +530,7 @@ entry fails the contract; this is a responsibility split, not a warning suppress
 registry check. The sys `.crate` is inspected independently for links/special or
 forbidden paths, the fixed 124-entry upstream inventory, the exact packaged 118-code-file hash
 subset (excluding six upstream README files), the pinned upstream license and v1.2.0 provenance,
-and a portable-only build surface. Cargo's normalized backend graph is generated
+and the fixed target-selected native/portable build surface. Cargo's normalized backend graph is generated
 with the sys crate patched in and audited separately, so the provider, retired-HQC/PQCrypto,
 inventory, license, and normalized-graph checks cannot be skipped. This no-upload contract does
 not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
@@ -395,9 +538,12 @@ authorization, server-side policy acceptance, or a registry receipt. The coordin
 order is sys, core, KEM/signature traits, backends, policy, then
 the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set.
 `artifact/results.json` may declare that source-bound package receipt current only through its
-strict schema, exact source identity, advisory snapshot, and retained transcript fingerprint.
+strict schema, exact source identity, advisory snapshot, manifest-last handoff fingerprint,
+retained transcript fingerprint, and the exact ten sibling `.crate` archives validated by that
+handoff. The assembler and crates.io coordinator both consume the same explicit transaction;
+there is no second fixed transcript path or manual-copy authority.
 Set `QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT=1` to make `proof-to-byte.sh` load that exact selected
-transcript, verify its full marker set and ordering, and expose a separate
+handoff, verify its exact inventory plus transcript marker set and ordering, and expose a separate
 `rust_package_contract=1` finalizer state. This does not set or replace
 `dependency_audit=1`: the explicit workspace/fuzz lock audit remains a separate live gate.
 When `QPERIAPT_REQUIRE_DEPENDENCY_AUDIT=1`, that gate snapshots both checked-in
@@ -513,15 +659,15 @@ ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slic
 `APPLE_DISTRIBUTION.json`. This SDK payload has no standalone executable or notarizable bundle, so
 notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
 product retains its own signing and notarization responsibility.
-The published research prereleases are not a production release claim. The alpha.3
-targets `v0.1.0-alpha.3-r1` and `abi2-platforms-v0.1.0-alpha.3-r1` become public,
-immutable, attested prereleases only when their current verified receipts say so;
+The stable-version GitHub publications are not by themselves a production-readiness
+claim. The targets `v0.1.0` and `abi2-platforms-v0.1.0` become public,
+immutable, attested non-prerelease releases only when their current verified receipts say so;
 the published alpha.2 receipts remain immutable historical evidence. The platform packages carry exact-version
 pkg-config/CMake configs, ABI contracts, SBOM/CBOM, and license material. What still
 separates them from production promotion: a fresh same-source Apple device matrix,
 a current-source canonical Android arm64 AVD transaction plus a clean physical-device proof over
-the same source and AAR, Windows
-Authenticode signing (the r2 Windows archive is deliberately unsigned experimental),
+the same source and AAR, a future signed Windows distribution (the current unsigned
+diagnostic is excluded),
 crates.io/Maven/deb/rpm/MSIX registry publication with independently verifiable
 signed or transparency-backed provenance, and independent cryptographic/C-FFI/ABI
 review. None of these is silently represented as done.
@@ -618,8 +764,15 @@ These produce the paper's primary network table and the binary constant-time dis
   `fips203` 0.4.3 provider is historical failure evidence, not a pass: [CI run
   29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107) reported
   34,306 errors / 100 contexts on x86_64 and 30,464 / 70 on aarch64. Earlier `libcrux`
-  captures are historical too. A fresh x86-64+aarch64 zero/zero pass for portable
-  `mlkem-native`, bound to the release source digest, is required before promotion. The committed
+  captures and pre-selection portable `mlkem-native` results are historical too.
+  Fresh x86_64-portable and aarch64-native zero/zero passes bound to the release
+  source digest are required before promotion. The exact-R tag workflow records those
+  two fixed successful CI jobs, the selected run/attempt, and all six successful CodeQL
+  language jobs in the attested `ABI2_SOURCE_SECURITY_GATE.json`. Candidate verification
+  deeply checks that sanitized receipt and its workflow-source digests; the platform
+  pending/verified receipts retain the same structure and subject-digest crosslink. The
+  receipt is transaction evidence, not a public product asset, and the contract does not
+  claim a run exists until the exact-R workflow has produced it. The committed
   PQClean-HQC counts (193 on aarch64 and 22,849 on x86-64) came from the retired backend and are
   historical older-source evidence only; `ct_hqc_gap` is no longer a current release gate.
 - **Symbolic provers.** `make` under `formal/tamarin/` and `formal/proverif/` (Tamarin 1.12.0 +
@@ -851,7 +1004,7 @@ These produce the paper's primary network table and the binary constant-time dis
   continuously reserve the probed loopback ports between checkpoints.
   The fixed emulator argv does not enable gRPC. Listener evidence binds the required console/adb
   pair; it is not a claim that the emulator process has no other TCP listeners.
-- **Matched-backend performance gate.** Collect a paired host proof with:
+- **Profile and implementation performance gate.** Collect one paired host proof with:
 
   ```sh
   sh artifact/python-run.sh artifact/performance_gate.py collect --root . \
@@ -859,20 +1012,34 @@ These produce the paper's primary network table and the binary constant-time dis
     --proof target/performance/paired-profile-proof.json
   ```
 
-  Both profiles use the same ML-KEM-768 seed-dk +
-  X25519 backend and deterministic corpus; the harness uses 5 s warm-up, 20,480 samples per
-  operation/profile, and ABBA/BAAB order. Raw schema v2 records unrounded batch totals plus a strict
-  per-operation iteration map: combine/encapsulate/decapsulate use 256/1/2 calls per timed sample
-  for both profiles. Analysis divides total time by the authenticated iteration count. Paired
-  primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
-  therefore has 11 tail observations in each estimate block rather than three. Budget schema v5
-  preserves the v4 statistical contract: it pins a minimum of 10 and also recomputes the former
+  Raw schema v3 carries two separately named estimands in one process. `profile_non_regression`
+  preserves the matched ContextBound/CompatXWing comparison over the same ML-KEM-768 seed-dk +
+  X25519 backend and deterministic corpus. `implementation_improvement` compares ContextBound
+  product encapsulation and decapsulation over the same keys, coins, corpus, suite, version, and
+  context, in native/portable direction. The portable implementation is a symbol-renamed static
+  archive compiled only for this evidence build; it is not a product backend, Cargo feature,
+  runtime override, or shipping API. The harness checks byte-identical native and portable
+  keypair output and every per-case encapsulation/decapsulation output before timing, then uses
+  ABBA/BAAB ordering for both estimands. The 5 s warm-up and 20,480 samples apply per
+  variant/operation. Unrounded batch totals use 256/1/2 calls for
+  combine/encapsulate/decapsulate, and analysis divides by the authenticated iteration count.
+
+  Budget schema v7 preregisters the implementation-improvement primary one-sided 95% upper
+  limits before any formal collection: native/portable p50 and p95 must be at most 0.95 and p99
+  at most 1.0 for both ContextBound product operations. The verifier rejects threshold drift and
+  blocks any failure. This implemented gate is not itself a performance result: do not report a
+  quantitative improvement until a fresh clean-source, controlled-host proof-schema-v6 run meets
+  the full sample budget and is selected by `artifact/results.json`.
+
+  Paired primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
+  therefore has 11 tail observations in each estimate block rather than three. Budget schema v7
+  preserves the profile statistical contract: it pins a minimum of 10 and also recomputes the former
   256-pair estimator as a regression guard;
   every published ratio/delta limit must pass at both block scales. Separately parameterized
   stability windows use 64/256/256 pairs for
   combine/encapsulate/decapsulate. Every statistical block contains whole
   ABBA cycles and a balanced multiple of the 64-case corpus. The 5% block-median CV threshold is
-  unchanged. The nine budgeted upper bounds are per-metric one-sided 95% bootstrap bounds, not a
+  unchanged. The profile and implementation upper bounds are per-metric one-sided 95% bootstrap bounds, not a
   joint 95% family guarantee; span-5 coverage under autocorrelation has not been independently
   calibrated. The verifier
   rejects malformed/missing pairs, iteration or schema drift, invalid totals, unstable block
@@ -880,15 +1047,16 @@ These produce the paper's primary network table and the binary constant-time dis
   post-analysis thermal or power observation, or any
   published ratio/absolute-delta budget failure. The verifier fixes policy to
   `artifact/performance-budgets.json`; alternate paths fail even when their bytes happen to match.
-  That policy also fixes the exact rustup toolchain name plus the Cargo and Rustc executable hashes,
-  versions, and host target. Collection selects that named same-directory pair before executing it,
+  That policy also fixes the rustup toolchain and host target plus the Cargo, Rustc,
+  Xcode Clang, and Xcode `ar` executable paths and hashes, plus the canonical macOS SDK path,
+  version, and settings digest (and version output where available). Collection selects those fixed tools before executing them,
   rejects repository/ancestor/user Cargo configuration, clears caller compiler/wrapper/loader controls, fixes system
-  tool lookup, builds offline in a fresh private target, and rechecks those executables. The
+  tool lookup, builds offline in a fresh private target, and rechecks those four executables. The
   user-writable Cargo registry cache, Rust sysroot/driver, OS tools/libraries, and same-UID
   replace-and-restore races remain trusted. The verifier also trusts the local collector to have
   built the content-addressed binary it records; it does not independently rebuild it. Therefore
   this is a strengthened single-host diagnostic, not hermetic or hostile-builder attestation.
-  Proof schema v4, raw schema v2, and budget schema v5 are required; older files
+  Proof schema v6, raw schema v3, and budget schema v7 are required; older files
   fail closed and must be recollected. Shared CI runs only a short schema exercise; numeric
   decisions require controlled hardware. Reverify with
   `QPERIAPT_REQUIRE_PERFORMANCE=1 sh artifact/proof-to-byte.sh`. Dirty diagnostic collection and

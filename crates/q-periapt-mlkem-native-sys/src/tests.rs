@@ -14,6 +14,15 @@ fn all_zero(bytes: &[u8]) -> bool {
     bytes.iter().all(|byte| *byte == 0)
 }
 
+#[test]
+fn implementation_identity_is_exact() {
+    assert!(matches!(
+        IMPLEMENTATION_ID,
+        "mlkem-native-1.2.0/portable-c"
+            | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+    ));
+}
+
 macro_rules! parameter_set_test {
     (
         $test_name:ident,

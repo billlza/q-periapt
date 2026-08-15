@@ -26,7 +26,7 @@ members = [
 exclude = ["research/hqc-fips207-candidate"]
 
 [workspace.package]
-version = "0.1.0-alpha.3"
+version = "0.1.0"
 edition = "2021"
 # True floor: the resolved lock pulls clap 4.6 + hashbrown 0.17, which require 1.85.
 rust-version = "1.85"
@@ -38,6 +38,7 @@ homepage = "https://github.com/billlza/q-periapt"
 [workspace.lints.rust]
 missing_docs = "warn"
 unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(qperiapt_performance_evidence)"] }
 
 [workspace.lints.clippy]
 # Security-relevant hygiene; tighten over time. Not `deny` yet so the skeleton

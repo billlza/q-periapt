@@ -13,6 +13,7 @@ from unittest import mock
 import evidence_io
 from evidence_io import (
     EvidenceIOError,
+    OwnedFileDescriptorLease,
     consume_regular_snapshot,
     load_json_object_snapshot,
     load_json_object_snapshot_at,
@@ -22,6 +23,181 @@ from evidence_io import (
 
 
 class EvidenceIOTests(unittest.TestCase):
+    def test_owned_descriptor_pre_effect_interrupt_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "held.bin"
+            descriptor = os.open(
+                path,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            lease = OwnedFileDescriptorLease.acquire(
+                descriptor,
+                label="pre-effect fixture",
+            )
+            real_close = os.close
+            close_calls = 0
+
+            def interrupt_before_effect(_target: int) -> None:
+                nonlocal close_calls
+                close_calls += 1
+                raise KeyboardInterrupt("injected pre-effect close interruption")
+
+            try:
+                with (
+                    mock.patch.object(
+                        evidence_io.os,
+                        "close",
+                        side_effect=interrupt_before_effect,
+                    ),
+                    self.assertRaises(KeyboardInterrupt) as raised,
+                ):
+                    lease.close()
+                self.assertEqual(1, close_calls)
+                self.assertEqual("unknown", lease.status)
+                self.assertEqual(-1, lease.descriptor)
+                self.assertIn(
+                    "descriptor close effect is unknown for pre-effect fixture",
+                    getattr(raised.exception, "__notes__", ()),
+                )
+                os.fstat(descriptor)
+            finally:
+                real_close(descriptor)
+
+    def test_owned_descriptor_return_interrupt_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "held.bin"
+            descriptor = os.open(
+                path,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            lease = OwnedFileDescriptorLease.acquire(
+                descriptor,
+                label="return-interrupt fixture",
+            )
+            real_close = os.close
+            close_calls = 0
+
+            def close_then_interrupt(target: int) -> None:
+                nonlocal close_calls
+                close_calls += 1
+                real_close(target)
+                raise KeyboardInterrupt("injected post-effect close interruption")
+
+            with (
+                mock.patch.object(
+                    evidence_io.os,
+                    "close",
+                    side_effect=close_then_interrupt,
+                ),
+                self.assertRaises(KeyboardInterrupt),
+            ):
+                lease.close()
+            self.assertEqual(1, close_calls)
+            self.assertEqual("unknown", lease.status)
+            self.assertEqual(-1, lease.descriptor)
+            with self.assertRaises(OSError):
+                os.fstat(descriptor)
+
+    def test_owned_descriptor_same_inode_aba_is_not_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "held.bin"
+            descriptor = os.open(
+                path,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            replacement = os.open(path, os.O_RDWR)
+            replacement_metadata = os.fstat(replacement)
+            lease = OwnedFileDescriptorLease.acquire(
+                descriptor,
+                label="same-inode ABA fixture",
+            )
+            real_close = os.close
+            close_calls = 0
+
+            def close_and_reuse_same_inode(target: int) -> None:
+                nonlocal close_calls
+                close_calls += 1
+                real_close(target)
+                os.dup2(replacement, target)
+                raise KeyboardInterrupt("injected same-inode descriptor reuse")
+
+            try:
+                with (
+                    mock.patch.object(
+                        evidence_io.os,
+                        "close",
+                        side_effect=close_and_reuse_same_inode,
+                    ),
+                    self.assertRaises(KeyboardInterrupt),
+                ):
+                    lease.close()
+                self.assertEqual(1, close_calls)
+                self.assertEqual("unknown", lease.status)
+                self.assertEqual(-1, lease.descriptor)
+                reused_metadata = os.fstat(descriptor)
+                self.assertEqual(replacement_metadata.st_dev, reused_metadata.st_dev)
+                self.assertEqual(replacement_metadata.st_ino, reused_metadata.st_ino)
+            finally:
+                real_close(descriptor)
+                real_close(replacement)
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_path_walk_same_inode_aba_is_not_closed_twice(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "nested" / "proof.bin"
+            path.parent.mkdir()
+            path.write_bytes(b"proof")
+            replacement = os.open(
+                pathlib.Path(path.anchor),
+                os.O_RDONLY | os.O_DIRECTORY,
+            )
+            replacement_metadata = os.fstat(replacement)
+            real_close = os.close
+            reused_descriptor: int | None = None
+            close_calls = 0
+
+            def close_and_reuse_root(target: int) -> None:
+                nonlocal close_calls, reused_descriptor
+                close_calls += 1
+                if reused_descriptor is None:
+                    real_close(target)
+                    os.dup2(replacement, target)
+                    reused_descriptor = target
+                    raise KeyboardInterrupt(
+                        "injected path-walk descriptor reuse"
+                    )
+                real_close(target)
+
+            try:
+                with (
+                    mock.patch.object(
+                        evidence_io.os,
+                        "close",
+                        side_effect=close_and_reuse_root,
+                    ),
+                    self.assertRaises(KeyboardInterrupt),
+                ):
+                    evidence_io._open_regular_no_symlinks_posix(path)
+                self.assertEqual(2, close_calls)
+                self.assertIsNotNone(reused_descriptor)
+                assert reused_descriptor is not None
+                reused_metadata = os.fstat(reused_descriptor)
+                self.assertEqual(
+                    replacement_metadata.st_dev,
+                    reused_metadata.st_dev,
+                )
+                self.assertEqual(
+                    replacement_metadata.st_ino,
+                    reused_metadata.st_ino,
+                )
+            finally:
+                if reused_descriptor is not None:
+                    real_close(reused_descriptor)
+                real_close(replacement)
+
     @unittest.skipUnless(os.name == "posix", "dirfd snapshots require POSIX")
     def test_dirfd_json_snapshot_remains_bound_across_parent_rename(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

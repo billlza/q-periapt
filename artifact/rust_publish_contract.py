@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 
 from bounded_process import (
     REAP_TIMEOUT_SECONDS,
@@ -54,6 +54,33 @@ RUST_PACKAGE_NORMALIZED_AUDIT_MARKER = "RUST_BACKENDS_NORMALIZED_AUDIT_PASS"
 RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER = (
     "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home"
 )
+RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER = (
+    "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS package-verification"
+)
+RUST_PACKAGE_INSPECTION_CLEANUP_MARKER = (
+    "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS package-inspection"
+)
+RUST_MLKEM_PROVIDER_FENCE_MARKER = (
+    "RUST_MLKEM_PROVIDER_FENCE_PASS "
+    "reference=ml-kem@0.2.3:dev-only normal=q-periapt-mlkem-native-sys"
+)
+RUST_PUBLISH_METADATA_MARKER = (
+    "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 "
+    "mlkem_provider=q-periapt-mlkem-native-sys "
+    "sys_build_dependency=cc@1.2.67"
+)
+RUST_BACKENDS_INSPECTION_MARKER = (
+    "RUST_BACKENDS_INSPECTION_PACKAGE_PASS "
+    "package=q-periapt-backends normalized_archive=present"
+)
+RUST_BACKENDS_NORMALIZED_MANIFEST_MARKER = (
+    "RUST_BACKENDS_NORMALIZED_MANIFEST_PASS package=q-periapt-backends "
+    "mlkem_provider=q-periapt-mlkem-native-sys retired=none vendored_mlkem=none "
+    "performance_reference_api=absent"
+)
+RUST_MLKEM_UPSTREAM_VERSION = "v1.2.0"
+RUST_MLKEM_UPSTREAM_COMMIT = "0ba906cb14b1c241476134d7403a811b382ca498"
+RUST_MLKEM_VENDOR_FILE_COUNT = 118
 RUST_CRATES_IO_SPARSE_INDEX = "https://index.crates.io"
 RUST_CRATES_IO_REGISTRY_SOURCE = (
     "registry+https://github.com/rust-lang/crates.io-index"
@@ -86,6 +113,24 @@ _EXACT_TRANSCRIPT_MARKERS = (
         "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home",
         RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER,
     ),
+    (
+        "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS package-verification",
+        RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER,
+    ),
+    (
+        "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS package-inspection",
+        RUST_PACKAGE_INSPECTION_CLEANUP_MARKER,
+    ),
+    ("RUST_MLKEM_PROVIDER_FENCE_PASS", RUST_MLKEM_PROVIDER_FENCE_MARKER),
+    ("RUST_PUBLISH_METADATA_PASS", RUST_PUBLISH_METADATA_MARKER),
+    (
+        "RUST_BACKENDS_INSPECTION_PACKAGE_PASS",
+        RUST_BACKENDS_INSPECTION_MARKER,
+    ),
+    (
+        "RUST_BACKENDS_NORMALIZED_MANIFEST_PASS",
+        RUST_BACKENDS_NORMALIZED_MANIFEST_MARKER,
+    ),
 )
 RUST_PUBLISHABLE_CRATES = (
     "q-periapt-mlkem-native-sys",
@@ -98,6 +143,19 @@ RUST_PUBLISHABLE_CRATES = (
     "q-periapt-wasm",
     "q-periapt-rustls",
     "q-periapt-cli",
+)
+RUST_PACKAGE_WARNING_FREE_LABELS = (
+    "cargo-metadata",
+    *(f"cargo-package-list-{crate}" for crate in RUST_PUBLISHABLE_CRATES),
+    *(f"cargo-package-verification-{crate}" for crate in RUST_PUBLISHABLE_CRATES),
+    "cargo-package-inspection-q-periapt-mlkem-native-sys",
+    "cargo-package-inspection-q-periapt-backends",
+    "cargo-generate-normalized-backends-lockfile",
+    "cargo-audit-normalized-backends",
+)
+RUST_PACKAGE_COMPLETION_CRATES = RUST_PUBLISHABLE_CRATES + (
+    "q-periapt-mlkem-native-sys",
+    "q-periapt-backends",
 )
 RUST_NORMALIZED_LOCAL_CRATES = frozenset(
     {
@@ -159,6 +217,30 @@ class RustPackageContractReceipt:
     normalized_cargo_lock_sha256: str
     registry_package_count: int
     source_commit: str
+    cargo_warning_free_labels: tuple[str, ...]
+    package_completion_crates: tuple[str, ...]
+    mlkem_host_target: str
+    mlkem_implementation: str
+    mlkem_implementation_id: str
+    mlkem_archive_object_count: int
+    mlkem_archive_symbol_count: int
+    mlkem_vendor_file_count: int
+    mlkem_upstream_version: str
+    mlkem_upstream_commit: str
+    mlkem_reference_provider: str
+    mlkem_normal_provider: str
+    publishable_crate_count: int
+    nonpublishable_crate_count: int
+    backends_package: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class RustPackageDiagnosticContractReceipt:
+    """Identity fields from one complete diagnostic-only package transcript."""
+
+    completed_at: str
+    source_commit: str
+    source_dirty: bool
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -194,11 +276,12 @@ _OWNED_DIRECTORY_FLAGS = (
     | getattr(os, "O_NOFOLLOW", 0)
 )
 _OWNED_TEMP_PREFIX = re.compile(
-    r"qperiapt-package-(?:verification|inspection|cargo-home|sparse-lock)\.$"
+    r"qperiapt-(?:package-(?:verification|inspection|cargo-home|sparse-lock)"
+    r"|rust-package-handoff-stage)\.$"
 )
 _OWNED_TEMP_NAME = re.compile(
-    r"qperiapt-package-(?:verification|inspection|cargo-home|sparse-lock)"
-    r"\.[0-9a-f]{24}$"
+    r"qperiapt-(?:package-(?:verification|inspection|cargo-home|sparse-lock)"
+    r"|rust-package-handoff-stage)\.[0-9a-f]{24}$"
 )
 
 
@@ -362,6 +445,16 @@ def _is_semver(value: object) -> bool:
         not (identifier.isdigit() and len(identifier) > 1 and identifier[0] == "0")
         for identifier in prerelease.split(".")
     )
+
+
+def exact_internal_dependency_requirement(version: object) -> str:
+    """Return the coordinated workspace's exact Cargo requirement."""
+
+    if not _is_semver(version):
+        raise RustPublishContractError(
+            f"workspace package version is not strict SemVer: {version!r}"
+        )
+    return f"={version}"
 
 
 def _local_crates_for_lock_scope(scope: str) -> frozenset[str]:
@@ -1614,6 +1707,12 @@ _PACKAGE_VERIFICATION_MARKER = re.compile(
     r"RUST_PACKAGE_VERIFICATION_PASS ([a-z0-9][a-z0-9-]*) "
     r"registry=crates-io upload=not-attempted"
 )
+_CARGO_WARNING_FREE_MARKER = re.compile(
+    r"RUST_CARGO_WARNING_FREE_PASS ([a-z0-9][a-z0-9-]*)"
+)
+_PACKAGE_COMPLETION_MARKER = re.compile(
+    r"RUST_PACKAGE_COMPLETION_PASS ([a-z0-9][a-z0-9-]*)"
+)
 _ADVISORY_DATABASE_MARKER = re.compile(
     r"RUST_ADVISORY_DB_PASS origin="
     + re.escape(RUSTSEC_ADVISORY_DB_URL)
@@ -1630,10 +1729,79 @@ _CRATES_IO_LOCK_VERIFY_MARKER = re.compile(
 _NORMALIZED_LOCK_STABILITY_MARKER = re.compile(
     r"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256=([0-9a-f]{64})"
 )
+_MLKEM_ARCHIVE_BINARY_MARKER = re.compile(
+    r"RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
+    r"target=([a-z0-9][a-z0-9_.-]*) "
+    r"implementation=(portable|aarch64-native) "
+    r"implementation_id=(mlkem-native-1\.2\.0/"
+    r"(?:portable-c|aarch64-native-arith\+fips202-v8a-scalar)) "
+    r"objects=([1-9][0-9]*) symbols=([1-9][0-9]*) "
+    r"reserved_dynamic_abi=none"
+)
+_MLKEM_ARCHIVE_SOURCE_MARKER = re.compile(
+    r"RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS "
+    r"vendor_files=([1-9][0-9]*) upstream=(v[0-9]+\.[0-9]+\.[0-9]+) "
+    r"commit=([0-9a-f]{40})"
+)
 _CLEAN_CONTRACT_MARKER = re.compile(
     r"RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io "
     r"upload=not-attempted completed_at="
     r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)"
+)
+RUST_PACKAGE_DIAGNOSTIC_OPENING_MARKER = (
+    "DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY"
+)
+_DIAGNOSTIC_SOURCE_MARKER = re.compile(
+    r"RUST_PACKAGE_SOURCE_DIAGNOSTIC commit=([0-9a-f]{40,64}) dirty=([01])"
+)
+_DIAGNOSTIC_CONTRACT_MARKER = re.compile(
+    r"RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=([01]) registry=crates-io "
+    r"upload=not-attempted completed_at="
+    r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)"
+)
+
+_KNOWN_TRANSCRIPT_MARKER_PREFIXES = (
+    "RUST_CARGO_HOME_ISOLATION_PASS",
+    "RUST_PACKAGE_TOOLCHAIN_PASS",
+    "RUST_PACKAGE_SOURCE_PASS",
+    "RUST_CARGO_WARNING_FREE_PASS",
+    "RUST_MLKEM_PROVIDER_FENCE_PASS",
+    "RUST_PUBLISH_METADATA_PASS",
+    "RUST_PACKAGE_LIST_PASS",
+    "RUST_PACKAGE_COMPLETION_PASS",
+    "RUST_PACKAGE_VERIFICATION_PASS",
+    "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS",
+    "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS",
+    "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS",
+    "RUST_BACKENDS_INSPECTION_PACKAGE_PASS",
+    "RUST_BACKENDS_NORMALIZED_MANIFEST_PASS",
+    "RUST_CRATES_IO_LOCK_VERIFY_PASS",
+    "RUST_BACKENDS_NORMALIZED_AUDIT_PASS",
+    "RUST_ADVISORY_DB_PASS",
+    "RUST_NORMALIZED_LOCK_STABILITY_PASS",
+    "RUST_PACKAGE_CONTRACT_PASS",
+)
+_DYNAMIC_TRANSCRIPT_MARKERS = (
+    (
+        "RUST_CARGO_WARNING_FREE_PASS",
+        _CARGO_WARNING_FREE_MARKER,
+        "Cargo warning-free",
+    ),
+    (
+        "RUST_PACKAGE_COMPLETION_PASS",
+        _PACKAGE_COMPLETION_MARKER,
+        "package completion",
+    ),
+    (
+        "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS",
+        _MLKEM_ARCHIVE_BINARY_MARKER,
+        "ML-KEM binary archive",
+    ),
+    (
+        "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS",
+        _MLKEM_ARCHIVE_SOURCE_MARKER,
+        "ML-KEM source archive",
+    ),
 )
 
 
@@ -1716,6 +1884,16 @@ def validate_rust_package_contract_transcript(
                 raise RustPublishContractError(
                     f"Rust package transcript contains a malformed {prefix} marker"
                 )
+        if canonical_line.startswith(
+            "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS"
+        ) and line not in {
+            RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER,
+            RUST_PACKAGE_INSPECTION_CLEANUP_MARKER,
+            RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER,
+        }:
+            raise RustPublishContractError(
+                "Rust package transcript contains a malformed owned-directory cleanup marker"
+            )
         if canonical_line.startswith("RUST_PACKAGE_SOURCE_PASS") and (
             _SOURCE_MARKER.fullmatch(line) is None
         ):
@@ -1734,7 +1912,19 @@ def validate_rust_package_contract_transcript(
             raise RustPublishContractError(
                 "Rust package transcript contains a malformed lock stability marker"
             )
-
+        for prefix, pattern, label in _DYNAMIC_TRANSCRIPT_MARKERS:
+            if canonical_line.startswith(prefix) and pattern.fullmatch(line) is None:
+                raise RustPublishContractError(
+                    f"Rust package transcript contains a malformed {label} marker"
+                )
+        if canonical_line.startswith("RUST_") and not any(
+            canonical_line.startswith(prefix)
+            for prefix in _KNOWN_TRANSCRIPT_MARKER_PREFIXES
+        ):
+            raise RustPublishContractError(
+                "Rust package transcript contains an unrecognized Rust gate marker: "
+                f"{canonical_line!r}"
+            )
     toolchain_index = _single_exact_marker_index(
         lines,
         RUST_PACKAGE_TOOLCHAIN_MARKER,
@@ -1745,7 +1935,36 @@ def validate_rust_package_contract_transcript(
         RUST_PACKAGE_CARGO_HOME_MARKER,
         "isolated Cargo home",
     )
+    provider_fence_index = _single_exact_marker_index(
+        lines,
+        RUST_MLKEM_PROVIDER_FENCE_MARKER,
+        "ML-KEM provider fence",
+    )
+    publish_metadata_index = _single_exact_marker_index(
+        lines,
+        RUST_PUBLISH_METADATA_MARKER,
+        "publish metadata",
+    )
+    verification_cleanup_index = _single_exact_marker_index(
+        lines,
+        RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER,
+        "package-verification cleanup",
+    )
+    backends_inspection_index = _single_exact_marker_index(
+        lines,
+        RUST_BACKENDS_INSPECTION_MARKER,
+        "backend inspection package",
+    )
+    backends_manifest_index = _single_exact_marker_index(
+        lines,
+        RUST_BACKENDS_NORMALIZED_MANIFEST_MARKER,
+        "backend normalized manifest",
+    )
 
+    warning_free_labels: list[str] = []
+    warning_free_indices: list[int] = []
+    completion_crates: list[str] = []
+    completion_indices: list[int] = []
     list_crates: list[str] = []
     list_indices: list[int] = []
     verification_crates: list[str] = []
@@ -1761,8 +1980,28 @@ def validate_rust_package_contract_transcript(
     stability_indices: list[int] = []
     clean_final_times: list[str] = []
     clean_final_indices: list[int] = []
+    archive_binary_receipts: list[tuple[str, str, str, int, int]] = []
+    archive_binary_indices: list[int] = []
+    archive_source_receipts: list[tuple[int, str, str]] = []
+    archive_source_indices: list[int] = []
     for index, line in enumerate(lines):
         canonical_line = line.lstrip()
+        if canonical_line.startswith("RUST_CARGO_WARNING_FREE_PASS"):
+            match = _CARGO_WARNING_FREE_MARKER.fullmatch(line)
+            if match is None:
+                raise RustPublishContractError(
+                    "Rust package transcript contains a malformed Cargo warning-free marker"
+                )
+            warning_free_labels.append(match.group(1))
+            warning_free_indices.append(index)
+        if canonical_line.startswith("RUST_PACKAGE_COMPLETION_PASS"):
+            match = _PACKAGE_COMPLETION_MARKER.fullmatch(line)
+            if match is None:
+                raise RustPublishContractError(
+                    "Rust package transcript contains a malformed package completion marker"
+                )
+            completion_crates.append(match.group(1))
+            completion_indices.append(index)
         if canonical_line.startswith("RUST_PACKAGE_LIST_PASS"):
             match = _PACKAGE_LIST_MARKER.fullmatch(line)
             if match is None:
@@ -1820,6 +2059,32 @@ def validate_rust_package_contract_transcript(
                 )
             clean_final_times.append(match.group(1))
             clean_final_indices.append(index)
+        if canonical_line.startswith("RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS"):
+            match = _MLKEM_ARCHIVE_BINARY_MARKER.fullmatch(line)
+            if match is None:
+                raise RustPublishContractError(
+                    "Rust package transcript contains a malformed ML-KEM binary archive marker"
+                )
+            archive_binary_receipts.append(
+                (
+                    match.group(1),
+                    match.group(2),
+                    match.group(3),
+                    int(match.group(4)),
+                    int(match.group(5)),
+                )
+            )
+            archive_binary_indices.append(index)
+        if canonical_line.startswith("RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS"):
+            match = _MLKEM_ARCHIVE_SOURCE_MARKER.fullmatch(line)
+            if match is None:
+                raise RustPublishContractError(
+                    "Rust package transcript contains a malformed ML-KEM source archive marker"
+                )
+            archive_source_receipts.append(
+                (int(match.group(1)), match.group(2), match.group(3))
+            )
+            archive_source_indices.append(index)
 
     package_list_crates = _validate_exact_crate_sequence(
         list_crates,
@@ -1829,6 +2094,18 @@ def validate_rust_package_contract_transcript(
         verification_crates,
         "verification",
     )
+    if tuple(warning_free_labels) != RUST_PACKAGE_WARNING_FREE_LABELS:
+        raise RustPublishContractError(
+            "Rust package transcript Cargo warning-free label sequence differs: "
+            f"actual={warning_free_labels} "
+            f"expected={list(RUST_PACKAGE_WARNING_FREE_LABELS)}"
+        )
+    if tuple(completion_crates) != RUST_PACKAGE_COMPLETION_CRATES:
+        raise RustPublishContractError(
+            "Rust package transcript package completion crate sequence differs: "
+            f"actual={completion_crates} "
+            f"expected={list(RUST_PACKAGE_COMPLETION_CRATES)}"
+        )
     if len(advisory_commits) != 1:
         raise RustPublishContractError(
             "Rust package transcript must contain exactly one advisory database marker"
@@ -1857,13 +2134,72 @@ def validate_rust_package_contract_transcript(
         raise RustPublishContractError(
             "Rust package transcript must contain exactly one clean final marker"
         )
-
+    if len(archive_binary_receipts) != 1:
+        raise RustPublishContractError(
+            "Rust package transcript must contain exactly one ML-KEM binary archive marker"
+        )
+    if len(archive_source_receipts) != 1:
+        raise RustPublishContractError(
+            "Rust package transcript must contain exactly one ML-KEM source archive marker"
+        )
+    (
+        mlkem_host_target,
+        mlkem_implementation,
+        mlkem_implementation_id,
+        mlkem_archive_object_count,
+        mlkem_archive_symbol_count,
+    ) = archive_binary_receipts[0]
+    expected_native = mlkem_host_target in _NATIVE_TARGETS
+    expected_binary_contract = (
+        "aarch64-native" if expected_native else "portable",
+        (
+            _AARCH64_NATIVE_IMPLEMENTATION_ID
+            if expected_native
+            else _PORTABLE_IMPLEMENTATION_ID
+        ),
+        2 if expected_native else 1,
+        42 if expected_native else 30,
+    )
+    actual_binary_contract = (
+        mlkem_implementation,
+        mlkem_implementation_id,
+        mlkem_archive_object_count,
+        mlkem_archive_symbol_count,
+    )
+    if actual_binary_contract != expected_binary_contract:
+        raise RustPublishContractError(
+            "Rust package transcript ML-KEM binary archive fields differ from the "
+            "host target contract: "
+            f"target={mlkem_host_target!r} actual={actual_binary_contract} "
+            f"expected={expected_binary_contract}"
+        )
+    (
+        mlkem_vendor_file_count,
+        mlkem_upstream_version,
+        mlkem_upstream_commit,
+    ) = archive_source_receipts[0]
+    expected_source_contract = (
+        RUST_MLKEM_VENDOR_FILE_COUNT,
+        RUST_MLKEM_UPSTREAM_VERSION,
+        RUST_MLKEM_UPSTREAM_COMMIT,
+    )
+    if archive_source_receipts[0] != expected_source_contract:
+        raise RustPublishContractError(
+            "Rust package transcript ML-KEM source archive fields differ from the "
+            "audited source contract: "
+            f"actual={archive_source_receipts[0]} expected={expected_source_contract}"
+        )
     normalized_audit_index = _single_exact_marker_index(
         lines,
         RUST_PACKAGE_NORMALIZED_AUDIT_MARKER,
         "normalized dependency audit",
     )
-    cleanup_index = _single_exact_marker_index(
+    inspection_cleanup_index = _single_exact_marker_index(
+        lines,
+        RUST_PACKAGE_INSPECTION_CLEANUP_MARKER,
+        "package-inspection cleanup",
+    )
+    cargo_home_cleanup_index = _single_exact_marker_index(
         lines,
         RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER,
         "Cargo home cleanup",
@@ -1897,15 +2233,67 @@ def validate_rust_package_contract_transcript(
         cargo_home_index,
         toolchain_index,
         source_indices[0],
-        *list_indices,
-        *verification_indices,
-        yanked_indices[0],
-        normalized_audit_index,
-        advisory_indices[0],
-        stability_indices[0],
-        cleanup_index,
-        final_index,
+        warning_free_indices[0],
+        provider_fence_index,
+        publish_metadata_index,
     ]
+    warning_index = 1
+    for list_index in list_indices:
+        ordered_indices.extend((warning_free_indices[warning_index], list_index))
+        warning_index += 1
+    for completion_index, verification_index in zip(
+        completion_indices[: len(RUST_PUBLISHABLE_CRATES)],
+        verification_indices,
+    ):
+        ordered_indices.extend(
+            (
+                warning_free_indices[warning_index],
+                completion_index,
+                verification_index,
+            )
+        )
+        warning_index += 1
+    ordered_indices.extend(
+        (
+            verification_cleanup_index,
+            warning_free_indices[warning_index],
+            completion_indices[len(RUST_PUBLISHABLE_CRATES)],
+            archive_binary_indices[0],
+            archive_source_indices[0],
+        )
+    )
+    warning_index += 1
+    ordered_indices.extend(
+        (
+            warning_free_indices[warning_index],
+            completion_indices[len(RUST_PUBLISHABLE_CRATES) + 1],
+            backends_inspection_index,
+            backends_manifest_index,
+        )
+    )
+    warning_index += 1
+    ordered_indices.extend(
+        (
+            warning_free_indices[warning_index],
+            yanked_indices[0],
+        )
+    )
+    warning_index += 1
+    ordered_indices.extend(
+        (
+            warning_free_indices[warning_index],
+            normalized_audit_index,
+            advisory_indices[0],
+            stability_indices[0],
+            inspection_cleanup_index,
+            cargo_home_cleanup_index,
+            final_index,
+        )
+    )
+    if warning_index != len(warning_free_indices) - 1:
+        raise RustPublishContractError(
+            "internal Rust package marker ordering contract drifted"
+        )
     if any(
         current >= following
         for current, following in zip(ordered_indices, ordered_indices[1:])
@@ -1922,6 +2310,149 @@ def validate_rust_package_contract_transcript(
         normalized_cargo_lock_sha256=normalized_lock_sha256s[0],
         registry_package_count=registry_package_counts[0],
         source_commit=source_commits[0],
+        cargo_warning_free_labels=tuple(warning_free_labels),
+        package_completion_crates=tuple(completion_crates),
+        mlkem_host_target=mlkem_host_target,
+        mlkem_implementation=mlkem_implementation,
+        mlkem_implementation_id=mlkem_implementation_id,
+        mlkem_archive_object_count=mlkem_archive_object_count,
+        mlkem_archive_symbol_count=mlkem_archive_symbol_count,
+        mlkem_vendor_file_count=mlkem_vendor_file_count,
+        mlkem_upstream_version=mlkem_upstream_version,
+        mlkem_upstream_commit=mlkem_upstream_commit,
+        mlkem_reference_provider="ml-kem@0.2.3:dev-only",
+        mlkem_normal_provider="q-periapt-mlkem-native-sys",
+        publishable_crate_count=len(RUST_PUBLISHABLE_CRATES),
+        nonpublishable_crate_count=5,
+        backends_package="q-periapt-backends",
+    )
+
+
+def validate_rust_package_diagnostic_transcript(
+    transcript: bytes | str,
+) -> RustPackageDiagnosticContractReceipt:
+    """Parse one complete diagnostic transcript without granting clean status."""
+
+    if isinstance(transcript, bytes):
+        try:
+            text = transcript.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise RustPublishContractError(
+                "Rust package diagnostic transcript is not valid UTF-8"
+            ) from exc
+    elif isinstance(transcript, str):
+        text = transcript
+    else:
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript must be bytes or text"
+        )
+    if "\x00" in text or "\r" in text:
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript contains a non-canonical "
+            "control character"
+        )
+
+    lines = text.split("\n")
+    opening_indices = [
+        index
+        for index, line in enumerate(lines)
+        if line.lstrip().startswith(
+            RUST_PACKAGE_DIAGNOSTIC_OPENING_MARKER
+        )
+    ]
+    if (
+        len(opening_indices) != 1
+        or lines[opening_indices[0]]
+        != RUST_PACKAGE_DIAGNOSTIC_OPENING_MARKER
+    ):
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript must contain exactly one "
+            "canonical diagnostic-only opening marker"
+        )
+    first_nonempty_index = next(
+        (index for index, line in enumerate(lines) if line),
+        -1,
+    )
+    if opening_indices[0] != first_nonempty_index:
+        raise RustPublishContractError(
+            "Rust package diagnostic opening marker must be first"
+        )
+
+    source_indices = [
+        index
+        for index, line in enumerate(lines)
+        if line.lstrip().startswith("RUST_PACKAGE_SOURCE_DIAGNOSTIC")
+    ]
+    if len(source_indices) != 1:
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript must contain exactly one "
+            "diagnostic source marker"
+        )
+    source_match = _DIAGNOSTIC_SOURCE_MARKER.fullmatch(
+        lines[source_indices[0]]
+    )
+    if source_match is None:
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript contains a malformed source marker"
+        )
+
+    final_indices = [
+        index
+        for index, line in enumerate(lines)
+        if line.lstrip().startswith("RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS")
+    ]
+    if len(final_indices) != 1:
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript must contain exactly one "
+            "diagnostic final marker"
+        )
+    final_match = _DIAGNOSTIC_CONTRACT_MARKER.fullmatch(
+        lines[final_indices[0]]
+    )
+    if final_match is None:
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript contains a malformed final marker"
+        )
+    if any(
+        line.lstrip().startswith("RUST_PACKAGE_CONTRACT_PASS")
+        for line in lines
+    ):
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript contains a clean final marker"
+        )
+    if any("RUST_PACKAGE_HANDOFF_" in line for line in lines):
+        raise RustPublishContractError(
+            "Rust package diagnostic transcript contains a reserved handoff marker"
+        )
+    source_dirty = source_match.group(2) == "1"
+    if final_match.group(1) != source_match.group(2):
+        raise RustPublishContractError(
+            "Rust package diagnostic source and final dirty states differ"
+        )
+
+    normalized_lines = lines.copy()
+    normalized_lines[opening_indices[0]] = ""
+    normalized_lines[source_indices[0]] = (
+        f"RUST_PACKAGE_SOURCE_PASS commit={source_match.group(1)} clean=1"
+    )
+    normalized_lines[final_indices[0]] = (
+        "RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io "
+        "upload=not-attempted completed_at=" + final_match.group(2)
+    )
+    normalized = validate_rust_package_contract_transcript(
+        "\n".join(normalized_lines)
+    )
+    if (
+        normalized.source_commit != source_match.group(1)
+        or normalized.completed_at != final_match.group(2)
+    ):
+        raise RustPublishContractError(
+            "Rust package diagnostic normalization identity differs"
+        )
+    return RustPackageDiagnosticContractReceipt(
+        completed_at=normalized.completed_at,
+        source_commit=normalized.source_commit,
+        source_dirty=source_dirty,
     )
 
 
@@ -2074,6 +2605,34 @@ def validate_cargo_output(label: str, streams: Iterable[str]) -> None:
                 )
 
 
+def validate_no_registry_credentials(environment: Mapping[str, str]) -> None:
+    """Reject every ambient Cargo registry secret/provider override by name."""
+
+    if not isinstance(environment, Mapping) or any(
+        not isinstance(name, str) for name in environment
+    ):
+        raise RustPublishContractError("Cargo environment mapping is malformed")
+    for name in environment:
+        forbidden = (
+            name
+            in {
+                "CARGO_REGISTRY_TOKEN",
+                "CARGO_REGISTRY_CREDENTIAL_PROVIDER",
+                "CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS",
+            }
+            or name.startswith("CARGO_CREDENTIAL_ALIAS_")
+            or (
+                name.startswith("CARGO_REGISTRIES_")
+                and name.endswith(("_TOKEN", "_CREDENTIAL_PROVIDER"))
+            )
+        )
+        if forbidden:
+            raise RustPublishContractError(
+                "registry credentials and credential-provider overrides must be "
+                "unset for the no-upload package contract"
+            )
+
+
 def validate_cargo_package_completion(
     crate: str,
     streams: Iterable[str],
@@ -2097,30 +2656,44 @@ def validate_cargo_package_completion(
 
 
 _ALLOWED_BUILD_MODULE = '#[path = "src/build_support.rs"]\nmod build_support;'
-_EXPECTED_BUILD_SURFACE_SHA256 = {
-    "build.rs": "762ca28ec0f738e5165c2f2b8c9efa20bc1870ca997bcbedeffee19847e3928a",
-    "src/build_support.rs": "aede04be9ca74fc58b4c0e2cf26503fde702598075c55b95f0d8c50369c70d63",
-    "src/mlkem_bridge.c": "a05b807108685a33ac03b42cad4eb5c9b9c26c850030aa3d2de503e7f97fb93e",
+_EXPECTED_LOCAL_SOURCE_SHA256 = {
+    "build.rs": "e199e6530d937072d000e5d51c667ac54e4d9096338bb3e68d75f37bfe2dfbaa",
+    "src/build_support.rs": "9860e84623dabcd39b653ad68458b4fda381673248ee31fc5a155566417883ea",
+    "src/build_support_tests.rs": "cbbb3a33a0ef3aca5ec27be391fa9731887f5c1d2ac697d4dc14362f616685a3",
+    "src/lib.rs": "e0026393fd51570ff78d50446d462f583eec800bfd6a3f57c42a5e92f9326868",
+    "src/mlkem_bridge.c": "c12dbf268527fff0241a79f84f8dbcade065b37f3c76060f4f95c03a83bf149d",
+    "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
+    "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
+    "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
     "src/mlkem_bridge.h": "b8c286379f0f6444c91b3ae66b9aa3dcc412b62a727cd480c610b7e8d19722a2",
-    "src/mlkem_config.h": "a6a1eb47cd506dc8db14e08c7dbe1a245386db252cab3ca3821565b83eef27e4",
+    "src/mlkem_config.h": "e5788074d5e0f756e4133f0b16875e184916ddd09a9cef449482a7798a2a4194",
+    "src/mlkem_fips202_aarch64.h": "8263fd64394f4db1ed68167b414dec50662c32b22e31c01a6f78d5a35e642667",
+    "src/raw.rs": "3da32c86e71ee0769c51ec6b0b925d6457259714f143c184a84001e958f3978b",
+    "src/tests.rs": "5d0c261be44f1cf96db520c8064ccfd3501f291801ca388302d38a71fa8c43df",
+}
+_EXPECTED_BUILD_SURFACE_FILES = (
+    "build.rs",
+    "src/build_support.rs",
+    "src/mlkem_bridge.c",
+    "src/mlkem_bridge_native.c",
+    "src/mlkem_bridge_portable.c",
+    "src/mlkem_bridge_asm.S",
+    "src/mlkem_bridge.h",
+    "src/mlkem_config.h",
+    "src/mlkem_fips202_aarch64.h",
+)
+_EXPECTED_BUILD_SURFACE_SHA256 = {
+    name: _EXPECTED_LOCAL_SOURCE_SHA256[name]
+    for name in _EXPECTED_BUILD_SURFACE_FILES
 }
 _EXPECTED_LOCAL_SOURCE_FILES = frozenset(
-    {
-        "src/build_support.rs",
-        "src/build_support_tests.rs",
-        "src/lib.rs",
-        "src/mlkem_bridge.c",
-        "src/mlkem_bridge.h",
-        "src/mlkem_config.h",
-        "src/raw.rs",
-        "src/tests.rs",
-    }
-)
-_CONFIG_SELECTION = re.compile(
-    r'\.define\(\s*"MLK_CONFIG_FILE"\s*,\s*'
-    r'Some\(\s*"\\"mlkem_config\.h\\""\s*\)\s*\)'
+    name for name in _EXPECTED_LOCAL_SOURCE_SHA256 if name.startswith("src/")
 )
 _INCLUDE_SOURCE_TOKEN = re.compile(r"(?<!\.)\binclude(?:_bytes|_str)?\b")
+_EXPECTED_INCLUDE_SOURCE_TOKEN_COUNTS = {
+    "build.rs": 0,
+    "src/build_support.rs": 1,
+}
 _C_INCLUDE_DIRECTIVE = re.compile(
     r"(?m)^[ \t]*(?:#|%:|\?\?=)[ \t]*(?:include|include_next|import)\b[^\r\n]*$"
 )
@@ -2134,6 +2707,9 @@ _EXPECTED_C_INCLUDES = {
         '"mlkem_native.c"',
         '"mlkem_native.c"',
     ),
+    "src/mlkem_bridge_native.c": ('"mlkem_bridge.c"',),
+    "src/mlkem_bridge_portable.c": ('"mlkem_bridge.c"',),
+    "src/mlkem_bridge_asm.S": ('"mlkem_native_asm.S"',),
     "src/mlkem_bridge.h": ("<stdint.h>", '"mlkem_native.h"'),
     "src/mlkem_config.h": (
         "<stddef.h>",
@@ -2143,48 +2719,139 @@ _EXPECTED_C_INCLUDES = {
         "<stdint.h>",
         '"src/sys.h"',
     ),
+    "src/mlkem_fips202_aarch64.h": (
+        '"src/fips202/native/aarch64/x1_scalar.h"',
+        '"src/fips202/native/aarch64/x4_v8a_scalar.h"',
+    ),
 }
-_PORTABLE_CONFIG_PREFIX = (
+_TARGET_SELECTED_CONFIG_PREFIX = (
     "/* SPDX-License-Identifier: Apache-2.0 OR MIT */\n"
+    "#ifndef QPN_MLKEM_CONFIG_H\n"
+    "#define QPN_MLKEM_CONFIG_H\n\n"
+    "/* Exactly one source wrapper owns the implementation selection. */\n"
+    "#if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64) == \\\n"
+    "    defined(QPN_MLKEM_BUILD_PORTABLE)\n"
+    "#error Exactly one owned mlkem-native implementation selector is required\n"
+    "#endif\n\n"
+    "/* Reject caller-supplied upstream backend selection before defining ours. */\n"
     "#if defined(MLK_CONFIG_USE_NATIVE_BACKEND_ARITH) || \\\n"
     "    defined(MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202) || \\\n"
     "    defined(MLK_CONFIG_ARITH_BACKEND_FILE) || \\\n"
     "    defined(MLK_CONFIG_FIPS202_BACKEND_FILE) || \\\n"
     "    defined(MLK_CONFIG_FIPS202_CUSTOM_HEADER) || \\\n"
     "    defined(MLK_CONFIG_FIPS202X4_CUSTOM_HEADER)\n"
-    "#error External or native mlkem-native backends are not supported by this portable-only crate\n"
-    "#endif\n\n"
-    "#ifndef QPN_MLKEM_CONFIG_H\n"
-    "#define QPN_MLKEM_CONFIG_H\n"
+    "#error External mlkem-native backend configuration is not supported\n"
+    "#endif\n"
 )
-_REQUIRED_GUARD_TOKENS = {
-    "MLK_CONFIG_USE_NATIVE_BACKEND_ARITH",
-    "MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202",
-    "MLK_CONFIG_ARITH_BACKEND_FILE",
-    "MLK_CONFIG_FIPS202_BACKEND_FILE",
-    "MLK_CONFIG_FIPS202_CUSTOM_HEADER",
-    "MLK_CONFIG_FIPS202X4_CUSTOM_HEADER",
+_EXPECTED_CONFIG_TOKEN_COUNTS = {
+    "QPN_MLKEM_BUILD_NATIVE_AARCH64": 3,
+    "QPN_MLKEM_BUILD_PORTABLE": 1,
+    "MLK_CONFIG_USE_NATIVE_BACKEND_ARITH": 2,
+    "MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202": 2,
+    "MLK_CONFIG_ARITH_BACKEND_FILE": 2,
+    "MLK_CONFIG_FIPS202_BACKEND_FILE": 2,
+    "MLK_CONFIG_FIPS202_CUSTOM_HEADER": 1,
+    "MLK_CONFIG_FIPS202X4_CUSTOM_HEADER": 1,
 }
-_NATIVE_ENABLE_PATTERNS = {
-    "C #define MLK_CONFIG_USE_NATIVE_BACKEND_*": re.compile(
-        r"(?m)^\s*#\s*define\s+MLK_CONFIG_USE_NATIVE_BACKEND_(?:ARITH|FIPS202)(?:\s|$)"
+_C_DEFINE_DIRECTIVE = re.compile(
+    r"(?m)^[ \t]*#[ \t]*define[ \t]+(?P<name>[A-Za-z_][A-Za-z0-9_]*)"
+    r"(?:[ \t]+(?P<value>[^\r\n]+?))?[ \t]*$"
+)
+_EXPECTED_WRAPPER_DEFINES = {
+    "src/mlkem_bridge_native.c": (
+        ("QPN_MLKEM_BUILD_NATIVE_AARCH64", ""),
+        ("MLK_CONFIG_FILE", '"mlkem_config.h"'),
     ),
-    "cc::Build::define MLK_CONFIG_USE_NATIVE_BACKEND_*": re.compile(
-        r'\.define\(\s*"MLK_CONFIG_USE_NATIVE_BACKEND_(?:ARITH|FIPS202)"'
+    "src/mlkem_bridge_portable.c": (
+        ("QPN_MLKEM_BUILD_PORTABLE", ""),
+        ("MLK_CONFIG_FILE", '"mlkem_config.h"'),
     ),
-    "C #define MLK_CONFIG_*_BACKEND_FILE": re.compile(
-        r"(?m)^\s*#\s*define\s+MLK_CONFIG_(?:ARITH|FIPS202)_BACKEND_FILE(?:\s|$)"
+    "src/mlkem_bridge_asm.S": (
+        ("QPN_MLKEM_BUILD_NATIVE_AARCH64", ""),
+        ("MLK_CONFIG_FILE", '"mlkem_config.h"'),
+        ("MLK_CONFIG_PARAMETER_SET", "512"),
+        ("MLK_CONFIG_MULTILEVEL_WITH_SHARED", ""),
     ),
-    "cc::Build::define MLK_CONFIG_*_BACKEND_FILE": re.compile(
-        r'\.define\(\s*"MLK_CONFIG_(?:ARITH|FIPS202)_BACKEND_FILE"'
-    ),
-    "assembly translation unit": re.compile(
-        r'(?i)#\s*include\s*[<"][^>"]+\.S[>"]|'
-        r"\.files?\([^\n)]*\.S|mlkem_native_asm\.S"
-    ),
-    "prebuilt object": re.compile(r"\.objects?\b"),
-    "native assembly symbol": re.compile(r"(?i)\b[a-z_][a-z0-9_]*_asm\s*\("),
 }
+_PORTABLE_IMPLEMENTATION_ID = "mlkem-native-1.2.0/portable-c"
+_AARCH64_NATIVE_IMPLEMENTATION_ID = (
+    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+)
+_EXPECTED_NATIVE_TARGETS = (
+    ("aarch64-apple-darwin", "", "macos", "apple"),
+    ("aarch64-apple-ios", "", "ios", "apple"),
+    ("aarch64-apple-ios-sim", "sim", "ios", "apple"),
+    ("aarch64-unknown-linux-gnu", "gnu", "linux", "unknown"),
+    ("aarch64-linux-android", "", "android", "unknown"),
+)
+_NATIVE_TARGETS = frozenset(target for target, _, _, _ in _EXPECTED_NATIVE_TARGETS)
+_NATIVE_TARGET_ROW = re.compile(
+    r'"(?P<target>[a-z0-9_-]+)"\s*=>\s*Some\(ExpectedNativeTarget\s*\{\s*'
+    r'environment:\s*"(?P<environment>[a-z]*)",\s*'
+    r'operating_system:\s*"(?P<operating_system>[a-z]+)",\s*'
+    r'vendor:\s*"(?P<vendor>[a-z]+)",\s*\}\),',
+    re.DOTALL,
+)
+_BRIDGE_SYMBOLS = frozenset(
+    f"qpn_mlkem_bridge_v1_2_0_{parameter_set}_{operation}"
+    for parameter_set in ("512", "768", "1024")
+    for operation in (
+        "keypair_derand",
+        "encapsulate_derand",
+        "decapsulate",
+        "check_public_key",
+    )
+)
+_SHARED_FIPS202_SYMBOLS = frozenset(
+    f"qpn_mlkem_internal_v1_2_0__{suffix}"
+    for suffix in (
+        "keccakf1600_extract_bytes",
+        "keccakf1600_permute",
+        "keccakf1600_xor_bytes",
+        "keccakf1600x4_extract_bytes",
+        "keccakf1600x4_permute",
+        "keccakf1600x4_xor_bytes",
+        "sha3_256",
+        "sha3_512",
+        "shake128_absorb_once",
+        "shake128_init",
+        "shake128_release",
+        "shake128_squeezeblocks",
+        "shake128x4_absorb_once",
+        "shake128x4_init",
+        "shake128x4_release",
+        "shake128x4_squeezeblocks",
+        "shake256",
+        "shake256x4",
+    )
+)
+_AARCH64_ASSEMBLY_SYMBOLS = frozenset(
+    f"qpn_mlkem_internal_v1_2_0__{suffix}"
+    for suffix in (
+        "intt_aarch64_asm",
+        "keccak_f1600_x1_scalar_aarch64_asm",
+        "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
+        "ntt_aarch64_asm",
+        "poly_mulcache_compute_aarch64_asm",
+        "poly_reduce_aarch64_asm",
+        "poly_tobytes_aarch64_asm",
+        "poly_tomont_aarch64_asm",
+        "polyvec_basemul_acc_montgomery_cached_k2_aarch64_asm",
+        "polyvec_basemul_acc_montgomery_cached_k3_aarch64_asm",
+        "polyvec_basemul_acc_montgomery_cached_k4_aarch64_asm",
+        "rej_uniform_aarch64_asm",
+    )
+)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class MlKemArchiveContract:
+    """Observed target-selected C archive shape from a packaged sys crate."""
+
+    implementation: str
+    implementation_id: str
+    object_count: int
+    symbol_count: int
 
 
 def validate_packaged_mlkem_native_local_sources(source_files: set[str]) -> None:
@@ -2199,6 +2866,41 @@ def validate_packaged_mlkem_native_local_sources(source_files: set[str]) -> None
         )
 
 
+def validate_packaged_mlkem_native_local_source_digests(
+    source_files: Mapping[str, bytes],
+) -> None:
+    """Require every packaged build/local-source byte to match its audited digest."""
+
+    actual_names = set(source_files)
+    expected_names = set(_EXPECTED_LOCAL_SOURCE_SHA256)
+    missing = sorted(expected_names - actual_names)
+    extra = sorted(actual_names - expected_names)
+    malformed = sorted(
+        name for name, data in source_files.items() if not isinstance(data, bytes)
+    )
+    if missing or extra or malformed:
+        raise RustPublishContractError(
+            "sys crate packaged local source digest set differs from the audited allowlist: "
+            f"missing={missing} extra={extra} non_bytes={malformed}"
+        )
+    actual_digests = {
+        name: hashlib.sha256(data).hexdigest() for name, data in source_files.items()
+    }
+    mismatches = {
+        name: {
+            "expected": _EXPECTED_LOCAL_SOURCE_SHA256[name],
+            "actual": actual_digests[name],
+        }
+        for name in sorted(expected_names)
+        if actual_digests[name] != _EXPECTED_LOCAL_SOURCE_SHA256[name]
+    }
+    if mismatches:
+        raise RustPublishContractError(
+            "packaged local source bytes differ from the audited allowlist: "
+            f"{mismatches}"
+        )
+
+
 def _validate_c_include_graph(name: str, source: str) -> None:
     directives = _C_INCLUDE_DIRECTIVE.findall(source)
     literal_targets = tuple(
@@ -2207,10 +2909,286 @@ def _validate_c_include_graph(name: str, source: str) -> None:
     expected_targets = _EXPECTED_C_INCLUDES[name]
     if len(directives) != len(literal_targets) or literal_targets != expected_targets:
         raise RustPublishContractError(
-            "portable C include graph differs from the audited allowlist: "
+            "target-selected C/assembly include graph differs from the audited allowlist: "
             f"file={name} directives={len(directives)} "
             f"literal_targets={list(literal_targets)} "
             f"expected={list(expected_targets)}"
+        )
+
+
+def _validate_source_wrapper(name: str, source: str) -> None:
+    actual_defines = tuple(
+        (match.group("name"), (match.group("value") or "").strip())
+        for match in _C_DEFINE_DIRECTIVE.finditer(source)
+    )
+    expected_defines = _EXPECTED_WRAPPER_DEFINES[name]
+    if actual_defines != expected_defines:
+        raise RustPublishContractError(
+            "source-owned implementation wrapper differs from the audited selector: "
+            f"file={name} actual={actual_defines} expected={expected_defines}"
+        )
+    _validate_c_include_graph(name, source)
+
+
+def _extract_rust_function(source: str, function_name: str) -> str:
+    signature = re.search(rf"\bfn\s+{re.escape(function_name)}\s*\(", source)
+    if signature is None:
+        raise RustPublishContractError(
+            f"required Rust build helper is missing: {function_name}"
+        )
+    opening = source.find("{", signature.end())
+    if opening < 0:
+        raise RustPublishContractError(
+            f"required Rust build helper has no body: {function_name}"
+        )
+    depth = 0
+    for index in range(opening, len(source)):
+        character = source[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return source[opening + 1 : index]
+    raise RustPublishContractError(
+        f"required Rust build helper has an unterminated body: {function_name}"
+    )
+
+
+def _validate_target_selection(build_support: str) -> None:
+    expected_target_body = _extract_rust_function(
+        build_support, "expected_native_target"
+    )
+    actual_targets = tuple(
+        (
+            match.group("target"),
+            match.group("environment"),
+            match.group("operating_system"),
+            match.group("vendor"),
+        )
+        for match in _NATIVE_TARGET_ROW.finditer(expected_target_body)
+    )
+    fallback_count = len(re.findall(r"_\s*=>\s*None\s*,", expected_target_body))
+    if actual_targets != _EXPECTED_NATIVE_TARGETS or fallback_count != 1:
+        raise RustPublishContractError(
+            "AArch64 native target allowlist must contain exactly the five audited targets "
+            "with one portable fallback: "
+            f"actual={actual_targets} fallback_count={fallback_count}"
+        )
+
+    selection_body = _extract_rust_function(
+        build_support, "select_mlkem_implementation"
+    )
+    compact = re.sub(r"\s+", " ", selection_body).strip()
+    fallback = (
+        "let Some(expected) = expected_native_target(target) else { "
+        "return Ok(MlKemImplementation::Portable); };"
+    )
+    expected_mismatches = (
+        ('target_arch != "aarch64"', "Architecture"),
+        ('target_endian != "little"', "Endianness"),
+        ("target_env != expected.environment", "Environment"),
+        ("target_os != expected.operating_system", "OperatingSystem"),
+        ("target_vendor != expected.vendor", "Vendor"),
+    )
+    missing_mismatches = [
+        error
+        for condition, error in expected_mismatches
+        if (
+            f"if {condition} {{ return Err(NativeTargetMetadataError::{error}); }}"
+            not in compact
+        )
+    ]
+    if (
+        fallback not in compact
+        or selection_body.count("MlKemImplementation::Portable") != 1
+        or selection_body.count("return Err(") != len(expected_mismatches)
+        or missing_mismatches
+        or compact.count("Ok(MlKemImplementation::Aarch64Native)") != 1
+    ):
+        raise RustPublishContractError(
+            "native target metadata mismatches must fail closed and only non-allowlisted "
+            "targets may use the portable fallback: "
+            f"missing_mismatches={missing_mismatches}"
+        )
+
+
+def _validate_implementation_ids(build_rs: str, build_support: str) -> None:
+    expected_constants = (
+        (
+            "PORTABLE_IMPLEMENTATION_ID",
+            _PORTABLE_IMPLEMENTATION_ID,
+        ),
+        (
+            "AARCH64_NATIVE_IMPLEMENTATION_ID",
+            _AARCH64_NATIVE_IMPLEMENTATION_ID,
+        ),
+    )
+    missing = [
+        name
+        for name, value in expected_constants
+        if re.search(
+            rf'pub\(crate\)\s+const\s+{name}:\s*&str\s*=\s*"{re.escape(value)}"\s*;',
+            build_support,
+        )
+        is None
+    ]
+    id_body = re.sub(
+        r"\s+", " ", _extract_rust_function(build_support, "id")
+    ).strip()
+    expected_id_arms = (
+        "Self::Portable => PORTABLE_IMPLEMENTATION_ID",
+        "Self::Aarch64Native => AARCH64_NATIVE_IMPLEMENTATION_ID",
+    )
+    marker = "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID={}"
+    if (
+        missing
+        or any(arm not in id_body for arm in expected_id_arms)
+        or build_rs.count(marker) != 1
+        or build_rs.count("implementation.id()") != 2
+    ):
+        raise RustPublishContractError(
+            "target-selected implementation IDs differ from the audited contract: "
+            f"missing_constants={missing}"
+        )
+
+
+def _validate_build_topology(build_rs: str, build_support: str) -> None:
+    build_rust_surface = "\n".join((build_rs, build_support))
+    expected_constants = {
+        "NATIVE_ASSEMBLY_WRAPPER": "src/mlkem_bridge_asm.S",
+        "NATIVE_C_WRAPPER": "src/mlkem_bridge_native.c",
+        "PORTABLE_C_WRAPPER": "src/mlkem_bridge_portable.c",
+    }
+    missing_constants = [
+        name
+        for name, value in expected_constants.items()
+        if re.search(
+            rf'const\s+{name}:\s*&str\s*=\s*"{re.escape(value)}"\s*;',
+            build_rs,
+        )
+        is None
+    ]
+    file_calls = len(re.findall(r"\.file\s*\(", build_rust_surface))
+    files_calls = len(re.findall(r"\.files\s*\(", build_rust_surface))
+    file_method_tokens = len(
+        re.findall(r"\.(?:r#)?files?\b", build_rust_surface)
+    )
+    object_calls = len(re.findall(r"\.object\s*\(", build_rust_surface))
+    objects_calls = len(re.findall(r"\.objects\s*\(", build_rust_surface))
+    object_method_tokens = len(
+        re.findall(r"\.(?:r#)?objects?\b", build_rust_surface)
+    )
+    intermediate_calls = len(
+        re.findall(r"\.try_compile_intermediates\s*\(", build_rust_surface)
+    )
+    archive_calls = len(re.findall(r"\.try_compile\s*\(", build_rust_surface))
+    archive_method_tokens = len(
+        re.findall(r"\.(?:r#)?try_compile\b", build_rust_surface)
+    )
+    compact = re.sub(r"\s+", " ", build_rs)
+    c_selection = (
+        ".file(if implementation.uses_aarch64_native() { NATIVE_C_WRAPPER "
+        "} else { PORTABLE_C_WRAPPER })"
+    )
+    required_native_shapes = (
+        ".file(NATIVE_ASSEMBLY_WRAPPER)",
+        "let [object] = objects.as_slice() else",
+        "build.object(assembly_object);",
+        '.try_compile("q_periapt_mlkem_native")',
+        "same_compiler_metadata(c_compiler, &assembly_compiler)",
+    )
+    if (
+        missing_constants
+        or file_calls != 2
+        or files_calls != 0
+        or file_method_tokens != 2
+        or object_calls != 1
+        or objects_calls != 0
+        or object_method_tokens != 1
+        or intermediate_calls != 1
+        or archive_calls != 1
+        or archive_method_tokens != 1
+        or c_selection not in compact
+        or any(shape not in compact for shape in required_native_shapes)
+    ):
+        raise RustPublishContractError(
+            "sys crate compilation topology must produce one selected C wrapper plus exactly "
+            "one native assembly intermediate object in one archive: "
+            f"missing_constants={missing_constants} file_calls={file_calls} "
+            f"files_calls={files_calls} file_tokens={file_method_tokens} "
+            f"object_calls={object_calls} objects_calls={objects_calls} "
+            f"object_tokens={object_method_tokens} "
+            f"intermediate_calls={intermediate_calls} archive_calls={archive_calls} "
+            f"archive_tokens={archive_method_tokens}"
+        )
+
+    define_names = re.findall(r'\.define\(\s*"([^"]+)"', build_rust_surface)
+    define_calls = len(re.findall(r"\.define\s*\(", build_rust_surface))
+    define_method_tokens = len(
+        re.findall(r"\.(?:r#)?define\b", build_rust_surface)
+    )
+    if (
+        define_names != ["QPN_MLKEM_FREESTANDING"]
+        or define_calls != 1
+        or define_method_tokens != 1
+    ):
+        raise RustPublishContractError(
+            "build script may define only the portable freestanding boundary; "
+            "implementation selectors must remain source-owned: "
+            f"defines={define_names} define_calls={define_calls} "
+            f"define_tokens={define_method_tokens}"
+        )
+
+
+def _validate_native_compiler_contract(build_rs: str, build_support: str) -> None:
+    march_values = re.findall(r'"(-march=[^"]*)"', build_rs)
+    required_build_shapes = (
+        'build.inherit_rustflags(false).flag("-march=armv8-a");',
+        "validate_native_build_environment()?;",
+        'let required_platform_define = (target_os == "android").then_some("-DANDROID");',
+        "build_support::validate_native_compiler_arguments( arguments.iter().copied(), required_platform_define, )",
+    )
+    compact_build = re.sub(r"\s+", " ", build_rs)
+    required_guard_shapes = (
+        'argument.contains("QPN_MLKEM")',
+        'argument.contains("MLK_CONFIG")',
+        'argument.starts_with("-D")',
+        'argument.starts_with("-U")',
+        'argument.starts_with("-march")',
+        'argument.starts_with("-mcpu")',
+        'argument.starts_with("-mtune")',
+        'argument.starts_with("-mattr")',
+        'argument.starts_with("-mbranch-protection")',
+        'argument == "-fno-integrated-as"',
+        'argument == "-no-integrated-as"',
+        'argument.starts_with("-Xclang")',
+        'argument.starts_with("-Xpreprocessor")',
+        'argument.starts_with("-Xassembler")',
+        'argument.starts_with("-mllvm")',
+        'if argument == "-march=armv8-a"',
+        "required_platform_define == Some(argument)",
+        "MissingPlatformDefine",
+        "DuplicatePlatformDefine",
+        '"branch-protection"',
+    )
+    if (
+        march_values != ["-march=armv8-a"]
+        or build_rs.count("inherit_rustflags(false)") != 1
+        or any(shape not in compact_build for shape in required_build_shapes)
+        or any(shape not in build_support for shape in required_guard_shapes)
+        or build_support.count("MissingArmv8Baseline") != 3
+        or build_support.count("DuplicateArmv8Baseline") != 3
+        or 'println!("cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS")'
+        not in build_rs
+        or 'env::var_os("CRATE_CC_NO_DEFAULTS")' not in build_rs
+        or 'println!("cargo:rerun-if-env-changed=CARGO_ENCODED_RUSTFLAGS")'
+        not in build_rs
+        or 'env::var_os("CARGO_ENCODED_RUSTFLAGS")' not in build_rs
+    ):
+        raise RustPublishContractError(
+            "fixed AArch64 compiler flag/ambient override guard differs from the audited "
+            f"Armv8-A no-BTI contract: march_values={march_values}"
         )
 
 
@@ -2219,10 +3197,14 @@ def validate_mlkem_native_build_surface(
     build_rs: str,
     build_support: str,
     bridge_c: str,
+    bridge_native_c: str,
+    bridge_portable_c: str,
+    bridge_asm: str,
     bridge_h: str,
     local_config: str,
+    aarch64_fips202: str,
 ) -> None:
-    """Validate the complete packaged build-script and portable C surface.
+    """Validate the complete packaged target-selected native/portable surface.
 
     The semantic checks are intentionally lexical and conservative. The final
     whole-file digest allowlist closes equivalent Rust and C spellings without
@@ -2230,10 +3212,6 @@ def validate_mlkem_native_build_surface(
     """
 
     build_rust_surface = "\n".join((build_rs, build_support))
-    build_surface = "\n".join(
-        (build_rust_surface, bridge_c, bridge_h, local_config)
-    )
-
     allowed_build_module_count = build_rs.count(_ALLOWED_BUILD_MODULE)
     remaining_build_rs = build_rs.replace(_ALLOWED_BUILD_MODULE, "", 1)
     unapproved_mod_sources = sorted(
@@ -2245,12 +3223,13 @@ def validate_mlkem_native_build_surface(
         if re.search(r"\bmod\b", rust_source)
     )
     included_sources = sorted(
-        name
+        f"{name}:{len(_INCLUDE_SOURCE_TOKEN.findall(rust_source))}"
         for name, rust_source in (
             ("build.rs", build_rs),
             ("src/build_support.rs", build_support),
         )
-        if _INCLUDE_SOURCE_TOKEN.search(rust_source)
+        if len(_INCLUDE_SOURCE_TOKEN.findall(rust_source))
+        != _EXPECTED_INCLUDE_SOURCE_TOKEN_COUNTS[name]
     )
     if (
         allowed_build_module_count != 1
@@ -2264,88 +3243,75 @@ def validate_mlkem_native_build_surface(
             f"include_macros={included_sources}"
         )
 
-    config_selections = _CONFIG_SELECTION.findall(build_rust_surface)
-    if len(config_selections) != 1:
-        raise RustPublishContractError(
-            "portable build must select packaged mlkem_config.h exactly once: "
-            f"matches={len(config_selections)}"
-        )
-
-    source_files = re.findall(r'\.file\(\s*"([^"]+)"', build_rust_surface)
-    file_call_count = len(re.findall(r"\.file\b", build_rust_surface))
-    files_call_count = len(re.findall(r"\.files\b", build_rust_surface))
-    if (
-        source_files != ["src/mlkem_bridge.c"]
-        or file_call_count != 1
-        or files_call_count != 0
-    ):
-        raise RustPublishContractError(
-            "sys crate must compile exactly the single portable bridge translation unit: "
-            f"literal_files={source_files} file_calls={file_call_count} "
-            f"files_calls={files_call_count}"
-        )
-
-    define_names = re.findall(r'\.define\(\s*"([^"]+)"', build_rust_surface)
-    define_call_count = len(re.findall(r"\.define\b", build_rust_surface))
-    expected_define_names = ["MLK_CONFIG_FILE", "QPN_MLKEM_FREESTANDING"]
-    try_compile_count = len(re.findall(r"\.try_compile\b", build_rust_surface))
-    forbidden_build_tokens = sorted(
-        token for token in _REQUIRED_GUARD_TOKENS if token in build_rust_surface
-    )
-    if (
-        define_names != expected_define_names
-        or define_call_count != len(expected_define_names)
-        or try_compile_count != 1
-        or forbidden_build_tokens
-    ):
-        raise RustPublishContractError(
-            "sys crate build-script API surface differs from the portable allowlist: "
-            f"defines={define_names} define_calls={define_call_count} "
-            f"try_compile_calls={try_compile_count} "
-            f"forbidden_tokens={forbidden_build_tokens}"
-        )
+    _validate_target_selection(build_support)
+    _validate_implementation_ids(build_rs, build_support)
+    _validate_build_topology(build_rs, build_support)
+    _validate_native_compiler_contract(build_rs, build_support)
 
     for name, source in (
         ("src/mlkem_bridge.c", bridge_c),
+        ("src/mlkem_bridge_native.c", bridge_native_c),
+        ("src/mlkem_bridge_portable.c", bridge_portable_c),
+        ("src/mlkem_bridge_asm.S", bridge_asm),
         ("src/mlkem_bridge.h", bridge_h),
         ("src/mlkem_config.h", local_config),
+        ("src/mlkem_fips202_aarch64.h", aarch64_fips202),
     ):
         _validate_c_include_graph(name, source)
+    for name, source in (
+        ("src/mlkem_bridge_native.c", bridge_native_c),
+        ("src/mlkem_bridge_portable.c", bridge_portable_c),
+        ("src/mlkem_bridge_asm.S", bridge_asm),
+    ):
+        _validate_source_wrapper(name, source)
 
-    guard_token_counts = {
-        token: local_config.count(token) for token in sorted(_REQUIRED_GUARD_TOKENS)
+    config_token_counts = {
+        token: local_config.count(token)
+        for token in sorted(_EXPECTED_CONFIG_TOKEN_COUNTS)
     }
     error_directive_count = len(
         re.findall(r"(?m)^[ \t]*#[ \t]*error\b", local_config)
     )
     if (
-        not local_config.startswith(_PORTABLE_CONFIG_PREFIX)
-        or any(count != 1 for count in guard_token_counts.values())
-        or error_directive_count != 1
+        not local_config.startswith(_TARGET_SELECTED_CONFIG_PREFIX)
+        or config_token_counts != _EXPECTED_CONFIG_TOKEN_COUNTS
+        or error_directive_count != 6
+        or '#define MLK_CONFIG_ARITH_BACKEND_FILE "native/meta.h"' not in local_config
+        or (
+            '#define MLK_CONFIG_FIPS202_BACKEND_FILE "mlkem_fips202_aarch64.h"'
+            not in local_config
+        )
+        or "#if defined(__ARM_FEATURE_SHA3)" not in local_config
+        or "fixed Armv8-A FIPS 202 profile" not in local_config
     ):
         raise RustPublishContractError(
-            "portable config lacks the active fail-fast native-backend guard prefix: "
-            f"token_counts={guard_token_counts} "
+            "target-selected config lacks its active source-selector, ambient native-macro, "
+            "or SHA3/BTI baseline guard: "
+            f"token_counts={config_token_counts} "
             f"error_directives={error_directive_count}"
         )
 
-    enabled_native_shapes = sorted(
-        label
-        for label, pattern in _NATIVE_ENABLE_PATTERNS.items()
-        if pattern.search(build_surface)
-    )
-    if enabled_native_shapes:
+    if (
+        "auto.h" in aarch64_fips202
+        or "v84a" in aarch64_fips202.casefold()
+        or aarch64_fips202.count("x1_scalar.h") != 1
+        or aarch64_fips202.count("x4_v8a_scalar.h") != 1
+    ):
         raise RustPublishContractError(
-            "sys crate release build is not portable-only: "
-            f"{enabled_native_shapes}"
+            "AArch64 FIPS 202 selector must use fixed x1_scalar+x4_v8a_scalar headers "
+            "and must not select auto or Armv8.4-A/SHA3 backends"
         )
 
     packaged_sources = {
         "build.rs": build_rs,
         "src/build_support.rs": build_support,
         "src/mlkem_bridge.c": bridge_c,
+        "src/mlkem_bridge_native.c": bridge_native_c,
+        "src/mlkem_bridge_portable.c": bridge_portable_c,
+        "src/mlkem_bridge_asm.S": bridge_asm,
         "src/mlkem_bridge.h": bridge_h,
         "src/mlkem_config.h": local_config,
+        "src/mlkem_fips202_aarch64.h": aarch64_fips202,
     }
     actual_digests = {
         name: hashlib.sha256(source.encode("utf-8")).hexdigest()
@@ -2364,6 +3330,125 @@ def validate_mlkem_native_build_surface(
             "packaged build-surface bytes differ from the audited allowlist: "
             f"{mismatches}"
         )
+
+
+def parse_mlkem_archive_defined_symbols(
+    output: str,
+    *,
+    leading_underscore: bool,
+) -> tuple[str, ...]:
+    """Parse names-only nm output while rejecting unrecognized rows."""
+
+    symbols: list[str] = []
+    for line_number, raw_line in enumerate(output.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.endswith(":") and not any(character.isspace() for character in line):
+            continue
+        if re.fullmatch(r"_?[A-Za-z][A-Za-z0-9_.$@]*", line) is None:
+            raise RustPublishContractError(
+                "cannot parse names-only nm output for the sys archive: "
+                f"line={line_number} value={raw_line!r}"
+            )
+        if leading_underscore:
+            if not line.startswith("_"):
+                raise RustPublishContractError(
+                    "Mach-O external symbol lacks its required leading underscore: "
+                    f"{line!r}"
+                )
+            line = line[1:]
+        symbols.append(line)
+    if not symbols:
+        raise RustPublishContractError("sys archive nm output contains no defined symbols")
+    return tuple(symbols)
+
+
+def validate_mlkem_native_archive_contract(
+    *,
+    target: str,
+    archive_members: Iterable[str],
+    defined_symbols: Iterable[str],
+    build_output: str,
+) -> MlKemArchiveContract:
+    """Validate the actual packaged build archive selected for one host target."""
+
+    if re.fullmatch(r"[A-Za-z0-9_.-]+", target) is None:
+        raise RustPublishContractError(f"Rust host target is malformed: {target!r}")
+    native = target in _NATIVE_TARGETS
+    implementation = "aarch64-native" if native else "portable"
+    implementation_id = (
+        _AARCH64_NATIVE_IMPLEMENTATION_ID if native else _PORTABLE_IMPLEMENTATION_ID
+    )
+    expected_marker = (
+        "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID=" + implementation_id
+    )
+    actual_markers = [
+        line
+        for line in build_output.splitlines()
+        if line.startswith("cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID=")
+    ]
+    if actual_markers != [expected_marker]:
+        raise RustPublishContractError(
+            "packaged sys archive implementation ID differs from its target contract: "
+            f"target={target} markers={actual_markers} expected={expected_marker!r}"
+        )
+
+    raw_members = tuple(member.strip() for member in archive_members if member.strip())
+    if len(raw_members) != len(set(raw_members)):
+        raise RustPublishContractError("sys C archive contains duplicate members")
+    metadata_members = {"/", "//", "__.SYMDEF", "__.SYMDEF SORTED"}
+    object_members = tuple(
+        member for member in raw_members if member not in metadata_members
+    )
+    expected_suffixes = (
+        ("mlkem_bridge_native.o", "mlkem_bridge_asm.o")
+        if native
+        else ("mlkem_bridge_portable.o",)
+    )
+    actual_suffixes: list[str] = []
+    malformed_members: list[str] = []
+    for member in object_members:
+        match = re.fullmatch(
+            r"[0-9a-f]{16}-(mlkem_bridge_(?:native|portable|asm)\.o)", member
+        )
+        if match is None:
+            malformed_members.append(member)
+        else:
+            actual_suffixes.append(match.group(1))
+    if malformed_members or tuple(actual_suffixes) != expected_suffixes:
+        raise RustPublishContractError(
+            "sys C archive object contract differs from the selected implementation: "
+            f"target={target} malformed={malformed_members} "
+            f"actual={actual_suffixes} expected={list(expected_suffixes)}"
+        )
+
+    symbols = tuple(defined_symbols)
+    if len(symbols) != len(set(symbols)):
+        raise RustPublishContractError("sys C archive reports duplicate defined symbols")
+    public_symbols = sorted(symbol for symbol in symbols if symbol.startswith("q_periapt_"))
+    if public_symbols:
+        raise RustPublishContractError(
+            "sys C archive would expand the reserved q_periapt_ dynamic ABI namespace: "
+            f"{public_symbols}"
+        )
+    expected_symbols = _BRIDGE_SYMBOLS | _SHARED_FIPS202_SYMBOLS
+    if native:
+        expected_symbols |= _AARCH64_ASSEMBLY_SYMBOLS
+    actual_symbols = set(symbols)
+    if actual_symbols != expected_symbols:
+        raise RustPublishContractError(
+            "sys C archive external-symbol contract differs from the selected implementation: "
+            f"target={target} missing={sorted(expected_symbols - actual_symbols)} "
+            f"extra={sorted(actual_symbols - expected_symbols)}"
+        )
+
+    return MlKemArchiveContract(
+        implementation=implementation,
+        implementation_id=implementation_id,
+        object_count=len(object_members),
+        symbol_count=len(symbols),
+    )
 
 
 def _verify_crates_io_sparse_worker(arguments: list[str]) -> int:

@@ -156,11 +156,11 @@ class WorkflowArtifactTests(unittest.TestCase):
         self.assertEqual(
             destination,
             self.repository
-            / "target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3",
+            / "target/qperiapt-android-aar/q-periapt-android-0.1.0",
         )
         self._assert_outputs(destination, expected)
 
-    def test_platform_candidate_extracts_four_fixed_wrappers(self) -> None:
+    def test_platform_candidate_extracts_three_fixed_wrappers(self) -> None:
         profile = workflow_artifact.PLATFORM_CANDIDATE_PROFILE
         expected = self._write_profile(profile)
 
@@ -284,7 +284,7 @@ class WorkflowArtifactTests(unittest.TestCase):
                 path
                 for path in parent.iterdir()
                 if path.name.startswith(
-                    ".q-periapt-android-0.1.0-alpha.3.workflow-artifact-"
+                    ".q-periapt-android-0.1.0.workflow-artifact-"
                 )
             ]
             self.assertEqual(len(candidates), 1)
@@ -342,7 +342,7 @@ class WorkflowArtifactTests(unittest.TestCase):
                 candidate
                 for candidate in parent.iterdir()
                 if candidate.name.startswith(
-                    ".q-periapt-android-0.1.0-alpha.3.workflow-artifact-"
+                    ".q-periapt-android-0.1.0.workflow-artifact-"
                 )
             ]
             self.assertEqual(len(candidates), 1)
@@ -713,7 +713,7 @@ class WorkflowArtifactTests(unittest.TestCase):
 
         destination = (
             self.repository
-            / "target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3"
+            / "target/qperiapt-android-aar/q-periapt-android-0.1.0"
         )
         self.assertFalse(destination.exists())
         parent = destination.parent

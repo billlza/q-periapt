@@ -3,10 +3,10 @@
 #include "mlkem_bridge.h"
 
 /*
- * Compile all parameter sets into one portable translation unit. The upstream
- * KEM entry points and parameter-dependent helpers are `static`. The versioned
- * bridge and upstream's versioned shared FIPS 202 helpers have hidden external
- * visibility.
+ * Compile all parameter sets into one target-selected C translation unit. The
+ * upstream KEM entry points and parameter-dependent helpers are `static`. The
+ * versioned bridge and upstream's versioned shared FIPS 202 helpers have hidden
+ * external visibility.
  */
 #define MLK_CONFIG_MULTILEVEL_WITH_SHARED
 #define MLK_CONFIG_MONOBUILD_KEEP_SHARED_HEADERS

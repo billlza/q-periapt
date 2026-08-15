@@ -7,8 +7,11 @@ import tempfile
 import unittest
 from unittest import mock
 
+import performance_gate
 import proof_manifest
+import rust_package_handoff
 import rust_publish_contract
+from evidence_io import FileSnapshot
 from proof_manifest import (
     ProofManifestError,
     load_current_rust_package_contract_receipt,
@@ -18,6 +21,21 @@ from proof_manifest import (
 
 
 class ProofManifestTests(unittest.TestCase):
+    RUST_HANDOFF_TRANSACTION = f"transaction.1-{'1' * 32}"
+    RUST_HANDOFF_MANIFEST_PATH = (
+        "target/qperiapt-rust-package-handoffs/"
+        f"{RUST_HANDOFF_TRANSACTION}/rust-package-handoff.json"
+    )
+    RUST_HANDOFF_TRANSCRIPT_PATH = (
+        "target/qperiapt-rust-package-handoffs/"
+        f"{RUST_HANDOFF_TRANSACTION}/rust-package-contract.log"
+    )
+    def test_performance_schema_constant_matches_the_live_gate(self) -> None:
+        self.assertEqual(
+            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
+            performance_gate.PROOF_SCHEMA_VERSION,
+        )
+
     def test_rust_package_schema_constants_match_the_live_contract(self) -> None:
         self.assertEqual(
             proof_manifest.RUST_PACKAGE_PUBLISHABLE_CRATES,
@@ -58,16 +76,13 @@ class ProofManifestTests(unittest.TestCase):
                 "crates_io_index_url": proof_manifest.RUST_CRATES_IO_SPARSE_INDEX,
                 "crates_io_registry_package_count": 2,
                 "crates_io_sparse_lock_verification_pass": True,
-                "current_local_status": (
-                    "Current clean-tree Rust no-upload package contract passed at "
-                    f"source commit {commit} and canonical source digest {digest}, "
-                    f"completed at {completed_at}, using RustSec advisory database "
-                    f"commit {advisory_commit} fetched into a fresh owned Cargo home. "
-                    "Exact sparse-index lock verification passed for 2 crates.io "
-                    f"package records from normalized Cargo.lock SHA-256 {'f' * 64}. "
-                    "The retained transcript is selected by canonical path and SHA-256 "
-                    "for accidental mismatch detection; it is not an independent "
-                    "attestation."
+                "current_local_status": proof_manifest.rust_package_current_local_status(
+                    source_commit=commit,
+                    source_digest=digest,
+                    completed_at=completed_at,
+                    advisory_commit=advisory_commit,
+                    registry_package_count=2,
+                    normalized_lock_sha256="f" * 64,
                 ),
                 "current_source_status": (
                     "current_clean_tree_rust_package_contract_pass"
@@ -75,7 +90,9 @@ class ProofManifestTests(unittest.TestCase):
                 "dirty_diagnostic_command": (
                     proof_manifest.RUST_PACKAGE_DIRTY_COMMAND
                 ),
-                "evidence_schema": 1,
+                "evidence_schema": 2,
+                "handoff_manifest_path": self.RUST_HANDOFF_MANIFEST_PATH,
+                "handoff_manifest_sha256": "9" * 64,
                 "mode": proof_manifest.RUST_PACKAGE_MODE,
                 "nonpublishable_crates": list(
                     proof_manifest.RUST_PACKAGE_NONPUBLISHABLE_CRATES
@@ -97,7 +114,7 @@ class ProofManifestTests(unittest.TestCase):
                 "source_commit": commit,
                 "source_tree_dirty": False,
                 "status": "pass",
-                "transcript_path": proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH,
+                "transcript_path": self.RUST_HANDOFF_TRANSCRIPT_PATH,
                 "transcript_sha256": "e" * 64,
                 "upload_attempted": False,
             },
@@ -114,26 +131,58 @@ class ProofManifestTests(unittest.TestCase):
             rust_publish_contract.RUST_PACKAGE_CARGO_HOME_MARKER,
             rust_publish_contract.RUST_PACKAGE_TOOLCHAIN_MARKER,
             f"RUST_PACKAGE_SOURCE_PASS commit={source_commit} clean=1",
+            "RUST_CARGO_WARNING_FREE_PASS cargo-metadata",
+            rust_publish_contract.RUST_MLKEM_PROVIDER_FENCE_MARKER,
+            rust_publish_contract.RUST_PUBLISH_METADATA_MARKER,
         ]
-        lines.extend(
-            f"RUST_PACKAGE_LIST_PASS {crate} files=1"
-            for crate in rust_publish_contract.RUST_PUBLISHABLE_CRATES
-        )
-        lines.extend(
-            "RUST_PACKAGE_VERIFICATION_PASS "
-            f"{crate} registry=crates-io upload=not-attempted"
-            for crate in rust_publish_contract.RUST_PUBLISHABLE_CRATES
-        )
+        for crate in rust_publish_contract.RUST_PUBLISHABLE_CRATES:
+            lines.extend(
+                (
+                    f"RUST_CARGO_WARNING_FREE_PASS cargo-package-list-{crate}",
+                    f"RUST_PACKAGE_LIST_PASS {crate} files=1",
+                )
+            )
+        for crate in rust_publish_contract.RUST_PUBLISHABLE_CRATES:
+            lines.extend(
+                (
+                    "RUST_CARGO_WARNING_FREE_PASS "
+                    f"cargo-package-verification-{crate}",
+                    f"RUST_PACKAGE_COMPLETION_PASS {crate}",
+                    "RUST_PACKAGE_VERIFICATION_PASS "
+                    f"{crate} registry=crates-io upload=not-attempted",
+                )
+            )
         lines.extend(
             (
+                rust_publish_contract.RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER,
+                "RUST_CARGO_WARNING_FREE_PASS "
+                "cargo-package-inspection-q-periapt-mlkem-native-sys",
+                "RUST_PACKAGE_COMPLETION_PASS q-periapt-mlkem-native-sys",
+                "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
+                "target=aarch64-apple-darwin implementation=aarch64-native "
+                "implementation_id=mlkem-native-1.2.0/"
+                "aarch64-native-arith+fips202-v8a-scalar "
+                "objects=2 symbols=42 reserved_dynamic_abi=none",
+                "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS vendor_files=118 "
+                "upstream=v1.2.0 commit="
+                + rust_publish_contract.RUST_MLKEM_UPSTREAM_COMMIT,
+                "RUST_CARGO_WARNING_FREE_PASS "
+                "cargo-package-inspection-q-periapt-backends",
+                "RUST_PACKAGE_COMPLETION_PASS q-periapt-backends",
+                rust_publish_contract.RUST_BACKENDS_INSPECTION_MARKER,
+                rust_publish_contract.RUST_BACKENDS_NORMALIZED_MANIFEST_MARKER,
+                "RUST_CARGO_WARNING_FREE_PASS "
+                "cargo-generate-normalized-backends-lockfile",
                 "RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=2 "
                 "index=sparse-https checksums=exact yanked=0 "
                 f"normalized_lock_sha256={'f' * 64}",
+                "RUST_CARGO_WARNING_FREE_PASS cargo-audit-normalized-backends",
                 rust_publish_contract.RUST_PACKAGE_NORMALIZED_AUDIT_MARKER,
                 "RUST_ADVISORY_DB_PASS "
                 f"origin={rust_publish_contract.RUSTSEC_ADVISORY_DB_URL} "
                 f"commit={advisory_commit} clean=1 isolated_cargo_home=1",
                 f"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256={'f' * 64}",
+                rust_publish_contract.RUST_PACKAGE_INSPECTION_CLEANUP_MARKER,
                 rust_publish_contract.RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER,
                 "RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io "
                 f"upload=not-attempted completed_at={completed_at}",
@@ -151,7 +200,7 @@ class ProofManifestTests(unittest.TestCase):
             "proof_source_tree_sha256": source_digest,
             "performance": {
                 "current_source_status": "current_controlled_pass",
-                "proof_schema": 4,
+                "proof_schema": proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
                 "proof_source_tree_sha256": source_digest,
                 "proof_path": relative,
                 "proof_sha256": digest,
@@ -222,7 +271,7 @@ class ProofManifestTests(unittest.TestCase):
             "proof_source_tree_sha256": digest,
             "performance": {
                 "current_source_status": "current_controlled_pass",
-                "proof_schema": 4,
+                "proof_schema": proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
                 "proof_source_tree_sha256": digest,
                 "proof_path": "target/performance/proof.json",
                 "proof_sha256": "b" * 64,
@@ -231,12 +280,15 @@ class ProofManifestTests(unittest.TestCase):
             },
         }
         proof_manifest.validate_declared_currentness(current)
-        current["performance"]["proof_schema"] = 3
+        current["performance"]["proof_schema"] = 4
         with self.assertRaisesRegex(
-            proof_manifest.ProofManifestError, "requires proof schema 4"
+                proof_manifest.ProofManifestError,
+                f"requires proof schema {proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION}",
         ):
             proof_manifest.validate_declared_currentness(current)
-        current["performance"]["proof_schema"] = 4
+        current["performance"]["proof_schema"] = (
+            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION
+        )
         current["performance"]["proof_source_tree_sha256"] = "b" * 64
         with self.assertRaisesRegex(
             proof_manifest.ProofManifestError, "does not match"
@@ -247,7 +299,7 @@ class ProofManifestTests(unittest.TestCase):
         digest = "a" * 64
         section = {
             "current_source_status": "current_controlled_pass",
-            "proof_schema": 4,
+            "proof_schema": proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
             "proof_source_tree_sha256": digest,
             "proof_path": "target/performance/proof.json",
             "proof_sha256": "b" * 64,
@@ -618,6 +670,16 @@ class ProofManifestTests(unittest.TestCase):
             ("advisory_db_commit", "bad", "advisory DB commit"),
             ("completed_at", "2026-08-13", "RFC3339 UTC completion"),
             ("completed_at", "2026-8-3T2:3:4Z", "RFC3339 UTC completion"),
+            (
+                "handoff_manifest_path",
+                "target/other.json",
+                "handoff manifest path is not canonical",
+            ),
+            (
+                "handoff_manifest_sha256",
+                "bad",
+                "selected-proof SHA-256",
+            ),
             ("transcript_path", "target/other.log", "not canonical"),
             ("transcript_sha256", "bad", "selected-proof SHA-256"),
         )
@@ -655,10 +717,15 @@ class ProofManifestTests(unittest.TestCase):
     def test_current_rust_package_transcript_uses_the_canonical_file_binding(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
-            transcript = root / proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH
+            handoff_manifest = root / self.RUST_HANDOFF_MANIFEST_PATH
+            transcript = root / self.RUST_HANDOFF_TRANSCRIPT_PATH
             transcript.parent.mkdir(parents=True)
+            handoff_manifest.write_text("{}\n", encoding="utf-8")
             transcript.write_text("receipt\n", encoding="utf-8")
             manifest_value = self.current_rust_package_manifest()
+            manifest_value["rust_publish"]["handoff_manifest_sha256"] = (
+                hashlib.sha256(handoff_manifest.read_bytes()).hexdigest()
+            )
             manifest_value["rust_publish"]["transcript_sha256"] = hashlib.sha256(
                 transcript.read_bytes()
             ).hexdigest()
@@ -680,12 +747,24 @@ class ProofManifestTests(unittest.TestCase):
                 declaration.sha256,
                 manifest_value["rust_publish"]["transcript_sha256"],
             )
+            handoff_declaration = proof_manifest.resolve_bound_file_declaration(
+                root,
+                manifest,
+                binding="rust_package_handoff_manifest",
+            )
+            self.assertEqual(handoff_declaration.path, handoff_manifest)
+            self.assertEqual(
+                handoff_declaration.sha256,
+                manifest_value["rust_publish"]["handoff_manifest_sha256"],
+            )
 
     def test_current_rust_package_receipt_loads_exact_bound_transcript(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
-            transcript = root / proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH
+            handoff_manifest = root / self.RUST_HANDOFF_MANIFEST_PATH
+            transcript = root / self.RUST_HANDOFF_TRANSCRIPT_PATH
             transcript.parent.mkdir(parents=True)
+            handoff_manifest.write_text("{}\n", encoding="utf-8")
             transcript.write_bytes(self.current_rust_package_transcript())
             manifest_value = self.current_rust_package_manifest()
             manifest_value["rust_publish"]["transcript_sha256"] = hashlib.sha256(
@@ -699,52 +778,102 @@ class ProofManifestTests(unittest.TestCase):
                 encoding="utf-8",
             )
             manifest = load_results_manifest_snapshot(manifest_path)
-            with mock.patch.object(
-                proof_manifest,
-                "require_commit_or_evidence_successor",
-                return_value="e" * 40,
-            ) as source_successor:
+            receipt_fixture = (
+                rust_publish_contract.validate_rust_package_contract_transcript(
+                    transcript.read_bytes()
+                )
+            )
+            handoff_snapshot = mock.Mock(
+                transcript=FileSnapshot(
+                    path=transcript,
+                    data=transcript.read_bytes(),
+                    size=transcript.stat().st_size,
+                    sha256=manifest_value["rust_publish"][
+                        "transcript_sha256"
+                    ],
+                ),
+                package_contract=receipt_fixture,
+            )
+            with (
+                mock.patch.object(
+                    proof_manifest,
+                    "run_git_text",
+                    return_value="4" * 40,
+                ) as source_tree,
+                mock.patch.object(
+                    rust_package_handoff,
+                    "load_rust_package_handoff_snapshot",
+                    return_value=handoff_snapshot,
+                ) as load_handoff,
+                mock.patch.object(
+                    proof_manifest,
+                    "require_commit_or_evidence_successor",
+                    return_value="e" * 40,
+                ) as source_successor,
+            ):
                 receipt = load_current_rust_package_contract_receipt(
                     root,
                     manifest,
                     frozen_commit="e" * 40,
                     frozen_source_sha256="a" * 64,
                 )
+            source_tree.assert_called_once_with(
+                root,
+                ["rev-parse", "--verify", f"{'c' * 40}^{{tree}}"],
+            )
+            load_handoff.assert_called_once_with(
+                handoff_manifest,
+                "9" * 64,
+                rust_package_handoff.RustPackageHandoffSource(
+                    source_commit="c" * 40,
+                    source_tree="4" * 40,
+                    canonical_source_tree_sha256="a" * 64,
+                ),
+                handoff_root=(
+                    root / "target" / "qperiapt-rust-package-handoffs"
+                ),
+            )
             source_successor.assert_called_once_with(root, "c" * 40)
             self.assertEqual(receipt.source_commit, "c" * 40)
             self.assertEqual(receipt.advisory_db_commit, "d" * 40)
             self.assertEqual(receipt.registry_package_count, 2)
             self.assertEqual(receipt.normalized_cargo_lock_sha256, "f" * 64)
 
-            for label, mutate, message in (
-                (
-                    "hash",
-                    lambda: transcript.write_bytes(
-                        self.current_rust_package_transcript() + b"tampered\n"
-                    ),
-                    "hash differs",
-                ),
-                (
-                    "commit",
-                    lambda: None,
-                    "source commit differs",
-                ),
+            for label, message in (
+                ("handoff", "handoff digest differs"),
+                ("commit", "source commit differs"),
             ):
                 with self.subTest(label=label):
-                    if label == "hash":
-                        mutate()
-                        selected_source_commit = "c" * 40
-                    else:
-                        transcript.write_bytes(self.current_rust_package_transcript())
-                        selected_source_commit = "e" * 40
+                    selected_source_commit = (
+                        "c" * 40 if label == "handoff" else "e" * 40
+                    )
                     manifest.value["provenance"]["snapshot_commit"] = (
                         selected_source_commit
                     )
                     with self.assertRaisesRegex(ProofManifestError, message):
-                        with mock.patch.object(
-                            proof_manifest,
-                            "require_commit_or_evidence_successor",
-                            return_value="e" * 40,
+                        with (
+                            mock.patch.object(
+                                proof_manifest,
+                                "run_git_text",
+                                return_value="4" * 40,
+                            ),
+                            mock.patch.object(
+                                rust_package_handoff,
+                                "load_rust_package_handoff_snapshot",
+                                side_effect=(
+                                    rust_package_handoff.RustPackageHandoffError(
+                                        "handoff digest differs"
+                                    )
+                                    if label == "handoff"
+                                    else None
+                                ),
+                                return_value=handoff_snapshot,
+                            ),
+                            mock.patch.object(
+                                proof_manifest,
+                                "require_commit_or_evidence_successor",
+                                return_value="e" * 40,
+                            ),
                         ):
                             load_current_rust_package_contract_receipt(
                                 root,
@@ -753,7 +882,6 @@ class ProofManifestTests(unittest.TestCase):
                                 frozen_source_sha256="a" * 64,
                             )
 
-            transcript.write_bytes(self.current_rust_package_transcript())
             manifest.value["provenance"]["snapshot_commit"] = "c" * 40
             manifest.value["rust_publish"]["normalized_cargo_lock_sha256"] = (
                 "0" * 64
@@ -762,10 +890,22 @@ class ProofManifestTests(unittest.TestCase):
                 ProofManifestError,
                 "normalized Cargo.lock SHA-256 differs",
             ):
-                with mock.patch.object(
-                    proof_manifest,
-                    "require_commit_or_evidence_successor",
-                    return_value="e" * 40,
+                with (
+                    mock.patch.object(
+                        proof_manifest,
+                        "run_git_text",
+                        return_value="4" * 40,
+                    ),
+                    mock.patch.object(
+                        rust_package_handoff,
+                        "load_rust_package_handoff_snapshot",
+                        return_value=handoff_snapshot,
+                    ),
+                    mock.patch.object(
+                        proof_manifest,
+                        "require_commit_or_evidence_successor",
+                        return_value="e" * 40,
+                    ),
                 ):
                     load_current_rust_package_contract_receipt(
                         root,
@@ -810,7 +950,7 @@ class ProofManifestTests(unittest.TestCase):
             ),
             "generated_at": "2026-08-12T00:04:00Z",
             "index_path": (
-                "target/qperiapt-local-release/release/0.1.0-alpha.3/"
+                "target/qperiapt-local-release/release/0.1.0/"
                 f"{commit}/index.json"
             ),
             "index_schema": 5,
@@ -871,6 +1011,28 @@ class ProofManifestTests(unittest.TestCase):
     def test_rust_package_contract_section_must_be_an_object(self) -> None:
         with self.assertRaisesRegex(ProofManifestError, "rust_publish must be an object"):
             proof_manifest.validate_declared_currentness({"rust_publish": "pass"})
+
+    def test_generic_manifest_preserves_stale_physical_and_performance_history(
+        self,
+    ) -> None:
+        stale = "stale_requires_rerun"
+        proof_manifest.validate_declared_currentness(
+            {
+                "proof_source_tree_sha256": "a" * 64,
+                "android_physical_runtime": {
+                    "current_source_status": stale,
+                    "proof_path": "target/android/historical-physical.json",
+                    "proof_sha256": "b" * 64,
+                    "historical_device": "retained-fact",
+                },
+                "performance": {
+                    "current_source_status": stale,
+                    "proof_path": "target/performance/historical.json",
+                    "proof_sha256": "c" * 64,
+                    "historical_command": "retained-fact",
+                },
+            }
+        )
 
     def test_unknown_currentness_statuses_fail_closed(self) -> None:
         for section, key in (
@@ -938,7 +1100,7 @@ class ProofManifestTests(unittest.TestCase):
                 },
                 "rust_publish": {
                     "current_source_status": stale,
-                    "transcript_path": proof_manifest.RUST_PACKAGE_TRANSCRIPT_PATH,
+                    "transcript_path": "target/legacy/rust-package-contract.log",
                     "transcript_sha256": digest,
                 },
             }

@@ -55,6 +55,7 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
+    require_commit_ancestor,
     require_commit_or_evidence_successor,
 )
 from git_provenance import (
@@ -287,6 +288,13 @@ EXPECTED_EXPORT_NAMES = frozenset(
 EXPECTED_FACES = frozenset(PACKAGE_MANIFEST_CONTRACTS)
 HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
 GIT_COMMIT = re.compile(r"[0-9a-f]{40,64}")
+SEMVER = re.compile(
+    r"^(0|[1-9][0-9]*)\."
+    r"(0|[1-9][0-9]*)\."
+    r"(0|[1-9][0-9]*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+)
 _CANONICAL_PATH_ASCII = MappingProxyType(
     {
         character: character
@@ -327,6 +335,25 @@ class AbiTrustRoot:
     version: str
     archive_prefix: str
     platforms: dict[str, dict[str, Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class _SemanticVersion:
+    major: int
+    minor: int
+    patch: int
+    prerelease: tuple[str, ...] | None
+    build: tuple[str, ...] | None
+
+
+@dataclass(frozen=True, slots=True)
+class _ReleasePointerIdentity:
+    version_text: str
+    version: _SemanticVersion
+    commit: str
+    index_path: str
+    index_sha256: str
+    generated_at: str
 
 
 def fail(message: str) -> NoReturn:
@@ -944,6 +971,117 @@ def defer_termination_signals() -> Iterator[None]:
         signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
 
 
+@contextlib.contextmanager
+def _release_pointer_lock(pointer_path: pathlib.Path) -> Iterator[None]:
+    """Serialize pointer comparison and replacement without stale lock state."""
+
+    protect_private_directory(pointer_path.parent, "release pointer")
+    lock_path = pointer_path.with_name(f".{pointer_path.name}.lock")
+    flags = (
+        os.O_RDWR
+        | os.O_CREAT
+        | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    try:
+        descriptor = os.open(lock_path, flags, 0o600)
+    except OSError as exc:
+        fail(f"cannot open release pointer lock {lock_path}: {exc}")
+    locked = False
+    primary: BaseException | None = None
+    try:
+        metadata = os.fstat(descriptor)
+        require(
+            stat.S_ISREG(metadata.st_mode)
+            and metadata.st_uid == os.geteuid()
+            and metadata.st_nlink == 1
+            and stat.S_IMODE(metadata.st_mode) == 0o600,
+            f"release pointer lock is not one owned mode-0600 file: {lock_path}",
+        )
+        if os.name == "posix":
+            import fcntl
+
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError as exc:
+                fail(f"another release pointer transaction is active: {exc}")
+        elif os.name == "nt":
+            import msvcrt
+
+            if metadata.st_size == 0:
+                os.write(descriptor, b"\0")
+                os.fsync(descriptor)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            try:
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            except OSError as exc:
+                fail(f"another release pointer transaction is active: {exc}")
+        else:
+            fail(f"release pointer locking is unsupported on {os.name!r}")
+        locked = True
+        yield
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        cleanup_errors: list[BaseException] = []
+        if locked:
+            try:
+                if os.name == "posix":
+                    import fcntl
+
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+                elif os.name == "nt":
+                    import msvcrt
+
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            cleanup_errors.append(exc)
+        if cleanup_errors:
+            if primary is not None:
+                for cleanup_error in cleanup_errors:
+                    primary.add_note(
+                        f"release pointer lock cleanup failed: {cleanup_error}"
+                    )
+            else:
+                fail(f"cannot release pointer lock: {cleanup_errors[0]}")
+
+
+def _existing_release_pointer(pointer_path: pathlib.Path) -> dict[str, Any] | None:
+    try:
+        pointer_path.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        fail(f"cannot inspect existing release pointer {pointer_path}: {exc}")
+    return load_json(pointer_path)
+
+
+def _validate_pointer_replacement(
+    *,
+    root: pathlib.Path,
+    pointer_path: pathlib.Path,
+    previous: dict[str, Any] | None,
+    current: dict[str, Any],
+) -> None:
+    if pointer_path.name == "latest-release.json":
+        validate_release_pointer_transition(previous, current, root=root)
+    elif pointer_path.name != "latest-diagnostic.json":
+        fail("release pointer has an unknown fixed leaf")
+
+
+def _verify_published_pointer(
+    pointer_path: pathlib.Path, expected: dict[str, Any]
+) -> None:
+    actual = load_json(pointer_path)
+    require_exact_json(actual, expected, "published release pointer")
+
+
 def publish_release_transaction(
     *,
     staging_root: pathlib.Path,
@@ -961,7 +1099,14 @@ def publish_release_transaction(
         nonlocal pointer_published
         pointer_published = True
 
-    with defer_termination_signals():
+    with _release_pointer_lock(pointer_path), defer_termination_signals():
+        previous = _existing_release_pointer(pointer_path)
+        _validate_pointer_replacement(
+            root=target.parent,
+            pointer_path=pointer_path,
+            previous=previous,
+            current=pointer,
+        )
         try:
             publish_release_staging_tree(
                 staging_root,
@@ -973,6 +1118,7 @@ def publish_release_transaction(
                 pointer,
                 on_commit=mark_pointer_published,
             )
+            _verify_published_pointer(pointer_path, pointer)
         except BaseException as primary:
             if not pointer_published:
                 for unpublished_tree in (release_root, staging_root):
@@ -1266,6 +1412,169 @@ def require_release_channel(value: str) -> str:
     if value == "diagnostic":
         return "diagnostic"
     fail("release channel is invalid")
+
+
+def _parse_semantic_version(value: object, label: str) -> _SemanticVersion:
+    text = require_bounded_text(value, label, maximum=128)
+    match = SEMVER.fullmatch(text)
+    require(match is not None, f"{label} is not canonical SemVer")
+    prerelease_text = match.group(4)
+    build_text = match.group(5)
+    prerelease = (
+        tuple(prerelease_text.split("."))
+        if prerelease_text is not None
+        else None
+    )
+    build = tuple(build_text.split(".")) if build_text is not None else None
+    if prerelease is not None:
+        require(
+            all(
+                not (identifier.isdigit() and len(identifier) > 1 and identifier[0] == "0")
+                for identifier in prerelease
+            ),
+            f"{label} has a zero-padded numeric prerelease identifier",
+        )
+    return _SemanticVersion(
+        major=int(match.group(1)),
+        minor=int(match.group(2)),
+        patch=int(match.group(3)),
+        prerelease=prerelease,
+        build=build,
+    )
+
+
+def _compare_semantic_precedence(
+    left: _SemanticVersion, right: _SemanticVersion
+) -> int:
+    left_core = (left.major, left.minor, left.patch)
+    right_core = (right.major, right.minor, right.patch)
+    if left_core != right_core:
+        return -1 if left_core < right_core else 1
+    if left.prerelease is None:
+        return 0 if right.prerelease is None else 1
+    if right.prerelease is None:
+        return -1
+    for left_identifier, right_identifier in zip(
+        left.prerelease, right.prerelease, strict=False
+    ):
+        if left_identifier == right_identifier:
+            continue
+        left_numeric = left_identifier.isdigit()
+        right_numeric = right_identifier.isdigit()
+        if left_numeric and right_numeric:
+            return -1 if int(left_identifier) < int(right_identifier) else 1
+        if left_numeric != right_numeric:
+            return -1 if left_numeric else 1
+        return -1 if left_identifier < right_identifier else 1
+    if len(left.prerelease) == len(right.prerelease):
+        return 0
+    return -1 if len(left.prerelease) < len(right.prerelease) else 1
+
+
+def _release_pointer_identity(
+    pointer: dict[str, Any], *, label: str
+) -> _ReleasePointerIdentity:
+    value = require_exact_object(
+        pointer,
+        frozenset(
+            {
+                "schema_version",
+                "kind",
+                "version",
+                "channel",
+                "diagnostic_only",
+                "index_path",
+                "index_sha256",
+                "generated_at",
+            }
+        ),
+        label,
+    )
+    require_exact_int(value.get("schema_version"), SCHEMA_VERSION, f"{label} schema")
+    require(value.get("kind") == POINTER_KIND, f"{label} kind mismatch")
+    require(value.get("channel") == "release", f"{label} channel mismatch")
+    require_exact_json(value.get("diagnostic_only"), False, f"{label} diagnostic_only")
+    version_text = require_safe_basename(value.get("version"), f"{label} version")
+    version = _parse_semantic_version(version_text, f"{label} version")
+    index_sha256 = value.get("index_sha256")
+    require(
+        isinstance(index_sha256, str)
+        and HEX_SHA256.fullmatch(index_sha256) is not None,
+        f"{label} index digest is malformed",
+    )
+    generated_at = require_utc_timestamp(value.get("generated_at"), f"{label} generated_at")
+    relative = require_relative_safe(value.get("index_path"), f"{label} index_path")
+    parts = pathlib.PurePosixPath(relative).parts
+    require(len(parts) == 5, f"{label} index_path component count differs")
+    commit = require_safe_basename(parts[3], f"{label} commit")
+    require(GIT_COMMIT.fullmatch(commit) is not None, f"{label} commit is malformed")
+    expected_path = pathlib.PurePosixPath(
+        "qperiapt-local-release",
+        "release",
+        version_text,
+        commit,
+        "index.json",
+    ).as_posix()
+    require(relative == expected_path, f"{label} index_path identity mismatch")
+    return _ReleasePointerIdentity(
+        version_text=version_text,
+        version=version,
+        commit=commit,
+        index_path=relative,
+        index_sha256=index_sha256,
+        generated_at=generated_at,
+    )
+
+
+def validate_release_pointer_transition(
+    previous: dict[str, Any] | None,
+    current: dict[str, Any],
+    *,
+    root: pathlib.Path,
+) -> None:
+    """Require a monotonic stable release-pointer transition."""
+
+    current_identity = _release_pointer_identity(
+        current, label="current release pointer"
+    )
+    require(
+        current_identity.version.prerelease is None
+        and current_identity.version.build is None,
+        "current release pointer must select a stable SemVer without build metadata",
+    )
+    if previous is None:
+        return
+    previous_identity = _release_pointer_identity(
+        previous, label="previous release pointer"
+    )
+    precedence = _compare_semantic_precedence(
+        previous_identity.version, current_identity.version
+    )
+    if precedence == 0:
+        require(
+            previous == current,
+            "same-version release pointer update is not byte-equivalent idempotence",
+        )
+        return
+    require(precedence < 0, "release pointer version would move backwards")
+    previous_time = dt.datetime.fromisoformat(
+        previous_identity.generated_at[:-1] + "+00:00"
+    )
+    current_time = dt.datetime.fromisoformat(
+        current_identity.generated_at[:-1] + "+00:00"
+    )
+    require(
+        current_time > previous_time,
+        "release pointer generated_at did not move forwards",
+    )
+    try:
+        require_commit_ancestor(
+            root,
+            previous_identity.commit,
+            current_identity.commit,
+        )
+    except GitProvenanceError as exc:
+        fail(f"release pointer commit lineage differs: {exc}")
 
 
 def release_pointer_selection(
@@ -3471,10 +3780,19 @@ def recover_verified_release_pointer(
         generated_at=verified.value["generated_at"],
     )
     pointer_path = target / "qperiapt-local-release" / f"latest-{channel}.json"
-    cleanup_stale_release_pointer_files(pointer_path)
-    if _pointer_already_matches(pointer_path, pointer):
-        return True
-    write_json(pointer_path, pointer)
+    with _release_pointer_lock(pointer_path):
+        cleanup_stale_release_pointer_files(pointer_path)
+        previous = _existing_release_pointer(pointer_path)
+        _validate_pointer_replacement(
+            root=root,
+            pointer_path=pointer_path,
+            previous=previous,
+            current=pointer,
+        )
+        if _pointer_already_matches(pointer_path, pointer):
+            return True
+        write_json(pointer_path, pointer)
+        _verify_published_pointer(pointer_path, pointer)
     selection = release_pointer_selection(root, channel)
     require_exact_json(selection.path, verified.path, "recovered release pointer path")
     verify_release_index_snapshot(

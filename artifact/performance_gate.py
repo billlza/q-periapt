@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect and verify paired, matched-backend profile performance evidence."""
+"""Collect and verify paired profile and implementation performance evidence."""
 
 from __future__ import annotations
 
@@ -48,11 +48,44 @@ from proof_manifest import (
 )
 
 
-PROOF_SCHEMA_VERSION = 4
-HARNESS_SCHEMA_VERSION = 2
-BUDGET_SCHEMA_VERSION = 5
+PROOF_SCHEMA_VERSION = 6
+HARNESS_SCHEMA_VERSION = 3
+BUDGET_SCHEMA_VERSION = 7
+PROFILE_NON_REGRESSION = "profile_non_regression"
+IMPLEMENTATION_IMPROVEMENT = "implementation_improvement"
+ESTIMANDS = (PROFILE_NON_REGRESSION, IMPLEMENTATION_IMPROVEMENT)
 OPERATIONS = ("combine", "encapsulate", "decapsulate")
+IMPLEMENTATION_OPERATIONS = ("encapsulate", "decapsulate")
 PROFILES = ("ContextBound", "CompatXWing")
+IMPLEMENTATIONS = ("native", "portable")
+RELEASE_EVIDENCE_MODE = "release_evidence"
+PROFILE_DIAGNOSTIC_MODE = "profile_diagnostic"
+NATIVE_IMPLEMENTATION_ID = (
+    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+)
+PORTABLE_REFERENCE_IMPLEMENTATION_ID = (
+    "mlkem-native-1.2.0/portable-c/evidence-only-reference"
+)
+PORTABLE_REFERENCE_SCOPE = "evidence_only_non_product_reference"
+PORTABLE_REFERENCE_SOURCE_RELATIVE = pathlib.PurePosixPath(
+    "crates/q-periapt-mlkem-native-sys/src/mlkem_bridge_portable.c"
+)
+PORTABLE_REFERENCE_ARCHIVE_STEM = "qperiapt_mlkem_portable_evidence"
+PORTABLE_REFERENCE_SYMBOLS = tuple(
+    f"qpn_mlkem_bridge_v1_2_0_{parameter}_{operation}"
+    for parameter in ("512", "768", "1024")
+    for operation in (
+        "keypair_derand",
+        "encapsulate_derand",
+        "decapsulate",
+        "check_public_key",
+    )
+)
+IMPLEMENTATION_IMPROVEMENT_LIMITS = {
+    "max_block_median_p50_ratio_upper_95": 0.95,
+    "max_block_median_p95_ratio_upper_95": 0.95,
+    "max_block_median_p99_ratio_upper_95": 1.0,
+}
 EXPECTED_ITERATIONS_PER_SAMPLE = {
     "combine": 256,
     "encapsulate": 1,
@@ -68,10 +101,18 @@ PRODUCTION_BUDGET_RELATIVE = pathlib.PurePosixPath("artifact/performance-budgets
 MAX_PERFORMANCE_PROOF_BYTES = 4 * 1024 * 1024
 MAX_PERFORMANCE_BUDGET_BYTES = 1024 * 1024
 MAX_PERFORMANCE_RAW_BYTES = 128 * 1024 * 1024
-# The harness emits six JSONL sample records for each requested sample.  This
+# The release harness emits ten JSONL sample records for each requested sample. This
 # cap keeps the producer below the independent 128 MiB raw-evidence bound.
-MAX_COLLECTION_SAMPLES = 100_000
+MAX_COLLECTION_SAMPLES = 40_000
 MAX_COLLECTION_WARMUP_MS = 60_000
+XCODE_DEFAULT_TOOLCHAIN_BIN = pathlib.Path(
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/"
+    "XcodeDefault.xctoolchain/usr/bin"
+)
+MACOS_SDK_RELATIVE_TO_DEVELOPER = pathlib.PurePosixPath(
+    "Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+)
+MACOS_SDK_SETTINGS_NAME = "SDKSettings.json"
 
 
 class GateError(ValueError):
@@ -285,7 +326,10 @@ def positive_operation_map(value: Any, label: str) -> dict[str, int]:
 
 def parse_raw_bytes(
     data: bytes,
-) -> tuple[dict[str, Any], dict[tuple[str, str], list[dict[str, Any]]]]:
+) -> tuple[
+    dict[str, Any],
+    dict[tuple[str, str, str], list[dict[str, Any]]],
+]:
     lines = data.splitlines()
     require(bool(lines), "raw performance data is empty")
 
@@ -304,24 +348,39 @@ def parse_raw_bytes(
 
     metadata = records[0]
     metadata_fields = {
-        "schema_version",
-        "record_type",
-        "backend",
-        "schedule",
-        "corpus_size",
-        "samples_per_profile_operation",
-        "iterations_per_sample",
-        "warmup_ms",
-        "suite_id_hex",
-        "policy_version",
         "application_context_hex",
+        "corpus_size",
+        "implementation_improvement",
+        "iterations_per_sample",
+        "mode",
+        "policy_version",
+        "profile_non_regression",
+        "record_type",
+        "samples_per_variant_operation",
+        "schedule",
+        "schema_version",
+        "suite_id_hex",
+        "target",
+        "warmup_ms",
     }
     _strict_keys(metadata, metadata_fields, "metadata record")
     require(type(metadata.get("schema_version")) is int, "harness schema must be an integer")
     require(metadata.get("schema_version") == HARNESS_SCHEMA_VERSION, "harness schema mismatch")
     require(metadata.get("record_type") == "metadata", "first JSONL record must be metadata")
-    require(isinstance(metadata.get("backend"), str) and bool(metadata["backend"]), "invalid metadata backend")
+    mode = metadata.get("mode")
+    require(
+        mode in {RELEASE_EVIDENCE_MODE, PROFILE_DIAGNOSTIC_MODE},
+        "invalid performance harness mode",
+    )
     require(metadata.get("schedule") == "ABBA/BAAB", "unsupported metadata schedule")
+    target = metadata.get("target")
+    require(
+        isinstance(target, str)
+        and bool(target)
+        and "/" not in target
+        and "\\" not in target,
+        "invalid metadata target",
+    )
     for field in ("suite_id_hex", "application_context_hex"):
         value = metadata.get(field)
         require(isinstance(value, str) and HEX_RE.fullmatch(value) is not None, f"invalid metadata {field}")
@@ -336,27 +395,188 @@ def parse_raw_bytes(
         "metadata iterations_per_sample does not match the harness contract",
     )
 
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    profile_contract = metadata.get(PROFILE_NON_REGRESSION)
+    require(
+        isinstance(profile_contract, dict),
+        "metadata lacks profile_non_regression contract",
+    )
+    _strict_keys(
+        profile_contract,
+        {"backend", "direction", "operations", "variants"},
+        "profile_non_regression metadata",
+    )
+    require(
+        isinstance(profile_contract.get("backend"), str)
+        and bool(profile_contract["backend"]),
+        "invalid profile_non_regression backend",
+    )
+    require(
+        profile_contract.get("direction") == "ContextBound/CompatXWing",
+        "profile_non_regression direction is invalid",
+    )
+    require(
+        profile_contract.get("operations") == list(OPERATIONS),
+        "profile_non_regression operation inventory mismatch",
+    )
+    require(
+        profile_contract.get("variants") == list(PROFILES),
+        "profile_non_regression variant inventory mismatch",
+    )
+
+    implementation_contract = metadata.get(IMPLEMENTATION_IMPROVEMENT)
+    if mode == PROFILE_DIAGNOSTIC_MODE:
+        require(
+            implementation_contract is None,
+            "profile diagnostic raw data cannot claim implementation improvement",
+        )
+    else:
+        require(
+            target == "aarch64-apple-darwin",
+            "release implementation evidence requires aarch64-apple-darwin",
+        )
+        require(
+            isinstance(implementation_contract, dict),
+            "release raw data lacks implementation_improvement contract",
+        )
+        _strict_keys(
+            implementation_contract,
+            {
+                "digest_algorithm",
+                "direction",
+                "equivalence_cases_per_operation",
+                "native_implementation_id",
+                "operations",
+                "portable_implementation_id",
+                "product_profile",
+                "reference_scope",
+                "variants",
+            },
+            "implementation_improvement metadata",
+        )
+        require(
+            implementation_contract.get("direction") == "native/portable",
+            "implementation_improvement direction is invalid",
+        )
+        require(
+            implementation_contract.get("variants") == list(IMPLEMENTATIONS),
+            "implementation_improvement variant inventory mismatch",
+        )
+        require(
+            implementation_contract.get("operations")
+            == list(IMPLEMENTATION_OPERATIONS),
+            "implementation_improvement operation inventory mismatch",
+        )
+        require(
+            implementation_contract.get("product_profile") == "ContextBound",
+            "implementation improvement must measure the ContextBound product path",
+        )
+        require(
+            implementation_contract.get("native_implementation_id")
+            == NATIVE_IMPLEMENTATION_ID,
+            "implementation improvement native identity is invalid",
+        )
+        require(
+            implementation_contract.get("portable_implementation_id")
+            == PORTABLE_REFERENCE_IMPLEMENTATION_ID,
+            "implementation improvement portable identity is invalid",
+        )
+        require(
+            implementation_contract.get("reference_scope")
+            == PORTABLE_REFERENCE_SCOPE,
+            "portable implementation is not evidence-only",
+        )
+        require(
+            implementation_contract.get("digest_algorithm") == "SHA3-256",
+            "implementation equivalence digest algorithm is invalid",
+        )
+
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     sample_fields = {
+        "estimand",
         "schema_version",
         "record_type",
         "operation",
-        "profile",
+        "variant",
         "pair_id",
         "schedule_index",
         "corpus_index",
         "elapsed_ns_total",
     }
-    seen: set[tuple[str, int, str]] = set()
+    equivalence_fields = {
+        "case_id",
+        "corpus_index",
+        "input_digest_hex",
+        "native_output_digest_hex",
+        "operation",
+        "portable_output_digest_hex",
+        "record_type",
+        "schema_version",
+    }
+    seen: set[tuple[str, str, int, str]] = set()
+    equivalence: dict[tuple[str, int], dict[str, Any]] = {}
     for index, record in enumerate(records[1:], start=2):
+        record_type = record.get("record_type")
+        if record_type == "equivalence":
+            _strict_keys(record, equivalence_fields, f"equivalence record {index}")
+            require(
+                record.get("schema_version") == HARNESS_SCHEMA_VERSION,
+                f"equivalence schema mismatch at line {index}",
+            )
+            operation = record.get("operation")
+            require(
+                operation in {"keypair", *IMPLEMENTATION_OPERATIONS},
+                f"unknown equivalence operation at line {index}: {operation}",
+            )
+            for field in ("case_id", "corpus_index"):
+                require(
+                    type(record.get(field)) is int and record[field] >= 0,
+                    f"{field} must be a non-negative integer at line {index}",
+                )
+            for field in (
+                "input_digest_hex",
+                "native_output_digest_hex",
+                "portable_output_digest_hex",
+            ):
+                digest = record.get(field)
+                require(
+                    isinstance(digest, str)
+                    and SHA256_RE.fullmatch(digest) is not None,
+                    f"{field} is malformed at line {index}",
+                )
+            require(
+                record["native_output_digest_hex"]
+                == record["portable_output_digest_hex"],
+                f"implementation outputs differ at line {index}",
+            )
+            key = (operation, record["case_id"])
+            require(key not in equivalence, f"duplicate equivalence record: {key}")
+            equivalence[key] = record
+            continue
         _strict_keys(record, sample_fields, f"sample record {index}")
         require(type(record.get("schema_version")) is int, f"sample schema must be an integer at line {index}")
         require(record.get("schema_version") == HARNESS_SCHEMA_VERSION, f"sample schema mismatch at line {index}")
         require(record.get("record_type") == "sample", f"non-sample record at line {index}")
+        estimand = record.get("estimand")
         operation = record.get("operation")
-        profile_name = record.get("profile")
-        require(operation in OPERATIONS, f"unknown operation at line {index}: {operation}")
-        require(profile_name in PROFILES, f"unknown profile at line {index}: {profile_name}")
+        variant = record.get("variant")
+        require(estimand in ESTIMANDS, f"unknown estimand at line {index}: {estimand}")
+        allowed_operations = (
+            OPERATIONS
+            if estimand == PROFILE_NON_REGRESSION
+            else IMPLEMENTATION_OPERATIONS
+        )
+        allowed_variants = (
+            PROFILES
+            if estimand == PROFILE_NON_REGRESSION
+            else IMPLEMENTATIONS
+        )
+        require(operation in allowed_operations, f"unknown operation at line {index}: {operation}")
+        require(variant in allowed_variants, f"unknown variant at line {index}: {variant}")
+        require(
+            mode == RELEASE_EVIDENCE_MODE
+            or estimand == PROFILE_NON_REGRESSION,
+            "profile diagnostic raw data contains implementation samples",
+        )
         for field in ("pair_id", "schedule_index", "corpus_index", "elapsed_ns_total"):
             require(type(record.get(field)) is int, f"{field} must be an integer at line {index}")
             require(record[field] >= 0, f"{field} must be non-negative at line {index}")
@@ -365,70 +585,125 @@ def parse_raw_bytes(
             record["elapsed_ns_total"] <= MAX_EXACT_ELAPSED_NS_TOTAL,
             f"elapsed_ns_total exceeds exact analysis range at line {index}",
         )
-        key = (operation, record["pair_id"], profile_name)
+        key = (estimand, operation, record["pair_id"], variant)
         require(key not in seen, f"duplicate paired sample: {key}")
         seen.add(key)
-        grouped[(operation, profile_name)].append(record)
+        grouped[(estimand, operation, variant)].append(record)
 
-    expected_samples = metadata.get("samples_per_profile_operation")
+    expected_samples = metadata.get("samples_per_variant_operation")
     corpus_size = metadata.get("corpus_size")
     require(type(expected_samples) is int and expected_samples > 0, "invalid metadata sample count")
     require(expected_samples % 2 == 0, "metadata sample count must be even for ABBA/BAAB")
     require(type(corpus_size) is int and corpus_size > 0, "invalid metadata corpus size")
-    for operation in OPERATIONS:
-        by_pair: dict[int, dict[str, dict[str, Any]]] = defaultdict(dict)
-        schedule_records: list[dict[str, Any]] = []
-        for profile_name in PROFILES:
-            samples = grouped[(operation, profile_name)]
-            require(
-                len(samples) == expected_samples,
-                f"{operation}/{profile_name} has {len(samples)} samples, expected {expected_samples}",
-            )
-            for record in samples:
-                by_pair[record["pair_id"]][profile_name] = record
-                schedule_records.append(record)
-        require(set(by_pair) == set(range(expected_samples)), f"{operation} pair ids are not contiguous")
-        for pair_id, pair in by_pair.items():
-            require(set(pair) == set(PROFILES), f"{operation} pair {pair_id} is incomplete")
-            for record in pair.values():
-                require(
-                    record["corpus_index"] == pair_id % corpus_size,
-                    f"{operation} pair {pair_id} has the wrong corpus index",
-                )
-        ordered = sorted(schedule_records, key=lambda record: record["schedule_index"])
-        require(
-            [record["schedule_index"] for record in ordered] == list(range(expected_samples * 2)),
-            f"{operation} schedule indexes are not contiguous",
+    estimand_contracts = ((PROFILE_NON_REGRESSION, OPERATIONS, PROFILES),)
+    if mode == RELEASE_EVIDENCE_MODE:
+        estimand_contracts += (
+            (IMPLEMENTATION_IMPROVEMENT, IMPLEMENTATION_OPERATIONS, IMPLEMENTATIONS),
         )
-        for cycle in range(expected_samples // 2):
-            actual_order = [
-                (record["profile"], record["pair_id"])
-                for record in ordered[cycle * 4 : cycle * 4 + 4]
-            ]
-            first_pair = cycle * 2
-            expected_order = (
-                [
-                    ("ContextBound", first_pair),
-                    ("CompatXWing", first_pair),
-                    ("CompatXWing", first_pair + 1),
-                    ("ContextBound", first_pair + 1),
-                ]
-                if cycle % 2 == 0
-                else [
-                    ("CompatXWing", first_pair),
-                    ("ContextBound", first_pair),
-                    ("ContextBound", first_pair + 1),
-                    ("CompatXWing", first_pair + 1),
-                ]
+    for estimand, operations, variants in estimand_contracts:
+        for operation in operations:
+            by_pair: dict[int, dict[str, dict[str, Any]]] = defaultdict(dict)
+            schedule_records: list[dict[str, Any]] = []
+            for variant in variants:
+                samples = grouped[(estimand, operation, variant)]
+                require(
+                    len(samples) == expected_samples,
+                    f"{estimand}/{operation}/{variant} has {len(samples)} samples, expected {expected_samples}",
+                )
+                for record in samples:
+                    by_pair[record["pair_id"]][variant] = record
+                    schedule_records.append(record)
+            require(
+                set(by_pair) == set(range(expected_samples)),
+                f"{estimand}/{operation} pair ids are not contiguous",
             )
-            require(actual_order == expected_order, f"{operation} schedule cycle {cycle} is not ABBA/BAAB")
+            for pair_id, pair in by_pair.items():
+                require(
+                    set(pair) == set(variants),
+                    f"{estimand}/{operation} pair {pair_id} is incomplete",
+                )
+                for record in pair.values():
+                    require(
+                        record["corpus_index"] == pair_id % corpus_size,
+                        f"{estimand}/{operation} pair {pair_id} has the wrong corpus index",
+                    )
+            ordered = sorted(
+                schedule_records,
+                key=lambda record: record["schedule_index"],
+            )
+            require(
+                [record["schedule_index"] for record in ordered]
+                == list(range(expected_samples * 2)),
+                f"{estimand}/{operation} schedule indexes are not contiguous",
+            )
+            for cycle in range(expected_samples // 2):
+                actual_order = [
+                    (record["variant"], record["pair_id"])
+                    for record in ordered[cycle * 4 : cycle * 4 + 4]
+                ]
+                first_pair = cycle * 2
+                left, right = variants
+                expected_order = (
+                    [
+                        (left, first_pair),
+                        (right, first_pair),
+                        (right, first_pair + 1),
+                        (left, first_pair + 1),
+                    ]
+                    if cycle % 2 == 0
+                    else [
+                        (right, first_pair),
+                        (left, first_pair),
+                        (left, first_pair + 1),
+                        (right, first_pair + 1),
+                    ]
+                )
+                require(
+                    actual_order == expected_order,
+                    f"{estimand}/{operation} schedule cycle {cycle} is not ABBA/BAAB",
+                )
+
+    if mode == PROFILE_DIAGNOSTIC_MODE:
+        require(not equivalence, "profile diagnostic raw data contains equivalence records")
+    else:
+        expected_equivalence_counts = {
+            "keypair": 1,
+            "encapsulate": corpus_size,
+            "decapsulate": corpus_size,
+        }
+        require(
+            implementation_contract.get("equivalence_cases_per_operation")
+            == expected_equivalence_counts,
+            "implementation equivalence case inventory mismatch",
+        )
+        for operation, count in expected_equivalence_counts.items():
+            require(
+                {
+                    case_id
+                    for (record_operation, case_id) in equivalence
+                    if record_operation == operation
+                }
+                == set(range(count)),
+                f"{operation} equivalence case ids are not contiguous",
+            )
+            for case_id in range(count):
+                record = equivalence[(operation, case_id)]
+                expected_corpus_index = 0 if operation == "keypair" else case_id
+                require(
+                    record["corpus_index"] == expected_corpus_index,
+                    f"{operation} equivalence case {case_id} has the wrong corpus index",
+                )
 
     return metadata, grouped
 
 
 def parse_raw_snapshot(
     path: pathlib.Path,
-) -> tuple[FileSnapshot, dict[str, Any], dict[tuple[str, str], list[dict[str, Any]]]]:
+) -> tuple[
+    FileSnapshot,
+    dict[str, Any],
+    dict[tuple[str, str, str], list[dict[str, Any]]],
+]:
     try:
         snapshot = read_regular_snapshot(
             path,
@@ -441,7 +716,12 @@ def parse_raw_snapshot(
     return snapshot, metadata, grouped
 
 
-def parse_raw(path: pathlib.Path) -> tuple[dict[str, Any], dict[tuple[str, str], list[dict[str, Any]]]]:
+def parse_raw(
+    path: pathlib.Path,
+) -> tuple[
+    dict[str, Any],
+    dict[tuple[str, str, str], list[dict[str, Any]]],
+]:
     _snapshot, metadata, grouped = parse_raw_snapshot(path)
     return metadata, grouped
 
@@ -466,22 +746,24 @@ def validate_statistical_block_size(
 
 def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
     expected_fields = {
-        "schema_version",
-        "harness_schema_version",
-        "backend",
-        "schedule",
-        "corpus_size",
-        "iterations_per_sample",
-        "min_samples_per_profile_operation",
-        "warmup_ms",
-        "pair_block_size",
-        "regression_guard_pair_block_size",
-        "min_p99_tail_observations_per_pair_block",
-        "stability_block_sizes",
         "bootstrap_estimate_block_span",
+        "corpus_size",
+        "harness_schema_version",
+        "implementation_improvement",
+        "iterations_per_sample",
         "max_block_median_cv",
-        "operations",
+        "min_p99_tail_observations_per_pair_block",
+        "min_samples_per_variant_operation",
+        "mode",
+        "pair_block_size",
+        "profile_non_regression",
+        "regression_guard_pair_block_size",
+        "schedule",
+        "schema_version",
+        "stability_block_sizes",
+        "target",
         "toolchain",
+        "warmup_ms",
     }
     _strict_keys(budget, expected_fields, "performance budget")
     require(type(budget.get("schema_version")) is int, "performance budget schema must be an integer")
@@ -491,8 +773,16 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
     )
     require(type(budget.get("harness_schema_version")) is int, "budget harness schema must be an integer")
     require(budget.get("harness_schema_version") == HARNESS_SCHEMA_VERSION, "budget harness schema mismatch")
-    validate_toolchain_policy(budget.get("toolchain"))
-    for field in ("backend", "schedule", "corpus_size"):
+    toolchain_policy = validate_toolchain_policy(budget.get("toolchain"))
+    require(
+        budget.get("mode") == RELEASE_EVIDENCE_MODE,
+        "performance budget must require release evidence mode",
+    )
+    require(
+        budget.get("target") == toolchain_policy.get("target"),
+        "performance budget target differs from toolchain target",
+    )
+    for field in ("mode", "schedule", "target", "corpus_size"):
         require(metadata.get(field) == budget.get(field), f"metadata/budget mismatch for {field}")
     budget_iterations = positive_operation_map(
         budget.get("iterations_per_sample"),
@@ -506,8 +796,8 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
         metadata.get("iterations_per_sample") == budget_iterations,
         "metadata/budget mismatch for iterations_per_sample",
     )
-    samples = metadata.get("samples_per_profile_operation")
-    minimum = budget.get("min_samples_per_profile_operation")
+    samples = metadata.get("samples_per_variant_operation")
+    minimum = budget.get("min_samples_per_variant_operation")
     require(type(minimum) is int and minimum > 0, "invalid minimum sample budget")
     require(type(samples) is int and samples >= minimum, f"sample count {samples} is below budget {minimum}")
     warmup = budget.get("warmup_ms")
@@ -558,42 +848,330 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
         bootstrap_span <= samples // pair_block_size,
         "bootstrap estimate-block span exceeds the paired estimate-block count",
     )
-    operations = budget.get("operations")
-    require(isinstance(operations, dict) and set(operations) == set(OPERATIONS), "budget operation inventory mismatch")
+    profile_budget = budget.get(PROFILE_NON_REGRESSION)
+    require(
+        isinstance(profile_budget, dict),
+        "performance budget lacks profile_non_regression",
+    )
+    _strict_keys(
+        profile_budget,
+        {"backend", "direction", "operations"},
+        "profile_non_regression budget",
+    )
+    profile_metadata = metadata.get(PROFILE_NON_REGRESSION)
+    require(
+        isinstance(profile_metadata, dict)
+        and profile_metadata.get("backend") == profile_budget.get("backend"),
+        "metadata/budget mismatch for profile_non_regression backend",
+    )
+    require(
+        profile_budget.get("direction") == "ContextBound/CompatXWing"
+        and profile_metadata.get("direction") == profile_budget.get("direction"),
+        "profile_non_regression budget direction mismatch",
+    )
+    profile_operations = profile_budget.get("operations")
+    require(
+        isinstance(profile_operations, dict)
+        and set(profile_operations) == set(OPERATIONS),
+        "profile_non_regression budget operation inventory mismatch",
+    )
+
+    implementation_budget = budget.get(IMPLEMENTATION_IMPROVEMENT)
+    require(
+        isinstance(implementation_budget, dict),
+        "performance budget lacks implementation_improvement",
+    )
+    _strict_keys(
+        implementation_budget,
+        {
+            "direction",
+            "native_implementation_id",
+            "operations",
+            "portable_implementation_id",
+            "product_profile",
+            "reference_scope",
+        },
+        "implementation_improvement budget",
+    )
+    expected_implementation_contract = {
+        "direction": "native/portable",
+        "native_implementation_id": NATIVE_IMPLEMENTATION_ID,
+        "portable_implementation_id": PORTABLE_REFERENCE_IMPLEMENTATION_ID,
+        "product_profile": "ContextBound",
+        "reference_scope": PORTABLE_REFERENCE_SCOPE,
+    }
+    implementation_metadata = metadata.get(IMPLEMENTATION_IMPROVEMENT)
+    require(
+        isinstance(implementation_metadata, dict),
+        "release metadata lacks implementation_improvement",
+    )
+    for field, expected in expected_implementation_contract.items():
+        require(
+            implementation_budget.get(field) == expected,
+            f"implementation_improvement budget {field} mismatch",
+        )
+        require(
+            implementation_metadata.get(field) == expected,
+            f"metadata/budget mismatch for implementation_improvement {field}",
+        )
+    implementation_operations = implementation_budget.get("operations")
+    require(
+        isinstance(implementation_operations, dict)
+        and set(implementation_operations) == set(IMPLEMENTATION_OPERATIONS),
+        "implementation_improvement budget operation inventory mismatch",
+    )
+    for operation in IMPLEMENTATION_OPERATIONS:
+        operation_budget = implementation_operations.get(operation)
+        require(
+            isinstance(operation_budget, dict)
+            and set(operation_budget) == set(IMPLEMENTATION_IMPROVEMENT_LIMITS),
+            f"implementation_improvement budget for {operation} metric inventory mismatch",
+        )
+        for metric, expected in IMPLEMENTATION_IMPROVEMENT_LIMITS.items():
+            actual = finite_number(
+                operation_budget.get(metric),
+                f"implementation_improvement budget {operation}/{metric}",
+            )
+            require(
+                actual == expected,
+                f"implementation_improvement budget {operation}/{metric} "
+                f"must remain preregistered at {expected}",
+            )
     maximum_cv = finite_number(budget.get("max_block_median_cv"), "maximum block-median CV")
     require(0 < maximum_cv <= 1, "maximum block-median CV must be in (0, 1]")
+
+
+def canonical_absolute_tool_path(value: str, name: str, label: str) -> pathlib.Path:
+    pure = pathlib.PurePosixPath(value)
+    require(
+        pure.is_absolute()
+        and pure.as_posix() == value
+        and ".." not in pure.parts
+        and "\\" not in value
+        and "\x00" not in value,
+        f"{label} is not a canonical absolute path",
+    )
+    require(pure.name == name, f"{label} must name {name}")
+    return pathlib.Path(value)
+
+
+def validate_xcode_tool_path(value: str, name: str, label: str) -> pathlib.Path:
+    path = canonical_absolute_tool_path(value, name, label)
+    expected = XCODE_DEFAULT_TOOLCHAIN_BIN / name
+    require(path == expected, f"{label} must be the pinned Xcode {name} executable")
+    return path
+
+
+def macos_sdk_path_for_toolchain(toolchain_bin: pathlib.Path) -> pathlib.Path:
+    require(
+        len(toolchain_bin.parents) >= 4,
+        "Xcode toolchain path cannot identify its Developer directory",
+    )
+    developer = toolchain_bin.parents[3]
+    return developer.joinpath(*MACOS_SDK_RELATIVE_TO_DEVELOPER.parts)
+
+
+def inspect_macos_sdk(toolchain_bin: pathlib.Path) -> tuple[pathlib.Path, str, str]:
+    sdk_path = macos_sdk_path_for_toolchain(toolchain_bin)
+    require(
+        sdk_path.is_dir() and not sdk_path.is_symlink(),
+        "pinned macOS SDK is missing or unsafe",
+    )
+    try:
+        resolved_sdk = sdk_path.resolve(strict=True)
+    except OSError as exc:
+        raise GateError(f"cannot resolve pinned macOS SDK: {exc}") from exc
+    require(resolved_sdk == sdk_path, "pinned macOS SDK path is not canonical")
+    settings_path = sdk_path / MACOS_SDK_SETTINGS_NAME
+    try:
+        settings = read_regular_snapshot(
+            settings_path,
+            maximum=MAX_PERFORMANCE_BUDGET_BYTES,
+            label="macOS SDK settings",
+        )
+        parsed = parse_strict_json_bytes(
+            settings.data,
+            label="macOS SDK settings",
+        )
+    except EvidenceIOError as exc:
+        raise GateError(str(exc)) from exc
+    require(isinstance(parsed, dict), "macOS SDK settings must be an object")
+    version = parsed.get("Version")
+    require(
+        isinstance(version, str) and bool(version),
+        "macOS SDK settings lack Version",
+    )
+    require_single_line(version, "macOS SDK version")
+    return sdk_path, version, settings.sha256
+
+
+def validate_macos_sdk_path(value: str, label: str) -> pathlib.Path:
+    path = canonical_absolute_tool_path(value, "MacOSX.sdk", label)
+    expected = macos_sdk_path_for_toolchain(XCODE_DEFAULT_TOOLCHAIN_BIN)
+    require(path == expected, f"{label} must name the pinned macOS SDK")
+    return path
+
+
+def require_single_line(value: str, label: str) -> None:
+    require(
+        bool(value) and "\n" not in value and "\r" not in value and "\x00" not in value,
+        f"{label} must be a non-empty single line",
+    )
 
 
 def validate_toolchain_policy(value: Any) -> dict[str, str]:
     require(isinstance(value, dict), "performance budget lacks toolchain policy")
     expected = {
+        "ar_path",
+        "ar_sha256",
         "cargo_sha256",
         "cargo_version",
+        "clang_path",
+        "clang_sha256",
+        "clang_version",
         "rustc_sha256",
         "rustc_version",
         "rustup_toolchain",
+        "sdk_path",
+        "sdk_settings_sha256",
+        "sdk_version",
         "target",
     }
     _strict_keys(value, expected, "performance toolchain policy")
     for field in expected:
         item = value.get(field)
-        require(isinstance(item, str) and bool(item), f"toolchain policy {field} is missing")
-    for field in ("cargo_sha256", "rustc_sha256"):
-        require(SHA256_RE.fullmatch(value[field]) is not None, f"toolchain policy {field} is malformed")
+        require(
+            isinstance(item, str) and bool(item),
+            f"toolchain policy {field} is missing",
+        )
+    for field in (
+        "ar_sha256",
+        "cargo_sha256",
+        "clang_sha256",
+        "rustc_sha256",
+        "sdk_settings_sha256",
+    ):
+        require(
+            SHA256_RE.fullmatch(value[field]) is not None,
+            f"toolchain policy {field} is malformed",
+        )
+    for field in ("cargo_version", "clang_version", "rustc_version", "sdk_version"):
+        require_single_line(value[field], f"toolchain policy {field}")
+    validate_xcode_tool_path(
+        value["clang_path"], "clang", "toolchain policy clang_path"
+    )
+    validate_xcode_tool_path(value["ar_path"], "ar", "toolchain policy ar_path")
+    validate_macos_sdk_path(value["sdk_path"], "toolchain policy sdk_path")
     require(
         RUSTUP_TOOLCHAIN_RE.fullmatch(value["rustup_toolchain"]) is not None,
         "toolchain policy rustup_toolchain is malformed",
     )
-    require("/" not in value["target"] and "\\" not in value["target"], "toolchain target is malformed")
+    require(
+        "/" not in value["target"] and "\\" not in value["target"],
+        "toolchain target is malformed",
+    )
+    return value
+
+
+def validate_toolchain_identity(value: Any) -> dict[str, str]:
+    require(isinstance(value, dict), "performance proof lacks toolchain identity")
+    expected = {
+        "ar_path",
+        "ar_sha256",
+        "cargo",
+        "cargo_path",
+        "cargo_sha256",
+        "clang",
+        "clang_path",
+        "clang_sha256",
+        "rustc",
+        "rustc_path",
+        "rustc_sha256",
+        "sdk_path",
+        "sdk_settings_sha256",
+        "sdk_version",
+        "target",
+    }
+    _strict_keys(value, expected, "performance toolchain")
+    for field in expected:
+        item = value.get(field)
+        require(
+            isinstance(item, str) and bool(item),
+            f"performance toolchain {field} is missing",
+        )
+    for field in (
+        "ar_sha256",
+        "cargo_sha256",
+        "clang_sha256",
+        "rustc_sha256",
+        "sdk_settings_sha256",
+    ):
+        require(
+            SHA256_RE.fullmatch(value[field]) is not None,
+            f"performance toolchain {field} is malformed",
+        )
+    for field in ("cargo", "clang", "rustc", "sdk_version"):
+        require_single_line(value[field], f"performance toolchain {field}")
+    canonical_absolute_tool_path(
+        value["cargo_path"], "cargo", "performance toolchain cargo_path"
+    )
+    canonical_absolute_tool_path(
+        value["rustc_path"], "rustc", "performance toolchain rustc_path"
+    )
+    validate_xcode_tool_path(
+        value["clang_path"], "clang", "performance toolchain clang_path"
+    )
+    validate_xcode_tool_path(
+        value["ar_path"], "ar", "performance toolchain ar_path"
+    )
+    validate_macos_sdk_path(value["sdk_path"], "performance toolchain sdk_path")
+    require(
+        "/" not in value["target"] and "\\" not in value["target"],
+        "performance toolchain target is malformed",
+    )
     return value
 
 
 def analyse(
     metadata: dict[str, Any],
-    grouped: dict[tuple[str, str], list[dict[str, Any]]],
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]],
     budget: dict[str, Any],
 ) -> dict[str, Any]:
     validate_budget(metadata, budget)
+    return {
+        PROFILE_NON_REGRESSION: analyse_estimand(
+            metadata,
+            grouped,
+            budget,
+            estimand=PROFILE_NON_REGRESSION,
+            operations=OPERATIONS,
+            variants=PROFILES,
+            operation_budgets=budget[PROFILE_NON_REGRESSION]["operations"],
+        ),
+        IMPLEMENTATION_IMPROVEMENT: analyse_estimand(
+            metadata,
+            grouped,
+            budget,
+            estimand=IMPLEMENTATION_IMPROVEMENT,
+            operations=IMPLEMENTATION_OPERATIONS,
+            variants=IMPLEMENTATIONS,
+            operation_budgets=budget[IMPLEMENTATION_IMPROVEMENT]["operations"],
+        ),
+    }
+
+
+def analyse_estimand(
+    metadata: dict[str, Any],
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]],
+    budget: dict[str, Any],
+    *,
+    estimand: str,
+    operations: tuple[str, ...],
+    variants: tuple[str, str],
+    operation_budgets: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Analyse one independently named paired estimand."""
+
     pair_block_size = budget["pair_block_size"]
     regression_guard_pair_block_size = budget["regression_guard_pair_block_size"]
     stability_block_sizes = budget["stability_block_sizes"]
@@ -602,18 +1180,18 @@ def analyse(
     iterations_per_sample = metadata["iterations_per_sample"]
     result: dict[str, Any] = {}
 
-    for operation in OPERATIONS:
-        by_profile_pair: dict[str, dict[int, float]] = {}
-        profile_summary: dict[str, Any] = {}
+    for operation in operations:
+        by_variant_pair: dict[str, dict[int, float]] = {}
+        variant_summary: dict[str, Any] = {}
         max_observed_cv = 0.0
-        for profile_name in PROFILES:
+        for variant in variants:
             iterations = iterations_per_sample[operation]
             pair_map = {
                 int(record["pair_id"]): float(record["elapsed_ns_total"]) / iterations
-                for record in grouped[(operation, profile_name)]
+                for record in grouped[(estimand, operation, variant)]
             }
-            by_profile_pair[profile_name] = pair_map
-            sample_count = int(metadata["samples_per_profile_operation"])
+            by_variant_pair[variant] = pair_map
+            sample_count = int(metadata["samples_per_variant_operation"])
             values = [pair_map[pair_id] for pair_id in range(sample_count)]
             stability_block_size = stability_block_sizes[operation]
             block_medians = [
@@ -622,7 +1200,7 @@ def analyse(
             ]
             cv = coefficient_of_variation(block_medians)
             max_observed_cv = max(max_observed_cv, cv)
-            profile_summary[profile_name] = {
+            variant_summary[variant] = {
                 "p50_ns": percentile(values, 50),
                 "p95_ns": percentile(values, 95),
                 "p99_ns": percentile(values, 99),
@@ -630,32 +1208,42 @@ def analyse(
             }
         require(
             max_observed_cv <= max_cv,
-            f"INVALID_ENV {operation} block-median CV {max_observed_cv:.6f} exceeds {max_cv:.6f}",
+            f"INVALID_ENV {estimand}/{operation} block-median CV "
+            f"{max_observed_cv:.6f} exceeds {max_cv:.6f}",
         )
 
-        sample_count = int(metadata["samples_per_profile_operation"])
+        sample_count = int(metadata["samples_per_variant_operation"])
+        numerator, denominator = variants
         global_descriptive = {
-            "p50_ratio": profile_summary["ContextBound"]["p50_ns"] / profile_summary["CompatXWing"]["p50_ns"],
-            "p95_ratio": profile_summary["ContextBound"]["p95_ns"] / profile_summary["CompatXWing"]["p95_ns"],
-            "p99_ratio": profile_summary["ContextBound"]["p99_ns"] / profile_summary["CompatXWing"]["p99_ns"],
-            "p95_delta_ns": profile_summary["ContextBound"]["p95_ns"] - profile_summary["CompatXWing"]["p95_ns"],
+            "p50_ratio": variant_summary[numerator]["p50_ns"]
+            / variant_summary[denominator]["p50_ns"],
+            "p95_ratio": variant_summary[numerator]["p95_ns"]
+            / variant_summary[denominator]["p95_ns"],
+            "p99_ratio": variant_summary[numerator]["p99_ns"]
+            / variant_summary[denominator]["p99_ns"],
+            "p95_delta_ns": variant_summary[numerator]["p95_ns"]
+            - variant_summary[denominator]["p95_ns"],
         }
         paired = paired_block_metrics(
-            operation,
-            by_profile_pair,
+            f"{estimand}/{operation}",
+            by_variant_pair,
+            numerator=numerator,
+            denominator=denominator,
             sample_count=sample_count,
             pair_block_size=pair_block_size,
             bootstrap_span=bootstrap_span,
         )
         regression_guard_paired = paired_block_metrics(
-            operation,
-            by_profile_pair,
+            f"{estimand}/{operation}",
+            by_variant_pair,
+            numerator=numerator,
+            denominator=denominator,
             sample_count=sample_count,
             pair_block_size=regression_guard_pair_block_size,
             bootstrap_span=bootstrap_span,
         )
 
-        operation_budget = budget["operations"][operation]
+        operation_budget = operation_budgets[operation]
         require(isinstance(operation_budget, dict), f"budget for {operation} must be an object")
         ratio_and_delta_fields = {
             "max_block_median_p50_ratio_upper_95",
@@ -663,22 +1251,34 @@ def analyse(
             "max_block_median_p99_ratio_upper_95",
             "max_block_median_p95_delta_ns_upper_95",
         }
-        expected_budget_fields = (
-            {"max_block_median_p95_delta_ns_upper_95"} if operation == "combine" else ratio_and_delta_fields
-        )
+        if estimand == IMPLEMENTATION_IMPROVEMENT:
+            expected_budget_fields = set(IMPLEMENTATION_IMPROVEMENT_LIMITS)
+        else:
+            expected_budget_fields = (
+                {"max_block_median_p95_delta_ns_upper_95"}
+                if operation == "combine"
+                else ratio_and_delta_fields
+            )
         require(
             set(operation_budget) == expected_budget_fields,
             f"budget for {operation} metric inventory mismatch: expected {sorted(expected_budget_fields)}",
         )
-        enforce_operation_budget(operation, operation_budget, paired, "primary")
+        budget_operation = f"{estimand}/{operation}"
         enforce_operation_budget(
-            operation,
+            budget_operation,
+            operation_budget,
+            paired,
+            "primary",
+        )
+        enforce_operation_budget(
+            budget_operation,
             operation_budget,
             regression_guard_paired,
             "regression_guard",
         )
         result[operation] = {
-            "profiles": profile_summary,
+            "variants": variant_summary,
+            "direction": f"{numerator}/{denominator}",
             "global_descriptive": global_descriptive,
             "paired": paired,
             "regression_guard_paired": regression_guard_paired,
@@ -697,8 +1297,10 @@ def analyse(
 
 def paired_block_metrics(
     operation: str,
-    by_profile_pair: dict[str, dict[int, float]],
+    by_variant_pair: dict[str, dict[int, float]],
     *,
+    numerator: str,
+    denominator: str,
     sample_count: int,
     pair_block_size: int,
     bootstrap_span: int,
@@ -709,19 +1311,24 @@ def paired_block_metrics(
     block_p95_deltas: list[float] = []
     for offset in range(0, sample_count, pair_block_size):
         pair_ids = range(offset, offset + pair_block_size)
-        bound = [by_profile_pair["ContextBound"][pair_id] for pair_id in pair_ids]
-        compat = [by_profile_pair["CompatXWing"][pair_id] for pair_id in pair_ids]
+        numerator_values = [
+            by_variant_pair[numerator][pair_id] for pair_id in pair_ids
+        ]
+        denominator_values = [
+            by_variant_pair[denominator][pair_id] for pair_id in pair_ids
+        ]
         for percent in (50, 95, 99):
-            denominator = percentile(compat, percent)
+            denominator_percentile = percentile(denominator_values, percent)
             require(
-                denominator > 0,
-                f"{operation} CompatXWing p{percent} is not positive",
+                denominator_percentile > 0,
+                f"{operation} {denominator} p{percent} is not positive",
             )
             block_ratios[percent].append(
-                percentile(bound, percent) / denominator
+                percentile(numerator_values, percent) / denominator_percentile
             )
         block_p95_deltas.append(
-            percentile(bound, 95) - percentile(compat, 95)
+            percentile(numerator_values, 95)
+            - percentile(denominator_values, 95)
         )
 
     paired = {
@@ -844,9 +1451,63 @@ def binary_path(target_dir: pathlib.Path, target: str) -> pathlib.Path:
     return target_dir / target / "release" / "examples" / f"paired_profile_perf{suffix}"
 
 
+def first_command_line(
+    args: list[str],
+    root: pathlib.Path,
+    *,
+    environment: dict[str, str],
+    label: str,
+) -> str:
+    output = run_line(args, root, environment=environment)
+    lines = output.splitlines()
+    require(bool(lines) and bool(lines[0]), f"{label} did not report a version")
+    return lines[0]
+
+
+def inspect_pinned_executable(
+    candidate: pathlib.Path,
+    *,
+    trusted_parent: pathlib.Path,
+    name: str,
+    expected_sha256: str,
+) -> pathlib.Path:
+    require(
+        candidate.is_file()
+        and not candidate.is_symlink()
+        and os.access(candidate, os.X_OK),
+        f"pinned performance {name} executable is missing or unsafe",
+    )
+    try:
+        resolved_candidate = candidate.resolve(strict=True)
+        candidate_sha256 = sha256_file(resolved_candidate)
+    except (GateError, OSError) as exc:
+        raise GateError(
+            f"cannot inspect pinned performance {name} executable: {exc}"
+        ) from exc
+    require(
+        resolved_candidate == candidate,
+        f"pinned performance {name} executable path is not canonical",
+    )
+    require(
+        resolved_candidate.parent == trusted_parent,
+        f"pinned performance {name} executable escaped its trusted toolchain",
+    )
+    require(
+        candidate_sha256 == expected_sha256,
+        f"pinned performance {name} executable differs from toolchain policy",
+    )
+    return resolved_candidate
+
+
 def verified_toolchain(
     root: pathlib.Path, budget: dict[str, Any]
-) -> tuple[dict[str, str], pathlib.Path, pathlib.Path]:
+) -> tuple[
+    dict[str, str],
+    pathlib.Path,
+    pathlib.Path,
+    pathlib.Path,
+    pathlib.Path,
+]:
     policy = validate_toolchain_policy(budget.get("toolchain"))
     account_home = account_home_directory()
     rustup_home = account_home / ".rustup"
@@ -895,29 +1556,50 @@ def verified_toolchain(
 
     resolved: dict[str, pathlib.Path] = {}
     for name in ("cargo", "rustc"):
-        candidate = selected_bin / name
-        require(
-            candidate.is_file()
-            and not candidate.is_symlink()
-            and os.access(candidate, os.X_OK),
-            f"pinned performance {name} executable is missing or unsafe",
+        resolved[name] = inspect_pinned_executable(
+            selected_bin / name,
+            trusted_parent=resolved_bin,
+            name=name,
+            expected_sha256=policy[f"{name}_sha256"],
         )
-        try:
-            resolved_candidate = candidate.resolve(strict=True)
-            candidate_sha256 = sha256_file(resolved_candidate)
-        except OSError as exc:
-            raise GateError(
-                f"cannot inspect pinned performance {name} executable: {exc}"
-            ) from exc
-        require(
-            resolved_candidate.parent == resolved_bin,
-            f"pinned performance {name} executable escaped its trusted toolchain",
+
+    require(
+        XCODE_DEFAULT_TOOLCHAIN_BIN.is_dir()
+        and not XCODE_DEFAULT_TOOLCHAIN_BIN.is_symlink(),
+        "pinned Xcode toolchain bin directory is missing or unsafe",
+    )
+    try:
+        resolved_xcode_bin = XCODE_DEFAULT_TOOLCHAIN_BIN.resolve(strict=True)
+    except OSError as exc:
+        raise GateError(f"cannot resolve pinned Xcode toolchain: {exc}") from exc
+    require(
+        resolved_xcode_bin == XCODE_DEFAULT_TOOLCHAIN_BIN,
+        "pinned Xcode toolchain bin directory is not canonical",
+    )
+    for name in ("clang", "ar"):
+        candidate = pathlib.Path(policy[f"{name}_path"])
+        resolved[name] = inspect_pinned_executable(
+            candidate,
+            trusted_parent=resolved_xcode_bin,
+            name=name,
+            expected_sha256=policy[f"{name}_sha256"],
         )
-        require(
-            candidate_sha256 == policy[f"{name}_sha256"],
-            f"pinned performance {name} executable differs from toolchain policy",
-        )
-        resolved[name] = resolved_candidate
+    sdk_path, sdk_version, sdk_settings_sha256 = inspect_macos_sdk(
+        resolved_xcode_bin
+    )
+    require(
+        str(sdk_path) == policy["sdk_path"],
+        "macOS SDK path differs from performance policy",
+    )
+    require(
+        sdk_version == policy["sdk_version"],
+        "macOS SDK version differs from performance policy",
+    )
+    require(
+        sdk_settings_sha256 == policy["sdk_settings_sha256"],
+        "macOS SDK settings differ from performance policy",
+    )
+
     command_environment = {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "LC_ALL": "C",
@@ -929,31 +1611,131 @@ def verified_toolchain(
     rustc_version = run_line(
         [str(resolved["rustc"]), "--version"], root, environment=command_environment
     )
+    # Apple clang's first line is the compiler version; later lines include the
+    # host-derived target triple. Apple ar has no successful version flag, so
+    # its canonical path and file digest are its complete policy identity.
+    clang_version = first_command_line(
+        [str(resolved["clang"]), "--version"],
+        root,
+        environment=command_environment,
+        label="clang",
+    )
     target = host_target(
         root, str(resolved["rustc"]), environment=command_environment
     )
     identity = {
+        "ar_path": str(resolved["ar"]),
+        "ar_sha256": sha256_file(resolved["ar"]),
         "cargo": cargo_version,
         "cargo_path": str(resolved["cargo"]),
         "cargo_sha256": sha256_file(resolved["cargo"]),
+        "clang": clang_version,
+        "clang_path": str(resolved["clang"]),
+        "clang_sha256": sha256_file(resolved["clang"]),
         "rustc": rustc_version,
         "rustc_path": str(resolved["rustc"]),
         "rustc_sha256": sha256_file(resolved["rustc"]),
+        "sdk_path": str(sdk_path),
+        "sdk_settings_sha256": sdk_settings_sha256,
+        "sdk_version": sdk_version,
         "target": target,
     }
+    validate_toolchain_identity(identity)
     require(cargo_version == policy["cargo_version"], "cargo version differs from performance policy")
     require(rustc_version == policy["rustc_version"], "rustc version differs from performance policy")
+    require(clang_version == policy["clang_version"], "clang version differs from performance policy")
     require(target == policy["target"], "rustc target differs from performance policy")
-    return identity, resolved["cargo"], resolved["rustc"]
+    for name in ("cargo", "rustc", "clang", "ar"):
+        require(
+            identity[f"{name}_sha256"] == policy[f"{name}_sha256"],
+            f"pinned performance {name} executable changed during toolchain inspection",
+        )
+    return (
+        identity,
+        resolved["cargo"],
+        resolved["rustc"],
+        resolved["clang"],
+        resolved["ar"],
+    )
 
 
 def require_toolchain_unchanged(
-    toolchain: dict[str, str], cargo: pathlib.Path, rustc: pathlib.Path
+    root: pathlib.Path,
+    toolchain: dict[str, str],
+    cargo: pathlib.Path,
+    rustc: pathlib.Path,
+    clang: pathlib.Path,
+    ar: pathlib.Path,
 ) -> None:
     """Detect ordinary tool replacement across a collection or verification window."""
 
-    for name, path in (("cargo", cargo), ("rustc", rustc)):
-        require(path.is_file() and not path.is_symlink(), f"{name} executable became unsafe")
+    validate_toolchain_identity(toolchain)
+    paths = {"cargo": cargo, "rustc": rustc, "clang": clang, "ar": ar}
+    for name, path in paths.items():
+        expected_path = canonical_absolute_tool_path(
+            toolchain[f"{name}_path"], name, f"performance toolchain {name}_path"
+        )
+        require(path == expected_path, f"{name} executable path changed")
+        require(
+            path.is_file()
+            and not path.is_symlink()
+            and os.access(path, os.X_OK),
+            f"{name} executable became unsafe",
+        )
+        try:
+            resolved_path = path.resolve(strict=True)
+        except OSError as exc:
+            raise GateError(f"cannot revalidate {name} executable: {exc}") from exc
+        require(resolved_path == path, f"{name} executable path became non-canonical")
+        require(
+            sha256_file(path) == toolchain[f"{name}_sha256"],
+            f"{name} executable changed during performance evidence processing",
+        )
+    sdk_path, sdk_version, sdk_settings_sha256 = inspect_macos_sdk(clang.parent)
+    require(
+        str(sdk_path) == toolchain["sdk_path"],
+        "macOS SDK path changed during performance evidence processing",
+    )
+    require(
+        sdk_version == toolchain["sdk_version"],
+        "macOS SDK version changed during performance evidence processing",
+    )
+    require(
+        sdk_settings_sha256 == toolchain["sdk_settings_sha256"],
+        "macOS SDK settings changed during performance evidence processing",
+    )
+
+    command_environment = {
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LC_ALL": "C",
+        "LANG": "C",
+    }
+    require(
+        run_line([str(cargo), "--version"], root, environment=command_environment)
+        == toolchain["cargo"],
+        "cargo version changed during performance evidence processing",
+    )
+    require(
+        run_line([str(rustc), "--version"], root, environment=command_environment)
+        == toolchain["rustc"],
+        "rustc version changed during performance evidence processing",
+    )
+    require(
+        first_command_line(
+            [str(clang), "--version"],
+            root,
+            environment=command_environment,
+            label="clang",
+        )
+        == toolchain["clang"],
+        "clang version changed during performance evidence processing",
+    )
+    require(
+        host_target(root, str(rustc), environment=command_environment)
+        == toolchain["target"],
+        "rustc target changed during performance evidence processing",
+    )
+    for name, path in paths.items():
         require(
             sha256_file(path) == toolchain[f"{name}_sha256"],
             f"{name} executable changed during performance evidence processing",
@@ -998,6 +1780,130 @@ def build_harness(
     return executable.resolve(), sha256_file(executable)
 
 
+def portable_reference_source_path(root: pathlib.Path) -> pathlib.Path:
+    path = root.joinpath(*PORTABLE_REFERENCE_SOURCE_RELATIVE.parts)
+    require(
+        path.is_file() and not path.is_symlink(),
+        "portable performance reference source is missing or unsafe",
+    )
+    return path.resolve()
+
+
+def build_portable_reference_archive(
+    root: pathlib.Path,
+    target: str,
+    clang: pathlib.Path,
+    ar: pathlib.Path,
+    output_dir: pathlib.Path,
+    environment: dict[str, str],
+) -> tuple[pathlib.Path, str, str]:
+    """Build the private portable comparison object without changing product selection."""
+
+    require(
+        target == "aarch64-apple-darwin",
+        "portable performance comparison requires aarch64-apple-darwin",
+    )
+    require_under(output_dir, root / "target", "portable reference build directory")
+    source = portable_reference_source_path(root)
+    source_digest = sha256_file(source)
+    object_path = output_dir / f"{PORTABLE_REFERENCE_ARCHIVE_STEM}.o"
+    archive_path = output_dir / f"lib{PORTABLE_REFERENCE_ARCHIVE_STEM}.a"
+    include_root = root / "crates" / "q-periapt-mlkem-native-sys"
+    sdk_root = environment.get("SDKROOT")
+    require(
+        isinstance(sdk_root, str) and bool(sdk_root),
+        "portable performance reference build lacks SDKROOT",
+    )
+    command = [
+        str(clang),
+        "-c",
+        str(source),
+        "-o",
+        str(object_path),
+        "-Isrc",
+        "-Ivendor/mlkem-native",
+        "-isysroot",
+        sdk_root,
+        "-std=c99",
+        "-pedantic-errors",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wconversion",
+        "-Wsign-conversion",
+        "-Wshadow",
+        "-Wpointer-arith",
+        "-Wmissing-prototypes",
+        "-Wstrict-prototypes",
+        "-Wundef",
+        "-fvisibility=hidden",
+        "-march=armv8-a",
+    ]
+    for symbol in PORTABLE_REFERENCE_SYMBOLS:
+        evidence_symbol = symbol.replace(
+            "qpn_mlkem_bridge_",
+            "qpn_mlkem_evidence_portable_",
+            1,
+        )
+        command.append(f"-D{symbol}={evidence_symbol}")
+    try:
+        subprocess.run(
+            command,
+            cwd=include_root,
+            env=environment,
+            check=True,
+        )
+        subprocess.run(
+            [str(ar), "rcs", str(archive_path), str(object_path)],
+            cwd=include_root,
+            env=environment,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise GateError(f"portable performance reference build failed: {exc}") from exc
+    require(
+        archive_path.is_file() and not archive_path.is_symlink(),
+        "portable performance reference archive is missing or unsafe",
+    )
+    return archive_path.resolve(), sha256_file(archive_path), source_digest
+
+
+def performance_harness_environment(
+    environment: dict[str, str],
+    *,
+    target: str,
+    portable_archive: pathlib.Path,
+) -> dict[str, str]:
+    """Add one private compile/link contract for the evidence-only reference."""
+
+    require(
+        target == "aarch64-apple-darwin",
+        "implementation performance evidence requires aarch64-apple-darwin",
+    )
+    require(
+        portable_archive.is_file() and not portable_archive.is_symlink(),
+        "portable performance reference archive is missing or unsafe",
+    )
+    require(
+        "CARGO_ENCODED_RUSTFLAGS" not in environment
+        and "RUSTFLAGS" not in environment,
+        "performance harness environment already contains Rust flags",
+    )
+    configured = dict(environment)
+    configured["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
+        (
+            "--cfg",
+            "qperiapt_performance_evidence",
+            "-L",
+            f"native={portable_archive.parent}",
+            "-l",
+            f"static={PORTABLE_REFERENCE_ARCHIVE_STEM}",
+        )
+    )
+    configured["QPERIAPT_PERFORMANCE_TARGET"] = target
+    return configured
+
+
 def publish_performance_binary(
     root: pathlib.Path, target: str, executable: pathlib.Path, digest: str
 ) -> pathlib.Path:
@@ -1025,10 +1931,51 @@ def publish_performance_binary(
     return destination.resolve()
 
 
+def publish_portable_reference_archive(
+    root: pathlib.Path,
+    target: str,
+    archive: pathlib.Path,
+    digest: str,
+) -> pathlib.Path:
+    destination = (
+        root
+        / "target"
+        / "performance"
+        / "binaries"
+        / target
+        / f"portable-reference-{digest}.a"
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        require(
+            not destination.is_symlink()
+            and destination.is_file()
+            and sha256_file(destination) == digest,
+            "portable performance reference archive is unsafe or changed",
+        )
+        return destination.resolve()
+    try:
+        with archive.open("rb") as source, destination.open("xb") as output:
+            shutil.copyfileobj(source, output, length=1024 * 1024)
+        destination.chmod(0o600)
+    except OSError as exc:
+        raise GateError(
+            f"cannot publish portable performance reference archive: {exc}"
+        ) from exc
+    require(
+        sha256_file(destination) == digest,
+        "published portable performance reference archive changed during copy",
+    )
+    return destination.resolve()
+
+
 def hardened_cargo_environment(
     root: pathlib.Path,
     cargo: pathlib.Path,
     rustc: pathlib.Path,
+    clang: pathlib.Path,
+    ar: pathlib.Path,
+    sdk: pathlib.Path,
     target: str,
     target_dir: pathlib.Path,
     private_root: pathlib.Path,
@@ -1036,6 +1983,15 @@ def hardened_cargo_environment(
     home = account_home_directory()
     cargo_home = (home / ".cargo").resolve()
     require(cargo_home.is_dir(), f"Cargo home is missing: {cargo_home}")
+    require(
+        sdk.is_dir() and not sdk.is_symlink(),
+        "performance macOS SDK is missing or unsafe",
+    )
+    try:
+        resolved_sdk = sdk.resolve(strict=True)
+    except OSError as exc:
+        raise GateError(f"cannot resolve performance macOS SDK: {exc}") from exc
+    require(resolved_sdk == sdk, "performance macOS SDK path is not canonical")
     configuration_roots = [root.resolve(), *root.resolve().parents, cargo_home]
     checked_configurations: set[pathlib.Path] = set()
     for configuration_root in configuration_roots:
@@ -1070,9 +2026,10 @@ def hardened_cargo_environment(
         "CARGO_NET_OFFLINE": "true",
         "CARGO_INCREMENTAL": "0",
         "RUSTC": str(rustc),
-        "CC": "/usr/bin/clang",
-        "AR": "/usr/bin/ar",
-        target_linker_key: "/usr/bin/clang",
+        "CC": str(clang),
+        "AR": str(ar),
+        "SDKROOT": str(resolved_sdk),
+        target_linker_key: str(clang),
         "LC_ALL": "C",
         "LANG": "C",
     }
@@ -1131,6 +2088,10 @@ def proof_artifact_path(root: pathlib.Path, relative: Any, label: str) -> pathli
     return path
 
 
+def canonical_proof_bytes(payload: dict[str, Any]) -> bytes:
+    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
 def emit_proof(
     root: pathlib.Path,
     raw_path: pathlib.Path,
@@ -1141,12 +2102,29 @@ def emit_proof(
     tree_digest: str,
     executable: pathlib.Path,
     binary_digest: str,
+    portable_archive: pathlib.Path,
+    portable_archive_digest: str,
+    portable_source_digest: str,
     toolchain: dict[str, str],
     raw_digest: str,
     budget_digest: str,
 ) -> dict[str, Any]:
     require(executable.is_file(), f"performance harness binary is missing: {executable}")
     require(sha256_file(executable) == binary_digest, "performance binary changed before proof emission")
+    require(
+        portable_archive.is_file() and not portable_archive.is_symlink(),
+        "portable reference archive is missing or unsafe before proof emission",
+    )
+    require(
+        sha256_file(portable_archive) == portable_archive_digest,
+        "portable reference archive changed before proof emission",
+    )
+    portable_source = portable_reference_source_path(root)
+    require(
+        sha256_file(portable_source) == portable_source_digest,
+        "portable reference source changed before proof emission",
+    )
+    validate_toolchain_identity(toolchain)
     payload = {
         "schema_version": PROOF_SCHEMA_VERSION,
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -1161,6 +2139,14 @@ def emit_proof(
             "raw_sha256": raw_digest,
             "binary_path": relative_to_root(executable, root, "performance binary"),
             "binary_sha256": binary_digest,
+            "portable_reference_archive_path": relative_to_root(
+                portable_archive,
+                root,
+                "portable reference archive",
+            ),
+            "portable_reference_archive_sha256": portable_archive_digest,
+            "portable_reference_source_path": PORTABLE_REFERENCE_SOURCE_RELATIVE.as_posix(),
+            "portable_reference_source_sha256": portable_source_digest,
             "budget_path": PRODUCTION_BUDGET_RELATIVE.as_posix(),
             "budget_sha256": budget_digest,
         },
@@ -1168,8 +2154,116 @@ def emit_proof(
         "gate": {"passed": True},
     }
     proof_path.parent.mkdir(parents=True, exist_ok=True)
-    proof_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    proof_path.write_bytes(canonical_proof_bytes(payload))
     return payload
+
+
+def verify_emitted_collection(
+    root: pathlib.Path,
+    *,
+    allow_dirty: bool,
+    tree_digest: str,
+    raw_path: pathlib.Path,
+    raw_snapshot: FileSnapshot,
+    proof_path: pathlib.Path,
+    proof_payload: dict[str, Any],
+    evidence_binary: pathlib.Path,
+    binary_digest: str,
+    evidence_portable_archive: pathlib.Path,
+    portable_archive_digest: str,
+    portable_source_digest: str,
+    budget_path: pathlib.Path,
+    budget_snapshot: JsonObjectSnapshot,
+    toolchain: dict[str, str],
+    cargo: pathlib.Path,
+    rustc: pathlib.Path,
+    clang: pathlib.Path,
+    ar: pathlib.Path,
+) -> None:
+    """Re-sample every emitted input immediately before collector success."""
+
+    try:
+        final_raw = read_regular_snapshot(
+            raw_path,
+            maximum=MAX_PERFORMANCE_RAW_BYTES,
+            label="emitted raw performance data",
+        )
+        final_binary = read_regular_snapshot(
+            evidence_binary,
+            maximum=MAX_PERFORMANCE_RAW_BYTES,
+            label="emitted performance binary",
+        )
+        final_archive = read_regular_snapshot(
+            evidence_portable_archive,
+            maximum=MAX_PERFORMANCE_RAW_BYTES,
+            label="emitted portable reference archive",
+        )
+        final_portable_source = read_regular_snapshot(
+            portable_reference_source_path(root),
+            maximum=MAX_PERFORMANCE_BUDGET_BYTES,
+            label="portable reference source",
+        )
+        final_budget = load_json_object_snapshot(
+            budget_path,
+            maximum=MAX_PERFORMANCE_BUDGET_BYTES,
+            label="emitted performance budget",
+        )
+    except EvidenceIOError as exc:
+        raise GateError(str(exc)) from exc
+
+    require(
+        final_raw.sha256 == raw_snapshot.sha256
+        and final_raw.data == raw_snapshot.data,
+        "raw performance data changed during proof emission",
+    )
+    require(
+        final_binary.sha256 == binary_digest,
+        "performance binary changed during proof emission",
+    )
+    require(
+        final_archive.sha256 == portable_archive_digest,
+        "portable reference archive changed during proof emission",
+    )
+    require(
+        final_portable_source.sha256 == portable_source_digest,
+        "portable reference source changed during proof emission",
+    )
+    require(
+        final_budget.file.sha256 == budget_snapshot.file.sha256
+        and final_budget.file.data == budget_snapshot.file.data
+        and final_budget.value == budget_snapshot.value,
+        "performance budget changed during proof emission",
+    )
+    require(
+        source_tree_digest(root) == tree_digest,
+        "source tree changed during performance proof emission",
+    )
+    if not allow_dirty:
+        require(
+            not source_tree_dirty(root),
+            "source tree became dirty during performance proof emission",
+        )
+    require_toolchain_unchanged(root, toolchain, cargo, rustc, clang, ar)
+
+    expected_proof = canonical_proof_bytes(proof_payload)
+    expected_proof_digest = hashlib.sha256(expected_proof).hexdigest()
+    try:
+        final_proof = load_json_object_snapshot(
+            proof_path,
+            maximum=MAX_PERFORMANCE_PROOF_BYTES,
+            label="emitted performance proof",
+        )
+    except EvidenceIOError as exc:
+        raise GateError(str(exc)) from exc
+    require(
+        final_proof.file.sha256 == expected_proof_digest,
+        "performance proof changed during proof emission",
+    )
+    require(
+        final_proof.file.data == expected_proof
+        and final_proof.value == proof_payload,
+        "performance proof content changed during proof emission",
+    )
 
 
 def collect(args: argparse.Namespace) -> None:
@@ -1208,7 +2302,10 @@ def collect(args: argparse.Namespace) -> None:
         raw_path.unlink()
     if proof_path.exists():
         proof_path.unlink()
-    toolchain, cargo, rustc = verified_toolchain(root, budget_snapshot.value)
+    toolchain, cargo, rustc, clang, ar = verified_toolchain(
+        root, budget_snapshot.value
+    )
+    require_toolchain_unchanged(root, toolchain, cargo, rustc, clang, ar)
     target = toolchain["target"]
     target_parent = root / "target"
     target_parent.mkdir(parents=True, exist_ok=True)
@@ -1219,16 +2316,44 @@ def collect(args: argparse.Namespace) -> None:
         target_dir = private_root / "cargo-target"
         target_dir.mkdir(mode=0o700)
         env = hardened_cargo_environment(
-            root, cargo, rustc, target, target_dir, private_root
+            root,
+            cargo,
+            rustc,
+            clang,
+            ar,
+            pathlib.Path(toolchain["sdk_path"]),
+            target,
+            target_dir,
+            private_root,
+        )
+        portable_build_dir = private_root / "portable-reference"
+        portable_build_dir.mkdir(mode=0o700)
+        (
+            portable_archive,
+            portable_archive_digest,
+            portable_source_digest,
+        ) = build_portable_reference_archive(
+            root,
+            target,
+            clang,
+            ar,
+            portable_build_dir,
+            env,
+        )
+        harness_env = performance_harness_environment(
+            env,
+            target=target,
+            portable_archive=portable_archive,
         )
         executable, binary_digest = build_harness(
-            root, target, cargo, target_dir, env
+            root, target, cargo, target_dir, harness_env
         )
         require_distinct_paths(
             {
                 "raw performance data": raw_path,
                 "performance proof": proof_path,
                 "performance binary": executable,
+                "portable reference archive": portable_archive,
             }
         )
         after_build = source_tree_digest(root)
@@ -1253,7 +2378,7 @@ def collect(args: argparse.Namespace) -> None:
             str(raw_path),
         ]
         try:
-            subprocess.run(command, cwd=root, env=env, check=True)
+            subprocess.run(command, cwd=root, env=harness_env, check=True)
         except (OSError, subprocess.CalledProcessError) as exc:
             raise GateError(f"performance harness failed: {exc}") from exc
         environment_observations["post_run"] = collect_environment()
@@ -1261,6 +2386,10 @@ def collect(args: argparse.Namespace) -> None:
             environment_observations["post_run"], args.allow_uncontrolled
         )
         require(sha256_file(executable) == binary_digest, "performance binary changed during collection")
+        require(
+            sha256_file(portable_archive) == portable_archive_digest,
+            "portable reference archive changed during collection",
+        )
         after_run = source_tree_digest(root)
         require(before == after_run, f"source tree changed during performance collection: {before} != {after_run}")
         raw_snapshot, metadata, grouped = parse_raw_snapshot(raw_path)
@@ -1269,13 +2398,19 @@ def collect(args: argparse.Namespace) -> None:
         verify_environment_observations(
             environment_observations, args.allow_uncontrolled
         )
-        require_toolchain_unchanged(toolchain, cargo, rustc)
+        require_toolchain_unchanged(root, toolchain, cargo, rustc, clang, ar)
         before_emit = source_tree_digest(root)
         require(before == before_emit, f"source tree changed before performance proof emission: {before} != {before_emit}")
         evidence_binary = publish_performance_binary(
             root, target, executable, binary_digest
         )
-        emit_proof(
+        evidence_portable_archive = publish_portable_reference_archive(
+            root,
+            target,
+            portable_archive,
+            portable_archive_digest,
+        )
+        proof_payload = emit_proof(
             root,
             raw_path,
             proof_path,
@@ -1285,17 +2420,33 @@ def collect(args: argparse.Namespace) -> None:
             before,
             evidence_binary,
             binary_digest,
+            evidence_portable_archive,
+            portable_archive_digest,
+            portable_source_digest,
             toolchain,
             raw_snapshot.sha256,
             budget_snapshot.file.sha256,
         )
-    require(
-        sha256_file(raw_path) == raw_snapshot.sha256,
-        "raw performance data changed during proof emission",
-    )
-    require(
-        source_tree_digest(root) == before,
-        "source tree changed during performance proof emission",
+    verify_emitted_collection(
+        root,
+        allow_dirty=args.allow_dirty,
+        tree_digest=before,
+        raw_path=raw_path,
+        raw_snapshot=raw_snapshot,
+        proof_path=proof_path,
+        proof_payload=proof_payload,
+        evidence_binary=evidence_binary,
+        binary_digest=binary_digest,
+        evidence_portable_archive=evidence_portable_archive,
+        portable_archive_digest=portable_archive_digest,
+        portable_source_digest=portable_source_digest,
+        budget_path=budget_path,
+        budget_snapshot=budget_snapshot,
+        toolchain=toolchain,
+        cargo=cargo,
+        rustc=rustc,
+        clang=clang,
+        ar=ar,
     )
     print(f"PAIRED_PROFILE_PERFORMANCE_GATE_PASS proof={proof_path}")
 
@@ -1416,21 +2567,7 @@ def verify(args: argparse.Namespace) -> None:
     require(isinstance(expected_tree, str) and SHA256_RE.fullmatch(expected_tree) is not None, "proof source digest is malformed")
     require(expected_tree == source_tree_digest(root), "source tree changed since performance proof")
     verify_environment_observations(proof.get("environment"), args.allow_uncontrolled)
-    toolchain = proof.get("toolchain")
-    require(isinstance(toolchain, dict), "performance proof lacks toolchain identity")
-    _strict_keys(
-        toolchain,
-        {
-            "cargo",
-            "cargo_path",
-            "cargo_sha256",
-            "rustc",
-            "rustc_path",
-            "rustc_sha256",
-            "target",
-        },
-        "performance toolchain",
-    )
+    toolchain = validate_toolchain_identity(proof.get("toolchain"))
     try:
         current_budget = load_json_object_snapshot(
             production_budget_path(root),
@@ -1439,11 +2576,13 @@ def verify(args: argparse.Namespace) -> None:
         )
     except EvidenceIOError as exc:
         raise GateError(str(exc)) from exc
-    current_toolchain, _cargo, _rustc = verified_toolchain(
+    current_toolchain, _cargo, _rustc, _clang, _ar = verified_toolchain(
         root, current_budget.value
     )
     require(toolchain == current_toolchain, "performance proof toolchain differs from current policy-bound toolchain")
-    require_toolchain_unchanged(current_toolchain, _cargo, _rustc)
+    require_toolchain_unchanged(
+        root, current_toolchain, _cargo, _rustc, _clang, _ar
+    )
     target = toolchain["target"]
     current_environment = collect_environment()
     for field in ("system", "release", "machine", "cpu"):
@@ -1459,25 +2598,48 @@ def verify(args: argparse.Namespace) -> None:
     require(isinstance(artifacts, dict), "performance proof lacks artifacts")
     _strict_keys(
         artifacts,
-        {"raw_path", "raw_sha256", "binary_path", "binary_sha256", "budget_path", "budget_sha256"},
+        {
+            "binary_path",
+            "binary_sha256",
+            "budget_path",
+            "budget_sha256",
+            "portable_reference_archive_path",
+            "portable_reference_archive_sha256",
+            "portable_reference_source_path",
+            "portable_reference_source_sha256",
+            "raw_path",
+            "raw_sha256",
+        },
         "performance artifacts",
     )
     raw_path = proof_artifact_path(root, artifacts.get("raw_path"), "raw performance data")
     executable = proof_artifact_path(root, artifacts.get("binary_path"), "performance binary")
+    portable_archive = proof_artifact_path(
+        root,
+        artifacts.get("portable_reference_archive_path"),
+        "portable reference archive",
+    )
     budget_path = production_budget_path(root)
     require_distinct_paths(
         {
             "performance proof": proof_path,
             "raw performance data": raw_path,
             "performance binary": executable,
+            "portable reference archive": portable_archive,
             "performance budget": budget_path,
         }
     )
     raw_expected = artifacts.get("raw_sha256")
     binary_expected = artifacts.get("binary_sha256")
+    portable_archive_expected = artifacts.get(
+        "portable_reference_archive_sha256"
+    )
+    portable_source_expected = artifacts.get("portable_reference_source_sha256")
     for field, expected in (
         ("raw_sha256", raw_expected),
         ("binary_sha256", binary_expected),
+        ("portable_reference_archive_sha256", portable_archive_expected),
+        ("portable_reference_source_sha256", portable_source_expected),
     ):
         require(
             isinstance(expected, str) and SHA256_RE.fullmatch(expected) is not None,
@@ -1492,9 +2654,30 @@ def verify(args: argparse.Namespace) -> None:
         and executable.name == expected_binary_name,
         "performance proof names an unexpected evidence binary path",
     )
+    require(
+        portable_archive.parent
+        == (root / "target" / "performance" / "binaries" / target).resolve()
+        and portable_archive.name
+        == f"portable-reference-{portable_archive_expected}.a",
+        "performance proof names an unexpected portable reference archive path",
+    )
+    require(
+        artifacts.get("portable_reference_source_path")
+        == PORTABLE_REFERENCE_SOURCE_RELATIVE.as_posix(),
+        "performance proof names an unexpected portable reference source path",
+    )
+    portable_source = portable_reference_source_path(root)
     raw_snapshot, metadata, grouped = parse_raw_snapshot(raw_path)
     require(raw_snapshot.sha256 == raw_expected, f"performance artifact changed: {raw_path}")
     require(binary_expected == sha256_file(executable), f"performance artifact changed: {executable}")
+    require(
+        portable_archive_expected == sha256_file(portable_archive),
+        f"performance artifact changed: {portable_archive}",
+    )
+    require(
+        portable_source_expected == sha256_file(portable_source),
+        f"performance artifact changed: {portable_source}",
+    )
     budget_snapshot = verified_production_budget_snapshot(root, artifacts)
     require(
         budget_snapshot.file.sha256 == current_budget.file.sha256,
@@ -1507,9 +2690,19 @@ def verify(args: argparse.Namespace) -> None:
     require(expected_tree == source_tree_digest(root), "source tree changed during performance verification")
     if not args.allow_dirty:
         require(not source_tree_dirty(root), "source tree became dirty during performance verification")
-    require_toolchain_unchanged(current_toolchain, _cargo, _rustc)
+    require_toolchain_unchanged(
+        root, current_toolchain, _cargo, _rustc, _clang, _ar
+    )
     require(raw_expected == sha256_file(raw_path), "raw performance data changed during verification")
     require(binary_expected == sha256_file(executable), "performance binary changed during verification")
+    require(
+        portable_archive_expected == sha256_file(portable_archive),
+        "portable reference archive changed during verification",
+    )
+    require(
+        portable_source_expected == sha256_file(portable_source),
+        "portable reference source changed during verification",
+    )
     require(
         current_budget.file.sha256 == sha256_file(budget_path),
         "performance budget changed during verification",
@@ -1559,8 +2752,10 @@ def verify(args: argparse.Namespace) -> None:
 def validate_raw(args: argparse.Namespace) -> None:
     metadata, _grouped = parse_raw(args.raw.resolve())
     print(
-        "PAIRED_PROFILE_PERFORMANCE_RAW_SCHEMA_PASS "
-        f"samples={metadata['samples_per_profile_operation']} raw={args.raw.resolve()}"
+        "PERFORMANCE_RAW_SCHEMA_PASS "
+        f"mode={metadata['mode']} "
+        f"samples={metadata['samples_per_variant_operation']} "
+        f"raw={args.raw.resolve()}"
     )
 
 

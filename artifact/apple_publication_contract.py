@@ -12,9 +12,9 @@ import apple_distribution
 APPLE_PUBLICATION_SCHEMA_VERSION = 1
 APPLE_PUBLICATION_KIND = "qperiapt.apple_xcframework_publication_receipt"
 APPLE_ALPHA2_R1_PUBLICATION_KEY = "apple_alpha2_r1"
-APPLE_ALPHA3_R1_PUBLICATION_KEY = "apple_alpha3_r1"
+APPLE_V0_1_0_PUBLICATION_KEY = "apple_v0_1_0"
 APPLE_PUBLICATION_KEYS = frozenset(
-    {APPLE_ALPHA2_R1_PUBLICATION_KEY, APPLE_ALPHA3_R1_PUBLICATION_KEY}
+    {APPLE_ALPHA2_R1_PUBLICATION_KEY, APPLE_V0_1_0_PUBLICATION_KEY}
 )
 
 APPLE_STATUS_PENDING = "signed_candidate_pending_release_verification"
@@ -29,12 +29,13 @@ APPLE_ALPHA2_R1_BOUNDARY = (
     "SwiftPM consumer verification recorded in trusted results. It is not "
     "notarization, App Store, physical-device, or hostile-host evidence."
 )
-APPLE_ALPHA3_R1_BOUNDARY = (
-    "Frozen ABI 2 Apple alpha.3 r1 publication receipt. The pending state binds "
-    "the exact signed static XCFramework candidate, source commit, Developer ID "
-    "identity, and four candidate asset digests without claiming publication. "
-    "The verified state additionally binds the annotated tag, exact five-subject "
-    "GitHub release attestation, public immutable GitHub prerelease, and fresh "
+APPLE_V0_1_0_BOUNDARY = (
+    "Frozen ABI 2 Apple 0.1.0 stable publication receipt. The pending state binds "
+    "the exact signed static XCFramework candidate to source parent S, the "
+    "results-only annotated-tag commit R and tree, the canonical source digest, "
+    "Developer ID identity, and four candidate asset digests without claiming "
+    "publication. The verified state additionally binds the exact five-subject "
+    "GitHub release attestation, public immutable GitHub release, and fresh "
     "remote SwiftPM consumer verification. It is not notarization, App Store, "
     "physical-device, or hostile-host evidence."
 )
@@ -48,13 +49,13 @@ APPLE_ALPHA2_R1_IDENTITY = {
         "v0.1.0-alpha.2-r1"
     ),
 }
-APPLE_ALPHA3_R1_IDENTITY = {
+APPLE_V0_1_0_IDENTITY = {
     "distribution_revision": "r1",
-    "product_version": "0.1.0-alpha.3",
-    "release_tag": "v0.1.0-alpha.3-r1",
+    "product_version": "0.1.0",
+    "release_tag": "v0.1.0",
     "release_url": (
         "https://github.com/billlza/q-periapt/releases/tag/"
-        "v0.1.0-alpha.3-r1"
+        "v0.1.0"
     ),
 }
 APPLE_XCFRAMEWORK_ARTIFACT_PATH = "CQPeriapt.xcframework.zip"
@@ -72,6 +73,10 @@ _BASE_RECEIPT_KEYS = frozenset(
     {"boundary", "distribution", "identity", "kind", "schema_version", "status"}
 )
 _VERIFIED_RECEIPT_KEYS = _BASE_RECEIPT_KEYS | frozenset({"publication"})
+_STABLE_BASE_RECEIPT_KEYS = _BASE_RECEIPT_KEYS | frozenset({"source"})
+_STABLE_VERIFIED_RECEIPT_KEYS = _STABLE_BASE_RECEIPT_KEYS | frozenset(
+    {"publication"}
+)
 _IDENTITY_KEYS = frozenset(
     {"distribution_revision", "product_version", "release_tag", "release_url"}
 )
@@ -89,6 +94,15 @@ _PUBLICATION_KEYS = frozenset(
     }
 )
 _PUBLICATION_SOURCE_KEYS = frozenset({"tag_commit", "tag_object"})
+_STABLE_SOURCE_KEYS = frozenset(
+    {
+        "canonical_source_tree_sha256",
+        "source_parent_commit",
+        "tag_commit",
+        "tag_object",
+        "tag_tree",
+    }
+)
 _RELEASE_ATTESTATION_KEYS = frozenset(
     {
         "certificate_san",
@@ -388,11 +402,46 @@ def _validate_distribution(
     return distribution
 
 
+def _validate_stable_source(
+    source_value: object,
+    *,
+    distribution: dict[str, object],
+    label: str,
+) -> dict[str, str]:
+    source = _object(source_value, f"{label} source")
+    _exact_keys(source, _STABLE_SOURCE_KEYS, f"{label} source")
+    canonical_source_tree_sha256 = _sha256(
+        source["canonical_source_tree_sha256"],
+        f"{label} canonical source tree",
+    )
+    source_parent_commit = _sha1(
+        source["source_parent_commit"], f"{label} source parent commit"
+    )
+    tag_commit = _sha1(source["tag_commit"], f"{label} tag commit")
+    tag_object = _sha1(source["tag_object"], f"{label} tag object")
+    tag_tree = _sha1(source["tag_tree"], f"{label} tag tree")
+    if source_parent_commit == tag_commit:
+        _fail(f"{label} tag commit must differ from its source parent")
+    if tag_object == tag_commit:
+        _fail(f"{label} release tag must be an annotated tag object")
+    if source_parent_commit != distribution["source_commit"]:
+        _fail(f"{label} signed candidate/source parent commit differs")
+    return {
+        "canonical_source_tree_sha256": canonical_source_tree_sha256,
+        "source_parent_commit": source_parent_commit,
+        "tag_commit": tag_commit,
+        "tag_object": tag_object,
+        "tag_tree": tag_tree,
+    }
+
+
 def _validate_publication(
     publication_value: object,
     *,
     identity: dict[str, object],
     distribution: dict[str, object],
+    stable_source: dict[str, str] | None,
+    expected_prerelease: bool,
     label: str,
 ) -> None:
     publication = _object(publication_value, f"{label} publication")
@@ -400,7 +449,7 @@ def _validate_publication(
     expected_release_state = {
         "draft": False,
         "immutable_release": True,
-        "prerelease": True,
+        "prerelease": expected_prerelease,
         "public_release": True,
     }
     for field, expected in expected_release_state.items():
@@ -430,8 +479,14 @@ def _validate_publication(
     )
     if tag_object == tag_commit:
         _fail(f"{label} publication tag must be an annotated tag object")
-    if tag_commit != distribution["source_commit"]:
-        _fail(f"{label} publication tag/distribution source commit differs")
+    if stable_source is None:
+        if tag_commit != distribution["source_commit"]:
+            _fail(f"{label} publication tag/distribution source commit differs")
+    elif (
+        tag_commit != stable_source["tag_commit"]
+        or tag_object != stable_source["tag_object"]
+    ):
+        _fail(f"{label} publication/receipt tag identity differs")
 
     attestation = _object(
         publication["release_attestation"],
@@ -502,18 +557,22 @@ def _validate_receipt(
             _fail("historical Apple alpha.2 publication status differs")
         expected_identity = APPLE_ALPHA2_R1_IDENTITY
         expected_boundary = APPLE_ALPHA2_R1_BOUNDARY
-    elif key == APPLE_ALPHA3_R1_PUBLICATION_KEY:
+        expected_prerelease = True
+        stable_source = None
+        expected_receipt_keys = _VERIFIED_RECEIPT_KEYS
+    elif key == APPLE_V0_1_0_PUBLICATION_KEY:
         if status not in {APPLE_STATUS_PENDING, APPLE_STATUS_VERIFIED}:
-            _fail(f"Apple alpha.3 publication status is unknown: {status!r}")
-        expected_identity = APPLE_ALPHA3_R1_IDENTITY
-        expected_boundary = APPLE_ALPHA3_R1_BOUNDARY
+            _fail(f"Apple 0.1.0 stable publication status is unknown: {status!r}")
+        expected_identity = APPLE_V0_1_0_IDENTITY
+        expected_boundary = APPLE_V0_1_0_BOUNDARY
+        expected_prerelease = False
+        expected_receipt_keys = (
+            _STABLE_VERIFIED_RECEIPT_KEYS
+            if status == APPLE_STATUS_VERIFIED
+            else _STABLE_BASE_RECEIPT_KEYS
+        )
     else:
         _fail(f"unknown Apple publication receipt key: {key!r}")
-    expected_receipt_keys = (
-        _VERIFIED_RECEIPT_KEYS
-        if status == APPLE_STATUS_VERIFIED
-        else _BASE_RECEIPT_KEYS
-    )
     _exact_keys(receipt, expected_receipt_keys, label)
     if (
         type(receipt["schema_version"]) is not int
@@ -533,6 +592,10 @@ def _validate_receipt(
     distribution = _validate_distribution(
         receipt["distribution"], identity=identity, label=label
     )
+    if key == APPLE_V0_1_0_PUBLICATION_KEY:
+        stable_source = _validate_stable_source(
+            receipt["source"], distribution=distribution, label=label
+        )
 
     if key == APPLE_ALPHA2_R1_PUBLICATION_KEY:
         if not publication_values_equal(
@@ -551,12 +614,14 @@ def _validate_receipt(
         distribution["remote_consumer_verified"],
     )
     if actual_state != expected_state:
-        _fail("Apple alpha.3 publication state differs from its status")
+        _fail(f"{label} distribution state differs from its status")
     if status == APPLE_STATUS_VERIFIED:
         _validate_publication(
             receipt["publication"],
             identity=identity,
             distribution=distribution,
+            stable_source=stable_source,
+            expected_prerelease=expected_prerelease,
             label=label,
         )
     if key == APPLE_ALPHA2_R1_PUBLICATION_KEY and not publication_values_equal(
@@ -619,57 +684,57 @@ def validate_apple_publication_transition(
         ):
             _fail("Apple alpha.2 publication receipt cannot change")
 
-    if APPLE_ALPHA3_R1_PUBLICATION_KEY not in previous_publications:
-        if APPLE_ALPHA3_R1_PUBLICATION_KEY in current_publications:
-            current_alpha3 = _object(
-                current_publications[APPLE_ALPHA3_R1_PUBLICATION_KEY],
-                "current Apple alpha.3 publication receipt",
+    if APPLE_V0_1_0_PUBLICATION_KEY not in previous_publications:
+        if APPLE_V0_1_0_PUBLICATION_KEY in current_publications:
+            current_stable = _object(
+                current_publications[APPLE_V0_1_0_PUBLICATION_KEY],
+                "current Apple 0.1.0 stable publication receipt",
             )
-            if current_alpha3["status"] != APPLE_STATUS_PENDING:
+            if current_stable["status"] != APPLE_STATUS_PENDING:
                 _fail(
-                    "Apple alpha.3 publication receipt must first be "
+                    "Apple 0.1.0 stable publication receipt must first be "
                     "recorded as pending"
                 )
         return
-    if APPLE_ALPHA3_R1_PUBLICATION_KEY not in current_publications:
-        _fail("Apple alpha.3 publication receipt cannot be removed")
-    previous_alpha3 = _object(
-        previous_publications[APPLE_ALPHA3_R1_PUBLICATION_KEY],
-        "previous Apple alpha.3 publication receipt",
+    if APPLE_V0_1_0_PUBLICATION_KEY not in current_publications:
+        _fail("Apple 0.1.0 stable publication receipt cannot be removed")
+    previous_stable = _object(
+        previous_publications[APPLE_V0_1_0_PUBLICATION_KEY],
+        "previous Apple 0.1.0 stable publication receipt",
     )
-    current_alpha3 = _object(
-        current_publications[APPLE_ALPHA3_R1_PUBLICATION_KEY],
-        "current Apple alpha.3 publication receipt",
+    current_stable = _object(
+        current_publications[APPLE_V0_1_0_PUBLICATION_KEY],
+        "current Apple 0.1.0 stable publication receipt",
     )
-    previous_status = previous_alpha3["status"]
-    current_status = current_alpha3["status"]
+    previous_status = previous_stable["status"]
+    current_status = current_stable["status"]
     if previous_status == APPLE_STATUS_VERIFIED:
-        if not publication_values_equal(previous_alpha3, current_alpha3):
-            _fail("verified Apple alpha.3 publication receipt cannot change")
+        if not publication_values_equal(previous_stable, current_stable):
+            _fail("verified Apple 0.1.0 stable publication receipt cannot change")
         return
     if current_status == APPLE_STATUS_PENDING:
-        if not publication_values_equal(previous_alpha3, current_alpha3):
+        if not publication_values_equal(previous_stable, current_stable):
             _fail(
-                "pending Apple alpha.3 publication receipt may only remain "
+                "pending Apple 0.1.0 stable publication receipt may only remain "
                 "unchanged or advance to verified"
             )
         return
 
-    for field in ("boundary", "identity", "kind", "schema_version"):
+    for field in ("boundary", "identity", "kind", "schema_version", "source"):
         if not publication_values_equal(
-            previous_alpha3[field], current_alpha3[field]
+            previous_stable[field], current_stable[field]
         ):
             _fail(
-                "Apple alpha.3 pending-to-verified transition changed "
+                "Apple 0.1.0 stable pending-to-verified transition changed "
                 f"the recorded {field}"
             )
     previous_distribution = _object(
-        previous_alpha3["distribution"],
-        "previous Apple alpha.3 distribution",
+        previous_stable["distribution"],
+        "previous Apple 0.1.0 stable distribution",
     )
     current_distribution = _object(
-        current_alpha3["distribution"],
-        "current Apple alpha.3 distribution",
+        current_stable["distribution"],
+        "current Apple 0.1.0 stable distribution",
     )
     candidate_fields = (
         set(previous_distribution) - _PROMOTION_ONLY_DISTRIBUTION_FIELDS
@@ -679,6 +744,6 @@ def validate_apple_publication_transition(
             previous_distribution[field], current_distribution[field]
         ):
             _fail(
-                "Apple alpha.3 pending-to-verified transition changed "
+                "Apple 0.1.0 stable pending-to-verified transition changed "
                 f"signed candidate fact {field}"
             )

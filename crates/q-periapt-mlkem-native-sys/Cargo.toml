@@ -1,6 +1,6 @@
 [package]
 name = "q-periapt-mlkem-native-sys"
-description = "Auditable safe Rust boundary for the portable mlkem-native implementation"
+description = "Auditable safe Rust boundary for target-selected mlkem-native implementations"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,7 +17,10 @@ include = [
     "/LICENSES/**",
     "/README.md",
     "/build.rs",
-    "/src/**",
+    "/src/*.S",
+    "/src/*.c",
+    "/src/*.h",
+    "/src/*.rs",
     "/vendor/INVENTORY.sha256",
     "/vendor/LICENSE-INVENTORY.md",
     "/vendor/LICENSE.mlkem-native",

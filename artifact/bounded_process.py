@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run argv-only subprocesses with deadlines and bounded standard output."""
+"""Run argv-only subprocesses with deadlines and bounded standard streams."""
 
 from __future__ import annotations
 
@@ -15,6 +15,11 @@ import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
 from typing import BinaryIO, Literal, Never
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 
 MAX_TIMEOUT_SECONDS = 300
@@ -184,6 +189,7 @@ class _SignalCoordinator:
 class BoundedResult:
     returncode: int
     stdout: bytes = b""
+    stderr: bytes = b""
 
 
 def _validated_argv(argv: Sequence[str]) -> list[str]:
@@ -252,6 +258,8 @@ def _start_process(
     stdout: int | None,
     stderr: int | None,
     environment: Mapping[str, str] | None,
+    stdin_fd: int | None = None,
+    allow_stderr_pipe: bool = False,
 ) -> subprocess.Popen[bytes]:
     command = _validated_argv(argv)
     child_environment = _validated_environment(environment)
@@ -264,22 +272,58 @@ def _start_process(
         raise BoundedProcessError(
             "start", "bounded process ownership requires POSIX waitid with WNOWAIT"
         )
-    if stderr == subprocess.PIPE:
+    if stderr == subprocess.PIPE and not allow_stderr_pipe:
         raise BoundedProcessError(
             "arguments", "stderr=PIPE is unsupported because it cannot be drained safely"
         )
     try:
+        child_stdin: int = subprocess.DEVNULL
+        if stdin_fd is not None:
+            if fcntl is None:
+                raise BoundedProcessError(
+                    "start", "pinned subprocess stdin requires POSIX fcntl"
+                )
+            if (
+                isinstance(stdin_fd, bool)
+                or not isinstance(stdin_fd, int)
+                or stdin_fd < 0
+            ):
+                raise BoundedProcessError(
+                    "arguments",
+                    "stdin_fd must be one open non-negative file descriptor",
+                )
+            try:
+                metadata = os.fstat(stdin_fd)
+                access_mode = fcntl.fcntl(stdin_fd, fcntl.F_GETFL) & os.O_ACCMODE
+            except OSError as exc:
+                raise BoundedProcessError(
+                    "arguments", "stdin_fd is not an open readable file descriptor"
+                ) from exc
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_uid != os.geteuid()
+                or metadata.st_nlink != 1
+                or stat.S_IMODE(metadata.st_mode) != 0o600
+                or access_mode == os.O_WRONLY
+            ):
+                raise BoundedProcessError(
+                    "arguments",
+                    "stdin_fd must pin a current-user-owned mode-0600 regular file",
+                )
+            child_stdin = stdin_fd
         return subprocess.Popen(
             args=command,
             executable=command[0],
             shell=False,
-            stdin=subprocess.DEVNULL,
+            stdin=child_stdin,
             stdout=stdout,
             stderr=stderr,
             env=child_environment,
             bufsize=0,
             start_new_session=True,
         )
+    except BoundedProcessError:
+        raise
     except OSError as exc:
         raise BoundedProcessError(
             "start", f"cannot start {pathlib.Path(command[0]).name}: {exc}"
@@ -538,6 +582,7 @@ def run(
     argv: Sequence[str],
     *,
     timeout_seconds: int,
+    stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
 ) -> BoundedResult:
@@ -549,12 +594,21 @@ def run(
     with _SignalCoordinator() as coordinator:
         try:
             coordinator.raise_if_requested()
-            process = _start_process(
-                argv,
-                stdout=None,
-                stderr=stderr,
-                environment=environment,
-            )
+            if stdin_fd is None:
+                process = _start_process(
+                    argv,
+                    stdout=None,
+                    stderr=stderr,
+                    environment=environment,
+                )
+            else:
+                process = _start_process(
+                    argv,
+                    stdout=None,
+                    stderr=stderr,
+                    environment=environment,
+                    stdin_fd=stdin_fd,
+                )
             coordinator.raise_if_requested()
             deadline = time.monotonic() + timeout
             returncode = _wait_for_process_exit(
@@ -587,18 +641,21 @@ def _stream_stdout(
     stderr: int | None,
     environment: Mapping[str, str] | None = None,
     coordinator: _SignalCoordinator | None = None,
+    stdin_fd: int | None = None,
 ) -> BoundedResult:
     if coordinator is None:
         with _SignalCoordinator() as owned_coordinator:
-            return _stream_stdout(
-                argv,
-                timeout_seconds=timeout_seconds,
-                maximum_bytes=maximum_bytes,
-                write_chunk=write_chunk,
-                stderr=stderr,
-                environment=environment,
-                coordinator=owned_coordinator,
-            )
+            recursive_arguments = {
+                "timeout_seconds": timeout_seconds,
+                "maximum_bytes": maximum_bytes,
+                "write_chunk": write_chunk,
+                "stderr": stderr,
+                "environment": environment,
+                "coordinator": owned_coordinator,
+            }
+            if stdin_fd is not None:
+                recursive_arguments["stdin_fd"] = stdin_fd
+            return _stream_stdout(argv, **recursive_arguments)
     timeout = _validated_timeout(timeout_seconds)
     maximum = _validated_maximum(maximum_bytes)
     process: subprocess.Popen[bytes] | None = None
@@ -610,12 +667,21 @@ def _stream_stdout(
     pending_failure: BaseException | None = None
     try:
         coordinator.raise_if_requested()
-        process = _start_process(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=stderr,
-            environment=environment,
-        )
+        if stdin_fd is None:
+            process = _start_process(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=stderr,
+                environment=environment,
+            )
+        else:
+            process = _start_process(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=stderr,
+                environment=environment,
+                stdin_fd=stdin_fd,
+            )
         stdout_pipe = process.stdout
         coordinator.raise_if_requested()
         if stdout_pipe is None:
@@ -755,21 +821,226 @@ def capture_stdout(
     *,
     timeout_seconds: int,
     maximum_bytes: int,
+    stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
 ) -> BoundedResult:
     """Capture stdout without allowing the producer to exceed the byte limit."""
 
     chunks: list[bytes] = []
-    result = _stream_stdout(
-        argv,
-        timeout_seconds=timeout_seconds,
-        maximum_bytes=maximum_bytes,
-        write_chunk=chunks.append,
-        stderr=stderr,
-        environment=environment,
-    )
+    stream_arguments = {
+        "timeout_seconds": timeout_seconds,
+        "maximum_bytes": maximum_bytes,
+        "write_chunk": chunks.append,
+        "stderr": stderr,
+        "environment": environment,
+    }
+    if stdin_fd is not None:
+        stream_arguments["stdin_fd"] = stdin_fd
+    result = _stream_stdout(argv, **stream_arguments)
     return dataclasses.replace(result, stdout=b"".join(chunks))
+
+
+def capture_output(
+    argv: Sequence[str],
+    *,
+    timeout_seconds: int,
+    maximum_stdout_bytes: int,
+    maximum_stderr_bytes: int,
+    stdin_fd: int | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> BoundedResult:
+    """Capture stdout and stderr concurrently under independent hard limits."""
+
+    timeout = _validated_timeout(timeout_seconds)
+    limits = {
+        "stdout": _validated_maximum(maximum_stdout_bytes),
+        "stderr": _validated_maximum(maximum_stderr_bytes),
+    }
+    process: subprocess.Popen[bytes] | None = None
+    pipes: dict[str, BinaryIO] = {}
+    readers: dict[str, threading.Thread] = {}
+    reader_started: set[str] = set()
+    reader_done = {
+        "stdout": threading.Event(),
+        "stderr": threading.Event(),
+    }
+    chunks: dict[str, list[bytes]] = {"stdout": [], "stderr": []}
+    totals = {"stdout": 0, "stderr": 0}
+    failures: dict[str, BaseException] = {}
+    state_lock = threading.Lock()
+    leader_reaped = False
+    closed: set[str] = set()
+    pending_failure: BaseException | None = None
+
+    def read_stream(name: str) -> None:
+        stream = pipes[name]
+        try:
+            while True:
+                chunk = stream.read(READ_CHUNK_BYTES)
+                if not chunk:
+                    break
+                with state_lock:
+                    next_total = totals[name] + len(chunk)
+                    if next_total > limits[name]:
+                        failures[name] = BoundedProcessError(
+                            "output_limit",
+                            f"command {name} exceeds {limits[name]} bytes",
+                        )
+                        break
+                    totals[name] = next_total
+                    chunks[name].append(chunk)
+        except (KeyboardInterrupt, SystemExit) as exc:
+            with state_lock:
+                failures[name] = exc
+        except BaseException as exc:
+            failure = BoundedProcessError(
+                "io", f"cannot read bounded command {name}: {exc}"
+            )
+            failure.__cause__ = exc
+            with state_lock:
+                failures[name] = failure
+        finally:
+            reader_done[name].set()
+
+    with _SignalCoordinator() as coordinator:
+        try:
+            coordinator.raise_if_requested()
+            start_arguments: dict[str, object] = {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "environment": environment,
+                "allow_stderr_pipe": True,
+            }
+            if stdin_fd is not None:
+                start_arguments["stdin_fd"] = stdin_fd
+            process = _start_process(argv, **start_arguments)
+            _stdout = process.stdout
+            _stderr = process.stderr
+            if _stdout is not None:
+                pipes["stdout"] = _stdout
+            if _stderr is not None:
+                pipes["stderr"] = _stderr
+            coordinator.raise_if_requested()
+            if set(pipes) != {"stdout", "stderr"}:
+                pending_failure = BoundedProcessError(
+                    "io", "bounded subprocess did not expose both output streams"
+                )
+                _raise_pending(pending_failure)
+            for name in ("stdout", "stderr"):
+                reader = threading.Thread(
+                    target=read_stream,
+                    args=(name,),
+                    name=f"bounded-process-{name}",
+                    daemon=True,
+                )
+                readers[name] = reader
+                reader_started.add(name)
+                try:
+                    reader.start()
+                except RuntimeError as exc:
+                    pending_failure = BoundedProcessError(
+                        "start", f"cannot start bounded {name} reader: {exc}"
+                    )
+                    pending_failure.__cause__ = exc
+                    try:
+                        if reader.ident is None:
+                            reader_started.remove(name)
+                    except BaseException as state_exc:
+                        pending_failure.add_note(
+                            f"cannot inspect {name} reader start state: {state_exc}"
+                        )
+                    _raise_pending(pending_failure)
+
+            deadline = time.monotonic() + timeout
+            while not all(event.is_set() for event in reader_done.values()):
+                coordinator.raise_if_requested()
+                with state_lock:
+                    pending_failure = next(iter(failures.values()), None)
+                if pending_failure is not None:
+                    _raise_pending(pending_failure)
+                remaining = _remaining(deadline)
+                if remaining <= 0:
+                    pending_failure = BoundedProcessError(
+                        "timeout", f"command timed out after {timeout} seconds"
+                    )
+                    _raise_pending(pending_failure)
+                reader_done["stdout"].wait(timeout=min(remaining, 0.05))
+            coordinator.raise_if_requested()
+            with state_lock:
+                pending_failure = next(iter(failures.values()), None)
+            if pending_failure is not None:
+                _raise_pending(pending_failure)
+            returncode = _wait_for_process_exit(
+                process, deadline=deadline, coordinator=coordinator
+            )
+            if returncode is None:
+                pending_failure = BoundedProcessError(
+                    "timeout", f"command timed out after {timeout} seconds"
+                )
+                _raise_pending(pending_failure)
+            leader_reaped = True
+            for name, reader in readers.items():
+                reader.join(timeout=REAP_TIMEOUT_SECONDS)
+                if reader.is_alive():
+                    pending_failure = BoundedProcessError(
+                        "reap", f"bounded subprocess {name} reader did not terminate"
+                    )
+                    _raise_pending(pending_failure)
+            for name, stream in pipes.items():
+                try:
+                    stream.close()
+                    closed.add(name)
+                except OSError as exc:
+                    pending_failure = BoundedProcessError(
+                        "io", f"cannot close bounded subprocess {name}: {exc}"
+                    )
+                    pending_failure.__cause__ = exc
+                    _raise_pending(pending_failure)
+            return BoundedResult(
+                returncode=returncode,
+                stdout=b"".join(chunks["stdout"]),
+                stderr=b"".join(chunks["stderr"]),
+            )
+        except BaseException as exc:
+            primary = pending_failure or exc
+            if pending_failure is not None and exc is not pending_failure:
+                primary.add_note(
+                    f"secondary exception while handling bounded process failure: {exc}"
+                )
+            cleanup_errors: list[BaseException] = []
+            if process is not None and not leader_reaped:
+                process_failure = _cleanup_process(process)
+                if process_failure is not None:
+                    cleanup_errors.append(process_failure)
+            for name in reader_started:
+                reader = readers[name]
+                try:
+                    reader.join(timeout=REAP_TIMEOUT_SECONDS)
+                    if reader.is_alive():
+                        cleanup_errors.append(
+                            BoundedProcessError(
+                                "reap",
+                                f"bounded subprocess {name} reader survived cleanup",
+                            )
+                        )
+                except BaseException as cleanup_exc:
+                    cleanup_errors.append(cleanup_exc)
+            for name, stream in pipes.items():
+                if name in closed or (
+                    name in readers and readers[name].is_alive()
+                ):
+                    continue
+                try:
+                    stream.close()
+                except BaseException as cleanup_exc:
+                    cleanup_errors.append(cleanup_exc)
+            if cleanup_errors:
+                primary.add_note(
+                    "bounded dual-stream cleanup failure: "
+                    + "; ".join(str(error) for error in cleanup_errors)
+                )
+            raise primary
 
 
 def _validated_output_name(output_name: str) -> str:
@@ -905,6 +1176,7 @@ def _write_stdout_impl(
     output_name: str,
     timeout_seconds: int,
     maximum_bytes: int,
+    stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
     coordinator: _SignalCoordinator,
@@ -930,15 +1202,17 @@ def _write_stdout_impl(
                     written = os.write(temporary_fd, view)
                     view = view[written:]
 
-            result = _stream_stdout(
-                argv,
-                timeout_seconds=timeout_seconds,
-                maximum_bytes=maximum_bytes,
-                write_chunk=write_chunk,
-                stderr=stderr,
-                environment=environment,
-                coordinator=coordinator,
-            )
+            stream_arguments = {
+                "timeout_seconds": timeout_seconds,
+                "maximum_bytes": maximum_bytes,
+                "write_chunk": write_chunk,
+                "stderr": stderr,
+                "environment": environment,
+                "coordinator": coordinator,
+            }
+            if stdin_fd is not None:
+                stream_arguments["stdin_fd"] = stdin_fd
+            result = _stream_stdout(argv, **stream_arguments)
             coordinator.raise_if_requested()
             if result.returncode != 0:
                 return result
@@ -1012,6 +1286,7 @@ def write_stdout_at(
     output_name: str,
     timeout_seconds: int,
     maximum_bytes: int,
+    stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
 ) -> BoundedResult:
@@ -1024,6 +1299,7 @@ def write_stdout_at(
             output_name=output_name,
             timeout_seconds=timeout_seconds,
             maximum_bytes=maximum_bytes,
+            stdin_fd=stdin_fd,
             stderr=stderr,
             environment=environment,
             coordinator=coordinator,

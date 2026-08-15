@@ -104,6 +104,247 @@ class ReleaseIndexTests(unittest.TestCase):
         )
         return root
 
+    def _release_pointer(
+        self,
+        root: pathlib.Path,
+        *,
+        version: str,
+        commit: str,
+        digest: str,
+        generated_at: str,
+    ) -> dict[str, object]:
+        target = root / "target"
+        index_path = (
+            target
+            / "qperiapt-local-release"
+            / "release"
+            / version
+            / commit
+            / "index.json"
+        )
+        return release_index.release_pointer_value(
+            target=target,
+            index_path=index_path,
+            index_sha256=digest,
+            version=version,
+            channel="release",
+            generated_at=generated_at,
+        )
+
+    def test_semver_precedence_matches_stable_release_rules(self) -> None:
+        ordered = (
+            "0.1.0-alpha.2",
+            "0.1.0-alpha.3",
+            "0.1.0-alpha.10",
+            "0.1.0-beta",
+            "0.1.0-rc.1",
+            "0.1.0",
+            "0.1.1",
+            "0.2.0",
+        )
+        parsed = [
+            release_index._parse_semantic_version(value, "fixture version")
+            for value in ordered
+        ]
+        for left, right in zip(parsed[:-1], parsed[1:], strict=True):
+            self.assertLess(release_index._compare_semantic_precedence(left, right), 0)
+        for invalid in (
+            "01.0.0",
+            "0.01.0",
+            "0.1.00",
+            "0.1.0-alpha.01",
+            "0.1",
+            "v0.1.0",
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(SystemExit):
+                release_index._parse_semantic_version(invalid, "fixture version")
+
+    def test_release_pointer_transition_is_monotonic_and_source_descending(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            prerelease_commit = release_index.git_commit(root)
+            (root / "FIXTURE_SOURCE.txt").write_text(
+                "stable\n", encoding="utf-8"
+            )
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Q-Periapt Test",
+                    "-c",
+                    "user.email=q-periapt-test@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "stable",
+                ],
+                cwd=root,
+                check=True,
+            )
+            stable_commit = release_index.git_commit(root)
+            previous = self._release_pointer(
+                root,
+                version="0.1.0-alpha.3",
+                commit=prerelease_commit,
+                digest="a" * 64,
+                generated_at="2026-08-14T01:00:00Z",
+            )
+            current = self._release_pointer(
+                root,
+                version="0.1.0",
+                commit=stable_commit,
+                digest="b" * 64,
+                generated_at="2026-08-15T01:00:00Z",
+            )
+
+            release_index.validate_release_pointer_transition(
+                previous, current, root=root
+            )
+            release_index.validate_release_pointer_transition(
+                current, copy.deepcopy(current), root=root
+            )
+
+            mutations = {
+                "downgrade": previous,
+                "same-version-commit": self._release_pointer(
+                    root,
+                    version="0.1.0",
+                    commit=prerelease_commit,
+                    digest="b" * 64,
+                    generated_at="2026-08-15T01:00:00Z",
+                ),
+                "same-version-digest": self._release_pointer(
+                    root,
+                    version="0.1.0",
+                    commit=stable_commit,
+                    digest="c" * 64,
+                    generated_at="2026-08-15T01:00:00Z",
+                ),
+                "build-metadata": self._release_pointer(
+                    root,
+                    version="0.1.1+local",
+                    commit=stable_commit,
+                    digest="d" * 64,
+                    generated_at="2026-08-16T01:00:00Z",
+                ),
+            }
+            for name, candidate in mutations.items():
+                with self.subTest(name=name), self.assertRaises(SystemExit):
+                    release_index.validate_release_pointer_transition(
+                        current, candidate, root=root
+                    )
+
+    def test_release_pointer_transition_rejects_non_descendant_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            first = release_index.git_commit(root)
+            subprocess.run(
+                ["git", "checkout", "-q", "--orphan", "unrelated"],
+                cwd=root,
+                check=True,
+            )
+            for path in tuple(root.iterdir()):
+                if path.name != ".git":
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+            (root / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Q-Periapt Test",
+                    "-c",
+                    "user.email=q-periapt-test@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "unrelated",
+                ],
+                cwd=root,
+                check=True,
+            )
+            unrelated = release_index.git_commit(root)
+            previous = self._release_pointer(
+                root,
+                version="0.1.0",
+                commit=first,
+                digest="a" * 64,
+                generated_at="2026-08-14T01:00:00Z",
+            )
+            current = self._release_pointer(
+                root,
+                version="0.1.1",
+                commit=unrelated,
+                digest="b" * 64,
+                generated_at="2026-08-15T01:00:00Z",
+            )
+            with self.assertRaisesRegex(SystemExit, "lineage"):
+                release_index.validate_release_pointer_transition(
+                    previous, current, root=root
+                )
+
+    @unittest.skipUnless(os.name == "posix", "pointer lock race uses POSIX pipes")
+    def test_release_pointer_lock_rejects_a_concurrent_writer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            release_base = root / "target" / "qperiapt-local-release"
+            release_base.mkdir(parents=True, mode=0o700)
+            release_base.chmod(0o700)
+            pointer = release_base / "latest-release.json"
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import pathlib
+import sys
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+pointer = pathlib.Path(sys.argv[1])
+with release_index._release_pointer_lock(pointer):
+    print('LOCKED', flush=True)
+    if sys.stdin.read(1) != 'G':
+        raise SystemExit('invalid release gate')
+"""
+            environment = dict(os.environ)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            process = subprocess.Popen(
+                [sys.executable, "-B", "-c", child_source, str(pointer)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=environment,
+            )
+            try:
+                self.assertIsNotNone(process.stdout)
+                self.assertEqual(process.stdout.readline().strip(), "LOCKED")
+                with self.assertRaisesRegex(
+                    SystemExit, "another release pointer transaction is active"
+                ):
+                    with release_index._release_pointer_lock(pointer):
+                        self.fail("concurrent pointer lock was acquired")
+                self.assertIsNotNone(process.stdin)
+                process.stdin.write("G")
+                process.stdin.flush()
+                process.stdin.close()
+                self.assertEqual(process.wait(timeout=10), 0)
+                with release_index._release_pointer_lock(pointer):
+                    self.assertTrue(pointer.parent.is_dir())
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+                if process.stdin is not None and not process.stdin.closed:
+                    process.stdin.close()
+                if process.stdout is not None:
+                    process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
+
     def _manifest(
         self,
         trust: release_index.AbiTrustRoot,
@@ -1623,13 +1864,13 @@ python3() {
             output = release_index.resolve_release_output(
                 root,
                 channel="release",
-                version="0.1.0-alpha.3",
+                version="0.1.0",
                 commit="a" * 40,
             )
             self.assertEqual(
                 output,
                 root
-                / "target/qperiapt-local-release/release/0.1.0-alpha.3"
+                / "target/qperiapt-local-release/release/0.1.0"
                 / ("a" * 40),
             )
 
@@ -2354,7 +2595,7 @@ release_index.publish_release_transaction(
     def test_sigterm_during_staging_cannot_poison_the_final_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
-            version = "0.1.0-alpha.3"
+            version = "0.1.0"
             commit = "a" * 40
             final_root = (
                 root / "target/qperiapt-local-release/diagnostic" / version / commit
@@ -2426,7 +2667,7 @@ time.sleep(60)
             root = pathlib.Path(temporary).resolve()
             target = root / "target"
             target.mkdir(mode=0o700)
-            version = "0.1.0-alpha.3"
+            version = "0.1.0"
             commit = "a" * 40
             final_root = target / "qperiapt-local-release/diagnostic" / version / commit
             pointer_path = target / "qperiapt-local-release/latest-diagnostic.json"
@@ -2490,7 +2731,7 @@ release_index.publish_release_transaction(
             target.mkdir(mode=0o700)
             commit = "a" * 40
             final_root = (
-                target / "qperiapt-local-release/diagnostic/0.1.0-alpha.3" / commit
+                target / "qperiapt-local-release/diagnostic/0.1.0" / commit
             )
             release_index.ensure_private_directory(final_root.parent, target)
             malformed = final_root.parent / f".{commit}.staging-not-a-token"
@@ -2966,7 +3207,7 @@ release_index.publish_release_transaction(
     def test_cross_face_core_semantics_must_match(self) -> None:
         trust_semantics = {
             "name": "fixture",
-            "version": "0.1.0-alpha.3",
+            "version": "0.1.0",
             "abi": {
                 "major": 2,
                 "contract_sha256": "a" * 64,

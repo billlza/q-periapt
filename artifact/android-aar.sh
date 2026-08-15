@@ -219,8 +219,8 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
-if [ "$VERSION" != "0.1.0-alpha.3" ]; then
-	printf 'error: Android ABI2 package version mismatch: got %s, expected 0.1.0-alpha.3\n' "$VERSION" >&2
+if [ "$VERSION" != "0.1.0" ]; then
+	printf 'error: Android ABI2 package version mismatch: got %s, expected 0.1.0\n' "$VERSION" >&2
 	exit 1
 fi
 

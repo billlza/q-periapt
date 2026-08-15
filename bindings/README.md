@@ -53,7 +53,7 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ lean and signed-policy faces execute on Node/WASM | `wasm-pack test --node` for default and `--features signed-policy`; CI also builds `wasm32` |
 | **Kotlin** (`kotlin/`) | ✅ current-source JDK 22 host verification | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
-| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR release transaction `abi2-platforms-v0.1.0-alpha.3-r1` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
+| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR release transaction `abi2-platforms-v0.1.0` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
 Kotlin uses a JDK ≥22 (stable FFM); the same warning-failing command is a CI gate:
 
@@ -73,14 +73,16 @@ This proves package shape, Android ELF slices, JNI symbols, dex conversion, and 
 isolated Java consumer compile. It is not Android runtime proof until an emulator
 or physical device runs instrumentation against the AAR.
 
-## Binary prerelease transactions
+## Stable binary publication transactions
 
-The alpha.3 prebuilt research-prerelease targets are the Apple XCFramework in
-`v0.1.0-alpha.3-r1` and the
-Android AAR plus Linux/Windows C SDK archives in `abi2-platforms-v0.1.0-alpha.3-r1`.
-They are public, immutable and current only when their verified receipts record that state.
+The stable prebuilt targets are the Apple XCFramework in
+`v0.1.0` and the
+Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.0`.
+They require `prerelease=false` and are public, immutable, and current only when
+their verified receipts record that state. The unsigned Windows SDK remains an
+unsupported CI diagnostic outside the stable asset set.
 Verify tags and assets with `gh release verify` / `gh release verify-asset` and check
 `SHA256SUMS` plus the `APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json`
-manifests; scope and explicit non-goals (no crates.io/Maven/deb/rpm/MSIX, no
-Authenticode, no physical-device claim) are in
-[`../artifact/alpha3-release-notes.md`](../artifact/alpha3-release-notes.md).
+manifests; scope and explicit non-goals (no unverified registry claims, no
+Windows support, no physical-device claim) are in
+[`../artifact/stable-release-notes.md`](../artifact/stable-release-notes.md).

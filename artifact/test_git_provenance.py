@@ -133,6 +133,130 @@ class GitProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(current, git_provenance.git_commit(self.root))
 
+    def test_direct_results_only_successor_is_accepted(self) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text('{"proof":"source-bound"}\n', encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+
+        results_commit = git_provenance.require_direct_results_only_successor(
+            self.root,
+            source_commit,
+        )
+
+        self.assertEqual(results_commit, git_provenance.git_commit(self.root))
+
+    def test_arbitrary_results_child_and_later_results_descendant_are_accepted(
+        self,
+    ) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text('{"state":"source"}\n', encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+        results_commit = git_provenance.git_commit(self.root)
+        results.write_text('{"state":"pending"}\n', encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "record pending receipt")
+        pending_commit = git_provenance.git_commit(self.root)
+
+        git_provenance.require_direct_results_only_child(
+            self.root, source_commit, results_commit
+        )
+        git_provenance.require_results_only_descendant(
+            self.root, results_commit, pending_commit
+        )
+
+    def test_results_descendant_rejects_source_changes_and_unrelated_history(
+        self,
+    ) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text("{}\n", encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+        results_commit = git_provenance.git_commit(self.root)
+        self.tracked.write_text("changed source\n", encoding="utf-8")
+        self._git(self.root, "add", "tracked.txt")
+        self._git(self.root, "commit", "-qm", "change source")
+        changed_commit = git_provenance.git_commit(self.root)
+
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError,
+            "publication descendant must change exactly artifact/results.json",
+        ):
+            git_provenance.require_results_only_descendant(
+                self.root, results_commit, changed_commit
+            )
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError, "not a descendant"
+        ):
+            git_provenance.require_commit_ancestor(
+                self.root, changed_commit, source_commit
+            )
+
+    def test_results_only_successor_rejects_extra_or_empty_changes(self) -> None:
+        for extra_source_change in (False, True):
+            with self.subTest(
+                extra_source_change=extra_source_change
+            ), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary).resolve()
+                self._init_repo(root, "results successor")
+                tracked = root / "tracked.txt"
+                tracked.write_text("source\n", encoding="utf-8")
+                self._git(root, "add", ".")
+                self._git(root, "commit", "-qm", "source")
+                source_commit = git_provenance.git_commit(root)
+                if extra_source_change:
+                    results = root / "artifact" / "results.json"
+                    results.parent.mkdir()
+                    results.write_text("{}\n", encoding="utf-8")
+                    tracked.write_text("changed source\n", encoding="utf-8")
+                    self._git(root, "add", ".")
+                    self._git(root, "commit", "-qm", "mixed successor")
+                else:
+                    self._git(root, "commit", "--allow-empty", "-qm", "empty successor")
+                with self.assertRaisesRegex(
+                    git_provenance.GitProvenanceError,
+                    "must change exactly artifact/results.json",
+                ):
+                    git_provenance.require_direct_results_only_successor(
+                        root,
+                        source_commit,
+                    )
+
+    def test_results_only_successor_must_be_the_direct_child(self) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text("{}\n", encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+        self._git(self.root, "commit", "--allow-empty", "-qm", "extra successor")
+
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError,
+            "exactly the source commit as its parent",
+        ):
+            git_provenance.require_direct_results_only_successor(
+                self.root,
+                source_commit,
+            )
+
+    def test_results_only_successor_rejects_malformed_source_commit(self) -> None:
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError,
+            "source commit hash is malformed",
+        ):
+            git_provenance.require_direct_results_only_successor(
+                self.root,
+                "not-a-commit",
+            )
+
     def test_source_changing_successor_commit_is_rejected(self) -> None:
         proof_commit = self.commit
         self.tracked.write_text("successor source change\n", encoding="utf-8")

@@ -4,7 +4,7 @@
 //! # q-periapt-backends
 //!
 //! Third-party primitive backends wired into the `q-periapt-core` traits:
-//! - **ML-KEM** (FIPS 203) via the portable `mlkem-native` integration:
+//! - **ML-KEM** (FIPS 203) via the target-selected `mlkem-native` integration:
 //!   [`MlKem512`], [`MlKem768`], [`MlKem1024`] expose the FIPS-expanded decapsulation
 //!   key format and are therefore confined to `ContextBound`; [`MlKem768XWingSeed`]
 //!   exposes the X-Wing seed-derived key format and is the only ML-KEM backend here
@@ -100,6 +100,9 @@ pub const DEFAULT_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
 
 /// Default concrete hybrid suite as a NUL-terminated C string.
 pub const DEFAULT_SUITE_ID_CSTR: &[u8] = b"ML-KEM-768+X25519\0";
+
+/// Exact `mlkem-native` implementation selected for this compilation target.
+pub const ML_KEM_IMPLEMENTATION_ID: &str = q_periapt_mlkem_native_sys::IMPLEMENTATION_ID;
 
 #[inline]
 fn to_arr<const N: usize>(s: &[u8]) -> Result<[u8; N], Error> {
@@ -264,7 +267,7 @@ mlkem_backend!(
     ML_KEM_768_CT_LEN = 1088,
     ML_KEM_768_KEYGEN_SEED_LEN = 64,
     ML_KEM_768_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-768 backend (FIPS 203) via the portable mlkem-native integration."
+    "ML-KEM-768 backend (FIPS 203) via the target-selected mlkem-native integration."
 );
 
 mlkem_backend!(
@@ -276,7 +279,7 @@ mlkem_backend!(
     ML_KEM_1024_CT_LEN = 1568,
     ML_KEM_1024_KEYGEN_SEED_LEN = 64,
     ML_KEM_1024_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via the portable mlkem-native integration — the enhanced-mode KEM."
+    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via the target-selected mlkem-native integration — the enhanced-mode KEM."
 );
 
 mlkem_backend!(
@@ -288,7 +291,7 @@ mlkem_backend!(
     ML_KEM_512_CT_LEN = 768,
     ML_KEM_512_KEYGEN_SEED_LEN = 64,
     ML_KEM_512_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-512 backend (FIPS 203, NIST level 1) via the portable mlkem-native integration — the smallest parameter set."
+    "ML-KEM-512 backend (FIPS 203, NIST level 1) via the target-selected mlkem-native integration — the smallest parameter set."
 );
 
 /// X-Wing seed decapsulation key length, bytes.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble and verify the one-off ABI2 Android/Linux/Windows distribution."""
+"""Assemble and verify the ABI2 stable Android/Linux distribution."""
 
 from __future__ import annotations
 
@@ -67,7 +67,6 @@ from platform_distribution_contract import (
     RELEASE_MANIFEST,
     RELEASE_SUMS,
     RELEASE_TAG,
-    WINDOWS_X86_64,
 )
 from platform_distribution_contract import (
     PLATFORM_DISTRIBUTION_KIND as KIND,
@@ -80,15 +79,6 @@ from platform_distribution_contract import (
 )
 from platform_distribution_contract import (
     PLATFORM_RELEASE_FILES as RELEASE_FILES,
-)
-from windows_package import (
-    SCHEMA_VERSION as WINDOWS_PACKAGE_SCHEMA_VERSION,
-)
-from windows_package import (
-    WindowsPackageError,
-)
-from windows_package import (
-    verify_package as verify_windows_package,
 )
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -356,78 +346,6 @@ def _linux_asset(
     }
 
 
-def _windows_asset(
-    archive: pathlib.Path,
-    snapshot: FileSnapshot,
-    *,
-    repository: pathlib.Path,
-    source: SourceIdentity,
-    abi: dict[str, Any],
-    scratch: pathlib.Path,
-) -> dict[str, Any]:
-    target = "x86_64-pc-windows-msvc"
-    package = f"q-periapt-c-abi2-{PRODUCT_VERSION}-{target}"
-    destination = scratch / "extract-windows"
-    try:
-        audit = extract_zip(
-            archive,
-            destination,
-            root_name=package,
-            expected_sha256=snapshot.sha256,
-            limits=ARCHIVE_LIMITS,
-        )
-    except DeterministicArchiveError as exc:
-        fail(f"Windows archive is invalid: {exc}")
-    manifest, manifest_snapshot = _json(
-        destination / package / "MANIFEST.json",
-        "Windows MANIFEST.json",
-    )
-    try:
-        verified_manifest = verify_windows_package(
-            destination / package,
-            repository_root=repository,
-            expected_git_commit=source.commit,
-            expected_git_tree=source.tree,
-        )
-    except WindowsPackageError as exc:
-        fail(f"Windows package verification failed: {exc}")
-    require(
-        verified_manifest == manifest,
-        "Windows package verifier observed different manifest bytes",
-    )
-    require(
-        manifest.get("schema_version") == WINDOWS_PACKAGE_SCHEMA_VERSION,
-        "Windows manifest schema differs",
-    )
-    _validate_common_manifest(
-        manifest,
-        source=source,
-        abi=abi,
-        label="Windows manifest",
-    )
-    require(manifest.get("target") == target, "Windows manifest target differs")
-    require(manifest.get("source_date_epoch") == source.source_date_epoch, "Windows source epoch differs")
-    require(audit.mtime == source.source_date_epoch - source.source_date_epoch % 2, "Windows archive mtime differs")
-    require(
-        manifest.get("release_class") == "unsigned_experimental_prerelease"
-        and isinstance(manifest.get("authenticode"), dict)
-        and manifest["authenticode"].get("signed") is False,
-        "Windows unsigned experimental boundary differs",
-    )
-    return {
-        "authenticode_signed": False,
-        "bytes": snapshot.size,
-        "media_type": "application/zip",
-        "name": archive.name,
-        "package_manifest_sha256": manifest_snapshot.sha256,
-        "platform": "windows",
-        "release_class": "unsigned_experimental_prerelease",
-        "role": "native-sdk",
-        "sha256": snapshot.sha256,
-        "target": target,
-    }
-
-
 def _android_assets(
     files: dict[str, pathlib.Path],
     snapshots: dict[str, FileSnapshot],
@@ -669,16 +587,6 @@ def _build_manifest(
                 scratch=scratch,
             )
         )
-        assets.append(
-            _windows_asset(
-                files[WINDOWS_X86_64],
-                snapshots[WINDOWS_X86_64],
-                repository=root,
-                source=source,
-                abi=abi,
-                scratch=scratch,
-            )
-        )
     assets.sort(key=lambda item: item["name"])
     return {
         "schema_version": SCHEMA_VERSION,
@@ -686,7 +594,7 @@ def _build_manifest(
         "product_version": PRODUCT_VERSION,
         "distribution_revision": DISTRIBUTION_REVISION,
         "release_tag": RELEASE_TAG,
-        "release_channel": "github-immutable-prerelease",
+        "release_channel": "github-immutable-release",
         "generated_at": dt.datetime.fromtimestamp(
             source.source_date_epoch,
             tz=dt.timezone.utc,
@@ -703,11 +611,11 @@ def _build_manifest(
         "security_boundaries": {
             "android_runtime": "arm64-v8a API 35 emulator with 16 KiB pages; other packaged ABIs are statically audited but not runtime-executed in this evidence bundle",
             "linux": "native GNU/Linux x86_64 and aarch64 packages with exact GLIBC, ELF hardening, ABI, pkg-config, and CMake consumer gates",
-            "windows": "unsigned experimental prerelease; no Authenticode credential was available, so integrity is SHA-256 plus GitHub release/build attestations",
+            "windows": "excluded from this formal stable asset set; the separate unsigned diagnostic package is unsupported until an Authenticode producer, verifier, certificate, and timestamp-authority gate exist",
         },
         "convergence": {
             "temporary_distribution_revision": True,
-            "next_release": "return to one unified SemVer release line across Apple, Android, Linux, and Windows",
+            "next_release": "add Windows only after its signed publication boundary is implemented and verified",
         },
         "immutability_required": True,
     }
@@ -825,7 +733,7 @@ def verify_distribution(
         "platform distribution identity differs",
     )
     require(
-        manifest.get("release_channel") == "github-immutable-prerelease"
+        manifest.get("release_channel") == "github-immutable-release"
         and manifest.get("immutability_required") is True,
         "platform distribution release channel differs",
     )

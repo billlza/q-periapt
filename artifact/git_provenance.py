@@ -144,6 +144,105 @@ def require_commit_or_evidence_successor(root: pathlib.Path, proof_commit: str) 
     return current
 
 
+def require_commit_ancestor(
+    root: pathlib.Path,
+    ancestor_commit: str,
+    descendant_commit: str,
+) -> None:
+    """Require two exact commits to have the declared ancestry relation."""
+
+    for value, label in (
+        (ancestor_commit, "ancestor"),
+        (descendant_commit, "descendant"),
+    ):
+        if COMMIT_RE.fullmatch(value) is None:
+            raise GitProvenanceError(f"{label} commit hash is malformed: {value}")
+        resolved = run_git_text(root, ["rev-parse", "--verify", f"{value}^{{commit}}"])
+        if resolved != value:
+            raise GitProvenanceError(f"{label} commit does not resolve exactly: {value}")
+    merge_base = run_git_text(
+        root, ["merge-base", ancestor_commit, descendant_commit]
+    )
+    if merge_base != ancestor_commit:
+        raise GitProvenanceError(
+            f"commit {descendant_commit} is not a descendant of {ancestor_commit}"
+        )
+
+
+def require_direct_results_only_child(
+    root: pathlib.Path,
+    source_commit: str,
+    results_commit: str,
+) -> None:
+    """Require an arbitrary commit to be the direct results-only child."""
+
+    if source_commit == results_commit:
+        raise GitProvenanceError("results-only child equals its source commit")
+    require_commit_ancestor(root, source_commit, results_commit)
+    parents = run_git_text(
+        root, ["rev-list", "--parents", "-n", "1", results_commit]
+    ).split()
+    if parents != [results_commit, source_commit]:
+        raise GitProvenanceError(
+            "results-only child must have exactly the source commit as its parent"
+        )
+    changed = _decode_nul_paths(
+        run_git_bytes(
+            root,
+            ["diff", "--name-only", "-z", source_commit, results_commit, "--"],
+        ),
+        "source-to-results commit diff",
+    )
+    if changed != ["artifact/results.json"]:
+        detail = changed[:8] if changed else ["empty diff"]
+        raise GitProvenanceError(
+            "results-only child must change exactly artifact/results.json: "
+            + ", ".join(detail)
+        )
+
+
+def require_results_only_descendant(
+    root: pathlib.Path,
+    results_commit: str,
+    descendant_commit: str,
+) -> None:
+    """Require a descendant history whose aggregate diff is results-only."""
+
+    if results_commit == descendant_commit:
+        return
+    require_commit_ancestor(root, results_commit, descendant_commit)
+    changed = _decode_nul_paths(
+        run_git_bytes(
+            root,
+            ["diff", "--name-only", "-z", results_commit, descendant_commit, "--"],
+        ),
+        "results-to-publication commit diff",
+    )
+    if changed != ["artifact/results.json"]:
+        detail = changed[:8] if changed else ["empty diff"]
+        raise GitProvenanceError(
+            "publication descendant must change exactly artifact/results.json: "
+            + ", ".join(detail)
+        )
+
+
+def require_direct_results_only_successor(
+    root: pathlib.Path,
+    source_commit: str,
+) -> str:
+    """Require HEAD to be the direct one-file results successor of source_commit."""
+
+    if COMMIT_RE.fullmatch(source_commit) is None:
+        raise GitProvenanceError(
+            f"source commit hash is malformed: {source_commit}"
+        )
+    current = git_commit(root)
+    if current == source_commit:
+        raise GitProvenanceError("results-only successor has not been committed")
+    require_direct_results_only_child(root, source_commit, current)
+    return current
+
+
 def repository_paths(root: pathlib.Path) -> list[str]:
     resolved = _repository_root(root)
     unsafe_gitignore = _unsafe_gitignore_paths(root)

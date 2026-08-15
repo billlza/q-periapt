@@ -6,6 +6,7 @@ import json
 import hashlib
 import os
 import pathlib
+import re
 import subprocess
 import tempfile
 import threading
@@ -38,14 +39,20 @@ from rust_publish_contract import (
     RUST_WORKSPACE_LOCAL_CRATES,
     RustPublishContractError,
     create_owned_package_directory,
+    exact_internal_dependency_requirement,
     inspect_package_source,
+    parse_mlkem_archive_defined_symbols,
     remove_owned_package_directory,
     validate_cargo_output,
     validate_cargo_package_completion,
     validate_mlkem_native_build_surface,
+    validate_mlkem_native_archive_contract,
+    validate_packaged_mlkem_native_local_source_digests,
     validate_packaged_mlkem_native_local_sources,
     validate_crates_io_sparse_yanked,
     validate_rust_package_contract_transcript,
+    validate_rust_package_diagnostic_transcript,
+    validate_no_registry_credentials,
     validate_rustsec_advisory_database,
 )
 
@@ -73,7 +80,7 @@ def normalized_cargo_lock(
             (
                 "[[package]]",
                 f'name = "{name}"',
-                'version = "0.1.0-alpha.3"',
+                'version = "0.1.0"',
                 "",
             )
         )
@@ -145,35 +152,90 @@ class SparseResponse:
 
 def valid_rust_package_contract_transcript() -> list[str]:
     lines = [
-        "RUST_CARGO_HOME_ISOLATION_PASS mode=0700 "
-        "ambient_cargo_home_data=unused",
-        "RUST_PACKAGE_TOOLCHAIN_PASS "
-        "rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2",
+        rust_publish_contract.RUST_PACKAGE_CARGO_HOME_MARKER,
+        rust_publish_contract.RUST_PACKAGE_TOOLCHAIN_MARKER,
         f"RUST_PACKAGE_SOURCE_PASS commit={SOURCE_COMMIT} clean=1",
+        "RUST_CARGO_WARNING_FREE_PASS cargo-metadata",
+        rust_publish_contract.RUST_MLKEM_PROVIDER_FENCE_MARKER,
+        rust_publish_contract.RUST_PUBLISH_METADATA_MARKER,
     ]
-    lines.extend(
-        f"RUST_PACKAGE_LIST_PASS {crate} files=1"
-        for crate in RUST_PUBLISHABLE_CRATES
-    )
-    lines.extend(
-            "RUST_PACKAGE_VERIFICATION_PASS "
-        f"{crate} registry=crates-io upload=not-attempted"
-        for crate in RUST_PUBLISHABLE_CRATES
-    )
+    for crate in RUST_PUBLISHABLE_CRATES:
+        lines.extend(
+            (
+                f"RUST_CARGO_WARNING_FREE_PASS cargo-package-list-{crate}",
+                f"RUST_PACKAGE_LIST_PASS {crate} files=1",
+            )
+        )
+    for crate in RUST_PUBLISHABLE_CRATES:
+        lines.extend(
+            (
+                f"RUST_CARGO_WARNING_FREE_PASS cargo-package-verification-{crate}",
+                f"RUST_PACKAGE_COMPLETION_PASS {crate}",
+                "RUST_PACKAGE_VERIFICATION_PASS "
+                f"{crate} registry=crates-io upload=not-attempted",
+            )
+        )
     lines.extend(
         (
+            rust_publish_contract.RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER,
+            "RUST_CARGO_WARNING_FREE_PASS "
+            "cargo-package-inspection-q-periapt-mlkem-native-sys",
+            "RUST_PACKAGE_COMPLETION_PASS q-periapt-mlkem-native-sys",
+            "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
+            "target=aarch64-apple-darwin implementation=aarch64-native "
+            "implementation_id=mlkem-native-1.2.0/"
+            "aarch64-native-arith+fips202-v8a-scalar "
+            "objects=2 symbols=42 reserved_dynamic_abi=none",
+            "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS vendor_files=118 "
+            "upstream=v1.2.0 commit="
+            + rust_publish_contract.RUST_MLKEM_UPSTREAM_COMMIT,
+            "RUST_CARGO_WARNING_FREE_PASS "
+            "cargo-package-inspection-q-periapt-backends",
+            "RUST_PACKAGE_COMPLETION_PASS q-periapt-backends",
+            rust_publish_contract.RUST_BACKENDS_INSPECTION_MARKER,
+            rust_publish_contract.RUST_BACKENDS_NORMALIZED_MANIFEST_MARKER,
+            "RUST_CARGO_WARNING_FREE_PASS "
+            "cargo-generate-normalized-backends-lockfile",
             "RUST_CRATES_IO_LOCK_VERIFY_PASS registry_packages=2 "
             "index=sparse-https checksums=exact yanked=0 "
             f"normalized_lock_sha256={NORMALIZED_LOCK_SHA256}",
-            "RUST_BACKENDS_NORMALIZED_AUDIT_PASS",
+            "RUST_CARGO_WARNING_FREE_PASS cargo-audit-normalized-backends",
+            rust_publish_contract.RUST_PACKAGE_NORMALIZED_AUDIT_MARKER,
             "RUST_ADVISORY_DB_PASS "
             f"origin={RUSTSEC_ADVISORY_DB_URL} commit={ADVISORY_COMMIT} "
             "clean=1 isolated_cargo_home=1",
             f"RUST_NORMALIZED_LOCK_STABILITY_PASS sha256={NORMALIZED_LOCK_SHA256}",
-            "RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS cargo-home",
+            rust_publish_contract.RUST_PACKAGE_INSPECTION_CLEANUP_MARKER,
+            rust_publish_contract.RUST_PACKAGE_CARGO_HOME_CLEANUP_MARKER,
             "RUST_PACKAGE_CONTRACT_PASS dirty=0 registry=crates-io "
             "upload=not-attempted completed_at=2026-08-13T03:04:05Z",
         )
+    )
+    return lines
+
+
+def valid_rust_package_diagnostic_transcript(
+    *,
+    dirty: bool = True,
+) -> list[str]:
+    lines = valid_rust_package_contract_transcript()
+    source_index = next(
+        index
+        for index, line in enumerate(lines)
+        if line.startswith("RUST_PACKAGE_SOURCE_PASS")
+    )
+    lines[source_index] = (
+        f"RUST_PACKAGE_SOURCE_DIAGNOSTIC commit={SOURCE_COMMIT} "
+        f"dirty={int(dirty)}"
+    )
+    lines[-1] = (
+        f"RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty={int(dirty)} "
+        "registry=crates-io upload=not-attempted "
+        "completed_at=2026-08-13T03:04:05Z"
+    )
+    lines.insert(
+        0,
+        rust_publish_contract.RUST_PACKAGE_DIAGNOSTIC_OPENING_MARKER,
     )
     return lines
 
@@ -188,15 +250,48 @@ class RustPublishContractTests(unittest.TestCase):
         cls.bridge_c = (SYS_CRATE / "src" / "mlkem_bridge.c").read_text(
             encoding="utf-8"
         )
+        cls.bridge_native_c = (
+            SYS_CRATE / "src" / "mlkem_bridge_native.c"
+        ).read_text(encoding="utf-8")
+        cls.bridge_portable_c = (
+            SYS_CRATE / "src" / "mlkem_bridge_portable.c"
+        ).read_text(encoding="utf-8")
+        cls.bridge_asm = (SYS_CRATE / "src" / "mlkem_bridge_asm.S").read_text(
+            encoding="utf-8"
+        )
         cls.bridge_h = (SYS_CRATE / "src" / "mlkem_bridge.h").read_text(
             encoding="utf-8"
         )
         cls.local_config = (SYS_CRATE / "src" / "mlkem_config.h").read_text(
             encoding="utf-8"
         )
+        cls.aarch64_fips202 = (
+            SYS_CRATE / "src" / "mlkem_fips202_aarch64.h"
+        ).read_text(encoding="utf-8")
         cls.publish_contract_script = (
             ROOT / "artifact" / "rust-publish-contract.sh"
         ).read_text(encoding="utf-8")
+
+    def test_stable_internal_dependencies_remain_exact(self) -> None:
+        self.assertEqual(
+            exact_internal_dependency_requirement("0.1.0"),
+            "=0.1.0",
+        )
+        self.assertNotEqual(
+            exact_internal_dependency_requirement("0.1.0"),
+            "^0.1.0",
+        )
+        self.assertIn(
+            "expected_req = exact_internal_dependency_requirement(version)",
+            self.publish_contract_script,
+        )
+
+    def test_internal_dependency_requirement_rejects_invalid_version(self) -> None:
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "workspace package version is not strict SemVer",
+        ):
+            exact_internal_dependency_requirement("0.1")
 
     def validate(
         self,
@@ -204,8 +299,12 @@ class RustPublishContractTests(unittest.TestCase):
         build_rs: str | None = None,
         build_support: str | None = None,
         bridge_c: str | None = None,
+        bridge_native_c: str | None = None,
+        bridge_portable_c: str | None = None,
+        bridge_asm: str | None = None,
         bridge_h: str | None = None,
         local_config: str | None = None,
+        aarch64_fips202: str | None = None,
     ) -> None:
         validate_mlkem_native_build_surface(
             build_rs=self.build_rs if build_rs is None else build_rs,
@@ -213,8 +312,24 @@ class RustPublishContractTests(unittest.TestCase):
                 self.build_support if build_support is None else build_support
             ),
             bridge_c=self.bridge_c if bridge_c is None else bridge_c,
+            bridge_native_c=(
+                self.bridge_native_c
+                if bridge_native_c is None
+                else bridge_native_c
+            ),
+            bridge_portable_c=(
+                self.bridge_portable_c
+                if bridge_portable_c is None
+                else bridge_portable_c
+            ),
+            bridge_asm=self.bridge_asm if bridge_asm is None else bridge_asm,
             bridge_h=self.bridge_h if bridge_h is None else bridge_h,
             local_config=self.local_config if local_config is None else local_config,
+            aarch64_fips202=(
+                self.aarch64_fips202
+                if aarch64_fips202 is None
+                else aarch64_fips202
+            ),
         )
 
     @staticmethod
@@ -232,9 +347,9 @@ class RustPublishContractTests(unittest.TestCase):
             "",
             "\n".join(
                 (
-                    "   Packaging q-periapt-core v0.1.0-alpha.3 (/source)",
+                    "   Packaging q-periapt-core v0.1.0 (/source)",
                     "    Packaged 6 files, 90.6KiB (31.5KiB compressed)",
-                    "   Verifying q-periapt-core v0.1.0-alpha.3 (/package)",
+                    "   Verifying q-periapt-core v0.1.0 (/package)",
                     "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.1s",
                 )
             ),
@@ -254,6 +369,26 @@ class RustPublishContractTests(unittest.TestCase):
                     "emitted a warning",
                 ):
                     validate_cargo_output("cargo-package", ("normal output", warning))
+
+    def test_no_upload_contract_rejects_all_registry_credential_env_shapes(self) -> None:
+        validate_no_registry_credentials({"PATH": "/usr/bin:/bin"})
+        secret = "must-not-appear-in-diagnostic"
+        for name in (
+            "CARGO_REGISTRY_TOKEN",
+            "CARGO_REGISTRY_CREDENTIAL_PROVIDER",
+            "CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS",
+            "CARGO_CREDENTIAL_ALIAS_HOSTILE",
+            "CARGO_REGISTRIES_CRATES_IO_TOKEN",
+            "CARGO_REGISTRIES_PRIVATE_TOKEN",
+            "CARGO_REGISTRIES_CRATES_IO_CREDENTIAL_PROVIDER",
+            "CARGO_REGISTRIES_PRIVATE_CREDENTIAL_PROVIDER",
+        ):
+            with self.subTest(name=name), self.assertRaisesRegex(
+                RustPublishContractError,
+                "registry credentials and credential-provider overrides",
+            ) as raised:
+                validate_no_registry_credentials({name: secret})
+            self.assertNotIn(secret, str(raised.exception))
 
     def test_incomplete_cargo_package_phases_are_rejected(self) -> None:
         complete = (
@@ -574,8 +709,8 @@ class RustPublishContractTests(unittest.TestCase):
             )
         )
         local_checksum = base.replace(
-            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.3"',
-            b'name = "q-periapt-backends"\nversion = "0.1.0-alpha.3"\n'
+            b'name = "q-periapt-backends"\nversion = "0.1.0"',
+            b'name = "q-periapt-backends"\nversion = "0.1.0"\n'
             + f'checksum = {json.dumps("c" * 64)}'.encode(),
             1,
         )
@@ -604,7 +739,7 @@ class RustPublishContractTests(unittest.TestCase):
             ),
             "local resolved from registry": normalized_cargo_lock(
                 registry_packages=(
-                    ("q-periapt-core", "0.1.0-alpha.3", "a" * 64),
+                    ("q-periapt-core", "0.1.0", "a" * 64),
                 )
             ),
             "duplicate registry": duplicate_registry,
@@ -2099,6 +2234,33 @@ class RustPublishContractTests(unittest.TestCase):
             receipt.package_verification_crates,
             RUST_PUBLISHABLE_CRATES,
         )
+        self.assertEqual(
+            receipt.cargo_warning_free_labels,
+            rust_publish_contract.RUST_PACKAGE_WARNING_FREE_LABELS,
+        )
+        self.assertEqual(
+            receipt.package_completion_crates,
+            rust_publish_contract.RUST_PACKAGE_COMPLETION_CRATES,
+        )
+        self.assertEqual(receipt.mlkem_host_target, "aarch64-apple-darwin")
+        self.assertEqual(receipt.mlkem_implementation, "aarch64-native")
+        self.assertEqual(
+            receipt.mlkem_implementation_id,
+            "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+        )
+        self.assertEqual(receipt.mlkem_archive_object_count, 2)
+        self.assertEqual(receipt.mlkem_archive_symbol_count, 42)
+        self.assertEqual(receipt.mlkem_vendor_file_count, 118)
+        self.assertEqual(receipt.mlkem_upstream_version, "v1.2.0")
+        self.assertEqual(
+            receipt.mlkem_upstream_commit,
+            rust_publish_contract.RUST_MLKEM_UPSTREAM_COMMIT,
+        )
+        self.assertEqual(receipt.mlkem_reference_provider, "ml-kem@0.2.3:dev-only")
+        self.assertEqual(receipt.mlkem_normal_provider, "q-periapt-mlkem-native-sys")
+        self.assertEqual(receipt.publishable_crate_count, 10)
+        self.assertEqual(receipt.nonpublishable_crate_count, 5)
+        self.assertEqual(receipt.backends_package, "q-periapt-backends")
 
     def test_rust_package_transcript_rejects_duplicate_missing_and_extra_crates(
         self,
@@ -2142,14 +2304,14 @@ class RustPublishContractTests(unittest.TestCase):
     def test_rust_package_transcript_rejects_crate_and_phase_reordering(self) -> None:
         base = valid_rust_package_contract_transcript()
         crate_reordered = base.copy()
-        first_list_index = next(
+        list_indices = [
             index
             for index, line in enumerate(base)
             if line.startswith("RUST_PACKAGE_LIST_PASS")
-        )
-        crate_reordered[first_list_index], crate_reordered[first_list_index + 1] = (
-            crate_reordered[first_list_index + 1],
-            crate_reordered[first_list_index],
+        ]
+        crate_reordered[list_indices[0]], crate_reordered[list_indices[1]] = (
+            crate_reordered[list_indices[1]],
+            crate_reordered[list_indices[0]],
         )
         phase_reordered = base.copy()
         audit_index = phase_reordered.index("RUST_BACKENDS_NORMALIZED_AUDIT_PASS")
@@ -2161,6 +2323,230 @@ class RustPublishContractTests(unittest.TestCase):
             with self.subTest(label=label):
                 with self.assertRaisesRegex(RustPublishContractError, message):
                     validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_requires_exact_warning_free_and_completion_sequences(
+        self,
+    ) -> None:
+        base = valid_rust_package_contract_transcript()
+        warning = "RUST_CARGO_WARNING_FREE_PASS cargo-metadata"
+        completion = "RUST_PACKAGE_COMPLETION_PASS q-periapt-mlkem-native-sys"
+        completion_indices = [
+            index for index, line in enumerate(base) if line == completion
+        ]
+        self.assertEqual(len(completion_indices), 2)
+        mutations = {
+            "missing warning-free": (
+                [line for line in base if line != warning],
+                "warning-free label sequence differs",
+            ),
+            "duplicate warning-free": (
+                base[: base.index(warning) + 1]
+                + [warning]
+                + base[base.index(warning) + 1 :],
+                "warning-free label sequence differs",
+            ),
+            "malformed warning-free": (
+                [
+                    (
+                        "RUST_CARGO_WARNING_FREE_PASS cargo_metadata"
+                        if line == warning
+                        else line
+                    )
+                    for line in base
+                ],
+                "malformed Cargo warning-free",
+            ),
+            "reordered warning-free": (
+                base[: base.index(warning)]
+                + [base[base.index(warning) + 1], warning]
+                + base[base.index(warning) + 2 :],
+                "phase marker order differs",
+            ),
+            "missing completion": (
+                base[: completion_indices[0]] + base[completion_indices[0] + 1 :],
+                "completion crate sequence differs",
+            ),
+            "duplicate completion": (
+                base[: completion_indices[0] + 1]
+                + [completion]
+                + base[completion_indices[0] + 1 :],
+                "completion crate sequence differs",
+            ),
+            "malformed completion": (
+                base[: completion_indices[0]]
+                + ["RUST_PACKAGE_COMPLETION_PASS q_periapt_mlkem_native_sys"]
+                + base[completion_indices[0] + 1 :],
+                "malformed package completion",
+            ),
+            "reordered completion": (
+                base[: completion_indices[0] - 1]
+                + [
+                    base[completion_indices[0]],
+                    base[completion_indices[0] - 1],
+                ]
+                + base[completion_indices[0] + 1 :],
+                "phase marker order differs",
+            ),
+        }
+        for label, (lines, message) in mutations.items():
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(RustPublishContractError, message):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_requires_all_release_gate_singletons(
+        self,
+    ) -> None:
+        base = valid_rust_package_contract_transcript()
+        markers = (
+            rust_publish_contract.RUST_MLKEM_PROVIDER_FENCE_MARKER,
+            rust_publish_contract.RUST_PUBLISH_METADATA_MARKER,
+            rust_publish_contract.RUST_PACKAGE_VERIFICATION_CLEANUP_MARKER,
+            next(
+                line
+                for line in base
+                if line.startswith("RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS")
+            ),
+            next(
+                line
+                for line in base
+                if line.startswith("RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS")
+            ),
+            rust_publish_contract.RUST_BACKENDS_INSPECTION_MARKER,
+            rust_publish_contract.RUST_BACKENDS_NORMALIZED_MANIFEST_MARKER,
+            rust_publish_contract.RUST_PACKAGE_INSPECTION_CLEANUP_MARKER,
+        )
+        for marker in markers:
+            with self.subTest(marker=marker, mutation="missing"):
+                lines = base.copy()
+                lines.remove(marker)
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+            with self.subTest(marker=marker, mutation="duplicate"):
+                lines = base.copy()
+                index = lines.index(marker)
+                lines.insert(index + 1, marker)
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+            with self.subTest(marker=marker, mutation="reordered"):
+                lines = base.copy()
+                lines.remove(marker)
+                lines.insert(3, marker)
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "phase marker order differs",
+                ):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_binds_native_and_portable_archive_fields(
+        self,
+    ) -> None:
+        native_targets = (
+            "aarch64-apple-darwin",
+            "aarch64-apple-ios",
+            "aarch64-apple-ios-sim",
+            "aarch64-unknown-linux-gnu",
+            "aarch64-linux-android",
+        )
+        portable_targets = (
+            "x86_64-apple-darwin",
+            "wasm32-unknown-unknown",
+            "thumbv7em-none-eabihf",
+            "aarch64-unknown-linux-musl",
+        )
+        base = valid_rust_package_contract_transcript()
+        binary_index = next(
+            index
+            for index, line in enumerate(base)
+            if line.startswith("RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS")
+        )
+        for target in native_targets:
+            with self.subTest(target=target, implementation="native"):
+                lines = base.copy()
+                lines[binary_index] = lines[binary_index].replace(
+                    "target=aarch64-apple-darwin",
+                    f"target={target}",
+                )
+                receipt = validate_rust_package_contract_transcript("\n".join(lines))
+                self.assertEqual(receipt.mlkem_host_target, target)
+                self.assertEqual(receipt.mlkem_implementation, "aarch64-native")
+                self.assertEqual(receipt.mlkem_archive_object_count, 2)
+                self.assertEqual(receipt.mlkem_archive_symbol_count, 42)
+        for target in portable_targets:
+            with self.subTest(target=target, implementation="portable"):
+                lines = base.copy()
+                lines[binary_index] = (
+                    "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
+                    f"target={target} implementation=portable "
+                    "implementation_id=mlkem-native-1.2.0/portable-c "
+                    "objects=1 symbols=30 reserved_dynamic_abi=none"
+                )
+                receipt = validate_rust_package_contract_transcript("\n".join(lines))
+                self.assertEqual(receipt.mlkem_host_target, target)
+                self.assertEqual(receipt.mlkem_implementation, "portable")
+                self.assertEqual(receipt.mlkem_archive_object_count, 1)
+                self.assertEqual(receipt.mlkem_archive_symbol_count, 30)
+
+        binary = base[binary_index]
+        mismatches = {
+            "silent target fallback": binary.replace(
+                "target=aarch64-apple-darwin", "target=x86_64-apple-darwin"
+            ),
+            "implementation": binary.replace(
+                "implementation=aarch64-native", "implementation=portable"
+            ),
+            "implementation ID": binary.replace(
+                "aarch64-native-arith+fips202-v8a-scalar", "portable-c"
+            ),
+            "object count": binary.replace("objects=2", "objects=1"),
+            "symbol count": binary.replace("symbols=42", "symbols=30"),
+            "reserved ABI": binary.replace(
+                "reserved_dynamic_abi=none", "reserved_dynamic_abi=expanded"
+            ),
+            "malformed host": binary.replace(
+                "aarch64-apple-darwin", "AARCH64-apple-darwin"
+            ),
+        }
+        for label, malformed in mismatches.items():
+            with self.subTest(label=label):
+                lines = base.copy()
+                lines[binary_index] = malformed
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+    def test_rust_package_transcript_rejects_mlkem_and_backend_metadata_drift(
+        self,
+    ) -> None:
+        base = valid_rust_package_contract_transcript()
+        mutations = (
+            ("ml-kem@0.2.3:dev-only", "ml-kem@0.2.4:dev-only"),
+            ("normal=q-periapt-mlkem-native-sys", "normal=ml-kem"),
+            ("publishable=10", "publishable=9"),
+            ("nonpublishable=5", "nonpublishable=4"),
+            ("sys_build_dependency=cc@1.2.67", "sys_build_dependency=cc@1.2.68"),
+            ("vendor_files=118", "vendor_files=117"),
+            ("upstream=v1.2.0", "upstream=v1.2.1"),
+            (
+                rust_publish_contract.RUST_MLKEM_UPSTREAM_COMMIT,
+                "f" * 40,
+            ),
+            ("normalized_archive=present", "normalized_archive=missing"),
+            ("retired=none", "retired=present"),
+            ("vendored_mlkem=none", "vendored_mlkem=present"),
+            ("performance_reference_api=absent", "performance_reference_api=present"),
+        )
+        for old, new in mutations:
+            with self.subTest(old=old, new=new):
+                lines = base.copy()
+                indices = [index for index, line in enumerate(lines) if old in line]
+                self.assertTrue(indices)
+                lines[indices[-1]] = lines[indices[-1]].replace(old, new, 1)
+                with self.assertRaises(RustPublishContractError):
+                    validate_rust_package_contract_transcript("\n".join(lines))
+
+        with self.assertRaisesRegex(RustPublishContractError, "unrecognized Rust gate"):
+            validate_rust_package_contract_transcript(
+                "\n".join(base[:-1] + ["RUST_UNAUDITED_GATE_PASS", base[-1]])
+            )
 
     def test_rust_package_transcript_requires_exact_contract_metadata(self) -> None:
         base = valid_rust_package_contract_transcript()
@@ -2345,6 +2731,60 @@ class RustPublishContractTests(unittest.TestCase):
                 ):
                     validate_rust_package_contract_transcript("\n".join(lines))
 
+    def test_rust_package_diagnostic_transcript_is_strict_and_typed(self) -> None:
+        for dirty in (False, True):
+            with self.subTest(dirty=dirty):
+                receipt = validate_rust_package_diagnostic_transcript(
+                    "\n".join(
+                        valid_rust_package_diagnostic_transcript(dirty=dirty)
+                    )
+                )
+                self.assertEqual(SOURCE_COMMIT, receipt.source_commit)
+                self.assertEqual(dirty, receipt.source_dirty)
+                self.assertEqual(
+                    "2026-08-13T03:04:05Z",
+                    receipt.completed_at,
+                )
+
+        base = valid_rust_package_diagnostic_transcript()
+        malformed: dict[str, list[str]] = {
+            "missing opening": base[1:],
+            "duplicate opening": [base[0], *base],
+            "misordered opening": [base[1], base[0], *base[2:]],
+            "missing source": [
+                line
+                for line in base
+                if not line.startswith("RUST_PACKAGE_SOURCE_DIAGNOSTIC")
+            ],
+            "dirty mismatch": [
+                line.replace(
+                    "RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=1",
+                    "RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=0",
+                )
+                for line in base
+            ],
+            "duplicate final": [*base, base[-1]],
+            "trailing output": [*base, "trailing output"],
+            "reserved handoff marker": [
+                *base[:-1],
+                "RUST_PACKAGE_HANDOFF_PASS forged",
+                base[-1],
+            ],
+        }
+        for label, lines in malformed.items():
+            with self.subTest(label=label), self.assertRaises(
+                RustPublishContractError
+            ):
+                validate_rust_package_diagnostic_transcript("\n".join(lines))
+
+        with self.assertRaisesRegex(
+            RustPublishContractError,
+            "diagnostic-only opening marker",
+        ):
+            validate_rust_package_diagnostic_transcript(
+                "\n".join(valid_rust_package_contract_transcript())
+            )
+
     def test_rust_package_transcript_rejects_noncanonical_completion_time(self) -> None:
         base = valid_rust_package_contract_transcript()
         malformed_times = (
@@ -2426,7 +2866,12 @@ class RustPublishContractTests(unittest.TestCase):
         stability_marker = "RUST_NORMALIZED_LOCK_STABILITY_PASS sha256="
         self.assertIn(stability_marker, script)
         self.assertEqual(script.count("lock_snapshot = read_regular_snapshot("), 1)
-        self.assertEqual(script.count("snapshot = read_regular_snapshot("), 2)
+        self.assertEqual(script.count("snapshot = read_regular_snapshot("), 3)
+        self.assertIn(
+            'label="bounded Rust package contract transcript"',
+            script,
+        )
+        self.assertIn("maximum=16 * 1024 * 1024", script)
         self.assertIn(
             "snapshot.sha256 != sys.argv[2] or snapshot.size != expected_size",
             script,
@@ -2486,6 +2931,111 @@ class RustPublishContractTests(unittest.TestCase):
         ):
             self.assertNotIn(ambient_reference, script)
 
+    def test_clean_contract_handoff_is_bounded_committed_and_stderr_marked(
+        self,
+    ) -> None:
+        script = self.publish_contract_script
+        self.assertIn(
+            "from bounded_process import BoundedProcessError, capture_output",
+            script,
+        )
+        self.assertIn("persist_rust_package_contract_capture", script)
+        self.assertIn("timeout_seconds=300", script)
+        self.assertIn("maximum_stdout_bytes=MAX_TRANSCRIPT_BYTES", script)
+        self.assertIn("maximum_stderr_bytes=MAX_HANDOFF_STDERR_BYTES", script)
+        self.assertNotIn("stderr=None", script)
+        self.assertNotIn('cat "$stderr_log" >&2', script)
+        self.assertNotIn('>"$OUTER_HANDOFF_STAGE/rust-package-contract.log"', script)
+        capture_call = script.index("    result = capture_output(")
+        clean_capture_commit = script.index(
+            "        persist_rust_package_contract_capture(descriptor, result)"
+        )
+        diagnostic_capture_commit = script.index(
+            "        persist_rust_package_diagnostic_capture(descriptor, result)"
+        )
+        bounded_failure = script.index(
+            '    print("error: bounded Rust package contract failed"',
+            clean_capture_commit,
+        )
+        self.assertLess(capture_call, clean_capture_commit)
+        self.assertLess(capture_call, diagnostic_capture_commit)
+        self.assertLess(clean_capture_commit, bounded_failure)
+        self.assertLess(diagnostic_capture_commit, bounded_failure)
+        self.assertNotIn("require_clean_transcript", script)
+        self.assertIn('if [ "$ALLOW_DIRTY" = "0" ]; then', script)
+        self.assertIn("stage_verified_crate_handoff(", script)
+        stage_call = script.index("    stage_verified_crate_handoff(")
+        stage_guard = script.rindex(
+            'if [ "$ALLOW_DIRTY" = "0" ]; then',
+            0,
+            stage_call,
+        )
+        verification_cleanup = script.index(
+            "\ncleanup_active_package_target\n", stage_call
+        )
+        self.assertLess(stage_guard, stage_call)
+        self.assertLess(stage_call, verification_cleanup)
+        replay = script.index(
+            'python3 - "$OUTER_HANDOFF_STAGE/rust-package-contract.log"'
+        )
+        diagnostic_exit = script.index(
+            '\tif [ "$ALLOW_DIRTY" = "1" ]; then\n'
+            "\t\tcleanup_outer_handoff_stage\n"
+            "\t\ttrap - 0 1 2 15\n"
+            "\t\texit 0\n"
+            "\tfi",
+            replay,
+        )
+        finalizer_import = script.index(
+            "    finalize_rust_package_handoff_for_cli,",
+            diagnostic_exit,
+        )
+        self.assertLess(replay, diagnostic_exit)
+        self.assertLess(diagnostic_exit, finalizer_import)
+        self.assertIn(
+            'if [ "$ALLOW_DIRTY" = "1" ]; then\n'
+            "\tprintf 'DIRTY_RUST_PACKAGE_CONTRACT_DIAGNOSTIC_ONLY\\n'",
+            script,
+        )
+        self.assertIn(
+            "RUST_PACKAGE_SOURCE_DIAGNOSTIC commit=%s dirty=%s",
+            script,
+        )
+        self.assertIn(
+            "RUST_PACKAGE_CONTRACT_DIAGNOSTIC_PASS dirty=%s "
+            "registry=crates-io upload=not-attempted completed_at=%s",
+            script,
+        )
+        self.assertIn("finalize_rust_package_handoff_for_cli(", script)
+        self.assertIn("trap '' 1 2 15", script)
+        self.assertNotIn("handoff_identity=$(", script)
+        self.assertNotIn("RUST_PACKAGE_HANDOFF_PASS", script)
+        publication_source = (
+            ROOT / "artifact" / "crates_io_publication.py"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(
+            publication_source.count(
+                'f"RUST_PACKAGE_HANDOFF_PASS path={marker_path} sha256={digest}"'
+            ),
+            1,
+        )
+        self.assertIn("RUST_PACKAGE_HANDOFF_COMMITTED", publication_source)
+        self.assertIn("block_through_process_exit", publication_source)
+        self.assertIn("validate_no_registry_credentials(os.environ)", script)
+        self.assertIn(
+            "python3 - <<'PY'\nimport os\n\n"
+            "from rust_publish_contract import RustPublishContractError, "
+            "validate_no_registry_credentials",
+            script,
+        )
+        self.assertNotIn("python3 <<'PY'\nimport os", script)
+
+        transcript = (
+            "\n".join(valid_rust_package_contract_transcript()) + "\n"
+        ).encode("utf-8")
+        receipt = validate_rust_package_contract_transcript(transcript)
+        self.assertEqual(SOURCE_COMMIT, receipt.source_commit)
+
     def test_packaged_local_source_set_is_exact(self) -> None:
         repository_sources = {
             path.relative_to(SYS_CRATE).as_posix()
@@ -2493,9 +3043,18 @@ class RustPublishContractTests(unittest.TestCase):
             if path.is_file()
         }
         validate_packaged_mlkem_native_local_sources(repository_sources)
+        repository_source_bytes = {
+            "build.rs": (SYS_CRATE / "build.rs").read_bytes(),
+            **{
+                relative: (SYS_CRATE / relative).read_bytes()
+                for relative in sorted(repository_sources)
+            },
+        }
+        validate_packaged_mlkem_native_local_source_digests(repository_source_bytes)
 
         for label, mutation in (
             ("extra C source", repository_sources | {"src/extra.c"}),
+            ("extra assembly source", repository_sources | {"src/extra.S"}),
             ("shadow header", repository_sources | {"src/mlkem_native.h"}),
             ("missing source", repository_sources - {"src/raw.rs"}),
         ):
@@ -2505,6 +3064,19 @@ class RustPublishContractTests(unittest.TestCase):
                     "packaged local source set differs",
                 ):
                     validate_packaged_mlkem_native_local_sources(mutation)
+
+        mutated_bytes = dict(repository_source_bytes)
+        mutated_bytes["src/build_support_tests.rs"] += b"\n"
+        with self.assertRaisesRegex(
+            RustPublishContractError, "packaged local source bytes differ"
+        ):
+            validate_packaged_mlkem_native_local_source_digests(mutated_bytes)
+        missing_bytes = dict(repository_source_bytes)
+        del missing_bytes["src/tests.rs"]
+        with self.assertRaisesRegex(
+            RustPublishContractError, "source digest set differs"
+        ):
+            validate_packaged_mlkem_native_local_source_digests(missing_bytes)
 
     def test_every_external_rust_source_edge_fails_closed(self) -> None:
         cases = {
@@ -2542,8 +3114,10 @@ class RustPublishContractTests(unittest.TestCase):
 
     def test_extra_or_dynamic_translation_units_fail_closed(self) -> None:
         cases = {
-            "literal file": self.build_support
+            "literal C file": self.build_support
             + '\nfn extra(build: &mut cc::Build) { build.file("extra.c"); }\n',
+            "literal assembly file": self.build_support
+            + '\nfn extra(build: &mut cc::Build) { build.file("extra.S"); }\n',
             "dynamic file": self.build_support
             + "\nfn extra(build: &mut cc::Build, path: &str) { build.file(path); }\n",
             "comment-separated file": self.build_support
@@ -2554,7 +3128,7 @@ class RustPublishContractTests(unittest.TestCase):
         for label, build_support in cases.items():
             with self.subTest(label=label):
                 with self.assertRaisesRegex(
-                    RustPublishContractError, "single portable bridge translation unit"
+                    RustPublishContractError, "compilation topology"
                 ):
                     self.validate(build_support=build_support)
 
@@ -2585,8 +3159,8 @@ class RustPublishContractTests(unittest.TestCase):
             with self.subTest(label=label):
                 with self.assertRaisesRegex(
                     RustPublishContractError,
-                    "packaged build-surface bytes differ|single portable bridge|"
-                    "portable allowlist|portable-only",
+                    "packaged build-surface bytes differ|compilation topology|"
+                    "source-owned",
                 ):
                     self.validate(build_support=build_support)
 
@@ -2602,19 +3176,19 @@ class RustPublishContractTests(unittest.TestCase):
             },
             "commented error directive": {
                 "local_config": self.local_config.replace(
-                    "#error External or native mlkem-native backends are not supported by this portable-only crate",
-                    "/* #error External or native mlkem-native backends are not supported by this portable-only crate */",
+                    "#error External mlkem-native backend configuration is not supported",
+                    "/* #error External mlkem-native backend configuration is not supported */",
                     1,
                 )
             },
             "disabled guard": {
                 "local_config": self.local_config.replace(
-                    "#if defined(MLK_CONFIG_USE_NATIVE_BACKEND_ARITH)",
-                    "#if 0\n#if defined(MLK_CONFIG_USE_NATIVE_BACKEND_ARITH)",
+                    "#if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64) == \\\n",
+                    "#if 0\n#if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64) == \\\n",
                     1,
                 ).replace(
-                    "#endif\n\n#ifndef QPN_MLKEM_CONFIG_H",
-                    "#endif\n#endif\n\n#ifndef QPN_MLKEM_CONFIG_H",
+                    "#error Exactly one owned mlkem-native implementation selector is required\n#endif",
+                    "#error Exactly one owned mlkem-native implementation selector is required\n#endif\n#endif",
                     1,
                 )
             },
@@ -2624,60 +3198,133 @@ class RustPublishContractTests(unittest.TestCase):
                 with self.assertRaises(RustPublishContractError):
                     self.validate(**mutation)
 
-    def test_config_bridge_guards_and_native_shapes_fail_closed(self) -> None:
+    def test_target_selected_contract_mutations_fail_closed(self) -> None:
         cases = {
-            "missing config selection": {
-                "build_rs": self.build_rs.replace(
-                    '"MLK_CONFIG_FILE"', '"OTHER_CONFIG_FILE"', 1
+            "extra native target": {
+                "build_support": self.build_support.replace(
+                    "        _ => None,",
+                    "        \"aarch64-unknown-freebsd\" => Some(ExpectedNativeTarget {\n"
+                    "            environment: \"\",\n"
+                    "            operating_system: \"freebsd\",\n"
+                    "            vendor: \"unknown\",\n"
+                    "        }),\n"
+                    "        _ => None,",
+                    1,
                 ),
-                "message": "select packaged mlkem_config.h exactly once",
+                "message": "exactly the five audited targets",
             },
-            "missing pinned bridge": {
+            "silent metadata fallback": {
+                "build_support": self.build_support.replace(
+                    "return Err(NativeTargetMetadataError::Architecture);",
+                    "return Ok(MlKemImplementation::Portable);",
+                    1,
+                ),
+                "message": "metadata mismatches must fail closed",
+            },
+            "removed source wrapper": {
+                "bridge_native_c": self.bridge_native_c.replace(
+                    '#include "mlkem_bridge.c"', "", 1
+                ),
+                "message": "include graph differs",
+            },
+            "wrong wrapper config selection": {
+                "bridge_native_c": self.bridge_native_c.replace(
+                    "MLK_CONFIG_FILE", "OTHER_CONFIG_FILE", 1
+                ),
+                "message": "source-owned",
+            },
+            "missing pinned bridge source": {
                 "bridge_c": self.bridge_c.replace(
                     '#include "mlkem_native.c"', '#include "other.c"', 1
                 ),
-                "message": "portable C include graph differs",
+                "message": "include graph differs",
             },
-            "missing guard": {
+            "removed selector guard": {
                 "local_config": self.local_config.replace(
-                    "MLK_CONFIG_FIPS202X4_CUSTOM_HEADER", "REMOVED_GUARD", 1
+                    "QPN_MLKEM_BUILD_PORTABLE", "REMOVED_SELECTOR", 1
                 ),
-                "message": "active fail-fast native-backend guard prefix",
+                "message": "source-selector",
             },
-            "native backend define": {
-                "local_config": self.local_config
-                + "\n#define MLK_CONFIG_USE_NATIVE_BACKEND_ARITH 1\n",
-                "message": "active fail-fast native-backend guard prefix",
+            "ambient native macro": {
+                "build_support": self.build_support
+                + '\nfn extra(build: &mut cc::Build) { build.define("MLK_CONFIG_USE_NATIVE_BACKEND_ARITH", None); }\n',
+                "message": "source-owned",
             },
-            "prebuilt object": {
+            "extra object": {
                 "build_support": self.build_support
                 + '\nfn extra(build: &mut cc::Build) { build.object("extra.o"); }\n',
-                "message": "release build is not portable-only",
+                "message": "compilation topology",
             },
-            "prebuilt objects": {
+            "extra objects collection": {
                 "build_support": self.build_support
                 + '\nfn extra(build: &mut cc::Build) { build.objects(["extra.o"]); }\n',
-                "message": "release build is not portable-only",
+                "message": "compilation topology",
             },
             "comment-separated object": {
                 "build_support": self.build_support
                 + '\nfn extra(build: &mut cc::Build) { build.object /* hidden */ ("extra.o"); }\n',
-                "message": "release build is not portable-only",
+                "message": "packaged build-surface bytes differ|compilation topology",
             },
             "dynamic define": {
                 "build_support": self.build_support
                 + "\nfn extra(build: &mut cc::Build, name: &str) { build.define(name, None); }\n",
-                "message": "build-script API surface differs",
+                "message": "source-owned",
             },
             "native backend flag": {
                 "build_support": self.build_support
                 + '\nfn extra(build: &mut cc::Build) { build.flag("-DMLK_CONFIG_USE_NATIVE_BACKEND_ARITH"); }\n',
-                "message": "build-script API surface differs",
+                "message": "packaged build-surface bytes differ|compiler flag",
             },
-            "second compilation": {
+            "second archive compilation": {
                 "build_support": self.build_support
                 + '\nfn extra(build: &mut cc::Build) { let _ = build.try_compile("extra"); }\n',
-                "message": "build-script API surface differs",
+                "message": "compilation topology",
+            },
+            "changed march": {
+                "build_rs": self.build_rs.replace(
+                    '"-march=armv8-a"', '"-march=armv8.4-a+sha3"', 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "removed rustflag isolation": {
+                "build_rs": self.build_rs.replace(
+                    "inherit_rustflags(false)", "inherit_rustflags(true)", 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "removed BTI guard": {
+                "build_support": self.build_support.replace(
+                    '        || argument.starts_with("-mbranch-protection")\n', "", 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "removed header guard override fence": {
+                "build_support": self.build_support.replace(
+                    '    argument.starts_with("-D")\n        || ', "    ", 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "weakened joined compiler escape fence": {
+                "build_support": self.build_support.replace(
+                    'argument.starts_with("-Xclang")',
+                    'argument == "-Xclang"',
+                    1,
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "changed Android platform define": {
+                "build_rs": self.build_rs.replace(
+                    'then_some("-DANDROID")', 'then_some("-DOTHER")', 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "changed implementation ID": {
+                "build_support": self.build_support.replace(
+                    "mlkem-native-1.2.0/portable-c",
+                    "mlkem-native-1.2.0/portable-auto",
+                    1,
+                ),
+                "message": "implementation IDs",
             },
         }
         for label, case in cases.items():
@@ -2686,6 +3333,261 @@ class RustPublishContractTests(unittest.TestCase):
             with self.subTest(label=label):
                 with self.assertRaisesRegex(RustPublishContractError, message):
                     self.validate(**mutation)
+
+    def test_fixed_fips202_profile_rejects_auto_and_v84a(self) -> None:
+        cases = {
+            "auto selector": self.aarch64_fips202.replace(
+                '#include "src/fips202/native/aarch64/x1_scalar.h"\n'
+                '#include "src/fips202/native/aarch64/x4_v8a_scalar.h"',
+                '#include "src/fips202/native/aarch64/auto.h"',
+                1,
+            ),
+            "Armv8.4 SHA3 selector": self.aarch64_fips202.replace(
+                "x1_scalar.h", "x1_v84a.h", 1
+            ),
+        }
+        for label, aarch64_fips202 in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(
+                    RustPublishContractError,
+                    "include graph differs|fixed x1_scalar",
+                ):
+                    self.validate(aarch64_fips202=aarch64_fips202)
+
+    @staticmethod
+    def archive_symbols(*, native: bool) -> set[str]:
+        symbols = {
+            f"qpn_mlkem_bridge_v1_2_0_{parameter_set}_{operation}"
+            for parameter_set in ("512", "768", "1024")
+            for operation in (
+                "keypair_derand",
+                "encapsulate_derand",
+                "decapsulate",
+                "check_public_key",
+            )
+        }
+        symbols.update(
+            f"qpn_mlkem_internal_v1_2_0__{suffix}"
+            for suffix in (
+                "keccakf1600_extract_bytes",
+                "keccakf1600_permute",
+                "keccakf1600_xor_bytes",
+                "keccakf1600x4_extract_bytes",
+                "keccakf1600x4_permute",
+                "keccakf1600x4_xor_bytes",
+                "sha3_256",
+                "sha3_512",
+                "shake128_absorb_once",
+                "shake128_init",
+                "shake128_release",
+                "shake128_squeezeblocks",
+                "shake128x4_absorb_once",
+                "shake128x4_init",
+                "shake128x4_release",
+                "shake128x4_squeezeblocks",
+                "shake256",
+                "shake256x4",
+            )
+        )
+        if native:
+            symbols.update(
+                f"qpn_mlkem_internal_v1_2_0__{suffix}"
+                for suffix in (
+                    "intt_aarch64_asm",
+                    "keccak_f1600_x1_scalar_aarch64_asm",
+                    "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
+                    "ntt_aarch64_asm",
+                    "poly_mulcache_compute_aarch64_asm",
+                    "poly_reduce_aarch64_asm",
+                    "poly_tobytes_aarch64_asm",
+                    "poly_tomont_aarch64_asm",
+                    "polyvec_basemul_acc_montgomery_cached_k2_aarch64_asm",
+                    "polyvec_basemul_acc_montgomery_cached_k3_aarch64_asm",
+                    "polyvec_basemul_acc_montgomery_cached_k4_aarch64_asm",
+                    "rej_uniform_aarch64_asm",
+                )
+            )
+        return symbols
+
+    def test_actual_portable_and_native_archive_contracts_are_exact(self) -> None:
+        cases = (
+            (
+                "x86_64-unknown-linux-gnu",
+                ("ea708c7824d36062-mlkem_bridge_portable.o",),
+                "mlkem-native-1.2.0/portable-c",
+                False,
+            ),
+            (
+                "aarch64-apple-darwin",
+                (
+                    "__.SYMDEF SORTED",
+                    "ea708c7824d36062-mlkem_bridge_native.o",
+                    "81a71fbc30f7fcce-mlkem_bridge_asm.o",
+                ),
+                "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+                True,
+            ),
+        )
+        for target, members, implementation_id, native in cases:
+            with self.subTest(target=target):
+                receipt = validate_mlkem_native_archive_contract(
+                    target=target,
+                    archive_members=members,
+                    defined_symbols=sorted(self.archive_symbols(native=native)),
+                    build_output=(
+                        "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID="
+                        + implementation_id
+                    ),
+                )
+                self.assertEqual(
+                    receipt.implementation,
+                    "aarch64-native" if native else "portable",
+                )
+                self.assertEqual(receipt.object_count, 2 if native else 1)
+                self.assertEqual(
+                    receipt.symbol_count, len(self.archive_symbols(native=native))
+                )
+
+    def test_archive_object_symbol_id_and_dynamic_abi_mutations_fail_closed(self) -> None:
+        portable_symbols = self.archive_symbols(native=False)
+        base = {
+            "target": "x86_64-unknown-linux-gnu",
+            "archive_members": ("ea708c7824d36062-mlkem_bridge_portable.o",),
+            "defined_symbols": sorted(portable_symbols),
+            "build_output": (
+                "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID="
+                "mlkem-native-1.2.0/portable-c"
+            ),
+        }
+        cases = {
+            "extra object": {
+                "archive_members": base["archive_members"]
+                + ("0123456789abcdef-mlkem_bridge_asm.o",),
+                "message": "object contract differs",
+            },
+            "wrong implementation ID": {
+                "build_output": (
+                    "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID="
+                    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+                ),
+                "message": "implementation ID differs",
+            },
+            "extra private symbol": {
+                "defined_symbols": sorted(portable_symbols | {"qpn_mlkem_extra"}),
+                "message": "external-symbol contract differs",
+            },
+            "reserved dynamic ABI expansion": {
+                "defined_symbols": sorted(portable_symbols | {"q_periapt_extra"}),
+                "message": "dynamic ABI namespace",
+            },
+            "native target with portable archive": {
+                "target": "aarch64-unknown-linux-gnu",
+                "build_output": (
+                    "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID="
+                    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+                ),
+                "message": "object contract differs",
+            },
+        }
+        for label, mutation in cases.items():
+            with self.subTest(label=label):
+                arguments = {**base, **{k: v for k, v in mutation.items() if k != "message"}}
+                with self.assertRaisesRegex(
+                    RustPublishContractError, mutation["message"]
+                ):
+                    validate_mlkem_native_archive_contract(**arguments)
+
+    def test_names_only_nm_output_parser_is_strict_and_platform_aware(self) -> None:
+        parsed = parse_mlkem_archive_defined_symbols(
+            "\nobject.o:\n_qpn_mlkem_bridge_v1_2_0_512_keypair_derand\n",
+            leading_underscore=True,
+        )
+        self.assertEqual(
+            parsed, ("qpn_mlkem_bridge_v1_2_0_512_keypair_derand",)
+        )
+        self.assertEqual(
+            parse_mlkem_archive_defined_symbols(
+                "qpn_mlkem_bridge_v1_2_0_512_keypair_derand\n",
+                leading_underscore=False,
+            ),
+            ("qpn_mlkem_bridge_v1_2_0_512_keypair_derand",),
+        )
+        with self.assertRaisesRegex(RustPublishContractError, "cannot parse"):
+            parse_mlkem_archive_defined_symbols(
+                "0000 T qpn_mlkem_bridge_v1_2_0_512_keypair_derand\n",
+                leading_underscore=False,
+            )
+
+    def test_shell_archive_verifier_consumes_all_target_selected_sources(self) -> None:
+        script = self.publish_contract_script
+        for source in (
+            "src/mlkem_bridge_asm.S",
+            "src/mlkem_bridge_native.c",
+            "src/mlkem_bridge_portable.c",
+            "src/mlkem_fips202_aarch64.h",
+        ):
+            self.assertGreaterEqual(script.count(source), 2)
+        self.assertIn("validate_mlkem_native_archive_contract", script)
+        self.assertIn("parse_mlkem_archive_defined_symbols", script)
+        self.assertIn(
+            "validate_packaged_mlkem_native_local_source_digests", script
+        )
+        self.assertIn("completed = capture_stdout(", script)
+        self.assertIn("maximum_bytes=256 * 1024", script)
+        self.assertIn("timeout_seconds=30", script)
+        self.assertIn("libq_periapt_mlkem_native.a", script)
+        self.assertIn("RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS", script)
+        self.assertIn('f"target={sys.argv[4]} "', script)
+        self.assertIn(
+            'f"implementation_id={archive_receipt.implementation_id} "',
+            script,
+        )
+        for marker_field in (
+            "RUST_MLKEM_PROVIDER_FENCE_PASS ",
+            "reference=ml-kem@0.2.3:dev-only normal=q-periapt-mlkem-native-sys",
+            "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 ",
+            "sys_build_dependency=cc@1.2.67",
+            "RUST_BACKENDS_INSPECTION_PACKAGE_PASS package=q-periapt-backends ",
+            "normalized_archive=present",
+            "RUST_BACKENDS_NORMALIZED_MANIFEST_PASS package=q-periapt-backends ",
+            "mlkem_provider=q-periapt-mlkem-native-sys retired=none ",
+            "vendored_mlkem=none",
+            "performance_reference_api=absent",
+        ):
+            self.assertIn(marker_field, script)
+        self.assertEqual(
+            len(rust_publish_contract.RUST_PACKAGE_WARNING_FREE_LABELS),
+            25,
+        )
+        self.assertEqual(
+            len(rust_publish_contract.RUST_PACKAGE_COMPLETION_CRATES),
+            12,
+        )
+        self.assertEqual(
+            tuple(re.findall(r'run_cargo_captured "([^"]+)"', script)),
+            (
+                "cargo-metadata",
+                "cargo-package-list-$crate",
+                "cargo-package-verification-$crate",
+                "cargo-package-inspection-q-periapt-mlkem-native-sys",
+                "cargo-package-inspection-q-periapt-backends",
+                "cargo-generate-normalized-backends-lockfile",
+                "cargo-audit-normalized-backends",
+            ),
+        )
+        self.assertEqual(script.count("verify_cargo_package_completion "), 3)
+        archive_verifier_marker = (
+            '"$PACKAGE_INSPECTION_TARGET" "$rustc_host" <<\'PY\'\n'
+        )
+        verifier_start = script.index(archive_verifier_marker) + len(
+            archive_verifier_marker
+        )
+        verifier_end = script.index("\nPY\n", verifier_start)
+        compile(
+            script[verifier_start:verifier_end],
+            "rust-publish-contract-archive-verifier",
+            "exec",
+        )
 
 
 if __name__ == "__main__":

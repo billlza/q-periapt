@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 import copy
+import dataclasses
+import hashlib
 import os
 import pathlib
 import re
@@ -20,11 +22,21 @@ import sys
 from collections.abc import Sequence
 from typing import Any, Never
 
-import apple_alpha3_publication
+import apple_stable_publication
 import apple_publication_contract as apple_contract
-import platform_alpha3_publication
-import platform_alpha3_publication_contract as platform_contract
+import crates_io_publication
+import crates_io_publication_contract as crates_contract
+import platform_stable_publication
+import platform_stable_publication_contract as platform_contract
 from evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
+from git_provenance import (
+    GitProvenanceError,
+    inspect_worktree,
+    require_direct_results_only_child,
+    require_results_only_descendant,
+    run_git_bytes,
+    run_git_text,
+)
 from proof_manifest import ProofManifestError, validate_declared_currentness
 from publication_receipt_io import (
     PRIVATE_FILE_MODE,
@@ -34,9 +46,15 @@ from publication_receipt_io import (
     read_fixed_json_snapshot,
 )
 from release_publication_contract import (
+    PUBLICATION_STATE_PENDING,
+    PUBLICATION_STATE_SOURCE,
+    PUBLICATION_STATE_VERIFIED,
     ReleasePublicationContractError,
+    publication_state,
+    stable_source_identity,
     validate_release_publication_transition,
     validate_release_publications,
+    validate_stable_source_currentness,
 )
 
 
@@ -48,10 +66,18 @@ RESULTS_CANDIDATE_ROOT = (
 RESULTS_CANDIDATE_NAME = "results.json"
 MAX_RESULTS_BYTES = 16 * 1024 * 1024
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class ReleaseReceiptFinalizerError(ValueError):
     """A full receipt or cross-domain results transition is invalid."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class CommittedResults:
+    manifest: dict[str, Any]
+    sha256: str
+    commit: str
 
 
 def _fail(message: str) -> Never:
@@ -99,8 +125,8 @@ def _owned_results_metadata(metadata: os.stat_result) -> None:
         raise EvidenceIOError("current results manifest metadata differs")
 
 
-def load_current_results(expected_sha256: str) -> tuple[dict[str, Any], str]:
-    """Load the fixed current results manifest under an exact startup pin."""
+def load_current_results(expected_sha256: str) -> CommittedResults:
+    """Load results only when the worktree and HEAD blob are byte-identical."""
 
     _require(
         isinstance(expected_sha256, str)
@@ -126,27 +152,50 @@ def load_current_results(expected_sha256: str) -> tuple[dict[str, Any], str]:
         snapshot.sha256 == expected_sha256,
         "current results manifest differs from its startup SHA-256 pin",
     )
+    try:
+        inspection = inspect_worktree(REPOSITORY_ROOT)
+        head_bytes = run_git_bytes(
+            REPOSITORY_ROOT,
+            ["show", f"{inspection.commit}:artifact/results.json"],
+        )
+    except GitProvenanceError as exc:
+        raise ReleaseReceiptFinalizerError(
+            "cannot establish committed results provenance"
+        ) from exc
+    _require(
+        not inspection.dirty,
+        "release results finalization requires a clean committed checkout",
+    )
+    _require(
+        head_bytes == snapshot.data,
+        "current results bytes differ from HEAD:artifact/results.json",
+    )
     manifest = _object(value, "current results manifest")
     try:
         validate_declared_currentness(manifest)
+        validate_stable_source_currentness(manifest)
         validate_release_publications(manifest)
     except (ProofManifestError, ReleasePublicationContractError) as exc:
         raise ReleaseReceiptFinalizerError(str(exc)) from exc
-    return manifest, snapshot.sha256
+    return CommittedResults(
+        manifest=manifest,
+        sha256=snapshot.sha256,
+        commit=inspection.commit,
+    )
 
 
 def _load_apple_receipt(path: pathlib.Path) -> dict[str, Any]:
     snapshot = read_fixed_json_snapshot(
         path,
         safe_root=(
-            apple_alpha3_publication.APPLE_PUBLICATION_RECEIPT_ROOT
+            apple_stable_publication.APPLE_PUBLICATION_RECEIPT_ROOT
         ),
         expected_leaf=(
-            apple_alpha3_publication.APPLE_PUBLICATION_RECEIPT_NAME
+            apple_stable_publication.APPLE_PUBLICATION_RECEIPT_NAME
         ),
-        label="Apple alpha.3 publication receipt input",
+        label="Apple 0.1.0 stable publication receipt input",
         parent_depth=1,
-        maximum=apple_alpha3_publication.MAX_REMOTE_RECEIPT_BYTES,
+        maximum=apple_stable_publication.MAX_REMOTE_RECEIPT_BYTES,
         file_mode=PRIVATE_FILE_MODE,
     )
     receipt = snapshot.value
@@ -154,7 +203,7 @@ def _load_apple_receipt(path: pathlib.Path) -> dict[str, Any]:
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -166,32 +215,86 @@ def _load_apple_receipt(path: pathlib.Path) -> dict[str, Any]:
 def _load_platform_receipt(path: pathlib.Path) -> dict[str, Any]:
     snapshot = read_fixed_json_snapshot(
         path,
-        safe_root=platform_alpha3_publication.PLATFORM_PUBLICATION_RECEIPT_ROOT,
-        expected_leaf=platform_alpha3_publication.RECEIPT_NAME,
-        label="platform alpha.3 publication receipt input",
+        safe_root=platform_stable_publication.PLATFORM_PUBLICATION_RECEIPT_ROOT,
+        expected_leaf=platform_stable_publication.RECEIPT_NAME,
+        label="platform 0.1.0 stable publication receipt input",
         parent_depth=1,
-        maximum=platform_alpha3_publication.MAX_PRIVATE_JSON_BYTES,
+        maximum=platform_stable_publication.MAX_PRIVATE_JSON_BYTES,
         file_mode=PRIVATE_FILE_MODE,
     )
     receipt = snapshot.value
     try:
-        platform_contract.validate_alpha3_publication_receipt(receipt)
-    except platform_contract.PlatformAlpha3PublicationContractError as exc:
+        platform_contract.validate_v0_1_0_publication_receipt(receipt)
+    except platform_contract.PlatformV010PublicationContractError as exc:
         raise ReleaseReceiptFinalizerError(str(exc)) from exc
     return receipt
+
+
+def _load_crates_receipt(path: pathlib.Path) -> dict[str, Any]:
+    snapshot = read_fixed_json_snapshot(
+        path,
+        safe_root=crates_io_publication.CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+        expected_leaf=crates_io_publication.CRATES_IO_PUBLICATION_RECEIPT_NAME,
+        label="crates.io 0.1.0 stable publication receipt input",
+        parent_depth=1,
+        maximum=crates_io_publication.MAX_RECEIPT_BYTES,
+        file_mode=PRIVATE_FILE_MODE,
+    )
+    receipt = snapshot.value
+    try:
+        crates_contract.validate_crates_io_publication_receipt(receipt)
+    except crates_contract.CratesIoPublicationContractError as exc:
+        raise ReleaseReceiptFinalizerError(str(exc)) from exc
+    _require(
+        receipt.get("status")
+        == crates_contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED,
+        "crates.io aggregate receipt is not fully published and verified",
+    )
+    return receipt
+
+
+def _verify_stable_source_git_binding(
+    manifest: dict[str, Any], *, current_commit: str
+) -> None:
+    identity = stable_source_identity(manifest)
+    if identity is None:
+        return
+    try:
+        require_direct_results_only_child(
+            REPOSITORY_ROOT,
+            identity.source_parent_commit,
+            identity.tag_commit,
+        )
+        require_results_only_descendant(
+            REPOSITORY_ROOT,
+            identity.tag_commit,
+            current_commit,
+        )
+        observed_tree = run_git_text(
+            REPOSITORY_ROOT,
+            ["rev-parse", "--verify", f"{identity.tag_commit}^{{tree}}"],
+        )
+    except GitProvenanceError as exc:
+        raise ReleaseReceiptFinalizerError(
+            "stable publication Git source binding is invalid"
+        ) from exc
+    _require(
+        observed_tree == identity.tag_tree,
+        "stable publication tag tree differs from Git",
+    )
 
 
 def _assert_only_allowed_mutations(
     previous: dict[str, Any],
     current: dict[str, Any],
     *,
-    apple_supplied: bool,
-    platform_supplied: bool,
+    previous_state: str,
+    current_state: str,
 ) -> None:
-    """Prove construction changed only provided leaves and the Apple selector."""
+    """Prove construction changed only the exact coordinated cohort fields."""
 
     allowed_top_level = {"release_publications"}
-    if apple_supplied:
+    if current_state == PUBLICATION_STATE_VERIFIED:
         allowed_top_level.add("swift_xcframework")
     _require(
         previous.keys() == current.keys(),
@@ -212,15 +315,12 @@ def _assert_only_allowed_mutations(
         current.get("release_publications"),
         "current release_publications",
     )
-    mutable_publication_keys: set[str] = set()
-    if apple_supplied:
-        mutable_publication_keys.add(
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-        )
-    if platform_supplied:
-        mutable_publication_keys.add(
-            platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-        )
+    mutable_publication_keys = {
+        apple_contract.APPLE_V0_1_0_PUBLICATION_KEY,
+        platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY,
+    }
+    if current_state == PUBLICATION_STATE_VERIFIED:
+        mutable_publication_keys.add(crates_contract.CRATES_IO_PUBLICATION_KEY)
     for key in set(previous_publications) | set(current_publications):
         if key not in mutable_publication_keys:
             _require(
@@ -232,7 +332,7 @@ def _assert_only_allowed_mutations(
                 f"results finalization changed unprovided publication {key!r}",
             )
 
-    if apple_supplied:
+    if current_state == PUBLICATION_STATE_VERIFIED:
         previous_swift = _object(
             previous.get("swift_xcframework"),
             "previous swift_xcframework",
@@ -246,11 +346,28 @@ def _assert_only_allowed_mutations(
             "Apple selector update changed swift_xcframework fields",
         )
         for key in previous_swift:
-            if key != "distribution":
+            if key not in {"active_publication_key", "distribution"}:
                 _require(
                     _json_equal(previous_swift[key], current_swift[key]),
                     f"Apple selector update changed forbidden swift field {key!r}",
                 )
+    else:
+        _require(
+            _json_equal(
+                previous.get("swift_xcframework"),
+                current.get("swift_xcframework"),
+            ),
+            "pending stable cohort changed the active Apple selector",
+        )
+    _require(
+        (previous_state, current_state)
+        in {
+            (PUBLICATION_STATE_SOURCE, PUBLICATION_STATE_PENDING),
+            (PUBLICATION_STATE_PENDING, PUBLICATION_STATE_VERIFIED),
+            (PUBLICATION_STATE_VERIFIED, PUBLICATION_STATE_VERIFIED),
+        },
+        "results finalization did not follow the coordinated cohort state machine",
+    )
 
 
 def assemble_next_results(
@@ -258,22 +375,36 @@ def assemble_next_results(
     *,
     apple_receipt_path: pathlib.Path | None,
     platform_receipt_path: pathlib.Path | None,
-) -> tuple[dict[str, Any], str]:
-    """Apply one or two complete domain leaves to the pinned current results."""
+    crates_receipt_path: pathlib.Path | None,
+) -> tuple[dict[str, Any], CommittedResults]:
+    """Apply exactly the next complete stable cohort to committed results."""
 
-    _require(
-        apple_receipt_path is not None or platform_receipt_path is not None,
-        "results finalization requires at least one full domain receipt",
-    )
-    previous, previous_sha256 = load_current_results(expected_results_sha256)
-    apple_receipt = (
-        _load_apple_receipt(apple_receipt_path)
-        if apple_receipt_path is not None
-        else None
-    )
-    platform_receipt = (
-        _load_platform_receipt(platform_receipt_path)
-        if platform_receipt_path is not None
+    committed = load_current_results(expected_results_sha256)
+    previous = committed.manifest
+    previous_state = publication_state(previous)
+    if previous_state == PUBLICATION_STATE_SOURCE:
+        if (
+            apple_receipt_path is None
+            or platform_receipt_path is None
+            or crates_receipt_path is not None
+        ):
+            _fail(
+                "pending finalization requires exactly Apple and platform receipts"
+            )
+    else:
+        if (
+            apple_receipt_path is None
+            or platform_receipt_path is None
+            or crates_receipt_path is None
+        ):
+            _fail(
+                "verified finalization requires Apple, platform, and crates.io receipts"
+            )
+    apple_receipt = _load_apple_receipt(apple_receipt_path)
+    platform_receipt = _load_platform_receipt(platform_receipt_path)
+    crates_receipt = (
+        _load_crates_receipt(crates_receipt_path)
+        if crates_receipt_path is not None
         else None
     )
     current = copy.deepcopy(previous)
@@ -281,30 +412,40 @@ def assemble_next_results(
         current.get("release_publications"),
         "release_publications",
     )
-    if apple_receipt is not None:
-        publications[apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY] = copy.deepcopy(
-            apple_receipt
-        )
-        swift = _object(current.get("swift_xcframework"), "swift_xcframework")
-        swift["distribution"] = copy.deepcopy(apple_receipt["distribution"])
-    if platform_receipt is not None:
-        publications[platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY] = copy.deepcopy(
-            platform_receipt
-        )
-
-    _assert_only_allowed_mutations(
-        previous,
-        current,
-        apple_supplied=apple_receipt is not None,
-        platform_supplied=platform_receipt is not None,
+    publications[apple_contract.APPLE_V0_1_0_PUBLICATION_KEY] = copy.deepcopy(
+        apple_receipt
     )
+    publications[platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY] = copy.deepcopy(
+        platform_receipt
+    )
+    if crates_receipt is not None:
+        publications[crates_contract.CRATES_IO_PUBLICATION_KEY] = copy.deepcopy(
+            crates_receipt
+        )
+    if previous_state == PUBLICATION_STATE_PENDING:
+        swift = _object(current.get("swift_xcframework"), "swift_xcframework")
+        swift["active_publication_key"] = (
+            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+        )
+        swift["distribution"] = copy.deepcopy(apple_receipt["distribution"])
     try:
         validate_declared_currentness(current)
         validate_release_publications(current)
         validate_release_publication_transition(previous, current)
     except (ProofManifestError, ReleasePublicationContractError) as exc:
         raise ReleaseReceiptFinalizerError(str(exc)) from exc
-    return current, previous_sha256
+    current_state = publication_state(current)
+    _assert_only_allowed_mutations(
+        previous,
+        current,
+        previous_state=previous_state,
+        current_state=current_state,
+    )
+    _verify_stable_source_git_binding(
+        current,
+        current_commit=committed.commit,
+    )
+    return current, committed
 
 
 def finalize_results(
@@ -312,20 +453,21 @@ def finalize_results(
     *,
     apple_receipt_path: pathlib.Path | None,
     platform_receipt_path: pathlib.Path | None,
-) -> tuple[pathlib.Path, str]:
+    crates_receipt_path: pathlib.Path | None,
+) -> tuple[pathlib.Path, str, str, str]:
     """Publish one changed complete results candidate without replacement."""
 
-    current, _previous_sha256 = assemble_next_results(
+    current, previous = assemble_next_results(
         expected_results_sha256,
         apple_receipt_path=apple_receipt_path,
         platform_receipt_path=platform_receipt_path,
+        crates_receipt_path=crates_receipt_path,
     )
-    previous, _ = load_current_results(expected_results_sha256)
     _require(
-        not _json_equal(previous, current),
+        not _json_equal(previous.manifest, current),
         "provided receipts already match current results; use read-only verify",
     )
-    return create_private_transaction_json(
+    path, digest = create_private_transaction_json(
         safe_root=RESULTS_CANDIDATE_ROOT,
         transaction_prefix="transaction.",
         expected_leaf=RESULTS_CANDIDATE_NAME,
@@ -333,6 +475,7 @@ def finalize_results(
         label="release publication results candidate",
         maximum=MAX_RESULTS_BYTES,
     )
+    return path, digest, previous.commit, previous.sha256
 
 
 def verify_existing_receipts(
@@ -340,20 +483,133 @@ def verify_existing_receipts(
     *,
     apple_receipt_path: pathlib.Path | None,
     platform_receipt_path: pathlib.Path | None,
+    crates_receipt_path: pathlib.Path | None,
 ) -> str:
     """Read-only confirm that provided leaves are already selected exactly."""
 
-    assembled, previous_sha256 = assemble_next_results(
-        expected_results_sha256,
-        apple_receipt_path=apple_receipt_path,
-        platform_receipt_path=platform_receipt_path,
-    )
-    previous, _ = load_current_results(expected_results_sha256)
+    committed = load_current_results(expected_results_sha256)
+    current = committed.manifest
+    state = publication_state(current)
     _require(
-        _json_equal(previous, assembled),
-        "provided receipts would advance current results; use finalize",
+        state in {PUBLICATION_STATE_PENDING, PUBLICATION_STATE_VERIFIED},
+        "current results contains no stable publication cohort",
     )
-    return previous_sha256
+    _require(
+        apple_receipt_path is not None and platform_receipt_path is not None,
+        "stable cohort verification requires Apple and platform receipts",
+    )
+    apple_receipt = _load_apple_receipt(apple_receipt_path)
+    platform_receipt = _load_platform_receipt(platform_receipt_path)
+    publications = _object(current.get("release_publications"), "release_publications")
+    _require(
+        _json_equal(
+            publications.get(apple_contract.APPLE_V0_1_0_PUBLICATION_KEY),
+            apple_receipt,
+        )
+        and _json_equal(
+            publications.get(platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY),
+            platform_receipt,
+        ),
+        "provided domain receipts differ from current results",
+    )
+    if state == PUBLICATION_STATE_VERIFIED:
+        _require(
+            crates_receipt_path is not None,
+            "verified cohort verification requires the crates.io receipt",
+        )
+        crates_receipt = _load_crates_receipt(crates_receipt_path)
+        _require(
+            _json_equal(
+                publications.get(crates_contract.CRATES_IO_PUBLICATION_KEY),
+                crates_receipt,
+            ),
+            "provided crates.io receipt differs from current results",
+        )
+    else:
+        _require(
+            crates_receipt_path is None,
+            "pending cohort cannot be verified with a crates.io receipt",
+        )
+    _verify_stable_source_git_binding(current, current_commit=committed.commit)
+    return committed.sha256
+
+
+def _load_results_at_commit(
+    commit: str,
+    *,
+    expected_sha256: str,
+    label: str,
+) -> dict[str, Any]:
+    _require(COMMIT_RE.fullmatch(commit) is not None, f"{label} commit is malformed")
+    _require(
+        HEX_64.fullmatch(expected_sha256) is not None,
+        f"{label} SHA-256 is malformed",
+    )
+    try:
+        data = run_git_bytes(
+            REPOSITORY_ROOT,
+            ["show", f"{commit}:artifact/results.json"],
+        )
+        value = parse_strict_json_bytes(data, label=label)
+    except (GitProvenanceError, EvidenceIOError) as exc:
+        raise ReleaseReceiptFinalizerError(f"cannot load {label}") from exc
+    _require(0 < len(data) <= MAX_RESULTS_BYTES, f"{label} size is outside bounds")
+    _require(
+        hashlib.sha256(data).hexdigest() == expected_sha256,
+        f"{label} differs from its expected SHA-256",
+    )
+    manifest = _object(value, label)
+    try:
+        validate_declared_currentness(manifest)
+        validate_release_publications(manifest)
+    except (ProofManifestError, ReleasePublicationContractError) as exc:
+        raise ReleaseReceiptFinalizerError(f"{label} is not current") from exc
+    return manifest
+
+
+def verify_installed_results(
+    expected_results_sha256: str,
+    *,
+    expected_parent_commit: str,
+    expected_parent_results_sha256: str,
+) -> tuple[str, str]:
+    """Verify one committed results-only cohort transition after installation."""
+
+    current = load_current_results(expected_results_sha256)
+    try:
+        require_direct_results_only_child(
+            REPOSITORY_ROOT,
+            expected_parent_commit,
+            current.commit,
+        )
+    except GitProvenanceError as exc:
+        raise ReleaseReceiptFinalizerError(
+            "installed publication results commit is not the direct results-only child"
+        ) from exc
+    previous = _load_results_at_commit(
+        expected_parent_commit,
+        expected_sha256=expected_parent_results_sha256,
+        label="parent publication results",
+    )
+    try:
+        validate_release_publication_transition(previous, current.manifest)
+    except ReleasePublicationContractError as exc:
+        raise ReleaseReceiptFinalizerError(
+            "installed publication transition is invalid"
+        ) from exc
+    previous_state = publication_state(previous)
+    current_state = publication_state(current.manifest)
+    _assert_only_allowed_mutations(
+        previous,
+        current.manifest,
+        previous_state=previous_state,
+        current_state=current_state,
+    )
+    _verify_stable_source_git_binding(
+        current.manifest,
+        current_commit=current.commit,
+    )
+    return current.commit, current_state
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -364,6 +620,11 @@ def _parser() -> argparse.ArgumentParser:
         subparser.add_argument("expected_results_sha256")
         subparser.add_argument("--apple-receipt", type=pathlib.Path)
         subparser.add_argument("--platform-receipt", type=pathlib.Path)
+        subparser.add_argument("--crates-receipt", type=pathlib.Path)
+    installed = subparsers.add_parser("verify-installed")
+    installed.add_argument("expected_results_sha256")
+    installed.add_argument("expected_parent_commit")
+    installed.add_argument("expected_parent_results_sha256")
     return parser
 
 
@@ -377,22 +638,38 @@ def _relative_output(path: pathlib.Path) -> str:
 
 
 def run(args: argparse.Namespace) -> None:
+    if args.command == "verify-installed":
+        commit, state = verify_installed_results(
+            args.expected_results_sha256,
+            expected_parent_commit=args.expected_parent_commit,
+            expected_parent_results_sha256=(
+                args.expected_parent_results_sha256
+            ),
+        )
+        print(
+            "RELEASE_PUBLICATION_RESULTS_INSTALLED_VERIFY_PASS "
+            f"commit={commit} state={state}"
+        )
+        return
     if args.command == "verify":
         digest = verify_existing_receipts(
             args.expected_results_sha256,
             apple_receipt_path=args.apple_receipt,
             platform_receipt_path=args.platform_receipt,
+            crates_receipt_path=args.crates_receipt,
         )
         print(f"RELEASE_PUBLICATION_RESULTS_VERIFY_PASS sha256={digest}")
         return
-    path, digest = finalize_results(
+    path, digest, parent_commit, parent_sha256 = finalize_results(
         args.expected_results_sha256,
         apple_receipt_path=args.apple_receipt,
         platform_receipt_path=args.platform_receipt,
+        crates_receipt_path=args.crates_receipt,
     )
     print(
         "RELEASE_PUBLICATION_RESULTS_CANDIDATE_PASS "
-        f"path={_relative_output(path)} sha256={digest}"
+        f"path={_relative_output(path)} sha256={digest} "
+        f"parent_commit={parent_commit} parent_sha256={parent_sha256}"
     )
 
 

@@ -29,6 +29,7 @@ from unittest import mock
 
 import android_device_proof
 import android_emulator_control
+import proof_to_byte_inputs
 from process_identity import ProcessExecutionSnapshot, ProcessIdentity
 
 # Independent immutable r2 fixture contract.  These literals intentionally do
@@ -325,11 +326,11 @@ def current_results_for_proof(
     else:
         raise ValueError(f"unsupported fixture results binding: {results_binding}")
     proof["paths"]["aar"] = proof_manifest_aar_path = (
-        "target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/"
-        "q-periapt-android-0.1.0-alpha.3.aar"
+        "target/qperiapt-android-aar/q-periapt-android-0.1.0/"
+        "q-periapt-android-0.1.0.aar"
     )
     proof["paths"]["aar_manifest"] = proof_manifest_path = (
-        "target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.3/MANIFEST.json"
+        "target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json"
     )
     run_id = proof["run_id"]
     source_digest = proof["proof_source_tree_sha256"]
@@ -3240,7 +3241,6 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
         verifier = (artifact / "android_device_proof.py").read_text(encoding="utf-8")
         control = (artifact / "android_emulator_control.py").read_text(encoding="utf-8")
         process = (artifact / "process_identity.py").read_text(encoding="utf-8")
-        proof_to_byte = (artifact / "proof-to-byte.sh").read_text(encoding="utf-8")
         self.assertNotIn("from android_device_proof import", bounded)
         self.assertIn("import android_runtime_state as runtime_state", bounded)
         self.assertIn("from android_emulator_control import", bounded)
@@ -3273,22 +3273,26 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
             android_device_proof.SOURCE_INPUTS["android_runtime_state_tests"],
             "artifact/test_android_runtime_state.py",
         )
-        self.assertIn(
-            '"android_emulator_control_sha256": "artifact/android_emulator_control.py"',
-            proof_to_byte,
-        )
-        self.assertIn(
-            '"process_identity_sha256": "artifact/process_identity.py"',
-            proof_to_byte,
-        )
-        self.assertIn(
-            '"android_runtime_state_sha256": "artifact/android_runtime_state.py"',
-            proof_to_byte,
-        )
-        self.assertIn(
-            '"android_runtime_state_tests_sha256": '
-            '"artifact/test_android_runtime_state.py"',
-            proof_to_byte,
+        self.assertEqual(
+            {
+                key: proof_to_byte_inputs.PROOF_TO_BYTE_INPUT_PATHS.get(key)
+                for key in (
+                    "android_emulator_control_sha256",
+                    "process_identity_sha256",
+                    "android_runtime_state_sha256",
+                    "android_runtime_state_tests_sha256",
+                )
+            },
+            {
+                "android_emulator_control_sha256": (
+                    "artifact/android_emulator_control.py"
+                ),
+                "process_identity_sha256": "artifact/process_identity.py",
+                "android_runtime_state_sha256": "artifact/android_runtime_state.py",
+                "android_runtime_state_tests_sha256": (
+                    "artifact/test_android_runtime_state.py"
+                ),
+            },
         )
 
     def test_producer_runs_independent_verifier_before_pass_marker(self) -> None:

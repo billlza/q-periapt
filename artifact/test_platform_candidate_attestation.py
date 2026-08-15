@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import hashlib
 import io
 import json
@@ -22,13 +23,24 @@ from platform_candidate_attestation import (
 )
 from platform_distribution_contract import (
     CANDIDATE_SUMS,
+    CODEQL_JOB_CONTRACT,
+    CODEQL_WORKFLOW_NAME,
+    CODEQL_WORKFLOW_PATH,
+    CONSTANT_TIME_JOB_CONTRACT,
+    CI_WORKFLOW_NAME,
+    CI_WORKFLOW_PATH,
     PLATFORM_CANDIDATE_ASSETS,
     PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS,
     RELEASE_TAG,
+    SOURCE_SECURITY_GATE,
+    validate_source_security_gate,
 )
 
 
 class PlatformCandidateAttestationTests(unittest.TestCase):
+    TAG_COMMIT = "a" * 40
+    SOURCE_PARENT = "b" * 40
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -65,6 +77,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             ),
             encoding="ascii",
         )
+        (candidate / SOURCE_SECURITY_GATE).write_text("{}\n", encoding="ascii")
         return candidate
 
     def _private_output_paths(self, name: str) -> tuple[pathlib.Path, pathlib.Path]:
@@ -80,9 +93,9 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         )
 
     def test_current_contract_is_the_exact_six_subject_tuple(self) -> None:
-        self.assertEqual(5, len(PLATFORM_CANDIDATE_ASSETS))
+        self.assertEqual(4, len(PLATFORM_CANDIDATE_ASSETS))
         self.assertEqual(
-            (*PLATFORM_CANDIDATE_ASSETS, CANDIDATE_SUMS),
+            (*PLATFORM_CANDIDATE_ASSETS, CANDIDATE_SUMS, SOURCE_SECURITY_GATE),
             PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS,
         )
         self.assertEqual(6, len(set(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS)))
@@ -101,6 +114,512 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             status = candidate_attestation._main(["release-tag"])
         self.assertEqual(0, status)
         self.assertEqual(f"{RELEASE_TAG}\n", output.getvalue())
+
+    def _workflow_run(
+        self,
+        run_id: int,
+        *,
+        name: str,
+        path: str,
+        attempt: int = 1,
+    ) -> dict[str, object]:
+        return {
+            "conclusion": "success",
+            "event": "push",
+            "head_branch": "main",
+            "head_sha": self.TAG_COMMIT,
+            "html_url": "https://example.invalid/private-run",
+            "id": run_id,
+            "name": name,
+            "path": path,
+            "run_attempt": attempt,
+            "runner_hint": "/Users/operator/runner",
+            "status": "completed",
+        }
+
+    @staticmethod
+    def _jobs(
+        run_id: int,
+        attempt: int,
+        names: list[str],
+        *,
+        first_id: int,
+    ) -> dict[str, object]:
+        jobs = [
+            {
+                "conclusion": "success",
+                "html_url": "https://example.invalid/private-job",
+                "id": first_id + index,
+                "name": name,
+                "run_attempt": attempt,
+                "run_id": run_id,
+                "runner_name": "/Users/operator/runner",
+                "status": "completed",
+            }
+            for index, name in enumerate(names)
+        ]
+        return {"jobs": jobs, "total_count": len(jobs)}
+
+    def _security_gate_inputs(self) -> tuple[object, object, object, object]:
+        ci_runs = {
+            "total_count": 2,
+            "workflow_runs": [
+                self._workflow_run(
+                    10,
+                    name=CI_WORKFLOW_NAME,
+                    path=CI_WORKFLOW_PATH,
+                ),
+                self._workflow_run(
+                    20,
+                    name=CI_WORKFLOW_NAME,
+                    path=CI_WORKFLOW_PATH,
+                    attempt=2,
+                ),
+            ],
+        }
+        ci_names = [name for _architecture, _implementation, name in CONSTANT_TIME_JOB_CONTRACT]
+        ci_jobs = self._jobs(20, 2, [*ci_names, "Unrelated successful CI job"], first_id=100)
+        codeql_runs = {
+            "total_count": 1,
+            "workflow_runs": [
+                self._workflow_run(
+                    30,
+                    name=CODEQL_WORKFLOW_NAME,
+                    path=CODEQL_WORKFLOW_PATH,
+                    attempt=3,
+                )
+            ],
+        }
+        codeql_jobs = self._jobs(
+            30,
+            3,
+            [name for _language, name in CODEQL_JOB_CONTRACT],
+            first_id=200,
+        )
+        return ci_runs, ci_jobs, codeql_runs, codeql_jobs
+
+    def test_security_gate_selects_highest_exact_runs_and_sanitizes_projection(
+        self,
+    ) -> None:
+        gate = candidate_attestation.build_source_security_gate(
+            *self._security_gate_inputs(),
+            expected_tag_commit=self.TAG_COMMIT,
+            expected_source_parent_commit=self.SOURCE_PARENT,
+            ci_workflow_sha256="c" * 64,
+            codeql_workflow_sha256="d" * 64,
+            github_cli_sha256="e" * 64,
+            github_cli_version="gh version 2.94.0 (2026-08-01)",
+        )
+
+        validate_source_security_gate(
+            gate,
+            expected_tag_commit=self.TAG_COMMIT,
+            expected_source_parent_commit=self.SOURCE_PARENT,
+            expected_ci_workflow_sha256="c" * 64,
+            expected_codeql_workflow_sha256="d" * 64,
+        )
+        self.assertEqual(20, gate["workflows"]["ci"]["run_id"])
+        self.assertEqual(2, gate["workflows"]["ci"]["run_attempt"])
+        self.assertEqual(30, gate["workflows"]["codeql"]["run_id"])
+        self.assertEqual(6, len(gate["workflows"]["codeql"]["jobs"]))
+        serialized = json.dumps(gate, sort_keys=True)
+        for forbidden in ("api.github.com", "html_url", "runner_name", "/Users/"):
+            self.assertNotIn(forbidden, serialized)
+
+    def test_security_gate_rejects_missing_failed_ambiguous_or_partial_jobs(self) -> None:
+        for mutation in (
+            "failed-ct",
+            "missing-codeql",
+            "duplicate-codeql",
+            "partial-page",
+            "oversized-run-id",
+            "boolean-job-id",
+            "later-ci-failed-run",
+            "later-ci-in-progress-run",
+            "later-codeql-failed-run",
+            "later-codeql-in-progress-run",
+        ):
+            with self.subTest(mutation=mutation):
+                ci_runs, ci_jobs, codeql_runs, codeql_jobs = copy.deepcopy(
+                    self._security_gate_inputs()
+                )
+                if mutation == "failed-ct":
+                    ci_jobs["jobs"][0]["conclusion"] = "failure"
+                elif mutation == "missing-codeql":
+                    codeql_jobs["jobs"].pop()
+                    codeql_jobs["total_count"] -= 1
+                elif mutation == "duplicate-codeql":
+                    codeql_jobs["jobs"][1]["name"] = codeql_jobs["jobs"][0]["name"]
+                elif mutation == "partial-page":
+                    codeql_jobs["total_count"] += 1
+                elif mutation == "oversized-run-id":
+                    codeql_runs["workflow_runs"][0]["id"] = (
+                        candidate_attestation.MAX_RUN_ID + 1
+                    )
+                elif mutation == "boolean-job-id":
+                    ci_jobs["jobs"][0]["id"] = True
+                elif mutation.startswith("later-ci-"):
+                    later = self._workflow_run(
+                        21,
+                        name=CI_WORKFLOW_NAME,
+                        path=CI_WORKFLOW_PATH,
+                    )
+                    if mutation == "later-ci-failed-run":
+                        later["conclusion"] = "failure"
+                    else:
+                        later["status"] = "in_progress"
+                        later["conclusion"] = None
+                    ci_runs["workflow_runs"].append(later)
+                    ci_runs["total_count"] += 1
+                else:
+                    later = self._workflow_run(
+                        31,
+                        name=CODEQL_WORKFLOW_NAME,
+                        path=CODEQL_WORKFLOW_PATH,
+                    )
+                    if mutation == "later-codeql-failed-run":
+                        later["conclusion"] = "failure"
+                    else:
+                        later["status"] = "in_progress"
+                        later["conclusion"] = None
+                    codeql_runs["workflow_runs"].append(later)
+                    codeql_runs["total_count"] += 1
+                with self.assertRaises(CandidateAttestationError):
+                    candidate_attestation.build_source_security_gate(
+                        ci_runs,
+                        ci_jobs,
+                        codeql_runs,
+                        codeql_jobs,
+                        expected_tag_commit=self.TAG_COMMIT,
+                        expected_source_parent_commit=self.SOURCE_PARENT,
+                        ci_workflow_sha256="c" * 64,
+                        codeql_workflow_sha256="d" * 64,
+                        github_cli_sha256="e" * 64,
+                        github_cli_version="gh version 2.94.0 (2026-08-01)",
+                    )
+
+    def test_live_security_gate_uses_one_resampled_hosted_cli_projection(
+        self,
+    ) -> None:
+        ci_runs, ci_jobs, codeql_runs, codeql_jobs = self._security_gate_inputs()
+        tool = candidate_attestation.WorkflowToolIdentity(
+            path="/usr/bin/gh",
+            device=1,
+            inode=2,
+            mode=stat.S_IFREG | 0o755,
+            uid=0,
+            link_count=1,
+            size=10,
+            sha256="e" * 64,
+        )
+        responses = [
+            b"gh version 2.94.0 (2026-08-01)\n",
+            json.dumps(ci_runs).encode("ascii"),
+            json.dumps(codeql_runs).encode("ascii"),
+            json.dumps(ci_jobs).encode("ascii"),
+            json.dumps(codeql_jobs).encode("ascii"),
+        ]
+        capture = mock.Mock(side_effect=responses)
+        output = self.root / SOURCE_SECURITY_GATE
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_source_parent_from_results",
+                return_value=self.SOURCE_PARENT,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_workflow_github_environment",
+                return_value={"GH_TOKEN": "fixture-token"},
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_workflow_github_cli_identity",
+                return_value=tool,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_capture_workflow_github_cli",
+                capture,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_workflow_sha256",
+                side_effect=("c" * 64, "d" * 64),
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_write_public_gate_noreplace",
+                return_value="f" * 64,
+            ) as writer,
+        ):
+            digest = candidate_attestation.assemble_live_source_security_gate(
+                self.TAG_COMMIT,
+                self.SOURCE_PARENT,
+                output,
+                source_environment={"GH_TOKEN": "fixture-token"},
+            )
+
+        self.assertEqual("f" * 64, digest)
+        self.assertEqual(5, capture.call_count)
+        for api_call in capture.call_args_list[1:]:
+            arguments = api_call.args[1]
+            self.assertEqual("api", arguments[0])
+            self.assertIn("Accept: application/vnd.github+json", arguments)
+            self.assertIn(
+                "X-GitHub-Api-Version: "
+                f"{candidate_attestation.github_release.GITHUB_API_VERSION}",
+                arguments,
+            )
+        self.assertIn("actions/workflows/ci.yml/runs?", capture.call_args_list[1].args[1][-1])
+        self.assertIn("actions/workflows/codeql.yml/runs?", capture.call_args_list[2].args[1][-1])
+        self.assertIn("/runs/20/attempts/2/jobs?", capture.call_args_list[3].args[1][-1])
+        self.assertIn("/runs/30/attempts/3/jobs?", capture.call_args_list[4].args[1][-1])
+        gate = writer.call_args.args[1]
+        self.assertEqual("e" * 64, gate["observation_tools"]["github_cli"]["sha256"])
+        self.assertEqual(20, gate["workflows"]["ci"]["run_id"])
+
+    def test_pretag_security_readiness_double_samples_exact_runs(self) -> None:
+        ci_runs, ci_jobs, codeql_runs, codeql_jobs = self._security_gate_inputs()
+        tool = candidate_attestation.github_release.GitHubCliIdentity(
+            path="/pinned/gh",
+            device=1,
+            inode=2,
+            mode=stat.S_IFREG | 0o755,
+            uid=os.geteuid(),
+            link_count=1,
+            size=10,
+            sha256="e" * 64,
+        )
+        sample = [ci_runs, codeql_runs, ci_jobs, codeql_jobs]
+        responses = [
+            json.dumps(value).encode("ascii")
+            for value in (*sample, *copy.deepcopy(sample))
+        ]
+        capture = mock.Mock(side_effect=responses)
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_source_parent_from_results",
+                return_value=self.SOURCE_PARENT,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "validate_tag_source_currentness",
+            ) as currentness,
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "github_cli_environment",
+                return_value={"GH_TOKEN": "fixture-token"},
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "select_github_cli",
+                return_value=tool,
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "capture_github_cli",
+                capture,
+            ),
+        ):
+            observed = candidate_attestation.verify_pretag_security_readiness(
+                self.TAG_COMMIT,
+                self.SOURCE_PARENT,
+                source_environment={"GH_TOKEN": "fixture-token"},
+            )
+
+        self.assertEqual((20, 2, 30, 3, "e" * 64), observed)
+        self.assertEqual(8, capture.call_count)
+        for api_call in capture.call_args_list:
+            arguments = api_call.args[1]
+            self.assertEqual("api", arguments[0])
+            self.assertIn("Accept: application/vnd.github+json", arguments)
+            self.assertIn(
+                "X-GitHub-Api-Version: "
+                f"{candidate_attestation.github_release.GITHUB_API_VERSION}",
+                arguments,
+            )
+        currentness.assert_called_once_with(self.SOURCE_PARENT)
+
+    def test_pretag_security_readiness_rejects_second_sample_drift(self) -> None:
+        ci_runs, ci_jobs, codeql_runs, codeql_jobs = self._security_gate_inputs()
+        changed_ci = copy.deepcopy(ci_runs)
+        changed_ci["workflow_runs"][0]["updated_at"] = "2026-08-15T00:00:00Z"
+        responses = [
+            json.dumps(value).encode("ascii")
+            for value in (
+                ci_runs,
+                codeql_runs,
+                ci_jobs,
+                codeql_jobs,
+                changed_ci,
+                codeql_runs,
+                ci_jobs,
+                codeql_jobs,
+            )
+        ]
+        tool = candidate_attestation.github_release.GitHubCliIdentity(
+            path="/pinned/gh",
+            device=1,
+            inode=2,
+            mode=stat.S_IFREG | 0o755,
+            uid=os.geteuid(),
+            link_count=1,
+            size=10,
+            sha256="e" * 64,
+        )
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_source_parent_from_results",
+                return_value=self.SOURCE_PARENT,
+            ),
+            mock.patch.object(candidate_attestation, "validate_tag_source_currentness"),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "github_cli_environment",
+                return_value={"GH_TOKEN": "fixture-token"},
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "select_github_cli",
+                return_value=tool,
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "capture_github_cli",
+                side_effect=responses,
+            ),
+            self.assertRaises(CandidateAttestationError),
+        ):
+            candidate_attestation.verify_pretag_security_readiness(
+                self.TAG_COMMIT,
+                self.SOURCE_PARENT,
+                source_environment={"GH_TOKEN": "fixture-token"},
+            )
+
+    def test_security_gate_writer_is_public_exclusive_and_deterministic(
+        self,
+    ) -> None:
+        gate = candidate_attestation.build_source_security_gate(
+            *self._security_gate_inputs(),
+            expected_tag_commit=self.TAG_COMMIT,
+            expected_source_parent_commit=self.SOURCE_PARENT,
+            ci_workflow_sha256="c" * 64,
+            codeql_workflow_sha256="d" * 64,
+            github_cli_sha256="e" * 64,
+            github_cli_version="gh version 2.94.0 (2026-08-01)",
+        )
+        output_parent = self.root / "workflow-candidate"
+        output_parent.mkdir(mode=0o700)
+        output = output_parent / SOURCE_SECURITY_GATE
+        with mock.patch.object(
+            candidate_attestation,
+            "WORKFLOW_CANDIDATE_ROOT",
+            output_parent,
+        ):
+            digest = candidate_attestation._write_public_gate_noreplace(
+                output,
+                gate,
+            )
+            self.assertEqual(
+                hashlib.sha256(output.read_bytes()).hexdigest(),
+                digest,
+            )
+            self.assertEqual(0o600, stat.S_IMODE(output.stat().st_mode))
+            with self.assertRaises(CandidateAttestationError):
+                candidate_attestation._write_public_gate_noreplace(output, gate)
+            committed = candidate_attestation.PublicationReceiptCommittedError(
+                "fixture committed gate",
+                leaf=SOURCE_SECURITY_GATE,
+                digest="f" * 64,
+            )
+            with (
+                mock.patch.object(
+                    candidate_attestation,
+                    "write_private_bytes_noreplace_at",
+                    side_effect=committed,
+                ),
+                self.assertRaises(
+                    candidate_attestation.PublicationReceiptCommittedError
+                ) as caught,
+            ):
+                candidate_attestation._write_public_gate_noreplace(output, gate)
+            self.assertIs(committed, caught.exception)
+
+    def test_release_checkout_binding_uses_fixed_git_and_exact_results_child(
+        self,
+    ) -> None:
+        invocations: list[tuple[list[str], dict[str, object]]] = []
+
+        def capture(arguments: list[str], **kwargs: object) -> mock.Mock:
+            invocations.append((arguments, kwargs))
+            command = " ".join(arguments)
+            if "cat-file -t" in command:
+                payload = b"tag\n"
+            elif "rev-parse --verify" in command:
+                payload = f"{self.TAG_COMMIT}\n".encode("ascii")
+            elif "rev-list --parents" in command:
+                payload = (
+                    f"{self.TAG_COMMIT} {self.SOURCE_PARENT}\n".encode("ascii")
+                )
+            elif "diff --name-only" in command:
+                payload = b"artifact/results.json\n"
+            elif "status --porcelain=v1" in command:
+                payload = b""
+            elif "show -s --format=%ct" in command:
+                payload = b"1786700000\n"
+            else:
+                self.fail(f"unexpected Git fixture command: {command}")
+            return mock.Mock(returncode=0, stdout=payload)
+
+        with mock.patch.object(candidate_attestation, "capture_stdout", capture):
+            source_epoch = candidate_attestation.verify_candidate_checkout(
+                self.TAG_COMMIT,
+                expected_source_parent=self.SOURCE_PARENT,
+                source_environment={},
+            )
+
+        self.assertEqual("1786700000", source_epoch)
+        self.assertEqual(8, len(invocations))
+        for arguments, kwargs in invocations:
+            self.assertEqual(candidate_attestation.GIT, arguments[0])
+            self.assertIn("core.fsmonitor=false", arguments)
+            self.assertIn("core.hooksPath=/dev/null", arguments)
+            self.assertEqual(
+                candidate_attestation.github_release.git_observation_environment(),
+                kwargs["environment"],
+            )
+        self.assertTrue(
+            any("--untracked-files=all" in arguments for arguments, _ in invocations)
+        )
+
+    def test_release_checkout_binding_rejects_non_results_child(self) -> None:
+        def capture(arguments: list[str], **_kwargs: object) -> mock.Mock:
+            command = " ".join(arguments)
+            if "cat-file -t" in command:
+                payload = b"tag\n"
+            elif "rev-parse --verify" in command:
+                payload = f"{self.TAG_COMMIT}\n".encode("ascii")
+            elif "rev-list --parents" in command:
+                payload = f"{self.TAG_COMMIT} {'c' * 40}\n".encode("ascii")
+            else:
+                self.fail(f"unexpected Git fixture command: {command}")
+            return mock.Mock(returncode=0, stdout=payload)
+
+        with (
+            mock.patch.object(candidate_attestation, "capture_stdout", capture),
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "not the direct results-only child",
+            ),
+        ):
+            candidate_attestation.verify_candidate_checkout(
+                self.TAG_COMMIT,
+                expected_source_parent=self.SOURCE_PARENT,
+                source_environment={},
+            )
 
     def test_snapshot_uses_contract_order_and_exact_bytes(self) -> None:
         candidate = self._candidate("valid-candidate")

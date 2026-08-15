@@ -20,7 +20,7 @@
 
 Q-Periapt does **not** implement any cryptographic primitive. ML-KEM, ML-DSA,
 SHA3/SHAKE, X25519, and optional SLH-DSA come from pinned third-party backends
-(portable `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204`
+(target-selected `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204`
 0.4.6, `sha3` 0.10.9, x25519-dalek, and fips205),
 each with a distinct conformance/audit/constant-time
 boundary. The former timing-leaky, unmaintained PQClean-HQC adapter has been removed
@@ -33,10 +33,22 @@ entire security-critical surface that Q-Periapt itself owns; it is deliberately
 tiny, `no_std`, `deny(unsafe_code)` (with the one documented `Secret::drop` wipe),
 and primitive-agnostic so it can be audited in isolation.
 
-This is part of the release-ready ABI 2 **research alpha, not a production release**:
+This is part of the pre-publication package-ready `0.1.0` stable-version ABI 2
+source/crate contract, **not a production-readiness claim**:
 there is no third-party cryptographic
 or ABI audit, and the backend integrations are pre-1.0 / unaudited for this suite.
 Do not deploy.
+
+ML-KEM backend selection is below this byte contract. Exactly the little-endian
+targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
+`aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
+`aarch64-linux-android` use upstream native arithmetic plus fixed Armv8-A scalar
+x1 and scalar/Neon x4 FIPS 202 assembly; every other target, including Wasm, uses
+portable C. There is no runtime dispatch or Armv8.4-A SHA3 path. The selection
+does not change ABI 2, ML-KEM key/ciphertext encodings, or any combiner input/output
+byte defined below. Upstream HOL-Light evidence is limited to selected upstream
+assembly source/object routines and is not a proof of downstream reassembly, the
+Rust/C integration, or the full ABI.
 
 This specification is also **not a session protocol**. It does not define identities,
 prekeys, offline initiation, AEAD messages, ratchets, persistence, multi-device
@@ -174,8 +186,8 @@ For each vector it reconstructs X-Wing's own key expansion
 [`crates/q-periapt-backends/src/xwing_kat.rs`](../crates/q-periapt-backends/src/xwing_kat.rs)).
 
 Because the public-key, ciphertext and shared-secret assertions all pass against
-the published vectors, the test also exercises the release-graph portable
-`mlkem-native` ML-KEM-768 backend.
+the published vectors, the test also exercises the target-selected release-graph
+`mlkem-native` ML-KEM-768 backend for the compilation target on which it runs.
 
 **Honest scope:** this reproduces the FIPS 203 reference output on those **three
 happy-path X-Wing draft vectors**. The broader ACVP vector suite is covered
@@ -411,12 +423,13 @@ then select with a mask).
 **Side-channel CI posture (honest):** failure-path indistinguishability / implicit
 rejection **is** a hard CI gate (ctstats). Binary-level **dataflow** constant-time over this
 composition code (`ct_eq`/`ct_select32`/the combiner) is configured as a hard CI gate
-(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64). The backend/source
-migration invalidated all prior CT captures; the shipped-provider ML-KEM-512/768/1024
-decapsulation probes and composition cells require a fresh same-source two-ISA pass.
+(Valgrind/Memcheck-TIMECOP, `constant-time` job, x86_64 + aarch64). The
+target-selection/source migration invalidated all prior portable-derived CT captures;
+the shipped-provider ML-KEM-512/768/1024 decapsulation probes and composition cells
+require fresh x86_64-portable and aarch64-native source-bound passes.
 The superseded `fips203` 0.4.3 provider failed its historical two-ISA probe
 ([run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107));
-its nonzero counts are not evidence about portable `mlkem-native`. No predecessor source-CT/hax
+its nonzero counts are not evidence about `mlkem-native`. No predecessor source-CT/hax
 claim is inherited. Extending binary CT over the other primitive paths and to
 riscv64/wasm32 is **TODO**. The dudect **timing** test is a
 local diagnostic, intentionally absent from noisy shared CI and not a merge gate. The portable `ct_*` helpers are

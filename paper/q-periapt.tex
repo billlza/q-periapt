@@ -81,19 +81,25 @@ bytecode, and dispatches verifier source under isolated/no-site CPython with a f
 prefix; this is canonical source-input consistency after fixed generated-prefix exclusions, not a
 hermetic build-input, interpreter, or host attestation. Specification-to-
 implementation refinement, a current clean two-device Apple matrix, and cross-device/end-to-end
-performance parity remain explicitly pending. The current research-alpha release graph uses portable
-\code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary, plus pinned
-\code{fips204}~0.4.6 and \code{sha3}~0.10.9. That migration changed the
-canonical source digest, so all recorded former-provider package, device, performance, and
-binary-CT results are historical predecessor evidence; no replacement timing, device, or
+performance parity remain explicitly pending. The current research-alpha release graph uses
+target-selected \code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary,
+plus pinned \code{fips204}~0.4.6 and \code{sha3}~0.10.9. Exactly five
+little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic
+plus a fixed Armv8-A FIPS~202 assembly profile; every other target, including Wasm,
+remains portable C. There is no runtime dispatch or Armv8.4-A SHA3 path, and ABI~2,
+key, and wire contracts are unchanged. That migration changed the canonical source
+digest, so all portable-derived package, device, performance, and binary-CT results
+are historical evidence; no clean source-bound replacement timing, device, or
 binary-CT measurement is claimed here. The current-source local footprint capture reported below
 is a platform/toolchain-specific diagnostic, not release provenance.
-ABI~2 / \code{0.1.0-alpha.3} is a pre-publication package-ready research-alpha Rust-crate
-line. Its no-upload package contract does not prove crates.io upload-API acceptance,
+ABI~2 / \code{0.1.0} is the stable-version, pre-publication package-ready
+Rust-crate line. Its package contract
+alone does not prove crates.io upload-API acceptance,
 crate-name ownership, publishing credentials or authorization, server-side policy acceptance,
-or a registry receipt. Immutable, attestation-bound GitHub research
-prereleases covering an Apple XCFramework revision and an Android/Linux/Windows platform
-distribution; no registry publication, code-signing beyond the Apple lane, physical-device
+or a registry receipt. Receipt-gated, attestation-bound stable GitHub targets cover
+an Apple XCFramework revision and an Android/Linux platform distribution; the
+unsigned Windows output remains an unsupported CI diagnostic outside that asset set.
+No unverified registry publication, code-signing beyond the Apple lane, physical-device
 coverage, or production release is claimed.
 \end{abstract}
 
@@ -191,7 +197,8 @@ host package build.
 are the constant-time/regression oracles; Tamarin/ProVerif lemma/query presence and full prover
 execution are hard-gated in CI, stated precisely in \cref{sec:assurance}): a self-validating source$\to$binary constant-time probe that
 requires a zero genuine-secret ML-KEM result against a positive synthetic planted-leak
-control. The portable-\code{mlkem-native} probes need a fresh x86-64/aarch64 capture;
+control. The target-selected \code{mlkem-native} probes need fresh
+x86-64-portable/aarch64-native captures;
 the intervening \code{fips203} provider failed on both ISAs, while former \code{libcrux}
 zero and older-source PQClean-HQC results are historical, not a current gate.
 An executable \emph{regression oracle} covers the known dk-format binding
@@ -199,7 +206,7 @@ coupling; and two independent symbolic provers. We report the constant-time meas
 local runs.
 \item \textbf{C4 (\cref{sec:eval}).} A production-stack TLS~1.3 integration (rustls
 \code{CryptoProvider}, private-use group), with historical predecessor-source
-\code{tc netem} evaluation and no current-backend performance claim.
+\code{tc netem} evaluation and no current source-bound performance claim.
 \item \textbf{C5 (\cref{sec:substrate}).} A fail-closed policy-to-byte path: an ML-DSA-authenticated,
 strictly parsed, monotonic policy is atomically resolved to a closed suite/profile/key-format
 decision; the policy version and digest are carried in trusted state, and the digest is absorbed into
@@ -467,11 +474,19 @@ The combiner and its encoding live in a single dependency-free Rust \code{no\_st
 component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
 X25519, an extendable-output \code{Xof} trait for the hash), so the implementation under
 conformance test---the encoding and combiner---is the same code regardless of which third-party
-backend (portable \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
+backend (target-selected \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
 plugged in; ML-DSA uses \code{fips204}~0.4.6. Backend correctness,
 audit, and constant-time posture remain per implementation and ISA. The ML-KEM source is
 commit- and archive-hash-pinned, but RustSec does not inspect vendored C and neither the
-provider nor this Rust/C integration has completed an independent audit. This trait boundary is also where \emph{crypto-agility} lives:
+provider nor this Rust/C integration has completed an independent audit. Exactly the
+little-endian targets \code{aarch64-apple-darwin}, \code{aarch64-apple-ios},
+\code{aarch64-apple-ios-sim}, \code{aarch64-unknown-linux-gnu}, and
+\code{aarch64-linux-android} use upstream native arithmetic and fixed Armv8-A scalar
+x1/scalar-Neon x4 FIPS~202 assembly, while all other targets use portable C. The
+selection is compile-time only, with no runtime dispatch or v8.4-A SHA3 path.
+Upstream HOL-Light evidence covers only selected upstream assembly
+source/object routines, not downstream reassembly, this wrapper, or the full ABI.
+This trait boundary is also where \emph{crypto-agility} lives:
 \code{Kem::C2PRI} records the primitive property, while the separate, default-false
 \code{Kem::COMPAT\_XWING\_SAFE} capability records whether the exposed key format preserves
 X-Wing's seed-dk self-binding precondition. The lean profile requires both constants, so an
@@ -577,15 +592,17 @@ immutable, attestation-bound GitHub \emph{research prereleases}: the Apple XCFra
 and the Android AAR (with API~35 / 16\,KiB-page emulator runtime evidence) plus Linux
 x86\_64/aarch64 and unsigned experimental Windows x64 MSVC SDK archives, each validated by
 attested candidate-CI native consumers and bound to machine-checked release receipts. A clean-tree
-schema-v3 physical iPad+iPhone matrix passed for predecessor source only; the backend migration
-made it stale, and both physical lanes still require same-source reruns. No registry
+schema-v3 physical iPad+iPhone matrix passed for predecessor source only; the
+target-selection migration made it stale, and both physical lanes still require
+same-source native reruns. All ``released'' cells are exact pre-selection historical
+artifacts; their receipts do not attest a target-selected rebuild. No registry
 publication or physical-Android coverage is claimed.}\\
 \end{tabular}
 \end{table}
 
 \section{CI-Gated Assurance}\label{sec:assurance}
 \subsection{A source\texorpdfstring{$\to$}{-to-}binary constant-time \emph{discriminator}}
-The release-graph ML-KEM backend is now portable \code{mlkem-native}~v1.2.0 behind a
+The release-graph ML-KEM backend is now target-selected \code{mlkem-native}~v1.2.0 behind a
 dedicated safe Rust/C boundary. No source-level secret-independence result from a replaced
 provider transfers to this backend.
 The binary-level question---does the compiled path branch or index on the genuine secret?---is
@@ -595,23 +612,25 @@ self-validating: a synthetic planted secret-indexed load must report positive. W
 embedded-public-key observations are diagnostic only because an expanded FIPS-203 dk embeds public
 $ek$ and $H(ek)$ fields.
 
-No fresh migrated-backend binary-CT result is claimed in this paper. The former
+No fresh target-selected binary-CT result is claimed in this paper. The former
 \code{libcrux} aarch64 zero and embedded-public-key 5696-report captures, together with the
 now-retired PQClean-HQC backend's \textbf{193} aarch64 and $22{,}849$ x86-64 counts, are historical
 predecessor-source evidence. The intervening \code{fips203}~0.4.3 provider also failed the
 corrected gate: 34,306 errors across 100 contexts on x86-64 and 30,464 across 70 contexts on
 aarch64 in CI run 29230650107\footnote{\url{https://github.com/billlza/q-periapt/actions/runs/29230650107}}.
 Those counts are historical \code{fips203} failure evidence,
-not a result for \code{mlkem-native}. Production promotion of the ABI~2 binary surface requires
-fresh x86-64 and aarch64 runs whose
+not a result for \code{mlkem-native}. Pre-selection portable \code{mlkem-native}
+captures are historical too. Production promotion of the ABI~2 binary surface requires
+fresh x86-64-portable and aarch64-native runs whose
 genuine-secret probes report zero and planted controls report positive.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\columnwidth]{fig_ct.pdf}
 \caption{Historical predecessor-source contrast: the \code{libcrux} ML-KEM secret yielded zero
-flags while the retired PQClean-HQC path's constant-weight sampler yielded 193. The migrated
-portable-\code{mlkem-native} gate retains the synthetic planted control but requires a fresh
-two-ISA capture; the intervening \code{fips203} run failed and is historical.}
+flags while the retired PQClean-HQC path's constant-weight sampler yielded 193. The
+target-selected \code{mlkem-native} gate retains the synthetic planted control but
+requires fresh x86-64-portable/aarch64-native captures; the intervening
+\code{fips203} run failed and is historical.}
 \label{fig:ct}
 \end{figure}
 
@@ -731,7 +750,7 @@ $J/\mathsf{zof}$ injectivity---a strictly stronger idealization than the full co
 the map characterizes the \emph{shape}'s exposure field by field. We complement the proofs with an
 executable regression oracle that exercises both the expanded-\code{dk} break and its seed-\code{dk}
 \emph{negative control} (where $z$ re-derived from the keygen seed closes the substitution) against
-the release-graph portable-\code{mlkem-native} adapter as a CI-configured gate. The predecessor
+the target-selected release-graph \code{mlkem-native} adapter as a CI-configured gate. The predecessor
 \code{libcrux} result and failed \code{fips203} run are historical; the migrated test must be
 reported from the live release source.
 
@@ -760,10 +779,11 @@ image is immutable by digest.
 
 \paragraph*{Evidence currentness}
 Every committed timing value in this section was collected on predecessor
-\code{libcrux}-era source. The research-alpha release graph now uses portable
-\code{mlkem-native}/\code{fips204}/\code{sha3};
-the source digest changed, so these values remain historical study data and are not current ABI~2
-performance evidence. No migrated-backend replacement measurement is asserted.
+\code{libcrux}-era source. The research-alpha release graph now uses target-selected
+\code{mlkem-native}/\code{fips204}/\code{sha3}; the source digest changed, so these
+values remain historical study data and are not current ABI~2 performance evidence.
+A separate same-host native/portable diagnostic is reported below, but it was not a
+clean canonical-source-bound release capture.
 
 \subsection{Microbenchmarks}
 \Cref{tab:bench} reports a committed historical snapshot of primitive and hybrid costs (Criterion,
@@ -782,30 +802,43 @@ $\sim 1\,\mu$s). This supports a sub-$10\,\mu$s local combiner-overhead observat
 it does not support the stronger claim that the complete stack is never slower than X-Wing or other
 PQC deployments.
 
-We therefore added a paired gate that removes the earlier backend/key-format confound:
-ContextBound and CompatXWing use the same ML-KEM-768 seed-\code{dk} + X25519 backend, keys, coins,
-64-case deterministic ciphertext corpus, suite/version/context inputs, and ABBA/BAAB schedule. After
-a 5-s warm-up it records 20,480 paired samples per operation/profile. Each timed sample batches
-256/1/2 calls for combine/encapsulation/decapsulation, records the unrounded total, and normalizes
-only after a strict iteration-map check. Consecutive 1,024-pair, corpus-balanced blocks define both
-the primary paired point estimate and its span-5 moving-block-bootstrap upper bound. Under the
-nearest-rank rule each block's p99 has 11 tail observations; budget schema v5 preserves the v4
-estimator and requires at least 10 instead of the three supplied by the former 256-pair blocks.
-Since changing block size changes the estimand, schema v5 continues to recompute the former
-256-pair estimator and requires every published
-numeric limit to pass at both scales. Separate 64/256/256-pair windows test temporal
-stability without changing the 5\% CV limit. A controlled Apple-Silicon proof is accepted only if it
-passes nine published \emph{per-metric} one-sided 95\% bootstrap budgets (not a simultaneous 95\%
-family guarantee; span-5 coverage under autocorrelation has not been independently calibrated):
-p50/p95/p99 ratios of 1.10/1.15/1.20 and a $15\,\mu$s p95 absolute delta for
-encapsulation/decapsulation, plus a $10\,\mu$s combiner p95 delta. The proof binds the raw samples,
-harness binary, verifier-fixed repository budget, commit, and canonical source-input tree after
-fixed generated-prefix exclusions. This is not yet a hermetic build-input closure. Raw,
-budget, and proof semantics share their digest snapshots; four boundary power/thermal observations
-are gated. The producer fixes the exact rustup toolchain name plus Cargo/Rustc executable hashes,
-versions, and target; rejects repository/ancestor/user Cargo configuration and caller
-compiler/wrapper/loader controls; fixes
-system-tool lookup; and builds offline in a fresh private target. It still trusts the user-writable
+We therefore added one dual-estimand paired gate.  The profile-non-regression
+estimand removes the earlier backend/key-format confound: ContextBound and
+CompatXWing use the same native ML-KEM-768 seed-\code{dk} + X25519 backend, keys,
+coins, 64-case deterministic ciphertext corpus, and suite/version/context inputs.
+The separately named implementation-improvement estimand compares native and
+evidence-only portable ML-KEM-768 implementations for ContextBound encapsulation
+and decapsulation in the same harness process, after requiring byte-identical
+keys, ciphertexts, and shared-secret outputs.  Both use the fixed ABBA/BAAB
+schedule.  After a 5-s warm-up, raw schema v3 records 20,480 paired samples per
+applicable operation and variant.  Each timed sample batches 256/1/2 calls for
+combine/encapsulation/decapsulation, records the unrounded total, and normalizes
+only after a strict iteration-map check. Consecutive 1,024-pair,
+corpus-balanced blocks define both the primary paired point estimate and its
+span-5 moving-block-bootstrap upper bound. Under the nearest-rank rule each
+block's p99 has 11 tail observations. Budget schema v7 preserves the v6 profile
+estimator and its former 256-pair regression guard, requiring every published
+profile limit to pass at both scales. Separate 64/256/256-pair windows test
+temporal stability without changing the 5\% CV limit.
+
+A controlled Apple-Silicon proof is accepted only if it passes the nine
+profile-non-regression and six implementation-improvement \emph{per-metric}
+one-sided 95\% bootstrap budgets (not a simultaneous 95\% family guarantee;
+span-5 coverage under autocorrelation has not been independently calibrated).
+The profile bounds retain p50/p95/p99 ratios of 1.10/1.15/1.20 and a
+$15\,\mu$s p95 absolute delta for encapsulation/decapsulation, plus a
+$10\,\mu$s combiner p95 delta.  For both native/portable ContextBound product
+operations, the implementation bounds require p50 and p95 upper ratios at most
+0.95 and p99 at most 1.0.  Proof schema v6 binds the raw samples, final harness
+binary, evidence-only portable archive and source, verifier-fixed repository
+budget, commit, canonical source-input tree, selected Rust target/toolchain,
+and the macOS SDK path, version, and settings digest. This is not yet a
+hermetic build-input closure. Raw, budget, and proof semantics share their
+digest snapshots; four boundary power/thermal observations are gated. The
+producer fixes Cargo, Rustc, Xcode Clang, and Xcode \code{ar} executable paths,
+hashes, and version output where available; it rejects
+repository/ancestor/user Cargo configuration and caller compiler/wrapper/loader
+controls, fixes system-tool lookup, and builds offline in a fresh private target. It still trusts the user-writable
 Cargo registry, Rust sysroot/driver, OS tools/libraries, same-UID host, and collector source-to-binary
 honesty; the verifier does not independently rebuild the binary. Clean provenance checks
 HEAD/index/actual bytes under a fixed Git environment. The
@@ -821,6 +854,13 @@ end-to-end, or optimized production-X-Wing parity.
 The migrated harness identifies \code{mlkem-native}~v1.2.0 + \code{sha3}~0.10.9 +
 x25519-dalek~2.0.1; every previously recorded paired proof has a different source/backend identity
 and must be recollected.
+
+A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive and
+product-path improvement. It has no checked-in canonical-source/toolchain-bound raw
+and analysis bundle and therefore is not formal release evidence, an optimized
+production-X-Wing comparison, or a device/protocol performance claim. Exact
+quantitative results require a fresh raw-schema-v3/proof-schema-v6 run under
+budget schema v7, selected by the current results manifest.
 
 \begin{table}[t]\centering\footnotesize
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.15}
@@ -1026,8 +1066,8 @@ secrets and checking for secret-dependent control flow~\cite{dudect,ctgrind}, re
 Valgrind/Memcheck~\cite{valgrind}, is the basis of our binary-CT gate. We build on, rather than
 re-do, the literature on HACL*~\cite{hacl} and predecessor libcrux ML-KEM
 verification~\cite{libcrux}. That source-level assurance and our former dynamic zero result are
-historical and do not transfer to \code{mlkem-native}. The migrated gate retains the synthetic planted
-leak, but its genuine-secret path needs fresh x86-64/aarch64 capture. Older-source runs also
+historical and do not transfer to \code{mlkem-native}. The target-selected gate retains the synthetic planted
+leak, but its genuine-secret path needs fresh x86-64-portable/aarch64-native captures. Older-source runs also
 discriminated the former path from the now-retired timing-leaky PQClean-HQC path; those results are
 not current-source evidence or a blanket verification of any dependency.
 
@@ -1067,11 +1107,14 @@ The mechanized binding result is over an \emph{abstract} $\mathrm{Decaps}$: it i
 ``zero KEM assumption'' that makes the result general, but it carries no FIPS-203 linkage, the
 shared-secret fields are inert in the argument, and CR(SHA3) and IND-CCA2 remain assumptions argued
 respectively in the model and on paper; there is no specification-to-implementation linkage proof.
-Binary-level constant-time tooling is configured only on x86-64 and aarch64, and the migrated
-portable-\code{mlkem-native} path still needs fresh runs on both; the failed \code{fips203}
+Binary-level constant-time tooling is configured only on x86-64 and aarch64, and the
+target-selected \code{mlkem-native} paths still need fresh x86-64-portable and
+aarch64-native runs; the failed \code{fips203}
 run is historical, and riscv64 and wasm32 have no current binary-CT
 or inherited source-CT claim. ACVP byte-identity is conformance, not CMVP
-certification. The suite is research-grade and has not had an independent third-party audit. The
+certification. Upstream HOL-Light evidence covers only selected upstream AArch64
+assembly source/object routines, not downstream reassembly or the full ABI. The suite
+is research-grade and has not had an independent third-party audit. The
 historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
 earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
 retained as supporting context and labeled as such. The matched-backend host gate accepts only a
@@ -1089,14 +1132,14 @@ changed the source digest again; all recorded package, device, performance, and 
 is therefore historical and must be regenerated. The migration removed the
 \code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
 without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
-ABI~2 is pre-publication package-ready as a research-alpha source/Rust-crate line
-(not yet on crates.io); this no-upload status is not registry publication. Its published binary surface consists of
-immutable, attestation-bound GitHub research prereleases: an Apple Developer~ID-signed XCFramework
+ABI~2 is the stable-version source/Rust-crate line; package readiness is not registry
+publication. Its stable binary targets are immutable, attestation-bound GitHub releases:
+an Apple Developer~ID-signed XCFramework
 revision and a platform distribution carrying the Android AAR with API~35 / 16\,KiB-page emulator
-runtime evidence, Linux x86\_64/aarch64 SDK archives, and an unsigned experimental Windows x64 MSVC
-SDK. Production promotion still requires such review, fresh
+runtime evidence and Linux x86\_64/aarch64 SDK archives. The unsigned Windows SDK
+remains an unsupported CI diagnostic outside the formal release. Production promotion still requires such review, fresh
 release-bound two-ISA CT, same-source device/performance evidence, clean
-signed or transparency-backed source provenance, registry publication, and Windows Authenticode. The rustls integration uses a fixed protocol-domain context and an already parsed,
+signed or transparency-backed source provenance and registry publication. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
 the signed-policy authenticity claim. The C ABI assumes a trusted local caller for metadata and the
 forgeable decision descriptor, despite removing raw/deterministic cryptographic exports,
@@ -1150,15 +1193,16 @@ historical measurements, inputs, and regeneration protocols; no committed predec
 current ABI~2 evidence, and exact timing reproduction remains host- and
 toolchain-dependent.
 
-Independently of the review export, the research-alpha binaries are published as immutable
-GitHub prereleases bound to annotated tags, per-asset SHA-256 manifests, and GitHub
+Independently of the review export, the stable-version binaries use receipt-gated immutable
+GitHub releases with \code{prerelease=false}, bound to annotated tags, per-asset SHA-256 manifests, and GitHub
 immutable-release and build-provenance attestations: an Apple Developer~ID-signed static
 XCFramework revision, and one platform distribution containing the four-ABI Android AAR with an
-API~35 / 16\,KiB-page emulator runtime-evidence bundle, GNU/Linux x86\_64 and aarch64 SDK
-archives, and an unsigned experimental Windows x64 MSVC SDK. Machine-checked publication
+API~35 / 16\,KiB-page emulator runtime-evidence bundle and GNU/Linux x86\_64 and aarch64 SDK
+archives. The unsigned Windows SDK remains an unsupported CI diagnostic and is excluded
+from the stable manifest, assets, attestation, and receipt. Machine-checked publication
 receipts are recorded in the repository evidence manifest and enforced by a fail-closed release
-contract. These remain research prereleases: no registry (crates.io, Maven Central,
-deb/rpm/MSIX) publication, Windows Authenticode, physical-Android coverage, independent
+contract. Stable publication is not a production-readiness claim: no unverified registry
+(crates.io, Maven Central, deb/rpm/MSIX) publication, physical-Android coverage, independent
 certification, or FIPS validation is claimed.
 
 \section{The Machine-Checked Kernel in Detail}\label{app:kernel}

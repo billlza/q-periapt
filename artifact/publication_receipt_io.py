@@ -23,6 +23,7 @@ from typing import Any, Literal, Never
 from evidence_io import (
     EvidenceIOError,
     FileSnapshot,
+    OwnedFileDescriptorLease,
     consume_regular_snapshot_at,
     parse_strict_json_bytes,
 )
@@ -55,13 +56,17 @@ class PublicationReceiptCommittedError(PublicationReceiptIOError):
         leaf: str | None = None,
         digest: str | None = None,
         visibility: PublicationVisibility = "committed",
+        path: pathlib.Path | None = None,
     ) -> None:
         if visibility not in {"committed", "indeterminate"}:
             raise ValueError("publication visibility state is invalid")
+        if path is not None and not isinstance(path, pathlib.Path):
+            raise ValueError("publication attempt path must be a pathlib.Path")
         super().__init__(message)
         self.leaf = leaf
         self.digest = digest
         self.visibility = visibility
+        self.path = path
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,90 +84,6 @@ class _OpenPrivateFileSnapshot:
     metadata: os.stat_result
     size: int
     sha256: str
-
-
-_OwnedDescriptorStatus = Literal["owned", "closing", "released", "unknown"]
-
-
-@dataclass(slots=True)
-class _OwnedPrivateFileDescriptor:
-    """One held inode with explicit ownership across interrupted close calls."""
-
-    descriptor: int
-    device: int
-    inode: int
-    label: str
-    status: _OwnedDescriptorStatus = "owned"
-
-    @property
-    def is_owned(self) -> bool:
-        return self.status == "owned"
-
-    def _release(self, status: Literal["released", "unknown"]) -> None:
-        self.status = status
-        self.descriptor = -1
-
-    def _still_owned_after_interruption(
-        self,
-        descriptor: int,
-        interruption: BaseException,
-    ) -> bool:
-        try:
-            current = os.fstat(descriptor)
-        except BaseException as probe_error:
-            if isinstance(probe_error, OSError) and probe_error.errno == errno.EBADF:
-                self._release("released")
-            else:
-                self._release("unknown")
-                interruption.add_note(
-                    f"cannot classify interrupted close for {self.label}: "
-                    f"{type(probe_error).__name__}"
-                )
-            return False
-        if current.st_dev == self.device and current.st_ino == self.inode:
-            self.status = "owned"
-            return True
-        self._release("released")
-        interruption.add_note(
-            f"interrupted close descriptor identity changed for {self.label}"
-        )
-        return False
-
-    def _close_once(self) -> None:
-        """Attempt close and atomically recover its ownership classification."""
-
-        descriptor = self.descriptor
-        try:
-            self.status = "closing"
-            os.close(descriptor)
-            self._release("released")
-        except BaseException as interruption:
-            if self.status == "closing":
-                self._still_owned_after_interruption(
-                    descriptor,
-                    interruption,
-                )
-            raise
-
-    def close(self) -> None:
-        """Close once, retrying only when the same held inode is still owned."""
-
-        if not self.is_owned:
-            return
-        try:
-            self._close_once()
-        except BaseException as first_interruption:
-            if not self.is_owned:
-                raise
-            try:
-                self._close_once()
-            except BaseException as retry_interruption:
-                first_interruption.add_note(
-                    "bounded held-descriptor close retry failed: "
-                    f"{type(retry_interruption).__name__}"
-                )
-                raise first_interruption
-            raise first_interruption
 
 
 @dataclass(slots=True)
@@ -714,6 +635,7 @@ def _committed_publication_error(
     detail: str,
     cause: BaseException,
     visibility: PublicationVisibility = "committed",
+    path: pathlib.Path | None = None,
 ) -> PublicationReceiptCommittedError:
     state = "committed" if visibility == "committed" else "visibility indeterminate"
     error = PublicationReceiptCommittedError(
@@ -721,6 +643,7 @@ def _committed_publication_error(
         leaf=leaf,
         digest=digest,
         visibility=visibility,
+        path=path,
     )
     error.__cause__ = cause
     return error
@@ -1881,7 +1804,7 @@ class PreparedPrivateJsonPublication:
     device: int
     inode: int
     label: str
-    held_file: _OwnedPrivateFileDescriptor
+    held_file: OwnedFileDescriptorLease
     publication_state: _PrivateFilePublicationState
 
     @property
@@ -2096,7 +2019,7 @@ def prepare_private_json_noreplace_at(
     staging_leaf = f".{expected_leaf}.pending-{os.getpid()}"
     _safe_leaf(staging_leaf, label=f"{label} staging leaf")
     descriptor = -1
-    held_file: _OwnedPrivateFileDescriptor | None = None
+    held_file: OwnedFileDescriptorLease | None = None
     staging_created = False
     prepared: PreparedPrivateJsonPublication | None = None
     primary_error: BaseException | None = None
@@ -2132,10 +2055,8 @@ def prepare_private_json_noreplace_at(
             raise PublicationReceiptIOError(
                 f"cannot inspect {label} staging file"
             ) from exc
-        held_file = _OwnedPrivateFileDescriptor(
-            descriptor=descriptor,
-            device=opened_metadata.st_dev,
-            inode=opened_metadata.st_ino,
+        held_file = OwnedFileDescriptorLease.acquire(
+            descriptor,
             label=f"{label} staging file",
         )
         descriptor = -1
@@ -2300,7 +2221,7 @@ def _write_private_bytes_noreplace_at(
     _require(type(payload) is bytes, f"{label} payload must be exact bytes")
     _require(len(payload) <= maximum, f"{label} exceeds the bounded size")
     descriptor = -1
-    held_file: _OwnedPrivateFileDescriptor | None = None
+    held_file: OwnedFileDescriptorLease | None = None
     staging_leaf = f".{expected_leaf}.pending-{os.getpid()}"
     flags = (
         os.O_RDWR
@@ -2337,10 +2258,8 @@ def _write_private_bytes_noreplace_at(
             raise PublicationReceiptIOError(
                 f"cannot inspect {label} staging file"
             ) from exc
-        held_file = _OwnedPrivateFileDescriptor(
-            descriptor=descriptor,
-            device=opened_metadata.st_dev,
-            inode=opened_metadata.st_ino,
+        held_file = OwnedFileDescriptorLease.acquire(
+            descriptor,
             label=f"{label} staging file",
         )
         descriptor = -1
@@ -2467,16 +2386,138 @@ def write_private_json_noreplace_at(
     label: str,
     maximum: int = DEFAULT_RECEIPT_MAX_BYTES,
 ) -> str:
-    """Publish deterministic strict JSON below a pinned private directory."""
+    """Publish strict JSON with a boundary covering the bytes-writer return."""
 
     payload = canonical_json_bytes(value)
-    return write_private_bytes_noreplace_at(
-        directory_fd,
-        expected_leaf,
-        payload,
-        label=label,
-        maximum=maximum,
-    )
+    publication_state = _PrivateFilePublicationState()
+    try:
+        digest = _write_private_bytes_noreplace_at(
+            directory_fd,
+            expected_leaf,
+            payload,
+            label=label,
+            maximum=maximum,
+            publication_state=publication_state,
+        )
+        return digest
+    except PublicationReceiptCommittedError:
+        raise
+    except BaseException as boundary_interruption:
+        if publication_state.cleanup_is_safe:
+            raise
+        _raise_for_private_file_publication_visibility(
+            publication_state,
+            directory_fd=directory_fd,
+            destination_leaf=expected_leaf,
+            staging_leaf=f".{expected_leaf}.pending-{os.getpid()}",
+            descriptor=-1,
+            size=len(payload),
+            digest=hashlib.sha256(payload).hexdigest(),
+            label=label,
+            interruption=boundary_interruption,
+            record_visible=None,
+        )
+
+
+def _close_descriptors_once(
+    descriptors: tuple[int, ...],
+) -> list[BaseException]:
+    """Close every distinct descriptor once and retain every cleanup failure."""
+
+    errors: list[BaseException] = []
+    closed: set[int] = set()
+    for descriptor in descriptors:
+        if descriptor < 0 or descriptor in closed:
+            continue
+        closed.add(descriptor)
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            errors.append(exc)
+    return errors
+
+
+def _remove_owned_empty_transaction_at(
+    root_fd: int,
+    transaction_name: str,
+    *,
+    descriptor: int,
+    expected_device: int,
+    expected_inode: int,
+    label: str,
+) -> None:
+    """Remove only the still-named, empty directory created by this attempt."""
+
+    cleanup_descriptor = descriptor
+    close_cleanup_descriptor = False
+    primary_error: BaseException | None = None
+    try:
+        if cleanup_descriptor < 0:
+            flags = (
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_CLOEXEC", 0)
+            )
+            cleanup_descriptor = os.open(
+                transaction_name,
+                flags,
+                dir_fd=root_fd,
+            )
+            close_cleanup_descriptor = True
+        opened = os.fstat(cleanup_descriptor)
+        named = os.stat(
+            transaction_name,
+            dir_fd=root_fd,
+            follow_symlinks=False,
+        )
+        _directory_metadata(
+            opened,
+            required_mode=PRIVATE_DIRECTORY_MODE,
+            label=f"{label} failed transaction directory",
+        )
+        _directory_metadata(
+            named,
+            required_mode=PRIVATE_DIRECTORY_MODE,
+            label=f"{label} failed transaction directory",
+        )
+        _require(
+            opened.st_dev == expected_device
+            and opened.st_ino == expected_inode
+            and named.st_dev == expected_device
+            and named.st_ino == expected_inode,
+            f"{label} failed transaction directory identity changed",
+        )
+        entries = os.listdir(cleanup_descriptor)
+        _require(
+            not entries,
+            f"{label} failed transaction directory is not empty",
+        )
+        os.rmdir(transaction_name, dir_fd=root_fd)
+        os.fsync(root_fd)
+    except OSError as exc:
+        error = PublicationReceiptIOError(
+            f"cannot remove empty {label} failed transaction directory"
+        )
+        error.__cause__ = exc
+        primary_error = error
+        raise error
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        if close_cleanup_descriptor:
+            close_errors = _close_descriptors_once((cleanup_descriptor,))
+            if close_errors:
+                detail = (
+                    f"cannot close {label} failed transaction cleanup descriptor"
+                )
+                if primary_error is not None:
+                    primary_error.add_note(detail)
+                elif isinstance(close_errors[0], Exception):
+                    raise PublicationReceiptIOError(detail) from close_errors[0]
+                else:
+                    raise close_errors[0]
 
 
 def create_private_transaction_json(
@@ -2496,6 +2537,9 @@ def create_private_transaction_json(
                 for character in transaction_prefix),
         f"{label} transaction prefix is unsafe",
     )
+    payload = canonical_json_bytes(value)
+    _require(len(payload) <= maximum, f"{label} exceeds the bounded size")
+    expected_digest = hashlib.sha256(payload).hexdigest()
     root, root_fd, parent_descriptor = _open_or_create_private_safe_root(
         safe_root,
         label=f"{label} safe root",
@@ -2507,29 +2551,54 @@ def create_private_transaction_json(
         label=f"{label} safe root",
     )
     descriptor = -1
-    digest = ""
+    transaction_name = ""
+    transaction_created = False
+    transaction_device = -1
+    transaction_inode = -1
+    transaction_path: pathlib.Path | None = None
+    digest = expected_digest
     published = False
+    publication_attempted = False
+    publication_state = _PrivateFilePublicationState()
     primary_error: BaseException | None = None
     try:
-        transaction_name = ""
         for attempt in range(1000):
             candidate = f"{transaction_prefix}{os.getpid()}-{attempt}"
             try:
                 os.mkdir(candidate, PRIVATE_DIRECTORY_MODE, dir_fd=root_fd)
-                os.fsync(root_fd)
-                transaction_name = candidate
-                break
             except FileExistsError:
                 continue
             except OSError as exc:
                 raise PublicationReceiptIOError(
                     f"cannot create {label} transaction directory"
                 ) from exc
+            transaction_name = candidate
+            transaction_created = True
+            try:
+                created_metadata = os.stat(
+                    transaction_name,
+                    dir_fd=root_fd,
+                    follow_symlinks=False,
+                )
+                transaction_device = created_metadata.st_dev
+                transaction_inode = created_metadata.st_ino
+                _directory_metadata(
+                    created_metadata,
+                    required_mode=PRIVATE_DIRECTORY_MODE,
+                    label=f"{label} transaction directory",
+                )
+                os.fsync(root_fd)
+            except OSError as exc:
+                raise PublicationReceiptIOError(
+                    f"cannot durably create {label} transaction directory"
+                ) from exc
+            break
         _require(
             bool(transaction_name),
             f"cannot allocate {label} transaction directory",
         )
         transaction = root / transaction_name
+        transaction_path = transaction / expected_leaf
         transaction_flags = (
             os.O_RDONLY
             | getattr(os, "O_DIRECTORY", 0)
@@ -2567,12 +2636,19 @@ def create_private_transaction_json(
             and named_transaction.st_ino == transaction_metadata.st_ino,
             f"{label} transaction directory identity changed",
         )
-        digest = write_private_json_noreplace_at(
+        _require(
+            transaction_metadata.st_dev == transaction_device
+            and transaction_metadata.st_ino == transaction_inode,
+            f"{label} transaction directory differs from the created identity",
+        )
+        publication_attempted = True
+        digest = _write_private_bytes_noreplace_at(
             descriptor,
             expected_leaf,
-            value,
+            payload,
             label=label,
             maximum=maximum,
+            publication_state=publication_state,
         )
         published = True
         try:
@@ -2598,32 +2674,85 @@ def create_private_transaction_json(
                 and current_transaction.st_ino == opened_transaction.st_ino,
                 f"{label} output root identity changed during publication",
             )
-        except (OSError, PublicationReceiptIOError) as exc:
+        except PublicationReceiptCommittedError:
+            raise
+        except BaseException as exc:
             raise _committed_publication_error(
                 label=label,
                 leaf=expected_leaf,
                 digest=digest,
                 detail="output identity verification failed",
                 cause=exc,
+                path=transaction_path,
             )
-    except BaseException as exc:
+    except PublicationReceiptCommittedError as exc:
+        if exc.path is None:
+            exc.path = transaction_path
+        published = True
         primary_error = exc
         raise
-    finally:
-        cleanup_errors: list[OSError] = []
-        if descriptor >= 0:
+    except BaseException as exc:
+        primary_error = exc
+        if publication_attempted and not publication_state.cleanup_is_safe:
             try:
-                os.close(descriptor)
-            except OSError as exc:
-                cleanup_errors.append(exc)
-        try:
-            os.close(root_fd)
-        except OSError as exc:
-            cleanup_errors.append(exc)
+                _raise_for_private_file_publication_visibility(
+                    publication_state,
+                    directory_fd=descriptor,
+                    destination_leaf=expected_leaf,
+                    staging_leaf=f".{expected_leaf}.pending-{os.getpid()}",
+                    descriptor=-1,
+                    size=len(payload),
+                    digest=expected_digest,
+                    label=label,
+                    interruption=exc,
+                    record_visible=None,
+                )
+            except BaseException as classified_error:
+                primary_error = classified_error
+                if isinstance(
+                    classified_error,
+                    PublicationReceiptCommittedError,
+                ):
+                    if classified_error.path is None:
+                        classified_error.path = transaction_path
+                    published = True
+                raise
+        raise
+    finally:
+        cleanup_errors: list[BaseException] = []
+        if transaction_created and not published:
+            if transaction_device >= 0 and transaction_inode >= 0:
+                try:
+                    _remove_owned_empty_transaction_at(
+                        root_fd,
+                        transaction_name,
+                        descriptor=descriptor,
+                        expected_device=transaction_device,
+                        expected_inode=transaction_inode,
+                        label=label,
+                    )
+                except BaseException as exc:
+                    cleanup_errors.append(exc)
+            else:
+                cleanup_errors.append(
+                    PublicationReceiptIOError(
+                        f"cannot identify {label} failed transaction directory for cleanup"
+                    )
+                )
+        cleanup_errors.extend(
+            _close_descriptors_once((descriptor, root_fd))
+        )
         if cleanup_errors:
-            detail = f"cannot close {label} publication descriptor(s)"
+            detail = (
+                f"{label} cleanup failed for {len(cleanup_errors)} "
+                "publication resource(s)"
+            )
             if primary_error is not None:
                 primary_error.add_note(detail)
+                for cleanup_error in cleanup_errors:
+                    primary_error.add_note(
+                        f"publication cleanup error: {type(cleanup_error).__name__}"
+                    )
             elif published:
                 raise _committed_publication_error(
                     label=label,
@@ -2631,9 +2760,12 @@ def create_private_transaction_json(
                     digest=digest,
                     detail=detail,
                     cause=cleanup_errors[0],
+                    path=transaction_path,
                 )
-            else:
+            elif isinstance(cleanup_errors[0], Exception):
                 raise PublicationReceiptIOError(detail) from cleanup_errors[0]
+            else:
+                raise cleanup_errors[0]
     return transaction / expected_leaf, digest
 
 
@@ -2647,6 +2779,9 @@ def write_fixed_private_json(
 ) -> tuple[pathlib.Path, str]:
     """Write one fixed leaf directly below a module-owned private root."""
 
+    payload = canonical_json_bytes(value)
+    _require(len(payload) <= maximum, f"{label} exceeds the bounded size")
+    expected_digest = hashlib.sha256(payload).hexdigest()
     root, descriptor, parent_descriptor = _open_or_create_private_safe_root(
         safe_root,
         label=f"{label} safe root",
@@ -2657,16 +2792,20 @@ def write_fixed_private_json(
         opened_descriptors=(descriptor,),
         label=f"{label} safe root",
     )
-    digest = ""
+    digest = expected_digest
     published = False
+    publication_attempted = False
+    publication_state = _PrivateFilePublicationState()
     primary_error: BaseException | None = None
     try:
-        digest = write_private_json_noreplace_at(
+        publication_attempted = True
+        digest = _write_private_bytes_noreplace_at(
             descriptor,
             expected_leaf,
-            value,
+            payload,
             label=label,
             maximum=maximum,
+            publication_state=publication_state,
         )
         published = True
         try:
@@ -2687,7 +2826,9 @@ def write_fixed_private_json(
                 and current_root.st_ino == opened_root.st_ino,
                 f"{label} safe root identity changed during publication",
             )
-        except (OSError, PublicationReceiptIOError) as exc:
+        except PublicationReceiptCommittedError:
+            raise
+        except BaseException as exc:
             raise _committed_publication_error(
                 label=label,
                 leaf=expected_leaf,
@@ -2695,19 +2836,45 @@ def write_fixed_private_json(
                 detail="safe-root identity verification failed",
                 cause=exc,
             )
-    except BaseException as exc:
+    except PublicationReceiptCommittedError as exc:
+        published = True
         primary_error = exc
         raise
+    except BaseException as exc:
+        primary_error = exc
+        if publication_attempted and not publication_state.cleanup_is_safe:
+            try:
+                _raise_for_private_file_publication_visibility(
+                    publication_state,
+                    directory_fd=descriptor,
+                    destination_leaf=expected_leaf,
+                    staging_leaf=f".{expected_leaf}.pending-{os.getpid()}",
+                    descriptor=-1,
+                    size=len(payload),
+                    digest=expected_digest,
+                    label=label,
+                    interruption=exc,
+                    record_visible=None,
+                )
+            except BaseException as classified_error:
+                primary_error = classified_error
+                if isinstance(
+                    classified_error,
+                    PublicationReceiptCommittedError,
+                ):
+                    published = True
+                raise
+        raise
     finally:
-        cleanup_errors: list[OSError] = []
-        try:
-            os.close(descriptor)
-        except OSError as exc:
-            cleanup_errors.append(exc)
+        cleanup_errors = _close_descriptors_once((descriptor,))
         if cleanup_errors:
             detail = f"cannot close {label} safe root"
             if primary_error is not None:
                 primary_error.add_note(detail)
+                for cleanup_error in cleanup_errors:
+                    primary_error.add_note(
+                        f"publication cleanup error: {type(cleanup_error).__name__}"
+                    )
             elif published:
                 raise _committed_publication_error(
                     label=label,
@@ -2716,6 +2883,8 @@ def write_fixed_private_json(
                     detail=detail,
                     cause=cleanup_errors[0],
                 )
-            else:
+            elif isinstance(cleanup_errors[0], Exception):
                 raise PublicationReceiptIOError(detail) from cleanup_errors[0]
+            else:
+                raise cleanup_errors[0]
     return root / expected_leaf, digest

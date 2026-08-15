@@ -1,426 +1,448 @@
 #!/usr/bin/env python3
-"""Direct cross-domain transaction tests for the results finalizer."""
+"""Integration tests for the committed stable-cohort results finalizer."""
 
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import json
 import os
 import pathlib
-import stat
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
 
-import apple_alpha3_publication
 import apple_publication_contract as apple_contract
-import platform_alpha3_publication
-import platform_alpha3_publication_contract as platform_contract
-import publication_receipt_io
+import apple_stable_publication
+import crates_io_publication
+import crates_io_publication_contract as crates_contract
+import platform_publication_contract as platform_contract
+import platform_stable_publication
+import release_publication_contract as aggregate
 import release_receipt_finalizer as finalizer
 from test_apple_publication_contract import (
-    alpha2_receipt,
-    alpha3_pending_receipt,
-    alpha3_verified_receipt,
+    stable_pending_receipt,
+    stable_verified_receipt,
 )
-from test_platform_alpha3_publication_contract import (
+from test_crates_io_publication_contract import receipt_fixture as crates_receipt
+from test_platform_stable_publication_contract import (
     pending_receipt as platform_pending_receipt,
     verified_receipt as platform_verified_receipt,
 )
+from test_release_publication_contract import (
+    _rebind_platform,
+    rebind_rust_publish_source,
+    rebind_stable_current_source,
+)
 
 
-def _bytes(value: object) -> bytes:
-    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("ascii")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class ReleaseReceiptFinalizerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.root = pathlib.Path(self.temporary.name).resolve() / "repository"
-        self.root.mkdir(mode=0o755)
+        self.root = pathlib.Path(self.temporary.name).resolve()
         self.target = self.root / "target"
-        self.target.mkdir(mode=0o775)
-        os.chmod(self.target, 0o775)
-        self.artifact = self.root / "artifact"
-        self.artifact.mkdir(mode=0o755)
-        self.results_path = self.artifact / "results.json"
-        self.results_root = self.target / "release-publication-results"
-        self.apple_root = self.target / "qperiapt-apple-publication-receipts"
-        self.platform_root = self.target / "abi2-platform-publication-receipts"
-        for receipt_root in (self.apple_root, self.platform_root):
-            receipt_root.mkdir(mode=0o700)
-            os.chmod(receipt_root, 0o700)
-        self.receipt_index = 0
+        self.target.mkdir(mode=0o700)
+        self.results = self.root / "artifact" / "results.json"
+        self.results.parent.mkdir()
+        legacy = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        self._write_results(legacy)
+        self._git("init", "-q")
+        self._git("add", ".")
+        self._git("commit", "-qm", "source parent")
+        self.source_commit = self._commit()
+        self.source_digest = "8" * 64
 
-        for module, attribute, value in (
-            (finalizer, "REPOSITORY_ROOT", self.root),
-            (finalizer, "RESULTS_PATH", self.results_path),
-            (finalizer, "RESULTS_CANDIDATE_ROOT", self.results_root),
-            (
-                apple_alpha3_publication,
+        source = copy.deepcopy(legacy)
+        source["provenance"]["snapshot_commit"] = self.source_commit
+        source["proof_source_tree_sha256"] = self.source_digest
+        source["rust_publish"] = rebind_rust_publish_source(
+            source["rust_publish"],
+            source_commit=self.source_commit,
+            source_digest=self.source_digest,
+        )
+        rebind_stable_current_source(
+            source,
+            source_commit=self.source_commit,
+            source_digest=self.source_digest,
+        )
+        source["swift_xcframework"] = aggregate.neutral_swift_selector(source)
+        self._write_results(source)
+        self._git("add", "artifact/results.json")
+        self._git("commit", "-qm", "install source results")
+        self.results_commit = self._commit()
+        self.results_tree = self._git_text(
+            "rev-parse", "--verify", f"{self.results_commit}^{{tree}}"
+        )
+
+        self.apple_root = self.target / "apple-publication-receipts"
+        self.platform_root = self.target / "platform-publication-receipts"
+        self.crates_root = self.target / "qperiapt-crates-io-publication-receipts"
+        self.candidate_root = self.target / "release-publication-results"
+        for path in (self.apple_root, self.platform_root, self.crates_root):
+            path.mkdir(mode=0o700)
+
+        patches = (
+            mock.patch.object(finalizer, "REPOSITORY_ROOT", self.root),
+            mock.patch.object(finalizer, "RESULTS_PATH", self.results),
+            mock.patch.object(
+                finalizer, "RESULTS_CANDIDATE_ROOT", self.candidate_root
+            ),
+            mock.patch.object(
+                apple_stable_publication,
                 "APPLE_PUBLICATION_RECEIPT_ROOT",
                 self.apple_root,
             ),
-            (
-                platform_alpha3_publication,
+            mock.patch.object(
+                platform_stable_publication,
                 "PLATFORM_PUBLICATION_RECEIPT_ROOT",
                 self.platform_root,
             ),
-        ):
-            patcher = mock.patch.object(module, attribute, value)
+            mock.patch.object(
+                crates_io_publication,
+                "CRATES_IO_PUBLICATION_RECEIPT_ROOT",
+                self.crates_root,
+            ),
+            mock.patch.object(finalizer, "validate_declared_currentness"),
+        )
+        for patcher in patches:
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def _base_results(self) -> dict[str, object]:
-        alpha2 = alpha2_receipt()
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def _git(self, *arguments: str) -> None:
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-c",
+                "user.name=Q-Periapt Test",
+                "-c",
+                "user.email=q-periapt-test@example.invalid",
+                "-C",
+                str(self.root),
+                *arguments,
+            ],
+            check=True,
+        )
+
+    def _git_text(self, *arguments: str) -> str:
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(self.root), *arguments],
+            text=True,
+        ).strip()
+
+    def _commit(self) -> str:
+        return self._git_text("rev-parse", "--verify", "HEAD^{commit}")
+
+    def _write_results(self, value: dict[str, object]) -> str:
+        data = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        self.results.write_bytes(data)
+        self.results.chmod(0o644)
+        return hashlib.sha256(data).hexdigest()
+
+    def _current_sha256(self) -> str:
+        return hashlib.sha256(self.results.read_bytes()).hexdigest()
+
+    def _source_identity(self) -> dict[str, str]:
         return {
-            "release_publications": {
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY: alpha2
-            },
-            "sentinel": {
-                "must_remain": ["byte", "semantically", "unchanged"]
-            },
-            "swift_xcframework": {
-                "distribution": copy.deepcopy(alpha2["distribution"]),
-                "mode": "fixed unrelated field",
-            },
+            "canonical_source_tree_sha256": self.source_digest,
+            "source_parent_commit": self.source_commit,
+            "tag_commit": self.results_commit,
+            "tag_object": "9" * 40,
+            "tag_tree": self.results_tree,
         }
 
-    def _write_results(self, document: dict[str, object]) -> str:
-        self.results_path.write_bytes(_bytes(document))
-        os.chmod(self.results_path, 0o644)
-        return hashlib.sha256(self.results_path.read_bytes()).hexdigest()
+    def _apple(self, *, verified: bool) -> dict[str, object]:
+        receipt = stable_verified_receipt() if verified else stable_pending_receipt()
+        source = self._source_identity()
+        receipt["source"] = copy.deepcopy(source)
+        receipt["distribution"]["source_commit"] = self.source_commit
+        if verified:
+            receipt["publication"]["source"] = {
+                "tag_commit": self.results_commit,
+                "tag_object": source["tag_object"],
+            }
+            receipt["publication"]["release_attestation"]["subjects"][0][
+                "digest"
+            ]["sha1"] = source["tag_object"]
+        return receipt
 
-    def _receipt(self, family: str, value: dict[str, object]) -> pathlib.Path:
-        self.receipt_index += 1
-        if family == "apple":
-            root = self.apple_root
-            leaf = apple_alpha3_publication.APPLE_PUBLICATION_RECEIPT_NAME
-        else:
-            root = self.platform_root
-            leaf = platform_alpha3_publication.RECEIPT_NAME
-        transaction = root / f"transaction.fixture-{self.receipt_index}"
+    def _platform(self, *, verified: bool) -> dict[str, object]:
+        receipt = platform_verified_receipt() if verified else platform_pending_receipt()
+        source = self._source_identity()
+        return _rebind_platform(receipt, source)
+
+    def _crates(self) -> dict[str, object]:
+        receipt = crates_receipt(10)
+        source = self._source_identity()
+        receipt["observation"]["source"] = {
+            key: source[key]
+            for key in (
+                "canonical_source_tree_sha256",
+                "source_parent_commit",
+                "tag_commit",
+                "tag_tree",
+            )
+        }
+        receipt["observation"]["package_contract"]["source_commit"] = (
+            self.source_commit
+        )
+        selected_rust = json.loads(self.results.read_text(encoding="utf-8"))[
+            "rust_publish"
+        ]
+        receipt["observation"]["package_contract"]["completed_at"] = (
+            selected_rust["completed_at"]
+        )
+        receipt["observation"]["package_contract"]["transcript_sha256"] = (
+            selected_rust["transcript_sha256"]
+        )
+        receipt["observation"]["package_contract"]["handoff_sha256"] = (
+            selected_rust["handoff_manifest_sha256"]
+        )
+        return receipt
+
+    @staticmethod
+    def _receipt_path(
+        root: pathlib.Path, leaf: str, value: dict[str, object], name: str
+    ) -> pathlib.Path:
+        transaction = root / name
         transaction.mkdir(mode=0o700)
-        os.chmod(transaction, 0o700)
         path = transaction / leaf
-        path.write_bytes(_bytes(value))
-        os.chmod(path, 0o600)
+        path.write_text(
+            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        path.chmod(0o600)
         return path
 
-    def _pending_results(self, *, include_platform: bool) -> dict[str, object]:
-        document = self._base_results()
-        apple = alpha3_pending_receipt()
-        document["release_publications"][
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-        ] = apple
-        document["swift_xcframework"]["distribution"] = copy.deepcopy(
-            apple["distribution"]
+    def _receipt_paths(
+        self, *, verified: bool
+    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path | None]:
+        apple = self._receipt_path(
+            self.apple_root,
+            apple_stable_publication.APPLE_PUBLICATION_RECEIPT_NAME,
+            self._apple(verified=verified),
+            "verified" if verified else "pending",
         )
-        if include_platform:
-            document["release_publications"][
-                platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-            ] = platform_pending_receipt()
-        return document
+        platform = self._receipt_path(
+            self.platform_root,
+            platform_stable_publication.RECEIPT_NAME,
+            self._platform(verified=verified),
+            "verified" if verified else "pending",
+        )
+        crates = None
+        if verified:
+            crates = self._receipt_path(
+                self.crates_root,
+                crates_io_publication.CRATES_IO_PUBLICATION_RECEIPT_NAME,
+                self._crates(),
+                "verified",
+            )
+        return apple, platform, crates
 
-    def test_apple_absent_pending_verified_and_read_only_idempotence(self) -> None:
-        base = self._base_results()
-        base_sha = self._write_results(base)
-        pending_path = self._receipt("apple", alpha3_pending_receipt())
-        output, _digest = finalizer.finalize_results(
-            base_sha,
-            apple_receipt_path=pending_path,
-            platform_receipt_path=None,
+    def _install_pending(self) -> tuple[str, str]:
+        previous_sha256 = self._current_sha256()
+        apple, platform, _ = self._receipt_paths(verified=False)
+        pending, committed = finalizer.assemble_next_results(
+            previous_sha256,
+            apple_receipt_path=apple,
+            platform_receipt_path=platform,
+            crates_receipt_path=None,
         )
-        pending_results = json.loads(output.read_text(encoding="ascii"))
-        self.assertEqual(base["sentinel"], pending_results["sentinel"])
-        self.assertEqual(
-            base["release_publications"][
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-            ],
-            pending_results["release_publications"][
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-            ],
-        )
-        self.assertEqual(
-            alpha3_pending_receipt()["distribution"],
-            pending_results["swift_xcframework"]["distribution"],
-        )
-        self.assertEqual(0o600, stat.S_IMODE(output.stat().st_mode))
-        self.assertEqual(1, output.stat().st_nlink)
+        self.assertEqual(self.results_commit, committed.commit)
+        pending_sha256 = self._write_results(pending)
+        self._git("add", "artifact/results.json")
+        self._git("commit", "-qm", "record pending cohort")
+        return self._commit(), pending_sha256
 
-        pending_sha = self._write_results(pending_results)
+    def test_source_to_pending_requires_both_domains_and_keeps_selector(self) -> None:
+        source_sha256 = self._current_sha256()
+        before = json.loads(self.results.read_text(encoding="utf-8"))
+        apple, platform, _ = self._receipt_paths(verified=False)
+        pending, committed = finalizer.assemble_next_results(
+            source_sha256,
+            apple_receipt_path=apple,
+            platform_receipt_path=platform,
+            crates_receipt_path=None,
+        )
+        self.assertEqual(self.results_commit, committed.commit)
         self.assertEqual(
-            pending_sha,
-            finalizer.verify_existing_receipts(
-                pending_sha,
-                apple_receipt_path=pending_path,
+            aggregate.PUBLICATION_STATE_PENDING,
+            aggregate.publication_state(pending),
+        )
+        self.assertEqual(
+            before["swift_xcframework"], pending["swift_xcframework"]
+        )
+        with self.assertRaisesRegex(
+            finalizer.ReleaseReceiptFinalizerError, "exactly Apple and platform"
+        ):
+            finalizer.assemble_next_results(
+                source_sha256,
+                apple_receipt_path=apple,
                 platform_receipt_path=None,
+                crates_receipt_path=None,
+            )
+
+    def test_pending_to_verified_requires_registry_and_switches_selector(self) -> None:
+        self._install_pending()
+        pending_sha256 = self._current_sha256()
+        apple, platform, crates = self._receipt_paths(verified=True)
+        verified, _committed = finalizer.assemble_next_results(
+            pending_sha256,
+            apple_receipt_path=apple,
+            platform_receipt_path=platform,
+            crates_receipt_path=crates,
+        )
+        self.assertEqual(
+            aggregate.PUBLICATION_STATE_VERIFIED,
+            aggregate.publication_state(verified),
+        )
+        self.assertEqual(
+            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY,
+            verified["swift_xcframework"]["active_publication_key"],
+        )
+        self.assertEqual(
+            verified["release_publications"][
+                apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+            ]["distribution"],
+            verified["swift_xcframework"]["distribution"],
+        )
+
+    def test_source_commit_tree_and_digest_mismatch_fail_closed(self) -> None:
+        source_sha256 = self._current_sha256()
+        apple, platform, _ = self._receipt_paths(verified=False)
+        value = json.loads(platform.read_text(encoding="utf-8"))
+        value["observation"]["source"]["tag_tree"] = "a" * 40
+        platform.write_text(json.dumps(value, sort_keys=True) + "\n", encoding="utf-8")
+        platform.chmod(0o600)
+        with self.assertRaises(finalizer.ReleaseReceiptFinalizerError):
+            finalizer.assemble_next_results(
+                source_sha256,
+                apple_receipt_path=apple,
+                platform_receipt_path=platform,
+                crates_receipt_path=None,
+            )
+
+    def test_current_results_must_be_clean_and_byte_identical_to_head(self) -> None:
+        self.results.write_text("{}\n", encoding="utf-8")
+        self.results.chmod(0o644)
+        with self.assertRaisesRegex(
+            finalizer.ReleaseReceiptFinalizerError, "clean committed checkout"
+        ):
+            finalizer.load_current_results(self._current_sha256())
+
+        self._git("checkout", "--", "artifact/results.json")
+        (self.root / "tracked.txt").write_text("new source\n", encoding="utf-8")
+        self._git("add", "tracked.txt")
+        with self.assertRaisesRegex(
+            finalizer.ReleaseReceiptFinalizerError, "clean committed checkout"
+        ):
+            finalizer.load_current_results(self._current_sha256())
+
+    def test_receipt_path_mode_hardlink_and_symlink_are_rejected(self) -> None:
+        source_sha256 = self._current_sha256()
+        apple, platform, _ = self._receipt_paths(verified=False)
+        platform.chmod(0o644)
+        with self.assertRaises(finalizer.PublicationReceiptIOError):
+            finalizer._load_platform_receipt(platform)
+        platform.chmod(0o600)
+
+        second_link = platform.with_name("second-link.json")
+        os.link(platform, second_link)
+        with self.assertRaises(finalizer.PublicationReceiptIOError):
+            finalizer._load_platform_receipt(platform)
+        second_link.unlink()
+
+        symlink_parent = self.platform_root / "symlink"
+        symlink_parent.mkdir(mode=0o700)
+        link = symlink_parent / platform_stable_publication.RECEIPT_NAME
+        link.symlink_to(platform)
+        with self.assertRaises(finalizer.PublicationReceiptIOError):
+            finalizer._load_platform_receipt(link)
+        self.assertTrue(apple.is_file())
+        self.assertEqual(source_sha256, self._current_sha256())
+
+    def test_finalize_emits_parent_binding_and_no_replace_candidate(self) -> None:
+        source_sha256 = self._current_sha256()
+        apple, platform, _ = self._receipt_paths(verified=False)
+        path, digest, parent_commit, parent_sha256 = finalizer.finalize_results(
+            source_sha256,
+            apple_receipt_path=apple,
+            platform_receipt_path=platform,
+            crates_receipt_path=None,
+        )
+        self.assertTrue(path.is_file())
+        self.assertEqual(self.results_commit, parent_commit)
+        self.assertEqual(source_sha256, parent_sha256)
+        self.assertEqual(digest, hashlib.sha256(path.read_bytes()).hexdigest())
+
+    def test_installed_pending_and_verified_transitions_are_rechecked(self) -> None:
+        source_sha256 = self._current_sha256()
+        parent_commit = self.results_commit
+        pending_commit, pending_sha256 = self._install_pending()
+        observed_commit, state = finalizer.verify_installed_results(
+            pending_sha256,
+            expected_parent_commit=parent_commit,
+            expected_parent_results_sha256=source_sha256,
+        )
+        self.assertEqual(pending_commit, observed_commit)
+        self.assertEqual(aggregate.PUBLICATION_STATE_PENDING, state)
+
+        apple, platform, crates = self._receipt_paths(verified=True)
+        verified, _ = finalizer.assemble_next_results(
+            pending_sha256,
+            apple_receipt_path=apple,
+            platform_receipt_path=platform,
+            crates_receipt_path=crates,
+        )
+        verified_sha256 = self._write_results(verified)
+        self._git("add", "artifact/results.json")
+        self._git("commit", "-qm", "record verified cohort")
+        verified_commit = self._commit()
+        observed_commit, state = finalizer.verify_installed_results(
+            verified_sha256,
+            expected_parent_commit=pending_commit,
+            expected_parent_results_sha256=pending_sha256,
+        )
+        self.assertEqual(verified_commit, observed_commit)
+        self.assertEqual(aggregate.PUBLICATION_STATE_VERIFIED, state)
+
+        with self.assertRaises(finalizer.ReleaseReceiptFinalizerError):
+            finalizer.verify_installed_results(
+                verified_sha256,
+                expected_parent_commit=self.source_commit,
+                expected_parent_results_sha256=source_sha256,
+            )
+
+    def test_cli_markers_include_parent_and_installed_state(self) -> None:
+        candidate = self.target / "candidate" / "results.json"
+        args = argparse.Namespace(
+            command="finalize",
+            expected_results_sha256="a" * 64,
+            apple_receipt=None,
+            platform_receipt=None,
+            crates_receipt=None,
+        )
+        with (
+            mock.patch.object(
+                finalizer,
+                "finalize_results",
+                return_value=(candidate, "b" * 64, "c" * 40, "d" * 64),
             ),
-        )
-        with self.assertRaisesRegex(
-            finalizer.ReleaseReceiptFinalizerError,
-            "use read-only verify",
+            mock.patch("builtins.print") as printer,
         ):
-            finalizer.finalize_results(
-                pending_sha,
-                apple_receipt_path=pending_path,
-                platform_receipt_path=None,
-            )
-
-        verified_path = self._receipt("apple", alpha3_verified_receipt())
-        verified_output, _ = finalizer.finalize_results(
-            pending_sha,
-            apple_receipt_path=verified_path,
-            platform_receipt_path=None,
-        )
-        verified_results = json.loads(
-            verified_output.read_text(encoding="ascii")
-        )
-        self.assertEqual(
-            apple_contract.APPLE_STATUS_VERIFIED,
-            verified_results["release_publications"][
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-            ]["status"],
-        )
-        self.assertEqual(
-            alpha3_verified_receipt()["distribution"],
-            verified_results["swift_xcframework"]["distribution"],
-        )
-
-    def test_direct_verified_addition_and_candidate_drift_are_rejected(self) -> None:
-        base_sha = self._write_results(self._base_results())
-        verified_path = self._receipt("apple", alpha3_verified_receipt())
-        with self.assertRaisesRegex(
-            finalizer.ReleaseReceiptFinalizerError,
-            "must first be recorded as pending",
-        ):
-            finalizer.finalize_results(
-                base_sha,
-                apple_receipt_path=verified_path,
-                platform_receipt_path=None,
-            )
-
-        platform_verified_path = self._receipt(
-            "platform",
-            platform_verified_receipt(),
-        )
-        with self.assertRaisesRegex(
-            finalizer.ReleaseReceiptFinalizerError,
-            "must first be recorded as pending",
-        ):
-            finalizer.finalize_results(
-                base_sha,
-                apple_receipt_path=None,
-                platform_receipt_path=platform_verified_path,
-            )
-
-        pending_results = self._pending_results(include_platform=False)
-        pending_sha = self._write_results(pending_results)
-        drifted = alpha3_pending_receipt()
-        drifted["distribution"]["artifact_sha256"] = "a" * 64
-        drifted["distribution"]["swiftpm_checksum"] = "a" * 64
-        drifted_path = self._receipt("apple", drifted)
-        with self.assertRaisesRegex(
-            finalizer.ReleaseReceiptFinalizerError,
-            "pending.*only remain unchanged",
-        ):
-            finalizer.finalize_results(
-                pending_sha,
-                apple_receipt_path=drifted_path,
-                platform_receipt_path=None,
-            )
-
-    def test_one_or_two_leaves_and_partial_promotions_preserve_other_domain(
-        self,
-    ) -> None:
-        base_sha = self._write_results(self._base_results())
-        apple_pending_path = self._receipt("apple", alpha3_pending_receipt())
-        platform_pending_path = self._receipt(
-            "platform", platform_pending_receipt()
-        )
-        both_output, _ = finalizer.finalize_results(
-            base_sha,
-            apple_receipt_path=apple_pending_path,
-            platform_receipt_path=platform_pending_path,
-        )
-        both_pending = json.loads(both_output.read_text(encoding="ascii"))
-        self.assertEqual(
-            platform_contract.PLATFORM_ALPHA3_STATUS_PENDING,
-            both_pending["release_publications"][
-                platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-            ]["status"],
-        )
-        both_sha = self._write_results(both_pending)
-
-        apple_verified_path = self._receipt(
-            "apple", alpha3_verified_receipt()
-        )
-        apple_only_output, _ = finalizer.finalize_results(
-            both_sha,
-            apple_receipt_path=apple_verified_path,
-            platform_receipt_path=None,
-        )
-        apple_only = json.loads(apple_only_output.read_text(encoding="ascii"))
-        self.assertEqual(
-            both_pending["release_publications"][
-                platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-            ],
-            apple_only["release_publications"][
-                platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-            ],
-        )
-
-        # Reset to the same two-pending parent and advance only platform.
-        both_sha = self._write_results(both_pending)
-        platform_verified_path = self._receipt(
-            "platform", platform_verified_receipt()
-        )
-        platform_only_output, _ = finalizer.finalize_results(
-            both_sha,
-            apple_receipt_path=None,
-            platform_receipt_path=platform_verified_path,
-        )
-        platform_only = json.loads(
-            platform_only_output.read_text(encoding="ascii")
-        )
-        self.assertEqual(
-            both_pending["release_publications"][
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-            ],
-            platform_only["release_publications"][
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-            ],
-        )
-        self.assertEqual(
-            platform_contract.PLATFORM_ALPHA3_STATUS_VERIFIED,
-            platform_only["release_publications"][
-                platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-            ]["status"],
-        )
-
-        both_sha = self._write_results(both_pending)
-        both_verified_output, _ = finalizer.finalize_results(
-            both_sha,
-            apple_receipt_path=apple_verified_path,
-            platform_receipt_path=platform_verified_path,
-        )
-        both_verified = json.loads(
-            both_verified_output.read_text(encoding="ascii")
-        )
-        self.assertEqual(
-            apple_contract.APPLE_STATUS_VERIFIED,
-            both_verified["release_publications"][
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-            ]["status"],
-        )
-        self.assertEqual(
-            platform_contract.PLATFORM_ALPHA3_STATUS_VERIFIED,
-            both_verified["release_publications"][
-                platform_contract.PLATFORM_ALPHA3_PUBLICATION_KEY
-            ]["status"],
-        )
-
-    def test_pins_fixed_receipt_roots_modes_hardlinks_and_end_resample(self) -> None:
-        base_sha = self._write_results(self._base_results())
-        pending_path = self._receipt("apple", alpha3_pending_receipt())
-        with self.assertRaisesRegex(
-            finalizer.ReleaseReceiptFinalizerError,
-            "startup SHA-256 pin",
-        ):
-            finalizer.finalize_results(
-                "f" * 64,
-                apple_receipt_path=pending_path,
-                platform_receipt_path=None,
-            )
-
-        outside = self.target / apple_alpha3_publication.APPLE_PUBLICATION_RECEIPT_NAME
-        outside.write_bytes(pending_path.read_bytes())
-        os.chmod(outside, 0o600)
-        with self.assertRaises(publication_receipt_io.PublicationReceiptIOError):
-            finalizer.finalize_results(
-                base_sha,
-                apple_receipt_path=outside,
-                platform_receipt_path=None,
-            )
-
-        os.chmod(pending_path, 0o644)
-        with self.assertRaises(publication_receipt_io.PublicationReceiptIOError):
-            finalizer.finalize_results(
-                base_sha,
-                apple_receipt_path=pending_path,
-                platform_receipt_path=None,
-            )
-        os.chmod(pending_path, 0o600)
-        hardlink = pending_path.parent / "hardlink.json"
-        os.link(pending_path, hardlink)
-        with self.assertRaises(publication_receipt_io.PublicationReceiptIOError):
-            finalizer.finalize_results(
-                base_sha,
-                apple_receipt_path=pending_path,
-                platform_receipt_path=None,
-            )
-        hardlink.unlink()
-
-        real_load = finalizer.load_current_results
-        calls = 0
-
-        def mutate_before_end(pin: str):
-            nonlocal calls
-            calls += 1
-            if calls == 2:
-                self.results_path.write_bytes(b'{"changed":true}\n')
-                os.chmod(self.results_path, 0o644)
-            return real_load(pin)
-
-        with mock.patch.object(
-            finalizer,
-            "load_current_results",
-            side_effect=mutate_before_end,
-        ):
-            with self.assertRaisesRegex(
-                finalizer.ReleaseReceiptFinalizerError,
-                "startup SHA-256 pin",
-            ):
-                finalizer.finalize_results(
-                    base_sha,
-                    apple_receipt_path=pending_path,
-                    platform_receipt_path=None,
-                )
-        if self.results_root.exists():
-            self.assertEqual([], list(self.results_root.glob("*/results.json")))
-
-    def test_output_fault_has_no_partial_candidate_and_later_run_recovers(self) -> None:
-        base_sha = self._write_results(self._base_results())
-        pending_path = self._receipt("apple", alpha3_pending_receipt())
-        with mock.patch.object(
-            publication_receipt_io,
-            "_rename_noreplace",
-            side_effect=publication_receipt_io.PublicationReceiptIOError(
-                "injected output fault"
-            ),
-        ):
-            with self.assertRaisesRegex(
-                publication_receipt_io.PublicationReceiptIOError,
-                "injected output fault",
-            ):
-                finalizer.finalize_results(
-                    base_sha,
-                    apple_receipt_path=pending_path,
-                    platform_receipt_path=None,
-                )
-        self.assertEqual([], list(self.results_root.glob("*/results.json")))
-        self.assertEqual(
-            [], list(self.results_root.glob("*/.results.json.pending-*"))
-        )
-
-        output, _ = finalizer.finalize_results(
-            base_sha,
-            apple_receipt_path=pending_path,
-            platform_receipt_path=None,
-        )
-        self.assertTrue(output.is_file())
+            finalizer.run(args)
+        marker = printer.call_args.args[0]
+        self.assertIn("parent_commit=" + "c" * 40, marker)
+        self.assertIn("parent_sha256=" + "d" * 64, marker)
 
 
 if __name__ == "__main__":

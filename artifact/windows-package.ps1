@@ -26,7 +26,7 @@ $PSNativeCommandUseErrorActionPreference = $false
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 Set-Location -LiteralPath $Root
 
-$Version = "0.1.0-alpha.3"
+$Version = "0.1.0"
 $Target = "x86_64-pc-windows-msvc"
 $PackageName = "q-periapt-c-abi2-$Version-$Target"
 $OutRoot = Join-Path $Root "target/qperiapt-windows-package"
@@ -1828,7 +1828,7 @@ This research-alpha SDK supports Windows x64 with the MSVC ABI. It includes the
 ABI2 DLL, its import library, a separate static library, headers, CMake config,
 the frozen ABI contract, SBOM/CBOM, third-party notices, and checksums.
 
-The DLL is intentionally marked **unsigned experimental prerelease** because no
+The DLL is explicitly marked **unsigned SDK without Authenticode** because no
 trusted Windows Authenticode credential was available. Do not confuse the
 GitHub immutable-release/artifact attestations with Authenticode trust.
 

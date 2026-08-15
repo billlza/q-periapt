@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the composite platform and Apple publication contract."""
+"""Fail-closed tests for the coordinated stable publication cohort."""
 
 from __future__ import annotations
 
@@ -9,338 +9,701 @@ import pathlib
 import unittest
 
 import apple_publication_contract as apple_contract
+import apple_stable_publication as apple_producer
+import crates_io_publication_contract as crates_contract
+import platform_publication_contract as platform_contract
 import release_publication_contract as contract
 from test_apple_publication_contract import (
-    alpha2_receipt,
-    alpha3_pending_receipt,
-    alpha3_verified_receipt,
+    stable_pending_receipt,
+    stable_verified_receipt,
 )
-from test_platform_alpha3_publication_contract import (
-    pending_receipt as platform_alpha3_pending_receipt,
-    verified_receipt as platform_alpha3_verified_receipt,
+from test_crates_io_publication_contract import receipt_fixture as crates_receipt
+from test_platform_stable_publication_contract import (
+    pending_receipt as platform_pending_receipt,
+    verified_receipt as platform_verified_receipt,
 )
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-def _selector_manifest(
-    receipt_key: str,
-    receipt: dict[str, object],
-    *,
-    extra_receipts: dict[str, object] | None = None,
+def _rebind_platform(
+    receipt: dict[str, object], source: dict[str, str]
 ) -> dict[str, object]:
-    publications = {receipt_key: receipt}
-    if extra_receipts is not None:
-        publications.update(extra_receipts)
-    return {
-        "release_publications": publications,
-        "swift_xcframework": {
-            "distribution": copy.deepcopy(receipt["distribution"])
-        },
+    rebound = copy.deepcopy(receipt)
+    observation = rebound["observation"]
+    platform_source = observation["source"]
+    platform_source.update(source)
+    platform_source["tag_object"] = "9" * 40
+    platform_source["verifier_commit"] = source["tag_commit"]
+    candidate = observation["candidate_attestation"]
+    candidate["source_digest"] = source["tag_commit"]
+    security_gate = candidate["security_gate"]
+    security_gate["source_parent_commit"] = source["source_parent_commit"]
+    security_gate["tag_commit"] = source["tag_commit"]
+    for workflow in security_gate["workflows"].values():
+        workflow["head_sha"] = source["tag_commit"]
+    if rebound["status"] == "observed_public_immutable_fresh_download_verified":
+        observation["fresh_download_verification"]["verifier_commit"] = source[
+            "tag_commit"
+        ]
+        observation["release_attestation"]["subjects"][0]["digest"]["sha1"] = (
+            platform_source["tag_object"]
+        )
+    return rebound
+
+
+def _rebind_crates(
+    receipt: dict[str, object],
+    source: dict[str, str],
+    rust_publish: dict[str, object],
+) -> dict[str, object]:
+    rebound = copy.deepcopy(receipt)
+    observation = rebound["observation"]
+    observation["source"] = {
+        key: source[key]
+        for key in (
+            "canonical_source_tree_sha256",
+            "source_parent_commit",
+            "tag_commit",
+            "tag_tree",
+        )
     }
+    package_contract = observation["package_contract"]
+    package_contract["source_commit"] = source["source_parent_commit"]
+    package_contract["completed_at"] = rust_publish["completed_at"]
+    package_contract["transcript_sha256"] = rust_publish[
+        "transcript_sha256"
+    ]
+    package_contract["handoff_sha256"] = rust_publish[
+        "handoff_manifest_sha256"
+    ]
+    return rebound
+
+
+def rebind_rust_publish_source(
+    section: dict[str, object],
+    *,
+    source_commit: str,
+    source_digest: str,
+) -> dict[str, object]:
+    """Rebind a complete current Rust fixture to one synthetic source root."""
+
+    import proof_manifest
+
+    rebound = copy.deepcopy(section)
+    previous_commit = rebound["source_commit"]
+    previous_digest = rebound["proof_source_tree_sha256"]
+    status = rebound["current_local_status"]
+    if (
+        not isinstance(previous_commit, str)
+        or not isinstance(previous_digest, str)
+        or not isinstance(status, str)
+        or status.count(previous_commit) != 1
+        or status.count(previous_digest) != 1
+    ):
+        raise AssertionError("Rust package fixture source binding is malformed")
+    rebound["source_commit"] = source_commit
+    rebound["proof_source_tree_sha256"] = source_digest
+    transaction = f"transaction.1-{'7' * 32}"
+    rebound["boundary"] = proof_manifest.RUST_PACKAGE_BOUNDARY
+    rebound["evidence_schema"] = 2
+    rebound["handoff_manifest_path"] = (
+        "target/qperiapt-rust-package-handoffs/"
+        f"{transaction}/rust-package-handoff.json"
+    )
+    rebound["handoff_manifest_sha256"] = "6" * 64
+    rebound["transcript_path"] = (
+        "target/qperiapt-rust-package-handoffs/"
+        f"{transaction}/rust-package-contract.log"
+    )
+    rebound["current_local_status"] = (
+        proof_manifest.rust_package_current_local_status(
+            source_commit=source_commit,
+            source_digest=source_digest,
+            completed_at=rebound["completed_at"],
+            advisory_commit=rebound["advisory_db_commit"],
+            registry_package_count=rebound[
+                "crates_io_registry_package_count"
+            ],
+            normalized_lock_sha256=rebound[
+                "normalized_cargo_lock_sha256"
+            ],
+        )
+    )
+    return rebound
+
+
+def rebind_stable_current_source(
+    manifest: dict[str, object],
+    *,
+    source_commit: str,
+    source_digest: str,
+) -> None:
+    """Install complete synthetic physical/performance source projections."""
+
+    import proof_manifest
+
+    manifest["android_aar"] = {
+        "aar_path": proof_manifest.ANDROID_AAR_PATH,
+        "aar_sha256": "1" * 64,
+        "current_source_status": "current_clean_tree_package_pass",
+        "manifest_generated_at": "2026-08-15T00:00:00Z",
+        "manifest_path": proof_manifest.ANDROID_AAR_MANIFEST_PATH,
+        "manifest_schema": 4,
+        "manifest_sha256": "2" * 64,
+        "proof_source_tree_sha256": source_digest,
+        "source_commit": source_commit,
+        "source_tree_dirty": False,
+        "status": "pass",
+        "targets": list(proof_manifest.ANDROID_ABIS),
+    }
+    physical_run = "3" * 32
+    manifest["android_physical_runtime"] = {
+        "android_sdk": 36,
+        "build_tools": proof_manifest.ANDROID_RELEASE_BUILD_TOOLS,
+        "covered_tests": list(proof_manifest.ANDROID_EXPECTED_TESTS),
+        "current_source_status": "current_clean_tree_physical_pass",
+        "device_abi": proof_manifest.ANDROID_RELEASE_ABI,
+        "device_kind": "physical",
+        "page_size": 4_096,
+        "proof_generated_at": "2026-08-15T00:01:00Z",
+        "proof_path": (
+            "target/qperiapt-android-device-smoke-runs/"
+            f"{physical_run}/proof/qperiapt-android-device-proof.json"
+        ),
+        "proof_schema": proof_manifest.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+        "proof_sha256": "4" * 64,
+        "proof_source_tree_sha256": source_digest,
+        "release_candidate_mode": True,
+        "run_id": physical_run,
+        "source_commit": source_commit,
+        "source_tree_dirty": False,
+        "status": "pass",
+    }
+    manifest["performance"] = {
+        "current_source_status": "current_controlled_pass",
+        "proof_generated_at": "2026-08-15T00:02:00Z",
+        "proof_path": "target/performance/paired-proof.json",
+        "proof_schema": proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
+        "proof_sha256": "5" * 64,
+        "proof_source_tree_sha256": source_digest,
+        "source_commit": source_commit,
+        "source_tree_dirty": False,
+        "status": "pass",
+    }
+    apple = manifest.get("apple_device")
+    if isinstance(apple, dict):
+        apple["proof_source_tree_sha256"] = source_digest
+
+
+def source_manifest_fixture(
+    legacy: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Return the exact post-migration source-results publication state."""
+
+    if legacy is None:
+        legacy = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+    manifest = copy.deepcopy(legacy)
+    apple_pending = stable_pending_receipt()
+    source = apple_pending["source"]
+    manifest["provenance"]["snapshot_commit"] = source[
+        "source_parent_commit"
+    ]
+    manifest["proof_source_tree_sha256"] = source[
+        "canonical_source_tree_sha256"
+    ]
+    manifest["rust_publish"] = rebind_rust_publish_source(
+        manifest["rust_publish"],
+        source_commit=source["source_parent_commit"],
+        source_digest=source["canonical_source_tree_sha256"],
+    )
+    rebind_stable_current_source(
+        manifest,
+        source_commit=source["source_parent_commit"],
+        source_digest=source["canonical_source_tree_sha256"],
+    )
+    manifest["swift_xcframework"] = contract.neutral_swift_selector(manifest)
+    return manifest
+
+
+def pending_manifest_fixture(
+    legacy: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Return the coordinated Apple/platform pending publication state."""
+
+    manifest = source_manifest_fixture(legacy)
+    apple = stable_pending_receipt()
+    source = apple["source"]
+    platform = _rebind_platform(platform_pending_receipt(), source)
+    manifest["release_publications"][
+        apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+    ] = apple
+    manifest["release_publications"][
+        platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY
+    ] = platform
+    return manifest
+
+
+def verified_manifest_fixture(
+    legacy: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Return the fully verified cohort with the stable Apple selector active."""
+
+    manifest = pending_manifest_fixture(legacy)
+    apple = stable_verified_receipt()
+    source = apple["source"]
+    platform = _rebind_platform(platform_verified_receipt(), source)
+    registry = _rebind_crates(
+        crates_receipt(10), source, manifest["rust_publish"]
+    )
+    publications = manifest["release_publications"]
+    publications[apple_contract.APPLE_V0_1_0_PUBLICATION_KEY] = apple
+    publications[platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY] = platform
+    publications[crates_contract.CRATES_IO_PUBLICATION_KEY] = registry
+    swift = manifest["swift_xcframework"]
+    swift["active_publication_key"] = (
+        apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+    )
+    swift["distribution"] = copy.deepcopy(apple["distribution"])
+    return manifest
 
 
 class ReleasePublicationContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.legacy_results = json.loads(
+        cls.legacy = json.loads(
             (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
         )
-        publications = cls.legacy_results.setdefault(
-            "release_publications", {}
-        )
-        for key in apple_contract.APPLE_PUBLICATION_KEYS:
-            publications.pop(key, None)
-        cls.legacy_results.setdefault("swift_xcframework", {})[
-            "distribution"
-        ] = apple_contract.frozen_alpha2_r1_distribution()
-        if any(
-            key in publications for key in apple_contract.APPLE_PUBLICATION_KEYS
-        ) or not apple_contract.publication_values_equal(
-            cls.legacy_results["swift_xcframework"]["distribution"],
-            apple_contract.frozen_alpha2_r1_distribution(),
+
+    def source_manifest(self) -> dict[str, object]:
+        return source_manifest_fixture(self.legacy)
+
+    def pending_manifest(self) -> dict[str, object]:
+        return pending_manifest_fixture(self.legacy)
+
+    def verified_manifest(self) -> dict[str, object]:
+        return verified_manifest_fixture(self.legacy)
+
+    def test_exact_source_pending_and_verified_states_pass(self) -> None:
+        source = self.source_manifest()
+        pending = self.pending_manifest()
+        verified = self.verified_manifest()
+        for expected_state, manifest in (
+            (contract.PUBLICATION_STATE_SOURCE, source),
+            (contract.PUBLICATION_STATE_PENDING, pending),
+            (contract.PUBLICATION_STATE_VERIFIED, verified),
         ):
-            raise AssertionError(
-                "legacy fixture must be the exact selector-only Apple alpha.2 state"
-            )
-        cls.platform_r2 = copy.deepcopy(
-            publications["platform_r2"]
-        )
+            with self.subTest(expected_state=expected_state):
+                contract.validate_release_publications(manifest)
+                contract.validate_stable_source_currentness(manifest)
+                self.assertEqual(expected_state, contract.publication_state(manifest))
+        contract.validate_release_publication_transition(source, pending)
+        contract.validate_release_publication_transition(pending, verified)
 
-    def test_minimal_absence_and_union_dispatch_are_valid(self) -> None:
-        contract.validate_release_publications({})
-        apple = alpha2_receipt()
-        manifest = _selector_manifest(
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
-            apple,
-            extra_receipts={"platform_r2": copy.deepcopy(self.platform_r2)},
-        )
-        contract.validate_release_publications(manifest)
-        self.assertEqual(
-            contract.RELEASE_PUBLICATION_KEYS,
-            frozenset(
-                {
-                    "platform_r2",
-                    "platform_alpha3_r1",
-                    "apple_alpha2_r1",
-                    "apple_alpha3_r1",
-                }
-            ),
-        )
-
-    def test_selector_and_versioned_leaf_require_each_other(self) -> None:
-        receipt = alpha2_receipt()
-        selector_only = {
-            "swift_xcframework": {
-                "distribution": copy.deepcopy(receipt["distribution"])
-            }
-        }
-        leaf_only = {
-            "release_publications": {
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY: receipt
-            }
-        }
-        for label, manifest, message in (
+    def test_pending_and_verified_reject_forged_stale_source_gates(self) -> None:
+        mutations = (
             (
-                "selector-only",
-                selector_only,
-                "requires a versioned Apple publication receipt",
+                "physical status",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "current_source_status", "stale_requires_rerun"
+                ),
+                "current clean physical",
             ),
             (
-                "leaf-only",
-                leaf_only,
-                "requires swift_xcframework.distribution",
+                "physical ABI",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "device_abi", "x86_64"
+                ),
+                "arm64-v8a release mode",
+            ),
+            (
+                "physical release mode",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "release_candidate_mode", False
+                ),
+                "arm64-v8a release mode",
+            ),
+            (
+                "physical proof schema",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "proof_schema", 5
+                ),
+                "arm64-v8a release mode",
+            ),
+            (
+                "physical source",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "proof_source_tree_sha256", "f" * 64
+                ),
+                "current clean physical",
+            ),
+            (
+                "AAR status",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "current_source_status", "stale_requires_rerun"
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "AAR source commit",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "source_commit", "f" * 40
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "AAR source digest",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "proof_source_tree_sha256", "f" * 64
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "AAR dirty source",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "source_tree_dirty", True
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "AAR manifest schema",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "manifest_schema", 3
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "AAR canonical path",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "aar_path", "target/forged.aar"
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "AAR manifest hash",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "manifest_sha256", "bad"
+                ),
+                "current clean Android AAR",
+            ),
+            (
+                "physical ABI absent from AAR",
+                lambda manifest: manifest["android_aar"].__setitem__(
+                    "targets", ["x86_64"]
+                ),
+                "current clean Android AAR|covered by the selected AAR",
+            ),
+            (
+                "performance status",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "current_source_status", "stale_requires_rerun"
+                ),
+                "current controlled performance",
+            ),
+            (
+                "performance proof schema",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "proof_schema", 5
+                ),
+                "current controlled performance",
+            ),
+            (
+                "performance source commit",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "source_commit", "f" * 40
+                ),
+                "current controlled performance",
+            ),
+            (
+                "performance dirty source",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "source_tree_dirty", True
+                ),
+                "current controlled performance",
+            ),
+            (
+                "performance proof path",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "proof_path", "../forged.json"
+                ),
+                "current controlled performance",
+            ),
+            (
+                "performance proof hash",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "proof_sha256", "bad"
+                ),
+                "current controlled performance",
+            ),
+            (
+                "physical run identity",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "run_id", "bad"
+                ),
+                "proof identity is malformed",
+            ),
+            (
+                "physical proof path",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "proof_path", "target/forged.json"
+                ),
+                "proof identity is malformed",
+            ),
+            (
+                "physical proof hash",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "proof_sha256", "bad"
+                ),
+                "proof identity is malformed",
+            ),
+            (
+                "physical covered tests",
+                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                    "covered_tests", []
+                ),
+                "arm64-v8a release mode",
+            ),
+            (
+                "performance source",
+                lambda manifest: manifest["performance"].__setitem__(
+                    "proof_source_tree_sha256", "f" * 64
+                ),
+                "current controlled performance",
+            ),
+        )
+        for state_factory in (self.pending_manifest, self.verified_manifest):
+            for label, mutate, message in mutations:
+                with self.subTest(state=state_factory.__name__, mutation=label):
+                    invalid = state_factory()
+                    mutate(invalid)
+                    with self.assertRaisesRegex(
+                        contract.ReleasePublicationContractError,
+                        message,
+                    ):
+                        contract.validate_release_publications(invalid)
+
+    def test_stable_source_currentness_is_a_standalone_manifest_authority(
+        self,
+    ) -> None:
+        manifest = self.pending_manifest()
+        contract.validate_stable_source_currentness(manifest)
+        for label, section, field, value in (
+            (
+                "physical path",
+                "android_physical_runtime",
+                "proof_path",
+                "target/forged.json",
+            ),
+            (
+                "performance source",
+                "performance",
+                "source_commit",
+                "f" * 40,
+            ),
+            (
+                "performance path",
+                "performance",
+                "proof_path",
+                "target/performance/nested/forged.json",
             ),
         ):
             with self.subTest(label=label):
-                with self.assertRaisesRegex(
-                    contract.ReleasePublicationContractError, message
+                invalid = copy.deepcopy(manifest)
+                invalid[section][field] = value
+                with self.assertRaises(
+                    contract.ReleasePublicationContractError
                 ):
-                    contract.validate_release_publications(manifest)
+                    contract.validate_stable_source_currentness(invalid)
 
-    def test_selector_matches_exactly_one_apple_leaf(self) -> None:
-        alpha2 = alpha2_receipt()
-        alpha3 = alpha3_pending_receipt()
-        manifest = _selector_manifest(
+    def test_one_time_selector_migration_is_exact(self) -> None:
+        migrated = contract.neutral_swift_selector(self.legacy)
+        self.assertEqual(
             apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
-            alpha2,
-            extra_receipts={
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: alpha3
-            },
+            migrated["active_publication_key"],
         )
-        contract.validate_release_publications(manifest)
+        self.assertEqual(contract.NEUTRAL_SWIFT_BOUNDARY, migrated["boundary"])
+        source = self.source_manifest()
+        contract.validate_release_publication_transition(self.legacy, source)
 
-        manifest["swift_xcframework"]["distribution"]["artifact_size"] += 1
+        changed = copy.deepcopy(self.legacy)
+        changed["swift_xcframework"]["distribution"]["artifact_size"] += 1
         with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            r"exactly match one.*matches=\[\]",
+            contract.ReleasePublicationContractError, "exact legacy"
         ):
-            contract.validate_release_publications(manifest)
+            contract.neutral_swift_selector(changed)
 
-        # A verified alpha.3 leaf remains distinct from alpha.2, so the
-        # historical selector still has exactly one authority.
-        distinct = _selector_manifest(
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
-            alpha2,
-            extra_receipts={
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY: (
-                    alpha3_verified_receipt()
-                )
-            },
+    def test_pending_requires_both_domains_and_never_changes_selector(self) -> None:
+        source = self.source_manifest()
+        pending = self.pending_manifest()
+        for missing in (
+            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY,
+            platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY,
+        ):
+            with self.subTest(missing=missing):
+                invalid = copy.deepcopy(pending)
+                invalid["release_publications"].pop(missing)
+                with self.assertRaisesRegex(
+                    contract.ReleasePublicationContractError,
+                    "coordinated cohort",
+                ):
+                    contract.validate_release_publications(invalid)
+
+        activated = copy.deepcopy(pending)
+        activated["swift_xcframework"]["active_publication_key"] = (
+            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
         )
-        contract.validate_release_publications(distinct)
-
-    def test_only_exact_legacy_alpha2_projection_has_one_time_migration(self) -> None:
-        previous = copy.deepcopy(self.legacy_results)
-        with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "requires a versioned Apple publication receipt",
-        ):
-            contract.validate_release_publications(previous)
-
-        current = copy.deepcopy(previous)
-        current["release_publications"][
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-        ] = alpha2_receipt()
-        contract.validate_release_publication_transition(previous, current)
-
-        with_alpha3 = copy.deepcopy(current)
-        with_alpha3["release_publications"][
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-        ] = alpha3_pending_receipt()
-        contract.validate_release_publication_transition(previous, with_alpha3)
-
-        missing_alpha2 = copy.deepcopy(previous)
-        missing_alpha2["release_publications"][
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
-        ] = alpha3_pending_receipt()
-        missing_alpha2["swift_xcframework"]["distribution"] = copy.deepcopy(
-            missing_alpha2["release_publications"][
-                apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY
+        activated["swift_xcframework"]["distribution"] = copy.deepcopy(
+            activated["release_publications"][
+                apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
             ]["distribution"]
         )
         with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "migration requires the frozen apple_alpha2_r1",
+            contract.ReleasePublicationContractError, "must be verified"
         ):
-            contract.validate_release_publication_transition(
-                previous, missing_alpha2
-            )
+            contract.validate_release_publications(activated)
 
-        changed_legacy = copy.deepcopy(previous)
-        changed_legacy["swift_xcframework"]["distribution"][
-            "artifact_size"
-        ] += 1
-        with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "requires a versioned Apple publication receipt",
-        ):
-            contract.validate_release_publication_transition(
-                changed_legacy, current
-            )
+        unchanged_selector = copy.deepcopy(source["swift_xcframework"])
+        contract.validate_release_publication_transition(source, pending)
+        self.assertEqual(unchanged_selector, pending["swift_xcframework"])
 
-    def test_post_migration_receipts_are_strictly_monotonic(self) -> None:
-        alpha2 = alpha2_receipt()
-        previous = _selector_manifest(
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2
+    def test_apple_promotion_reads_pending_leaf_without_activating_selector(self) -> None:
+        pending = self.pending_manifest()
+        contract.validate_release_publications(pending)
+        leaf = apple_producer._pending_leaf_from_results(pending)
+        self.assertEqual(
+            pending["release_publications"][
+                apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+            ],
+            leaf,
         )
-        pending = _selector_manifest(
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
-            alpha3_pending_receipt(),
-            extra_receipts={
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY: copy.deepcopy(
-                    alpha2
-                )
-            },
-        )
-        current = _selector_manifest(
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
-            alpha3_verified_receipt(),
-            extra_receipts={
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY: copy.deepcopy(
-                    alpha2
-                )
-            },
-        )
-        contract.validate_release_publication_transition(previous, pending)
-        contract.validate_release_publication_transition(pending, current)
-        with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "must first be recorded as pending",
-        ):
-            contract.validate_release_publication_transition(previous, current)
-
-        removed = copy.deepcopy(current)
-        removed["release_publications"].pop(
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-        )
-        with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "alpha.2.*cannot be removed",
-        ):
-            contract.validate_release_publication_transition(current, removed)
-
-    def test_platform_alpha3_must_be_recorded_pending_before_verified(self) -> None:
-        previous = {
-            "release_publications": {
-                "platform_r2": copy.deepcopy(self.platform_r2)
-            }
-        }
-        pending = copy.deepcopy(previous)
-        pending["release_publications"]["platform_alpha3_r1"] = (
-            platform_alpha3_pending_receipt()
-        )
-        verified = copy.deepcopy(previous)
-        verified["release_publications"]["platform_alpha3_r1"] = (
-            platform_alpha3_verified_receipt()
-        )
-
-        contract.validate_release_publication_transition(previous, pending)
-        with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "platform alpha3 publication must first be recorded as pending",
-        ):
-            contract.validate_release_publication_transition(previous, verified)
-
-    def test_historical_platform_r2_cannot_be_added_by_future_transition(self) -> None:
-        current = {
-            "release_publications": {
-                "platform_r2": copy.deepcopy(self.platform_r2)
-            }
-        }
-        with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "historical platform r2 publication cannot be introduced",
-        ):
-            contract.validate_release_publication_transition({}, current)
-
-    def test_historical_alpha2_cannot_be_added_outside_exact_legacy_migration(
-        self,
-    ) -> None:
-        alpha2 = alpha2_receipt()
-        from_empty = _selector_manifest(
+        self.assertEqual(
             apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
-            alpha2,
+            pending["swift_xcframework"]["active_publication_key"],
+        )
+        self.assertNotEqual(
+            pending["swift_xcframework"]["distribution"],
+            leaf["distribution"],
+        )
+
+    def test_verified_requires_all_ten_crates_and_atomic_selector_switch(self) -> None:
+        pending = self.pending_manifest()
+        verified = self.verified_manifest()
+        missing_registry = copy.deepcopy(verified)
+        missing_registry["release_publications"].pop(
+            crates_contract.CRATES_IO_PUBLICATION_KEY
+        )
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError, "coordinated cohort"
+        ):
+            contract.validate_release_publications(missing_registry)
+
+        partial = copy.deepcopy(verified)
+        source = stable_pending_receipt()["source"]
+        partial["release_publications"][
+            crates_contract.CRATES_IO_PUBLICATION_KEY
+        ] = _rebind_crates(
+            crates_receipt(9), source, partial["rust_publish"]
+        )
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError, "coordinated cohort"
+        ):
+            contract.validate_release_publications(partial)
+
+        stale_selector = copy.deepcopy(verified)
+        stale_selector["swift_xcframework"] = copy.deepcopy(
+            pending["swift_xcframework"]
         )
         with self.assertRaisesRegex(
             contract.ReleasePublicationContractError,
-            "only be introduced by the exact legacy",
+            "coordinated cohort state",
         ):
-            contract.validate_release_publication_transition({}, from_empty)
+            contract.validate_release_publications(stale_selector)
 
-        alpha3 = alpha3_pending_receipt()
-        previous = _selector_manifest(
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
-            alpha3,
-        )
-        current = copy.deepcopy(previous)
-        current["release_publications"][
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-        ] = alpha2
+        contract.validate_release_publication_transition(pending, verified)
+
+    def test_direct_source_to_verified_and_mixed_statuses_are_rejected(self) -> None:
+        source = self.source_manifest()
+        verified = self.verified_manifest()
+        with self.assertRaises(contract.ReleasePublicationContractError):
+            contract.validate_release_publication_transition(source, verified)
+
+        mixed = self.pending_manifest()
+        mixed["release_publications"][
+            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+        ] = stable_verified_receipt()
         with self.assertRaisesRegex(
-            contract.ReleasePublicationContractError,
-            "only be introduced by the exact legacy",
+            contract.ReleasePublicationContractError, "coordinated cohort"
         ):
-            contract.validate_release_publication_transition(previous, current)
+            contract.validate_release_publications(mixed)
 
-    def test_unknown_union_key_fails_before_leaf_dispatch(self) -> None:
+    def test_every_cross_domain_source_field_is_bound_to_results(self) -> None:
+        for field, replacement in (
+            ("source_parent_commit", "a" * 40),
+            ("tag_commit", "b" * 40),
+            ("tag_tree", "c" * 40),
+            ("canonical_source_tree_sha256", "d" * 64),
+        ):
+            with self.subTest(field=field):
+                invalid = self.pending_manifest()
+                platform = invalid["release_publications"][
+                    platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY
+                ]
+                platform["observation"]["source"][field] = replacement
+                if field == "tag_commit":
+                    platform["observation"]["source"]["verifier_commit"] = replacement
+                    platform["observation"]["candidate_attestation"][
+                        "source_digest"
+                    ] = replacement
+                with self.assertRaises(contract.ReleasePublicationContractError):
+                    contract.validate_release_publications(invalid)
+
+        wrong_manifest = self.pending_manifest()
+        wrong_manifest["proof_source_tree_sha256"] = "e" * 64
+        with self.assertRaisesRegex(
+            contract.ReleasePublicationContractError, "manifest root"
+        ):
+            contract.validate_release_publications(wrong_manifest)
+
+    def test_registry_receipt_binds_selected_rust_package_evidence(self) -> None:
+        for field, replacement, pattern in (
+            ("source_commit", "a" * 40, "source"),
+            ("completed_at", "2026-08-15T00:00:00Z", "completed_at"),
+            ("transcript_sha256", "b" * 64, "transcript_sha256"),
+            ("handoff_sha256", "c" * 64, "handoff_sha256"),
+        ):
+            with self.subTest(field=field):
+                invalid = self.verified_manifest()
+                registry = invalid["release_publications"][
+                    crates_contract.CRATES_IO_PUBLICATION_KEY
+                ]
+                registry["observation"]["package_contract"][field] = replacement
+                with self.assertRaisesRegex(
+                    contract.ReleasePublicationContractError,
+                    pattern,
+                ):
+                    contract.validate_release_publications(invalid)
+
+    def test_historical_receipts_are_immutable_and_unknown_keys_fail(self) -> None:
+        pending = self.pending_manifest()
+        for key in (
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+            platform_contract.PLATFORM_R2_PUBLICATION_KEY,
+        ):
+            with self.subTest(key=key):
+                changed = copy.deepcopy(pending)
+                changed["release_publications"][key]["boundary"] += " changed"
+                with self.assertRaises(contract.ReleasePublicationContractError):
+                    contract.validate_release_publication_transition(pending, changed)
+
+        unknown = self.source_manifest()
+        unknown["release_publications"]["future_publication"] = {}
         with self.assertRaisesRegex(
             contract.ReleasePublicationContractError, "unknown entries"
         ):
-            contract.validate_release_publications(
-                {"release_publications": {"future_publication": {}}}
-            )
-
-    def test_non_string_leaf_statuses_are_composite_domain_errors(self) -> None:
-        apple_receipt = alpha3_pending_receipt()
-        apple_receipt["status"] = []
-        apple_manifest = _selector_manifest(
-            apple_contract.APPLE_ALPHA3_R1_PUBLICATION_KEY,
-            apple_receipt,
-        )
-        platform_receipt = platform_alpha3_pending_receipt()
-        platform_receipt["status"] = {}
-        platform_manifest = {
-            "release_publications": {
-                "platform_alpha3_r1": platform_receipt
-            }
-        }
-        historical_receipt = copy.deepcopy(self.platform_r2)
-        historical_receipt["status"] = []
-        historical_manifest = {
-            "release_publications": {"platform_r2": historical_receipt}
-        }
-        for label, manifest in (
-            ("apple", apple_manifest),
-            ("platform-alpha3", platform_manifest),
-            ("platform-r2", historical_manifest),
-        ):
-            with self.subTest(label=label), self.assertRaisesRegex(
-                contract.ReleasePublicationContractError,
-                "status must be a string",
-            ):
-                contract.validate_release_publications(manifest)
+            contract.validate_release_publications(unknown)
 
 
 if __name__ == "__main__":

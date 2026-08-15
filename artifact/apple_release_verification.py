@@ -2,9 +2,9 @@
 """Collect and sanitize one GitHub Apple release-verification transaction.
 
 This I/O adapter is deliberately independent from the pure Apple publication
-receipt contract.  It invokes fixed ``git`` and ``gh`` observations through the
-repository's bounded subprocess runner, retains private raw JSON, and publishes
-only a small PII-safe projection after all local and remote samples agree.
+receipt contract.  It invokes fixed ``git`` plus one explicit identity-pinned
+``gh`` through the repository's bounded subprocess runner, retains private raw
+JSON, and publishes only a small PII-safe projection after all samples agree.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ import json
 import os
 import pathlib
 import re
-import shutil
 import stat
 import subprocess
 import sys
@@ -30,6 +29,11 @@ from evidence_io import (
     read_regular_snapshot,
 )
 import github_release_observation as github_release
+from git_provenance import (
+    GIT,
+    GitProvenanceError,
+    require_direct_results_only_child,
+)
 from publication_receipt_io import (
     PublicationReceiptIOError,
     write_private_bytes_noreplace_at,
@@ -120,28 +124,6 @@ REVISION = re.compile(r"^r[1-9][0-9]*$")
 SAFE_TAG = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._+-]*$")
 SAFE_DIRECTORY_LEAF = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]*$")
 
-DANGEROUS_GIT_ENVIRONMENT = frozenset(
-    {
-        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-        "GIT_CEILING_DIRECTORIES",
-        "GIT_COMMON_DIR",
-        "GIT_CONFIG_COUNT",
-        "GIT_CONFIG_GLOBAL",
-        "GIT_CONFIG_NOSYSTEM",
-        "GIT_CONFIG_PARAMETERS",
-        "GIT_CONFIG_SYSTEM",
-        "GIT_DIR",
-        "GIT_DISCOVERY_ACROSS_FILESYSTEM",
-        "GIT_INDEX_FILE",
-        "GIT_NAMESPACE",
-        "GIT_OBJECT_DIRECTORY",
-        "GIT_REPLACE_REF_BASE",
-        "GIT_SHALLOW_FILE",
-        "GIT_WORK_TREE",
-    }
-)
-
-
 class AppleReleaseVerificationError(ValueError):
     """One local or GitHub release observation violates the I/O contract."""
 
@@ -151,8 +133,10 @@ class ReleaseExpectation:
     product_version: str
     revision: str
     tag: str
-    tag_commit: str
+    source_parent_commit: str
+    tag_commit: str | None
     asset_sha256: Mapping[str, str]
+    expected_prerelease: bool
 
     @property
     def release_url(self) -> str:
@@ -644,7 +628,9 @@ def load_release_expectation(path: pathlib.Path) -> ReleaseExpectation:
         and ledger["schema_version"] == expected_schema,
         "Apple release asset ledger discriminant differs",
     )
-    tag_commit = _sha1(ledger["source_commit"], "Apple release source commit")
+    source_parent_commit = _sha1(
+        ledger["source_commit"], "Apple release source commit"
+    )
     identity = _object(ledger["release_identity"], "Apple release identity")
     _exact_keys(
         identity,
@@ -663,10 +649,16 @@ def load_release_expectation(path: pathlib.Path) -> ReleaseExpectation:
         isinstance(revision, str) and REVISION.fullmatch(revision) is not None,
         "Apple release revision is invalid",
     )
+    is_historical_prerelease = ledger["kind"] == HISTORICAL_EXPECTATION_KIND
+    expected_tag = (
+        f"v{product_version}-{revision}"
+        if is_historical_prerelease
+        else f"v{product_version}"
+    )
     _require(
         isinstance(tag, str)
         and SAFE_TAG.fullmatch(tag) is not None
-        and tag == f"v{product_version}-{revision}",
+        and tag == expected_tag,
         "Apple release tag differs from its identity",
     )
     hashes = _object(
@@ -681,8 +673,12 @@ def load_release_expectation(path: pathlib.Path) -> ReleaseExpectation:
         product_version=product_version,
         revision=revision,
         tag=tag,
-        tag_commit=tag_commit,
+        source_parent_commit=source_parent_commit,
+        tag_commit=(
+            source_parent_commit if is_historical_prerelease else None
+        ),
         asset_sha256=asset_hashes,
+        expected_prerelease=is_historical_prerelease,
     )
 
 
@@ -699,42 +695,136 @@ def _release_id(value: str) -> int:
     return release_id
 
 
-def _tool(name: str) -> str:
-    located = shutil.which(name)
-    _require(located is not None, f"required Apple release tool is unavailable: {name}")
+def _gh_tool_identity() -> github_release.GitHubCliIdentity:
     try:
-        resolved = pathlib.Path(located).resolve(strict=True)
-    except OSError as exc:
-        raise AppleReleaseVerificationError(
-            f"cannot resolve required Apple release tool: {name}"
-        ) from exc
-    _require(
-        resolved.is_file() and os.access(resolved, os.X_OK),
-        f"required Apple release tool is not executable: {name}",
-    )
-    return str(resolved)
+        return github_release.select_github_cli()
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
+
+
+def _resample_gh_tool(expected: github_release.GitHubCliIdentity) -> None:
+    try:
+        github_release.resample_github_cli(expected)
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
 
 
 def _process_environment(source: Mapping[str, str]) -> dict[str, str]:
-    overridden = sorted(DANGEROUS_GIT_ENVIRONMENT.intersection(source))
+    try:
+        return github_release.github_cli_environment(source)
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
+
+
+def _git_environment() -> dict[str, str]:
+    return github_release.git_observation_environment()
+
+
+def _capture_gh_command(
+    arguments: Sequence[str],
+    *,
+    tool: github_release.GitHubCliIdentity,
+    timeout_seconds: int,
+    maximum_bytes: int,
+    environment: Mapping[str, str],
+    label: str,
+    runner: CommandRunner,
+) -> bytes:
+    try:
+        return github_release.capture_github_cli(
+            tool,
+            arguments,
+            timeout_seconds=timeout_seconds,
+            maximum_bytes=maximum_bytes,
+            environment=environment,
+            label=label,
+            runner=runner,
+        )
+    except github_release.GitHubReleaseObservationError as exc:
+        raise AppleReleaseVerificationError(str(exc)) from exc
+
+
+def observe_release_id(
+    asset_ledger: pathlib.Path,
+    *,
+    runner: CommandRunner = capture_stdout,
+    source_environment: Mapping[str, str] | None = None,
+) -> int:
+    """Return the bounded stable release ID through the pinned GitHub CLI."""
+
+    ledger = _normalize_asset_ledger(asset_ledger)
+    expectation = load_release_expectation(ledger)
+    environment = _process_environment(
+        os.environ if source_environment is None else source_environment
+    )
+    tool = _gh_tool_identity()
+    raw = _capture_gh_command(
+        [
+            "release",
+            "view",
+            expectation.tag,
+            "--repo",
+            GH_REPOSITORY_ARGUMENT,
+            "--json",
+            "databaseId",
+        ],
+        tool=tool,
+        timeout_seconds=GH_TIMEOUT_SECONDS,
+        maximum_bytes=1024,
+        environment=environment,
+        label="GitHub Apple release ID observation",
+        runner=runner,
+    )
+    try:
+        value = parse_strict_json_bytes(raw, label="GitHub Apple release ID")
+    except EvidenceIOError as exc:
+        raise AppleReleaseVerificationError(
+            "GitHub Apple release ID is not strict JSON"
+        ) from exc
+    document = _object(value, "GitHub Apple release ID")
+    _exact_keys(document, frozenset({"databaseId"}), "GitHub Apple release ID")
+    database_id = document["databaseId"]
     _require(
-        not overridden,
-        "Apple release verification rejects Git environment overrides",
+        type(database_id) is int and 1 <= database_id <= MAX_RELEASE_ID,
+        "GitHub Apple release ID is not a bounded positive integer",
     )
-    environment = dict(source)
-    environment.update(
-        {
-            "GIT_CONFIG_GLOBAL": "/dev/null",
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_CONFIG_SYSTEM": "/dev/null",
-            "GIT_NO_REPLACE_OBJECTS": "1",
-            "LANG": "C",
-            "LC_ALL": "C",
-        }
+    return database_id
+
+
+def observe_tag_object(
+    asset_ledger: pathlib.Path,
+    *,
+    runner: CommandRunner = capture_stdout,
+    source_environment: Mapping[str, str] | None = None,
+) -> str:
+    """Return the annotated tag object through fixed local Git policy."""
+
+    source = os.environ if source_environment is None else source_environment
+    _require(
+        not any(name.startswith("GIT_") for name in source),
+        "Apple tag observation rejects caller Git environment overrides",
     )
-    environment.pop("GH_HOST", None)
-    environment.pop("GH_REPO", None)
-    return environment
+    ledger = _normalize_asset_ledger(asset_ledger)
+    expectation = load_release_expectation(ledger)
+    reference = f"refs/tags/{expectation.tag}"
+    tag_type = _git_line(
+        GIT,
+        ["cat-file", "-t", reference],
+        environment=_git_environment(),
+        label="Apple release tag type observation",
+        runner=runner,
+    )
+    _require(tag_type == "tag", "Apple release tag is not annotated")
+    return _sha1(
+        _git_line(
+            GIT,
+            ["rev-parse", "--verify", reference],
+            environment=_git_environment(),
+            label="Apple release tag object observation",
+            runner=runner,
+        ),
+        "Apple release tag object",
+    )
 
 
 def _capture_command(
@@ -839,10 +929,34 @@ def _verify_local_tag(
         "Apple release annotated tag object differs",
     )
     _require(
-        HEX_40.fullmatch(tag_commit) is not None
-        and tag_commit == expectation.tag_commit,
-        "Apple release peeled commit differs",
+        HEX_40.fullmatch(tag_commit) is not None,
+        "Apple release peeled commit is malformed",
     )
+    if expectation.expected_prerelease:
+        _require(
+            tag_commit == expectation.tag_commit,
+            "Apple release peeled commit differs",
+        )
+    else:
+        if expectation.tag_commit is not None:
+            _require(
+                tag_commit == expectation.tag_commit,
+                "Apple release peeled commit differs",
+            )
+        _require(
+            tag_commit != expectation.source_parent_commit,
+            "Apple stable tag commit must differ from its source parent",
+        )
+        try:
+            require_direct_results_only_child(
+                REPOSITORY_ROOT,
+                expectation.source_parent_commit,
+                tag_commit,
+            )
+        except GitProvenanceError as exc:
+            raise AppleReleaseVerificationError(
+                "cannot establish the Apple stable source/tag boundary"
+            ) from exc
     return tag_object, tag_commit
 
 
@@ -852,6 +966,10 @@ def _github_release_policy(
     release_id: int,
     tag_object: str | None,
 ) -> github_release.ReleasePolicy:
+    _require(
+        expectation.tag_commit is not None,
+        "Apple release tag commit has not been observed",
+    )
     return github_release.ReleasePolicy(
         repository=REPOSITORY,
         repository_url=REPOSITORY_URL,
@@ -863,6 +981,7 @@ def _github_release_policy(
         tag_commit=expectation.tag_commit,
         tag_object=tag_object,
         asset_names=ASSET_NAMES,
+        expected_prerelease=expectation.expected_prerelease,
         expected_release_id=release_id,
         expected_sha256=expectation.asset_sha256,
         expected_content_types=ASSET_CONTENT_TYPES,
@@ -975,8 +1094,6 @@ def collect_release_verification(
     runner: CommandRunner = capture_stdout,
     clock: Clock = _system_clock,
     source_environment: Mapping[str, str] | None = None,
-    git_tool: str | None = None,
-    gh_tool: str | None = None,
 ) -> tuple[str, ReleaseExpectation, int]:
     """Collect one local/remote transaction and publish its safe projection."""
 
@@ -997,22 +1114,25 @@ def collect_release_verification(
     expectation = load_release_expectation(asset_ledger)
     release_id = _release_id(expected_release_id)
     tag_object = _sha1(expected_tag_object, "expected Apple release tag object")
-    environment = _process_environment(
+    gh_environment = _process_environment(
         os.environ if source_environment is None else source_environment
     )
-    git = _tool("git") if git_tool is None else git_tool
-    gh = _tool("gh") if gh_tool is None else gh_tool
+    git_environment = _git_environment()
+    gh = _gh_tool_identity()
     _create_raw_directory(raw_directory)
 
     local_before = _verify_local_tag(
-        git,
+        GIT,
         expectation,
         tag_object,
-        environment=environment,
+        environment=git_environment,
         runner=runner,
     )
+    expectation = dataclasses.replace(
+        expectation,
+        tag_commit=local_before[1],
+    )
     repository_arguments = [
-        gh,
         "repo",
         "view",
         GH_REPOSITORY_ARGUMENT,
@@ -1020,7 +1140,6 @@ def collect_release_verification(
         ",".join(REPOSITORY_VIEW_FIELDS),
     ]
     view_arguments = [
-        gh,
         "release",
         "view",
         expectation.tag,
@@ -1030,7 +1149,6 @@ def collect_release_verification(
         ",".join(RELEASE_VIEW_FIELDS),
     ]
     verify_arguments = [
-        gh,
         "release",
         "verify",
         expectation.tag,
@@ -1039,11 +1157,12 @@ def collect_release_verification(
         "--format",
         "json",
     ]
-    repository_before_raw = _capture_command(
+    repository_before_raw = _capture_gh_command(
         repository_arguments,
+        tool=gh,
         timeout_seconds=GH_TIMEOUT_SECONDS,
         maximum_bytes=MAX_REPOSITORY_VIEW_BYTES,
-        environment=environment,
+        environment=gh_environment,
         label="GitHub repository visibility before observation",
         runner=runner,
     )
@@ -1060,11 +1179,12 @@ def collect_release_verification(
             label="Apple release raw repository-before",
         )
     )
-    view_before_raw = _capture_command(
+    view_before_raw = _capture_gh_command(
         view_arguments,
+        tool=gh,
         timeout_seconds=GH_TIMEOUT_SECONDS,
         maximum_bytes=MAX_RELEASE_VIEW_BYTES,
-        environment=environment,
+        environment=gh_environment,
         label="GitHub Apple release view-before observation",
         runner=runner,
     )
@@ -1075,11 +1195,12 @@ def collect_release_verification(
         label="Apple release raw view-before",
     )
 
-    verify_raw = _capture_command(
+    verify_raw = _capture_gh_command(
         verify_arguments,
+        tool=gh,
         timeout_seconds=GH_TIMEOUT_SECONDS,
         maximum_bytes=MAX_RELEASE_VERIFY_BYTES,
-        environment=environment,
+        environment=gh_environment,
         label="GitHub Apple release attestation verification",
         runner=runner,
     )
@@ -1090,11 +1211,12 @@ def collect_release_verification(
         label="Apple release raw verification",
     )
 
-    view_after_raw = _capture_command(
+    view_after_raw = _capture_gh_command(
         view_arguments,
+        tool=gh,
         timeout_seconds=GH_TIMEOUT_SECONDS,
         maximum_bytes=MAX_RELEASE_VIEW_BYTES,
-        environment=environment,
+        environment=gh_environment,
         label="GitHub Apple release view-after observation",
         runner=runner,
     )
@@ -1105,11 +1227,12 @@ def collect_release_verification(
         label="Apple release raw view-after",
     )
 
-    repository_after_raw = _capture_command(
+    repository_after_raw = _capture_gh_command(
         repository_arguments,
+        tool=gh,
         timeout_seconds=GH_TIMEOUT_SECONDS,
         maximum_bytes=MAX_REPOSITORY_VIEW_BYTES,
-        environment=environment,
+        environment=gh_environment,
         label="GitHub repository visibility after observation",
         runner=runner,
     )
@@ -1121,10 +1244,10 @@ def collect_release_verification(
     )
 
     local_after = _verify_local_tag(
-        git,
+        GIT,
         expectation,
         tag_object,
-        environment=environment,
+        environment=git_environment,
         runner=runner,
     )
     _require(
@@ -1184,7 +1307,7 @@ def collect_release_verification(
         "draft": False,
         "immutable_release": True,
         "observed_at": observed_at,
-        "prerelease": True,
+        "prerelease": expectation.expected_prerelease,
         "public_release": True,
         "published_at": view_before.published_at,
         "release_attestation": attestation,
@@ -1213,12 +1336,19 @@ def collect_release_verification(
 
 def _usage() -> str:
     return (
-        "usage: apple_release_verification.py collect ASSET_LEDGER "
-        "EXPECTED_RELEASE_ID EXPECTED_TAG_OBJECT RAW_DIRECTORY PROJECTION_OUTPUT"
+        "usage: apple_release_verification.py release-id ASSET_LEDGER | "
+        "tag-object ASSET_LEDGER | collect ASSET_LEDGER EXPECTED_RELEASE_ID "
+        "EXPECTED_TAG_OBJECT RAW_DIRECTORY PROJECTION_OUTPUT"
     )
 
 
 def _main(arguments: Sequence[str]) -> int:
+    if len(arguments) == 2 and arguments[0] == "release-id":
+        print(observe_release_id(pathlib.Path(arguments[1])))
+        return 0
+    if len(arguments) == 2 and arguments[0] == "tag-object":
+        print(observe_tag_object(pathlib.Path(arguments[1])))
+        return 0
     if len(arguments) != 6 or arguments[0] != "collect":
         print(f"error: {_usage()}", file=sys.stderr)
         return 2
