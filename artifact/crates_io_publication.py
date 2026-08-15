@@ -125,6 +125,7 @@ RUST_PACKAGE_HANDOFF_ROOT = rust_package_handoff.RUST_PACKAGE_HANDOFF_ROOT
 CRATES_IO_PUBLICATION_RECEIPT_NAME = "crates-io-v0.1.0-publication-receipt.json"
 CRATES_IO_PUBLICATION_JOURNAL_NAME = "crates-io-v0.1.0-upload-attempt.json"
 CRATES_IO_PUBLICATION_LOCK_NAME = "qperiapt-crates-io-v0.1.0.lock"
+CRATES_IO_PUBLICATION_UPLOADER_NAME = "qperiapt-crates-io-uploader"
 RUST_PACKAGE_HANDOFF_MANIFEST_NAME = (
     rust_package_handoff.RUST_PACKAGE_HANDOFF_MANIFEST_NAME
 )
@@ -294,6 +295,15 @@ class SourceIdentity:
 
     def document(self) -> dict[str, str]:
         return dataclasses.asdict(self)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ResultsSelectedHandoff:
+    """The sole Rust package handoff selected by results commit R."""
+
+    path: pathlib.Path
+    relative_path: pathlib.PurePosixPath
+    sha256: str
 
 
 RustPackageHandoffSource = rust_package_handoff.RustPackageHandoffSource
@@ -624,8 +634,8 @@ def _validated_publication_state_root(
     return normalized
 
 
-def _publication_account_home() -> pathlib.Path:
-    """Resolve the sole same-account publication namespace from passwd data."""
+def _publication_account_home_path() -> pathlib.Path:
+    """Return the canonical passwd spelling without touching caller paths."""
 
     uid_getter = getattr(os, "geteuid", None)
     _require(
@@ -650,6 +660,29 @@ def _publication_account_home() -> pathlib.Path:
     _require(
         os.fspath(home) == home_text,
         "publication account home is not canonically spelled",
+    )
+    return home
+
+
+def _expected_publication_state_root() -> pathlib.Path:
+    """Derive the sole production authority without consuming a CLI path."""
+
+    return (
+        _publication_account_home_path()
+        / ".q-periapt"
+        / "publication-state"
+        / "crates.io-v0.1.0"
+    )
+
+
+def _publication_account_home() -> pathlib.Path:
+    """Resolve the sole same-account publication namespace from passwd data."""
+
+    home = _publication_account_home_path()
+    uid_getter = getattr(os, "geteuid", None)
+    _require(
+        callable(uid_getter),
+        "production crates.io publication state requires POSIX passwd data",
     )
     for ancestor in (home, *home.parents):
         try:
@@ -879,13 +912,13 @@ def production_upload_runner(
     *,
     state_root: pathlib.Path,
 ) -> UploadRunner:
-    """Adapt one state-root-owned exact-byte uploader to the bounded runner API.
+    """Adapt the fixed state-root-owned exact-byte uploader to the bounded runner API.
 
     The executable receives only non-secret argv.  The crates.io token is in a
     three-entry environment and both output streams are withheld from operator
     logs.  The external program must upload the bytes supplied through stdin under
     the ``--crate-stdin`` contract exactly; this module confirms that claim from
-    API+sparse checksums afterward.  Requiring a direct mode-0700 child of the
+    API+sparse checksums afterward.  Requiring the fixed mode-0700 child of the
     separately reviewed state root narrows the residual hash-to-exec mutation
     capability to the trusted owner of that private publication root.
     """
@@ -895,8 +928,8 @@ def production_upload_runner(
         uploader_command, label="crates.io exact-byte uploader"
     )
     _require(
-        command.parent == normalized_state_root,
-        "crates.io exact-byte uploader must be a direct child of the publication state root",
+        command == normalized_state_root / CRATES_IO_PUBLICATION_UPLOADER_NAME,
+        "crates.io exact-byte uploader must equal the fixed publication uploader path",
     )
     try:
         state_metadata = normalized_state_root.lstat()
@@ -2057,29 +2090,51 @@ def _validate_results_selected_handoff(
     )
 
 
+def _results_selected_handoff(source: SourceIdentity) -> ResultsSelectedHandoff:
+    """Load R's selected handoff and reconstruct its fixed repository path."""
+
+    manifest = _load_tag_results_manifest(source.tag_commit)
+    rust_publish = manifest.get("rust_publish")
+    _require(
+        isinstance(rust_publish, dict),
+        "results commit R lacks selected Rust package evidence",
+    )
+    relative_text = rust_publish.get("handoff_manifest_path")
+    digest = rust_publish.get("handoff_manifest_sha256")
+    _require(
+        isinstance(relative_text, str) and isinstance(digest, str),
+        "results commit R selected Rust handoff is malformed",
+    )
+    _validate_results_selected_handoff(
+        manifest,
+        source,
+        relative_text,
+        digest,
+    )
+    relative = pathlib.PurePosixPath(relative_text)
+    selected = REPOSITORY_ROOT.joinpath(*relative.parts)
+    _require(
+        selected.parent.parent == RUST_PACKAGE_HANDOFF_ROOT,
+        "results commit R selected Rust handoff escaped its fixed root",
+    )
+    return ResultsSelectedHandoff(
+        path=selected,
+        relative_path=relative,
+        sha256=digest,
+    )
+
+
 def _verify_results_selected_handoff(
     source: SourceIdentity,
     handoff_manifest_path: pathlib.Path,
     handoff_manifest_sha256: str,
 ) -> None:
-    try:
-        repository_root = REPOSITORY_ROOT.resolve(strict=True)
-        normalized = handoff_manifest_path.resolve(strict=True)
-        relative = normalized.relative_to(repository_root).as_posix()
-    except (OSError, ValueError) as exc:
-        raise CratesIoPublicationError(
-            "registry handoff path is outside the fixed repository"
-        ) from exc
+    selected = _results_selected_handoff(source)
     _require(
-        normalized == handoff_manifest_path,
-        "registry handoff path must be explicit and canonical",
-    )
-    manifest = _load_tag_results_manifest(source.tag_commit)
-    _validate_results_selected_handoff(
-        manifest,
-        source,
-        relative,
-        handoff_manifest_sha256,
+        handoff_manifest_path == selected.path
+        and os.fspath(handoff_manifest_path) == os.fspath(selected.path)
+        and handoff_manifest_sha256 == selected.sha256,
+        "registry handoff differs from the exact handoff selected by results commit R",
     )
 
 
@@ -4152,6 +4207,46 @@ def _controlled_cli_input_path(
     return REPOSITORY_ROOT / path
 
 
+def _require_exact_cli_path_confirmation(
+    supplied: pathlib.Path,
+    authoritative: pathlib.Path,
+    *,
+    label: str,
+) -> None:
+    """Compare a CLI acknowledgement without granting it path authority."""
+
+    _require(
+        isinstance(supplied, pathlib.Path)
+        and supplied == authoritative
+        and os.fspath(supplied) == os.fspath(authoritative),
+        f"{label} must exactly confirm the fixed authority",
+    )
+
+
+def _require_handoff_confirmation(
+    supplied_path: pathlib.Path,
+    supplied_sha256: str,
+    selected: ResultsSelectedHandoff,
+) -> None:
+    """Require the CLI marker to echo R's selection, then discard the marker."""
+
+    _require(
+        isinstance(supplied_path, pathlib.Path),
+        "registry handoff confirmation path type differs",
+    )
+    expected_path = (
+        selected.path
+        if supplied_path.is_absolute()
+        else pathlib.Path(*selected.relative_path.parts)
+    )
+    _require(
+        supplied_path == expected_path
+        and os.fspath(supplied_path) == os.fspath(expected_path)
+        and supplied_sha256 == selected.sha256,
+        "registry handoff confirmation differs from results commit R",
+    )
+
+
 def _main(arguments: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -4177,8 +4272,8 @@ def _main(arguments: Sequence[str]) -> int:
         "--uploader-command",
         type=pathlib.Path,
         help=(
-            "absolute exact-byte uploader that is a controlled direct child of "
-            "--state-root; required for publish"
+            "explicit confirmation of the fixed qperiapt-crates-io-uploader "
+            "child of --state-root; required for publish"
         ),
     )
     parser.add_argument("--execute-real-upload", action="store_true")
@@ -4188,13 +4283,49 @@ def _main(arguments: Sequence[str]) -> int:
     )
     namespace = parser.parse_args(arguments)
     try:
+        state_root_authority: pathlib.Path | None = None
+        uploader_authority: pathlib.Path | None = None
+        if namespace.mode == "publish":
+            _require(
+                namespace.state_root is not None,
+                "publish requires an explicit --state-root",
+            )
+            _require(
+                namespace.uploader_command is not None,
+                "publish requires an absolute --uploader-command",
+            )
+            _require(
+                namespace.execute_real_upload is True,
+                "publish requires --execute-real-upload",
+            )
+            _require(
+                namespace.acknowledge_irreversible_publish is True,
+                "publish requires --acknowledge-irreversible-publish",
+            )
+            state_root_authority = _expected_publication_state_root()
+            _require_exact_cli_path_confirmation(
+                namespace.state_root,
+                state_root_authority,
+                label="publication state root confirmation",
+            )
+            uploader_authority = (
+                state_root_authority / CRATES_IO_PUBLICATION_UPLOADER_NAME
+            )
+            _require_exact_cli_path_confirmation(
+                namespace.uploader_command,
+                uploader_authority,
+                label="publication uploader confirmation",
+            )
+
         source = _source_from_json(namespace.source_identity)
-        handoff_manifest = _controlled_cli_input_path(
+        selected_handoff = _results_selected_handoff(source)
+        _require_handoff_confirmation(
             namespace.handoff_manifest,
-            fixed_root=RUST_PACKAGE_HANDOFF_ROOT,
-            expected_leaf=RUST_PACKAGE_HANDOFF_MANIFEST_NAME,
-            transaction_pattern=_HANDOFF_TRANSACTION_RE,
+            namespace.handoff_sha256,
+            selected_handoff,
         )
+        handoff_manifest = selected_handoff.path
+        handoff_sha256 = selected_handoff.sha256
         previous = (
             None
             if namespace.previous_receipt is None
@@ -4215,25 +4346,13 @@ def _main(arguments: Sequence[str]) -> int:
         journal_root = CRATES_IO_PUBLICATION_JOURNAL_ROOT
         if namespace.mode == "publish":
             _require(
-                namespace.state_root is not None,
-                "publish requires an explicit --state-root",
+                state_root_authority is not None and uploader_authority is not None,
+                "publish authority confirmation is incomplete",
             )
-            _require(
-                namespace.uploader_command is not None,
-                "publish requires an absolute --uploader-command",
-            )
-            _require(
-                namespace.execute_real_upload is True,
-                "publish requires --execute-real-upload",
-            )
-            _require(
-                namespace.acknowledge_irreversible_publish is True,
-                "publish requires --acknowledge-irreversible-publish",
-            )
-            state_root = _validated_publication_state_root(namespace.state_root)
+            state_root = _validated_publication_state_root(state_root_authority)
             lock_factory = production_lock_factory(state_root)
             uploader = production_upload_runner(
-                namespace.uploader_command,
+                uploader_authority,
                 state_root=state_root,
             )
             journal_root = state_root / "journal"
@@ -4244,7 +4363,7 @@ def _main(arguments: Sequence[str]) -> int:
         result = run_publication_transaction(
             source,
             handoff_manifest,
-            namespace.handoff_sha256,
+            handoff_sha256,
             previous_receipt=previous,
             mode=namespace.mode,
             receipt_root=CRATES_IO_PUBLICATION_RECEIPT_ROOT,

@@ -78,14 +78,14 @@ weakening package ownership checks:
 
 These source notes cannot by themselves assert a performance improvement. The final
 release earns that claim only if `R` selects the mandatory raw-schema-v3 /
-proof-schema-v6 / budget-schema-v7 proof for `S`, and the coordinated verified
+proof-schema-v6 / budget-schema-v8 proof for `S`, and the coordinated verified
 receipt `V` preserves and revalidates that exact selection. The proof requires both
 the preserved ContextBound/CompatXWing profile non-regression estimand and a
 same-process, output-equivalent native/portable ContextBound
 implementation-improvement estimand for encapsulation and decapsulation under the
 fixed ABBA/BAAB schedule. The latter preregisters one-sided 95% upper
 native/portable limits of 0.95 for primary p50/p95 and 1.0 for p99. Performance
-remains pending until one fresh clean-source, controlled-host, minimum-sample proof
+remains pending until one fresh clean-source, controlled-host, exact-sample proof
 for this tree is selected; no historical or small diagnostic run is promoted by
 these notes.
 
@@ -694,6 +694,9 @@ case "$rust_handoff_sha256" in *[!0-9a-f]*|'') exit 1 ;; esac
 test "$(shasum -a 256 "$rust_handoff_manifest" | awk '{print $1}')" = \
   "$rust_handoff_sha256"
 
+# The path and digest arguments below are explicit confirmations only. The
+# coordinator reloads results commit R, validates its selected Rust handoff,
+# reconstructs the fixed repository path, and uses only that R-derived value.
 sh artifact/python-run.sh artifact/crates_io_publication.py verify \
   "$crates_source_identity" "$rust_handoff_manifest" "$rust_handoff_sha256"
 ```
@@ -704,7 +707,7 @@ controlled marker and verify those bytes before any later resume. A resume must
 supply that receipt through `--previous-receipt`, remain bound to the same handoff
 digest, and reconcile every prior unknown outcome before another upload can be
 attempted. Real publication is irreversible and additionally requires both explicit
-publish flags, an absolute external exact-byte uploader, `CARGO_REGISTRY_TOKEN`, and
+publish flags, the fixed external exact-byte uploader, `CARGO_REGISTRY_TOKEN`, and
 the one fixed same-host/same-effective-account state authority derived from the OS
 passwd record—not ambient `HOME`—at
 `~/.q-periapt/publication-state/crates.io-v0.1.0`. All worktrees and resumes for this
@@ -720,12 +723,14 @@ publication_state_parent=$publication_account_home/.q-periapt/publication-state
 publication_state_root=$publication_state_parent/crates.io-v0.1.0
 (umask 077 && mkdir -p "$publication_state_root")
 
-# Install the separately reviewed exact-byte uploader as this direct 0700 child.
+# Install the separately reviewed exact-byte uploader as this fixed 0700 child.
 uploader_command=$publication_state_root/qperiapt-crates-io-uploader
 test -f "$uploader_command" && test ! -L "$uploader_command"
 
 # Only an authorized operator on the isolated publication host may run this.
 # Add --previous-receipt with the exact latest partial receipt when resuming.
+# --state-root and --uploader-command confirm the displayed authority; the
+# coordinator derives both paths independently from passwd data and a fixed leaf.
 sh artifact/python-run.sh artifact/crates_io_publication.py publish \
   "$crates_source_identity" "$rust_handoff_manifest" "$rust_handoff_sha256" \
   --state-root "$publication_state_root" \

@@ -142,6 +142,8 @@ fail-closed [`performance_gate.py`](artifact/performance_gate.py) requires 20,48
 paired samples per variant/operation, fixed 256/1/2-call timing batches, balanced
 time blocks, a stable host, and the published
 [`performance-budgets.json`](artifact/performance-budgets.json). Controlled
+collection takes the exact sample count and warm-up only from that schema-8 budget;
+the CLI cannot override either policy value.
 Apple-Silicon runs are judged against one-sided 95% upper budgets: p50/p95/p99 ratios
 of 1.10/1.15/1.20 and a 15 µs p95 absolute delta for encapsulation/decapsulation,
 plus a 10 µs combiner p95 delta. The independently preregistered implementation gate
@@ -151,7 +153,7 @@ failure blocks the proof. A run counts as current only when its bound canonical
 source digest equals the verifier's live digest; source drift and uncontrolled power
 or thermal state fail closed. Release verification always loads the exact repository
 `artifact/performance-budgets.json`; a proof cannot select an alternate policy path.
-Raw schema v3, proof schema v6, and budget schema v7 preserve the profile statistical
+Raw schema v3, proof schema v6, and budget schema v8 preserve the profile statistical
 contract and add the separate implementation estimand. They use
 1,024-pair primary
 percentile-estimate blocks, so nearest-rank p99 is supported by 11 tail observations
@@ -162,10 +164,10 @@ cannot turn a former-scale failure green. Separately parameterized 64/256/256-pa
 stability windows retain the same 5% CV limit.
 The proof binds the final dual-implementation binary, portable archive and source,
 raw records, fixed budget, source tree, and toolchain identity. The machine-verifiable
-gate is implemented, but no fresh clean-source, controlled-host minimum-sample proof
+gate is implemented, but no fresh clean-source, controlled-host exact-sample proof
 for this tree is selected; historical and dirty diagnostics remain non-claim evidence.
 Exact quantitative results require a fresh controlled proof-schema-v6 run under
-budget schema v7.
+budget schema v8.
 The target-selection/source migration changes the canonical source digest, so every
 portable-derived device, package, performance, and binary-CT result recorded before
 this migration is historical only and must be rebuilt or re-collected per selected
@@ -349,7 +351,7 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented shared secure-wipe block; builds `thumbv7em-none-eabihf`) |
 | Hybrid KEM | ML-KEM-768 + X25519, with independently bounded algorithm-diversity research | ✅ ML-KEM-768 through the target-selected `q-periapt-mlkem-native-sys` boundary (`mlkem-native` v1.2.0) + X25519 (x25519-dalek) are wired. Exactly five little-endian AArch64 Apple/Linux/Android targets use the fixed native arithmetic/FIPS 202 profile; every other target, including Wasm, stays portable C. Real hybrid encap/decap round-trips run under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend. The **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently cross-checked KAT) and is `ContextBound`-only. **ML-KEM-512** (L1) also has a verified backend, so the FIPS-203 family (512/768/1024) is ACVP + differential covered for agility. The old timing-leaky/unmaintained PQClean-HQC adapter and `hqc` feature are gone from the publishable graph; suite code `3` is tombstoned. RustCrypto `hqc-kem 0.1.0-rc.0` lives only in the `publish = false` HQC-v5/FIPS-207-draft shadow crate, with deterministic round-trip/size research tests but no product-suite, ABI, official-IPD-conformance, or final-standard claim. |
-| Combiner profiles | `CompatXWing` (byte-compatible control) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to **SHA3-256** through RustCrypto `sha3` 0.10.9. The Mac gate separately enforces profile non-regression and native/portable ContextBound implementation improvement with byte-equivalent outputs and preregistered material thresholds. No fresh clean controlled proof is selected yet; exact results require proof schema v6 under budget schema v7. |
+| Combiner profiles | `CompatXWing` (byte-compatible control) + `ContextBound` (binding) | ✅ both profiles implemented over a trait XOF and wired to **SHA3-256** through RustCrypto `sha3` 0.10.9. The Mac gate separately enforces profile non-regression and native/portable ContextBound implementation improvement with byte-equivalent outputs and preregistered material thresholds. No fresh clean controlled proof is selected yet; exact results require proof schema v6 under budget schema v8. |
 | Combiner safety guards | C2PRI + X-Wing-safe backend guards, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four absorbed fields are exactly 32 bytes; `HybridKem::new` rejects the omitted first-slot backend unless both `Kem::C2PRI` and `Kem::COMPAT_XWING_SAFE` are true, with contradictory third-party declarations failing closed as `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-44/65/87, SLH-DSA | ✅ the full FIPS-204 family **ML-DSA-44/65/87** (`fips204` 0.4.6) wired & tested (NIST ACVP — external/pure deterministic and hedged, non-empty context, and SHAKE-128 pre-hash modes — + an independent RustCrypto `ml-dsa` differential); ML-DSA-65 is the default, ML-DSA-87 the enhanced-mode (L5) signature. Vendored internal-interface vectors remain explicit, **unwired reference data** and are not claimed as backend conformance. **SLH-DSA-SHA2-128s/192s/256s** (fips205) — with **NIST ACVP conformance** (`acvp_slhdsa.rs`) — are behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade/equivocation state, atomic suite decision | ✅ `q-periapt-policy`: strict TOML loading (`Policy::from_toml`) + domain-separated signed-policy verification (`Policy::load_signed` / `load_signed_monotonic`); `(version, SHA3-256(exact bytes))` rollback/equivocation state; closed, private-field `ResolvedSuite` selected against concrete locally supported suites. Authentication, parsing, or resolution failure is returned as an error; there is no fallback-success API. |

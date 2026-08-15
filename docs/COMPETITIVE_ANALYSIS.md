@@ -336,7 +336,7 @@ Legend: **lead** = defensible current advantage; **parity** = same ceiling/capab
 | Standards/interoperability | X-Wing/CFRG/TLS **lead** | deployed proprietary protocols | **behind** for ContextBound |
 | Third-party audit/deployment | major **lead** | major **lead** | **behind**: none |
 | Constant-time/FIPS backend maturity | production implementations vary, best are strong | production-hardened | **behind/partial**; per-backend/ISA only |
-| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v3/proof schema v6/budget schema v7 carries profile non-regression and a distinct byte-equivalent native/portable ContextBound implementation-improvement estimand in one same-process ABBA/BAAB slot; it binds the SDK/toolchain, final binary, portable archive/source, and canonical source, while mutable registry/sysroot/OS and collector honesty remain trusted |
+| Matched-backend core performance | optimized baseline | implementation-specific | raw schema v3/proof schema v6/budget schema v8 carries profile non-regression and a distinct byte-equivalent native/portable ContextBound implementation-improvement estimand in one same-process ABBA/BAAB slot; it binds the SDK/toolchain, final binary, portable archive/source, and canonical source, while mutable registry/sysroot/OS and collector honesty remain trusted |
 | End-to-end/device performance | optimized baseline | optimized deployed code | **pending**; rustls/backend, energy, and device gaps remain |
 
 ## 4. Performance: the only acceptable claim after fresh capture
@@ -354,7 +354,7 @@ normalizes only after the strict budget-bound iteration-map check.
 
 Consecutive 1,024-pair blocks define the primary paired percentile ratio/delta
 estimand and moving-block-bootstrap upper bound. Under the nearest-rank rule, each
-block's p99 has 11 tail observations. Budget schema v7 preserves the v6 profile
+block's p99 has 11 tail observations. Budget schema v8 preserves the v6 profile
 contract, including its former 256-pair regression guard, and requires the published
 profile limits at both block scales. Separately parameterized 64/256/256-pair
 stability windows retain the 5% CV limit. The profile's nine bounds remain
@@ -371,7 +371,7 @@ product-path improvement. This narrows the implementation-performance hypothesis
 that host only. It has no checked-in canonical-source/toolchain-bound raw and analysis
 bundle and is not formal release evidence, an optimized X-Wing comparison, or a
 protocol/device lead. Exact quantitative results require a fresh
-raw-schema-v3/proof-schema-v6 run under budget schema v7.
+raw-schema-v3/proof-schema-v6 run under budget schema v8.
 
 Historical proof schema v5 additionally bound the exact rustup toolchain name so byte-identical mutable aliases
 cannot make tool selection ambiguous. An earlier 256-pair-primary attempt failed the decapsulation
@@ -400,7 +400,7 @@ the required domain verifier, not manifest prose alone, checks the actual proof,
 freshness. The target-selection/source migration invalidated all recorded portable-derived performance proofs,
 including the later matched-backend capture; a fresh same-source controlled-host run
 is required. The old single-call proof also remains invalid and must not be cited.
-The fixed budget-schema-v7 policy additionally pins the macOS SDK path, version,
+The fixed budget-schema-v8 policy additionally pins the macOS SDK path, version,
 and settings digest, together with the rustup toolchain and target plus Cargo,
 Rustc, Xcode Clang, and Xcode `ar` executable paths and hashes (and version output
 where available). Proof schema v6 also binds the final harness binary and the

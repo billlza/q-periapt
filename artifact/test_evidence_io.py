@@ -198,6 +198,135 @@ class EvidenceIOTests(unittest.TestCase):
                     real_close(reused_descriptor)
                 real_close(replacement)
 
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_posix_walker_opens_literal_root_then_relative_components(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "nested" / "proof.bin"
+            path.parent.mkdir()
+            path.write_bytes(b"proof")
+            real_open = os.open
+            supported = os.supports_dir_fd
+
+            with mock.patch.object(
+                evidence_io.os,
+                "open",
+                wraps=real_open,
+            ) as observed_open:
+                with mock.patch.object(
+                    evidence_io.os,
+                    "supports_dir_fd",
+                    supported | {observed_open},
+                ):
+                    snapshot = read_regular_snapshot(
+                        path,
+                        maximum=1024,
+                        label="literal-root fixture",
+                    )
+
+            self.assertEqual(b"proof", snapshot.data)
+            first = observed_open.call_args_list[0]
+            self.assertEqual("/", first.args[0])
+            self.assertNotIn("dir_fd", first.kwargs)
+            for component_open in observed_open.call_args_list[1:]:
+                self.assertIsInstance(component_open.args[0], str)
+                self.assertNotIn("/", component_open.args[0])
+                self.assertIn("dir_fd", component_open.kwargs)
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_posix_walker_rejects_ambiguous_double_slash_root_before_io(self) -> None:
+        opened = mock.Mock()
+        with (
+            mock.patch.object(
+                evidence_io.os.path,
+                "abspath",
+                return_value="//tmp/proof.bin",
+            ),
+            mock.patch.object(evidence_io.os, "readlink") as readlink,
+            mock.patch.object(evidence_io.os, "open", opened),
+            mock.patch.object(
+                evidence_io.os,
+                "supports_dir_fd",
+                {opened},
+            ),
+            self.assertRaisesRegex(
+                EvidenceIOError,
+                "ambiguous POSIX root",
+            ),
+        ):
+            evidence_io._open_regular_no_symlinks_posix(
+                pathlib.Path("//tmp/proof.bin")
+            )
+        readlink.assert_not_called()
+        opened.assert_not_called()
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_darwin_aliases_use_literal_paths_and_exact_targets(self) -> None:
+        cases = (
+            ("etc", "/etc", "private/etc"),
+            ("tmp", "/tmp", "/private/tmp"),
+            ("var", "/var", "private/var"),
+        )
+        for alias, alias_path, target in cases:
+            with self.subTest(alias=alias):
+                opened = mock.Mock(side_effect=range(100, 110))
+                with (
+                    mock.patch.object(evidence_io.sys, "platform", "darwin"),
+                    mock.patch.object(
+                        evidence_io.os,
+                        "readlink",
+                        return_value=target,
+                    ) as readlink,
+                    mock.patch.object(evidence_io.os, "open", opened),
+                    mock.patch.object(
+                        evidence_io.os,
+                        "supports_dir_fd",
+                        {opened},
+                    ),
+                    mock.patch.object(evidence_io.os, "close"),
+                ):
+                    descriptor = evidence_io._open_regular_no_symlinks_posix(
+                        pathlib.Path(f"/{alias}/nested/proof.bin")
+                    )
+
+                self.assertEqual(104, descriptor)
+                readlink.assert_called_once_with(alias_path)
+                self.assertEqual(
+                    ["/", "private", alias, "nested", "proof.bin"],
+                    [call.args[0] for call in opened.call_args_list],
+                )
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_darwin_alias_wrong_target_and_readlink_error_do_not_rewrite(self) -> None:
+        for outcome in ("unexpected/tmp", OSError("injected readlink failure")):
+            with self.subTest(outcome=outcome):
+                opened = mock.Mock(side_effect=range(200, 210))
+                readlink = mock.Mock()
+                if isinstance(outcome, OSError):
+                    readlink.side_effect = outcome
+                else:
+                    readlink.return_value = outcome
+                with (
+                    mock.patch.object(evidence_io.sys, "platform", "darwin"),
+                    mock.patch.object(evidence_io.os, "readlink", readlink),
+                    mock.patch.object(evidence_io.os, "open", opened),
+                    mock.patch.object(
+                        evidence_io.os,
+                        "supports_dir_fd",
+                        {opened},
+                    ),
+                    mock.patch.object(evidence_io.os, "close"),
+                ):
+                    descriptor = evidence_io._open_regular_no_symlinks_posix(
+                        pathlib.Path("/tmp/nested/proof.bin")
+                    )
+
+                self.assertEqual(203, descriptor)
+                readlink.assert_called_once_with("/tmp")
+                self.assertEqual(
+                    ["/", "tmp", "nested", "proof.bin"],
+                    [call.args[0] for call in opened.call_args_list],
+                )
+
     @unittest.skipUnless(os.name == "posix", "dirfd snapshots require POSIX")
     def test_dirfd_json_snapshot_remains_bound_across_parent_rename(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

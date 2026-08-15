@@ -828,19 +828,37 @@ def _open_regular_no_symlinks_posix(path: pathlib.Path) -> int:
     if ".." in lexical.parts:
         raise EvidenceIOError(f"evidence path must not contain '..': {path}")
     absolute = pathlib.Path(os.path.abspath(lexical))
+    if absolute.anchor != "/":
+        raise EvidenceIOError(f"evidence path has an ambiguous POSIX root: {path}")
     # macOS exposes three fixed root aliases.  Permit only these operating-system
     # aliases; every caller-controlled component is still walked with O_NOFOLLOW.
     if sys.platform == "darwin" and len(absolute.parts) >= 2:
         alias = absolute.parts[1]
-        expected = {"etc": "private/etc", "tmp": "private/tmp", "var": "private/var"}.get(alias)
-        if expected is not None:
-            alias_path = pathlib.Path(absolute.anchor) / alias
-            try:
-                target = os.readlink(alias_path)
-            except OSError:
-                target = ""
-            if target.lstrip("/") == expected:
-                absolute = pathlib.Path("/private") / alias / pathlib.Path(*absolute.parts[2:])
+        target: str | None = None
+        expected: str | None = None
+        destination: pathlib.Path | None = None
+        try:
+            if alias == "etc":
+                target = os.readlink("/etc")
+                expected = "private/etc"
+                destination = pathlib.Path("/private/etc")
+            elif alias == "tmp":
+                target = os.readlink("/tmp")
+                expected = "private/tmp"
+                destination = pathlib.Path("/private/tmp")
+            elif alias == "var":
+                target = os.readlink("/var")
+                expected = "private/var"
+                destination = pathlib.Path("/private/var")
+        except OSError:
+            target = None
+        if (
+            target is not None
+            and expected is not None
+            and destination is not None
+            and target in {expected, f"/{expected}"}
+        ):
+            absolute = destination / pathlib.Path(*absolute.parts[2:])
     parts = absolute.parts
     if not parts or parts[0] != absolute.anchor or len(parts) < 2:
         raise EvidenceIOError(f"evidence path must name a file: {path}")
@@ -853,7 +871,7 @@ def _open_regular_no_symlinks_posix(path: pathlib.Path) -> int:
         | getattr(os, "O_CLOEXEC", 0)
     )
     try:
-        directory_fd = os.open(absolute.anchor, directory_flags)
+        directory_fd = os.open("/", directory_flags)
     except OSError as exc:
         raise EvidenceIOError(
             f"cannot safely open evidence file {path}: {exc}"

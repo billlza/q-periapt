@@ -19,7 +19,7 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
-from typing import Any, Callable
+from typing import Any
 
 try:
     import pwd
@@ -50,7 +50,7 @@ from proof_manifest import (
 
 PROOF_SCHEMA_VERSION = 6
 HARNESS_SCHEMA_VERSION = 3
-BUDGET_SCHEMA_VERSION = 7
+BUDGET_SCHEMA_VERSION = 8
 PROFILE_NON_REGRESSION = "profile_non_regression"
 IMPLEMENTATION_IMPROVEMENT = "implementation_improvement"
 ESTIMANDS = (PROFILE_NON_REGRESSION, IMPLEMENTATION_IMPROVEMENT)
@@ -744,66 +744,72 @@ def validate_statistical_block_size(
     return block_size
 
 
-def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
-    expected_fields = {
-        "bootstrap_estimate_block_span",
-        "corpus_size",
-        "harness_schema_version",
-        "implementation_improvement",
-        "iterations_per_sample",
-        "max_block_median_cv",
-        "min_p99_tail_observations_per_pair_block",
-        "min_samples_per_variant_operation",
-        "mode",
-        "pair_block_size",
-        "profile_non_regression",
-        "regression_guard_pair_block_size",
-        "schedule",
-        "schema_version",
-        "stability_block_sizes",
-        "target",
-        "toolchain",
-        "warmup_ms",
+def expected_operation_budget_fields(
+    estimand: str,
+    operation: str,
+) -> set[str]:
+    ratio_and_delta_fields = {
+        "max_block_median_p50_ratio_upper_95",
+        "max_block_median_p95_ratio_upper_95",
+        "max_block_median_p99_ratio_upper_95",
+        "max_block_median_p95_delta_ns_upper_95",
     }
-    _strict_keys(budget, expected_fields, "performance budget")
-    require(type(budget.get("schema_version")) is int, "performance budget schema must be an integer")
+    if estimand == IMPLEMENTATION_IMPROVEMENT:
+        return set(IMPLEMENTATION_IMPROVEMENT_LIMITS)
     require(
-        budget.get("schema_version") == BUDGET_SCHEMA_VERSION,
-        "performance budget schema mismatch",
+        estimand == PROFILE_NON_REGRESSION and operation in OPERATIONS,
+        "unknown performance budget estimand or operation",
     )
-    require(type(budget.get("harness_schema_version")) is int, "budget harness schema must be an integer")
-    require(budget.get("harness_schema_version") == HARNESS_SCHEMA_VERSION, "budget harness schema mismatch")
-    toolchain_policy = validate_toolchain_policy(budget.get("toolchain"))
-    require(
-        budget.get("mode") == RELEASE_EVIDENCE_MODE,
-        "performance budget must require release evidence mode",
+    return (
+        {"max_block_median_p95_delta_ns_upper_95"}
+        if operation == "combine"
+        else ratio_and_delta_fields
     )
-    require(
-        budget.get("target") == toolchain_policy.get("target"),
-        "performance budget target differs from toolchain target",
-    )
-    for field in ("mode", "schedule", "target", "corpus_size"):
-        require(metadata.get(field) == budget.get(field), f"metadata/budget mismatch for {field}")
-    budget_iterations = positive_operation_map(
-        budget.get("iterations_per_sample"),
-        "budget iterations_per_sample",
-    )
-    require(
-        budget_iterations == EXPECTED_ITERATIONS_PER_SAMPLE,
-        "budget iterations_per_sample does not match the harness contract",
-    )
-    require(
-        metadata.get("iterations_per_sample") == budget_iterations,
-        "metadata/budget mismatch for iterations_per_sample",
-    )
-    samples = metadata.get("samples_per_variant_operation")
-    minimum = budget.get("min_samples_per_variant_operation")
-    require(type(minimum) is int and minimum > 0, "invalid minimum sample budget")
-    require(type(samples) is int and samples >= minimum, f"sample count {samples} is below budget {minimum}")
-    warmup = budget.get("warmup_ms")
-    require(type(warmup) is int and warmup > 0, "invalid warmup budget")
-    require(metadata.get("warmup_ms") == warmup, "metadata/budget mismatch for warmup_ms")
-    corpus_size = metadata["corpus_size"]
+
+
+def validate_operation_budget_policy(
+    estimand: str,
+    operations: tuple[str, ...],
+    value: Any,
+) -> None:
+    require(isinstance(value, dict), f"{estimand} budget operations must be an object")
+    _strict_keys(value, set(operations), f"{estimand} budget operation inventory")
+    for operation in operations:
+        operation_budget = value.get(operation)
+        require(
+            isinstance(operation_budget, dict),
+            f"budget for {estimand}/{operation} must be an object",
+        )
+        expected_fields = expected_operation_budget_fields(estimand, operation)
+        _strict_keys(
+            operation_budget,
+            expected_fields,
+            f"budget for {estimand}/{operation}",
+        )
+        for metric in expected_fields:
+            actual = finite_number(
+                operation_budget.get(metric),
+                f"budget {estimand}/{operation}/{metric}",
+            )
+            require(
+                actual > 0,
+                f"budget {estimand}/{operation}/{metric} must be positive",
+            )
+            if estimand == IMPLEMENTATION_IMPROVEMENT:
+                expected = IMPLEMENTATION_IMPROVEMENT_LIMITS[metric]
+                require(
+                    actual == expected,
+                    f"implementation_improvement budget {operation}/{metric} "
+                    f"must remain preregistered at {expected}",
+                )
+
+
+def validate_budget_layout(
+    budget: dict[str, Any],
+    *,
+    samples: int,
+    corpus_size: int,
+) -> None:
     pair_block_size = validate_statistical_block_size(
         samples=samples,
         corpus_size=corpus_size,
@@ -843,10 +849,99 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
             label=f"{operation} stability block size",
         )
     bootstrap_span = budget.get("bootstrap_estimate_block_span")
-    require(type(bootstrap_span) is int and bootstrap_span > 0, "invalid bootstrap estimate-block span")
+    require(
+        type(bootstrap_span) is int and bootstrap_span > 0,
+        "invalid bootstrap estimate-block span",
+    )
     require(
         bootstrap_span <= samples // pair_block_size,
         "bootstrap estimate-block span exceeds the paired estimate-block count",
+    )
+
+
+def validate_budget_policy(budget: dict[str, Any]) -> tuple[int, int, int]:
+    """Validate the complete preregistered policy before collection or analysis."""
+
+    expected_fields = {
+        "bootstrap_estimate_block_span",
+        "collection_samples_per_variant_operation",
+        "corpus_size",
+        "harness_schema_version",
+        "implementation_improvement",
+        "iterations_per_sample",
+        "max_block_median_cv",
+        "min_p99_tail_observations_per_pair_block",
+        "min_samples_per_variant_operation",
+        "mode",
+        "pair_block_size",
+        "profile_non_regression",
+        "regression_guard_pair_block_size",
+        "schedule",
+        "schema_version",
+        "stability_block_sizes",
+        "target",
+        "toolchain",
+        "warmup_ms",
+    }
+    _strict_keys(budget, expected_fields, "performance budget")
+    require(type(budget.get("schema_version")) is int, "performance budget schema must be an integer")
+    require(
+        budget.get("schema_version") == BUDGET_SCHEMA_VERSION,
+        "performance budget schema mismatch",
+    )
+    require(type(budget.get("harness_schema_version")) is int, "budget harness schema must be an integer")
+    require(budget.get("harness_schema_version") == HARNESS_SCHEMA_VERSION, "budget harness schema mismatch")
+    toolchain_policy = validate_toolchain_policy(budget.get("toolchain"))
+    require(
+        budget.get("mode") == RELEASE_EVIDENCE_MODE,
+        "performance budget must require release evidence mode",
+    )
+    require(
+        budget.get("schedule") == "ABBA/BAAB",
+        "performance budget schedule mismatch",
+    )
+    require(
+        budget.get("target") == toolchain_policy.get("target"),
+        "performance budget target differs from toolchain target",
+    )
+    require(
+        budget.get("target") == "aarch64-apple-darwin",
+        "performance budget target must remain aarch64-apple-darwin",
+    )
+    budget_iterations = positive_operation_map(
+        budget.get("iterations_per_sample"),
+        "budget iterations_per_sample",
+    )
+    require(
+        budget_iterations == EXPECTED_ITERATIONS_PER_SAMPLE,
+        "budget iterations_per_sample does not match the harness contract",
+    )
+    minimum = budget.get("min_samples_per_variant_operation")
+    require(type(minimum) is int and minimum > 0, "invalid minimum sample budget")
+    collection_samples = budget.get("collection_samples_per_variant_operation")
+    require(
+        type(collection_samples) is int and collection_samples >= minimum,
+        "invalid exact collection sample budget",
+    )
+    require(
+        collection_samples <= MAX_COLLECTION_SAMPLES,
+        "performance budget sample count exceeds the collector resource limit",
+    )
+    warmup = budget.get("warmup_ms")
+    require(type(warmup) is int and warmup > 0, "invalid warmup budget")
+    require(
+        warmup <= MAX_COLLECTION_WARMUP_MS,
+        "performance budget warmup exceeds the collector resource limit",
+    )
+    corpus_size = budget.get("corpus_size")
+    require(
+        type(corpus_size) is int and corpus_size > 0,
+        "invalid performance budget corpus size",
+    )
+    validate_budget_layout(
+        budget,
+        samples=collection_samples,
+        corpus_size=corpus_size,
     )
     profile_budget = budget.get(PROFILE_NON_REGRESSION)
     require(
@@ -858,22 +953,19 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
         {"backend", "direction", "operations"},
         "profile_non_regression budget",
     )
-    profile_metadata = metadata.get(PROFILE_NON_REGRESSION)
     require(
-        isinstance(profile_metadata, dict)
-        and profile_metadata.get("backend") == profile_budget.get("backend"),
-        "metadata/budget mismatch for profile_non_regression backend",
+        isinstance(profile_budget.get("backend"), str)
+        and bool(profile_budget["backend"]),
+        "profile_non_regression budget backend is invalid",
     )
     require(
-        profile_budget.get("direction") == "ContextBound/CompatXWing"
-        and profile_metadata.get("direction") == profile_budget.get("direction"),
+        profile_budget.get("direction") == "ContextBound/CompatXWing",
         "profile_non_regression budget direction mismatch",
     )
-    profile_operations = profile_budget.get("operations")
-    require(
-        isinstance(profile_operations, dict)
-        and set(profile_operations) == set(OPERATIONS),
-        "profile_non_regression budget operation inventory mismatch",
+    validate_operation_budget_policy(
+        PROFILE_NON_REGRESSION,
+        OPERATIONS,
+        profile_budget.get("operations"),
     )
 
     implementation_budget = budget.get(IMPLEMENTATION_IMPROVEMENT)
@@ -900,45 +992,80 @@ def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
         "product_profile": "ContextBound",
         "reference_scope": PORTABLE_REFERENCE_SCOPE,
     }
-    implementation_metadata = metadata.get(IMPLEMENTATION_IMPROVEMENT)
-    require(
-        isinstance(implementation_metadata, dict),
-        "release metadata lacks implementation_improvement",
-    )
     for field, expected in expected_implementation_contract.items():
         require(
             implementation_budget.get(field) == expected,
             f"implementation_improvement budget {field} mismatch",
         )
-        require(
-            implementation_metadata.get(field) == expected,
-            f"metadata/budget mismatch for implementation_improvement {field}",
-        )
-    implementation_operations = implementation_budget.get("operations")
-    require(
-        isinstance(implementation_operations, dict)
-        and set(implementation_operations) == set(IMPLEMENTATION_OPERATIONS),
-        "implementation_improvement budget operation inventory mismatch",
+    validate_operation_budget_policy(
+        IMPLEMENTATION_IMPROVEMENT,
+        IMPLEMENTATION_OPERATIONS,
+        implementation_budget.get("operations"),
     )
-    for operation in IMPLEMENTATION_OPERATIONS:
-        operation_budget = implementation_operations.get(operation)
-        require(
-            isinstance(operation_budget, dict)
-            and set(operation_budget) == set(IMPLEMENTATION_IMPROVEMENT_LIMITS),
-            f"implementation_improvement budget for {operation} metric inventory mismatch",
-        )
-        for metric, expected in IMPLEMENTATION_IMPROVEMENT_LIMITS.items():
-            actual = finite_number(
-                operation_budget.get(metric),
-                f"implementation_improvement budget {operation}/{metric}",
-            )
-            require(
-                actual == expected,
-                f"implementation_improvement budget {operation}/{metric} "
-                f"must remain preregistered at {expected}",
-            )
     maximum_cv = finite_number(budget.get("max_block_median_cv"), "maximum block-median CV")
     require(0 < maximum_cv <= 1, "maximum block-median CV must be in (0, 1]")
+    return minimum, collection_samples, warmup
+
+
+def validate_budget(metadata: dict[str, Any], budget: dict[str, Any]) -> None:
+    minimum, collection_samples, warmup = validate_budget_policy(budget)
+    for field in ("mode", "schedule", "target", "corpus_size"):
+        require(metadata.get(field) == budget.get(field), f"metadata/budget mismatch for {field}")
+    require(
+        metadata.get("iterations_per_sample") == EXPECTED_ITERATIONS_PER_SAMPLE,
+        "metadata/budget mismatch for iterations_per_sample",
+    )
+    samples = metadata.get("samples_per_variant_operation")
+    require(
+        type(samples) is int
+        and samples >= minimum
+        and samples == collection_samples,
+        "sample count differs from the preregistered exact collection policy",
+    )
+    require(metadata.get("warmup_ms") == warmup, "metadata/budget mismatch for warmup_ms")
+
+    profile_budget = budget[PROFILE_NON_REGRESSION]
+    profile_metadata = metadata.get(PROFILE_NON_REGRESSION)
+    require(
+        isinstance(profile_metadata, dict)
+        and profile_metadata.get("backend") == profile_budget.get("backend"),
+        "metadata/budget mismatch for profile_non_regression backend",
+    )
+    require(
+        profile_metadata.get("direction") == profile_budget.get("direction"),
+        "metadata/budget mismatch for profile_non_regression direction",
+    )
+
+    implementation_metadata = metadata.get(IMPLEMENTATION_IMPROVEMENT)
+    require(
+        isinstance(implementation_metadata, dict),
+        "release metadata lacks implementation_improvement",
+    )
+    for field in (
+        "direction",
+        "native_implementation_id",
+        "portable_implementation_id",
+        "product_profile",
+        "reference_scope",
+    ):
+        require(
+            implementation_metadata.get(field)
+            == budget[IMPLEMENTATION_IMPROVEMENT].get(field),
+            f"metadata/budget mismatch for implementation_improvement {field}",
+        )
+
+
+def collection_parameters_from_budget(
+    budget: dict[str, Any],
+) -> tuple[int, int]:
+    """Return the preregistered release collection size and warmup policy.
+
+    The release collector must not accept these values from its command line. The
+    complete budget policy is validated before any harness process starts.
+    """
+
+    _minimum, samples, warmup_ms = validate_budget_policy(budget)
+    return samples, warmup_ms
 
 
 def canonical_absolute_tool_path(value: str, name: str, label: str) -> pathlib.Path:
@@ -1245,20 +1372,10 @@ def analyse_estimand(
 
         operation_budget = operation_budgets[operation]
         require(isinstance(operation_budget, dict), f"budget for {operation} must be an object")
-        ratio_and_delta_fields = {
-            "max_block_median_p50_ratio_upper_95",
-            "max_block_median_p95_ratio_upper_95",
-            "max_block_median_p99_ratio_upper_95",
-            "max_block_median_p95_delta_ns_upper_95",
-        }
-        if estimand == IMPLEMENTATION_IMPROVEMENT:
-            expected_budget_fields = set(IMPLEMENTATION_IMPROVEMENT_LIMITS)
-        else:
-            expected_budget_fields = (
-                {"max_block_median_p95_delta_ns_upper_95"}
-                if operation == "combine"
-                else ratio_and_delta_fields
-            )
+        expected_budget_fields = expected_operation_budget_fields(
+            estimand,
+            operation,
+        )
         require(
             set(operation_budget) == expected_budget_fields,
             f"budget for {operation} metric inventory mismatch: expected {sorted(expected_budget_fields)}",
@@ -2290,6 +2407,7 @@ def collect(args: argparse.Namespace) -> None:
         )
     except EvidenceIOError as exc:
         raise GateError(str(exc)) from exc
+    samples, warmup_ms = collection_parameters_from_budget(budget_snapshot.value)
     if not args.allow_dirty:
         require(not source_tree_dirty(root), "performance release proof requires a clean source tree")
     environment_observations = {"pre_build": collect_environment()}
@@ -2371,9 +2489,9 @@ def collect(args: argparse.Namespace) -> None:
         command = [
             str(executable),
             "--samples",
-            str(args.samples),
+            str(samples),
             "--warmup-ms",
-            str(args.warmup_ms),
+            str(warmup_ms),
             "--raw-out",
             str(raw_path),
         ]
@@ -2769,18 +2887,6 @@ def positive_int(raw: str) -> int:
     return value
 
 
-def bounded_positive_int(maximum: int, label: str) -> Callable[[str], int]:
-    def parse(raw: str) -> int:
-        value = positive_int(raw)
-        if value > maximum:
-            raise argparse.ArgumentTypeError(
-                f"{label} must not exceed {maximum}: {raw}"
-            )
-        return value
-
-    return parse
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2789,16 +2895,6 @@ def main() -> int:
     collect_parser.add_argument("--root", type=pathlib.Path, required=True)
     collect_parser.add_argument("--raw", type=pathlib.Path, required=True)
     collect_parser.add_argument("--proof", type=pathlib.Path, required=True)
-    collect_parser.add_argument(
-        "--samples",
-        type=bounded_positive_int(MAX_COLLECTION_SAMPLES, "samples"),
-        default=20_480,
-    )
-    collect_parser.add_argument(
-        "--warmup-ms",
-        type=bounded_positive_int(MAX_COLLECTION_WARMUP_MS, "warmup-ms"),
-        default=5_000,
-    )
     collect_parser.add_argument("--allow-dirty", action="store_true")
     collect_parser.add_argument("--allow-uncontrolled", action="store_true")
 

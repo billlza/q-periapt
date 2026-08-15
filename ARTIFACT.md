@@ -1021,10 +1021,12 @@ These produce the paper's primary network table and the binary constant-time dis
   runtime override, or shipping API. The harness checks byte-identical native and portable
   keypair output and every per-case encapsulation/decapsulation output before timing, then uses
   ABBA/BAAB ordering for both estimands. The 5 s warm-up and 20,480 samples apply per
-  variant/operation. Unrounded batch totals use 256/1/2 calls for
+  variant/operation. Budget schema v8 records that exact collection size separately
+  from its statistical minimum, and the collection CLI cannot override either samples
+  or warm-up. Unrounded batch totals use 256/1/2 calls for
   combine/encapsulate/decapsulate, and analysis divides by the authenticated iteration count.
 
-  Budget schema v7 preregisters the implementation-improvement primary one-sided 95% upper
+  Budget schema v8 preregisters the implementation-improvement primary one-sided 95% upper
   limits before any formal collection: native/portable p50 and p95 must be at most 0.95 and p99
   at most 1.0 for both ContextBound product operations. The verifier rejects threshold drift and
   blocks any failure. This implemented gate is not itself a performance result: do not report a
@@ -1032,7 +1034,7 @@ These produce the paper's primary network table and the binary constant-time dis
   the full sample budget and is selected by `artifact/results.json`.
 
   Paired primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
-  therefore has 11 tail observations in each estimate block rather than three. Budget schema v7
+  therefore has 11 tail observations in each estimate block rather than three. Budget schema v8
   preserves the profile statistical contract: it pins a minimum of 10 and also recomputes the former
   256-pair estimator as a regression guard;
   every published ratio/delta limit must pass at both block scales. Separately parameterized
@@ -1056,7 +1058,7 @@ These produce the paper's primary network table and the binary constant-time dis
   replace-and-restore races remain trusted. The verifier also trusts the local collector to have
   built the content-addressed binary it records; it does not independently rebuild it. Therefore
   this is a strengthened single-host diagnostic, not hermetic or hostile-builder attestation.
-  Proof schema v6, raw schema v3, and budget schema v7 are required; older files
+  Proof schema v6, raw schema v3, and budget schema v8 are required; older files
   fail closed and must be recollected. Shared CI runs only a short schema exercise; numeric
   decisions require controlled hardware. Reverify with
   `QPERIAPT_REQUIRE_PERFORMANCE=1 sh artifact/proof-to-byte.sh`. Dirty diagnostic collection and

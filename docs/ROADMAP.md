@@ -280,11 +280,11 @@ The implementation budget preregisters one-sided 95% upper native/portable limit
 digest equals the live verifier digest and the host satisfies the controlled-power and
 thermal contract. The time-varying formal proof state is recorded in
 `artifact/results.json`. The gate is implemented, but no fresh clean-source,
-controlled-host, minimum-sample proof is selected; exact results require proof schema
-v6 under budget schema v7. The older Criterion combiner harness remains a
+controlled-host, exact-sample proof is selected; exact results require proof schema
+v6 under budget schema v8. The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
-Budget schema v7 preserves the profile thresholds, 20,480-sample corpus, and
+Budget schema v8 preserves the profile thresholds, 20,480-sample corpus, and
 1,024-pair primary percentile-estimate blocks, yielding 11 nearest-rank p99 tail
 observations per block. It also retains the former 256-pair estimator as a regression
 guard and applies the same limits at both scales; separately parameterized temporal-
@@ -587,7 +587,7 @@ are the gap between research-grade and audited/production.
 | Tamarin symbolic handshake model (auth, authenticated context agreement, hybrid robustness; 5 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (6 exact queries) | **Done** |
 | CI gate for the Tamarin proof (hard lemma-presence gate + hard `make prove`) | **Done** |
-| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** The same-process harness preserves profile non-regression and separately requires byte-equivalent native/portable ContextBound product operations to meet preregistered material thresholds. Exact results require a fresh clean proof-schema-v6 run under budget schema v7 selected by the results manifest. Verifier policy fixes the repository budget and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
+| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** The same-process harness preserves profile non-regression and separately requires byte-equivalent native/portable ContextBound product operations to meet preregistered material thresholds. Exact results require a fresh clean proof-schema-v6 run under budget schema v8 selected by the results manifest. Verifier policy fixes the repository budget and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Deterministic `ContextBound`/`CompatXWing` conformance vectors | **Done in Rust/WASM; intentionally not exported by native ABI2** |

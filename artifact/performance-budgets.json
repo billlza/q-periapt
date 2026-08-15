@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "harness_schema_version": 3,
   "mode": "release_evidence",
   "target": "aarch64-apple-darwin",
@@ -11,6 +11,7 @@
     "decapsulate": 2
   },
   "min_samples_per_variant_operation": 20480,
+  "collection_samples_per_variant_operation": 20480,
   "warmup_ms": 5000,
   "pair_block_size": 1024,
   "regression_guard_pair_block_size": 256,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import argparse
 import hashlib
+import io
 import json
 import pathlib
 import tempfile
@@ -29,7 +29,7 @@ class PerformanceGateTests(unittest.TestCase):
         self.root = pathlib.Path(self.temp.name)
         self.raw = self.root / "raw.jsonl"
         self.budget = {
-            "schema_version": 7,
+            "schema_version": 8,
             "harness_schema_version": 3,
             "mode": "release_evidence",
             "target": "aarch64-apple-darwin",
@@ -41,6 +41,7 @@ class PerformanceGateTests(unittest.TestCase):
                 "decapsulate": 2,
             },
             "min_samples_per_variant_operation": 8,
+            "collection_samples_per_variant_operation": 8,
             "warmup_ms": 1,
             "pair_block_size": 4,
             "regression_guard_pair_block_size": 2,
@@ -669,7 +670,23 @@ class PerformanceGateTests(unittest.TestCase):
             executable.chmod(0o700)
             return executable.resolve(), hashlib.sha256(binary_bytes).hexdigest()
 
-        def fake_run(command: list[str], **_kwargs: object) -> object:
+        def fake_run(command: list[str], **kwargs: object) -> object:
+            self.assertEqual(pathlib.Path(command[0]).name, "paired_profile_perf")
+            self.assertEqual(
+                command[1:],
+                [
+                    "--samples",
+                    str(self.budget["collection_samples_per_variant_operation"]),
+                    "--warmup-ms",
+                    str(self.budget["warmup_ms"]),
+                    "--raw-out",
+                    str(raw_path.resolve()),
+                ],
+            )
+            self.assertEqual(self.root.resolve(), kwargs.get("cwd"))
+            self.assertIs(kwargs.get("check"), True)
+            self.assertIsInstance(kwargs.get("env"), dict)
+            self.assertNotIn("shell", kwargs)
             output = pathlib.Path(command[command.index("--raw-out") + 1])
             output.write_bytes(self.raw.read_bytes())
             return types.SimpleNamespace(returncode=0)
@@ -678,8 +695,6 @@ class PerformanceGateTests(unittest.TestCase):
             root=self.root.resolve(),
             raw=raw_path.resolve(),
             proof=proof_path.resolve(),
-            samples=8,
-            warmup_ms=1,
             allow_dirty=True,
             allow_uncontrolled=False,
         )
@@ -1419,6 +1434,14 @@ class PerformanceGateTests(unittest.TestCase):
             )
         )
         self.assertEqual(production["min_samples_per_variant_operation"], 20_480)
+        self.assertEqual(
+            production["collection_samples_per_variant_operation"],
+            20_480,
+        )
+        self.assertGreaterEqual(
+            production["collection_samples_per_variant_operation"],
+            production["min_samples_per_variant_operation"],
+        )
         self.assertEqual(production["schema_version"], performance_gate.BUDGET_SCHEMA_VERSION)
         self.assertEqual(production["harness_schema_version"], performance_gate.HARNESS_SCHEMA_VERSION)
         self.assertEqual(production["mode"], performance_gate.RELEASE_EVIDENCE_MODE)
@@ -1489,7 +1512,7 @@ class PerformanceGateTests(unittest.TestCase):
             self.assertEqual(block_size % 2, 0)
             self.assertEqual(block_size % production["corpus_size"], 0)
             self.assertEqual(
-                production["min_samples_per_variant_operation"] % block_size,
+                production["collection_samples_per_variant_operation"] % block_size,
                 0,
             )
 
@@ -1679,7 +1702,7 @@ class PerformanceGateTests(unittest.TestCase):
         del self.budget[performance_gate.PROFILE_NON_REGRESSION]["operations"][
             "encapsulate"
         ]["max_block_median_p99_ratio_upper_95"]
-        with self.assertRaisesRegex(performance_gate.GateError, "metric inventory mismatch"):
+        with self.assertRaisesRegex(performance_gate.GateError, "is missing fields"):
             self.parse_and_analyse()
 
     def test_nonfinite_json_number_fails(self) -> None:
@@ -2294,24 +2317,141 @@ class PerformanceGateTests(unittest.TestCase):
             )
 
     def test_collection_resource_limits_fail_closed(self) -> None:
-        parse_samples = performance_gate.bounded_positive_int(
-            performance_gate.MAX_COLLECTION_SAMPLES, "samples"
-        )
-        parse_warmup = performance_gate.bounded_positive_int(
-            performance_gate.MAX_COLLECTION_WARMUP_MS, "warmup-ms"
-        )
         self.assertEqual(
-            parse_samples(str(performance_gate.MAX_COLLECTION_SAMPLES)),
-            performance_gate.MAX_COLLECTION_SAMPLES,
+            performance_gate.collection_parameters_from_budget(self.budget),
+            (8, 1),
         )
+        for field, value, message in (
+            (
+                "collection_samples_per_variant_operation",
+                performance_gate.MAX_COLLECTION_SAMPLES + 1,
+                "sample count exceeds",
+            ),
+            (
+                "warmup_ms",
+                performance_gate.MAX_COLLECTION_WARMUP_MS + 1,
+                "warmup exceeds",
+            ),
+        ):
+            with self.subTest(field=field):
+                changed = json.loads(json.dumps(self.budget))
+                changed[field] = value
+                with self.assertRaisesRegex(performance_gate.GateError, message):
+                    performance_gate.collection_parameters_from_budget(changed)
+
+    def test_minimum_and_exact_collection_samples_have_distinct_roles(self) -> None:
+        changed = json.loads(json.dumps(self.budget))
+        changed["min_samples_per_variant_operation"] = 4
         self.assertEqual(
-            parse_warmup(str(performance_gate.MAX_COLLECTION_WARMUP_MS)),
-            performance_gate.MAX_COLLECTION_WARMUP_MS,
+            performance_gate.collection_parameters_from_budget(changed),
+            (8, 1),
         )
-        with self.assertRaisesRegex(argparse.ArgumentTypeError, "must not exceed"):
-            parse_samples(str(performance_gate.MAX_COLLECTION_SAMPLES + 1))
-        with self.assertRaisesRegex(argparse.ArgumentTypeError, "must not exceed"):
-            parse_warmup(str(performance_gate.MAX_COLLECTION_WARMUP_MS + 1))
+
+        changed["min_samples_per_variant_operation"] = 8
+        changed["collection_samples_per_variant_operation"] = 4
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "invalid exact collection sample budget",
+        ):
+            performance_gate.collection_parameters_from_budget(changed)
+
+        changed = json.loads(json.dumps(self.budget))
+        changed["collection_samples_per_variant_operation"] = 16
+        metadata, _grouped = performance_gate.parse_raw(self.raw)
+        with self.assertRaisesRegex(
+            performance_gate.GateError,
+            "differs from the preregistered exact collection policy",
+        ):
+            performance_gate.validate_budget(metadata, changed)
+
+    def test_collection_policy_rejects_representative_malformed_budget_before_use(
+        self,
+    ) -> None:
+        missing = object()
+        mutations = (
+            (
+                "missing-exact-samples",
+                ("collection_samples_per_variant_operation",),
+                missing,
+            ),
+            ("null-corpus", ("corpus_size",), None),
+            ("zero-corpus", ("corpus_size",), 0),
+            (
+                "alternate-target",
+                ("target",),
+                "x86_64-apple-darwin",
+            ),
+            (
+                "alternate-toolchain-target",
+                ("toolchain", "target"),
+                "x86_64-apple-darwin",
+            ),
+            (
+                "empty-backend",
+                (performance_gate.PROFILE_NON_REGRESSION, "backend"),
+                "",
+            ),
+            (
+                "nonnumeric-profile-limit",
+                (
+                    performance_gate.PROFILE_NON_REGRESSION,
+                    "operations",
+                    "encapsulate",
+                    "max_block_median_p95_ratio_upper_95",
+                ),
+                "1.15",
+            ),
+            (
+                "zero-profile-limit",
+                (
+                    performance_gate.PROFILE_NON_REGRESSION,
+                    "operations",
+                    "encapsulate",
+                    "max_block_median_p95_ratio_upper_95",
+                ),
+                0,
+            ),
+        )
+        for label, path, replacement in mutations:
+            with self.subTest(label=label):
+                changed = json.loads(json.dumps(self.budget))
+                parent = changed
+                for component in path[:-1]:
+                    parent = parent[component]
+                if replacement is missing:
+                    del parent[path[-1]]
+                else:
+                    parent[path[-1]] = replacement
+                with self.assertRaises(performance_gate.GateError):
+                    performance_gate.collection_parameters_from_budget(changed)
+
+    def test_release_collector_cli_has_no_runtime_policy_overrides(self) -> None:
+        for option, value in (("--samples", "8"), ("--warmup-ms", "1")):
+            with self.subTest(option=option):
+                stderr = io.StringIO()
+                with (
+                    mock.patch.object(
+                        performance_gate.sys,
+                        "argv",
+                        [
+                            "performance_gate.py",
+                            "collect",
+                            "--root",
+                            ".",
+                            "--raw",
+                            "target/performance/raw.jsonl",
+                            "--proof",
+                            "target/performance/proof.json",
+                            option,
+                            value,
+                        ],
+                    ),
+                    mock.patch.object(performance_gate.sys, "stderr", stderr),
+                    self.assertRaises(SystemExit) as raised,
+                ):
+                    performance_gate.main()
+                self.assertEqual(2, raised.exception.code)
+                self.assertIn(f"unrecognized arguments: {option} {value}", stderr.getvalue())
 
 
 if __name__ == "__main__":

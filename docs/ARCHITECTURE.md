@@ -268,7 +268,7 @@ encapsulation and decapsulation on the same keys, coins, corpus, and toolchain. 
 private symbol-renamed portable archive is linked only into the evidence harness; no
 product backend, Cargo feature, runtime override, or public API is added. The harness
 requires byte-identical keypair and per-case encapsulation/decapsulation outputs before
-timing. Budget schema v7 preregisters one-sided 95% upper native/portable limits of
+timing. Budget schema v8 preregisters one-sided 95% upper native/portable limits of
 0.95 for primary p50/p95 and 1.0 for p99. The proof binds both implementation IDs,
 the final binary, portable archive/source, raw records, source tree, and toolchain.
 This is a gate definition, not a measured claim: quantitative results require a fresh
@@ -947,7 +947,7 @@ cleared `PYTHON*` state, standard-library-first import roots, and repository-con
 dispatch. This prevents ignored timestamp/hash-pyc replacement and user-site/`.pth` startup
 code, but does not attest the external interpreter or host. Release policy
 fixes matrix membership and the performance budget outside proof-authored data. Performance
-proof schema v6 and budget schema v7 also fix the rustup toolchain and target plus
+proof schema v6 and budget schema v8 also fix the rustup toolchain and target plus
 Cargo, Rustc, Xcode Clang, and Xcode `ar` paths and hashes, and the canonical macOS
 SDK path, version, and settings digest (with version output where available); collection rejects repository/ancestor/user Cargo configuration and caller
 compiler/wrapper/loader controls, uses fixed tool paths plus a fresh private target,

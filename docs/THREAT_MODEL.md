@@ -489,11 +489,11 @@ summary, while the required performance verifier checks the selected proof and a
 target-selection/source migration changed that digest, so every portable-derived package, device,
 performance, and binary-CT proof is historical regardless of whether its older-source
 run passed. A fresh clean controlled-host proof and physical-device matrix must be
-collected against the release source. Until that minimum-sample proof is selected, the
+collected against the release source. Until that exact-sample proof is selected, the
 implemented gate is not a demonstrated quantitative result.
 Currentness is determined only by `artifact/results.json`
 plus live verification against the canonical tree. Performance proof schema v6 and
-budget schema v7 bind both implementation IDs, the final binary, portable archive and
+budget schema v8 bind both implementation IDs, the final binary, portable archive and
 source, raw data, source tree, rustup toolchain and target, Cargo, Rustc, Xcode
 Clang/ar, and the canonical macOS SDK path/version/settings digest.
 The producer rejects repository/ancestor/user Cargo configuration and caller

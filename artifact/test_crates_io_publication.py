@@ -278,6 +278,17 @@ class CratesIoPublicationTests(unittest.TestCase):
             source_transition_verifier=lambda _source, _path, _digest: None,
         )
 
+    def cli_selected_handoff(self) -> publication.ResultsSelectedHandoff:
+        return publication.ResultsSelectedHandoff(
+            path=self.handoff_manifest_path,
+            relative_path=pathlib.PurePosixPath(
+                "target/qperiapt-rust-package-handoffs/"
+                f"transaction.1-{'a' * 32}/"
+                f"{publication.RUST_PACKAGE_HANDOFF_MANIFEST_NAME}"
+            ),
+            sha256=self.handoff_manifest_sha256,
+        )
+
     def stable_results_handoff_manifest(
         self,
         selected_path: str,
@@ -1221,6 +1232,18 @@ finalize_rust_package_handoff_for_cli(
             selected_path,
             self.handoff_manifest_sha256,
         )
+        with mock.patch.object(
+            publication,
+            "_load_tag_results_manifest",
+            return_value=manifest,
+        ):
+            selected = publication._results_selected_handoff(self.source)
+        self.assertEqual(
+            publication.REPOSITORY_ROOT / pathlib.Path(selected_path),
+            selected.path,
+        )
+        self.assertEqual(pathlib.PurePosixPath(selected_path), selected.relative_path)
+        self.assertEqual(self.handoff_manifest_sha256, selected.sha256)
         publication._validate_results_selected_handoff(
             manifest,
             self.source,
@@ -1279,6 +1302,52 @@ finalize_rust_package_handoff_for_cli(
         credential_provider.assert_not_called()
         lock_factory.assert_not_called()
         uploader.assert_not_called()
+
+    def test_results_selected_handoff_rejects_malformed_R_authority(self) -> None:
+        selected_path = (
+            "target/qperiapt-rust-package-handoffs/"
+            f"transaction.1-{'a' * 32}/rust-package-handoff.json"
+        )
+        valid = self.stable_results_handoff_manifest(
+            selected_path,
+            self.handoff_manifest_sha256,
+        )
+        missing_path = copy.deepcopy(valid)
+        missing_path_rust = missing_path["rust_publish"]
+        if not isinstance(missing_path_rust, dict):
+            raise AssertionError("test Rust publication fixture is malformed")
+        del missing_path_rust["handoff_manifest_path"]
+        missing_digest = copy.deepcopy(valid)
+        missing_digest_rust = missing_digest["rust_publish"]
+        if not isinstance(missing_digest_rust, dict):
+            raise AssertionError("test Rust publication fixture is malformed")
+        del missing_digest_rust["handoff_manifest_sha256"]
+        escaped = copy.deepcopy(valid)
+        escaped_rust = escaped["rust_publish"]
+        if not isinstance(escaped_rust, dict):
+            raise AssertionError("test Rust publication fixture is malformed")
+        escaped_rust["handoff_manifest_path"] = (
+            "target/qperiapt-rust-package-handoffs/../outside.json"
+        )
+        cases = (
+            ("missing-path", missing_path),
+            ("missing-digest", missing_digest),
+            ("escaped", escaped),
+        )
+        for label, manifest in cases:
+            with (
+                self.subTest(label=label),
+                mock.patch.object(
+                    publication,
+                    "_load_tag_results_manifest",
+                    return_value=manifest,
+                ),
+                self.assertRaisesRegex(
+                    publication.CratesIoPublicationError,
+                    "selected Rust handoff is malformed|outside the fixed repository namespace",
+                ),
+            ):
+                publication._results_selected_handoff(self.source)
 
     def test_registry_resamples_the_exact_R_selected_handoff_binding(self) -> None:
         transition_calls: list[
@@ -2766,7 +2835,9 @@ signal.pause()
     def test_production_uploader_consumes_only_exact_stdin_bytes(self) -> None:
         package = self.evidence().crates[0]
         state_root = self.production_state_root
-        uploader_path = state_root / "exact-uploader"
+        uploader_path = (
+            state_root / publication.CRATES_IO_PUBLICATION_UPLOADER_NAME
+        )
         uploader_path.write_text(
             "\n".join(
                 (
@@ -2801,9 +2872,18 @@ signal.pause()
         outside.write_bytes(uploader_path.read_bytes())
         os.chmod(outside, 0o700)
         with self.assertRaisesRegex(
-            publication.CratesIoPublicationError, "direct child"
+            publication.CratesIoPublicationError, "fixed publication uploader path"
         ):
             publication.production_upload_runner(outside, state_root=state_root)
+
+        alternate = state_root / "alternate-uploader"
+        alternate.write_bytes(uploader_path.read_bytes())
+        os.chmod(alternate, 0o700)
+        with self.assertRaisesRegex(
+            publication.CratesIoPublicationError,
+            "fixed publication uploader path",
+        ):
+            publication.production_upload_runner(alternate, state_root=state_root)
 
         nested_root = state_root / "tools"
         nested_root.mkdir(mode=0o700)
@@ -2811,7 +2891,7 @@ signal.pause()
         nested.write_bytes(uploader_path.read_bytes())
         os.chmod(nested, 0o700)
         with self.assertRaisesRegex(
-            publication.CratesIoPublicationError, "direct child"
+            publication.CratesIoPublicationError, "fixed publication uploader path"
         ):
             publication.production_upload_runner(nested, state_root=state_root)
 
@@ -2832,11 +2912,11 @@ signal.pause()
             )
         hardlink.unlink()
 
-        symlink = state_root / "symlink-uploader"
-        symlink.symlink_to(outside)
+        uploader_path.unlink()
+        uploader_path.symlink_to(outside)
         with self.assertRaises(publication.CratesIoPublicationError):
             publication.production_upload_runner(
-                symlink,
+                uploader_path,
                 state_root=state_root,
             )
 
@@ -2859,14 +2939,139 @@ signal.pause()
         self.assertEqual(1, status)
         self.assertIn("explicit --state-root", stderr.getvalue())
 
-    def test_real_publish_cli_passes_one_validated_root_to_lock_and_uploader(
+    def test_publish_cli_rejects_alternate_authority_confirmations_before_io(
+        self,
+    ) -> None:
+        state_root = self.production_state_root
+        uploader_path = (
+            state_root / publication.CRATES_IO_PUBLICATION_UPLOADER_NAME
+        )
+        cases = (
+            (
+                "state-root",
+                self.root / "alternate-state-root",
+                uploader_path,
+                "publication state root confirmation",
+            ),
+            (
+                "uploader",
+                state_root,
+                state_root / "alternate-uploader",
+                "publication uploader confirmation",
+            ),
+        )
+        for label, supplied_root, supplied_uploader, expected_error in cases:
+            with (
+                self.subTest(label=label),
+                mock.patch.object(publication, "_source_from_json") as read_source,
+                mock.patch.object(
+                    publication, "_validated_publication_state_root"
+                ) as validate_root,
+                mock.patch.object(publication, "production_lock_factory") as make_lock,
+                mock.patch.object(
+                    publication, "production_upload_runner"
+                ) as make_uploader,
+                mock.patch.object(
+                    publication, "run_publication_transaction"
+                ) as run_transaction,
+                contextlib.redirect_stderr(io.StringIO()) as stderr,
+            ):
+                status = publication._main(
+                    [
+                        "publish",
+                        os.fspath(self.root / "must-not-be-read.json"),
+                        os.fspath(self.handoff_manifest_path),
+                        self.handoff_manifest_sha256,
+                        "--state-root",
+                        os.fspath(supplied_root),
+                        "--uploader-command",
+                        os.fspath(supplied_uploader),
+                        "--execute-real-upload",
+                        "--acknowledge-irreversible-publish",
+                    ]
+                )
+            self.assertEqual(1, status)
+            self.assertIn(expected_error, stderr.getvalue())
+            read_source.assert_not_called()
+            validate_root.assert_not_called()
+            make_lock.assert_not_called()
+            make_uploader.assert_not_called()
+            run_transaction.assert_not_called()
+
+    def test_publish_cli_rejects_handoff_confirmation_before_publication_io(
         self,
     ) -> None:
         source_path = self.root / "source-identity.json"
         source_path.write_bytes(_json(self.source.document()))
         os.chmod(source_path, 0o600)
         state_root = self.production_state_root
-        uploader_path = state_root / "cli-uploader"
+        uploader_path = (
+            state_root / publication.CRATES_IO_PUBLICATION_UPLOADER_NAME
+        )
+        selected = self.cli_selected_handoff()
+        cases = (
+            (
+                "path",
+                self.root / "alternate-handoff.json",
+                selected.sha256,
+            ),
+            (
+                "digest",
+                selected.path,
+                "f" * 64,
+            ),
+        )
+        for label, supplied_path, supplied_sha256 in cases:
+            with (
+                self.subTest(label=label),
+                mock.patch.object(
+                    publication,
+                    "_results_selected_handoff",
+                    return_value=selected,
+                ),
+                mock.patch.object(
+                    publication, "_validated_publication_state_root"
+                ) as validate_root,
+                mock.patch.object(publication, "production_lock_factory") as make_lock,
+                mock.patch.object(
+                    publication, "production_upload_runner"
+                ) as make_uploader,
+                mock.patch.object(
+                    publication, "run_publication_transaction"
+                ) as run_transaction,
+                contextlib.redirect_stderr(io.StringIO()) as stderr,
+            ):
+                status = publication._main(
+                    [
+                        "publish",
+                        os.fspath(source_path),
+                        os.fspath(supplied_path),
+                        supplied_sha256,
+                        "--state-root",
+                        os.fspath(state_root),
+                        "--uploader-command",
+                        os.fspath(uploader_path),
+                        "--execute-real-upload",
+                        "--acknowledge-irreversible-publish",
+                    ]
+                )
+            self.assertEqual(1, status)
+            self.assertIn("differs from results commit R", stderr.getvalue())
+            validate_root.assert_not_called()
+            make_lock.assert_not_called()
+            make_uploader.assert_not_called()
+            run_transaction.assert_not_called()
+
+    def test_real_publish_cli_passes_derived_authority_to_lock_and_uploader(
+        self,
+    ) -> None:
+        source_path = self.root / "source-identity.json"
+        source_path.write_bytes(_json(self.source.document()))
+        os.chmod(source_path, 0o600)
+        state_root = self.production_state_root
+        uploader_path = (
+            state_root / publication.CRATES_IO_PUBLICATION_UPLOADER_NAME
+        )
         uploader_path.write_text("#!/bin/sh\nexit 1\n", encoding="ascii")
         os.chmod(uploader_path, 0o700)
         lock_factory = mock.Mock()
@@ -2888,6 +3093,11 @@ signal.pause()
                 side_effect=publication.CratesIoPublicationError(
                     "stopped before any upload"
                 ),
+            ),
+            mock.patch.object(
+                publication,
+                "_results_selected_handoff",
+                return_value=self.cli_selected_handoff(),
             ),
             contextlib.redirect_stderr(io.StringIO()),
         ):
@@ -2926,14 +3136,10 @@ signal.pause()
             "target/qperiapt-rust-package-handoffs/"
             "transaction.1-" + "c" * 32
         ) / publication.RUST_PACKAGE_HANDOFF_MANIFEST_NAME
-        self.assertEqual(
-            publication.REPOSITORY_ROOT / handoff_marker,
-            publication._controlled_cli_input_path(
-                handoff_marker,
-                fixed_root=publication.RUST_PACKAGE_HANDOFF_ROOT,
-                expected_leaf=publication.RUST_PACKAGE_HANDOFF_MANIFEST_NAME,
-                transaction_pattern=publication._HANDOFF_TRANSACTION_RE,
-            ),
+        selected_handoff = publication.ResultsSelectedHandoff(
+            path=publication.REPOSITORY_ROOT / handoff_marker,
+            relative_path=pathlib.PurePosixPath(handoff_marker.as_posix()),
+            sha256=self.handoff_manifest_sha256,
         )
         result = publication.PublicationRun(
             mode="verify",
@@ -2948,6 +3154,11 @@ signal.pause()
         with (
             mock.patch.object(
                 publication, "run_publication_transaction", return_value=result
+            ) as run_transaction,
+            mock.patch.object(
+                publication,
+                "_results_selected_handoff",
+                return_value=selected_handoff,
             ),
             mock.patch.object(
                 publication,
@@ -2960,11 +3171,13 @@ signal.pause()
                 [
                     "verify",
                     os.fspath(source_path),
-                    os.fspath(self.handoff_manifest_path),
+                    os.fspath(handoff_marker),
                     self.handoff_manifest_sha256,
                 ]
             )
         self.assertEqual(0, status)
+        self.assertEqual(selected_handoff.path, run_transaction.call_args.args[1])
+        self.assertEqual(selected_handoff.sha256, run_transaction.call_args.args[2])
         self.assertEqual(
             "CRATES_IO_PUBLICATION_VERIFY_PASS version=0.1.0 status=partial "
             "receipt_path=target/qperiapt-crates-io-publication-receipts/"
@@ -2992,6 +3205,11 @@ signal.pause()
         with (
             mock.patch.object(
                 publication, "run_publication_transaction", return_value=result
+            ),
+            mock.patch.object(
+                publication,
+                "_results_selected_handoff",
+                return_value=self.cli_selected_handoff(),
             ),
             contextlib.redirect_stdout(stdout),
             contextlib.redirect_stderr(stderr),
@@ -3036,6 +3254,11 @@ signal.pause()
                 publication,
                 "run_publication_transaction",
                 side_effect=committed,
+            ),
+            mock.patch.object(
+                publication,
+                "_results_selected_handoff",
+                return_value=self.cli_selected_handoff(),
             ),
             contextlib.redirect_stdout(stdout),
             contextlib.redirect_stderr(stderr),
