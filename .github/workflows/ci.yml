@@ -1136,7 +1136,14 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}/artifact:/work/artifact:ro" \
             -v "${{ github.workspace }}/formal/easycrypt:/src:ro" \
-            q-periapt-ec:ci opam exec -- sh -c 'sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool easycrypt && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && EC=easycrypt make check && sh negative-controls.sh && EC=easycrypt make -C continuity check'
+            q-periapt-ec:ci opam exec -- sh -c \
+            'sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool easycrypt &&
+             mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec &&
+             rm -f *.eco continuity/*.eco &&
+             MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" make EC=easycrypt check &&
+             EASYCRYPT=easycrypt sh negative-controls.sh &&
+             MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+               make -C continuity EC=easycrypt check'
 
   # Symbolic handshake proof. The lemma-presence check catches a lemma being
   # deleted/stubbed out; the full Tamarin machine-check is a HARD GATE too.
@@ -1153,7 +1160,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Handshake and migration lemma names present (hard gate)
-        run: make -C formal/tamarin check-lemma-names
+        run: MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' make -C formal/tamarin check-lemma-names
       - name: Install Maude + Tamarin
         run: |
           set -euo pipefail
@@ -1250,7 +1257,10 @@ jobs:
       - name: Verify pinned Tamarin and Maude identities
         run: sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool tamarin
       - name: Machine-check handshake, migration, and countermodels (make prove)
-        run: make -C formal/tamarin prove
+        run: |
+          MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
+            make -C formal/tamarin TAMARIN=tamarin-prover \
+              DERIVCHECK_TIMEOUT=60 prove
 
   # Second, independent symbolic prover (ProVerif) for the same handshake — assurance
   # diversity. The security events + queries are presence-gated, and the ProVerif
@@ -1338,7 +1348,9 @@ jobs:
       - name: Verify pinned ProVerif identity
         run: opam exec -- sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool proverif
       - name: Machine-check the handshake model (queries must hold)
-        run: opam exec -- make -C formal/proverif prove
+        run: |
+          MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
+            opam exec -- make -C formal/proverif PROVERIF=proverif prove
 
   # Still TODO as harnesses land (see ctstats/README.md):
   #   - extend the `constant-time` Memcheck/TIMECOP gate to the remaining primitive/backend

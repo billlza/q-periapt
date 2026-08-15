@@ -14,8 +14,6 @@ import argparse
 import os
 import pathlib
 import re
-import shutil
-import stat
 import sys
 from collections.abc import Callable, Sequence
 from typing import Literal, Never
@@ -55,6 +53,17 @@ _SELECTION_TO_MARKER_TOOLS: dict[ToolSelection, tuple[str, ...]] = {
     "tamarin": ("tamarin", "maude"),
     "proverif": ("proverif",),
 }
+_FIXED_IDENTITY_COMMANDS = frozenset(
+    {
+        ("easycrypt", "config"),
+        ("tamarin-prover", "--version"),
+        ("maude", "--version"),
+        ("proverif", "-help"),
+    }
+)
+_FIXED_EXECUTABLE_NAMES = frozenset(
+    command[0] for command in _FIXED_IDENTITY_COMMANDS
+)
 _PROVERIF_VERSION_LINE = re.compile(
     r"^Proverif (?P<version>[0-9]+\.[0-9]+)\. "
     r"Cryptographic protocol verifier, by .+$"
@@ -80,25 +89,6 @@ def _path_environment(value: str | None) -> str:
     return selected
 
 
-def _resolve_executable(name: str, path_environment: str) -> pathlib.Path:
-    candidate = shutil.which(name, path=path_environment)
-    if candidate is None:
-        _fail(f"required formal tool is unavailable: {name}")
-    spelled = pathlib.Path(candidate)
-    if not spelled.is_absolute():
-        _fail(f"formal tool selection is not absolute: {name}")
-    try:
-        resolved = spelled.resolve(strict=True)
-        metadata = resolved.stat()
-    except OSError as exc:
-        raise FormalToolchainContractError(
-            f"cannot resolve formal tool executable: {name}"
-        ) from exc
-    if not stat.S_ISREG(metadata.st_mode) or not os.access(resolved, os.X_OK):
-        _fail(f"formal tool is not one executable regular file: {name}")
-    return resolved
-
-
 def _minimal_environment(path_environment: str) -> dict[str, str]:
     return {
         "LANG": "C",
@@ -107,27 +97,20 @@ def _minimal_environment(path_environment: str) -> dict[str, str]:
     }
 
 
-def _prepend_path(path_environment: str, directory: pathlib.Path) -> str:
-    selected = str(directory)
-    entries = [
-        entry
-        for entry in path_environment.split(os.pathsep)
-        if entry != selected
-    ]
-    return os.pathsep.join((selected, *entries))
-
-
 def _run_identity_command(
-    executable: pathlib.Path,
+    executable: str,
     arguments: Sequence[str],
     *,
     label: str,
     path_environment: str,
     runner: Runner,
 ) -> tuple[str, str]:
+    command = (executable, *arguments)
+    if command not in _FIXED_IDENTITY_COMMANDS:
+        _fail("formal tool identity command is not one fixed contract command")
     try:
         result = runner(
-            (str(executable), *arguments),
+            command,
             timeout_seconds=COMMAND_TIMEOUT_SECONDS,
             maximum_stdout_bytes=MAXIMUM_STDOUT_BYTES,
             maximum_stderr_bytes=MAXIMUM_STDERR_BYTES,
@@ -241,14 +224,15 @@ def verify_installed(
     if selection not in _SELECTION_TO_EXECUTABLES:
         _fail("formal tool selection is invalid")
     selected_path = _path_environment(path_environment)
-    executables = {
-        name: _resolve_executable(name, selected_path)
-        for name in _SELECTION_TO_EXECUTABLES[selection]
-    }
+    executables = _SELECTION_TO_EXECUTABLES[selection]
+    if not executables or any(
+        name not in _FIXED_EXECUTABLE_NAMES for name in executables
+    ):
+        _fail("formal tool selection contains a non-fixed executable")
 
     if "easycrypt" in executables:
         stdout, stderr = _run_identity_command(
-            executables["easycrypt"],
+            "easycrypt",
             ("config",),
             label="EasyCrypt identity",
             path_environment=selected_path,
@@ -258,21 +242,20 @@ def verify_installed(
         parse_easycrypt_config(stderr)
 
     if "tamarin-prover" in executables:
-        tamarin_path = _prepend_path(selected_path, executables["maude"].parent)
         stdout, stderr = _run_identity_command(
-            executables["tamarin-prover"],
+            "tamarin-prover",
             ("--version",),
             label="Tamarin identity",
-            path_environment=tamarin_path,
+            path_environment=selected_path,
             runner=runner,
         )
         parse_tamarin_version(stdout)
         parse_tamarin_diagnostics(stderr)
         stdout, stderr = _run_identity_command(
-            executables["maude"],
+            "maude",
             ("--version",),
             label="Maude identity",
-            path_environment=tamarin_path,
+            path_environment=selected_path,
             runner=runner,
         )
         _require_empty_stream(stderr, label="Maude standard error")
@@ -280,7 +263,7 @@ def verify_installed(
 
     if "proverif" in executables:
         stdout, stderr = _run_identity_command(
-            executables["proverif"],
+            "proverif",
             ("-help",),
             label="ProVerif identity",
             path_environment=selected_path,

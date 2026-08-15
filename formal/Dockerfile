@@ -9,8 +9,11 @@
 #             -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec opam exec -- sh -c \
 #             'sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed \
 #              --tool easycrypt && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && \
-#              rm -f *.eco continuity/*.eco && EC=easycrypt make check && \
-#              sh negative-controls.sh && EC=easycrypt make -C continuity check'
+#              rm -f *.eco continuity/*.eco && MAKEFLAGS="" GNUMAKEFLAGS="" \
+#              MAKEFILES="" make EC=easycrypt check && \
+#              EASYCRYPT=easycrypt sh negative-controls.sh && \
+#              MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+#              make -C continuity EC=easycrypt check'
 FROM ocaml/opam:debian-12-ocaml-5.3@sha256:bbaac53e502f6602013d8967c3a54cfcb898b556f453ab72e8e23966c3c681df
 
 # Base tools + the Z3 solver. The apt lists are intentionally KEPT so opam can resolve and install

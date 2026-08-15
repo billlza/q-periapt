@@ -90,11 +90,17 @@ docker build -f formal/Dockerfile -t q-periapt-ec .
 # outputs, and re-check both root proofs, all seven dependency controls, and both
 # continuity diagnostics from source. `.eco` files and the control log are ignored
 # local outputs and are not committed evidence.
-docker run --rm -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
-    opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec \
+docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
+    -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
+    opam exec -- sh -c 'sh artifact/python-run.sh \
+        artifact/formal_toolchain_contract.py verify-installed --tool easycrypt \
+        && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec \
         && rm -f *.eco continuity/*.eco negative-controls.log \
-        && EC=easycrypt make check && sh negative-controls.sh \
-        && EC=easycrypt make -C continuity check'
+        && MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+        make EC=easycrypt check \
+        && EASYCRYPT=easycrypt sh negative-controls.sh \
+        && MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+        make -C continuity EC=easycrypt check'
 ```
 
 The historical `negative-controls.sh` filename is retained because the CI entrypoint invokes it.

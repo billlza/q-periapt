@@ -133,3 +133,8 @@ unbroken (given the signature authenticates the ephemeral key material).
 make prove      # prove handshake, V2 migration gates, and countermodels
 make check      # parse every theory (fast)
 ```
+
+These bare commands are developer conveniences. The release hard gate first verifies
+the pinned Tamarin/Maude identities, clears inherited make-control variables, and passes
+`TAMARIN=tamarin-prover DERIVCHECK_TIMEOUT=60` as make command-line variables so the
+proof cannot use ambient tool or resource-policy overrides.

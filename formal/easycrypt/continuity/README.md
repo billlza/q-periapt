@@ -21,6 +21,10 @@ Run:
 EC="$HOME/.opam/default/bin/easycrypt" make check
 ```
 
+That command is for local diagnostics. Release-authority runs verify the fixed EasyCrypt
+identity, clear inherited make-control variables, and pass `EC=easycrypt` as a make
+command-line variable.
+
 This is not a protocol proof. Fixed-width field encoders, field authenticity,
 semantic completeness, Rust correspondence, SHA3 collision resistance, decoding,
 state advancement, FS/PCS, directory consistency, manifest membership, unique

@@ -109,13 +109,10 @@ class FormalToolchainContractTests(unittest.TestCase):
                 ("maude", "--version"),
                 ("proverif", "-help"),
             ],
-            [
-                (pathlib.Path(argv[0]).name, *argv[1:])
-                for argv, _kwargs in self.calls
-            ],
+            [argv for argv, _kwargs in self.calls],
         )
         for argv, kwargs in self.calls:
-            with self.subTest(tool=pathlib.Path(argv[0]).name):
+            with self.subTest(tool=argv[0]):
                 self.assertEqual(
                     contract.COMMAND_TIMEOUT_SECONDS,
                     kwargs["timeout_seconds"],
@@ -157,17 +154,19 @@ class FormalToolchainContractTests(unittest.TestCase):
                     [pathlib.Path(call[0][0]).name for call in self.calls],
                 )
 
-    def test_tamarin_executes_with_the_resolved_maude_directory_first(self) -> None:
+    def test_tamarin_and_maude_use_the_same_unchanged_path(self) -> None:
+        selected_path = os.pathsep.join(("/usr/bin", str(self.bin)))
         contract.verify_installed(
             "tamarin",
-            path_environment=os.pathsep.join(("/usr/bin", str(self.bin))),
+            path_environment=selected_path,
             runner=self.runner,
         )
+        self.assertEqual(
+            ["tamarin-prover", "maude"],
+            [argv[0] for argv, _kwargs in self.calls],
+        )
         for _argv, kwargs in self.calls:
-            self.assertEqual(
-                str(self.bin),
-                kwargs["environment"]["PATH"].split(os.pathsep)[0],
-            )
+            self.assertEqual(selected_path, kwargs["environment"]["PATH"])
 
     def test_parsers_reject_missing_duplicate_and_wrong_identities(self) -> None:
         parser_cases = (
@@ -278,11 +277,30 @@ class FormalToolchainContractTests(unittest.TestCase):
                     runner=runner,
                 )
 
+        def missing_maude(
+            argv: tuple[str, ...], **kwargs: object
+        ) -> BoundedResult:
+            if argv[0] == "maude":
+                raise BoundedProcessError("start", "fixture Maude is unavailable")
+            return self.runner(argv, **kwargs)
+
+        with self.assertRaisesRegex(
+            contract.FormalToolchainContractError,
+            "Maude identity bounded process start",
+        ):
+            contract.verify_installed(
+                "tamarin",
+                path_environment=self.path_environment,
+                runner=missing_maude,
+            )
+
     def test_path_and_executable_selection_fail_closed(self) -> None:
         for selected_path, message in (
             ("", "PATH"),
-            ("relative:/usr/bin", "absolute"),
-            ("/missing", "unavailable"),
+            (f"relative{os.pathsep}{self.bin}", "absolute"),
+            (f"{self.bin}{os.pathsep}", "absolute"),
+            (f"{os.pathsep}{self.bin}", "absolute"),
+            (f"{self.bin}\x00", "PATH"),
         ):
             with (
                 self.subTest(selected_path=selected_path),
@@ -296,6 +314,53 @@ class FormalToolchainContractTests(unittest.TestCase):
                     path_environment=selected_path,
                     runner=self.runner,
                 )
+
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            self.assertRaisesRegex(
+                contract.FormalToolchainContractError,
+                "PATH",
+            ),
+        ):
+            contract.verify_installed("easycrypt", runner=self.runner)
+
+        missing_bin = pathlib.Path(self.temporary.name).resolve() / "missing-bin"
+        missing_bin.mkdir()
+        with self.assertRaisesRegex(
+            contract.FormalToolchainContractError,
+            "bounded process start",
+        ):
+            contract.verify_installed(
+                "easycrypt",
+                path_environment=str(missing_bin),
+            )
+
+        runner = mock.Mock()
+        with self.assertRaisesRegex(
+            contract.FormalToolchainContractError,
+            "fixed contract command",
+        ):
+            contract._run_identity_command(
+                "../easycrypt",
+                ("config",),
+                label="fixture",
+                path_environment=self.path_environment,
+                runner=runner,
+            )
+        runner.assert_not_called()
+
+        with self.assertRaisesRegex(
+            contract.FormalToolchainContractError,
+            "fixed contract command",
+        ):
+            contract._run_identity_command(
+                "easycrypt",
+                ("config", "--injected"),
+                label="fixture",
+                path_environment=self.path_environment,
+                runner=runner,
+            )
+        runner.assert_not_called()
 
     def test_cli_markers_and_errors_are_exact(self) -> None:
         stdout = io.StringIO()

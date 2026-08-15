@@ -9,6 +9,7 @@
 #
 # The historical filename is retained because CI invokes it directly. Run:
 #   sh formal/easycrypt/negative-controls.sh
+# Release authorities set EASYCRYPT=easycrypt after verifying that fixed PATH selection.
 set -u
 EC="${EASYCRYPT:-$(command -v easycrypt 2>/dev/null || echo "$HOME/.opam/default/bin/easycrypt")}"
 SRC="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)/BindingViaCR.ec"

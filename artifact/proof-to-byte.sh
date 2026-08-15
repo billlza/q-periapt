@@ -13,6 +13,11 @@ need() {
 	fi
 }
 
+formal_make() {
+	MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
+		command make "$@"
+}
+
 validate_path_text() {
 	python3 - "$1" "$2" <<'PY'
 import os
@@ -575,10 +580,11 @@ fi
 if [ "$REQUIRE_FORMAL" = "1" ]; then
 	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
 		verify-installed --tool all
-	make -C formal/easycrypt check
-	EASYCRYPT=$(command -v easycrypt) sh formal/easycrypt/negative-controls.sh
-	make -C formal/tamarin prove
-	make -C formal/proverif prove
+	formal_make -C formal/easycrypt EC=easycrypt check
+	EASYCRYPT=easycrypt sh formal/easycrypt/negative-controls.sh
+	formal_make -C formal/tamarin TAMARIN=tamarin-prover \
+		DERIVCHECK_TIMEOUT=60 prove
+	formal_make -C formal/proverif PROVERIF=proverif prove
 	FORMAL_PASSED=1
 	printf 'PROOF_TO_BYTE_FORMAL_MACHINECHECK_PASS\n'
 fi
@@ -595,7 +601,7 @@ if [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 		--vectors models/q-periapt-continuity-model/vectors/prekey-selection-v1.json
 	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
 		verify-installed --tool easycrypt
-	EC=$(command -v easycrypt) make -C formal/easycrypt/continuity check
+	formal_make -C formal/easycrypt/continuity EC=easycrypt check
 	printf 'PROOF_TO_BYTE_CONTINUITY_MODEL_DIAGNOSTIC_PASS boundary=non_normative_not_release\n'
 fi
 

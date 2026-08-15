@@ -1973,8 +1973,12 @@ class BoundVerifierWiringTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assert_named_proof_input(key, relative)
         self.assertIn("artifact/migration_contract_v2.py verify", source)
-        self.assertIn("make -C formal/easycrypt check", source)
-        self.assertIn("make -C formal/tamarin prove", source)
+        self.assertIn("formal_make -C formal/easycrypt EC=easycrypt check", source)
+        self.assertIn(
+            "formal_make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+            "\t\tDERIVCHECK_TIMEOUT=60 prove",
+            source,
+        )
 
     def test_proof_to_byte_verifies_the_complete_formal_toolchain_first(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -2003,36 +2007,100 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertEqual(len(all_tool_checks), 2)
         self.assertEqual(len(easycrypt_checks), 2)
         self.assertEqual(source.count("\tneed maude\n"), 1)
+        formal_make_definition = (
+            "formal_make() {\n"
+            "\tMAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \\\n"
+            '\t\tcommand make "$@"\n'
+            "}\n"
+        )
+        self.assertEqual(source.count(formal_make_definition), 1)
+        self.assertEqual(source.count("\tformal_make "), 4)
         for command in (
             'RESULTS_MANIFEST="$ROOT/artifact/results.json"',
             "PROOF_TO_BYTE_SOURCE_SNAPSHOT_PASS",
-            "make -C formal/easycrypt check",
-            "sh formal/easycrypt/negative-controls.sh",
-            "make -C formal/tamarin prove",
-            "make -C formal/proverif prove",
+            "formal_make -C formal/easycrypt EC=easycrypt check",
+            "EASYCRYPT=easycrypt sh formal/easycrypt/negative-controls.sh",
+            "formal_make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+            "\t\tDERIVCHECK_TIMEOUT=60 prove",
+            "formal_make -C formal/proverif PROVERIF=proverif prove",
             "FORMAL_PASSED=1",
             "PROOF_TO_BYTE_FORMAL_MACHINECHECK_PASS",
         ):
             with self.subTest(command=command):
                 self.assertLess(source.index(expected_dispatch), source.index(command))
         self.assertLess(
-            all_tool_checks[1], source.index("make -C formal/easycrypt check")
+            all_tool_checks[1],
+            source.index("formal_make -C formal/easycrypt EC=easycrypt check"),
         )
         self.assertLess(
             easycrypt_checks[1],
             source.index(
-                "EC=$(command -v easycrypt) make -C formal/easycrypt/continuity check"
+                "formal_make -C formal/easycrypt/continuity EC=easycrypt check"
             ),
         )
         for bypass in (" ||", "; true", "continue"):
             with self.subTest(bypass=bypass):
                 self.assertNotIn(all_tools_call + bypass, source)
                 self.assertNotIn(easycrypt_call + bypass, source)
+        for ambient_override in (
+            "make -C formal/easycrypt check",
+            "make -C formal/tamarin prove",
+            "make -C formal/proverif prove",
+            "EC=$(command -v easycrypt)",
+            "EASYCRYPT=$(command -v easycrypt)",
+        ):
+            with self.subTest(ambient_override=ambient_override):
+                self.assertNotIn(ambient_override, source)
 
     def test_proof_to_byte_names_every_hqc_candidate_input(self) -> None:
         for key, relative in HQC_CANDIDATE_PROOF_INPUTS.items():
             with self.subTest(key=key):
                 self.assert_named_proof_input(key, relative)
+
+    def test_formal_make_environment_cannot_dry_run_or_override_tools(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="qperiapt-formal-make-") as raw:
+            temporary = pathlib.Path(raw)
+            makefile = temporary / "Makefile"
+            injected = temporary / "injected.mk"
+            marker = temporary / "marker.txt"
+            makefile.write_text(
+                "check:\n"
+                "\t@printf '%s\\n' '$(TOOL)' > '$(MARKER)'\n",
+                encoding="utf-8",
+            )
+            injected.write_text("override TOOL := injected\n", encoding="utf-8")
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "MAKEFLAGS": "-n TOOL=flags",
+                    "GNUMAKEFLAGS": "-n",
+                    "MAKEFILES": os.fspath(injected),
+                    "TOOL": "ambient",
+                }
+            )
+            completed = subprocess.run(
+                [
+                    "/bin/sh",
+                    "-c",
+                    "MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' "
+                    'command make -f "$1" TOOL=trusted "MARKER=$2" check',
+                    "formal-make-environment-test",
+                    os.fspath(makefile),
+                    os.fspath(marker),
+                ],
+                cwd=ROOT,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(completed.stdout, "")
+            self.assertEqual(completed.stderr, "")
+            self.assertEqual(marker.read_bytes(), b"trusted\n")
 
     def test_proof_to_byte_names_every_apple_distribution_input(self) -> None:
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
@@ -2163,7 +2231,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         python_tests = "sh artifact/python-run.sh -m unittest -v"
         vectors = "sh artifact/python-run.sh artifact/continuity_context.py verify"
         prekey_vectors = "sh artifact/python-run.sh artifact/prekey_selection.py verify"
-        formal = "make -C formal/easycrypt/continuity check"
+        formal = "formal_make -C formal/easycrypt/continuity EC=easycrypt check"
         marker = (
             "PROOF_TO_BYTE_CONTINUITY_MODEL_DIAGNOSTIC_PASS "
             "boundary=non_normative_not_release"
@@ -4980,8 +5048,14 @@ with _temporary_release_test_directories(parents):
             proverif_install.index(calls[2]),
             proverif_install.index('sudo install -m 0755 "$OPAM_BIN"'),
         )
-        self.assertIn("make -C formal/tamarin prove", tamarin_job)
-        self.assertIn("make -C formal/proverif prove", proverif_job)
+        self.assertIn(
+            "make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+            "              DERIVCHECK_TIMEOUT=60 prove",
+            tamarin_job,
+        )
+        self.assertIn(
+            "make -C formal/proverif PROVERIF=proverif prove", proverif_job
+        )
         for forbidden in (
             "continue-on-error",
             "|| true",
@@ -5005,6 +5079,9 @@ with _temporary_release_test_directories(parents):
             "Machine-check proof, countermodels, and dependency controls (HARD GATE)",
         )
         tamarin_job = extract_workflow_job(workflow, "tamarin-proof")
+        tamarin_lemma_names = extract_named_workflow_step(
+            tamarin_job, "Handshake and migration lemma names present (hard gate)"
+        )
         tamarin_install = extract_named_workflow_step(
             tamarin_job, "Install Maude + Tamarin"
         )
@@ -5020,7 +5097,12 @@ with _temporary_release_test_directories(parents):
             "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
             "verify-installed --tool easycrypt"
         )
+        nested_make_environment = (
+            'MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" '
+        )
+        workflow_make_environment = "MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' "
         self.assertEqual(easycrypt_check.count(easycrypt_call), 1)
+        self.assertEqual(easycrypt_check.count(nested_make_environment), 2)
         self.assertIn(
             '-v "${{ github.workspace }}/artifact:/work/artifact:ro"',
             easycrypt_check,
@@ -5030,7 +5112,7 @@ with _temporary_release_test_directories(parents):
                 self.assertNotIn(inline_parser, easycrypt_check)
         self.assertLess(
             easycrypt_check.index(easycrypt_call),
-            easycrypt_check.index("EC=easycrypt make check"),
+            easycrypt_check.index("make EC=easycrypt check"),
         )
         dockerfile = (ROOT / "formal" / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("z3 git make ca-certificates sudo python3 &&", dockerfile)
@@ -5040,9 +5122,12 @@ with _temporary_release_test_directories(parents):
             "verify-installed \\\n#              --tool easycrypt",
             "mkdir -p /tmp/ec",
             "rm -f *.eco continuity/*.eco",
-            "EC=easycrypt make check",
-            "sh negative-controls.sh",
-            "EC=easycrypt make -C continuity check",
+            'MAKEFLAGS="" GNUMAKEFLAGS="" \\\n',
+            'MAKEFILES="" make EC=easycrypt check',
+            "make EC=easycrypt check",
+            "EASYCRYPT=easycrypt sh negative-controls.sh",
+            'MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \\\n',
+            "make -C continuity EC=easycrypt check",
         ):
             with self.subTest(dockerfile_command=command):
                 self.assertIn(command, dockerfile)
@@ -5057,14 +5142,37 @@ with _temporary_release_test_directories(parents):
         )
         self.assertEqual(tamarin_identity.count(tamarin_call), 1)
         self.assertEqual(proverif_identity.count(proverif_call), 1)
+        self.assertEqual(tamarin_job.count(workflow_make_environment), 2)
+        self.assertEqual(proverif_job.count(workflow_make_environment), 1)
+        self.assertEqual(
+            tamarin_lemma_names,
+            "      - name: Handshake and migration lemma names present (hard gate)\n"
+            "        run: MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' "
+            "make -C formal/tamarin check-lemma-names\n",
+        )
         self.assertLess(
             tamarin_job.index(tamarin_call),
-            tamarin_job.index("make -C formal/tamarin prove"),
+            tamarin_job.index(
+                "make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+                "              DERIVCHECK_TIMEOUT=60 prove"
+            ),
         )
         self.assertLess(
             proverif_job.index(proverif_call),
-            proverif_job.index("make -C formal/proverif prove"),
+            proverif_job.index(
+                "make -C formal/proverif PROVERIF=proverif prove"
+            ),
         )
+        for authority, ambient_override in (
+            (easycrypt_check, "EC=easycrypt make check"),
+            (easycrypt_check, "&& sh negative-controls.sh"),
+            (tamarin_job, "make -C formal/tamarin prove"),
+            (proverif_job, "make -C formal/proverif prove"),
+            (dockerfile, "EC=easycrypt make check"),
+            (dockerfile, "#              sh negative-controls.sh"),
+        ):
+            with self.subTest(ambient_override=ambient_override):
+                self.assertNotIn(ambient_override, authority)
         self.assertNotIn('test "$(maude --version)"', tamarin_install)
         self.assertNotIn("tamarin-prover --version", tamarin_install)
         for step in (easycrypt_check, tamarin_identity, proverif_identity):

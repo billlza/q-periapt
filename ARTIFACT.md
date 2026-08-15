@@ -476,8 +476,12 @@ docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
     opam exec -- sh -c 'sh artifact/python-run.sh \
         artifact/formal_toolchain_contract.py verify-installed --tool easycrypt \
         && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec \
-        && rm -f *.eco continuity/*.eco && EC=easycrypt make check \
-        && sh negative-controls.sh && EC=easycrypt make -C continuity check'
+        && rm -f *.eco continuity/*.eco \
+        && MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+        make EC=easycrypt check \
+        && EASYCRYPT=easycrypt sh negative-controls.sh \
+        && MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+        make -C continuity EC=easycrypt check'
 
 sh bindings/c/build-and-run.sh                                         # C-ABI link smoke (needs cc)
 CC_wasm32_unknown_unknown=/absolute/path/to/llvm-clang \
@@ -489,6 +493,10 @@ The formal-tool contract is a Level-1 accidental-drift check, not executable-byt
 attestation. Each identity probe has a 30-second timeout and 64-KiB cap per output
 stream, requires strict UTF-8 and exact pinned identities, and fails before any formal
 `make` command on missing tools, warnings/errors, malformed output, or version drift.
+Release-authority invocations also pass the same fixed basenames as explicit `make`
+command-line variables. They clear `MAKEFLAGS`, `GNUMAKEFLAGS`, and `MAKEFILES`
+before each `make`, so ambient dry-run, ignore-error, alternate-makefile, and
+variable-override settings cannot skip a proof or select another prover.
 
 The WASM compiler path must be absolute and name upstream LLVM Clang with a
 `wasm32` backend (`clang --print-targets` must list it); Apple Clang is rejected.
