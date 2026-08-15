@@ -113,14 +113,8 @@ APPLE_EXPECTED_TEAM_ID = "YKUPL7Z869"
 APPLE_EXPECTED_CERTIFICATE_SHA256 = (
     "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d"
 )
-APPLE_PUBLIC_FILE_NAMES = (
-    apple_distribution.XCFRAMEWORK_ZIP_NAME,
-    apple_distribution.APPLE_DISTRIBUTION_NAME,
-    apple_distribution.MANIFEST_NAME,
-    apple_distribution.SHA256SUMS_NAME,
-)
 APPLE_PUBLIC_DIRECTORY_ENTRIES = frozenset(
-    {*APPLE_PUBLIC_FILE_NAMES, "CQPeriapt.xcframework"}
+    {*apple_contract.APPLE_PUBLIC_ASSET_NAMES, "CQPeriapt.xcframework"}
 )
 
 MAX_LEDGER_BYTES = 1024 * 1024
@@ -194,6 +188,17 @@ def _sha256(value: object, label: str) -> str:
         f"{label} must be a lowercase SHA-256",
     )
     return value
+
+
+def _public_asset_sha256s(
+    distribution: dict[str, object],
+) -> dict[str, str]:
+    try:
+        return apple_contract.apple_public_asset_sha256s(distribution)
+    except apple_contract.ApplePublicationContractError as exc:
+        raise AppleStablePublicationError(
+            f"Apple public asset digest projection failed: {exc}"
+        ) from exc
 
 
 def _timestamp(value: object, label: str) -> dt.datetime:
@@ -417,10 +422,10 @@ def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
     )
     _exact_keys(
         hashes,
-        frozenset(APPLE_PUBLIC_FILE_NAMES),
+        frozenset(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
         "Apple completion public asset hashes",
     )
-    for name in APPLE_PUBLIC_FILE_NAMES:
+    for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         _sha256(hashes[name], f"Apple completion asset digest for {name}")
     return ledger, source_commit
 
@@ -476,7 +481,7 @@ def _load_public_distribution(
 ) -> dict[str, object]:
     entries_before = _public_distribution_entries()
     snapshots: dict[str, FileSnapshot] = {}
-    for name in APPLE_PUBLIC_FILE_NAMES:
+    for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         maximum = (
             apple_distribution.MAX_ARTIFACT_BYTES
             if name == apple_distribution.XCFRAMEWORK_ZIP_NAME
@@ -512,7 +517,7 @@ def _load_public_distribution(
                 ].data,
                 expected_asset_sha256={
                     name: snapshots[name].sha256
-                    for name in APPLE_PUBLIC_FILE_NAMES
+                    for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES
                 },
                 expected_source_commit=source_commit,
                 expected_team_id=APPLE_EXPECTED_TEAM_ID,
@@ -531,6 +536,79 @@ def _load_public_distribution(
         "Apple public distribution changed while assembling its receipt",
     )
     return distribution
+
+
+def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
+    entries_before = _public_distribution_entries()
+    snapshots = tuple(
+        read_fixed_file_snapshot(
+            APPLE_PUBLIC_DISTRIBUTION / name,
+            safe_root=APPLE_PUBLIC_ROOT,
+            expected_leaf=name,
+            label=f"Apple stable publication asset {name}",
+            parent_depth=1,
+            maximum=(
+                apple_distribution.MAX_ARTIFACT_BYTES
+                if name == apple_distribution.XCFRAMEWORK_ZIP_NAME
+                else apple_distribution.MAX_TEXT_BYTES
+            ),
+            file_mode=PUBLIC_FILE_MODE,
+            root_mode=0o755,
+            parent_mode=0o755,
+        )
+        for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES
+    )
+    _require(
+        all(snapshot.size > 0 for snapshot in snapshots),
+        "Apple stable publication asset is empty",
+    )
+    _require(
+        _public_distribution_entries() == entries_before,
+        "Apple public distribution changed during asset snapshot",
+    )
+    return snapshots
+
+
+def load_pending_publication_assets(
+    pending_receipt: object,
+) -> tuple[FileSnapshot, ...]:
+    """Return the fixed four Apple files selected by the pending P receipt."""
+
+    try:
+        manifest = {
+            "release_publications": {
+                apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: pending_receipt
+            }
+        }
+        apple_contract.validate_apple_publications(manifest)
+    except apple_contract.ApplePublicationContractError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+    pending = _object(pending_receipt, "pending Apple stable receipt")
+    _require(
+        pending.get("status") == apple_contract.APPLE_STATUS_PENDING,
+        "Apple asset selection requires the pending stable receipt",
+    )
+    distribution = _object(
+        pending.get("distribution"),
+        "pending Apple stable distribution",
+    )
+    source = _object(pending.get("source"), "pending Apple stable source")
+    expected_hashes = _public_asset_sha256s(distribution)
+    before = _snapshot_public_asset_files()
+    rebuilt = _load_public_distribution(
+        expected_hashes,
+        _sha1(source.get("source_parent_commit"), "Apple source parent"),
+    )
+    _require(
+        apple_contract.publication_values_equal(rebuilt, distribution),
+        "Apple fixed distribution differs from the selected pending receipt",
+    )
+    after = _snapshot_public_asset_files()
+    _require(
+        before == after,
+        "Apple stable publication assets changed while loading",
+    )
+    return before
 
 
 def build_pending_receipt(
@@ -687,10 +765,10 @@ def _validate_remote_receipt(value: object) -> dict[str, Any]:
     )
     _exact_keys(
         assets,
-        frozenset(APPLE_PUBLIC_FILE_NAMES),
+        frozenset(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
         "Apple remote consumer asset hashes",
     )
-    for name in APPLE_PUBLIC_FILE_NAMES:
+    for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         _sha256(assets[name], f"Apple remote asset digest for {name}")
     verification = _object(
         receipt["verification"],
@@ -842,16 +920,7 @@ def promote_receipt(
         remote["source_commit"] == distribution["source_commit"],
         "Apple remote consumer source differs from the signed candidate",
     )
-    expected_assets = {
-        apple_distribution.XCFRAMEWORK_ZIP_NAME: distribution[
-            "artifact_sha256"
-        ],
-        apple_distribution.APPLE_DISTRIBUTION_NAME: distribution[
-            "apple_distribution_evidence_sha256"
-        ],
-        apple_distribution.MANIFEST_NAME: distribution["manifest_sha256"],
-        apple_distribution.SHA256SUMS_NAME: distribution["checksums_sha256"],
-    }
+    expected_assets = _public_asset_sha256s(distribution)
     _require(
         remote["assets_sha256"] == expected_assets
         and remote["swiftpm_checksum"] == distribution["swiftpm_checksum"],
@@ -876,10 +945,11 @@ def promote_receipt(
     assets_value = projection["assets"]
     _require(
         isinstance(assets_value, list)
-        and len(assets_value) == len(APPLE_PUBLIC_FILE_NAMES),
+        and len(assets_value)
+        == len(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
         "Apple GitHub release projection asset count differs",
     )
-    for index, name in enumerate(APPLE_PUBLIC_FILE_NAMES):
+    for index, name in enumerate(apple_contract.APPLE_PUBLIC_ASSET_NAMES):
         asset = _object(
             assets_value[index], f"Apple GitHub release asset {index}"
         )
@@ -1328,20 +1398,11 @@ def _emit_remote_consumer_receipt_pinned(
     distribution = _object(
         pending["distribution"], "remote consumer pending distribution"
     )
-    expected_assets = {
-        apple_distribution.XCFRAMEWORK_ZIP_NAME: distribution[
-            "artifact_sha256"
-        ],
-        apple_distribution.APPLE_DISTRIBUTION_NAME: distribution[
-            "apple_distribution_evidence_sha256"
-        ],
-        apple_distribution.MANIFEST_NAME: distribution["manifest_sha256"],
-        apple_distribution.SHA256SUMS_NAME: distribution["checksums_sha256"],
-    }
+    expected_assets = _public_asset_sha256s(distribution)
     try:
         verify_exact_directory_inventory_at(
             release_assets.descriptor,
-            frozenset(APPLE_PUBLIC_FILE_NAMES),
+            frozenset(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
             label="remote consumer downloaded assets before snapshot",
         )
     except PublicationReceiptIOError as exc:
@@ -1349,7 +1410,7 @@ def _emit_remote_consumer_receipt_pinned(
             "cannot inspect remote consumer downloaded assets"
         ) from exc
     downloaded: dict[str, FileSnapshot] = {}
-    for name in APPLE_PUBLIC_FILE_NAMES:
+    for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         downloaded[name] = _private_runtime_snapshot_at(
             release_assets,
             name,
@@ -1363,7 +1424,7 @@ def _emit_remote_consumer_receipt_pinned(
     try:
         verify_exact_directory_inventory_at(
             release_assets.descriptor,
-            frozenset(APPLE_PUBLIC_FILE_NAMES),
+            frozenset(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
             label="remote consumer downloaded assets after snapshot",
         )
     except PublicationReceiptIOError as exc:
@@ -1372,7 +1433,8 @@ def _emit_remote_consumer_receipt_pinned(
         ) from exc
     verify_transaction_handles()
     normalized_assets = {
-        name: downloaded[name].sha256 for name in APPLE_PUBLIC_FILE_NAMES
+        name: downloaded[name].sha256
+        for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES
     }
     _require(
         normalized_assets == expected_assets,

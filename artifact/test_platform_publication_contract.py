@@ -278,6 +278,17 @@ class PlatformPublicationContractTests(unittest.TestCase):
                     "candidate_attestation"
                 ].update({"verification_record_sha256": "8" * 64}),
             ),
+            (
+                "release-candidate",
+                lambda receipt: (
+                    receipt["observation"]["release_candidate"][
+                        "android_runtime_evidence"
+                    ].update({"proof_sha256": "7" * 64}),
+                    receipt["observation"]["android_runtime_evidence"].update(
+                        {"proof_sha256": "7" * 64}
+                    ),
+                ),
+            ),
         ):
             with self.subTest(label=label):
                 promoted = verified_receipt()

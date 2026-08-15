@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -289,6 +290,53 @@ class PlatformDistributionTests(unittest.TestCase):
                 android_tools=self.android_tools,
             )
 
+    def _transaction_inputs(self, name: str) -> pathlib.Path:
+        candidate = pathlib.Path(
+            tempfile.mkdtemp(prefix=f"{name}-", dir=self.root)
+        )
+        for asset_name in platform_distribution.PLATFORM_CANDIDATE_ASSETS:
+            (candidate / asset_name).write_bytes(
+                (self.assets / asset_name).read_bytes()
+            )
+        (candidate / platform_distribution_contract.CANDIDATE_SUMS).write_bytes(
+            b"verified candidate sums fixture\n"
+        )
+        (
+            candidate / platform_distribution_contract.SOURCE_SECURITY_GATE
+        ).write_bytes(b"verified source security gate fixture\n")
+        return candidate
+
+    def _assemble_candidate_transaction(
+        self,
+        name: str,
+    ) -> tuple[pathlib.Path, str, pathlib.Path, dict[str, object]]:
+        candidate = self._transaction_inputs(f"candidate-{name}")
+        validators = self._deep_validator_mocks()
+        release_root = self.root / "release-candidates"
+        with (
+            mock.patch.object(
+                platform_distribution,
+                "PLATFORM_RELEASE_CANDIDATE_ROOT",
+                release_root,
+            ),
+            mock.patch.object(
+                platform_distribution,
+                "_source_identity",
+                return_value=self.source,
+            ),
+            validators[0],
+            validators[1],
+            validators[2],
+            validators[3],
+        ):
+            return platform_distribution.assemble_candidate_transaction(
+                self.repository,
+                candidate,
+                self.assets / platform_distribution.ANDROID_RUNTIME_BUNDLE,
+                f"transaction.{name}",
+                android_tools=self.android_tools,
+            )
+
     def test_assemble_verify_and_rebuild_are_byte_deterministic(self) -> None:
         first_output = self.root / "release-first"
         first = self._assemble(first_output)
@@ -309,6 +357,217 @@ class PlatformDistributionTests(unittest.TestCase):
         }
         self.assertEqual(first, second)
         self.assertEqual(first_bytes, second_bytes)
+
+    def test_candidate_transaction_commits_exact_manifest_last_receipt(self) -> None:
+        receipt_path, digest, release, receipt = (
+            self._assemble_candidate_transaction("positive")
+        )
+        self.assertEqual(
+            digest,
+            hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            {
+                platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME,
+                platform_distribution.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+            },
+            {path.name for path in receipt_path.parent.iterdir()},
+        )
+        self.assertEqual(
+            set(platform_distribution.PUBLIC_ASSET_NAMES),
+            {path.name for path in release.iterdir()},
+        )
+        self.assertEqual(
+            list(platform_distribution.PUBLIC_ASSET_NAMES),
+            [asset["name"] for asset in receipt["assets"]],
+        )
+        self.assertEqual(
+            dict(platform_distribution.PUBLIC_ASSET_CONTENT_TYPES),
+            {
+                asset["name"]: asset["content_type"]
+                for asset in receipt["assets"]
+            },
+        )
+        platform_distribution_contract.validate_release_candidate_receipt(
+            receipt
+        )
+        with mock.patch.object(
+            platform_distribution,
+            "PLATFORM_RELEASE_CANDIDATE_ROOT",
+            receipt_path.parent.parent,
+        ):
+            self.assertEqual(
+                receipt,
+                platform_distribution.load_release_candidate_receipt(
+                    receipt_path
+                ),
+            )
+
+    def test_candidate_transaction_is_no_replace_and_uses_bounded_names(self) -> None:
+        receipt_path, _digest, _release, _receipt = (
+            self._assemble_candidate_transaction("exclusive")
+        )
+        original = receipt_path.read_bytes()
+        with self.assertRaisesRegex(
+            platform_distribution.PlatformDistributionError,
+            "already exists",
+        ):
+            self._assemble_candidate_transaction("exclusive")
+        self.assertEqual(original, receipt_path.read_bytes())
+
+        candidate = self._transaction_inputs("candidate-invalid-name")
+        with self.assertRaisesRegex(
+            platform_distribution.PlatformDistributionError,
+            "transaction.<bounded-id>",
+        ):
+            platform_distribution.assemble_candidate_transaction(
+                self.repository,
+                candidate,
+                self.assets / platform_distribution.ANDROID_RUNTIME_BUNDLE,
+                "release-candidate",
+                android_tools=self.android_tools,
+            )
+
+    def test_candidate_receipt_loader_rejects_asset_and_inventory_drift(self) -> None:
+        receipt_path, _digest, release, _receipt = (
+            self._assemble_candidate_transaction("loader-drift")
+        )
+        with mock.patch.object(
+            platform_distribution,
+            "PLATFORM_RELEASE_CANDIDATE_ROOT",
+            receipt_path.parent.parent,
+        ):
+            (release / platform_distribution.ANDROID_AAR).write_bytes(b"drift")
+            os.chmod(release / platform_distribution.ANDROID_AAR, 0o644)
+            with self.assertRaisesRegex(
+                platform_distribution.PlatformDistributionError,
+                "platform release candidate",
+            ):
+                platform_distribution.load_release_candidate_receipt(receipt_path)
+
+        receipt_path, _digest, release, _receipt = (
+            self._assemble_candidate_transaction("inventory-drift")
+        )
+        (release / "unexpected").write_bytes(b"unexpected")
+        os.chmod(release / "unexpected", 0o644)
+        with mock.patch.object(
+            platform_distribution,
+            "PLATFORM_RELEASE_CANDIDATE_ROOT",
+            receipt_path.parent.parent,
+        ):
+            with self.assertRaisesRegex(
+                platform_distribution.PlatformDistributionError,
+                "platform release candidate",
+            ):
+                platform_distribution.load_release_candidate_receipt(receipt_path)
+
+    def test_candidate_transaction_detects_precommit_asset_race(self) -> None:
+        candidate = self._transaction_inputs("candidate-race")
+        release_root = self.root / "release-candidates-race"
+        real_snapshot = platform_distribution._snapshot_release_assets
+        calls = 0
+
+        def snapshot_and_mutate(*args, **kwargs):
+            nonlocal calls
+            records = real_snapshot(*args, **kwargs)
+            calls += 1
+            if calls == 1:
+                release = args[0]
+                path = release.path / platform_distribution.ANDROID_AAR
+                path.write_bytes(b"raced")
+                os.chmod(path, 0o644)
+            return records
+
+        validators = self._deep_validator_mocks()
+        with (
+            mock.patch.object(
+                platform_distribution,
+                "PLATFORM_RELEASE_CANDIDATE_ROOT",
+                release_root,
+            ),
+            mock.patch.object(
+                platform_distribution,
+                "_source_identity",
+                return_value=self.source,
+            ),
+            mock.patch.object(
+                platform_distribution,
+                "_snapshot_release_assets",
+                side_effect=snapshot_and_mutate,
+            ),
+            validators[0],
+            validators[1],
+            validators[2],
+            validators[3],
+            self.assertRaisesRegex(
+                platform_distribution.PlatformDistributionError,
+                "Android AAR manifest digest differs|changed before receipt commit",
+            ),
+        ):
+            platform_distribution.assemble_candidate_transaction(
+                self.repository,
+                candidate,
+                self.assets / platform_distribution.ANDROID_RUNTIME_BUNDLE,
+                "transaction.race",
+                android_tools=self.android_tools,
+            )
+        transaction = release_root / "transaction.race"
+        self.assertTrue(transaction.is_dir())
+        self.assertFalse(
+            (transaction / platform_distribution.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME).exists()
+        )
+
+    def test_candidate_transaction_reverifies_after_assemble_returns(self) -> None:
+        candidate = self._transaction_inputs("candidate-post-verify-race")
+        release_root = self.root / "release-candidates-post-verify-race"
+        real_assemble = platform_distribution.assemble
+
+        def assemble_and_corrupt(*args, **kwargs):
+            manifest = real_assemble(*args, **kwargs)
+            release = pathlib.Path(args[2])
+            sums = release / platform_distribution.RELEASE_SUMS
+            sums.write_bytes(b"post-verify corruption\n")
+            os.chmod(sums, 0o644)
+            return manifest
+
+        validators = self._deep_validator_mocks()
+        with (
+            mock.patch.object(
+                platform_distribution,
+                "PLATFORM_RELEASE_CANDIDATE_ROOT",
+                release_root,
+            ),
+            mock.patch.object(
+                platform_distribution,
+                "_source_identity",
+                return_value=self.source,
+            ),
+            mock.patch.object(
+                platform_distribution,
+                "assemble",
+                side_effect=assemble_and_corrupt,
+            ),
+            validators[0],
+            validators[1],
+            validators[2],
+            validators[3],
+            self.assertRaisesRegex(
+                platform_distribution.PlatformDistributionError,
+                "SHA256SUMS",
+            ),
+        ):
+            platform_distribution.assemble_candidate_transaction(
+                self.repository,
+                candidate,
+                self.assets / platform_distribution.ANDROID_RUNTIME_BUNDLE,
+                "transaction.post-verify-race",
+                android_tools=self.android_tools,
+            )
+        transaction = release_root / "transaction.post-verify-race"
+        self.assertTrue((transaction / "release").is_dir())
+        self.assertFalse(
+            (transaction / platform_distribution.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME).exists()
+        )
 
     def test_current_contract_is_stable_identity_without_published_hashes(self) -> None:
         self.assertEqual("0.1.0", platform_distribution_contract.PRODUCT_VERSION)
@@ -409,10 +668,12 @@ class PlatformDistributionTests(unittest.TestCase):
                 "assemble",
                 "--root",
                 "/repository",
-                "--assets-dir",
-                "/assets",
-                "--output-dir",
-                "/output",
+                "--candidate-dir",
+                "/candidate",
+                "--runtime-bundle",
+                "/runtime.zip",
+                "--transaction-name",
+                "transaction.release-1",
                 *tools,
             ]
         )
@@ -435,6 +696,52 @@ class PlatformDistributionTests(unittest.TestCase):
             parser.parse_args(
                 ["verify", "--root", "/repository", "--release-dir", "/release"]
             )
+
+    def test_assembly_cli_marker_uses_only_repository_relative_paths(self) -> None:
+        receipt = {
+            "assets": [{}] * len(platform_distribution.PUBLIC_ASSET_NAMES),
+            "source": {"git_commit": self.source.commit},
+        }
+        receipt_path = (
+            self.repository
+            / "target/abi2-platform-release-candidates/transaction.marker"
+            / platform_distribution.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+        )
+        release_path = receipt_path.parent / platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME
+        arguments = mock.Mock(
+            command="assemble",
+            root=self.repository,
+            candidate_dir=self.root / "candidate",
+            runtime_bundle=self.root / "runtime.zip",
+            transaction_name="transaction.marker",
+            android_llvm_nm=self.android_tools.llvm_nm,
+            android_llvm_readelf=self.android_tools.llvm_readelf,
+            android_apksigner=self.android_tools.apksigner,
+            android_zipalign=self.android_tools.zipalign,
+        )
+        parser = mock.Mock()
+        parser.parse_args.return_value = arguments
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(platform_distribution, "build_parser", return_value=parser),
+            mock.patch.object(
+                platform_distribution,
+                "assemble_candidate_transaction",
+                return_value=(receipt_path, "f" * 64, release_path, receipt),
+            ),
+            contextlib.redirect_stdout(stdout),
+        ):
+            self.assertEqual(0, platform_distribution.main(["assemble"]))
+        marker = stdout.getvalue()
+        self.assertIn(
+            "receipt=target/abi2-platform-release-candidates/transaction.marker/",
+            marker,
+        )
+        self.assertIn(
+            "release_dir=target/abi2-platform-release-candidates/transaction.marker/release",
+            marker,
+        )
+        self.assertNotIn(str(self.repository), marker)
 
     def test_tampered_asset_or_checksum_fails_closed(self) -> None:
         output = self.root / "release"

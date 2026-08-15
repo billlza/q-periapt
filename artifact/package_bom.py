@@ -38,11 +38,16 @@ def _require(condition: bool, message: str) -> None:
 
 def _load_json(path: pathlib.Path, label: str) -> dict[str, Any]:
     try:
-        return load_json_object_snapshot(
+        snapshot = load_json_object_snapshot(
             path, maximum=MAX_BOM_BYTES, label=label
-        ).value
+        )
     except EvidenceIOError as exc:
         raise PackageBomError(str(exc)) from exc
+    _require(
+        snapshot.file.data == snapshot.file.data.rstrip() + b"\n",
+        f"{label} must end with exactly one terminal LF",
+    )
+    return snapshot.value
 
 
 def _walk(value: Any, path: str) -> None:

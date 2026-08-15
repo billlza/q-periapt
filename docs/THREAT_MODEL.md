@@ -408,7 +408,10 @@ portable-only `mlkem-native` results are historical too: a fresh x86_64-portable
 and a fresh aarch64-native cell, each source-bound to the current target mapping, are
 required before release. Promotion additionally requires the exact-R tag transaction
 to attest a sanitized receipt for those two fixed successful CI jobs and all six fixed
-successful CodeQL language jobs. The receipt binds R, S, selected run IDs/attempts,
+successful CodeQL language jobs. It also binds `refs/heads/main` to R and requires the
+latest six fixed-category Code Scanning analyses at R to report zero results, positive
+rule counts, no error/warning, and no open main-ref alerts. The receipt binds R, S,
+selected run/job/analysis IDs and attempts,
 relative workflow paths, and workflow-source digests; the candidate verifier and both
 platform publication states retain and crosslink it. It is not a public product asset,
 and the contract does not turn an absent exact-R run into evidence. No result is inherited from the former provider or the
@@ -551,6 +554,21 @@ It does not atomically snapshot the complete writable worktree or resist
 a privileged local writer that can replace and restore every input between processes.
 That adversary still requires an immutable clean checkout plus signed, transparent, or
 independently attested release provenance.
+
+The coordinated stable GitHub publication is also a separate transaction boundary,
+not a local tamper-proofing mechanism. Plan and asset SHA-256 values, descriptor
+identity, no-follow opens, link-count checks, and the persistent `flock` detect
+accidental mis-selection, corruption, and cooperating same-account concurrency
+(Level 1). GitHub authentication, repository rulesets, immutable-release enforcement,
+and the credential provider remain Level-2 boundaries. The passwd-derived local lock
+coordinates only worktrees using the same OS account on one trusted publication host;
+it cannot coordinate another UID or another host. While any GitHub mutation intent is
+unresolved or requires manual review, the same credential must not be used elsewhere
+and no manual GitHub mutation may race the coordinator. Hostile same-UID code,
+swap-and-restore by that code, root/host compromise, credential theft, GitHub account
+or service compromise, and reuse of the credential on another host are outside the
+local journal guarantee. Adding a MAC, signature, or encrypted journal would not close
+those host-compromise cases and is deliberately not part of this Level-1 mechanism.
 
 The stable crates.io transaction is a separate publication boundary, not a
 cryptographic authenticity mechanism. SHA-256 fields detect accidental selection of

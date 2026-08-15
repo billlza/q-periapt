@@ -229,6 +229,33 @@ class CPackageManifestTests(unittest.TestCase):
             )
             self.assertEqual("linux", manifest["abi"]["platform"])
 
+    def test_bom_artifacts_require_exactly_one_terminal_lf(self) -> None:
+        cases = (
+            ("cbom-missing-lf", "share/q-periapt/bom/cbom.cdx.json", b""),
+            ("cbom-double-lf", "share/q-periapt/bom/cbom.cdx.json", b"\n\n"),
+            ("cbom-crlf", "share/q-periapt/bom/cbom.cdx.json", b"\r\n"),
+            ("sbom-missing-lf", "share/q-periapt/bom/sbom.cdx.json", b""),
+            ("sbom-double-lf", "share/q-periapt/bom/sbom.cdx.json", b"\n\n"),
+            ("sbom-crlf", "share/q-periapt/bom/sbom.cdx.json", b"\r\n"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            for label, relative, terminal in cases:
+                with self.subTest(label=label):
+                    package = self._package(root / label)
+                    bom = package / relative
+                    original = bom.read_bytes()
+                    self.assertTrue(original.endswith(b"\n"))
+                    bom.write_bytes(original[:-1] + terminal)
+                    with self.assertRaisesRegex(
+                        package_bom.PackageBomError,
+                        "must end with exactly one terminal LF",
+                    ):
+                        package_bom.verify(
+                            package,
+                            cargo_lock=self.repository / "Cargo.lock",
+                        )
+
     def test_rust_workspace_source_digest_uses_global_path_order(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repository = pathlib.Path(temporary)
@@ -415,6 +442,44 @@ class CPackageManifestTests(unittest.TestCase):
             self.assertIn(argument, script)
         self.assertIn(c_package_manifest.EXPECTED_RUSTC_VERSION, script)
         self.assertIn(c_package_manifest.EXPECTED_CARGO_VERSION, script)
+
+    def test_bom_output_modes_and_ci_byte_identity_are_bound(self) -> None:
+        cli = (self.repository / "crates/q-periapt-cli/src/main.rs").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("bytes.push(b'\\n');", cli)
+        self.assertIn("std::fs::write(p, bytes)", cli)
+        self.assertIn("stdout.write_all(&bytes)", cli)
+
+        c_package = (self.repository / "artifact/c-package.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('qperiapt -- cbom >"$tmp_cbom"', c_package)
+        self.assertIn(
+            'qperiapt -- sbom --lock Cargo.lock >"$tmp_sbom"', c_package
+        )
+
+        windows_package = (
+            self.repository / "artifact/windows-package.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            '"cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json")',
+            windows_package,
+        )
+        self.assertIn(
+            '"sbom", "--lock", "Cargo.lock", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/sbom.cdx.json")',
+            windows_package,
+        )
+
+        workflow = (self.repository / ".github/workflows/ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('cbom > "$cbom_stdout"', workflow)
+        self.assertIn("cbom --out cbom.cdx.json", workflow)
+        self.assertIn('cmp "$cbom_stdout" cbom.cdx.json', workflow)
+        self.assertIn('sbom --lock Cargo.lock > "$sbom_stdout"', workflow)
+        self.assertIn("sbom --lock Cargo.lock --out sbom.cdx.json", workflow)
+        self.assertIn('cmp "$sbom_stdout" sbom.cdx.json', workflow)
 
     def test_forged_minimal_package_and_unsafe_needed_library_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

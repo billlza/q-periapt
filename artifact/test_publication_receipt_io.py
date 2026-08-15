@@ -41,6 +41,17 @@ class PublicationReceiptIOTests(unittest.TestCase):
         os.chmod(path, 0o600)
         return path
 
+    def _created_private_root_identity(
+        self,
+    ) -> receipt_io.PrivateSafeRootCreatedIdentity:
+        _root, identity = receipt_io.ensure_private_safe_root_with_creation(
+            self.safe_root,
+            label="fixture private root",
+        )
+        if identity is None:
+            self.fail("fixture private root was not created by this call")
+        return identity
+
     def _open_descriptor_count(self) -> int:
         for root in (pathlib.Path("/proc/self/fd"), pathlib.Path("/dev/fd")):
             if root.is_dir():
@@ -142,6 +153,127 @@ class PublicationReceiptIOTests(unittest.TestCase):
             json.loads(path.read_text(encoding="ascii")),
         )
         self.assertEqual(64, len(digest))
+
+    def test_private_root_created_identity_is_single_use(self) -> None:
+        created_root, created = receipt_io.ensure_private_safe_root_with_creation(
+            self.safe_root,
+            label="fixture private root",
+        )
+        reopened_root, reopened_created = (
+            receipt_io.ensure_private_safe_root_with_creation(
+                self.safe_root,
+                label="fixture private root",
+            )
+        )
+        self.assertEqual(self.safe_root, created_root)
+        self.assertEqual(self.safe_root, reopened_root)
+        self.assertIsInstance(
+            created,
+            receipt_io.PrivateSafeRootCreatedIdentity,
+        )
+        self.assertIsNone(reopened_created)
+
+    def test_created_root_identity_cannot_transfer_to_replacement_inode(self) -> None:
+        _root, identity = receipt_io.ensure_private_safe_root_with_creation(
+            self.safe_root,
+            label="fixture private root",
+        )
+        if identity is None:
+            self.fail("fixture private root was not newly created")
+        moved = self.parent / "publication-receipts.moved"
+        self.safe_root.rename(moved)
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        with self.assertRaisesRegex(
+            receipt_io.PublicationReceiptIOError,
+            "created-root identity differs",
+        ):
+            with receipt_io.exclusive_private_file_lock(
+                self.safe_root,
+                "publication.lock",
+                label="fixture lock",
+                allow_create=True,
+                created_root_identity=identity,
+            ):
+                self.fail("replacement root unexpectedly inherited create authority")
+        self.assertFalse((self.safe_root / "publication.lock").exists())
+        self.assertFalse((moved / "publication.lock").exists())
+
+    def test_created_root_post_open_fstat_failure_closes_descriptor(self) -> None:
+        original_fstat = receipt_io.os.fstat
+        calls = 0
+
+        def fail_third_fstat(descriptor: int) -> os.stat_result:
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise OSError("synthetic post-open fstat failure")
+            return original_fstat(descriptor)
+
+        before = self._open_descriptor_count()
+        with (
+            mock.patch.object(
+                receipt_io.os,
+                "fstat",
+                side_effect=fail_third_fstat,
+            ),
+            self.assertRaises(receipt_io.PublicationBoundaryIntegrityError),
+        ):
+            receipt_io.ensure_private_safe_root_with_creation(
+                self.safe_root,
+                label="fixture private root",
+            )
+        self.assertEqual(before, self._open_descriptor_count())
+
+    def test_created_root_inspect_and_close_failure_marks_cleanup_ambiguous(self) -> None:
+        original_fstat = receipt_io.os.fstat
+        original_close = receipt_io.os.close
+        calls = 0
+        failed_descriptor: int | None = None
+
+        def fail_third_fstat(descriptor: int) -> os.stat_result:
+            nonlocal calls, failed_descriptor
+            calls += 1
+            if calls == 3:
+                failed_descriptor = descriptor
+                raise OSError("synthetic post-open fstat failure")
+            return original_fstat(descriptor)
+
+        def fail_target_close(descriptor: int) -> None:
+            if descriptor == failed_descriptor:
+                raise OSError("synthetic close failure")
+            original_close(descriptor)
+
+        try:
+            with (
+                mock.patch.object(
+                    receipt_io.os,
+                    "fstat",
+                    side_effect=fail_third_fstat,
+                ),
+                mock.patch.object(
+                    receipt_io.os,
+                    "close",
+                    side_effect=fail_target_close,
+                ),
+                self.assertRaises(
+                    receipt_io.PublicationBoundaryIntegrityError
+                ) as caught,
+            ):
+                receipt_io.ensure_private_safe_root_with_creation(
+                    self.safe_root,
+                    label="fixture private root",
+                )
+            self.assertTrue(caught.exception.cleanup_ambiguous)
+            self.assertTrue(
+                any(
+                    "cleanup is indeterminate" in note
+                    for note in getattr(caught.exception, "__notes__", ())
+                )
+            )
+        finally:
+            if failed_descriptor is not None:
+                original_close(failed_descriptor)
 
     def test_direct_child_creation_is_parent_synced_before_publication(self) -> None:
         self.safe_root.mkdir(mode=0o700)
@@ -721,6 +853,7 @@ class PublicationReceiptIOTests(unittest.TestCase):
                     self.safe_root,
                     root_descriptor,
                     parent_descriptor,
+                    False,
                 ),
             ),
             self.assertRaisesRegex(
@@ -2380,6 +2513,190 @@ class PublicationReceiptIOTests(unittest.TestCase):
             )
         after = len(list(pathlib.Path("/dev/fd").iterdir()))
         self.assertEqual(before, after)
+
+    def test_persistent_lock_create_contention_and_existing_only_policy(self) -> None:
+        created_identity = self._created_private_root_identity()
+        with receipt_io.exclusive_private_file_lock(
+            self.safe_root,
+            "publication.lock",
+            label="fixture lock",
+            allow_create=True,
+            created_root_identity=created_identity,
+        ) as first:
+            receipt_io.verify_private_file_lock(first, label="fixture lock")
+            with self.assertRaises(receipt_io.PublicationLockHeldError):
+                with receipt_io.exclusive_private_file_lock(
+                    self.safe_root,
+                    "publication.lock",
+                    label="fixture lock",
+                    allow_create=False,
+                ):
+                    self.fail("contending lock unexpectedly yielded")
+        with mock.patch.object(receipt_io.os, "fsync") as fsync:
+            with receipt_io.exclusive_private_file_lock(
+                self.safe_root,
+                "publication.lock",
+                label="fixture lock",
+                allow_create=False,
+            ):
+                pass
+        fsync.assert_not_called()
+
+        (self.safe_root / "publication.lock").unlink()
+        (self.safe_root / "existing-state").write_bytes(b"state")
+        os.chmod(self.safe_root / "existing-state", 0o600)
+        with self.assertRaises(receipt_io.PublicationBoundaryIntegrityError):
+            with receipt_io.exclusive_private_file_lock(
+                self.safe_root,
+                "publication.lock",
+                label="fixture lock",
+                allow_create=True,
+                created_root_identity=created_identity,
+            ):
+                self.fail("split lock unexpectedly yielded")
+
+    def test_lock_post_drift_dominates_body_failure_with_sanitized_type(self) -> None:
+        created_identity = self._created_private_root_identity()
+        with self.assertRaises(
+            receipt_io.PublicationBoundaryIntegrityError
+        ) as caught:
+            with receipt_io.exclusive_private_file_lock(
+                self.safe_root,
+                "publication.lock",
+                label="fixture lock",
+                allow_create=True,
+                created_root_identity=created_identity,
+            ):
+                os.chmod(self.safe_root / "publication.lock", 0o644)
+                raise RuntimeError("synthetic body failure")
+        self.assertEqual("RuntimeError", caught.exception.preceding_type)
+        self.assertIsInstance(caught.exception.__cause__, BaseException)
+
+    def test_nested_boundary_preserves_only_sanitized_execution_fields(self) -> None:
+        class StructuredFailure(RuntimeError):
+            error_kind = "timeout"
+            returncode = None
+            signal_number = 15
+            cleanup_ambiguous = True
+
+        created_identity = self._created_private_root_identity()
+        with self.assertRaises(
+            receipt_io.PublicationBoundaryIntegrityError
+        ) as caught:
+            with receipt_io.exclusive_private_file_lock(
+                self.safe_root,
+                "publication.lock",
+                label="fixture lock",
+                allow_create=True,
+                created_root_identity=created_identity,
+            ):
+                os.chmod(self.safe_root / "publication.lock", 0o644)
+                raise StructuredFailure("must not be retained")
+        inner = caught.exception
+        outer = receipt_io.PublicationBoundaryIntegrityError(
+            "outer sanitized boundary",
+            preceding_error=inner,
+        )
+        self.assertEqual("PublicationBoundaryIntegrityError", outer.preceding_type)
+        self.assertEqual("timeout", outer.error_kind)
+        self.assertIsNone(outer.returncode)
+        self.assertEqual(15, outer.signal_number)
+        self.assertTrue(outer.cleanup_ambiguous)
+        self.assertFalse(hasattr(outer, "preceding_error"))
+
+    def test_unlinked_held_lock_is_never_recreated_by_existing_only_caller(self) -> None:
+        created_identity = self._created_private_root_identity()
+        with self.assertRaises(receipt_io.PublicationBoundaryIntegrityError):
+            with receipt_io.exclusive_private_file_lock(
+                self.safe_root,
+                "publication.lock",
+                label="fixture lock",
+                allow_create=True,
+                created_root_identity=created_identity,
+            ):
+                (self.safe_root / "publication.lock").unlink()
+                with self.assertRaises(
+                    receipt_io.PublicationBoundaryIntegrityError
+                ):
+                    with receipt_io.exclusive_private_file_lock(
+                        self.safe_root,
+                        "publication.lock",
+                        label="fixture lock",
+                        allow_create=False,
+                    ):
+                        self.fail("split lock unexpectedly yielded")
+        self.assertFalse((self.safe_root / "publication.lock").exists())
+
+    def test_pinned_private_file_checks_offset_and_failure_path_swap(self) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        payload = b"pinned publication bytes\n"
+        leaf = self.safe_root / "asset.bin"
+        leaf.write_bytes(payload)
+        os.chmod(leaf, 0o600)
+        directory_fd = os.open(self.safe_root, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            with receipt_io.open_pinned_private_file_at(
+                directory_fd,
+                leaf.name,
+                expected_size=len(payload),
+                expected_sha256=hashlib.sha256(payload).hexdigest(),
+                maximum=1024,
+                label="fixture asset",
+            ) as descriptor:
+                self.assertEqual(payload, os.read(descriptor, len(payload)))
+            with self.assertRaises(receipt_io.PublicationBoundaryIntegrityError):
+                with receipt_io.open_pinned_private_file_at(
+                    directory_fd,
+                    leaf.name,
+                    expected_size=len(payload),
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    maximum=1024,
+                    label="fixture asset",
+                ):
+                    moved = self.safe_root / "asset.moved"
+                    leaf.rename(moved)
+                    leaf.write_bytes(payload)
+                    os.chmod(leaf, 0o600)
+                    raise RuntimeError("synthetic runner failure")
+        finally:
+            os.close(directory_fd)
+
+    def test_staging_residue_recovery_rejects_ambiguous_sets(self) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        directory_fd = os.open(self.safe_root, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            residue = self.safe_root / ".asset.bin.pending-123"
+            residue.write_bytes(b"partial")
+            os.chmod(residue, 0o600)
+            self.assertEqual(
+                (residue.name,),
+                receipt_io.recover_private_staging_residues_at(
+                    directory_fd,
+                    frozenset({"asset.bin"}),
+                    label="fixture staging",
+                ),
+            )
+            self.assertFalse(residue.exists())
+
+            first = self.safe_root / ".asset.bin.pending-124"
+            second = self.safe_root / ".asset.bin.pending-125"
+            for path in (first, second):
+                path.write_bytes(b"partial")
+                os.chmod(path, 0o600)
+            with self.assertRaisesRegex(
+                receipt_io.PublicationReceiptIOError,
+                "multiple residues",
+            ):
+                receipt_io.recover_private_staging_residues_at(
+                    directory_fd,
+                    frozenset({"asset.bin"}),
+                    label="fixture staging",
+                )
+            self.assertTrue(first.exists() and second.exists())
+        finally:
+            os.close(directory_fd)
 
 
 if __name__ == "__main__":

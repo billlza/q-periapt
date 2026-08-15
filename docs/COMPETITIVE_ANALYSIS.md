@@ -1,6 +1,6 @@
 # Competitive analysis — where Q-Periapt can lead, and where it cannot yet compete
 
-> **External comparison baseline: 2026-07-11; local model status: 2026-07-12.**
+> **External comparison baseline: 2026-08-15; local model status: 2026-08-15.**
 > Q-Periapt is a pre-1.0, unaudited research
 > artifact. This document separates construction-level security, protocol scope,
 > implementation assurance, performance, standardization, and deployment. A win on
@@ -11,8 +11,8 @@
 
 An honest “all-dimensional crush” is **not currently possible**. X-Wing has a
 published construction, vectors, analyses, and multiple implementations; the IRTF hybrid-KEM draft now
-specifies a proposed general hash-everything `UniversalCombiner`; a Standards Track TLS
-Internet-Draft defines the `X25519MLKEM768` group; PQ3 has deployment, ratcheting,
+specifies a proposed general hash-everything `UniversalCombiner`; RFC 10024 defines the
+Standards Track `X25519MLKEM768` TLS 1.3 group under the RFC 9954 framework; PQ3 has deployment, ratcheting,
 external review, and protocol-level formal analysis. Signal's current baseline is not
 PQXDH alone: the 2025 public stack adds SPQR/ML-KEM Braid and Triple Ratchet, and
 Signal reports ProVerif design analysis plus hax/F* checks of core Rust invariants and
@@ -40,7 +40,10 @@ production superiority.
 | Baseline | Actual scope | What it already does well | Boundary relevant to Q-Periapt |
 |---|---|---|---|
 | [NIST FIPS 203 ML-KEM](https://csrc.nist.gov/pubs/fips/203/final) | Standardized PQ KEM primitive | Stable parameter sets, conformance target, broad ecosystem | A primitive standard does not specify hybrid composition, negotiation, authenticated context, deployment migration, or proof-to-binary evidence. NIST's 2025-11-17 planning note also identifies a future publication update, so release claims must pin the reviewed revision and track the official errata rather than treating one ACVP run as timeless. |
-| [TLS `X25519MLKEM768` draft-05](https://datatracker.ietf.org/doc/html/draft-ietf-tls-ecdhe-mlkem-05) | Standards Track Internet-Draft defining a TLS 1.3 group | Simple ecosystem path; transcript is bound by the TLS key schedule | Concatenates component secrets at the group layer; its goal is TLS interoperability, not a reusable committing hybrid-KEM API. |
+| [RFC 10024 `X25519MLKEM768`](https://www.rfc-editor.org/rfc/rfc10024.html) under [RFC 9954](https://www.rfc-editor.org/rfc/rfc9954.html) | Proposed Standard TLS 1.3 group (`0x11EC`, Recommended=Y) using the RFC 9954 hybrid framework | Widely deployed ecosystem path; fixed 1216/1120-byte shares and a 64-byte ML-KEM/X25519 secret enter the RFC 9846 TLS key schedule | Concatenates component secrets at the group layer; its goal is TLS interoperability, not a reusable committing hybrid-KEM API. Q-Periapt's private-use groups are different protocols. |
+| [OpenSSL 3.5 LTS](https://openssl-library.org/post/2025-04-08-openssl-35-final-release/) | General-purpose provider and TLS stack with native ML-KEM, ML-DSA, SLH-DSA, multiple key shares, and support through 2030 | A maintained ecosystem baseline with a stable provider surface and a long security-support horizon | Q-Periapt does not gain OpenSSL's lifecycle, audit, or deployment assurance by using the same primitives. A standards claim needs an independent OpenSSL 3.5 wire-interoperability lane, not another same-backend round trip. |
+| [AWS-LC PQ integrations](https://github.com/aws/aws-lc/blob/main/crypto/fipsmodule/PQREADME.md) and [AWS PQ readiness](https://aws.amazon.com/security/post-quantum-cryptography/aws-pq-readiness-confidentiality/) | FIPS-oriented primitive implementation plus large-service hybrid-PQ TLS rollout | Supports the standardized `0x11EC` group, publishes primitive benchmarks, and exposes negotiated key-exchange evidence in service/access logs where available | A downstream build is not automatically covered by AWS-LC's validation. The transferable lesson is explicit rollout policy plus evidence of the group actually negotiated, not merely a configured algorithm list. |
+| [Cloudflare hybrid-PQ deployment](https://blog.cloudflare.com/post-quantum-ipsec/) | Internet-scale TLS deployment and cross-vendor hybrid-ML-KEM IPsec interoperability | Reports hybrid protection for more than two-thirds of human-generated TLS traffic and tests an emerging IPsec profile against independent Cisco, Fortinet, and strongSwan implementations | Early private ciphersuites created real interoperability gaps. Q-Periapt must keep private research groups out of its standards lane and add independent wire, HRR, and network-middlebox evidence before claiming production interoperability. |
 | [X-Wing draft-10](https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem-10) | Individual, intended-Informational ML-KEM-768 + X25519 KEM | Lean fixed construction, seed-`dk` format, peer-reviewed analysis, implementations | Not an IETF Standards Track or CFRG WG item. No external context or policy input. Draft-10 itself warns that transmitting expanded `dk` loses MAL-BIND K-PK/K-CT guarantees. |
 | [IRTF hybrid KEMs draft-12](https://datatracker.ietf.org/doc/draft-irtf-cfrg-hybrid-kems/) | General hybrid-KEM constructions; CFRG RG Last Call as of 2026-07-11 | `UniversalCombiner` binds secrets, ciphertexts, public keys, and a label; C2PRI route captures the X-Wing shape | This eliminates any claim that “hash every field” is unique. Section 6.4.2 labels its LEAK-BIND analyses informal sketches and defers rigorous proofs; it also does not prove the possible MAL strengthening of common-seed keys. Q-Periapt's narrower possible lead is machine-checked, field-resolved standard MAL-BIND-K-CT/K-PK reductions, a separately scoped local K-CTX wrapper reduction, countermodels, and implementation evidence—not the field list. |
 | [NIST CSWP 39upd1](https://csrc.nist.gov/pubs/cswp/39/upd1/considerations-for-achieving-crypto-agility/final) | Crypto-agility strategies and operational continuity, updated 2026-06-29 | Treats replacement/migration across protocols, software, hardware, and infrastructure as an operational discipline | “Crypto agility” is established practice, not novelty. Q-Periapt must justify its closed decision, semantic security floor, migration order, and exact execution evidence as a scoped realization. |
@@ -56,6 +59,13 @@ For operational KEM guidance, NIST’s [SP 800-227](https://csrc.nist.gov/pubs/s
 and the IETF’s [RFC 9958](https://www.rfc-editor.org/rfc/rfc9958.html) reinforce the
 same lesson: selecting a sound primitive is necessary but does not close protocol,
 key-management, or migration risk.
+
+The release consequence is concrete. ABI 2 may ship its private ContextBound lane as
+a clearly named research interface, but a standard-TLS claim additionally requires
+the RFC 10024 lane, an independent implementation at the wire boundary, captured
+negotiation/HRR evidence, and failure semantics that distinguish peer input from local
+provider failure. Fleet-scale rollout telemetry and a stateful PQ ratchet remain
+separate product programs; neither is implied by a successful KEM or TLS handshake.
 
 ## 2. The field’s recurring hard problems
 

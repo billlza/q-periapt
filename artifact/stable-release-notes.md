@@ -21,6 +21,15 @@ records the immutable release:
 The earlier alpha.2 tags and receipts remain immutable historical evidence. They
 are not rewritten or promoted as 0.1.0 evidence.
 
+Before the final source PR can be merged as `S`, repository administration must
+replace the obsolete required contexts `constant-time (ubuntu-latest)` and
+`constant-time (ubuntu-24.04-arm)` with the current exact checks
+`Binary CT [x86_64-portable]` and `Binary CT [aarch64-native]`, while retaining
+strict branch protection, administrator enforcement, and every unrelated required
+check. This is an external administrative action; a locally green workflow or an
+unprotected merge cannot substitute for a fresh read-only branch-protection
+observation and a mergeable final PR.
+
 Before either stable tag is created or pushed, an authorized operator must first
 create an active repository tag ruleset that explicitly includes both exact refs,
 restricts updates and deletions, and has no bypass actor. Creating or changing the
@@ -114,7 +123,7 @@ assets; post-publication consumers re-download and verify the immutable releases
 
 While `S` still carries the frozen 190-key pre-migration manifest, main CI uses
 only the exact source-transition readiness authority described in `ARTIFACT.md`;
-it is not a generic proof skip. Once `R` installs the exact 226-key map, CI
+it is not a generic proof skip. Once `R` installs the exact 232-key map, CI
 dispatches only to the full proof-to-byte gate. Mixed states and failed readiness
 never fall through to the other mode.
 
@@ -124,8 +133,10 @@ never fall through to the other mode.
 
 Do not create either tag until `R` is the clean final `origin/main` commit and
 the latest exact-`R`, `main`/`push` CI and CodeQL run attempts are both
-completed and successful. Record those run and attempt IDs. A newer failed,
-cancelled, or in-progress exact run blocks an older success. Re-run the tag-ruleset
+completed and successful. The operator token must also have read access to Code
+Scanning analyses and alerts; a permission error is a hard failure, never an empty
+result. Record those run and attempt IDs. A newer failed, cancelled, or in-progress
+exact run blocks an older success. Re-run the tag-ruleset
 authority immediately before this block. Neither `S`, a feature or pull-request
 SHA, nor the later `P` or `V` results commits may be tagged.
 From the first pre-tag security sample through the final remote tag-state sample,
@@ -428,7 +439,7 @@ path escapes those roots. Raw GitHub responses remain in a script-owned `0700`
 directory under `target/abi2-platform-candidate-verification/raw`; neither their
 path nor their contents appear in the success marker.
 
-The sixth subject, `ABI2_SOURCE_SECURITY_GATE.json`, is transaction evidence rather
+The sixth subject, `ABI2_SOURCE_SECURITY_GATE.json`, is schema-2 transaction evidence rather
 than a public product asset. For each of `.github/workflows/ci.yml` and
 `.github/workflows/codeql.yml`, the tag workflow queries every matching
 `main`/`push` run at exact `R`, selects the highest run ID, and then refuses
@@ -436,14 +447,65 @@ unless that latest exact run and its current attempt completed successfully. A l
 failed, cancelled, or in-progress run therefore blocks an earlier success. It then
 queries that exact attempt's complete job inventory. The receipt admits only the fixed
 x86_64-portable and aarch64-native binary-CT jobs plus all six fixed CodeQL language
-jobs, records their bounded numeric IDs and results, and binds R, S, the relative
-workflow paths, workflow source digests, and the hosted GitHub CLI's canonical path,
-version, and SHA-256. Each API call runs with an empty private CLI configuration,
+jobs. It separately binds `refs/heads/main` to R, selects the latest exact-R analysis
+for each fixed `/language:*` category, requires CodeQL 2.26.2, zero results, positive
+rule counts, and empty error/warning fields, and requires the main-ref open-alert
+response to be empty. It records bounded numeric run/job/analysis IDs and binds R, S,
+the relative workflow paths, workflow source digests, and the hosted GitHub CLI's
+canonical path, version, and SHA-256. Each API call runs with an empty private CLI configuration,
 minimal credential-only environment, and pre/post executable identity sampling. The
 candidate verifier checks the complete structure and its attested subject digest;
 both pending and verified platform receipts retain the same sanitized projection and
-crosslink. The public release tuple remains the four product candidate assets; neither
-this receipt nor `CANDIDATE_SHA256SUMS` is uploaded as a public product asset.
+crosslink. The final public release tuple is the seven-file platform distribution
+assembled below; neither `ABI2_SOURCE_SECURITY_GATE.json` nor
+`CANDIDATE_SHA256SUMS` is uploaded as a public product asset.
+
+Before creating the platform pending receipt or results commit `P`, assemble the
+verified four product candidate assets together with the current-R Android runtime
+bundle. Set the four Android tool variables to canonical absolute paths from the
+fixed SDK/NDK used for this transaction. The candidate directory remains the exact
+six-subject directory verified above; the assembler consumes only its four product
+assets and separately deep-verifies the runtime bundle. Use one fresh bounded
+transaction name with the required `transaction.` prefix:
+
+```sh
+platform_candidate_root=$PWD/target/abi2-platform-release-candidates
+(umask 077 && mkdir -p "$platform_candidate_root")
+chmod 0700 "$platform_candidate_root"
+platform_assembly_transaction=transaction.stable-platform-UNIQUE
+platform_runtime_bundle=$PWD/PATH_TO_CURRENT_R_RUNTIME_BUNDLE.zip
+test -f "$platform_runtime_bundle" && test ! -L "$platform_runtime_bundle"
+test ! -e "$platform_candidate_root/$platform_assembly_transaction"
+sh artifact/python-run.sh artifact/platform_distribution.py assemble \
+  --root "$PWD" \
+  --candidate-dir "$candidate_dir" \
+  --runtime-bundle "$platform_runtime_bundle" \
+  --transaction-name "$platform_assembly_transaction" \
+  --android-llvm-nm "$android_llvm_nm" \
+  --android-llvm-readelf "$android_llvm_readelf" \
+  --android-apksigner "$android_apksigner" \
+  --android-zipalign "$android_zipalign"
+platform_assembly_receipt=$platform_candidate_root/$platform_assembly_transaction/platform-release-candidate-receipt.json
+platform_release_dir=$platform_candidate_root/$platform_assembly_transaction/release
+test -f "$platform_assembly_receipt" && test ! -L "$platform_assembly_receipt"
+test -d "$platform_release_dir" && test ! -L "$platform_release_dir"
+```
+
+Copy `receipt=` and `release_dir=` from the single
+`ABI2_PLATFORM_DISTRIBUTION_ASSEMBLE_PASS` marker and prefix them with `$PWD/`.
+Require those values to equal the two canonical absolute paths set above before
+continuing.
+The release directory must contain exactly the canonical seven public files. The
+private sibling completion receipt is written last with no-replace publication,
+file/directory durability, and a descriptor-pinned pre/post snapshot; it is not a
+release asset. Missing receipt, an extra transaction entry, changed asset bytes,
+wrong MIME policy, or a reused transaction name is a hard failure. Upload only the
+seven files from that exact `release_dir`; do not rebuild, copy from a different
+directory, or hand-compose either the receipt or `artifact/results.json`.
+The stable platform publication receipt is unpublished schema 3. A schema-2
+pending receipt has no final seven-asset binding and is invalid; do not edit or
+migrate it. Preserve it only as failed local evidence, then create a fresh schema-3
+assembly and pending transaction from the verified bytes.
 
 Publication receipts advance through `pending` before `verified`; a domain receipt
 never edits `artifact/results.json` directly. First bind the two pending receipts to
@@ -462,6 +524,7 @@ test -z "$(git -C "$platform_worktree_root/M" status --porcelain=v1 \
   --untracked-files=all)"
 sh artifact/python-run.sh artifact/platform_stable_publication.py pending \
   --candidate-projection "$projection" \
+  --assembly-receipt "$platform_assembly_receipt" \
   --verifier-checkout "$platform_worktree_root/M"
 
 apple_tag=v0.1.0
@@ -542,6 +605,125 @@ sh artifact/python-run.sh artifact/release_receipt_finalizer.py verify-installed
   "$pending_parent_commit" \
   "$pending_parent_results_sha256"
 ```
+
+### Publish the coordinated immutable GitHub releases from P
+
+This is the sole GitHub Release API asset/publication mutation transaction. It
+runs only after the pending results commit `P` above is installed and verified,
+but before any remote consumer or publication verifier. The separately
+authorized annotated-tag push above remains a prerequisite and is not part of
+this Release API transaction. The coordinator handles Apple and platform in
+one journal: Apple draft, platform draft, the four-asset Apple prefix, the
+seven-asset platform prefix, Apple publication, then platform publication.
+Apple remains the latest release. The fixed short release bodies live directly
+in `artifact/stable_github_publication.py`; no mutable body file is an authority.
+
+`prepare` descriptor-safely creates the fixed passwd-home mode-0700 state
+hierarchy if it is absent. It accepts only the installed results digest, performs
+no credentialed or network operation, copies the selected 4+7 bytes into its
+private fixed staging root, and prints the exact plan digest:
+
+```sh
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C LC_ALL=C \
+  /bin/sh artifact/python-run.sh artifact/stable_github_publication.py prepare \
+  "$pending_results_sha256"
+# Copy plan_sha256 from the single STABLE_GITHUB_PREPARED marker.
+stable_github_plan_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
+```
+
+There is one deliberately manual pre-credential bootstrap residue. If the process is
+killed after creating the final state directory but before durably creating its
+persistent lock, every later command rejects that existing empty root; it never
+recreates the lock because an older process could still hold the unlinked inode. Only
+after an independent operator confirms that no `prepare`, `publish`, `status`, or
+`verify` process is running, the credential is not in use elsewhere, the path is the
+exact passwd-derived fixed root, its complete parent chain and the root are owned
+mode-`0700` non-symlink directories, and the root inventory is strictly empty, may the
+operator approve a non-recursive `rmdir` of that one empty final root and restart
+`prepare`. `rmdir` must fail if any entry appears. Never construct a lock manually,
+remove a non-empty root, or delete a lock, intent, reconciliation, outcome, or staging
+residue.
+
+Do not run the credentialed command through an ambient `python-run.sh` shell.
+Start from a fresh trusted parent shell with tracing disabled. The fixed launcher
+below rejects a second credential, control characters, malformed plan/results
+pins, and all caller startup/trace/function variables by constructing the child
+environment from an allowlist. `GH_TOKEN` remains only in that environment and
+never enters argv. If the parent shell ever exposed the token under xtrace or an
+untrusted `PS4`, discard both shell and credential before continuing.
+
+```sh
+# GH_TOKEN is already injected by the controlled credential provider.
+STABLE_GITHUB_PLAN_SHA256="$stable_github_plan_sha256" \
+STABLE_GITHUB_RESULTS_SHA256="$pending_results_sha256" \
+/usr/bin/env -u DEVELOPER_DIR -u SDKROOT -u TOOLCHAINS \
+  -u xcrun_log -u xcrun_verbose -u xcrun_nocache \
+  /usr/bin/python3 -I -S -B -c '
+import os
+import re
+
+def required(name, maximum, pattern=None):
+    value = os.environ.get(name)
+    if value is None or not value or len(value) > maximum:
+        raise SystemExit("error: invalid " + name)
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise SystemExit("error: invalid " + name)
+    if pattern is not None and re.fullmatch(pattern, value) is None:
+        raise SystemExit("error: invalid " + name)
+    return value
+
+if "GITHUB_TOKEN" in os.environ:
+    raise SystemExit("error: GITHUB_TOKEN must be absent")
+token = required("GH_TOKEN", 4096)
+plan = required("STABLE_GITHUB_PLAN_SHA256", 64, r"[0-9a-f]{64}")
+results = required("STABLE_GITHUB_RESULTS_SHA256", 64, r"[0-9a-f]{64}")
+os.execve(
+    "/bin/sh",
+    ["/bin/sh"],
+    {
+        "GH_TOKEN": token,
+        "STABLE_GITHUB_PLAN_SHA256": plan,
+        "STABLE_GITHUB_RESULTS_SHA256": results,
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C",
+        "LC_ALL": "C",
+    },
+)
+' <<'QPERIAPT_STABLE_GITHUB_PUBLICATION'
+set +x
+set -euf
+/bin/sh artifact/python-run.sh artifact/stable_github_publication.py publish \
+  --execute-real-github-mutation \
+  --expected-plan-sha256 "$STABLE_GITHUB_PLAN_SHA256" \
+  --expected-results-sha256 "$STABLE_GITHUB_RESULTS_SHA256" \
+  --ack-draft-barrier I_ACKNOWLEDGE_BOTH_DRAFTS_BEFORE_ASSET_UPLOAD \
+  --ack-publication-order I_ACKNOWLEDGE_APPLE_THEN_PLATFORM_PUBLICATION
+/bin/sh artifact/python-run.sh artifact/stable_github_publication.py verify
+QPERIAPT_STABLE_GITHUB_PUBLICATION
+```
+
+A timeout or nonzero command is never retried. If every local boundary remains
+intact, the coordinator takes a fresh complete observation: an exact successor is
+journaled, while a predecessor or temporarily unavailable ordinary remote observation
+receives a durable, intent-bound reconciliation authority and then stops. Non-exact
+state, a signal, starter or unexpected asset, local identity drift, or any other
+unresolved boundary stops with the trailing intent retained. Do not delete,
+overwrite, or clobber a remote asset. A later invocation may observe and journal an
+exact delayed successor only when the journal also contains that no-replace
+reconciliation authority. A bare trailing intent is permanently
+`manual_review_required`: later `publish` invocations may inspect it but never accept,
+repeat, or advance that mutation. `status` distinguishes it from
+`reconciliation_eligible`.
+Do not issue a replacement mutation manually.
+Starter deletion requires a separate future operator acknowledgement and is
+intentionally not implemented here.
+
+The persistent local lock coordinates only this OS account on this publication host.
+Until every unresolved or manual-review intent has been explicitly disposed, do not
+use the same GitHub credential from another UID, host, shell, or tool. The local
+SHA-256 and descriptor checks detect accidental byte/identity drift; they do not claim
+to resist hostile same-UID code, root/host compromise, credential theft, or a
+compromised GitHub account or service.
 
 After selecting that pending candidate, run the external consumer from its clean
 verifier checkout with the seven existing `QPERIAPT_SWIFT_BINARY_*` pins. Map

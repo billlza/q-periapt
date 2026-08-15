@@ -32,9 +32,13 @@ exact wire format, read [`docs/COMBINER_SPEC.md`](COMBINER_SPEC.md).
 The future stateful protocol architecture is deliberately separate and specified in
 [`docs/CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md); it is not implemented.
 The separate authenticated-migration research plan is in
-[`docs/MIGRATION_CONTRACT_RESEARCH.md`](MIGRATION_CONTRACT_RESEARCH.md). Its
-phase-1 model is only a canonical application-context commitment above unchanged
-ABI 2, not an authenticated state machine or protocol.
+[`docs/MIGRATION_CONTRACT_RESEARCH.md`](MIGRATION_CONTRACT_RESEARCH.md). Phase 1 is
+frozen canonical-commitment evidence. The `publish = false` V2 reference candidate
+adds authenticated transition/state types, a process-service reference, mutual
+confirmation, and bounded formal gates above unchanged ABI 2. It is not a production
+protocol: protected-witness durability, deployed permissions, device interoperability,
+hostile-host isolation, unbounded state security, and formal-to-Rust refinement remain
+explicitly unproved.
 
 ---
 
@@ -107,7 +111,7 @@ round-trip invariants, rollback rejection, and failure-output atomicity.
 The workspace members are listed in [`Cargo.toml`](../Cargo.toml):
 `q-periapt-core`, `-kem`, `-sig`, `-mlkem-native-sys`, `-policy`, `-backends`, `-ffi`, `-wasm`,
 `-tls-demo`, `-rustls`, `-cli`, `ctstats`, the Continuity model, and the
-`publish = false` migration model. The independent
+`publish = false` migration model and `q-periapt-policy-agent` reference service. The independent
 [`research/hqc-fips207-candidate`](../research/hqc-fips207-candidate/) crate is
 explicitly excluded from the root workspace, has its own lockfile, is `publish = false`,
 and is not depended on by any product/publishable crate.
@@ -121,20 +125,19 @@ core/KEM/signature/backends for its custom four-flight transport experiment and 
 not depend on rustls. Neither integration reimplements a primitive or moves protocol
 logic into the sys crate.
 
-The migration model has a separate, one-way research dependency on the existing
-policy/core types. No product or publishable crate depends on it:
+The migration model has separate, one-way research dependencies on the existing
+policy/core/signature types. No product or publishable crate depends on it. The
+non-publishable reference service is its runtime workspace consumer and directly
+uses the unchanged FFI plus the internal crates needed for execution and authentication:
 
 ```text
-protocol handshake
-  identity / capabilities / pre-KEM transcript / confirmation
-        |
-        v
-q-periapt-migration (publish=false model)
-  canonical MigrationContextV1 application body
-        |
-        v
-q-periapt-ffi ABI 2 (unchanged)
-  policy wrapper -> ContextBound -> ML-KEM-768 + X25519
+dependency arrow: caller --> dependency
+
+q-periapt-policy-agent (publish=false reference service)
+  ├──> q-periapt-migration (publish=false V1/V2 domain model)
+  │      └──> q-periapt-policy + q-periapt-core + q-periapt-sig
+  ├──> q-periapt-ffi ABI 2 (unchanged)
+  └──> q-periapt-backends + q-periapt-core + q-periapt-policy + q-periapt-sig
 ```
 
 The model neither parses the raw 40-byte decision nor adds a C export. Its ABI 2

@@ -22,6 +22,7 @@ import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Never
 
+import apple_publication_contract as apple_contract
 from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
 from evidence_io import (
     EvidenceIOError,
@@ -76,23 +77,6 @@ RAW_NAMES = frozenset(
         RAW_VIEW_AFTER_NAME,
     }
 )
-
-XCFRAMEWORK_ZIP_NAME = "CQPeriapt.xcframework.zip"
-APPLE_DISTRIBUTION_NAME = "APPLE_DISTRIBUTION.json"
-MANIFEST_NAME = "MANIFEST.json"
-SHA256SUMS_NAME = "SHA256SUMS"
-ASSET_NAMES = (
-    APPLE_DISTRIBUTION_NAME,
-    XCFRAMEWORK_ZIP_NAME,
-    MANIFEST_NAME,
-    SHA256SUMS_NAME,
-)
-ASSET_CONTENT_TYPES = {
-    APPLE_DISTRIBUTION_NAME: "application/json",
-    XCFRAMEWORK_ZIP_NAME: "application/zip",
-    MANIFEST_NAME: "application/json",
-    SHA256SUMS_NAME: "application/octet-stream",
-}
 
 # Backwards-compatible public fixture constants are aliases to the neutral
 # parser's single policy authority.  No Apple-local copy may drift from it.
@@ -664,10 +648,14 @@ def load_release_expectation(path: pathlib.Path) -> ReleaseExpectation:
     hashes = _object(
         ledger["public_assets_sha256"], "Apple release expected asset hashes"
     )
-    _exact_keys(hashes, frozenset(ASSET_NAMES), "Apple release expected asset hashes")
+    _exact_keys(
+        hashes,
+        frozenset(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
+        "Apple release expected asset hashes",
+    )
     asset_hashes = {
         name: _sha256(hashes[name], f"Apple release expected digest for {name}")
-        for name in ASSET_NAMES
+        for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES
     }
     return ReleaseExpectation(
         product_version=product_version,
@@ -980,11 +968,11 @@ def _github_release_policy(
         tag=expectation.tag,
         tag_commit=expectation.tag_commit,
         tag_object=tag_object,
-        asset_names=ASSET_NAMES,
+        asset_names=apple_contract.APPLE_PUBLIC_ASSET_NAMES,
         expected_prerelease=expectation.expected_prerelease,
         expected_release_id=release_id,
         expected_sha256=expectation.asset_sha256,
-        expected_content_types=ASSET_CONTENT_TYPES,
+        expected_content_types=apple_contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES,
         require_asset_order=True,
     )
 

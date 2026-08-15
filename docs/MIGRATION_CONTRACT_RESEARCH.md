@@ -31,7 +31,7 @@ Relevant baselines:
 
 - [NIST CSWP 39upd1, *Considerations for Achieving Crypto Agility: Strategies and Practices*](https://csrc.nist.gov/pubs/cswp/39/upd1/considerations-for-achieving-crypto-agility/final)
 - [RFC 7696, *Guidelines for Cryptographic Algorithm Agility and Selecting Mandatory-to-Implement Algorithms*](https://www.rfc-editor.org/rfc/rfc7696.html)
-- [draft-irtf-cfrg-hybrid-kems-11, *Hybrid PQ/T Key Encapsulation Mechanisms*](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hybrid-kems-11)
+- [draft-irtf-cfrg-hybrid-kems-12, *Hybrid PQ/T Key Encapsulation Mechanisms*](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hybrid-kems-12)
 - Kim et al., [*Classical Acceptance Is Not Hybrid Authentication: Measuring
   X.509 Verifier Semantics in Post-Quantum Migration*](https://arxiv.org/abs/2607.20800)
   (July 2026 preprint; useful motivation, not a standard or peer-reviewed final

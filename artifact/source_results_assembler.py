@@ -6,7 +6,7 @@ never edits ``artifact/results.json``.  A successful finalize operation emits a
 private, no-replace ``target/source-results-successors/transaction.*/results.json``
 candidate for an explicit results-only commit.
 
-The finalize command is deliberately a one-time 190-to-226 proof-input
+The finalize command is deliberately a one-time 190-to-232 proof-input
 migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
@@ -55,7 +55,6 @@ from git_provenance import (
 from proof_manifest import (
     ANDROID_AAR_PATH,
     ANDROID_AAR_MANIFEST_PATH,
-    ANDROID_ABIS,
     ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
     ANDROID_EXPECTED_TESTS,
     APPLE_DEVICE_PROOF_SCHEMA_VERSION,
@@ -159,6 +158,8 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
         "apple_release_verification_tests_sha256",
         "github_release_observation_sha256",
         "github_release_observation_tests_sha256",
+        "stable_github_publication_sha256",
+        "stable_github_publication_tests_sha256",
         "platform_stable_publication_contract_sha256",
         "platform_stable_publication_contract_tests_sha256",
         "platform_stable_publication_sha256",
@@ -183,12 +184,16 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
         "release_receipt_finalizer_tests_sha256",
         "source_results_assembler_sha256",
         "source_results_assembler_tests_sha256",
+        "formal_toolchain_contract_sha256",
+        "formal_toolchain_contract_tests_sha256",
+        "formal_easycrypt_dockerfile_sha256",
+        "proverif_makefile_sha256",
     }
 )
 
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
-# installed 226-key successors are intentionally not constrained by this value.
+# installed 232-key successors are intentionally not constrained by this value.
 INITIAL_RESULTS_SHA256 = (
     "c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50"
 )
@@ -593,9 +598,9 @@ def source_ci_gate(
         )
         authority = capture_proof_input_digests(REPOSITORY_ROOT)
         _require(
-            len(authority) == 226
+            len(authority) == 232
             and set(authority) == current_keys
-            and len(current_keys - baseline_keys) == 36,
+            and len(current_keys - baseline_keys) == 42,
             "source transition proof-input authority differs",
         )
         _require(
@@ -2457,13 +2462,13 @@ def run(args: argparse.Namespace) -> None:
             print(
                 "SOURCE_TRANSITION_READINESS_PASS mode=initial "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=226 declared_delta=36"
+                "proof_inputs=232 declared_delta=42"
             )
         else:
             print(
                 "SOURCE_CI_GATE_MODE mode=installed "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=226"
+                "proof_inputs=232"
             )
         return
     if args.command == "verify-installed":

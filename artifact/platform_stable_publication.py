@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Collect the frozen 0.1.0 stable platform publication transaction.
 
-``pending`` turns one verified candidate-attestation projection plus a clean,
-annotated-tag verifier checkout into the exact pending domain receipt.
+``pending`` turns one verified candidate-attestation projection, one descriptor-
+resampled seven-file assembly completion receipt, and a clean annotated-tag
+verifier checkout into the exact pending domain receipt.
 ``collect`` promotes that receipt only after stable GitHub metadata, exact
 release attestation, bounded fresh downloads, and the tagged checkout's deep
 platform-distribution verifier all agree.
@@ -17,6 +18,7 @@ claim anonymous download availability.
 from __future__ import annotations
 
 import argparse
+import copy
 import contextlib
 import dataclasses
 import datetime as dt
@@ -49,6 +51,7 @@ from evidence_io import (
 from git_provenance import GIT, GitProvenanceError, require_direct_results_only_child
 import github_release_observation as github_release
 import platform_candidate_attestation as candidate_attestation
+import platform_distribution
 from publication_receipt_io import (
     PRIVATE_FILE_MODE,
     PrivateDirectoryHandle,
@@ -81,6 +84,7 @@ from platform_stable_publication_contract import (
     PLATFORM_V0_1_0_STATUS_PENDING,
     PLATFORM_V0_1_0_STATUS_VERIFIED,
     PRODUCT_VERSION,
+    PUBLIC_ASSET_CONTENT_TYPES,
     PUBLIC_ASSET_NAMES,
     REGISTRY_STATES,
     RELEASE_MANIFEST,
@@ -171,12 +175,13 @@ class PlatformV010PublicationRetryableError(PlatformV010PublicationError):
 class SourceObservation:
     canonical_source_tree_sha256: str
     source_parent_commit: str
+    source_date_epoch: int
     tag_commit: str
     tag_object: str
     tag_tree: str
     verifier_commit: str
 
-    def document(self) -> dict[str, str]:
+    def document(self) -> dict[str, object]:
         return dataclasses.asdict(self)
 
 
@@ -561,7 +566,7 @@ def inspect_verifier_source(
 
     verifier = _normalize_verifier_checkout(verifier_checkout)
 
-    def metadata_snapshot() -> tuple[str, str, str, str, str, bytes]:
+    def metadata_snapshot() -> tuple[str, str, str, str, str, bytes, int]:
         tag_type = _git_line(
             git,
             verifier,
@@ -619,6 +624,14 @@ def inspect_verifier_source(
             label="platform verifier status",
             runner=runner,
         )
+        epoch_text = _git_line(
+            git,
+            verifier,
+            ["show", "-s", "--format=%ct", tag_commit],
+            environment=environment,
+            label="platform release source epoch",
+            runner=runner,
+        )
         _require(tag_type == "tag", "platform release tag is not annotated")
         _require(
             all(
@@ -640,7 +653,21 @@ def inspect_verifier_source(
             "platform tag commit must have exactly one source parent",
         )
         _require(status == b"", "platform verifier checkout is dirty")
-        return tag_object, tag_commit, tag_tree, head, parent_fields[1], status
+        _require(
+            epoch_text.isascii()
+            and epoch_text.isdigit()
+            and 315_532_800 <= int(epoch_text) <= 0xFFFFFFFF,
+            "platform release source epoch is malformed",
+        )
+        return (
+            tag_object,
+            tag_commit,
+            tag_tree,
+            head,
+            parent_fields[1],
+            status,
+            int(epoch_text),
+        )
 
     before = metadata_snapshot()
     try:
@@ -697,7 +724,15 @@ def inspect_verifier_source(
         after == before,
         "platform verifier checkout changed during source observation",
     )
-    tag_object, tag_commit, tag_tree, head, source_parent_commit, _status = before
+    (
+        tag_object,
+        tag_commit,
+        tag_tree,
+        head,
+        source_parent_commit,
+        _status,
+        source_date_epoch,
+    ) = before
     _require(
         declared_source_parent == source_parent_commit,
         "platform results provenance differs from the tag commit parent",
@@ -705,6 +740,7 @@ def inspect_verifier_source(
     return SourceObservation(
         canonical_source_tree_sha256=source_digest,
         source_parent_commit=source_parent_commit,
+        source_date_epoch=source_date_epoch,
         tag_commit=tag_commit,
         tag_object=tag_object,
         tag_tree=tag_tree,
@@ -756,6 +792,7 @@ def _load_receipt(path: pathlib.Path, *, expected_status: str) -> dict[str, Any]
 
 def assemble_pending_receipt(
     candidate_projection: pathlib.Path,
+    assembly_receipt: pathlib.Path,
     verifier_checkout: pathlib.Path,
     *,
     runner: CaptureRunner = capture_stdout,
@@ -768,6 +805,13 @@ def assemble_pending_receipt(
 
     _ensure_platform_safe_roots()
     candidate = _load_candidate_projection(candidate_projection)
+    try:
+        assembled_bundle = platform_distribution.load_release_candidate_bundle(
+            assembly_receipt
+        )
+        assembled = assembled_bundle.receipt
+    except platform_distribution.PlatformDistributionError as exc:
+        raise PlatformV010PublicationError(str(exc)) from exc
     environment = _git_environment(
         os.environ if source_environment is None else source_environment
     )
@@ -780,6 +824,21 @@ def assemble_pending_receipt(
         git=GIT,
         environment=environment,
         runner=runner,
+    )
+    assembled_source = _object(
+        assembled.get("source"),
+        "platform release candidate source",
+    )
+    _require(
+        assembled_source
+        == {
+            "canonical_source_tree_sha256": source.canonical_source_tree_sha256,
+            "git_commit": source.tag_commit,
+            "git_dirty": False,
+            "git_tree": source.tag_tree,
+            "source_date_epoch": source.source_date_epoch,
+        },
+        "platform release candidate source differs from the verifier checkout",
     )
     candidate_verified_at = _contract_timestamp(
         candidate.get("verified_at"), "candidate projection verified_at"
@@ -799,13 +858,37 @@ def assemble_pending_receipt(
         },
         "kind": PLATFORM_V0_1_0_PUBLICATION_KIND,
         "observation": {
+            "assembly_receipt_sha256": assembled_bundle.receipt_sha256,
             "candidate_attestation": candidate,
             "observed_at": observed_at,
+            "release_candidate": {
+                "android_runtime_evidence": copy.deepcopy(
+                    assembled["android_runtime_evidence"]
+                ),
+                "assets": copy.deepcopy(assembled["assets"]),
+                "checksums_sha256": assembled["checksums_sha256"],
+                "platform_distribution_sha256": assembled[
+                    "platform_distribution_sha256"
+                ],
+            },
             "source": source.document(),
         },
         "schema_version": PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION,
         "status": PLATFORM_V0_1_0_STATUS_PENDING,
     }
+    try:
+        assembled_after_bundle = platform_distribution.load_release_candidate_bundle(
+            assembly_receipt
+        )
+        assembled_after = assembled_after_bundle.receipt
+    except platform_distribution.PlatformDistributionError as exc:
+        raise PlatformV010PublicationError(str(exc)) from exc
+    _require(
+        assembled_after == assembled
+        and assembled_after_bundle.receipt_sha256
+        == assembled_bundle.receipt_sha256,
+        "platform release candidate transaction changed during pending assembly",
+    )
     output, digest = _write_receipt(
         receipt, transaction_prefix="transaction.pending."
     )
@@ -832,7 +915,7 @@ def _release_policy(
         expected_prerelease=False,
         expected_release_id=release_id,
         expected_sha256=asset_sha256,
-        expected_content_types=None,
+        expected_content_types=PUBLIC_ASSET_CONTENT_TYPES,
         require_asset_order=False,
     )
 
@@ -1389,6 +1472,28 @@ def _collect_verified_receipt_pinned(
         runner=runner,
     )
     pending_observation = _object(receipt["observation"], "pending platform observation")
+    release_candidate = _object(
+        pending_observation["release_candidate"],
+        "pending platform release candidate",
+    )
+    candidate_assets_value = release_candidate.get("assets")
+    _require(
+        isinstance(candidate_assets_value, list)
+        and len(candidate_assets_value) == len(PUBLIC_ASSET_NAMES),
+        "pending platform release candidate asset set differs",
+    )
+    candidate_assets = {
+        asset["name"]: asset
+        for asset in candidate_assets_value
+        if isinstance(asset, dict) and isinstance(asset.get("name"), str)
+    }
+    _require(
+        tuple(candidate_assets) == PUBLIC_ASSET_NAMES,
+        "pending platform release candidate asset order differs",
+    )
+    expected_candidate_hashes = {
+        name: candidate_assets[name]["sha256"] for name in PUBLIC_ASSET_NAMES
+    }
     _require(
         source_before.document() == pending_observation["source"],
         "platform verifier source differs from the pending receipt",
@@ -1462,13 +1567,27 @@ def _collect_verified_receipt_pinned(
         release_before = github_release.parse_release_view(
             release_before_raw,
             policy=_release_policy(
-                source_before, release_id=None, asset_sha256=None
+                source_before,
+                release_id=None,
+                asset_sha256=expected_candidate_hashes,
             ),
             label="GitHub platform release view-before",
         )
     except github_release.GitHubReleaseObservationError as exc:
         raise PlatformV010PublicationError(str(exc)) from exc
     assets = {asset["name"]: asset for asset in release_before.assets}
+    _require(
+        list(release_before.assets)
+        == [
+            {
+                "bytes": candidate_assets[name]["bytes"],
+                "name": name,
+                "sha256": candidate_assets[name]["sha256"],
+            }
+            for name in PUBLIC_ASSET_NAMES
+        ],
+        "GitHub platform release assets differ from the pending release candidate",
+    )
     _require(
         all(
             type(assets[name]["bytes"]) is int
@@ -1571,6 +1690,10 @@ def _collect_verified_receipt_pinned(
         label="raw tagged deep verifier output",
     )
     runtime = _runtime_projection(manifest, assets)
+    _require(
+        runtime == release_candidate["android_runtime_evidence"],
+        "fresh platform Android evidence differs from the pending release candidate",
+    )
     fresh_verified_at = _utc_now(
         clock,
         label="fresh platform verification",
@@ -1727,6 +1850,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     pending = subparsers.add_parser("pending")
     pending.add_argument("--candidate-projection", required=True, type=pathlib.Path)
+    pending.add_argument("--assembly-receipt", required=True, type=pathlib.Path)
     pending.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
     collect = subparsers.add_parser("collect")
     collect.add_argument("--pending-receipt", required=True, type=pathlib.Path)
@@ -1755,6 +1879,7 @@ def main(argv: Sequence[str]) -> int:
         if arguments.command == "pending":
             output, digest, source = assemble_pending_receipt(
                 arguments.candidate_projection,
+                arguments.assembly_receipt,
                 arguments.verifier_checkout,
             )
             print(

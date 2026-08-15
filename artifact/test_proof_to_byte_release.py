@@ -116,8 +116,8 @@ EXPECTED_PROOF_TO_BYTE_STEP = (
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
     "            ci-source-gate \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226 declared_delta=36\"\n"
-    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226\"\n"
+    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=232 declared_delta=42\"\n"
+    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=232\"\n"
     "          if [ \"$source_gate\" = \"$initial_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
     "          elif [ \"$source_gate\" = \"$installed_gate\" ]; then\n"
@@ -719,8 +719,12 @@ BOUNDED_PROCESS_PROOF_INPUTS = {
 
 ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "formal_easycrypt_dockerfile_sha256": "formal/Dockerfile",
     "formal_tool_asset_sha256": "artifact/formal_tool_asset.py",
     "formal_tool_asset_tests_sha256": "artifact/test_formal_tool_asset.py",
+    "formal_toolchain_contract_sha256": "artifact/formal_toolchain_contract.py",
+    "formal_toolchain_contract_tests_sha256": "artifact/test_formal_toolchain_contract.py",
+    "proverif_makefile_sha256": "formal/proverif/Makefile",
     "codeql_workflow_sha256": ".github/workflows/codeql.yml",
     "codeql_rust_quality_gate_sha256": "artifact/codeql_rust_quality.py",
     "codeql_rust_checkout_gate_sha256": "artifact/codeql_rust_checkout.py",
@@ -1011,6 +1015,85 @@ class BoundVerifierWiringTests(unittest.TestCase):
                     self.assertIsNotNone(action_ref.fullmatch(reference))
                 action_count += 1
         self.assertGreater(action_count, 20)
+
+    def test_tls_standard_baseline_and_private_groups_are_not_conflated(self) -> None:
+        authorities = {
+            "README.md": ROOT / "README.md",
+            "competitive analysis": ROOT / "docs" / "COMPETITIVE_ANALYSIS.md",
+            "paper draft": ROOT / "docs" / "PAPER_DRAFT.md",
+            "rustls integration": ROOT / "crates" / "q-periapt-rustls" / "src" / "lib.rs",
+            "TLS demo": ROOT / "crates" / "q-periapt-tls-demo" / "src" / "lib.rs",
+            "paper": PAPER_SOURCE,
+        }
+        sources = {
+            label: path.read_text(encoding="utf-8")
+            for label, path in authorities.items()
+        }
+        for label, source in sources.items():
+            with self.subTest(authority=label):
+                self.assertIn("RFC 10024", source)
+
+        combined = "\n".join(sources.values())
+        for required in (
+            "RFC 9954",
+            "RFC 9846",
+            "0x11EC",
+            "0xFE01",
+            "0xFE02",
+            "private-use",
+        ):
+            self.assertIn(required, combined)
+        for stale in (
+            "draft-ietf-tls-ecdhe-mlkem",
+            "draft-ietf-tls-hybrid-design",
+            "RFC number unassigned",
+            "RFC 8446",
+            "\\cite{rfc8446}",
+            "\\cite{tlshybrid}",
+            "\\cite{tlsmlkem}",
+        ):
+            self.assertNotIn(stale, combined)
+
+        rustls_source = sources["rustls integration"]
+        self.assertIn("NamedGroup::Unknown(0xFE01)", rustls_source)
+        self.assertIn("NamedGroup::Unknown(0xFE02)", rustls_source)
+        handshake = (
+            ROOT / "crates" / "q-periapt-rustls" / "tests" / "handshake.rs"
+        ).read_text(encoding="utf-8")
+        self.assertIn("rfc10024_x25519_mlkem768_direct_contract", handshake)
+        self.assertIn("assert_eq!(u16::from(group.name()), 0x11EC)", handshake)
+        self.assertIn("const CLIENT_SHARE_LEN: usize = 1_216", handshake)
+        self.assertIn("const SERVER_SHARE_LEN: usize = 1_120", handshake)
+        self.assertIn("const SHARED_SECRET_LEN: usize = 64", handshake)
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("- name: RFC 10024 standard baseline contract", workflow)
+        self.assertIn(
+            "cargo clippy -p q-periapt-rustls --all-targets "
+            "--features bench-baseline --locked -- -D warnings",
+            workflow,
+        )
+        self.assertIn(
+            "cargo test -p q-periapt-rustls --features bench-baseline --locked",
+            workflow,
+        )
+
+    def test_stable_runbook_names_the_current_binary_ct_protection_transition(self) -> None:
+        notes = (ROOT / "artifact" / "stable-release-notes.md").read_text(
+            encoding="utf-8"
+        )
+        for obsolete in (
+            "constant-time (ubuntu-latest)",
+            "constant-time (ubuntu-24.04-arm)",
+        ):
+            self.assertIn(f"`{obsolete}`", notes)
+        for current in (
+            "Binary CT [x86_64-portable]",
+            "Binary CT [aarch64-native]",
+        ):
+            self.assertIn(f"`{current}`", notes)
+        self.assertIn("strict branch protection", notes)
+        self.assertIn("administrator enforcement", notes)
+        self.assertIn("replace the obsolete required contexts", notes)
 
     def test_codeql_covers_all_detected_languages_with_real_builds(self) -> None:
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
@@ -1892,6 +1975,59 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("artifact/migration_contract_v2.py verify", source)
         self.assertIn("make -C formal/easycrypt check", source)
         self.assertIn("make -C formal/tamarin prove", source)
+
+    def test_proof_to_byte_verifies_the_complete_formal_toolchain_first(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        all_tools_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "\\\n\t\tverify-installed --tool all"
+        )
+        easycrypt_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "\\\n\t\tverify-installed --tool easycrypt"
+        )
+        expected_dispatch = (
+            'if [ "$REQUIRE_FORMAL" = "1" ]; then\n'
+            f"\t{all_tools_call}\n"
+            'elif [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then\n'
+            f"\t{easycrypt_call}\n"
+            "fi\n"
+        )
+        self.assertEqual(source.count(expected_dispatch), 1)
+        all_tool_checks = [
+            match.start() for match in re.finditer(re.escape(all_tools_call), source)
+        ]
+        easycrypt_checks = [
+            match.start() for match in re.finditer(re.escape(easycrypt_call), source)
+        ]
+        self.assertEqual(len(all_tool_checks), 2)
+        self.assertEqual(len(easycrypt_checks), 2)
+        self.assertEqual(source.count("\tneed maude\n"), 1)
+        for command in (
+            'RESULTS_MANIFEST="$ROOT/artifact/results.json"',
+            "PROOF_TO_BYTE_SOURCE_SNAPSHOT_PASS",
+            "make -C formal/easycrypt check",
+            "sh formal/easycrypt/negative-controls.sh",
+            "make -C formal/tamarin prove",
+            "make -C formal/proverif prove",
+            "FORMAL_PASSED=1",
+            "PROOF_TO_BYTE_FORMAL_MACHINECHECK_PASS",
+        ):
+            with self.subTest(command=command):
+                self.assertLess(source.index(expected_dispatch), source.index(command))
+        self.assertLess(
+            all_tool_checks[1], source.index("make -C formal/easycrypt check")
+        )
+        self.assertLess(
+            easycrypt_checks[1],
+            source.index(
+                "EC=$(command -v easycrypt) make -C formal/easycrypt/continuity check"
+            ),
+        )
+        for bypass in (" ||", "; true", "continue"):
+            with self.subTest(bypass=bypass):
+                self.assertNotIn(all_tools_call + bypass, source)
+                self.assertNotIn(easycrypt_call + bypass, source)
 
     def test_proof_to_byte_names_every_hqc_candidate_input(self) -> None:
         for key, relative in HQC_CANDIDATE_PROOF_INPUTS.items():
@@ -4861,6 +4997,81 @@ with _temporary_release_test_directories(parents):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, tamarin_job + proverif_job)
 
+    def test_ci_verifies_formal_tool_identities_before_machine_checks(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        easycrypt_job = extract_workflow_job(workflow, "formal-easycrypt")
+        easycrypt_check = extract_named_workflow_step(
+            easycrypt_job,
+            "Machine-check proof, countermodels, and dependency controls (HARD GATE)",
+        )
+        tamarin_job = extract_workflow_job(workflow, "tamarin-proof")
+        tamarin_install = extract_named_workflow_step(
+            tamarin_job, "Install Maude + Tamarin"
+        )
+        tamarin_identity = extract_named_workflow_step(
+            tamarin_job, "Verify pinned Tamarin and Maude identities"
+        )
+        proverif_job = extract_workflow_job(workflow, "proverif-proof")
+        proverif_identity = extract_named_workflow_step(
+            proverif_job, "Verify pinned ProVerif identity"
+        )
+
+        easycrypt_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "verify-installed --tool easycrypt"
+        )
+        self.assertEqual(easycrypt_check.count(easycrypt_call), 1)
+        self.assertIn(
+            '-v "${{ github.workspace }}/artifact:/work/artifact:ro"',
+            easycrypt_check,
+        )
+        for inline_parser in ("easycrypt config", "2>&1", "grep -c"):
+            with self.subTest(inline_parser=inline_parser):
+                self.assertNotIn(inline_parser, easycrypt_check)
+        self.assertLess(
+            easycrypt_check.index(easycrypt_call),
+            easycrypt_check.index("EC=easycrypt make check"),
+        )
+        dockerfile = (ROOT / "formal" / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("z3 git make ca-certificates sudo python3 &&", dockerfile)
+        self.assertIn("/usr/bin/python3 -I -S -c", dockerfile)
+        self.assertIn("sys.version_info >= (3, 11)", dockerfile)
+        for command in (
+            "verify-installed \\\n#              --tool easycrypt",
+            "mkdir -p /tmp/ec",
+            "rm -f *.eco continuity/*.eco",
+            "EC=easycrypt make check",
+            "sh negative-controls.sh",
+            "EC=easycrypt make -C continuity check",
+        ):
+            with self.subTest(dockerfile_command=command):
+                self.assertIn(command, dockerfile)
+
+        tamarin_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "verify-installed --tool tamarin"
+        )
+        proverif_call = (
+            "opam exec -- sh artifact/python-run.sh "
+            "artifact/formal_toolchain_contract.py verify-installed --tool proverif"
+        )
+        self.assertEqual(tamarin_identity.count(tamarin_call), 1)
+        self.assertEqual(proverif_identity.count(proverif_call), 1)
+        self.assertLess(
+            tamarin_job.index(tamarin_call),
+            tamarin_job.index("make -C formal/tamarin prove"),
+        )
+        self.assertLess(
+            proverif_job.index(proverif_call),
+            proverif_job.index("make -C formal/proverif prove"),
+        )
+        self.assertNotIn('test "$(maude --version)"', tamarin_install)
+        self.assertNotIn("tamarin-prover --version", tamarin_install)
+        for step in (easycrypt_check, tamarin_identity, proverif_identity):
+            with self.subTest(step=step[:80]):
+                self.assertNotIn("continue-on-error", step)
+                self.assertNotIn("|| true", step)
+
     def test_ci_check_fetches_full_history_for_evidence_successors(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         validate_ci_check_checkout(extract_ci_check_job(workflow))
@@ -5184,6 +5395,7 @@ with _temporary_release_test_directories(parents):
         self.assertIn("    needs: [preflight, linux, android]\n", attest)
         self.assertNotIn("windows", attest)
         self.assertIn("      actions: read\n", attest)
+        self.assertIn("      security-events: read\n", attest)
         source_security_gate = extract_named_workflow_step(
             attest, "Bind the exact-R CI and CodeQL security gates"
         )
@@ -5203,6 +5415,11 @@ with _temporary_release_test_directories(parents):
             "actions/workflows/ci.yml/runs?",
             "actions/workflows/codeql.yml/runs?",
             "/jobs?filter=all&per_page=100",
+            "/git/ref/heads/main",
+            "code-scanning/analyses?",
+            "tool_name=CodeQL",
+            "code-scanning/alerts?",
+            "_require_source_security_samples_stable",
             "_workflow_github_cli_identity() == tool",
             '"GH_CONFIG_DIR": str(directory)',
         ):

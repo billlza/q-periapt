@@ -204,8 +204,8 @@ zero and older-source PQClean-HQC results are historical, not a current gate.
 An executable \emph{regression oracle} covers the known dk-format binding
 coupling; and two independent symbolic provers. We report the constant-time measurements as
 local runs.
-\item \textbf{C4 (\cref{sec:eval}).} A production-stack TLS~1.3 integration (rustls
-\code{CryptoProvider}, private-use group), with historical predecessor-source
+\item \textbf{C4 (\cref{sec:eval}).} A private-use research TLS~1.3 integration against the
+production rustls library (\code{CryptoProvider}), with historical predecessor-source
 \code{tc netem} evaluation and no current source-bound performance claim.
 \item \textbf{C5 (\cref{sec:substrate}).} A fail-closed policy-to-byte path: an ML-DSA-authenticated,
 strictly parsed, monotonic policy is atomically resolved to a closed suite/profile/key-format
@@ -273,8 +273,8 @@ ML-KEM~\cite{fips203} is the standardized form of CRYSTALS-Kyber~\cite{kyber}; l
 KEMs it applies a Fujisaki--Okamoto transform~\cite{fo,hhk} with \emph{implicit rejection} (a
 malformed ciphertext yields a pseudorandom key rather than $\bot$). The companion signature
 standards are ML-DSA~\cite{fips204} and SLH-DSA~\cite{fips205}, and the broader process is surveyed
-in~\cite{nistpqc}. Hybrid key exchange in TLS~1.3~\cite{rfc8446} follows the IETF
-design~\cite{tlshybrid}---e.g.\ the \code{X25519MLKEM768} group~\cite{tlsmlkem} over
+in~\cite{nistpqc}. Hybrid key exchange in TLS~1.3~\cite{rfc9846} follows the IETF
+framework~\cite{rfc9954}---e.g.\ the \code{X25519MLKEM768} group~\cite{rfc10024} over
 X25519~\cite{rfc7748}---and deployed PQ/T protocols include Signal's PQXDH~\cite{pqxdh}
 plus SPQR/Triple Ratchet~\cite{signaldr4,mlkembraid}, and Apple's PQ3~\cite{pq3}.
 
@@ -1073,8 +1073,8 @@ not current-source evidence or a blanket verification of any dependency.
 
 \paragraph*{Hybrids in deployment}
 Hybrid key exchange is being standardized and shipped: the IRTF combiner draft's
-\code{UniversalCombiner} and C2PRI profiles~\cite{hybridkems}, the IETF hybrid design~\cite{tlshybrid} and
-the \code{X25519MLKEM768} group~\cite{tlsmlkem} for TLS~1.3~\cite{rfc8446,rfc7748}, the X-Wing
+\code{UniversalCombiner} and C2PRI profiles~\cite{hybridkems}, the IETF hybrid framework~\cite{rfc9954} and
+the \code{X25519MLKEM768} group~\cite{rfc10024} for TLS~1.3~\cite{rfc9846,rfc7748}, the X-Wing
 KEM~\cite{xwing}, Signal's PQXDH (formally analyzed in~\cite{pqxdh}) followed by its
 SPQR/ML-KEM-Braid Triple Ratchet~\cite{signaldr4,mlkembraid,signalspqr} and Sesame
 multi-device session management~\cite{sesame}, and Apple's PQ3~\cite{pq3}.
@@ -1410,17 +1410,17 @@ Encryption Schemes,'' \emph{CRYPTO}, 1999.
 Fujisaki--Okamoto Transformation,'' \emph{TCC}, 2017.
 \bibitem{rfc7748} A.~Langley, M.~Hamburg, and S.~Turner, ``Elliptic Curves for Security,'' RFC
 7748, IETF, 2016.
-\bibitem{rfc8446} E.~Rescorla, ``The Transport Layer Security (TLS) Protocol Version 1.3,'' RFC
-8446, IETF, 2018.
-\bibitem{tlshybrid} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,''
-draft-ietf-tls-hybrid-design, IETF, 2023.
+\bibitem{rfc9846} E.~Rescorla, ``The Transport Layer Security (TLS) Protocol Version 1.3,'' RFC
+9846, IETF, July 2026.
+\bibitem{rfc9954} D.~Stebila, S.~Fluhrer, and S.~Gueron, ``Hybrid Key Exchange in TLS 1.3,'' RFC
+9954, IETF, July 2026.
 \bibitem{hybridkems} D.~Connolly, R.~Barnes, and P.~Grubbs, ``Hybrid PQ/T Key Encapsulation
 Mechanisms,'' draft-irtf-cfrg-hybrid-kems-12, IRTF CFRG (work in progress), 2026.
 \bibitem{nistagility} E.~Barker \emph{et al.}, ``Considerations for Achieving Crypto Agility:
 Strategies and Practices,'' NIST CSWP~39upd1, updated June 2026.
-\bibitem{tlsmlkem} K.~Kwiatkowski, P.~Kampanakis, B.~Westerbaan, and D.~Stebila, ``Post-Quantum
-Hybrid \code{ECDHE-MLKEM} Key Agreement for TLS 1.3,'' draft-ietf-tls-ecdhe-mlkem-05, IETF TLS
-Working Group (work in progress), 2026.
+\bibitem{rfc10024} K.~Kwiatkowski, P.~Kampanakis, B.~Westerbaan, and D.~Stebila,
+``Post-Quantum Traditional (PQ/T) Hybrid Key Agreement Mechanisms for TLS 1.3,'' RFC 10024,
+IETF, August 2026.
 \bibitem{pqxdh} K.~Bhargavan, C.~Jacomme, F.~Kiefer, and R.~Schmidt, ``Formal Verification of the
 PQXDH Post-Quantum Key Agreement Protocol,'' \emph{IEEE S\&P}, 2024.
 \bibitem{pq3} Apple Security Engineering, ``iMessage with PQ3: The New State of the Art in

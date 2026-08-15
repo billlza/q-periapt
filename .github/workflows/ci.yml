@@ -59,8 +59,8 @@ jobs:
           source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
             ci-source-gate \
             "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
-          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226 declared_delta=36"
-          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=226"
+          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=232 declared_delta=42"
+          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=232"
           if [ "$source_gate" = "$initial_gate" ]; then
             printf '%s\n' "$source_gate"
           elif [ "$source_gate" = "$installed_gate" ]; then
@@ -609,6 +609,10 @@ jobs:
           toolchain: 1.96.1
       - name: Loopback handshake (both profiles)
         run: cargo test -p q-periapt-tls-demo --locked
+      - name: RFC 10024 standard baseline contract
+        run: |
+          cargo clippy -p q-periapt-rustls --all-targets --features bench-baseline --locked -- -D warnings
+          cargo test -p q-periapt-rustls --features bench-baseline --locked
       - name: P99 harness (informational)
         run: cargo run --locked --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000
 
@@ -982,8 +986,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
-      - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
-      - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
+      - name: Generate byte-identical CycloneDX BOM output modes
+        run: |
+          cbom_stdout=$(mktemp "$RUNNER_TEMP/qperiapt-cbom-stdout.XXXXXXXX")
+          sbom_stdout=$(mktemp "$RUNNER_TEMP/qperiapt-sbom-stdout.XXXXXXXX")
+          trap 'rm -f -- "$cbom_stdout" "$sbom_stdout"' EXIT
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom > "$cbom_stdout"
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
+          cmp "$cbom_stdout" cbom.cdx.json
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock > "$sbom_stdout"
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
+          cmp "$sbom_stdout" sbom.cdx.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cyclonedx-boms
@@ -1120,8 +1133,10 @@ jobs:
           # Mount the proofs read-only and copy into a container-owned dir: the checkout's committed
           # .eco is host-owned, so the container's opam user can't rm it in place. Copying makes the
           # files opam-owned, so `rm -f *.eco` forces a from-scratch re-check.
-          docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/src:ro" q-periapt-ec:ci \
-            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && EC=easycrypt make check && sh negative-controls.sh && EC=easycrypt make -C continuity check'
+          docker run --rm \
+            -v "${{ github.workspace }}/artifact:/work/artifact:ro" \
+            -v "${{ github.workspace }}/formal/easycrypt:/src:ro" \
+            q-periapt-ec:ci opam exec -- sh -c 'sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool easycrypt && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && EC=easycrypt make check && sh negative-controls.sh && EC=easycrypt make -C continuity check'
 
   # Symbolic handshake proof. The lemma-presence check catches a lemma being
   # deleted/stubbed out; the full Tamarin machine-check is a HARD GATE too.
@@ -1231,9 +1246,9 @@ jobs:
             tamarin-prover-1.12.0-linux64-ubuntu.tar.gz
           TAMARIN_ARCHIVE=
           rm -rf "$TAMARIN_DIR"
-          test "$(maude --version)" = "3.5.1"
-          tamarin-prover --version
           trap - EXIT
+      - name: Verify pinned Tamarin and Maude identities
+        run: sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool tamarin
       - name: Machine-check handshake, migration, and countermodels (make prove)
         run: make -C formal/tamarin prove
 
@@ -1320,6 +1335,8 @@ jobs:
           opam init -y --disable-sandboxing --no-setup
           opam install -y proverif.2.05
           trap - EXIT
+      - name: Verify pinned ProVerif identity
+        run: opam exec -- sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool proverif
       - name: Machine-check the handshake model (queries must hold)
         run: opam exec -- make -C formal/proverif prove
 

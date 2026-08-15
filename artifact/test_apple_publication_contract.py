@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import json
+import operator
 import pathlib
 import unittest
 
@@ -94,6 +95,7 @@ def stable_verified_receipt() -> dict[str, object]:
         "verifier_commit": "2" * 40,
     }
     tag_object = receipt["source"]["tag_object"]
+    public_asset_sha256s = contract.apple_public_asset_sha256s(distribution)
     receipt["publication"] = {
         "draft": False,
         "immutable_release": True,
@@ -112,26 +114,13 @@ def stable_verified_receipt() -> dict[str, object]:
                         + "v0.1.0"
                     ),
                 },
-                {
-                    "digest": {
-                        "sha256": distribution[
-                            "apple_distribution_evidence_sha256"
-                        ]
-                    },
-                    "name": contract.APPLE_DISTRIBUTION_ASSET_PATH,
-                },
-                {
-                    "digest": {"sha256": distribution["artifact_sha256"]},
-                    "name": contract.APPLE_XCFRAMEWORK_ARTIFACT_PATH,
-                },
-                {
-                    "digest": {"sha256": distribution["manifest_sha256"]},
-                    "name": contract.APPLE_MANIFEST_ASSET_PATH,
-                },
-                {
-                    "digest": {"sha256": distribution["checksums_sha256"]},
-                    "name": contract.APPLE_CHECKSUMS_ASSET_PATH,
-                },
+                *[
+                    {
+                        "digest": {"sha256": public_asset_sha256s[name]},
+                        "name": name,
+                    }
+                    for name in contract.APPLE_PUBLIC_ASSET_NAMES
+                ],
             ],
             "verification_record_sha256": _digest(7),
             "verified": True,
@@ -168,6 +157,44 @@ class ApplePublicationContractTests(unittest.TestCase):
         self.assertEqual(
             apple_distribution.EXPECTED_IDENTITY_CLASS,
             contract.APPLE_ORIGIN_IDENTITY_CLASS,
+        )
+        self.assertEqual(
+            (
+                apple_distribution.APPLE_DISTRIBUTION_NAME,
+                apple_distribution.XCFRAMEWORK_ZIP_NAME,
+                apple_distribution.MANIFEST_NAME,
+                apple_distribution.SHA256SUMS_NAME,
+            ),
+            contract.APPLE_PUBLIC_ASSET_NAMES,
+        )
+        self.assertEqual(
+            contract.APPLE_PUBLIC_ASSET_NAMES,
+            tuple(contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES),
+        )
+        self.assertEqual(
+            {
+                contract.APPLE_DISTRIBUTION_ASSET_PATH: "application/json",
+                contract.APPLE_XCFRAMEWORK_ARTIFACT_PATH: "application/zip",
+                contract.APPLE_MANIFEST_ASSET_PATH: "application/json",
+                contract.APPLE_CHECKSUMS_ASSET_PATH: (
+                    "application/octet-stream"
+                ),
+            },
+            dict(contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES),
+        )
+        with self.assertRaises(TypeError):
+            operator.setitem(
+                contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES,
+                contract.APPLE_DISTRIBUTION_ASSET_PATH,
+                "application/octet-stream",
+            )
+        self.assertEqual(
+            contract.APPLE_PUBLIC_ASSET_NAMES,
+            tuple(
+                contract.apple_public_asset_sha256s(
+                    contract.frozen_alpha2_r1_distribution()
+                )
+            ),
         )
 
     def test_alpha2_leaf_exactly_freezes_the_current_legacy_projection(self) -> None:

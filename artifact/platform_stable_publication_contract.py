@@ -17,19 +17,16 @@ from types import MappingProxyType
 import platform_distribution_contract as candidate_contract
 
 
-PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION = 2
+PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION = 3
 PLATFORM_V0_1_0_PUBLICATION_KIND = (
     "qperiapt.abi2_platform_publication_receipt"
 )
 PLATFORM_V0_1_0_PUBLICATION_KEY = "platform_v0_1_0"
 
-PRODUCT_VERSION = "0.1.0"
-DISTRIBUTION_REVISION = "r1"
-RELEASE_TAG = "abi2-platforms-v0.1.0"
-RELEASE_URL = (
-    "https://github.com/billlza/q-periapt/releases/tag/"
-    "abi2-platforms-v0.1.0"
-)
+PRODUCT_VERSION = candidate_contract.PRODUCT_VERSION
+DISTRIBUTION_REVISION = candidate_contract.DISTRIBUTION_REVISION
+RELEASE_TAG = candidate_contract.RELEASE_TAG
+RELEASE_URL = candidate_contract.RELEASE_URL
 RELEASE_REF = f"refs/tags/{RELEASE_TAG}"
 TAG_SUBJECT_URI = f"pkg:github/billlza/q-periapt@{RELEASE_TAG}"
 
@@ -41,9 +38,10 @@ PLATFORM_V0_1_0_STATUS_VERIFIED = (
 )
 PLATFORM_V0_1_0_PUBLICATION_BOUNDARY = (
     "Frozen ABI 2 0.1.0 stable platform publication receipt. The pending state "
-    "binds only the annotated tag, exact source identity, four product candidate "
-    "assets, their checksum manifest, and one verified source-security gate "
-    "covering exact-R binary-CT and six-language CodeQL runs; absent remote "
+    "binds the annotated tag, exact source identity, the final seven-asset local "
+    "release candidate, and one verified four-product candidate attestation "
+    "covering exact-R binary-CT, six-language CodeQL runs and zero-result "
+    "analyses, plus an empty main-ref open-alert observation; absent remote "
     "fields are unrecorded, not evidence of "
     "non-publication. The verified state additionally binds the exact seven "
     "public immutable GitHub release assets, release attestation, fresh "
@@ -61,49 +59,27 @@ PLATFORM_V0_1_0_PUBLICATION_BOUNDARY = (
     "they do not attest a hostile builder or host."
 )
 
-RELEASE_MANIFEST = "PLATFORM_DISTRIBUTION.json"
-RELEASE_SUMS = "SHA256SUMS"
-CANDIDATE_SUMS = "CANDIDATE_SHA256SUMS"
-ANDROID_AAR = "q-periapt-android-0.1.0.aar"
-ANDROID_MANIFEST = "q-periapt-android-0.1.0-MANIFEST.json"
-ANDROID_RUNTIME_BUNDLE = (
-    "q-periapt-android-0.1.0-16k-runtime-evidence.zip"
-)
-LINUX_X86_64 = (
-    "q-periapt-c-abi2-0.1.0-x86_64-unknown-linux-gnu.tar.gz"
-)
-LINUX_AARCH64 = (
-    "q-periapt-c-abi2-0.1.0-aarch64-unknown-linux-gnu.tar.gz"
-)
+RELEASE_MANIFEST = candidate_contract.RELEASE_MANIFEST
+RELEASE_SUMS = candidate_contract.RELEASE_SUMS
+CANDIDATE_SUMS = candidate_contract.CANDIDATE_SUMS
+ANDROID_AAR = candidate_contract.ANDROID_AAR
+ANDROID_MANIFEST = candidate_contract.ANDROID_MANIFEST
+ANDROID_RUNTIME_BUNDLE = candidate_contract.ANDROID_RUNTIME_BUNDLE
+LINUX_X86_64 = candidate_contract.LINUX_X86_64
+LINUX_AARCH64 = candidate_contract.LINUX_AARCH64
 # The order is the tag-bound candidate workflow's attestation order.  It is
 # deliberately not normalized to lexical order after publication.
-CANDIDATE_SUBJECT_NAMES = (
-    ANDROID_AAR,
-    ANDROID_MANIFEST,
-    LINUX_X86_64,
-    LINUX_AARCH64,
-    CANDIDATE_SUMS,
-    candidate_contract.SOURCE_SECURITY_GATE,
-)
-PUBLIC_ASSET_NAMES = tuple(
-    sorted(
-        (
-            RELEASE_MANIFEST,
-            RELEASE_SUMS,
-            ANDROID_RUNTIME_BUNDLE,
-            ANDROID_MANIFEST,
-            ANDROID_AAR,
-            LINUX_AARCH64,
-            LINUX_X86_64,
-        )
-    )
-)
-CANDIDATE_PUBLIC_ASSET_NAMES = frozenset(
-    (ANDROID_AAR, ANDROID_MANIFEST, LINUX_X86_64, LINUX_AARCH64)
-)
+CANDIDATE_SUBJECT_NAMES = candidate_contract.PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS
+PUBLIC_ASSET_NAMES = candidate_contract.PUBLIC_ASSET_NAMES
+PUBLIC_ASSET_CONTENT_TYPES = candidate_contract.PUBLIC_ASSET_CONTENT_TYPES
+CANDIDATE_PUBLIC_ASSET_NAMES = frozenset(candidate_contract.PLATFORM_CANDIDATE_ASSETS)
 
-ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION = 2
-ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 6
+ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION = (
+    candidate_contract.ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION
+)
+ANDROID_DEVICE_PROOF_SCHEMA_VERSION = (
+    candidate_contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION
+)
 NOT_PUBLISHED = "not_published"
 REGISTRY_STATES = MappingProxyType(
     {
@@ -128,7 +104,13 @@ MAX_WORKFLOW_RUN_ATTEMPT = (1 << 31) - 1
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PENDING_OBSERVATION_KEYS = frozenset(
-    {"candidate_attestation", "observed_at", "source"}
+    {
+        "assembly_receipt_sha256",
+        "candidate_attestation",
+        "observed_at",
+        "release_candidate",
+        "source",
+    }
 )
 _VERIFIED_OBSERVATION_KEYS = _PENDING_OBSERVATION_KEYS | frozenset(
     {
@@ -213,13 +195,14 @@ def parse_utc_timestamp(value: object, label: str) -> dt.datetime:
     return parsed.replace(tzinfo=dt.UTC)
 
 
-def _validate_source(source_value: object) -> dict[str, str]:
+def _validate_source(source_value: object) -> dict[str, object]:
     source = _object(source_value, "platform v0_1_0 source identity")
     _exact_keys(
         source,
         frozenset(
             {
                 "canonical_source_tree_sha256",
+                "source_date_epoch",
                 "source_parent_commit",
                 "tag_commit",
                 "tag_object",
@@ -236,6 +219,14 @@ def _validate_source(source_value: object) -> dict[str, str]:
     source_parent_commit = _sha1(
         source["source_parent_commit"],
         "platform v0_1_0 source parent commit",
+    )
+    source_date_epoch = _positive_integer(
+        source["source_date_epoch"],
+        "platform v0_1_0 source epoch",
+    )
+    _require(
+        315_532_800 <= source_date_epoch <= 0xFFFFFFFF,
+        "platform v0_1_0 source epoch is out of range",
     )
     tag_commit = _sha1(source["tag_commit"], "platform v0_1_0 tag commit")
     tag_object = _sha1(source["tag_object"], "platform v0_1_0 tag object")
@@ -257,6 +248,7 @@ def _validate_source(source_value: object) -> dict[str, str]:
     )
     return {
         "canonical_source_tree_sha256": canonical_source_tree_sha256,
+        "source_date_epoch": source_date_epoch,
         "source_parent_commit": source_parent_commit,
         "tag_commit": tag_commit,
         "tag_object": tag_object,
@@ -372,6 +364,7 @@ def _validate_candidate_attestation(
         security_projection,
         frozenset(
             {
+                "code_scanning",
                 "kind",
                 "observation_tools",
                 "receipt_sha256",
@@ -440,6 +433,24 @@ def _validate_candidate_asset_crosslinks(
             candidate_subjects[name] == assets[name]["sha256"],
             f"platform v0_1_0 candidate/public asset digest differs: {name}",
         )
+
+
+def _validate_release_candidate(
+    candidate_value: object,
+    *,
+    candidate_subjects: dict[str, str],
+) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
+    try:
+        candidate = candidate_contract.validate_release_candidate_projection(
+            candidate_value
+        )
+    except candidate_contract.PlatformDistributionContractError as exc:
+        raise PlatformV010PublicationContractError(str(exc)) from exc
+    assets = {
+        asset["name"]: asset for asset in candidate["assets"]
+    }
+    _validate_candidate_asset_crosslinks(candidate_subjects, assets)
+    return candidate, assets
 
 
 def _validate_release_attestation(
@@ -762,6 +773,14 @@ def validate_v0_1_0_publication_receipt(receipt_value: object) -> None:
             source_parent_commit=source["source_parent_commit"],
         )
     )
+    release_candidate, release_candidate_assets = _validate_release_candidate(
+        observation["release_candidate"],
+        candidate_subjects=candidate_subjects,
+    )
+    _sha256(
+        observation["assembly_receipt_sha256"],
+        "platform v0_1_0 assembly receipt",
+    )
     _require(
         candidate_verified_at <= observed_at,
         "platform v0_1_0 candidate verification postdates observation",
@@ -791,6 +810,17 @@ def validate_v0_1_0_publication_receipt(receipt_value: object) -> None:
     )
     assets = _validate_assets(observation["assets"])
     _validate_candidate_asset_crosslinks(candidate_subjects, assets)
+    for name in PUBLIC_ASSET_NAMES:
+        expected = release_candidate_assets[name]
+        _require(
+            assets[name]
+            == {
+                "bytes": expected["bytes"],
+                "name": name,
+                "sha256": expected["sha256"],
+            },
+            f"platform v0_1_0 remote/release candidate asset differs: {name}",
+        )
 
     platform_distribution_sha256 = _sha256(
         observation["platform_distribution_sha256"],
@@ -809,6 +839,12 @@ def validate_v0_1_0_publication_receipt(receipt_value: object) -> None:
         checksums_sha256 == assets[RELEASE_SUMS]["sha256"],
         "platform v0_1_0 checksum/public asset digest differs",
     )
+    _require(
+        platform_distribution_sha256
+        == release_candidate["platform_distribution_sha256"]
+        and checksums_sha256 == release_candidate["checksums_sha256"],
+        "platform v0_1_0 verified release candidate digest projection differs",
+    )
     _validate_release_attestation(
         observation["release_attestation"],
         assets=assets,
@@ -820,6 +856,11 @@ def validate_v0_1_0_publication_receipt(receipt_value: object) -> None:
     )
     _validate_android_runtime(
         observation["android_runtime_evidence"], assets=assets
+    )
+    _require(
+        observation["android_runtime_evidence"]
+        == release_candidate["android_runtime_evidence"],
+        "platform v0_1_0 verified Android release candidate projection differs",
     )
     _validate_registries(observation)
     _require(

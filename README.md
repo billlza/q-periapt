@@ -68,7 +68,7 @@ packets, not encap/decap cycles).
 ## Honest positioning
 
 ML-KEM-768 is the **same standardized primitive family** used by X-Wing and the
-TLS `X25519MLKEM768` group. Apple PQ3 is a protocol-level baseline, not the same
+RFC 10024 TLS `X25519MLKEM768` group. Apple PQ3 is a protocol-level baseline, not the same
 construction: it uses Kyber-1024 for initial establishment and Kyber-768 for its
 ongoing PQ ratchet. Signal's current public baseline is likewise no longer PQXDH
 alone: its 2025 Double Ratchet revision adds SPQR/ML-KEM Braid and a Triple Ratchet
@@ -135,8 +135,9 @@ coins, ciphertext corpus, suite/version/context inputs, and ABBA/BAAB order.
 `implementation_improvement` measures the ContextBound product encapsulation and
 decapsulation paths with those same inputs, comparing the target-selected native
 implementation against a private symbol-renamed portable C reference in
-native/portable order. Before timing, the harness requires byte-identical keypair,
-encapsulation, and decapsulation outputs for every corpus case. The portable reference
+native/portable order. Before timing, the harness requires one byte-identical
+seed-derived keypair and byte-identical encapsulation/decapsulation outputs for all
+64 deterministic corpus cases. The portable reference
 has no Cargo feature, runtime override, shipping backend, or public API. The
 fail-closed [`performance_gate.py`](artifact/performance_gate.py) requires 20,480
 paired samples per variant/operation, fixed 256/1/2-call timing batches, balanced
@@ -238,9 +239,13 @@ production-X-Wing parity. We never claim a combiner speed win.
   zero/zero runs are required for the release source digest. The stable platform tag
   transaction admits only fixed, successful `Binary CT [x86_64-portable]` and
   `Binary CT [aarch64-native]` jobs from the deterministically selected exact-R
-  `main`/`push` CI run, together with all six successful CodeQL language jobs. Their
-  bounded IDs, run attempts, R/S identity, relative workflow paths, and workflow-source
-  digests are stored in an attested private transaction receipt that is structurally
+  `main`/`push` CI run, together with all six successful CodeQL language jobs. It also
+  requires `refs/heads/main` to remain exactly R, selects the latest exact-R Code
+  Scanning analysis for each fixed language category, requires every analysis to have
+  zero results, a positive rule count, and no error/warning, and requires the main-ref
+  open-alert response to be empty. Bounded run/job/analysis IDs, R/S identity, relative
+  workflow paths, and workflow-source digests are stored in an attested private receipt
+  that is structurally
   retained by pending and verified publication receipts, but is not a public product
   asset. This is a release contract, not a claim that the still-required exact-R runs
   already exist. Earlier `libcrux` logs
@@ -276,8 +281,11 @@ production-X-Wing parity. We never claim a combiner speed win.
 - **Wire-format / standards novelty** — it implements X-Wing (an Independent
   Submission draft, `draft-connolly-cfrg-xwing-kem`, *not* a CFRG WG item),
   while the local rustls groups remain private-use `0xFE01`/`0xFE02`. The IANA
-  `X25519MLKEM768` group from `draft-ietf-tls-ecdhe-mlkem` (`0x11EC`, RFC number
-  unassigned) is only an optional aws-lc benchmark baseline, not the local wire group.
+  RFC 10024 `X25519MLKEM768` group (`0x11EC`, Recommended=Y) is only an optional
+  rustls/aws-lc standard baseline, not the local wire group. RFC 10024 uses the
+  RFC 9954 64-byte concatenated secret in the RFC 9846 TLS key schedule; the private
+  Q-Periapt groups instead return a 32-byte custom-combiner secret and cannot be
+  presented as standards-compatible endpoints.
   The separate HQC shadow tracks HQC v5 and a prospective, not-yet-public FIPS 207 draft.
   The project tracks standards; it does not set them, and an `-rc.0` implementation is
   not promoted into ABI 2.
@@ -328,19 +336,20 @@ bytes, ratchet, or session security claim. See
 ### Authenticated migration is another separate research lane
 
 The `publish = false` [`q-periapt-migration`](models/q-periapt-migration/README.md)
-model begins a layer **above** frozen ABI 2. Phase 1 implements only a candidate
-315-byte, role-normalized `MigrationContextV1` application body, derived from
-authenticated policy types and checked by independent Rust/Python full-byte vectors.
-ABI 2 applies its existing policy wrapper exactly once and otherwise remains
-byte-for-byte unchanged.
+model begins a layer **above** frozen ABI 2. Phase 1 remains a frozen 315-byte,
+role-normalized `MigrationContextV1` application body. The V2 reference candidate now
+adds typed authenticated transitions, a monotonic state/repository model, two-Finished
+peer confirmation, outcome-bearing floor checks, independent vectors, and bounded
+EasyCrypt/Tamarin evidence; the `q-periapt-policy-agent` is a separate reference service.
+ABI 2 remains byte-for-byte unchanged and no publishable product crate depends on V2.
 
-This is canonical commitment, not authenticated migration history. The transition
-state and pre-KEM transcript are externally asserted commitments; there is no
-transition certificate, trusted monotonic state owner, mutual key confirmation,
-rollback/fork/reset resistance, peer agreement, outcome-bearing floor proof, or
-hostile same-process defense. Those are explicit later gates in
-[`docs/MIGRATION_CONTRACT_RESEARCH.md`](docs/MIGRATION_CONTRACT_RESEARCH.md); the
-exact phase-1 bytes and non-claims are in
+This is still research, not a deployed migration protocol. Its rollback claim assumes a
+separately protected external witness; the Unix service needs real permission and pinned-
+credential deployment evidence; there is no device interoperability, hostile-kernel or
+same-process isolation proof, unbounded state-machine proof, or formal-to-Rust refinement.
+The exact status and non-claims are in
+[`docs/MIGRATION_CONTRACT_RESEARCH.md`](docs/MIGRATION_CONTRACT_RESEARCH.md), while the
+frozen phase-1 bytes remain in
 [`docs/migration/MIGRATION_CONTEXT_V1.md`](docs/migration/MIGRATION_CONTEXT_V1.md).
 
 ## Feature matrix vs the target dimensions
@@ -355,12 +364,12 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Combiner safety guards | C2PRI + X-Wing-safe backend guards, 32-byte length checks, implicit rejection | ✅ `CompatXWing` hard-checks all four absorbed fields are exactly 32 bytes; `HybridKem::new` rejects the omitted first-slot backend unless both `Kem::C2PRI` and `Kem::COMPAT_XWING_SAFE` are true, with contradictory third-party declarations failing closed as `Error::PolicyDenied`; `ct_eq`/`ct_select32` provide the branch-free implicit-rejection primitive |
 | Signatures | ML-DSA-44/65/87, SLH-DSA | ✅ the full FIPS-204 family **ML-DSA-44/65/87** (`fips204` 0.4.6) wired & tested (NIST ACVP — external/pure deterministic and hedged, non-empty context, and SHAKE-128 pre-hash modes — + an independent RustCrypto `ml-dsa` differential); ML-DSA-65 is the default, ML-DSA-87 the enhanced-mode (L5) signature. Vendored internal-interface vectors remain explicit, **unwired reference data** and are not claimed as backend conformance. **SLH-DSA-SHA2-128s/192s/256s** (fips205) — with **NIST ACVP conformance** (`acvp_slhdsa.rs`) — are behind the off-by-default `slh-dsa` feature |
 | Crypto-agility / policy | signed policy, downgrade/equivocation state, atomic suite decision | ✅ `q-periapt-policy`: strict TOML loading (`Policy::from_toml`) + domain-separated signed-policy verification (`Policy::load_signed` / `load_signed_monotonic`); `(version, SHA3-256(exact bytes))` rollback/equivocation state; closed, private-field `ResolvedSuite` selected against concrete locally supported suites. Authentication, parsing, or resolution failure is returned as an error; there is no fallback-success API. |
-| Authenticated migration contract | canonical commitment now; authenticated transition state, durable rollback resistance, peer agreement, and outcome-bearing floor later | 🟡 phase-1 `publish = false` model only: fixed 315-byte role-normalized application body, typed policy/suite/floor checks, ABI2 fixed-suite adapter, independent vectors, and ABI2 key-separation tests. Transition authenticity, monotonic state ownership, key confirmation, MIG-ROLLBACK/MIG-AGREE/MIG-FLOOR, and same-process resistance are not implemented or claimed. |
+| Authenticated migration contract | canonical commitment plus bounded authenticated-transition research above ABI 2 | 🟡 phase 1 is frozen; the `publish = false` V2 reference candidate implements typed transition/state/decision bytes, a process-service reference, mutual confirmation, independent vectors, and bounded MIG-BIND/MIG-ROLLBACK/MIG-AGREE/MIG-FLOOR model gates. It does **not** change ABI 2 or establish production permissions, protected-witness durability, hostile-host isolation, device interoperability, unbounded-state security, or formal-to-Rust refinement. |
 | KATs / differential tests | X-Wing draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 byte-exact **X-Wing draft KAT PASSES** (3 official `draft-connolly-cfrg-xwing-kem` vectors); **multi-backend differential PASSES** (`src/differential.rs`) — the target-selected release-graph `mlkem-native` ML-KEM-512/768/1024 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed with independent ML-KEM/X25519 components while using the same RustCrypto SHA3 implementation; the independent official/reference KATs separately protect the combiner bytes. Release-graph `fips204` ML-DSA-44/65/87 is compared with RustCrypto `ml-dsa` (byte-identical keygen + signatures, cross-verification both directions, tamper rejection). **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) for ML-KEM-512/768/1024 (60 cases each, incl. implicit rejection) and ML-DSA-44/65/87 external/pure deterministic + hedged, non-empty-context, and HashML-DSA SHAKE-128 pre-hash modes. Internal-interface vectors are retained but deliberately unwired and do not count as passing cases; `externalMu=true`, internal μ-entry, and non-SHAKE128 pre-hash modes remain out of scope. **SLH-DSA-SHA2-{128,192,256}s** (FIPS 205) also have NIST ACVP conformance under the `slh-dsa` feature. |
 | Side-channel CI | indistinguishability gate + binary-CT matrix; dudect local diagnostic | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); the CI contract runs `ct_verify` plus self-validating ML-KEM-512/768/1024 shipped-provider decapsulation probes under Valgrind/Memcheck-TIMECOP on x86_64 + aarch64. Each ŝ+z probe requires exact zero reports and its planted control must report positive. `fips203` failed the cited historical run and was replaced; portable-only `mlkem-native` results captured before target selection are historical. Fresh x86_64-portable and aarch64-native source-bound runs and receipts are required. Dudect timing is local-only, other primitive paths are not covered, and riscv64/wasm32 remain unverified at binary level. |
 | Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | 🟡 CI `cross` builds the core/KEM across the declared ISA targets and `no_std` builds `thumbv7em-none-eabihf`. The tag-bound `abi2-platforms-v0.1.0` pipeline rebuilds the formal Linux x86_64/aarch64 SDK archives (GLIBC 2.35 ceiling, SONAME/pkg-config/CMake consumers). Windows x64 MSVC still builds and is exercised under PE/REPRO, producer-path-scan, and `/W4 /WX` gates, but remains an unsigned unsupported diagnostic outside the formal candidate, manifest, attestation, receipt, and release assets. riscv64/wasm32/embedded remain build-only lanes without packaged release evidence. |
 | FFI / bindings | C ABI + Swift + Kotlin/JVM + Android AAR/JNI + WASM | 🟡 the stable-version **ABI 2** source/crate contract has nine exact dynamic `q_periapt_*` exports: metadata (5), signed-policy decision, OS-CSPRNG atomic key generation, OS-CSPRNG encapsulation, and decapsulation. Static archives constrain that public namespace but retain unsupported hidden bridge link symbols and therefore assume a trusted same-process consumer. The Apple stable lane publishes a Developer ID-signed, exact-static-only XCFramework ZIP for macOS/iOS `binaryTarget` consumption under `v0.1.0`. Apple notarization is not applicable to this SDK payload because it contains no standalone executable or notarizable bundle; the final consuming macOS product still requires its own signing and notarization. That asset is an Apple-only SDK, not a production binary or a complete Git-URL Swift package. The companion `abi2-platforms-v0.1.0` target contains the four-ABI Android AAR (with an API 35 / 16 KiB-page emulator runtime-evidence bundle) and GNU/Linux x86_64+aarch64 SDK archives. Current public status is recorded in `artifact/results.json`. Physical-device and current-source performance evidence remain separately scoped and pending, and historical proofs are not promoted. Android JNI consumes rather than duplicates the contract. Deterministic/X-Wing/combine checks remain internal Rust/WASM conformance evidence rather than a native product bypass. The former `proc-macro-error2` advisory path was removed with `libcrux`/hax and `cargo audit --deny warnings` is clean, without an ignore, for the Rust dependency graph. RustSec does not audit the vendored C provider. Independent cryptographic/C-FFI/ABI review, same-source device/performance evidence, clean signed provenance, and platform distribution attestation remain production-promotion requirements; they are not claimed by the package version alone. |
-| Transport / P99 | rustls X25519MLKEM768, HPKE, netem P99 harness | 🟡 `q-periapt-tls-demo` workspace member: loopback server-authenticated hybrid handshake in **two suites** — default (ML-KEM-768 + X25519, ML-DSA-65) and enhanced **L5** (ML-KEM-1024 + X25519, ML-DSA-87) over one generic handshake core — + a report-only P99 bench in CI |
+| Transport / P99 | private-use rustls research groups, RFC 10024 baseline, HPKE-shaped demo, netem P99 harness | 🟡 `q-periapt-tls-demo` supplies a loopback server-authenticated hybrid handshake in two suites plus a report-only P99 bench. `q-periapt-rustls` exposes only private-use `0xFE01`/`0xFE02` research groups over the Q-Periapt combiner. A feature-gated rustls/aws-lc RFC 10024 `0x11EC` contract is a separate comparison baseline; it neither uses nor validates Q-Periapt's combiner and is not independent cross-implementation interoperability evidence. |
 | Asynchronous identity/prekeys/ratchet/multi-device | component-conformant PQXDH + Triple Ratchet/SPQR reference plus a separately specified Sesame-compatible manager, followed by Continuity research deltas | 🟡 G1 partial: selected source revisions, a non-normative exact version+digest lifecycle model, candidate role-ordered Bootstrap/RootTransition bytes, and a strict four-quadrant `PrekeySelectionV1` with independent Python full-byte correspondence/frozen SHA3 vectors are present; there is no manifest verifier, lease/consumption/tombstone state, context-advance API, credential/prekey/directory protocol, production session crate, outer wire decoder, persistent ratchet, recovery adapter, key transparency, FS/PCS, interoperability, or deployment claim |
 | Auditability tooling | CBOM / SBOM / migration scanner | 🟡 `q-periapt-cli` workspace member emitting CycloneDX CBOM/SBOM in CI |
 | Formal models | EasyCrypt combiner binding + Tamarin & ProVerif handshake models | ✅ EasyCrypt: `bind_le_cr` **machine-checked** as a generic transcript-projection collision bound; CT/PK instantiate standard X-BIND games and CTX is a separately labeled local wrapper projection. `encode_inj` is a **proved lemma**; **0 admits**. The pinned-source container gate re-runs `BindingViaCR.ec`, seven **proof-dependency regression controls**, and the non-normative Lifecycle/Prekey LP8 projection/omission diagnostics; its apt/opam dependency closure is not bit-reproducible, and none of these checks is a Rust refinement or protocol proof. Tactic failure is not called logical necessity. Semantic necessity is claimed only for checked countermodels, including the probability-one `K = bottom` context countermodel when the explicit-rejection wrapper game omits `K != bottom`. The symbolic handshake is checked by **Tamarin (5 lemmas)** and **ProVerif (6 exact queries)**, including authenticated context agreement as well as authentication and hybrid robustness. |
@@ -514,6 +523,11 @@ q-periapt/
 │   ├── q-periapt-rustls    # 🟡 rustls CryptoProvider/private-use hybrid groups
 │   ├── q-periapt-tls-demo  # 🟡 loopback PQ/T hybrid handshake + P99 harness
 │   └── q-periapt-cli       # 🟡 migration inventory + CBOM/SBOM generator
+├── models/
+│   ├── q-periapt-continuity-model # 🧪 publish=false non-normative lifecycle research model
+│   └── q-periapt-migration # 🧪 publish=false V1/V2 migration domain and state model
+├── services/
+│   └── q-periapt-policy-agent # 🧪 publish=false process-isolated migration/ABI 2 reference service
 ├── research/
 │   └── hqc-fips207-candidate # 🧪 publish=false RustCrypto RC shadow; no ABI/suite code
 ├── ctstats/          # ✅ indistinguishability hard gate + binary-CT probes; dudect local diagnostic
@@ -524,7 +538,8 @@ q-periapt/
 └── bindings/         # c/ + swift/ + kotlin/ (exercised in CI against a shared test vector)
 ```
 
-All crates above plus `ctstats` are Cargo workspace `members` (see `Cargo.toml`).
+All crates under `crates/`, `models/`, and `services/`, plus `ctstats`, are Cargo
+workspace `members` (see `Cargo.toml`); the `research/` candidate is explicitly excluded.
 
 ### Architecture in one line
 

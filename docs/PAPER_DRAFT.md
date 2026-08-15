@@ -94,8 +94,9 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 > target-selected `mlkem-native` ML-KEM-512/768/1024 secret path and a positive result for each synthetic planted secret-indexed
 > leak. The former `libcrux` zero result, older-source PQClean-HQC positive counts,
 > and pre-selection portable `mlkem-native` captures are historical; fresh
-> x86_64-portable and aarch64-native captures for the current source are pending. A production-stack TLS 1.3
-> rustls demo/integration path (a `CryptoProvider`) exists; its recorded `tc netem` evaluation is
+> x86_64-portable and aarch64-native captures for the current source are pending. A private-use
+> research TLS 1.3 integration against the production rustls library (a `CryptoProvider`) exists;
+> its recorded `tc netem` evaluation is
 > historical predecessor-source evidence. We are explicit
 > about what is and is not novel: the binding *fact* is a known consequence of recent results
 > (CDM; Chempat); our contribution is the *conjunction* — an assumption-minimal, machine-checked
@@ -196,8 +197,10 @@ producer/verifier and certificate/timestamp-authority gate exist.
   — configured as fail-closed CI gates; current local execution and a fresh remote run must be
   reported separately. *(`ctstats/`, `crates/q-periapt-backends/tests/binding_keyformat_separation.rs`,
   `formal/{tamarin,proverif}`.)*
-- **C4 — Production-stack integration demo + real-link evaluation.** A rustls TLS 1.3 CryptoProvider running the
-  combiner (handshake passes), evaluated for tail latency under real `tc netem`.
+- **C4 — Production-library research integration + real-link evaluation.** A rustls TLS 1.3
+  `CryptoProvider` runs the combiner under private-use `0xFE01`/`0xFE02` groups (the
+  handshake passes) and is evaluated for tail latency under real `tc netem`. This is
+  not the RFC 10024 `0x11EC` group or independent standards-interoperability evidence.
   *(`crates/q-periapt-rustls`; commit 778aeec.)*
 - **C5 — Policy-to-byte fail closure.** A domain-separated signed policy with persisted
   `(version,digest)` state resolves to one private-field `ResolvedSuite`; fixed L3 faces reject L5

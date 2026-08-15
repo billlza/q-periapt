@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import hashlib
 import json
 import os
@@ -443,6 +444,925 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 self.assertIsNotNone(observed_config)
                 assert observed_config is not None
                 self.assertFalse(observed_config.exists())
+
+    def test_github_cli_state_and_cache_are_disposable_not_passwd_home(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_path = pathlib.Path(temporary).resolve() / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+                observed_root: pathlib.Path | None = None
+
+                def state_writer(
+                    _argv: list[str], **kwargs: object
+                ) -> BoundedResult:
+                    nonlocal observed_root
+                    command_environment = kwargs["environment"]
+                    self.assertIsInstance(command_environment, dict)
+                    paths = {
+                        name: pathlib.Path(command_environment[name])
+                        for name in (
+                            "HOME",
+                            "GH_CONFIG_DIR",
+                            "XDG_STATE_HOME",
+                            "XDG_CACHE_HOME",
+                        )
+                    }
+                    parents = {path.parent for path in paths.values()}
+                    self.assertEqual(1, len(parents))
+                    observed_root = next(iter(parents))
+                    self.assertNotEqual(
+                        pathlib.Path(observation._github_account_home()),
+                        paths["HOME"],
+                    )
+                    gh_state = paths["XDG_STATE_HOME"] / "gh"
+                    gh_state.mkdir(mode=0o700)
+                    device_id = gh_state / "device-id"
+                    device_id.write_bytes(b"fixture-device-id\n")
+                    os.chmod(device_id, 0o600)
+                    return BoundedResult(0, b"{}\n")
+
+                self.assertEqual(
+                    b"{}\n",
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="disposable state",
+                        runner=state_writer,
+                    ),
+                )
+                self.assertIsNotNone(observed_root)
+                if observed_root is None:
+                    self.fail("runner did not observe its disposable root")
+                self.assertFalse(observed_root.exists())
+
+    def test_isolated_environment_temp_root_failure_is_typed_local_integrity(self) -> None:
+        environment = observation.github_cli_environment(
+            {"GH_TOKEN": "fixture_token_123456789"}
+        )
+        isolated = observation._isolated_github_cli_environment(environment)
+        with (
+            mock.patch.object(
+                observation,
+                "_validated_github_cli_temp_root",
+                side_effect=observation.GitHubReleaseObservationError(
+                    "synthetic unsafe temporary root"
+                ),
+            ),
+            self.assertRaises(
+                observation.GitHubCliEnvironmentIntegrityError
+            ) as caught,
+        ):
+            isolated.__enter__()
+        self.assertEqual(
+            "GitHubReleaseObservationError",
+            caught.exception.preceding_type,
+        )
+        self.assertIsNone(caught.exception.error_kind)
+        self.assertFalse(caught.exception.cleanup_ambiguous)
+
+    def test_mutation_uses_only_exact_silent_api_argv_and_consumes_pinned_fd(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tool_path = root / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            body = b'{"draft":true}\n'
+            body_path = root / "body.json"
+            body_path.write_bytes(body)
+            os.chmod(body_path, 0o600)
+            calls: list[list[str]] = []
+
+            def consume(argv: list[str], **kwargs: object) -> BoundedResult:
+                calls.append(argv)
+                descriptor = kwargs["stdin_fd"]
+                self.assertIsInstance(descriptor, int)
+                self.assertEqual(body, os.read(descriptor, len(body)))
+                return BoundedResult(0, b"")
+
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+                descriptor = os.open(body_path, os.O_RDONLY)
+                try:
+                    observation.execute_github_api_json_mutation(
+                        tool,
+                        method="POST",
+                        endpoint=f"/repos/{observation.GITHUB_REPOSITORY}/releases",
+                        input_fd=descriptor,
+                        input_size=len(body),
+                        input_sha256=hashlib.sha256(body).hexdigest(),
+                        timeout_seconds=120,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="fixture create",
+                        runner=consume,
+                    )
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    observation.execute_github_api_asset_upload(
+                        tool,
+                        release_id=123,
+                        asset_name="asset.zip",
+                        content_type="application/zip",
+                        input_fd=descriptor,
+                        input_size=len(body),
+                        input_sha256=hashlib.sha256(body).hexdigest(),
+                        timeout_seconds=300,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="fixture upload",
+                        runner=consume,
+                    )
+                finally:
+                    os.close(descriptor)
+            self.assertEqual(2, len(calls))
+            create, upload = calls
+            self.assertEqual(
+                [
+                    tool.path,
+                    "api",
+                    "--hostname",
+                    "github.com",
+                    "--method",
+                    "POST",
+                    "--silent",
+                    "-H",
+                    "Accept: application/vnd.github+json",
+                    "-H",
+                    f"X-GitHub-Api-Version: {observation.GITHUB_API_VERSION}",
+                    "-H",
+                    "Content-Type: application/json",
+                    "-H",
+                    f"Content-Length: {len(body)}",
+                    "--input",
+                    "-",
+                    f"/repos/{observation.GITHUB_REPOSITORY}/releases",
+                ],
+                create,
+            )
+            self.assertEqual(
+                [
+                    tool.path,
+                    "api",
+                    "--hostname",
+                    "github.com",
+                    "--method",
+                    "POST",
+                    "--silent",
+                    "-H",
+                    "Accept: application/vnd.github+json",
+                    "-H",
+                    f"X-GitHub-Api-Version: {observation.GITHUB_API_VERSION}",
+                    "-H",
+                    "Content-Type: application/zip",
+                    "-H",
+                    f"Content-Length: {len(body)}",
+                    "--input",
+                    "-",
+                    "https://uploads.github.com/repos/"
+                    f"{observation.GITHUB_REPOSITORY}/releases/123/assets?name=asset.zip",
+                ],
+                upload,
+            )
+
+    def test_success_with_partial_input_or_stdout_is_local_integrity_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tool_path = root / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            body = b"fixed request body\n"
+            body_path = root / "body"
+            body_path.write_bytes(body)
+            os.chmod(body_path, 0o600)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+                for read_size, stdout in ((1, b""), (len(body), b"unexpected")):
+                    descriptor = os.open(body_path, os.O_RDONLY)
+
+                    def incomplete(
+                        _argv: list[str], **kwargs: object
+                    ) -> BoundedResult:
+                        os.read(kwargs["stdin_fd"], read_size)
+                        return BoundedResult(0, stdout)
+
+                    try:
+                        with self.assertRaises(
+                            observation.GitHubMutationInputIntegrityError
+                        ):
+                            observation.execute_github_api_json_mutation(
+                                tool,
+                                method="POST",
+                                endpoint=(
+                                    f"/repos/{observation.GITHUB_REPOSITORY}/releases"
+                                ),
+                                input_fd=descriptor,
+                                input_size=len(body),
+                                input_sha256=hashlib.sha256(body).hexdigest(),
+                                timeout_seconds=120,
+                                maximum_bytes=1024,
+                                environment=environment,
+                                label="fixture malformed success",
+                                runner=incomplete,
+                            )
+                    finally:
+                        os.close(descriptor)
+
+    def test_signal_or_reap_failure_plus_input_drift_preserves_safe_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tool_path = root / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            body = b"fixed request body\n"
+            body_path = root / "body"
+            body_path.write_bytes(body)
+            os.chmod(body_path, 0o600)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+                cases = (
+                    (SystemExit(143), None, False),
+                    (
+                        BoundedProcessError(
+                            "reap",
+                            "synthetic cleanup ambiguity",
+                            cleanup_ambiguous=True,
+                            signal_number=15,
+                        ),
+                        "reap",
+                        True,
+                    ),
+                )
+                for primary, expected_kind, expected_cleanup in cases:
+                    with self.subTest(primary=type(primary).__name__):
+                        body_path.write_bytes(body)
+                        os.chmod(body_path, 0o600)
+                        descriptor = os.open(body_path, os.O_RDWR)
+
+                        def drift_then_fail(
+                            _argv: list[str], **kwargs: object
+                        ) -> BoundedResult:
+                            os.pwrite(kwargs["stdin_fd"], b"X", 0)
+                            raise primary
+
+                        try:
+                            with self.assertRaises(
+                                observation.GitHubMutationInputIntegrityError
+                            ) as caught:
+                                observation.execute_github_api_json_mutation(
+                                    tool,
+                                    method="POST",
+                                    endpoint=(
+                                        f"/repos/{observation.GITHUB_REPOSITORY}/"
+                                        "releases"
+                                    ),
+                                    input_fd=descriptor,
+                                    input_size=len(body),
+                                    input_sha256=hashlib.sha256(body).hexdigest(),
+                                    timeout_seconds=120,
+                                    maximum_bytes=1024,
+                                    environment=environment,
+                                    label="fixture combined input failure",
+                                    runner=drift_then_fail,
+                                )
+                        finally:
+                            os.close(descriptor)
+                        self.assertEqual(15, caught.exception.signal_number)
+                        self.assertEqual(expected_kind, caught.exception.error_kind)
+                        self.assertEqual(
+                            expected_cleanup,
+                            caught.exception.cleanup_ambiguous,
+                        )
+
+    def test_upload_rejects_non_simple_media_types_before_runner(self) -> None:
+        invalid = (
+            " application/json",
+            "application/json ",
+            "application/json; charset=utf-8",
+            "application/\tjson",
+            "application/\x7fjson",
+        )
+        runner = mock.Mock()
+        tool = observation.GitHubCliIdentity(
+            path="/fixed/gh",
+            device=1,
+            inode=2,
+            mode=0o100500,
+            uid=os.geteuid(),
+            link_count=1,
+            size=1,
+            sha256="0" * 64,
+        )
+        for content_type in invalid:
+            with self.subTest(content_type=content_type):
+                with self.assertRaises(
+                    observation.GitHubReleaseObservationError
+                ):
+                    observation.execute_github_api_asset_upload(
+                        tool,
+                        release_id=1,
+                        asset_name="asset.bin",
+                        content_type=content_type,
+                        input_fd=0,
+                        input_size=1,
+                        input_sha256="0" * 64,
+                        timeout_seconds=300,
+                        maximum_bytes=1,
+                        environment={},
+                        label="invalid media type",
+                        runner=runner,
+                    )
+        runner.assert_not_called()
+
+    def test_mutable_parser_canonicalizes_asset_order_and_rejects_starter_or_duplicate_id(
+        self,
+    ) -> None:
+        policy = observation.MutableReleasePolicy(
+            repository=observation.GITHUB_REPOSITORY,
+            tag="fixture-v1",
+            tag_commit="1" * 40,
+            title="Fixture release",
+            body="Fixture immutable release body.",
+            asset_names=("a.bin", "b.bin"),
+            expected_sha256={"a.bin": "a" * 64, "b.bin": "b" * 64},
+            expected_sizes={"a.bin": 1, "b.bin": 2},
+            expected_content_types={
+                "a.bin": "application/octet-stream",
+                "b.bin": "application/octet-stream",
+            },
+        )
+
+        def asset(name: str, identity: int, state: str = "uploaded") -> dict[str, object]:
+            digest = "a" * 64 if name == "a.bin" else "b" * 64
+            size = 1 if name == "a.bin" else 2
+            return {
+                "apiUrl": (
+                    "https://api.github.com/repos/"
+                    f"{observation.GITHUB_REPOSITORY}/releases/assets/{identity}"
+                ),
+                "contentType": "application/octet-stream",
+                "createdAt": "2026-08-15T00:00:00Z",
+                "digest": f"sha256:{digest}",
+                "downloadCount": 0,
+                "id": f"NODE_{identity}",
+                "label": "",
+                "name": name,
+                "size": size,
+                "state": state,
+                "updatedAt": "2026-08-15T00:00:01Z",
+                "url": (
+                    "https://github.com/"
+                    f"{observation.GITHUB_REPOSITORY}/releases/download/fixture-v1/{name}"
+                ),
+            }
+
+        view = {
+            "apiUrl": (
+                "https://api.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/77"
+            ),
+            "assets": [asset("b.bin", 2), asset("a.bin", 1)],
+            "body": policy.body,
+            "databaseId": 77,
+            "isDraft": True,
+            "isImmutable": False,
+            "isPrerelease": False,
+            "name": policy.title,
+            "publishedAt": None,
+            "tagName": policy.tag,
+            "targetCommitish": "main",
+            "uploadUrl": (
+                "https://uploads.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/77/assets{{?name,label}}"
+            ),
+            "url": (
+                f"https://github.com/{observation.GITHUB_REPOSITORY}/releases/tag/fixture-v1"
+            ),
+        }
+        parsed = observation.parse_mutable_release_view(
+            json.dumps(view).encode("utf-8"),
+            policy=policy,
+            is_latest=False,
+        )
+        self.assertEqual(("a.bin", "b.bin"), tuple(item.name for item in parsed.assets))
+
+        starter = json.loads(json.dumps(view))
+        starter["assets"][0]["state"] = "starter"
+        with self.assertRaisesRegex(
+            observation.GitHubReleaseObservationError,
+            "starter asset",
+        ):
+            observation.parse_mutable_release_view(
+                json.dumps(starter).encode("utf-8"),
+                policy=policy,
+                is_latest=False,
+            )
+
+        duplicate = json.loads(json.dumps(view))
+        duplicate["assets"][0]["apiUrl"] = duplicate["assets"][1]["apiUrl"]
+        with self.assertRaisesRegex(
+            observation.GitHubReleaseObservationError,
+            "duplicated",
+        ):
+            observation.parse_mutable_release_view(
+                json.dumps(duplicate).encode("utf-8"),
+                policy=policy,
+                is_latest=False,
+            )
+
+    def test_single_mutable_transaction_sample_uses_complete_fixed_command_sequence(self) -> None:
+        def policy(tag: str, title: str, digest: str) -> observation.MutableReleasePolicy:
+            return observation.MutableReleasePolicy(
+                repository=observation.GITHUB_REPOSITORY,
+                tag=tag,
+                tag_commit="1" * 40,
+                title=title,
+                body=f"{title} body",
+                asset_names=(f"{tag}.bin",),
+                expected_sha256={f"{tag}.bin": digest},
+                expected_sizes={f"{tag}.bin": 1},
+                expected_content_types={
+                    f"{tag}.bin": "application/octet-stream"
+                },
+            )
+
+        apple = policy("fixture-apple", "Fixture Apple", "a" * 64)
+        platform = policy("fixture-platform", "Fixture Platform", "b" * 64)
+        listed = [
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": True,
+                "isImmutable": False,
+                "isLatest": False,
+                "isPrerelease": False,
+                "name": apple.title,
+                "publishedAt": None,
+                "tagName": apple.tag,
+            }
+        ]
+        view = {
+            "apiUrl": (
+                "https://api.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/77"
+            ),
+            "assets": [],
+            "body": apple.body,
+            "databaseId": 77,
+            "isDraft": True,
+            "isImmutable": False,
+            "isPrerelease": False,
+            "name": apple.title,
+            "publishedAt": None,
+            "tagName": apple.tag,
+            "targetCommitish": "main",
+            "uploadUrl": (
+                "https://uploads.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/77/"
+                "assets{?name,label}"
+            ),
+            "url": (
+                f"https://github.com/{observation.GITHUB_REPOSITORY}/"
+                f"releases/tag/{apple.tag}"
+            ),
+        }
+        responses = [
+            json.dumps(listed).encode("utf-8"),
+            json.dumps(
+                {
+                    "nameWithOwner": observation.GITHUB_REPOSITORY,
+                    "url": f"https://github.com/{observation.GITHUB_REPOSITORY}",
+                    "visibility": "PUBLIC",
+                }
+            ).encode("utf-8"),
+            b'{"enabled":true,"enforced_by_owner":false}\n',
+            json.dumps(view).encode("utf-8"),
+            b"[]\n",
+            json.dumps(listed).encode("utf-8"),
+        ]
+        calls: list[tuple[str, ...]] = []
+
+        def runner(argv: list[str], **_kwargs: object) -> BoundedResult:
+            calls.append(tuple(argv))
+            return BoundedResult(0, responses[len(calls) - 1])
+
+        tool = observation.GitHubCliIdentity(
+            path="/fixed/gh",
+            device=1,
+            inode=2,
+            mode=0o100500,
+            uid=os.geteuid(),
+            link_count=1,
+            size=1,
+            sha256="0" * 64,
+        )
+        with (
+            mock.patch.object(observation, "select_github_cli", return_value=tool),
+            mock.patch.object(observation, "resample_github_cli", return_value=None),
+        ):
+            observed = observation.sample_mutable_release_transaction_once(
+                (apple, platform),
+                source_environment={"GH_TOKEN": "fixture_token_123456789"},
+                runner=runner,
+            )
+        self.assertEqual(6, len(calls))
+        self.assertEqual(("release", "list"), calls[0][1:3])
+        self.assertIn("--limit", calls[0])
+        self.assertEqual("100", calls[0][calls[0].index("--limit") + 1])
+        self.assertEqual(("repo", "view"), calls[1][1:3])
+        self.assertIn("immutable-releases", calls[2][-1])
+        self.assertEqual(("release", "view"), calls[3][1:3])
+        self.assertEqual(
+            (
+                f"repos/{observation.GITHUB_REPOSITORY}/releases/77/assets"
+                "?per_page=100&page=1"
+            ),
+            calls[4][-1],
+        )
+        self.assertEqual(calls[0], calls[5])
+        self.assertIsNotNone(observed.releases[0])
+        self.assertIsNone(observed.releases[1])
+
+    def test_release_list_rejects_full_page_as_pagination_incomplete(self) -> None:
+        listed = [
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": True,
+                "isImmutable": False,
+                "isLatest": False,
+                "isPrerelease": False,
+                "name": f"Fixture {index}",
+                "publishedAt": None,
+                "tagName": f"unrelated-{index}",
+            }
+            for index in range(100)
+        ]
+        with self.assertRaisesRegex(
+            observation.GitHubReleaseObservationError,
+            "pagination-truncated",
+        ):
+            observation.parse_release_list(
+                json.dumps(listed).encode("utf-8"),
+                target_tags=("fixture-apple", "fixture-platform"),
+            )
+
+    def test_published_sample_crosslinks_latest_endpoint_and_complete_assets(self) -> None:
+        apple = observation.MutableReleasePolicy(
+            repository=observation.GITHUB_REPOSITORY,
+            tag="fixture-apple",
+            tag_commit="1" * 40,
+            title="Fixture Apple",
+            body="Fixture Apple body",
+            asset_names=("apple.bin",),
+            expected_sha256={"apple.bin": "a" * 64},
+            expected_sizes={"apple.bin": 1},
+            expected_content_types={
+                "apple.bin": "application/octet-stream"
+            },
+        )
+        platform = dataclasses.replace(
+            apple,
+            tag="fixture-platform",
+            title="Fixture Platform",
+            body="Fixture Platform body",
+            asset_names=("platform.bin",),
+            expected_sha256={"platform.bin": "b" * 64},
+            expected_sizes={"platform.bin": 1},
+            expected_content_types={
+                "platform.bin": "application/octet-stream"
+            },
+        )
+        asset = {
+            "apiUrl": (
+                "https://api.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/assets/501"
+            ),
+            "contentType": "application/octet-stream",
+            "createdAt": "2026-08-15T00:00:00Z",
+            "digest": f"sha256:{'a' * 64}",
+            "downloadCount": 0,
+            "id": "NODE_501",
+            "label": "",
+            "name": "apple.bin",
+            "size": 1,
+            "state": "uploaded",
+            "updatedAt": "2026-08-15T00:00:01Z",
+            "url": (
+                f"https://github.com/{observation.GITHUB_REPOSITORY}/"
+                "releases/download/fixture-apple/apple.bin"
+            ),
+        }
+        published_at = "2026-08-15T00:01:00Z"
+        listed = [
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": False,
+                "isImmutable": True,
+                "isLatest": True,
+                "isPrerelease": False,
+                "name": apple.title,
+                "publishedAt": published_at,
+                "tagName": apple.tag,
+            }
+        ]
+        view = {
+            "apiUrl": (
+                "https://api.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/77"
+            ),
+            "assets": [asset],
+            "body": apple.body,
+            "databaseId": 77,
+            "isDraft": False,
+            "isImmutable": True,
+            "isPrerelease": False,
+            "name": apple.title,
+            "publishedAt": published_at,
+            "tagName": apple.tag,
+            "targetCommitish": apple.tag_commit,
+            "uploadUrl": (
+                "https://uploads.github.com/repos/"
+                f"{observation.GITHUB_REPOSITORY}/releases/77/"
+                "assets{?name,label}"
+            ),
+            "url": (
+                f"https://github.com/{observation.GITHUB_REPOSITORY}/"
+                f"releases/tag/{apple.tag}"
+            ),
+        }
+        responses = [
+            json.dumps(listed).encode("utf-8"),
+            json.dumps(
+                {
+                    "nameWithOwner": observation.GITHUB_REPOSITORY,
+                    "url": f"https://github.com/{observation.GITHUB_REPOSITORY}",
+                    "visibility": "PUBLIC",
+                }
+            ).encode("utf-8"),
+            b'{"enabled":true,"enforced_by_owner":false}\n',
+            b'{"tagName":"fixture-apple"}\n',
+            json.dumps(view).encode("utf-8"),
+            json.dumps([asset]).encode("utf-8"),
+            json.dumps(listed).encode("utf-8"),
+        ]
+        calls: list[tuple[str, ...]] = []
+
+        def runner(argv: list[str], **_kwargs: object) -> BoundedResult:
+            calls.append(tuple(argv))
+            return BoundedResult(0, responses[len(calls) - 1])
+
+        tool = observation.GitHubCliIdentity(
+            path="/fixed/gh",
+            device=1,
+            inode=2,
+            mode=0o100500,
+            uid=os.geteuid(),
+            link_count=1,
+            size=1,
+            sha256="0" * 64,
+        )
+        with (
+            mock.patch.object(observation, "select_github_cli", return_value=tool),
+            mock.patch.object(observation, "resample_github_cli", return_value=None),
+        ):
+            observed = observation.sample_mutable_release_transaction_once(
+                (apple, platform),
+                source_environment={"GH_TOKEN": "fixture_token_123456789"},
+                runner=runner,
+            )
+        self.assertEqual(7, len(calls))
+        self.assertEqual(
+            f"repos/{observation.GITHUB_REPOSITORY}/releases/latest",
+            calls[3][-1],
+        )
+        self.assertEqual(apple.tag, observed.latest_tag)
+        self.assertEqual(501, observed.releases[0].assets[0].asset_id)
+
+        mismatched = list(responses)
+        mismatched[3] = b'{"tagName":"fixture-platform"}\n'
+        mismatch_calls = 0
+
+        def mismatch_runner(
+            _argv: list[str], **_kwargs: object
+        ) -> BoundedResult:
+            nonlocal mismatch_calls
+            response = mismatched[mismatch_calls]
+            mismatch_calls += 1
+            return BoundedResult(0, response)
+
+        with (
+            mock.patch.object(observation, "select_github_cli", return_value=tool),
+            mock.patch.object(observation, "resample_github_cli", return_value=None),
+            self.assertRaisesRegex(
+                observation.GitHubReleaseObservationError,
+                "latest endpoint differs",
+            ),
+        ):
+            observation.sample_mutable_release_transaction_once(
+                (apple, platform),
+                source_environment={"GH_TOKEN": "fixture_token_123456789"},
+                runner=mismatch_runner,
+            )
+
+        rest_api_id_drift = copy.deepcopy(asset)
+        rest_api_id_drift["apiUrl"] = (
+            "https://api.github.com/repos/"
+            f"{observation.GITHUB_REPOSITORY}/releases/assets/502"
+        )
+        rest_node_id_drift = copy.deepcopy(asset)
+        rest_node_id_drift["id"] = "NODE_502"
+        rest_timestamp_drift = copy.deepcopy(asset)
+        rest_timestamp_drift["updatedAt"] = "2026-08-15T00:00:02Z"
+        for rest_drift in (
+            rest_api_id_drift,
+            rest_node_id_drift,
+            rest_timestamp_drift,
+        ):
+            with self.subTest(rest_drift=rest_drift):
+                drifted_responses = list(responses)
+                drifted_responses[5] = json.dumps(
+                    [rest_drift]
+                ).encode("utf-8")
+                drift_calls = 0
+
+                def drift_runner(
+                    _argv: list[str], **_kwargs: object
+                ) -> BoundedResult:
+                    nonlocal drift_calls
+                    response = drifted_responses[drift_calls]
+                    drift_calls += 1
+                    return BoundedResult(0, response)
+
+                with (
+                    mock.patch.object(
+                        observation,
+                        "select_github_cli",
+                        return_value=tool,
+                    ),
+                    mock.patch.object(
+                        observation,
+                        "resample_github_cli",
+                        return_value=None,
+                    ),
+                    self.assertRaisesRegex(
+                        observation.GitHubReleaseObservationError,
+                        "embedded assets differ",
+                    ),
+                ):
+                    observation.sample_mutable_release_transaction_once(
+                        (apple, platform),
+                        source_environment={
+                            "GH_TOKEN": "fixture_token_123456789"
+                        },
+                        runner=drift_runner,
+                    )
+
+        full_page_responses = list(responses)
+        full_page_responses[5] = json.dumps([asset] * 100).encode("utf-8")
+        full_page_calls = 0
+
+        def full_page_runner(
+            _argv: list[str], **_kwargs: object
+        ) -> BoundedResult:
+            nonlocal full_page_calls
+            response = full_page_responses[full_page_calls]
+            full_page_calls += 1
+            return BoundedResult(0, response)
+
+        with (
+            mock.patch.object(observation, "select_github_cli", return_value=tool),
+            mock.patch.object(observation, "resample_github_cli", return_value=None),
+            self.assertRaisesRegex(
+                observation.GitHubReleaseObservationError,
+                "asset list.*incomplete",
+            ),
+        ):
+            observation.sample_mutable_release_transaction_once(
+                (apple, platform),
+                source_environment={"GH_TOKEN": "fixture_token_123456789"},
+                runner=full_page_runner,
+            )
+
+    def test_complete_mutable_double_sample_rejects_body_setting_and_latest_drift(self) -> None:
+        policy = observation.MutableReleasePolicy(
+            repository=observation.GITHUB_REPOSITORY,
+            tag="fixture-apple",
+            tag_commit="1" * 40,
+            title="Fixture Apple",
+            body="Fixture body",
+            asset_names=("apple.bin",),
+            expected_sha256={"apple.bin": "a" * 64},
+            expected_sizes={"apple.bin": 1},
+            expected_content_types={
+                "apple.bin": "application/octet-stream"
+            },
+        )
+        platform = dataclasses.replace(
+            policy,
+            tag="fixture-platform",
+            title="Fixture Platform",
+        )
+        release = observation.MutableReleaseView(
+            release_id=77,
+            tag=policy.tag,
+            draft=True,
+            immutable=False,
+            prerelease=False,
+            is_latest=False,
+            published_at=None,
+            assets=(),
+            canonical=b'{"body":"Fixture body"}\n',
+        )
+        base = observation.MutableReleaseTransactionObservation(
+            repository_canonical=b'{"visibility":"PUBLIC"}\n',
+            immutable_enabled=True,
+            immutable_enforced_by_owner=False,
+            latest_tag=None,
+            releases=(release, None),
+            canonical=b'{"sample":"base"}\n',
+        )
+        drifts = (
+            dataclasses.replace(
+                base,
+                releases=(
+                    dataclasses.replace(
+                        release,
+                        canonical=b'{"body":"drift"}\n',
+                    ),
+                    None,
+                ),
+                canonical=b'{"sample":"body-drift"}\n',
+            ),
+            dataclasses.replace(
+                base,
+                immutable_enforced_by_owner=True,
+                canonical=b'{"sample":"setting-drift"}\n',
+            ),
+            dataclasses.replace(
+                base,
+                latest_tag=policy.tag,
+                canonical=b'{"sample":"latest-drift"}\n',
+            ),
+        )
+        for drift in drifts:
+            with (
+                self.subTest(drift=drift.canonical),
+                mock.patch.object(
+                    observation,
+                    "_observe_mutable_release_transaction_once",
+                    side_effect=(base, drift),
+                ) as sample,
+                self.assertRaisesRegex(
+                    observation.GitHubReleaseObservationError,
+                    "changed between complete samples",
+                ),
+            ):
+                observation.observe_mutable_release_transaction(
+                    (policy, platform),
+                )
+            self.assertEqual(2, sample.call_count)
 
     def test_github_cli_source_environment_rejects_trust_overrides(self) -> None:
         for name in (

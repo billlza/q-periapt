@@ -301,6 +301,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      security-events: read
       id-token: write
       attestations: write
     steps:

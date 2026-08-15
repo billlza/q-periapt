@@ -247,10 +247,12 @@ publication receipts live under `release_publications` in `artifact/results.json
 one of those receipts exactly. Scope, verification commands, and explicit
 non-goals are in `artifact/stable-release-notes.md`. The alpha.2 tags and frozen r2
 receipt remain immutable historical evidence. The `platform_v0_1_0` receipt has
-two exact states: candidate verification pending release verification omits every
+two exact states: candidate verification pending release verification binds the
+descriptor-snapshotted final seven-file local release candidate while omitting every
 remote-publication field (absence means unrecorded, not no release), while verified
-adds the exact seven public assets, immutable stable-release metadata, tag-plus-assets
-attestation, and fresh-download deep verification. Receipt transitions are monotonic.
+preserves that candidate verbatim and adds exact matching public assets, immutable
+stable-release metadata, tag-plus-assets attestation, and fresh-download deep
+verification. Receipt transitions are monotonic.
 The line has a
 frozen exact-nine dynamic `q_periapt_*` export
 contract. The static archive constrains that reserved public namespace but retains
@@ -284,8 +286,8 @@ local product-execution and single-host results will not substitute for independ
 signed release provenance, device-energy evidence, or cross-implementation performance parity.
 
 `artifact/source_results_assembler.py` is the deliberately one-time stable-source
-190-to-226 proof-input migration entrypoint, not a reusable release finalizer. Once the
-generated results-only successor R is installed, the 226 baseline makes its initial
+190-to-232 proof-input migration entrypoint, not a reusable release finalizer. Once the
+generated results-only successor R is installed, the 232 baseline makes its initial
 mode logically retired: re-running it is expected to fail closed because
 `require_initial=True` requires the exact pre-migration shape. That failure must not be
 bypassed by relabelling or hand-editing `artifact/results.json`. Do not physically edit,
@@ -293,7 +295,7 @@ extract, or delete the assembler between R and verified publication V; doing so 
 create a new source change after the evidence freeze. Physical removal of the one-time
 `finalize` path belongs only to the next source cycle after V, together with an
 explicitly reviewed current-to-current state machine and a new S. Retain
-`verify-installed` and the exact CI dispatch until their durable 226-key
+`verify-installed` and the exact CI dispatch until their durable 232-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
 
@@ -302,9 +304,9 @@ the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
 `c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
-and fixed 36-key delta, requires a clean expected commit/tree identity, and samples
-the complete 226-key input authority twice before emitting
-`SOURCE_TRANSITION_READINESS_PASS`. For an exact 226-key installed map it emits
+and fixed 42-key delta, requires a clean expected commit/tree identity, and samples
+the complete 232-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 232-key installed map it emits
 only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
 Malformed, mixed, or changing states fail; an initial-readiness failure never falls
 back to the installed path.
@@ -469,15 +471,24 @@ cargo audit --deny warnings                                            # no advi
 # `kctx_without_nonbottom_broken` lemma is the explicit probability-one countermodel for omitting
 # `K != bottom` from the explicit-rejection context-binding game:
 docker build -f formal/Dockerfile -t q-periapt-ec .
-docker run --rm -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
-    opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco \
-        && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
+    -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
+    opam exec -- sh -c 'sh artifact/python-run.sh \
+        artifact/formal_toolchain_contract.py verify-installed --tool easycrypt \
+        && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec \
+        && rm -f *.eco continuity/*.eco && EC=easycrypt make check \
+        && sh negative-controls.sh && EC=easycrypt make -C continuity check'
 
 sh bindings/c/build-and-run.sh                                         # C-ABI link smoke (needs cc)
 CC_wasm32_unknown_unknown=/absolute/path/to/llvm-clang \
   cargo build -p q-periapt-wasm --target wasm32-unknown-unknown        # wasm32 (needs the target)
 cargo build -p q-periapt-core --target thumbv7em-none-eabihf           # no_std embedded (needs the target)
 ```
+
+The formal-tool contract is a Level-1 accidental-drift check, not executable-byte
+attestation. Each identity probe has a 30-second timeout and 64-KiB cap per output
+stream, requires strict UTF-8 and exact pinned identities, and fails before any formal
+`make` command on missing tools, warnings/errors, malformed output, or version drift.
 
 The WASM compiler path must be absolute and name upstream LLVM Clang with a
 `wasm32` backend (`clang --print-targets` must list it); Apple Clang is rejected.
@@ -768,7 +779,10 @@ These produce the paper's primary network table and the binary constant-time dis
   Fresh x86_64-portable and aarch64-native zero/zero passes bound to the release
   source digest are required before promotion. The exact-R tag workflow records those
   two fixed successful CI jobs, the selected run/attempt, and all six successful CodeQL
-  language jobs in the attested `ABI2_SOURCE_SECURITY_GATE.json`. Candidate verification
+  language jobs in the attested `ABI2_SOURCE_SECURITY_GATE.json`. The same receipt binds
+  `refs/heads/main` to R, the latest exact-R analysis for each fixed CodeQL category,
+  zero results, positive rule counts, empty analysis errors/warnings, and an empty
+  main-ref open-alert response. Candidate verification
   deeply checks that sanitized receipt and its workflow-source digests; the platform
   pending/verified receipts retain the same structure and subject-digest crosslink. The
   receipt is transaction evidence, not a public product asset, and the contract does not

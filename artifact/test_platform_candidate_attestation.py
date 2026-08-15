@@ -23,7 +23,10 @@ from platform_candidate_attestation import (
 )
 from platform_distribution_contract import (
     CANDIDATE_SUMS,
+    CODEQL_ANALYSIS_CONTRACT,
+    CODEQL_ANALYSIS_KEY,
     CODEQL_JOB_CONTRACT,
+    CODEQL_TOOL_VERSION,
     CODEQL_WORKFLOW_NAME,
     CODEQL_WORKFLOW_PATH,
     CONSTANT_TIME_JOB_CONTRACT,
@@ -160,7 +163,36 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         ]
         return {"jobs": jobs, "total_count": len(jobs)}
 
-    def _security_gate_inputs(self) -> tuple[object, object, object, object]:
+    def _code_scanning_analysis(
+        self,
+        analysis_id: int,
+        language: str,
+        *,
+        commit_sha: str | None = None,
+    ) -> dict[str, object]:
+        return {
+            "analysis_key": CODEQL_ANALYSIS_KEY,
+            "category": f"/language:{language}",
+            "commit_sha": self.TAG_COMMIT if commit_sha is None else commit_sha,
+            "created_at": "2026-08-15T00:00:00Z",
+            "environment": "{}",
+            "error": "",
+            "id": analysis_id,
+            "ref": "refs/heads/main",
+            "results_count": 0,
+            "rules_count": 20 + analysis_id % 10,
+            "tool": {
+                "guid": None,
+                "name": "CodeQL",
+                "version": CODEQL_TOOL_VERSION,
+            },
+            "url": "https://api.github.com/private-analysis",
+            "warning": "",
+        }
+
+    def _security_gate_inputs(
+        self,
+    ) -> tuple[object, object, object, object, object, object, object]:
         ci_runs = {
             "total_count": 2,
             "workflow_runs": [
@@ -196,7 +228,39 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             [name for _language, name in CODEQL_JOB_CONTRACT],
             first_id=200,
         )
-        return ci_runs, ci_jobs, codeql_runs, codeql_jobs
+        main_ref = {
+            "node_id": "private-node-id",
+            "object": {
+                "sha": self.TAG_COMMIT,
+                "type": "commit",
+                "url": "https://api.github.com/private-commit",
+            },
+            "ref": "refs/heads/main",
+            "url": "https://api.github.com/private-ref",
+        }
+        analyses = [
+            self._code_scanning_analysis(300 + index, language)
+            for index, (language, _category) in enumerate(
+                CODEQL_ANALYSIS_CONTRACT
+            )
+        ]
+        analyses.append(
+            self._code_scanning_analysis(
+                250,
+                "actions",
+                commit_sha="f" * 40,
+            )
+        )
+        open_alerts: list[object] = []
+        return (
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            open_alerts,
+        )
 
     def test_security_gate_selects_highest_exact_runs_and_sanitizes_projection(
         self,
@@ -222,8 +286,24 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         self.assertEqual(2, gate["workflows"]["ci"]["run_attempt"])
         self.assertEqual(30, gate["workflows"]["codeql"]["run_id"])
         self.assertEqual(6, len(gate["workflows"]["codeql"]["jobs"]))
+        self.assertEqual(
+            self.TAG_COMMIT,
+            gate["code_scanning"]["main_ref"]["commit_sha"],
+        )
+        self.assertEqual(
+            300,
+            gate["code_scanning"]["analyses"][0]["analysis_id"],
+        )
+        self.assertEqual([], gate["code_scanning"]["open_alerts"])
         serialized = json.dumps(gate, sort_keys=True)
-        for forbidden in ("api.github.com", "html_url", "runner_name", "/Users/"):
+        for forbidden in (
+            "api.github.com",
+            "created_at",
+            "environment",
+            "html_url",
+            "runner_name",
+            "/Users/",
+        ):
             self.assertNotIn(forbidden, serialized)
 
     def test_security_gate_rejects_missing_failed_ambiguous_or_partial_jobs(self) -> None:
@@ -238,11 +318,31 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             "later-ci-in-progress-run",
             "later-codeql-failed-run",
             "later-codeql-in-progress-run",
+            "analysis-nonzero",
+            "analysis-error",
+            "analysis-warning",
+            "analysis-full-page",
+            "missing-analysis",
+            "duplicate-analysis-id",
+            "wrong-analysis-sha",
+            "wrong-analysis-ref",
+            "wrong-analysis-tool",
+            "wrong-analysis-tool-version",
+            "wrong-analysis-category",
+            "zero-analysis-rules",
+            "wrong-main-ref-sha",
+            "open-alert",
         ):
             with self.subTest(mutation=mutation):
-                ci_runs, ci_jobs, codeql_runs, codeql_jobs = copy.deepcopy(
-                    self._security_gate_inputs()
-                )
+                (
+                    ci_runs,
+                    ci_jobs,
+                    codeql_runs,
+                    codeql_jobs,
+                    main_ref,
+                    analyses,
+                    open_alerts,
+                ) = copy.deepcopy(self._security_gate_inputs())
                 if mutation == "failed-ct":
                     ci_jobs["jobs"][0]["conclusion"] = "failure"
                 elif mutation == "missing-codeql":
@@ -271,7 +371,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
                         later["conclusion"] = None
                     ci_runs["workflow_runs"].append(later)
                     ci_runs["total_count"] += 1
-                else:
+                elif mutation.startswith("later-codeql-"):
                     later = self._workflow_run(
                         31,
                         name=CODEQL_WORKFLOW_NAME,
@@ -284,12 +384,49 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
                         later["conclusion"] = None
                     codeql_runs["workflow_runs"].append(later)
                     codeql_runs["total_count"] += 1
+                elif mutation == "analysis-nonzero":
+                    analyses[0]["results_count"] = 1
+                elif mutation == "analysis-error":
+                    analyses[0]["error"] = "analysis failed"
+                elif mutation == "analysis-warning":
+                    analyses[0]["warning"] = "partial extraction"
+                elif mutation == "analysis-full-page":
+                    while len(analyses) < 100:
+                        analyses.append(
+                            self._code_scanning_analysis(
+                                1_000 + len(analyses),
+                                "actions",
+                            )
+                        )
+                elif mutation == "missing-analysis":
+                    analyses.pop(5)
+                elif mutation == "duplicate-analysis-id":
+                    analyses[1]["id"] = analyses[0]["id"]
+                elif mutation == "wrong-analysis-sha":
+                    analyses[0]["commit_sha"] = "e" * 40
+                elif mutation == "wrong-analysis-ref":
+                    analyses[0]["ref"] = "refs/pull/26/merge"
+                elif mutation == "wrong-analysis-tool":
+                    analyses[0]["tool"]["name"] = "Other"
+                elif mutation == "wrong-analysis-tool-version":
+                    analyses[0]["tool"]["version"] = "2.26.1"
+                elif mutation == "wrong-analysis-category":
+                    analyses[0]["category"] = "/language:ruby"
+                elif mutation == "zero-analysis-rules":
+                    analyses[0]["rules_count"] = 0
+                elif mutation == "wrong-main-ref-sha":
+                    main_ref["object"]["sha"] = "e" * 40
+                else:
+                    open_alerts.append({"number": 1})
                 with self.assertRaises(CandidateAttestationError):
                     candidate_attestation.build_source_security_gate(
                         ci_runs,
                         ci_jobs,
                         codeql_runs,
                         codeql_jobs,
+                        main_ref,
+                        analyses,
+                        open_alerts,
                         expected_tag_commit=self.TAG_COMMIT,
                         expected_source_parent_commit=self.SOURCE_PARENT,
                         ci_workflow_sha256="c" * 64,
@@ -301,7 +438,15 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
     def test_live_security_gate_uses_one_resampled_hosted_cli_projection(
         self,
     ) -> None:
-        ci_runs, ci_jobs, codeql_runs, codeql_jobs = self._security_gate_inputs()
+        (
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            open_alerts,
+        ) = self._security_gate_inputs()
         tool = candidate_attestation.WorkflowToolIdentity(
             path="/usr/bin/gh",
             device=1,
@@ -312,12 +457,18 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             size=10,
             sha256="e" * 64,
         )
-        responses = [
-            b"gh version 2.94.0 (2026-08-01)\n",
-            json.dumps(ci_runs).encode("ascii"),
-            json.dumps(codeql_runs).encode("ascii"),
-            json.dumps(ci_jobs).encode("ascii"),
-            json.dumps(codeql_jobs).encode("ascii"),
+        sample = (
+            ci_runs,
+            codeql_runs,
+            ci_jobs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            open_alerts,
+        )
+        responses = [b"gh version 2.94.0 (2026-08-01)\n"] + [
+            json.dumps(value).encode("ascii")
+            for value in (*sample, *copy.deepcopy(sample))
         ]
         capture = mock.Mock(side_effect=responses)
         output = self.root / SOURCE_SECURITY_GATE
@@ -361,7 +512,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             )
 
         self.assertEqual("f" * 64, digest)
-        self.assertEqual(5, capture.call_count)
+        self.assertEqual(15, capture.call_count)
         for api_call in capture.call_args_list[1:]:
             arguments = api_call.args[1]
             self.assertEqual("api", arguments[0])
@@ -375,12 +526,151 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         self.assertIn("actions/workflows/codeql.yml/runs?", capture.call_args_list[2].args[1][-1])
         self.assertIn("/runs/20/attempts/2/jobs?", capture.call_args_list[3].args[1][-1])
         self.assertIn("/runs/30/attempts/3/jobs?", capture.call_args_list[4].args[1][-1])
+        self.assertIn("/git/ref/heads/main", capture.call_args_list[5].args[1][-1])
+        self.assertIn("tool_name=CodeQL", capture.call_args_list[6].args[1][-1])
+        self.assertIn("state=open", capture.call_args_list[7].args[1][-1])
         gate = writer.call_args.args[1]
         self.assertEqual("e" * 64, gate["observation_tools"]["github_cli"]["sha256"])
         self.assertEqual(20, gate["workflows"]["ci"]["run_id"])
 
+    def test_live_security_gate_rejects_second_sample_drift(self) -> None:
+        inputs = self._security_gate_inputs()
+        ci_runs, ci_jobs, codeql_runs, codeql_jobs, main_ref, analyses, alerts = inputs
+        selected_ci = ci_runs["workflow_runs"][1]
+        selected_codeql = codeql_runs["workflow_runs"][0]
+        before = (
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            alerts,
+            selected_ci,
+            selected_codeql,
+        )
+        after = copy.deepcopy(before)
+        after[5][0]["created_at"] = "2026-08-15T00:00:01Z"
+        tool = candidate_attestation.WorkflowToolIdentity(
+            path="/usr/bin/gh",
+            device=1,
+            inode=2,
+            mode=stat.S_IFREG | 0o755,
+            uid=0,
+            link_count=1,
+            size=10,
+            sha256="e" * 64,
+        )
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_source_parent_from_results",
+                return_value=self.SOURCE_PARENT,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_workflow_github_environment",
+                return_value={"GH_TOKEN": "fixture-token"},
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_workflow_github_cli_identity",
+                return_value=tool,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_capture_workflow_github_cli",
+                return_value=b"gh version 2.94.0 (2026-08-01)\n",
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_query_source_security_api",
+                side_effect=(before, after),
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_write_public_gate_noreplace",
+            ) as writer,
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "live source-security observations changed between samples",
+            ),
+        ):
+            candidate_attestation.assemble_live_source_security_gate(
+                self.TAG_COMMIT,
+                self.SOURCE_PARENT,
+                self.root / SOURCE_SECURITY_GATE,
+                source_environment={"GH_TOKEN": "fixture-token"},
+            )
+        writer.assert_not_called()
+
+    def test_live_security_gate_rejects_malformed_commits_before_io(self) -> None:
+        for label, tag_commit, source_parent in (
+            ("R", "not-a-commit", self.SOURCE_PARENT),
+            ("S", self.TAG_COMMIT, "A" * 40),
+        ):
+            with self.subTest(commit=label):
+                with (
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_source_parent_from_results",
+                    ) as results_reader,
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_workflow_github_environment",
+                    ) as environment_builder,
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_workflow_github_cli_identity",
+                    ) as tool_probe,
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_capture_workflow_github_cli",
+                    ) as capture,
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_query_source_security_api",
+                    ) as api_query,
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_workflow_sha256",
+                    ) as workflow_hash,
+                    mock.patch.object(
+                        candidate_attestation,
+                        "_write_public_gate_noreplace",
+                    ) as writer,
+                    self.assertRaisesRegex(
+                        CandidateAttestationError,
+                        rf"source security gate {label} is malformed",
+                    ),
+                ):
+                    candidate_attestation.assemble_live_source_security_gate(
+                        tag_commit,
+                        source_parent,
+                        self.root / SOURCE_SECURITY_GATE,
+                        source_environment={"GH_TOKEN": "fixture-token"},
+                    )
+                for operation in (
+                    results_reader,
+                    environment_builder,
+                    tool_probe,
+                    capture,
+                    api_query,
+                    workflow_hash,
+                    writer,
+                ):
+                    operation.assert_not_called()
+
     def test_pretag_security_readiness_double_samples_exact_runs(self) -> None:
-        ci_runs, ci_jobs, codeql_runs, codeql_jobs = self._security_gate_inputs()
+        (
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            open_alerts,
+        ) = self._security_gate_inputs()
         tool = candidate_attestation.github_release.GitHubCliIdentity(
             path="/pinned/gh",
             device=1,
@@ -391,7 +681,15 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             size=10,
             sha256="e" * 64,
         )
-        sample = [ci_runs, codeql_runs, ci_jobs, codeql_jobs]
+        sample = [
+            ci_runs,
+            codeql_runs,
+            ci_jobs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            open_alerts,
+        ]
         responses = [
             json.dumps(value).encode("ascii")
             for value in (*sample, *copy.deepcopy(sample))
@@ -430,7 +728,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             )
 
         self.assertEqual((20, 2, 30, 3, "e" * 64), observed)
-        self.assertEqual(8, capture.call_count)
+        self.assertEqual(14, capture.call_count)
         for api_call in capture.call_args_list:
             arguments = api_call.args[1]
             self.assertEqual("api", arguments[0])
@@ -443,9 +741,17 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         currentness.assert_called_once_with(self.SOURCE_PARENT)
 
     def test_pretag_security_readiness_rejects_second_sample_drift(self) -> None:
-        ci_runs, ci_jobs, codeql_runs, codeql_jobs = self._security_gate_inputs()
-        changed_ci = copy.deepcopy(ci_runs)
-        changed_ci["workflow_runs"][0]["updated_at"] = "2026-08-15T00:00:00Z"
+        (
+            ci_runs,
+            ci_jobs,
+            codeql_runs,
+            codeql_jobs,
+            main_ref,
+            analyses,
+            open_alerts,
+        ) = self._security_gate_inputs()
+        changed_analyses = copy.deepcopy(analyses)
+        changed_analyses[0]["created_at"] = "2026-08-15T00:00:01Z"
         responses = [
             json.dumps(value).encode("ascii")
             for value in (
@@ -453,10 +759,16 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
                 codeql_runs,
                 ci_jobs,
                 codeql_jobs,
-                changed_ci,
+                main_ref,
+                analyses,
+                open_alerts,
+                ci_runs,
                 codeql_runs,
                 ci_jobs,
                 codeql_jobs,
+                main_ref,
+                changed_analyses,
+                open_alerts,
             )
         ]
         tool = candidate_attestation.github_release.GitHubCliIdentity(
@@ -547,6 +859,56 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             ):
                 candidate_attestation._write_public_gate_noreplace(output, gate)
             self.assertIs(committed, caught.exception)
+
+    def test_offline_security_gate_cli_accepts_all_seven_observations(self) -> None:
+        inputs = self._security_gate_inputs()
+        fixture_paths: list[pathlib.Path] = []
+        for index, value in enumerate(inputs):
+            path = self.root / f"security-api-{index}.json"
+            path.write_text(json.dumps(value), encoding="ascii")
+            fixture_paths.append(path)
+        output_parent = self.root / "offline-candidate"
+        output_parent.mkdir(mode=0o700)
+        os.chmod(output_parent, 0o700)
+        output = output_parent / SOURCE_SECURITY_GATE
+        command = [
+            "security-gate",
+            *(str(path) for path in fixture_paths),
+            self.TAG_COMMIT,
+            self.SOURCE_PARENT,
+            str(output),
+            "e" * 64,
+            "gh version 2.94.0 (2026-08-01)",
+        ]
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_source_parent_from_results",
+                return_value=self.SOURCE_PARENT,
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_workflow_sha256",
+                side_effect=("c" * 64, "d" * 64),
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "WORKFLOW_CANDIDATE_ROOT",
+                output_parent,
+            ),
+            contextlib.redirect_stdout(stdout),
+        ):
+            self.assertEqual(0, candidate_attestation._main(command))
+        gate = json.loads(output.read_text(encoding="ascii"))
+        validate_source_security_gate(
+            gate,
+            expected_tag_commit=self.TAG_COMMIT,
+            expected_source_parent_commit=self.SOURCE_PARENT,
+            expected_ci_workflow_sha256="c" * 64,
+            expected_codeql_workflow_sha256="d" * 64,
+        )
+        self.assertIn("ABI2_SOURCE_SECURITY_GATE_PASS", stdout.getvalue())
 
     def test_release_checkout_binding_uses_fixed_git_and_exact_results_child(
         self,

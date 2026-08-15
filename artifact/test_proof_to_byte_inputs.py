@@ -40,7 +40,7 @@ class ProofToByteInputsTests(unittest.TestCase):
 
     def test_live_map_is_exact_unique_and_self_covering(self) -> None:
         mapping = inputs.PROOF_TO_BYTE_INPUT_PATHS
-        self.assertEqual(226, len(mapping))
+        self.assertEqual(232, len(mapping))
         self.assertEqual(len(mapping), len(set(mapping.values())))
         self.assertEqual(
             "artifact/test_proof_to_byte_inputs.py",
@@ -49,6 +49,22 @@ class ProofToByteInputsTests(unittest.TestCase):
         self.assertEqual(
             "artifact/test_source_results_assembler.py",
             mapping["source_results_assembler_tests_sha256"],
+        )
+        self.assertEqual(
+            "artifact/formal_toolchain_contract.py",
+            mapping["formal_toolchain_contract_sha256"],
+        )
+        self.assertEqual(
+            "artifact/test_formal_toolchain_contract.py",
+            mapping["formal_toolchain_contract_tests_sha256"],
+        )
+        self.assertEqual(
+            "formal/Dockerfile",
+            mapping["formal_easycrypt_dockerfile_sha256"],
+        )
+        self.assertEqual(
+            "formal/proverif/Makefile",
+            mapping["proverif_makefile_sha256"],
         )
         self.assertEqual(
             "artifact/rust_package_handoff.py",
@@ -68,6 +84,34 @@ class ProofToByteInputsTests(unittest.TestCase):
                 self.assertFalse(pathlib.PurePosixPath(relative).is_absolute())
                 self.assertNotIn("..", pathlib.PurePosixPath(relative).parts)
                 self.assertTrue((ROOT / relative).is_file(), relative)
+
+        self.assertEqual(
+            {
+                "formal/Dockerfile",
+                "formal/easycrypt/BindingViaCR.ec",
+                "formal/easycrypt/MigrationBindingV2.ec",
+                "formal/easycrypt/Makefile",
+                "formal/easycrypt/negative-controls.sh",
+                "formal/easycrypt/continuity/LifecycleContextV1.ec",
+                "formal/easycrypt/continuity/PrekeySelectionV1.ec",
+                "formal/easycrypt/continuity/Makefile",
+                "formal/proverif/Makefile",
+                "formal/proverif/handshake.pv",
+                "formal/tamarin/Makefile",
+                "formal/tamarin/handshake.spthy",
+                "formal/tamarin/migration_v2.spthy",
+                "formal/tamarin/migration_v2_agreement.spthy",
+                "formal/tamarin/migration_v2_liveness.spthy",
+                "formal/tamarin/migration_v2_negative_controls.spthy",
+                "formal/tamarin/migration_v2_no_witness.spthy",
+                "formal/tamarin/migration_v2_rollback.spthy",
+            },
+            {
+                relative
+                for relative in mapping.values()
+                if relative.startswith("formal/")
+            },
+        )
 
     def test_capture_and_verify_use_the_exact_stable_bytes(self) -> None:
         first = self.write("proof/first.bin", b"first\x00bytes")

@@ -44,10 +44,15 @@ from git_provenance import GIT
 from platform_distribution_contract import (
     CI_WORKFLOW_NAME,
     CI_WORKFLOW_PATH,
+    CODEQL_ANALYSIS_CONTRACT,
+    CODEQL_ANALYSIS_KEY,
+    CODEQL_TOOL_VERSION,
     CODEQL_JOB_CONTRACT,
     CODEQL_WORKFLOW_NAME,
     CODEQL_WORKFLOW_PATH,
     CONSTANT_TIME_JOB_CONTRACT,
+    MAIN_REF,
+    MAX_CODEQL_RULE_COUNT,
     MAX_WORKFLOW_RUN_ATTEMPT,
     MAX_WORKFLOW_RUN_ID,
     PLATFORM_CANDIDATE_ASSETS,
@@ -187,6 +192,14 @@ def _fail(message: str) -> NoReturn:
 def _require(condition: bool, message: str) -> None:
     if not condition:
         _fail(message)
+
+
+def _require_exact_commit(value: object, *, label: str) -> str:
+    _require(
+        isinstance(value, str) and HEX_40.fullmatch(value) is not None,
+        f"{label} is malformed",
+    )
+    return value
 
 
 def _object(value: object, label: str) -> dict[str, Any]:
@@ -594,6 +607,114 @@ def _selected_job_map(
     return by_name
 
 
+def _selected_code_scanning_observations(
+    main_ref: object,
+    analyses: object,
+    open_alerts: object,
+    *,
+    expected_commit: str,
+) -> tuple[dict[str, str], list[dict[str, object]]]:
+    """Validate main authority and select the latest fixed analysis per category."""
+
+    ref_record = _object(main_ref, "Code Scanning main ref API response")
+    ref_object = _object(
+        ref_record.get("object"),
+        "Code Scanning main ref API response object",
+    )
+    _require(
+        ref_record.get("ref") == MAIN_REF
+        and ref_object.get("type") == "commit"
+        and ref_object.get("sha") == expected_commit,
+        "Code Scanning main ref is not exact R",
+    )
+    _require(
+        isinstance(open_alerts, list) and not open_alerts,
+        "Code Scanning main open-alert first page is not empty",
+    )
+    _require(
+        isinstance(analyses, list)
+        and len(CODEQL_ANALYSIS_CONTRACT) <= len(analyses) < 100,
+        "Code Scanning analysis first page is incomplete or oversized",
+    )
+    allowed_categories = frozenset(
+        category for _language, category in CODEQL_ANALYSIS_CONTRACT
+    )
+    by_category: dict[str, dict[str, Any]] = {}
+    analysis_ids: set[int] = set()
+    for raw in analyses:
+        analysis = _object(raw, "Code Scanning analysis API item")
+        analysis_id = _api_positive_integer(
+            analysis.get("id"),
+            maximum=MAX_RUN_ID,
+            label="Code Scanning analysis API id",
+        )
+        _require(
+            analysis_id not in analysis_ids,
+            "Code Scanning analysis API ids are not unique",
+        )
+        analysis_ids.add(analysis_id)
+        category = analysis.get("category")
+        _require(
+            isinstance(category, str) and category in allowed_categories,
+            "Code Scanning analysis API category differs",
+        )
+        current = by_category.get(category)
+        if current is None or analysis_id > current["id"]:
+            by_category[category] = analysis
+    _require(
+        set(by_category) == set(allowed_categories),
+        "Code Scanning latest analysis category set differs",
+    )
+
+    projected: list[dict[str, object]] = []
+    tool_versions: set[str] = set()
+    for language, category in CODEQL_ANALYSIS_CONTRACT:
+        analysis = by_category[category]
+        label = f"Code Scanning latest {category} analysis"
+        tool = _object(analysis.get("tool"), f"{label} tool")
+        tool_version = tool.get("version")
+        _require(
+            analysis.get("analysis_key") == CODEQL_ANALYSIS_KEY
+            and analysis.get("commit_sha") == expected_commit
+            and analysis.get("error") == ""
+            and analysis.get("ref") == MAIN_REF
+            and type(analysis.get("results_count")) is int
+            and analysis.get("results_count") == 0
+            and analysis.get("warning") == "",
+            f"{label} ({language}) identity or result differs",
+        )
+        rules_count = _api_positive_integer(
+            analysis.get("rules_count"),
+            maximum=MAX_CODEQL_RULE_COUNT,
+            label=f"{label} rules count",
+        )
+        _require(
+            tool.get("name") == "CodeQL"
+            and tool_version == CODEQL_TOOL_VERSION,
+            f"{label} tool identity differs",
+        )
+        tool_versions.add(tool_version)
+        projected.append(
+            {
+                "analysis_id": analysis["id"],
+                "analysis_key": CODEQL_ANALYSIS_KEY,
+                "category": category,
+                "commit_sha": expected_commit,
+                "error": "",
+                "ref": MAIN_REF,
+                "results_count": 0,
+                "rules_count": rules_count,
+                "tool": {"name": "CodeQL", "version": tool_version},
+                "warning": "",
+            }
+        )
+    _require(
+        len(tool_versions) == 1,
+        "Code Scanning latest analyses do not share one CodeQL version",
+    )
+    return {"commit_sha": expected_commit, "ref": MAIN_REF}, projected
+
+
 def _selected_source_security_observations(
     ci_runs: object,
     ci_jobs: object,
@@ -648,10 +769,13 @@ def _query_source_security_api(
     object,
     object,
     object,
+    object,
+    object,
+    object,
     dict[str, Any],
     dict[str, Any],
 ]:
-    """Query and validate one complete exact-R CI/CodeQL observation set."""
+    """Query and validate one complete exact-R hosted-security observation set."""
 
     ci_runs = api(
         f"repos/{REPOSITORY}/actions/workflows/ci.yml/runs?"
@@ -687,6 +811,20 @@ def _query_source_security_api(
         f"{codeql_run['run_attempt']}/jobs?filter=all&per_page=100",
         "CodeQL workflow jobs API response",
     )
+    main_ref = api(
+        f"repos/{REPOSITORY}/git/ref/heads/main",
+        "Code Scanning main ref API response",
+    )
+    analyses = api(
+        f"repos/{REPOSITORY}/code-scanning/analyses?"
+        f"ref={MAIN_REF}&tool_name=CodeQL&per_page=100&page=1",
+        "Code Scanning analyses API response",
+    )
+    open_alerts = api(
+        f"repos/{REPOSITORY}/code-scanning/alerts?"
+        f"state=open&ref={MAIN_REF}&per_page=100&page=1",
+        "Code Scanning open alerts API response",
+    )
     selected_ci, selected_codeql, _ci_jobs, _codeql_jobs = (
         _selected_source_security_observations(
             ci_runs,
@@ -696,13 +834,45 @@ def _query_source_security_api(
             expected_commit=expected_commit,
         )
     )
+    _selected_code_scanning_observations(
+        main_ref,
+        analyses,
+        open_alerts,
+        expected_commit=expected_commit,
+    )
     return (
         ci_runs,
         ci_jobs,
         codeql_runs,
         codeql_jobs,
+        main_ref,
+        analyses,
+        open_alerts,
         selected_ci,
         selected_codeql,
+    )
+
+
+def _require_source_security_samples_stable(
+    before: tuple[object, ...],
+    after: tuple[object, ...],
+    *,
+    label: str,
+) -> None:
+    """Require identical raw observations and selected workflow authorities."""
+
+    _require(len(before) == 9 and len(after) == 9, f"{label} shape differs")
+    before_ci = _object(before[7], f"{label} first CI selection")
+    after_ci = _object(after[7], f"{label} second CI selection")
+    before_codeql = _object(before[8], f"{label} first CodeQL selection")
+    after_codeql = _object(after[8], f"{label} second CodeQL selection")
+    _require(
+        before[:7] == after[:7]
+        and before_ci.get("id") == after_ci.get("id")
+        and before_ci.get("run_attempt") == after_ci.get("run_attempt")
+        and before_codeql.get("id") == after_codeql.get("id")
+        and before_codeql.get("run_attempt") == after_codeql.get("run_attempt"),
+        f"{label} changed between samples",
     )
 
 
@@ -724,6 +894,9 @@ def build_source_security_gate(
     ci_jobs: object,
     codeql_runs: object,
     codeql_jobs: object,
+    main_ref: object,
+    code_scanning_analyses: object,
+    code_scanning_open_alerts: object,
     *,
     expected_tag_commit: str,
     expected_source_parent_commit: str,
@@ -735,13 +908,13 @@ def build_source_security_gate(
     """Select the highest exact-R runs and project only bounded public fields."""
 
     _require(CONTRACT_REPOSITORY == REPOSITORY, "repository contracts differ")
-    _require(
-        HEX_40.fullmatch(expected_tag_commit) is not None,
-        "security gate tag commit is malformed",
+    _require_exact_commit(
+        expected_tag_commit,
+        label="security gate tag commit",
     )
-    _require(
-        HEX_40.fullmatch(expected_source_parent_commit) is not None,
-        "security gate source parent is malformed",
+    _require_exact_commit(
+        expected_source_parent_commit,
+        label="security gate source parent",
     )
     ci_run, codeql_run, ci_by_name, codeql_by_name = (
         _selected_source_security_observations(
@@ -752,10 +925,14 @@ def build_source_security_gate(
             expected_commit=expected_tag_commit,
         )
     )
-    ci_run_id = ci_run["id"]
-    ci_attempt = ci_run["run_attempt"]
-    codeql_run_id = codeql_run["id"]
-    codeql_attempt = codeql_run["run_attempt"]
+    main_ref_record, code_scanning_records = (
+        _selected_code_scanning_observations(
+            main_ref,
+            code_scanning_analyses,
+            code_scanning_open_alerts,
+            expected_commit=expected_tag_commit,
+        )
+    )
     constant_time_jobs = []
     for architecture, implementation, name in CONSTANT_TIME_JOB_CONTRACT:
         _require(name in ci_by_name, f"required constant-time job is absent: {name}")
@@ -803,6 +980,11 @@ def build_source_security_gate(
         }
 
     gate: dict[str, object] = {
+        "code_scanning": {
+            "analyses": code_scanning_records,
+            "main_ref": main_ref_record,
+            "open_alerts": [],
+        },
         "kind": SOURCE_SECURITY_GATE_KIND,
         "observation_tools": {
             "github_cli": {
@@ -909,6 +1091,9 @@ def assemble_source_security_gate(
     ci_jobs_path: pathlib.Path,
     codeql_runs_path: pathlib.Path,
     codeql_jobs_path: pathlib.Path,
+    main_ref_path: pathlib.Path,
+    code_scanning_analyses_path: pathlib.Path,
+    code_scanning_open_alerts_path: pathlib.Path,
     expected_tag_commit: str,
     expected_source_parent_commit: str,
     output_path: pathlib.Path,
@@ -930,6 +1115,15 @@ def assemble_source_security_gate(
         _load_api_json(ci_jobs_path, label="CI workflow jobs API response"),
         _load_api_json(codeql_runs_path, label="CodeQL workflow runs API response"),
         _load_api_json(codeql_jobs_path, label="CodeQL workflow jobs API response"),
+        _load_api_json(main_ref_path, label="Code Scanning main ref API response"),
+        _load_api_json(
+            code_scanning_analyses_path,
+            label="Code Scanning analyses API response",
+        ),
+        _load_api_json(
+            code_scanning_open_alerts_path,
+            label="Code Scanning open alerts API response",
+        ),
         expected_tag_commit=expected_tag_commit,
         expected_source_parent_commit=expected_source_parent_commit,
         ci_workflow_sha256=ci_sha256,
@@ -947,8 +1141,16 @@ def assemble_live_source_security_gate(
     *,
     source_environment: Mapping[str, str] | None = None,
 ) -> str:
-    """Query exact-R hosted runs with one resampled workflow-owned CLI."""
+    """Double-sample exact-R hosted security with one workflow-owned CLI."""
 
+    _require_exact_commit(
+        expected_tag_commit,
+        label="source security gate R",
+    )
+    _require_exact_commit(
+        expected_source_parent_commit,
+        label="source security gate S",
+    )
     _require(
         _source_parent_from_results() == expected_source_parent_commit,
         "source security gate S differs from tagged results",
@@ -986,14 +1188,32 @@ def assemble_live_source_security_gate(
         except EvidenceIOError as exc:
             raise CandidateAttestationError(f"{label} JSON is invalid") from exc
 
-    ci_runs, ci_jobs, codeql_runs, codeql_jobs, _ci_run, _codeql_run = (
-        _query_source_security_api(api, expected_commit=expected_tag_commit)
+    before = _query_source_security_api(api, expected_commit=expected_tag_commit)
+    after = _query_source_security_api(api, expected_commit=expected_tag_commit)
+    _require_source_security_samples_stable(
+        before,
+        after,
+        label="live source-security observations",
     )
+    (
+        ci_runs,
+        ci_jobs,
+        codeql_runs,
+        codeql_jobs,
+        main_ref,
+        code_scanning_analyses,
+        code_scanning_open_alerts,
+        _ci_run,
+        _codeql_run,
+    ) = before
     gate = build_source_security_gate(
         ci_runs,
         ci_jobs,
         codeql_runs,
         codeql_jobs,
+        main_ref,
+        code_scanning_analyses,
+        code_scanning_open_alerts,
         expected_tag_commit=expected_tag_commit,
         expected_source_parent_commit=expected_source_parent_commit,
         ci_workflow_sha256=_workflow_sha256(
@@ -1016,15 +1236,12 @@ def verify_pretag_security_readiness(
     *,
     source_environment: Mapping[str, str] | None = None,
 ) -> tuple[int, int, int, int, str]:
-    """Double-sample the exact-R CI/CodeQL authority before immutable tags exist."""
+    """Double-sample exact-R hosted-security authority before tags exist."""
 
-    _require(
-        HEX_40.fullmatch(expected_tag_commit) is not None,
-        "pre-tag security R is malformed",
-    )
-    _require(
-        HEX_40.fullmatch(expected_source_parent_commit) is not None,
-        "pre-tag security S is malformed",
+    _require_exact_commit(expected_tag_commit, label="pre-tag security R")
+    _require_exact_commit(
+        expected_source_parent_commit,
+        label="pre-tag security S",
     )
     _require(
         _source_parent_from_results() == expected_source_parent_commit,
@@ -1061,16 +1278,13 @@ def verify_pretag_security_readiness(
         )
     except github_release.GitHubReleaseObservationError as exc:
         raise CandidateAttestationError(str(exc)) from exc
-    _require(
-        before[:4] == after[:4]
-        and before[4]["id"] == after[4]["id"]
-        and before[4]["run_attempt"] == after[4]["run_attempt"]
-        and before[5]["id"] == after[5]["id"]
-        and before[5]["run_attempt"] == after[5]["run_attempt"],
-        "pre-tag security observations changed between samples",
+    _require_source_security_samples_stable(
+        before,
+        after,
+        label="pre-tag security observations",
     )
-    ci_run = before[4]
-    codeql_run = before[5]
+    ci_run = before[7]
+    codeql_run = before[8]
     return (
         ci_run["id"],
         ci_run["run_attempt"],
@@ -2190,7 +2404,8 @@ def _usage() -> str:
     return (
         "usage: platform_candidate_attestation.py release-tag | subject-names | "
         "validate-raw-root | "
-        "security-gate CI_RUNS CI_JOBS CODEQL_RUNS CODEQL_JOBS R S OUTPUT "
+        "security-gate CI_RUNS CI_JOBS CODEQL_RUNS CODEQL_JOBS MAIN_REF "
+        "CODE_SCANNING_ANALYSES CODE_SCANNING_OPEN_ALERTS R S OUTPUT "
         "GH_SHA256 GH_VERSION | "
         "security-gate-live R S OUTPUT | "
         "pretag-security-readiness R S | "
@@ -2226,21 +2441,24 @@ def _main(arguments: Sequence[str]) -> int:
             required_mode=0o700,
         )
         return 0
-    if len(arguments) == 10 and arguments[0] == "security-gate":
+    if len(arguments) == 13 and arguments[0] == "security-gate":
         digest = assemble_source_security_gate(
             pathlib.Path(arguments[1]),
             pathlib.Path(arguments[2]),
             pathlib.Path(arguments[3]),
             pathlib.Path(arguments[4]),
-            arguments[5],
-            arguments[6],
+            pathlib.Path(arguments[5]),
+            pathlib.Path(arguments[6]),
             pathlib.Path(arguments[7]),
             arguments[8],
             arguments[9],
+            pathlib.Path(arguments[10]),
+            arguments[11],
+            arguments[12],
         )
         print(
             "ABI2_SOURCE_SECURITY_GATE_PASS "
-            f"sha256={digest} tag_commit={arguments[5]}"
+            f"sha256={digest} tag_commit={arguments[8]}"
         )
         return 0
     if len(arguments) == 4 and arguments[0] == "security-gate-live":

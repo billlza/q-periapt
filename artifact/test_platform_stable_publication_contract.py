@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import operator
 import unittest
 
 import android_device_proof
@@ -69,7 +70,35 @@ def _security_gate_projection(
             current_distribution_contract.CODEQL_JOB_CONTRACT
         )
     ]
+    code_scanning_analyses = [
+        {
+            "analysis_id": 300 + index,
+            "analysis_key": current_distribution_contract.CODEQL_ANALYSIS_KEY,
+            "category": category,
+            "commit_sha": tag_commit,
+            "error": "",
+            "ref": current_distribution_contract.MAIN_REF,
+            "results_count": 0,
+            "rules_count": 20 + index,
+            "tool": {
+                "name": "CodeQL",
+                "version": current_distribution_contract.CODEQL_TOOL_VERSION,
+            },
+            "warning": "",
+        }
+        for index, (_language, category) in enumerate(
+            current_distribution_contract.CODEQL_ANALYSIS_CONTRACT
+        )
+    ]
     return {
+        "code_scanning": {
+            "analyses": code_scanning_analyses,
+            "main_ref": {
+                "commit_sha": tag_commit,
+                "ref": current_distribution_contract.MAIN_REF,
+            },
+            "open_alerts": [],
+        },
         "kind": current_distribution_contract.SOURCE_SECURITY_GATE_KIND,
         "observation_tools": {
             "github_cli": {
@@ -105,6 +134,50 @@ def _security_gate_projection(
     }
 
 
+def _release_candidate(
+    candidate_digests: dict[str, str],
+) -> dict[str, object]:
+    asset_digests = {
+        name: (
+            candidate_digests[name]
+            if name in contract.CANDIDATE_PUBLIC_ASSET_NAMES
+            else _digest(index)
+        )
+        for index, name in enumerate(contract.PUBLIC_ASSET_NAMES, start=60)
+    }
+    return {
+        "android_runtime_evidence": {
+            "bundle_manifest_sha256": _digest(80),
+            "bundle_schema": 2,
+            "bundle_sha256": asset_digests[contract.ANDROID_RUNTIME_BUNDLE],
+            "device_abi": "arm64-v8a",
+            "device_kind": "emulator",
+            "device_sdk": 35,
+            "page_size": 16_384,
+            "proof_schema": 6,
+            "proof_sha256": _digest(81),
+            "release_mode": True,
+            "tested_aar_manifest_sha256": asset_digests[
+                contract.ANDROID_MANIFEST
+            ],
+            "tested_aar_sha256": asset_digests[contract.ANDROID_AAR],
+        },
+        "assets": [
+            {
+                "bytes": 1_000 + index,
+                "content_type": contract.PUBLIC_ASSET_CONTENT_TYPES[name],
+                "name": name,
+                "sha256": asset_digests[name],
+            }
+            for index, name in enumerate(contract.PUBLIC_ASSET_NAMES)
+        ],
+        "checksums_sha256": asset_digests[contract.RELEASE_SUMS],
+        "platform_distribution_sha256": asset_digests[
+            contract.RELEASE_MANIFEST
+        ],
+    }
+
+
 def pending_receipt() -> dict[str, object]:
     tag_commit = "1" * 40
     source_parent_commit = "4" * 40
@@ -124,6 +197,7 @@ def pending_receipt() -> dict[str, object]:
         },
         "kind": contract.PLATFORM_V0_1_0_PUBLICATION_KIND,
         "observation": {
+            "assembly_receipt_sha256": _digest(39),
             "candidate_attestation": {
                 "certificate_san": contract.CANDIDATE_SIGNER_WORKFLOW,
                 "predicate_type": contract.CANDIDATE_PREDICATE_TYPE,
@@ -148,8 +222,10 @@ def pending_receipt() -> dict[str, object]:
                 "workflow_run_id": 31_700_000_001,
             },
             "observed_at": "2026-08-14T04:00:00Z",
+            "release_candidate": _release_candidate(candidate_digests),
             "source": {
                 "canonical_source_tree_sha256": _digest(41),
+                "source_date_epoch": 1_700_000_000,
                 "source_parent_commit": source_parent_commit,
                 "tag_commit": tag_commit,
                 "tag_object": "2" * 40,
@@ -170,42 +246,24 @@ def verified_receipt() -> dict[str, object]:
         subject["name"]: subject["digest"]["sha256"]
         for subject in observation["candidate_attestation"]["subjects"]
     }
+    release_candidate = observation["release_candidate"]
     asset_digests = {
-        name: (
-            candidate_subjects[name]
-            if name in contract.CANDIDATE_PUBLIC_ASSET_NAMES
-            else _digest(index)
-        )
-        for index, name in enumerate(contract.PUBLIC_ASSET_NAMES, start=60)
+        asset["name"]: asset["sha256"]
+        for asset in release_candidate["assets"]
     }
     assets = [
         {
-            "bytes": 1_000 + index,
-            "name": name,
-            "sha256": asset_digests[name],
+            "bytes": asset["bytes"],
+            "name": asset["name"],
+            "sha256": asset["sha256"],
         }
-        for index, name in enumerate(contract.PUBLIC_ASSET_NAMES)
+        for asset in release_candidate["assets"]
     ]
     observation.update(
         {
-            "android_runtime_evidence": {
-                "bundle_manifest_sha256": _digest(80),
-                "bundle_schema": 2,
-                "bundle_sha256": asset_digests[
-                    contract.ANDROID_RUNTIME_BUNDLE
-                ],
-                "device_abi": "arm64-v8a",
-                "device_kind": "emulator",
-                "device_sdk": 35,
-                "page_size": 16_384,
-                "proof_schema": 6,
-                "proof_sha256": _digest(81),
-                "release_mode": True,
-                "tested_aar_manifest_sha256": asset_digests[
-                    contract.ANDROID_MANIFEST
-                ],
-                "tested_aar_sha256": asset_digests[contract.ANDROID_AAR],
-            },
+            "android_runtime_evidence": copy.deepcopy(
+                release_candidate["android_runtime_evidence"]
+            ),
             "assets": assets,
             "checksums_sha256": asset_digests[contract.RELEASE_SUMS],
             "draft": False,
@@ -277,7 +335,13 @@ class PlatformV010PublicationContractTests(unittest.TestCase):
         self.validate(receipt)
         self.assertEqual(
             set(receipt["observation"]),
-            {"candidate_attestation", "observed_at", "source"},
+            {
+                "assembly_receipt_sha256",
+                "candidate_attestation",
+                "observed_at",
+                "release_candidate",
+                "source",
+            },
         )
 
         for mutation in ("top-extra", "observation-extra", "candidate-extra"):
@@ -296,6 +360,40 @@ class PlatformV010PublicationContractTests(unittest.TestCase):
                     "keys differ",
                 ):
                     self.validate(changed)
+
+    def test_pending_release_candidate_is_exact_and_candidate_crosslinked(self) -> None:
+        for mutation in (
+            "legacy-schema",
+            "asset-order",
+            "asset-content-type",
+            "candidate-crosslink",
+            "runtime-crosslink",
+        ):
+            with self.subTest(mutation=mutation):
+                receipt = pending_receipt()
+                if mutation == "legacy-schema":
+                    receipt["schema_version"] = 2
+                elif mutation == "asset-order":
+                    assets = receipt["observation"]["release_candidate"]["assets"]
+                    assets[0], assets[1] = assets[1], assets[0]
+                elif mutation == "asset-content-type":
+                    receipt["observation"]["release_candidate"]["assets"][0][
+                        "content_type"
+                    ] = "application/octet-stream"
+                elif mutation == "candidate-crosslink":
+                    name = contract.ANDROID_AAR
+                    index = contract.PUBLIC_ASSET_NAMES.index(name)
+                    receipt["observation"]["release_candidate"]["assets"][index][
+                        "sha256"
+                    ] = _digest(150)
+                else:
+                    receipt["observation"]["release_candidate"][
+                        "android_runtime_evidence"
+                    ]["bundle_sha256"] = _digest(151)
+                with self.assertRaises(
+                    contract.PlatformV010PublicationContractError
+                ):
+                    self.validate(receipt)
 
     def test_discriminant_and_json_scalar_types_fail_closed(self) -> None:
         mutations = (
@@ -396,8 +494,10 @@ class PlatformV010PublicationContractTests(unittest.TestCase):
         for mutation in (
             "receipt-digest",
             "source-parent",
+            "legacy-security-schema",
             "failed-ct",
             "missing-codeql",
+            "wrong-codeql-tool-version",
             "workflow-path",
         ):
             with self.subTest(mutation=mutation):
@@ -408,10 +508,16 @@ class PlatformV010PublicationContractTests(unittest.TestCase):
                     gate["receipt_sha256"] = _digest(140)
                 elif mutation == "source-parent":
                     gate["source_parent_commit"] = "9" * 40
+                elif mutation == "legacy-security-schema":
+                    gate["schema_version"] = 1
                 elif mutation == "failed-ct":
                     gate["workflows"]["ci"]["jobs"][0]["conclusion"] = "failure"
                 elif mutation == "missing-codeql":
                     gate["workflows"]["codeql"]["jobs"].pop()
+                elif mutation == "wrong-codeql-tool-version":
+                    gate["code_scanning"]["analyses"][0]["tool"]["version"] = (
+                        "2.26.1"
+                    )
                 else:
                     gate["workflows"]["ci"]["workflow_path"] = (
                         ".github/workflows/other.yml"
@@ -435,12 +541,18 @@ class PlatformV010PublicationContractTests(unittest.TestCase):
         changed["observation"]["candidate_attestation"]["subjects"][
             candidate_index
         ]["digest"]["sha256"] = replacement
+        changed["observation"]["release_candidate"]["assets"][asset_index][
+            "sha256"
+        ] = replacement
         changed["observation"]["release_attestation"]["subjects"][
             asset_index + 1
         ]["digest"]["sha256"] = replacement
         changed["observation"]["android_runtime_evidence"][
             "tested_aar_sha256"
         ] = replacement
+        changed["observation"]["release_candidate"][
+            "android_runtime_evidence"
+        ]["tested_aar_sha256"] = replacement
         self.validate(changed)
 
     def test_public_assets_and_release_subjects_are_exact_and_ordered(self) -> None:
@@ -624,6 +736,33 @@ class PlatformV010PublicationContractTests(unittest.TestCase):
             contract.PUBLIC_ASSET_NAMES,
             tuple(sorted(current_distribution_contract.PLATFORM_RELEASE_FILES)),
         )
+        self.assertEqual(
+            contract.PUBLIC_ASSET_NAMES,
+            tuple(contract.PUBLIC_ASSET_CONTENT_TYPES),
+        )
+        self.assertIs(
+            contract.PUBLIC_ASSET_CONTENT_TYPES,
+            current_distribution_contract.PUBLIC_ASSET_CONTENT_TYPES,
+        )
+        self.assertEqual(
+            {
+                current_distribution_contract.RELEASE_MANIFEST: "application/json",
+                current_distribution_contract.RELEASE_SUMS: "application/octet-stream",
+                current_distribution_contract.ANDROID_RUNTIME_BUNDLE: "application/zip",
+                current_distribution_contract.ANDROID_MANIFEST: "application/json",
+                current_distribution_contract.ANDROID_AAR: "application/octet-stream",
+                current_distribution_contract.LINUX_AARCH64: "application/x-gtar",
+                current_distribution_contract.LINUX_X86_64: "application/x-gtar",
+            },
+            dict(contract.PUBLIC_ASSET_CONTENT_TYPES),
+        )
+        with self.assertRaises(TypeError):
+            operator.setitem(
+                contract.PUBLIC_ASSET_CONTENT_TYPES,
+                contract.ANDROID_AAR,
+                "application/octet-stream",
+            )
+        self.assertEqual(contract.PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION, 3)
         self.assertEqual(
             current_distribution_contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
             android_device_proof.PROOF_SCHEMA_VERSION,

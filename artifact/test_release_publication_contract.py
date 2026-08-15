@@ -43,6 +43,10 @@ def _rebind_platform(
     security_gate["tag_commit"] = source["tag_commit"]
     for workflow in security_gate["workflows"].values():
         workflow["head_sha"] = source["tag_commit"]
+    code_scanning = security_gate["code_scanning"]
+    code_scanning["main_ref"]["commit_sha"] = source["tag_commit"]
+    for analysis in code_scanning["analyses"]:
+        analysis["commit_sha"] = source["tag_commit"]
     if rebound["status"] == "observed_public_immutable_fresh_download_verified":
         observation["fresh_download_verification"]["verifier_commit"] = source[
             "tag_commit"
@@ -302,6 +306,31 @@ class ReleasePublicationContractTests(unittest.TestCase):
                 self.assertEqual(expected_state, contract.publication_state(manifest))
         contract.validate_release_publication_transition(source, pending)
         contract.validate_release_publication_transition(pending, verified)
+
+    def test_platform_rebinding_propagates_exact_r_to_security_gate(self) -> None:
+        apple_source = stable_pending_receipt()["source"]
+        platform = _rebind_platform(platform_pending_receipt(), apple_source)
+        observation = platform["observation"]
+        gate = observation["candidate_attestation"]["security_gate"]
+        tag_commit = apple_source["tag_commit"]
+
+        self.assertEqual(tag_commit, observation["source"]["tag_commit"])
+        self.assertEqual(tag_commit, gate["tag_commit"])
+        self.assertEqual(
+            {tag_commit},
+            {workflow["head_sha"] for workflow in gate["workflows"].values()},
+        )
+        self.assertEqual(
+            tag_commit,
+            gate["code_scanning"]["main_ref"]["commit_sha"],
+        )
+        self.assertEqual(
+            {tag_commit},
+            {
+                analysis["commit_sha"]
+                for analysis in gate["code_scanning"]["analyses"]
+            },
+        )
 
     def test_pending_and_verified_reject_forged_stale_source_gates(self) -> None:
         mutations = (

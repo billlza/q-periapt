@@ -196,7 +196,10 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         tag = f"v{version}-{revision}" if is_historical else f"v{version}"
         hashes = {
             asset: _digest(index)
-            for index, asset in enumerate(verification.ASSET_NAMES, start=20)
+            for index, asset in enumerate(
+                apple_contract.APPLE_PUBLIC_ASSET_NAMES,
+                start=20,
+            )
         }
         schema_version = 2 if kind == verification.COMPLETION_LEDGER_KIND else 1
         document = {
@@ -229,13 +232,18 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         release_id: int | None = None,
     ) -> dict[str, object]:
         assets = []
-        for index, name in enumerate(verification.ASSET_NAMES, start=1):
+        for index, name in enumerate(
+            apple_contract.APPLE_PUBLIC_ASSET_NAMES,
+            start=1,
+        ):
             assets.append(
                 {
                     "apiUrl": (
                         f"{verification.API_ASSET_PREFIX}{500_000_000 + index}"
                     ),
-                    "contentType": verification.ASSET_CONTENT_TYPES[name],
+                    "contentType": (
+                        apple_contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES[name]
+                    ),
                     "createdAt": "2026-08-14T02:00:00Z",
                     "digest": f"sha256:{hashes[name]}",
                     "downloadCount": index,
@@ -277,7 +285,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             {"digest": {"sha1": tag_object}, "uri": purl},
             *[
                 {"digest": {"sha256": hashes[name]}, "name": name}
-                for name in verification.ASSET_NAMES
+                for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES
             ],
         ]
         return {
@@ -430,7 +438,10 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self.assertEqual(self.TAG_OBJECT, publication["source"]["tag_object"])
         self.assertEqual(self.TAG_COMMIT, publication["source"]["tag_commit"])
         self.assertEqual("2026-08-14T03:00:00Z", publication["observed_at"])
-        self.assertEqual(list(verification.ASSET_NAMES), [a["name"] for a in document["assets"]])
+        self.assertEqual(
+            list(apple_contract.APPLE_PUBLIC_ASSET_NAMES),
+            [asset["name"] for asset in document["assets"]],
+        )
         canonical_record = json.dumps(
             verify["verificationResult"],
             allow_nan=False,
@@ -804,12 +815,18 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         tag_commit = distribution["source_commit"]
         release_id = 355_454_389
         hashes = {
-            verification.APPLE_DISTRIBUTION_NAME: distribution[
+            apple_contract.APPLE_DISTRIBUTION_ASSET_PATH: distribution[
                 "apple_distribution_evidence_sha256"
             ],
-            verification.XCFRAMEWORK_ZIP_NAME: distribution["artifact_sha256"],
-            verification.MANIFEST_NAME: distribution["manifest_sha256"],
-            verification.SHA256SUMS_NAME: distribution["checksums_sha256"],
+            apple_contract.APPLE_XCFRAMEWORK_ARTIFACT_PATH: distribution[
+                "artifact_sha256"
+            ],
+            apple_contract.APPLE_MANIFEST_ASSET_PATH: distribution[
+                "manifest_sha256"
+            ],
+            apple_contract.APPLE_CHECKSUMS_ASSET_PATH: distribution[
+                "checksums_sha256"
+            ],
         }
         ledger_parent = self._private_directory(
             "alpha2-contract-ledger",
@@ -887,11 +904,22 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             ("release-url", lambda value: value.__setitem__("url", "https://example.invalid")),
             ("draft", lambda value: value.__setitem__("isDraft", True)),
             ("prerelease", lambda value: value.__setitem__("isPrerelease", True)),
-            ("asset-order", lambda value: value["assets"].reverse()),
+            (
+                "asset-order-swap",
+                lambda value: value["assets"].__setitem__(
+                    slice(0, 2), value["assets"][1::-1]
+                ),
+            ),
             (
                 "asset-hash",
                 lambda value: value["assets"][0].__setitem__(
                     "digest", f"sha256:{'9' * 64}"
+                ),
+            ),
+            (
+                "asset-content-type",
+                lambda value: value["assets"][0].__setitem__(
+                    "contentType", "application/octet-stream"
                 ),
             ),
             ("asset-size-type", lambda value: value["assets"][0].__setitem__("size", True)),
@@ -899,7 +927,17 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         )
         for name, mutation in mutations:
             with self.subTest(name=name):
-                with self.assertRaises(verification.AppleReleaseVerificationError):
+                expected_failure = (
+                    self.assertRaisesRegex(
+                        verification.AppleReleaseVerificationError,
+                        "GitHub Apple release view asset order differs",
+                    )
+                    if name == "asset-order-swap"
+                    else self.assertRaises(
+                        verification.AppleReleaseVerificationError
+                    )
+                )
+                with expected_failure:
                     self._collect(f"view-{name}", mutate_view_before=mutation)
                 projection = (
                     self.projection_root
@@ -1084,7 +1122,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             (
                 "hash",
                 lambda value: value["public_assets_sha256"].__setitem__(
-                    verification.ASSET_NAMES[0], "ABC"
+                    apple_contract.APPLE_PUBLIC_ASSET_NAMES[0], "ABC"
                 ),
             ),
             ("extra", lambda value: value.__setitem__("unexpected", None)),

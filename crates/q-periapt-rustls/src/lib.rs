@@ -1,15 +1,18 @@
-//! Production-stack integration demo: Q-Periapt's PQ/T hybrid KEM wired into rustls
-//! as a TLS 1.3 key-exchange group, exposed via a [`CryptoProvider`].
+//! Research integration demo: Q-Periapt's PQ/T hybrid KEM wired into rustls
+//! as private-use TLS 1.3 key-exchange groups, exposed via a [`CryptoProvider`].
 //!
-//! Unlike the IANA-standard `X25519MLKEM768` group (which rustls ships, using the simple
-//! *concatenation* combiner of draft-ietf-tls-ecdhe-mlkem), this group runs Q-Periapt's own
+//! Unlike the RFC 10024 `X25519MLKEM768` group (which rustls ships, using the RFC 9954
+//! *concatenation* construction), these groups run Q-Periapt's own
 //! combiner — `ContextBound` (assumption-minimal injective binding) or `CompatXWing`
 //! (X-Wing byte-exact). It reuses [`q_periapt_kem::HybridKem`] verbatim, so the same
 //! composition covered by the suite's conformance and formal-model evidence runs on the wire.
 //!
-//! Group codes are in the TLS "private use" range (RFC 8446 §11), so this interoperates with
-//! another Q-Periapt endpoint, not with the standard group — it is a research deployment of
-//! the suite's own design, and a baseline-comparable target for evaluation.
+//! Group codes are in IANA's TLS Supported Groups private-use range, so this interoperates
+//! only with another endpoint configured for the same Q-Periapt profile. It is not the
+//! RFC 10024 group (`0x11EC`): that group has a 64-byte concatenated key-exchange secret,
+//! whereas these private groups expose Q-Periapt's 32-byte combiner output to the TLS key
+//! schedule. This crate is a research deployment of the suite's own design and a
+//! baseline-comparable evaluation target, not a standardized TLS group.
 
 use std::fmt;
 
@@ -33,7 +36,7 @@ const CLASSICAL_SHARE: usize = X25519_LEN; //          32: X25519 public / ephem
 const CLIENT_SHARE: usize = PQ_CLIENT_SHARE + CLASSICAL_SHARE; // pk_pq || pk_trad
 const SERVER_SHARE: usize = PQ_SERVER_SHARE + CLASSICAL_SHARE; // ct_pq || ct_trad
 
-/// TLS private-use group code for the `ContextBound` profile (RFC 8446 §11 range).
+/// TLS Supported Groups private-use code for the `ContextBound` profile.
 pub const Q_PERIAPT_CONTEXTBOUND: NamedGroup = NamedGroup::Unknown(0xFE01);
 /// TLS private-use group code for the `CompatXWing` profile.
 pub const Q_PERIAPT_COMPATXWING: NamedGroup = NamedGroup::Unknown(0xFE02);
@@ -391,8 +394,23 @@ pub fn provider_with_policy(
 #[cfg(test)]
 mod tests {
     #![allow(clippy::indexing_slicing, clippy::unwrap_used)]
+    use core::sync::atomic::{AtomicU8, Ordering};
+
     use super::*;
     use q_periapt_policy::Policy;
+
+    #[derive(Debug)]
+    struct DistinctTestRandom(AtomicU8);
+
+    impl SecureRandom for DistinctTestRandom {
+        fn fill(&self, output: &mut [u8]) -> Result<(), rustls::crypto::GetRandomFailed> {
+            let domain = self.0.fetch_add(1, Ordering::Relaxed);
+            for (index, byte) in output.iter_mut().enumerate() {
+                *byte = domain.wrapping_add(index as u8);
+            }
+            Ok(())
+        }
+    }
 
     #[test]
     fn kem_error_only_attributes_public_key_share_failures_to_the_peer() {
@@ -454,5 +472,24 @@ mod tests {
             provider_with_policy(&version_two).unwrap_err(),
             ProviderPolicyError::UnsupportedPolicyVersion
         );
+    }
+
+    #[test]
+    fn each_private_group_start_uses_fresh_key_material() {
+        static RANDOM: DistinctTestRandom = DistinctTestRandom(AtomicU8::new(0));
+        let group = QPeriaptKxGroup {
+            profile: Profile::ContextBound,
+            group: Q_PERIAPT_CONTEXTBOUND,
+            rng: &RANDOM,
+        };
+        let first = group.start().unwrap();
+        let second = group.start().unwrap();
+        assert_eq!(first.pub_key().len(), CLIENT_SHARE);
+        assert_eq!(second.pub_key().len(), CLIENT_SHARE);
+        assert_ne!(first.pub_key(), second.pub_key());
+        assert_eq!(u16::from(Q_PERIAPT_CONTEXTBOUND), 0xFE01);
+        assert_eq!(u16::from(Q_PERIAPT_COMPATXWING), 0xFE02);
+        assert_ne!(u16::from(Q_PERIAPT_CONTEXTBOUND), 0x11EC);
+        assert_ne!(u16::from(Q_PERIAPT_COMPATXWING), 0x11EC);
     }
 }

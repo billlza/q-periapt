@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+from collections.abc import Mapping
+from types import MappingProxyType
 
 import apple_distribution
 
@@ -63,6 +65,28 @@ APPLE_ORIGIN_IDENTITY_CLASS = "Developer ID Application"
 APPLE_DISTRIBUTION_ASSET_PATH = "APPLE_DISTRIBUTION.json"
 APPLE_MANIFEST_ASSET_PATH = "MANIFEST.json"
 APPLE_CHECKSUMS_ASSET_PATH = "SHA256SUMS"
+# Canonical GitHub public-asset and release-attestation order.  This is a
+# different contract from the ZIP-first lines inside the SHA256SUMS asset.
+APPLE_PUBLIC_ASSET_NAMES = (
+    APPLE_DISTRIBUTION_ASSET_PATH,
+    APPLE_XCFRAMEWORK_ARTIFACT_PATH,
+    APPLE_MANIFEST_ASSET_PATH,
+    APPLE_CHECKSUMS_ASSET_PATH,
+)
+APPLE_PUBLIC_ASSET_CONTENT_TYPES: Mapping[str, str] = MappingProxyType(
+    {
+        APPLE_DISTRIBUTION_ASSET_PATH: "application/json",
+        APPLE_XCFRAMEWORK_ARTIFACT_PATH: "application/zip",
+        APPLE_MANIFEST_ASSET_PATH: "application/json",
+        APPLE_CHECKSUMS_ASSET_PATH: "application/octet-stream",
+    }
+)
+_APPLE_PUBLIC_ASSET_DIGEST_FIELDS = {
+    APPLE_DISTRIBUTION_ASSET_PATH: "apple_distribution_evidence_sha256",
+    APPLE_XCFRAMEWORK_ARTIFACT_PATH: "artifact_sha256",
+    APPLE_MANIFEST_ASSET_PATH: "manifest_sha256",
+    APPLE_CHECKSUMS_ASSET_PATH: "checksums_sha256",
+}
 APPLE_RELEASE_CERTIFICATE_SAN = "https://dotcom.releases.github.com"
 APPLE_RELEASE_PREDICATE_TYPE = (
     "https://in-toto.io/attestation/release/v0.2"
@@ -193,6 +217,24 @@ def publication_values_equal(left: object, right: object) -> bool:
     return left == right
 
 
+def apple_public_asset_sha256s(
+    distribution_value: object,
+) -> dict[str, str]:
+    """Project the four public asset digests in canonical publication order."""
+
+    distribution = _object(
+        distribution_value,
+        "Apple public asset distribution",
+    )
+    return {
+        name: _sha256(
+            distribution.get(_APPLE_PUBLIC_ASSET_DIGEST_FIELDS[name]),
+            f"Apple public asset digest for {name}",
+        )
+        for name in APPLE_PUBLIC_ASSET_NAMES
+    }
+
+
 def frozen_alpha2_r1_distribution() -> dict[str, object]:
     """Return a fresh copy of the exact historical alpha.2 verified projection."""
 
@@ -253,31 +295,19 @@ def _release_attestation_subjects(
     release_tag = identity["release_tag"]
     if not isinstance(release_tag, str):
         _fail("Apple release tag must be a string")
+    public_asset_sha256s = apple_public_asset_sha256s(distribution)
     return [
         {
             "digest": {"sha1": tag_object},
             "uri": APPLE_TAG_SUBJECT_PREFIX + release_tag,
         },
-        {
-            "digest": {
-                "sha256": distribution[
-                    "apple_distribution_evidence_sha256"
-                ]
-            },
-            "name": APPLE_DISTRIBUTION_ASSET_PATH,
-        },
-        {
-            "digest": {"sha256": distribution["artifact_sha256"]},
-            "name": APPLE_XCFRAMEWORK_ARTIFACT_PATH,
-        },
-        {
-            "digest": {"sha256": distribution["manifest_sha256"]},
-            "name": APPLE_MANIFEST_ASSET_PATH,
-        },
-        {
-            "digest": {"sha256": distribution["checksums_sha256"]},
-            "name": APPLE_CHECKSUMS_ASSET_PATH,
-        },
+        *[
+            {
+                "digest": {"sha256": public_asset_sha256s[name]},
+                "name": name,
+            }
+            for name in APPLE_PUBLIC_ASSET_NAMES
+        ],
     ]
 
 

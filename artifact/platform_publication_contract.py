@@ -212,7 +212,7 @@ def validate_release_publication_transition(
         current_stable["observation"],
         "current platform 0.1.0 observation",
     )
-    for field in ("source", "candidate_attestation"):
+    for field in ("source", "candidate_attestation", "release_candidate"):
         if not _json_deep_equal(
             previous_observation[field], current_observation[field]
         ):

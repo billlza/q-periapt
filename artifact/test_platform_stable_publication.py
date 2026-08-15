@@ -24,6 +24,7 @@ from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
 import platform_stable_publication as publication
 import platform_stable_publication_contract as contract
 import platform_candidate_attestation as candidate_attestation
+import platform_distribution
 import platform_distribution_contract as distribution_contract
 import publication_receipt_io as receipt_io
 
@@ -156,6 +157,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = pathlib.Path(self.temporary.name).resolve()
         self.candidate_root = self.root / "candidate-projections"
+        self.assembly_root = self.root / "release-candidates"
         self.receipt_root = self.root / "publication-receipts"
         self.verification_root = self.root / "publication-verification"
         self.raw_root = self.verification_root / "raw"
@@ -163,6 +165,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.worktree_root = self.root / "publication-worktrees"
         for path in (
             self.candidate_root,
+            self.assembly_root,
             self.receipt_root,
             self.raw_root,
             self.download_root,
@@ -199,6 +202,11 @@ class PlatformV010PublicationTests(unittest.TestCase):
                 "CANDIDATE_PROJECTION_ROOT",
                 self.candidate_root,
             ),
+            (
+                platform_distribution,
+                "PLATFORM_RELEASE_CANDIDATE_ROOT",
+                self.assembly_root,
+            ),
         )
         for module, attribute, value in replacements:
             patcher = mock.patch.object(module, attribute, value)
@@ -207,6 +215,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.source = publication.SourceObservation(
             canonical_source_tree_sha256=self.SOURCE_DIGEST,
             source_parent_commit=self.SOURCE_PARENT_COMMIT,
+            source_date_epoch=1_700_000_000,
             tag_commit=self.TAG_COMMIT,
             tag_object=self.TAG_OBJECT,
             tag_tree=self.TAG_TREE,
@@ -381,7 +390,35 @@ class PlatformV010PublicationTests(unittest.TestCase):
                 distribution_contract.CODEQL_JOB_CONTRACT
             )
         ]
+        code_scanning_analyses = [
+            {
+                "analysis_id": 300 + index,
+                "analysis_key": distribution_contract.CODEQL_ANALYSIS_KEY,
+                "category": category,
+                "commit_sha": self.TAG_COMMIT,
+                "error": "",
+                "ref": distribution_contract.MAIN_REF,
+                "results_count": 0,
+                "rules_count": 20 + index,
+                "tool": {
+                    "name": "CodeQL",
+                    "version": distribution_contract.CODEQL_TOOL_VERSION,
+                },
+                "warning": "",
+            }
+            for index, (_language, category) in enumerate(
+                distribution_contract.CODEQL_ANALYSIS_CONTRACT
+            )
+        ]
         return {
+            "code_scanning": {
+                "analyses": code_scanning_analyses,
+                "main_ref": {
+                    "commit_sha": self.TAG_COMMIT,
+                    "ref": distribution_contract.MAIN_REF,
+                },
+                "open_alerts": [],
+            },
             "kind": distribution_contract.SOURCE_SECURITY_GATE_KIND,
             "observation_tools": {
                 "github_cli": {
@@ -426,11 +463,27 @@ class PlatformV010PublicationTests(unittest.TestCase):
         name: str,
         *,
         candidate_path: pathlib.Path | None = None,
+        assets: Mapping[str, bytes] | None = None,
+        manifest: Mapping[str, object] | None = None,
+        assembly_receipt: pathlib.Path | None = None,
     ) -> pathlib.Path:
+        if assets is None or manifest is None:
+            generated_assets, generated_manifest = self._asset_fixture()
+            assets = generated_assets
+            manifest = generated_manifest
         if candidate_path is None:
-            candidate_path = self._candidate_projection(f"candidate-{name}")
+            candidate_path = self._candidate_for_assets(
+                f"candidate-{name}", assets
+            )
+        if assembly_receipt is None:
+            assembly_receipt = self._assembly_receipt(
+                f"transaction.{name}",
+                assets,
+                manifest,
+            )
         output, digest, source = publication.assemble_pending_receipt(
             candidate_path,
+            assembly_receipt,
             self.verifier,
             runner=lambda *_args, **_kwargs: BoundedResult(0),
             clock=QueueClock("2026-08-14T02:00:00Z"),
@@ -477,6 +530,91 @@ class PlatformV010PublicationTests(unittest.TestCase):
         assets[contract.RELEASE_MANIFEST] = _canonical_json(manifest)
         return assets, manifest
 
+    def _assembly_receipt(
+        self,
+        transaction_name: str,
+        assets: Mapping[str, bytes],
+        manifest: Mapping[str, object],
+    ) -> pathlib.Path:
+        transaction = self.assembly_root / transaction_name
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        release = transaction / platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME
+        release.mkdir(mode=0o755)
+        os.chmod(release, 0o755)
+        records: list[dict[str, object]] = []
+        for name in contract.PUBLIC_ASSET_NAMES:
+            data = assets[name]
+            path = release / name
+            path.write_bytes(data)
+            os.chmod(path, 0o644)
+            records.append(
+                {
+                    "bytes": len(data),
+                    "content_type": contract.PUBLIC_ASSET_CONTENT_TYPES[name],
+                    "name": name,
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                }
+            )
+        by_name = {record["name"]: record for record in records}
+        runtime_record = next(
+            item
+            for item in manifest["assets"]
+            if item["name"] == contract.ANDROID_RUNTIME_BUNDLE
+        )
+        receipt = {
+            "android_runtime_evidence": {
+                "bundle_manifest_sha256": runtime_record[
+                    "bundle_manifest_sha256"
+                ],
+                "bundle_schema": contract.ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
+                "bundle_sha256": by_name[contract.ANDROID_RUNTIME_BUNDLE][
+                    "sha256"
+                ],
+                "device_abi": runtime_record["device"]["abi"],
+                "device_kind": runtime_record["device"]["kind"],
+                "device_sdk": runtime_record["device"]["sdk"],
+                "page_size": runtime_record["device"]["page_size"],
+                "proof_schema": contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
+                "proof_sha256": runtime_record["proof_sha256"],
+                "release_mode": True,
+                "tested_aar_manifest_sha256": by_name[
+                    contract.ANDROID_MANIFEST
+                ]["sha256"],
+                "tested_aar_sha256": runtime_record["tested_aar_sha256"],
+            },
+            "assets": records,
+            "checksums_sha256": by_name[contract.RELEASE_SUMS]["sha256"],
+            "kind": distribution_contract.PLATFORM_RELEASE_CANDIDATE_KIND,
+            "platform_distribution_sha256": by_name[
+                contract.RELEASE_MANIFEST
+            ]["sha256"],
+            "schema_version": (
+                distribution_contract.PLATFORM_RELEASE_CANDIDATE_SCHEMA_VERSION
+            ),
+            "source": {
+                "canonical_source_tree_sha256": self.SOURCE_DIGEST,
+                "git_commit": self.TAG_COMMIT,
+                "git_dirty": False,
+                "git_tree": self.TAG_TREE,
+                "source_date_epoch": self.source.source_date_epoch,
+            },
+        }
+        path = transaction / platform_distribution.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+        path.write_bytes(_canonical_json(receipt))
+        os.chmod(path, 0o600)
+        return path
+
+    def _candidate_and_assembly(
+        self, name: str
+    ) -> tuple[pathlib.Path, pathlib.Path, dict[str, bytes], dict[str, object]]:
+        assets, manifest = self._asset_fixture()
+        candidate = self._candidate_for_assets(f"candidate-{name}", assets)
+        assembly = self._assembly_receipt(
+            f"transaction.{name}", assets, manifest
+        )
+        return candidate, assembly, assets, manifest
+
     def _remote_fixture(
         self,
         assets: Mapping[str, bytes],
@@ -489,7 +627,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
             records.append(
                 {
                     "apiUrl": f"{publication.API_ASSET_PREFIX}{1000 + index}",
-                    "contentType": "application/octet-stream",
+                    "contentType": contract.PUBLIC_ASSET_CONTENT_TYPES[name],
                     "createdAt": "2026-08-14T01:30:00Z",
                     "digest": f"sha256:{hashlib.sha256(data).hexdigest()}",
                     "downloadCount": index,
@@ -618,7 +756,12 @@ class PlatformV010PublicationTests(unittest.TestCase):
     ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, RemoteFixtureRunner, AssetSinkRunner]:
         assets, manifest = self._asset_fixture()
         candidate = self._candidate_for_assets(f"candidate-{name}", assets)
-        pending = self._pending_receipt(name, candidate_path=candidate)
+        pending = self._pending_receipt(
+            name,
+            candidate_path=candidate,
+            assets=assets,
+            manifest=manifest,
+        )
         repository, before, after, verification = self._remote_fixture(assets)
         if mutate_repository is not None:
             mutate_repository(repository)
@@ -674,17 +817,29 @@ class PlatformV010PublicationTests(unittest.TestCase):
             source_inspector=self._source_inspector,
             deep_verifier=deep_verifier,
         )
+        pending_value = json.loads(pending.read_bytes())
+        verified_value = json.loads(output.read_bytes())
+        for field in ("source", "candidate_attestation", "release_candidate"):
+            self.assertEqual(
+                pending_value["observation"][field],
+                verified_value["observation"][field],
+            )
         return output, raw, downloads, runner, sink
 
     def test_pending_receipt_is_exact_private_and_attempt_two_valid(self) -> None:
-        candidate = self._candidate_projection("pending-exact-candidate")
-        output = self._pending_receipt("pending-exact", candidate_path=candidate)
+        output = self._pending_receipt("pending-exact")
 
         receipt = json.loads(output.read_bytes())
         contract.validate_v0_1_0_publication_receipt(receipt)
         self.assertEqual(contract.PLATFORM_V0_1_0_STATUS_PENDING, receipt["status"])
         self.assertEqual(
-            {"candidate_attestation", "observed_at", "source"},
+            {
+                "assembly_receipt_sha256",
+                "candidate_attestation",
+                "observed_at",
+                "release_candidate",
+                "source",
+            },
             set(receipt["observation"]),
         )
         self.assertEqual(
@@ -697,12 +852,58 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.assertEqual(0o600, stat.S_IMODE(output.stat().st_mode))
         self.assertEqual(1, output.stat().st_nlink)
 
+    def test_pending_resamples_assembly_transaction_before_receipt_commit(self) -> None:
+        candidate, assembly, _assets, _manifest = self._candidate_and_assembly(
+            "pending-resample"
+        )
+        real_load = platform_distribution.load_release_candidate_bundle
+        calls = 0
+
+        def load_and_mutate(
+            path: pathlib.Path,
+        ) -> platform_distribution.ReleaseCandidateBundle:
+            nonlocal calls
+            calls += 1
+            value = real_load(path)
+            if calls == 1:
+                release = (
+                    path.parent
+                    / platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME
+                )
+                asset = release / contract.ANDROID_AAR
+                asset.write_bytes(b"changed after first pending sample")
+                os.chmod(asset, 0o644)
+            return value
+
+        before = set(self.receipt_root.iterdir())
+        with (
+            mock.patch.object(
+                platform_distribution,
+                "load_release_candidate_bundle",
+                side_effect=load_and_mutate,
+            ),
+            self.assertRaises(publication.PlatformV010PublicationError),
+        ):
+            publication.assemble_pending_receipt(
+                candidate,
+                assembly,
+                self.verifier,
+                runner=lambda *_args, **_kwargs: BoundedResult(0),
+                clock=QueueClock("2026-08-14T02:00:00Z"),
+                source_environment={},
+                git_tool="/usr/bin/git",
+                source_inspector=self._source_inspector,
+            )
+        self.assertEqual(2, calls)
+        self.assertEqual(before, set(self.receipt_root.iterdir()))
+
     def test_cli_markers_identify_receipt_digest_for_both_states(self) -> None:
         output = self.root / "platform-v0.1.0-publication-receipt.json"
 
         pending_arguments = mock.Mock(
             command="pending",
             candidate_projection=self.root / "candidate.json",
+            assembly_receipt=self.root / "assembly.json",
             verifier_checkout=self.verifier,
         )
         pending_parser = mock.Mock()
@@ -759,6 +960,34 @@ class PlatformV010PublicationTests(unittest.TestCase):
             self.assertEqual(0, publication.main(["collect"]))
         self.assertIn(f"receipt_sha256={'b' * 64}", verified_stdout.getvalue())
         self.assertNotIn("projection_sha256=", verified_stdout.getvalue())
+
+    def test_pending_cli_requires_the_assembly_receipt(self) -> None:
+        parser = publication.build_parser()
+        parsed = parser.parse_args(
+            [
+                "pending",
+                "--candidate-projection",
+                "/candidate.json",
+                "--assembly-receipt",
+                "/assembly.json",
+                "--verifier-checkout",
+                "/verifier",
+            ]
+        )
+        self.assertEqual(pathlib.Path("/assembly.json"), parsed.assembly_receipt)
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit),
+        ):
+            parser.parse_args(
+                [
+                    "pending",
+                    "--candidate-projection",
+                    "/candidate.json",
+                    "--verifier-checkout",
+                    "/verifier",
+                ]
+            )
 
     def test_cli_preserves_structured_and_incomplete_committed_errors(self) -> None:
         structured = publication.PublicationReceiptCommittedError(
@@ -1017,6 +1246,22 @@ class PlatformV010PublicationTests(unittest.TestCase):
                 },
             ),
             (
+                "candidate-size",
+                {
+                    "mutate_release_before": lambda value: value["assets"][0].update(
+                        size=value["assets"][0]["size"] + 1
+                    )
+                },
+            ),
+            (
+                "candidate-content-type",
+                {
+                    "mutate_release_before": lambda value: value["assets"][0].update(
+                        contentType="application/x-unexpected"
+                    )
+                },
+            ),
+            (
                 "attestation-subject",
                 {
                     "mutate_verification": lambda value: value[
@@ -1179,9 +1424,14 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.assertEqual(before, receipt_snapshot())
 
     def test_retryable_remote_failure_is_not_retried(self) -> None:
-        assets, _manifest = self._asset_fixture()
+        assets, manifest = self._asset_fixture()
         candidate = self._candidate_for_assets("candidate-retryable", assets)
-        pending = self._pending_receipt("retryable", candidate_path=candidate)
+        pending = self._pending_receipt(
+            "retryable",
+            candidate_path=candidate,
+            assets=assets,
+            manifest=manifest,
+        )
         calls: list[tuple[str, ...]] = []
 
         def failed_runner(argv: Sequence[str], **_kwargs: object) -> BoundedResult:
@@ -1211,17 +1461,29 @@ class PlatformV010PublicationTests(unittest.TestCase):
         )
 
     def test_generated_transactions_never_clobber_previous_receipts(self) -> None:
-        candidate = self._candidate_projection("generated-transaction-candidate")
-        first = self._pending_receipt("generated-first", candidate_path=candidate)
+        candidate, assembly, _assets, _manifest = self._candidate_and_assembly(
+            "generated-shared"
+        )
+        first = self._pending_receipt(
+            "generated-first",
+            candidate_path=candidate,
+            assembly_receipt=assembly,
+        )
         first_bytes = first.read_bytes()
-        second = self._pending_receipt("generated-second", candidate_path=candidate)
+        second = self._pending_receipt(
+            "generated-second",
+            candidate_path=candidate,
+            assembly_receipt=assembly,
+        )
 
         self.assertNotEqual(first, second)
         self.assertEqual(first_bytes, first.read_bytes())
         self.assertTrue(second.is_file())
 
     def test_shared_atomic_writer_failure_leaves_no_partial_and_recovers(self) -> None:
-        candidate = self._candidate_projection("atomic-failure-candidate")
+        candidate, assembly, _assets, _manifest = self._candidate_and_assembly(
+            "atomic-failure"
+        )
         before = set(self.receipt_root.iterdir())
         with mock.patch.object(
             publication,
@@ -1236,6 +1498,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
             ):
                 publication.assemble_pending_receipt(
                     candidate,
+                    assembly,
                     self.verifier,
                     runner=lambda *_args, **_kwargs: BoundedResult(0),
                     clock=QueueClock("2026-08-14T02:00:00Z"),
@@ -1247,6 +1510,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
 
         output, _digest, _source = publication.assemble_pending_receipt(
             candidate,
+            assembly,
             self.verifier,
             runner=lambda *_args, **_kwargs: BoundedResult(0),
             clock=QueueClock("2026-08-14T02:00:00Z"),
@@ -1257,7 +1521,9 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.assertTrue(output.is_file())
 
     def test_receipt_committed_error_is_not_downgraded(self) -> None:
-        candidate = self._candidate_projection("committed-error-candidate")
+        candidate, assembly, _assets, _manifest = self._candidate_and_assembly(
+            "committed-error"
+        )
         committed = publication.PublicationReceiptCommittedError(
             "fixture receipt committed",
             leaf=publication.RECEIPT_NAME,
@@ -1275,6 +1541,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
         ):
             publication.assemble_pending_receipt(
                 candidate,
+                assembly,
                 self.verifier,
                 runner=lambda *_args, **_kwargs: BoundedResult(0),
                 clock=QueueClock("2026-08-14T02:00:00Z"),
@@ -1285,11 +1552,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
         self.assertIs(committed, caught.exception)
 
     def test_platform_writer_detects_same_bytes_rename_competitor(self) -> None:
-        candidate = self._candidate_projection("writer-competitor-candidate")
-        pending = self._pending_receipt(
-            "writer-competitor",
-            candidate_path=candidate,
-        )
+        pending = self._pending_receipt("writer-competitor")
         receipt = json.loads(pending.read_bytes())
         payload = receipt_io.canonical_json_bytes(receipt)
         real_rename = receipt_io._rename_noreplace
@@ -1496,6 +1759,9 @@ class PlatformV010PublicationTests(unittest.TestCase):
 
     def test_fixed_roots_reject_prefix_traversal_and_symlink_aliases(self) -> None:
         candidate = self._candidate_projection("safe-path-candidate")
+        _valid_candidate, assembly, _assets, _manifest = (
+            self._candidate_and_assembly("safe-path-assembly")
+        )
         receipt_directories = set(self.receipt_root.iterdir())
         outside = self.root / "outside"
         outside.mkdir(mode=0o700)
@@ -1519,6 +1785,7 @@ class PlatformV010PublicationTests(unittest.TestCase):
                 with self.assertRaises(publication.PlatformV010PublicationError):
                     publication.assemble_pending_receipt(
                         unsafe,
+                        assembly,
                         self.verifier,
                         source_environment={},
                         git_tool="/usr/bin/git",

@@ -19,7 +19,10 @@ import github_release_observation as github_release
 from platform_distribution_contract import (
     CI_WORKFLOW_NAME,
     CI_WORKFLOW_PATH,
+    CODEQL_ANALYSIS_CONTRACT,
+    CODEQL_ANALYSIS_KEY,
     CODEQL_JOB_CONTRACT,
+    CODEQL_TOOL_VERSION,
     CODEQL_WORKFLOW_NAME,
     CODEQL_WORKFLOW_PATH,
     CONSTANT_TIME_JOB_CONTRACT,
@@ -246,7 +249,32 @@ esac
             }
             for index, (language, job_name) in enumerate(CODEQL_JOB_CONTRACT)
         ]
+        code_scanning_analyses = [
+            {
+                "analysis_id": 300 + index,
+                "analysis_key": CODEQL_ANALYSIS_KEY,
+                "category": category,
+                "commit_sha": self.COMMIT,
+                "error": "",
+                "ref": "refs/heads/main",
+                "results_count": 0,
+                "rules_count": 20 + index,
+                "tool": {"name": "CodeQL", "version": CODEQL_TOOL_VERSION},
+                "warning": "",
+            }
+            for index, (_language, category) in enumerate(
+                CODEQL_ANALYSIS_CONTRACT
+            )
+        ]
         return {
+            "code_scanning": {
+                "analyses": code_scanning_analyses,
+                "main_ref": {
+                    "commit_sha": self.COMMIT,
+                    "ref": "refs/heads/main",
+                },
+                "open_alerts": [],
+            },
             "kind": SOURCE_SECURITY_GATE_KIND,
             "observation_tools": {
                 "github_cli": {

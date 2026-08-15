@@ -401,10 +401,19 @@ if [ "$REQUIRE_FORMAL" = "1" ] || [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 fi
 if [ "$REQUIRE_FORMAL" = "1" ]; then
 	need tamarin-prover
+	need maude
 	need proverif
 fi
 if [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 	need cargo
+fi
+
+if [ "$REQUIRE_FORMAL" = "1" ]; then
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool all
+elif [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool easycrypt
 fi
 
 RESULTS_MANIFEST="$ROOT/artifact/results.json"
@@ -564,6 +573,8 @@ else
 fi
 
 if [ "$REQUIRE_FORMAL" = "1" ]; then
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool all
 	make -C formal/easycrypt check
 	EASYCRYPT=$(command -v easycrypt) sh formal/easycrypt/negative-controls.sh
 	make -C formal/tamarin prove
@@ -582,6 +593,8 @@ if [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 		--vectors models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json
 	sh artifact/python-run.sh artifact/prekey_selection.py verify \
 		--vectors models/q-periapt-continuity-model/vectors/prekey-selection-v1.json
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool easycrypt
 	EC=$(command -v easycrypt) make -C formal/easycrypt/continuity check
 	printf 'PROOF_TO_BYTE_CONTINUITY_MODEL_DIAGNOSTIC_PASS boundary=non_normative_not_release\n'
 fi

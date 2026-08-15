@@ -14,11 +14,17 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import stat
 import sys
 from dataclasses import dataclass
 from collections.abc import Callable, Iterator
 from typing import Any, Literal, Never
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 from evidence_io import (
     EvidenceIOError,
@@ -40,6 +46,97 @@ _LINUX_RENAME_NOREPLACE = 0x00000001
 
 class PublicationReceiptIOError(ValueError):
     """A publication receipt path, file, or JSON value is unsafe."""
+
+
+class PublicationLockHeldError(PublicationReceiptIOError):
+    """A persistent publication lock is already held by another process."""
+
+
+@dataclass(frozen=True, slots=True)
+class BoundaryFailureContext:
+    type_name: str | None
+    error_kind: str | None
+    returncode: int | None
+    signal_number: int | None
+    cleanup_ambiguous: bool
+
+    @classmethod
+    def from_exception(
+        cls, error: BaseException | None
+    ) -> "BoundaryFailureContext":
+        type_name = None if error is None else type(error).__name__
+        error_kind: object = None
+        returncode: object = None
+        signal_number: object = None
+        cleanup_ambiguous: object = False
+        current = error
+        visited: set[int] = set()
+        for _ in range(8):
+            if current is None or id(current) in visited:
+                break
+            visited.add(id(current))
+            current_error_kind = getattr(current, "error_kind", None)
+            if current_error_kind is None:
+                current_error_kind = getattr(current, "kind", None)
+            current_returncode = getattr(current, "returncode", None)
+            current_signal = getattr(current, "signal_number", None)
+            current_cleanup = getattr(current, "cleanup_ambiguous", False)
+            if error_kind is None and isinstance(current_error_kind, str):
+                error_kind = current_error_kind
+            if returncode is None and type(current_returncode) is int:
+                returncode = current_returncode
+            if signal_number is None and type(current_signal) is int:
+                signal_number = current_signal
+            if type(current_cleanup) is bool and current_cleanup:
+                cleanup_ambiguous = True
+            next_error = current.__cause__
+            if next_error is None:
+                next_error = current.__context__
+            current = next_error
+        return cls(
+            type_name=type_name,
+            error_kind=error_kind if isinstance(error_kind, str) else None,
+            returncode=returncode if type(returncode) is int else None,
+            signal_number=(
+                signal_number if type(signal_number) is int else None
+            ),
+            cleanup_ambiguous=(
+                cleanup_ambiguous
+                if type(cleanup_ambiguous) is bool
+                else False
+            ),
+        )
+
+
+class PublicationBoundaryIntegrityError(PublicationReceiptIOError):
+    """A pinned publication resource changed or could not be closed safely."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        preceding_type: str | None = None,
+        preceding_error: BaseException | None = None,
+        cleanup_ambiguous: bool = False,
+    ) -> None:
+        super().__init__(message)
+        context = BoundaryFailureContext.from_exception(preceding_error)
+        if preceding_error is None and preceding_type is not None:
+            context = BoundaryFailureContext(
+                type_name=preceding_type,
+                error_kind=None,
+                returncode=None,
+                signal_number=None,
+                cleanup_ambiguous=False,
+            )
+        self.preceding_context = context
+        self.preceding_type = context.type_name
+        self.error_kind = context.error_kind
+        self.returncode = context.returncode
+        self.signal_number = context.signal_number
+        self.cleanup_ambiguous = (
+            context.cleanup_ambiguous or cleanup_ambiguous
+        )
 
 
 PublicationVisibility = Literal["committed", "indeterminate"]
@@ -118,6 +215,26 @@ class PrivateDirectoryHandle:
             if self.committed_publication is None
             else self.committed_publication[1]
         )
+
+
+@dataclass(frozen=True, slots=True)
+class PrivateSafeRootCreatedIdentity:
+    """Level-1 identity of a private root atomically created by this call."""
+
+    device: int
+    inode: int
+
+
+@dataclass(frozen=True, slots=True)
+class PrivateFileLockHandle:
+    root: pathlib.Path
+    root_descriptor: int
+    lock_leaf: str
+    lock_descriptor: int
+    root_device: int
+    root_inode: int
+    lock_device: int
+    lock_inode: int
 
 
 def _fail(message: str) -> Never:
@@ -276,7 +393,7 @@ def _open_or_create_private_safe_root(
     create: bool,
     sync_parent: bool = False,
     retain_parent: bool = False,
-) -> tuple[pathlib.Path, int, int | None]:
+) -> tuple[pathlib.Path, int, int | None, bool]:
     """Open one fixed private root through a pinned parent descriptor."""
 
     _require(root.is_absolute(), f"{label} must be absolute")
@@ -311,6 +428,7 @@ def _open_or_create_private_safe_root(
     except OSError as exc:
         raise PublicationReceiptIOError(f"cannot open {label} parent") from exc
     root_fd = -1
+    created = False
     primary_error: BaseException | None = None
     try:
         opened_parent = os.fstat(parent_fd)
@@ -325,6 +443,7 @@ def _open_or_create_private_safe_root(
         if create:
             try:
                 os.mkdir(root.name, PRIVATE_DIRECTORY_MODE, dir_fd=parent_fd)
+                created = True
             except FileExistsError:
                 pass
             except OSError as exc:
@@ -390,7 +509,7 @@ def _open_or_create_private_safe_root(
                                 f"cannot also close opened {label}"
                             )
                     raise PublicationReceiptIOError(detail) from exc
-    return root, root_fd, parent_fd if retain_parent else None
+    return root, root_fd, parent_fd if retain_parent else None, created
 
 
 def _require_released_safe_root_parent(
@@ -424,21 +543,63 @@ def ensure_private_safe_root(
 ) -> pathlib.Path:
     """Create one fixed private root if absent, then return it normalized."""
 
-    normalized, descriptor, parent_descriptor = _open_or_create_private_safe_root(
+    normalized, _created = ensure_private_safe_root_with_creation(
         root,
         label=label,
-        create=True,
+    )
+    return normalized
+
+
+def ensure_private_safe_root_with_creation(
+    root: pathlib.Path,
+    *,
+    label: str,
+) -> tuple[pathlib.Path, PrivateSafeRootCreatedIdentity | None]:
+    """Create/open a fixed private root and report its created-root identity."""
+
+    normalized, descriptor, parent_descriptor, created = (
+        _open_or_create_private_safe_root(
+            root,
+            label=label,
+            create=True,
+        )
     )
     _require_released_safe_root_parent(
         parent_descriptor,
         opened_descriptors=(descriptor,),
         label=label,
     )
+    inspect_error: OSError | None = None
+    close_error: OSError | None = None
+    metadata: os.stat_result | None = None
+    try:
+        metadata = os.fstat(descriptor)
+    except OSError as exc:
+        inspect_error = exc
     try:
         os.close(descriptor)
     except OSError as exc:
-        raise PublicationReceiptIOError(f"cannot close {label}") from exc
-    return normalized
+        close_error = exc
+    if inspect_error is not None or close_error is not None:
+        boundary = PublicationBoundaryIntegrityError(
+            f"cannot verify or close {label}",
+            preceding_error=inspect_error,
+            cleanup_ambiguous=close_error is not None,
+        )
+        if inspect_error is not None and close_error is not None:
+            boundary.add_note("descriptor cleanup is indeterminate")
+        raise boundary from (
+            close_error if close_error is not None else inspect_error
+        )
+    if metadata is None:
+        raise PublicationBoundaryIntegrityError(
+            f"cannot verify {label} metadata"
+        )
+    identity = PrivateSafeRootCreatedIdentity(
+        metadata.st_dev,
+        metadata.st_ino,
+    ) if created else None
+    return normalized, identity
 
 
 def _open_directory(
@@ -498,6 +659,839 @@ def open_private_directory(path: pathlib.Path, *, label: str) -> int:
         label=label,
         required_mode=PRIVATE_DIRECTORY_MODE,
     )
+
+
+@contextlib.contextmanager
+def exclusive_private_file_lock(
+    safe_root: pathlib.Path,
+    lock_leaf: str,
+    *,
+    label: str,
+    allow_create: bool,
+    created_root_identity: PrivateSafeRootCreatedIdentity | None = None,
+) -> Iterator[PrivateFileLockHandle]:
+    """Hold one persistent-inode, crash-released cross-worktree lock.
+
+    The lock file is retained permanently. Replacing or removing it would split
+    the lock authority between processes holding different inodes.
+    """
+
+    _require(
+        os.name == "posix" and fcntl is not None,
+        f"{label} requires POSIX flock",
+    )
+    lock_api = fcntl
+    if lock_api is None:
+        _fail(f"{label} requires POSIX flock")
+    lock_leaf = _safe_leaf(lock_leaf, label=f"{label} leaf")
+    root = normalize_safe_root(safe_root, label=f"{label} root")
+    root_descriptor = open_private_directory(root, label=f"{label} root")
+    lock_descriptor = -1
+    acquired = False
+    primary_error: BaseException | None = None
+    try:
+        _require(type(allow_create) is bool, f"{label} creation policy is malformed")
+        if allow_create:
+            if not isinstance(
+                created_root_identity,
+                PrivateSafeRootCreatedIdentity,
+            ):
+                _fail(f"{label} created-root identity is malformed")
+            try:
+                root_metadata = os.fstat(root_descriptor)
+            except OSError as exc:
+                raise PublicationBoundaryIntegrityError(
+                    f"cannot inspect {label} created-root identity"
+                ) from exc
+            _require(
+                root_metadata.st_dev == created_root_identity.device
+                and root_metadata.st_ino == created_root_identity.inode,
+                f"{label} created-root identity differs from the fixed root",
+            )
+        else:
+            _require(
+                created_root_identity is None,
+                f"{label} created-root identity is malformed",
+            )
+        try:
+            initial_entries = sorted(os.listdir(root_descriptor))
+        except OSError as exc:
+            raise PublicationBoundaryIntegrityError(
+                f"cannot inventory {label} root"
+            ) from exc
+        exists = lock_leaf in initial_entries
+        needs_creation_sync = False
+        flags = (
+            os.O_RDWR
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        if not exists:
+            if not allow_create:
+                raise PublicationBoundaryIntegrityError(
+                    f"persistent {label} is absent"
+                )
+            if initial_entries:
+                raise PublicationBoundaryIntegrityError(
+                    f"persistent {label} cannot be created beside existing state"
+                )
+            try:
+                lock_descriptor = os.open(
+                    lock_leaf,
+                    flags | os.O_CREAT | os.O_EXCL,
+                    PRIVATE_FILE_MODE,
+                    dir_fd=root_descriptor,
+                )
+                needs_creation_sync = True
+            except FileExistsError:
+                try:
+                    lock_descriptor = os.open(
+                        lock_leaf,
+                        flags,
+                        dir_fd=root_descriptor,
+                    )
+                except OSError as exc:
+                    raise PublicationBoundaryIntegrityError(
+                        f"cannot open concurrently created persistent {label}"
+                    ) from exc
+                _require(
+                    sorted(os.listdir(root_descriptor)) == [lock_leaf],
+                    f"persistent {label} root changed during creation",
+                )
+                needs_creation_sync = True
+            except OSError as exc:
+                raise PublicationBoundaryIntegrityError(
+                    f"cannot create persistent {label}"
+                ) from exc
+        else:
+            try:
+                lock_descriptor = os.open(
+                    lock_leaf,
+                    flags,
+                    dir_fd=root_descriptor,
+                )
+            except OSError as exc:
+                raise PublicationBoundaryIntegrityError(
+                    f"cannot open existing persistent {label}"
+                ) from exc
+        try:
+            opened = os.fstat(lock_descriptor)
+            named = os.stat(
+                lock_leaf,
+                dir_fd=root_descriptor,
+                follow_symlinks=False,
+            )
+        except OSError as exc:
+            raise PublicationReceiptIOError(
+                f"cannot open persistent {label}"
+            ) from exc
+        _require(
+            stat.S_ISREG(opened.st_mode)
+            and opened.st_uid == _effective_uid()
+            and opened.st_nlink == 1
+            and stat.S_IMODE(opened.st_mode) == PRIVATE_FILE_MODE
+            and opened.st_size == 0,
+            f"{label} must be an owned empty mode-0600 single-link file",
+        )
+        _require(
+            named.st_dev == opened.st_dev and named.st_ino == opened.st_ino,
+            f"{label} path identity differs",
+        )
+        try:
+            if needs_creation_sync:
+                os.fsync(lock_descriptor)
+                os.fsync(root_descriptor)
+                _require(
+                    sorted(os.listdir(root_descriptor)) == [lock_leaf],
+                    f"persistent {label} root changed after creation",
+                )
+            lock_api.flock(lock_descriptor, lock_api.LOCK_EX | lock_api.LOCK_NB)
+            acquired = True
+        except OSError as exc:
+            if exc.errno in {errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK}:
+                raise PublicationLockHeldError(f"{label} is already held") from None
+            raise PublicationReceiptIOError(f"cannot acquire {label}") from exc
+        locked = os.fstat(lock_descriptor)
+        named_locked = os.stat(
+            lock_leaf,
+            dir_fd=root_descriptor,
+            follow_symlinks=False,
+        )
+        root_opened = os.fstat(root_descriptor)
+        root_named = root.lstat()
+        _require(
+            locked.st_dev == opened.st_dev
+            and locked.st_ino == opened.st_ino
+            and named_locked.st_dev == opened.st_dev
+            and named_locked.st_ino == opened.st_ino
+            and root_opened.st_dev == root_named.st_dev
+            and root_opened.st_ino == root_named.st_ino,
+            f"{label} identity changed during acquisition",
+        )
+        handle = PrivateFileLockHandle(
+            root=root,
+            root_descriptor=root_descriptor,
+            lock_leaf=lock_leaf,
+            lock_descriptor=lock_descriptor,
+            root_device=root_opened.st_dev,
+            root_inode=root_opened.st_ino,
+            lock_device=locked.st_dev,
+            lock_inode=locked.st_ino,
+        )
+        yield_error: BaseException | None = None
+        try:
+            yield handle
+        except BaseException as exc:
+            yield_error = exc
+        post_error: BaseException | None = None
+        try:
+            verify_private_file_lock(handle, label=label)
+        except BaseException as exc:
+            post_error = exc
+        if yield_error is not None:
+            if post_error is not None:
+                raise PublicationBoundaryIntegrityError(
+                    f"{label} lock integrity changed across a failed operation",
+                    preceding_error=yield_error,
+                ) from post_error
+            raise yield_error
+        if post_error is not None:
+            raise PublicationBoundaryIntegrityError(
+                f"{label} lock integrity changed after the operation"
+            ) from post_error
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        cleanup_errors: list[BaseException] = []
+        if acquired and lock_descriptor >= 0:
+            try:
+                lock_api.flock(lock_descriptor, lock_api.LOCK_UN)
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+        cleanup_errors.extend(
+            _close_descriptors_once((lock_descriptor, root_descriptor))
+        )
+        if cleanup_errors:
+            if primary_error is not None:
+                cleanup = PublicationBoundaryIntegrityError(
+                    f"cannot fully release {label} after an operation failure",
+                    preceding_error=primary_error,
+                )
+                raise cleanup from cleanup_errors[0]
+            elif isinstance(cleanup_errors[0], Exception):
+                raise PublicationBoundaryIntegrityError(
+                    f"cannot fully release {label}"
+                ) from cleanup_errors[0]
+            else:
+                raise cleanup_errors[0]
+
+
+def verify_private_file_lock(
+    handle: PrivateFileLockHandle,
+    *,
+    label: str,
+) -> None:
+    """Revalidate a held lock before every subsequent mutation boundary."""
+
+    _require(
+        isinstance(handle, PrivateFileLockHandle),
+        f"{label} handle is malformed",
+    )
+    try:
+        root_opened = os.fstat(handle.root_descriptor)
+        root_named = handle.root.lstat()
+        lock_opened = os.fstat(handle.lock_descriptor)
+        lock_named = os.stat(
+            handle.lock_leaf,
+            dir_fd=handle.root_descriptor,
+            follow_symlinks=False,
+        )
+    except OSError as exc:
+        raise PublicationBoundaryIntegrityError(
+            f"cannot revalidate {label}"
+        ) from exc
+    try:
+        _directory_metadata(
+            root_opened,
+            required_mode=PRIVATE_DIRECTORY_MODE,
+            label=f"{label} root",
+        )
+        _directory_metadata(
+            root_named,
+            required_mode=PRIVATE_DIRECTORY_MODE,
+            label=f"{label} root",
+        )
+        _private_regular_file_metadata(lock_opened, label=label)
+        _private_regular_file_metadata(lock_named, label=label)
+        _require(
+            root_opened.st_dev == handle.root_device
+            and root_opened.st_ino == handle.root_inode
+            and root_named.st_dev == handle.root_device
+            and root_named.st_ino == handle.root_inode
+            and lock_opened.st_dev == handle.lock_device
+            and lock_opened.st_ino == handle.lock_inode
+            and lock_named.st_dev == handle.lock_device
+            and lock_named.st_ino == handle.lock_inode
+            and lock_opened.st_size == 0
+            and lock_named.st_size == 0,
+            f"{label} identity changed while held",
+        )
+    except PublicationReceiptIOError as exc:
+        raise PublicationBoundaryIntegrityError(
+            f"{label} integrity changed while held"
+        ) from exc
+
+
+def _private_regular_file_metadata(
+    metadata: os.stat_result,
+    *,
+    label: str,
+) -> None:
+    _require(
+        stat.S_ISREG(metadata.st_mode)
+        and metadata.st_uid == _effective_uid()
+        and metadata.st_nlink == 1
+        and stat.S_IMODE(metadata.st_mode) == PRIVATE_FILE_MODE,
+        f"{label} must be an owned mode-0600 single-link regular file",
+    )
+
+
+@contextlib.contextmanager
+def open_pinned_private_file_at(
+    directory_fd: int,
+    leaf: str,
+    *,
+    expected_size: int,
+    expected_sha256: str,
+    maximum: int,
+    label: str,
+) -> Iterator[int]:
+    """Yield one mode-0600 file descriptor whose bytes are pinned twice."""
+
+    leaf = _safe_leaf(leaf, label=f"{label} leaf")
+    _require(
+        type(expected_size) is int and 0 < expected_size <= maximum,
+        f"{label} size is invalid",
+    )
+    _require(
+        isinstance(expected_sha256, str)
+        and len(expected_sha256) == 64
+        and all(character in "0123456789abcdef" for character in expected_sha256),
+        f"{label} SHA-256 is malformed",
+    )
+    descriptor = -1
+    primary_error: BaseException | None = None
+
+    def snapshot() -> os.stat_result:
+        metadata = os.fstat(descriptor)
+        named = os.stat(leaf, dir_fd=directory_fd, follow_symlinks=False)
+        _private_regular_file_metadata(metadata, label=label)
+        _private_regular_file_metadata(named, label=label)
+        _require(
+            metadata.st_dev == named.st_dev
+            and metadata.st_ino == named.st_ino
+            and metadata.st_size == expected_size,
+            f"{label} identity or size differs",
+        )
+        digest = hashlib.sha256()
+        offset = 0
+        try:
+            while offset < expected_size:
+                chunk = os.pread(
+                    descriptor,
+                    min(1024 * 1024, expected_size - offset),
+                    offset,
+                )
+                _require(chunk, f"{label} ended before its declared size")
+                digest.update(chunk)
+                offset += len(chunk)
+            trailing = os.pread(descriptor, 1, expected_size)
+        except OSError as exc:
+            raise PublicationReceiptIOError(f"cannot read {label}") from exc
+        _require(
+            offset == expected_size
+            and trailing == b""
+            and digest.hexdigest() == expected_sha256,
+            f"{label} bytes differ",
+        )
+        return metadata
+
+    try:
+        descriptor = os.open(
+            leaf,
+            os.O_RDONLY
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_fd,
+        )
+        before = snapshot()
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        _require(
+            os.lseek(descriptor, 0, os.SEEK_CUR) == 0,
+            f"{label} offset is not zero",
+        )
+        yield_error: BaseException | None = None
+        try:
+            yield descriptor
+        except BaseException as exc:
+            yield_error = exc
+        post_error: BaseException | None = None
+        try:
+            after = snapshot()
+            _require(
+                after.st_dev == before.st_dev
+                and after.st_ino == before.st_ino
+                and after.st_mtime_ns == before.st_mtime_ns
+                and after.st_ctime_ns == before.st_ctime_ns,
+                f"{label} metadata changed while pinned",
+            )
+            if yield_error is None:
+                _require(
+                    os.lseek(descriptor, 0, os.SEEK_CUR) == expected_size,
+                    f"{label} was not consumed at its exact declared length",
+                )
+        except BaseException as exc:
+            post_error = exc
+        if yield_error is not None:
+            if post_error is not None:
+                integrity = PublicationBoundaryIntegrityError(
+                    f"{label} integrity changed across a failed operation",
+                    preceding_error=yield_error,
+                )
+                raise integrity from post_error
+            raise yield_error
+        if post_error is not None:
+            raise PublicationBoundaryIntegrityError(
+                f"{label} integrity changed after the operation"
+            ) from post_error
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        if descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError as exc:
+                if primary_error is not None:
+                    cleanup = PublicationBoundaryIntegrityError(
+                        f"cannot close {label} after an operation failure",
+                        preceding_error=primary_error,
+                    )
+                    raise cleanup from exc
+                else:
+                    raise PublicationBoundaryIntegrityError(
+                        f"cannot close {label}"
+                    ) from exc
+
+
+def source_digest_from_fd(
+    descriptor: int,
+    *,
+    expected_size: int,
+    label: str,
+) -> str:
+    """Hash exactly one declared regular-file extent through ``pread``."""
+
+    digest = hashlib.sha256()
+    offset = 0
+    while offset < expected_size:
+        try:
+            chunk = os.pread(
+                descriptor,
+                min(1024 * 1024, expected_size - offset),
+                offset,
+            )
+        except OSError as exc:
+            raise PublicationReceiptIOError(f"cannot read {label}") from exc
+        _require(chunk, f"{label} ended before its declared size")
+        digest.update(chunk)
+        offset += len(chunk)
+    try:
+        trailing = os.pread(descriptor, 1, expected_size)
+    except OSError as exc:
+        raise PublicationReceiptIOError(f"cannot read {label}") from exc
+    _require(trailing == b"", f"{label} exceeds its declared size")
+    return digest.hexdigest()
+
+
+def stage_private_file_from_fd_noreplace_at(
+    source_fd: int,
+    destination_directory_fd: int,
+    destination_leaf: str,
+    *,
+    expected_size: int,
+    expected_sha256: str,
+    maximum: int,
+    label: str,
+    allow_existing_exact: bool = False,
+) -> str:
+    """Stream one pinned source fd into a durable mode-0600 no-replace leaf."""
+
+    destination_leaf = _safe_leaf(
+        destination_leaf, label=f"{label} destination leaf"
+    )
+    _require(
+        type(expected_size) is int and 0 < expected_size <= maximum,
+        f"{label} expected size is invalid",
+    )
+    _require(
+        isinstance(expected_sha256, str)
+        and len(expected_sha256) == 64
+        and all(character in "0123456789abcdef" for character in expected_sha256),
+        f"{label} expected SHA-256 is malformed",
+    )
+    try:
+        destination_metadata = os.fstat(destination_directory_fd)
+        source_before = os.fstat(source_fd)
+    except OSError as exc:
+        raise PublicationReceiptIOError(f"cannot inspect {label}") from exc
+    _directory_metadata(
+        destination_metadata,
+        required_mode=PRIVATE_DIRECTORY_MODE,
+        label=f"{label} destination directory",
+    )
+    _require(
+        stat.S_ISREG(source_before.st_mode)
+        and source_before.st_uid == _effective_uid()
+        and source_before.st_nlink == 1
+        and source_before.st_size == expected_size,
+        f"{label} source metadata differs",
+    )
+    try:
+        existing_metadata = os.stat(
+            destination_leaf,
+            dir_fd=destination_directory_fd,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        existing_metadata = None
+    except OSError as exc:
+        raise PublicationReceiptIOError(
+            f"cannot inspect {label} destination"
+        ) from exc
+    if existing_metadata is not None:
+        _require(
+            allow_existing_exact is True,
+            f"existing {label} lacks same-plan recovery authority",
+        )
+        _private_regular_file_metadata(existing_metadata, label=label)
+        existing = consume_regular_snapshot_at(
+            destination_directory_fd,
+            destination_leaf,
+            display_path=pathlib.Path(destination_leaf),
+            maximum=maximum,
+            label=f"existing {label}",
+            validate_metadata=lambda metadata: _private_regular_file_metadata(
+                metadata, label=label
+            ),
+        )
+        _require(
+            existing.size == expected_size
+            and existing.sha256 == expected_sha256,
+            f"existing {label} destination bytes differ",
+        )
+        return existing.sha256
+    temporary_fd = -1
+    temporary_leaf = ""
+    committed = False
+    cleanup_safe = True
+    primary_error: BaseException | None = None
+
+    def source_digest() -> str:
+        return source_digest_from_fd(
+            source_fd,
+            expected_size=expected_size,
+            label=f"{label} source",
+        )
+
+    try:
+        for attempt in range(1000):
+            candidate = f".{destination_leaf}.pending-{os.getpid()}-{attempt}"
+            try:
+                temporary_fd = os.open(
+                    candidate,
+                    os.O_RDWR
+                    | os.O_CREAT
+                    | os.O_EXCL
+                    | getattr(os, "O_NOFOLLOW", 0)
+                    | getattr(os, "O_CLOEXEC", 0),
+                    PRIVATE_FILE_MODE,
+                    dir_fd=destination_directory_fd,
+                )
+            except FileExistsError:
+                continue
+            except OSError as exc:
+                raise PublicationReceiptIOError(
+                    f"cannot create {label} staging leaf"
+                ) from exc
+            temporary_leaf = candidate
+            break
+        _require(temporary_fd >= 0, f"cannot allocate {label} staging leaf")
+        digest = hashlib.sha256()
+        offset = 0
+        while offset < expected_size:
+            try:
+                chunk = os.pread(
+                    source_fd,
+                    min(1024 * 1024, expected_size - offset),
+                    offset,
+                )
+            except OSError as exc:
+                raise PublicationReceiptIOError(f"cannot read {label} source") from exc
+            _require(chunk, f"{label} source ended before its declared size")
+            _write_all(temporary_fd, chunk, label=label)
+            digest.update(chunk)
+            offset += len(chunk)
+        _require(
+            digest.hexdigest() == expected_sha256,
+            f"{label} source digest differs",
+        )
+        os.fsync(temporary_fd)
+        temporary_metadata = os.fstat(temporary_fd)
+        named_temporary = os.stat(
+            temporary_leaf,
+            dir_fd=destination_directory_fd,
+            follow_symlinks=False,
+        )
+        _private_regular_file_metadata(temporary_metadata, label=label)
+        _require(
+            temporary_metadata.st_size == expected_size
+            and named_temporary.st_dev == temporary_metadata.st_dev
+            and named_temporary.st_ino == temporary_metadata.st_ino
+            and source_digest_from_fd(
+                temporary_fd,
+                expected_size=expected_size,
+                label=f"{label} staged file",
+            )
+            == expected_sha256,
+            f"{label} staged size differs",
+        )
+        source_after = os.fstat(source_fd)
+        _require(
+            source_after.st_dev == source_before.st_dev
+            and source_after.st_ino == source_before.st_ino
+            and source_after.st_mtime_ns == source_before.st_mtime_ns
+            and source_after.st_ctime_ns == source_before.st_ctime_ns
+            and source_digest() == expected_sha256,
+            f"{label} source changed during staging",
+        )
+        cleanup_safe = False
+        try:
+            _rename_noreplace(
+                temporary_leaf,
+                destination_leaf,
+                source_directory_fd=destination_directory_fd,
+                destination_directory_fd=destination_directory_fd,
+            )
+            committed = True
+        except BaseException as exc:
+            destination_identity: os.stat_result | None = None
+            temporary_identity: os.stat_result | None = None
+            try:
+                destination_identity = os.stat(
+                    destination_leaf,
+                    dir_fd=destination_directory_fd,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                pass
+            try:
+                temporary_identity = os.stat(
+                    temporary_leaf,
+                    dir_fd=destination_directory_fd,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                pass
+            if (
+                destination_identity is not None
+                and destination_identity.st_dev == temporary_metadata.st_dev
+                and destination_identity.st_ino == temporary_metadata.st_ino
+                and temporary_identity is None
+            ):
+                committed = True
+                raise PublicationReceiptCommittedError(
+                    f"{label} committed before an interrupted return",
+                    leaf=destination_leaf,
+                    digest=expected_sha256,
+                ) from exc
+            if (
+                destination_identity is None
+                and temporary_identity is not None
+                and temporary_identity.st_dev == temporary_metadata.st_dev
+                and temporary_identity.st_ino == temporary_metadata.st_ino
+            ):
+                cleanup_safe = True
+                raise
+            raise PublicationBoundaryIntegrityError(
+                f"{label} rename visibility is indeterminate"
+            ) from exc
+        os.fsync(destination_directory_fd)
+        named_destination = os.stat(
+            destination_leaf,
+            dir_fd=destination_directory_fd,
+            follow_symlinks=False,
+        )
+        held_after = os.fstat(temporary_fd)
+        _require(
+            named_destination.st_dev == temporary_metadata.st_dev
+            and named_destination.st_ino == temporary_metadata.st_ino
+            and held_after.st_dev == temporary_metadata.st_dev
+            and held_after.st_ino == temporary_metadata.st_ino,
+            f"{label} destination identity changed after commit",
+        )
+        snapshot = consume_regular_snapshot_at(
+            destination_directory_fd,
+            destination_leaf,
+            display_path=pathlib.Path(destination_leaf),
+            maximum=maximum,
+            label=label,
+            validate_metadata=lambda metadata: _private_regular_file_metadata(
+                metadata, label=label
+            ),
+        )
+        _require(
+            snapshot.size == expected_size
+            and snapshot.sha256 == expected_sha256,
+            f"{label} staged bytes differ",
+        )
+        return snapshot.sha256
+    except PublicationReceiptCommittedError:
+        raise
+    except BaseException as exc:
+        primary_error = exc
+        if committed:
+            raise PublicationReceiptCommittedError(
+                f"{label} committed but post-publication validation failed",
+                leaf=destination_leaf,
+                digest=expected_sha256,
+            ) from exc
+        raise
+    finally:
+        cleanup_error: BaseException | None = None
+        if temporary_fd >= 0:
+            try:
+                os.close(temporary_fd)
+            except BaseException as exc:
+                cleanup_error = exc
+        if temporary_leaf and not committed and cleanup_safe:
+            try:
+                os.unlink(temporary_leaf, dir_fd=destination_directory_fd)
+            except FileNotFoundError:
+                pass
+            except BaseException as exc:
+                cleanup_error = cleanup_error or exc
+        if cleanup_error is not None:
+            if committed:
+                raise PublicationReceiptCommittedError(
+                    f"{label} committed but staging cleanup failed",
+                    leaf=destination_leaf,
+                    digest=expected_sha256,
+                ) from cleanup_error
+            boundary = PublicationBoundaryIntegrityError(
+                f"cannot clean {label} staging resources",
+                preceding_error=primary_error,
+            )
+            raise boundary from cleanup_error
+
+
+def recover_private_staging_residues_at(
+    directory_fd: int,
+    allowed_final_entries: frozenset[str],
+    *,
+    label: str,
+    recoverable_final_leaves: frozenset[str] | None = None,
+) -> tuple[str, ...]:
+    """Remove only crash-left precommit files for a held private transaction.
+
+    The caller's cross-worktree lock proves that no live transaction can own
+    these names. Final leaves are never removed or replaced.
+    """
+
+    finals = _validated_directory_inventory(allowed_final_entries, label=label)
+    recoverable = (
+        finals
+        if recoverable_final_leaves is None
+        else _validated_directory_inventory(
+            recoverable_final_leaves,
+            label=f"{label} recoverable leaves",
+        )
+    )
+    _require(
+        recoverable <= finals,
+        f"{label} recoverable leaves differ from allowed final entries",
+    )
+    try:
+        directory_metadata = os.fstat(directory_fd)
+        entries_before = sorted(os.listdir(directory_fd))
+    except OSError as exc:
+        raise PublicationReceiptIOError(f"cannot inventory {label}") from exc
+    _directory_metadata(
+        directory_metadata,
+        required_mode=PRIVATE_DIRECTORY_MODE,
+        label=label,
+    )
+    _require(
+        len(entries_before) <= MAX_FIXED_DIRECTORY_ENTRIES,
+        f"{label} exceeds its bounded inventory",
+    )
+    pending_pattern = re.compile(
+        r"^\.(?P<final>[0-9A-Za-z][0-9A-Za-z._-]*)\.pending-"
+        r"[1-9][0-9]*(?:-[0-9]+)?$"
+    )
+    residues: list[str] = []
+    residue_targets: set[str] = set()
+    for entry in entries_before:
+        if entry in finals:
+            continue
+        match = pending_pattern.fullmatch(entry)
+        _require(
+            match is not None and match.group("final") in recoverable,
+            f"{label} contains an unexpected entry",
+        )
+        _require(
+            match.group("final") not in entries_before,
+            f"{label} contains both a final leaf and its pending residue",
+        )
+        _require(
+            match.group("final") not in residue_targets,
+            f"{label} contains multiple residues for one final leaf",
+        )
+        residue_targets.add(match.group("final"))
+        try:
+            metadata = os.stat(entry, dir_fd=directory_fd, follow_symlinks=False)
+        except OSError as exc:
+            raise PublicationReceiptIOError(
+                f"cannot inspect {label} residue"
+            ) from exc
+        _private_regular_file_metadata(metadata, label=f"{label} residue")
+        residues.append(entry)
+    entries_resampled = sorted(os.listdir(directory_fd))
+    _require(
+        entries_resampled == entries_before,
+        f"{label} changed before residue recovery",
+    )
+    for entry in residues:
+        try:
+            os.unlink(entry, dir_fd=directory_fd)
+        except OSError as exc:
+            raise PublicationBoundaryIntegrityError(
+                f"cannot remove {label} precommit residue"
+            ) from exc
+    if residues:
+        try:
+            os.fsync(directory_fd)
+        except OSError as exc:
+            raise PublicationBoundaryIntegrityError(
+                f"cannot durably recover {label} precommit residues"
+            ) from exc
+    final_entries = sorted(os.listdir(directory_fd))
+    _require(
+        final_entries == sorted(set(entries_before) - set(residues)),
+        f"{label} changed during residue recovery",
+    )
+    return tuple(residues)
 
 
 def verify_private_directory_handle_identity(
@@ -733,6 +1727,7 @@ def open_private_directory_at(
         mode=required_mode,
     )
     primary_error: BaseException | None = None
+    boundary_error: PublicationBoundaryIntegrityError | None = None
     try:
         yield handle
     except BaseException as exc:
@@ -744,16 +1739,25 @@ def open_private_directory_at(
                 verify_private_directory_handle_identity(handle, label=label)
             except BaseException as exc:
                 if primary_error is not None:
-                    primary_error.add_note(
-                        f"cannot revalidate pinned {label}: {exc}"
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        f"{label} identity changed while pinned after an operation failure",
+                        preceding_error=primary_error,
                     )
+                    boundary_error.__cause__ = exc
                 else:
-                    primary_error = exc
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        f"{label} identity changed while pinned after the operation"
+                    )
+                    boundary_error.__cause__ = exc
         try:
             os.close(handle.descriptor)
         except OSError as exc:
             if primary_error is not None:
-                primary_error.add_note(f"cannot close pinned {label}")
+                boundary_error = PublicationBoundaryIntegrityError(
+                    f"cannot close pinned {label} after an operation failure",
+                    preceding_error=primary_error,
+                )
+                boundary_error.__cause__ = exc
             elif handle.committed_leaf is not None:
                 primary_error = _committed_resource_error(
                     handle,
@@ -762,10 +1766,12 @@ def open_private_directory_at(
                     cause=exc,
                 )
             else:
-                primary_error = PublicationReceiptIOError(
+                boundary_error = PublicationBoundaryIntegrityError(
                     f"cannot close pinned {label}"
                 )
-                primary_error.__cause__ = exc
+                boundary_error.__cause__ = exc
+        if boundary_error is not None:
+            raise boundary_error
         if primary_error is not None and sys.exception() is None:
             raise primary_error
 
@@ -783,12 +1789,14 @@ def _private_direct_child_handle(
         direct_child_name,
         label=f"{label} directory leaf",
     )
-    root, root_fd, safe_root_parent_fd = _open_or_create_private_safe_root(
-        safe_root,
-        label=f"{label} safe root",
-        create=False,
-        sync_parent=create or sync_safe_root_parent,
-        retain_parent=sync_safe_root_parent,
+    root, root_fd, safe_root_parent_fd, _created = (
+        _open_or_create_private_safe_root(
+            safe_root,
+            label=f"{label} safe root",
+            create=False,
+            sync_parent=create or sync_safe_root_parent,
+            retain_parent=sync_safe_root_parent,
+        )
     )
     try:
         root_metadata = os.fstat(root_fd)
@@ -816,6 +1824,7 @@ def _private_direct_child_handle(
     )
     created = False
     primary_error: BaseException | None = None
+    boundary_error: PublicationBoundaryIntegrityError | None = None
     try:
         if create:
             try:
@@ -897,21 +1906,37 @@ def _private_direct_child_handle(
                 )
                 failure.__cause__ = exc
                 if primary_error is not None:
-                    primary_error.add_note(str(failure))
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        f"{label} safe root changed after an operation failure",
+                        preceding_error=primary_error,
+                    )
+                    boundary_error.__cause__ = exc
                 else:
-                    primary_error = failure
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        str(exc)
+                    )
+                    boundary_error.__cause__ = exc
             except BaseException as exc:
                 if primary_error is not None:
-                    primary_error.add_note(
-                        f"cannot revalidate {label} safe root: {exc}"
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        f"{label} safe root changed after an operation failure",
+                        preceding_error=primary_error,
                     )
+                    boundary_error.__cause__ = exc
                 else:
-                    primary_error = exc
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        str(exc)
+                    )
+                    boundary_error.__cause__ = exc
         try:
             os.close(root_fd)
         except OSError as exc:
             if primary_error is not None:
-                primary_error.add_note(f"cannot close {label} safe root")
+                boundary_error = PublicationBoundaryIntegrityError(
+                    f"cannot close {label} safe root after an operation failure",
+                    preceding_error=primary_error,
+                )
+                boundary_error.__cause__ = exc
             elif committed:
                 if isinstance(child_handle, PrivateDirectoryHandle):
                     primary_error = _committed_resource_error(
@@ -926,18 +1951,20 @@ def _private_direct_child_handle(
                     )
                     primary_error.__cause__ = exc
             else:
-                primary_error = PublicationReceiptIOError(
+                boundary_error = PublicationBoundaryIntegrityError(
                     f"cannot close {label} safe root"
                 )
-                primary_error.__cause__ = exc
+                boundary_error.__cause__ = exc
         if safe_root_parent_fd is not None:
             try:
                 os.close(safe_root_parent_fd)
             except OSError as exc:
                 if primary_error is not None:
-                    primary_error.add_note(
-                        f"cannot close {label} safe-root parent"
+                    boundary_error = PublicationBoundaryIntegrityError(
+                        f"cannot close {label} safe-root parent after an operation failure",
+                        preceding_error=primary_error,
                     )
+                    boundary_error.__cause__ = exc
                 elif committed:
                     if isinstance(child_handle, PrivateDirectoryHandle):
                         primary_error = _committed_resource_error(
@@ -954,10 +1981,12 @@ def _private_direct_child_handle(
                         )
                         primary_error.__cause__ = exc
                 else:
-                    primary_error = PublicationReceiptIOError(
+                    boundary_error = PublicationBoundaryIntegrityError(
                         f"cannot close {label} safe-root parent"
                     )
-                    primary_error.__cause__ = exc
+                    boundary_error.__cause__ = exc
+        if boundary_error is not None:
+            raise boundary_error
         if primary_error is not None and sys.exception() is None:
             raise primary_error
 
@@ -2540,10 +3569,12 @@ def create_private_transaction_json(
     payload = canonical_json_bytes(value)
     _require(len(payload) <= maximum, f"{label} exceeds the bounded size")
     expected_digest = hashlib.sha256(payload).hexdigest()
-    root, root_fd, parent_descriptor = _open_or_create_private_safe_root(
-        safe_root,
-        label=f"{label} safe root",
-        create=True,
+    root, root_fd, parent_descriptor, _created = (
+        _open_or_create_private_safe_root(
+            safe_root,
+            label=f"{label} safe root",
+            create=True,
+        )
     )
     _require_released_safe_root_parent(
         parent_descriptor,
@@ -2782,10 +3813,12 @@ def write_fixed_private_json(
     payload = canonical_json_bytes(value)
     _require(len(payload) <= maximum, f"{label} exceeds the bounded size")
     expected_digest = hashlib.sha256(payload).hexdigest()
-    root, descriptor, parent_descriptor = _open_or_create_private_safe_root(
-        safe_root,
-        label=f"{label} safe root",
-        create=False,
+    root, descriptor, parent_descriptor, _created = (
+        _open_or_create_private_safe_root(
+            safe_root,
+            label=f"{label} safe root",
+            create=False,
+        )
     )
     _require_released_safe_root_parent(
         parent_descriptor,

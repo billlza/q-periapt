@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -15,6 +16,7 @@ import stat
 import sys
 import tempfile
 from dataclasses import dataclass
+from collections.abc import Iterator, Mapping
 from typing import Any, NoReturn
 
 from android_device_proof import (
@@ -51,8 +53,11 @@ from deterministic_archive import (
 )
 from evidence_io import (
     EvidenceIOError,
+    FileDigestSnapshot,
     FileSnapshot,
+    consume_regular_snapshot_at,
     load_json_object_snapshot,
+    load_json_object_snapshot_at,
     read_regular_snapshot,
 )
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_text
@@ -63,10 +68,19 @@ from platform_distribution_contract import (
     DISTRIBUTION_REVISION,
     LINUX_AARCH64,
     LINUX_X86_64,
+    MAX_PLATFORM_ASSET_BYTES,
+    PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS,
+    PLATFORM_CANDIDATE_ASSETS,
+    PLATFORM_RELEASE_CANDIDATE_KIND,
+    PLATFORM_RELEASE_CANDIDATE_SCHEMA_VERSION,
+    PlatformDistributionContractError,
+    PUBLIC_ASSET_CONTENT_TYPES,
+    PUBLIC_ASSET_NAMES,
     PRODUCT_VERSION,
     RELEASE_MANIFEST,
     RELEASE_SUMS,
     RELEASE_TAG,
+    validate_release_candidate_receipt,
 )
 from platform_distribution_contract import (
     PLATFORM_DISTRIBUTION_KIND as KIND,
@@ -80,6 +94,22 @@ from platform_distribution_contract import (
 from platform_distribution_contract import (
     PLATFORM_RELEASE_FILES as RELEASE_FILES,
 )
+from publication_receipt_io import (
+    PRIVATE_FILE_MODE,
+    PrivateDirectoryHandle,
+    PublicationReceiptCommittedError,
+    PublicationReceiptIOError,
+    create_private_direct_child_handle,
+    ensure_private_safe_root,
+    normalize_safe_root,
+    open_private_direct_child_handle,
+    open_private_directory,
+    open_private_directory_at,
+    prepare_private_json_noreplace_at,
+    stage_private_file_from_fd_noreplace_at,
+    verify_exact_directory_inventory_at,
+    verify_private_directory_handle_identity,
+)
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -90,6 +120,18 @@ ARCHIVE_LIMITS = ArchiveLimits(
     maximum_member_count=16_384,
     maximum_member_bytes=MAX_ASSET_BYTES,
     maximum_total_bytes=1024 * 1024 * 1024,
+)
+
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
+PLATFORM_RELEASE_CANDIDATE_ROOT = (
+    REPOSITORY_ROOT / "target" / "abi2-platform-release-candidates"
+)
+PLATFORM_RELEASE_DIRECTORY_NAME = "release"
+PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME = (
+    "platform-release-candidate-receipt.json"
+)
+PLATFORM_RELEASE_TRANSACTION_NAME = re.compile(
+    r"^transaction\.[0-9A-Za-z][0-9A-Za-z_-]{0,63}$"
 )
 
 
@@ -113,6 +155,25 @@ class AndroidVerificationTools:
     llvm_readelf: pathlib.Path
     apksigner: pathlib.Path
     zipalign: pathlib.Path
+
+
+@dataclass(frozen=True, slots=True)
+class ReleaseCandidateBundle:
+    """One descriptor-resampled completion receipt and its exact seven bytes."""
+
+    receipt: dict[str, Any]
+    receipt_sha256: str
+    assets: tuple[FileDigestSnapshot, ...]
+    transaction_device: int
+    transaction_inode: int
+    release_device: int
+    release_inode: int
+
+    def asset_by_name(self) -> dict[str, FileDigestSnapshot]:
+        return {
+            name: snapshot
+            for name, snapshot in zip(PUBLIC_ASSET_NAMES, self.assets, strict=True)
+        }
 
 
 def fail(message: str) -> NoReturn:
@@ -205,7 +266,8 @@ def _source_identity(root: pathlib.Path, *, require_head: bool) -> SourceIdentit
     epoch = int(epoch_text)
     require(315_532_800 <= epoch <= 0xFFFFFFFF, "release source epoch is out of range")
     if require_head:
-        assert inspection is not None
+        if inspection is None:
+            fail("platform worktree inspection is unavailable")
         require(not inspection.dirty, "platform distribution assembly requires a clean worktree")
         require(inspection.commit == tag_commit, "release tag does not point to current HEAD")
         try:
@@ -627,16 +689,34 @@ def assemble(
     output_dir: pathlib.Path,
     *,
     android_tools: AndroidVerificationTools,
+    runtime_bundle: pathlib.Path | None = None,
+    preserve_failed_output: bool = False,
 ) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     inputs = _regular_directory(assets_dir, "platform input asset directory")
-    input_files = _inventory_files(inputs)
-    require(set(input_files) == INPUT_ASSETS, "platform input asset set differs")
+    inventoried_inputs = _inventory_files(inputs)
+    if runtime_bundle is None:
+        require(
+            set(inventoried_inputs) == INPUT_ASSETS,
+            "platform input asset set differs",
+        )
+        input_files = inventoried_inputs
+    else:
+        require(
+            set(inventoried_inputs)
+            == set(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS),
+            "verified platform candidate input set differs",
+        )
+        input_files = {
+            name: inventoried_inputs[name] for name in PLATFORM_CANDIDATE_ASSETS
+        }
+        input_files[ANDROID_RUNTIME_BUNDLE] = pathlib.Path(runtime_bundle)
     output = pathlib.Path(output_dir)
     require(not output.exists() and not output.is_symlink(), f"platform output directory already exists: {output}")
     _regular_directory(output.parent, "platform output parent")
     source = _source_identity(repository, require_head=True)
     output.mkdir(mode=0o755)
+    os.chmod(output, 0o755)
     try:
         for name in sorted(INPUT_ASSETS):
             snapshot = _snapshot(input_files[name], f"platform input asset {name}")
@@ -664,7 +744,11 @@ def assemble(
         os.chmod(sums_path, 0o644)
         verify_distribution(repository, output, android_tools=android_tools)
     except Exception:
-        if output.exists() and not output.is_symlink():
+        if (
+            not preserve_failed_output
+            and output.exists()
+            and not output.is_symlink()
+        ):
             shutil.rmtree(output)
         raise
     return manifest
@@ -778,6 +862,890 @@ def verify_distribution(
     return manifest
 
 
+def _public_release_asset_metadata(metadata: os.stat_result) -> None:
+    require(
+        stat.S_ISREG(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and stat.S_IMODE(metadata.st_mode) == 0o644
+        and metadata.st_nlink == 1,
+        "platform release candidate asset metadata differs",
+    )
+
+
+def _snapshot_release_assets(
+    release_directory: PrivateDirectoryHandle,
+    *,
+    sync_files: bool,
+) -> list[dict[str, object]]:
+    descriptor = release_directory.descriptor
+    path = release_directory.path
+    try:
+        verify_exact_directory_inventory_at(
+            descriptor,
+            frozenset(PUBLIC_ASSET_NAMES),
+            label="platform release candidate directory",
+        )
+        records: list[dict[str, object]] = []
+        for name in PUBLIC_ASSET_NAMES:
+            if sync_files:
+                file_descriptor = os.open(
+                    name,
+                    os.O_RDONLY
+                    | getattr(os, "O_NOFOLLOW", 0)
+                    | getattr(os, "O_CLOEXEC", 0),
+                    dir_fd=descriptor,
+                )
+                primary_error: BaseException | None = None
+                try:
+                    opened = os.fstat(file_descriptor)
+                    named = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+                    _public_release_asset_metadata(opened)
+                    require(
+                        named.st_dev == opened.st_dev
+                        and named.st_ino == opened.st_ino,
+                        f"platform release candidate asset identity changed for {name}",
+                    )
+                    os.fsync(file_descriptor)
+                except BaseException as exc:
+                    primary_error = exc
+                    raise
+                finally:
+                    try:
+                        os.close(file_descriptor)
+                    except OSError as exc:
+                        if primary_error is not None:
+                            primary_error.add_note(
+                                f"cannot close platform release candidate asset {name}"
+                            )
+                        else:
+                            raise PlatformDistributionError(
+                                f"cannot close platform release candidate asset {name}"
+                            ) from exc
+            snapshot = consume_regular_snapshot_at(
+                descriptor,
+                name,
+                display_path=path / name,
+                maximum=MAX_PLATFORM_ASSET_BYTES,
+                label=f"platform release candidate asset {name}",
+                validate_metadata=_public_release_asset_metadata,
+            )
+            require(snapshot.size > 0, f"platform release candidate asset is empty: {name}")
+            records.append(
+                {
+                    "bytes": snapshot.size,
+                    "content_type": PUBLIC_ASSET_CONTENT_TYPES[name],
+                    "name": name,
+                    "sha256": snapshot.sha256,
+                }
+            )
+        if sync_files:
+            os.fsync(descriptor)
+        verify_exact_directory_inventory_at(
+            descriptor,
+            frozenset(PUBLIC_ASSET_NAMES),
+            label="platform release candidate directory after snapshot",
+        )
+        verify_private_directory_handle_identity(
+            release_directory,
+            label="platform release candidate directory",
+        )
+        return records
+    except (EvidenceIOError, PublicationReceiptIOError) as exc:
+        raise PlatformDistributionError(str(exc)) from exc
+    except OSError as exc:
+        raise PlatformDistributionError(
+            "cannot durably snapshot platform release candidate assets"
+        ) from exc
+
+
+def _snapshot_release_asset_files(
+    release_directory: PrivateDirectoryHandle,
+) -> tuple[FileDigestSnapshot, ...]:
+    """Read the seven candidate assets through the already-pinned directory."""
+
+    try:
+        verify_exact_directory_inventory_at(
+            release_directory.descriptor,
+            frozenset(PUBLIC_ASSET_NAMES),
+            label="platform release candidate file snapshot directory",
+        )
+        snapshots = tuple(
+            consume_regular_snapshot_at(
+                release_directory.descriptor,
+                name,
+                display_path=release_directory.path / name,
+                maximum=MAX_PLATFORM_ASSET_BYTES,
+                label=f"platform release candidate file snapshot {name}",
+                validate_metadata=_public_release_asset_metadata,
+            )
+            for name in PUBLIC_ASSET_NAMES
+        )
+        require(
+            all(snapshot.size > 0 for snapshot in snapshots),
+            "platform release candidate file snapshot is empty",
+        )
+        verify_exact_directory_inventory_at(
+            release_directory.descriptor,
+            frozenset(PUBLIC_ASSET_NAMES),
+            label="platform release candidate file snapshot directory after read",
+        )
+        verify_private_directory_handle_identity(
+            release_directory,
+            label="platform release candidate file snapshot directory",
+        )
+        return snapshots
+    except (EvidenceIOError, PublicationReceiptIOError) as exc:
+        raise PlatformDistributionError(str(exc)) from exc
+
+
+def _candidate_runtime_projection(
+    manifest: dict[str, Any],
+    assets: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    values = manifest.get("assets")
+    require(isinstance(values, list), "platform manifest assets are missing")
+    records: dict[str, dict[str, Any]] = {}
+    for value in values:
+        require(
+            isinstance(value, dict)
+            and all(isinstance(key, str) for key in value),
+            "platform manifest asset is malformed",
+        )
+        name = value.get("name")
+        require(
+            isinstance(name, str) and name not in records,
+            "platform manifest asset names differ",
+        )
+        records[name] = value
+    require(
+        ANDROID_RUNTIME_BUNDLE in records,
+        "platform manifest lacks Android runtime evidence",
+    )
+    runtime = records[ANDROID_RUNTIME_BUNDLE]
+    device = runtime.get("device")
+    require(isinstance(device, dict), "platform manifest Android device is missing")
+    return {
+        "bundle_manifest_sha256": runtime.get("bundle_manifest_sha256"),
+        "bundle_schema": BUNDLE_SCHEMA_VERSION,
+        "bundle_sha256": assets[ANDROID_RUNTIME_BUNDLE]["sha256"],
+        "device_abi": device.get("abi"),
+        "device_kind": device.get("kind"),
+        "device_sdk": device.get("sdk"),
+        "page_size": device.get("page_size"),
+        "proof_schema": PROOF_SCHEMA_VERSION,
+        "proof_sha256": runtime.get("proof_sha256"),
+        "release_mode": True,
+        "tested_aar_manifest_sha256": assets[ANDROID_MANIFEST]["sha256"],
+        "tested_aar_sha256": runtime.get("tested_aar_sha256"),
+    }
+
+
+def _release_candidate_receipt(
+    manifest: dict[str, Any],
+    asset_records: list[dict[str, object]],
+) -> dict[str, object]:
+    assets = {record["name"]: record for record in asset_records}
+    receipt: dict[str, object] = {
+        "android_runtime_evidence": _candidate_runtime_projection(
+            manifest,
+            assets,
+        ),
+        "assets": asset_records,
+        "checksums_sha256": assets[RELEASE_SUMS]["sha256"],
+        "kind": PLATFORM_RELEASE_CANDIDATE_KIND,
+        "platform_distribution_sha256": assets[RELEASE_MANIFEST]["sha256"],
+        "schema_version": PLATFORM_RELEASE_CANDIDATE_SCHEMA_VERSION,
+        "source": manifest["source"],
+    }
+    try:
+        validate_release_candidate_receipt(receipt)
+    except PlatformDistributionContractError as exc:
+        raise PlatformDistributionError(
+            f"platform release candidate receipt is invalid: {exc}"
+        ) from exc
+    return receipt
+
+
+def _release_transaction_name(value: object) -> str:
+    require(
+        isinstance(value, str)
+        and PLATFORM_RELEASE_TRANSACTION_NAME.fullmatch(value) is not None,
+        "platform release transaction name must use transaction.<bounded-id>",
+    )
+    return value
+
+
+def assemble_candidate_transaction(
+    root: pathlib.Path,
+    candidate_dir: pathlib.Path,
+    runtime_bundle: pathlib.Path,
+    transaction_name: str,
+    *,
+    android_tools: AndroidVerificationTools,
+) -> tuple[pathlib.Path, str, pathlib.Path, dict[str, object]]:
+    """Assemble seven public files and commit one manifest-last private receipt."""
+
+    repository = _regular_directory(root, "repository root")
+    require(
+        repository == REPOSITORY_ROOT.resolve(strict=True),
+        "platform release candidate assembly requires the fixed repository root",
+    )
+    transaction_name = _release_transaction_name(transaction_name)
+    committed_digest: str | None = None
+    committed_path: pathlib.Path | None = None
+    try:
+        ensure_private_safe_root(
+            PLATFORM_RELEASE_CANDIDATE_ROOT,
+            label="platform release candidate root",
+        )
+        with create_private_direct_child_handle(
+            safe_root=PLATFORM_RELEASE_CANDIDATE_ROOT,
+            direct_child_name=transaction_name,
+            label="platform release candidate transaction",
+        ) as transaction:
+            verify_exact_directory_inventory_at(
+                transaction.descriptor,
+                frozenset(),
+                label="new platform release candidate transaction",
+            )
+            release_path = transaction.path / PLATFORM_RELEASE_DIRECTORY_NAME
+            manifest = assemble(
+                repository,
+                candidate_dir,
+                release_path,
+                android_tools=android_tools,
+                runtime_bundle=runtime_bundle,
+                preserve_failed_output=True,
+            )
+            verify_private_directory_handle_identity(
+                transaction,
+                label="platform release candidate transaction after assembly",
+            )
+            verify_exact_directory_inventory_at(
+                transaction.descriptor,
+                frozenset({PLATFORM_RELEASE_DIRECTORY_NAME}),
+                label="assembled platform release candidate transaction",
+            )
+            with open_private_directory_at(
+                parent=transaction,
+                direct_child_name=PLATFORM_RELEASE_DIRECTORY_NAME,
+                label="platform release candidate directory",
+                required_mode=0o755,
+            ) as release:
+                first_assets = _snapshot_release_assets(release, sync_files=True)
+                verify_private_directory_handle_identity(
+                    transaction,
+                    label="platform release candidate transaction before final deep verify",
+                )
+                verify_private_directory_handle_identity(
+                    release,
+                    label="platform release candidate directory before final deep verify",
+                )
+                final_manifest = verify_distribution(
+                    repository,
+                    release.path,
+                    android_tools=android_tools,
+                )
+                require(
+                    final_manifest == manifest,
+                    "platform release candidate manifest changed after assembly",
+                )
+                verify_private_directory_handle_identity(
+                    transaction,
+                    label="platform release candidate transaction after final deep verify",
+                )
+                verify_private_directory_handle_identity(
+                    release,
+                    label="platform release candidate directory after final deep verify",
+                )
+                verified_assets = _snapshot_release_assets(
+                    release,
+                    sync_files=False,
+                )
+                require(
+                    verified_assets == first_assets,
+                    "platform release candidate assets changed during final deep verify",
+                )
+                receipt = _release_candidate_receipt(manifest, first_assets)
+                with prepare_private_json_noreplace_at(
+                    transaction,
+                    PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+                    receipt,
+                    label="platform release candidate completion receipt",
+                ) as prepared:
+                    current_source = _source_identity(repository, require_head=True)
+                    require(
+                        manifest["source"]
+                        == {
+                            "git_commit": current_source.commit,
+                            "git_tree": current_source.tree,
+                            "canonical_source_tree_sha256": (
+                                current_source.canonical_source_tree_sha256
+                            ),
+                            "source_date_epoch": current_source.source_date_epoch,
+                            "git_dirty": False,
+                        },
+                        "platform release candidate source changed before receipt commit",
+                    )
+                    second_assets = _snapshot_release_assets(
+                        release,
+                        sync_files=False,
+                    )
+                    require(
+                        second_assets == first_assets,
+                        "platform release candidate assets changed before receipt commit",
+                    )
+                    digest = prepared.commit_after_revalidation()
+                    committed_digest = digest
+                    committed_path = (
+                        transaction.path
+                        / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+                    )
+                try:
+                    verify_exact_directory_inventory_at(
+                        transaction.descriptor,
+                        frozenset(
+                            {
+                                PLATFORM_RELEASE_DIRECTORY_NAME,
+                                PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+                            }
+                        ),
+                        label="completed platform release candidate transaction",
+                    )
+                    verify_private_directory_handle_identity(
+                        transaction,
+                        label="completed platform release candidate transaction",
+                    )
+                except (PublicationReceiptIOError, PlatformDistributionError) as exc:
+                    raise PublicationReceiptCommittedError(
+                        "platform release candidate receipt committed but the "
+                        "completed transaction could not be revalidated",
+                        leaf=PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+                        digest=digest,
+                        path=(
+                            transaction.path
+                            / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+                        ),
+                    ) from exc
+                receipt_path = transaction.path / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+                return receipt_path, digest, release.path, receipt
+    except PublicationReceiptCommittedError:
+        raise
+    except PublicationReceiptIOError as exc:
+        if committed_digest is not None:
+            raise PublicationReceiptCommittedError(
+                "platform release candidate receipt committed but transaction "
+                "resource cleanup or revalidation failed",
+                leaf=PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+                digest=committed_digest,
+                path=committed_path,
+            ) from exc
+        raise PlatformDistributionError(str(exc)) from exc
+
+
+def _private_candidate_receipt_metadata(metadata: os.stat_result) -> None:
+    require(
+        stat.S_ISREG(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and stat.S_IMODE(metadata.st_mode) == PRIVATE_FILE_MODE
+        and metadata.st_nlink == 1,
+        "platform release candidate receipt metadata differs",
+    )
+
+
+def _load_release_candidate_bundle_from_handle(
+    transaction: PrivateDirectoryHandle,
+    *,
+    candidate_path: pathlib.Path,
+) -> ReleaseCandidateBundle:
+    """Load one candidate through a caller-owned pinned transaction handle."""
+
+    expected_inventory = frozenset(
+        {
+            PLATFORM_RELEASE_DIRECTORY_NAME,
+            PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+        }
+    )
+    verify_exact_directory_inventory_at(
+        transaction.descriptor,
+        expected_inventory,
+        label="platform release candidate transaction before load",
+    )
+    with open_private_directory_at(
+        parent=transaction,
+        direct_child_name=PLATFORM_RELEASE_DIRECTORY_NAME,
+        label="platform release candidate directory",
+        required_mode=0o755,
+    ) as release:
+        transaction_metadata = os.fstat(transaction.descriptor)
+        release_metadata = os.fstat(release.descriptor)
+        assets_before = _snapshot_release_assets(release, sync_files=False)
+        files_before = _snapshot_release_asset_files(release)
+        first = load_json_object_snapshot_at(
+            transaction.descriptor,
+            PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+            display_path=candidate_path,
+            maximum=16 * 1024 * 1024,
+            label="platform release candidate completion receipt",
+            validate_metadata=_private_candidate_receipt_metadata,
+        )
+        require(
+            first.file.data == canonical_json(first.value),
+            "platform release candidate receipt is not canonical JSON",
+        )
+        receipt = validate_release_candidate_receipt(first.value)
+        require(
+            receipt["assets"] == assets_before,
+            "platform release candidate receipt assets differ from release files",
+        )
+        assets_after = _snapshot_release_assets(release, sync_files=False)
+        files_after = _snapshot_release_asset_files(release)
+        second = load_json_object_snapshot_at(
+            transaction.descriptor,
+            PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+            display_path=candidate_path,
+            maximum=16 * 1024 * 1024,
+            label="platform release candidate completion receipt resample",
+            validate_metadata=_private_candidate_receipt_metadata,
+        )
+        require(
+            assets_after == assets_before
+            and files_after == files_before
+            and second.file.data == first.file.data
+            and second.value == first.value,
+            "platform release candidate transaction changed while loading",
+        )
+    verify_exact_directory_inventory_at(
+        transaction.descriptor,
+        expected_inventory,
+        label="platform release candidate transaction after load",
+    )
+    verify_private_directory_handle_identity(
+        transaction,
+        label="platform release candidate transaction after load",
+    )
+    return ReleaseCandidateBundle(
+        receipt=receipt,
+        receipt_sha256=first.file.sha256,
+        assets=files_before,
+        transaction_device=transaction_metadata.st_dev,
+        transaction_inode=transaction_metadata.st_ino,
+        release_device=release_metadata.st_dev,
+        release_inode=release_metadata.st_ino,
+    )
+
+
+def load_release_candidate_bundle(path: pathlib.Path) -> ReleaseCandidateBundle:
+    """Resample one fixed receipt and all seven sibling release files twice."""
+
+    candidate_path = pathlib.Path(path)
+    try:
+        root = normalize_safe_root(
+            PLATFORM_RELEASE_CANDIDATE_ROOT,
+            label="platform release candidate root",
+        )
+        require(candidate_path.is_absolute(), "platform release candidate receipt must be absolute")
+        require(
+            os.path.realpath(os.fspath(candidate_path))
+            == os.path.abspath(os.fspath(candidate_path)),
+            "platform release candidate receipt path must be canonical and symlink-free",
+        )
+        require(
+            candidate_path.name == PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+            and candidate_path.parent.parent == root,
+            "platform release candidate receipt is outside its fixed transaction root",
+        )
+        transaction_name = _release_transaction_name(candidate_path.parent.name)
+        with open_private_direct_child_handle(
+            safe_root=root,
+            direct_child_name=transaction_name,
+            label="platform release candidate transaction",
+        ) as transaction:
+            require(
+                transaction.path == candidate_path.parent,
+                "platform release candidate transaction path differs",
+            )
+            return _load_release_candidate_bundle_from_handle(
+                transaction,
+                candidate_path=candidate_path,
+            )
+    except PlatformDistributionError:
+        raise
+    except (
+        EvidenceIOError,
+        PublicationReceiptIOError,
+        PlatformDistributionContractError,
+        OSError,
+    ) as exc:
+        raise PlatformDistributionError(
+            "cannot verify platform release candidate transaction"
+        ) from exc
+
+
+def load_release_candidate_receipt(path: pathlib.Path) -> dict[str, Any]:
+    """Return the receipt projection from the descriptor-resampled bundle."""
+
+    return load_release_candidate_bundle(path).receipt
+
+
+@contextlib.contextmanager
+def _open_candidate_transaction_from_root(
+    root: pathlib.Path,
+    root_descriptor: int,
+    transaction_name: str,
+) -> Iterator[PrivateDirectoryHandle]:
+    descriptor = -1
+    primary_error: BaseException | None = None
+    try:
+        root_opened = os.fstat(root_descriptor)
+        root_named = root.lstat()
+        require(
+            stat.S_ISDIR(root_opened.st_mode)
+            and root_opened.st_uid == os.geteuid()
+            and stat.S_IMODE(root_opened.st_mode) == 0o700
+            and root_opened.st_dev == root_named.st_dev
+            and root_opened.st_ino == root_named.st_ino,
+            "platform release candidate root identity differs",
+        )
+        descriptor = os.open(
+            transaction_name,
+            os.O_RDONLY
+            | getattr(os, "O_DIRECTORY", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=root_descriptor,
+        )
+        opened = os.fstat(descriptor)
+        named = os.stat(
+            transaction_name,
+            dir_fd=root_descriptor,
+            follow_symlinks=False,
+        )
+        require(
+            stat.S_ISDIR(opened.st_mode)
+            and opened.st_uid == os.geteuid()
+            and stat.S_IMODE(opened.st_mode) == 0o700
+            and opened.st_dev == named.st_dev
+            and opened.st_ino == named.st_ino,
+            "platform release candidate transaction metadata differs",
+        )
+        handle = PrivateDirectoryHandle(
+            path=root / transaction_name,
+            descriptor=descriptor,
+            parent_descriptor=root_descriptor,
+            name=transaction_name,
+            device=opened.st_dev,
+            inode=opened.st_ino,
+            mode=0o700,
+        )
+        yield handle
+        verify_private_directory_handle_identity(
+            handle,
+            label="platform release candidate transaction",
+        )
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        if descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError as exc:
+                if primary_error is not None:
+                    primary_error.add_note(
+                        "cannot close platform release candidate transaction"
+                    )
+                else:
+                    raise PlatformDistributionError(
+                        "cannot close platform release candidate transaction"
+                    ) from exc
+
+
+def _candidate_transaction_has_receipt(
+    transaction: PrivateDirectoryHandle,
+) -> bool:
+    """Classify a bounded safe pre-receipt residue without deleting it."""
+
+    entries = os.listdir(transaction.descriptor)
+    require(
+        len(entries) <= 2
+        and set(entries)
+        <= {
+            PLATFORM_RELEASE_DIRECTORY_NAME,
+            PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+        },
+        "platform release candidate residue inventory is unsafe",
+    )
+    if PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME in entries:
+        require(
+            set(entries)
+            == {
+                PLATFORM_RELEASE_DIRECTORY_NAME,
+                PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+            },
+            "platform release candidate receipt transaction is incomplete",
+        )
+        return True
+    if PLATFORM_RELEASE_DIRECTORY_NAME in entries:
+        with open_private_directory_at(
+            parent=transaction,
+            direct_child_name=PLATFORM_RELEASE_DIRECTORY_NAME,
+            label="failed platform release candidate residue",
+            required_mode=0o755,
+        ) as release:
+            residue_entries = os.listdir(release.descriptor)
+            require(
+                len(residue_entries) <= len(PUBLIC_ASSET_NAMES)
+                and all(
+                    isinstance(name, str)
+                    and name in PUBLIC_ASSET_NAMES
+                    for name in residue_entries
+                ),
+                "failed platform release candidate residue files differ",
+            )
+            for name in residue_entries:
+                metadata = os.stat(
+                    name,
+                    dir_fd=release.descriptor,
+                    follow_symlinks=False,
+                )
+                _public_release_asset_metadata(metadata)
+    verify_private_directory_handle_identity(
+        transaction,
+        label="failed platform release candidate residue transaction",
+    )
+    return False
+
+
+def find_selected_release_candidate_bundle(
+    expected_release_candidate: Mapping[str, object],
+    expected_source: Mapping[str, object],
+    *,
+    staging_directory_fd: int | None = None,
+    staging_leaves: Mapping[str, str] | None = None,
+    expected_receipt_sha256: str | None = None,
+    allow_existing_staging: bool = False,
+) -> ReleaseCandidateBundle:
+    """Find a deterministic fixed-root cache selected by pending results.
+
+    The caller supplies only the two already-validated projections from P.  No
+    caller-selected receipt or asset path participates in authority selection.
+    Multiple byte-identical caches are harmless: P's exact seven-byte projection
+    is the sole authority, and the lexical first matching transaction is pinned.
+    """
+
+    require(
+        expected_receipt_sha256 is None
+        or (
+            isinstance(expected_receipt_sha256, str)
+            and SHA256_RE.fullmatch(expected_receipt_sha256) is not None
+        ),
+        "selected platform candidate receipt digest is malformed",
+    )
+
+    try:
+        root = normalize_safe_root(
+            PLATFORM_RELEASE_CANDIDATE_ROOT,
+            label="platform release candidate root",
+        )
+        root_descriptor = open_private_directory(
+            root,
+            label="platform release candidate root",
+        )
+    except PublicationReceiptIOError as exc:
+        raise PlatformDistributionError(str(exc)) from exc
+    primary_error: BaseException | None = None
+    try:
+        root_opened = os.fstat(root_descriptor)
+        root_named = root.lstat()
+        require(
+            stat.S_ISDIR(root_opened.st_mode)
+            and root_opened.st_uid == os.geteuid()
+            and stat.S_IMODE(root_opened.st_mode) == 0o700
+            and root_opened.st_dev == root_named.st_dev
+            and root_opened.st_ino == root_named.st_ino,
+            "platform release candidate root identity differs",
+        )
+        expected_candidate_source = {
+            "canonical_source_tree_sha256": expected_source.get(
+                "canonical_source_tree_sha256"
+            ),
+            "git_commit": expected_source.get("tag_commit"),
+            "git_dirty": False,
+            "git_tree": expected_source.get("tag_tree"),
+            "source_date_epoch": expected_source.get("source_date_epoch"),
+        }
+        entries = os.listdir(root_descriptor)
+        require(
+            len(entries) <= 256,
+            "platform release candidate root exceeds the bounded inventory",
+        )
+        names = sorted(entries)
+        require(
+            all(PLATFORM_RELEASE_TRANSACTION_NAME.fullmatch(name) for name in names),
+            "platform release candidate root contains an unexpected entry",
+        )
+        matches: list[tuple[str, ReleaseCandidateBundle]] = []
+        for name in names:
+            receipt_path = root / name / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+            with _open_candidate_transaction_from_root(
+                root,
+                root_descriptor,
+                name,
+            ) as transaction:
+                if not _candidate_transaction_has_receipt(transaction):
+                    continue
+                bundle = _load_release_candidate_bundle_from_handle(
+                    transaction,
+                    candidate_path=receipt_path,
+                )
+            receipt = bundle.receipt
+            projection = {
+                "android_runtime_evidence": receipt["android_runtime_evidence"],
+                "assets": receipt["assets"],
+                "checksums_sha256": receipt["checksums_sha256"],
+                "platform_distribution_sha256": receipt[
+                    "platform_distribution_sha256"
+                ],
+            }
+            if projection != dict(expected_release_candidate):
+                continue
+            if receipt["source"] != expected_candidate_source:
+                continue
+            if (
+                expected_receipt_sha256 is not None
+                and bundle.receipt_sha256 != expected_receipt_sha256
+            ):
+                continue
+            matches.append((name, bundle))
+        entries_after = os.listdir(root_descriptor)
+        root_after_opened = os.fstat(root_descriptor)
+        root_after_named = root.lstat()
+        require(
+            sorted(entries_after) == names
+            and root_after_opened.st_dev == root_opened.st_dev
+            and root_after_opened.st_ino == root_opened.st_ino
+            and root_after_named.st_dev == root_opened.st_dev
+            and root_after_named.st_ino == root_opened.st_ino
+            and stat.S_IMODE(root_after_opened.st_mode) == 0o700
+            and root_after_opened.st_uid == os.geteuid(),
+            "platform release candidate root changed during selection",
+        )
+        require(
+            bool(matches),
+            "pending results do not select a completed platform candidate cache",
+        )
+        selected_name, selected_bundle = matches[0]
+        require(
+            (staging_directory_fd is None and staging_leaves is None)
+            or (
+                type(staging_directory_fd) is int
+                and staging_directory_fd >= 0
+                and isinstance(staging_leaves, Mapping)
+                and frozenset(staging_leaves) == frozenset(PUBLIC_ASSET_NAMES)
+            ),
+            "platform candidate staging policy is incomplete",
+        )
+        if staging_directory_fd is not None:
+            _require_staging_leaves = staging_leaves
+            require(
+                isinstance(_require_staging_leaves, Mapping),
+                "platform candidate staging leaves are missing",
+            )
+            selected_assets = selected_bundle.asset_by_name()
+            with _open_candidate_transaction_from_root(
+                root,
+                root_descriptor,
+                selected_name,
+            ) as transaction:
+                with open_private_directory_at(
+                    parent=transaction,
+                    direct_child_name=PLATFORM_RELEASE_DIRECTORY_NAME,
+                    label="selected platform release candidate directory",
+                    required_mode=0o755,
+                ) as release:
+                    for asset_name in PUBLIC_ASSET_NAMES:
+                        source_fd = -1
+                        source_error: BaseException | None = None
+                        try:
+                            source_fd = os.open(
+                                asset_name,
+                                os.O_RDONLY
+                                | getattr(os, "O_NONBLOCK", 0)
+                                | getattr(os, "O_NOFOLLOW", 0)
+                                | getattr(os, "O_CLOEXEC", 0),
+                                dir_fd=release.descriptor,
+                            )
+                            source_metadata = os.fstat(source_fd)
+                            _public_release_asset_metadata(source_metadata)
+                            expected = selected_assets[asset_name]
+                            stage_private_file_from_fd_noreplace_at(
+                                source_fd,
+                                staging_directory_fd,
+                                _require_staging_leaves[asset_name],
+                                expected_size=expected.size,
+                                expected_sha256=expected.sha256,
+                                maximum=MAX_PLATFORM_ASSET_BYTES,
+                                label=f"platform publication staging {asset_name}",
+                                allow_existing_exact=allow_existing_staging,
+                            )
+                        except BaseException as exc:
+                            source_error = exc
+                            raise
+                        finally:
+                            if source_fd >= 0:
+                                try:
+                                    os.close(source_fd)
+                                except OSError as exc:
+                                    if source_error is not None:
+                                        source_error.add_note(
+                                            "cannot close selected platform asset"
+                                        )
+                                    else:
+                                        raise PlatformDistributionError(
+                                            "cannot close selected platform asset"
+                                        ) from exc
+                staged_bundle = _load_release_candidate_bundle_from_handle(
+                    transaction,
+                    candidate_path=(
+                        root
+                        / selected_name
+                        / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+                    ),
+                )
+            require(
+                staged_bundle == selected_bundle,
+                "selected platform candidate changed during staging",
+            )
+        final_entries = sorted(os.listdir(root_descriptor))
+        final_opened = os.fstat(root_descriptor)
+        final_named = root.lstat()
+        require(
+            final_entries == names
+            and final_opened.st_dev == root_opened.st_dev
+            and final_opened.st_ino == root_opened.st_ino
+            and final_named.st_dev == root_opened.st_dev
+            and final_named.st_ino == root_opened.st_ino,
+            "platform release candidate root changed during staging",
+        )
+        return selected_bundle
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        try:
+            os.close(root_descriptor)
+        except OSError as exc:
+            if primary_error is not None:
+                primary_error.add_note(
+                    "cannot close platform release candidate root"
+                )
+            else:
+                raise PlatformDistributionError(
+                    "cannot close platform release candidate root"
+                ) from exc
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -790,14 +1758,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     assemble_parser = subparsers.add_parser("assemble")
     assemble_parser.add_argument("--root", required=True, type=pathlib.Path)
-    assemble_parser.add_argument("--assets-dir", required=True, type=pathlib.Path)
-    assemble_parser.add_argument("--output-dir", required=True, type=pathlib.Path)
+    assemble_parser.add_argument("--candidate-dir", required=True, type=pathlib.Path)
+    assemble_parser.add_argument("--runtime-bundle", required=True, type=pathlib.Path)
+    assemble_parser.add_argument("--transaction-name", required=True)
     add_android_tools(assemble_parser)
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument("--root", required=True, type=pathlib.Path)
     verify_parser.add_argument("--release-dir", required=True, type=pathlib.Path)
     add_android_tools(verify_parser)
     return parser
+
+
+def _relative_release_output(path: pathlib.Path) -> str:
+    try:
+        return path.relative_to(REPOSITORY_ROOT).as_posix()
+    except ValueError as exc:
+        raise PlatformDistributionError(
+            "platform release candidate output escaped the repository"
+        ) from exc
 
 
 def main(argv: list[str]) -> int:
@@ -810,15 +1788,19 @@ def main(argv: list[str]) -> int:
     )
     try:
         if args.command == "assemble":
-            manifest = assemble(
+            receipt_path, digest, release_path, receipt = assemble_candidate_transaction(
                 args.root,
-                args.assets_dir,
-                args.output_dir,
+                args.candidate_dir,
+                args.runtime_bundle,
+                args.transaction_name,
                 android_tools=android_tools,
             )
             print(
                 "ABI2_PLATFORM_DISTRIBUTION_ASSEMBLE_PASS "
-                f"commit={manifest['source']['git_commit']} assets={len(manifest['assets'])}"
+                f"commit={receipt['source']['git_commit']} "
+                f"assets={len(receipt['assets'])} receipt_sha256={digest} "
+                f"receipt={_relative_release_output(receipt_path)} "
+                f"release_dir={_relative_release_output(release_path)}"
             )
         else:
             manifest = verify_distribution(
@@ -830,6 +1812,21 @@ def main(argv: list[str]) -> int:
                 "ABI2_PLATFORM_DISTRIBUTION_VERIFY_PASS "
                 f"commit={manifest['source']['git_commit']} assets={len(manifest['assets'])}"
             )
+    except PublicationReceiptCommittedError as exc:
+        if exc.leaf is not None and exc.digest is not None:
+            print(
+                "PLATFORM_RELEASE_CANDIDATE_COMMITTED_ERROR "
+                f"visibility={exc.visibility} leaf={exc.leaf} "
+                f"sha256={exc.digest}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "error: platform release candidate receipt committed with "
+                "incomplete durability",
+                file=sys.stderr,
+            )
+        return 125
     except (OSError, PlatformDistributionError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

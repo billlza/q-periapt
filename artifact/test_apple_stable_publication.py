@@ -18,6 +18,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
+import apple_release_verification as verification
 import apple_stable_publication as publication
 import apple_distribution
 import apple_publication_contract as apple_contract
@@ -78,7 +79,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         os.chmod(xcframework, 0o755)
         self.asset_bytes = {
             name: f"exact fixture bytes for {name}\n".encode("ascii")
-            for name in publication.APPLE_PUBLIC_FILE_NAMES
+            for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES
         }
         self.asset_hashes = {
             name: hashlib.sha256(data).hexdigest()
@@ -338,6 +339,66 @@ class AppleStablePublicationTests(unittest.TestCase):
             hashlib.sha256(verifier_results.read_bytes()).hexdigest(),
         )
 
+    def _collector_projection_parts(
+        self,
+    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+        release_id = 355_500_000
+        expectation = verification.ReleaseExpectation(
+            product_version=apple_distribution.PRODUCT_VERSION,
+            revision=apple_distribution.RELEASE_REVISION,
+            tag=apple_distribution.RELEASE_TAG,
+            source_parent_commit=SOURCE_COMMIT,
+            tag_commit=TAG_COMMIT,
+            asset_sha256=self.asset_hashes,
+            expected_prerelease=False,
+        )
+        release_view = {
+            "assets": [
+                {
+                    "apiUrl": (
+                        f"{verification.API_ASSET_PREFIX}{500_000_000 + index}"
+                    ),
+                    "contentType": (
+                        apple_contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES[name]
+                    ),
+                    "createdAt": "2026-08-14T09:58:00Z",
+                    "digest": f"sha256:{self.asset_hashes[name]}",
+                    "downloadCount": index,
+                    "id": f"RA_fixture_{index}",
+                    "label": "",
+                    "name": name,
+                    "size": len(self.asset_bytes[name]),
+                    "state": "uploaded",
+                    "updatedAt": "2026-08-14T09:59:00Z",
+                    "url": (
+                        f"{verification.RELEASE_DOWNLOAD_PREFIX}"
+                        f"{apple_distribution.RELEASE_TAG}/{name}"
+                    ),
+                }
+                for index, name in enumerate(
+                    apple_contract.APPLE_PUBLIC_ASSET_NAMES,
+                    start=1,
+                )
+            ],
+            "databaseId": release_id,
+            "isDraft": False,
+            "isImmutable": True,
+            "isPrerelease": False,
+            "publishedAt": "2026-08-14T10:00:00Z",
+            "tagName": apple_distribution.RELEASE_TAG,
+            "targetCommitish": "main",
+            "url": apple_distribution.RELEASE_URL,
+        }
+        parsed = verification._parse_release_view(
+            _json_bytes(release_view),
+            expectation=expectation,
+            release_id=release_id,
+        )
+        return (
+            list(parsed.assets),
+            verification._expected_subjects(expectation, TAG_OBJECT),
+        )
+
     def _write_projection(self, remote_verified_at: str) -> pathlib.Path:
         self.projection_index += 1
         transaction = (
@@ -346,6 +407,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         )
         transaction.mkdir(mode=0o700)
         os.chmod(transaction, 0o700)
+        assets, subjects = self._collector_projection_parts()
         publication_record = {
             "draft": False,
             "immutable_release": True,
@@ -356,47 +418,7 @@ class AppleStablePublicationTests(unittest.TestCase):
             "release_attestation": {
                 "certificate_san": apple_contract.APPLE_RELEASE_CERTIFICATE_SAN,
                 "predicate_type": apple_contract.APPLE_RELEASE_PREDICATE_TYPE,
-                "subjects": [
-                    {
-                        "digest": {"sha1": TAG_OBJECT},
-                        "uri": (
-                            apple_contract.APPLE_TAG_SUBJECT_PREFIX
-                            + apple_distribution.RELEASE_TAG
-                        ),
-                    },
-                    {
-                        "digest": {
-                            "sha256": self.asset_hashes[
-                                apple_distribution.APPLE_DISTRIBUTION_NAME
-                            ]
-                        },
-                        "name": apple_distribution.APPLE_DISTRIBUTION_NAME,
-                    },
-                    {
-                        "digest": {
-                            "sha256": self.asset_hashes[
-                                apple_distribution.XCFRAMEWORK_ZIP_NAME
-                            ]
-                        },
-                        "name": apple_distribution.XCFRAMEWORK_ZIP_NAME,
-                    },
-                    {
-                        "digest": {
-                            "sha256": self.asset_hashes[
-                                apple_distribution.MANIFEST_NAME
-                            ]
-                        },
-                        "name": apple_distribution.MANIFEST_NAME,
-                    },
-                    {
-                        "digest": {
-                            "sha256": self.asset_hashes[
-                                apple_distribution.SHA256SUMS_NAME
-                            ]
-                        },
-                        "name": apple_distribution.SHA256SUMS_NAME,
-                    },
-                ],
+                "subjects": subjects,
                 "verification_record_sha256": "4" * 64,
                 "verified": True,
                 "verified_at": "2026-08-14T10:01:00Z",
@@ -408,14 +430,7 @@ class AppleStablePublicationTests(unittest.TestCase):
             },
         }
         projection = {
-            "assets": [
-                {
-                    "bytes": len(self.asset_bytes[name]),
-                    "name": name,
-                    "sha256": self.asset_hashes[name],
-                }
-                for name in publication.APPLE_PUBLIC_FILE_NAMES
-            ],
+            "assets": assets,
             "kind": publication.APPLE_RELEASE_PROJECTION_KIND,
             "publication": publication_record,
             "release_identity": {
@@ -1259,7 +1274,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         self.assertNotEqual(successful.parent, second_success.parent)
         self.assertEqual(successful_bytes, successful.read_bytes())
 
-    def test_pending_results_promote_with_exact_projection_and_remote_receipt(
+    def test_collector_projection_promotes_with_exact_remote_receipt(
         self,
     ) -> None:
         results_sha256 = self._write_current_results()
@@ -1307,7 +1322,13 @@ class AppleStablePublicationTests(unittest.TestCase):
         )
 
     def test_promotion_rejects_wrong_asset_source_and_timestamps(self) -> None:
-        for case in ("asset", "source", "timestamp", "boundary"):
+        for case in (
+            "asset",
+            "asset-order-swap",
+            "source",
+            "timestamp",
+            "boundary",
+        ):
             with self.subTest(case=case):
                 results_sha256 = self._write_current_results()
                 remote_path = self._emit_remote()
@@ -1317,6 +1338,16 @@ class AppleStablePublicationTests(unittest.TestCase):
                         projection_path.read_text(encoding="ascii")
                     )
                     projection["assets"][0]["sha256"] = "f" * 64
+                    projection_path.write_bytes(_json_bytes(projection))
+                    os.chmod(projection_path, 0o600)
+                elif case == "asset-order-swap":
+                    projection = json.loads(
+                        projection_path.read_text(encoding="ascii")
+                    )
+                    projection["assets"][0], projection["assets"][1] = (
+                        projection["assets"][1],
+                        projection["assets"][0],
+                    )
                     projection_path.write_bytes(_json_bytes(projection))
                     os.chmod(projection_path, 0o600)
                 elif case == "source":
@@ -1338,6 +1369,17 @@ class AppleStablePublicationTests(unittest.TestCase):
                     remote["boundary"] = "forged cleanup-inclusive boundary"
                     remote_path.write_bytes(_json_bytes(remote))
                     os.chmod(remote_path, 0o600)
+                expected_failure = (
+                    self.assertRaisesRegex(
+                        publication.AppleStablePublicationError,
+                        "Apple GitHub release asset binding differs for "
+                        "APPLE_DISTRIBUTION.json",
+                    )
+                    if case == "asset-order-swap"
+                    else self.assertRaises(
+                        publication.AppleStablePublicationError
+                    )
+                )
                 with (
                     mock.patch.object(
                         publication,
@@ -1357,15 +1399,13 @@ class AppleStablePublicationTests(unittest.TestCase):
                         "require_commit_or_evidence_successor",
                         return_value=VERIFIER_COMMIT,
                     ),
+                    expected_failure,
                 ):
-                    with self.assertRaises(
-                        publication.AppleStablePublicationError
-                    ):
-                        publication.promote_receipt(
-                            results_sha256,
-                            projection_path,
-                            remote_path,
-                        )
+                    publication.promote_receipt(
+                        results_sha256,
+                        projection_path,
+                        remote_path,
+                    )
 
 
 if __name__ == "__main__":

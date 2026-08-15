@@ -26,8 +26,9 @@
 //!   bound to the transcript via [`Profile::ContextBound`]; the server signs the
 //!   transcript and sends a key-confirmation.
 //! - It is **not** the TLS 1.3 wire format. Real TLS 1.3 hybrid key exchange uses the
-//!   `X25519MLKEM768` named group (`0x11EC`) with the TLS key-schedule combiner. See
-//!   `README.md` for the mapping and the production-stack integration demo (a
+//!   RFC 10024 `X25519MLKEM768` named group (`0x11EC`) with the RFC 9954
+//!   concatenated secret entering the RFC 9846 TLS key schedule. See
+//!   `README.md` for the mapping and the rustls research integration demo (a
 //!   private-use rustls `CryptoProvider` over the shared Q-Periapt implementation).
 
 use core::fmt;

@@ -38,6 +38,17 @@ ErrorKind = Literal[
     "reap",
     "output_path",
 ]
+BOUNDED_PROCESS_ERROR_KINDS = frozenset(
+    {
+        "arguments",
+        "start",
+        "timeout",
+        "output_limit",
+        "io",
+        "reap",
+        "output_path",
+    }
+)
 
 _INTERRUPTION_SIGNALS = (
     signal.SIGINT,
@@ -50,9 +61,18 @@ _MAX_ADDITIONAL_SIGNAL_COUNT = 255
 class BoundedProcessError(RuntimeError):
     """A typed failure at the subprocess resource boundary."""
 
-    def __init__(self, kind: ErrorKind, message: str) -> None:
+    def __init__(
+        self,
+        kind: ErrorKind,
+        message: str,
+        *,
+        cleanup_ambiguous: bool = False,
+        signal_number: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.kind = kind
+        self.cleanup_ambiguous = cleanup_ambiguous
+        self.signal_number = signal_number
 
 
 class _TerminationSignal(SystemExit):
@@ -392,7 +412,8 @@ def _kill_and_reap(
     except ChildProcessError as exc:
         raise BoundedProcessError(
             "reap",
-            "bounded subprocess is no longer an unreaped child; refusing unsafe process-group signal",
+            "bounded subprocess is no longer an unreaped child; "
+            "refusing unsafe process-group signal",
         ) from exc
     except OSError as exc:
         raise BoundedProcessError(
@@ -442,6 +463,8 @@ def _kill_and_reap(
 def _cleanup_process(
     process: subprocess.Popen[bytes], *, deadline: float | None = None
 ) -> BoundedProcessError | None:
+    if process.returncode is not None:
+        return None
     try:
         _kill_and_reap(process, deadline=deadline)
     except BoundedProcessError as exc:
@@ -570,7 +593,17 @@ def _raise_with_cleanup_note(
     primary: BaseException, cleanup_failure: BoundedProcessError | None
 ) -> Never:
     if cleanup_failure is not None:
-        primary.add_note(f"bounded process cleanup failure: {cleanup_failure}")
+        if isinstance(primary, BoundedProcessError):
+            primary.cleanup_ambiguous = True
+            primary.add_note(f"bounded process cleanup failure: {cleanup_failure}")
+        else:
+            boundary = BoundedProcessError(
+                "reap",
+                "bounded subprocess cleanup is indeterminate",
+                cleanup_ambiguous=True,
+                signal_number=getattr(primary, "signal_number", None),
+            )
+            raise boundary from primary
     raise primary
 
 
@@ -626,9 +659,16 @@ def run(
                 primary.add_note(
                     f"secondary exception while handling bounded process failure: {exc}"
                 )
-            cleanup_failure = (
-                _cleanup_process(process) if process is not None else None
-            )
+            if process is not None and process.returncode is not None:
+                primary.add_note(
+                    "bounded subprocess leader was already reaped; "
+                    "refusing unsafe process-group signal"
+                )
+                cleanup_failure = None
+            else:
+                cleanup_failure = (
+                    _cleanup_process(process) if process is not None else None
+                )
             _raise_with_cleanup_note(primary, cleanup_failure)
 
 
