@@ -10,6 +10,7 @@
 
 mod authentication;
 mod authority;
+mod authority_store;
 mod codec;
 mod crypto;
 mod filesystem;
@@ -34,6 +35,10 @@ pub use authority::{
     ProcessInstanceIdV2, ReceiptAckDispositionV2, ReceiptAckErrorV2, ReceiptLocatorV2,
     StateAdvanceV2, StateFenceV2, StateHeadV2, StateRevisionV2, StateTransitionKindV2,
     TrustedClockErrorV2, TrustedClockV2,
+};
+pub use authority_store::{
+    AuthorityEpochV2, AuthorityQueryResultV2, AuthorityStoreErrorV2, AuthorityStoreV2,
+    SystemTimeClockV2,
 };
 pub use crypto::{Abi2EngineError, EncapsulationCiphertexts, EncapsulationPublicKeys};
 pub use repository::{MigrationTrustRoots, RepositoryError, StateRepository};

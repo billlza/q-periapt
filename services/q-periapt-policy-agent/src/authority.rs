@@ -11,7 +11,7 @@
 
 use core::fmt;
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const HARD_MAX_RECEIPTS: usize = 4096;
 const HARD_MAX_CAPABILITIES: usize = 4096;
@@ -381,6 +381,22 @@ impl AuthorityLimitsV2 {
             lease_ttl_millis,
         })
     }
+
+    pub(crate) const fn max_receipts(self) -> usize {
+        self.max_receipts
+    }
+
+    pub(crate) const fn max_capabilities(self) -> usize {
+        self.max_capabilities
+    }
+
+    pub(crate) const fn max_keys(self) -> usize {
+        self.max_keys
+    }
+
+    pub(crate) const fn lease_ttl_millis(self) -> u64 {
+        self.lease_ttl_millis
+    }
 }
 
 /// Failure to read the external witness's trusted time source.
@@ -444,6 +460,13 @@ pub struct InstanceLeaseV2 {
 }
 
 impl InstanceLeaseV2 {
+    pub(crate) const fn restore(fence: InstanceFenceV2, expires_at_millis: u64) -> Self {
+        Self {
+            fence,
+            expires_at_millis,
+        }
+    }
+
     /// Return the exact instance fence.
     #[must_use]
     pub const fn fence(self) -> InstanceFenceV2 {
@@ -742,6 +765,21 @@ pub struct AuthorityReceiptV2 {
 }
 
 impl AuthorityReceiptV2 {
+    pub(crate) fn restore(
+        intent: AuthorityIntentV2,
+        disposition: AuthorityDispositionV2,
+        resulting_authority_version: u64,
+    ) -> Result<Self, AuthorityRestoreErrorV2> {
+        if intent.expected_authority_version.checked_add(1) != Some(resulting_authority_version) {
+            return Err(AuthorityRestoreErrorV2::Invalid);
+        }
+        Ok(Self {
+            intent,
+            disposition,
+            resulting_authority_version,
+        })
+    }
+
     /// Return the complete stored intent.
     #[must_use]
     pub const fn intent(self) -> AuthorityIntentV2 {
@@ -951,26 +989,26 @@ impl AuthoritySnapshotV2 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AcceptedKeyStatusV2 {
+pub(crate) enum AcceptedKeyStatusV2 {
     Registered,
     Revoked,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct CapabilityRecordV2 {
-    state_head: StateHeadV2,
-    config: DeploymentConfigRevisionV2,
-    consumed_by: InstanceFenceV2,
-    key_id: Option<AcceptedKeyIdV2>,
+pub(crate) struct CapabilityRecordV2 {
+    pub(crate) state_head: StateHeadV2,
+    pub(crate) config: DeploymentConfigRevisionV2,
+    pub(crate) consumed_by: InstanceFenceV2,
+    pub(crate) key_id: Option<AcceptedKeyIdV2>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct AcceptedKeyRecordV2 {
-    capability_id: CapabilityIdV2,
-    state_head: StateHeadV2,
-    config: DeploymentConfigRevisionV2,
-    registered_by: InstanceFenceV2,
-    status: AcceptedKeyStatusV2,
+pub(crate) struct AcceptedKeyRecordV2 {
+    pub(crate) capability_id: CapabilityIdV2,
+    pub(crate) state_head: StateHeadV2,
+    pub(crate) config: DeploymentConfigRevisionV2,
+    pub(crate) registered_by: InstanceFenceV2,
+    pub(crate) status: AcceptedKeyStatusV2,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -995,9 +1033,34 @@ enum PlannedMutationV2 {
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct AuthorityPersistentMetaV2 {
+    pub(crate) authority_version: u64,
+    pub(crate) clock_floor_millis: u64,
+    pub(crate) config: DeploymentConfigRevisionV2,
+    pub(crate) state_head: StateHeadV2,
+    pub(crate) lease_generation: u64,
+    pub(crate) lease: Option<InstanceLeaseV2>,
+    pub(crate) limits: AuthorityLimitsV2,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct AuthorityRestoreV2 {
+    pub(crate) meta: AuthorityPersistentMetaV2,
+    pub(crate) receipts: Vec<(OperationIdV2, AuthorityReceiptV2)>,
+    pub(crate) capabilities: Vec<(CapabilityIdV2, CapabilityRecordV2)>,
+    pub(crate) keys: Vec<(AcceptedKeyIdV2, AcceptedKeyRecordV2)>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AuthorityRestoreErrorV2 {
+    Allocation,
+    Invalid,
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ReservationPointV2 {
+pub(crate) enum ReservationPointV2 {
     Receipt,
     Capability,
     Key,
@@ -1063,6 +1126,185 @@ impl AuthorityStateV2 {
             #[cfg(test)]
             fail_next_reservation: None,
         })
+    }
+
+    pub(crate) fn durable_image(&self) -> Result<AuthorityRestoreV2, AuthorityRestoreErrorV2> {
+        let mut receipts = Vec::new();
+        receipts
+            .try_reserve_exact(self.receipts.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        receipts.extend(self.receipts.iter().map(|(id, receipt)| (*id, *receipt)));
+        receipts.sort_unstable_by_key(|(id, _)| *id);
+
+        let mut capabilities = Vec::new();
+        capabilities
+            .try_reserve_exact(self.capabilities.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        capabilities.extend(self.capabilities.iter().map(|(id, record)| (*id, *record)));
+        capabilities.sort_unstable_by_key(|(id, _)| *id);
+
+        let mut keys = Vec::new();
+        keys.try_reserve_exact(self.keys.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        keys.extend(self.keys.iter().map(|(id, record)| (*id, *record)));
+        keys.sort_unstable_by_key(|(id, _)| *id);
+
+        Ok(AuthorityRestoreV2 {
+            meta: self.persistent_meta(),
+            receipts,
+            capabilities,
+            keys,
+        })
+    }
+
+    pub(crate) const fn persistent_meta(&self) -> AuthorityPersistentMetaV2 {
+        AuthorityPersistentMetaV2 {
+            authority_version: self.authority_version,
+            clock_floor_millis: self.clock_floor_millis,
+            config: self.config,
+            state_head: self.state_head,
+            lease_generation: self.lease_generation,
+            lease: self.lease,
+            limits: self.limits,
+        }
+    }
+
+    pub(crate) fn restore(image: &AuthorityRestoreV2) -> Result<Self, AuthorityRestoreErrorV2> {
+        let meta = image.meta;
+        let receipt_entries = &image.receipts;
+        let capability_entries = &image.capabilities;
+        let key_entries = &image.keys;
+        if meta.authority_version == 0
+            || receipt_entries.len() > meta.limits.max_receipts
+            || capability_entries.len() > meta.limits.max_capabilities
+            || key_entries.len() > meta.limits.max_keys
+            || matches!(
+                meta.lease,
+                Some(lease)
+                    if lease.fence.generation != meta.lease_generation
+                        || meta.lease_generation == 0
+            )
+        {
+            return Err(AuthorityRestoreErrorV2::Invalid);
+        }
+
+        let mut receipts = HashMap::new();
+        receipts
+            .try_reserve(receipt_entries.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        let mut receipt_versions = HashSet::new();
+        receipt_versions
+            .try_reserve(receipt_entries.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        for &(operation_id, receipt) in receipt_entries {
+            if operation_id != receipt.intent.operation_id
+                || receipt.intent.expected_authority_version.checked_add(1)
+                    != Some(receipt.resulting_authority_version)
+                || receipt.resulting_authority_version > meta.authority_version
+                || !receipt_versions.insert(receipt.resulting_authority_version)
+                || receipts.insert(operation_id, receipt).is_some()
+            {
+                return Err(AuthorityRestoreErrorV2::Invalid);
+            }
+        }
+
+        let mut capabilities = HashMap::new();
+        capabilities
+            .try_reserve(capability_entries.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        let mut bound_key_ids = HashSet::new();
+        bound_key_ids
+            .try_reserve(capability_entries.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        for &(capability_id, record) in capability_entries {
+            if record.state_head != meta.state_head
+                || record.config.generation > meta.config.generation
+                || (record.config.generation == meta.config.generation
+                    && record.config != meta.config)
+                || record.consumed_by.generation == 0
+                || record.consumed_by.generation > meta.lease_generation
+                || matches!(
+                    record.key_id,
+                    Some(key_id)
+                        if key_id.state_global_generation
+                            != record.state_head.revision.global_generation
+                            || key_id.lease_generation != record.consumed_by.generation
+                            || !bound_key_ids.insert(key_id)
+                )
+                || capabilities.insert(capability_id, record).is_some()
+            {
+                return Err(AuthorityRestoreErrorV2::Invalid);
+            }
+        }
+
+        let mut keys = HashMap::new();
+        keys.try_reserve(key_entries.len())
+            .map_err(|_| AuthorityRestoreErrorV2::Allocation)?;
+        for &(key_id, record) in key_entries {
+            let Some(lease) = meta.lease else {
+                return Err(AuthorityRestoreErrorV2::Invalid);
+            };
+            if key_id.state_global_generation != meta.state_head.revision.global_generation
+                || key_id.lease_generation != record.registered_by.generation
+                || record.state_head != meta.state_head
+                || record.config != meta.config
+                || record.registered_by != lease.fence
+                || keys.insert(key_id, record).is_some()
+            {
+                return Err(AuthorityRestoreErrorV2::Invalid);
+            }
+        }
+
+        for (capability_id, capability) in &capabilities {
+            if let Some(key_id) = capability.key_id {
+                let Some(key) = keys.get(&key_id) else {
+                    if capability.config == meta.config
+                        && matches!(
+                            meta.lease,
+                            Some(lease) if lease.fence == capability.consumed_by
+                        )
+                    {
+                        return Err(AuthorityRestoreErrorV2::Invalid);
+                    }
+                    continue;
+                };
+                if key.capability_id != *capability_id
+                    || key.state_head != capability.state_head
+                    || key.config != capability.config
+                    || key.registered_by != capability.consumed_by
+                {
+                    return Err(AuthorityRestoreErrorV2::Invalid);
+                }
+            }
+        }
+        for (key_id, key) in &keys {
+            if !matches!(
+                capabilities.get(&key.capability_id),
+                Some(capability) if capability.key_id == Some(*key_id)
+            ) {
+                return Err(AuthorityRestoreErrorV2::Invalid);
+            }
+        }
+
+        Ok(Self {
+            authority_version: meta.authority_version,
+            clock_floor_millis: meta.clock_floor_millis,
+            config: meta.config,
+            state_head: meta.state_head,
+            lease_generation: meta.lease_generation,
+            lease: meta.lease,
+            receipts,
+            capabilities,
+            keys,
+            limits: meta.limits,
+            #[cfg(test)]
+            fail_next_reservation: None,
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fail_next_reservation_for_store_test(&mut self, point: ReservationPointV2) {
+        self.fail_next_reservation = Some(point);
     }
 
     /// Observe trusted time and return the current bounded projection.
