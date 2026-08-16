@@ -180,11 +180,22 @@ These are implemented reference notions with the proof boundaries stated below.
 
 ### MIG-BIND-K-STATE
 
-If two accepted executions produce the same non-bottom session key, then, except
-with negligible probability, their authenticated migration-state identities are
-equal. `MigrationBindingV2.ec` proves the outer digest-identity reduction and a
-full-state bad-event decomposition into ContextBound-hash or state-hash collision.
-Signature authenticity remains a separate unforgeability assumption.
+Under the external collision-resistance assumption for the domain-separated
+SHA3-256 inputs, two accepted executions that produce the same non-bottom session
+key have equal authenticated migration-state identities unless a named hash-input
+collision occurs. `MigrationBindingV2.ec` models the domain-separated
+`K_abi2 -> TH -> initiator/responder Finished -> K_acc` chain under one abstract
+SHA3 operation and a concrete bounded acceptance predicate with the exact
+four-field current-state recheck and role-specific peer check. Equal final
+accepted secrets under different `(epoch, digest)` identities imply an
+accepted-key-input or ContextBound-input collision; full-state and four-field
+revision divergence add the state-hash collision case. Separate post-KEM and
+Finished lemmas establish input binding only, not Finished unforgeability.
+Checked honest witnesses cover both protocol roles under both independent KEM
+directions, while semantic controls expose stale-current, wrong-peer, and named
+input-omission failures. Signature authenticity and temporal message/release
+ordering remain separate assumptions/models. EasyCrypt machine-checks the
+deterministic bad-event decomposition, not a computational probability bound.
 
 ### MIG-ROLLBACK
 

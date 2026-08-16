@@ -22,30 +22,52 @@ ContextBound contribution.
 ## Independent migration hard gate
 
 [`MigrationBindingV2.ec`](MigrationBindingV2.ec) is a separate proof artifact for
-the Migration Contract V2 KDF boundary. It proves projection injectivity from
-the exact 13-field V2 M0..M12 projection to the authenticated state identity
-`(committed_epoch, committed_state_digest)`, then proves
-`MIG-BIND-K-STATE`: equal non-bottom accepted keys for distinct state identities
-reduce to a collision in the modeled KDF/hash `H`. Its
-`omitted_state_negative_control` is an explicit probability-one winner when both
-state-identity projections are removed.
+the Migration Contract V2 accepted-session-key boundary. It models the exact
+domain-separated LP8 chain
+`K_abi2 = H_context(ContextBound)`,
+`TH = H_post(context_v2, ct_pq, ct_traditional)`,
+`I/R = H_finished(K_abi2, role, TH)`, and
+`K_acc = H_accept(K_abi2, TH, I, R)`. `H_context`, `H_post`, `H_finished`,
+`H_accept`, and `H_state` are named views of one abstract `H_sha3`; they are not
+independent random oracles. The ContextBound, post-KEM, Finished, accepted-key,
+state, schema, and role constants are checked against the implementation bytes.
 
-The stronger full-state theorem models the exact 12-field canonical
-`MigrationStateV1` body committed by V2 M10 and a separate state hash
-`H_state`. `mig_bind_k_full_state_bad_event_decomposition` proves that equal
-non-bottom accepted keys for different full-state bodies imply either an outer
-context collision or a state-digest collision, yielding the union bound
-`Adv_CR(H_context) + Adv_CR(H_state)`. Transition-signature EUF-CMA remains a
-separate protocol assumption.
+Acceptance is now a concrete bounded predicate. Both initiator and responder
+must recheck the exact four-field `StateRevisionV1`
+`(global_generation, chain_id, epoch, digest)` and pass their role-specific peer
+Finished check before an `accepted_session_key` record containing the final key
+and revision exists. Honest witnesses prove non-vacuity for both protocol roles
+under both independent KEM directions. This is a state predicate, not a temporal
+trace: responder-Finished release ordering, one-shot typestate, and premature
+release remain covered by Tamarin and Rust tests rather than this EasyCrypt file.
 
-This model starts with abstract byte strings supplied to the KDF. It does not
-prove equality of digest preimages, concrete Rust serialization, signatures,
-persistence/crash behavior, IPC behavior, protocol acceptance, Lean refinement,
-or specification-to-Rust/model-to-byte refinement. It is not a proof about the
-existing 315-byte phase-1 V1 context. V2 uses the distinct domain
-`Q-PERIAPT-MIGRATION-CONTEXT/v2` and the unsigned-u16 big-endian schema bytes
-`[0, 2]`. A checked constant-mapping lemma prevents width drift in the formal
-projection. Those remain separate gates.
+`mig_bind_k_state_bad_event_decomposition` proves that equal non-bottom final
+accepted secrets for distinct `(epoch, digest)` identities imply an
+`H_accept`-input collision or an `H_context`-input collision. The full-state and
+four-field revision corollaries add the `H_state` collision case. Independent
+theorems bind the post-KEM context/ciphertexts and Finished key/role/transcript
+inputs to `H_post` and `H_finished` collision events. These are collision/input-
+binding statements, not Finished-forgery, MAC, PRF, or authentication theorems;
+the final computational assumption is collision resistance of the same
+domain-separated SHA3-256 primitive.
+
+Checked semantic controls show that deliberately deleting the current-revision
+check accepts stale state for either role, deleting the applicable peer check
+accepts a wrong I or R, deleting state identity from both ContextBound and the
+post-KEM context breaks final-key state binding, deleting the Finished role makes
+I/R equal, and deleting I/R from the accepted-key input loses final-stage flight
+binding. The ciphertext-omission control is intentionally only a post-digest
+countermodel: ContextBound still absorbs the ciphertext and therefore it is not
+claimed as a final-key attack.
+
+The model starts with abstract byte strings and an abstract `H_sha3`. It does not
+prove SHA3 itself, concrete Rust serialization, signatures, persistence/crash or
+IPC behavior, temporal protocol ordering, Finished unforgeability, or
+specification-to-Rust/model-to-byte refinement. The frozen Rust/Python migration
+vector injects the same synthetic 32-byte ABI2-boundary secret and checks only
+`TH -> I/R -> K_acc`; it does not independently derive `K_abi2` from the complete
+ContextBound input. It is translation evidence, not a refinement proof. V2 is
+not the existing 315-byte phase-1 V1 context.
 
 ## File: [`BindingViaCR.ec`](BindingViaCR.ec)
 
@@ -87,7 +109,8 @@ pinned-source container gate, not a hermetic or bit-reproducible toolchain. Repr
 ```sh
 docker build -f formal/Dockerfile -t q-periapt-ec .
 # Mount read-only, copy into a container-owned directory, remove any local generated
-# outputs, and re-check both root proofs, all seven dependency controls, and both
+# outputs, and re-check both root proofs, all seven legacy dependency controls,
+# the migration semantic-control lemmas required by its Makefile, and both
 # continuity diagnostics from source. `.eco` files and the control log are ignored
 # local outputs and are not committed evidence.
 docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
@@ -104,10 +127,11 @@ docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
 ```
 
 The historical `negative-controls.sh` filename is retained because the CI entrypoint invokes it.
-Its controls remove named facts from selected `smt()` hints and verify that the current edited
-proof script no longer compiles. They are **proof-dependency regression controls**, not logical
-necessity proofs: failure of an automated tactic is not a counterexample. Semantic necessity is
-claimed only where `BindingViaCR.ec` contains an explicit checked counterexample. In particular,
+Its seven legacy controls remove named facts from selected `BindingViaCR.ec` `smt()` hints and
+verify that the current edited proof script no longer compiles. They are **proof-dependency
+regression controls**, not logical necessity proofs: failure of an automated tactic is not a
+counterexample. Migration semantic controls are instead checked lemmas in
+`MigrationBindingV2.ec`, required by the Makefile inventory. In particular,
 `kctx_without_nonbottom_broken` constructs two rejecting executions with distinct contexts and
 proves a probability-1 win when the explicit-rejection game omits `K != bottom`. The file does not
 currently contain a corresponding semantic countermodel for removing the `jrej_inj` idealization;

@@ -282,15 +282,23 @@ restorable disk does not meet that deployment assumption.
 
 ## 8. Formal and byte-correspondence boundary
 
-- EasyCrypt proves the V2 state-identity projection and an outer/state-hash bad
-  event decomposition for `MIG-BIND-K-STATE`, with an omission countermodel.
+- EasyCrypt models one abstract SHA3 operation across the domain-separated
+  `K_abi2 -> TH -> I/R Finished -> K_acc` inputs, plus a concrete bounded
+  role-specific acceptance predicate that rechecks the exact four-field current
+  revision. Equal final accepted secrets under different state identities imply
+  accepted-key-input or ContextBound-input collisions; full-state/revision
+  divergence adds the state-hash case. Independent post/Finished input-binding
+  lemmas and honest/omission controls are checked, but they do not prove
+  Finished forgery resistance or temporal ordering.
 - Tamarin models active-network identity signatures, restorable local store,
   protected witness/fence, signed transitions/reset, role-separated Finished,
   and the closed floor relation for `MIG-ROLLBACK`, `MIG-AGREE`, and
   `MIG-FLOOR`.
 - Independent Python recomputes the state, both offers, negotiation, pre-KEM
   transcript, V2 context, post-KEM transcript, both Finished values, and accepted
-  key from structured frozen inputs.
+  key from structured frozen inputs. The frozen Rust/Python case injects the same
+  synthetic 32-byte ABI2-boundary secret; it checks `TH -> I/R -> K_acc`, not an
+  independent full ContextBound derivation of `K_abi2`.
 
 These are source-bound translation-validation and symbolic/computational models.
 They are not a proof that the Rust implementation, database, operating system,

@@ -47,12 +47,15 @@
     },
     {
       "id": "MIG-BIND-K-STATE-V2",
-      "title": "Migration Contract V2 binds accepted non-bottom keys to the committed state identity and decomposes full-state divergence into context-hash or state-hash collisions",
+      "title": "Migration Contract V2 binds final AcceptedSessionKeyV1 secrets through ContextBound, post-KEM, role-separated Finished, and four-field revision recheck inputs",
       "status": "machine_checked",
       "evidence": {
         "formal": ["formal/easycrypt/MigrationBindingV2.ec"],
         "implementation": [
+          "crates/q-periapt-core/src/lib.rs",
           "models/q-periapt-migration/src/context_v2.rs",
+          "models/q-periapt-migration/src/transcript.rs",
+          "models/q-periapt-migration/src/confirmation.rs",
           "models/q-periapt-migration/src/state.rs",
           "artifact/migration_contract_v2.py"
         ],
@@ -62,7 +65,7 @@
           "artifact/test_migration_contract_v2.py"
         ]
       },
-      "boundary": "EasyCrypt starts at abstract LP8/KDF input bytes. It proves the exact V2 13-field projection, a non-bottom state-identity reduction, an omission countermodel, and a checked bad-event decomposition for different canonical MigrationStateV1 bodies into CR(H_context) or CR(H_state). It does not prove SHA3 itself, transition-signature EUF-CMA, digest-preimage equality, concrete encoder-to-model correspondence, or model-to-Rust/model-to-byte refinement; independent Rust/Python exact-byte tests and source hashes are evidence links only."
+      "boundary": "EasyCrypt models one abstract H_sha3 with domain-separated H_context, H_post, H_finished, H_accept, and H_state input views. Its concrete bounded acceptance predicate requires the exact four-field current StateRevisionV1 recheck and the applicable peer Finished check, produces a key-plus-revision record, and has honest initiator/responder witnesses under both independent KEM directions. Equal non-bottom final secrets under distinct state identities imply H_accept or H_context input collisions; full-state and revision divergence add H_state, while post and Finished binding have separate H_post/H_finished collision lemmas. Checked semantic controls cover stale-current, wrong-peer-I/R, and explicit state/post/role/Finished-input omissions; the post ciphertext control is post-digest-only because ContextBound still absorbs that ciphertext. These are collision/input-binding results, not Finished forgery, PRF/MAC, temporal-ordering, crash/persistence, SHA3, signature, concrete encoder correspondence, or formal-to-Rust/model-to-byte refinement proofs. The Rust/Python frozen vector injects the same synthetic ABI2-boundary secret and checks TH through K_acc, but does not independently derive K_abi2 from the complete ContextBound input; its bytes and source hashes are translation evidence only."
     },
     {
       "id": "MIG-ROLLBACK-V2",
