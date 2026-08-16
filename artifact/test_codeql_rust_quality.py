@@ -1379,6 +1379,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "crates/q-periapt-backends/examples/binding_dk_format_witness.rs",
             tracked,
         )
+        self.assertIn(
+            "crates/q-periapt-backends/src/concrete_hybrid_kems_04_vector.rs",
+            tracked,
+        )
         self.assertEqual(
             len(tracked), codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT
         )

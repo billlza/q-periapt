@@ -31,14 +31,20 @@ from evidence_io import (
     FileDigestSnapshot,
     FileSnapshot,
     consume_regular_snapshot,
+    consume_regular_snapshot_at,
     parse_strict_json_bytes,
     read_regular_snapshot,
 )
 from publication_receipt_io import (
+    PublicationBoundaryIntegrityError,
     PublicationReceiptCommittedError,
     PublicationReceiptIOError,
+    open_private_direct_child_handle,
+    prepare_private_json_noreplace_at,
+    require_absent_leaf_at,
+    verify_exact_directory_inventory_at,
     write_private_bytes_noreplace_at,
-    write_private_json_noreplace_at,
+    write_fixed_private_json,
 )
 from git_provenance import GIT
 from platform_distribution_contract import (
@@ -257,6 +263,43 @@ def _snapshot_file(
         )
     except EvidenceIOError as exc:
         raise CandidateAttestationError(f"cannot safely read {label}") from exc
+
+
+def _snapshot_private_file_at(
+    directory_fd: int,
+    leaf: str,
+    *,
+    directory_path: pathlib.Path,
+    maximum: int,
+    label: str,
+) -> FileSnapshot:
+    """Read one private leaf through its already-pinned parent directory."""
+
+    chunks: list[bytes] = []
+    display_path = directory_path / leaf
+    try:
+        digest = consume_regular_snapshot_at(
+            directory_fd,
+            leaf,
+            display_path=display_path,
+            maximum=maximum,
+            label=label,
+            consume=chunks.append,
+            validate_metadata=_private_file_metadata,
+        )
+    except EvidenceIOError as exc:
+        raise CandidateAttestationError(f"cannot safely read {label}") from exc
+    data = b"".join(chunks)
+    _require(
+        len(data) == digest.size,
+        f"{label} consumer byte count changed unexpectedly",
+    )
+    return FileSnapshot(
+        path=display_path,
+        data=data,
+        size=digest.size,
+        sha256=digest.sha256,
+    )
 
 
 def _results_manifest() -> dict[str, Any]:
@@ -1040,50 +1083,23 @@ def _load_api_json(path: pathlib.Path, *, label: str) -> object:
 def _write_public_gate_noreplace(path: pathlib.Path, value: object) -> str:
     _require(path.is_absolute(), "source security gate output must be absolute")
     _require(path.name == SOURCE_SECURITY_GATE, "source security gate output leaf differs")
-    root_text = os.path.realpath(os.fspath(WORKFLOW_CANDIDATE_ROOT))
-    supplied_parent = os.path.abspath(os.fspath(path.parent))
-    _require(root_text == supplied_parent, "source security gate output parent differs")
-    try:
-        metadata = path.parent.lstat()
-    except OSError as exc:
-        raise CandidateAttestationError("cannot inspect source security gate parent") from exc
     _require(
-        stat.S_ISDIR(metadata.st_mode)
-        and not path.parent.is_symlink()
-        and metadata.st_uid == os.geteuid(),
-        "source security gate parent is not an owned non-symlink directory",
-    )
-    _require(
-        stat.S_IMODE(metadata.st_mode) == 0o700,
-        "source security gate parent must have mode 0700",
+        path == WORKFLOW_CANDIDATE_ROOT / SOURCE_SECURITY_GATE,
+        "source security gate output parent differs",
     )
     try:
-        payload = (
-            json.dumps(value, allow_nan=False, ensure_ascii=True, indent=2, sort_keys=True)
-            + "\n"
-        ).encode("ascii")
-    except (TypeError, ValueError, RecursionError) as exc:
-        raise CandidateAttestationError("source security gate is not JSON") from exc
-    _require(
-        0 < len(payload) <= MAX_SECURITY_GATE_BYTES,
-        "source security gate size is outside bounds",
-    )
-    with _private_directory_handle(
-        path.parent,
-        "source security gate parent",
-    ) as directory_fd:
-        try:
-            return write_private_bytes_noreplace_at(
-                directory_fd,
-                SOURCE_SECURITY_GATE,
-                payload,
-                label="source security gate",
-                maximum=MAX_SECURITY_GATE_BYTES,
-            )
-        except PublicationReceiptCommittedError:
-            raise
-        except PublicationReceiptIOError as exc:
-            raise CandidateAttestationError(str(exc)) from exc
+        _published_path, digest = write_fixed_private_json(
+            safe_root=WORKFLOW_CANDIDATE_ROOT,
+            expected_leaf=SOURCE_SECURITY_GATE,
+            value=value,
+            label="source security gate",
+            maximum=MAX_SECURITY_GATE_BYTES,
+        )
+        return digest
+    except PublicationReceiptCommittedError:
+        raise
+    except PublicationReceiptIOError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
 
 
 def assemble_source_security_gate(
@@ -1519,20 +1535,16 @@ def _parse_snapshot_document(value: object) -> CandidateSnapshot:
     return CandidateSnapshot(tuple(files))
 
 
-def load_candidate_snapshot(path: pathlib.Path) -> CandidateSnapshot:
-    """Load one private preflight snapshot through strict JSON parsing."""
-
-    path = _normalize_fixed_output_path(
-        path,
-        safe_root=CANDIDATE_RAW_ROOT,
-        expected_name=CANDIDATE_SNAPSHOT_NAME,
-        label="candidate preflight snapshot",
-    )
-    raw = _snapshot_file(
-        path,
+def _load_candidate_snapshot_at(
+    directory_fd: int,
+    directory_path: pathlib.Path,
+) -> CandidateSnapshot:
+    raw = _snapshot_private_file_at(
+        directory_fd,
+        CANDIDATE_SNAPSHOT_NAME,
+        directory_path=directory_path,
         maximum=MAX_SNAPSHOT_BYTES,
         label="candidate preflight snapshot",
-        private=True,
     )
     try:
         value = parse_strict_json_bytes(raw.data, label="candidate preflight snapshot")
@@ -1541,62 +1553,24 @@ def load_candidate_snapshot(path: pathlib.Path) -> CandidateSnapshot:
     return _parse_snapshot_document(value)
 
 
-def _private_directory(path: pathlib.Path, label: str) -> int:
-    _require(path.is_absolute(), f"{label} must be absolute")
-    try:
-        metadata = path.lstat()
-    except OSError as exc:
-        raise CandidateAttestationError(f"cannot inspect {label}") from exc
-    _require(
-        stat.S_ISDIR(metadata.st_mode)
-        and not path.is_symlink()
-        and metadata.st_uid == os.geteuid()
-        and stat.S_IMODE(metadata.st_mode) == 0o700,
-        f"{label} is not a private non-symlink directory",
-    )
-    flags = (
-        os.O_RDONLY
-        | getattr(os, "O_DIRECTORY", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_CLOEXEC", 0)
+def load_candidate_snapshot(path: pathlib.Path) -> CandidateSnapshot:
+    """Load one private preflight snapshot through its pinned parent."""
+
+    path = _normalize_fixed_output_path(
+        path,
+        safe_root=CANDIDATE_RAW_ROOT,
+        expected_name=CANDIDATE_SNAPSHOT_NAME,
+        label="candidate preflight snapshot",
     )
     try:
-        descriptor = os.open(path, flags)
-    except OSError as exc:
-        raise CandidateAttestationError(f"cannot open {label}") from exc
-    opened = os.fstat(descriptor)
-    if (
-        not stat.S_ISDIR(opened.st_mode)
-        or opened.st_uid != os.geteuid()
-        or stat.S_IMODE(opened.st_mode) != 0o700
-        or opened.st_dev != metadata.st_dev
-        or opened.st_ino != metadata.st_ino
-    ):
-        os.close(descriptor)
-        _fail(f"{label} identity changed")
-    return descriptor
-
-
-@contextlib.contextmanager
-def _private_directory_handle(path: pathlib.Path, label: str) -> Iterator[int]:
-    """Close a pinned directory without replacing the primary exception."""
-
-    descriptor = _private_directory(path, label)
-    primary: BaseException | None = None
-    try:
-        yield descriptor
-    except BaseException as exc:
-        primary = exc
-        raise
-    finally:
-        try:
-            os.close(descriptor)
-        except OSError as exc:
-            detail = f"cannot close {label}"
-            if primary is not None:
-                primary.add_note(detail)
-            else:
-                raise CandidateAttestationError(detail) from exc
+        with open_private_direct_child_handle(
+            safe_root=CANDIDATE_RAW_ROOT,
+            direct_child_name=path.parent.name,
+            label="candidate preflight snapshot parent",
+        ) as parent:
+            return _load_candidate_snapshot_at(parent.descriptor, parent.path)
+    except PublicationReceiptIOError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
 
 
 def _normalize_fixed_output_path(
@@ -1628,19 +1602,29 @@ def _normalize_fixed_output_path(
 def _validate_output_absent(
     path: pathlib.Path,
     *,
+    safe_root: pathlib.Path,
     expected_name: str,
     label: str,
 ) -> None:
-    with _private_directory_handle(
-        path.parent, f"{label} parent"
-    ) as parent_fd:
-        try:
-            os.stat(expected_name, dir_fd=parent_fd, follow_symlinks=False)
-        except FileNotFoundError:
-            return
-        except OSError as exc:
-            raise CandidateAttestationError(f"cannot inspect {label}") from exc
-        _fail(f"{label} already exists")
+    normalized = _normalize_fixed_output_path(
+        path,
+        safe_root=safe_root,
+        expected_name=expected_name,
+        label=label,
+    )
+    try:
+        with open_private_direct_child_handle(
+            safe_root=safe_root,
+            direct_child_name=normalized.parent.name,
+            label=f"{label} parent",
+        ) as parent:
+            require_absent_leaf_at(
+                parent.descriptor,
+                expected_name,
+                label=label,
+            )
+    except PublicationReceiptIOError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
 
 
 def _validate_projection_target(
@@ -1664,29 +1648,11 @@ def _validate_projection_target(
         _fail("candidate projection parent is inside the candidate directory")
     _validate_output_absent(
         normalized_projection,
+        safe_root=CANDIDATE_PROJECTION_ROOT,
         expected_name=PROJECTION_NAME,
         label="candidate projection",
     )
     return candidate_root, normalized_projection
-
-
-def _write_private_json(
-    path: pathlib.Path, expected_name: str, value: object, label: str
-) -> str:
-    _validate_output_absent(path, expected_name=expected_name, label=label)
-    with _private_directory_handle(
-        path.parent, f"{label} parent"
-    ) as parent_fd:
-        try:
-            return write_private_json_noreplace_at(
-                parent_fd,
-                expected_name,
-                value,
-                label=label,
-                maximum=MAX_SNAPSHOT_BYTES,
-            )
-        except PublicationReceiptIOError as exc:
-            raise CandidateAttestationError(str(exc)) from exc
 
 
 def write_candidate_snapshot(
@@ -1709,18 +1675,36 @@ def write_candidate_snapshot(
         expected_name=CANDIDATE_SNAPSHOT_NAME,
         label="candidate snapshot",
     )
-    _validate_output_absent(
-        snapshot_path,
-        expected_name=CANDIDATE_SNAPSHOT_NAME,
-        label="candidate snapshot",
-    )
-    snapshot = _snapshot_candidate_root(candidate_root)
-    _write_private_json(
-        snapshot_path,
-        CANDIDATE_SNAPSHOT_NAME,
-        snapshot.document(),
-        "candidate snapshot",
-    )
+    try:
+        with open_private_direct_child_handle(
+            safe_root=CANDIDATE_RAW_ROOT,
+            direct_child_name=snapshot_path.parent.name,
+            label="candidate snapshot parent",
+            sync_safe_root_parent=True,
+        ) as parent:
+            require_absent_leaf_at(
+                parent.descriptor,
+                CANDIDATE_SNAPSHOT_NAME,
+                label="candidate snapshot",
+            )
+            snapshot = _snapshot_candidate_root(candidate_root)
+            with prepare_private_json_noreplace_at(
+                parent,
+                CANDIDATE_SNAPSHOT_NAME,
+                snapshot.document(),
+                label="candidate snapshot",
+                maximum=MAX_SNAPSHOT_BYTES,
+            ) as prepared:
+                _require(
+                    _snapshot_candidate_root(candidate_root).document()
+                    == snapshot.document(),
+                    "candidate bytes changed while preparing the preflight snapshot",
+                )
+                prepared.commit_after_revalidation()
+    except PublicationReceiptCommittedError:
+        raise
+    except PublicationReceiptIOError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
 
 
 def collect_candidate_attestations(
@@ -1745,27 +1729,26 @@ def collect_candidate_attestations(
         and SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
         "candidate attestation directory is not a safe direct child",
     )
-    with _private_directory_handle(
-        normalized,
-        "candidate attestation directory",
-    ) as descriptor:
-        try:
-            existing = set(os.listdir(descriptor))
-        except OSError as exc:
-            raise CandidateAttestationError(
-                "cannot enumerate candidate attestation directory"
-            ) from exc
-        _require(
-            existing == {CANDIDATE_SNAPSHOT_NAME},
-            "candidate attestation directory is not at its preflight state",
-        )
-        _snapshot_file(
-            normalized / CANDIDATE_SNAPSHOT_NAME,
-            maximum=MAX_SNAPSHOT_BYTES,
-            label="candidate preflight snapshot",
-            private=True,
-        )
-        try:
+    last_committed: tuple[str, str, pathlib.Path] | None = None
+    try:
+        with open_private_direct_child_handle(
+            safe_root=raw_root,
+            direct_child_name=normalized.name,
+            label="candidate attestation directory",
+        ) as directory:
+            expected_entries = {CANDIDATE_SNAPSHOT_NAME}
+            verify_exact_directory_inventory_at(
+                directory.descriptor,
+                frozenset(expected_entries),
+                label="candidate attestation directory at preflight",
+            )
+            _snapshot_private_file_at(
+                directory.descriptor,
+                CANDIDATE_SNAPSHOT_NAME,
+                directory_path=directory.path,
+                maximum=MAX_SNAPSHOT_BYTES,
+                label="candidate preflight snapshot",
+            )
             environment = github_release.github_cli_environment(
                 os.environ if source_environment is None else source_environment
             )
@@ -1796,17 +1779,54 @@ def collect_candidate_attestations(
                     environment=environment,
                     label=f"GitHub candidate attestation for {subject}",
                 )
-                write_private_bytes_noreplace_at(
-                    descriptor,
-                    f"{subject}.json",
-                    payload,
-                    label=f"raw candidate attestation for {subject}",
-                    maximum=MAX_ATTESTATION_BYTES,
+                raw_leaf = f"{subject}.json"
+                try:
+                    digest = write_private_bytes_noreplace_at(
+                        directory.descriptor,
+                        raw_leaf,
+                        payload,
+                        label=f"raw candidate attestation for {subject}",
+                        maximum=MAX_ATTESTATION_BYTES,
+                    )
+                except PublicationReceiptCommittedError:
+                    last_committed = (
+                        raw_leaf,
+                        hashlib.sha256(payload).hexdigest(),
+                        directory.path / raw_leaf,
+                    )
+                    raise
+                last_committed = (
+                    raw_leaf,
+                    digest,
+                    directory.path / raw_leaf,
                 )
-        except github_release.GitHubReleaseObservationError as exc:
+                expected_entries.add(raw_leaf)
+                verify_exact_directory_inventory_at(
+                    directory.descriptor,
+                    frozenset(expected_entries),
+                    label="candidate attestation directory during collection",
+                )
+    except PublicationReceiptCommittedError:
+        raise
+    except BaseException as exc:
+        if last_committed is not None:
+            leaf, digest, committed_path = last_committed
+            boundary_changed = isinstance(
+                exc,
+                PublicationBoundaryIntegrityError,
+            )
+            raise PublicationReceiptCommittedError(
+                "raw candidate attestation publication requires reconciliation",
+                leaf=leaf,
+                digest=digest,
+                visibility="indeterminate" if boundary_changed else "committed",
+                path=None if boundary_changed else committed_path,
+            ) from exc
+        if isinstance(exc, github_release.GitHubReleaseObservationError):
             raise CandidateAttestationError(str(exc)) from exc
-        except PublicationReceiptIOError as exc:
+        if isinstance(exc, PublicationReceiptIOError):
             raise CandidateAttestationError(str(exc)) from exc
+        raise
 
 
 def verify_candidate_checkout(
@@ -1978,17 +1998,19 @@ def _bounded_positive_decimal(value: str, *, maximum: int, label: str) -> int:
 
 
 def _verification_record(
-    path: pathlib.Path,
+    directory_fd: int,
+    directory_path: pathlib.Path,
     *,
     asset: str,
     expected_commit: str,
     expected_subjects: list[dict[str, object]],
 ) -> VerifiedRecord:
-    raw = _snapshot_file(
-        path,
+    raw = _snapshot_private_file_at(
+        directory_fd,
+        f"{asset}.json",
+        directory_path=directory_path,
         maximum=MAX_ATTESTATION_BYTES,
         label=f"raw attestation for {asset}",
-        private=True,
     )
     try:
         value = parse_strict_json_bytes(raw.data, label=f"attestation for {asset}")
@@ -2249,19 +2271,6 @@ def _raw_attestation_directory(path: pathlib.Path) -> pathlib.Path:
         SAFE_DIRECTORY_LEAF.fullmatch(normalized.name) is not None,
         "candidate attestation directory leaf is unsafe",
     )
-    expected = {CANDIDATE_SNAPSHOT_NAME}
-    for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
-        expected.add(f"{subject}.json")
-    with _private_directory_handle(
-        normalized, "candidate attestation directory"
-    ) as descriptor:
-        try:
-            actual = set(os.listdir(descriptor))
-        except OSError as exc:
-            raise CandidateAttestationError(
-                "cannot enumerate candidate attestation directory"
-            ) from exc
-    _require(actual == expected, "candidate attestation file set differs")
     return normalized
 
 
@@ -2305,6 +2314,85 @@ def _security_gate_projection(
     return {"receipt_sha256": snapshot.sha256, **gate}
 
 
+def _verify_candidate_attestation_inputs_at(
+    directory_fd: int,
+    directory_path: pathlib.Path,
+    *,
+    candidate: pathlib.Path,
+    expected_commit: str,
+) -> tuple[list[dict[str, object]], dict[str, object], VerifiedRecord]:
+    expected_entries = frozenset(
+        {
+            CANDIDATE_SNAPSHOT_NAME,
+            *(
+                f"{subject}.json"
+                for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS
+            ),
+        }
+    )
+    verify_exact_directory_inventory_at(
+        directory_fd,
+        expected_entries,
+        label="candidate attestation directory before verification",
+    )
+    preflight = _load_candidate_snapshot_at(directory_fd, directory_path)
+    post_gh = _snapshot_candidate_root(candidate)
+    _require(
+        post_gh.document() == preflight.document(),
+        "candidate bytes changed during GitHub verification",
+    )
+    expected_subjects = preflight.subjects()
+    security_gate = _security_gate_projection(candidate, expected_commit)
+    gate_subject = next(
+        (
+            subject
+            for subject in expected_subjects
+            if subject.get("name") == SOURCE_SECURITY_GATE
+        ),
+        None,
+    )
+    _require(gate_subject is not None, "source security gate subject is absent")
+    gate_digest = _object(
+        gate_subject.get("digest"),
+        "source security gate subject digest",
+    )
+    _require(
+        gate_digest == {"sha256": security_gate["receipt_sha256"]},
+        "source security gate projection differs from its attested subject",
+    )
+
+    shared: VerifiedRecord | None = None
+    for asset in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
+        record = _verification_record(
+            directory_fd,
+            directory_path,
+            asset=asset,
+            expected_commit=expected_commit,
+            expected_subjects=expected_subjects,
+        )
+        if shared is None:
+            shared = record
+        else:
+            _require(record.statement == shared.statement, "candidate statements differ")
+            _require(record.record == shared.record, "candidate records differ")
+            _require(record.run_id == shared.run_id, "candidate run IDs differ")
+            _require(
+                record.run_attempt == shared.run_attempt,
+                "candidate run attempts differ",
+            )
+            _require(
+                record.verified_at == shared.verified_at,
+                "candidate verification timestamps differ",
+            )
+    _require(shared is not None, "candidate verification result set is empty")
+    verify_exact_directory_inventory_at(
+        directory_fd,
+        expected_entries,
+        label="candidate attestation directory after verification",
+    )
+    return expected_subjects, security_gate, shared
+
+
 def verify_candidate_attestations(
     candidate: pathlib.Path,
     expected_commit: str,
@@ -2330,74 +2418,81 @@ def verify_candidate_attestations(
         preflight_snapshot_path == attestation_dir / CANDIDATE_SNAPSHOT_NAME,
         "candidate preflight snapshot path differs",
     )
-    preflight = load_candidate_snapshot(preflight_snapshot_path)
-    post_gh = _snapshot_candidate_root(candidate)
-    _require(
-        post_gh.document() == preflight.document(),
-        "candidate bytes changed during GitHub verification",
-    )
-    expected_subjects = preflight.subjects()
-    security_gate = _security_gate_projection(candidate, expected_commit)
-    gate_subject = next(
-        (
-            subject
-            for subject in expected_subjects
-            if subject.get("name") == SOURCE_SECURITY_GATE
-        ),
-        None,
-    )
-    _require(gate_subject is not None, "source security gate subject is absent")
-    gate_digest = _object(gate_subject.get("digest"), "source security gate subject digest")
-    _require(
-        gate_digest == {"sha256": security_gate["receipt_sha256"]},
-        "source security gate projection differs from its attested subject",
-    )
 
-    shared: VerifiedRecord | None = None
-    for asset in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
-        record = _verification_record(
-            attestation_dir / f"{asset}.json",
-            asset=asset,
-            expected_commit=expected_commit,
-            expected_subjects=expected_subjects,
-        )
-        if shared is None:
-            shared = record
-        else:
-            _require(record.statement == shared.statement, "candidate statements differ")
-            _require(record.record == shared.record, "candidate records differ")
-            _require(record.run_id == shared.run_id, "candidate run IDs differ")
-            _require(
-                record.run_attempt == shared.run_attempt,
-                "candidate run attempts differ",
+    try:
+        with open_private_direct_child_handle(
+            safe_root=CANDIDATE_PROJECTION_ROOT,
+            direct_child_name=projection_path.parent.name,
+            label="candidate projection parent",
+            sync_safe_root_parent=True,
+        ) as projection_parent:
+            require_absent_leaf_at(
+                projection_parent.descriptor,
+                PROJECTION_NAME,
+                label="candidate projection",
             )
-            _require(
-                record.verified_at == shared.verified_at,
-                "candidate verification timestamps differ",
-            )
-    _require(shared is not None, "candidate verification result set is empty")
-
-    projection: dict[str, object] = {
-        "certificate_san": WORKFLOW_URI,
-        "predicate_type": PREDICATE_TYPE,
-        "security_gate": security_gate,
-        "signer_workflow": WORKFLOW_URI,
-        "source_digest": expected_commit,
-        "source_ref": RELEASE_REF,
-        "subjects": expected_subjects,
-        "verification_record_sha256": hashlib.sha256(shared.record).hexdigest(),
-        "verified": True,
-        "verified_at": shared.verified_at,
-        "workflow_run_attempt": shared.run_attempt,
-        "workflow_run_id": shared.run_id,
-    }
-    projection_sha256 = _write_private_json(
-        projection_path,
-        PROJECTION_NAME,
-        projection,
-        "candidate projection",
-    )
-    return projection_sha256, shared.run_id
+            with contextlib.ExitStack() as raw_resources:
+                directory = raw_resources.enter_context(
+                    open_private_direct_child_handle(
+                        safe_root=CANDIDATE_RAW_ROOT,
+                        direct_child_name=attestation_dir.name,
+                        label="candidate attestation directory",
+                    )
+                )
+                expected_subjects, security_gate, shared = (
+                    _verify_candidate_attestation_inputs_at(
+                        directory.descriptor,
+                        directory.path,
+                        candidate=candidate,
+                        expected_commit=expected_commit,
+                    )
+                )
+                projection: dict[str, object] = {
+                    "certificate_san": WORKFLOW_URI,
+                    "predicate_type": PREDICATE_TYPE,
+                    "security_gate": security_gate,
+                    "signer_workflow": WORKFLOW_URI,
+                    "source_digest": expected_commit,
+                    "source_ref": RELEASE_REF,
+                    "subjects": expected_subjects,
+                    "verification_record_sha256": hashlib.sha256(
+                        shared.record
+                    ).hexdigest(),
+                    "verified": True,
+                    "verified_at": shared.verified_at,
+                    "workflow_run_attempt": shared.run_attempt,
+                    "workflow_run_id": shared.run_id,
+                }
+                with prepare_private_json_noreplace_at(
+                    projection_parent,
+                    PROJECTION_NAME,
+                    projection,
+                    label="candidate projection",
+                    maximum=MAX_SNAPSHOT_BYTES,
+                ) as prepared:
+                    repeated_subjects, repeated_gate, repeated_shared = (
+                        _verify_candidate_attestation_inputs_at(
+                            directory.descriptor,
+                            directory.path,
+                            candidate=candidate,
+                            expected_commit=expected_commit,
+                        )
+                    )
+                    _require(
+                        repeated_subjects == expected_subjects
+                        and repeated_gate == security_gate
+                        and repeated_shared == shared,
+                        "candidate attestation inputs changed while preparing projection",
+                    )
+                    # Finish raw identity revalidation and descriptor cleanup
+                    # before the projection reaches its visibility point.
+                    raw_resources.close()
+                    projection_sha256 = prepared.commit_after_revalidation()
+        return projection_sha256, shared.run_id
+    except PublicationReceiptCommittedError:
+        raise
+    except PublicationReceiptIOError as exc:
+        raise CandidateAttestationError(str(exc)) from exc
 
 
 def _usage() -> str:
@@ -2540,15 +2635,34 @@ def _main(arguments: Sequence[str]) -> int:
     return 2
 
 
-if __name__ == "__main__":
+def main(arguments: Sequence[str] | None = None) -> int:
+    """Run the CLI with structured post-publication failure reporting."""
+
     try:
-        raise SystemExit(_main(sys.argv[1:]))
+        return _main(sys.argv[1:] if arguments is None else arguments)
     except PublicationReceiptCommittedError as exc:
-        detail = f"visibility={exc.visibility}"
-        if exc.leaf is not None and exc.digest is not None:
-            detail += f" leaf={exc.leaf} sha256={exc.digest}"
-        raise SystemExit(
-            f"error: source security gate publication {detail}"
-        ) from None
+        leaf = (
+            exc.leaf
+            if isinstance(exc.leaf, str)
+            and SAFE_SUBJECT_NAME.fullmatch(exc.leaf) is not None
+            else "unavailable"
+        )
+        digest = (
+            exc.digest
+            if isinstance(exc.digest, str)
+            and HEX_64.fullmatch(exc.digest) is not None
+            else "unavailable"
+        )
+        print(
+            "PLATFORM_CANDIDATE_ATTESTATION_COMMITTED_ERROR "
+            f"visibility={exc.visibility} leaf={leaf} sha256={digest}",
+            file=sys.stderr,
+        )
+        return 125
     except CandidateAttestationError as exc:
-        raise SystemExit(f"error: {exc}") from None
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -17,7 +17,7 @@ import pathlib
 import re
 import stat
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Callable, Iterator
 from typing import Any, Literal, Never
 
@@ -167,6 +167,37 @@ class PublicationReceiptCommittedError(PublicationReceiptIOError):
 
 
 @dataclass(frozen=True, slots=True)
+class _PrivateDirectoryPublicationState:
+    """One monotonic publication fact retained by a pinned directory handle."""
+
+    leaf: str
+    digest: str
+    visibility: PublicationVisibility
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.leaf, str)
+            or not self.leaf
+            or self.leaf in {".", ".."}
+            or "/" in self.leaf
+            or "\\" in self.leaf
+            or "\x00" in self.leaf
+        ):
+            raise ValueError("committed publication leaf is invalid")
+        if (
+            not isinstance(self.digest, str)
+            or len(self.digest) != 64
+            or any(character not in "0123456789abcdef" for character in self.digest)
+        ):
+            raise ValueError("committed publication digest is invalid")
+        if (
+            not isinstance(self.visibility, str)
+            or self.visibility not in {"committed", "indeterminate"}
+        ):
+            raise ValueError("committed publication visibility is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class StrictJsonSnapshot:
     """One strict JSON object and the exact stable bytes that produced it."""
 
@@ -198,22 +229,64 @@ class PrivateDirectoryHandle:
     ancestor_path: pathlib.Path | None = None
     ancestor_device: int | None = None
     ancestor_inode: int | None = None
-    committed_publication: tuple[str, str] | None = None
+    _committed_publication: _PrivateDirectoryPublicationState | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+
+    @property
+    def committed_publication(self) -> _PrivateDirectoryPublicationState | None:
+        return self._committed_publication
+
+    def mark_publication(
+        self,
+        *,
+        leaf: str,
+        digest: str,
+        visibility: PublicationVisibility,
+    ) -> None:
+        """Record one publication monotonically without upgrading uncertainty."""
+
+        observed = _PrivateDirectoryPublicationState(
+            leaf=leaf,
+            digest=digest,
+            visibility=visibility,
+        )
+        current = self._committed_publication
+        if current is not None:
+            if current.leaf != observed.leaf or current.digest != observed.digest:
+                raise PublicationReceiptIOError(
+                    "committed publication identity cannot change"
+                )
+            if current.visibility == "indeterminate":
+                return
+            if observed.visibility == "committed":
+                return
+        self._committed_publication = observed
 
     @property
     def committed_leaf(self) -> str | None:
         return (
             None
-            if self.committed_publication is None
-            else self.committed_publication[0]
+            if self._committed_publication is None
+            else self._committed_publication.leaf
         )
 
     @property
     def committed_sha256(self) -> str | None:
         return (
             None
-            if self.committed_publication is None
-            else self.committed_publication[1]
+            if self._committed_publication is None
+            else self._committed_publication.digest
+        )
+
+    @property
+    def committed_visibility(self) -> PublicationVisibility | None:
+        return (
+            None
+            if self._committed_publication is None
+            else self._committed_publication.visibility
         )
 
 
@@ -1604,21 +1677,21 @@ def _committed_resource_error(
     *,
     label: str,
     detail: str,
-    cause: OSError,
+    cause: BaseException,
 ) -> PublicationReceiptCommittedError:
-    leaf = handle.committed_leaf
-    digest = handle.committed_sha256
+    publication = handle.committed_publication
     _require(
-        leaf is not None and digest is not None,
+        publication is not None,
         f"{label} committed publication state is incomplete",
     )
-    error = PublicationReceiptCommittedError(
-        f"{label} committed leaf={leaf} sha256={digest}; {detail}",
-        leaf=leaf,
-        digest=digest,
+    return _committed_publication_error(
+        label=label,
+        leaf=publication.leaf,
+        digest=publication.digest,
+        detail=detail,
+        cause=cause,
+        visibility=publication.visibility,
     )
-    error.__cause__ = cause
-    return error
 
 
 def _committed_publication_error(
@@ -1641,6 +1714,114 @@ def _committed_publication_error(
     )
     error.__cause__ = cause
     return error
+
+
+def _directory_context_committed_error(
+    handle: PrivateDirectoryHandle | None,
+    *,
+    label: str,
+    preceding_error: BaseException | None,
+) -> PublicationReceiptCommittedError | None:
+    """Retain or derive committed state after a directory-context body fails."""
+
+    publication = (
+        None if handle is None else handle.committed_publication
+    )
+    if isinstance(preceding_error, PublicationReceiptCommittedError):
+        if (
+            publication is not None
+            and publication.visibility == "indeterminate"
+            and (
+                preceding_error.visibility != "indeterminate"
+                or preceding_error.path is not None
+                or preceding_error.leaf != publication.leaf
+                or preceding_error.digest != publication.digest
+            )
+        ):
+            return _committed_publication_error(
+                label=label,
+                leaf=publication.leaf,
+                digest=publication.digest,
+                detail=(
+                    "directory state retained indeterminate publication visibility"
+                ),
+                cause=preceding_error,
+                visibility="indeterminate",
+                path=None,
+            )
+        return preceding_error
+    if publication is None:
+        return None
+    if preceding_error is None:
+        if publication.visibility == "committed":
+            return None
+        return PublicationReceiptCommittedError(
+            f"{label} retained indeterminate publication visibility",
+            leaf=publication.leaf,
+            digest=publication.digest,
+            visibility="indeterminate",
+            path=None,
+        )
+    return _committed_publication_error(
+        label=label,
+        leaf=publication.leaf,
+        digest=publication.digest,
+        detail="committed publication was followed by an operation failure",
+        cause=preceding_error,
+        visibility=publication.visibility,
+        path=None,
+    )
+
+
+def _directory_context_identity_outcome(
+    handle: PrivateDirectoryHandle | None,
+    *,
+    label: str,
+    detail: str,
+    preceding_error: BaseException | None,
+    cause: BaseException,
+) -> tuple[
+    PublicationReceiptCommittedError | None,
+    PublicationBoundaryIntegrityError | None,
+]:
+    """Classify identity failure while retaining any committed state."""
+
+    committed = _directory_context_committed_error(
+        handle,
+        label=label,
+        preceding_error=preceding_error,
+    )
+    boundary = PublicationBoundaryIntegrityError(
+        detail,
+        preceding_error=(
+            committed if committed is not None else preceding_error
+        ),
+    )
+    boundary.__cause__ = cause
+    if committed is None:
+        return None, boundary
+    error = PublicationReceiptCommittedError(
+        f"{label} committed publication visibility is indeterminate; {detail}",
+        leaf=committed.leaf,
+        digest=committed.digest,
+        visibility="indeterminate",
+        path=None,
+    )
+    error.__cause__ = boundary
+    return error, None
+
+
+def _retain_committed_cleanup_failure(
+    error: BaseException | None,
+    *,
+    detail: str,
+) -> bool:
+    """Attach pure descriptor-cleanup failure to an existing committed error."""
+
+    if not isinstance(error, PublicationReceiptCommittedError):
+        return False
+    error.add_note(detail)
+    return True
 
 
 def sync_private_directory_parent(
@@ -1727,6 +1908,7 @@ def open_private_directory_at(
         mode=required_mode,
     )
     primary_error: BaseException | None = None
+    replacement_error: PublicationReceiptCommittedError | None = None
     boundary_error: PublicationBoundaryIntegrityError | None = None
     try:
         yield handle
@@ -1734,25 +1916,52 @@ def open_private_directory_at(
         primary_error = exc
         raise
     finally:
-        if handle.committed_leaf is None:
+        replacement_error = _directory_context_committed_error(
+            handle,
+            label=label,
+            preceding_error=primary_error,
+        )
+        effective_error: BaseException | None = (
+            replacement_error if replacement_error is not None else primary_error
+        )
+        if handle.committed_leaf is None or effective_error is not None:
             try:
                 verify_private_directory_handle_identity(handle, label=label)
             except BaseException as exc:
-                if primary_error is not None:
-                    boundary_error = PublicationBoundaryIntegrityError(
-                        f"{label} identity changed while pinned after an operation failure",
-                        preceding_error=primary_error,
+                detail = (
+                    f"{label} identity changed while pinned after an operation failure"
+                    if effective_error is not None
+                    else f"{label} identity changed while pinned after the operation"
+                )
+                committed_boundary, classified_boundary = (
+                    _directory_context_identity_outcome(
+                        handle,
+                        label=label,
+                        detail=detail,
+                        preceding_error=effective_error,
+                        cause=exc,
                     )
-                    boundary_error.__cause__ = exc
+                )
+                if committed_boundary is not None:
+                    replacement_error = committed_boundary
+                    effective_error = committed_boundary
                 else:
-                    boundary_error = PublicationBoundaryIntegrityError(
-                        f"{label} identity changed while pinned after the operation"
-                    )
-                    boundary_error.__cause__ = exc
+                    boundary_error = classified_boundary
         try:
             os.close(handle.descriptor)
-        except OSError as exc:
-            if primary_error is not None:
+        except BaseException as exc:
+            effective_error = (
+                replacement_error
+                if replacement_error is not None
+                else primary_error
+            )
+            detail = f"cannot close pinned {label}"
+            if _retain_committed_cleanup_failure(
+                effective_error,
+                detail=detail,
+            ):
+                pass
+            elif primary_error is not None:
                 boundary_error = PublicationBoundaryIntegrityError(
                     f"cannot close pinned {label} after an operation failure",
                     preceding_error=primary_error,
@@ -1765,12 +1974,19 @@ def open_private_directory_at(
                     detail="cannot close committed directory descriptor",
                     cause=exc,
                 )
+                replacement_error = primary_error
             else:
                 boundary_error = PublicationBoundaryIntegrityError(
                     f"cannot close pinned {label}"
                 )
                 boundary_error.__cause__ = exc
-        if boundary_error is not None:
+        if replacement_error is not None:
+            if (
+                replacement_error is not primary_error
+                or sys.exception() is None
+            ):
+                raise replacement_error
+        elif boundary_error is not None:
             raise boundary_error
         if primary_error is not None and sys.exception() is None:
             raise primary_error
@@ -1824,6 +2040,7 @@ def _private_direct_child_handle(
     )
     created = False
     primary_error: BaseException | None = None
+    replacement_error: PublicationReceiptCommittedError | None = None
     boundary_error: PublicationBoundaryIntegrityError | None = None
     try:
         if create:
@@ -1874,7 +2091,15 @@ def _private_direct_child_handle(
             isinstance(child_handle, PrivateDirectoryHandle)
             and child_handle.committed_leaf is not None
         )
-        if not committed:
+        replacement_error = _directory_context_committed_error(
+            child_handle if isinstance(child_handle, PrivateDirectoryHandle) else None,
+            label=label,
+            preceding_error=primary_error,
+        )
+        effective_error: BaseException | None = (
+            replacement_error if replacement_error is not None else primary_error
+        )
+        if not committed or effective_error is not None:
             try:
                 current_root = root.lstat()
                 opened_root = os.fstat(root_fd)
@@ -1900,38 +2125,43 @@ def _private_direct_child_handle(
                         child_handle,
                         label=label,
                     )
-            except OSError as exc:
-                failure = PublicationReceiptIOError(
-                    f"cannot revalidate {label} safe root"
-                )
-                failure.__cause__ = exc
-                if primary_error is not None:
-                    boundary_error = PublicationBoundaryIntegrityError(
-                        f"{label} safe root changed after an operation failure",
-                        preceding_error=primary_error,
-                    )
-                    boundary_error.__cause__ = exc
-                else:
-                    boundary_error = PublicationBoundaryIntegrityError(
-                        str(exc)
-                    )
-                    boundary_error.__cause__ = exc
             except BaseException as exc:
-                if primary_error is not None:
-                    boundary_error = PublicationBoundaryIntegrityError(
-                        f"{label} safe root changed after an operation failure",
-                        preceding_error=primary_error,
+                detail = (
+                    f"{label} safe root changed after an operation failure"
+                    if effective_error is not None
+                    else str(exc)
+                )
+                committed_boundary, classified_boundary = (
+                    _directory_context_identity_outcome(
+                        child_handle
+                        if isinstance(child_handle, PrivateDirectoryHandle)
+                        else None,
+                        label=label,
+                        detail=detail,
+                        preceding_error=effective_error,
+                        cause=exc,
                     )
-                    boundary_error.__cause__ = exc
+                )
+                if committed_boundary is not None:
+                    replacement_error = committed_boundary
+                    effective_error = committed_boundary
                 else:
-                    boundary_error = PublicationBoundaryIntegrityError(
-                        str(exc)
-                    )
-                    boundary_error.__cause__ = exc
+                    boundary_error = classified_boundary
         try:
             os.close(root_fd)
-        except OSError as exc:
-            if primary_error is not None:
+        except BaseException as exc:
+            effective_error = (
+                replacement_error
+                if replacement_error is not None
+                else primary_error
+            )
+            detail = f"cannot close {label} safe root"
+            if _retain_committed_cleanup_failure(
+                effective_error,
+                detail=detail,
+            ):
+                pass
+            elif primary_error is not None:
                 boundary_error = PublicationBoundaryIntegrityError(
                     f"cannot close {label} safe root after an operation failure",
                     preceding_error=primary_error,
@@ -1950,6 +2180,11 @@ def _private_direct_child_handle(
                         f"{label} committed handle state is invalid"
                     )
                     primary_error.__cause__ = exc
+                if isinstance(
+                    primary_error,
+                    PublicationReceiptCommittedError,
+                ):
+                    replacement_error = primary_error
             else:
                 boundary_error = PublicationBoundaryIntegrityError(
                     f"cannot close {label} safe root"
@@ -1958,8 +2193,19 @@ def _private_direct_child_handle(
         if safe_root_parent_fd is not None:
             try:
                 os.close(safe_root_parent_fd)
-            except OSError as exc:
-                if primary_error is not None:
+            except BaseException as exc:
+                effective_error = (
+                    replacement_error
+                    if replacement_error is not None
+                    else primary_error
+                )
+                detail = f"cannot close {label} safe-root parent"
+                if _retain_committed_cleanup_failure(
+                    effective_error,
+                    detail=detail,
+                ):
+                    pass
+                elif primary_error is not None:
                     boundary_error = PublicationBoundaryIntegrityError(
                         f"cannot close {label} safe-root parent after an operation failure",
                         preceding_error=primary_error,
@@ -1980,12 +2226,23 @@ def _private_direct_child_handle(
                             f"{label} committed handle state is invalid"
                         )
                         primary_error.__cause__ = exc
+                    if isinstance(
+                        primary_error,
+                        PublicationReceiptCommittedError,
+                    ):
+                        replacement_error = primary_error
                 else:
                     boundary_error = PublicationBoundaryIntegrityError(
                         f"cannot close {label} safe-root parent"
                     )
                     boundary_error.__cause__ = exc
-        if boundary_error is not None:
+        if replacement_error is not None:
+            if (
+                replacement_error is not primary_error
+                or sys.exception() is None
+            ):
+                raise replacement_error
+        elif boundary_error is not None:
             raise boundary_error
         if primary_error is not None and sys.exception() is None:
             raise primary_error
@@ -2842,15 +3099,18 @@ class PreparedPrivateJsonPublication:
 
     @property
     def published(self) -> bool:
-        return self.directory.committed_publication == (
-            self.expected_leaf,
-            self.digest,
+        publication = self.directory.committed_publication
+        return (
+            publication is not None
+            and publication.leaf == self.expected_leaf
+            and publication.digest == self.digest
         )
 
     def _mark_published(self) -> None:
-        self.directory.committed_publication = (
-            self.expected_leaf,
-            self.digest,
+        self.directory.mark_publication(
+            leaf=self.expected_leaf,
+            digest=self.digest,
+            visibility=self.publication_state.committed_error_visibility,
         )
 
     def _close_descriptor(self, *, primary_error: BaseException | None) -> None:

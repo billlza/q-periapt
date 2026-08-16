@@ -13,6 +13,7 @@ import unittest
 from unittest import mock
 
 import platform_candidate_attestation as candidate_attestation
+import publication_receipt_io as receipt_io
 from platform_candidate_attestation import (
     CANDIDATE_SNAPSHOT_NAME,
     PROJECTION_NAME,
@@ -94,6 +95,35 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             raw_parent / CANDIDATE_SNAPSHOT_NAME,
             projection_parent / PROJECTION_NAME,
         )
+
+    def _projection_observation(
+        self,
+        candidate: pathlib.Path,
+        *,
+        receipt_sha256: str = "f" * 64,
+    ) -> tuple[
+        list[dict[str, object]],
+        dict[str, object],
+        candidate_attestation.VerifiedRecord,
+    ]:
+        return (
+            snapshot_candidate(candidate).subjects(),
+            {"receipt_sha256": receipt_sha256},
+            candidate_attestation.VerifiedRecord(
+                statement=b"{}",
+                record=b"{}",
+                run_id=7,
+                run_attempt=1,
+                verified_at="2026-08-16T00:00:00Z",
+            ),
+        )
+
+    @staticmethod
+    def _write_raw_attestation_fixtures(raw_parent: pathlib.Path) -> None:
+        for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS:
+            raw = raw_parent / f"{subject}.json"
+            raw.write_bytes(b"[]\n")
+            os.chmod(raw, 0o600)
 
     def test_current_contract_is_the_exact_six_subject_tuple(self) -> None:
         self.assertEqual(4, len(PLATFORM_CANDIDATE_ASSETS))
@@ -826,11 +856,22 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         output_parent = self.root / "workflow-candidate"
         output_parent.mkdir(mode=0o700)
         output = output_parent / SOURCE_SECURITY_GATE
+        output_alias = self.root / "workflow-candidate-alias"
+        output_alias.symlink_to(output_parent, target_is_directory=True)
         with mock.patch.object(
             candidate_attestation,
             "WORKFLOW_CANDIDATE_ROOT",
             output_parent,
         ):
+            with self.assertRaisesRegex(
+                CandidateAttestationError,
+                "output parent differs",
+            ):
+                candidate_attestation._write_public_gate_noreplace(
+                    output_alias / SOURCE_SECURITY_GATE,
+                    gate,
+                )
+            self.assertFalse(output.exists())
             digest = candidate_attestation._write_public_gate_noreplace(
                 output,
                 gate,
@@ -850,7 +891,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             with (
                 mock.patch.object(
                     candidate_attestation,
-                    "write_private_bytes_noreplace_at",
+                    "write_fixed_private_json",
                     side_effect=committed,
                 ),
                 self.assertRaises(
@@ -1043,9 +1084,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         with self.assertRaises(CandidateAttestationError):
             write_candidate_snapshot(candidate, snapshot_path, projection_path)
 
-    def test_shared_atomic_snapshot_and_projection_writers_recover_without_partials(
-        self,
-    ) -> None:
+    def test_snapshot_prepare_failure_leaves_no_partials(self) -> None:
         candidate = self._candidate("atomic-writer-candidate")
         snapshot_path, projection_path = self._private_output_paths(
             "atomic-snapshot-output"
@@ -1056,7 +1095,7 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
 
         with mock.patch.object(
             candidate_attestation,
-            "write_private_json_noreplace_at",
+            "prepare_private_json_noreplace_at",
             side_effect=injected,
         ):
             with self.assertRaisesRegex(
@@ -1076,38 +1115,851 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             load_candidate_snapshot(snapshot_path).document(),
         )
 
-        _, projection_path = self._private_output_paths("atomic-projection-output")
-        projection = {"kind": "fixture", "schema_version": 1}
-        with mock.patch.object(
-            candidate_attestation,
-            "write_private_json_noreplace_at",
-            side_effect=injected,
+    def test_snapshot_writer_preserves_committed_error_and_cleans_staging(
+        self,
+    ) -> None:
+        candidate = self._candidate("committed-snapshot-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "committed-snapshot-output"
+        )
+        committed = candidate_attestation.PublicationReceiptCommittedError(
+            "fixture snapshot committed boundary",
+            leaf=CANDIDATE_SNAPSHOT_NAME,
+            digest="d" * 64,
+        )
+
+        with (
+            mock.patch.object(
+                receipt_io.PreparedPrivateJsonPublication,
+                "commit_after_revalidation",
+                side_effect=committed,
+            ) as commit,
+            self.assertRaises(
+                candidate_attestation.PublicationReceiptCommittedError
+            ) as caught,
         ):
-            with self.assertRaisesRegex(
-                CandidateAttestationError,
-                "injected shared atomic failure",
-            ):
-                candidate_attestation._write_private_json(
-                    projection_path,
-                    PROJECTION_NAME,
-                    projection,
-                    "candidate projection",
+            write_candidate_snapshot(candidate, snapshot_path, projection_path)
+
+        self.assertIs(committed, caught.exception)
+        commit.assert_called_once_with()
+        self.assertFalse(snapshot_path.exists())
+        self.assertEqual(
+            [],
+            list(
+                snapshot_path.parent.glob(
+                    f".{CANDIDATE_SNAPSHOT_NAME}.pending-*"
                 )
+            ),
+        )
+
+    def test_collection_preserves_committed_error_without_retry(self) -> None:
+        candidate = self._candidate("committed-collection-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "committed-collection-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        first_raw_leaf = f"{PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS[0]}.json"
+        committed = candidate_attestation.PublicationReceiptCommittedError(
+            "fixture raw attestation committed boundary",
+            leaf=first_raw_leaf,
+            digest="e" * 64,
+        )
+
+        with (
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "github_cli_environment",
+                return_value={},
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "select_github_cli",
+                return_value=object(),
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "capture_github_cli",
+                return_value=b"[]\n",
+            ) as capture,
+            mock.patch.object(
+                candidate_attestation,
+                "write_private_bytes_noreplace_at",
+                side_effect=committed,
+            ) as writer,
+            self.assertRaises(
+                candidate_attestation.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            candidate_attestation.collect_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                snapshot_path.parent,
+                source_environment={},
+            )
+
+        self.assertIs(committed, caught.exception)
+        capture.assert_called_once()
+        writer.assert_called_once()
+        self.assertEqual(first_raw_leaf, writer.call_args.args[1])
+
+    def test_collection_preserves_current_leaf_across_committed_boundary_failure(
+        self,
+    ) -> None:
+        candidate = self._candidate("committed-boundary-collection-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "committed-boundary-collection-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        original_parent = snapshot_path.parent
+        displaced_parent = original_parent.with_name(
+            f"{original_parent.name}-displaced"
+        )
+        first_raw_leaf = f"{PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS[0]}.json"
+        payload = b"[]\n"
+        payload_digest = hashlib.sha256(payload).hexdigest()
+        real_writer = candidate_attestation.write_private_bytes_noreplace_at
+
+        def commit_then_swap(
+            directory_fd: int,
+            expected_leaf: str,
+            exact_payload: bytes,
+            *,
+            label: str,
+            maximum: int,
+        ) -> str:
+            digest = real_writer(
+                directory_fd,
+                expected_leaf,
+                exact_payload,
+                label=label,
+                maximum=maximum,
+            )
+            original_parent.rename(displaced_parent)
+            original_parent.mkdir(mode=0o700)
+            os.chmod(original_parent, 0o700)
+            raise candidate_attestation.PublicationReceiptCommittedError(
+                "fixture writer committed before boundary failure",
+                leaf=expected_leaf,
+                digest=digest,
+            )
+
+        with (
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "github_cli_environment",
+                return_value={},
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "select_github_cli",
+                return_value=object(),
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "capture_github_cli",
+                return_value=payload,
+            ) as capture,
+            mock.patch.object(
+                candidate_attestation,
+                "write_private_bytes_noreplace_at",
+                side_effect=commit_then_swap,
+            ) as writer,
+            self.assertRaises(
+                candidate_attestation.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            candidate_attestation.collect_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                original_parent,
+                source_environment={},
+            )
+
+        capture.assert_called_once()
+        writer.assert_called_once()
+        self.assertEqual(first_raw_leaf, caught.exception.leaf)
+        self.assertEqual(payload_digest, caught.exception.digest)
+        self.assertEqual("indeterminate", caught.exception.visibility)
+        self.assertIsNone(caught.exception.path)
+        self.assertIsInstance(
+            caught.exception.__cause__,
+            receipt_io.PublicationBoundaryIntegrityError,
+        )
+        self.assertEqual(
+            "PublicationReceiptCommittedError",
+            caught.exception.__cause__.preceding_type,
+        )
+        self.assertEqual([], list(original_parent.iterdir()))
+        self.assertTrue((displaced_parent / first_raw_leaf).is_file())
+
+    def test_projection_preserves_committed_error_and_cleans_real_staging(
+        self,
+    ) -> None:
+        candidate = self._candidate("committed-projection-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "committed-projection-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        observation = self._projection_observation(candidate)
+        committed = candidate_attestation.PublicationReceiptCommittedError(
+            "fixture projection committed boundary",
+            leaf=PROJECTION_NAME,
+            digest="c" * 64,
+        )
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_verify_candidate_attestation_inputs_at",
+                return_value=observation,
+            ) as verifier,
+            mock.patch.object(
+                receipt_io.PreparedPrivateJsonPublication,
+                "commit_after_revalidation",
+                side_effect=committed,
+            ) as commit,
+            self.assertRaises(
+                candidate_attestation.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+
+        self.assertIs(committed, caught.exception)
+        self.assertEqual(2, verifier.call_count)
+        commit.assert_called_once_with()
         self.assertFalse(projection_path.exists())
         self.assertEqual(
             [],
             list(projection_path.parent.glob(f".{PROJECTION_NAME}.pending-*")),
         )
 
-        digest = candidate_attestation._write_private_json(
-            projection_path,
-            PROJECTION_NAME,
-            projection,
-            "candidate projection",
+    def test_snapshot_parent_swap_is_rejected_without_publication(self) -> None:
+        candidate = self._candidate("snapshot-parent-swap-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "snapshot-parent-swap-output"
         )
+        original_parent = snapshot_path.parent
+        displaced_parent = original_parent.with_name(
+            f"{original_parent.name}-displaced"
+        )
+        real_snapshot = candidate_attestation._snapshot_candidate_root
+        calls = 0
+
+        def snapshot_then_swap(path: pathlib.Path):
+            nonlocal calls
+            observed = real_snapshot(path)
+            calls += 1
+            if calls == 2:
+                original_parent.rename(displaced_parent)
+                original_parent.mkdir(mode=0o700)
+                os.chmod(original_parent, 0o700)
+            return observed
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_snapshot_candidate_root",
+                side_effect=snapshot_then_swap,
+            ),
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "candidate snapshot parent identity changed",
+            ),
+        ):
+            write_candidate_snapshot(candidate, snapshot_path, projection_path)
+
+        self.assertEqual(2, calls)
+        self.assertFalse(snapshot_path.exists())
+        self.assertFalse((displaced_parent / CANDIDATE_SNAPSHOT_NAME).exists())
+        self.assertEqual(
+            [],
+            list(
+                original_parent.glob(
+                    f".{CANDIDATE_SNAPSHOT_NAME}.pending-*"
+                )
+            ),
+        )
+        self.assertEqual(
+            [],
+            list(
+                displaced_parent.glob(
+                    f".{CANDIDATE_SNAPSHOT_NAME}.pending-*"
+                )
+            ),
+        )
+
+    def test_projection_parent_is_pinned_across_attestation_verification(
+        self,
+    ) -> None:
+        candidate = self._candidate("projection-parent-swap-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "projection-parent-swap-output"
+        )
+        snapshot_path.write_bytes(b"{}\n")
+        os.chmod(snapshot_path, 0o600)
+        original_parent = projection_path.parent
+        displaced_parent = original_parent.with_name(
+            f"{original_parent.name}-displaced"
+        )
+        subjects, gate, shared = self._projection_observation(candidate)
+        calls = 0
+
+        def swap_projection_parent(
+            *_args: object,
+            **_kwargs: object,
+        ) -> tuple[
+            list[dict[str, object]],
+            dict[str, object],
+            candidate_attestation.VerifiedRecord,
+        ]:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                original_parent.rename(displaced_parent)
+                original_parent.mkdir(mode=0o700)
+                os.chmod(original_parent, 0o700)
+            return subjects, gate, shared
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_verify_candidate_attestation_inputs_at",
+                side_effect=swap_projection_parent,
+            ),
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "candidate projection parent identity changed",
+            ),
+        ):
+            candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+
+        self.assertEqual(1, calls)
+        self.assertFalse(projection_path.exists())
+        self.assertFalse((displaced_parent / PROJECTION_NAME).exists())
+        self.assertEqual(
+            [],
+            list(original_parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+        self.assertEqual(
+            [],
+            list(displaced_parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+
+    def test_projection_success_reuses_raw_handle_and_commits_canonical_json(
+        self,
+    ) -> None:
+        candidate = self._candidate("projection-success-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "projection-success-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        observation = self._projection_observation(candidate)
+        observed_descriptors: list[int] = []
+        real_opener = candidate_attestation.open_private_direct_child_handle
+
+        def observe(
+            directory_fd: int,
+            *_args: object,
+            **_kwargs: object,
+        ) -> tuple[
+            list[dict[str, object]],
+            dict[str, object],
+            candidate_attestation.VerifiedRecord,
+        ]:
+            os.fstat(directory_fd)
+            observed_descriptors.append(directory_fd)
+            return observation
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "open_private_direct_child_handle",
+                wraps=real_opener,
+            ) as opener,
+            mock.patch.object(
+                candidate_attestation,
+                "_verify_candidate_attestation_inputs_at",
+                side_effect=observe,
+            ) as verifier,
+        ):
+            digest, run_id = candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+
+        self.assertEqual(2, verifier.call_count)
+        self.assertEqual(
+            [observed_descriptors[0], observed_descriptors[0]],
+            observed_descriptors,
+        )
+        raw_open_calls = [
+            call
+            for call in opener.call_args_list
+            if call.kwargs.get("safe_root") == self.raw_root
+        ]
+        self.assertEqual(1, len(raw_open_calls))
         payload = projection_path.read_bytes()
-        self.assertEqual(projection, json.loads(payload))
         self.assertEqual(hashlib.sha256(payload).hexdigest(), digest)
+        self.assertEqual(observation[2].run_id, run_id)
+        self.assertEqual(0o600, stat.S_IMODE(projection_path.stat().st_mode))
+        self.assertEqual(
+            {
+                "certificate_san": candidate_attestation.WORKFLOW_URI,
+                "predicate_type": candidate_attestation.PREDICATE_TYPE,
+                "security_gate": observation[1],
+                "signer_workflow": candidate_attestation.WORKFLOW_URI,
+                "source_digest": self.TAG_COMMIT,
+                "source_ref": candidate_attestation.RELEASE_REF,
+                "subjects": observation[0],
+                "verification_record_sha256": hashlib.sha256(
+                    observation[2].record
+                ).hexdigest(),
+                "verified": True,
+                "verified_at": observation[2].verified_at,
+                "workflow_run_attempt": observation[2].run_attempt,
+                "workflow_run_id": observation[2].run_id,
+            },
+            json.loads(payload),
+        )
+        self.assertEqual(
+            [],
+            list(projection_path.parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+
+    def test_projection_rejects_second_observation_drift_on_same_raw_handle(
+        self,
+    ) -> None:
+        candidate = self._candidate("projection-drift-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "projection-drift-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        first = self._projection_observation(candidate)
+        second = self._projection_observation(
+            candidate,
+            receipt_sha256="e" * 64,
+        )
+        observed_descriptors: list[int] = []
+        observations = iter((first, second))
+        real_opener = candidate_attestation.open_private_direct_child_handle
+
+        def observe(
+            directory_fd: int,
+            *_args: object,
+            **_kwargs: object,
+        ) -> tuple[
+            list[dict[str, object]],
+            dict[str, object],
+            candidate_attestation.VerifiedRecord,
+        ]:
+            os.fstat(directory_fd)
+            observed_descriptors.append(directory_fd)
+            return next(observations)
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "open_private_direct_child_handle",
+                wraps=real_opener,
+            ) as opener,
+            mock.patch.object(
+                candidate_attestation,
+                "_verify_candidate_attestation_inputs_at",
+                side_effect=observe,
+            ) as verifier,
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "candidate attestation inputs changed while preparing projection",
+            ),
+        ):
+            candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+
+        self.assertEqual(2, verifier.call_count)
+        self.assertEqual(2, len(observed_descriptors))
+        self.assertEqual(observed_descriptors[0], observed_descriptors[1])
+        raw_open_calls = [
+            call
+            for call in opener.call_args_list
+            if call.kwargs.get("safe_root") == self.raw_root
+        ]
+        self.assertEqual(1, len(raw_open_calls))
+        self.assertFalse(projection_path.exists())
+        self.assertEqual(
+            [],
+            list(projection_path.parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+
+    def test_raw_parent_swap_before_projection_commit_fails_closed(
+        self,
+    ) -> None:
+        candidate = self._candidate("raw-parent-swap-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "raw-parent-swap-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        observation = self._projection_observation(candidate)
+        original_raw_parent = snapshot_path.parent
+        displaced_raw_parent = original_raw_parent.with_name(
+            f"{original_raw_parent.name}-displaced"
+        )
+        observed_descriptors: list[int] = []
+        calls = 0
+
+        def observe_then_swap(
+            directory_fd: int,
+            *_args: object,
+            **_kwargs: object,
+        ) -> tuple[
+            list[dict[str, object]],
+            dict[str, object],
+            candidate_attestation.VerifiedRecord,
+        ]:
+            nonlocal calls
+            os.fstat(directory_fd)
+            observed_descriptors.append(directory_fd)
+            calls += 1
+            if calls == 2:
+                original_raw_parent.rename(displaced_raw_parent)
+                original_raw_parent.mkdir(mode=0o700)
+                os.chmod(original_raw_parent, 0o700)
+            return observation
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_verify_candidate_attestation_inputs_at",
+                side_effect=observe_then_swap,
+            ),
+            mock.patch.object(
+                receipt_io.PreparedPrivateJsonPublication,
+                "commit_after_revalidation",
+                side_effect=AssertionError(
+                    "projection commit ran after raw-parent replacement"
+                ),
+            ) as commit,
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "candidate attestation directory identity changed while pinned",
+            ),
+        ):
+            candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+
+        self.assertEqual(2, calls)
+        self.assertEqual(
+            [observed_descriptors[0], observed_descriptors[0]],
+            observed_descriptors,
+        )
+        commit.assert_not_called()
+        self.assertFalse(projection_path.exists())
+        self.assertEqual(
+            [],
+            list(projection_path.parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+        self.assertTrue(
+            (displaced_raw_parent / CANDIDATE_SNAPSHOT_NAME).is_file()
+        )
+
+    def test_collection_rejects_inventory_injected_after_raw_write(self) -> None:
+        candidate = self._candidate("collection-inventory-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "collection-inventory-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        real_writer = candidate_attestation.write_private_bytes_noreplace_at
+        unexpected = snapshot_path.parent / "unexpected-after-write.json"
+
+        def write_then_inject(
+            directory_fd: int,
+            expected_leaf: str,
+            payload: bytes,
+            *,
+            label: str,
+            maximum: int,
+        ) -> str:
+            digest = real_writer(
+                directory_fd,
+                expected_leaf,
+                payload,
+                label=label,
+                maximum=maximum,
+            )
+            unexpected.write_bytes(b"{}\n")
+            os.chmod(unexpected, 0o600)
+            return digest
+
+        with (
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "github_cli_environment",
+                return_value={},
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "select_github_cli",
+                return_value=object(),
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "capture_github_cli",
+                return_value=b"[]\n",
+            ) as capture,
+            mock.patch.object(
+                candidate_attestation,
+                "write_private_bytes_noreplace_at",
+                side_effect=write_then_inject,
+            ) as writer,
+            self.assertRaises(
+                candidate_attestation.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            candidate_attestation.collect_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                snapshot_path.parent,
+                source_environment={},
+            )
+
+        capture.assert_called_once()
+        writer.assert_called_once()
+        self.assertTrue(unexpected.is_file())
+        first_raw = (
+            snapshot_path.parent
+            / f"{PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS[0]}.json"
+        )
+        self.assertTrue(first_raw.is_file())
+        self.assertEqual([], list(snapshot_path.parent.glob(".*.pending-*")))
+        self.assertEqual(
+            "raw candidate attestation publication requires reconciliation",
+            str(caught.exception),
+        )
+        self.assertEqual(first_raw.name, caught.exception.leaf)
+        self.assertEqual(
+            hashlib.sha256(b"[]\n").hexdigest(),
+            caught.exception.digest,
+        )
+        self.assertEqual(first_raw, caught.exception.path)
+        self.assertIsInstance(
+            caught.exception.__cause__,
+            candidate_attestation.PublicationReceiptIOError,
+        )
+        self.assertIn(
+            "candidate attestation directory during collection entry set differs",
+            str(caught.exception.__cause__),
+        )
+
+    def test_collection_reports_indeterminate_after_raw_parent_swap(self) -> None:
+        candidate = self._candidate("collection-parent-swap-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "collection-parent-swap-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        original_parent = snapshot_path.parent
+        displaced_parent = original_parent.with_name(
+            f"{original_parent.name}-displaced"
+        )
+        real_writer = candidate_attestation.write_private_bytes_noreplace_at
+        writes = 0
+
+        def write_then_swap(
+            directory_fd: int,
+            expected_leaf: str,
+            payload: bytes,
+            *,
+            label: str,
+            maximum: int,
+        ) -> str:
+            nonlocal writes
+            digest = real_writer(
+                directory_fd,
+                expected_leaf,
+                payload,
+                label=label,
+                maximum=maximum,
+            )
+            writes += 1
+            if writes == 1:
+                original_parent.rename(displaced_parent)
+                original_parent.mkdir(mode=0o700)
+                os.chmod(original_parent, 0o700)
+            return digest
+
+        with (
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "github_cli_environment",
+                return_value={},
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "select_github_cli",
+                return_value=object(),
+            ),
+            mock.patch.object(
+                candidate_attestation.github_release,
+                "capture_github_cli",
+                return_value=b"[]\n",
+            ) as capture,
+            mock.patch.object(
+                candidate_attestation,
+                "write_private_bytes_noreplace_at",
+                side_effect=write_then_swap,
+            ),
+            self.assertRaises(
+                candidate_attestation.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            candidate_attestation.collect_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                original_parent,
+                source_environment={},
+            )
+
+        self.assertEqual(
+            len(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS),
+            writes,
+        )
+        self.assertEqual(writes, capture.call_count)
+        self.assertEqual("indeterminate", caught.exception.visibility)
+        self.assertIsNone(caught.exception.path)
+        self.assertIsInstance(
+            caught.exception.__cause__,
+            receipt_io.PublicationBoundaryIntegrityError,
+        )
+        self.assertEqual([], list(original_parent.iterdir()))
+        self.assertEqual(
+            {
+                CANDIDATE_SNAPSHOT_NAME,
+                *(
+                    f"{subject}.json"
+                    for subject in PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS
+                ),
+            },
+            {path.name for path in displaced_parent.iterdir()},
+        )
+
+    def test_verification_rejects_inventory_injected_after_records(self) -> None:
+        candidate = self._candidate("verification-inventory-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "verification-inventory-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        self._write_raw_attestation_fixtures(snapshot_path.parent)
+        snapshot = snapshot_candidate(candidate)
+        gate_digest = next(
+            item.sha256
+            for item in snapshot.files
+            if item.name == SOURCE_SECURITY_GATE
+        )
+        shared = self._projection_observation(candidate)[2]
+        unexpected = snapshot_path.parent / "unexpected-after-verification.json"
+        real_inventory = candidate_attestation.verify_exact_directory_inventory_at
+
+        def inventory_then_inject(
+            directory_fd: int,
+            expected_entries: frozenset[str],
+            *,
+            label: str,
+        ) -> frozenset[str]:
+            if label == "candidate attestation directory after verification":
+                unexpected.write_bytes(b"{}\n")
+                os.chmod(unexpected, 0o600)
+            return real_inventory(
+                directory_fd,
+                expected_entries,
+                label=label,
+            )
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_security_gate_projection",
+                return_value={"receipt_sha256": gate_digest},
+            ),
+            mock.patch.object(
+                candidate_attestation,
+                "_verification_record",
+                return_value=shared,
+            ) as record_verifier,
+            mock.patch.object(
+                candidate_attestation,
+                "verify_exact_directory_inventory_at",
+                side_effect=inventory_then_inject,
+            ),
+            self.assertRaisesRegex(
+                CandidateAttestationError,
+                "candidate attestation directory after verification entry set differs",
+            ),
+        ):
+            candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+
+        self.assertEqual(
+            len(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS),
+            record_verifier.call_count,
+        )
+        self.assertTrue(unexpected.is_file())
+        self.assertFalse(projection_path.exists())
+        self.assertEqual(
+            [],
+            list(projection_path.parent.glob(f".{PROJECTION_NAME}.pending-*")),
+        )
+
+    def test_attestation_inventory_rejects_unexpected_leaf(self) -> None:
+        candidate = self._candidate("attestation-inventory-candidate")
+        snapshot_path, projection_path = self._private_output_paths(
+            "attestation-inventory-output"
+        )
+        write_candidate_snapshot(candidate, snapshot_path, projection_path)
+        self._write_raw_attestation_fixtures(snapshot_path.parent)
+        unexpected = snapshot_path.parent / "unexpected.json"
+        unexpected.write_bytes(b"{}\n")
+        os.chmod(unexpected, 0o600)
+
+        with self.assertRaisesRegex(
+            CandidateAttestationError,
+            "entry set differs",
+        ):
+            candidate_attestation.verify_candidate_attestations(
+                candidate,
+                self.TAG_COMMIT,
+                projection_path,
+                snapshot_path.parent,
+                snapshot_path,
+            )
+        self.assertFalse(projection_path.exists())
 
     def test_projection_target_must_be_absolute_private_exact_and_absent(self) -> None:
         candidate = self._candidate("projection-policy-candidate")
@@ -1253,6 +2105,49 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
         os.link(snapshot_path, snapshot_path.parent / "snapshot-hardlink.json")
         with self.assertRaises(CandidateAttestationError):
             load_candidate_snapshot(snapshot_path)
+
+    def test_main_reports_committed_publication_with_exit_125(self) -> None:
+        committed = candidate_attestation.PublicationReceiptCommittedError(
+            "fixture committed publication",
+            leaf=PROJECTION_NAME,
+            digest="a" * 64,
+            visibility="indeterminate",
+        )
+        stderr = io.StringIO()
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_main",
+                side_effect=committed,
+            ),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = candidate_attestation.main(["verify"])
+
+        self.assertEqual(125, status)
+        self.assertEqual(
+            "PLATFORM_CANDIDATE_ATTESTATION_COMMITTED_ERROR "
+            "visibility=indeterminate "
+            f"leaf={PROJECTION_NAME} sha256={'a' * 64}\n",
+            stderr.getvalue(),
+        )
+
+    def test_main_reports_candidate_error_with_exit_1(self) -> None:
+        stderr = io.StringIO()
+
+        with (
+            mock.patch.object(
+                candidate_attestation,
+                "_main",
+                side_effect=CandidateAttestationError("fixture rejection"),
+            ),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = candidate_attestation.main(["verify"])
+
+        self.assertEqual(1, status)
+        self.assertEqual("error: fixture rejection\n", stderr.getvalue())
 
 
 if __name__ == "__main__":

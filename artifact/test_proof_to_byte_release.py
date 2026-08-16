@@ -1353,7 +1353,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("## Rust CodeQL analysis boundary", guide)
         self.assertIn("not native Rust 1.96.1 CodeQL analysis", normalized)
         self.assertIn("under both Rust 1.94.0 and Rust 1.96.1 with", normalized)
-        self.assertIn("87 tracked `.rs` files", normalized)
+        self.assertIn("88 tracked `.rs` files", normalized)
         self.assertIn(
             "reported as telemetry rather than required to be zero", normalized
         )

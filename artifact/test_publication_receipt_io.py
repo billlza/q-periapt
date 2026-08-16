@@ -58,6 +58,91 @@ class PublicationReceiptIOTests(unittest.TestCase):
                 return len(os.listdir(root))
         self.fail("POSIX descriptor inventory is unavailable")
 
+    def _exercise_direct_child_close_interrupt(
+        self,
+        *,
+        case_name: str,
+        resource: str,
+        fault_type: type[KeyboardInterrupt] | type[SystemExit],
+        post_publication: bool,
+    ) -> tuple[BaseException, pathlib.Path, bytes, str | None]:
+        self.safe_root.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / f"transaction.{case_name}"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        baseline_descriptors = self._open_descriptor_count()
+        real_close = receipt_io.os.close
+        target_descriptor = -1
+        tracked_descriptors: tuple[int, int, int] | None = None
+        close_counts: dict[int, int] = {}
+        close_fault_injected = False
+        payload = receipt_io.canonical_json_bytes(
+            {"case": case_name, "post_publication": post_publication}
+        )
+        digest: str | None = None
+
+        def close(descriptor: int) -> None:
+            nonlocal close_fault_injected
+            close_counts[descriptor] = close_counts.get(descriptor, 0) + 1
+            real_close(descriptor)
+            if descriptor == target_descriptor and not close_fault_injected:
+                close_fault_injected = True
+                raise fault_type(f"injected {resource} close interruption")
+
+        caught: BaseException | None = None
+        with mock.patch.object(receipt_io.os, "close", side_effect=close):
+            try:
+                with receipt_io.open_private_direct_child_handle(
+                    safe_root=self.safe_root,
+                    direct_child_name=transaction.name,
+                    label="fixture transaction",
+                    sync_safe_root_parent=True,
+                ) as handle:
+                    self.assertIsNotNone(handle.ancestor_descriptor)
+                    tracked_descriptors = (
+                        handle.descriptor,
+                        handle.parent_descriptor,
+                        cast(int, handle.ancestor_descriptor),
+                    )
+                    self.assertEqual(3, len(set(tracked_descriptors)))
+                    target_descriptor = {
+                        "child": tracked_descriptors[0],
+                        "safe-root": tracked_descriptors[1],
+                        "safe-root-parent": tracked_descriptors[2],
+                    }[resource]
+                    if post_publication:
+                        with receipt_io.prepare_private_json_noreplace_at(
+                            handle,
+                            "receipt.json",
+                            {
+                                "case": case_name,
+                                "post_publication": True,
+                            },
+                            label="fixture receipt",
+                        ) as prepared:
+                            digest = prepared.commit_after_revalidation()
+                        self.assertEqual(
+                            "committed",
+                            handle.committed_visibility,
+                        )
+                    else:
+                        self.assertIsNone(handle.committed_visibility)
+            except AssertionError:
+                raise
+            except BaseException as exc:
+                caught = exc
+
+        self.assertTrue(close_fault_injected)
+        self.assertIsNotNone(caught)
+        self.assertIsNotNone(tracked_descriptors)
+        for descriptor in cast(tuple[int, int, int], tracked_descriptors):
+            self.assertEqual(1, close_counts.get(descriptor, 0))
+            with self.assertRaises(OSError):
+                os.fstat(descriptor)
+        self.assertEqual(baseline_descriptors, self._open_descriptor_count())
+        return cast(BaseException, caught), transaction, payload, digest
+
     @contextlib.contextmanager
     def _interrupt_once_after_return(
         self,
@@ -1048,6 +1133,555 @@ class PublicationReceiptIOTests(unittest.TestCase):
             {"fixture": True},
             json.loads((transaction / "receipt.json").read_text(encoding="ascii")),
         )
+
+    def test_prepared_postrename_committed_survives_child_close_failure(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.committed-child-close"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        value = {"fixture": "postrename-child-close"}
+        payload = receipt_io.canonical_json_bytes(value)
+        digest = hashlib.sha256(payload).hexdigest()
+        real_close = receipt_io.os.close
+        real_fsync = receipt_io.os.fsync
+        real_rename = receipt_io._rename_noreplace
+        child_descriptor = -1
+        renamed = False
+        close_fault_injected = False
+        generated: receipt_io.PublicationReceiptCommittedError | None = None
+
+        def rename(*args: object, **kwargs: object) -> None:
+            nonlocal renamed
+            real_rename(*args, **kwargs)
+            renamed = True
+
+        def fsync(descriptor: int) -> None:
+            if renamed and descriptor == child_descriptor:
+                raise OSError("injected post-rename child sync failure")
+            real_fsync(descriptor)
+
+        def close(descriptor: int) -> None:
+            nonlocal close_fault_injected
+            real_close(descriptor)
+            if descriptor == child_descriptor and not close_fault_injected:
+                close_fault_injected = True
+                raise OSError("injected committed child close failure")
+
+        with (
+            mock.patch.object(receipt_io.os, "close", side_effect=close),
+            self.assertRaises(
+                receipt_io.PublicationReceiptCommittedError
+            ) as caught,
+        ):
+            with receipt_io.open_private_direct_child_handle(
+                safe_root=self.safe_root,
+                direct_child_name=transaction.name,
+                label="fixture transaction",
+                sync_safe_root_parent=True,
+            ) as handle:
+                child_descriptor = handle.descriptor
+                with receipt_io.prepare_private_json_noreplace_at(
+                    handle,
+                    "receipt.json",
+                    value,
+                    label="fixture receipt",
+                ) as prepared:
+                    with (
+                        mock.patch.object(
+                            receipt_io,
+                            "_rename_noreplace",
+                            side_effect=rename,
+                        ),
+                        mock.patch.object(
+                            receipt_io.os,
+                            "fsync",
+                            side_effect=fsync,
+                        ),
+                    ):
+                        try:
+                            prepared.commit_after_revalidation()
+                        except receipt_io.PublicationReceiptCommittedError as exc:
+                            generated = exc
+                            raise
+
+        self.assertTrue(close_fault_injected)
+        self.assertIsNotNone(generated)
+        self.assertIs(generated, caught.exception)
+        self.assertEqual("receipt.json", caught.exception.leaf)
+        self.assertEqual(digest, caught.exception.digest)
+        self.assertEqual("committed", caught.exception.visibility)
+        self.assertIsInstance(caught.exception.__cause__, OSError)
+        self.assertIn(
+            "cannot close pinned fixture transaction",
+            getattr(caught.exception, "__notes__", ()),
+        )
+        self.assertEqual(payload, (transaction / "receipt.json").read_bytes())
+        self.assertEqual([], list(transaction.glob(".receipt.json.pending-*")))
+
+    def test_marked_committed_handle_converts_body_failure(self) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.committed-body-failure"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        payload = b"committed fixture receipt\n"
+        digest = hashlib.sha256(payload).hexdigest()
+        receipt = transaction / "receipt.json"
+        receipt.write_bytes(payload)
+        os.chmod(receipt, 0o600)
+
+        with self.assertRaises(
+            receipt_io.PublicationReceiptCommittedError
+        ) as caught:
+            with receipt_io.open_private_direct_child_handle(
+                safe_root=self.safe_root,
+                direct_child_name=transaction.name,
+                label="fixture transaction",
+            ) as handle:
+                handle.mark_publication(
+                    leaf="receipt.json",
+                    digest=digest,
+                    visibility="committed",
+                )
+                raise RuntimeError("injected postcommit body failure")
+
+        self.assertEqual("receipt.json", caught.exception.leaf)
+        self.assertEqual(digest, caught.exception.digest)
+        self.assertEqual("committed", caught.exception.visibility)
+        self.assertIsNone(caught.exception.path)
+        self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+        self.assertEqual(
+            "injected postcommit body failure",
+            str(caught.exception.__cause__),
+        )
+        self.assertIn(
+            "committed publication was followed by an operation failure",
+            str(caught.exception),
+        )
+        self.assertEqual(payload, receipt.read_bytes())
+
+    def test_directory_publication_state_is_identity_bound_and_monotonic(
+        self,
+    ) -> None:
+        digest = "a" * 64
+        handle = receipt_io.PrivateDirectoryHandle(
+            path=self.safe_root / "transaction.state",
+            descriptor=-1,
+            parent_descriptor=-1,
+            name="transaction.state",
+            device=1,
+            inode=2,
+            mode=0o700,
+        )
+
+        handle.mark_publication(
+            leaf="receipt.json",
+            digest=digest,
+            visibility="committed",
+        )
+        self.assertEqual("committed", handle.committed_visibility)
+        handle.mark_publication(
+            leaf="receipt.json",
+            digest=digest,
+            visibility="indeterminate",
+        )
+        self.assertEqual("indeterminate", handle.committed_visibility)
+        handle.mark_publication(
+            leaf="receipt.json",
+            digest=digest,
+            visibility="committed",
+        )
+        self.assertEqual("indeterminate", handle.committed_visibility)
+
+        for leaf, changed_digest in (
+            ("other.json", digest),
+            ("receipt.json", "b" * 64),
+        ):
+            with self.subTest(leaf=leaf, digest=changed_digest):
+                with self.assertRaisesRegex(
+                    receipt_io.PublicationReceiptIOError,
+                    "identity cannot change",
+                ):
+                    handle.mark_publication(
+                        leaf=leaf,
+                        digest=changed_digest,
+                        visibility="indeterminate",
+                    )
+
+    def test_primary_committed_plus_child_swap_becomes_indeterminate(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.committed-swap"
+        moved = self.safe_root / "transaction.committed-swap-moved"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        payload = b"committed identity fixture\n"
+        digest = hashlib.sha256(payload).hexdigest()
+        receipt = transaction / "receipt.json"
+        receipt.write_bytes(payload)
+        os.chmod(receipt, 0o600)
+        primary = receipt_io.PublicationReceiptCommittedError(
+            "injected primary committed error",
+            leaf="receipt.json",
+            digest=digest,
+            path=receipt,
+        )
+
+        with self.assertRaises(
+            receipt_io.PublicationReceiptCommittedError
+        ) as caught:
+            with receipt_io.open_private_direct_child_handle(
+                safe_root=self.safe_root,
+                direct_child_name=transaction.name,
+                label="fixture transaction",
+                sync_safe_root_parent=True,
+            ) as handle:
+                handle.mark_publication(
+                    leaf="receipt.json",
+                    digest=digest,
+                    visibility="committed",
+                )
+                transaction.rename(moved)
+                transaction.mkdir(mode=0o700)
+                os.chmod(transaction, 0o700)
+                raise primary
+
+        self.assertIsNot(primary, caught.exception)
+        self.assertEqual("receipt.json", caught.exception.leaf)
+        self.assertEqual(digest, caught.exception.digest)
+        self.assertEqual("indeterminate", caught.exception.visibility)
+        self.assertIsNone(caught.exception.path)
+        boundary = caught.exception.__cause__
+        self.assertIsInstance(
+            boundary,
+            receipt_io.PublicationBoundaryIntegrityError,
+        )
+        self.assertEqual(
+            "PublicationReceiptCommittedError",
+            boundary.preceding_type,
+        )
+        self.assertIsInstance(
+            boundary.__cause__,
+            receipt_io.PublicationReceiptIOError,
+        )
+        self.assertEqual(payload, (moved / "receipt.json").read_bytes())
+        self.assertFalse((transaction / "receipt.json").exists())
+
+    def test_outer_directory_close_failures_preserve_primary_committed(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        real_close = receipt_io.os.close
+
+        for index, (resource, expected_note) in enumerate(
+            (
+                ("safe-root", "cannot close fixture transaction safe root"),
+                (
+                    "safe-root-parent",
+                    "cannot close fixture transaction safe-root parent",
+                ),
+            )
+        ):
+            with self.subTest(resource=resource):
+                baseline_descriptors = self._open_descriptor_count()
+                transaction = self.safe_root / f"transaction.{resource}-{index}"
+                transaction.mkdir(mode=0o700)
+                os.chmod(transaction, 0o700)
+                payload = f"committed {resource} fixture\n".encode("ascii")
+                digest = hashlib.sha256(payload).hexdigest()
+                receipt = transaction / "receipt.json"
+                receipt.write_bytes(payload)
+                os.chmod(receipt, 0o600)
+                primary = receipt_io.PublicationReceiptCommittedError(
+                    f"injected committed {resource} error",
+                    leaf="receipt.json",
+                    digest=digest,
+                    path=receipt,
+                )
+                target_descriptor = -1
+                close_fault_injected = False
+
+                def close(descriptor: int) -> None:
+                    nonlocal close_fault_injected
+                    real_close(descriptor)
+                    if (
+                        descriptor == target_descriptor
+                        and not close_fault_injected
+                    ):
+                        close_fault_injected = True
+                        raise OSError(f"injected {resource} close failure")
+
+                with (
+                    mock.patch.object(
+                        receipt_io.os,
+                        "close",
+                        side_effect=close,
+                    ),
+                    self.assertRaises(
+                        receipt_io.PublicationReceiptCommittedError
+                    ) as caught,
+                ):
+                    with receipt_io.open_private_direct_child_handle(
+                        safe_root=self.safe_root,
+                        direct_child_name=transaction.name,
+                        label="fixture transaction",
+                        sync_safe_root_parent=True,
+                    ) as handle:
+                        handle.mark_publication(
+                            leaf="receipt.json",
+                            digest=digest,
+                            visibility="committed",
+                        )
+                        if resource == "safe-root":
+                            target_descriptor = handle.parent_descriptor
+                        else:
+                            self.assertIsNotNone(handle.ancestor_descriptor)
+                            target_descriptor = cast(
+                                int,
+                                handle.ancestor_descriptor,
+                            )
+                        raise primary
+
+                self.assertTrue(close_fault_injected)
+                self.assertIs(primary, caught.exception)
+                self.assertEqual("receipt.json", caught.exception.leaf)
+                self.assertEqual(digest, caught.exception.digest)
+                self.assertEqual("committed", caught.exception.visibility)
+                self.assertEqual(receipt, caught.exception.path)
+                self.assertIn(
+                    expected_note,
+                    getattr(caught.exception, "__notes__", ()),
+                )
+                self.assertEqual(payload, receipt.read_bytes())
+                self.assertEqual(
+                    baseline_descriptors,
+                    self._open_descriptor_count(),
+                )
+
+    def test_exact_marked_prepared_publication_exits_normally(self) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        transaction = self.safe_root / "transaction.exact-marked"
+        transaction.mkdir(mode=0o700)
+        os.chmod(transaction, 0o700)
+        value = {"fixture": "exact-marked-publication"}
+        payload = receipt_io.canonical_json_bytes(value)
+
+        with receipt_io.open_private_direct_child_handle(
+            safe_root=self.safe_root,
+            direct_child_name=transaction.name,
+            label="fixture transaction",
+            sync_safe_root_parent=True,
+        ) as handle:
+            with receipt_io.prepare_private_json_noreplace_at(
+                handle,
+                "receipt.json",
+                value,
+                label="fixture receipt",
+            ) as prepared:
+                digest = prepared.commit_after_revalidation()
+            self.assertEqual("receipt.json", handle.committed_leaf)
+            self.assertEqual(digest, handle.committed_sha256)
+            self.assertEqual("committed", handle.committed_visibility)
+
+        self.assertEqual(
+            hashlib.sha256(payload).hexdigest(),
+            digest,
+        )
+        self.assertEqual(payload, (transaction / "receipt.json").read_bytes())
+        self.assertEqual([], list(transaction.glob(".receipt.json.pending-*")))
+
+    def test_indeterminate_prepared_state_survives_swallow_or_conversion(
+        self,
+    ) -> None:
+        self.safe_root.mkdir(mode=0o700)
+        os.chmod(self.safe_root, 0o700)
+        real_rename = receipt_io._rename_noreplace
+
+        for behavior in ("swallow", "convert"):
+            with self.subTest(behavior=behavior):
+                transaction = self.safe_root / f"transaction.indeterminate-{behavior}"
+                transaction.mkdir(mode=0o700)
+                os.chmod(transaction, 0o700)
+                value = {"fixture": f"indeterminate-{behavior}"}
+                payload = receipt_io.canonical_json_bytes(value)
+                digest = hashlib.sha256(payload).hexdigest()
+                observed: receipt_io.PublicationReceiptCommittedError | None = None
+                retained_handle: receipt_io.PrivateDirectoryHandle | None = None
+                classifier: mock.Mock | None = None
+
+                def rename_then_interrupt(
+                    *args: object,
+                    **kwargs: object,
+                ) -> None:
+                    real_rename(*args, **kwargs)
+                    raise KeyboardInterrupt(
+                        f"injected indeterminate {behavior} visibility point"
+                    )
+
+                with self.assertRaises(
+                    receipt_io.PublicationReceiptCommittedError
+                ) as caught:
+                    with receipt_io.open_private_direct_child_handle(
+                        safe_root=self.safe_root,
+                        direct_child_name=transaction.name,
+                        label="fixture transaction",
+                        sync_safe_root_parent=True,
+                    ) as handle:
+                        retained_handle = handle
+                        with receipt_io.prepare_private_json_noreplace_at(
+                            handle,
+                            "receipt.json",
+                            value,
+                            label="fixture receipt",
+                        ) as prepared:
+                            with (
+                                mock.patch.object(
+                                    receipt_io,
+                                    "_rename_noreplace",
+                                    side_effect=rename_then_interrupt,
+                                ),
+                                mock.patch.object(
+                                    receipt_io,
+                                    "_classify_interrupted_visibility_at",
+                                    side_effect=receipt_io.EvidenceIOError(
+                                        "injected visibility classification failure"
+                                    ),
+                                ) as classifier,
+                            ):
+                                try:
+                                    prepared.commit_after_revalidation()
+                                except (
+                                    receipt_io.PublicationReceiptCommittedError
+                                ) as exc:
+                                    observed = exc
+                                    self.assertEqual(
+                                        "indeterminate",
+                                        exc.visibility,
+                                    )
+                                    self.assertIsNone(exc.path)
+                                    self.assertEqual(
+                                        "indeterminate",
+                                        handle.committed_visibility,
+                                    )
+                                    if behavior == "convert":
+                                        raise RuntimeError(
+                                            "caller converted indeterminate publication"
+                                        ) from exc
+
+                self.assertIsNotNone(observed)
+                self.assertIsNotNone(retained_handle)
+                self.assertIsNotNone(classifier)
+                cast(mock.Mock, classifier).assert_called_once()
+                self.assertEqual("receipt.json", caught.exception.leaf)
+                self.assertEqual(digest, caught.exception.digest)
+                self.assertEqual("indeterminate", caught.exception.visibility)
+                self.assertIsNone(caught.exception.path)
+                self.assertEqual(
+                    "indeterminate",
+                    cast(
+                        receipt_io.PrivateDirectoryHandle,
+                        retained_handle,
+                    ).committed_visibility,
+                )
+                if behavior == "convert":
+                    self.assertIsInstance(
+                        caught.exception.__cause__,
+                        RuntimeError,
+                    )
+                    self.assertEqual(
+                        "caller converted indeterminate publication",
+                        str(caught.exception.__cause__),
+                    )
+                self.assertEqual(
+                    payload,
+                    (transaction / "receipt.json").read_bytes(),
+                )
+                self.assertEqual(
+                    [],
+                    list(transaction.glob(".receipt.json.pending-*")),
+                )
+
+    def test_postpublication_baseexception_close_faults_remain_committed(
+        self,
+    ) -> None:
+        for resource in ("child", "safe-root", "safe-root-parent"):
+            for fault_type in (KeyboardInterrupt, SystemExit):
+                case_name = (
+                    f"post-{resource}-{fault_type.__name__.lower()}"
+                )
+                with self.subTest(resource=resource, fault=fault_type.__name__):
+                    caught, transaction, payload, digest = (
+                        self._exercise_direct_child_close_interrupt(
+                            case_name=case_name,
+                            resource=resource,
+                            fault_type=fault_type,
+                            post_publication=True,
+                        )
+                    )
+                    self.assertIsInstance(
+                        caught,
+                        receipt_io.PublicationReceiptCommittedError,
+                    )
+                    committed = cast(
+                        receipt_io.PublicationReceiptCommittedError,
+                        caught,
+                    )
+                    self.assertEqual("receipt.json", committed.leaf)
+                    self.assertEqual(digest, committed.digest)
+                    self.assertEqual("committed", committed.visibility)
+                    self.assertIsInstance(committed.__cause__, fault_type)
+                    self.assertEqual(
+                        payload,
+                        (transaction / "receipt.json").read_bytes(),
+                    )
+                    self.assertEqual(
+                        [],
+                        list(transaction.glob(".receipt.json.pending-*")),
+                    )
+
+    def test_prepublication_baseexception_close_faults_are_boundaries(
+        self,
+    ) -> None:
+        for resource in ("child", "safe-root", "safe-root-parent"):
+            for fault_type in (KeyboardInterrupt, SystemExit):
+                case_name = (
+                    f"pre-{resource}-{fault_type.__name__.lower()}"
+                )
+                with self.subTest(resource=resource, fault=fault_type.__name__):
+                    caught, transaction, _payload, digest = (
+                        self._exercise_direct_child_close_interrupt(
+                            case_name=case_name,
+                            resource=resource,
+                            fault_type=fault_type,
+                            post_publication=False,
+                        )
+                    )
+                    self.assertIsNone(digest)
+                    self.assertIsInstance(
+                        caught,
+                        receipt_io.PublicationBoundaryIntegrityError,
+                    )
+                    self.assertNotIsInstance(
+                        caught,
+                        receipt_io.PublicationReceiptCommittedError,
+                    )
+                    boundary = cast(
+                        receipt_io.PublicationBoundaryIntegrityError,
+                        caught,
+                    )
+                    self.assertIsInstance(boundary.__cause__, fault_type)
+                    self.assertFalse((transaction / "receipt.json").exists())
+                    self.assertEqual(
+                        [],
+                        list(transaction.glob(".receipt.json.pending-*")),
+                    )
 
     def test_prepared_postcommit_close_failure_is_committed(self) -> None:
         self.safe_root.mkdir(mode=0o700)
