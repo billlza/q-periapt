@@ -116,8 +116,8 @@ EXPECTED_PROOF_TO_BYTE_STEP = (
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
     "            ci-source-gate \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=232 declared_delta=42\"\n"
-    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=232\"\n"
+    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=233 declared_delta=43\"\n"
+    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=233\"\n"
     "          if [ \"$source_gate\" = \"$initial_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
     "          elif [ \"$source_gate\" = \"$installed_gate\" ]; then\n"
@@ -647,6 +647,7 @@ MIGRATION_V2_PROOF_INPUTS = {
     "migration_agent_lib_sha256": "services/q-periapt-policy-agent/src/lib.rs",
     "migration_agent_main_sha256": "services/q-periapt-policy-agent/src/main.rs",
     "migration_agent_authentication_sha256": "services/q-periapt-policy-agent/src/authentication.rs",
+    "migration_agent_authority_sha256": "services/q-periapt-policy-agent/src/authority.rs",
     "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
     "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
     "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",

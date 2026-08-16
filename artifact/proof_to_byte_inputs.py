@@ -135,6 +135,7 @@ PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "migration_agent_lib_sha256": "services/q-periapt-policy-agent/src/lib.rs",
     "migration_agent_main_sha256": "services/q-periapt-policy-agent/src/main.rs",
     "migration_agent_authentication_sha256": "services/q-periapt-policy-agent/src/authentication.rs",
+    "migration_agent_authority_sha256": "services/q-periapt-policy-agent/src/authority.rs",
     "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
     "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
     "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",

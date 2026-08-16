@@ -298,8 +298,8 @@ local product-execution and single-host results will not substitute for independ
 signed release provenance, device-energy evidence, or cross-implementation performance parity.
 
 `artifact/source_results_assembler.py` is the deliberately one-time stable-source
-190-to-232 proof-input migration entrypoint, not a reusable release finalizer. Once the
-generated results-only successor R is installed, the 232 baseline makes its initial
+190-to-233 proof-input migration entrypoint, not a reusable release finalizer. Once the
+generated results-only successor R is installed, the 233 baseline makes its initial
 mode logically retired: re-running it is expected to fail closed because
 `require_initial=True` requires the exact pre-migration shape. That failure must not be
 bypassed by relabelling or hand-editing `artifact/results.json`. Do not physically edit,
@@ -307,7 +307,7 @@ extract, or delete the assembler between R and verified publication V; doing so 
 create a new source change after the evidence freeze. Physical removal of the one-time
 `finalize` path belongs only to the next source cycle after V, together with an
 explicitly reviewed current-to-current state machine and a new S. Retain
-`verify-installed` and the exact CI dispatch until their durable 232-key
+`verify-installed` and the exact CI dispatch until their durable 233-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
 
@@ -316,9 +316,9 @@ the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
 `c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
-and fixed 42-key delta, requires a clean expected commit/tree identity, and samples
-the complete 232-key input authority twice before emitting
-`SOURCE_TRANSITION_READINESS_PASS`. For an exact 232-key installed map it emits
+and fixed 43-key delta, requires a clean expected commit/tree identity, and samples
+the complete 233-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 233-key installed map it emits
 only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
 Malformed, mixed, or changing states fail; an initial-readiness failure never falls
 back to the installed path.
