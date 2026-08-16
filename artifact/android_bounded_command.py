@@ -3163,7 +3163,7 @@ def _capture_installed_apk_path(
             environment=_client_environment(capability),
         )
     except BoundedProcessError as exc:
-        if exc.kind != "timeout":
+        if exc.kind != "timeout" or getattr(exc, "__notes__", None):
             raise
         return BoundedResult(1), None
     if result.returncode != 0 or not result.stdout:
@@ -3175,11 +3175,10 @@ def _observe_installed_apk(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidCommandCapability,
     *,
-    timeout_seconds: int,
+    deadline: float,
 ) -> BoundedResult:
     """Observe one path-stable installed APK without accepting non-exact bytes."""
 
-    deadline = time.monotonic() + timeout_seconds
     _remove_installed_apk_copy(layout)
 
     before_timeout = _remaining_observation_timeout(deadline)
@@ -3229,7 +3228,7 @@ def _observe_installed_apk(
             pull_timeout,
         )
     except BoundedProcessError as exc:
-        if exc.kind != "timeout":
+        if exc.kind != "timeout" or getattr(exc, "__notes__", None):
             raise
         _remove_installed_apk_copy(layout)
         return BoundedResult(
@@ -3307,16 +3306,16 @@ def _invoke_installed_apk_observation(
 ) -> BoundedResult:
     """Run the composite observation and preserve both primary and cleanup failures."""
 
+    deadline = time.monotonic() + timeout_seconds
     result: BoundedResult | None = None
     primary: BaseException | None = None
     try:
-        result = _observe_installed_apk(
-            layout, capability, timeout_seconds=timeout_seconds
-        )
+        _validate_owned_adb_server_for_client(capability, deadline=deadline)
+        result = _observe_installed_apk(layout, capability, deadline=deadline)
     except BaseException as exc:
         primary = exc
     try:
-        _validate_owned_adb_server_for_client(capability)
+        _validate_owned_adb_server_for_client(capability, deadline=deadline)
     except BaseException as postcheck_error:
         if primary is None:
             primary = postcheck_error
@@ -3791,12 +3790,12 @@ def invoke_operation(
             spec,
             timeout_seconds=timeout,
         )
-    if spec.requires_private_server:
-        _validate_owned_adb_server_for_client(capability)
     if spec.mode == "observe-apk":
         return _invoke_installed_apk_observation(
             layout, capability, timeout_seconds=timeout
         )
+    if spec.requires_private_server:
+        _validate_owned_adb_server_for_client(capability)
     if spec.mode == "logcat":
         argv = _device(
             capability,

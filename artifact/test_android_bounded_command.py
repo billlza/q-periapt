@@ -3004,6 +3004,88 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(result, BoundedResult(0, b"retryable:pull-failed\n"))
         self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
 
+    def test_installed_apk_observation_preserves_timeout_cleanup_failures(
+        self,
+    ) -> None:
+        path_timeout = commands.BoundedProcessError("timeout", "pm path timed out")
+        path_timeout.add_note("bounded process cleanup failure: reap")
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=path_timeout,
+            ),
+            mock.patch.object(commands, "write_stdout_at") as write,
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            self.assertRaises(commands.BoundedProcessError) as raised,
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertIs(raised.exception, path_timeout)
+        write.assert_not_called()
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+        path = b"package:/data/app/run/base.apk\n"
+        pull_timeout = commands.BoundedProcessError("timeout", "pull timed out")
+        pull_timeout.add_note("bounded process cleanup failure: descriptor close")
+        with (
+            mock.patch.object(
+                commands, "capture_stdout", return_value=BoundedResult(0, path)
+            ),
+            mock.patch.object(
+                commands,
+                "write_stdout_at",
+                side_effect=pull_timeout,
+            ),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            self.assertRaises(commands.BoundedProcessError) as raised,
+        ):
+            commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertIs(raised.exception, pull_timeout)
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_shares_one_deadline_with_server_guards(
+        self,
+    ) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+
+        def write_fixture(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            output = self.work / str(arguments["output_name"])
+            output.write_bytes(self.apk.read_bytes())
+            output.chmod(0o600)
+            return BoundedResult(0)
+
+        with (
+            mock.patch.object(commands.time, "monotonic", return_value=100.0),
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                side_effect=[BoundedResult(0, path), BoundedResult(0, path)],
+            ),
+            mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture),
+            mock.patch.object(
+                commands, "_validate_owned_adb_server_for_client"
+            ) as guard,
+        ):
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertRegex(result.stdout, rb"\Aexact:[0-9a-f]{64}\n\Z")
+        self.assertEqual(guard.call_count, 2)
+        self.assertEqual(
+            [call.kwargs for call in guard.call_args_list],
+            [{"deadline": 130.0}, {"deadline": 130.0}],
+        )
+
     def test_installed_apk_observation_respects_the_shared_deadline(self) -> None:
         with (
             mock.patch.object(commands.time, "monotonic", side_effect=[100.0, 130.0]),

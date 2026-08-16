@@ -1605,11 +1605,36 @@ observe_owned_installed_package() {
 				remove_installed_apk_copy || return 2
 				;;
 			retryable)
+				ownership_transport_recovery_eligible=0
+				if [ "$ownership_phase" = "postinstall" ] && \
+					[ "$ownership_invocation" = "1" ] && \
+					[ "$OWNERSHIP_SAMPLE_RETRY_REASON" = "package-unavailable" ] && \
+					[ "$ownership_consecutive_exact" -eq 1 ] && \
+					[ "$ANDROID_BOOT_AVD" = "1" ] && [ "$DEVICE_KIND" = "emulator" ] && \
+					[ "$EMULATOR_STARTED" = "1" ] && \
+					[ "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" = "0" ]; then
+					ownership_transport_recovery_eligible=1
+				fi
 				ownership_consecutive_exact=0
 				ownership_previous_path_sha256=
 				printf 'phase=%s invocation=%s attempt=%s state=retryable reason=%s consecutive=0\n' \
 					"$ownership_phase" "$ownership_invocation" "$ownership_attempt" \
 					"$OWNERSHIP_SAMPLE_RETRY_REASON" >>"$PACKAGE_OBSERVATION_LOG"
+				if [ "$ownership_transport_recovery_eligible" = "1" ] && \
+					recovery_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); then
+					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
+					if attempt_owned_emulator_transport_recovery postinstall \
+						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt"; then
+						continue
+					else
+						ownership_recovery_status=$?
+					fi
+					case "$ownership_recovery_status" in
+						1) ;;
+						2 | 129 | 130 | 143) return "$ownership_recovery_status" ;;
+						*) return 2 ;;
+					esac
+				fi
 				;;
 			*)
 				printf 'error: Android package ownership sample lacks a typed state\n' >&2
@@ -1628,16 +1653,53 @@ observe_owned_installed_package() {
 }
 
 attempt_owned_emulator_transport_recovery() {
-	recovery_timeout=$1
-	recovery_invocation=$2
-	recovery_attempt=$3
+	recovery_phase=$1
+	recovery_timeout=$2
+	recovery_invocation=$3
+	recovery_attempt=$4
+	recovery_phase_valid=0
+	case "$recovery_phase" in
+		postinstall)
+			if [ "$recovery_invocation" = "1" ]; then
+				recovery_phase_valid=1
+			fi
+			;;
+		cleanup)
+			case "$recovery_invocation" in
+				"" | 0* | *[!0-9]*) ;;
+				*) recovery_phase_valid=1 ;;
+			esac
+			;;
+	esac
+	recovery_attempt_valid=0
+	case "$recovery_attempt" in
+		"" | 0* | *[!0-9]*) ;;
+		*) recovery_attempt_valid=1 ;;
+	esac
+	recovery_timeout_valid=0
+	case "$recovery_timeout" in
+		"" | 0* | *[!0-9]*) ;;
+		*)
+			if [ "$recovery_timeout" -le 15 ]; then
+				recovery_timeout_valid=1
+			fi
+			;;
+	esac
+	if [ "$recovery_phase_valid" != "1" ] || \
+		[ "$recovery_attempt_valid" != "1" ] || \
+		[ "$recovery_timeout_valid" != "1" ]; then
+		printf 'error: invalid Android emulator transport recovery parameters\n' >&2
+		return 2
+	fi
 	if [ "$ANDROID_BOOT_AVD" != "1" ] || [ "$DEVICE_KIND" != "emulator" ] || \
 		[ "$EMULATOR_STARTED" != "1" ]; then
 		printf 'error: refusing Android transport recovery outside the script-owned emulator lane\n' >&2
 		return 2
 	fi
-	recovery_output="$WORK/adb-emulator-transport-recovery-$recovery_invocation-$recovery_attempt.txt"
-	recovery_error="$WORK/adb-emulator-transport-recovery-$recovery_invocation-$recovery_attempt.err"
+	recovery_file_leaf="adb-emulator-transport-recovery-$recovery_phase-$recovery_invocation-$recovery_attempt"
+	recovery_file_prefix="$WORK/$recovery_file_leaf"
+	recovery_output="$recovery_file_prefix.txt"
+	recovery_error="$recovery_file_prefix.err"
 	if android_command recover-emulator-transport \
 		--timeout-seconds "$recovery_timeout" \
 		>"$recovery_output" 2>"$recovery_error"; then
@@ -1646,8 +1708,8 @@ attempt_owned_emulator_transport_recovery() {
 		recovery_status=$?
 	fi
 	if [ "$recovery_status" -ne 0 ]; then
-		printf 'phase=cleanup invocation=%s attempt=%s transport-recovery=structural-error exit=%s\n' \
-			"$recovery_invocation" "$recovery_attempt" "$recovery_status" \
+		printf 'phase=%s invocation=%s attempt=%s transport-recovery=structural-error exit=%s\n' \
+			"$recovery_phase" "$recovery_invocation" "$recovery_attempt" "$recovery_status" \
 			>>"$PACKAGE_OBSERVATION_LOG"
 		case "$recovery_status" in
 			129 | 130 | 143) return "$recovery_status" ;;
@@ -1672,15 +1734,15 @@ attempt_owned_emulator_transport_recovery() {
 	fi
 	case "$recovery_result" in
 		recovered | race-device)
-			printf 'phase=cleanup invocation=%s attempt=%s transport-recovery=%s\n' \
-				"$recovery_invocation" "$recovery_attempt" "$recovery_result" \
+			printf 'phase=%s invocation=%s attempt=%s transport-recovery=%s\n' \
+				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" "$recovery_result" \
 				>>"$PACKAGE_OBSERVATION_LOG"
 			return 0
 			;;
 		retryable:transport-inconclusive | retryable:registration-failed | retryable:post-state-unavailable)
 			recovery_reason=${recovery_result#retryable:}
-			printf 'phase=cleanup invocation=%s attempt=%s transport-recovery=retryable reason=%s\n' \
-				"$recovery_invocation" "$recovery_attempt" "$recovery_reason" \
+			printf 'phase=%s invocation=%s attempt=%s transport-recovery=retryable reason=%s\n' \
+				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" "$recovery_reason" \
 				>>"$PACKAGE_OBSERVATION_LOG"
 			return 1
 			;;
@@ -1826,7 +1888,7 @@ cleanup_android_app() {
 					[ "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" = "0" ] && \
 					recovery_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
-					if attempt_owned_emulator_transport_recovery \
+					if attempt_owned_emulator_transport_recovery cleanup \
 						"$recovery_timeout" "$cleanup_invocation" "$attempt"; then
 						absent_observations=0
 						cleanup_ownership_consecutive_exact=0

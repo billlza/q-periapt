@@ -1657,6 +1657,10 @@ fi
         *,
         signer_status: int = 0,
         journal_prefix: str | None = None,
+        transport_recovery_outcomes: tuple[str, ...] = (),
+        boot_owned_emulator: bool = False,
+        device_kind_override: str | None = None,
+        emulator_started_override: bool | None = None,
     ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], int, int]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
@@ -1682,6 +1686,23 @@ fi
             counter.write_text("0\n", encoding="ascii")
             signer_counter = root / "signer-count.txt"
             signer_counter.write_text("0\n", encoding="ascii")
+            recovery_sequence = root / "recovery-sequence.txt"
+            recovery_sequence.write_text(
+                "\n".join(transport_recovery_outcomes) + "\n", encoding="ascii"
+            )
+            recovery_counter = root / "recovery-count.txt"
+            recovery_counter.write_text("0\n", encoding="ascii")
+            if device_kind_override is None:
+                device_kind = "emulator" if boot_owned_emulator else "physical"
+            else:
+                device_kind = device_kind_override
+            if device_kind not in {"emulator", "physical"}:
+                raise AssertionError("fixture device kind must be emulator or physical")
+            emulator_started = (
+                boot_owned_emulator
+                if emulator_started_override is None
+                else emulator_started_override
+            )
             script = f"""
 set -eu
 umask 077
@@ -1692,7 +1713,13 @@ installed_apk="$WORK/installed-smoke-base.apk"
 OBSERVATION_SEQUENCE={shlex.quote(str(sequence))}
 OBSERVATION_COUNTER={shlex.quote(str(counter))}
 SIGNER_COUNTER={shlex.quote(str(signer_counter))}
+RECOVERY_SEQUENCE={shlex.quote(str(recovery_sequence))}
+RECOVERY_COUNTER={shlex.quote(str(recovery_counter))}
 SIGNER_STATUS={signer_status}
+ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
+ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
+DEVICE_KIND={device_kind}
+EMULATOR_STARTED={1 if emulator_started else 0}
 remaining_bounded_timeout() {{
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
     if [ "$observation_count" -lt {len(outcomes)} ]; then
@@ -1710,7 +1737,31 @@ verify_observed_installed_apk_signer() {{
     return "$SIGNER_STATUS"
 }}
 android_command() {{
-    test "$1" = observe-installed-apk
+    operation=$1
+    if [ "$operation" = recover-emulator-transport ]; then
+        if [ "$#" -ne 3 ] || [ "$2" != "--timeout-seconds" ] || [ "$3" != "15" ]; then
+            printf 'malformed recovery argv fixture\n' >&2
+            return 2
+        fi
+        recovery_count=$(/bin/cat "$RECOVERY_COUNTER")
+        recovery_count=$((recovery_count + 1))
+        printf '%s\n' "$recovery_count" >"$RECOVERY_COUNTER"
+        outcome=$(/usr/bin/sed -n "${{recovery_count}}p" "$RECOVERY_SEQUENCE")
+        case "$outcome" in
+            recovered | race-device | retryable:transport-inconclusive | \
+                retryable:registration-failed | retryable:post-state-unavailable)
+                printf '%s\n' "$outcome"; return 0 ;;
+            structural) printf 'structural fixture\n' >&2; return 2 ;;
+            signal129) printf 'signal fixture\n' >&2; return 129 ;;
+            signal130) printf 'signal fixture\n' >&2; return 130 ;;
+            signal143) printf 'signal fixture\n' >&2; return 143 ;;
+            malformed) printf 'retryable:unexpected\n'; return 0 ;;
+            multiline) printf 'recovered\nextra\n'; return 0 ;;
+            diagnostic) printf 'recovered\n'; printf 'unexpected diagnostic\n' >&2; return 0 ;;
+            *) return 2 ;;
+        esac
+    fi
+    test "$operation" = observe-installed-apk
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
     observation_count=$((observation_count + 1))
     printf '%s\n' "$observation_count" >"$OBSERVATION_COUNTER"
@@ -1723,11 +1774,14 @@ android_command() {{
 }}
 {observe_function}
 if observe_owned_installed_package 999 postinstall 1; then
-    exit 0
+    observation_status=0
 else
     observation_status=$?
-    exit "$observation_status"
 fi
+printf '%s\n' "$(/bin/cat "$RECOVERY_COUNTER")" >"$DIST/fixture-recovery-count.txt"
+printf '%s\n' "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" \
+    >"$DIST/fixture-recovery-attempted.txt"
+exit "$observation_status"
 """
             result = subprocess.run(
                 ["/bin/sh", "-c", script],
@@ -1761,6 +1815,7 @@ fi
         cleanup_invocations: int = 1,
         remaining_calls_per_invocation: tuple[int, ...] | None = None,
         boot_owned_emulator: bool = False,
+        transport_recovery_attempted: bool = False,
     ) -> tuple[
         subprocess.CompletedProcess[bytes], dict[str, bytes], list[str], int, bool
     ]:
@@ -1870,7 +1925,7 @@ ANDROID_APP_CLEANUP_ARMED=1
 ANDROID_APP_INSTALL_CONFIRMED={1 if install_confirmed else 0}
 ANDROID_APP_CLEANUP_INVOCATION=0
 ANDROID_APP_UNINSTALL_REQUESTED=0
-ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
+ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED={1 if transport_recovery_attempted else 0}
 ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
 DEVICE_KIND={"emulator" if boot_owned_emulator else "physical"}
 EMULATOR_STARTED={1 if boot_owned_emulator else 0}
@@ -4417,6 +4472,260 @@ fi
         self.assertEqual(signer_count, 0)
         self.assertIn(b"malformed retry reason", result.stderr)
 
+    def test_postinstall_recovers_owned_emulator_transport_then_reconverges(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        for recovery_outcome in ("recovered", "race-device"):
+            with self.subTest(recovery_outcome=recovery_outcome):
+                result, files, observation_count, signer_count = (
+                    self._run_installed_package_ownership_observation(
+                        (
+                            f"exact:{path_a}",
+                            "retryable:package-unavailable",
+                            f"exact:{path_a}",
+                            f"exact:{path_a}",
+                        ),
+                        transport_recovery_outcomes=(recovery_outcome,),
+                        boot_owned_emulator=True,
+                    )
+                )
+                self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+                self.assertEqual(observation_count, 4)
+                self.assertEqual(signer_count, 1)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"1\n")
+                self.assertEqual(files["fixture-recovery-attempted.txt"], b"1\n")
+                journal = files["adb-package-state-observation.log"].decode("ascii")
+                self.assertIn(
+                    "phase=postinstall invocation=1 attempt=2 "
+                    f"transport-recovery={recovery_outcome}\n",
+                    journal,
+                )
+                recovery = journal.index("transport-recovery=")
+                first_fresh_exact = journal.index(
+                    f"attempt=3 state=exact path_sha256={path_a} consecutive=1"
+                )
+                second_fresh_exact = journal.index(
+                    f"attempt=4 state=exact path_sha256={path_a} consecutive=2"
+                )
+                self.assertLess(recovery, first_fresh_exact)
+                self.assertLess(first_fresh_exact, second_fresh_exact)
+
+    def test_postinstall_transport_recovery_requires_prior_exact_owned_emulator(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        for (
+            outcomes,
+            boot_owned_emulator,
+            device_kind_override,
+            emulator_started_override,
+        ) in (
+            (
+                (
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                ),
+                True,
+                None,
+                None,
+            ),
+            (
+                (
+                    f"exact:{path_a}",
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                ),
+                False,
+                None,
+                None,
+            ),
+            (
+                (
+                    f"exact:{path_a}",
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                ),
+                False,
+                "emulator",
+                True,
+            ),
+            (
+                (
+                    f"exact:{path_a}",
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                ),
+                True,
+                None,
+                False,
+            ),
+        ):
+            with self.subTest(
+                prior_exact=outcomes[0].startswith("exact:"),
+                boot_owned_emulator=boot_owned_emulator,
+                device_kind_override=device_kind_override,
+                emulator_started_override=emulator_started_override,
+            ):
+                result, files, _observation_count, signer_count = (
+                    self._run_installed_package_ownership_observation(
+                        outcomes,
+                        transport_recovery_outcomes=("recovered",),
+                        boot_owned_emulator=boot_owned_emulator,
+                        device_kind_override=device_kind_override,
+                        emulator_started_override=emulator_started_override,
+                    )
+                )
+                self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+                self.assertEqual(signer_count, 1)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"0\n")
+                self.assertEqual(files["fixture-recovery-attempted.txt"], b"0\n")
+                self.assertNotIn(
+                    "transport-recovery=",
+                    files["adb-package-state-observation.log"].decode("ascii"),
+                )
+
+    def test_postinstall_transport_recovery_never_masks_integrity_retries(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        for retry_reason in (
+            "pull-failed",
+            "path-changed",
+            "bytes-mismatch",
+            "deadline-exhausted",
+        ):
+            with self.subTest(retry_reason=retry_reason):
+                result, files, _observation_count, signer_count = (
+                    self._run_installed_package_ownership_observation(
+                        (
+                            f"exact:{path_a}",
+                            f"retryable:{retry_reason}",
+                            f"exact:{path_a}",
+                            f"exact:{path_a}",
+                        ),
+                        transport_recovery_outcomes=("recovered",),
+                        boot_owned_emulator=True,
+                    )
+                )
+                self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+                self.assertEqual(signer_count, 1)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"0\n")
+                self.assertEqual(files["fixture-recovery-attempted.txt"], b"0\n")
+
+    def test_postinstall_transport_recovery_is_one_shot_and_not_proof(self) -> None:
+        path_a = "a" * 64
+        result, files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (
+                    f"exact:{path_a}",
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                    f"exact:{path_a}",
+                ),
+                transport_recovery_outcomes=("retryable:registration-failed",),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(observation_count, 6)
+        self.assertEqual(signer_count, 1)
+        self.assertEqual(files["fixture-recovery-count.txt"], b"1\n")
+        self.assertEqual(files["fixture-recovery-attempted.txt"], b"1\n")
+        journal = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertEqual(journal.count("transport-recovery="), 1)
+        self.assertIn("transport-recovery=retryable reason=registration-failed", journal)
+
+        result, files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (
+                    f"exact:{path_a}",
+                    "retryable:package-unavailable",
+                    f"exact:{path_a}",
+                ),
+                transport_recovery_outcomes=("recovered",),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(observation_count, 3)
+        self.assertEqual(signer_count, 0)
+        self.assertEqual(files["fixture-recovery-count.txt"], b"1\n")
+        self.assertIn(b"did not converge within its total deadline", result.stderr)
+
+    def test_postinstall_recovery_requires_remaining_budget_and_propagates_failures(
+        self,
+    ) -> None:
+        path_a = "a" * 64
+        result, files, observation_count, signer_count = (
+            self._run_installed_package_ownership_observation(
+                (f"exact:{path_a}", "retryable:package-unavailable"),
+                transport_recovery_outcomes=("recovered",),
+                boot_owned_emulator=True,
+            )
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(observation_count, 2)
+        self.assertEqual(signer_count, 0)
+        self.assertEqual(files["fixture-recovery-count.txt"], b"0\n")
+        self.assertEqual(files["fixture-recovery-attempted.txt"], b"0\n")
+
+        for recovery_outcome in (
+            "retryable:transport-inconclusive",
+            "retryable:registration-failed",
+            "retryable:post-state-unavailable",
+        ):
+            with self.subTest(recovery_outcome=recovery_outcome):
+                result, files, observation_count, signer_count = (
+                    self._run_installed_package_ownership_observation(
+                        (
+                            f"exact:{path_a}",
+                            "retryable:package-unavailable",
+                            f"exact:{path_a}",
+                        ),
+                        transport_recovery_outcomes=(recovery_outcome,),
+                        boot_owned_emulator=True,
+                    )
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(observation_count, 3)
+                self.assertEqual(signer_count, 0)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"1\n")
+                self.assertEqual(files["fixture-recovery-attempted.txt"], b"1\n")
+
+        for recovery_outcome, expected_status in (
+            ("structural", 2),
+            ("malformed", 2),
+            ("multiline", 2),
+            ("diagnostic", 2),
+            ("signal129", 129),
+            ("signal130", 130),
+            ("signal143", 143),
+        ):
+            with self.subTest(recovery_outcome=recovery_outcome):
+                result, files, observation_count, signer_count = (
+                    self._run_installed_package_ownership_observation(
+                        (
+                            f"exact:{path_a}",
+                            "retryable:package-unavailable",
+                            f"exact:{path_a}",
+                        ),
+                        transport_recovery_outcomes=(recovery_outcome,),
+                        boot_owned_emulator=True,
+                    )
+                )
+                self.assertEqual(result.returncode, expected_status)
+                self.assertEqual(observation_count, 2)
+                self.assertEqual(signer_count, 0)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"1\n")
+                self.assertEqual(files["fixture-recovery-attempted.txt"], b"1\n")
+
     def test_cleanup_reverifies_ownership_before_one_uninstall_and_three_absences(
         self,
     ) -> None:
@@ -4644,6 +4953,21 @@ fi
         self.assertEqual(result.returncode, 1)
         self.assertNotIn("recover-emulator-transport", calls)
         self.assertNotIn("uninstall-app", calls)
+
+    def test_cleanup_does_not_repeat_a_postinstall_transport_recovery(self) -> None:
+        result, _files, calls, signer_count, copy_exists = (
+            self._run_cleanup_observation(
+                ("device-unavailable",),
+                transport_recovery_outcomes=("recovered",),
+                boot_owned_emulator=True,
+                transport_recovery_attempted=True,
+            )
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("recover-emulator-transport", calls)
+        self.assertNotIn("uninstall-app", calls)
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
 
     def test_cleanup_recovery_flag_is_set_only_after_remaining_budget(self) -> None:
         result, _files, calls, signer_count, copy_exists = (
