@@ -51,6 +51,14 @@ boundary is executable and terminating:
   delay, replay, and cross-session mixing; unissued or altered offers cannot pass
   the provenance check. This is an EUF-CMA abstraction, not a concrete signature
   proof.
+
+  The current Rust migration typestates and Policy Agent commands follow this
+  protocol-visible I -> responder accept/R -> initiator accept order for both KEM
+  directions. That correspondence is exercised by tests, not proved as a
+  Tamarin-to-Rust refinement. This theory also does not model the service rule that
+  durable reservation release plus in-process key/response retention must finish
+  before R is exposed, IPC schema/nonce processing, or the fact that a restart does
+  not recover the accepted key or cached R.
 - [`migration_v2_liveness.spthy`](migration_v2_liveness.spthy) is the focused
   progress projection: it proves an authority-issued, non-downgrade successor can
   be applied, exactly reconciled, and accepted. This keeps the safety theory's
@@ -78,7 +86,7 @@ specification-to-Rust refinement. Ideal signature authenticity for the capabilit
 offers corresponds to a separate EUF-CMA assumption; secrecy/authenticity of the
 modeled shared key is also an external KEM premise. Tamarin does not prove concrete
 state serialization, keyed-hash/KDF security, fsync/crash behavior, real IPC
-isolation, or Rust correspondence.
+isolation, acceptance-response durability, or Rust correspondence.
 
 Required migration lemmas include `migration_executable`,
 `transition_authenticity`, `reset_authorization`, `mig_agree_initiator`,

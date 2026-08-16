@@ -86,7 +86,7 @@
     },
     {
       "id": "MIG-AGREE-V2",
-      "title": "Role-separated two-Finished exchange gives symbolic agreement on the authenticated V2 joint decision",
+      "title": "Role-ordered two-Finished exchange gives symbolic agreement on the authenticated V2 joint decision",
       "status": "machine_checked",
       "evidence": {
         "formal": [
@@ -96,14 +96,17 @@
         "implementation": [
           "models/q-periapt-migration/src/capability.rs",
           "models/q-periapt-migration/src/confirmation.rs",
-          "models/q-periapt-migration/src/transcript.rs"
+          "models/q-periapt-migration/src/transcript.rs",
+          "services/q-periapt-policy-agent/src/service.rs",
+          "services/q-periapt-policy-agent/src/ipc.rs"
         ],
         "tests": [
           "models/q-periapt-migration/tests/contract_v2.rs",
+          "services/q-periapt-policy-agent/src/tests.rs",
           "artifact/test_migration_contract_v2.py"
         ]
       },
-      "boundary": "The symbolic model authenticates two independent role-owned capability offers under ideal pinned identity signatures before either role forms the ordered joint decision. The implemented two Finished flights are then modeled as role-separated keyed hashes over one post-KEM transcript: initiator Finished, responder verification/acceptance and responder Finished, then initiator verification/acceptance; Finished values are not signatures, neither offer signature depends on the peer signature, and there is no third commit flight. With uncompromised offer-signing keys and the modeled shared KEM key, matching accepted-key/session commitments agree on all modeled joint projections. The agreement and state/CAS theories are compositional, not one end-to-end refinement, and do not establish concrete signature, hash/KDF, KEM, transport, service, or byte-code correspondence."
+      "boundary": "The symbolic model authenticates two independent role-owned capability offers under ideal pinned identity signatures before either role forms the ordered joint decision. It fixes role-separated keyed hashes over one post-KEM transcript in protocol-role order: initiator Finished, responder verification/acceptance and responder Finished, then initiator verification/acceptance; Finished values are not signatures, neither offer signature depends on the peer signature, and there is no third commit flight. The Rust typestates and reference service follow that protocol-visible order independently of KEM encapsulation direction. The responder rechecks the exact local/witness head and verifies I before accepting, and exposes R only after durable reservation release plus bounded same-process accepted-key/response retention; the initiator similarly rechecks and verifies R before returning its retained key handle. IPC is a hard schema/domain V2 cut with no V1 fallback. Exact same-handle/same-Finished response recovery requires a newly signed nonce, the same live process, and the retained key; restart does not recover the key or cached R, while a durable capability-session tombstone prevents reuse. With uncompromised offer-signing keys and the modeled shared KEM key, matching accepted-key/session commitments agree on all modeled joint projections. The machine-checked status applies to the bounded symbolic theory. Rust tests and byte correspondence are evidence links only: the agreement and state/CAS theories are compositional, not an end-to-end formal-to-Rust refinement, and do not establish concrete signature, hash/KDF, KEM, transport, service, IPC, crash, or byte-code correspondence."
     },
     {
       "id": "MIG-FLOOR-V2",
@@ -181,7 +184,7 @@
         "formal": ["formal/easycrypt/README.md"],
         "implementation": ["crates/q-periapt-core/src/lib.rs"]
       },
-      "boundary": "Not yet proved. KATs, cross-language tests, source hashes, and binary execution are evidence links, not a formal refinement theorem."
+      "boundary": "Not yet proved. The role-specific Rust typestates and Policy Agent now follow the Tamarin agreement theory's protocol-visible initiator-Finished, responder-accept/Finished, initiator-accept order, independently of KEM direction, but that alignment is established by source review and tests only. KATs, cross-language tests, source hashes, IPC tests, and binary execution are evidence links, not a formal refinement theorem."
     },
     {
       "id": "APPLE-CURRENT-COMMIT-RUNTIME",

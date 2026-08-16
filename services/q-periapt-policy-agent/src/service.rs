@@ -10,8 +10,9 @@ use q_periapt_core::Profile;
 use q_periapt_migration::{
     Abi2MigrationApplicationContextV2, AcceptedSessionKeyV1, AuthenticatedMigrationContextV2Input,
     AuthenticatedNegotiationInputV1, AuthenticatedNegotiationV1, EndpointKeyShareV1, EndpointRole,
-    IssuedLocalFinishedV1, MigrationContextV2, MigrationFinishedV1, MigrationIdentityKeyId,
-    PendingMutualConfirmationV1, PostKemTranscriptV1, PreKemTranscriptV1, SignedCapabilityOfferV1,
+    InitiatorAwaitingResponderFinishedV1, InitiatorConfirmationV1, InitiatorFinishedV1,
+    MigrationContextV2, MigrationIdentityKeyId, PostKemTranscriptV1, PreKemTranscriptV1,
+    ResponderAwaitingInitiatorFinishedV1, ResponderFinishedV1, SignedCapabilityOfferV1,
 };
 use q_periapt_policy::{AuthenticatedPolicy, HybridSuite, KeyFormat, Policy};
 
@@ -300,24 +301,67 @@ impl ConfirmedKeyHandle {
     }
 }
 
-/// Encapsulation output: public ciphertexts plus a handle and local Finished.
+/// Initiator-role encapsulation output, including the first protocol Finished flight.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BeginEncapsulationResult {
+pub struct InitiatorEncapsulationResult {
     /// Opaque pending-session handle.
     pub handle: PendingSessionHandle,
     /// Public component ciphertexts.
     pub ciphertexts: EncapsulationCiphertexts,
-    /// Role-separated local Finished; no application key is released.
-    pub local_finished: MigrationFinishedV1,
+    /// Initiator Finished to deliver as the first confirmation flight.
+    pub initiator_finished: InitiatorFinishedV1,
 }
 
-/// Decapsulation output: only a handle and local Finished, never a secret.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct BeginDecapsulationResult {
+/// Responder-role encapsulation output; no Finished may exist before peer acceptance.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResponderEncapsulationResult {
     /// Opaque pending-session handle.
     pub handle: PendingSessionHandle,
-    /// Role-separated local Finished; no application key is released.
-    pub local_finished: MigrationFinishedV1,
+    /// Public component ciphertexts.
+    pub ciphertexts: EncapsulationCiphertexts,
+}
+
+/// Encapsulation output explicitly separated by authenticated protocol role.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BeginEncapsulationResult {
+    /// The local endpoint is the protocol initiator and issued the first Finished.
+    Initiator(InitiatorEncapsulationResult),
+    /// The local endpoint is the protocol responder and is awaiting the first Finished.
+    Responder(ResponderEncapsulationResult),
+}
+
+/// Initiator-role decapsulation output, including the first protocol Finished flight.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InitiatorDecapsulationResult {
+    /// Opaque pending-session handle.
+    pub handle: PendingSessionHandle,
+    /// Initiator Finished to deliver as the first confirmation flight.
+    pub initiator_finished: InitiatorFinishedV1,
+}
+
+/// Responder-role decapsulation output; no Finished may exist before peer acceptance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResponderDecapsulationResult {
+    /// Opaque pending-session handle.
+    pub handle: PendingSessionHandle,
+}
+
+/// Decapsulation output explicitly separated by authenticated protocol role.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BeginDecapsulationResult {
+    /// The local endpoint is the protocol initiator and issued the first Finished.
+    Initiator(InitiatorDecapsulationResult),
+    /// The local endpoint is the protocol responder and is awaiting the first Finished.
+    Responder(ResponderDecapsulationResult),
+}
+
+/// Responder acceptance result returned only after key retention and durable release.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResponderAcceptanceResult {
+    /// Opaque handle to the retained accepted key.
+    pub key_handle: ConfirmedKeyHandle,
+    /// Responder Finished to deliver as the second confirmation flight.
+    pub responder_finished: ResponderFinishedV1,
 }
 
 /// Transition/session error with retry-relevant states kept distinct.
@@ -348,8 +392,14 @@ pub enum AgentError {
     UnknownHandle,
     /// The exact state/fence changed before acceptance.
     StaleSession,
+    /// The command carried a Finished flight not accepted by this pending role state.
+    UnexpectedFlight,
+    /// A completed handle was replayed with different bytes for its original Finished flight.
+    ConflictingAcceptanceReplay,
     /// Peer Finished failed constant-time verification; the pending secret was erased.
     FinishedRejected,
+    /// A bounded local allocation could not be reserved before mutating acceptance state.
+    LocalResourceFailure,
     /// ABI version, entropy, or a local cryptographic provider failed.
     LocalCryptoFailure,
     /// The committed state is valid but this process has no exact compatible ABI 2 executor.
@@ -402,10 +452,45 @@ impl From<Abi2EngineError> for AgentError {
     }
 }
 
-struct PendingSession {
-    confirmation: IssuedLocalFinishedV1<Sha3_256Xof>,
-    expected_head: StateHead,
-    deadline: Instant,
+enum PendingSession {
+    Initiator {
+        confirmation: InitiatorAwaitingResponderFinishedV1<Sha3_256Xof>,
+        expected_head: StateHead,
+        deadline: Instant,
+    },
+    Responder {
+        confirmation: ResponderAwaitingInitiatorFinishedV1<Sha3_256Xof>,
+        expected_head: StateHead,
+        deadline: Instant,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompletedAcceptance {
+    Initiator {
+        received_finished: ResponderFinishedV1,
+        key_handle: ConfirmedKeyHandle,
+    },
+    Responder {
+        received_finished: InitiatorFinishedV1,
+        result: ResponderAcceptanceResult,
+    },
+}
+
+impl PendingSession {
+    const fn expected_head(&self) -> StateHead {
+        match self {
+            Self::Initiator { expected_head, .. } | Self::Responder { expected_head, .. } => {
+                *expected_head
+            }
+        }
+    }
+
+    fn is_expired(&self, now: Instant) -> bool {
+        match self {
+            Self::Initiator { deadline, .. } | Self::Responder { deadline, .. } => *deadline <= now,
+        }
+    }
 }
 
 enum ExecutorState {
@@ -432,6 +517,7 @@ struct Inner<W: WitnessPort> {
     pending_engine: Option<ExecutorState>,
     pending_sessions: HashMap<PendingSessionHandle, PendingSession>,
     confirmed_keys: HashMap<ConfirmedKeyHandle, AcceptedSessionKeyV1>,
+    completed_acceptances: HashMap<PendingSessionHandle, CompletedAcceptance>,
     poisoned: bool,
 }
 
@@ -479,6 +565,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
                 pending_engine,
                 pending_sessions: HashMap::new(),
                 confirmed_keys: HashMap::new(),
+                completed_acceptances: HashMap::new(),
                 poisoned: false,
             }),
         })
@@ -581,15 +668,54 @@ impl<W: WitnessPort> PolicyAgent<W> {
             ciphertexts.traditional(),
         )
         .map_err(|_| AgentError::AuthorizationRejected)?;
-        let confirmation = PendingMutualConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
-            .map_err(|_| AgentError::AuthorizationRejected)?;
-        let (confirmation, local_finished) = confirmation.issue_local_finished();
-        let handle = reserve_pending(&mut inner, head, capability_session_id, confirmation)?;
-        Ok(BeginEncapsulationResult {
-            handle,
-            ciphertexts,
-            local_finished,
-        })
+        let deadline = pending_deadline(&inner)?;
+        match inner.config.local_role {
+            EndpointRole::Initiator => {
+                let confirmation =
+                    InitiatorConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
+                        .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
+                let (confirmation, initiator_finished) = confirmation.issue_finished();
+                let handle = reserve_pending(
+                    &mut inner,
+                    head,
+                    capability_session_id,
+                    PendingSession::Initiator {
+                        confirmation,
+                        expected_head: head,
+                        deadline,
+                    },
+                )?;
+                Ok(BeginEncapsulationResult::Initiator(
+                    InitiatorEncapsulationResult {
+                        handle,
+                        ciphertexts,
+                        initiator_finished,
+                    },
+                ))
+            }
+            EndpointRole::Responder => {
+                let confirmation = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
+                    secret, &context, &post,
+                )
+                .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
+                let handle = reserve_pending(
+                    &mut inner,
+                    head,
+                    capability_session_id,
+                    PendingSession::Responder {
+                        confirmation,
+                        expected_head: head,
+                        deadline,
+                    },
+                )?;
+                Ok(BeginEncapsulationResult::Responder(
+                    ResponderEncapsulationResult {
+                        handle,
+                        ciphertexts,
+                    },
+                ))
+            }
+        }
     }
 
     /// Begin decapsulation from signed capability envelopes and exact ciphertexts.
@@ -614,80 +740,161 @@ impl<W: WitnessPort> PolicyAgent<W> {
             request.ciphertexts.traditional(),
         )
         .map_err(|_| AgentError::AuthorizationRejected)?;
-        let confirmation = PendingMutualConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
-            .map_err(|_| AgentError::AuthorizationRejected)?;
-        let (confirmation, local_finished) = confirmation.issue_local_finished();
-        let handle = reserve_pending(&mut inner, head, capability_session_id, confirmation)?;
-        Ok(BeginDecapsulationResult {
-            handle,
-            local_finished,
-        })
+        let deadline = pending_deadline(&inner)?;
+        match inner.config.local_role {
+            EndpointRole::Initiator => {
+                let confirmation =
+                    InitiatorConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
+                        .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
+                let (confirmation, initiator_finished) = confirmation.issue_finished();
+                let handle = reserve_pending(
+                    &mut inner,
+                    head,
+                    capability_session_id,
+                    PendingSession::Initiator {
+                        confirmation,
+                        expected_head: head,
+                        deadline,
+                    },
+                )?;
+                Ok(BeginDecapsulationResult::Initiator(
+                    InitiatorDecapsulationResult {
+                        handle,
+                        initiator_finished,
+                    },
+                ))
+            }
+            EndpointRole::Responder => {
+                let confirmation = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
+                    secret, &context, &post,
+                )
+                .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
+                let handle = reserve_pending(
+                    &mut inner,
+                    head,
+                    capability_session_id,
+                    PendingSession::Responder {
+                        confirmation,
+                        expected_head: head,
+                        deadline,
+                    },
+                )?;
+                Ok(BeginDecapsulationResult::Responder(
+                    ResponderDecapsulationResult { handle },
+                ))
+            }
+        }
     }
 
-    /// Verify peer Finished, exact local head, exact witness fence, and only then retain K.
-    pub fn confirm(
+    /// Accept I, durably release its reservation, retain K and retry state, then return R.
+    ///
+    /// While the retained key remains live, an exact same-handle/same-Finished retry returns the
+    /// same handle and R. Different bytes for that completed flight fail closed without replacing
+    /// the result. Destroy, migration transition, or process restart clears this retry cache.
+    pub fn accept_initiator_finished(
         &self,
         handle: PendingSessionHandle,
-        peer_finished: [u8; 32],
+        initiator_finished: InitiatorFinishedV1,
+    ) -> Result<ResponderAcceptanceResult, AgentError> {
+        let mut inner = self.lock()?;
+        ensure_live(&inner)?;
+        if let Some(completed) = inner.completed_acceptances.get(&handle) {
+            return match completed {
+                CompletedAcceptance::Responder {
+                    received_finished,
+                    result,
+                } if *received_finished == initiator_finished => Ok(*result),
+                CompletedAcceptance::Responder { .. } => {
+                    Err(AgentError::ConflictingAcceptanceReplay)
+                }
+                CompletedAcceptance::Initiator { .. } => Err(AgentError::UnexpectedFlight),
+            };
+        }
+        let (expected_head, key_handle) =
+            prepare_acceptance(&mut inner, handle, PendingFlight::Initiator)?;
+        let confirmation = match inner.pending_sessions.remove(&handle) {
+            Some(PendingSession::Responder { confirmation, .. }) => confirmation,
+            Some(unexpected) => return restore_unexpected(&mut inner, handle, unexpected),
+            None => return Err(AgentError::UnknownHandle),
+        };
+        let (accepted, responder_finished) = match confirmation
+            .verify_accept_and_issue_finished(inner.repository.state_machine(), &initiator_finished)
+        {
+            Ok(accepted) => accepted,
+            Err(error) => {
+                cancel_consumed_session(&mut inner, handle)?;
+                return Err(map_confirmation_error(&mut inner, error));
+            }
+        };
+        let result = ResponderAcceptanceResult {
+            key_handle,
+            responder_finished,
+        };
+        retain_accepted_key(
+            &mut inner,
+            handle,
+            expected_head,
+            key_handle,
+            accepted,
+            CompletedAcceptance::Responder {
+                received_finished: initiator_finished,
+                result,
+            },
+        )?;
+        Ok(result)
+    }
+
+    /// Accept the responder Finished only from an initiator pending state and retain K.
+    ///
+    /// While the retained key remains live, an exact same-handle/same-Finished retry returns the
+    /// same handle. Different bytes for that completed flight fail closed without replacing the
+    /// result. Destroy, migration transition, or process restart clears this retry cache.
+    pub fn accept_responder_finished(
+        &self,
+        handle: PendingSessionHandle,
+        responder_finished: ResponderFinishedV1,
     ) -> Result<ConfirmedKeyHandle, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
-        if matches!(inner.pending_sessions.get(&handle), Some(pending) if pending.deadline <= Instant::now())
+        if let Some(completed) = inner.completed_acceptances.get(&handle) {
+            return match completed {
+                CompletedAcceptance::Initiator {
+                    received_finished,
+                    key_handle,
+                } if *received_finished == responder_finished => Ok(*key_handle),
+                CompletedAcceptance::Initiator { .. } => {
+                    Err(AgentError::ConflictingAcceptanceReplay)
+                }
+                CompletedAcceptance::Responder { .. } => Err(AgentError::UnexpectedFlight),
+            };
+        }
+        let (expected_head, key_handle) =
+            prepare_acceptance(&mut inner, handle, PendingFlight::Responder)?;
+        let confirmation = match inner.pending_sessions.remove(&handle) {
+            Some(PendingSession::Initiator { confirmation, .. }) => confirmation,
+            Some(unexpected) => return restore_unexpected(&mut inner, handle, unexpected),
+            None => return Err(AgentError::UnknownHandle),
+        };
+        let accepted = match confirmation
+            .verify_and_accept(inner.repository.state_machine(), &responder_finished)
         {
-            erase_pending(&mut inner, handle)?;
-            return Err(AgentError::SessionExpired);
-        }
-        purge_expired(&mut inner)?;
-        if inner.repository.pending_intent().is_some() {
-            return Err(AgentError::TransitionPending);
-        }
-        if inner.confirmed_keys.len() >= inner.config.limits.max_confirmed_keys {
-            return Err(AgentError::CapacityExceeded);
-        }
-        let pending = inner
-            .pending_sessions
-            .get(&handle)
-            .ok_or(AgentError::UnknownHandle)?;
-        let expected_head = pending.expected_head;
-        if inner.repository.head()? != expected_head {
-            erase_pending(&mut inner, handle)?;
-            return Err(AgentError::StaleSession);
-        }
-        let witness_head = inner.witness.read_head()?;
-        if witness_head != expected_head {
-            erase_pending(&mut inner, handle)?;
-            return Err(AgentError::StaleSession);
-        }
-        let key_handle = generate_key_handle(&inner.confirmed_keys)?;
-        let pending = inner
-            .pending_sessions
-            .remove(&handle)
-            .ok_or(AgentError::UnknownHandle)?;
-        let accepted = match pending.confirmation.verify_peer_and_accept(
-            inner.repository.state_machine(),
-            &MigrationFinishedV1::from_bytes(peer_finished),
-        ) {
             Ok(accepted) => accepted,
             Err(error) => {
-                if inner.repository.cancel_session(handle.0).is_err() {
-                    inner.poisoned = true;
-                    return Err(AgentError::InternalPoisoned);
-                }
-                return Err(match error {
-                    q_periapt_migration::ConfirmationError::StaleState => AgentError::StaleSession,
-                    _ => AgentError::FinishedRejected,
-                });
+                cancel_consumed_session(&mut inner, handle)?;
+                return Err(map_confirmation_error(&mut inner, error));
             }
         };
-        if inner
-            .repository
-            .release_session(handle.0, expected_head)
-            .is_err()
-        {
-            inner.poisoned = true;
-            return Err(AgentError::InternalPoisoned);
-        }
-        inner.confirmed_keys.insert(key_handle, accepted);
+        retain_accepted_key(
+            &mut inner,
+            handle,
+            expected_head,
+            key_handle,
+            accepted,
+            CompletedAcceptance::Initiator {
+                received_finished: responder_finished,
+                key_handle,
+            },
+        )?;
         Ok(key_handle)
     }
 
@@ -702,11 +909,43 @@ impl<W: WitnessPort> PolicyAgent<W> {
     pub fn destroy_key(&self, handle: ConfirmedKeyHandle) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
-        inner
+        let destroyed = inner
             .confirmed_keys
             .remove(&handle)
-            .map(|_| ())
-            .ok_or(AgentError::UnknownHandle)
+            .ok_or(AgentError::UnknownHandle)?;
+        drop(destroyed);
+        inner.completed_acceptances.retain(|_, completed| {
+            let completed_handle = match completed {
+                CompletedAcceptance::Initiator { key_handle, .. } => *key_handle,
+                CompletedAcceptance::Responder { result, .. } => result.key_handle,
+            };
+            completed_handle != handle
+        });
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn remove_durable_reservation_for_test(
+        &self,
+        handle: PendingSessionHandle,
+    ) -> Result<(), AgentError> {
+        let inner = self.lock()?;
+        ensure_live(&inner)?;
+        if !inner.pending_sessions.contains_key(&handle) {
+            return Err(AgentError::UnknownHandle);
+        }
+        inner.repository.cancel_session(handle.0)?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn acceptance_counts_for_test(&self) -> Result<(usize, usize), AgentError> {
+        let inner = self.lock()?;
+        ensure_live(&inner)?;
+        Ok((
+            inner.confirmed_keys.len(),
+            inner.completed_acceptances.len(),
+        ))
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W>>, AgentError> {
@@ -796,6 +1035,7 @@ fn finish_transition<W: WitnessPort>(
     // erases every in-process pending/accepted secret before any new request.
     inner.pending_sessions.clear();
     inner.confirmed_keys.clear();
+    inner.completed_acceptances.clear();
     inner.engine = inner.pending_engine.take().ok_or_else(|| {
         inner.poisoned = true;
         AgentError::InternalPoisoned
@@ -897,36 +1137,179 @@ fn verify_current_head<W: WitnessPort>(inner: &Inner<W>) -> Result<StateHead, Ag
     Ok(local)
 }
 
+fn pending_deadline<W: WitnessPort>(inner: &Inner<W>) -> Result<Instant, AgentError> {
+    Instant::now()
+        .checked_add(inner.config.limits.session_ttl)
+        .ok_or(AgentError::InvalidConfiguration)
+}
+
 fn reserve_pending<W: WitnessPort>(
     inner: &mut Inner<W>,
     head: StateHead,
     capability_session_id: [u8; 32],
-    confirmation: IssuedLocalFinishedV1<Sha3_256Xof>,
+    pending: PendingSession,
 ) -> Result<PendingSessionHandle, AgentError> {
-    let deadline = Instant::now()
-        .checked_add(inner.config.limits.session_ttl)
-        .ok_or(AgentError::InvalidConfiguration)?;
     for _ in 0..4 {
         let handle = PendingSessionHandle(
             SessionId::generate().map_err(|_| AgentError::LocalCryptoFailure)?,
         );
-        if inner.pending_sessions.contains_key(&handle) {
+        if inner.pending_sessions.contains_key(&handle)
+            || inner.completed_acceptances.contains_key(&handle)
+        {
             continue;
         }
         inner
             .repository
             .reserve_session(handle.0, capability_session_id, head)?;
-        inner.pending_sessions.insert(
-            handle,
-            PendingSession {
-                confirmation,
-                expected_head: head,
-                deadline,
-            },
-        );
+        if inner.pending_sessions.insert(handle, pending).is_some() {
+            inner.poisoned = true;
+            return Err(AgentError::InternalPoisoned);
+        }
         return Ok(handle);
     }
     Err(AgentError::LocalCryptoFailure)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PendingFlight {
+    Initiator,
+    Responder,
+}
+
+fn prepare_acceptance<W: WitnessPort>(
+    inner: &mut Inner<W>,
+    handle: PendingSessionHandle,
+    flight: PendingFlight,
+) -> Result<(StateHead, ConfirmedKeyHandle), AgentError> {
+    ensure_live(inner)?;
+    if matches!(inner.pending_sessions.get(&handle), Some(pending) if pending.is_expired(Instant::now()))
+    {
+        erase_pending(inner, handle)?;
+        return Err(AgentError::SessionExpired);
+    }
+    purge_expired(inner)?;
+    let pending = inner
+        .pending_sessions
+        .get(&handle)
+        .ok_or(AgentError::UnknownHandle)?;
+    let expected_variant = matches!(
+        (flight, pending),
+        (PendingFlight::Initiator, PendingSession::Responder { .. })
+            | (PendingFlight::Responder, PendingSession::Initiator { .. })
+    );
+    if !expected_variant {
+        return Err(AgentError::UnexpectedFlight);
+    }
+    if inner.repository.pending_intent().is_some() {
+        return Err(AgentError::TransitionPending);
+    }
+    if inner.confirmed_keys.len() >= inner.config.limits.max_confirmed_keys
+        || inner.completed_acceptances.len() >= inner.config.limits.max_confirmed_keys
+    {
+        return Err(AgentError::CapacityExceeded);
+    }
+    let expected_head = pending.expected_head();
+    if inner.repository.head()? != expected_head {
+        erase_pending(inner, handle)?;
+        return Err(AgentError::StaleSession);
+    }
+    if inner.witness.read_head()? != expected_head {
+        erase_pending(inner, handle)?;
+        return Err(AgentError::StaleSession);
+    }
+    inner
+        .confirmed_keys
+        .try_reserve(1)
+        .map_err(|_| AgentError::LocalResourceFailure)?;
+    inner
+        .completed_acceptances
+        .try_reserve(1)
+        .map_err(|_| AgentError::LocalResourceFailure)?;
+    let key_handle = generate_key_handle(&inner.confirmed_keys)?;
+    Ok((expected_head, key_handle))
+}
+
+fn cancel_consumed_session<W: WitnessPort>(
+    inner: &mut Inner<W>,
+    handle: PendingSessionHandle,
+) -> Result<(), AgentError> {
+    if inner.repository.cancel_session(handle.0).is_err() {
+        inner.poisoned = true;
+        Err(AgentError::InternalPoisoned)
+    } else {
+        Ok(())
+    }
+}
+
+fn map_confirmation_setup_error<W: WitnessPort>(
+    inner: &mut Inner<W>,
+    _error: q_periapt_migration::ConfirmationError,
+) -> AgentError {
+    // The role, context, and post-KEM transcript were all derived inside this
+    // locked service operation. Constructor rejection therefore denotes an
+    // internal invariant failure, not caller authorization failure.
+    inner.poisoned = true;
+    AgentError::InternalPoisoned
+}
+
+fn map_confirmation_error<W: WitnessPort>(
+    inner: &mut Inner<W>,
+    error: q_periapt_migration::ConfirmationError,
+) -> AgentError {
+    match error {
+        q_periapt_migration::ConfirmationError::StaleState => AgentError::StaleSession,
+        q_periapt_migration::ConfirmationError::PeerFinishedMismatch => {
+            AgentError::FinishedRejected
+        }
+        _ => {
+            inner.poisoned = true;
+            AgentError::InternalPoisoned
+        }
+    }
+}
+
+fn restore_unexpected<W: WitnessPort, T>(
+    inner: &mut Inner<W>,
+    handle: PendingSessionHandle,
+    pending: PendingSession,
+) -> Result<T, AgentError> {
+    if inner.pending_sessions.insert(handle, pending).is_some() {
+        inner.poisoned = true;
+        Err(AgentError::InternalPoisoned)
+    } else {
+        Err(AgentError::UnexpectedFlight)
+    }
+}
+
+fn retain_accepted_key<W: WitnessPort>(
+    inner: &mut Inner<W>,
+    pending_handle: PendingSessionHandle,
+    expected_head: StateHead,
+    key_handle: ConfirmedKeyHandle,
+    accepted: AcceptedSessionKeyV1,
+    completed: CompletedAcceptance,
+) -> Result<(), AgentError> {
+    if inner
+        .repository
+        .release_session(pending_handle.0, expected_head)
+        .is_err()
+    {
+        inner.poisoned = true;
+        return Err(AgentError::InternalPoisoned);
+    }
+    if inner.confirmed_keys.insert(key_handle, accepted).is_some() {
+        inner.poisoned = true;
+        return Err(AgentError::InternalPoisoned);
+    }
+    if inner
+        .completed_acceptances
+        .insert(pending_handle, completed)
+        .is_some()
+    {
+        inner.poisoned = true;
+        return Err(AgentError::InternalPoisoned);
+    }
+    Ok(())
 }
 
 fn erase_pending<W: WitnessPort>(
@@ -938,8 +1321,12 @@ fn erase_pending<W: WitnessPort>(
         .remove(&handle)
         .ok_or(AgentError::UnknownHandle)?;
     drop(removed);
-    inner.repository.cancel_session(handle.0)?;
-    Ok(())
+    if inner.repository.cancel_session(handle.0).is_err() {
+        inner.poisoned = true;
+        Err(AgentError::InternalPoisoned)
+    } else {
+        Ok(())
+    }
 }
 
 fn purge_expired<W: WitnessPort>(inner: &mut Inner<W>) -> Result<(), AgentError> {
@@ -947,7 +1334,7 @@ fn purge_expired<W: WitnessPort>(inner: &mut Inner<W>) -> Result<(), AgentError>
     let expired: Vec<_> = inner
         .pending_sessions
         .iter()
-        .filter_map(|(handle, pending)| (pending.deadline <= now).then_some(*handle))
+        .filter_map(|(handle, pending)| pending.is_expired(now).then_some(*handle))
         .collect();
     for handle in expired {
         erase_pending(inner, handle)?;

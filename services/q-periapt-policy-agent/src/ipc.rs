@@ -4,7 +4,7 @@ use core::fmt;
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
@@ -16,7 +16,10 @@ use q_periapt_core::ZeroizingBytes;
 use q_periapt_ffi_abi2::{
     Q_PERIAPT_MLKEM768_CT_LEN, Q_PERIAPT_MLKEM768_PK_LEN, Q_PERIAPT_X25519_LEN,
 };
-use q_periapt_migration::{EndpointRole, MigrationAuthorityKeyId, MigrationIdentityKeyId};
+use q_periapt_migration::{
+    EndpointRole, InitiatorFinishedV1, MigrationAuthorityKeyId, MigrationIdentityKeyId,
+    ResponderFinishedV1,
+};
 
 use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError};
 use crate::codec::{
@@ -27,16 +30,16 @@ use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::OwnedPrivateDirectory;
 use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
-    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginEncapsulation,
-    ConfirmedKeyHandle, EndpointIdentity, PendingSessionHandle, PolicyAgent, SessionAuthorization,
-    SignedPolicyBundle,
+    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
+    BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
+    PendingSessionHandle, PolicyAgent, SessionAuthorization, SignedPolicyBundle,
 };
 use crate::witness::{AuthenticatedTcpWitness, ReferenceWitnessServer};
 
-const IPC_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v1";
-const IPC_RESPONSE_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v1";
-const IPC_REQUEST_DIGEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-DIGEST/v1";
-const IPC_SCHEMA_VERSION: u16 = 1;
+const IPC_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2";
+const IPC_RESPONSE_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2";
+const IPC_REQUEST_DIGEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-DIGEST/v2";
+const IPC_SCHEMA_VERSION: u16 = 2;
 const IPC_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const WITNESS_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
@@ -84,12 +87,13 @@ enum Command {
     PublicKeys = 1,
     BeginEncapsulation = 2,
     BeginDecapsulation = 3,
-    Confirm = 4,
-    Cancel = 5,
-    DestroyKey = 6,
-    Advance = 7,
-    Reset = 8,
-    Reconcile = 9,
+    AcceptInitiatorFinished = 4,
+    AcceptResponderFinished = 5,
+    Cancel = 6,
+    DestroyKey = 7,
+    Advance = 8,
+    Reset = 9,
+    Reconcile = 10,
 }
 
 impl Command {
@@ -98,12 +102,13 @@ impl Command {
             1 => Some(Self::PublicKeys),
             2 => Some(Self::BeginEncapsulation),
             3 => Some(Self::BeginDecapsulation),
-            4 => Some(Self::Confirm),
-            5 => Some(Self::Cancel),
-            6 => Some(Self::DestroyKey),
-            7 => Some(Self::Advance),
-            8 => Some(Self::Reset),
-            9 => Some(Self::Reconcile),
+            4 => Some(Self::AcceptInitiatorFinished),
+            5 => Some(Self::AcceptResponderFinished),
+            6 => Some(Self::Cancel),
+            7 => Some(Self::DestroyKey),
+            8 => Some(Self::Advance),
+            9 => Some(Self::Reset),
+            10 => Some(Self::Reconcile),
             _ => None,
         }
     }
@@ -113,7 +118,8 @@ enum RequestPayload {
     PublicKeys,
     BeginEncapsulation(BeginEncapsulation),
     BeginDecapsulation(BeginDecapsulation),
-    Confirm(PendingSessionHandle, [u8; 32]),
+    AcceptInitiatorFinished(PendingSessionHandle, InitiatorFinishedV1),
+    AcceptResponderFinished(PendingSessionHandle, ResponderFinishedV1),
     Cancel(PendingSessionHandle),
     DestroyKey(ConfirmedKeyHandle),
     Advance(Vec<u8>),
@@ -161,10 +167,15 @@ impl Request {
                     ciphertexts,
                 ))
             }
-            Command::Confirm => RequestPayload::Confirm(
+            Command::AcceptInitiatorFinished => RequestPayload::AcceptInitiatorFinished(
                 PendingSessionHandle::decode(decoder.array().map_err(map_codec)?)
                     .map_err(|_| IpcError::InvalidMessage)?,
-                decoder.array().map_err(map_codec)?,
+                InitiatorFinishedV1::from_bytes(decoder.array().map_err(map_codec)?),
+            ),
+            Command::AcceptResponderFinished => RequestPayload::AcceptResponderFinished(
+                PendingSessionHandle::decode(decoder.array().map_err(map_codec)?)
+                    .map_err(|_| IpcError::InvalidMessage)?,
+                ResponderFinishedV1::from_bytes(decoder.array().map_err(map_codec)?),
             ),
             Command::Cancel => RequestPayload::Cancel(
                 PendingSessionHandle::decode(decoder.array().map_err(map_codec)?)
@@ -190,16 +201,27 @@ impl Request {
 enum ResponsePayload {
     Empty,
     PublicKeys(EncapsulationPublicKeys),
-    Encapsulation {
+    InitiatorEncapsulation {
         handle: PendingSessionHandle,
         ciphertexts: EncapsulationCiphertexts,
-        finished: [u8; 32],
+        initiator_finished: InitiatorFinishedV1,
     },
-    Decapsulation {
+    ResponderEncapsulation {
         handle: PendingSessionHandle,
-        finished: [u8; 32],
+        ciphertexts: EncapsulationCiphertexts,
     },
-    Confirmed(ConfirmedKeyHandle),
+    InitiatorDecapsulation {
+        handle: PendingSessionHandle,
+        initiator_finished: InitiatorFinishedV1,
+    },
+    ResponderDecapsulation {
+        handle: PendingSessionHandle,
+    },
+    InitiatorAccepted(ConfirmedKeyHandle),
+    ResponderAccepted {
+        key_handle: ConfirmedKeyHandle,
+        responder_finished: ResponderFinishedV1,
+    },
 }
 
 struct RecentNonces {
@@ -237,7 +259,7 @@ impl RecentNonces {
 /// Sequential handling deliberately caps active clients at one. A slow client
 /// can occupy that slot for at most `io_timeout`; no unbounded worker/thread
 /// creation is possible.
-struct UnixIpcServer<W: crate::witness::WitnessPort> {
+pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort> {
     agent: PolicyAgent<W>,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
     server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
@@ -296,6 +318,10 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
             .set_read_timeout(Some(self.io_timeout))
             .and_then(|()| stream.set_write_timeout(Some(self.io_timeout)))
             .map_err(|_| IpcError::Unavailable)?;
+        self.handle_io(stream)
+    }
+
+    fn handle_io<T: Read + Write>(&mut self, stream: &mut T) -> Result<(), IpcError> {
         let envelope = read_frame(stream).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)
             .map_err(map_authentication)?;
@@ -319,7 +345,38 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
         encode_response_payload(&mut encoder, payload)?;
         let response = sign_envelope(&encoder.finish(), self.server_signing_key.as_bytes())
             .map_err(map_authentication)?;
-        write_frame(stream, &response).map_err(map_codec)
+        write_frame(stream, &response).map_err(|_| IpcError::Unavailable)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_for_test(
+        agent: PolicyAgent<W>,
+        client_verification_key: [u8; ML_DSA_65_VK_LEN],
+        server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+    ) -> Result<Self, IpcError> {
+        if client_verification_key.iter().all(|byte| *byte == 0) {
+            return Err(IpcError::InvalidConfiguration);
+        }
+        Ok(Self {
+            agent,
+            client_verification_key,
+            server_signing_key,
+            io_timeout: IPC_IO_TIMEOUT,
+            recent_nonces: RecentNonces::new(),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn handle_io_for_test<T: Read + Write>(
+        &mut self,
+        stream: &mut T,
+    ) -> Result<(), IpcError> {
+        self.handle_io(stream)
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn agent_for_test(&self) -> &PolicyAgent<W> {
+        &self.agent
     }
 
     fn execute(&self, payload: RequestPayload) -> Result<ResponsePayload, AgentError> {
@@ -327,23 +384,49 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
             RequestPayload::PublicKeys => self.agent.public_keys().map(ResponsePayload::PublicKeys),
             RequestPayload::BeginEncapsulation(request) => {
                 let result = self.agent.begin_encapsulation(request)?;
-                Ok(ResponsePayload::Encapsulation {
-                    handle: result.handle,
-                    ciphertexts: result.ciphertexts,
-                    finished: *result.local_finished.as_bytes(),
+                Ok(match result {
+                    BeginEncapsulationResult::Initiator(result) => {
+                        ResponsePayload::InitiatorEncapsulation {
+                            handle: result.handle,
+                            ciphertexts: result.ciphertexts,
+                            initiator_finished: result.initiator_finished,
+                        }
+                    }
+                    BeginEncapsulationResult::Responder(result) => {
+                        ResponsePayload::ResponderEncapsulation {
+                            handle: result.handle,
+                            ciphertexts: result.ciphertexts,
+                        }
+                    }
                 })
             }
             RequestPayload::BeginDecapsulation(request) => {
                 let result = self.agent.begin_decapsulation(request)?;
-                Ok(ResponsePayload::Decapsulation {
-                    handle: result.handle,
-                    finished: *result.local_finished.as_bytes(),
+                Ok(match result {
+                    BeginDecapsulationResult::Initiator(result) => {
+                        ResponsePayload::InitiatorDecapsulation {
+                            handle: result.handle,
+                            initiator_finished: result.initiator_finished,
+                        }
+                    }
+                    BeginDecapsulationResult::Responder(result) => {
+                        ResponsePayload::ResponderDecapsulation {
+                            handle: result.handle,
+                        }
+                    }
                 })
             }
-            RequestPayload::Confirm(handle, finished) => self
+            RequestPayload::AcceptInitiatorFinished(handle, finished) => self
                 .agent
-                .confirm(handle, finished)
-                .map(ResponsePayload::Confirmed),
+                .accept_initiator_finished(handle, finished)
+                .map(|result| ResponsePayload::ResponderAccepted {
+                    key_handle: result.key_handle,
+                    responder_finished: result.responder_finished,
+                }),
+            RequestPayload::AcceptResponderFinished(handle, finished) => self
+                .agent
+                .accept_responder_finished(handle, finished)
+                .map(ResponsePayload::InitiatorAccepted),
             RequestPayload::Cancel(handle) => {
                 self.agent.cancel(handle)?;
                 Ok(ResponsePayload::Empty)
@@ -391,10 +474,10 @@ fn encode_response_payload(
             encoder.fixed(keys.pq()).map_err(map_codec)?;
             encoder.fixed(keys.traditional()).map_err(map_codec)
         }
-        ResponsePayload::Encapsulation {
+        ResponsePayload::InitiatorEncapsulation {
             handle,
             ciphertexts,
-            finished,
+            initiator_finished,
         } => {
             encoder.byte(2).map_err(map_codec)?;
             encoder.fixed(handle.as_bytes()).map_err(map_codec)?;
@@ -402,16 +485,46 @@ fn encode_response_payload(
             encoder
                 .fixed(ciphertexts.traditional())
                 .map_err(map_codec)?;
-            encoder.fixed(&finished).map_err(map_codec)
+            encoder
+                .fixed(initiator_finished.as_bytes())
+                .map_err(map_codec)
         }
-        ResponsePayload::Decapsulation { handle, finished } => {
+        ResponsePayload::ResponderEncapsulation {
+            handle,
+            ciphertexts,
+        } => {
             encoder.byte(3).map_err(map_codec)?;
             encoder.fixed(handle.as_bytes()).map_err(map_codec)?;
-            encoder.fixed(&finished).map_err(map_codec)
+            encoder.fixed(ciphertexts.pq()).map_err(map_codec)?;
+            encoder.fixed(ciphertexts.traditional()).map_err(map_codec)
         }
-        ResponsePayload::Confirmed(handle) => {
+        ResponsePayload::InitiatorDecapsulation {
+            handle,
+            initiator_finished,
+        } => {
             encoder.byte(4).map_err(map_codec)?;
+            encoder.fixed(handle.as_bytes()).map_err(map_codec)?;
+            encoder
+                .fixed(initiator_finished.as_bytes())
+                .map_err(map_codec)
+        }
+        ResponsePayload::ResponderDecapsulation { handle } => {
+            encoder.byte(5).map_err(map_codec)?;
             encoder.fixed(handle.as_bytes()).map_err(map_codec)
+        }
+        ResponsePayload::InitiatorAccepted(handle) => {
+            encoder.byte(6).map_err(map_codec)?;
+            encoder.fixed(handle.as_bytes()).map_err(map_codec)
+        }
+        ResponsePayload::ResponderAccepted {
+            key_handle,
+            responder_finished,
+        } => {
+            encoder.byte(7).map_err(map_codec)?;
+            encoder.fixed(key_handle.as_bytes()).map_err(map_codec)?;
+            encoder
+                .fixed(responder_finished.as_bytes())
+                .map_err(map_codec)
         }
     }
 }
@@ -430,10 +543,13 @@ fn agent_status(error: AgentError) -> u8 {
         AgentError::SessionExpired => 10,
         AgentError::UnknownHandle => 11,
         AgentError::StaleSession => 12,
-        AgentError::FinishedRejected => 13,
-        AgentError::LocalCryptoFailure => 14,
-        AgentError::ExecutionUnavailable => 15,
-        AgentError::InternalPoisoned => 16,
+        AgentError::UnexpectedFlight => 13,
+        AgentError::ConflictingAcceptanceReplay => 14,
+        AgentError::FinishedRejected => 15,
+        AgentError::LocalResourceFailure => 16,
+        AgentError::LocalCryptoFailure => 17,
+        AgentError::ExecutionUnavailable => 18,
+        AgentError::InternalPoisoned => 19,
     }
 }
 
@@ -723,6 +839,22 @@ mod tests {
         Ok(encoder.finish())
     }
 
+    fn finished_request_body(command: Command, finished: [u8; 32]) -> Result<Vec<u8>, IpcError> {
+        let mut encoder = Encoder::new(MAX_FRAME_BYTES);
+        encode_domain(&mut encoder, IPC_REQUEST_DOMAIN, IPC_SCHEMA_VERSION).map_err(map_codec)?;
+        encoder.fixed(&[7u8; 32]).map_err(map_codec)?;
+        encoder.byte(command as u8).map_err(map_codec)?;
+        encoder.fixed(&[8u8; 32]).map_err(map_codec)?;
+        encoder.fixed(&finished).map_err(map_codec)?;
+        Ok(encoder.finish())
+    }
+
+    fn encoded_payload(payload: ResponsePayload) -> Result<Vec<u8>, IpcError> {
+        let mut encoder = Encoder::new(MAX_FRAME_BYTES);
+        encode_response_payload(&mut encoder, payload)?;
+        Ok(encoder.finish())
+    }
+
     #[test]
     fn strict_request_decoder_rejects_unknown_and_trailing_bytes() -> Result<(), IpcError> {
         let valid = request_body(Command::PublicKeys as u8)?;
@@ -741,6 +873,145 @@ mod tests {
             Some(IpcError::InvalidMessage)
         );
         Ok(())
+    }
+
+    #[test]
+    fn v1_domain_and_schema_are_rejected_without_compatibility_fallback() -> Result<(), IpcError> {
+        let mut old_domain = Encoder::new(MAX_FRAME_BYTES);
+        encode_domain(&mut old_domain, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v1", 1)
+            .map_err(map_codec)?;
+        old_domain.fixed(&[7u8; 32]).map_err(map_codec)?;
+        old_domain
+            .byte(Command::PublicKeys as u8)
+            .map_err(map_codec)?;
+        assert_eq!(
+            Request::decode(&old_domain.finish()).err(),
+            Some(IpcError::InvalidMessage)
+        );
+
+        let mut old_schema = Encoder::new(MAX_FRAME_BYTES);
+        encode_domain(&mut old_schema, IPC_REQUEST_DOMAIN, 1).map_err(map_codec)?;
+        old_schema.fixed(&[7u8; 32]).map_err(map_codec)?;
+        old_schema
+            .byte(Command::PublicKeys as u8)
+            .map_err(map_codec)?;
+        assert_eq!(
+            Request::decode(&old_schema.finish()).err(),
+            Some(IpcError::InvalidMessage)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn finished_commands_decode_to_distinct_typed_flights() -> Result<(), IpcError> {
+        let initiator = Request::decode(&finished_request_body(
+            Command::AcceptInitiatorFinished,
+            [11u8; 32],
+        )?)?;
+        assert!(matches!(
+            initiator.payload,
+            RequestPayload::AcceptInitiatorFinished(_, finished)
+                if finished == InitiatorFinishedV1::from_bytes([11u8; 32])
+        ));
+
+        let responder = Request::decode(&finished_request_body(
+            Command::AcceptResponderFinished,
+            [12u8; 32],
+        )?)?;
+        assert!(matches!(
+            responder.payload,
+            RequestPayload::AcceptResponderFinished(_, finished)
+                if finished == ResponderFinishedV1::from_bytes([12u8; 32])
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn response_tags_encode_role_and_flight_without_implicit_responder_finished(
+    ) -> Result<(), IpcError> {
+        let pending =
+            PendingSessionHandle::decode([1u8; 32]).map_err(|_| IpcError::InvalidConfiguration)?;
+        let key =
+            ConfirmedKeyHandle::decode([2u8; 32]).map_err(|_| IpcError::InvalidConfiguration)?;
+        let initiator_finished = InitiatorFinishedV1::from_bytes([3u8; 32]);
+        let responder_finished = ResponderFinishedV1::from_bytes([4u8; 32]);
+        let ciphertexts = EncapsulationCiphertexts::from_slices(
+            &[5u8; Q_PERIAPT_MLKEM768_CT_LEN],
+            &[6u8; Q_PERIAPT_X25519_LEN],
+        )
+        .map_err(|_| IpcError::InvalidConfiguration)?;
+
+        let mut expected_initiator_encapsulation = vec![2];
+        expected_initiator_encapsulation.extend_from_slice(pending.as_bytes());
+        expected_initiator_encapsulation.extend_from_slice(ciphertexts.pq());
+        expected_initiator_encapsulation.extend_from_slice(ciphertexts.traditional());
+        expected_initiator_encapsulation.extend_from_slice(initiator_finished.as_bytes());
+        assert_eq!(
+            encoded_payload(ResponsePayload::InitiatorEncapsulation {
+                handle: pending,
+                ciphertexts: ciphertexts.clone(),
+                initiator_finished,
+            })?,
+            expected_initiator_encapsulation
+        );
+
+        let mut expected_responder_encapsulation = vec![3];
+        expected_responder_encapsulation.extend_from_slice(pending.as_bytes());
+        expected_responder_encapsulation.extend_from_slice(ciphertexts.pq());
+        expected_responder_encapsulation.extend_from_slice(ciphertexts.traditional());
+        assert_eq!(
+            encoded_payload(ResponsePayload::ResponderEncapsulation {
+                handle: pending,
+                ciphertexts,
+            })?,
+            expected_responder_encapsulation
+        );
+
+        let mut expected_initiator_decapsulation = vec![4];
+        expected_initiator_decapsulation.extend_from_slice(pending.as_bytes());
+        expected_initiator_decapsulation.extend_from_slice(initiator_finished.as_bytes());
+        assert_eq!(
+            encoded_payload(ResponsePayload::InitiatorDecapsulation {
+                handle: pending,
+                initiator_finished,
+            })?,
+            expected_initiator_decapsulation
+        );
+
+        let mut expected_responder_decapsulation = vec![5];
+        expected_responder_decapsulation.extend_from_slice(pending.as_bytes());
+        assert_eq!(
+            encoded_payload(ResponsePayload::ResponderDecapsulation { handle: pending })?,
+            expected_responder_decapsulation
+        );
+
+        let mut expected_initiator_accepted = vec![6];
+        expected_initiator_accepted.extend_from_slice(key.as_bytes());
+        assert_eq!(
+            encoded_payload(ResponsePayload::InitiatorAccepted(key))?,
+            expected_initiator_accepted
+        );
+
+        let mut expected_responder_accepted = vec![7];
+        expected_responder_accepted.extend_from_slice(key.as_bytes());
+        expected_responder_accepted.extend_from_slice(responder_finished.as_bytes());
+        assert_eq!(
+            encoded_payload(ResponsePayload::ResponderAccepted {
+                key_handle: key,
+                responder_finished,
+            })?,
+            expected_responder_accepted
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn v2_agent_statuses_keep_flight_and_resource_failures_distinct() {
+        assert_eq!(agent_status(AgentError::UnexpectedFlight), 13);
+        assert_eq!(agent_status(AgentError::ConflictingAcceptanceReplay), 14);
+        assert_eq!(agent_status(AgentError::FinishedRejected), 15);
+        assert_eq!(agent_status(AgentError::LocalResourceFailure), 16);
+        assert_eq!(agent_status(AgentError::LocalCryptoFailure), 17);
     }
 
     #[test]

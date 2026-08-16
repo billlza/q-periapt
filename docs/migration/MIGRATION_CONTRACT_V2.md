@@ -36,9 +36,13 @@ signed state/reset envelope
   -> typed pre-KEM transcript and V2 context
   -> frozen ABI 2 KEM inside Policy Agent
   -> typed post-KEM transcript
-  -> role-separated peer Finished verification
-  -> exact local head + witness fence recheck
-  -> opaque accepted-key handle
+  -> initiator issues I
+  -> responder rechecks exact local/witness head and verifies I
+  -> responder accepts, durably releases the reservation, and retains key/cache
+  -> responder exposes R
+  -> initiator rechecks exact local/witness head and verifies R
+  -> initiator accepts, durably releases the reservation, and retains its key
+  -> opaque accepted-key handles
 ```
 
 There is no conversion from `MigrationContextV1`, a raw digest, a raw epoch, or
@@ -145,6 +149,10 @@ exact receiver-owned public keys. The keys must match the commitment in that
 receiver's signed offer. The object retains those same key bytes for the KEM;
 the caller cannot substitute a second key after hashing.
 
+`encapsulator_role` records KEM direction only. It does not select the Finished
+sender: the protocol initiator always sends I first, including when that
+initiator decapsulates and the protocol responder encapsulates.
+
 The accepted V2 `application_context` is exactly 324 bytes and thirteen LP8
 fields:
 
@@ -188,8 +196,19 @@ Finished(role) = SHA3-256(
 ```
 
 The peer value is compared with `ct_eq`. Reflection fails because the roles use
-different one-byte codes. After successful peer confirmation, the Agent derives
-a separate application key:
+different one-byte codes. The protocol sequence is fixed:
+
+1. the initiator issues I and retains its pending ABI 2 secret;
+2. the responder checks that the incoming flight is I, rejects a pending
+   transition, rechecks the exact local and witness head/fence, and verifies I;
+3. the responder derives `AcceptedSessionKeyV1` and R, but makes R externally
+   visible only after durably releasing the reservation and retaining both the
+   accepted key and bounded same-process retry state; and
+4. the initiator performs the corresponding state/witness recheck, verifies R,
+   derives its accepted key, durably releases its reservation, retains the key,
+   and only then returns its opaque handle.
+
+Both accepted keys use the separate derivation:
 
 ```text
 accepted_key = SHA3-256(
@@ -201,15 +220,30 @@ accepted_key = SHA3-256(
 )
 ```
 
-All failure paths consume the pending typestate and drop the zeroizing ABI 2
-secret. The process service returns only an opaque accepted-key handle. It does
-not return a raw decision, KEM private key, pending secret, or unconfirmed key.
+Role, transition, capacity, and allocation checks happen before a role-correct
+pending typestate is consumed. A wrong flight is an explicit error and does not
+replace or consume the valid pending state. A stale state/witness or a Finished
+mismatch erases the pending zeroizing secret and cancels its durable reservation;
+failure to cancel or release durable state poisons the Agent and exposes neither
+R nor a key handle. The process service returns only opaque accepted-key handles.
+It does not return a raw decision, KEM private key, pending secret, or
+unconfirmed key.
 
 Before release, the Agent rechecks the exact local `(generation, epoch, digest,
 fence)` and the authenticated witness head. A concurrent transition may proceed;
 its durable commit changes the fence, clears all durable session reservations,
 and wipes all in-memory pending secrets. An old handle then fails as stale or
 unknown.
+
+The Unix IPC contract is a hard schema-2/domain-`/v2` cut with separate accept-I
+and accept-R commands and role-shaped responses; V1 bytes have no compatibility
+decoder. IPC nonce replay protection is separate from acceptance-response
+recovery: the same nonce is rejected, while an exact same-handle/same-Finished
+retry under a new signed nonce returns the same cached handle/R only in the same
+process and only while the retained key remains live. Different Finished bytes
+fail closed. Destroy, transition, and restart clear this bounded cache. Accepted
+keys and R are not durable and are not recovered after a crash; the durable
+capability-session tombstone still prevents reuse, so a new session is required.
 
 ## 7. Durable state and external witness
 
@@ -263,6 +297,13 @@ They are not a proof that the Rust implementation, database, operating system,
 or machine code refines the models. Transition authenticity additionally relies
 on the pinned signature scheme's unforgeability, which is not supplied by the
 hash-binding theorem.
+
+The role-specific Rust typestates, service commands, and tests now follow the
+same protocol-visible I -> responder accept/R -> initiator accept order as the
+Tamarin agreement theory, independently of KEM direction. That reviewed and
+tested alignment is still not a formal specification-to-Rust refinement; Tamarin
+also does not model the service's durable reservation release, in-process retry
+cache, IPC nonce lifecycle, or crash loss of accepted keys/responses.
 
 ## 9. Deployment non-claims
 

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Cursor, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -14,24 +14,30 @@ use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
 use q_periapt_migration::{
     CapabilityOfferInputV1, CapabilityOfferV1, CommittedMigrationStateV1, ComponentMode,
-    EndpointKeyShareV1, EndpointRole, MigrationAuthorityKeyId, MigrationChainId,
-    MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId, MigrationResetNonce,
-    MigrationResetV1, MigrationSecurityPosture, MigrationSessionId, MigrationStateDigest,
-    MigrationStateDraftV1, MigrationStateV1, MigrationSuiteSet, SecurityFloor,
-    SignedCapabilityOfferV1, SignedMigrationResetV1, SignedMigrationStateV1, StateCertificateKind,
+    EndpointKeyShareV1, EndpointRole, InitiatorFinishedV1, MigrationAuthorityKeyId,
+    MigrationChainId, MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId,
+    MigrationResetNonce, MigrationResetV1, MigrationSecurityPosture, MigrationSessionId,
+    MigrationStateDigest, MigrationStateDraftV1, MigrationStateV1, MigrationSuiteSet,
+    ResponderFinishedV1, SecurityFloor, SignedCapabilityOfferV1, SignedMigrationResetV1,
+    SignedMigrationStateV1, StateCertificateKind,
 };
 use q_periapt_policy::{
     policy_signature_message, AuthenticatedPolicy, HybridSuite, Policy, TrustedPolicyState,
 };
 use q_periapt_sig::Signer;
 
-use crate::codec::read_frame;
+use crate::authentication::{sign_envelope, verify_envelope};
+use crate::codec::{
+    encode_domain, read_frame, require_domain, write_frame, Decoder, Encoder, MAX_FRAME_BYTES,
+};
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::{open_private_file, OwnedPrivateDirectory, PrivateFileError};
 use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
-    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginEncapsulation, EndpointIdentity,
-    PolicyAgent, SessionAuthorization, SignedPolicyBundle,
+    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
+    BeginEncapsulation, BeginEncapsulationResult, EndpointIdentity, InitiatorDecapsulationResult,
+    InitiatorEncapsulationResult, PolicyAgent, ResponderDecapsulationResult,
+    ResponderEncapsulationResult, SessionAuthorization, SignedPolicyBundle,
 };
 use crate::types::{
     FenceToken, OperationId, StateAdvance, StateHead, StateRevision, TransitionKind,
@@ -427,6 +433,115 @@ fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
         .map_err(|_| io::Error::other("test worker panicked").into())
 }
 
+struct FailingWriteTransport {
+    input: Cursor<Vec<u8>>,
+}
+
+impl Read for FailingWriteTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.input.read(output)
+    }
+}
+
+impl Write for FailingWriteTransport {
+    fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "intentional response write failure",
+        ))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "intentional response flush failure",
+        ))
+    }
+}
+
+struct CaptureTransport {
+    input: Cursor<Vec<u8>>,
+    output: Vec<u8>,
+}
+
+impl Read for CaptureTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.input.read(output)
+    }
+}
+
+impl Write for CaptureTransport {
+    fn write(&mut self, input: &[u8]) -> io::Result<usize> {
+        self.output.extend_from_slice(input);
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+fn framed_accept_initiator_request(
+    signing_key: &[u8],
+    nonce: [u8; 32],
+    handle: crate::PendingSessionHandle,
+    finished: InitiatorFinishedV1,
+) -> TestResult<Vec<u8>> {
+    let mut body = Encoder::new(MAX_FRAME_BYTES);
+    encode_domain(&mut body, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC domain encoding failed: {error:?}")))?;
+    body.fixed(&nonce)
+        .and_then(|()| body.byte(4))
+        .and_then(|()| body.fixed(handle.as_bytes()))
+        .and_then(|()| body.fixed(finished.as_bytes()))
+        .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
+    let envelope = sign_envelope(&body.finish(), signing_key)
+        .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
+    let mut framed = Vec::new();
+    write_frame(&mut framed, &envelope)
+        .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
+    Ok(framed)
+}
+
+fn decode_responder_acceptance_response(
+    framed: &[u8],
+    verification_key: &[u8],
+    expected_nonce: [u8; 32],
+) -> TestResult<([u8; 32], [u8; 32])> {
+    let envelope = read_frame(&mut Cursor::new(framed))
+        .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
+    let body = verify_envelope(&envelope, verification_key)
+        .map_err(|error| io::Error::other(format!("IPC response signature failed: {error:?}")))?;
+    let mut decoder = Decoder::new(body);
+    require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
+    let nonce: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
+    assert_eq!(nonce, expected_nonce);
+    let _: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    let status = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
+    assert_eq!(status, 0);
+    let tag = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response tag failed: {error:?}")))?;
+    assert_eq!(tag, 7);
+    let key_handle = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC key handle failed: {error:?}")))?;
+    let responder_finished = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC Finished failed: {error:?}")))?;
+    decoder
+        .finish()
+        .map_err(|error| io::Error::other(format!("IPC trailing bytes: {error:?}")))?;
+    Ok((key_handle, responder_finished))
+}
+
 #[derive(Clone)]
 struct MemoryWitness {
     state: Arc<Mutex<MemoryWitnessState>>,
@@ -451,6 +566,14 @@ impl MemoryWitness {
 
     fn make_next_unknown(&self) {
         self.unknown_after_apply.store(true, Ordering::Release);
+    }
+
+    fn replace_head(&self, head: StateHead) -> Result<(), WitnessError> {
+        self.state
+            .lock()
+            .map_err(|_| WitnessError::Persistence)?
+            .head = head;
+        Ok(())
     }
 }
 
@@ -665,6 +788,7 @@ struct AgentPair {
     old_snapshot_path: PathBuf,
     initiator_authorization: SessionAuthorization,
     responder_authorization: SessionAuthorization,
+    initiator_public_keys: EncapsulationPublicKeys,
     responder_public_keys: EncapsulationPublicKeys,
 }
 
@@ -761,6 +885,7 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
             responder_offer.clone(),
         )?,
         responder_authorization: SessionAuthorization::new(responder_offer, initiator_offer)?,
+        initiator_public_keys,
         responder_public_keys,
     })
 }
@@ -808,26 +933,125 @@ fn signed_offer(input: SignedOfferInput<'_>) -> TestResult<Vec<u8>> {
     Ok(signed.encode()?)
 }
 
+fn initiator_encapsulation(
+    result: BeginEncapsulationResult,
+) -> TestResult<InitiatorEncapsulationResult> {
+    match result {
+        BeginEncapsulationResult::Initiator(result) => Ok(result),
+        BeginEncapsulationResult::Responder(_) => {
+            Err(io::Error::other("initiator returned responder begin state").into())
+        }
+    }
+}
+
+fn responder_encapsulation(
+    result: BeginEncapsulationResult,
+) -> TestResult<ResponderEncapsulationResult> {
+    match result {
+        BeginEncapsulationResult::Responder(result) => Ok(result),
+        BeginEncapsulationResult::Initiator(_) => {
+            Err(io::Error::other("responder returned initiator begin state").into())
+        }
+    }
+}
+
+fn initiator_decapsulation(
+    result: BeginDecapsulationResult,
+) -> TestResult<InitiatorDecapsulationResult> {
+    match result {
+        BeginDecapsulationResult::Initiator(result) => Ok(result),
+        BeginDecapsulationResult::Responder(_) => {
+            Err(io::Error::other("initiator returned responder begin state").into())
+        }
+    }
+}
+
+fn responder_decapsulation(
+    result: BeginDecapsulationResult,
+) -> TestResult<ResponderDecapsulationResult> {
+    match result {
+        BeginDecapsulationResult::Responder(result) => Ok(result),
+        BeginDecapsulationResult::Initiator(_) => {
+            Err(io::Error::other("responder returned initiator begin state").into())
+        }
+    }
+}
+
 #[test]
 fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_restart() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 1)?;
-    let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
-        pair.initiator_authorization.clone(),
-        pair.responder_public_keys.clone(),
-    ))?;
-    let decapsulated = pair.responder.begin_decapsulation(BeginDecapsulation::new(
-        pair.responder_authorization.clone(),
-        encapsulated.ciphertexts.clone(),
-    ))?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            encapsulated.ciphertexts.clone(),
+        ))?)?;
+
+    assert_eq!(
+        pair.initiator
+            .accept_initiator_finished(encapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::UnexpectedFlight)
+    );
+    assert_eq!(
+        pair.responder.accept_responder_finished(
+            decapsulated.handle,
+            ResponderFinishedV1::from_bytes([9u8; 32]),
+        ),
+        Err(AgentError::UnexpectedFlight)
+    );
+
+    let responder_acceptance = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,)?,
+        responder_acceptance
+    );
+    assert_eq!(
+        pair.responder.accept_initiator_finished(
+            decapsulated.handle,
+            InitiatorFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::ConflictingAcceptanceReplay)
+    );
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,)?,
+        responder_acceptance
+    );
     let initiator_key = pair
         .initiator
-        .confirm(encapsulated.handle, *decapsulated.local_finished.as_bytes())?;
-    let responder_key = pair
-        .responder
-        .confirm(decapsulated.handle, *encapsulated.local_finished.as_bytes())?;
+        .accept_responder_finished(encapsulated.handle, responder_acceptance.responder_finished)?;
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            responder_acceptance.responder_finished,
+        )?,
+        initiator_key
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            ResponderFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::ConflictingAcceptanceReplay)
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            responder_acceptance.responder_finished,
+        )?,
+        initiator_key
+    );
     pair.initiator.destroy_key(initiator_key)?;
-    pair.responder.destroy_key(responder_key)?;
+    pair.responder
+        .destroy_key(responder_acceptance.key_handle)?;
     let replay = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization.clone(),
         pair.responder_public_keys.clone(),
@@ -859,36 +1083,313 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
 }
 
 #[test]
+fn protocol_role_not_kem_direction_controls_finished_order() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 12)?;
+    let encapsulated = responder_encapsulation(pair.responder.begin_encapsulation(
+        BeginEncapsulation::new(pair.responder_authorization, pair.initiator_public_keys),
+    )?)?;
+    let decapsulated = initiator_decapsulation(pair.initiator.begin_decapsulation(
+        BeginDecapsulation::new(pair.initiator_authorization, encapsulated.ciphertexts),
+    )?)?;
+
+    let responder_acceptance = pair
+        .responder
+        .accept_initiator_finished(encapsulated.handle, decapsulated.initiator_finished)?;
+    let initiator_key = pair
+        .initiator
+        .accept_responder_finished(decapsulated.handle, responder_acceptance.responder_finished)?;
+    pair.initiator.destroy_key(initiator_key)?;
+    pair.responder
+        .destroy_key(responder_acceptance.key_handle)?;
+    Ok(())
+}
+
+#[test]
+fn concurrent_exact_responder_acceptance_returns_one_stable_result() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 15)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let responder = Arc::new(pair.responder);
+    let barrier = Arc::new(Barrier::new(3));
+
+    let first_agent = Arc::clone(&responder);
+    let first_barrier = Arc::clone(&barrier);
+    let first_finished = encapsulated.initiator_finished;
+    let first = thread::spawn(move || {
+        first_barrier.wait();
+        first_agent.accept_initiator_finished(decapsulated.handle, first_finished)
+    });
+    let second_agent = Arc::clone(&responder);
+    let second_barrier = Arc::clone(&barrier);
+    let second_finished = encapsulated.initiator_finished;
+    let second = thread::spawn(move || {
+        second_barrier.wait();
+        second_agent.accept_initiator_finished(decapsulated.handle, second_finished)
+    });
+    barrier.wait();
+    let first_result = join(first)??;
+    let second_result = join(second)??;
+    assert_eq!(first_result, second_result);
+    responder.destroy_key(first_result.key_handle)?;
+    assert_eq!(
+        responder.destroy_key(first_result.key_handle),
+        Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}
+
+#[test]
+fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 17)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([91u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([92u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+
+    let first_nonce = [21u8; 32];
+    let first_request = framed_accept_initiator_request(
+        &client_signing_key,
+        first_nonce,
+        decapsulated.handle,
+        encapsulated.initiator_finished,
+    )?;
+    let mut failed_write = FailingWriteTransport {
+        input: Cursor::new(first_request.clone()),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut failed_write),
+        Err(crate::ipc::IpcError::Unavailable)
+    );
+    assert_eq!(
+        server.agent_for_test().acceptance_counts_for_test()?,
+        (1, 1)
+    );
+
+    let mut replayed_nonce = CaptureTransport {
+        input: Cursor::new(first_request),
+        output: Vec::new(),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut replayed_nonce),
+        Err(crate::ipc::IpcError::AuthenticationFailed)
+    );
+    assert!(replayed_nonce.output.is_empty());
+
+    let cached = server
+        .agent_for_test()
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    let retry_nonce = [22u8; 32];
+    let mut retried = CaptureTransport {
+        input: Cursor::new(framed_accept_initiator_request(
+            &client_signing_key,
+            retry_nonce,
+            decapsulated.handle,
+            encapsulated.initiator_finished,
+        )?),
+        output: Vec::new(),
+    };
+    server.handle_io_for_test(&mut retried)?;
+    let (key_handle, responder_finished) = decode_responder_acceptance_response(
+        &retried.output,
+        &server_verification_key,
+        retry_nonce,
+    )?;
+    assert_eq!(key_handle, *cached.key_handle.as_bytes());
+    assert_eq!(responder_finished, *cached.responder_finished.as_bytes());
+    assert_eq!(
+        server.agent_for_test().acceptance_counts_for_test()?,
+        (1, 1)
+    );
+    server.agent_for_test().destroy_key(cached.key_handle)?;
+    assert_eq!(
+        server.agent_for_test().acceptance_counts_for_test()?,
+        (0, 0)
+    );
+    Ok(())
+}
+
+#[test]
 fn abi2_secret_mismatch_rejects_finished_and_terminally_erases_session() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 2)?;
-    let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
-        pair.initiator_authorization.clone(),
-        pair.responder_public_keys.clone(),
-    ))?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
     let mut damaged_pq = *encapsulated.ciphertexts.pq();
     if let Some(first) = damaged_pq.first_mut() {
         *first ^= 1;
     }
     let damaged =
         EncapsulationCiphertexts::from_slices(&damaged_pq, encapsulated.ciphertexts.traditional())?;
-    let decapsulated = pair.responder.begin_decapsulation(BeginDecapsulation::new(
-        pair.responder_authorization,
-        damaged,
-    ))?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, damaged),
+    )?)?;
     assert_eq!(
-        pair.initiator
-            .confirm(encapsulated.handle, *decapsulated.local_finished.as_bytes(),),
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
         Err(AgentError::FinishedRejected)
     );
     assert_eq!(
-        pair.initiator.confirm(encapsulated.handle, [0u8; 32]),
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
         Err(AgentError::UnknownHandle)
     );
+    pair.initiator.cancel(encapsulated.handle)?;
     assert_eq!(
         pair.initiator.begin_encapsulation(BeginEncapsulation::new(
             pair.initiator_authorization,
             pair.responder_public_keys,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    Ok(())
+}
+
+#[test]
+fn durable_release_failure_never_returns_responder_finished_or_retained_handle() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 13)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+
+    pair.responder
+        .remove_durable_reservation_for_test(decapsulated.handle)?;
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::InternalPoisoned)
+    );
+    Ok(())
+}
+
+#[test]
+fn durable_cancel_failure_poisoning_prevents_further_service() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 18)?;
+    let pending = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    pair.initiator
+        .remove_durable_reservation_for_test(pending.handle)?;
+    assert_eq!(
+        pair.initiator.cancel(pending.handle),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(
+        pair.initiator.public_keys(),
+        Err(AgentError::InternalPoisoned)
+    );
+    Ok(())
+}
+
+#[test]
+fn stale_witness_is_rejected_before_finished_verification_and_consumes_session() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 14)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization,
+            encapsulated.ciphertexts.clone(),
+        ))?)?;
+    pair.witness.replace_head(StateHead::new(
+        StateRevision::new(2, 2, [14u8; 32])?,
+        FenceToken::generate()?,
+    ))?;
+
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::StaleSession)
+    );
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::UnknownHandle)
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            ResponderFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::StaleSession)
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            ResponderFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}
+
+#[test]
+fn restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 16)?;
+    let pending =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        initiator_authorization,
+        responder_public_keys,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+
+    let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
+    assert_eq!(repository.restart_rejections(), 1);
+    let reopened = PolicyAgent::new(repository, witness, initiator_config)?;
+    assert_eq!(
+        reopened
+            .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
+        Err(AgentError::UnknownHandle)
+    );
+    assert_eq!(
+        reopened.begin_encapsulation(BeginEncapsulation::new(
+            initiator_authorization,
+            responder_public_keys,
         )),
         Err(AgentError::AuthorizationRejected)
     );
@@ -1007,10 +1508,9 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
 fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 3)?;
-    let pending = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
-        pair.initiator_authorization,
-        pair.responder_public_keys,
-    ))?;
+    let pending = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
     let (_, certificate) = signed_advance(
         pair.committed.state(),
         &pair.migration,
@@ -1023,12 +1523,14 @@ fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> Test
         Err(AgentError::TransitionIndeterminate)
     );
     assert_eq!(
-        pair.initiator.confirm(pending.handle, [0u8; 32]),
+        pair.initiator
+            .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
         Err(AgentError::TransitionPending)
     );
     pair.initiator.reconcile_transition()?;
     assert_eq!(
-        pair.initiator.confirm(pending.handle, [0u8; 32]),
+        pair.initiator
+            .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
         Err(AgentError::UnknownHandle)
     );
 

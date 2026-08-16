@@ -9,10 +9,11 @@
 //! [`MigrationContextV2`] is derived only from authority-signed and exactly committed
 //! migration state, identity-signed role-ordered capability offers, authenticated
 //! endpoint policies, one common [`q_periapt_policy::AuthenticatedResolvedSuite`],
-//! and typed pre-KEM transcript bytes. Typed post-KEM transcript and mutual Finished
-//! states retain the ABI2 [`q_periapt_core::Secret`] until the peer Finished verifies
-//! and the exact state revision is rechecked; only then is an accepted application
-//! key derived.
+//! and typed pre-KEM transcript bytes. Typed post-KEM transcript and role-ordered
+//! Finished states retain the ABI2 [`q_periapt_core::Secret`]: the initiator issues
+//! first, the responder verifies and accepts before issuing its Finished, and the
+//! initiator then verifies and accepts. Each acceptance also rechecks the exact state
+//! revision before deriving an application key.
 //!
 //! The in-crate state machine models signature verification, exact revision CAS,
 //! monotonic normal advances, and separately authorized resets. Durable storage,
@@ -40,8 +41,9 @@ pub use capability::{
     MAX_PQ_PUBLIC_KEY_BYTES, MAX_TRADITIONAL_PUBLIC_KEY_BYTES,
 };
 pub use confirmation::{
-    AcceptedSessionKeyV1, ConfirmationError, IssuedLocalFinishedV1, MigrationFinishedV1,
-    PendingMutualConfirmationV1, MIGRATION_ACCEPTED_KEY_DOMAIN, MIGRATION_FINISHED_DOMAIN,
+    AcceptedSessionKeyV1, ConfirmationError, InitiatorAwaitingResponderFinishedV1,
+    InitiatorConfirmationV1, InitiatorFinishedV1, ResponderAwaitingInitiatorFinishedV1,
+    ResponderFinishedV1, MIGRATION_ACCEPTED_KEY_DOMAIN, MIGRATION_FINISHED_DOMAIN,
 };
 pub use context_v2::{
     Abi2MigrationApplicationContextV2, AuthenticatedMigrationContextV2Input, MigrationContextV2,
