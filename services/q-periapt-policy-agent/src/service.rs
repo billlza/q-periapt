@@ -924,7 +924,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
         Ok(())
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn remove_durable_reservation_for_test(
         &self,
         handle: PendingSessionHandle,
@@ -938,7 +938,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
         Ok(())
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn acceptance_counts_for_test(&self) -> Result<(usize, usize), AgentError> {
         let inner = self.lock()?;
         ensure_live(&inner)?;
