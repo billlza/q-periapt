@@ -312,10 +312,10 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         installed = copy.deepcopy(initial)
         installed["proof_to_byte_inputs"] = _proof_inputs(installed=True)
 
-        self.assertEqual(234, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
-        self.assertEqual(44, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
+        self.assertEqual(237, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
+        self.assertEqual(47, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
         self.assertEqual(190, len(initial["proof_to_byte_inputs"]))
-        self.assertEqual(234, len(installed["proof_to_byte_inputs"]))
+        self.assertEqual(237, len(installed["proof_to_byte_inputs"]))
         self.assertEqual(
             set(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS),
             set(installed["proof_to_byte_inputs"])

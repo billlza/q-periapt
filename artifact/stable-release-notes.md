@@ -156,7 +156,7 @@ assets; post-publication consumers re-download and verify the immutable releases
 
 While `S` still carries the frozen 190-key pre-migration manifest, main CI uses
 only the exact source-transition readiness authority described in `ARTIFACT.md`;
-it is not a generic proof skip. Once `R` installs the exact 234-key map, CI
+it is not a generic proof skip. Once `R` installs the exact 237-key map, CI
 dispatches only to the full proof-to-byte gate. Mixed states and failed readiness
 never fall through to the other mode.
 

@@ -109,6 +109,16 @@ provide code-signing identity or protect against hostile code already holding th
 authorized client signing key. Non-Unix targets fail explicitly instead of
 claiming an equivalent boundary.
 
+Kernel-level process isolation is deliberately delegated to the service
+manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
+holds the hardened systemd unit (dedicated locked account, read-only OS
+view, seccomp `@system-service` filter, empty capability set, no core
+dumps) and the launchd daemon template (dedicated uid, owner-only umask,
+no core dumps), together with the exact table of which boundary each layer
+enforces and the explicit non-claims. A deployment that starts the binary
+outside those templates gets only the daemon's own filesystem-capability
+and cryptographic boundaries.
+
 IPC is a hard V2 cut: request, response, and request-digest domains all end in
 `/v2`, schema 2 has distinct `AcceptInitiatorFinished` and
 `AcceptResponderFinished` commands and role-shaped begin/accept responses, and
@@ -125,7 +135,7 @@ remains, so recovery requires a new authenticated session rather than reuse.
 The executable accepts exactly one of these command shapes:
 
 ```text
-q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY
+q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
 q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY
 ```
 
@@ -147,9 +157,14 @@ call `StateRepository::provision_new` and `ReferenceWitnessServer::provision`;
 a missing store is never provisioned by the runtime. Configuration files are
 fixed-name, exact-length owner-only files under the validated `0700` directory.
 They include separate migration/recovery roots, local/peer endpoint identities,
-signed execution/local/peer policy bundles, IPC request/response keys, and
-witness request/response keys. Secret-key files are read directly into
-zeroizing buffers.
+signed execution/local/peer policy bundles, IPC request/response keys, witness
+request/response keys, and the instance-lease authority material: its
+request/response keys plus the pinned wire identity (client and server
+identifiers, authority epoch, exact expected state head, and deployment
+configuration revision as fixed-length big-endian binary files). Secret-key
+files are read directly into zeroizing buffers. `serve-agent` acquires the
+exclusive instance lease at startup and fails closed while another unexpired
+instance holds it.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:

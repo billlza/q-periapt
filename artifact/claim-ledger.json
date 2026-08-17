@@ -133,6 +133,24 @@
       "boundary": "Tamarin admits only the enumerated session floor/suite/component tuples and non-decreasing transition/reset floor pairs, and the open-floor negative theory exhibits below-floor acceptance when that premise is removed. This is a finite symbolic policy table with ideal authenticated inputs, not a universal cryptographic downgrade theorem, proof that every product policy maps to the table, hostile same-process enforcement claim, or model-to-Rust refinement."
     },
     {
+      "id": "AUTHORITY-LEASE-FENCE-V2",
+      "title": "Exclusive instance leases and fenced key-use authority serialize recovery clones and concurrent instances behind one authenticated wire",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": [
+          "services/q-periapt-policy-agent/src/authority.rs",
+          "services/q-periapt-policy-agent/src/authority_codec.rs",
+          "services/q-periapt-policy-agent/src/authority_protocol.rs",
+          "services/q-periapt-policy-agent/src/authority_store.rs",
+          "services/q-periapt-policy-agent/src/authority_transport.rs",
+          "services/q-periapt-policy-agent/src/service.rs",
+          "services/q-periapt-policy-agent/src/tests.rs"
+        ],
+        "specification": ["docs/migration/MIGRATION_CONTRACT_V2.md"]
+      },
+      "boundary": "The pure Stage 1 authority model serializes one process instance behind a single witness-clock-bounded lease: acquisition names the exact prior lease generation, every mutation names the exact current fence of lease generation plus a fresh per-process instance identity, state or configuration advances fence the previous holder and clear state-scoped capabilities and keys, capability identifiers are consume-once tombstones, and accepted-key handles bind the exact state and lease generations. The Stage 2A1 store persists that state with immediate-durability two-phase commits and quarantines any commit-uncertain path. Authority Wire V2 runs six commands over a mutually authenticated, deadline-bounded, one-request-per-connection TCP transport with pinned ML-DSA-65 keys in both directions, enforced key-role separation, a bounded time-to-live nonce cache that fails closed to an explicit rate limit, operation-ID query recovery for unknown outcomes, and idempotent receipt acknowledgement that prunes the server table only after the client reports durable retention. Unit and loopback TCP tests embedded in the listed modules cover the lease lifecycle, cross-instance fencing, replay rejection, lost-response recovery, nonce exhaustion, role separation, exact-epoch reopen, and unresponsive endpoints. The product Agent consumes this boundary for its lease lifecycle: construction fails closed while another unexpired instance holds the lease, every key-use operation re-authorizes against the authority clock before touching a pending or accepted secret, a fenced instance erases every in-process pending and accepted secret before reporting itself fenced, the RAM-only fence is never persisted so a restored host clone cannot replay it, and release is an idempotent graceful handover. Agent-level tests cover second-instance construction fencing, expired-lease takeover with secret erasure, release handover without expiry wait, lost acquire/renew response reconciliation by exact operation query, and a concurrent two-instance acquisition race resolving to exactly one lease. This is implementation and test evidence only, not a machine-checked theory or a deployment claim: no Tamarin or EasyCrypt model covers leases or fencing; the product Agent service does not yet route capability consumption or accepted-key registration through this authority; the sequential reference server is not an audited network deployment; and the authority host carries the same rollback-domain assumption as the migration witness, so hosting it on the Agent's own restorable disk defends nothing. There is no formal-to-Rust refinement or byte-code correspondence for this subsystem."
+    },
+    {
       "id": "POLICY-ATOMIC-RESOLUTION",
       "title": "Policy resolution is atomic and fail closed; signed entry points authenticate the decision",
       "status": "implementation_tested",

@@ -280,6 +280,89 @@ monotonic facility with equivalent semantics. The reference witness server is
 useful for protocol and crash testing; placing both databases on the same
 restorable disk does not meet that deployment assumption.
 
+### Key-use authority, instance leases, and Authority Wire V2
+
+Beyond the migration-head witness, the repository implements a separate
+key-use authority subsystem that answers the recovery-clone and multi-instance
+question: which single process instance may currently consume capabilities and
+use accepted keys. The split is a deliberate scope decision: the migration
+witness stays minimal and protects exactly the migration head, because
+widening that CAS boundary would couple replay, configuration, and key-use
+failure domains to the head-transition path; those domains are instead
+protected by this dedicated authority, which binds each of them to the exact
+head, configuration revision, and lease generation, and fences them on every
+advance. It is layered as four modules with explicit stage
+boundaries:
+
+- `authority` (Stage 1) is a pure deterministic transition model over one
+  monotonic authority version, a nondecreasing trusted-clock floor, the exact
+  deployment-configuration revision, the exact migration state head and fence,
+  at most one live instance lease, consume-once capability tombstones, and
+  registered accepted-key handles. The closed mutation set is acquire/renew/
+  release lease, advance state, advance config, consume capability, register
+  key, and revoke key. Every mutation names the exact current instance fence
+  (lease generation plus a fresh per-process instance identity); acquisition
+  names the exact prior lease generation. Advancing state or configuration
+  fences the previous holder and invalidates state-scoped runtime records.
+  Every applied or rejected intent yields a bounded, queryable receipt keyed
+  by operation ID, and reusing an operation ID with a different intent is a
+  conflict, so retry after an unknown outcome is decidable.
+- `authority_store` (Stage 2A1) persists that state with the same
+  immediate-durability, two-phase discipline as the migration store. A commit
+  whose durability is uncertain quarantines the whole database path; there is
+  no V1 decoder or fallback.
+- `authority_protocol` freezes the closed Authority Wire V2 grammar: six
+  commands (snapshot, acquire, renew, release, query, acknowledge) under
+  dedicated request/response/digest domains, with fixture-pinned encodings.
+- `authority_transport` runs that grammar over a mutually authenticated,
+  deadline-bounded, one-request-per-connection TCP loop. Both directions sign
+  with pinned ML-DSA-65 keys; endpoint construction rejects a signing key that
+  matches the peer verification key, so one key cannot serve both roles. The
+  client pins the server address, both principals, the authority epoch, and
+  the exact expected state head and configuration, and accepts only a response
+  that echoes its request digest and nonce. The server keeps a bounded
+  time-to-live nonce cache and answers an exhausted cache with an explicit
+  rate-limit failure instead of evicting replay history. An unknown transport
+  outcome is resolved by querying the exact operation ID, and an acknowledged
+  receipt is pruned from the server table only after the client reports it
+  durably retained; acknowledgement is idempotent. On open, the server
+  re-verifies the exact epoch, head, configuration, and a lease-only history
+  before serving, and any fatal store result quarantines the instance.
+
+A restored disk clone or a concurrently started second instance therefore
+cannot silently share key-use authority: at most one fence is valid, a stale
+fence is rejected as lease-expired or fence-mismatch, and the clock floor
+never moves backward. The transport tests exercise the full lease lifecycle,
+fencing across instances, replay rejection, lost-response recovery, nonce
+exhaustion, role separation, reopen validation, and unresponsive endpoints
+over real sockets.
+
+The product Agent consumes this boundary as a mandatory lease client.
+Construction acquires the exclusive instance lease and fails closed with
+`InstanceFenced` while another unexpired instance holds it; a lost acquire
+response is reconciled by exact-operation query or by adopting the lease the
+authority already recorded for this exact fresh process identity. Every
+key-use operation first renews the lease against the authority's trusted
+clock, so a fenced, expired, or superseded instance is rejected before it can
+touch a pending or accepted secret; the fenced instance erases every
+in-process pending and accepted secret first and permanently refuses
+lease-guarded operations. The client's fence view is deliberately RAM-only —
+a restored clone of this host cannot replay the live fence, and a process
+restart always starts a new acquire cycle. Graceful shutdown releases the
+lease idempotently so a successor can acquire without waiting out the
+time-to-live. Agent-level tests cover second-instance construction fencing,
+expired-lease takeover with secret erasure, release handover, lost-response
+reconciliation, and a concurrent two-instance acquisition race resolving to
+exactly one lease.
+
+Two boundaries remain explicit rather than implied. First, the product Agent
+service routes only the lease lifecycle through this authority; capability
+consumption and accepted-key registration are not yet routed, and remain
+tracked as deployment work, not claimed here. Second, the authority server
+inherits the same rollback-domain assumption as the witness: hosting it on
+the same restorable disk as the Agent does not defend against whole-host
+snapshot rollback.
+
 ## 8. Formal and byte-correspondence boundary
 
 - EasyCrypt models one abstract SHA3 operation across the domain-separated

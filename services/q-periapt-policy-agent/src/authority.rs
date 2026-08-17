@@ -57,6 +57,10 @@ authority_identifier!(
     "An ephemeral process identity that must never be restored from disk."
 );
 authority_identifier!(
+    AuthorityEpochV2,
+    "A fresh identity for one explicitly provisioned authority-store epoch."
+);
+authority_identifier!(
     StateFenceV2,
     "An unpredictable fence changed by every migration-state transition."
 );
@@ -808,6 +812,72 @@ impl AuthorityReceiptV2 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LeaseMutationKindV2 {
+    Acquire,
+    Renew,
+    Release,
+}
+
+pub(crate) fn reachable_lease_receipt_kind(
+    receipt: &AuthorityReceiptV2,
+) -> Option<LeaseMutationKindV2> {
+    let intent = receipt.intent();
+    let expected_version = intent.expected_authority_version();
+    match (intent.mutation(), receipt.disposition()) {
+        (
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation,
+                ..
+            },
+            AuthorityDispositionV2::Applied
+            | AuthorityDispositionV2::Rejected(AuthorityRejectionV2::MutationOverflow),
+        ) if expected_lease_generation < expected_version => Some(LeaseMutationKindV2::Acquire),
+        (
+            AuthorityMutationV2::AcquireLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseHeld),
+        ) if expected_version >= 2 => Some(LeaseMutationKindV2::Acquire),
+        (
+            AuthorityMutationV2::AcquireLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseGenerationMismatch),
+        ) => Some(LeaseMutationKindV2::Acquire),
+        (
+            AuthorityMutationV2::RenewLease { fence },
+            AuthorityDispositionV2::Applied
+            | AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseRenewalNotExtended
+                | AuthorityRejectionV2::MutationOverflow,
+            ),
+        ) if fence.generation() < expected_version => Some(LeaseMutationKindV2::Renew),
+        (
+            AuthorityMutationV2::RenewLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseAbsent),
+        ) => Some(LeaseMutationKindV2::Renew),
+        (
+            AuthorityMutationV2::RenewLease { .. },
+            AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseExpired | AuthorityRejectionV2::FenceMismatch,
+            ),
+        ) if expected_version >= 2 => Some(LeaseMutationKindV2::Renew),
+        (AuthorityMutationV2::ReleaseLease { fence }, AuthorityDispositionV2::Applied)
+            if fence.generation() < expected_version =>
+        {
+            Some(LeaseMutationKindV2::Release)
+        }
+        (
+            AuthorityMutationV2::ReleaseLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseAbsent),
+        ) => Some(LeaseMutationKindV2::Release),
+        (
+            AuthorityMutationV2::ReleaseLease { .. },
+            AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseExpired | AuthorityRejectionV2::FenceMismatch,
+            ),
+        ) if expected_version >= 2 => Some(LeaseMutationKindV2::Release),
+        _ => None,
+    }
+}
+
 /// Exact operation and resulting-version locator for bounded receipt acknowledgement.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ReceiptLocatorV2 {
@@ -922,7 +992,116 @@ pub struct AuthoritySnapshotV2 {
     active_key_count: usize,
 }
 
+/// Closed receipt-query result at one exact committed authority version.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuthorityQueryResultV2 {
+    /// The exact retained operation receipt exists.
+    Found(Box<AuthorityReceiptV2>),
+    /// No receipt exists, observed at this exact current authority version.
+    AbsentAtVersion {
+        /// Committed authority version at which absence was observed.
+        authority_version: u64,
+    },
+}
+
 impl AuthoritySnapshotV2 {
+    // The ten wire fields are one frozen projection; a builder would hide which
+    // exact counters the reachability validation below binds together.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn restore_wire(
+        authority_version: u64,
+        clock_floor_millis: u64,
+        config: DeploymentConfigRevisionV2,
+        state_head: StateHeadV2,
+        lease_generation: u64,
+        active_lease: Option<InstanceLeaseV2>,
+        receipt_count: usize,
+        capability_count: usize,
+        retained_key_count: usize,
+        active_key_count: usize,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        let prior_operations = authority_version
+            .checked_sub(1)
+            .ok_or(AuthorityValueErrorV2::InvalidCounter)?;
+        let receipt_count_u64 =
+            u64::try_from(receipt_count).map_err(|_| AuthorityValueErrorV2::InvalidCounter)?;
+        let capability_count_u64 =
+            u64::try_from(capability_count).map_err(|_| AuthorityValueErrorV2::InvalidCounter)?;
+        let retained_key_count_u64 =
+            u64::try_from(retained_key_count).map_err(|_| AuthorityValueErrorV2::InvalidCounter)?;
+        let active_lease_count = u64::from(active_lease.is_some());
+        let ended_leases = lease_generation
+            .checked_sub(active_lease_count)
+            .ok_or(AuthorityValueErrorV2::InvalidCounter)?;
+        let natural_expiry_upper_bound = match active_lease {
+            None => clock_floor_millis / HARD_MIN_LEASE_TTL_MILLIS,
+            Some(lease) => {
+                let latest_acquisition = lease
+                    .expires_at_millis()
+                    .checked_sub(HARD_MIN_LEASE_TTL_MILLIS)
+                    .ok_or(AuthorityValueErrorV2::InvalidCounter)?;
+                clock_floor_millis.min(latest_acquisition) / HARD_MIN_LEASE_TTL_MILLIS
+            }
+        };
+        let natural_expiries = ended_leases.min(natural_expiry_upper_bound);
+        let explicit_lease_clears = ended_leases
+            .checked_sub(natural_expiries)
+            .ok_or(AuthorityValueErrorV2::InvalidCounter)?;
+        let explicit_key_revocations = if active_lease.is_some() {
+            retained_key_count_u64
+                .checked_sub(
+                    u64::try_from(active_key_count)
+                        .map_err(|_| AuthorityValueErrorV2::InvalidCounter)?,
+                )
+                .ok_or(AuthorityValueErrorV2::InvalidCounter)?
+        } else {
+            0
+        };
+        let minimum_operations = lease_generation
+            .checked_add(capability_count_u64)
+            .and_then(|count| count.checked_add(retained_key_count_u64))
+            .and_then(|count| count.checked_add(explicit_lease_clears))
+            .and_then(|count| count.checked_add(explicit_key_revocations))
+            .ok_or(AuthorityValueErrorV2::InvalidCounter)?;
+        let active_lease_valid = match active_lease {
+            None => active_key_count == 0,
+            Some(lease) => {
+                let remaining = lease.expires_at_millis().checked_sub(clock_floor_millis);
+                lease.fence().generation() == lease_generation
+                    && lease.expires_at_millis() >= HARD_MIN_LEASE_TTL_MILLIS
+                    && matches!(remaining, Some(1..=HARD_MAX_LEASE_TTL_MILLIS))
+            }
+        };
+        if lease_generation >= authority_version
+            || receipt_count > HARD_MAX_RECEIPTS
+            || capability_count > HARD_MAX_CAPABILITIES
+            || retained_key_count > HARD_MAX_KEYS
+            || receipt_count_u64 > prior_operations
+            || minimum_operations > prior_operations
+            || (capability_count > 0 && lease_generation == 0)
+            || retained_key_count > capability_count
+            || active_key_count > retained_key_count
+            || (active_lease.is_none()
+                && retained_key_count > 0
+                && clock_floor_millis < HARD_MIN_LEASE_TTL_MILLIS)
+            || !active_lease_valid
+        {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        Ok(Self {
+            authority_version,
+            clock_floor_millis,
+            config,
+            state_head,
+            lease_generation,
+            active_lease,
+            receipt_count,
+            capability_count,
+            retained_key_count,
+            active_key_count,
+        })
+    }
+
     /// Return the monotonic authority-operation version.
     #[must_use]
     pub const fn authority_version(self) -> u64 {

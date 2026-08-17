@@ -17,26 +17,34 @@ use redb::{
 };
 
 use crate::authority::{
-    AcceptedKeyIdV2, AcceptedKeyRecordV2, AcceptedKeyStatusV2, AuthorityDispositionV2,
-    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityMutationV2,
-    AuthorityPersistentMetaV2, AuthorityReceiptV2, AuthorityRejectionV2, AuthorityRestoreErrorV2,
-    AuthorityRestoreV2, AuthoritySnapshotV2, AuthorityStateV2, CapabilityIdV2, CapabilityRecordV2,
-    ConfigAdvanceV2, DeploymentConfigRevisionV2, InstanceFenceV2, InstanceLeaseV2, OperationIdV2,
-    ProcessInstanceIdV2, ReceiptAckDispositionV2, ReceiptAckErrorV2, ReceiptLocatorV2,
-    StateAdvanceV2, StateFenceV2, StateHeadV2, StateRevisionV2, StateTransitionKindV2,
-    TrustedClockErrorV2, TrustedClockV2,
+    reachable_lease_receipt_kind, AcceptedKeyIdV2, AcceptedKeyRecordV2, AuthorityEpochV2,
+    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityPersistentMetaV2,
+    AuthorityQueryResultV2, AuthorityReceiptV2, AuthorityRestoreErrorV2, AuthorityRestoreV2,
+    AuthoritySnapshotV2, AuthorityStateV2, CapabilityIdV2, CapabilityRecordV2,
+    DeploymentConfigRevisionV2, OperationIdV2, ReceiptAckDispositionV2, ReceiptAckErrorV2,
+    ReceiptLocatorV2, StateHeadV2, TrustedClockErrorV2, TrustedClockV2,
 };
-use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
+use crate::authority_codec::{
+    decode_accepted_key_id, decode_capability_record, decode_config, decode_key_record,
+    decode_lease, decode_limits, decode_operation_id, decode_receipt, decode_state_head,
+    encode_accepted_key_id, encode_capability_record, encode_config, encode_key_record,
+    encode_lease, encode_limits, encode_operation_id, encode_receipt, encode_state_head,
+    AuthorityCodecError, STORE_SCHEMA_VERSION,
+};
 use crate::filesystem::open_private_file;
 
 #[cfg(test)]
-use crate::authority::ReservationPointV2;
+use crate::authority::{
+    AuthorityDispositionV2, AuthorityMutationV2, AuthorityRejectionV2, ConfigAdvanceV2,
+    InstanceFenceV2, InstanceLeaseV2, ProcessInstanceIdV2, ReservationPointV2, StateAdvanceV2,
+    StateFenceV2, StateRevisionV2, StateTransitionKindV2,
+};
+#[cfg(test)]
+use crate::authority_codec::{decode_rejection, encode_intent, encode_rejection, RECEIPT_DOMAIN};
+#[cfg(test)]
+use crate::codec::{encode_domain, CodecError, Encoder, MAX_FRAME_BYTES};
 
-const STORE_SCHEMA_VERSION: u16 = 2;
 const STORE_SCHEMA: [u8; 2] = STORE_SCHEMA_VERSION.to_be_bytes();
-const RECEIPT_DOMAIN: &[u8] = b"Q-PERIAPT-AUTHORITY-RECEIPT/v2";
-const CAPABILITY_DOMAIN: &[u8] = b"Q-PERIAPT-AUTHORITY-CAPABILITY/v2";
-const KEY_DOMAIN: &[u8] = b"Q-PERIAPT-AUTHORITY-KEY/v2";
 const STORE_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
 const META_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("authority_meta_v2");
@@ -55,44 +63,6 @@ const META_LEASE_GENERATION: &str = "lease_generation";
 const META_LEASE: &str = "lease";
 const META_LIMITS: &str = "limits";
 const META_ENTRY_COUNT: u64 = 9;
-
-/// Fresh identity for one explicitly provisioned authority-store epoch.
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct AuthorityEpochV2([u8; 32]);
-
-impl AuthorityEpochV2 {
-    /// Construct an epoch from exact nonzero bytes.
-    pub fn from_bytes(bytes: [u8; 32]) -> Result<Self, AuthorityStoreErrorV2> {
-        bytes
-            .iter()
-            .any(|byte| *byte != 0)
-            .then_some(Self(bytes))
-            .ok_or(AuthorityStoreErrorV2::CorruptStore)
-    }
-
-    /// Borrow the exact opaque epoch bytes.
-    #[must_use]
-    pub const fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-
-    fn generate() -> Result<Self, AuthorityStoreErrorV2> {
-        for _ in 0..4 {
-            let mut bytes = [0u8; 32];
-            getrandom::fill(&mut bytes).map_err(|_| AuthorityStoreErrorV2::EntropyUnavailable)?;
-            if let Ok(epoch) = Self::from_bytes(bytes) {
-                return Ok(epoch);
-            }
-        }
-        Err(AuthorityStoreErrorV2::EntropyUnavailable)
-    }
-}
-
-impl fmt::Debug for AuthorityEpochV2 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("AuthorityEpochV2([redacted])")
-    }
-}
 
 /// System wall-clock adapter used only on the independently operated authority host.
 ///
@@ -160,18 +130,6 @@ impl fmt::Display for AuthorityStoreErrorV2 {
 }
 
 impl std::error::Error for AuthorityStoreErrorV2 {}
-
-/// Closed receipt-query result at one exact committed authority version.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AuthorityQueryResultV2 {
-    /// The exact retained operation receipt exists.
-    Found(Box<AuthorityReceiptV2>),
-    /// No receipt exists, observed at this exact current authority version.
-    AbsentAtVersion {
-        /// Committed authority version at which absence was observed.
-        authority_version: u64,
-    },
-}
 
 /// Single-writer normalized redb persistence for [`AuthorityStateV2`].
 ///
@@ -331,6 +289,29 @@ impl AuthorityStoreV2 {
         Ok(outcome)
     }
 
+    pub(crate) fn wire_v2_history_is_lease_only(
+        &mut self,
+        expected_config: DeploymentConfigRevisionV2,
+    ) -> Result<bool, AuthorityStoreErrorV2> {
+        self.ensure_live()?;
+        let transaction = self.begin_write()?;
+        let loaded = match self.load_matching(&transaction) {
+            Ok(loaded) => loaded,
+            Err(error) => return self.finish_aborted(transaction, error, false),
+        };
+        if let Err(error) = self.restore_or_poison(&loaded.image) {
+            return self.finish_aborted(transaction, error, false);
+        }
+        let safe = loaded.image.capabilities.is_empty()
+            && loaded.image.keys.is_empty()
+            && loaded.image.receipts.iter().all(|(_, receipt)| {
+                receipt.intent().expected_config() == expected_config
+                    && reachable_lease_receipt_kind(receipt).is_some()
+            });
+        self.abort_known(transaction)?;
+        Ok(safe)
+    }
+
     fn snapshot_with_clock<C: TrustedClockV2>(
         &mut self,
         clock: &C,
@@ -457,7 +438,7 @@ impl AuthorityStoreV2 {
         let database = store_database_builder()
             .create_file(file)
             .map_err(map_database_open)?;
-        let authority_epoch = AuthorityEpochV2::generate()?;
+        let authority_epoch = generate_authority_epoch()?;
         let state = AuthorityStateV2::provision(state_head, config, limits, clock)
             .map_err(AuthorityStoreErrorV2::Authority)?;
         let image = state.durable_image().map_err(map_restore)?;
@@ -830,6 +811,17 @@ fn store_database_builder() -> redb::Builder {
     builder
 }
 
+fn generate_authority_epoch() -> Result<AuthorityEpochV2, AuthorityStoreErrorV2> {
+    for _ in 0..4 {
+        let mut bytes = [0u8; 32];
+        getrandom::fill(&mut bytes).map_err(|_| AuthorityStoreErrorV2::EntropyUnavailable)?;
+        if let Ok(epoch) = AuthorityEpochV2::from_bytes(bytes) {
+            return Ok(epoch);
+        }
+    }
+    Err(AuthorityStoreErrorV2::EntropyUnavailable)
+}
+
 fn map_database_open(error: redb::DatabaseError) -> AuthorityStoreErrorV2 {
     match error {
         redb::DatabaseError::DatabaseAlreadyOpen => AuthorityStoreErrorV2::AlreadyOpen,
@@ -1010,7 +1002,8 @@ fn load_image(transaction: &redb::WriteTransaction) -> Result<LoadedImage, Autho
     if read_meta(&meta, META_SCHEMA, STORE_SCHEMA.len())?.as_slice() != STORE_SCHEMA {
         return Err(AuthorityStoreErrorV2::UnsupportedSchema);
     }
-    let epoch = AuthorityEpochV2::from_bytes(read_exact_meta(&meta, META_AUTHORITY_EPOCH)?)?;
+    let epoch = AuthorityEpochV2::from_bytes(read_exact_meta(&meta, META_AUTHORITY_EPOCH)?)
+        .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
     let authority_version = decode_u64(&read_meta(&meta, META_AUTHORITY_VERSION, 8)?)?;
     let clock_floor_millis = decode_u64(&read_meta(&meta, META_CLOCK_FLOOR, 8)?)?;
     let config = decode_config(&read_meta(&meta, META_CONFIG, 40)?)?;
@@ -1425,203 +1418,6 @@ fn persist_key_diff(
     Ok(())
 }
 
-fn encode_operation_id(value: OperationIdV2) -> [u8; 40] {
-    let mut bytes = [0u8; 40];
-    bytes[..8].copy_from_slice(&value.expected_authority_version().to_be_bytes());
-    bytes[8..].copy_from_slice(value.random_id());
-    bytes
-}
-
-fn decode_operation_id(bytes: &[u8]) -> Result<OperationIdV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 40 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    OperationIdV2::new(
-        decode_u64(field(bytes, 0, 8)?)?,
-        suffix(bytes, 8)?
-            .try_into()
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn encode_accepted_key_id(value: AcceptedKeyIdV2) -> [u8; 48] {
-    let mut bytes = [0u8; 48];
-    bytes[..8].copy_from_slice(&value.state_global_generation().to_be_bytes());
-    bytes[8..16].copy_from_slice(&value.lease_generation().to_be_bytes());
-    bytes[16..].copy_from_slice(value.random_id());
-    bytes
-}
-
-fn decode_accepted_key_id(bytes: &[u8]) -> Result<AcceptedKeyIdV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 48 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    AcceptedKeyIdV2::new(
-        decode_u64(field(bytes, 0, 8)?)?,
-        decode_u64(field(bytes, 8, 16)?)?,
-        suffix(bytes, 16)?
-            .try_into()
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn encode_state_revision(value: StateRevisionV2) -> [u8; 80] {
-    let mut bytes = [0u8; 80];
-    bytes[..8].copy_from_slice(&value.global_generation().to_be_bytes());
-    bytes[8..40].copy_from_slice(value.chain_id());
-    bytes[40..48].copy_from_slice(&value.epoch().to_be_bytes());
-    bytes[48..].copy_from_slice(value.digest());
-    bytes
-}
-
-fn decode_state_revision(bytes: &[u8]) -> Result<StateRevisionV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 80 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    StateRevisionV2::new(
-        decode_u64(field(bytes, 0, 8)?)?,
-        field(bytes, 8, 40)?
-            .try_into()
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        decode_u64(field(bytes, 40, 48)?)?,
-        suffix(bytes, 48)?
-            .try_into()
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn encode_state_head(value: StateHeadV2) -> [u8; 112] {
-    let mut bytes = [0u8; 112];
-    bytes[..80].copy_from_slice(&encode_state_revision(value.revision()));
-    bytes[80..].copy_from_slice(value.fence().as_bytes());
-    bytes
-}
-
-fn decode_state_head(bytes: &[u8]) -> Result<StateHeadV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 112 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    Ok(StateHeadV2::new(
-        decode_state_revision(field(bytes, 0, 80)?)?,
-        StateFenceV2::from_bytes(
-            suffix(bytes, 80)?
-                .try_into()
-                .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        )
-        .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-    ))
-}
-
-fn encode_config(value: DeploymentConfigRevisionV2) -> [u8; 40] {
-    let mut bytes = [0u8; 40];
-    bytes[..8].copy_from_slice(&value.generation().to_be_bytes());
-    bytes[8..].copy_from_slice(value.digest());
-    bytes
-}
-
-fn decode_config(bytes: &[u8]) -> Result<DeploymentConfigRevisionV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 40 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    DeploymentConfigRevisionV2::new(
-        decode_u64(field(bytes, 0, 8)?)?,
-        suffix(bytes, 8)?
-            .try_into()
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn encode_instance_fence(value: InstanceFenceV2) -> [u8; 40] {
-    let mut bytes = [0u8; 40];
-    bytes[..8].copy_from_slice(&value.generation().to_be_bytes());
-    bytes[8..].copy_from_slice(value.instance_id().as_bytes());
-    bytes
-}
-
-fn decode_instance_fence(bytes: &[u8]) -> Result<InstanceFenceV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 40 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    InstanceFenceV2::new(
-        decode_u64(field(bytes, 0, 8)?)?,
-        ProcessInstanceIdV2::from_bytes(
-            suffix(bytes, 8)?
-                .try_into()
-                .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        )
-        .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn encode_lease(value: Option<InstanceLeaseV2>) -> Result<Vec<u8>, AuthorityStoreErrorV2> {
-    let mut bytes = Vec::new();
-    bytes
-        .try_reserve_exact(if value.is_some() { 49 } else { 1 })
-        .map_err(|_| AuthorityStoreErrorV2::AllocationFailed)?;
-    match value {
-        None => bytes.push(0),
-        Some(lease) => {
-            bytes.push(1);
-            bytes.extend_from_slice(&encode_instance_fence(lease.fence()));
-            bytes.extend_from_slice(&lease.expires_at_millis().to_be_bytes());
-        }
-    }
-    Ok(bytes)
-}
-
-fn decode_lease(bytes: &[u8]) -> Result<Option<InstanceLeaseV2>, AuthorityStoreErrorV2> {
-    match bytes {
-        [0] => Ok(None),
-        [1, rest @ ..] if rest.len() == 48 => Ok(Some(InstanceLeaseV2::restore(
-            decode_instance_fence(field(rest, 0, 40)?)?,
-            decode_u64(suffix(rest, 40)?)?,
-        ))),
-        _ => Err(AuthorityStoreErrorV2::CorruptStore),
-    }
-}
-
-fn encode_limits(value: AuthorityLimitsV2) -> Result<[u8; 32], AuthorityStoreErrorV2> {
-    let mut bytes = [0u8; 32];
-    bytes[..8].copy_from_slice(
-        &u64::try_from(value.max_receipts())
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?
-            .to_be_bytes(),
-    );
-    bytes[8..16].copy_from_slice(
-        &u64::try_from(value.max_capabilities())
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?
-            .to_be_bytes(),
-    );
-    bytes[16..24].copy_from_slice(
-        &u64::try_from(value.max_keys())
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?
-            .to_be_bytes(),
-    );
-    bytes[24..].copy_from_slice(&value.lease_ttl_millis().to_be_bytes());
-    Ok(bytes)
-}
-
-fn decode_limits(bytes: &[u8]) -> Result<AuthorityLimitsV2, AuthorityStoreErrorV2> {
-    if bytes.len() != 32 {
-        return Err(AuthorityStoreErrorV2::CorruptStore);
-    }
-    AuthorityLimitsV2::new(
-        usize::try_from(decode_u64(field(bytes, 0, 8)?)?)
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        usize::try_from(decode_u64(field(bytes, 8, 16)?)?)
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        usize::try_from(decode_u64(field(bytes, 16, 24)?)?)
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        decode_u64(suffix(bytes, 24)?)?,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
 fn decode_u64(bytes: &[u8]) -> Result<u64, AuthorityStoreErrorV2> {
     Ok(u64::from_be_bytes(
         bytes
@@ -1630,363 +1426,16 @@ fn decode_u64(bytes: &[u8]) -> Result<u64, AuthorityStoreErrorV2> {
     ))
 }
 
-fn field(bytes: &[u8], start: usize, end: usize) -> Result<&[u8], AuthorityStoreErrorV2> {
-    bytes
-        .get(start..end)
-        .ok_or(AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn suffix(bytes: &[u8], start: usize) -> Result<&[u8], AuthorityStoreErrorV2> {
-    bytes
-        .get(start..)
-        .ok_or(AuthorityStoreErrorV2::CorruptStore)
-}
-
-fn encode_receipt(value: AuthorityReceiptV2) -> Result<Vec<u8>, AuthorityStoreErrorV2> {
-    let mut encoder = Encoder::new(MAX_FRAME_BYTES);
-    encode_domain(&mut encoder, RECEIPT_DOMAIN, STORE_SCHEMA_VERSION).map_err(map_codec)?;
-    encode_intent(&mut encoder, value.intent())?;
-    match value.disposition() {
-        AuthorityDispositionV2::Applied => encoder.byte(1).map_err(map_codec)?,
-        AuthorityDispositionV2::Rejected(rejection) => {
-            encoder.byte(2).map_err(map_codec)?;
-            encoder
-                .byte(encode_rejection(rejection))
-                .map_err(map_codec)?;
-        }
-    }
-    encoder
-        .u64(value.resulting_authority_version())
-        .map_err(map_codec)?;
-    Ok(encoder.finish())
-}
-
-fn decode_receipt(bytes: &[u8]) -> Result<AuthorityReceiptV2, AuthorityStoreErrorV2> {
-    let mut decoder = Decoder::new(bytes);
-    require_domain(&mut decoder, RECEIPT_DOMAIN, STORE_SCHEMA_VERSION).map_err(map_codec)?;
-    let intent = decode_intent(&mut decoder)?;
-    let disposition = match decoder.byte().map_err(map_codec)? {
-        1 => AuthorityDispositionV2::Applied,
-        2 => {
-            AuthorityDispositionV2::Rejected(decode_rejection(decoder.byte().map_err(map_codec)?)?)
-        }
-        _ => return Err(AuthorityStoreErrorV2::CorruptStore),
-    };
-    let resulting_authority_version = decoder.u64().map_err(map_codec)?;
-    decoder.finish().map_err(map_codec)?;
-    AuthorityReceiptV2::restore(intent, disposition, resulting_authority_version)
-        .map_err(map_restore)
-}
-
-fn encode_intent(
-    encoder: &mut Encoder,
-    value: AuthorityIntentV2,
-) -> Result<(), AuthorityStoreErrorV2> {
-    encoder
-        .fixed(&encode_operation_id(value.operation_id()))
-        .map_err(map_codec)?;
-    encoder
-        .fixed(&encode_config(value.expected_config()))
-        .map_err(map_codec)?;
-    match value.mutation() {
-        AuthorityMutationV2::AcquireLease {
-            expected_lease_generation,
-            instance_id,
-        } => {
-            encoder.byte(1).map_err(map_codec)?;
-            encoder.u64(expected_lease_generation).map_err(map_codec)?;
-            encoder.fixed(instance_id.as_bytes()).map_err(map_codec)
-        }
-        AuthorityMutationV2::RenewLease { fence } => {
-            encoder.byte(2).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)
-        }
-        AuthorityMutationV2::ReleaseLease { fence } => {
-            encoder.byte(3).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)
-        }
-        AuthorityMutationV2::AdvanceState { fence, advance } => {
-            encoder.byte(4).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)?;
-            encoder
-                .byte(match advance.kind() {
-                    StateTransitionKindV2::Advance => 1,
-                    StateTransitionKindV2::AuthorizedReset => 2,
-                })
-                .map_err(map_codec)?;
-            encoder
-                .fixed(&encode_state_head(advance.expected()))
-                .map_err(map_codec)?;
-            encoder
-                .fixed(&encode_state_head(advance.next()))
-                .map_err(map_codec)
-        }
-        AuthorityMutationV2::AdvanceConfig { fence, advance } => {
-            encoder.byte(5).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)?;
-            encoder
-                .fixed(&encode_config(advance.expected()))
-                .map_err(map_codec)?;
-            encoder
-                .fixed(&encode_config(advance.next()))
-                .map_err(map_codec)
-        }
-        AuthorityMutationV2::ConsumeCapability {
-            fence,
-            capability_id,
-        } => {
-            encoder.byte(6).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)?;
-            encoder.fixed(capability_id.as_bytes()).map_err(map_codec)
-        }
-        AuthorityMutationV2::RegisterKey {
-            fence,
-            capability_id,
-            key_id,
-        } => {
-            encoder.byte(7).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)?;
-            encoder.fixed(capability_id.as_bytes()).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_accepted_key_id(key_id))
-                .map_err(map_codec)
-        }
-        AuthorityMutationV2::RevokeKey { fence, key_id } => {
-            encoder.byte(8).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_instance_fence(fence))
-                .map_err(map_codec)?;
-            encoder
-                .fixed(&encode_accepted_key_id(key_id))
-                .map_err(map_codec)
+impl From<AuthorityCodecError> for AuthorityStoreErrorV2 {
+    fn from(error: AuthorityCodecError) -> Self {
+        match error {
+            AuthorityCodecError::Allocation => Self::AllocationFailed,
+            AuthorityCodecError::Invalid => Self::CorruptStore,
         }
     }
 }
 
-fn decode_intent(decoder: &mut Decoder<'_>) -> Result<AuthorityIntentV2, AuthorityStoreErrorV2> {
-    let operation_id = decode_operation_id(decoder.fixed(40).map_err(map_codec)?)?;
-    let expected_config = decode_config(decoder.fixed(40).map_err(map_codec)?)?;
-    let mutation = match decoder.byte().map_err(map_codec)? {
-        1 => AuthorityMutationV2::AcquireLease {
-            expected_lease_generation: decoder.u64().map_err(map_codec)?,
-            instance_id: ProcessInstanceIdV2::from_bytes(decoder.array().map_err(map_codec)?)
-                .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        },
-        2 => AuthorityMutationV2::RenewLease {
-            fence: decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?,
-        },
-        3 => AuthorityMutationV2::ReleaseLease {
-            fence: decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?,
-        },
-        4 => {
-            let fence = decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?;
-            let kind = match decoder.byte().map_err(map_codec)? {
-                1 => StateTransitionKindV2::Advance,
-                2 => StateTransitionKindV2::AuthorizedReset,
-                _ => return Err(AuthorityStoreErrorV2::CorruptStore),
-            };
-            let expected = decode_state_head(decoder.fixed(112).map_err(map_codec)?)?;
-            let next = decode_state_head(decoder.fixed(112).map_err(map_codec)?)?;
-            AuthorityMutationV2::AdvanceState {
-                fence,
-                advance: StateAdvanceV2::new(kind, expected, next)
-                    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-            }
-        }
-        5 => {
-            let fence = decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?;
-            let expected = decode_config(decoder.fixed(40).map_err(map_codec)?)?;
-            let next = decode_config(decoder.fixed(40).map_err(map_codec)?)?;
-            AuthorityMutationV2::AdvanceConfig {
-                fence,
-                advance: ConfigAdvanceV2::new(expected, next)
-                    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-            }
-        }
-        6 => AuthorityMutationV2::ConsumeCapability {
-            fence: decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?,
-            capability_id: CapabilityIdV2::from_bytes(decoder.array().map_err(map_codec)?)
-                .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-        },
-        7 => AuthorityMutationV2::RegisterKey {
-            fence: decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?,
-            capability_id: CapabilityIdV2::from_bytes(decoder.array().map_err(map_codec)?)
-                .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?,
-            key_id: decode_accepted_key_id(decoder.fixed(48).map_err(map_codec)?)?,
-        },
-        8 => AuthorityMutationV2::RevokeKey {
-            fence: decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?,
-            key_id: decode_accepted_key_id(decoder.fixed(48).map_err(map_codec)?)?,
-        },
-        _ => return Err(AuthorityStoreErrorV2::CorruptStore),
-    };
-    AuthorityIntentV2::new(
-        operation_id,
-        operation_id.expected_authority_version(),
-        expected_config,
-        mutation,
-    )
-    .map_err(|_| AuthorityStoreErrorV2::CorruptStore)
-}
-
-const fn encode_rejection(value: AuthorityRejectionV2) -> u8 {
-    match value {
-        AuthorityRejectionV2::ConfigurationMismatch => 1,
-        AuthorityRejectionV2::LeaseHeld => 2,
-        AuthorityRejectionV2::LeaseGenerationMismatch => 3,
-        AuthorityRejectionV2::LeaseAbsent => 4,
-        AuthorityRejectionV2::LeaseExpired => 5,
-        AuthorityRejectionV2::FenceMismatch => 6,
-        AuthorityRejectionV2::LeaseRenewalNotExtended => 7,
-        AuthorityRejectionV2::MutationOverflow => 8,
-        AuthorityRejectionV2::StateMismatch => 9,
-        AuthorityRejectionV2::ConfigTransitionMismatch => 10,
-        AuthorityRejectionV2::CapabilityReplay => 11,
-        AuthorityRejectionV2::CapabilityUnknown => 12,
-        AuthorityRejectionV2::CapabilityStale => 13,
-        AuthorityRejectionV2::CapabilityAlreadyBound => 14,
-        AuthorityRejectionV2::KeyAlreadyRegistered => 15,
-        AuthorityRejectionV2::KeyStateGenerationMismatch => 16,
-        AuthorityRejectionV2::KeyLeaseGenerationMismatch => 17,
-        AuthorityRejectionV2::KeyUnknown => 18,
-        AuthorityRejectionV2::KeyRevoked => 19,
-        AuthorityRejectionV2::CapabilityCapacityExceeded => 20,
-        AuthorityRejectionV2::KeyCapacityExceeded => 21,
-    }
-}
-
-fn decode_rejection(value: u8) -> Result<AuthorityRejectionV2, AuthorityStoreErrorV2> {
-    match value {
-        1 => Ok(AuthorityRejectionV2::ConfigurationMismatch),
-        2 => Ok(AuthorityRejectionV2::LeaseHeld),
-        3 => Ok(AuthorityRejectionV2::LeaseGenerationMismatch),
-        4 => Ok(AuthorityRejectionV2::LeaseAbsent),
-        5 => Ok(AuthorityRejectionV2::LeaseExpired),
-        6 => Ok(AuthorityRejectionV2::FenceMismatch),
-        7 => Ok(AuthorityRejectionV2::LeaseRenewalNotExtended),
-        8 => Ok(AuthorityRejectionV2::MutationOverflow),
-        9 => Ok(AuthorityRejectionV2::StateMismatch),
-        10 => Ok(AuthorityRejectionV2::ConfigTransitionMismatch),
-        11 => Ok(AuthorityRejectionV2::CapabilityReplay),
-        12 => Ok(AuthorityRejectionV2::CapabilityUnknown),
-        13 => Ok(AuthorityRejectionV2::CapabilityStale),
-        14 => Ok(AuthorityRejectionV2::CapabilityAlreadyBound),
-        15 => Ok(AuthorityRejectionV2::KeyAlreadyRegistered),
-        16 => Ok(AuthorityRejectionV2::KeyStateGenerationMismatch),
-        17 => Ok(AuthorityRejectionV2::KeyLeaseGenerationMismatch),
-        18 => Ok(AuthorityRejectionV2::KeyUnknown),
-        19 => Ok(AuthorityRejectionV2::KeyRevoked),
-        20 => Ok(AuthorityRejectionV2::CapabilityCapacityExceeded),
-        21 => Ok(AuthorityRejectionV2::KeyCapacityExceeded),
-        _ => Err(AuthorityStoreErrorV2::CorruptStore),
-    }
-}
-
-fn encode_capability_record(value: CapabilityRecordV2) -> Result<Vec<u8>, AuthorityStoreErrorV2> {
-    let mut encoder = Encoder::new(MAX_FRAME_BYTES);
-    encode_domain(&mut encoder, CAPABILITY_DOMAIN, STORE_SCHEMA_VERSION).map_err(map_codec)?;
-    encoder
-        .fixed(&encode_state_head(value.state_head))
-        .map_err(map_codec)?;
-    encoder
-        .fixed(&encode_config(value.config))
-        .map_err(map_codec)?;
-    encoder
-        .fixed(&encode_instance_fence(value.consumed_by))
-        .map_err(map_codec)?;
-    match value.key_id {
-        None => encoder.byte(0).map_err(map_codec)?,
-        Some(key_id) => {
-            encoder.byte(1).map_err(map_codec)?;
-            encoder
-                .fixed(&encode_accepted_key_id(key_id))
-                .map_err(map_codec)?;
-        }
-    }
-    Ok(encoder.finish())
-}
-
-fn decode_capability_record(bytes: &[u8]) -> Result<CapabilityRecordV2, AuthorityStoreErrorV2> {
-    let mut decoder = Decoder::new(bytes);
-    require_domain(&mut decoder, CAPABILITY_DOMAIN, STORE_SCHEMA_VERSION).map_err(map_codec)?;
-    let state_head = decode_state_head(decoder.fixed(112).map_err(map_codec)?)?;
-    let config = decode_config(decoder.fixed(40).map_err(map_codec)?)?;
-    let consumed_by = decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?;
-    let key_id = match decoder.byte().map_err(map_codec)? {
-        0 => None,
-        1 => Some(decode_accepted_key_id(
-            decoder.fixed(48).map_err(map_codec)?,
-        )?),
-        _ => return Err(AuthorityStoreErrorV2::CorruptStore),
-    };
-    decoder.finish().map_err(map_codec)?;
-    Ok(CapabilityRecordV2 {
-        state_head,
-        config,
-        consumed_by,
-        key_id,
-    })
-}
-
-fn encode_key_record(value: AcceptedKeyRecordV2) -> Result<Vec<u8>, AuthorityStoreErrorV2> {
-    let mut encoder = Encoder::new(MAX_FRAME_BYTES);
-    encode_domain(&mut encoder, KEY_DOMAIN, STORE_SCHEMA_VERSION).map_err(map_codec)?;
-    encoder
-        .fixed(value.capability_id.as_bytes())
-        .map_err(map_codec)?;
-    encoder
-        .fixed(&encode_state_head(value.state_head))
-        .map_err(map_codec)?;
-    encoder
-        .fixed(&encode_config(value.config))
-        .map_err(map_codec)?;
-    encoder
-        .fixed(&encode_instance_fence(value.registered_by))
-        .map_err(map_codec)?;
-    encoder
-        .byte(match value.status {
-            AcceptedKeyStatusV2::Registered => 1,
-            AcceptedKeyStatusV2::Revoked => 2,
-        })
-        .map_err(map_codec)?;
-    Ok(encoder.finish())
-}
-
-fn decode_key_record(bytes: &[u8]) -> Result<AcceptedKeyRecordV2, AuthorityStoreErrorV2> {
-    let mut decoder = Decoder::new(bytes);
-    require_domain(&mut decoder, KEY_DOMAIN, STORE_SCHEMA_VERSION).map_err(map_codec)?;
-    let capability_id = CapabilityIdV2::from_bytes(decoder.array().map_err(map_codec)?)
-        .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
-    let state_head = decode_state_head(decoder.fixed(112).map_err(map_codec)?)?;
-    let config = decode_config(decoder.fixed(40).map_err(map_codec)?)?;
-    let registered_by = decode_instance_fence(decoder.fixed(40).map_err(map_codec)?)?;
-    let status = match decoder.byte().map_err(map_codec)? {
-        1 => AcceptedKeyStatusV2::Registered,
-        2 => AcceptedKeyStatusV2::Revoked,
-        _ => return Err(AuthorityStoreErrorV2::CorruptStore),
-    };
-    decoder.finish().map_err(map_codec)?;
-    Ok(AcceptedKeyRecordV2 {
-        capability_id,
-        state_head,
-        config,
-        registered_by,
-        status,
-    })
-}
-
+#[cfg(test)]
 fn map_codec(error: CodecError) -> AuthorityStoreErrorV2 {
     match error {
         CodecError::Allocation => AuthorityStoreErrorV2::AllocationFailed,
@@ -3563,10 +3012,7 @@ mod tests {
         assert_eq!(decode_receipt(&encoded)?, receipt);
         let mut trailing = encoded;
         trailing.push(0);
-        assert_eq!(
-            decode_receipt(&trailing),
-            Err(AuthorityStoreErrorV2::CorruptStore)
-        );
+        assert_eq!(decode_receipt(&trailing), Err(AuthorityCodecError::Invalid));
         let mut unknown_rejection = Encoder::new(MAX_FRAME_BYTES);
         encode_domain(&mut unknown_rejection, RECEIPT_DOMAIN, STORE_SCHEMA_VERSION)
             .map_err(map_codec)?;
@@ -3576,7 +3022,7 @@ mod tests {
         unknown_rejection.u64(2).map_err(map_codec)?;
         assert_eq!(
             decode_receipt(&unknown_rejection.finish()),
-            Err(AuthorityStoreErrorV2::CorruptStore)
+            Err(AuthorityCodecError::Invalid)
         );
         Ok(())
     }

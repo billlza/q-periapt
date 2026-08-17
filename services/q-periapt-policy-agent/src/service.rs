@@ -1,7 +1,7 @@
 //! Single-linearizer policy, transition, KEM, and mutual-confirmation service.
 
 use core::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -16,6 +16,15 @@ use q_periapt_migration::{
 };
 use q_periapt_policy::{AuthenticatedPolicy, HybridSuite, KeyFormat, Policy};
 
+use crate::authority::{
+    AuthorityDispositionV2, AuthorityIntentV2, AuthorityMutationV2, AuthorityQueryResultV2,
+    AuthorityReceiptV2, AuthorityRejectionV2, AuthoritySnapshotV2, DeploymentConfigRevisionV2,
+    InstanceFenceV2, OperationIdV2, ProcessInstanceIdV2,
+};
+use crate::authority_protocol::{
+    AuthorityKnownFailureV2, AuthorityOutcomeV2, DurablyRetainedAuthorityReceiptV2,
+};
+use crate::authority_transport::InstanceAuthorityPort;
 use crate::crypto::{
     Abi2Engine, Abi2EngineError, EncapsulationCiphertexts, EncapsulationPublicKeys,
 };
@@ -29,6 +38,8 @@ const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
 const HARD_MAX_SESSIONS: usize = 1024;
 const HARD_MAX_CONFIRMED_KEYS: usize = 1024;
 const MAX_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+const MAX_UNACKNOWLEDGED_LEASE_RECEIPTS: usize = 64;
+const LEASE_VERSION_RESYNC_ATTEMPTS: usize = 2;
 
 /// One exact signed policy document and its pinned ML-DSA-65 root.
 #[derive(Clone, Eq, PartialEq)]
@@ -404,6 +415,13 @@ pub enum AgentError {
     LocalCryptoFailure,
     /// The committed state is valid but this process has no exact compatible ABI 2 executor.
     ExecutionUnavailable,
+    /// Another process instance holds or took the exclusive key-use lease; every
+    /// in-process pending and accepted secret of this instance was erased.
+    InstanceFenced,
+    /// The mandatory instance-lease authority failed closed; the operation did not run.
+    InstanceLeaseUnavailable,
+    /// A lease operation outcome stayed unknown after exact-operation reconciliation.
+    InstanceLeaseIndeterminate,
     /// The process linearizer was poisoned; no operation continued.
     InternalPoisoned,
 }
@@ -507,9 +525,24 @@ impl ExecutorState {
     }
 }
 
-struct Inner<W: WitnessPort> {
+/// RAM-only client view of this process's exclusive instance lease.
+///
+/// The fence (lease generation plus fresh process identity) deliberately never
+/// touches disk: a restored clone of this host must not be able to replay the
+/// live fence, so a process restart always starts a new acquire cycle.
+struct InstanceLeaseState {
+    instance_id: ProcessInstanceIdV2,
+    fence: Option<InstanceFenceV2>,
+    authority_version: u64,
+    fenced: bool,
+    unacknowledged: VecDeque<DurablyRetainedAuthorityReceiptV2>,
+}
+
+struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
     repository: StateRepository,
     witness: W,
+    authority: A,
+    lease: InstanceLeaseState,
     config: AgentConfig,
     local_policy: AuthenticatedPolicy,
     peer_policy: AuthenticatedPolicy,
@@ -522,23 +555,30 @@ struct Inner<W: WitnessPort> {
 }
 
 /// Process-local façade whose one mutex is the transition/session linearization point.
-pub struct PolicyAgent<W: WitnessPort> {
-    inner: Mutex<Inner<W>>,
+pub struct PolicyAgent<W: WitnessPort, A: InstanceAuthorityPort> {
+    inner: Mutex<Inner<W, A>>,
 }
 
-impl<W: WitnessPort> fmt::Debug for PolicyAgent<W> {
+impl<W: WitnessPort, A: InstanceAuthorityPort> fmt::Debug for PolicyAgent<W, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("PolicyAgent([redacted])")
     }
 }
 
-impl<W: WitnessPort> PolicyAgent<W> {
-    /// Authenticate configured policy material and align local state with the mandatory witness.
+impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
+    /// Authenticate configured policy material, acquire the exclusive instance
+    /// lease, and align local state with the mandatory witness.
+    ///
+    /// Construction fails closed with [`AgentError::InstanceFenced`] while
+    /// another unexpired process instance holds the lease, so a recovery clone
+    /// or duplicate deployment cannot start using keys next to the live holder.
     pub fn new(
         mut repository: StateRepository,
         witness: W,
+        authority: A,
         config: AgentConfig,
     ) -> Result<Self, AgentError> {
+        let lease = acquire_instance_lease(&authority)?;
         align_repository(&mut repository, &witness)?;
         let committed = repository.committed_state();
         let engine = executor_for(&config.execution_policy, committed.state())?;
@@ -558,6 +598,8 @@ impl<W: WitnessPort> PolicyAgent<W> {
             inner: Mutex::new(Inner {
                 repository,
                 witness,
+                authority,
+                lease,
                 config,
                 local_policy,
                 peer_policy,
@@ -585,6 +627,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     pub fn apply_advance(&self, canonical_signed_state: &[u8]) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
         let intent = inner.repository.prepare_advance(canonical_signed_state)?;
         let replacement = executor_for(
@@ -602,6 +645,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     pub fn apply_reset(&self, canonical_signed_reset: &[u8]) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
         let intent = inner.repository.prepare_reset(canonical_signed_reset)?;
         let replacement = executor_for(
@@ -619,6 +663,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     pub fn reconcile_transition(&self) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         let intent = inner
             .repository
             .pending_intent()
@@ -651,6 +696,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     ) -> Result<BeginEncapsulationResult, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
         ensure_session_capacity(&inner)?;
         let head = verify_current_head(&inner)?;
@@ -725,6 +771,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     ) -> Result<BeginDecapsulationResult, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
         ensure_session_capacity(&inner)?;
         let head = verify_current_head(&inner)?;
@@ -798,6 +845,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     ) -> Result<ResponderAcceptanceResult, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         if let Some(completed) = inner.completed_acceptances.get(&handle) {
             return match completed {
                 CompletedAcceptance::Responder {
@@ -856,6 +904,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
     ) -> Result<ConfirmedKeyHandle, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_instance_lease(&mut inner)?;
         if let Some(completed) = inner.completed_acceptances.get(&handle) {
             return match completed {
                 CompletedAcceptance::Initiator {
@@ -924,6 +973,54 @@ impl<W: WitnessPort> PolicyAgent<W> {
         Ok(())
     }
 
+    /// Release the exclusive instance lease for graceful shutdown.
+    ///
+    /// Every in-process pending and accepted secret is erased first, so key use
+    /// stops before another instance can acquire the next lease generation.
+    /// After release this agent permanently refuses lease-guarded operations;
+    /// a successor process must construct a new agent to acquire authority.
+    /// Repeating the call after the fence is already gone succeeds idempotently.
+    pub fn release_instance_lease(&self) -> Result<(), AgentError> {
+        let mut inner = self.lock()?;
+        let inner = &mut *inner;
+        ensure_live(inner)?;
+        let Some(fence) = inner.lease.fence else {
+            return Ok(());
+        };
+        fence_out(inner)?;
+        drain_acknowledgements(&inner.authority, &mut inner.lease);
+        for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+            let intent = lease_intent(
+                &inner.lease,
+                inner.authority.wire_config(),
+                AuthorityMutationV2::ReleaseLease { fence },
+            )?;
+            match lease_exchange(
+                &inner.authority,
+                &mut inner.lease,
+                LeaseCall::Release,
+                intent,
+            )? {
+                LeaseExchange::Receipt(receipt) => {
+                    drain_acknowledgements(&inner.authority, &mut inner.lease);
+                    return match receipt.disposition() {
+                        AuthorityDispositionV2::Applied
+                        | AuthorityDispositionV2::Rejected(
+                            AuthorityRejectionV2::LeaseAbsent
+                            | AuthorityRejectionV2::LeaseExpired
+                            | AuthorityRejectionV2::FenceMismatch,
+                        ) => Ok(()),
+                        AuthorityDispositionV2::Rejected(_) => {
+                            Err(AgentError::InstanceLeaseUnavailable)
+                        }
+                    };
+                }
+                LeaseExchange::Retry => {}
+            }
+        }
+        Err(AgentError::InstanceLeaseIndeterminate)
+    }
+
     #[cfg(all(test, unix))]
     pub(crate) fn remove_durable_reservation_for_test(
         &self,
@@ -948,7 +1045,7 @@ impl<W: WitnessPort> PolicyAgent<W> {
         ))
     }
 
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W>>, AgentError> {
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
     }
 }
@@ -1010,8 +1107,8 @@ fn executor_for(
     .map_err(AgentError::from)
 }
 
-fn execute_transition<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     intent: crate::witness::WitnessIntent,
 ) -> Result<(), AgentError> {
     match inner.witness.compare_and_advance(intent)? {
@@ -1023,8 +1120,8 @@ fn execute_transition<W: WitnessPort>(
     }
 }
 
-fn finish_transition<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn finish_transition<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     receipt: WitnessReceipt,
 ) -> Result<(), AgentError> {
     if inner.repository.commit_applied(receipt).is_err() {
@@ -1043,8 +1140,8 @@ fn finish_transition<W: WitnessPort>(
     Ok(())
 }
 
-fn build_contract<W: WitnessPort>(
-    inner: &Inner<W>,
+fn build_contract<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
     authorization: SessionAuthorization,
     encapsulator_role: EndpointRole,
     receiver_keys: EncapsulationPublicKeys,
@@ -1126,7 +1223,9 @@ fn decode_canonical_offer(bytes: &[u8]) -> Result<SignedCapabilityOfferV1, Agent
     Ok(value)
 }
 
-fn verify_current_head<W: WitnessPort>(inner: &Inner<W>) -> Result<StateHead, AgentError> {
+fn verify_current_head<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+) -> Result<StateHead, AgentError> {
     if inner.repository.pending_intent().is_some() {
         return Err(AgentError::TransitionPending);
     }
@@ -1137,14 +1236,16 @@ fn verify_current_head<W: WitnessPort>(inner: &Inner<W>) -> Result<StateHead, Ag
     Ok(local)
 }
 
-fn pending_deadline<W: WitnessPort>(inner: &Inner<W>) -> Result<Instant, AgentError> {
+fn pending_deadline<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+) -> Result<Instant, AgentError> {
     Instant::now()
         .checked_add(inner.config.limits.session_ttl)
         .ok_or(AgentError::InvalidConfiguration)
 }
 
-fn reserve_pending<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     head: StateHead,
     capability_session_id: [u8; 32],
     pending: PendingSession,
@@ -1176,8 +1277,8 @@ enum PendingFlight {
     Responder,
 }
 
-fn prepare_acceptance<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn prepare_acceptance<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     handle: PendingSessionHandle,
     flight: PendingFlight,
 ) -> Result<(StateHead, ConfirmedKeyHandle), AgentError> {
@@ -1229,8 +1330,8 @@ fn prepare_acceptance<W: WitnessPort>(
     Ok((expected_head, key_handle))
 }
 
-fn cancel_consumed_session<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn cancel_consumed_session<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     handle: PendingSessionHandle,
 ) -> Result<(), AgentError> {
     if inner.repository.cancel_session(handle.0).is_err() {
@@ -1241,8 +1342,8 @@ fn cancel_consumed_session<W: WitnessPort>(
     }
 }
 
-fn map_confirmation_setup_error<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn map_confirmation_setup_error<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     _error: q_periapt_migration::ConfirmationError,
 ) -> AgentError {
     // The role, context, and post-KEM transcript were all derived inside this
@@ -1252,8 +1353,8 @@ fn map_confirmation_setup_error<W: WitnessPort>(
     AgentError::InternalPoisoned
 }
 
-fn map_confirmation_error<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn map_confirmation_error<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     error: q_periapt_migration::ConfirmationError,
 ) -> AgentError {
     match error {
@@ -1268,8 +1369,8 @@ fn map_confirmation_error<W: WitnessPort>(
     }
 }
 
-fn restore_unexpected<W: WitnessPort, T>(
-    inner: &mut Inner<W>,
+fn restore_unexpected<W: WitnessPort, A: InstanceAuthorityPort, T>(
+    inner: &mut Inner<W, A>,
     handle: PendingSessionHandle,
     pending: PendingSession,
 ) -> Result<T, AgentError> {
@@ -1281,8 +1382,8 @@ fn restore_unexpected<W: WitnessPort, T>(
     }
 }
 
-fn retain_accepted_key<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn retain_accepted_key<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     pending_handle: PendingSessionHandle,
     expected_head: StateHead,
     key_handle: ConfirmedKeyHandle,
@@ -1312,8 +1413,8 @@ fn retain_accepted_key<W: WitnessPort>(
     Ok(())
 }
 
-fn erase_pending<W: WitnessPort>(
-    inner: &mut Inner<W>,
+fn erase_pending<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
     handle: PendingSessionHandle,
 ) -> Result<(), AgentError> {
     let removed = inner
@@ -1329,7 +1430,9 @@ fn erase_pending<W: WitnessPort>(
     }
 }
 
-fn purge_expired<W: WitnessPort>(inner: &mut Inner<W>) -> Result<(), AgentError> {
+fn purge_expired<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
     let now = Instant::now();
     let expired: Vec<_> = inner
         .pending_sessions
@@ -1342,7 +1445,9 @@ fn purge_expired<W: WitnessPort>(inner: &mut Inner<W>) -> Result<(), AgentError>
     Ok(())
 }
 
-fn ensure_session_capacity<W: WitnessPort>(inner: &Inner<W>) -> Result<(), AgentError> {
+fn ensure_session_capacity<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+) -> Result<(), AgentError> {
     if inner.pending_sessions.len() >= inner.config.limits.max_pending_sessions {
         Err(AgentError::CapacityExceeded)
     } else {
@@ -1363,12 +1468,312 @@ fn generate_key_handle(
     Err(AgentError::LocalCryptoFailure)
 }
 
-fn ensure_live<W: WitnessPort>(inner: &Inner<W>) -> Result<(), AgentError> {
+fn ensure_live<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+) -> Result<(), AgentError> {
     if inner.poisoned {
         Err(AgentError::InternalPoisoned)
     } else {
         Ok(())
     }
+}
+
+/// Closed lease-mutation dispatch selector for one authority exchange.
+enum LeaseCall {
+    Acquire,
+    Renew,
+    Release,
+}
+
+// The receipt stays `Copy` so one short-lived stack value can be compared and
+// recorded without heap allocation, matching the wire payload discipline.
+#[allow(clippy::large_enum_variant)]
+/// Outcome of one lease exchange after exact-operation reconciliation.
+enum LeaseExchange {
+    /// The authority returned this operation's exact authenticated receipt.
+    Receipt(AuthorityReceiptV2),
+    /// The operation provably never dispatched; rebuild the intent and retry.
+    Retry,
+}
+
+fn fresh_lease_random() -> Result<[u8; 32], AgentError> {
+    let mut bytes = [0u8; 32];
+    getrandom::fill(&mut bytes).map_err(|_| AgentError::LocalCryptoFailure)?;
+    if bytes.iter().all(|byte| *byte == 0) {
+        return Err(AgentError::LocalCryptoFailure);
+    }
+    Ok(bytes)
+}
+
+fn authority_snapshot<A: InstanceAuthorityPort>(
+    authority: &A,
+) -> Result<AuthoritySnapshotV2, AgentError> {
+    match authority.snapshot() {
+        Ok(AuthorityOutcomeV2::Known(snapshot)) => Ok(snapshot),
+        Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
+            Err(AgentError::InstanceLeaseUnavailable)
+        }
+    }
+}
+
+fn lease_intent(
+    lease: &InstanceLeaseState,
+    config: DeploymentConfigRevisionV2,
+    mutation: AuthorityMutationV2,
+) -> Result<AuthorityIntentV2, AgentError> {
+    let operation_id = OperationIdV2::new(lease.authority_version, fresh_lease_random()?)
+        .map_err(|_| AgentError::InstanceLeaseUnavailable)?;
+    AuthorityIntentV2::new(operation_id, lease.authority_version, config, mutation)
+        .map_err(|_| AgentError::InstanceLeaseUnavailable)
+}
+
+fn record_lease_receipt(
+    lease: &mut InstanceLeaseState,
+    intent: AuthorityIntentV2,
+    receipt: AuthorityReceiptV2,
+) -> Result<LeaseExchange, AgentError> {
+    if receipt.intent() != intent {
+        return Err(AgentError::InstanceLeaseUnavailable);
+    }
+    lease.authority_version = receipt.resulting_authority_version();
+    // The lease view is deliberately RAM-only: after a crash the successor
+    // process starts a fresh acquire cycle and never queries this operation ID
+    // again, so the receipt needs no further durability before the bounded
+    // acknowledgement queue lets the authority prune it.
+    if lease.unacknowledged.len() < MAX_UNACKNOWLEDGED_LEASE_RECEIPTS
+        && lease.unacknowledged.try_reserve(1).is_ok()
+    {
+        if let Ok(retained) = DurablyRetainedAuthorityReceiptV2::after_durable_commit(receipt) {
+            lease.unacknowledged.push_back(retained);
+        }
+    }
+    Ok(LeaseExchange::Receipt(receipt))
+}
+
+fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
+    while let Some(retained) = lease.unacknowledged.front() {
+        match authority.acknowledge(retained) {
+            Ok(AuthorityOutcomeV2::Known(_)) => {
+                lease.unacknowledged.pop_front();
+            }
+            Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
+                return;
+            }
+        }
+    }
+}
+
+fn reconcile_lease_operation<A: InstanceAuthorityPort>(
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+    intent: AuthorityIntentV2,
+) -> Result<LeaseExchange, AgentError> {
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        match authority.query(intent.operation_id()) {
+            Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
+                return record_lease_receipt(lease, intent, *receipt);
+            }
+            Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                authority_version,
+            })) => {
+                lease.authority_version = authority_version;
+                return Ok(LeaseExchange::Retry);
+            }
+            Ok(AuthorityOutcomeV2::KnownFailure(_)) => {
+                return Err(AgentError::InstanceLeaseUnavailable);
+            }
+            Ok(AuthorityOutcomeV2::Unknown(_)) | Err(_) => {}
+        }
+    }
+    Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+fn lease_exchange<A: InstanceAuthorityPort>(
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+    call: LeaseCall,
+    intent: AuthorityIntentV2,
+) -> Result<LeaseExchange, AgentError> {
+    let outcome = match call {
+        LeaseCall::Acquire => authority.acquire(intent),
+        LeaseCall::Renew => authority.renew(intent),
+        LeaseCall::Release => authority.release(intent),
+    };
+    match outcome {
+        Ok(AuthorityOutcomeV2::Known(receipt)) => record_lease_receipt(lease, intent, receipt),
+        Ok(AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)) => {
+            let snapshot = authority_snapshot(authority)?;
+            lease.authority_version = snapshot.authority_version();
+            Ok(LeaseExchange::Retry)
+        }
+        Ok(AuthorityOutcomeV2::KnownFailure(_)) => Err(AgentError::InstanceLeaseUnavailable),
+        Ok(AuthorityOutcomeV2::Unknown(_)) => reconcile_lease_operation(authority, lease, intent),
+        Err(_) => Err(AgentError::InstanceLeaseUnavailable),
+    }
+}
+
+/// Adopt the authority's current lease when a lost response already acquired
+/// it for this exact fresh process identity; fail closed on any other holder.
+fn adopt_or_reject_active_lease(
+    lease: &mut InstanceLeaseState,
+    snapshot: &AuthoritySnapshotV2,
+    expected_lease_generation: &mut u64,
+) -> Result<bool, AgentError> {
+    lease.authority_version = snapshot.authority_version();
+    match snapshot.active_lease() {
+        Some(active) if active.fence().instance_id() == lease.instance_id => {
+            lease.fence = Some(active.fence());
+            Ok(true)
+        }
+        Some(_) => Err(AgentError::InstanceFenced),
+        None => {
+            *expected_lease_generation = snapshot.lease_generation();
+            Ok(false)
+        }
+    }
+}
+
+fn acquire_instance_lease<A: InstanceAuthorityPort>(
+    authority: &A,
+) -> Result<InstanceLeaseState, AgentError> {
+    let instance_id = ProcessInstanceIdV2::from_bytes(fresh_lease_random()?)
+        .map_err(|_| AgentError::LocalCryptoFailure)?;
+    let mut lease = InstanceLeaseState {
+        instance_id,
+        fence: None,
+        authority_version: 1,
+        fenced: false,
+        unacknowledged: VecDeque::new(),
+    };
+    let snapshot = authority_snapshot(authority)?;
+    lease.authority_version = snapshot.authority_version();
+    if snapshot.active_lease().is_some() {
+        return Err(AgentError::InstanceFenced);
+    }
+    let mut expected_lease_generation = snapshot.lease_generation();
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        let intent = lease_intent(
+            &lease,
+            authority.wire_config(),
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation,
+                instance_id,
+            },
+        )?;
+        match lease_exchange(authority, &mut lease, LeaseCall::Acquire, intent)? {
+            LeaseExchange::Receipt(receipt) => {
+                drain_acknowledgements(authority, &mut lease);
+                match receipt.disposition() {
+                    AuthorityDispositionV2::Applied => {
+                        let generation = expected_lease_generation
+                            .checked_add(1)
+                            .ok_or(AgentError::InstanceLeaseUnavailable)?;
+                        lease.fence = Some(
+                            InstanceFenceV2::new(generation, instance_id)
+                                .map_err(|_| AgentError::InstanceLeaseUnavailable)?,
+                        );
+                        return Ok(lease);
+                    }
+                    AuthorityDispositionV2::Rejected(
+                        AuthorityRejectionV2::LeaseHeld
+                        | AuthorityRejectionV2::LeaseGenerationMismatch,
+                    ) => {
+                        let snapshot = authority_snapshot(authority)?;
+                        if adopt_or_reject_active_lease(
+                            &mut lease,
+                            &snapshot,
+                            &mut expected_lease_generation,
+                        )? {
+                            return Ok(lease);
+                        }
+                    }
+                    AuthorityDispositionV2::Rejected(_) => {
+                        return Err(AgentError::InstanceLeaseUnavailable);
+                    }
+                }
+            }
+            LeaseExchange::Retry => {
+                let snapshot = authority_snapshot(authority)?;
+                if adopt_or_reject_active_lease(
+                    &mut lease,
+                    &snapshot,
+                    &mut expected_lease_generation,
+                )? {
+                    return Ok(lease);
+                }
+            }
+        }
+    }
+    Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+/// Re-authorize key use behind the exclusive lease before every guarded operation.
+///
+/// Every guarded operation renews against the authority's trusted clock, so a
+/// fenced, expired, or superseded instance is rejected before it can touch a
+/// pending or accepted secret, and this instance erases all of them first.
+fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
+    if inner.lease.fenced {
+        return Err(AgentError::InstanceFenced);
+    }
+    let Some(fence) = inner.lease.fence else {
+        return Err(AgentError::InstanceFenced);
+    };
+    drain_acknowledgements(&inner.authority, &mut inner.lease);
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        let intent = lease_intent(
+            &inner.lease,
+            inner.authority.wire_config(),
+            AuthorityMutationV2::RenewLease { fence },
+        )?;
+        match lease_exchange(&inner.authority, &mut inner.lease, LeaseCall::Renew, intent)? {
+            LeaseExchange::Receipt(receipt) => {
+                drain_acknowledgements(&inner.authority, &mut inner.lease);
+                return match receipt.disposition() {
+                    AuthorityDispositionV2::Applied
+                    | AuthorityDispositionV2::Rejected(
+                        // The fence was verified live; only the expiry could
+                        // not strictly extend within this clock-floor instant.
+                        AuthorityRejectionV2::LeaseRenewalNotExtended,
+                    ) => Ok(()),
+                    AuthorityDispositionV2::Rejected(
+                        AuthorityRejectionV2::LeaseAbsent
+                        | AuthorityRejectionV2::LeaseExpired
+                        | AuthorityRejectionV2::FenceMismatch,
+                    ) => {
+                        fence_out(inner)?;
+                        Err(AgentError::InstanceFenced)
+                    }
+                    AuthorityDispositionV2::Rejected(_) => {
+                        Err(AgentError::InstanceLeaseUnavailable)
+                    }
+                };
+            }
+            LeaseExchange::Retry => {}
+        }
+    }
+    Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+/// Erase every in-process pending and accepted secret and retire this fence.
+///
+/// After this returns, the agent permanently refuses lease-guarded operations;
+/// key use has provably stopped before any successor instance can acquire the
+/// next lease generation.
+fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
+    let handles: Vec<_> = inner.pending_sessions.keys().copied().collect();
+    for handle in handles {
+        erase_pending(inner, handle)?;
+    }
+    inner.confirmed_keys.clear();
+    inner.completed_acceptances.clear();
+    inner.lease.fence = None;
+    inner.lease.fenced = true;
+    Ok(())
 }
 
 const fn opposite(role: EndpointRole) -> EndpointRole {

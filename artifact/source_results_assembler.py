@@ -6,7 +6,7 @@ never edits ``artifact/results.json``.  A successful finalize operation emits a
 private, no-replace ``target/source-results-successors/transaction.*/results.json``
 candidate for an explicit results-only commit.
 
-The finalize command is deliberately a one-time 190-to-234 proof-input
+The finalize command is deliberately a one-time 190-to-237 proof-input
 migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
@@ -189,13 +189,16 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
         "formal_easycrypt_dockerfile_sha256",
         "proverif_makefile_sha256",
         "migration_agent_authority_sha256",
+        "migration_agent_authority_codec_sha256",
+        "migration_agent_authority_protocol_sha256",
         "migration_agent_authority_store_sha256",
+        "migration_agent_authority_transport_sha256",
     }
 )
 
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
-# installed 234-key successors are intentionally not constrained by this value.
+# installed 237-key successors are intentionally not constrained by this value.
 INITIAL_RESULTS_SHA256 = (
     "c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50"
 )
@@ -600,9 +603,9 @@ def source_ci_gate(
         )
         authority = capture_proof_input_digests(REPOSITORY_ROOT)
         _require(
-            len(authority) == 234
+            len(authority) == 237
             and set(authority) == current_keys
-            and len(current_keys - baseline_keys) == 44,
+            and len(current_keys - baseline_keys) == 47,
             "source transition proof-input authority differs",
         )
         _require(
@@ -2464,13 +2467,13 @@ def run(args: argparse.Namespace) -> None:
             print(
                 "SOURCE_TRANSITION_READINESS_PASS mode=initial "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=234 declared_delta=44"
+                "proof_inputs=237 declared_delta=47"
             )
         else:
             print(
                 "SOURCE_CI_GATE_MODE mode=installed "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=234"
+                "proof_inputs=237"
             )
         return
     if args.command == "verify-installed":

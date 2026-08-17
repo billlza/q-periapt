@@ -40,7 +40,7 @@ class ProofToByteInputsTests(unittest.TestCase):
 
     def test_live_map_is_exact_unique_and_self_covering(self) -> None:
         mapping = inputs.PROOF_TO_BYTE_INPUT_PATHS
-        self.assertEqual(234, len(mapping))
+        self.assertEqual(237, len(mapping))
         self.assertEqual(len(mapping), len(set(mapping.values())))
         self.assertEqual(
             "artifact/test_proof_to_byte_inputs.py",

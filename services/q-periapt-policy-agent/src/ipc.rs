@@ -22,6 +22,13 @@ use q_periapt_migration::{
 };
 
 use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError};
+use crate::authority::{
+    AuthorityEpochV2, DeploymentConfigRevisionV2, StateFenceV2, StateHeadV2, StateRevisionV2,
+};
+use crate::authority_protocol::{
+    AuthorityClientIdV2, AuthorityServerIdV2, AuthorityWireIdentityV2,
+};
+use crate::authority_transport::{AuthenticatedTcpAuthorityV2, InstanceAuthorityPort};
 use crate::codec::{
     encode_domain, hash_fields, read_frame, require_domain, write_frame, CodecError, Decoder,
     Encoder, MAX_FRAME_BYTES,
@@ -42,6 +49,7 @@ const IPC_REQUEST_DIGEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-DIGEST/v2"
 const IPC_SCHEMA_VERSION: u16 = 2;
 const IPC_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const WITNESS_IO_TIMEOUT: Duration = Duration::from_secs(5);
+const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
@@ -259,25 +267,25 @@ impl RecentNonces {
 /// Sequential handling deliberately caps active clients at one. A slow client
 /// can occupy that slot for at most `io_timeout`; no unbounded worker/thread
 /// creation is possible.
-pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort> {
-    agent: PolicyAgent<W>,
+pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> {
+    agent: PolicyAgent<W, A>,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
     server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
     io_timeout: Duration,
     recent_nonces: RecentNonces,
 }
 
-impl<W: crate::witness::WitnessPort> fmt::Debug for UnixIpcServer<W> {
+impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> fmt::Debug for UnixIpcServer<W, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("UnixIpcServer([redacted])")
     }
 }
 
-impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
+impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, A> {
     /// Bind an owner-only socket and configure pinned request/response keys.
     fn bind(
         service_directory: &OwnedPrivateDirectory,
-        agent: PolicyAgent<W>,
+        agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
         io_timeout: Duration,
@@ -350,7 +358,7 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
 
     #[cfg(test)]
     pub(crate) fn new_for_test(
-        agent: PolicyAgent<W>,
+        agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
     ) -> Result<Self, IpcError> {
@@ -375,7 +383,7 @@ impl<W: crate::witness::WitnessPort> UnixIpcServer<W> {
     }
 
     #[cfg(test)]
-    pub(crate) const fn agent_for_test(&self) -> &PolicyAgent<W> {
+    pub(crate) const fn agent_for_test(&self) -> &PolicyAgent<W, A> {
         &self.agent
     }
 
@@ -549,6 +557,9 @@ fn agent_status(error: AgentError) -> u8 {
         AgentError::LocalResourceFailure => 16,
         AgentError::LocalCryptoFailure => 17,
         AgentError::ExecutionUnavailable => 18,
+        AgentError::InstanceFenced => 20,
+        AgentError::InstanceLeaseUnavailable => 21,
+        AgentError::InstanceLeaseIndeterminate => 22,
         AgentError::InternalPoisoned => 19,
     }
 }
@@ -576,7 +587,7 @@ pub(crate) fn bind_private_socket(
 
 /// Run the Unix executable from one of two exact command shapes:
 ///
-/// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY`
+/// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
 /// `serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY`
 ///
 /// A successful `serve-agent` startup permanently pins `SERVICE_DIRECTORY` as
@@ -597,6 +608,8 @@ where
         let repository = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let witness_address =
             parse_socket_address(arguments.next().ok_or(IpcError::InvalidConfiguration)?)?;
+        let authority_address =
+            parse_socket_address(arguments.next().ok_or(IpcError::InvalidConfiguration)?)?;
         let configuration = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         if arguments.next().is_some() {
             return Err(IpcError::InvalidConfiguration);
@@ -605,6 +618,7 @@ where
             &service_directory,
             &repository,
             witness_address,
+            authority_address,
             &configuration,
         );
     }
@@ -624,6 +638,7 @@ fn serve_agent(
     service_directory: &Path,
     repository_path: &Path,
     witness_address: SocketAddr,
+    authority_address: SocketAddr,
     configuration: &Path,
 ) -> Result<(), IpcError> {
     let service_directory =
@@ -640,8 +655,16 @@ fn serve_agent(
         WITNESS_IO_TIMEOUT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
+    let authority = AuthenticatedTcpAuthorityV2::new(
+        authority_address,
+        load_authority_identity(&configuration)?,
+        read_secret(&configuration, "authority-client-sk.bin")?,
+        read_array(&configuration, "authority-server-vk.bin")?,
+        AUTHORITY_IO_TIMEOUT,
+    )
+    .map_err(|_| IpcError::InvalidConfiguration)?;
     let config = load_agent_config(&configuration)?;
-    let agent = PolicyAgent::new(repository, witness, config)
+    let agent = PolicyAgent::new(repository, witness, authority, config)
         .map_err(|_| IpcError::InvalidConfiguration)?;
     let (server, listener) = UnixIpcServer::bind(
         &service_directory,
@@ -688,6 +711,57 @@ fn load_migration_roots(
             "recovery-authority-id.bin",
         )?),
         read_array(configuration, "recovery-authority-vk.bin")?,
+    )
+    .map_err(|_| IpcError::InvalidConfiguration)
+}
+
+/// Load the exact pinned Authority Wire V2 endpoint identity.
+///
+/// The state head and configuration are pinned deployment facts read from the
+/// protected configuration directory, exactly like the pinned keys: the client
+/// accepts only an authority whose provisioned head/config equal these bytes.
+fn load_authority_identity(
+    configuration: &OwnedPrivateDirectory,
+) -> Result<AuthorityWireIdentityV2, IpcError> {
+    let head = read_array::<112>(configuration, "authority-state-head.bin")?;
+    let mut global_generation = [0u8; 8];
+    global_generation.copy_from_slice(&head[0..8]);
+    let mut chain_id = [0u8; 32];
+    chain_id.copy_from_slice(&head[8..40]);
+    let mut epoch = [0u8; 8];
+    epoch.copy_from_slice(&head[40..48]);
+    let mut digest = [0u8; 32];
+    digest.copy_from_slice(&head[48..80]);
+    let mut fence = [0u8; 32];
+    fence.copy_from_slice(&head[80..112]);
+    let revision = StateRevisionV2::new(
+        u64::from_be_bytes(global_generation),
+        chain_id,
+        u64::from_be_bytes(epoch),
+        digest,
+    )
+    .map_err(|_| IpcError::InvalidConfiguration)?;
+    let state_head = StateHeadV2::new(
+        revision,
+        StateFenceV2::from_bytes(fence).map_err(|_| IpcError::InvalidConfiguration)?,
+    );
+    let config = read_array::<40>(configuration, "authority-config.bin")?;
+    let mut config_generation = [0u8; 8];
+    config_generation.copy_from_slice(&config[0..8]);
+    let mut config_digest = [0u8; 32];
+    config_digest.copy_from_slice(&config[8..40]);
+    let config =
+        DeploymentConfigRevisionV2::new(u64::from_be_bytes(config_generation), config_digest)
+            .map_err(|_| IpcError::InvalidConfiguration)?;
+    AuthorityWireIdentityV2::new(
+        AuthorityClientIdV2::from_bytes(read_array(configuration, "authority-client-id.bin")?)
+            .map_err(|_| IpcError::InvalidConfiguration)?,
+        AuthorityServerIdV2::from_bytes(read_array(configuration, "authority-server-id.bin")?)
+            .map_err(|_| IpcError::InvalidConfiguration)?,
+        AuthorityEpochV2::from_bytes(read_array(configuration, "authority-epoch.bin")?)
+            .map_err(|_| IpcError::InvalidConfiguration)?,
+        state_head,
+        config,
     )
     .map_err(|_| IpcError::InvalidConfiguration)
 }

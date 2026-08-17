@@ -27,6 +27,16 @@ use q_periapt_policy::{
 use q_periapt_sig::Signer;
 
 use crate::authentication::{sign_envelope, verify_envelope};
+use crate::authority::{
+    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityQueryResultV2,
+    AuthorityReceiptV2, AuthoritySnapshotV2, AuthorityStateV2, DeploymentConfigRevisionV2,
+    OperationIdV2, StateFenceV2, StateHeadV2, StateRevisionV2, TrustedClockErrorV2, TrustedClockV2,
+};
+use crate::authority_protocol::{
+    AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityUnknownV2,
+    DurablyRetainedAuthorityReceiptV2,
+};
+use crate::authority_transport::{AuthorityTransportErrorV2, InstanceAuthorityPort};
 use crate::codec::{
     encode_domain, read_frame, require_domain, write_frame, Decoder, Encoder, MAX_FRAME_BYTES,
 };
@@ -620,6 +630,185 @@ impl WitnessPort for MemoryWitness {
     }
 }
 
+const MEMORY_AUTHORITY_LEASE_TTL_MILLIS: u64 = 10_000;
+const MEMORY_AUTHORITY_EPOCH_MILLIS: u64 = 1_000_000;
+
+struct FixedClock(u64);
+
+impl TrustedClockV2 for FixedClock {
+    fn now_millis(&self) -> Result<u64, TrustedClockErrorV2> {
+        Ok(self.0)
+    }
+}
+
+/// In-process instance-lease authority sharing one Stage 1 state per deployment.
+///
+/// Cloning shares the same authority, so two agents built over one clone pair
+/// model a recovery clone or concurrent second instance against one deployment.
+#[derive(Clone)]
+struct MemoryAuthority {
+    state: Arc<Mutex<MemoryAuthorityState>>,
+}
+
+struct MemoryAuthorityState {
+    authority: AuthorityStateV2,
+    config: DeploymentConfigRevisionV2,
+    now_millis: u64,
+    unknown_after_apply: bool,
+}
+
+fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
+    match error {
+        AuthorityErrorV2::ClockUnavailable => AuthorityKnownFailureV2::ClockUnavailable,
+        AuthorityErrorV2::OperationConflict => AuthorityKnownFailureV2::OperationConflict,
+        AuthorityErrorV2::AuthorityVersionMismatch => {
+            AuthorityKnownFailureV2::AuthorityVersionMismatch
+        }
+        AuthorityErrorV2::AuthorityVersionExhausted => {
+            AuthorityKnownFailureV2::AuthorityVersionExhausted
+        }
+        AuthorityErrorV2::ReceiptCapacityExceeded => {
+            AuthorityKnownFailureV2::ReceiptCapacityExceeded
+        }
+        _ => AuthorityKnownFailureV2::AllocationFailed,
+    }
+}
+
+impl MemoryAuthority {
+    fn new() -> TestResult<Self> {
+        let head = StateHeadV2::new(
+            StateRevisionV2::new(1, [41u8; 32], 1, [43u8; 32])?,
+            StateFenceV2::from_bytes([44u8; 32])?,
+        );
+        let config = DeploymentConfigRevisionV2::new(1, [45u8; 32])?;
+        let authority = AuthorityStateV2::provision(
+            head,
+            config,
+            AuthorityLimitsV2::new(64, 16, 16, MEMORY_AUTHORITY_LEASE_TTL_MILLIS)?,
+            &FixedClock(MEMORY_AUTHORITY_EPOCH_MILLIS),
+        )?;
+        Ok(Self {
+            state: Arc::new(Mutex::new(MemoryAuthorityState {
+                authority,
+                config,
+                now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
+                unknown_after_apply: false,
+            })),
+        })
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, MemoryAuthorityState> {
+        self.state.lock().expect("memory authority poisoned")
+    }
+
+    fn advance_clock(&self, delta_millis: u64) {
+        let mut state = self.lock();
+        state.now_millis += delta_millis;
+    }
+
+    fn expire_active_lease(&self) {
+        self.advance_clock(MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1);
+    }
+
+    fn make_next_unknown(&self) {
+        self.lock().unknown_after_apply = true;
+    }
+
+    fn lease_call(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        Ok(match state.authority.apply(&clock, intent) {
+            Ok(receipt) => {
+                if state.unknown_after_apply {
+                    state.unknown_after_apply = false;
+                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+                } else {
+                    AuthorityOutcomeV2::Known(receipt)
+                }
+            }
+            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+        })
+    }
+}
+
+impl InstanceAuthorityPort for MemoryAuthority {
+    fn wire_config(&self) -> DeploymentConfigRevisionV2 {
+        self.lock().config
+    }
+
+    fn snapshot(
+        &self,
+    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        Ok(match state.authority.snapshot(&clock) {
+            Ok(snapshot) => AuthorityOutcomeV2::Known(snapshot),
+            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+        })
+    }
+
+    fn acquire(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.lease_call(intent)
+    }
+
+    fn renew(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.lease_call(intent)
+    }
+
+    fn release(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.lease_call(intent)
+    }
+
+    fn query(
+        &self,
+        operation_id: OperationIdV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+        let mut state = self.lock();
+        if let Some(receipt) = state.authority.receipt(operation_id) {
+            return Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(
+                Box::new(receipt),
+            )));
+        }
+        let clock = FixedClock(state.now_millis);
+        Ok(match state.authority.snapshot(&clock) {
+            Ok(snapshot) => AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                authority_version: snapshot.authority_version(),
+            }),
+            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+        })
+    }
+
+    fn acknowledge(
+        &self,
+        retained: &DurablyRetainedAuthorityReceiptV2,
+    ) -> Result<
+        AuthorityOutcomeV2<crate::authority::ReceiptAckDispositionV2>,
+        AuthorityTransportErrorV2,
+    > {
+        let mut state = self.lock();
+        Ok(
+            match state.authority.acknowledge_receipt(retained.locator()) {
+                Ok(disposition) => AuthorityOutcomeV2::Known(disposition),
+                Err(_) => AuthorityOutcomeV2::KnownFailure(
+                    AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
+                ),
+            },
+        )
+    }
+}
+
 struct PolicyMaterial {
     bundle: SignedPolicyBundle,
     authenticated: AuthenticatedPolicy,
@@ -777,9 +966,10 @@ fn migration_material(policy: &AuthenticatedPolicy) -> TestResult<MigrationMater
 }
 
 struct AgentPair {
-    initiator: PolicyAgent<MemoryWitness>,
-    responder: PolicyAgent<MemoryWitness>,
+    initiator: PolicyAgent<MemoryWitness, MemoryAuthority>,
+    responder: PolicyAgent<MemoryWitness, MemoryAuthority>,
     witness: MemoryWitness,
+    initiator_authority: MemoryAuthority,
     committed: CommittedMigrationStateV1,
     migration: MigrationMaterial,
     initiator_config: AgentConfig,
@@ -839,12 +1029,20 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
         policy.bundle.clone(),
         policy.bundle.clone(),
     )?;
+    let initiator_authority = MemoryAuthority::new()?;
+    let responder_authority = MemoryAuthority::new()?;
     let initiator = PolicyAgent::new(
         initiator_repository,
         witness.clone(),
+        initiator_authority.clone(),
         initiator_config.clone(),
     )?;
-    let responder = PolicyAgent::new(responder_repository, witness.clone(), responder_config)?;
+    let responder = PolicyAgent::new(
+        responder_repository,
+        witness.clone(),
+        responder_authority.clone(),
+        responder_config,
+    )?;
     let initiator_public_keys = initiator.public_keys()?;
     let responder_public_keys = responder.public_keys()?;
     let session_id = MigrationSessionId::from_bytes([session_byte; 32]);
@@ -874,6 +1072,7 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
         initiator,
         responder,
         witness,
+        initiator_authority,
         committed,
         migration,
         initiator_config,
@@ -1062,6 +1261,7 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -1071,9 +1271,15 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
     let reopened_repository =
         StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
-    let reopened = PolicyAgent::new(reopened_repository, witness, initiator_config)?;
+    let reopened = PolicyAgent::new(
+        reopened_repository,
+        witness,
+        initiator_authority,
+        initiator_config,
+    )?;
     let replay_after_restart = reopened.begin_encapsulation(BeginEncapsulation::new(
         initiator_authorization,
         responder_public_keys,
@@ -1368,6 +1574,7 @@ fn restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone(
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -1377,10 +1584,11 @@ fn restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone(
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
 
     let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
     assert_eq!(repository.restart_rejections(), 1);
-    let reopened = PolicyAgent::new(repository, witness, initiator_config)?;
+    let reopened = PolicyAgent::new(repository, witness, initiator_authority, initiator_config)?;
     assert_eq!(
         reopened
             .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
@@ -1472,6 +1680,7 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -1479,6 +1688,7 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
 
     let repository =
         StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
@@ -1492,7 +1702,12 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
         initial_state.posture(),
         initial_state.allowed_suites(),
     )?;
-    let agent = PolicyAgent::new(repository, witness.clone(), initiator_config)?;
+    let agent = PolicyAgent::new(
+        repository,
+        witness.clone(),
+        initiator_authority,
+        initiator_config,
+    )?;
     agent.apply_advance(&floor_three_certificate)?;
     drop(agent);
 
@@ -1536,7 +1751,15 @@ fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> Test
 
     let old_repository =
         StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
-    let rolled_back = PolicyAgent::new(old_repository, pair.witness, pair.initiator_config);
+    // A fresh deployment authority isolates this assertion to the witness
+    // rollback check; the shared-authority clone case is covered by the
+    // dedicated instance-lease fencing tests.
+    let rolled_back = PolicyAgent::new(
+        old_repository,
+        pair.witness,
+        MemoryAuthority::new()?,
+        pair.initiator_config,
+    );
     assert!(matches!(rolled_back, Err(AgentError::RollbackOrFork)));
     Ok(())
 }
@@ -1561,6 +1784,7 @@ fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() 
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -1568,9 +1792,10 @@ fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() 
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
     let repository =
         StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
-    let restarted = PolicyAgent::new(repository, witness, initiator_config)?;
+    let restarted = PolicyAgent::new(repository, witness, initiator_authority, initiator_config)?;
     assert_eq!(
         restarted.public_keys(),
         Err(AgentError::ExecutionUnavailable)
@@ -1609,6 +1834,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_repository_path,
         endpoint_policy_bundle,
@@ -1616,6 +1842,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
     let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
     let (_, initiator_vk) = MlDsa65::generate([51u8; 32]);
     let (_, responder_vk) = MlDsa65::generate([52u8; 32]);
@@ -1628,7 +1855,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
         endpoint_policy_bundle.clone(),
         endpoint_policy_bundle,
     )?;
-    let restarted = PolicyAgent::new(repository, witness, updated_config)?;
+    let restarted = PolicyAgent::new(repository, witness, initiator_authority, updated_config)?;
     assert!(restarted.public_keys().is_ok());
     Ok(())
 }
@@ -1746,7 +1973,7 @@ fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operati
         policy.bundle.clone(),
         policy.bundle,
     )?;
-    let agent = PolicyAgent::new(reopened, witness.clone(), config)?;
+    let agent = PolicyAgent::new(reopened, witness.clone(), MemoryAuthority::new()?, config)?;
     agent.reconcile_transition()?;
     assert!(matches!(
         witness.query(operation)?,
@@ -1785,4 +2012,182 @@ fn crash_after_durable_intent_child() -> TestResult {
     certificate_file.read_to_end(&mut certificate)?;
     repository.prepare_advance(&certificate)?;
     std::process::exit(86);
+}
+
+#[test]
+fn second_instance_on_same_authority_is_fenced_at_construction() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 33)?;
+    // No transition has happened, so the snapshot copy equals the live state
+    // and only the instance lease separates the clone from the live holder.
+    let clone_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let clone = PolicyAgent::new(
+        clone_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    );
+    assert!(matches!(clone, Err(AgentError::InstanceFenced)));
+    // The live holder keeps its lease-guarded operations.
+    let _live = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    Ok(())
+}
+
+#[test]
+fn expired_lease_successor_fences_out_live_instance_and_erases_secrets() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 34)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            encapsulated.ciphertexts.clone(),
+        ))?)?;
+    let responder_acceptance = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    pair.initiator
+        .accept_responder_finished(encapsulated.handle, responder_acceptance.responder_finished)?;
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (1, 1));
+
+    // The holder's lease reaches witness-clock expiry; a successor clone
+    // acquires the next generation over the identical migration state.
+    pair.initiator_authority.expire_active_lease();
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+
+    // The superseded instance is fenced on its next guarded operation and
+    // erases every in-process pending and accepted secret first.
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (0, 0));
+    // Fencing is permanent for this instance, even after the successor stops.
+    successor.release_instance_lease()?;
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    Ok(())
+}
+
+#[test]
+fn released_lease_is_idempotent_and_hands_over_without_ttl_wait() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 35)?;
+    pair.initiator.release_instance_lease()?;
+    pair.initiator.release_instance_lease()?;
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    successor.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn lost_lease_responses_reconcile_by_exact_operation_query() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 36)?;
+    // Advance the trusted clock so the next renewal strictly extends and is
+    // Applied rather than short-circuited as not-extended.
+    pair.initiator_authority.advance_clock(1_000);
+    pair.initiator_authority.make_next_unknown();
+    let _encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+
+    // A lost acquire response is likewise reconciled by the successor itself.
+    pair.initiator.release_instance_lease()?;
+    pair.initiator_authority.make_next_unknown();
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    successor.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn concurrent_instances_race_to_exactly_one_lease() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 38)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        old_snapshot_path,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+    initiator_authority.expire_active_lease();
+    let repository_a =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    let repository_b = StateRepository::open_existing(&old_snapshot_path, migration.roots)?;
+    let barrier = Arc::new(Barrier::new(2));
+    let spawn_instance = |repository: StateRepository| {
+        let witness = witness.clone();
+        let authority = initiator_authority.clone();
+        let config = initiator_config.clone();
+        let barrier = Arc::clone(&barrier);
+        thread::spawn(move || {
+            barrier.wait();
+            PolicyAgent::new(repository, witness, authority, config).map(drop)
+        })
+    };
+    let first = spawn_instance(repository_a);
+    let second = spawn_instance(repository_b);
+    let outcomes = [
+        first.join().map_err(|_| io::Error::other("join failed"))?,
+        second.join().map_err(|_| io::Error::other("join failed"))?,
+    ];
+    let acquired = outcomes.iter().filter(|outcome| outcome.is_ok()).count();
+    let fenced = outcomes
+        .iter()
+        .filter(|outcome| matches!(outcome, Err(AgentError::InstanceFenced)))
+        .count();
+    assert_eq!((acquired, fenced), (1, 1));
+    Ok(())
 }
