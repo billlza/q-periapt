@@ -2126,10 +2126,10 @@ def validate_package_manifest(
         release_identity = {
             "product_version": expected_version,
             "revision": "r1",
-            "tag": f"v{expected_version}-r1",
+            "tag": f"v{expected_version}",
             "url": (
                 "https://github.com/billlza/q-periapt/releases/tag/"
-                f"v{expected_version}-r1"
+                f"v{expected_version}"
             ),
         }
         require_exact_json(
