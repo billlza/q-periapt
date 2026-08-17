@@ -1446,24 +1446,38 @@ def parse_stable_tag_rulesets(
                 )
                 admitted_rules.add(rule_type)
             elif rule_type == "update":
-                _exact_keys(
-                    rule,
-                    frozenset({"type", "parameters"}),
-                    "GitHub stable tag update rule",
-                )
-                parameters = _object(
-                    rule.get("parameters"),
-                    "GitHub stable tag update parameters",
-                )
-                _exact_keys(
-                    parameters,
-                    frozenset({"update_allows_fetch_and_merge"}),
-                    "GitHub stable tag update parameters",
-                )
-                _require(
-                    parameters.get("update_allows_fetch_and_merge") is False,
-                    "GitHub stable tag update rule permits an alternate update",
-                )
+                # The live tag-target rulesets API stores the update rule
+                # without parameters: the branch-only fetch-and-merge
+                # concession is stripped on write, so the bare rule is the
+                # strict no-update form. The explicit parameters shape is
+                # still accepted for older inventories and must pin the
+                # concession to False; any other concession value or key
+                # remains a refusal.
+                if "parameters" in rule:
+                    _exact_keys(
+                        rule,
+                        frozenset({"type", "parameters"}),
+                        "GitHub stable tag update rule",
+                    )
+                    parameters = _object(
+                        rule.get("parameters"),
+                        "GitHub stable tag update parameters",
+                    )
+                    _exact_keys(
+                        parameters,
+                        frozenset({"update_allows_fetch_and_merge"}),
+                        "GitHub stable tag update parameters",
+                    )
+                    _require(
+                        parameters.get("update_allows_fetch_and_merge") is False,
+                        "GitHub stable tag update rule permits an alternate update",
+                    )
+                else:
+                    _exact_keys(
+                        rule,
+                        frozenset({"type"}),
+                        "GitHub stable tag update rule",
+                    )
                 admitted_rules.add(rule_type)
         protected_rules = admitted_rules & required_rules
         if protected_rules:

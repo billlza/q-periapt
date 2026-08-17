@@ -1479,9 +1479,29 @@ class GitHubReleaseObservationTests(unittest.TestCase):
         self.assertEqual((42,), parsed.ruleset_ids)
         self.assertRegex(parsed.observation_sha256, r"^[0-9a-f]{64}$")
 
+        bare_update = copy.deepcopy(valid)
+        bare_update["rules"][0] = {"type": "update"}
+        parsed_bare = observation.parse_stable_tag_rulesets(
+            _json([{"id": 42}]),
+            {42: _json(bare_update)},
+        )
+        self.assertEqual((42,), parsed_bare.ruleset_ids)
+
         cases: tuple[
             tuple[str, Callable[[dict[str, Any]], None], str], ...
         ] = (
+            (
+                "update concession",
+                lambda value: value["rules"][0]["parameters"].__setitem__(
+                    "update_allows_fetch_and_merge", True
+                ),
+                "permits an alternate update",
+            ),
+            (
+                "update extra key",
+                lambda value: value["rules"][0].__setitem__("checks", []),
+                "update rule keys differ",
+            ),
             (
                 "missing deletion",
                 lambda value: value["rules"].pop(),
