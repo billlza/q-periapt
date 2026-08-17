@@ -396,10 +396,10 @@ with release_index._release_pointer_lock(pointer):
                 "release_identity": {
                     "product_version": trust.version,
                     "revision": "r1",
-                    "tag": f"v{trust.version}-r1",
+                    "tag": f"v{trust.version}",
                     "url": (
                         "https://github.com/billlza/q-periapt/releases/tag/"
-                        f"v{trust.version}-r1"
+                        f"v{trust.version}"
                     ),
                 },
                 "type": "swiftpm-binaryTarget-xcframework",
