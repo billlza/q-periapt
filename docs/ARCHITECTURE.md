@@ -389,7 +389,7 @@ The sys crate uses an exact compile-time allowlist. The little-endian targets
 native arithmetic together with the fixed Armv8-A scalar x1 and Armv8-A
 scalar/Neon x4 FIPS 202 assembly paths. Every other target uses portable C,
 including x86, Windows/MSVC, Wasm, and freestanding builds. Native cells force
-`-march=armv8-a`, reject contradictory target metadata and caller backend flags,
+`-march=armv8-a+nosha3`, reject contradictory target metadata and caller backend flags,
 and provide neither runtime CPU dispatch nor an Armv8.4-A SHA3-extension path.
 The selection lives below the primitive adapter: ABI 2 exports, key/ciphertext
 formats, suite/profile policy, and combiner wire bytes are unchanged.

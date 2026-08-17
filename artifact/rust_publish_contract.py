@@ -2657,9 +2657,9 @@ def validate_cargo_package_completion(
 
 _ALLOWED_BUILD_MODULE = '#[path = "src/build_support.rs"]\nmod build_support;'
 _EXPECTED_LOCAL_SOURCE_SHA256 = {
-    "build.rs": "e199e6530d937072d000e5d51c667ac54e4d9096338bb3e68d75f37bfe2dfbaa",
-    "src/build_support.rs": "9860e84623dabcd39b653ad68458b4fda381673248ee31fc5a155566417883ea",
-    "src/build_support_tests.rs": "cbbb3a33a0ef3aca5ec27be391fa9731887f5c1d2ac697d4dc14362f616685a3",
+    "build.rs": "4508b5566073e685af03da81fdb1afc0ef0b7e58e9be44c9980ab39731e7cbfe",
+    "src/build_support.rs": "244b5d33e16a022e4bb472a19af5ae107e524bd82de8581f8a4248c26006e8dd",
+    "src/build_support_tests.rs": "e63547c116d11ca26d5c0378cbe6556944cb6ab556d8ee71910efa7493541014",
     "src/lib.rs": "e0026393fd51570ff78d50446d462f583eec800bfd6a3f57c42a5e92f9326868",
     "src/mlkem_bridge.c": "c12dbf268527fff0241a79f84f8dbcade065b37f3c76060f4f95c03a83bf149d",
     "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
@@ -3144,7 +3144,7 @@ def _validate_build_topology(build_rs: str, build_support: str) -> None:
 def _validate_native_compiler_contract(build_rs: str, build_support: str) -> None:
     march_values = re.findall(r'"(-march=[^"]*)"', build_rs)
     required_build_shapes = (
-        'build.inherit_rustflags(false).flag("-march=armv8-a");',
+        'build.inherit_rustflags(false).flag("-march=armv8-a+nosha3");',
         "validate_native_build_environment()?;",
         'let required_platform_define = (target_os == "android").then_some("-DANDROID");',
         "build_support::validate_native_compiler_arguments( arguments.iter().copied(), required_platform_define, )",
@@ -3166,14 +3166,14 @@ def _validate_native_compiler_contract(build_rs: str, build_support: str) -> Non
         'argument.starts_with("-Xpreprocessor")',
         'argument.starts_with("-Xassembler")',
         'argument.starts_with("-mllvm")',
-        'if argument == "-march=armv8-a"',
+        'if argument == "-march=armv8-a+nosha3"',
         "required_platform_define == Some(argument)",
         "MissingPlatformDefine",
         "DuplicatePlatformDefine",
         '"branch-protection"',
     )
     if (
-        march_values != ["-march=armv8-a"]
+        march_values != ["-march=armv8-a+nosha3"]
         or build_rs.count("inherit_rustflags(false)") != 1
         or any(shape not in compact_build for shape in required_build_shapes)
         or any(shape not in build_support for shape in required_guard_shapes)

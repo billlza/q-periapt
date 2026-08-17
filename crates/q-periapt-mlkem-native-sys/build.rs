@@ -171,7 +171,11 @@ fn configured_build(
         build.define("QPN_MLKEM_FREESTANDING", None);
     }
     if implementation.uses_aarch64_native() {
-        build.inherit_rustflags(false).flag("-march=armv8-a");
+        // The explicit +nosha3 pin is load-bearing: newer Apple simulator
+        // drivers keep the default CPU's sha3 feature despite a bare
+        // -march=armv8-a, and the owned AArch64 FIPS 202 path must never
+        // see the Armv8.4-A SHA3 extension.
+        build.inherit_rustflags(false).flag("-march=armv8-a+nosha3");
     }
     build
 }
