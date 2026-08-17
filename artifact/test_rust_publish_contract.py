@@ -3301,7 +3301,7 @@ class RustPublishContractTests(unittest.TestCase):
             },
             "changed march": {
                 "build_rs": self.build_rs.replace(
-                    '"-march=armv8-a"', '"-march=armv8.4-a+sha3"', 1
+                    '"-march=armv8-a+nosha3"', '"-march=armv8.4-a+sha3"', 1
                 ),
                 "message": "compiler flag/ambient override guard",
             },

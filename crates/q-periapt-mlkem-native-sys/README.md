@@ -39,7 +39,7 @@ The build selects upstream AArch64 native arithmetic and a fixed Armv8-A FIPS
 - `aarch64-unknown-linux-gnu`
 - `aarch64-linux-android`
 
-Those builds require GCC or Clang, force `-march=armv8-a`, compile the upstream
+Those builds require GCC or Clang, force `-march=armv8-a+nosha3`, compile the upstream
 assembly SCU exactly once, and use the upstream scalar x1 plus Armv8-A scalar/
 Neon x4 Keccak implementations. SHA3-extension selection is deliberately
 rejected, so the resulting artifacts have no compiler-dependent v8.4-A path or

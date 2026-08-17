@@ -220,7 +220,7 @@ fn native_compiler_contract_allows_owned_baseline_and_reproducible_path_maps() {
                 "-O2",
                 "-I",
                 "src",
-                "-march=armv8-a",
+                "-march=armv8-a+nosha3",
                 "-ffile-prefix-map=/private/source=/qperiapt/source",
                 "-fdebug-prefix-map=/private/source=/qperiapt/source",
                 "-fmacro-prefix-map=/private/source=/qperiapt/source",
@@ -231,7 +231,7 @@ fn native_compiler_contract_allows_owned_baseline_and_reproducible_path_maps() {
     );
     assert_eq!(
         validate_native_compiler_arguments(
-            ["-O2", "-DANDROID", "-march=armv8-a"],
+            ["-O2", "-DANDROID", "-march=armv8-a+nosha3"],
             Some("-DANDROID"),
         ),
         Ok(())
@@ -245,7 +245,10 @@ fn native_compiler_contract_rejects_missing_duplicate_and_override_arguments() {
         Err(NativeCompilerArgumentsError::MissingArmv8Baseline)
     );
     assert_eq!(
-        validate_native_compiler_arguments(["-march=armv8-a", "-march=armv8-a"], None,),
+        validate_native_compiler_arguments(
+            ["-march=armv8-a+nosha3", "-march=armv8-a+nosha3"],
+            None,
+        ),
         Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline)
     );
     for forbidden in [
@@ -281,20 +284,20 @@ fn native_compiler_contract_rejects_missing_duplicate_and_override_arguments() {
         "@hostile.rsp",
     ] {
         assert_eq!(
-            validate_native_compiler_arguments(["-march=armv8-a", forbidden], None),
+            validate_native_compiler_arguments(["-march=armv8-a+nosha3", forbidden], None),
             Err(NativeCompilerArgumentsError::Forbidden(forbidden)),
             "argument {forbidden}"
         );
     }
     assert_eq!(
-        validate_native_compiler_arguments(["-march=armv8-a"], Some("-DANDROID")),
+        validate_native_compiler_arguments(["-march=armv8-a+nosha3"], Some("-DANDROID")),
         Err(NativeCompilerArgumentsError::MissingPlatformDefine(
             "-DANDROID"
         ))
     );
     assert_eq!(
         validate_native_compiler_arguments(
-            ["-march=armv8-a", "-DANDROID", "-DANDROID"],
+            ["-march=armv8-a+nosha3", "-DANDROID", "-DANDROID"],
             Some("-DANDROID"),
         ),
         Err(NativeCompilerArgumentsError::DuplicatePlatformDefine(

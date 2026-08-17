@@ -63,10 +63,10 @@ impl fmt::Display for NativeCompilerArgumentsError<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingArmv8Baseline => {
-                formatter.write_str("the owned -march=armv8-a flag is missing")
+                formatter.write_str("the owned -march=armv8-a+nosha3 flag is missing")
             }
             Self::DuplicateArmv8Baseline => {
-                formatter.write_str("the owned -march=armv8-a flag is not unique")
+                formatter.write_str("the owned -march=armv8-a+nosha3 flag is not unique")
             }
             Self::MissingPlatformDefine(argument) => {
                 write!(
@@ -122,7 +122,7 @@ pub(crate) fn validate_native_compiler_arguments<'argument>(
     let mut baseline_count = 0_u8;
     let mut platform_define_count = 0_u8;
     for argument in arguments {
-        if argument == "-march=armv8-a" {
+        if argument == "-march=armv8-a+nosha3" {
             baseline_count = baseline_count.saturating_add(1);
             continue;
         }
