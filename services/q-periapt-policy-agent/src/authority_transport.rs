@@ -566,7 +566,7 @@ pub struct ReferenceAuthorityServerV2 {
     limits: AuthorityTransportLimitsV2,
     nonces: NonceCacheV2,
     quarantined: bool,
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     fail_next_response: bool,
 }
 
@@ -662,7 +662,7 @@ impl ReferenceAuthorityServerV2 {
             limits,
             nonces,
             quarantined: false,
-            #[cfg(test)]
+            #[cfg(all(test, unix))]
             fail_next_response: false,
         };
         server.preflight()?;
@@ -812,13 +812,13 @@ impl ReferenceAuthorityServerV2 {
             request_digest,
             disposition,
         };
-        #[cfg(test)]
+        #[cfg(all(test, unix))]
         let fail_response = {
             let fail = self.fail_next_response;
             self.fail_next_response = false;
             fail
         };
-        #[cfg(not(test))]
+        #[cfg(not(all(test, unix)))]
         let fail_response = false;
         if !fail_response {
             let _ = send_response(
@@ -868,7 +868,7 @@ impl ReferenceAuthorityServerV2 {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     fn fail_next_response_for_test(&mut self) {
         self.fail_next_response = true;
     }
