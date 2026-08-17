@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Cursor, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -14,24 +14,40 @@ use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
 use q_periapt_migration::{
     CapabilityOfferInputV1, CapabilityOfferV1, CommittedMigrationStateV1, ComponentMode,
-    EndpointKeyShareV1, EndpointRole, MigrationAuthorityKeyId, MigrationChainId,
-    MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId, MigrationResetNonce,
-    MigrationResetV1, MigrationSecurityPosture, MigrationSessionId, MigrationStateDigest,
-    MigrationStateDraftV1, MigrationStateV1, MigrationSuiteSet, SecurityFloor,
-    SignedCapabilityOfferV1, SignedMigrationResetV1, SignedMigrationStateV1, StateCertificateKind,
+    EndpointKeyShareV1, EndpointRole, InitiatorFinishedV1, MigrationAuthorityKeyId,
+    MigrationChainId, MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId,
+    MigrationResetNonce, MigrationResetV1, MigrationSecurityPosture, MigrationSessionId,
+    MigrationStateDigest, MigrationStateDraftV1, MigrationStateV1, MigrationSuiteSet,
+    ResponderFinishedV1, SecurityFloor, SignedCapabilityOfferV1, SignedMigrationResetV1,
+    SignedMigrationStateV1, StateCertificateKind,
 };
 use q_periapt_policy::{
     policy_signature_message, AuthenticatedPolicy, HybridSuite, Policy, TrustedPolicyState,
 };
 use q_periapt_sig::Signer;
 
-use crate::codec::read_frame;
+use crate::authentication::{sign_envelope, verify_envelope};
+use crate::authority::{
+    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityQueryResultV2,
+    AuthorityReceiptV2, AuthoritySnapshotV2, AuthorityStateV2, DeploymentConfigRevisionV2,
+    OperationIdV2, StateFenceV2, StateHeadV2, StateRevisionV2, TrustedClockErrorV2, TrustedClockV2,
+};
+use crate::authority_protocol::{
+    AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityUnknownV2,
+    DurablyRetainedAuthorityReceiptV2,
+};
+use crate::authority_transport::{AuthorityTransportErrorV2, InstanceAuthorityPort};
+use crate::codec::{
+    encode_domain, read_frame, require_domain, write_frame, Decoder, Encoder, MAX_FRAME_BYTES,
+};
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::{open_private_file, OwnedPrivateDirectory, PrivateFileError};
 use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
-    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginEncapsulation, EndpointIdentity,
-    PolicyAgent, SessionAuthorization, SignedPolicyBundle,
+    AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
+    BeginEncapsulation, BeginEncapsulationResult, EndpointIdentity, InitiatorDecapsulationResult,
+    InitiatorEncapsulationResult, PolicyAgent, ResponderDecapsulationResult,
+    ResponderEncapsulationResult, SessionAuthorization, SignedPolicyBundle,
 };
 use crate::types::{
     FenceToken, OperationId, StateAdvance, StateHead, StateRevision, TransitionKind,
@@ -427,6 +443,115 @@ fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
         .map_err(|_| io::Error::other("test worker panicked").into())
 }
 
+struct FailingWriteTransport {
+    input: Cursor<Vec<u8>>,
+}
+
+impl Read for FailingWriteTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.input.read(output)
+    }
+}
+
+impl Write for FailingWriteTransport {
+    fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "intentional response write failure",
+        ))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "intentional response flush failure",
+        ))
+    }
+}
+
+struct CaptureTransport {
+    input: Cursor<Vec<u8>>,
+    output: Vec<u8>,
+}
+
+impl Read for CaptureTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.input.read(output)
+    }
+}
+
+impl Write for CaptureTransport {
+    fn write(&mut self, input: &[u8]) -> io::Result<usize> {
+        self.output.extend_from_slice(input);
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+fn framed_accept_initiator_request(
+    signing_key: &[u8],
+    nonce: [u8; 32],
+    handle: crate::PendingSessionHandle,
+    finished: InitiatorFinishedV1,
+) -> TestResult<Vec<u8>> {
+    let mut body = Encoder::new(MAX_FRAME_BYTES);
+    encode_domain(&mut body, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC domain encoding failed: {error:?}")))?;
+    body.fixed(&nonce)
+        .and_then(|()| body.byte(4))
+        .and_then(|()| body.fixed(handle.as_bytes()))
+        .and_then(|()| body.fixed(finished.as_bytes()))
+        .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
+    let envelope = sign_envelope(&body.finish(), signing_key)
+        .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
+    let mut framed = Vec::new();
+    write_frame(&mut framed, &envelope)
+        .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
+    Ok(framed)
+}
+
+fn decode_responder_acceptance_response(
+    framed: &[u8],
+    verification_key: &[u8],
+    expected_nonce: [u8; 32],
+) -> TestResult<([u8; 32], [u8; 32])> {
+    let envelope = read_frame(&mut Cursor::new(framed))
+        .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
+    let body = verify_envelope(&envelope, verification_key)
+        .map_err(|error| io::Error::other(format!("IPC response signature failed: {error:?}")))?;
+    let mut decoder = Decoder::new(body);
+    require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
+    let nonce: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
+    assert_eq!(nonce, expected_nonce);
+    let _: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    let status = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
+    assert_eq!(status, 0);
+    let tag = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response tag failed: {error:?}")))?;
+    assert_eq!(tag, 7);
+    let key_handle = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC key handle failed: {error:?}")))?;
+    let responder_finished = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC Finished failed: {error:?}")))?;
+    decoder
+        .finish()
+        .map_err(|error| io::Error::other(format!("IPC trailing bytes: {error:?}")))?;
+    Ok((key_handle, responder_finished))
+}
+
 #[derive(Clone)]
 struct MemoryWitness {
     state: Arc<Mutex<MemoryWitnessState>>,
@@ -451,6 +576,14 @@ impl MemoryWitness {
 
     fn make_next_unknown(&self) {
         self.unknown_after_apply.store(true, Ordering::Release);
+    }
+
+    fn replace_head(&self, head: StateHead) -> Result<(), WitnessError> {
+        self.state
+            .lock()
+            .map_err(|_| WitnessError::Persistence)?
+            .head = head;
+        Ok(())
     }
 }
 
@@ -494,6 +627,185 @@ impl WitnessPort for MemoryWitness {
                 .copied()
                 .unwrap_or_else(|| WitnessReceipt::not_applied(state.head)),
         )))
+    }
+}
+
+const MEMORY_AUTHORITY_LEASE_TTL_MILLIS: u64 = 10_000;
+const MEMORY_AUTHORITY_EPOCH_MILLIS: u64 = 1_000_000;
+
+struct FixedClock(u64);
+
+impl TrustedClockV2 for FixedClock {
+    fn now_millis(&self) -> Result<u64, TrustedClockErrorV2> {
+        Ok(self.0)
+    }
+}
+
+/// In-process instance-lease authority sharing one Stage 1 state per deployment.
+///
+/// Cloning shares the same authority, so two agents built over one clone pair
+/// model a recovery clone or concurrent second instance against one deployment.
+#[derive(Clone)]
+struct MemoryAuthority {
+    state: Arc<Mutex<MemoryAuthorityState>>,
+}
+
+struct MemoryAuthorityState {
+    authority: AuthorityStateV2,
+    config: DeploymentConfigRevisionV2,
+    now_millis: u64,
+    unknown_after_apply: bool,
+}
+
+fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
+    match error {
+        AuthorityErrorV2::ClockUnavailable => AuthorityKnownFailureV2::ClockUnavailable,
+        AuthorityErrorV2::OperationConflict => AuthorityKnownFailureV2::OperationConflict,
+        AuthorityErrorV2::AuthorityVersionMismatch => {
+            AuthorityKnownFailureV2::AuthorityVersionMismatch
+        }
+        AuthorityErrorV2::AuthorityVersionExhausted => {
+            AuthorityKnownFailureV2::AuthorityVersionExhausted
+        }
+        AuthorityErrorV2::ReceiptCapacityExceeded => {
+            AuthorityKnownFailureV2::ReceiptCapacityExceeded
+        }
+        _ => AuthorityKnownFailureV2::AllocationFailed,
+    }
+}
+
+impl MemoryAuthority {
+    fn new() -> TestResult<Self> {
+        let head = StateHeadV2::new(
+            StateRevisionV2::new(1, [41u8; 32], 1, [43u8; 32])?,
+            StateFenceV2::from_bytes([44u8; 32])?,
+        );
+        let config = DeploymentConfigRevisionV2::new(1, [45u8; 32])?;
+        let authority = AuthorityStateV2::provision(
+            head,
+            config,
+            AuthorityLimitsV2::new(64, 16, 16, MEMORY_AUTHORITY_LEASE_TTL_MILLIS)?,
+            &FixedClock(MEMORY_AUTHORITY_EPOCH_MILLIS),
+        )?;
+        Ok(Self {
+            state: Arc::new(Mutex::new(MemoryAuthorityState {
+                authority,
+                config,
+                now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
+                unknown_after_apply: false,
+            })),
+        })
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, MemoryAuthorityState> {
+        self.state.lock().expect("memory authority poisoned")
+    }
+
+    fn advance_clock(&self, delta_millis: u64) {
+        let mut state = self.lock();
+        state.now_millis += delta_millis;
+    }
+
+    fn expire_active_lease(&self) {
+        self.advance_clock(MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1);
+    }
+
+    fn make_next_unknown(&self) {
+        self.lock().unknown_after_apply = true;
+    }
+
+    fn lease_call(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        Ok(match state.authority.apply(&clock, intent) {
+            Ok(receipt) => {
+                if state.unknown_after_apply {
+                    state.unknown_after_apply = false;
+                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+                } else {
+                    AuthorityOutcomeV2::Known(receipt)
+                }
+            }
+            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+        })
+    }
+}
+
+impl InstanceAuthorityPort for MemoryAuthority {
+    fn wire_config(&self) -> DeploymentConfigRevisionV2 {
+        self.lock().config
+    }
+
+    fn snapshot(
+        &self,
+    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        Ok(match state.authority.snapshot(&clock) {
+            Ok(snapshot) => AuthorityOutcomeV2::Known(snapshot),
+            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+        })
+    }
+
+    fn acquire(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.lease_call(intent)
+    }
+
+    fn renew(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.lease_call(intent)
+    }
+
+    fn release(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.lease_call(intent)
+    }
+
+    fn query(
+        &self,
+        operation_id: OperationIdV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+        let mut state = self.lock();
+        if let Some(receipt) = state.authority.receipt(operation_id) {
+            return Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(
+                Box::new(receipt),
+            )));
+        }
+        let clock = FixedClock(state.now_millis);
+        Ok(match state.authority.snapshot(&clock) {
+            Ok(snapshot) => AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                authority_version: snapshot.authority_version(),
+            }),
+            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+        })
+    }
+
+    fn acknowledge(
+        &self,
+        retained: &DurablyRetainedAuthorityReceiptV2,
+    ) -> Result<
+        AuthorityOutcomeV2<crate::authority::ReceiptAckDispositionV2>,
+        AuthorityTransportErrorV2,
+    > {
+        let mut state = self.lock();
+        Ok(
+            match state.authority.acknowledge_receipt(retained.locator()) {
+                Ok(disposition) => AuthorityOutcomeV2::Known(disposition),
+                Err(_) => AuthorityOutcomeV2::KnownFailure(
+                    AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
+                ),
+            },
+        )
     }
 }
 
@@ -654,9 +966,10 @@ fn migration_material(policy: &AuthenticatedPolicy) -> TestResult<MigrationMater
 }
 
 struct AgentPair {
-    initiator: PolicyAgent<MemoryWitness>,
-    responder: PolicyAgent<MemoryWitness>,
+    initiator: PolicyAgent<MemoryWitness, MemoryAuthority>,
+    responder: PolicyAgent<MemoryWitness, MemoryAuthority>,
     witness: MemoryWitness,
+    initiator_authority: MemoryAuthority,
     committed: CommittedMigrationStateV1,
     migration: MigrationMaterial,
     initiator_config: AgentConfig,
@@ -665,6 +978,7 @@ struct AgentPair {
     old_snapshot_path: PathBuf,
     initiator_authorization: SessionAuthorization,
     responder_authorization: SessionAuthorization,
+    initiator_public_keys: EncapsulationPublicKeys,
     responder_public_keys: EncapsulationPublicKeys,
 }
 
@@ -715,12 +1029,20 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
         policy.bundle.clone(),
         policy.bundle.clone(),
     )?;
+    let initiator_authority = MemoryAuthority::new()?;
+    let responder_authority = MemoryAuthority::new()?;
     let initiator = PolicyAgent::new(
         initiator_repository,
         witness.clone(),
+        initiator_authority.clone(),
         initiator_config.clone(),
     )?;
-    let responder = PolicyAgent::new(responder_repository, witness.clone(), responder_config)?;
+    let responder = PolicyAgent::new(
+        responder_repository,
+        witness.clone(),
+        responder_authority.clone(),
+        responder_config,
+    )?;
     let initiator_public_keys = initiator.public_keys()?;
     let responder_public_keys = responder.public_keys()?;
     let session_id = MigrationSessionId::from_bytes([session_byte; 32]);
@@ -750,6 +1072,7 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
         initiator,
         responder,
         witness,
+        initiator_authority,
         committed,
         migration,
         initiator_config,
@@ -761,6 +1084,7 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
             responder_offer.clone(),
         )?,
         responder_authorization: SessionAuthorization::new(responder_offer, initiator_offer)?,
+        initiator_public_keys,
         responder_public_keys,
     })
 }
@@ -808,26 +1132,125 @@ fn signed_offer(input: SignedOfferInput<'_>) -> TestResult<Vec<u8>> {
     Ok(signed.encode()?)
 }
 
+fn initiator_encapsulation(
+    result: BeginEncapsulationResult,
+) -> TestResult<InitiatorEncapsulationResult> {
+    match result {
+        BeginEncapsulationResult::Initiator(result) => Ok(result),
+        BeginEncapsulationResult::Responder(_) => {
+            Err(io::Error::other("initiator returned responder begin state").into())
+        }
+    }
+}
+
+fn responder_encapsulation(
+    result: BeginEncapsulationResult,
+) -> TestResult<ResponderEncapsulationResult> {
+    match result {
+        BeginEncapsulationResult::Responder(result) => Ok(result),
+        BeginEncapsulationResult::Initiator(_) => {
+            Err(io::Error::other("responder returned initiator begin state").into())
+        }
+    }
+}
+
+fn initiator_decapsulation(
+    result: BeginDecapsulationResult,
+) -> TestResult<InitiatorDecapsulationResult> {
+    match result {
+        BeginDecapsulationResult::Initiator(result) => Ok(result),
+        BeginDecapsulationResult::Responder(_) => {
+            Err(io::Error::other("initiator returned responder begin state").into())
+        }
+    }
+}
+
+fn responder_decapsulation(
+    result: BeginDecapsulationResult,
+) -> TestResult<ResponderDecapsulationResult> {
+    match result {
+        BeginDecapsulationResult::Responder(result) => Ok(result),
+        BeginDecapsulationResult::Initiator(_) => {
+            Err(io::Error::other("responder returned initiator begin state").into())
+        }
+    }
+}
+
 #[test]
 fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_restart() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 1)?;
-    let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
-        pair.initiator_authorization.clone(),
-        pair.responder_public_keys.clone(),
-    ))?;
-    let decapsulated = pair.responder.begin_decapsulation(BeginDecapsulation::new(
-        pair.responder_authorization.clone(),
-        encapsulated.ciphertexts.clone(),
-    ))?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            encapsulated.ciphertexts.clone(),
+        ))?)?;
+
+    assert_eq!(
+        pair.initiator
+            .accept_initiator_finished(encapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::UnexpectedFlight)
+    );
+    assert_eq!(
+        pair.responder.accept_responder_finished(
+            decapsulated.handle,
+            ResponderFinishedV1::from_bytes([9u8; 32]),
+        ),
+        Err(AgentError::UnexpectedFlight)
+    );
+
+    let responder_acceptance = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,)?,
+        responder_acceptance
+    );
+    assert_eq!(
+        pair.responder.accept_initiator_finished(
+            decapsulated.handle,
+            InitiatorFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::ConflictingAcceptanceReplay)
+    );
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,)?,
+        responder_acceptance
+    );
     let initiator_key = pair
         .initiator
-        .confirm(encapsulated.handle, *decapsulated.local_finished.as_bytes())?;
-    let responder_key = pair
-        .responder
-        .confirm(decapsulated.handle, *encapsulated.local_finished.as_bytes())?;
+        .accept_responder_finished(encapsulated.handle, responder_acceptance.responder_finished)?;
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            responder_acceptance.responder_finished,
+        )?,
+        initiator_key
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            ResponderFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::ConflictingAcceptanceReplay)
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            responder_acceptance.responder_finished,
+        )?,
+        initiator_key
+    );
     pair.initiator.destroy_key(initiator_key)?;
-    pair.responder.destroy_key(responder_key)?;
+    pair.responder
+        .destroy_key(responder_acceptance.key_handle)?;
     let replay = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization.clone(),
         pair.responder_public_keys.clone(),
@@ -838,6 +1261,7 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -847,9 +1271,15 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
     let reopened_repository =
         StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
-    let reopened = PolicyAgent::new(reopened_repository, witness, initiator_config)?;
+    let reopened = PolicyAgent::new(
+        reopened_repository,
+        witness,
+        initiator_authority,
+        initiator_config,
+    )?;
     let replay_after_restart = reopened.begin_encapsulation(BeginEncapsulation::new(
         initiator_authorization,
         responder_public_keys,
@@ -859,36 +1289,315 @@ fn mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_resta
 }
 
 #[test]
+fn protocol_role_not_kem_direction_controls_finished_order() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 12)?;
+    let encapsulated = responder_encapsulation(pair.responder.begin_encapsulation(
+        BeginEncapsulation::new(pair.responder_authorization, pair.initiator_public_keys),
+    )?)?;
+    let decapsulated = initiator_decapsulation(pair.initiator.begin_decapsulation(
+        BeginDecapsulation::new(pair.initiator_authorization, encapsulated.ciphertexts),
+    )?)?;
+
+    let responder_acceptance = pair
+        .responder
+        .accept_initiator_finished(encapsulated.handle, decapsulated.initiator_finished)?;
+    let initiator_key = pair
+        .initiator
+        .accept_responder_finished(decapsulated.handle, responder_acceptance.responder_finished)?;
+    pair.initiator.destroy_key(initiator_key)?;
+    pair.responder
+        .destroy_key(responder_acceptance.key_handle)?;
+    Ok(())
+}
+
+#[test]
+fn concurrent_exact_responder_acceptance_returns_one_stable_result() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 15)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let responder = Arc::new(pair.responder);
+    let barrier = Arc::new(Barrier::new(3));
+
+    let first_agent = Arc::clone(&responder);
+    let first_barrier = Arc::clone(&barrier);
+    let first_finished = encapsulated.initiator_finished;
+    let first = thread::spawn(move || {
+        first_barrier.wait();
+        first_agent.accept_initiator_finished(decapsulated.handle, first_finished)
+    });
+    let second_agent = Arc::clone(&responder);
+    let second_barrier = Arc::clone(&barrier);
+    let second_finished = encapsulated.initiator_finished;
+    let second = thread::spawn(move || {
+        second_barrier.wait();
+        second_agent.accept_initiator_finished(decapsulated.handle, second_finished)
+    });
+    barrier.wait();
+    let first_result = join(first)??;
+    let second_result = join(second)??;
+    assert_eq!(first_result, second_result);
+    responder.destroy_key(first_result.key_handle)?;
+    assert_eq!(
+        responder.destroy_key(first_result.key_handle),
+        Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}
+
+#[test]
+fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 17)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([91u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([92u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+
+    let first_nonce = [21u8; 32];
+    let first_request = framed_accept_initiator_request(
+        &client_signing_key,
+        first_nonce,
+        decapsulated.handle,
+        encapsulated.initiator_finished,
+    )?;
+    let mut failed_write = FailingWriteTransport {
+        input: Cursor::new(first_request.clone()),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut failed_write),
+        Err(crate::ipc::IpcError::Unavailable)
+    );
+    assert_eq!(
+        server.agent_for_test().acceptance_counts_for_test()?,
+        (1, 1)
+    );
+
+    let mut replayed_nonce = CaptureTransport {
+        input: Cursor::new(first_request),
+        output: Vec::new(),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut replayed_nonce),
+        Err(crate::ipc::IpcError::AuthenticationFailed)
+    );
+    assert!(replayed_nonce.output.is_empty());
+
+    let cached = server
+        .agent_for_test()
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    let retry_nonce = [22u8; 32];
+    let mut retried = CaptureTransport {
+        input: Cursor::new(framed_accept_initiator_request(
+            &client_signing_key,
+            retry_nonce,
+            decapsulated.handle,
+            encapsulated.initiator_finished,
+        )?),
+        output: Vec::new(),
+    };
+    server.handle_io_for_test(&mut retried)?;
+    let (key_handle, responder_finished) = decode_responder_acceptance_response(
+        &retried.output,
+        &server_verification_key,
+        retry_nonce,
+    )?;
+    assert_eq!(key_handle, *cached.key_handle.as_bytes());
+    assert_eq!(responder_finished, *cached.responder_finished.as_bytes());
+    assert_eq!(
+        server.agent_for_test().acceptance_counts_for_test()?,
+        (1, 1)
+    );
+    server.agent_for_test().destroy_key(cached.key_handle)?;
+    assert_eq!(
+        server.agent_for_test().acceptance_counts_for_test()?,
+        (0, 0)
+    );
+    Ok(())
+}
+
+#[test]
 fn abi2_secret_mismatch_rejects_finished_and_terminally_erases_session() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 2)?;
-    let encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
-        pair.initiator_authorization.clone(),
-        pair.responder_public_keys.clone(),
-    ))?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
     let mut damaged_pq = *encapsulated.ciphertexts.pq();
     if let Some(first) = damaged_pq.first_mut() {
         *first ^= 1;
     }
     let damaged =
         EncapsulationCiphertexts::from_slices(&damaged_pq, encapsulated.ciphertexts.traditional())?;
-    let decapsulated = pair.responder.begin_decapsulation(BeginDecapsulation::new(
-        pair.responder_authorization,
-        damaged,
-    ))?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, damaged),
+    )?)?;
     assert_eq!(
-        pair.initiator
-            .confirm(encapsulated.handle, *decapsulated.local_finished.as_bytes(),),
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
         Err(AgentError::FinishedRejected)
     );
     assert_eq!(
-        pair.initiator.confirm(encapsulated.handle, [0u8; 32]),
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
         Err(AgentError::UnknownHandle)
     );
+    pair.initiator.cancel(encapsulated.handle)?;
     assert_eq!(
         pair.initiator.begin_encapsulation(BeginEncapsulation::new(
             pair.initiator_authorization,
             pair.responder_public_keys,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    Ok(())
+}
+
+#[test]
+fn durable_release_failure_never_returns_responder_finished_or_retained_handle() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 13)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+
+    pair.responder
+        .remove_durable_reservation_for_test(decapsulated.handle)?;
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::InternalPoisoned)
+    );
+    Ok(())
+}
+
+#[test]
+fn durable_cancel_failure_poisoning_prevents_further_service() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 18)?;
+    let pending = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    pair.initiator
+        .remove_durable_reservation_for_test(pending.handle)?;
+    assert_eq!(
+        pair.initiator.cancel(pending.handle),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(
+        pair.initiator.public_keys(),
+        Err(AgentError::InternalPoisoned)
+    );
+    Ok(())
+}
+
+#[test]
+fn stale_witness_is_rejected_before_finished_verification_and_consumes_session() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 14)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization,
+            encapsulated.ciphertexts.clone(),
+        ))?)?;
+    pair.witness.replace_head(StateHead::new(
+        StateRevision::new(2, 2, [14u8; 32])?,
+        FenceToken::generate()?,
+    ))?;
+
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::StaleSession)
+    );
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished,),
+        Err(AgentError::UnknownHandle)
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            ResponderFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::StaleSession)
+    );
+    assert_eq!(
+        pair.initiator.accept_responder_finished(
+            encapsulated.handle,
+            ResponderFinishedV1::from_bytes([0u8; 32]),
+        ),
+        Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}
+
+#[test]
+fn restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 16)?;
+    let pending =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        initiator_authorization,
+        responder_public_keys,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+    initiator_authority.expire_active_lease();
+
+    let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
+    assert_eq!(repository.restart_rejections(), 1);
+    let reopened = PolicyAgent::new(repository, witness, initiator_authority, initiator_config)?;
+    assert_eq!(
+        reopened
+            .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
+        Err(AgentError::UnknownHandle)
+    );
+    assert_eq!(
+        reopened.begin_encapsulation(BeginEncapsulation::new(
+            initiator_authorization,
+            responder_public_keys,
         )),
         Err(AgentError::AuthorizationRejected)
     );
@@ -971,6 +1680,7 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -978,6 +1688,7 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
 
     let repository =
         StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
@@ -991,7 +1702,12 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
         initial_state.posture(),
         initial_state.allowed_suites(),
     )?;
-    let agent = PolicyAgent::new(repository, witness.clone(), initiator_config)?;
+    let agent = PolicyAgent::new(
+        repository,
+        witness.clone(),
+        initiator_authority,
+        initiator_config,
+    )?;
     agent.apply_advance(&floor_three_certificate)?;
     drop(agent);
 
@@ -1007,10 +1723,9 @@ fn floor_five_advance_is_rejected_before_durable_intent_or_witness_cas() -> Test
 fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 3)?;
-    let pending = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
-        pair.initiator_authorization,
-        pair.responder_public_keys,
-    ))?;
+    let pending = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
     let (_, certificate) = signed_advance(
         pair.committed.state(),
         &pair.migration,
@@ -1023,18 +1738,28 @@ fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> Test
         Err(AgentError::TransitionIndeterminate)
     );
     assert_eq!(
-        pair.initiator.confirm(pending.handle, [0u8; 32]),
+        pair.initiator
+            .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
         Err(AgentError::TransitionPending)
     );
     pair.initiator.reconcile_transition()?;
     assert_eq!(
-        pair.initiator.confirm(pending.handle, [0u8; 32]),
+        pair.initiator
+            .accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]),),
         Err(AgentError::UnknownHandle)
     );
 
     let old_repository =
         StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
-    let rolled_back = PolicyAgent::new(old_repository, pair.witness, pair.initiator_config);
+    // A fresh deployment authority isolates this assertion to the witness
+    // rollback check; the shared-authority clone case is covered by the
+    // dedicated instance-lease fencing tests.
+    let rolled_back = PolicyAgent::new(
+        old_repository,
+        pair.witness,
+        MemoryAuthority::new()?,
+        pair.initiator_config,
+    );
     assert!(matches!(rolled_back, Err(AgentError::RollbackOrFork)));
     Ok(())
 }
@@ -1059,6 +1784,7 @@ fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() 
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_config,
         initiator_repository_path,
@@ -1066,9 +1792,10 @@ fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() 
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
     let repository =
         StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
-    let restarted = PolicyAgent::new(repository, witness, initiator_config)?;
+    let restarted = PolicyAgent::new(repository, witness, initiator_authority, initiator_config)?;
     assert_eq!(
         restarted.public_keys(),
         Err(AgentError::ExecutionUnavailable)
@@ -1107,6 +1834,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
         initiator,
         responder,
         witness,
+        initiator_authority,
         migration,
         initiator_repository_path,
         endpoint_policy_bundle,
@@ -1114,6 +1842,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
     } = pair;
     drop(initiator);
     drop(responder);
+    initiator_authority.expire_active_lease();
     let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
     let (_, initiator_vk) = MlDsa65::generate([51u8; 32]);
     let (_, responder_vk) = MlDsa65::generate([52u8; 32]);
@@ -1126,7 +1855,7 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
         endpoint_policy_bundle.clone(),
         endpoint_policy_bundle,
     )?;
-    let restarted = PolicyAgent::new(repository, witness, updated_config)?;
+    let restarted = PolicyAgent::new(repository, witness, initiator_authority, updated_config)?;
     assert!(restarted.public_keys().is_ok());
     Ok(())
 }
@@ -1244,7 +1973,7 @@ fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operati
         policy.bundle.clone(),
         policy.bundle,
     )?;
-    let agent = PolicyAgent::new(reopened, witness.clone(), config)?;
+    let agent = PolicyAgent::new(reopened, witness.clone(), MemoryAuthority::new()?, config)?;
     agent.reconcile_transition()?;
     assert!(matches!(
         witness.query(operation)?,
@@ -1283,4 +2012,182 @@ fn crash_after_durable_intent_child() -> TestResult {
     certificate_file.read_to_end(&mut certificate)?;
     repository.prepare_advance(&certificate)?;
     std::process::exit(86);
+}
+
+#[test]
+fn second_instance_on_same_authority_is_fenced_at_construction() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 33)?;
+    // No transition has happened, so the snapshot copy equals the live state
+    // and only the instance lease separates the clone from the live holder.
+    let clone_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let clone = PolicyAgent::new(
+        clone_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    );
+    assert!(matches!(clone, Err(AgentError::InstanceFenced)));
+    // The live holder keeps its lease-guarded operations.
+    let _live = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    Ok(())
+}
+
+#[test]
+fn expired_lease_successor_fences_out_live_instance_and_erases_secrets() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 34)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            encapsulated.ciphertexts.clone(),
+        ))?)?;
+    let responder_acceptance = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    pair.initiator
+        .accept_responder_finished(encapsulated.handle, responder_acceptance.responder_finished)?;
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (1, 1));
+
+    // The holder's lease reaches witness-clock expiry; a successor clone
+    // acquires the next generation over the identical migration state.
+    pair.initiator_authority.expire_active_lease();
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+
+    // The superseded instance is fenced on its next guarded operation and
+    // erases every in-process pending and accepted secret first.
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (0, 0));
+    // Fencing is permanent for this instance, even after the successor stops.
+    successor.release_instance_lease()?;
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    Ok(())
+}
+
+#[test]
+fn released_lease_is_idempotent_and_hands_over_without_ttl_wait() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 35)?;
+    pair.initiator.release_instance_lease()?;
+    pair.initiator.release_instance_lease()?;
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    successor.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn lost_lease_responses_reconcile_by_exact_operation_query() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 36)?;
+    // Advance the trusted clock so the next renewal strictly extends and is
+    // Applied rather than short-circuited as not-extended.
+    pair.initiator_authority.advance_clock(1_000);
+    pair.initiator_authority.make_next_unknown();
+    let _encapsulated = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+
+    // A lost acquire response is likewise reconciled by the successor itself.
+    pair.initiator.release_instance_lease()?;
+    pair.initiator_authority.make_next_unknown();
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    successor.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn concurrent_instances_race_to_exactly_one_lease() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 38)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        old_snapshot_path,
+        ..
+    } = pair;
+    drop(initiator);
+    drop(responder);
+    initiator_authority.expire_active_lease();
+    let repository_a =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    let repository_b = StateRepository::open_existing(&old_snapshot_path, migration.roots)?;
+    let barrier = Arc::new(Barrier::new(2));
+    let spawn_instance = |repository: StateRepository| {
+        let witness = witness.clone();
+        let authority = initiator_authority.clone();
+        let config = initiator_config.clone();
+        let barrier = Arc::clone(&barrier);
+        thread::spawn(move || {
+            barrier.wait();
+            PolicyAgent::new(repository, witness, authority, config).map(drop)
+        })
+    };
+    let first = spawn_instance(repository_a);
+    let second = spawn_instance(repository_b);
+    let outcomes = [
+        first.join().map_err(|_| io::Error::other("join failed"))?,
+        second.join().map_err(|_| io::Error::other("join failed"))?,
+    ];
+    let acquired = outcomes.iter().filter(|outcome| outcome.is_ok()).count();
+    let fenced = outcomes
+        .iter()
+        .filter(|outcome| matches!(outcome, Err(AgentError::InstanceFenced)))
+        .count();
+    assert_eq!((acquired, fenced), (1, 1));
+    Ok(())
 }

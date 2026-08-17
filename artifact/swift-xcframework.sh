@@ -57,10 +57,11 @@ if [ "$#" -ne 0 ]; then
 fi
 
 APPLE_RELEASE_MODE=${QPERIAPT_INTERNAL_APPLE_RELEASE_MODE:-0}
-EXPECTED_PRODUCT_VERSION="0.1.0-alpha.2"
+EXPECTED_PRODUCT_VERSION="0.1.0"
 RELEASE_REVISION="r1"
-RELEASE_TAG="v$EXPECTED_PRODUCT_VERSION-$RELEASE_REVISION"
+RELEASE_TAG="v$EXPECTED_PRODUCT_VERSION"
 RELEASE_URL="https://github.com/billlza/q-periapt/releases/tag/$RELEASE_TAG"
+XCFRAMEWORK_ARCHIVE_MTIME=946684800
 EXPECTED_RUSTC_VERSION="rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION="cargo 1.96.1 (356927216 2026-06-26)"
 EXPECTED_RELEASE_RUST_HOST="aarch64-apple-darwin"
@@ -268,7 +269,6 @@ need shasum
 need swift
 need xcodebuild
 need xcode-select
-need zip
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	need codesign
 	need ditto
@@ -897,12 +897,14 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 fi
 
 printf '\n=== Zip XCFramework ===\n'
-find "$XCFRAMEWORK" -exec touch -h -t 200001010000 {} +
 if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	codesign --verify --strict --verbose=4 "$XCFRAMEWORK"
 fi
-rm -f "$ZIP_PATH"
-(cd "$DIST" && find "CQPeriapt.xcframework" -print | LC_ALL=C sort | zip -q -X "CQPeriapt.xcframework.zip" -@)
+python3 artifact/deterministic_archive.py create-zip \
+	--source "$XCFRAMEWORK" \
+	--output "$ZIP_PATH" \
+	--root "CQPeriapt.xcframework" \
+	--mtime "$XCFRAMEWORK_ARCHIVE_MTIME"
 test -f "$ZIP_PATH" || {
 	printf 'error: missing XCFramework zip: %s\n' "$ZIP_PATH" >&2
 	exit 1

@@ -1835,7 +1835,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self, root: pathlib.Path, *, hash_repro_payload: bool = False
     ) -> pathlib.Path:
         package = root / (
-            "q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+            "q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc"
         )
         for relative in windows_package.EXPECTED_PAYLOAD_FILES:
             path = package / relative
@@ -1919,15 +1919,13 @@ class WindowsPackageManifestTests(unittest.TestCase):
             "version": 1,
             "metadata": {"component": {"name": "q-periapt-hybrid-suite"}},
         }
-        (package / "share/q-periapt/bom/cbom.cdx.json").write_text(
-            json.dumps({**common, "components": crypto_components}, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
+        (package / "share/q-periapt/bom/cbom.cdx.json").write_bytes(
+            windows_package._canonical_json(
+                {**common, "components": crypto_components}
+            )
         )
-        (package / "share/q-periapt/bom/sbom.cdx.json").write_text(
-            json.dumps({**common, "components": sbom_components}, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
+        (package / "share/q-periapt/bom/sbom.cdx.json").write_bytes(
+            windows_package._canonical_json({**common, "components": sbom_components})
         )
         return package
 
@@ -1941,7 +1939,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             package,
             self.repository_root,
             package_name=package.name,
-            version="0.1.0-alpha.2",
+            version="0.1.0",
             git_commit="a" * 40,
             git_tree="b" * 40,
             source_date_epoch=1_700_000_000,
@@ -1971,7 +1969,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
             )
             self.assertEqual(verified["target"], windows_package.TARGET)
             self.assertEqual(
-                verified["release_class"], "unsigned_experimental_prerelease"
+                verified["release_class"], "unsigned_sdk_no_authenticode"
             )
             self.assertFalse(verified["authenticode"]["signed"])
             self.assertFalse(
@@ -2200,7 +2198,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     package,
                     self.repository_root,
                     package_name=package.name,
-                    version="0.1.0-alpha.2",
+                    version="0.1.0",
                     git_commit="a" * 40,
                     git_tree="b" * 40,
                     source_date_epoch=1_700_000_000,
@@ -2214,7 +2212,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                     package,
                     self.repository_root,
                     package_name=package.name,
-                    version="0.1.0-alpha.2",
+                    version="0.1.0",
                     git_commit="not-a-commit",
                     git_tree="b" * 40,
                     source_date_epoch=1_700_000_000,
@@ -2237,7 +2235,7 @@ class WindowsPackageManifestTests(unittest.TestCase):
                             package,
                             self.repository_root,
                             package_name=package.name,
-                            version="0.1.0-alpha.2",
+                            version="0.1.0",
                             git_commit="a" * 40,
                             git_tree="b" * 40,
                             source_date_epoch=1_700_000_000,
@@ -2357,13 +2355,29 @@ class WindowsPackageManifestTests(unittest.TestCase):
             sbom_path = invalid / "share/q-periapt/bom/sbom.cdx.json"
             sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
             sbom["components"].pop()
-            sbom_path.write_text(json.dumps(sbom, sort_keys=True) + "\n", encoding="utf-8")
+            sbom_path.write_bytes(windows_package._canonical_json(sbom))
             with self.assertRaisesRegex(
                 WindowsPackageError, "SBOM components do not match Cargo.lock",
             ):
                 self._create(invalid)
 
-    def test_powershell_release_wiring_preserves_source_and_external_trust_roots(self) -> None:
+    def test_bom_fixtures_are_canonical_lf_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            package = self._package(pathlib.Path(temporary))
+            for relative in (
+                "share/q-periapt/bom/cbom.cdx.json",
+                "share/q-periapt/bom/sbom.cdx.json",
+            ):
+                with self.subTest(relative=relative):
+                    data = (package / relative).read_bytes()
+                    self.assertEqual(
+                        data,
+                        windows_package._canonical_json(json.loads(data)),
+                    )
+                    self.assertTrue(data.endswith(b"\n"))
+                    self.assertFalse(data.endswith(b"\r\n"))
+
+    def test_powershell_diagnostic_wiring_preserves_source_and_external_trust_roots(self) -> None:
         script = (self.repository_root / "artifact/windows-package.ps1").read_text(
             encoding="utf-8"
         )
@@ -2974,14 +2988,16 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '"GIT_DIR"',
         ):
             self.assertIn(name, toolchain_test)
-        for workflow in (
-            ".github/workflows/ci.yml",
-            ".github/workflows/abi2-platform-candidate.yml",
-        ):
-            self.assertIn(
-                "./windows-toolchain-tests.ps1",
-                (self.repository_root / workflow).read_text(encoding="utf-8"),
-            )
+        ci_workflow = (
+            self.repository_root / ".github/workflows/ci.yml"
+        ).read_text(encoding="utf-8")
+        stable_workflow = (
+            self.repository_root
+            / ".github/workflows/abi2-platform-candidate.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("./windows-toolchain-tests.ps1", ci_workflow)
+        self.assertNotIn("./windows-toolchain-tests.ps1", stable_workflow)
+        self.assertNotIn("abi2-candidate-windows", stable_workflow)
         native_library_contract = re.search(
             r"\$expectedNativeStaticLibraries\s*=\s*\[string\[\]\]\s*@\("
             r"(?P<libraries>.*?)\n\s*\)",

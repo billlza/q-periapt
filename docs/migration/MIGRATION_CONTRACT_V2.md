@@ -36,9 +36,13 @@ signed state/reset envelope
   -> typed pre-KEM transcript and V2 context
   -> frozen ABI 2 KEM inside Policy Agent
   -> typed post-KEM transcript
-  -> role-separated peer Finished verification
-  -> exact local head + witness fence recheck
-  -> opaque accepted-key handle
+  -> initiator issues I
+  -> responder rechecks exact local/witness head and verifies I
+  -> responder accepts, durably releases the reservation, and retains key/cache
+  -> responder exposes R
+  -> initiator rechecks exact local/witness head and verifies R
+  -> initiator accepts, durably releases the reservation, and retains its key
+  -> opaque accepted-key handles
 ```
 
 There is no conversion from `MigrationContextV1`, a raw digest, a raw epoch, or
@@ -145,6 +149,10 @@ exact receiver-owned public keys. The keys must match the commitment in that
 receiver's signed offer. The object retains those same key bytes for the KEM;
 the caller cannot substitute a second key after hashing.
 
+`encapsulator_role` records KEM direction only. It does not select the Finished
+sender: the protocol initiator always sends I first, including when that
+initiator decapsulates and the protocol responder encapsulates.
+
 The accepted V2 `application_context` is exactly 324 bytes and thirteen LP8
 fields:
 
@@ -188,8 +196,19 @@ Finished(role) = SHA3-256(
 ```
 
 The peer value is compared with `ct_eq`. Reflection fails because the roles use
-different one-byte codes. After successful peer confirmation, the Agent derives
-a separate application key:
+different one-byte codes. The protocol sequence is fixed:
+
+1. the initiator issues I and retains its pending ABI 2 secret;
+2. the responder checks that the incoming flight is I, rejects a pending
+   transition, rechecks the exact local and witness head/fence, and verifies I;
+3. the responder derives `AcceptedSessionKeyV1` and R, but makes R externally
+   visible only after durably releasing the reservation and retaining both the
+   accepted key and bounded same-process retry state; and
+4. the initiator performs the corresponding state/witness recheck, verifies R,
+   derives its accepted key, durably releases its reservation, retains the key,
+   and only then returns its opaque handle.
+
+Both accepted keys use the separate derivation:
 
 ```text
 accepted_key = SHA3-256(
@@ -201,15 +220,30 @@ accepted_key = SHA3-256(
 )
 ```
 
-All failure paths consume the pending typestate and drop the zeroizing ABI 2
-secret. The process service returns only an opaque accepted-key handle. It does
-not return a raw decision, KEM private key, pending secret, or unconfirmed key.
+Role, transition, capacity, and allocation checks happen before a role-correct
+pending typestate is consumed. A wrong flight is an explicit error and does not
+replace or consume the valid pending state. A stale state/witness or a Finished
+mismatch erases the pending zeroizing secret and cancels its durable reservation;
+failure to cancel or release durable state poisons the Agent and exposes neither
+R nor a key handle. The process service returns only opaque accepted-key handles.
+It does not return a raw decision, KEM private key, pending secret, or
+unconfirmed key.
 
 Before release, the Agent rechecks the exact local `(generation, epoch, digest,
 fence)` and the authenticated witness head. A concurrent transition may proceed;
 its durable commit changes the fence, clears all durable session reservations,
 and wipes all in-memory pending secrets. An old handle then fails as stale or
 unknown.
+
+The Unix IPC contract is a hard schema-2/domain-`/v2` cut with separate accept-I
+and accept-R commands and role-shaped responses; V1 bytes have no compatibility
+decoder. IPC nonce replay protection is separate from acceptance-response
+recovery: the same nonce is rejected, while an exact same-handle/same-Finished
+retry under a new signed nonce returns the same cached handle/R only in the same
+process and only while the retained key remains live. Different Finished bytes
+fail closed. Destroy, transition, and restart clear this bounded cache. Accepted
+keys and R are not durable and are not recovered after a crash; the durable
+capability-session tombstone still prevents reuse, so a new session is required.
 
 ## 7. Durable state and external witness
 
@@ -246,23 +280,121 @@ monotonic facility with equivalent semantics. The reference witness server is
 useful for protocol and crash testing; placing both databases on the same
 restorable disk does not meet that deployment assumption.
 
+### Key-use authority, instance leases, and Authority Wire V2
+
+Beyond the migration-head witness, the repository implements a separate
+key-use authority subsystem that answers the recovery-clone and multi-instance
+question: which single process instance may currently consume capabilities and
+use accepted keys. The split is a deliberate scope decision: the migration
+witness stays minimal and protects exactly the migration head, because
+widening that CAS boundary would couple replay, configuration, and key-use
+failure domains to the head-transition path; those domains are instead
+protected by this dedicated authority, which binds each of them to the exact
+head, configuration revision, and lease generation, and fences them on every
+advance. It is layered as four modules with explicit stage
+boundaries:
+
+- `authority` (Stage 1) is a pure deterministic transition model over one
+  monotonic authority version, a nondecreasing trusted-clock floor, the exact
+  deployment-configuration revision, the exact migration state head and fence,
+  at most one live instance lease, consume-once capability tombstones, and
+  registered accepted-key handles. The closed mutation set is acquire/renew/
+  release lease, advance state, advance config, consume capability, register
+  key, and revoke key. Every mutation names the exact current instance fence
+  (lease generation plus a fresh per-process instance identity); acquisition
+  names the exact prior lease generation. Advancing state or configuration
+  fences the previous holder and invalidates state-scoped runtime records.
+  Every applied or rejected intent yields a bounded, queryable receipt keyed
+  by operation ID, and reusing an operation ID with a different intent is a
+  conflict, so retry after an unknown outcome is decidable.
+- `authority_store` (Stage 2A1) persists that state with the same
+  immediate-durability, two-phase discipline as the migration store. A commit
+  whose durability is uncertain quarantines the whole database path; there is
+  no V1 decoder or fallback.
+- `authority_protocol` freezes the closed Authority Wire V2 grammar: six
+  commands (snapshot, acquire, renew, release, query, acknowledge) under
+  dedicated request/response/digest domains, with fixture-pinned encodings.
+- `authority_transport` runs that grammar over a mutually authenticated,
+  deadline-bounded, one-request-per-connection TCP loop. Both directions sign
+  with pinned ML-DSA-65 keys; endpoint construction rejects a signing key that
+  matches the peer verification key, so one key cannot serve both roles. The
+  client pins the server address, both principals, the authority epoch, and
+  the exact expected state head and configuration, and accepts only a response
+  that echoes its request digest and nonce. The server keeps a bounded
+  time-to-live nonce cache and answers an exhausted cache with an explicit
+  rate-limit failure instead of evicting replay history. An unknown transport
+  outcome is resolved by querying the exact operation ID, and an acknowledged
+  receipt is pruned from the server table only after the client reports it
+  durably retained; acknowledgement is idempotent. On open, the server
+  re-verifies the exact epoch, head, configuration, and a lease-only history
+  before serving, and any fatal store result quarantines the instance.
+
+A restored disk clone or a concurrently started second instance therefore
+cannot silently share key-use authority: at most one fence is valid, a stale
+fence is rejected as lease-expired or fence-mismatch, and the clock floor
+never moves backward. The transport tests exercise the full lease lifecycle,
+fencing across instances, replay rejection, lost-response recovery, nonce
+exhaustion, role separation, reopen validation, and unresponsive endpoints
+over real sockets.
+
+The product Agent consumes this boundary as a mandatory lease client.
+Construction acquires the exclusive instance lease and fails closed with
+`InstanceFenced` while another unexpired instance holds it; a lost acquire
+response is reconciled by exact-operation query or by adopting the lease the
+authority already recorded for this exact fresh process identity. Every
+key-use operation first renews the lease against the authority's trusted
+clock, so a fenced, expired, or superseded instance is rejected before it can
+touch a pending or accepted secret; the fenced instance erases every
+in-process pending and accepted secret first and permanently refuses
+lease-guarded operations. The client's fence view is deliberately RAM-only —
+a restored clone of this host cannot replay the live fence, and a process
+restart always starts a new acquire cycle. Graceful shutdown releases the
+lease idempotently so a successor can acquire without waiting out the
+time-to-live. Agent-level tests cover second-instance construction fencing,
+expired-lease takeover with secret erasure, release handover, lost-response
+reconciliation, and a concurrent two-instance acquisition race resolving to
+exactly one lease.
+
+Two boundaries remain explicit rather than implied. First, the product Agent
+service routes only the lease lifecycle through this authority; capability
+consumption and accepted-key registration are not yet routed, and remain
+tracked as deployment work, not claimed here. Second, the authority server
+inherits the same rollback-domain assumption as the witness: hosting it on
+the same restorable disk as the Agent does not defend against whole-host
+snapshot rollback.
+
 ## 8. Formal and byte-correspondence boundary
 
-- EasyCrypt proves the V2 state-identity projection and an outer/state-hash bad
-  event decomposition for `MIG-BIND-K-STATE`, with an omission countermodel.
+- EasyCrypt models one abstract SHA3 operation across the domain-separated
+  `K_abi2 -> TH -> I/R Finished -> K_acc` inputs, plus a concrete bounded
+  role-specific acceptance predicate that rechecks the exact four-field current
+  revision. Equal final accepted secrets under different state identities imply
+  accepted-key-input or ContextBound-input collisions; full-state/revision
+  divergence adds the state-hash case. Independent post/Finished input-binding
+  lemmas and honest/omission controls are checked, but they do not prove
+  Finished forgery resistance or temporal ordering.
 - Tamarin models active-network identity signatures, restorable local store,
   protected witness/fence, signed transitions/reset, role-separated Finished,
   and the closed floor relation for `MIG-ROLLBACK`, `MIG-AGREE`, and
   `MIG-FLOOR`.
 - Independent Python recomputes the state, both offers, negotiation, pre-KEM
   transcript, V2 context, post-KEM transcript, both Finished values, and accepted
-  key from structured frozen inputs.
+  key from structured frozen inputs. The frozen Rust/Python case injects the same
+  synthetic 32-byte ABI2-boundary secret; it checks `TH -> I/R -> K_acc`, not an
+  independent full ContextBound derivation of `K_abi2`.
 
 These are source-bound translation-validation and symbolic/computational models.
 They are not a proof that the Rust implementation, database, operating system,
 or machine code refines the models. Transition authenticity additionally relies
 on the pinned signature scheme's unforgeability, which is not supplied by the
 hash-binding theorem.
+
+The role-specific Rust typestates, service commands, and tests now follow the
+same protocol-visible I -> responder accept/R -> initiator accept order as the
+Tamarin agreement theory, independently of KEM direction. That reviewed and
+tested alignment is still not a formal specification-to-Rust refinement; Tamarin
+also does not model the service's durable reservation release, in-process retry
+cache, IPC nonce lifecycle, or crash loss of accepted keys/responses.
 
 ## 9. Deployment non-claims
 

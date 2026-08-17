@@ -1,15 +1,22 @@
 /* SPDX-License-Identifier: Apache-2.0 OR MIT */
+#ifndef QPN_MLKEM_CONFIG_H
+#define QPN_MLKEM_CONFIG_H
+
+/* Exactly one source wrapper owns the implementation selection. */
+#if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64) == \
+    defined(QPN_MLKEM_BUILD_PORTABLE)
+#error Exactly one owned mlkem-native implementation selector is required
+#endif
+
+/* Reject caller-supplied upstream backend selection before defining ours. */
 #if defined(MLK_CONFIG_USE_NATIVE_BACKEND_ARITH) || \
     defined(MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202) || \
     defined(MLK_CONFIG_ARITH_BACKEND_FILE) || \
     defined(MLK_CONFIG_FIPS202_BACKEND_FILE) || \
     defined(MLK_CONFIG_FIPS202_CUSTOM_HEADER) || \
     defined(MLK_CONFIG_FIPS202X4_CUSTOM_HEADER)
-#error External or native mlkem-native backends are not supported by this portable-only crate
+#error External mlkem-native backend configuration is not supported
 #endif
-
-#ifndef QPN_MLKEM_CONFIG_H
-#define QPN_MLKEM_CONFIG_H
 
 /* Keep every upstream KEM entry point local to the single compilation unit. */
 #define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v1_2_0_
@@ -17,6 +24,26 @@
 #define MLK_CONFIG_EXTERNAL_API_QUALIFIER static inline
 #define MLK_CONFIG_INTERNAL_API_QUALIFIER static
 #define MLK_CONFIG_NO_SUPERCOP
+
+#if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64)
+#if defined(QPN_MLKEM_FREESTANDING) || defined(MLK_CONFIG_NO_ASM)
+#error The owned AArch64 backend cannot be combined with a freestanding build
+#endif
+#if !defined(__AARCH64EL__) || defined(__AARCH64EB__)
+#error The owned AArch64 backend requires little-endian AArch64 compiler metadata
+#endif
+#if defined(__ARM_FEATURE_SHA3)
+#error The owned AArch64 backend requires the fixed Armv8-A FIPS 202 profile
+#endif
+#if !defined(__APPLE__) && !defined(__linux__)
+#error The owned AArch64 backend is restricted to Apple, Linux, and Android targets
+#endif
+#define MLK_FORCE_AARCH64
+#define MLK_CONFIG_USE_NATIVE_BACKEND_ARITH
+#define MLK_CONFIG_ARITH_BACKEND_FILE "native/meta.h"
+#define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
+#define MLK_CONFIG_FIPS202_BACKEND_FILE "mlkem_fips202_aarch64.h"
+#endif /* QPN_MLKEM_BUILD_NATIVE_AARCH64 */
 
 #if defined(QPN_MLKEM_FREESTANDING)
 /*

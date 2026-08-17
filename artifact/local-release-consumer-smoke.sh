@@ -31,7 +31,7 @@ if [ "${QPERIAPT_RELEASE_INDEX_PATH+x}" = x ] || \
 	exit 2
 fi
 
-set -- python3 artifact/release_consumer_smoke.py
+set -- python3 artifact/release_consumer_smoke.py run
 
 if [ "${QPERIAPT_ALLOW_DIAGNOSTIC_RELEASE_CONSUMER:-0}" = "1" ]; then
 	set -- "$@" --channel diagnostic --allow-diagnostic

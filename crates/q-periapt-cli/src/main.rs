@@ -2,6 +2,7 @@
 
 use clap::{Parser, Subcommand};
 use q_periapt_cli::{cbom, sbom, scan, scan_report_to_json, Finding, ScanError};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -44,10 +45,26 @@ enum Cmd {
     },
 }
 
-fn emit(value: &serde_json::Value, out: Option<&Path>) -> ExitCode {
-    let text = serde_json::to_string_pretty(value).expect("serialize JSON");
+fn canonical_json_bytes(value: &serde_json::Value) -> Result<Vec<u8>, serde_json::Error> {
+    let mut bytes = serde_json::to_vec_pretty(value)?;
+    bytes.push(b'\n');
+    Ok(bytes)
+}
+
+fn emit_to_writer(
+    value: &serde_json::Value,
+    out: Option<&Path>,
+    stdout: &mut impl Write,
+) -> ExitCode {
+    let bytes = match canonical_json_bytes(value) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            eprintln!("error: cannot serialize JSON: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
     match out {
-        Some(p) => match std::fs::write(p, text) {
+        Some(p) => match std::fs::write(p, bytes) {
             Ok(()) => {
                 eprintln!("wrote {}", p.display());
                 ExitCode::SUCCESS
@@ -57,11 +74,18 @@ fn emit(value: &serde_json::Value, out: Option<&Path>) -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        None => {
-            println!("{text}");
-            ExitCode::SUCCESS
-        }
+        None => match stdout.write_all(&bytes) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: cannot write stdout: {error}");
+                ExitCode::FAILURE
+            }
+        },
     }
+}
+
+fn emit(value: &serde_json::Value, out: Option<&Path>) -> ExitCode {
+    emit_to_writer(value, out, &mut std::io::stdout().lock())
 }
 
 fn print_findings(findings: &[Finding]) {
@@ -133,5 +157,19 @@ fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_bom_bytes_are_exactly_newline_terminated() {
+        let value = serde_json::json!({"bomFormat": "CycloneDX", "specVersion": "1.6"});
+        assert_eq!(
+            canonical_json_bytes(&value).expect("serialize canonical BOM fixture"),
+            b"{\n  \"bomFormat\": \"CycloneDX\",\n  \"specVersion\": \"1.6\"\n}\n"
+        );
     }
 }

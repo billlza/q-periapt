@@ -175,6 +175,45 @@ class ClaimLedgerTests(unittest.TestCase):
                     or "correspondence" in claim["boundary"].lower()
                 )
 
+        migration_claim = claims["MIG-BIND-K-STATE-V2"]
+        migration_boundary = migration_claim["boundary"].lower()
+        for required_boundary in (
+            "one abstract h_sha3",
+            "four-field current staterevisionv1 recheck",
+            "h_accept or h_context",
+            "add h_state",
+            "post-digest-only",
+            "not finished forgery",
+            "not independently derive k_abi2",
+            "formal-to-rust",
+        ):
+            with self.subTest(required_boundary=required_boundary):
+                self.assertIn(required_boundary, migration_boundary)
+
+        migration_source = (
+            REPOSITORY_ROOT / "formal" / "easycrypt" / "MigrationBindingV2.ec"
+        ).read_text(encoding="utf-8")
+        for required_formal in (
+            "op H_sha3 : bytes -> bytes.",
+            "type state_revision = {",
+            "type accepted_session_key = {",
+            "lemma mig_bind_k_state_bad_event_decomposition",
+            "lemma mig_bind_k_revision_bad_event_decomposition",
+            "lemma honest_role_kem_direction_nonvacuous",
+            "lemma stale_current_recheck_both_roles_negative_control",
+            "lemma peer_finished_both_roles_negative_control",
+            "lemma omitted_state_end_to_end_negative_control",
+            "lemma omitted_post_ciphertext_negative_control",
+            "lemma omitted_finished_role_negative_control",
+            "lemma omitted_accept_finished_negative_control",
+        ):
+            with self.subTest(required_formal=required_formal):
+                self.assertIn(required_formal, migration_source)
+        self.assertNotIn(
+            "op migration_accepted : migration_execution -> bool.",
+            migration_source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

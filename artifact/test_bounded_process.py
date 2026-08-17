@@ -188,6 +188,161 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(result.returncode, 7)
         self.assertEqual(result.stdout, b"diagnostic\n")
 
+    def test_capture_output_bounds_and_separates_both_streams(self) -> None:
+        result = bounded_process.capture_output(
+            self.python(
+                "import sys; "
+                "sys.stdout.buffer.write(b'out'); "
+                "sys.stderr.buffer.write(b'err')"
+            ),
+            timeout_seconds=5,
+            maximum_stdout_bytes=3,
+            maximum_stderr_bytes=3,
+        )
+        self.assertEqual(0, result.returncode)
+        self.assertEqual(b"out", result.stdout)
+        self.assertEqual(b"err", result.stderr)
+
+        nonzero = bounded_process.capture_output(
+            self.python(
+                "import sys; sys.stderr.write('failure'); raise SystemExit(9)"
+            ),
+            timeout_seconds=5,
+            maximum_stdout_bytes=16,
+            maximum_stderr_bytes=16,
+        )
+        self.assertEqual(9, nonzero.returncode)
+        self.assertEqual(b"", nonzero.stdout)
+        self.assertEqual(b"failure", nonzero.stderr)
+
+    def test_capture_output_rejects_either_stream_over_limit(self) -> None:
+        for stream in ("stdout", "stderr"):
+            with (
+                self.subTest(stream=stream),
+                self.assertRaisesRegex(
+                    bounded_process.BoundedProcessError,
+                    f"{stream} exceeds 32 bytes",
+                ) as raised,
+            ):
+                bounded_process.capture_output(
+                    self.python(
+                        f"import sys; sys.{stream}.buffer.write(b'x' * 33)"
+                    ),
+                    timeout_seconds=5,
+                    maximum_stdout_bytes=32,
+                    maximum_stderr_bytes=32,
+                )
+            self.assertEqual("output_limit", raised.exception.kind)
+
+    def test_capture_output_timeout_terminates_promptly(self) -> None:
+        started = time.monotonic()
+        with self.assertRaisesRegex(
+            bounded_process.BoundedProcessError,
+            "timed out after 1 seconds",
+        ) as raised:
+            bounded_process.capture_output(
+                self.python(
+                    "import sys, time; "
+                    "sys.stdout.write('out'); sys.stdout.flush(); "
+                    "sys.stderr.write('err'); sys.stderr.flush(); "
+                    "time.sleep(60)"
+                ),
+                timeout_seconds=1,
+                maximum_stdout_bytes=16,
+                maximum_stderr_bytes=16,
+            )
+        self.assertEqual("timeout", raised.exception.kind)
+        self.assertLess(time.monotonic() - started, 5)
+
+    def test_capture_reads_exact_pinned_regular_stdin(self) -> None:
+        payload = b"descriptor-pinned crate bytes\x00\xff"
+        input_path = self.root / "pinned-input"
+        input_path.write_bytes(payload)
+        os.chmod(input_path, 0o600)
+        descriptor = os.open(input_path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            result = bounded_process.capture_stdout(
+                self.python(
+                    "import hashlib, sys; "
+                    "sys.stdout.write(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())"
+                ),
+                timeout_seconds=5,
+                maximum_bytes=128,
+                stdin_fd=descriptor,
+                stderr=subprocess.DEVNULL,
+            )
+            self.assertEqual(
+                result.stdout.decode("ascii"),
+                __import__("hashlib").sha256(payload).hexdigest(),
+            )
+            os.fstat(descriptor)
+        finally:
+            os.close(descriptor)
+
+    def test_pinned_stdin_rejects_mode_hardlink_closed_and_write_only(self) -> None:
+        input_path = self.root / "rejected-input"
+        input_path.write_bytes(b"payload")
+        os.chmod(input_path, 0o600)
+
+        os.chmod(input_path, 0o644)
+        descriptor = os.open(input_path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            with self.assertRaisesRegex(
+                bounded_process.BoundedProcessError, "mode-0600"
+            ):
+                bounded_process.capture_stdout(
+                    self.python("raise SystemExit(0)"),
+                    timeout_seconds=5,
+                    maximum_bytes=16,
+                    stdin_fd=descriptor,
+                )
+        finally:
+            os.close(descriptor)
+
+        os.chmod(input_path, 0o600)
+        hardlink = self.root / "rejected-input-hardlink"
+        os.link(input_path, hardlink)
+        descriptor = os.open(input_path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            with self.assertRaisesRegex(
+                bounded_process.BoundedProcessError, "mode-0600"
+            ):
+                bounded_process.capture_stdout(
+                    self.python("raise SystemExit(0)"),
+                    timeout_seconds=5,
+                    maximum_bytes=16,
+                    stdin_fd=descriptor,
+                )
+        finally:
+            os.close(descriptor)
+            hardlink.unlink()
+
+        write_only = os.open(input_path, os.O_WRONLY | os.O_NOFOLLOW)
+        try:
+            with self.assertRaisesRegex(
+                bounded_process.BoundedProcessError, "mode-0600"
+            ):
+                bounded_process.capture_stdout(
+                    self.python("raise SystemExit(0)"),
+                    timeout_seconds=5,
+                    maximum_bytes=16,
+                    stdin_fd=write_only,
+                )
+        finally:
+            os.close(write_only)
+
+        closed = os.open(input_path, os.O_RDONLY | os.O_NOFOLLOW)
+        os.close(closed)
+        with self.assertRaisesRegex(
+            bounded_process.BoundedProcessError, "not an open readable"
+        ):
+            bounded_process.capture_stdout(
+                self.python("raise SystemExit(0)"),
+                timeout_seconds=5,
+                maximum_bytes=16,
+                stdin_fd=closed,
+            )
+
     def test_explicit_environment_is_exact_and_malformed_entries_fail_fast(self) -> None:
         result = bounded_process.capture_stdout(
             self.python(
@@ -1152,6 +1307,33 @@ class BoundedProcessTests(unittest.TestCase):
                 with self.assertRaises(bounded_process.BoundedProcessError) as raised:
                     call()
                 self.assertEqual(raised.exception.kind, "arguments")
+
+    def test_process_start_separates_executable_and_never_uses_a_shell(self) -> None:
+        command = [sys.executable, "-c", "print('bounded')"]
+        process = mock.Mock(spec=subprocess.Popen)
+        with mock.patch.object(
+            bounded_process.subprocess,
+            "Popen",
+            return_value=process,
+        ) as popen:
+            started = bounded_process._start_process(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                environment={"LANG": "C"},
+            )
+        self.assertIs(process, started)
+        popen.assert_called_once_with(
+            args=command,
+            executable=sys.executable,
+            shell=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env={"LANG": "C"},
+            bufsize=0,
+            start_new_session=True,
+        )
 
 
 if __name__ == "__main__":

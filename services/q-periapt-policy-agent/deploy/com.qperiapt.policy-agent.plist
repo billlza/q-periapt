@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened launchd daemon for the Q-Periapt policy-agent reference service.
+
+  This plist is the macOS OS-level isolation contract for `serve-agent`. It
+  runs the daemon under a dedicated non-login service account with an
+  owner-only umask and no core dumps; provision the `_qperiaptagent` role
+  account, the 0700 service/configuration directories, and the binary at
+  /opt/qperiapt/bin before loading it with:
+    sudo launchctl bootstrap system \
+      /Library/LaunchDaemons/com.qperiapt.policy-agent.plist
+
+  launchd offers no seccomp-equivalent syscall filter, and App Sandbox
+  requires a signed bundle with entitlements, so the kernel-level syscall
+  boundary documented for Linux does not exist here; the macOS boundary is
+  the dedicated uid, the daemon's own descriptor-pinned 0700/0600 filesystem
+  capabilities, and its extended-ACL rejection. Do not represent this plist
+  as an App Sandbox or code-signing attestation.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.qperiapt.policy-agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/qperiapt/bin/q-periapt-policy-agent</string>
+        <string>serve-agent</string>
+        <string>/var/lib/qperiapt-agent/service</string>
+        <string>/var/lib/qperiapt-agent/state/agent.redb</string>
+        <string>127.0.0.1:7841</string>
+        <string>127.0.0.1:7842</string>
+        <string>/var/lib/qperiapt-agent/config</string>
+    </array>
+    <key>UserName</key>
+    <string>_qperiaptagent</string>
+    <key>GroupName</key>
+    <string>_qperiaptagent</string>
+    <key>InitGroups</key>
+    <false/>
+    <key>Umask</key>
+    <integer>63</integer><!-- 0077 -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>Core</key>
+        <integer>0</integer>
+    </dict>
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>Core</key>
+        <integer>0</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

@@ -52,11 +52,23 @@ state has no implicit-genesis repair path.
 Transitions are allowed to advance while sessions exist. The final local commit
 changes the fence and transactionally removes durable reservations and replay
 state; the in-memory linearizer then erases pending and accepted secrets. Every
-confirmation rechecks the exact repository and witness head/fence, so a session
+acceptance rechecks the exact repository and witness head/fence, so a session
 from the old head cannot be accepted. A process-boundary test exits immediately
 after durable intent without running destructors, then reopens and reconciles
 the same operation. This is crash-protocol evidence, not evidence for a specific
 filesystem, storage controller, or whole-machine power-loss guarantee.
+
+Finished ordering is determined only by the configured protocol role, not by
+which endpoint performs KEM encapsulation. An initiator begin operation returns
+I and waits for R; a responder begin operation returns no Finished. The
+responder acceptance path rejects the wrong flight, checks transition state and
+the exact repository/witness head, verifies I, and derives the accepted key and
+R. R is not returned until the durable reservation release and bounded
+in-process accepted-key/completed-response retention both succeed. The
+initiator likewise rechecks state and witness, verifies R, durably releases its
+reservation, retains the accepted key, and only then returns its key handle.
+Failure to cancel or release durable state poisons the Agent and returns no key
+handle or Finished response.
 
 Authenticated capability session identifiers are retained as bounded durable
 replay tombstones for the entire current state. Cancel, Finished rejection, key
@@ -97,10 +109,33 @@ provide code-signing identity or protect against hostile code already holding th
 authorized client signing key. Non-Unix targets fail explicitly instead of
 claiming an equivalent boundary.
 
+Kernel-level process isolation is deliberately delegated to the service
+manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
+holds the hardened systemd unit (dedicated locked account, read-only OS
+view, seccomp `@system-service` filter, empty capability set, no core
+dumps) and the launchd daemon template (dedicated uid, owner-only umask,
+no core dumps), together with the exact table of which boundary each layer
+enforces and the explicit non-claims. A deployment that starts the binary
+outside those templates gets only the daemon's own filesystem-capability
+and cryptographic boundaries.
+
+IPC is a hard V2 cut: request, response, and request-digest domains all end in
+`/v2`, schema 2 has distinct `AcceptInitiatorFinished` and
+`AcceptResponderFinished` commands and role-shaped begin/accept responses, and
+there is no V1 decoder or fallback. A consumed IPC nonce is never reusable. If a
+successful acceptance response is lost while being written, the client may send
+the exact same handle and Finished under a newly signed nonce; while the same
+process and retained key remain live, the bounded completed-acceptance cache
+returns the same key handle and, for the responder, the same R. Different
+Finished bytes fail as a conflicting replay. Destroy, committed transition, or
+process restart clears that cache. Neither `AcceptedSessionKeyV1` nor R is
+persisted or recovered after a crash; the durable capability-session tombstone
+remains, so recovery requires a new authenticated session rather than reuse.
+
 The executable accepts exactly one of these command shapes:
 
 ```text
-q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS CONFIG_DIRECTORY
+q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
 q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY
 ```
 
@@ -122,9 +157,14 @@ call `StateRepository::provision_new` and `ReferenceWitnessServer::provision`;
 a missing store is never provisioned by the runtime. Configuration files are
 fixed-name, exact-length owner-only files under the validated `0700` directory.
 They include separate migration/recovery roots, local/peer endpoint identities,
-signed execution/local/peer policy bundles, IPC request/response keys, and
-witness request/response keys. Secret-key files are read directly into
-zeroizing buffers.
+signed execution/local/peer policy bundles, IPC request/response keys, witness
+request/response keys, and the instance-lease authority material: its
+request/response keys plus the pinned wire identity (client and server
+identifiers, authority epoch, exact expected state head, and deployment
+configuration revision as fixed-length big-endian binary files). Secret-key
+files are read directly into zeroizing buffers. `serve-agent` acquires the
+exclusive instance lease at startup and fails closed while another unexpired
+instance holds it.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:
@@ -133,7 +173,8 @@ state:
 | --- | ---: |
 | Any IPC or witness frame | 16 KiB |
 | IPC capability-offer field | 8 KiB, also constrained by the total frame |
-| Runtime pending sessions / confirmed keys | 256 each by default; hard maximum 1024 |
+| Runtime pending sessions | 256 by default; hard maximum 1024 |
+| Runtime confirmed keys / completed-acceptance entries | 256 each by default; hard maximum 1024; one cache entry is retained only with its key |
 | Runtime session TTL | 5 minutes by default; hard maximum 24 hours |
 | Durable session reservations | 1024 |
 | Durable capability replay tombstones | 4096 per committed state |

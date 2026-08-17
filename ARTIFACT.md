@@ -29,6 +29,54 @@ All commands run from the repository root. `cargo` ≥ 1.85 is the only hard pre
 host smoke; proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
 uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PATH fallback.
 
+## Rust CodeQL analysis boundary
+
+The Rust CodeQL lane uses the CodeQL 2.26.2 bundle linked to the exact pinned CodeQL Action
+commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
+with a Rust 1.94.0 analysis sysroot
+because the bundled Rust extractor cannot completely expand this repository with the canonical
+Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.96.1
+CodeQL analysis. Before CodeQL initialization, the same commit must pass
+`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.96.1 with
+warnings denied, repository-external target directories, and no repository-local `target` entry.
+
+Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
+93 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
+format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
+sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
+complete, self-reconciling classification and reported as telemetry rather than required to be
+zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
+produce type-inference telemetry; this is not a claim of complete extractor semantics for that
+generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
+those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
+budget while retaining its 300-second process deadline and bounded diagnostic output; a resource or
+deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
+upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
+publish results. The quality adapter accepts no environment-selected executable, database, or
+temporary path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout,
+rejects unsafe file types, requires the database paths to be current-user-owned and without
+cross-account write permission, and revalidates their open path identities around every query and
+decode.
+The evaluator budget is scoped to the public-repository Rust `ubuntu-latest` lane, currently four
+vCPUs and 16 GB. A runner-label, repository-visibility, or hosted-hardware change requires
+revalidating the fixed budget rather than lowering the quality gate or extending its deadline.
+The pinned action's fixed GitHub-hosted toolcache launcher may be foreign-owned,
+group/other-writable, or multiply linked, so its owner, write mode, and link count are observed
+runner-image properties rather than gate conditions. Its regular-file type, executable mode, exact
+path/version, and open identity remain required.
+These checks prevent accidental path drift and ordinary replacement from silently selecting a
+different analysis, but they are trusted-runner integrity checks, not isolation from hostile code
+already executing under the same runner account. The open descriptors retain path-identity
+snapshots; the CLI, database contents, adjacent bundle files, and temporary workspace remain
+trusted inputs used by pathname. In-place launcher modification through its original inode or an
+alternate hard link is likewise outside this identity-only check. The inherited process environment
+and OS runtime are trusted too. The fixed-path rule does not claim to hermetically isolate the
+CodeQL process. Resisting same-UID
+replace-and-restore or a hostile builder requires an isolated runner image that prevents hostile
+local writers; a separate account alone is insufficient when the toolcache is cross-account
+writable.
+
 ## Quick start — one command
 
 ```sh
@@ -43,7 +91,9 @@ encoders/decoders plus full-byte vectors, isolation rules, and both separate Eas
 projection/omission developments. Its pass marker does not
 enter the ABI 2 release-attestation state machine.
 
-Runs the minimal closed loop (core tests, shared/reference vectors, the C-ABI face + a real C
+Runs the minimal closed loop (core tests, shared/reference vectors including the three retained
+X-Wing draft-10 vectors and the CFRG `concrete-hybrid-kems-04` Appendix B.2 vector 0
+MLKEM768-X25519 vector, the C-ABI face + a real C
 link-and-run, the WASM face's shared vector on the host, a real loopback TLS 1.3 handshake over the
 hybrid group, and the EasyCrypt no-`admit` gate) and prints `ALL PASS` (exit 0). Needs a Rust
 toolchain and a C compiler — no Docker, wasm-pack, Node, or device hardware.
@@ -56,6 +106,16 @@ actual checkout explicitly with a 40-character lowercase hexadecimal
 synthetic merge commit for a pull request rather than `pull_request.head.sha`. The hardened
 source freeze validates this commitment before emitting any proof marker, and malformed or
 mismatched values fail with exit status 2.
+
+The host tests also pin two process-local ownership boundaries. For Compat rustls,
+the stable private-key representation remains a 32-byte seed; one in-flight client
+exchange expands it once into a non-Clone, zeroizing 2,400-byte prepared owner and
+reuses that owner at completion. No secret-key cache is global or shared between
+handshakes, and the capability is not exported through ABI 2. In the native FFI,
+the first dynamically allocated Rust-owned policy-bound-context copy reserves capacity
+before sensitive bytes are written and has one RAII wipe owner across normal return,
+error, and unwind. Neither assertion covers caller/marshalling copies, registers,
+paging, process abort, or full-runtime memory erasure.
 
 The canonical source digest covers tracked plus ignored and visible untracked canonical source
 inputs under a fixed, verifier-owned non-input policy: exact untracked regular files whose
@@ -113,14 +173,23 @@ fields until a deliberate manifest-schema migration renames them atomically.
 
 The proof wrapper deliberately has no generic `PROOF_TO_BYTE_PASS` marker. It emits separate
 markers for manifest/source validation, Tier-1 host execution, formal machine-checking, Apple
-single-device or matrix evidence, Android runtime evidence, matched-backend host performance, and
-an optional producer-origin camera-ready capture bundle.
+single-device or matrix evidence, Android AAR evidence, canonical Android runtime evidence,
+independently selected physical Android runtime evidence, a results-bound local-index consumer
+receipt, matched-backend host performance, and an optional producer-origin camera-ready capture
+bundle.
 Only a clean-tree run that requires host smoke + all formal tools + the iPad/iPhone matrix + a
 fresh controlled-host performance budget + a warning-denied dependency audit may emit the
 explicitly local Apple/core-scoped `PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS`; otherwise the final line is a
 scoped `PROOF_TO_BYTE_RUN_FINISHED ...` summary (or `PROOF_TO_BYTE_RELEASE_NOT_ATTESTED` for a dirty
-diagnostic run). Android runtime remains an independently gated proof until its physical-vs-emulator
-release policy is decided; no distribution, notarization, or generic all-platform release marker
+diagnostic run). The canonical Android release selector is the clean arm64-v8a/API-35/16-KiB
+release-mode AVD. A clean physical proof over the same source and AAR is an additional production
+requirement and cannot replace that selector. The independent physical selection and bound verifier
+are implemented; `PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS` additionally requires AAR,
+canonical runtime, physical runtime, and local-consumer states all equal 1 on a clean snapshot. It is
+a scoped local gate, not distribution, notarization, or a generic all-platform release marker. If
+the independent Apple/core local-candidate requirements also pass in the same invocation, the more
+specific final marker is `PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS`; it has the same local,
+non-public provenance boundary. No generic release marker
 exists in the proof-to-byte state machine (published GitHub prereleases are recorded separately
 as release receipts in `artifact/results.json`, not as proof-to-byte markers). The local-candidate marker does not accept an Apple Development profile as distribution
 provenance. Neither a package build nor historical device evidence is promoted to current release
@@ -143,9 +212,16 @@ evidence but is not a formal spec-to-Rust refinement; Signal's public SPQR basel
 reports separate hax/F* implementation checks that this artifact does not yet match.
 
 Set `QPERIAPT_REQUIRE_DEPENDENCY_AUDIT=1` together with the other release requirements to execute
-`cargo audit --deny warnings`. Omitting that flag leaves the run scoped and cannot emit the release
-marker. The research-alpha release graph now uses the portable-only `q-periapt-mlkem-native-sys`
-boundary over vendored `mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
+the fixed workspace/fuzz dependency verifier. Install its exact tool first with
+`PATH="$PWD/target/qperiapt-audit-tool/bin:$PATH" cargo +1.96.1 install cargo-audit
+--version 0.22.2 --locked --root target/qperiapt-audit-tool`. The temporary `PATH` prefix prevents
+Cargo's post-install path warning; the verifier itself still ignores ambient `PATH`.
+The verifier accepts no source-root or executable-path argument: it derives the repository root
+from its own fixed module location and executes only
+`target/qperiapt-audit-tool/bin/cargo-audit`. Omitting the requirement flag leaves the run scoped
+and cannot emit the release marker. The `0.1.0` stable-version release graph now uses the
+target-selected `q-periapt-mlkem-native-sys` boundary over vendored
+`mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
 `sha3` 0.10.9. This removes both the `fips203` path that failed the project binary-CT
 gate and the earlier `libcrux`/hax/`proc-macro-error2` advisory path. The current
 lockfile passes `cargo audit --deny warnings` with no advisory ignore. RustSec covers
@@ -159,29 +235,45 @@ archive SHA-256
 `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
 The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 `77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`.
-The upstream tag/commit is not a signed provenance statement, and neither upstream
-mlkem-native nor this Rust/C integration has completed an independent audit.
+Exactly `aarch64-apple-darwin`, `aarch64-apple-ios`,
+`aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
+`aarch64-linux-android`, all little-endian, use upstream native arithmetic plus
+fixed Armv8-A scalar x1 and scalar/Neon x4 FIPS 202 assembly. Every other target,
+including Wasm, remains portable C; there is no runtime dispatch or Armv8.4-A SHA3
+path. This selection does not change ABI 2, key formats, or wire bytes. Upstream
+HOL-Light evidence applies only to selected upstream assembly source/object routines,
+not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
+tag/commit is not a signed provenance statement, and neither upstream mlkem-native
+nor this integration has completed an independent audit.
 
-ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-for coordinated Rust-crate publication (not yet uploaded to crates.io), with two
-published immutable GitHub research prereleases: the Apple XCFramework revision
-`v0.1.0-alpha.2-r1` (Rust 1.96.1; the earlier `v0.1.0-alpha.2` Apple build on
-Rust 1.96.0 is superseded, historical attested evidence) and the
-`abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR plus API 35 /
-16 KiB-page emulator runtime evidence, GNU/Linux x86_64+aarch64 SDK archives, and an
-unsigned experimental Windows x64 MSVC SDK built with Rust 1.97.0 as a bounded,
-documented toolchain difference). Machine-checked publication receipts live in
-`artifact/results.json` (`release_publications`, `swift_xcframework.distribution`)
-under `artifact/platform_release_contract.py`; scope, verification commands, and
-explicit non-goals are in `artifact/abi2-platform-release-notes.md`. The line has a
+ABI 2 / `0.1.0` is the stable-version source line (registry publication remains
+receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
+`v0.1.0` and the
+`abi2-platforms-v0.1.0` platform distribution (Android AAR plus API 35 /
+16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
+The unsigned Windows x64 MSVC package remains an unsupported CI diagnostic and is
+excluded from the formal candidate, manifest, attestation, receipt, and release assets.
+Machine-checked, versioned Apple and platform
+publication receipts live under `release_publications` in `artifact/results.json`;
+`swift_xcframework.distribution` is only the active Apple projection and must match
+one of those receipts exactly. Scope, verification commands, and explicit
+non-goals are in `artifact/stable-release-notes.md`. The alpha.2 tags and frozen r2
+receipt remain immutable historical evidence. The `platform_v0_1_0` receipt has
+two exact states: candidate verification pending release verification binds the
+descriptor-snapshotted final seven-file local release candidate while omitting every
+remote-publication field (absence means unrecorded, not no release), while verified
+preserves that candidate verbatim and adds exact matching public assets, immutable
+stable-release metadata, tag-plus-assets attestation, and fresh-download deep
+verification. Receipt transitions are monotonic.
+The line has a
 frozen exact-nine dynamic `q_periapt_*` export
 contract. The static archive constrains that reserved public namespace but retains
 unsupported hidden `qpn_mlkem_bridge_*` link symbols; hidden visibility is not
 access control, and a same-process static consumer can deliberately call them. It removes
 raw/deterministic public product exports, uses OS randomness, major-isolates the
-binary/package identities, and rejects ABI1's four-byte state. Source/crate readiness by
-itself does not attest platform binaries; the published archives above are attested by
-their own release receipts, distribution manifests, `SHA256SUMS`, annotated tags, and
+binary/package identities, and rejects ABI1's four-byte state. Package readiness by
+itself does not attest platform binaries; any archive promoted to public/current is
+attested by its own release receipt, distribution manifest, `SHA256SUMS`, annotated tag, and
 GitHub immutable-release/build-provenance attestations. The Apple-only
 credentialed lane separately produces the Developer ID-signed, exact-static-only
 XCFramework ZIP whose payload has no notarizable executable or bundle; only
@@ -193,15 +285,150 @@ transparency-backed provenance, and fresh same-source device/performance proof m
 still pass. ABI1 needs explicit authorized
 re-enrollment/reset; a version alone cannot be converted into an exact-policy digest.
 The noncanonical Continuity research snapshot shape is unrelated and never a release substitute.
-The backend/source migration changed the canonical source-input digest. Consequently,
-the later clean-tree Apple schema-3 matrix, controlled-host matched-backend proof,
-package artifacts, and `libcrux` binary-CT captures are all historical even if they
-passed on their recorded source. Each release-scoped package/device/performance/CT lane
-must be rebuilt or re-collected against the new digest. Time-varying currentness is
+The target-selection/source migration changed the canonical source-input digest.
+Consequently, portable-derived Apple/Android device results, the controlled-host
+matched-backend proof, package artifacts, and binary-CT captures are all historical
+even if they passed on their recorded source. Existing publication receipts remain
+immutable evidence for the exact artifacts they name, not the target-selected rebuild.
+Each release-scoped package/device/performance/CT lane must be rebuilt or re-collected
+for its selected target against the new digest. Time-varying currentness is
 authoritative only through `artifact/results.json` plus the required live domain
 verifiers; source prose cannot promote an old proof after a source change. Even fresh
 local product-execution and single-host results will not substitute for independent
 signed release provenance, device-energy evidence, or cross-implementation performance parity.
+
+`artifact/source_results_assembler.py` is the deliberately one-time stable-source
+190-to-237 proof-input migration entrypoint, not a reusable release finalizer. Once the
+generated results-only successor R is installed, the 237 baseline makes its initial
+mode logically retired: re-running it is expected to fail closed because
+`require_initial=True` requires the exact pre-migration shape. That failure must not be
+bypassed by relabelling or hand-editing `artifact/results.json`. Do not physically edit,
+extract, or delete the assembler between R and verified publication V; doing so would
+create a new source change after the evidence freeze. Physical removal of the one-time
+`finalize` path belongs only to the next source cycle after V, together with an
+explicitly reviewed current-to-current state machine and a new S. Retain
+`verify-installed` and the exact CI dispatch until their durable 237-key
+verifiers are extracted into a neutral module; deleting the whole file would also
+delete the installed-successor and main-CI gates.
+
+The main CI source gate deliberately recognizes exactly two manifest states. For
+the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
+one-shot Level-1 byte authority
+`c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50`,
+pins the worktree manifest to the HEAD blob, validates the exact initial publication state
+and fixed 47-key delta, requires a clean expected commit/tree identity, and samples
+the complete 237-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 237-key installed map it emits
+only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
+Malformed, mixed, or changing states fail; an initial-readiness failure never falls
+back to the installed path.
+
+The source authority `S` must exist on the final, non-rewritten `main` history
+*before* any release-scoped handoff, device, or performance evidence is collected.
+Merge every source change first, fetch `origin/main`, require a clean checkout with
+`HEAD == refs/remotes/origin/main`, and record that 40-hex commit as `S`. Evidence
+from a feature-branch SHA, a pull-request synthetic merge commit, or any predecessor
+that is later merged/rebased is stale and cannot be selected into `R`.
+
+```sh
+git fetch --no-tags origin main
+S=$(git rev-parse --verify 'HEAD^{commit}')
+case "$S" in ''|*[!0-9a-f]*) exit 1 ;; esac
+test "${#S}" -eq 40
+test "$S" = "$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')"
+test -z "$(git status --porcelain=v1 --untracked-files=all)"
+```
+
+Use this exact source-results transition after all selected domain producers have
+completed against that one clean `S`. The run IDs and performance proof filename
+below are operator-selected evidence identifiers, not examples that may be copied
+unchanged. `PERFORMANCE_PROOF` is a safe basename beneath `target/performance/`, not a
+path. First run the Rust package contract once on that same clean source checkout and
+record the one controlled `RUST_PACKAGE_HANDOFF_PASS` path and digest from stderr; its
+manifest-last transaction is the only Rust transcript/archive source accepted by the
+assembler or later crates.io coordinator. A nonzero exit or anything other than one
+controlled PASS marker is failure: never scan for or select a private orphan; after
+checking that S is still clean, run a new transaction:
+
+```sh
+sh artifact/rust-publish-contract.sh
+# Set both values verbatim from the single RUST_PACKAGE_HANDOFF_PASS marker.
+: "${RUST_HANDOFF_MANIFEST:?set the emitted repository-relative handoff manifest path}"
+: "${RUST_HANDOFF_SHA256:?set the emitted handoff manifest SHA-256}"
+case "$RUST_HANDOFF_MANIFEST" in
+  target/qperiapt-rust-package-handoffs/transaction.*-*/rust-package-handoff.json) ;;
+  *) exit 1 ;;
+esac
+case "$RUST_HANDOFF_SHA256" in ''|*[!0-9a-f]*) exit 1 ;; esac
+test "${#RUST_HANDOFF_SHA256}" -eq 64
+test "$(shasum -a 256 "$RUST_HANDOFF_MANIFEST" | awk '{print $1}')" = \
+  "$RUST_HANDOFF_SHA256"
+
+: "${ANDROID_RUNTIME_RUN:?set the selected Android runtime run ID}"
+: "${APPLE_MATRIX_RUN:?set the selected Apple matrix run ID}"
+: "${CONSUMER_RUN:?set the selected consumer run ID}"
+: "${ANDROID_PHYSICAL_RUN:?set the selected physical Android run ID}"
+: "${PERFORMANCE_PROOF:?set the selected performance proof filename}"
+baseline_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
+sh artifact/python-run.sh artifact/source_results_assembler.py finalize \
+  "$baseline_sha256" \
+  --rust-handoff-manifest "$RUST_HANDOFF_MANIFEST" \
+  --rust-handoff-sha256 "$RUST_HANDOFF_SHA256" \
+  --android-runtime-run "$ANDROID_RUNTIME_RUN" \
+  --apple-matrix-run "$APPLE_MATRIX_RUN" \
+  --consumer-run "$CONSUMER_RUN" \
+  --android-physical-run "$ANDROID_PHYSICAL_RUN" \
+  --performance-proof "$PERFORMANCE_PROOF"
+```
+
+The command emits one controlled `SOURCE_RESULTS_SUCCESSOR_PASS` marker containing a
+repository-relative candidate path and SHA-256. Set the following two values from that
+exact marker, require the candidate bytes to match, and install those bytes without
+editing their JSON content:
+
+```sh
+candidate=target/source-results-successors/transaction.EMITTED_ID/results.json
+candidate_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
+test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$candidate_sha256"
+install -m 0644 "$candidate" artifact/results.json
+test "$(shasum -a 256 artifact/results.json | awk '{print $1}')" = "$candidate_sha256"
+cmp -s "$candidate" artifact/results.json
+test "$(git diff --name-only -- artifact/results.json)" = artifact/results.json
+git diff --exit-code -- . ':(exclude)artifact/results.json'
+test -z "$(git ls-files --others --exclude-standard)"
+# Re-sample both pathnames immediately before staging.
+test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$candidate_sha256"
+test "$(shasum -a 256 artifact/results.json | awk '{print $1}')" = "$candidate_sha256"
+cmp -s "$candidate" artifact/results.json
+git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  add -- artifact/results.json
+test "$(git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  diff --cached --name-only)" = artifact/results.json
+# Re-sample once more after staging and before the hook-disabled commit.
+test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$candidate_sha256"
+test "$(shasum -a 256 artifact/results.json | awk '{print $1}')" = "$candidate_sha256"
+cmp -s "$candidate" artifact/results.json
+test "$(git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  show :artifact/results.json | shasum -a 256 | awk '{print $1}')" = \
+  "$candidate_sha256"
+git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null commit \
+  -m 'release: install stable source results successor'
+test "$(git -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+  -c core.attributesFile=/dev/null -c core.excludesFile=/dev/null \
+  show HEAD:artifact/results.json | shasum -a 256 | awk '{print $1}')" = \
+  "$candidate_sha256"
+sh artifact/python-run.sh artifact/source_results_assembler.py verify-installed \
+  "$candidate_sha256"
+```
+
+The source commit must already be clean before `finalize`; the next commit must change
+only `artifact/results.json` and be its direct child. Do not tag, publish, delete the
+retained candidate, or run any downstream release finalizer unless `verify-installed`
+prints `SOURCE_RESULTS_INSTALLED_VERIFY_PASS` for that exact commit.
 
 The expected per-step counts, toolchain, current-source local footprint sizes, and data-file pointers are pinned in
 [`artifact/results.json`](artifact/results.json) (every value measured, so drift is visible). A
@@ -226,8 +453,8 @@ KATs, NIST ACVP conformance, the independent-crate differential checks, and that
 EasyCrypt proof has no `admit`/`sorry`.
 
 The dk-format separation (Theorem 1, item 5) is witnessed by a runnable example — both the
-expanded-`dk` break and its seed-`dk` negative control, against the release-graph portable
-`mlkem-native` backend:
+expanded-`dk` break and its seed-`dk` negative control, against the target-selected
+release-graph `mlkem-native` backend for the compilation target:
 
 ```sh
 cargo run -p q-periapt-backends --example binding_dk_format_witness
@@ -256,15 +483,32 @@ cargo audit --deny warnings                                            # no advi
 # `kctx_without_nonbottom_broken` lemma is the explicit probability-one countermodel for omitting
 # `K != bottom` from the explicit-rejection context-binding game:
 docker build -f formal/Dockerfile -t q-periapt-ec .
-docker run --rm -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
-    opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco \
-        && easycrypt BindingViaCR.ec && sh negative-controls.sh'
+docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
+    -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec \
+    opam exec -- sh -c 'sh artifact/python-run.sh \
+        artifact/formal_toolchain_contract.py verify-installed --tool easycrypt \
+        && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec \
+        && rm -f *.eco continuity/*.eco \
+        && MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+        make EC=easycrypt check \
+        && EASYCRYPT=easycrypt sh negative-controls.sh \
+        && MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+        make -C continuity EC=easycrypt check'
 
 sh bindings/c/build-and-run.sh                                         # C-ABI link smoke (needs cc)
 CC_wasm32_unknown_unknown=/absolute/path/to/llvm-clang \
   cargo build -p q-periapt-wasm --target wasm32-unknown-unknown        # wasm32 (needs the target)
 cargo build -p q-periapt-core --target thumbv7em-none-eabihf           # no_std embedded (needs the target)
 ```
+
+The formal-tool contract is a Level-1 accidental-drift check, not executable-byte
+attestation. Each identity probe has a 30-second timeout and 64-KiB cap per output
+stream, requires strict UTF-8 and exact pinned identities, and fails before any formal
+`make` command on missing tools, warnings/errors, malformed output, or version drift.
+Release-authority invocations also pass the same fixed basenames as explicit `make`
+command-line variables. They clear `MAKEFLAGS`, `GNUMAKEFLAGS`, and `MAKEFILES`
+before each `make`, so ambient dry-run, ignore-error, alternate-makefile, and
+variable-override settings cannot skip a proof or select another prover.
 
 The WASM compiler path must be absolute and name upstream LLVM Clang with a
 `wasm32` backend (`clang --print-targets` must list it); Apple Clang is rejected.
@@ -297,44 +541,141 @@ Swift XCTest count, Swift XCFramework/binaryTarget pre-publication proof
 (`artifact/swift-xcframework.sh`) through an isolated binary consumer, Android AAR/JNI packaging
 proof (`artifact/android-aar.sh`) with four ABI slices, native/JNI symbol audits, dex conversion, and
 an isolated Java consumer compile, Kotlin/Panama tests with explicit native library loading, WASM
-Node tests, and `proof-to-byte.sh`. The Rust crate release
-surface has a separate publication-contract gate,
-`sh artifact/rust-publish-dry-run.sh`, which requires a clean tree by default, validates the
+Node tests, and `proof-to-byte.sh`. The Rust crate pre-publication package-ready
+surface has a separate package-contract gate,
+`sh artifact/rust-publish-contract.sh`, which requires a clean tree by default, validates the
 ten-crate publish allow/deny list, checks package file lists, applies every downstream local patch,
-and runs patched `cargo publish --dry-run` for each publishable crate. It then creates fresh
-isolated sys/backend archives. The sys `.crate` is inspected independently for links/special or
+and runs registry-bound `cargo package` with rebuilt-archive verification for each publishable crate;
+all Cargo warnings fail the gate and no upload command is invoked. It then creates fresh
+isolated sys/backend archives. The contract also creates a fresh owned `0700` Cargo home instead
+of consuming the caller's Cargo/RustSec cache. The normalized audit fetches its RustSec database
+there, then requires the exact upstream origin, a canonical commit, and a clean database worktree
+before the owned directory is descriptor-bound cleaned. Cargo-home configuration, credential files,
+registry cache, and advisory state are isolated; caller environment, selected
+Rust/Cargo/cargo-audit executables, network transport, and the OS runtime remain trusted host
+inputs. Because `cargo-audit` 0.22.2's built-in yanked check requires the multi-gigabyte legacy Git
+index, the contract checks the same exact locked names, versions, and checksums against the bounded
+official crates.io sparse HTTPS index, then runs the warning-denied advisory audit with its
+incompatible duplicate yanked path disabled. A yanked, missing, malformed, or mismatched sparse
+entry fails the contract; this is a responsibility split, not a warning suppression or skipped
+registry check. The sys `.crate` is inspected independently for links/special or
 forbidden paths, the fixed 124-entry upstream inventory, the exact packaged 118-code-file hash
 subset (excluding six upstream README files), the pinned upstream license and v1.2.0 provenance,
-and a portable-only build surface. Cargo's normalized backend graph is generated
-with the sys crate patched in and audited separately, so Cargo versions that discard dry-run
-archives cannot skip the provider, retired-HQC/PQCrypto, inventory, license, or normalized-graph
-checks. The coordinated registry order is sys, core, KEM/signature traits, backends, policy, then
-the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set. The ordinary
-Swift XCFramework gate also requires a clean tree by default; set
+and the fixed target-selected native/portable build surface. Cargo's normalized backend graph is generated
+with the sys crate patched in and audited separately, so the provider, retired-HQC/PQCrypto,
+inventory, license, and normalized-graph checks cannot be skipped. This no-upload contract does
+not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
+authorization, server-side policy acceptance, or a registry receipt. The coordinated registry
+order is sys, core, KEM/signature traits, backends, policy, then
+the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set.
+`artifact/results.json` may declare that source-bound package receipt current only through its
+strict schema, exact source identity, advisory snapshot, manifest-last handoff fingerprint,
+retained transcript fingerprint, and the exact ten sibling `.crate` archives validated by that
+handoff. The assembler and crates.io coordinator both consume the same explicit transaction;
+there is no second fixed transcript path or manual-copy authority.
+Set `QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT=1` to make `proof-to-byte.sh` load that exact selected
+handoff, verify its exact inventory plus transcript marker set and ordering, and expose a separate
+`rust_package_contract=1` finalizer state. This does not set or replace
+`dependency_audit=1`: the explicit workspace/fuzz lock audit remains a separate live gate.
+When `QPERIAPT_REQUIRE_DEPENDENCY_AUDIT=1`, that gate snapshots both checked-in
+lockfiles, requires their fixed local-package scopes, verifies every crates.io
+name, version, checksum, and non-yanked status through the same bounded sparse
+HTTPS verifier, and runs warning-denied advisory scans against one freshly
+fetched RustSec database in a private Cargo home. The fuzz scan reuses that exact
+clean database without fetching again, and both lock snapshots plus the database
+commit are revalidated before success. The whole acceptance sequence has one
+900-second monotonic deadline; each subprocess retains its smaller stage cap and
+the fixed reap window, while owned-directory cleanup still runs on every exit.
+CI calls the same verifier; neither path consumes the caller's Cargo-home files
+or advisory database. The repository-local `cargo-audit` launcher is a selected trusted-host input,
+but its path is fixed by code rather than accepted from a CLI argument or ambient `PATH`.
+These SHA-256 values
+bind exact lock bytes to one run for accidental mismatch detection; they do not
+attest against a hostile host, crates.io, RustSec, system CA store, or network.
+The Swift XCFramework gate also requires a clean tree by default; set
 `QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1` only for local diagnostics. Set
-`QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus `QPERIAPT_DEVICE_RESULT_DIR=<matrix-run-dir>` to also
-require a fresh iPad+iPhone matrix proof. Set `QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1` after
-running `artifact/android-device-smoke.sh` to require a fresh emulator or physical-Android runtime
-proof too. Passing this gate proves that the current source tree can be embedded through the
-existing faces and that the host C archive is consumable after extraction. After those package gates
-have produced artifacts, `sh artifact/local-release-index.sh` creates a local hash-bound index under
+  `QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1` plus
+  `QPERIAPT_DEVICE_RESULT_DIR=/absolute/path/to/<matrix-run-dir>` to also
+require a fresh iPad+iPhone matrix proof. The Android release transaction is ordered and must remain
+on one unchanged clean source snapshot: produce the exact AAR; execute it on the script-owned
+arm64-v8a/API-35/16-KiB release-mode AVD; create the first release index with
+`QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1` and the exact
+`QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id>`; run `sh artifact/local-release-consumer-smoke.sh`
+to execute the extracted dynamic and static C consumers and append one receipt; then make one
+evidence-only `artifact/results.json` successor selecting the exact AAR, AVD proof, index, and
+receipt. Only after that successor exists, set
+`QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1`,
+`QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER=1`, and
+`QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json`
+on `artifact/embedding-readiness.sh`. These options enter a separate read-only final mode before
+any package producer or build tool is invoked. The script calls `proof-to-byte` exactly once and
+then exits with `EMBEDDING_ANDROID_BOUND_VERIFY_PASS` plus explicit `canonical=1`,
+`physical=<0|1>`, and `local_release_consumer=<0|1>` fields; it does not regenerate the fixed AAR
+path or generate/repair a receipt. Add
+`QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1` and the selected
+`QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF` for the four-domain production aggregate. Passing this
+optional transaction gate proves that the selected current-source Android artifacts and host C
+archive consumer receipt are mutually bound; it is not a public release attestation. After the
+package gates have produced artifacts,
+`sh artifact/local-release-index.sh` creates a local hash-bound index under
 `target/qperiapt-local-release/<channel>/<version>/<commit>/` over the C archive, Swift XCFramework zip, and
 Android AAR. Release mode requires a clean tree. Set `QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=1` only for
-diagnostic indexes; optional Apple/Android runtime evidence is included as sanitized proof summaries,
-never as copied raw device logs or profiles. Index schema 3 accepts only the current producer envelopes
+diagnostic indexes; optional Apple/Android runtime evidence is included as raw-value-omitting proof summaries,
+never as copied raw device logs or profiles. An Android summary requires both
+`QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1` and the exact immutable
+`QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id>` selector; release indexes rerun the complete
+canonical AVD release-runtime contract (emulator, arm64-v8a, API 35, 16 KiB pages, release mode)
+rather than trusting a summary field. Physical-device proofs remain valid explicit runtime evidence,
+but they are not the canonical Android proof admitted into the release-channel index. Index schema 5 also projects the
+verified page size, release-candidate mode, passing result, and fixed external-adb/native-notifier
+admission into the raw-value-omitting Android summary so
+offline index consumers can see the canonical release-runtime contract. It accepts only the current producer envelopes
 (C schema 2, Swift schema 5, Android schema 4), binds their exact package-only targets and boundaries,
 and rejects the credentialed/signed Swift lane because it does not copy `APPLE_DISTRIBUTION.json`.
+The local consumer is a producer, not a finalizer: it publishes a private append-only receipt only
+after both extracted C consumer modes pass. The receipt binds the index, C archive, indexed Android
+AAR, and the index's canonical runtime identity. The results-only successor must bind the exact
+receipt path/hash and exact index path/hash before any final verifier accepts
+`current_clean_tree_local_index_consumer_pass`.
+For production promotion, capture a separate clean physical run over the same AAR and source before
+the one evidence successor, select it under `android_physical_runtime` in that successor, and invoke
+the final bound gate
+with all four Android requirements in one pinned-manifest transaction:
+
+```sh
+QPERIAPT_REQUIRE_ANDROID_AAR=1 \
+QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<canonical-run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1 \
+QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<physical-run-id>/proof/qperiapt-android-device-proof.json \
+QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER=1 \
+sh artifact/proof-to-byte.sh
+```
+
+The physical verifier fixes freshness to 86,400 seconds and derives ABI, page size, SDK, build
+tools, and release-candidate mode from the results-selected proof; callers cannot weaken those
+facts. A current API-36/4-KiB non-release physical proof is valid supplemental execution evidence.
+The aggregate remains pending unless a fresh physical run is captured and selected by the same
+evidence successor; the bound marker, not this document, is the currentness authority.
 The emitter and consumer derive the repository root from their installed script location and select
 only the fixed channel pointer; arbitrary root, index, and output-path CLI overrides are not supported.
-Each `<channel>/<version>/<commit>` tree is immutable once created: a repeated emit fails before
-touching the existing tree. A serialized emitter first builds and verifies a unique mode-0700
-sibling staging tree, then atomically moves it to the immutable identity and replaces the single
-authoritative per-channel pointer inside one short termination-deferred publication window. An
-interruption during package copying can therefore leave at most an unselected private staging tree;
-it cannot occupy or partially rewrite the final identity. The next serialized emit removes only
-strictly named, current-user-owned mode-0700 staging remnants before using a fresh staging name. A
-`SIGKILL` or host loss during the much shorter final rename/pointer window can still require
-ownership-checked manual recovery, but no incomplete tree is selected as published evidence.
+Each `<channel>/<version>/<commit>` tree is immutable once created. A serialized emitter first builds
+and verifies a unique mode-0700 sibling staging tree, then publishes it with the host's native atomic
+no-replace operation (`renameatx_np(RENAME_EXCL)` on macOS or
+`renameat2(RENAME_NOREPLACE)` on Linux) before replacing the single authoritative per-channel pointer
+inside one short termination-deferred window. Missing native support fails closed; there is no
+check-then-rename fallback that may replace an existing destination. An interruption during package
+copying can therefore leave at most an unselected private staging tree; the next serialized emit
+removes only strictly named, current-user-owned mode-0700 staging remnants before using a fresh name.
+If `SIGKILL` or host loss occurs after final-tree publication but before pointer commit, the next emit
+fully verifies that exact channel/version/commit tree, including its complete file inventory,
+manifests, checksums, current source identity, ABI contract, and exact requested proof summaries,
+then idempotently advances or confirms the pointer without rebuilding or rewriting the tree. A
+corrupt, permission-invalid, or proof-selector-mismatched final tree is preserved for investigation
+and fails without changing the pointer. Re-emitting an already verified and exactly selected identity
+is an idempotent success; a different identity or selector cannot overwrite it. Exact owned pointer
+temporary files left by this window are removed only after complete tree and selector verification,
+and the already-matching fast path retries the pointer-parent directory sync before returning success.
 The local store and consumer work directories use mode 0700, and copied packages, indexes, checksums,
 and pointers use mode 0600. Publication tooling must explicitly create separately permissioned public
 artifacts rather than reusing this private local store.
@@ -349,14 +690,15 @@ ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slic
 `APPLE_DISTRIBUTION.json`. This SDK payload has no standalone executable or notarizable bundle, so
 notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
 product retains its own signing and notarization responsibility.
-The published research prereleases are not a production release claim. The Apple
-`v0.1.0-alpha.2-r1` XCFramework and the `abi2-platforms-v0.1.0-alpha.2-r2` Android
-AAR / Linux x86_64+aarch64 / Windows x64 MSVC SDK archives are immutable, attested,
-remote-consumer-verified GitHub prereleases; the r2 packages carry exact-version
+The stable-version GitHub publications are not by themselves a production-readiness
+claim. The targets `v0.1.0` and `abi2-platforms-v0.1.0` become public,
+immutable, attested non-prerelease releases only when their current verified receipts say so;
+the published alpha.2 receipts remain immutable historical evidence. The platform packages carry exact-version
 pkg-config/CMake configs, ABI contracts, SBOM/CBOM, and license material. What still
 separates them from production promotion: a fresh same-source Apple device matrix,
-a current-source Android emulator rerun plus a physical-device policy, Windows
-Authenticode signing (the r2 Windows archive is deliberately unsigned experimental),
+a current-source canonical Android arm64 AVD transaction plus a clean physical-device proof over
+the same source and AAR, a future signed Windows distribution (the current unsigned
+diagnostic is excluded),
 crates.io/Maven/deb/rpm/MSIX registry publication with independently verifiable
 signed or transparency-backed provenance, and independent cryptographic/C-FFI/ABI
 review. None of these is silently represented as done.
@@ -453,8 +795,18 @@ These produce the paper's primary network table and the binary constant-time dis
   `fips203` 0.4.3 provider is historical failure evidence, not a pass: [CI run
   29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107) reported
   34,306 errors / 100 contexts on x86_64 and 30,464 / 70 on aarch64. Earlier `libcrux`
-  captures are historical too. A fresh x86-64+aarch64 zero/zero pass for portable
-  `mlkem-native`, bound to the release source digest, is required before promotion. The committed
+  captures and pre-selection portable `mlkem-native` results are historical too.
+  Fresh x86_64-portable and aarch64-native zero/zero passes bound to the release
+  source digest are required before promotion. The exact-R tag workflow records those
+  two fixed successful CI jobs, the selected run/attempt, and all six successful CodeQL
+  language jobs in the attested `ABI2_SOURCE_SECURITY_GATE.json`. The same receipt binds
+  `refs/heads/main` to R, the latest exact-R analysis for each fixed CodeQL category,
+  zero results, positive rule counts, empty analysis errors/warnings, and an empty
+  main-ref open-alert response. Candidate verification
+  deeply checks that sanitized receipt and its workflow-source digests; the platform
+  pending/verified receipts retain the same structure and subject-digest crosslink. The
+  receipt is transaction evidence, not a public product asset, and the contract does not
+  claim a run exists until the exact-R workflow has produced it. The committed
   PQClean-HQC counts (193 on aarch64 and 22,849 on x86-64) came from the retired backend and are
   historical older-source evidence only; `ct_hqc_gap` is no longer a current release gate.
 - **Symbolic provers.** `make` under `formal/tamarin/` and `formal/proverif/` (Tamarin 1.12.0 +
@@ -467,7 +819,7 @@ These produce the paper's primary network table and the binary constant-time dis
   physical iPhone/iPad, installs it, and accepts only an on-device
   `QPERIAPT_DEVICE_PASS run-id=<32 hex chars>` marker plus the matching run-bound
   result file copied from the app data container and a structured single-device
-  proof JSON. Proof schema v3 freezes the git commit and the claim-ledger canonical
+  proof JSON. Proof schema v4 freezes the git commit and the claim-ledger canonical
   source-input digest before any build, then rechecks both after the device run
   and immediately before proof emission. The verifier recomputes that digest; dirty mode never
   relaxes content or commit binding. The proof also binds the run id, readable named source hashes
@@ -475,11 +827,30 @@ These produce the paper's primary network table and the binary constant-time dis
   app/staticlib hashes, selected physical-device type and transport, Xcode build log hash,
   copied marker hash, provisioning profile
   validity, codesign entitlements, static Rust FFI linkage, and the weak AppIntents link used for
-  Xcode 27 warning-clean app builds. The verifier recomputes `device_id_sha256` from the child
+  Xcode 27 warning-clean app builds. It also binds a schema-v1 trusted-local Xcode receipt captured
+  before the first build and reverified after device execution: the resolved Developer directory,
+  Xcode/Swift versions, root-owned non-writable installation boundary, Apple code-signing
+  identity and authority chain, Gatekeeper `Apple System` assessment, CodeResources, version
+  plists, the Xcode executable, `xcodebuild`, and iPhoneOS SDK settings. This detects accidental
+  selected-toolchain replacement; it is neither a byte hash of the complete Xcode installation nor
+  independent provenance against a hostile administrator or same-UID producer. The build commands
+  still execute in a trusted local host environment; this receipt does not attest every selected
+  executable, caller environment variable, or byte executed by the build. The verifier
+  recomputes `device_id_sha256` from the child
   `device_id`; matrix distinctness cannot be supplied as an unbound self-declared hash. Verification rejects proof inputs outside
   `artifact/device-runs` and app/staticlib paths outside `target`.
-  `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` pins the Xcode 27 beta
-  lane without changing global `xcode-select`. This lane requires local signing. Set
+  The selected raw evidence tree is privacy-gated as current-user-owned directories at mode 0700
+  and regular single-link files at mode 0600, with no symlinks, special files, or extended ACLs;
+  the tree is rechecked after verification. Raw device/profile identifiers remain private local
+  evidence and are not anonymous or independently replayable from a clean clone.
+  Operator-facing validation failures use labels and truncated identifier digests; raw command
+  output remains in the private run tree and must not be uploaded as a shared console transcript.
+  `QPERIAPT_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer` selects the only
+  code-fixed Xcode 27 release path accepted by this lane, without changing global `xcode-select`.
+  Arbitrary CLI or environment-selected paths cannot select toolchain filesystem inputs: proof
+  entrypoints reject them before I/O, while shared read-only device inspection always discards
+  ambient selectors and invokes the fixed toolchain through an absolute system shim.
+  This lane requires local signing. Set
   `DEVELOPMENT_TEAM` and an explicit `QPERIAPT_IOS_DEVICE_ID` for every physical run,
   and complete the selected Xcode first-launch/CoreDevice setup before capture,
   and set `QPERIAPT_ALLOW_PROVISIONING_UPDATES=1` only when automatic profile changes are intended;
@@ -503,9 +874,10 @@ These produce the paper's primary network table and the binary constant-time dis
   `QPERIAPT_IOS_DEVICE_MATRIX='ipad:<ipad-udid>,iphone:<iphone-udid>' sh artifact/apple-device-matrix.sh`.
   The matrix lane writes one proof per device plus `apple-device-matrix-proof.json`, and
   `QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX=1 sh artifact/proof-to-byte.sh` verifies that both physical
-  families are present, fresh, source-bound, and artifact-bound. Matrix schema v4 requires exactly
+  families are present, fresh, source-bound, and artifact-bound. Matrix schema v5 requires exactly
   canonical `ipad`/iPad over `wired` and `iphone`/iPhone over `localNetwork`, distinct device
-  commitments, run ids, and schema-v3 child proofs; the former device-type override has been removed. For beta/GM readiness, prefer
+  commitments, run ids, one identical selected Xcode receipt, and schema-v4 child proofs; the
+  aggregate schema is v5. The former device-type override has been removed. For beta/GM readiness, prefer
   `artifact/apple-device-xcode27-gate.sh`: with `QPERIAPT_IOS_DEVICE_ID` it captures and directly
   verifies the single-device proof; with `QPERIAPT_IOS_DEVICE_MATRIX` it does the same for the
   iPhone+iPad matrix. The capture deliberately stops with `promotion=pending`: select its path and
@@ -521,46 +893,152 @@ These produce the paper's primary network table and the binary constant-time dis
   files directory. The ABI2 runtime checks cover metadata, exact signed-policy decision/digest,
   OS-random atomic key generation and encapsulation, context-bound roundtrip, ABI1
   legacy-state/rollback/tamper rejection, secret wipe, and boundary fail-closed behavior;
-  raw combine/X-Wing/deterministic paths are forbidden exports. Proof schema v3 records hashed
+  raw combine/X-Wing/deterministic paths are forbidden exports. The private adb bootstrap listener
+  descriptor is bound before the first client operation; Darwin rechecks retain it, while Linux
+  rechecks require it to remain the sole `LISTEN` descriptor and admit only exact-socket
+  `CONNECTED` descriptors alongside it. Current proof schema v6 records hashed
   adb serial and build fingerprint only, hashes the AAR/APK/result/logcat/named inputs, and freezes
   the claim-ledger canonical source-input digest before the build. It recomputes
   that digest before proof staging, so a source change during the run fails instead of binding old
-  binaries to new source. The proof is
-  reverified with `QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 sh artifact/proof-to-byte.sh`. By default this
-  lane requires a clean tree; use `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` and
-  `QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF=1` only for local diagnostics. Physical runs require
-  both `QPERIAPT_ANDROID_SERIAL=<serial>` and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical`.
-  To boot a local AVD, set `QPERIAPT_ANDROID_BOOT_AVD=1`,
-  `QPERIAPT_ANDROID_AVD=<avd-name>`, and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`; the AVD runs with a read-only userdata overlay. The smoke refuses to replace an existing package,
-  matches both installed APK bytes and signer before owned cleanup, reconciles command-unknown
-  outcomes with bounded repeated observations, and never clears global logcat buffers. It requires
+  binaries to new source. Manifest-bound release verification accepts only an explicitly selected
+  canonical run:
+  `QPERIAPT_REQUIRE_ANDROID_AAR=1 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json sh artifact/proof-to-byte.sh`.
+  It requires emulator, arm64-v8a, API 35, 16 KiB pages, release mode, and the exact
+  results-selected current AAR. By default the producer requires a clean tree.
+  `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` can generate a local diagnostic proof, which may be
+  inspected only with the direct Android verifier and its explicit dirty opt-in; it can never be
+  supplied to manifest-bound `proof-to-byte` or selected as current release evidence. Physical runs require
+  both `QPERIAPT_ANDROID_SERIAL=<serial>` and `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical` and are
+  separately verified. A clean physical run over the same source and exact AAR is an additional
+  production-promotion requirement, never a substitute for the canonical AVD. It records and
+  verifies the real device parameters; an API-36/4-KiB physical phone remains valid supplemental
+  execution evidence and does not need to imitate the AVD's API-35/16-KiB/release-mode profile.
+  Results bind physical evidence independently under `android_physical_runtime`; the bound verifier
+  uses `--results-binding android_physical_runtime` internally and emits
+  `PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS`. The physical proof cannot occupy or satisfy the
+  canonical `android_device_runtime` section. A current-source physical selection has not been
+  captured merely because this verifier path exists.
+  CI job `bindings-android-runtime-16k` consumes the exact AAR artifact from
+  `bindings-android-aar` and runs it on real x86_64 API-35 `google_apis_ps16k` ART on every push and
+  pull request. That is an independent package-face gate; it does not enter the arm64 results
+  selector and is not physical-device production evidence.
+  To boot the local canonical AVD, set `QPERIAPT_ANDROID_BOOT_AVD=1`,
+  `QPERIAPT_ANDROID_ADB_PROFILE=macos-account`,
+  `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator`, and
+  `QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a` on the release host. The AVD name is not caller input:
+  the bounded runtime derives `QPeriapt_Release_16K_API_35_V1` from that fixed profile/ABI pair and admits it
+  only beneath the private `avd-home` child of the account runtime-state directory. CI likewise
+  derives `QPeriapt_Release_16K_API_35_CI_V1` from `linux-system` plus `x86_64`. The default
+  `~/.android/avd` fallback root, if it exists, must be current-user-owned, non-symlink, and not
+  group/other writable; its existing parent chain must meet the same ownership/writeability boundary,
+  and macOS allow ACLs are also rejected. In all cases the derived private name
+  must be absent there. The producer never chmods or deletes it, while unrelated historical AVDs may remain.
+  The AVD runs with a read-only userdata overlay.
+  The smoke refuses to replace an existing package. One 45-second post-install remote-observation
+  deadline requires two consecutive path-stable reads whose installed APK bytes match the run
+  capability exactly, followed by an exact local signer check. Cleanup uses a separate 45-second
+  remote-observation budget shared by its ownership recheck, uninstall request, and repeated absence
+  observations; its local signer check is outside that remote-command budget. A single
+  typed package query maps an arbitrary nonzero `adb` result or a clean bounded timeout to an
+  explicit retryable state; neither state is accepted as absence, and either resets consecutive
+  absence observations. Successful empty output alone means absent, the one exact package line
+  means present, and malformed output, resource-boundary failure, or command-capability/owned-server
+  drift fails immediately. On the script-owned AVD only, a package-query failure followed by an
+  exact private device table that omits the receipt-bound serial may consume the same cleanup
+  deadline to attempt one authenticated, listener-bound transport registration for the whole run.
+  An online, offline, unauthorized, ambiguous, or inconclusive table never triggers registration;
+  physical devices never use this recovery path. Recovery proves neither package absence nor
+  ownership and must return to the package query before any cleanup decision. It neither overwrites
+  the initial registration evidence nor extends the cleanup deadline. Path, pull, or byte observation
+  failures likewise reset ownership
+  convergence instead of weakening the identity check. Cleanup uninstalls only after its recheck
+  passes, reconciles command-unknown outcomes with repeated absence observations, and never clears
+  global logcat buffers. One sanitized append-only journal records phase, cleanup invocation, attempt,
+  typed state, and consecutive count without raw device output; recurring cleanup cannot truncate an
+  earlier phase. On CI failure, only that journal is uploaded for diagnosis. Raw command and uninstall
+  output remains in the private run tree, and a failed lane still publishes no runtime proof. It requires
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
   identity directory that is not group/other writable, owner-protected adb key files, and an already
   authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is
-  rejected. The standard IPv4 and IPv6 adb endpoints must refuse connections at startup, before
-  cleanup, and immediately before final proof publication; the script never reuses or stops a
-  pre-existing default server. It instead owns one fixed `adb.sock` in a random, mode-0700,
+  rejected. The standard IPv4 and IPv6 adb endpoints must refuse connections at startup and at the
+  source-bound runtime checkpoints; the script never reuses or stops a pre-existing default server.
+  It instead owns one fixed `adb.sock` in a random, mode-0700,
   allow-ACL-free `/tmp/qperiapt-adb.<8 chars>/` directory and routes every client through its exact
   `localfilesystem:` endpoint. The server disables mDNS and auto-connect. Physical proof enables
   only USB scanning, binds `--one-device` to the explicit serial, and rechecks a `usb:` devpath before
-  staging; the owned AVD lane disables USB scanning and enables only emulator discovery. Immediately
-  after spawning the owned server, all parent/client scanners are disabled so a client-autostarted
+  staging; the owned AVD lane disables USB and automatic emulator scanning. Immediately after
+  spawning the owned server, all parent/client scanners remain disabled so a client-autostarted
   replacement cannot attach to a device. Listener PID/start identity, executable, key, endpoint,
   transport environment, and `mdns_enabled: false` status are checked before selection and again
-  after the last device query. Runtime cleanup, private-server protocol shutdown, and socket removal
-  must all succeed before the canonical proof is atomically published; cleanup failure produces no
-  PASS marker or accepted proof. A repository-scoped open-file lock serializes the entire lane before
-  any prior output is cleared, and capability creation defers HUP/INT/TERM until its owned 0600 state
-  is either armed or removed. The script never sends TERM/KILL to a cached PID.
+  after the last device query. The AVD lane disables both automatic scanners; after binding the exact
+  child PID to its fixed console/adb listener pair, it explicitly registers `emu:<console>,<adb>`
+  through the private socket and rechecks both identities before selection or shutdown. The emulator
+  uses `-no-direct-adb` only together with `-adb-path` fixed to the run-owned adb snapshot. Its external
+  adb child's exact ADB-routing projection is fixed to the private Unix-socket client settings, while
+  launcher-added non-routing variables remain outside that commitment and the native emulator
+  notifier is redirected away from 5037 to fixed closed loopback port 5586, above the automatic
+  transport range ending at 5585. Four mode-0600, no-replace checkpoint receipts record IPv4 and IPv6
+  `ECONNREFUSED` for both 5037 and 5586 at emulator pre-exec, post-registration, runtime pre-cleanup,
+  and post-cleanup. Runtime proof schema v6 and evidence bundle schema v2 carry the fixed checkpoint
+  bytes plus a raw-value-omitting, source-bound `emulator_control` admission receipt binding the
+  run-owned external-adb digest/routing environment, native-notifier policy, backend digest/identity,
+  fixed ports, listener and registration response digests, and private-adb identity/status digests.
+  Raw HOME/key/socket/UID/PID/serial values are excluded from the public proof and bundle. This is local
+  control-plane evidence, not independent hostile-builder attestation.
+  Cleanup, private-server protocol shutdown, and socket removal must all succeed before the proof is
+  published inside the run's append-only
+  `target/qperiapt-android-device-smoke-runs/<32-hex-run-id>/` tree; cleanup failure produces no PASS
+  marker or accepted proof, and never modifies a proof selected by an earlier results manifest. A
+  stable, account-private host/account-scoped open-file lock serializes every checkout before the
+  unique run root is created. Before the private adb server can release that lock, a durable
+  whole-runtime receipt binds the originating run, adb snapshot, private endpoint, server identity,
+  and (for the AVD lane) emulator identity. Long-lived children retain the registered lock descriptor
+  with close-on-exec set; the kernel closes it only when their fixed exec succeeds, so the next lane
+  can validate and recover an interrupted runtime. Capability creation defers
+  HUP/INT/TERM until its owned 0600 state is either armed or removed. The script never sends
+  TERM/KILL to a cached PID.
+  The private socket directory starts at mode 0700 and is durably reconciled through the receipt's
+  schema-v5 phases to `ADB_SEALED` plus an actual mode of 0500 before any adb client is admitted;
+  an interrupted seal is completed before recovery uses the endpoint. Schema-v4 runtime receipts
+  are intentionally rejected rather than guessed or migrated. Normal success requires an accepted
+  authenticated emulator-console shutdown request (for an AVD), an accepted private-adb protocol
+  shutdown request, and zero exit status from both owned children. Crash recovery may finalize an
+  exact identity already proven absent, but it cannot turn that offline cleanup into a PASS for the
+  interrupted run. The console token is never written to the receipt or proof; only its file
+  identity and digest are retained for strict revalidation. Console replies are parsed as fixed,
+  line-delimited terminal frames. The authentication grammar includes the console's complete fixed
+  pre-authentication guidance, the exact current-account token path, both authentication acknowledgements,
+  and a command-specific terminal frame. Receipt of that exact terminal frame completes the command
+  without waiting for socket EOF, and bytes after that delimiter are not interpreted as part of the frame.
   Every adb/lsof call is selected from a finite Android operation table and executed through the
   private run capability; the generic bounded-process module has no arbitrary command or output CLI.
-  adb itself is selected from the fixed `auto`, `macos-account`, `linux-account`, `linux-system`, or
-  `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB` paths are rejected.
+  Capability creation consumes the selected SDK adb from one already-open descriptor while hashing
+  and copying it into a fixed run-owned mode-0500 executable under the private work directory. Every
+  subsequent command, server exec, listener check, and server-status identity check uses that snapshot,
+  so an ordinary SDK path replacement after capability creation cannot change the executable selected
+  by the run. adb itself is selected from the fixed `auto`, `macos-account`, `linux-account`,
+  `linux-system`, or `linux-opt` profiles (`QPERIAPT_ANDROID_ADB_PROFILE`); arbitrary `QPERIAPT_ADB`
+  paths are rejected.
   AVD transport still requires an exclusive trusted evidence host because another locally started
-  server could reach an emulator port. New authorization prompts are outside the gate. `SIGKILL`, host loss, or device loss
-  cannot run traps; use the reported private socket/PID to confirm ownership before manual cleanup,
-  and compare any orphaned `dev.qperiapt.androidsmoke` with the private run APK before removal.
-- **Matched-backend performance gate.** Collect a paired host proof with:
+  listener could appear between the fixed 5037/5586 probes or reach an emulator port. The checkpoint
+  receipts prove only that each exact loopback connect attempt was refused; they are not packet-level
+  proof that the emulator never attempted a connection between checkpoints. The private snapshot is
+  Level-1 reliability hardening, not a
+  hostile same-UID isolation boundary; that stronger threat model requires a separate account or
+  isolated runner with a read-only checkout. New authorization prompts are outside the gate. If
+  `SIGKILL` or host loss prevents traps, the next lane first acquires the account-scoped lock and
+  consumes the receipt: on the same boot it revalidates the exact process/listener identities and
+  uses an authenticated emulator-console protocol that is independent of the private adb server,
+  followed by the private-adb protocol when that server is still live; after a confirmed reboot it
+  performs offline cleanup only. Unsafe receipt/filesystem/listener/path mismatches are preserved and
+  rejected for explicit operator review. A PID/start-token mismatch is treated as the exact owned
+  process being absent and is never signalled. Device loss can still
+  leave app removal unresolved; compare any orphaned `dev.qperiapt.androidsmoke` with the private run
+  APK before manual removal. This recovery does not replace the exclusive-host requirement or
+  continuously reserve the probed loopback ports between checkpoints.
+  The fixed emulator argv does not enable gRPC. Listener evidence binds the required console/adb
+  pair; it is not a claim that the emulator process has no other TCP listeners.
+- **Profile and implementation performance gate.** Collect one paired host proof with:
 
   ```sh
   sh artifact/python-run.sh artifact/performance_gate.py collect --root . \
@@ -568,20 +1046,45 @@ These produce the paper's primary network table and the binary constant-time dis
     --proof target/performance/paired-profile-proof.json
   ```
 
-  Both profiles use the same ML-KEM-768 seed-dk +
-  X25519 backend and deterministic corpus; the harness uses 5 s warm-up, 20,480 samples per
-  operation/profile, and ABBA/BAAB order. Raw schema v2 records unrounded batch totals plus a strict
-  per-operation iteration map: combine/encapsulate/decapsulate use 256/1/2 calls per timed sample
-  for both profiles. Analysis divides total time by the authenticated iteration count. Paired
-  primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
-  therefore has 11 tail observations in each estimate block rather than three. Budget schema v5
-  preserves the v4 statistical contract: it pins a minimum of 10 and also recomputes the former
+  Raw schema v5 carries two separately named estimands in one process. `profile_non_regression`
+  preserves the matched ContextBound/CompatXWing comparison over the same ML-KEM-768 seed-dk +
+  X25519 backend, keys, coins, deterministic ciphertext corpus, and ABBA/BAAB schedule. Its strict
+  nested `profile_inputs` records the fixed suite/version/application context for ContextBound and
+  canonical absence (`[]`, `0`, `[]`) for CompatXWing. `implementation_improvement` is a
+  separate ContextBound `hybrid_core` native/portable comparison over an
+  `expanded_fips203_2400` key and the same coins, corpus, suite, version, and context.
+  It covers encapsulation and decapsulation only; `includes_ffi=false` and
+  `includes_os_rng=false`, so it is not a C-ABI, policy, entropy, rustls, or complete-product
+  measurement. The portable implementation is a symbol-renamed static
+  archive compiled only for this evidence build; it is not a product backend, Cargo feature,
+  runtime override, or shipping API. The harness generates one expanded keypair, supplies
+  the same key bytes/coins/corpus to both implementations, and checks every per-case
+  encapsulation/decapsulation output for byte equality before timing; portable key generation
+  is neither invoked nor compared. It then uses ABBA/BAAB ordering for both estimands.
+  Native and portable C compile under the same
+  O3/PIC/Armv8-A/macOS-11/function-and-data-section contract; the Rust harness is O3 with thin LTO
+  and one codegen unit under the stable Rust/Cargo 1.96.1 producer. The 5 s warm-up and 20,480
+  samples apply per variant/operation. Budget schema v10 records that exact collection size separately
+  from its statistical minimum, and the collection CLI cannot override either samples
+  or warm-up. Unrounded batch totals use 256/1/2 calls for
+  combine/encapsulate/decapsulate, and analysis divides by the authenticated iteration count.
+
+  Budget schema v10 preregisters the implementation-improvement primary one-sided 95% upper
+  limits before any formal collection: native/portable p50 and p95 must be at most 0.95 and p99
+  at most 1.0 for both registered ContextBound hybrid-core operations. The verifier rejects threshold drift and
+  blocks any failure. This implemented gate is not itself a performance result: do not report a
+  quantitative improvement until a fresh clean-source, controlled-host proof-schema-v8 run meets
+  the full sample budget and is selected by `artifact/results.json`.
+
+  Paired primary percentile/bootstrap estimates use consecutive 1,024-pair blocks; nearest-rank p99
+  therefore has 11 tail observations in each estimate block rather than three. Budget schema v10
+  preserves the profile statistical contract: it pins a minimum of 10 and also recomputes the former
   256-pair estimator as a regression guard;
   every published ratio/delta limit must pass at both block scales. Separately parameterized
   stability windows use 64/256/256 pairs for
   combine/encapsulate/decapsulate. Every statistical block contains whole
   ABBA cycles and a balanced multiple of the 64-case corpus. The 5% block-median CV threshold is
-  unchanged. The nine budgeted upper bounds are per-metric one-sided 95% bootstrap bounds, not a
+  unchanged. The profile and implementation upper bounds are per-metric one-sided 95% bootstrap bounds, not a
   joint 95% family guarantee; span-5 coverage under autocorrelation has not been independently
   calibrated. The verifier
   rejects malformed/missing pairs, iteration or schema drift, invalid totals, unstable block
@@ -589,15 +1092,16 @@ These produce the paper's primary network table and the binary constant-time dis
   post-analysis thermal or power observation, or any
   published ratio/absolute-delta budget failure. The verifier fixes policy to
   `artifact/performance-budgets.json`; alternate paths fail even when their bytes happen to match.
-  That policy also fixes the exact rustup toolchain name plus the Cargo and Rustc executable hashes,
-  versions, and host target. Collection selects that named same-directory pair before executing it,
+  That policy also fixes the rustup toolchain and host target plus the Cargo, Rustc,
+  Xcode Clang, and Xcode `ar` executable paths and hashes, plus the canonical macOS SDK path,
+  version, and settings digest (and version output where available). Collection selects those fixed tools before executing them,
   rejects repository/ancestor/user Cargo configuration, clears caller compiler/wrapper/loader controls, fixes system
-  tool lookup, builds offline in a fresh private target, and rechecks those executables. The
+  tool lookup, builds offline in a fresh private target, and rechecks those four executables. The
   user-writable Cargo registry cache, Rust sysroot/driver, OS tools/libraries, and same-UID
   replace-and-restore races remain trusted. The verifier also trusts the local collector to have
   built the content-addressed binary it records; it does not independently rebuild it. Therefore
   this is a strengthened single-host diagnostic, not hermetic or hostile-builder attestation.
-  Proof schema v4, raw schema v2, and budget schema v5 are required; older files
+  Proof schema v8, raw schema v5, and budget schema v10 are required; older files
   fail closed and must be recollected. Shared CI runs only a short schema exercise; numeric
   decisions require controlled hardware. Reverify with
   `QPERIAPT_REQUIRE_PERFORMANCE=1 sh artifact/proof-to-byte.sh`. Dirty diagnostic collection and

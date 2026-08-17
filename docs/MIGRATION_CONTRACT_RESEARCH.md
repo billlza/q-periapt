@@ -1,7 +1,7 @@
 # Authenticated Migration Contract — research status
 
 > **Status: V2 reference candidate implemented.** Phase 1 remains frozen evidence.
-> V2 adds authenticated transition state, a process-service reference, mutual
+> V2 adds authenticated transition state, a process-service reference, role-ordered
 > confirmation, independent vectors, and EasyCrypt/Tamarin gates without changing
 > ABI 2. This is not production/platform evidence: the rollback result requires a
 > separately protected external witness, the Unix service boundary requires real
@@ -31,7 +31,7 @@ Relevant baselines:
 
 - [NIST CSWP 39upd1, *Considerations for Achieving Crypto Agility: Strategies and Practices*](https://csrc.nist.gov/pubs/cswp/39/upd1/considerations-for-achieving-crypto-agility/final)
 - [RFC 7696, *Guidelines for Cryptographic Algorithm Agility and Selecting Mandatory-to-Implement Algorithms*](https://www.rfc-editor.org/rfc/rfc7696.html)
-- [draft-irtf-cfrg-hybrid-kems-11, *Hybrid PQ/T Key Encapsulation Mechanisms*](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hybrid-kems-11)
+- [draft-irtf-cfrg-hybrid-kems-12, *Hybrid PQ/T Key Encapsulation Mechanisms*](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hybrid-kems-12)
 - Kim et al., [*Classical Acceptance Is Not Hybrid Authentication: Measuring
   X.509 Verifier Semantics in Post-Quantum Migration*](https://arxiv.org/abs/2607.20800)
   (July 2026 preprint; useful motivation, not a standard or peer-reviewed final
@@ -120,8 +120,11 @@ same-epoch alternate digests are forks. Missing or corrupt storage must never
 become implicit first enrollment. Reset must be separately authorized and bind the
 old state to a new lineage.
 
-An isolated Policy Agent/service owns the pinned authority root, monotonic state,
-transition verification, and session snapshot. Transition verification, durable
+A separately deployed Policy Agent/service is intended to own the pinned
+authority root, monotonic state, transition verification, and session snapshot.
+The reference Unix service implements the process boundary, but production OS
+account, service-manager, credential, and directory isolation remain deployment
+evidence rather than a repository claim. Transition verification, durable
 reservation, and KEM use must operate on one immutable snapshot so concurrent
 transition/session operations cannot create time-of-check/time-of-use gaps. A
 same-process opaque handle is not a security boundary.
@@ -149,9 +152,22 @@ Define a protocol-level joint decision derived from:
 
 V2 implements this joint decision using signed endpoint offers, sender-owned key
 share commitments, a typed pre-KEM transcript, a fixed 324-byte V2 context, and a
-post-KEM transcript. Both roles use distinct Finished domains. Peer verification is
-constant-time; failure consumes the pending zeroizing secret. The Agent rechecks the
-exact local and witness fence before returning an opaque accepted-key handle.
+post-KEM transcript. Finished uses role-separated inputs in one domain and a fixed
+protocol-role order independent of KEM direction: initiator I; responder exact
+state/witness recheck plus I verification/acceptance; responder R; then initiator
+recheck plus R verification/acceptance. R is not externally returned until the
+responder has durably released its reservation and retained both the accepted key
+and bounded same-process retry state. The initiator likewise releases and retains
+before returning its handle. Finished verification is constant-time, and failures
+never expose a key or Finished response.
+
+The Unix IPC boundary is a hard domain/schema V2 cut with separate accept-I and
+accept-R commands; there is no V1 fallback. A lost successful response is
+recoverable only by exact same-handle/same-Finished replay under a newly signed IPC
+nonce, in the same process and while the accepted key is still live. The original
+nonce remains rejected. Restart, destroy, or transition clears the response cache;
+accepted keys and R are not crash-durable, while durable replay tombstones prevent
+reuse of the old capability session.
 
 Only after the model, experiments, and security games stabilize should an ABI 3 be
 considered. Its likely surface uses process-owned `PolicyHandle`, `KeyHandle`, and
@@ -164,11 +180,22 @@ These are implemented reference notions with the proof boundaries stated below.
 
 ### MIG-BIND-K-STATE
 
-If two accepted executions produce the same non-bottom session key, then, except
-with negligible probability, their authenticated migration-state identities are
-equal. `MigrationBindingV2.ec` proves the outer digest-identity reduction and a
-full-state bad-event decomposition into ContextBound-hash or state-hash collision.
-Signature authenticity remains a separate unforgeability assumption.
+Under the external collision-resistance assumption for the domain-separated
+SHA3-256 inputs, two accepted executions that produce the same non-bottom session
+key have equal authenticated migration-state identities unless a named hash-input
+collision occurs. `MigrationBindingV2.ec` models the domain-separated
+`K_abi2 -> TH -> initiator/responder Finished -> K_acc` chain under one abstract
+SHA3 operation and a concrete bounded acceptance predicate with the exact
+four-field current-state recheck and role-specific peer check. Equal final
+accepted secrets under different `(epoch, digest)` identities imply an
+accepted-key-input or ContextBound-input collision; full-state and four-field
+revision divergence add the state-hash collision case. Separate post-KEM and
+Finished lemmas establish input binding only, not Finished unforgeability.
+Checked honest witnesses cover both protocol roles under both independent KEM
+directions, while semantic controls expose stale-current, wrong-peer, and named
+input-omission failures. Signature authenticity and temporal message/release
+ordering remain separate assumptions/models. EasyCrypt machine-checks the
+deterministic bad-event decomposition, not a computational probability bound.
 
 ### MIG-ROLLBACK
 
@@ -190,7 +217,11 @@ produce different certificate-envelope bytes for the same authenticated state, s
 exact signature-byte equality is deliberately not claimed. This requires
 authenticated negotiation and mutual key confirmation, not only “different context
 gives a different key”. The Tamarin gate models both identity signatures and the
-two role-separated Finished messages under an active network adversary.
+two role-separated Finished messages under an active network adversary, in the
+fixed I -> responder accept/R -> initiator accept order. The Rust typestates and
+reference service now follow that protocol-visible order regardless of KEM
+direction, but tests and byte correspondence are not a formal Tamarin-to-Rust
+refinement.
 
 ### MIG-FLOOR
 

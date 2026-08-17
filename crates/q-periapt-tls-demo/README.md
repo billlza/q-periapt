@@ -65,9 +65,11 @@ historical methodology evidence, not current-provider or production parity.
 
 - **Is:** a server-authenticated, HPKE-base-shaped handshake — server static hybrid
   key + ML-DSA-65 identity (its verifying key **pinned** by the client out-of-band);
-  client encapsulates; both derive a session secret bound to the transcript
-  (`ContextBound`, context = `SHA3(ClientHello ‖ ServerHello)`); the server signs
-  the full transcript and sends a constant-time-checked key-confirmation.
+  client encapsulates; `ContextBound` binds
+  `SHA3(ClientHello ‖ ServerHello)` in the KEM, while `CompatXWing` supplies the
+  KEM its required empty suite/version/context metadata. In both profiles the
+  server signs the full transcript and sends a constant-time-checked confirmation
+  that binds the same transcript to the derived secret.
 - **Isn't:** the TLS 1.3 wire format. Identity here is a pinned key (no X.509 chain);
   the combiner is our standalone one, not the TLS key schedule (see below).
 - **Isn't:** PQXDH, Signal's SPQR/Triple Ratchet or Sesame, Apple PQ3, or the
@@ -80,15 +82,16 @@ historical methodology evidence, not current-provider or production parity.
 
 | Protocol | Relationship |
 |---|---|
-| **TLS 1.3** | Standardized hybrid uses the `X25519MLKEM768` named group (codepoint `0x11EC`) with the **TLS key-schedule** combiner — a *different object* from our standalone combiner. Production-stack demo path: a private-use rustls `CryptoProvider` backed by the shared Q-Periapt implementation; this is an evaluation integration, not a standardized or production-ready group. |
+| **TLS 1.3** | RFC 10024 standardizes `X25519MLKEM768` (codepoint `0x11EC`) using the RFC 9954 64-byte concatenated secret in the RFC 9846 TLS key schedule — a *different object* from our standalone combiner. The Q-Periapt rustls path uses private-use `0xFE01`/`0xFE02`; it is an evaluation integration, not a standardized or production-ready group. |
 | **QUIC** | Same key exchange as TLS 1.3; the transport difference amplifies the byte cost — the server's first flight is bound by the anti-amplification limit, so the extra ML-KEM bytes directly shape the initial RTTs. |
 | **HPKE** | This demo *is* essentially HPKE base mode (KEM → KDF). HPKE with a PQ/T KEM is the most direct consumer of our standalone combiner. |
 
 ## Next (follow-ups, see ROADMAP)
 
-- A literal **rustls `X25519MLKEM768` TLS 1.3 demo** with the same P99 harness, to
-  measure standardized PQ-TLS alongside this one (note: that path uses rustls's own
-  ML-KEM, not our combiner — it validates the *methodology*, not the suite).
+- Extend the optional rustls/aws-lc **RFC 10024 `X25519MLKEM768` baseline** beyond
+  its direct key-exchange and loopback contract into an independently implemented
+  interoperability lane. That baseline uses rustls's own ML-KEM, not our combiner;
+  it validates the comparison methodology, not Q-Periapt protocol compatibility.
 - Real netem/tc link emulation (loss + slow-start), beyond the fixed per-flight
   `DELAY_US` knob here.
 - Mutual auth / X.509-style identity (currently a pinned ML-DSA key).

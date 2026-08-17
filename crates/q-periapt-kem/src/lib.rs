@@ -24,7 +24,8 @@
 
 use core::marker::PhantomData;
 use q_periapt_core::{
-    combine, CombineInput, Error, Kem, Profile, Secret, Xof256, ZeroizingBytes, SHARED_SECRET_LEN,
+    combine, CombineInput, Error, Kem, PreparedKem, Profile, Secret, Xof256, ZeroizingBytes,
+    SHARED_SECRET_LEN,
 };
 
 /// A PQ/T hybrid KEM binding a post-quantum and a traditional component.
@@ -32,6 +33,8 @@ use q_periapt_core::{
 /// The combined shared secret binds the agility block (`suite_id`,
 /// `policy_version`) first-class under [`Profile::ContextBound`], plus a
 /// caller-supplied `context` (e.g. a handshake transcript) per encap/decap call.
+/// [`Profile::CompatXWing`] instead requires the canonical X-Wing metadata
+/// representation: an empty suite identifier, policy version zero, and empty context.
 pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
     pq: &'a P,
     trad: &'a T,
@@ -41,10 +44,21 @@ pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
     _xof: PhantomData<X>,
 }
 
+/// Borrowed inputs shared by serialized-key and prepared-key decapsulation.
+struct DecapsulationInput<'a> {
+    ct_pq: &'a [u8],
+    pk_pq: &'a [u8],
+    sk_trad: &'a [u8],
+    ct_trad: &'a [u8],
+    pk_trad: &'a [u8],
+    context: &'a [u8],
+}
+
 impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// Build a hybrid KEM. Returns [`Error::PolicyDenied`] if `profile` is
     /// [`Profile::CompatXWing`] but the first-slot backend is not both
-    /// [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`].
+    /// [`Kem::C2PRI`] and [`Kem::COMPAT_XWING_SAFE`], or if its suite identifier
+    /// is non-empty or policy version is nonzero.
     pub fn new(
         pq: &'a P,
         trad: &'a T,
@@ -52,6 +66,7 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         suite_id: &'a [u8],
         policy_version: u32,
     ) -> Result<Self, Error> {
+        profile.validate_static_inputs(suite_id, policy_version)?;
         if matches!(profile, Profile::CompatXWing) && (!P::C2PRI || !P::COMPAT_XWING_SAFE) {
             // The fast profile omits the first-slot ciphertext/public key. Primitive
             // C2PRI and an X-Wing-safe exposed key format are separate load-bearing
@@ -79,8 +94,8 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     }
 
     /// Encapsulate to both recipient public keys, producing both ciphertexts and
-    /// the combined hybrid shared secret. `context` is bound only under
-    /// [`Profile::ContextBound`].
+    /// the combined hybrid shared secret. `context` is bound under
+    /// [`Profile::ContextBound`] and must be empty under [`Profile::CompatXWing`].
     ///
     /// Component secrets never cross this composition API boundary. The
     /// composition-owned output scratch buffers have zeroizing `Drop`; backend-internal
@@ -97,6 +112,8 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         ct_pq: &mut [u8],
         ct_trad: &mut [u8],
     ) -> Result<Secret, Error> {
+        self.profile
+            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
         let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         // Drop-based ownership wipes both component secrets on success, Result
@@ -143,11 +160,37 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         pk_trad: &[u8],
         context: &[u8],
     ) -> Result<Secret, Error> {
+        self.profile
+            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.decapsulate_validated(
+            DecapsulationInput {
+                ct_pq,
+                pk_pq,
+                sk_trad,
+                ct_trad,
+                pk_trad,
+                context,
+            },
+            |ss_pq| self.pq.decapsulate(sk_pq, ct_pq, ss_pq),
+        )
+    }
+
+    /// Finish a decapsulation after the public profile inputs have been
+    /// validated, sharing the traditional-component and combiner path between
+    /// serialized and prepared PQ keys.
+    fn decapsulate_validated<F>(
+        &self,
+        input: DecapsulationInput<'_>,
+        decapsulate_pq: F,
+    ) -> Result<Secret, Error>
+    where
+        F: FnOnce(&mut [u8]) -> Result<(), Error>,
+    {
         let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
-        self.pq.decapsulate(sk_pq, ct_pq, ss_pq.as_mut_bytes())?;
+        decapsulate_pq(ss_pq.as_mut_bytes())?;
         self.trad
-            .decapsulate(sk_trad, ct_trad, ss_trad.as_mut_bytes())?;
+            .decapsulate(input.sk_trad, input.ct_trad, ss_trad.as_mut_bytes())?;
         combine::<X>(
             self.profile,
             &CombineInput {
@@ -155,12 +198,47 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
                 policy_version: self.policy_version,
                 ss_pq: ss_pq.as_bytes(),
                 ss_trad: ss_trad.as_bytes(),
+                ct_pq: input.ct_pq,
+                pk_pq: input.pk_pq,
+                ct_trad: input.ct_trad,
+                pk_trad: input.pk_trad,
+                context: input.context,
+            },
+        )
+    }
+}
+
+impl<'a, P: PreparedKem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
+    /// Decapsulate with a process-local prepared PQ key and the serialized
+    /// traditional key.
+    ///
+    /// The prepared owner supplies its paired public key, so callers cannot
+    /// accidentally combine an unrelated PQ public key. Profile validation runs
+    /// before either component backend. After that guard, this method reuses the
+    /// exact traditional decapsulation and combiner path used by
+    /// [`HybridKem::decapsulate`].
+    pub fn decapsulate_prepared(
+        &self,
+        prepared_pq: &P::PreparedKey,
+        ct_pq: &[u8],
+        sk_trad: &[u8],
+        ct_trad: &[u8],
+        pk_trad: &[u8],
+        context: &[u8],
+    ) -> Result<Secret, Error> {
+        self.profile
+            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        let pk_pq = self.pq.prepared_encapsulation_key(prepared_pq);
+        self.decapsulate_validated(
+            DecapsulationInput {
                 ct_pq,
                 pk_pq,
+                sk_trad,
                 ct_trad,
                 pk_trad,
                 context,
             },
+            |ss_pq| self.pq.decapsulate_prepared(prepared_pq, ct_pq, ss_pq),
         )
     }
 }
@@ -170,6 +248,7 @@ mod tests {
     // `unwrap`/indexing are idiomatic in tests; the workspace lints target library code.
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use super::*;
+    use core::cell::Cell;
 
     struct ToyXof(u64);
     impl Xof256 for ToyXof {
@@ -244,6 +323,58 @@ mod tests {
             Ok(())
         }
         fn decapsulate(&self, _sk: &[u8], _ct: &[u8], _ss: &mut [u8]) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+
+    /// Operation spy whose writes make an accidental backend call observable.
+    struct CountingKem<'a> {
+        calls: &'a Cell<usize>,
+    }
+
+    impl Kem for CountingKem<'_> {
+        const C2PRI: bool = true;
+        const COMPAT_XWING_SAFE: bool = true;
+
+        fn algorithm(&self) -> &'static str {
+            "COUNTING-KEM"
+        }
+
+        fn encapsulate(
+            &self,
+            _pk: &[u8],
+            _randomness: &[u8],
+            ct: &mut [u8],
+            ss: &mut [u8],
+        ) -> Result<(), Error> {
+            self.calls.set(self.calls.get() + 1);
+            ct.fill(0x11);
+            ss.fill(0x22);
+            Ok(())
+        }
+
+        fn decapsulate(&self, _sk: &[u8], _ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+            self.calls.set(self.calls.get() + 1);
+            ss.fill(0x33);
+            Ok(())
+        }
+    }
+
+    impl PreparedKem for CountingKem<'_> {
+        type PreparedKey = [u8; 32];
+
+        fn prepared_encapsulation_key<'a>(&self, key: &'a Self::PreparedKey) -> &'a [u8] {
+            key
+        }
+
+        fn decapsulate_prepared(
+            &self,
+            _key: &Self::PreparedKey,
+            _ct: &[u8],
+            ss: &mut [u8],
+        ) -> Result<(), Error> {
+            self.calls.set(self.calls.get() + 1);
+            ss.fill(0x33);
             Ok(())
         }
     }
@@ -341,12 +472,11 @@ mod tests {
         let both = CapabilityKem::<true, true>;
 
         assert!(matches!(
-            HybridKem::<_, _, ToyXof>::new(&neither, &trad, Profile::CompatXWing, b"S", 1,).err(),
+            HybridKem::<_, _, ToyXof>::new(&neither, &trad, Profile::CompatXWing, b"", 0,).err(),
             Some(Error::PolicyDenied)
         ));
         assert!(matches!(
-            HybridKem::<_, _, ToyXof>::new(&c2pri_only, &trad, Profile::CompatXWing, b"S", 1,)
-                .err(),
+            HybridKem::<_, _, ToyXof>::new(&c2pri_only, &trad, Profile::CompatXWing, b"", 0,).err(),
             Some(Error::PolicyDenied)
         ));
         assert!(matches!(
@@ -354,14 +484,14 @@ mod tests {
                 &safe_without_c2pri,
                 &trad,
                 Profile::CompatXWing,
-                b"S",
-                1,
+                b"",
+                0,
             )
             .err(),
             Some(Error::PolicyDenied)
         ));
         assert!(
-            HybridKem::<_, _, ToyXof>::new(&both, &trad, Profile::CompatXWing, b"S", 1,).is_ok()
+            HybridKem::<_, _, ToyXof>::new(&both, &trad, Profile::CompatXWing, b"", 0,).is_ok()
         );
 
         // ContextBound binds the omitted fields directly and therefore does not
@@ -374,5 +504,107 @@ mod tests {
             1,
         )
         .is_ok());
+    }
+
+    #[test]
+    fn compat_constructor_rejects_noncanonical_static_metadata() {
+        let pq = CapabilityKem::<true, true>;
+        let trad = ToyKem("TOY-TRAD");
+
+        assert_eq!(
+            HybridKem::<_, _, ToyXof>::new(&pq, &trad, Profile::CompatXWing, b"suite", 0).err(),
+            Some(Error::PolicyDenied)
+        );
+        assert_eq!(
+            HybridKem::<_, _, ToyXof>::new(&pq, &trad, Profile::CompatXWing, b"", 1).err(),
+            Some(Error::PolicyDenied)
+        );
+    }
+
+    #[test]
+    fn compat_bad_context_calls_no_backend_and_preserves_ciphertext_outputs() {
+        let pq_calls = Cell::new(0);
+        let trad_calls = Cell::new(0);
+        let pq = CountingKem { calls: &pq_calls };
+        let trad = CountingKem { calls: &trad_calls };
+        let kem = HybridKem::<_, _, ToyXof>::new(&pq, &trad, Profile::CompatXWing, b"", 0).unwrap();
+
+        let mut ct_pq = [0xA5u8; 32];
+        let mut ct_trad = [0x5Au8; 32];
+        let expected_ct_pq = ct_pq;
+        let expected_ct_trad = ct_trad;
+        let encapsulation = kem.encapsulate(
+            &[0x10u8; 32],
+            &[0x20u8; 32],
+            b"forbidden-context",
+            &[0x30u8; 32],
+            &[0x40u8; 32],
+            &mut ct_pq,
+            &mut ct_trad,
+        );
+
+        assert_eq!(encapsulation.err(), Some(Error::PolicyDenied));
+        assert_eq!(pq_calls.get(), 0, "PQ encapsulation backend must not run");
+        assert_eq!(trad_calls.get(), 0, "traditional backend must not run");
+        assert_eq!(ct_pq, expected_ct_pq, "PQ ciphertext must remain untouched");
+        assert_eq!(
+            ct_trad, expected_ct_trad,
+            "traditional ciphertext must remain untouched"
+        );
+
+        let decapsulation = kem.decapsulate(
+            &[0x50u8; 32],
+            &ct_pq,
+            &[0x10u8; 32],
+            &[0x60u8; 32],
+            &ct_trad,
+            &[0x20u8; 32],
+            b"forbidden-context",
+        );
+        assert_eq!(decapsulation.err(), Some(Error::PolicyDenied));
+        assert_eq!(pq_calls.get(), 0, "PQ decapsulation backend must not run");
+        assert_eq!(trad_calls.get(), 0, "traditional backend must not run");
+
+        let prepared_decapsulation = kem.decapsulate_prepared(
+            &[0x50u8; 32],
+            &ct_pq,
+            &[0x60u8; 32],
+            &ct_trad,
+            &[0x20u8; 32],
+            b"forbidden-context",
+        );
+        assert_eq!(prepared_decapsulation.err(), Some(Error::PolicyDenied));
+        assert_eq!(
+            pq_calls.get(),
+            0,
+            "prepared PQ decapsulation must not run before profile validation"
+        );
+        assert_eq!(
+            trad_calls.get(),
+            0,
+            "traditional backend must not run before profile validation"
+        );
+    }
+
+    #[test]
+    fn prepared_context_bound_empty_context_fails_before_backends() {
+        let pq_calls = Cell::new(0);
+        let trad_calls = Cell::new(0);
+        let pq = CountingKem { calls: &pq_calls };
+        let trad = CountingKem { calls: &trad_calls };
+        let kem =
+            HybridKem::<_, _, ToyXof>::new(&pq, &trad, Profile::ContextBound, b"suite", 1).unwrap();
+
+        let result = kem.decapsulate_prepared(
+            &[0x11; 32],
+            &[0x22; 1],
+            &[0x33; 1],
+            &[0x44; 1],
+            &[0x55; 1],
+            b"",
+        );
+        assert_eq!(result.err(), Some(Error::InvalidLength));
+        assert_eq!(pq_calls.get(), 0);
+        assert_eq!(trad_calls.get(), 0);
     }
 }

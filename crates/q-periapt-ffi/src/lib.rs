@@ -46,7 +46,8 @@ use q_periapt_backends::{
 #[cfg(test)]
 use q_periapt_core::{combine, CombineInput};
 use q_periapt_core::{
-    encode_policy_bound_context, policy_bound_context_len, Error, Profile, ZeroizingBytes,
+    encode_policy_bound_context, policy_bound_context_len, secure_wipe, Error, Profile,
+    ZeroizingBytes,
 };
 use q_periapt_kem::HybridKem;
 use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
@@ -101,9 +102,10 @@ pub const Q_PERIAPT_KEY_FORMAT_EXPANDED: u8 = 1;
 #[cfg(test)]
 const KEY_FORMAT_SEED_DERIVED: u8 = 2;
 
-/// The only suite this fixed C ABI implements. The combiner binds `suite_id`, so encapsulate /
-/// decapsulate **reject** any other value: a caller must not bind false agility metadata (e.g.
-/// claim `ML-KEM-1024`) into a key that this build actually derives from ML-KEM-768 + X25519.
+/// The only suite this fixed C ABI implements. ContextBound raw calls must
+/// supply this identifier so they cannot bind false agility metadata (for
+/// example, claim ML-KEM-1024). CompatXWing raw calls must supply an empty
+/// identifier because that profile has no suite metadata input.
 fn fixed_suite_id() -> &'static [u8] {
     DEFAULT_SUITE_ID
 }
@@ -233,6 +235,22 @@ fn profile_from(p: u8) -> Option<Profile> {
     }
 }
 
+/// Validate private raw-call metadata exactly as supplied. ContextBound is
+/// fixed to this ABI's implemented suite; CompatXWing has no suite, policy, or
+/// context inputs and therefore requires their canonical absence. This helper
+/// validates only and never projects or normalizes caller values.
+fn validate_raw_kem_metadata(
+    profile: Profile,
+    suite_id: &[u8],
+    policy_version: u32,
+    context: &[u8],
+) -> Result<(), Error> {
+    if profile == Profile::ContextBound && suite_id != fixed_suite_id() {
+        return Err(Error::PolicyDenied);
+    }
+    profile.validate_operation_inputs(suite_id, policy_version, context)
+}
+
 #[derive(Clone, Copy)]
 struct ParsedPolicyDecision {
     profile: Profile,
@@ -264,22 +282,140 @@ fn parse_policy_decision(encoded: &[u8]) -> Option<ParsedPolicyDecision> {
     })
 }
 
+/// Single RAII owner for a dynamically-sized buffer that may contain sensitive context.
+///
+/// Ownership is established before allocation, and capacity is reserved before any sensitive
+/// byte is written. Consequently, fallible allocation, later errors, and unwinding all converge
+/// on the same `Drop` implementation without leaving an unreachable reallocation copy.
+struct ZeroizingVec {
+    bytes: Vec<u8>,
+    #[cfg(test)]
+    drop_probe: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PolicyContextError {
+    Core(Error),
+    Allocation,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static FAIL_NEXT_POLICY_CONTEXT_ALLOCATION: std::cell::Cell<bool> = const {
+        std::cell::Cell::new(false)
+    };
+}
+
+#[cfg(test)]
+fn fail_next_policy_context_allocation_for_test() {
+    FAIL_NEXT_POLICY_CONTEXT_ALLOCATION.with(|failure| failure.set(true));
+}
+
+#[cfg(test)]
+fn take_policy_context_allocation_failure() -> bool {
+    FAIL_NEXT_POLICY_CONTEXT_ALLOCATION.with(|failure| failure.replace(false))
+}
+
+#[cfg(not(test))]
+fn take_policy_context_allocation_failure() -> bool {
+    false
+}
+
+impl From<Error> for PolicyContextError {
+    fn from(error: Error) -> Self {
+        Self::Core(error)
+    }
+}
+
+fn policy_context_err_code(error: PolicyContextError) -> i32 {
+    match error {
+        PolicyContextError::Core(error) => err_code(error),
+        // The public length cap is checked before allocation. A reserve failure
+        // after that check is local resource exhaustion, not caller input error.
+        PolicyContextError::Allocation => Q_PERIAPT_ERR_INTERNAL,
+    }
+}
+
+impl ZeroizingVec {
+    fn empty() -> Self {
+        Self {
+            bytes: Vec::new(),
+            #[cfg(test)]
+            drop_probe: None,
+        }
+    }
+
+    fn try_zeroed(len: usize) -> Result<Self, PolicyContextError> {
+        let mut owner = Self::empty();
+        owner.try_resize_zeroed(len)?;
+        Ok(owner)
+    }
+
+    fn try_resize_zeroed(&mut self, len: usize) -> Result<(), PolicyContextError> {
+        if take_policy_context_allocation_failure() {
+            return Err(PolicyContextError::Allocation);
+        }
+        self.bytes
+            .try_reserve_exact(len)
+            .map_err(|_| PolicyContextError::Allocation)?;
+        self.bytes.resize(len, 0);
+        Ok(())
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    fn as_mut_bytes(&mut self) -> &mut [u8] {
+        &mut self.bytes
+    }
+
+    fn clear(&mut self) {
+        secure_wipe(self.bytes.as_mut_slice());
+    }
+
+    #[cfg(test)]
+    fn try_zeroed_with_drop_probe(
+        len: usize,
+        drop_probe: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<Self, PolicyContextError> {
+        let mut owner = Self {
+            bytes: Vec::new(),
+            drop_probe: Some(drop_probe),
+        };
+        owner.try_resize_zeroed(len)?;
+        Ok(owner)
+    }
+}
+
+impl Drop for ZeroizingVec {
+    fn drop(&mut self) {
+        self.clear();
+        #[cfg(test)]
+        if let Some(drop_probe) = &self.drop_probe {
+            drop_probe.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+}
+
 fn policy_bound_context(
     decision: ParsedPolicyDecision,
     application_context: &[u8],
-) -> Result<Vec<u8>, Error> {
-    // CompatXWing ignores context by construction. Refuse it here rather than
-    // pretending the authenticated policy digest was committed by the KDF.
+) -> Result<ZeroizingVec, PolicyContextError> {
+    // CompatXWing has no context input. Refuse it here rather than pretending
+    // the authenticated policy digest was committed by the KDF.
     if decision.profile != Profile::ContextBound {
-        return Err(Error::PolicyDenied);
+        return Err(Error::PolicyDenied.into());
     }
-    let len = policy_bound_context_len(application_context.len()).ok_or(Error::InvalidLength)?;
-    let mut context = Vec::new();
-    context
-        .try_reserve_exact(len)
-        .map_err(|_| Error::InvalidLength)?;
-    context.resize(len, 0);
-    encode_policy_bound_context(&decision.policy_digest, application_context, &mut context)?;
+    let len = policy_bound_context_len(application_context.len())
+        .ok_or(PolicyContextError::Core(Error::InvalidLength))?;
+    let mut context = ZeroizingVec::try_zeroed(len)?;
+    encode_policy_bound_context(
+        &decision.policy_digest,
+        application_context,
+        context.as_mut_bytes(),
+    )
+    .map_err(PolicyContextError::Core)?;
     Ok(context)
 }
 
@@ -650,10 +786,11 @@ pub unsafe extern "C" fn q_periapt_generate_keypair(
 /// Hybrid encapsulation to `(pk_pq, pk_trad)`.
 ///
 /// Writes `out_ct_pq` ([`Q_PERIAPT_MLKEM768_CT_LEN`]), `out_ct_trad` ([`Q_PERIAPT_X25519_LEN`])
-/// and `out_secret` ([`Q_PERIAPT_SECRET_LEN`]). `context` is bound only under
-/// [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`] and must then be non-empty. `CompatXWing`
-/// uses the X-Wing-safe ML-KEM seed backend internally; `ContextBound` uses the
-/// expanded ML-KEM backend.
+/// and `out_secret` ([`Q_PERIAPT_SECRET_LEN`]). ContextBound requires this ABI's
+/// fixed suite id and a non-empty context. CompatXWing requires canonical absent
+/// metadata (`suite_id = []`, `policy_version = 0`, `context = []`) and uses the
+/// X-Wing-safe ML-KEM seed backend internally; ContextBound uses the expanded
+/// ML-KEM backend. Raw caller metadata is rejected, never normalized.
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region; output buffers must be
@@ -732,10 +869,8 @@ unsafe fn hybrid_encapsulate_raw(
         if secret_o.len() != Q_PERIAPT_SECRET_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        if suite != fixed_suite_id() {
-            // This fixed ABI is ML-KEM-768 + X25519; reject a caller claiming any other suite so a
-            // mismatched suite_id cannot be bound into the key as false agility metadata.
-            return Q_PERIAPT_ERR_POLICY;
+        if let Err(error) = validate_raw_kem_metadata(profile, suite, policy_version, context) {
+            return err_code(error);
         }
         let result = match profile {
             Profile::ContextBound => {
@@ -775,7 +910,8 @@ unsafe fn hybrid_encapsulate_raw(
 /// `sk_pq` is profile-specific: [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`] expects the
 /// 2400-byte expanded key from the internal deterministic keypair helper, while
 /// internal CompatXWing conformance expects the 32-byte seed from
-/// the internal X-Wing conformance keypair helper.
+/// the internal X-Wing conformance keypair helper. Metadata follows the same
+/// strict canonical contract as [`hybrid_encapsulate_raw`].
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region; `out_secret` must be
@@ -852,9 +988,8 @@ unsafe fn hybrid_decapsulate_raw(
         if secret_o.len() != Q_PERIAPT_SECRET_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
-        if suite != fixed_suite_id() {
-            // Fixed ML-KEM-768 + X25519 ABI: reject a mismatched suite_id (see encapsulate).
-            return Q_PERIAPT_ERR_POLICY;
+        if let Err(error) = validate_raw_kem_metadata(profile, suite, policy_version, context) {
+            return err_code(error);
         }
         let result = match profile {
             Profile::ContextBound => {
@@ -888,7 +1023,7 @@ unsafe fn hybrid_decapsulate_raw(
 /// This is the only product encapsulation entry point. It derives suite/profile/version from one
 /// canonical decision and injectively wraps `application_context` together with the exact signed
 /// policy digest before invoking the context-bound combiner. `CompatXWing` decisions are rejected
-/// because that profile intentionally ignores context and therefore cannot commit the digest.
+/// because that profile has no context input and therefore cannot commit the digest.
 /// Encapsulation coins come from the operating-system CSPRNG; deterministic coins are not exposed
 /// by the product ABI.
 ///
@@ -968,7 +1103,7 @@ pub unsafe extern "C" fn q_periapt_encapsulate(
         };
         let context = match policy_bound_context(decision, application_context) {
             Ok(context) => context,
-            Err(error) => return err_code(error),
+            Err(error) => return policy_context_err_code(error),
         };
         let mut rand_pq = ZeroizingBytes::from_bytes([0u8; 32]);
         let mut rand_trad = ZeroizingBytes::from_bytes([0u8; 32]);
@@ -989,8 +1124,8 @@ pub unsafe extern "C" fn q_periapt_encapsulate(
             pk_pq_len,
             pk_trad,
             pk_trad_len,
-            context.as_ptr(),
-            context.len(),
+            context.as_bytes().as_ptr(),
+            context.as_bytes().len(),
             rand_pq.as_bytes().as_ptr(),
             rand_pq.as_bytes().len(),
             rand_trad.as_bytes().as_ptr(),
@@ -1104,7 +1239,7 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
         };
         let context = match policy_bound_context(decision, application_context) {
             Ok(context) => context,
-            Err(error) => return err_code(error),
+            Err(error) => return policy_context_err_code(error),
         };
         let mut secret = ZeroizingBytes::from_bytes([0u8; Q_PERIAPT_SECRET_LEN]);
         let rc = hybrid_decapsulate_raw(
@@ -1124,8 +1259,8 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
             ct_trad_len,
             pk_trad,
             pk_trad_len,
-            context.as_ptr(),
-            context.len(),
+            context.as_bytes().as_ptr(),
+            context.as_bytes().len(),
             secret.as_mut_bytes().as_mut_ptr(),
             secret.as_bytes().len(),
         );
@@ -1146,6 +1281,9 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
 /// the canonical order: `suite_id`, `policy_version` (a 4-byte big-endian `u32`),
 /// `ss_pq`, `ss_trad`, `ct_pq`, `pk_pq`, `ct_trad`, `pk_trad`, `context`. `profile`
 /// selects the internal CompatXWing or [`Q_PERIAPT_PROFILE_CONTEXT_BOUND`] profile.
+/// CompatXWing requires the suite, policy-version, and context fields to be
+/// canonically empty/zero/empty; noncanonical input returns
+/// [`Q_PERIAPT_ERR_POLICY`] without changing `out_secret`.
 ///
 /// # Safety
 /// `input`/`out_secret` must be valid for `input_len` / [`Q_PERIAPT_SECRET_LEN`].
@@ -1243,10 +1381,10 @@ mod tests {
         let boundary = vec![0x11; Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES];
         assert!(policy_bound_context(decision, &boundary).is_ok());
         let oversized = vec![0x22; Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES + 1];
-        assert_eq!(
-            policy_bound_context(decision, &oversized).unwrap_err(),
-            Error::InvalidLength
-        );
+        assert!(matches!(
+            policy_bound_context(decision, &oversized),
+            Err(PolicyContextError::Core(Error::InvalidLength))
+        ));
 
         let mut encoded = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
         encoded[0] = Q_PERIAPT_POLICY_DECISION_VERSION;
@@ -1254,17 +1392,19 @@ mod tests {
         encoded[2] = Q_PERIAPT_PROFILE_CONTEXT_BOUND;
         encoded[3] = Q_PERIAPT_KEY_FORMAT_EXPANDED;
         encoded[7] = 1;
-        let mut ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
-        let mut ct_trad = [0u8; Q_PERIAPT_X25519_LEN];
-        let mut secret = [0u8; Q_PERIAPT_SECRET_LEN];
+        let pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut ct_pq = [0xA5u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0xA5u8; Q_PERIAPT_X25519_LEN];
+        let mut secret = [0xA5u8; Q_PERIAPT_SECRET_LEN];
         let rc = unsafe {
             q_periapt_encapsulate(
                 encoded.as_ptr(),
                 encoded.len(),
-                core::ptr::null(),
-                0,
-                core::ptr::null(),
-                0,
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                pk_trad.as_ptr(),
+                pk_trad.len(),
                 oversized.as_ptr(),
                 oversized.len(),
                 ct_pq.as_mut_ptr(),
@@ -1276,6 +1416,88 @@ mod tests {
             )
         };
         assert_eq!(rc, Q_PERIAPT_ERR_LENGTH);
+        assert!(ct_pq.iter().all(|byte| *byte == 0));
+        assert!(ct_trad.iter().all(|byte| *byte == 0));
+        assert!(secret.iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn valid_length_policy_context_allocation_failure_is_internal_and_atomic() {
+        let mut encoded = [0u8; Q_PERIAPT_POLICY_DECISION_LEN];
+        encoded[0] = Q_PERIAPT_POLICY_DECISION_VERSION;
+        encoded[1] = Q_PERIAPT_SUITE_MLKEM768_X25519;
+        encoded[2] = Q_PERIAPT_PROFILE_CONTEXT_BOUND;
+        encoded[3] = Q_PERIAPT_KEY_FORMAT_EXPANDED;
+        encoded[7] = 1;
+        let pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let application_context = b"valid-public-context";
+        let mut ct_pq = [0xA5u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut ct_trad = [0xA5u8; Q_PERIAPT_X25519_LEN];
+        let mut secret = [0xA5u8; Q_PERIAPT_SECRET_LEN];
+
+        fail_next_policy_context_allocation_for_test();
+        let rc = unsafe {
+            q_periapt_encapsulate(
+                encoded.as_ptr(),
+                encoded.len(),
+                pk_pq.as_ptr(),
+                pk_pq.len(),
+                pk_trad.as_ptr(),
+                pk_trad.len(),
+                application_context.as_ptr(),
+                application_context.len(),
+                ct_pq.as_mut_ptr(),
+                ct_pq.len(),
+                ct_trad.as_mut_ptr(),
+                ct_trad.len(),
+                secret.as_mut_ptr(),
+                secret.len(),
+            )
+        };
+
+        assert_eq!(rc, Q_PERIAPT_ERR_INTERNAL);
+        assert!(ct_pq.iter().all(|byte| *byte == 0));
+        assert!(ct_trad.iter().all(|byte| *byte == 0));
+        assert!(secret.iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn zeroizing_vec_wipes_and_drops_on_error_and_unwind() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+
+        let mut owner = ZeroizingVec::try_zeroed(32).unwrap();
+        owner.as_mut_bytes().fill(0xA5);
+        owner.clear();
+        assert!(owner.as_bytes().iter().all(|byte| *byte == 0));
+
+        let error_drop = Arc::new(AtomicBool::new(false));
+        let result = ZeroizingVec::try_zeroed_with_drop_probe(usize::MAX, Arc::clone(&error_drop));
+        assert!(matches!(result, Err(PolicyContextError::Allocation)));
+        assert_eq!(
+            policy_context_err_code(PolicyContextError::Allocation),
+            Q_PERIAPT_ERR_INTERNAL
+        );
+        assert!(
+            error_drop.load(Ordering::SeqCst),
+            "fallible allocation must drop its RAII owner"
+        );
+
+        let unwind_drop = Arc::new(AtomicBool::new(false));
+        let probe = Arc::clone(&unwind_drop);
+        let result = catch_unwind(AssertUnwindSafe(move || {
+            let mut owner = ZeroizingVec::try_zeroed_with_drop_probe(32, probe).unwrap();
+            owner.as_mut_bytes().fill(0x5A);
+            std::panic::resume_unwind(Box::new("exercise the unwind path"));
+        }));
+        assert!(result.is_err());
+        assert!(
+            unwind_drop.load(Ordering::SeqCst),
+            "unwinding must drop its RAII owner"
+        );
     }
 
     #[test]
@@ -1473,9 +1695,9 @@ mod tests {
             );
             let rc = hybrid_encapsulate_raw(
                 Profile::CompatXWing.to_u8(),
-                fixed_suite_id().as_ptr(),
-                fixed_suite_id().len(),
-                1,
+                core::ptr::null(),
+                0,
+                0,
                 pk_pq.as_ptr(),
                 pk_pq.len(),
                 pk_trad.as_ptr(),
@@ -1497,9 +1719,9 @@ mod tests {
             assert_eq!(
                 hybrid_decapsulate_raw(
                     Profile::CompatXWing.to_u8(),
-                    fixed_suite_id().as_ptr(),
-                    fixed_suite_id().len(),
-                    1,
+                    core::ptr::null(),
+                    0,
+                    0,
                     sk_pq.as_ptr(),
                     sk_pq.len(),
                     ct_pq.as_ptr(),
@@ -1521,6 +1743,136 @@ mod tests {
             );
             assert_eq!(secret_e, secret_d, "CompatXWing seed-dk ABI must roundtrip");
             assert_ne!(secret_d, [0u8; Q_PERIAPT_SECRET_LEN]);
+        }
+    }
+
+    #[test]
+    fn compat_raw_kem_metadata_is_rejected_without_changing_sentinels() {
+        let mut pk_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
+        let mut sk_pq = [0u8; MLKEM768_XWING_SEED_LEN];
+        let mut pk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut sk_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut valid_ct_pq = [0u8; Q_PERIAPT_MLKEM768_CT_LEN];
+        let mut valid_ct_trad = [0u8; Q_PERIAPT_X25519_LEN];
+        let mut valid_secret = [0u8; Q_PERIAPT_SECRET_LEN];
+        let rand_pq = [11u8; 32];
+        let rand_trad = [13u8; 32];
+
+        unsafe {
+            assert_eq!(
+                mlkem768_xwing_keypair_raw(
+                    [3u8; 32].as_ptr(),
+                    32,
+                    sk_pq.as_mut_ptr(),
+                    sk_pq.len(),
+                    pk_pq.as_mut_ptr(),
+                    pk_pq.len(),
+                ),
+                Q_PERIAPT_OK
+            );
+            assert_eq!(
+                x25519_keypair_raw(
+                    [4u8; 32].as_ptr(),
+                    32,
+                    sk_trad.as_mut_ptr(),
+                    sk_trad.len(),
+                    pk_trad.as_mut_ptr(),
+                    pk_trad.len(),
+                ),
+                Q_PERIAPT_OK
+            );
+            assert_eq!(
+                hybrid_encapsulate_raw(
+                    Profile::CompatXWing.to_u8(),
+                    core::ptr::null(),
+                    0,
+                    0,
+                    pk_pq.as_ptr(),
+                    pk_pq.len(),
+                    pk_trad.as_ptr(),
+                    pk_trad.len(),
+                    core::ptr::null(),
+                    0,
+                    rand_pq.as_ptr(),
+                    rand_pq.len(),
+                    rand_trad.as_ptr(),
+                    rand_trad.len(),
+                    valid_ct_pq.as_mut_ptr(),
+                    valid_ct_pq.len(),
+                    valid_ct_trad.as_mut_ptr(),
+                    valid_ct_trad.len(),
+                    valid_secret.as_mut_ptr(),
+                    valid_secret.len(),
+                ),
+                Q_PERIAPT_OK
+            );
+        }
+
+        let invalid: &[(&[u8], u32, &[u8])] = &[
+            (fixed_suite_id(), 0, b""),
+            (b"", 1, b""),
+            (b"", 0, b"unexpected-context"),
+        ];
+        for &(suite_id, policy_version, context) in invalid {
+            let mut rejected_ct_pq = [0xA5; Q_PERIAPT_MLKEM768_CT_LEN];
+            let mut rejected_ct_trad = [0xB6; Q_PERIAPT_X25519_LEN];
+            let mut rejected_enc_secret = [0xC7; Q_PERIAPT_SECRET_LEN];
+            let enc_rc = unsafe {
+                hybrid_encapsulate_raw(
+                    Profile::CompatXWing.to_u8(),
+                    suite_id.as_ptr(),
+                    suite_id.len(),
+                    policy_version,
+                    pk_pq.as_ptr(),
+                    pk_pq.len(),
+                    pk_trad.as_ptr(),
+                    pk_trad.len(),
+                    context.as_ptr(),
+                    context.len(),
+                    rand_pq.as_ptr(),
+                    rand_pq.len(),
+                    rand_trad.as_ptr(),
+                    rand_trad.len(),
+                    rejected_ct_pq.as_mut_ptr(),
+                    rejected_ct_pq.len(),
+                    rejected_ct_trad.as_mut_ptr(),
+                    rejected_ct_trad.len(),
+                    rejected_enc_secret.as_mut_ptr(),
+                    rejected_enc_secret.len(),
+                )
+            };
+            assert_eq!(enc_rc, Q_PERIAPT_ERR_POLICY);
+            assert_eq!(rejected_ct_pq, [0xA5; Q_PERIAPT_MLKEM768_CT_LEN]);
+            assert_eq!(rejected_ct_trad, [0xB6; Q_PERIAPT_X25519_LEN]);
+            assert_eq!(rejected_enc_secret, [0xC7; Q_PERIAPT_SECRET_LEN]);
+
+            let mut rejected_dec_secret = [0xD8; Q_PERIAPT_SECRET_LEN];
+            let dec_rc = unsafe {
+                hybrid_decapsulate_raw(
+                    Profile::CompatXWing.to_u8(),
+                    suite_id.as_ptr(),
+                    suite_id.len(),
+                    policy_version,
+                    sk_pq.as_ptr(),
+                    sk_pq.len(),
+                    valid_ct_pq.as_ptr(),
+                    valid_ct_pq.len(),
+                    pk_pq.as_ptr(),
+                    pk_pq.len(),
+                    sk_trad.as_ptr(),
+                    sk_trad.len(),
+                    valid_ct_trad.as_ptr(),
+                    valid_ct_trad.len(),
+                    pk_trad.as_ptr(),
+                    pk_trad.len(),
+                    context.as_ptr(),
+                    context.len(),
+                    rejected_dec_secret.as_mut_ptr(),
+                    rejected_dec_secret.len(),
+                )
+            };
+            assert_eq!(dec_rc, Q_PERIAPT_ERR_POLICY);
+            assert_eq!(rejected_dec_secret, [0xD8; Q_PERIAPT_SECRET_LEN]);
         }
     }
 
@@ -1562,9 +1914,9 @@ mod tests {
             assert_eq!(
                 hybrid_encapsulate_raw(
                     Profile::CompatXWing.to_u8(),
-                    fixed_suite_id().as_ptr(),
-                    fixed_suite_id().len(),
-                    1,
+                    core::ptr::null(),
+                    0,
+                    0,
                     pk_pq.as_ptr(),
                     pk_pq.len(),
                     pk_trad.as_ptr(),
@@ -1587,9 +1939,9 @@ mod tests {
             secret = [0u8; Q_PERIAPT_SECRET_LEN];
             let rc = hybrid_decapsulate_raw(
                 Profile::CompatXWing.to_u8(),
-                fixed_suite_id().as_ptr(),
-                fixed_suite_id().len(),
-                1,
+                core::ptr::null(),
+                0,
+                0,
                 sk_pq.as_ptr(),
                 sk_pq.len(),
                 ct_pq.as_ptr(),
@@ -1767,6 +2119,46 @@ mod tests {
                 rc, Q_PERIAPT_ERR_ALIASING,
                 "overlapping input/out_secret must be rejected"
             );
+        }
+    }
+
+    #[test]
+    fn combine_rejects_noncanonical_compat_metadata_and_preserves_sentinel() {
+        fn push_field(encoded: &mut Vec<u8>, field: &[u8]) {
+            encoded.extend_from_slice(&u64::try_from(field.len()).unwrap().to_be_bytes());
+            encoded.extend_from_slice(field);
+        }
+
+        let absorbed = [0x5Au8; 32];
+        let invalid: &[(&[u8], u32, &[u8])] = &[
+            (fixed_suite_id(), 0, b""),
+            (b"", 1, b""),
+            (b"", 0, b"unexpected-context"),
+        ];
+        for &(suite_id, policy_version, context) in invalid {
+            let mut input = Vec::new();
+            push_field(&mut input, suite_id);
+            push_field(&mut input, &policy_version.to_be_bytes());
+            push_field(&mut input, &absorbed);
+            push_field(&mut input, &absorbed);
+            push_field(&mut input, b"");
+            push_field(&mut input, b"");
+            push_field(&mut input, &absorbed);
+            push_field(&mut input, &absorbed);
+            push_field(&mut input, context);
+            let mut out = [0xE9; Q_PERIAPT_SECRET_LEN];
+
+            let rc = unsafe {
+                combine_raw(
+                    Profile::CompatXWing.to_u8(),
+                    input.as_ptr(),
+                    input.len(),
+                    out.as_mut_ptr(),
+                    out.len(),
+                )
+            };
+            assert_eq!(rc, Q_PERIAPT_ERR_POLICY);
+            assert_eq!(out, [0xE9; Q_PERIAPT_SECRET_LEN]);
         }
     }
 

@@ -32,9 +32,12 @@ Migration Contract V2 adds a distinct 324-byte, thirteen-field domain:
 - typed pre/post-KEM transcripts with key-share and negotiation graft checks;
 - a closed `HybridRequired` / `PostQuantumOnly` component mode; frozen ABI2
   explicitly rejects `PostQuantumOnly`;
-- role-separated mutual Finished typestates; a pending ABI2 secret is consumed
-  on every failure, and an accepted key is derived only after constant-time peer
-  verification plus an exact current-state revision recheck; and
+- role-ordered Finished typestates: the protocol initiator issues
+  `InitiatorFinishedV1`; the responder rechecks the exact current revision,
+  verifies I in constant time, accepts, and only then issues
+  `ResponderFinishedV1`; the initiator rechecks that revision, verifies R, and
+  then accepts. This protocol-role order is independent of which endpoint
+  performs KEM encapsulation; and
 - stable V2 state, negotiation, transcript, context, Finished, and accepted-key
   vectors, including a real ML-DSA-65 authentication test.
 
@@ -49,6 +52,10 @@ secret-owning process isolation are Policy Agent responsibilities. Constructing
 another in-memory state owner is not rollback resistance. The Agent must durably
 reserve a verified pending token before calling its consuming `commit`, and must
 be the sole owner passed to acceptance-time state rechecks.
+
+The role-specific Rust typestates follow the protocol-visible ordering in the
+Tamarin migration-agreement theory. Tests and exact-byte vectors link those two
+artifacts, but they are not a formal Tamarin-to-Rust refinement proof.
 
 The signer helpers require caller-owned, algorithm-exact signature output buffers;
 this follows `q-periapt-sig::Signer` and avoids guessing a backend signature size.

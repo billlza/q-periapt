@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import copy
+import errno
 import gzip
 import io
 import json
 import os
 import pathlib
+import select
 import shutil
 import signal
 import stat
@@ -14,20 +16,56 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest import mock
 
+import android_device_proof
 import android_elf
 import apple_distribution
 import c_package_manifest
 import release_index
-
 
 PRODUCER_MANIFEST_CONTRACTS = {
     "c-abi": (2, None),
     "swift": (5, "qperiapt.swift_xcframework_manifest"),
     "android": (4, "qperiapt.android_aar_manifest"),
 }
+
+
+def complete_emulator_control_summary() -> dict[str, object]:
+    private_adb = {
+        "adb_profile": "macos-account",
+        "identity_sha256": "6" * 64,
+        "listener_descriptor_sha256": "9" * 64,
+        "server_status_sha256": "7" * 64,
+        "listener_snapshot_sha256": "8" * 64,
+    }
+    external_adb = {
+        "snapshot_sha256": "1" * 64,
+        "routing_environment_sha256": "2" * 64,
+        "routing_receipt_sha256": "3" * 64,
+    }
+    external_adb["transport_binding_sha256"] = (
+        release_index.emulator_routing_transport_binding_sha256(
+            external_adb["snapshot_sha256"],
+            external_adb["routing_environment_sha256"],
+            private_adb,
+        )
+    )
+    return {
+        "external_adb": external_adb,
+        "private_adb": private_adb,
+        "native_notifier": {
+            "mode": release_index.ANDROID_NATIVE_NOTIFIER_MODE,
+            "port": release_index.NATIVE_ADB_NOTIFIER_PORT,
+            "admission_checkpoints": [
+                {"name": checkpoint.value, "receipt_sha256": "5" * 64}
+                for checkpoint in release_index.AdbIsolationCheckpoint
+            ],
+            "continuous_absence_claimed": False,
+        },
+    }
 
 
 class ReleaseIndexTests(unittest.TestCase):
@@ -65,6 +103,247 @@ class ReleaseIndexTests(unittest.TestCase):
             check=True,
         )
         return root
+
+    def _release_pointer(
+        self,
+        root: pathlib.Path,
+        *,
+        version: str,
+        commit: str,
+        digest: str,
+        generated_at: str,
+    ) -> dict[str, object]:
+        target = root / "target"
+        index_path = (
+            target
+            / "qperiapt-local-release"
+            / "release"
+            / version
+            / commit
+            / "index.json"
+        )
+        return release_index.release_pointer_value(
+            target=target,
+            index_path=index_path,
+            index_sha256=digest,
+            version=version,
+            channel="release",
+            generated_at=generated_at,
+        )
+
+    def test_semver_precedence_matches_stable_release_rules(self) -> None:
+        ordered = (
+            "0.1.0-alpha.2",
+            "0.1.0-alpha.3",
+            "0.1.0-alpha.10",
+            "0.1.0-beta",
+            "0.1.0-rc.1",
+            "0.1.0",
+            "0.1.1",
+            "0.2.0",
+        )
+        parsed = [
+            release_index._parse_semantic_version(value, "fixture version")
+            for value in ordered
+        ]
+        for left, right in zip(parsed[:-1], parsed[1:], strict=True):
+            self.assertLess(release_index._compare_semantic_precedence(left, right), 0)
+        for invalid in (
+            "01.0.0",
+            "0.01.0",
+            "0.1.00",
+            "0.1.0-alpha.01",
+            "0.1",
+            "v0.1.0",
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(SystemExit):
+                release_index._parse_semantic_version(invalid, "fixture version")
+
+    def test_release_pointer_transition_is_monotonic_and_source_descending(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            prerelease_commit = release_index.git_commit(root)
+            (root / "FIXTURE_SOURCE.txt").write_text(
+                "stable\n", encoding="utf-8"
+            )
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Q-Periapt Test",
+                    "-c",
+                    "user.email=q-periapt-test@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "stable",
+                ],
+                cwd=root,
+                check=True,
+            )
+            stable_commit = release_index.git_commit(root)
+            previous = self._release_pointer(
+                root,
+                version="0.1.0-alpha.3",
+                commit=prerelease_commit,
+                digest="a" * 64,
+                generated_at="2026-08-14T01:00:00Z",
+            )
+            current = self._release_pointer(
+                root,
+                version="0.1.0",
+                commit=stable_commit,
+                digest="b" * 64,
+                generated_at="2026-08-15T01:00:00Z",
+            )
+
+            release_index.validate_release_pointer_transition(
+                previous, current, root=root
+            )
+            release_index.validate_release_pointer_transition(
+                current, copy.deepcopy(current), root=root
+            )
+
+            mutations = {
+                "downgrade": previous,
+                "same-version-commit": self._release_pointer(
+                    root,
+                    version="0.1.0",
+                    commit=prerelease_commit,
+                    digest="b" * 64,
+                    generated_at="2026-08-15T01:00:00Z",
+                ),
+                "same-version-digest": self._release_pointer(
+                    root,
+                    version="0.1.0",
+                    commit=stable_commit,
+                    digest="c" * 64,
+                    generated_at="2026-08-15T01:00:00Z",
+                ),
+                "build-metadata": self._release_pointer(
+                    root,
+                    version="0.1.1+local",
+                    commit=stable_commit,
+                    digest="d" * 64,
+                    generated_at="2026-08-16T01:00:00Z",
+                ),
+            }
+            for name, candidate in mutations.items():
+                with self.subTest(name=name), self.assertRaises(SystemExit):
+                    release_index.validate_release_pointer_transition(
+                        current, candidate, root=root
+                    )
+
+    def test_release_pointer_transition_rejects_non_descendant_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            first = release_index.git_commit(root)
+            subprocess.run(
+                ["git", "checkout", "-q", "--orphan", "unrelated"],
+                cwd=root,
+                check=True,
+            )
+            for path in tuple(root.iterdir()):
+                if path.name != ".git":
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+            (root / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Q-Periapt Test",
+                    "-c",
+                    "user.email=q-periapt-test@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "unrelated",
+                ],
+                cwd=root,
+                check=True,
+            )
+            unrelated = release_index.git_commit(root)
+            previous = self._release_pointer(
+                root,
+                version="0.1.0",
+                commit=first,
+                digest="a" * 64,
+                generated_at="2026-08-14T01:00:00Z",
+            )
+            current = self._release_pointer(
+                root,
+                version="0.1.1",
+                commit=unrelated,
+                digest="b" * 64,
+                generated_at="2026-08-15T01:00:00Z",
+            )
+            with self.assertRaisesRegex(SystemExit, "lineage"):
+                release_index.validate_release_pointer_transition(
+                    previous, current, root=root
+                )
+
+    @unittest.skipUnless(os.name == "posix", "pointer lock race uses POSIX pipes")
+    def test_release_pointer_lock_rejects_a_concurrent_writer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            release_base = root / "target" / "qperiapt-local-release"
+            release_base.mkdir(parents=True, mode=0o700)
+            release_base.chmod(0o700)
+            pointer = release_base / "latest-release.json"
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import pathlib
+import sys
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+pointer = pathlib.Path(sys.argv[1])
+with release_index._release_pointer_lock(pointer):
+    print('LOCKED', flush=True)
+    if sys.stdin.read(1) != 'G':
+        raise SystemExit('invalid release gate')
+"""
+            environment = dict(os.environ)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            process = subprocess.Popen(
+                [sys.executable, "-B", "-c", child_source, str(pointer)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=environment,
+            )
+            try:
+                self.assertIsNotNone(process.stdout)
+                self.assertEqual(process.stdout.readline().strip(), "LOCKED")
+                with self.assertRaisesRegex(
+                    SystemExit, "another release pointer transaction is active"
+                ):
+                    with release_index._release_pointer_lock(pointer):
+                        self.fail("concurrent pointer lock was acquired")
+                self.assertIsNotNone(process.stdin)
+                process.stdin.write("G")
+                process.stdin.flush()
+                process.stdin.close()
+                self.assertEqual(process.wait(timeout=10), 0)
+                with release_index._release_pointer_lock(pointer):
+                    self.assertTrue(pointer.parent.is_dir())
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+                if process.stdin is not None and not process.stdin.closed:
+                    process.stdin.close()
+                if process.stdout is not None:
+                    process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
 
     def _manifest(
         self,
@@ -259,12 +538,10 @@ class ReleaseIndexTests(unittest.TestCase):
         trust = release_index.load_abi_trust_root(root)
         commit = release_index.git_commit(root)
         release_root = (
-            root
-            / "target/qperiapt-local-release/diagnostic"
-            / trust.version
-            / commit
+            root / "target/qperiapt-local-release/diagnostic" / trust.version / commit
         )
         release_root.mkdir(parents=True)
+        (root / "target/qperiapt-local-release").chmod(0o700)
         package_paths = {
             "swift": release_root / "packages/swift/CQPeriapt.xcframework.zip",
             "android": release_root
@@ -436,9 +713,7 @@ class ReleaseIndexTests(unittest.TestCase):
             self.repository_root / "artifact/swift-xcframework.sh"
         ).read_text(encoding="utf-8")
         self.assertIn('"schema_version": 5', swift_producer)
-        self.assertIn(
-            '"kind": "qperiapt.swift_xcframework_manifest"', swift_producer
-        )
+        self.assertIn('"kind": "qperiapt.swift_xcframework_manifest"', swift_producer)
 
     def test_each_face_accepts_only_its_exact_current_schema(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -462,15 +737,13 @@ class ReleaseIndexTests(unittest.TestCase):
                         with self.assertRaises(SystemExit):
                             self._validate_manifest(root, face, forged)
 
-    def test_release_index_accepts_only_schema_three_as_an_exact_integer(self) -> None:
+    def test_release_index_accepts_only_schema_five_as_an_exact_integer(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._root(temporary)
             index_path, original = self._fixture(root)
-            self.assertEqual(release_index.SCHEMA_VERSION, 3)
-            release_index.verify_release_index(
-                index_path, root, allow_diagnostic=True
-            )
-            for schema in (2, 4, True, "3", 3.0):
+            self.assertEqual(release_index.SCHEMA_VERSION, 5)
+            release_index.verify_release_index(index_path, root, allow_diagnostic=True)
+            for schema in (4, 6, True, "5", 5.0):
                 forged = copy.deepcopy(original)
                 forged["schema_version"] = schema
                 release_index.write_json(index_path, forged)
@@ -560,9 +833,9 @@ class ReleaseIndexTests(unittest.TestCase):
             forged["public_release_boundary"]["contains_raw_device_proof"] = True
             cases.append(("swift", forged, "Swift raw proof claim"))
             forged = copy.deepcopy(swift_manifest)
-            forged["public_release_boundary"][
-                "consumer_distribution_responsibilities"
-            ]["ios"]["requires_final_app_signing_and_provisioning"] = False
+            forged["public_release_boundary"]["consumer_distribution_responsibilities"][
+                "ios"
+            ]["requires_final_app_signing_and_provisioning"] = False
             cases.append(("swift", forged, "Swift consumer responsibility"))
 
             forged = copy.deepcopy(android_manifest)
@@ -668,7 +941,9 @@ class ReleaseIndexTests(unittest.TestCase):
             )
             for face, field, value in cases:
                 forged = copy.deepcopy(original)
-                artifact = next(item for item in forged["artifacts"] if item["face"] == face)
+                artifact = next(
+                    item for item in forged["artifacts"] if item["face"] == face
+                )
                 artifact[field] = value
                 release_index.write_json(index_path, forged)
                 release_index.write_release_sums(index_path.parent)
@@ -696,11 +971,14 @@ class ReleaseIndexTests(unittest.TestCase):
             )
             release_index.write_json(index_path, index)
             release_index.write_release_sums(index_path.parent)
-            with mock.patch.object(
-                release_index,
-                "verify_index_file",
-                side_effect=AssertionError("file verification must not start"),
-            ), self.assertRaisesRegex(SystemExit, "exactly one package file"):
+            with (
+                mock.patch.object(
+                    release_index,
+                    "verify_index_file",
+                    side_effect=AssertionError("file verification must not start"),
+                ),
+                self.assertRaisesRegex(SystemExit, "exactly one package file"),
+            ):
                 release_index.verify_release_index(
                     index_path, root, allow_diagnostic=True
                 )
@@ -728,10 +1006,12 @@ class ReleaseIndexTests(unittest.TestCase):
                     index_path, root, allow_diagnostic=True
                 )
 
-    def test_unsynchronized_package_replacement_is_rejected_for_every_face(self) -> None:
+    def test_unsynchronized_package_replacement_is_rejected_for_every_face(
+        self,
+    ) -> None:
         # This is an aggregate hash-linkage test, not a leaf-package verifier.
         # Coordinated rewrites of a mutable local package and all of its local
-        # metadata remain outside schema 3's explicitly recorded trust boundary.
+        # metadata remain outside schema 5's explicitly recorded trust boundary.
         for face in PRODUCER_MANIFEST_CONTRACTS:
             with self.subTest(face=face), tempfile.TemporaryDirectory() as temporary:
                 root = self._root(temporary)
@@ -778,19 +1058,23 @@ class ReleaseIndexTests(unittest.TestCase):
 
             def android_proof(model: str) -> dict:
                 return {
+                    "schema": android_device_proof.PROOF_SCHEMA_VERSION,
                     "git_commit": "a" * 40,
                     "generated_at": "2026-07-12T00:00:00Z",
                     "source_tree_dirty": False,
+                    "release_candidate_mode": False,
                     "run_id": "a" * 32,
                     "device": {
                         "kind": "physical",
                         "model": model,
                         "sdk": 35,
                         "abi": "arm64-v8a",
+                        "page_size": 4096,
                         "serial_sha256_prefix": "b" * 12,
                         "raw_serial_recorded": False,
                     },
                     "result": {
+                        "run_id": "a" * 32,
                         "status": "pass",
                         "test_count": 1,
                         "passed_tests": ["fixture"],
@@ -806,18 +1090,21 @@ class ReleaseIndexTests(unittest.TestCase):
                 release_index.write_json(proof_path, android_proof("SECOND"))
                 return snapshot
 
-            with mock.patch.object(
-                release_index,
-                "load_json_object_snapshot",
-                side_effect=replace_after_snapshot,
-            ), mock.patch.object(
-                release_index,
-                "sha256_file",
-                side_effect=AssertionError("proof_summary must not reopen the proof"),
+            with (
+                mock.patch.object(
+                    release_index,
+                    "load_json_object_snapshot",
+                    side_effect=replace_after_snapshot,
+                ),
+                mock.patch.object(
+                    release_index,
+                    "sha256_file",
+                    side_effect=AssertionError(
+                        "proof_summary must not reopen the proof"
+                    ),
+                ),
             ):
-                summary = release_index.proof_summary(
-                    proof_path, "android_runtime"
-                )
+                summary = release_index.proof_summary(proof_path, "android_runtime")
             self.assertEqual(summary["device"]["model"], "FIRST")
             self.assertEqual(summary["sha256"], expected_sha256)
 
@@ -837,13 +1124,467 @@ class ReleaseIndexTests(unittest.TestCase):
                     expected_commit="b" * 40,
                 )
 
+            summary = release_index.proof_summary_snapshot(
+                snapshot,
+                "android_runtime",
+                expected_commit="a" * 40,
+            )
+            self.assertFalse(summary["release_candidate_mode"])
+            self.assertEqual(summary["device"]["page_size"], 4096)
+            self.assertEqual(summary["result"]["status"], "pass")
+            for path, replacement, message in (
+                (("release_candidate_mode",), 1, "release_candidate_mode"),
+                (("device", "page_size"), 8192, "page size"),
+                (("result", "status"), "unknown", "result status"),
+            ):
+                forged = copy.deepcopy(summary)
+                target = forged
+                for component in path[:-1]:
+                    target = target[component]
+                target[path[-1]] = replacement
+                with (
+                    self.subTest(path=path),
+                    self.assertRaisesRegex(SystemExit, message),
+                ):
+                    release_index.validate_sanitized_proof_summary(
+                        "android_runtime", forged
+                    )
+
+    def test_apple_matrix_summary_requires_the_current_proof_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            proof_path = pathlib.Path(temporary).resolve() / "apple-matrix.json"
+            proof = {
+                "schema_version": release_index.APPLE_MATRIX_PROOF_SCHEMA_VERSION,
+                "status": "pass",
+                "git_commit": "a" * 40,
+                "generated_at": "2026-08-13T00:00:00Z",
+                "source_tree_dirty": False,
+                "devices": [
+                    {
+                        "label": "ipad",
+                        "device_type": "iPad",
+                        "product_type": "iPad16,3",
+                        "os_version": "27.0",
+                        "os_build": "24A5408d",
+                        "device_id_sha256": "b" * 64,
+                        "run_id": "1" * 32,
+                    },
+                    {
+                        "label": "iphone",
+                        "device_type": "iPhone",
+                        "product_type": "iPhone17,1",
+                        "os_version": "26.5",
+                        "os_build": "23F77",
+                        "device_id_sha256": "c" * 64,
+                        "run_id": "2" * 32,
+                    },
+                ],
+            }
+            release_index.write_json(proof_path, proof)
+            snapshot = release_index.load_json_object_snapshot(
+                proof_path,
+                label="Apple matrix fixture",
+            )
+            release_index.proof_summary_snapshot(
+                snapshot,
+                "apple_matrix",
+                expected_commit="a" * 40,
+            )
+
+            proof["schema_version"] = (
+                release_index.APPLE_MATRIX_PROOF_SCHEMA_VERSION - 1
+            )
+            release_index.write_json(proof_path, proof)
+            old_snapshot = release_index.load_json_object_snapshot(
+                proof_path,
+                label="old Apple matrix fixture",
+            )
+            with self.assertRaisesRegex(SystemExit, "schema is not current"):
+                release_index.proof_summary_snapshot(
+                    old_snapshot,
+                    "apple_matrix",
+                    expected_commit="a" * 40,
+                )
+
+    def test_offline_release_verifier_requires_canonical_android_runtime_summary(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            diagnostic_index_path, index = self._fixture(root)
+            summary = {
+                "kind": "android_runtime",
+                "sha256": "e" * 64,
+                "generated_at": "2026-08-12T00:00:00Z",
+                "source_tree_dirty": False,
+                "copied_raw_proof": False,
+                "diagnostic_only": False,
+                "proof_schema": android_device_proof.PROOF_SCHEMA_VERSION,
+                "release_candidate_mode": True,
+                "device": {
+                    "kind": "emulator",
+                    "model": "canonical-release-avd",
+                    "sdk": 35,
+                    "abi": "arm64-v8a",
+                    "page_size": 16_384,
+                    "serial_sha256_prefix": "c" * 12,
+                    "raw_serial_recorded": False,
+                },
+                "result": {
+                    "run_id": "a" * 32,
+                    "status": "pass",
+                    "test_count": 1,
+                    "passed_tests": ["fixture"],
+                },
+                "adb_isolation": {
+                    "mode": release_index.ANDROID_EMULATOR_ROUTING_MODE,
+                    **complete_emulator_control_summary(),
+                },
+            }
+            index["channel"] = "release"
+            index["diagnostic_only"] = False
+            index["proof_summaries"] = {"android_runtime": summary}
+            release_root = (
+                root
+                / "target/qperiapt-local-release/release"
+                / index["version"]
+                / index["git"]["commit"]
+            )
+            release_root.parent.mkdir(parents=True)
+            diagnostic_index_path.parent.rename(release_root)
+            index_path = release_root / "index.json"
+            release_index.write_json(index_path, index)
+            release_index.write_release_sums(release_root)
+
+            release_index.verify_release_index(
+                index_path,
+                root,
+                allow_diagnostic=False,
+            )
+
+            cases = (
+                (("release_candidate_mode",), False, "release_candidate_mode"),
+                (("device", "kind"), "physical", "physical Android adb isolation"),
+                (("device", "abi"), "x86_64", "device ABI"),
+                (("device", "sdk"), 36, "device SDK"),
+                (("device", "page_size"), 4096, "device page size"),
+                (("result", "status"), "fail", "result status"),
+                (("proof_schema",), 4, "summary schema"),
+                (("adb_isolation", "native_notifier", "port"), 5037, "notifier port"),
+                (
+                    ("adb_isolation", "private_adb", "identity_sha256"),
+                    "0" * 64,
+                    "transport binding",
+                ),
+                (
+                    ("adb_isolation", "private_adb", "adb_profile"),
+                    [],
+                    "profile",
+                ),
+                (
+                    ("adb_isolation", "private_adb", "adb_profile"),
+                    True,
+                    "profile",
+                ),
+                (
+                    ("adb_isolation", "private_adb", "adb_profile"),
+                    "unknown",
+                    "profile",
+                ),
+                (
+                    ("adb_isolation", "external_adb", "snapshot_sha256"),
+                    "0" * 64,
+                    "transport binding",
+                ),
+            )
+            for path, replacement, message in cases:
+                forged = copy.deepcopy(index)
+                target = forged["proof_summaries"]["android_runtime"]
+                for component in path[:-1]:
+                    target = target[component]
+                target[path[-1]] = replacement
+                release_index.write_json(index_path, forged)
+                release_index.write_release_sums(release_root)
+                with (
+                    self.subTest(path=path),
+                    self.assertRaisesRegex(SystemExit, message),
+                ):
+                    release_index.verify_release_index(
+                        index_path,
+                        root,
+                        allow_diagnostic=False,
+                    )
+
+            for label, replacement in (("missing", None), ("non-dict", "invalid")):
+                forged = copy.deepcopy(index)
+                runtime = forged["proof_summaries"]["android_runtime"]
+                if label == "missing":
+                    del runtime["adb_isolation"]
+                else:
+                    runtime["adb_isolation"] = replacement
+                with (
+                    self.subTest(adb_isolation=label),
+                    self.assertRaisesRegex(
+                        SystemExit,
+                        "Android release summary requires adb isolation evidence",
+                    ),
+                ):
+                    release_index.validate_android_release_summary_contract(
+                        runtime
+                    )
+
+    def test_android_runtime_selector_is_exact_and_release_uses_full_verifier(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            target = root / "target"
+            target.mkdir()
+            run_id = "a" * 32
+            proof_path = (
+                target
+                / "qperiapt-android-device-smoke-runs"
+                / run_id
+                / "proof"
+                / "qperiapt-android-device-proof.json"
+            )
+            proof_path.parent.mkdir(parents=True)
+            proof = {
+                "schema": android_device_proof.PROOF_SCHEMA_VERSION,
+                "git_commit": "b" * 40,
+                "generated_at": "2026-08-12T00:00:00Z",
+                "source_tree_dirty": False,
+                "release_candidate_mode": True,
+                "run_id": run_id,
+                "device": {
+                    "kind": "emulator",
+                    "model": "fixture",
+                    "sdk": 35,
+                    "abi": "arm64-v8a",
+                    "page_size": 16_384,
+                    "serial_sha256_prefix": "c" * 12,
+                    "raw_serial_recorded": False,
+                },
+                "result": {
+                    "run_id": run_id,
+                    "status": "pass",
+                    "test_count": 1,
+                    "passed_tests": ["fixture"],
+                },
+                "emulator_control": complete_emulator_control_summary(),
+            }
+            release_index.write_json(proof_path, proof)
+            args = argparse.Namespace(
+                apple_matrix_run="",
+                android_runtime_run=run_id,
+            )
+            selected_paths = {
+                key: target / key for key in android_device_proof.PROOF_PATH_KEYS
+            }
+            with (
+                mock.patch.object(
+                    android_device_proof, "verify_proof_freshness"
+                ) as freshness,
+                mock.patch.object(
+                    android_device_proof, "proof_paths", return_value=selected_paths
+                ),
+                mock.patch.object(
+                    android_device_proof, "validate_selected_run_layout"
+                ) as layout,
+                mock.patch.object(
+                    android_device_proof, "verify_proof_contents"
+                ) as contents,
+            ):
+                summaries = release_index.requested_proof_summaries(
+                    args,
+                    root=root,
+                    target=target,
+                    channel="release",
+                    commit="b" * 40,
+                )
+            self.assertEqual(summaries["android_runtime"]["result"]["run_id"], run_id)
+            self.assertEqual(summaries["android_runtime"]["result"]["status"], "pass")
+            self.assertEqual(
+                summaries["android_runtime"]["device"]["page_size"], 16_384
+            )
+            self.assertTrue(summaries["android_runtime"]["release_candidate_mode"])
+            freshness.assert_called_once_with(proof, 86_400)
+            layout.assert_called_once_with(
+                root, proof_path, proof, selected_paths, require_unique_run=True
+            )
+            self.assertEqual(
+                contents.call_args.kwargs["expected_device_kind"], "emulator"
+            )
+            self.assertEqual(
+                contents.call_args.kwargs["expected_device_abi"], "arm64-v8a"
+            )
+            self.assertEqual(contents.call_args.kwargs["expected_page_size"], 16_384)
+            self.assertEqual(contents.call_args.kwargs["expected_device_sdk"], 35)
+            self.assertTrue(contents.call_args.kwargs["require_release_mode"])
+            self.assertFalse(contents.call_args.kwargs["allow_dirty_proof"])
+
+            for selector in ("", "A" * 32, "a" * 31, "../" + "a" * 29):
+                if not selector:
+                    continue
+                with self.subTest(selector=selector), self.assertRaises(SystemExit):
+                    release_index.requested_proof_summaries(
+                        argparse.Namespace(
+                            apple_matrix_run="", android_runtime_run=selector
+                        ),
+                        root=root,
+                        target=target,
+                        channel="release",
+                        commit="b" * 40,
+                    )
+
+            proof["run_id"] = "b" * 32
+            release_index.write_json(proof_path, proof)
+            with self.assertRaisesRegex(SystemExit, "run id differs"):
+                release_index.requested_proof_summaries(
+                    args,
+                    root=root,
+                    target=target,
+                    channel="diagnostic",
+                    commit="b" * 40,
+                )
+
+    def test_local_release_index_android_selector_shell_contract(self) -> None:
+        source_script = self.repository_root / "artifact/local-release-index.sh"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            artifact = root / "artifact"
+            artifact.mkdir()
+            script = artifact / "local-release-index.sh"
+            shutil.copy2(source_script, script)
+            (artifact / "python-env.sh").write_text(
+                """#!/bin/sh
+python3() {
+    : > "$SELECTOR_CAPTURE_PATH" || exit 125
+    for argument
+    do
+        printf '%s\\n' "$argument" >> "$SELECTOR_CAPTURE_PATH" || exit 125
+    done
+}
+""",
+                encoding="utf-8",
+            )
+            capture = root / "forwarded-arguments.txt"
+            base_environment = {
+                name: value
+                for name, value in os.environ.items()
+                if not name.startswith("QPERIAPT_")
+            }
+            base_environment["SELECTOR_CAPTURE_PATH"] = str(capture)
+
+            def invoke(overrides: dict[str, str]) -> subprocess.CompletedProcess[str]:
+                capture.unlink(missing_ok=True)
+                environment = dict(base_environment)
+                environment.update(overrides)
+                return subprocess.run(
+                    ["/bin/sh", str(script)],
+                    cwd=root,
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=10,
+                )
+
+            selector_error = (
+                "error: QPERIAPT_ANDROID_RUNTIME_RUN must be 32 lowercase "
+                "hex characters\n"
+            )
+            collating_locale = "en_US.UTF-8" if sys.platform == "darwin" else "C"
+            invalid_selectors = (
+                ("missing", {}),
+                ("empty", {"QPERIAPT_ANDROID_RUNTIME_RUN": ""}),
+                ("short", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 31}),
+                ("long", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 33}),
+                (
+                    "uppercase-non-c-locale",
+                    {
+                        "LC_ALL": collating_locale,
+                        "QPERIAPT_ANDROID_RUNTIME_RUN": "A" * 32,
+                    },
+                ),
+                ("nonhex", {"QPERIAPT_ANDROID_RUNTIME_RUN": "g" * 32}),
+                (
+                    "unicode-non-c-locale",
+                    {
+                        "LC_ALL": collating_locale,
+                        "QPERIAPT_ANDROID_RUNTIME_RUN": "é" * 32,
+                    },
+                ),
+                (
+                    "fullwidth-non-c-locale",
+                    {
+                        "LC_ALL": collating_locale,
+                        "QPERIAPT_ANDROID_RUNTIME_RUN": "ａ" * 32,
+                    },
+                ),
+                ("newline", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 31 + "\n"}),
+                ("control", {"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 31 + "\x1f"}),
+            )
+            for label, selector_environment in invalid_selectors:
+                with self.subTest(label=label):
+                    completed = invoke(
+                        {
+                            "QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME": "1",
+                            **selector_environment,
+                        }
+                    )
+                    self.assertEqual(completed.returncode, 2, completed.stderr)
+                    self.assertEqual(completed.stdout, "")
+                    self.assertEqual(completed.stderr, selector_error)
+                    self.assertFalse(capture.exists())
+
+            stray = invoke({"QPERIAPT_ANDROID_RUNTIME_RUN": "a" * 32})
+            self.assertEqual(stray.returncode, 2, stray.stderr)
+            self.assertEqual(stray.stdout, "")
+            self.assertEqual(
+                stray.stderr,
+                "error: QPERIAPT_ANDROID_RUNTIME_RUN requires the Android runtime selector\n",
+            )
+            self.assertFalse(capture.exists())
+
+            arbitrary_path = invoke(
+                {"QPERIAPT_ANDROID_DEVICE_PROOF": "target/attacker-proof.json"}
+            )
+            self.assertEqual(arbitrary_path.returncode, 2, arbitrary_path.stderr)
+            self.assertEqual(arbitrary_path.stdout, "")
+            self.assertEqual(
+                arbitrary_path.stderr,
+                "error: local release indexes do not accept caller-selected proof file paths\n",
+            )
+            self.assertFalse(capture.exists())
+
+            run_id = "b" * 32
+            accepted = invoke(
+                {
+                    "QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_RUNTIME_RUN": run_id,
+                }
+            )
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout, "")
+            self.assertEqual(accepted.stderr, "")
+            self.assertEqual(
+                capture.read_text(encoding="utf-8").splitlines(),
+                [
+                    "artifact/release_index.py",
+                    "emit",
+                    "--channel",
+                    "release",
+                    "--android-runtime-run",
+                    run_id,
+                ],
+            )
+
     def test_index_verification_binds_live_worktree_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._root(temporary)
             index_path, _ = self._fixture(root)
-            release_index.verify_release_index(
-                index_path, root, allow_diagnostic=True
-            )
+            release_index.verify_release_index(index_path, root, allow_diagnostic=True)
             (root / "FIXTURE_SOURCE.txt").write_text("changed\n", encoding="utf-8")
             with self.assertRaisesRegex(SystemExit, "source_tree_dirty differs"):
                 release_index.verify_release_index(
@@ -863,7 +1604,9 @@ class ReleaseIndexTests(unittest.TestCase):
             results_path = root / "artifact/results.json"
             results_path.parent.mkdir(parents=True)
             results_path.write_text("{}\n", encoding="utf-8")
-            subprocess.run(["git", "add", "artifact/results.json"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "add", "artifact/results.json"], cwd=root, check=True
+            )
             subprocess.run(
                 [
                     "git",
@@ -970,16 +1713,20 @@ class ReleaseIndexTests(unittest.TestCase):
                 entry.size = len(payload)
                 bundle.addfile(entry, io.BytesIO(payload))
 
-            with mock.patch.object(
-                release_index, "MAX_TAR_UNCOMPRESSED_BYTES", 1024
-            ), self.assertRaisesRegex(SystemExit, "decompressed stream"):
+            with (
+                mock.patch.object(release_index, "MAX_TAR_UNCOMPRESSED_BYTES", 1024),
+                self.assertRaisesRegex(SystemExit, "decompressed stream"),
+            ):
                 release_index.tar_metadata_bytes(archive, "/MANIFEST.json")
 
-            with mock.patch.object(
-                release_index,
-                "MAX_TAR_ARCHIVE_BYTES",
-                archive.stat().st_size - 1,
-            ), self.assertRaisesRegex(SystemExit, "C archive exceeds"):
+            with (
+                mock.patch.object(
+                    release_index,
+                    "MAX_TAR_ARCHIVE_BYTES",
+                    archive.stat().st_size - 1,
+                ),
+                self.assertRaisesRegex(SystemExit, "C archive exceeds"),
+            ):
                 release_index.tar_metadata_bytes(archive, "/MANIFEST.json")
 
     def test_tar_metadata_rejects_truncated_or_concatenated_gzip_members(self) -> None:
@@ -998,8 +1745,9 @@ class ReleaseIndexTests(unittest.TestCase):
 
             for removed in (1, 8, 20):
                 archive.write_bytes(original[:-removed])
-                with self.subTest(removed=removed), self.assertRaisesRegex(
-                    SystemExit, "truncated|cannot inspect"
+                with (
+                    self.subTest(removed=removed),
+                    self.assertRaisesRegex(SystemExit, "truncated|cannot inspect"),
                 ):
                     release_index.tar_metadata_bytes(archive, "/MANIFEST.json")
 
@@ -1047,8 +1795,9 @@ class ReleaseIndexTests(unittest.TestCase):
                 (b"\0" * 1024 + b"x" * 512, "non-zero tar trailer"),
             ):
                 archive.write_bytes(gzip.compress(tar_bytes[:tar_end] + trailer))
-                with self.subTest(trailer_bytes=len(trailer)), self.assertRaisesRegex(
-                    SystemExit, error
+                with (
+                    self.subTest(trailer_bytes=len(trailer)),
+                    self.assertRaisesRegex(SystemExit, error),
                 ):
                     release_index.tar_metadata_bytes(archive, "/MANIFEST.json")
 
@@ -1115,13 +1864,13 @@ class ReleaseIndexTests(unittest.TestCase):
             output = release_index.resolve_release_output(
                 root,
                 channel="release",
-                version="0.1.0-alpha.2",
+                version="0.1.0",
                 commit="a" * 40,
             )
             self.assertEqual(
                 output,
                 root
-                / "target/qperiapt-local-release/release/0.1.0-alpha.2"
+                / "target/qperiapt-local-release/release/0.1.0"
                 / ("a" * 40),
             )
 
@@ -1173,17 +1922,683 @@ class ReleaseIndexTests(unittest.TestCase):
             )
             self.assertEqual(verified.path, staging_index)
 
+    @unittest.skipUnless(
+        os.name == "posix"
+        and (sys.platform == "darwin" or sys.platform.startswith("linux")),
+        "native no-replace publication requires Darwin or Linux",
+    )
+    def test_native_no_replace_existing_destination_preserves_both_trees(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = pathlib.Path(temporary).resolve()
+            parent.chmod(0o700)
+            staging = parent / "staging"
+            destination = parent / "destination"
+            staging.mkdir(mode=0o700)
+            destination.mkdir(mode=0o700)
+            (staging / "marker").write_text("staging\n", encoding="utf-8")
+            (destination / "marker").write_text("destination\n", encoding="utf-8")
+            directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                with self.assertRaisesRegex(SystemExit, "immutable and already exists"):
+                    release_index._rename_release_tree_noreplace(
+                        directory_fd,
+                        staging.name,
+                        destination.name,
+                    )
+            finally:
+                os.close(directory_fd)
+            self.assertEqual((staging / "marker").read_text(), "staging\n")
+            self.assertEqual((destination / "marker").read_text(), "destination\n")
+
+    def test_native_no_replace_adapters_use_exact_platform_flags(self) -> None:
+        class NativeFunction:
+            def __init__(self) -> None:
+                self.argtypes: object = None
+                self.restype: object = None
+                self.calls: list[tuple[object, ...]] = []
+
+            def __call__(self, *arguments: object) -> int:
+                self.calls.append(arguments)
+                return 0
+
+        class NativeLibrary:
+            def __init__(self) -> None:
+                self.renameatx_np = NativeFunction()
+                self.renameat2 = NativeFunction()
+
+        cases = (
+            ("darwin", "renameatx_np", release_index.RENAME_EXCL),
+            ("linux", "renameat2", release_index.RENAME_NOREPLACE),
+        )
+        for platform, symbol, expected_flags in cases:
+            with self.subTest(platform=platform):
+                library = NativeLibrary()
+                with (
+                    mock.patch.object(release_index.sys, "platform", platform),
+                    mock.patch.object(
+                        release_index.ctypes,
+                        "CDLL",
+                        return_value=library,
+                    ),
+                ):
+                    release_index._rename_release_tree_noreplace(
+                        17,
+                        ".staging-0123456789abcdef",
+                        "destination",
+                    )
+                function = getattr(library, symbol)
+                self.assertEqual(
+                    function.calls,
+                    [
+                        (
+                            17,
+                            b".staging-0123456789abcdef",
+                            17,
+                            b"destination",
+                            expected_flags,
+                        )
+                    ],
+                )
+
+    def test_native_no_replace_unsupported_fails_without_fallback(self) -> None:
+        class UnsupportedRename:
+            argtypes: object = None
+            restype: object = None
+
+            def __init__(self, observed_errno: int) -> None:
+                self.observed_errno = observed_errno
+
+            def __call__(self, *_arguments: object) -> int:
+                release_index.ctypes.set_errno(self.observed_errno)
+                return -1
+
+        class NativeLibrary:
+            def __init__(self, observed_errno: int) -> None:
+                self.renameatx_np = UnsupportedRename(observed_errno)
+
+        unsupported_errors = {
+            errno.ENOSYS,
+            errno.EINVAL,
+            getattr(errno, "ENOTSUP", errno.EINVAL),
+            getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+        }
+        for observed_errno in unsupported_errors:
+            with (
+                self.subTest(observed_errno=observed_errno),
+                mock.patch.object(release_index.sys, "platform", "darwin"),
+                mock.patch.object(
+                    release_index.ctypes,
+                    "CDLL",
+                    return_value=NativeLibrary(observed_errno),
+                ),
+                mock.patch.object(
+                    release_index.os,
+                    "rename",
+                    side_effect=AssertionError("os.rename fallback is forbidden"),
+                ),
+                mock.patch.object(
+                    release_index.os,
+                    "replace",
+                    side_effect=AssertionError("os.replace fallback is forbidden"),
+                ),
+                self.assertRaisesRegex(SystemExit, "atomic no-replace publication"),
+            ):
+                release_index._rename_release_tree_noreplace(
+                    19,
+                    "staging",
+                    "final",
+                )
+
+        with (
+            mock.patch.object(release_index.sys, "platform", "darwin"),
+            mock.patch.object(release_index.ctypes, "CDLL", return_value=object()),
+            self.assertRaisesRegex(SystemExit, "cannot load renameatx_np"),
+        ):
+            release_index._rename_release_tree_noreplace(19, "staging", "final")
+
+        with (
+            mock.patch.object(release_index.sys, "platform", "freebsd14"),
+            self.assertRaisesRegex(SystemExit, "unsupported on this platform"),
+        ):
+            release_index._rename_release_tree_noreplace(19, "staging", "final")
+
+        for unsafe_name in ("../staging", "staging\\alias"):
+            with (
+                self.subTest(unsafe_name=unsafe_name),
+                self.assertRaisesRegex(SystemExit, "basename is invalid"),
+            ):
+                release_index._rename_release_tree_noreplace(
+                    19,
+                    unsafe_name,
+                    "final",
+                )
+
+    @unittest.skipUnless(
+        os.name == "posix"
+        and (sys.platform == "darwin" or sys.platform.startswith("linux")),
+        "native no-replace competition requires Darwin or Linux",
+    )
+    def test_two_process_native_no_replace_race_has_one_winner(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = pathlib.Path(temporary).resolve()
+            parent.chmod(0o700)
+            sources = (parent / "staging-a", parent / "staging-b")
+            for label, source in zip(("a", "b"), sources, strict=True):
+                source.mkdir(mode=0o700)
+                (source / "marker").write_text(label, encoding="ascii")
+            destination = parent / "final"
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import os
+import pathlib
+import sys
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+parent = pathlib.Path(sys.argv[1]).resolve()
+source_name = sys.argv[2]
+ready_fd = int(sys.argv[3])
+gate_fd = int(sys.argv[4])
+directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY)
+try:
+    os.write(ready_fd, b'R')
+    if os.read(gate_fd, 1) != b'G':
+        raise SystemExit('invalid race gate')
+    release_index._rename_release_tree_noreplace(
+        directory_fd, source_name, 'final'
+    )
+finally:
+    os.close(directory_fd)
+"""
+            ready_read, ready_write = os.pipe()
+            gate_read, gate_write = os.pipe()
+            processes: list[subprocess.Popen[str]] = []
+            try:
+                environment = dict(os.environ)
+                environment["PYTHONDONTWRITEBYTECODE"] = "1"
+                for source in sources:
+                    processes.append(
+                        subprocess.Popen(
+                            [
+                                sys.executable,
+                                "-B",
+                                "-c",
+                                child_source,
+                                str(parent),
+                                source.name,
+                                str(ready_write),
+                                str(gate_read),
+                            ],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            env=environment,
+                            pass_fds=(ready_write, gate_read),
+                        )
+                    )
+                os.close(ready_write)
+                ready_write = -1
+                os.close(gate_read)
+                gate_read = -1
+                ready = bytearray()
+                deadline = time.monotonic() + 10
+                while len(ready) < 2:
+                    remaining = deadline - time.monotonic()
+                    self.assertGreater(
+                        remaining, 0, "race children did not become ready"
+                    )
+                    readable, _, _ = select.select([ready_read], [], [], remaining)
+                    self.assertEqual(readable, [ready_read])
+                    chunk = os.read(ready_read, 2 - len(ready))
+                    self.assertTrue(chunk, "race readiness pipe closed early")
+                    ready.extend(chunk)
+                self.assertEqual(ready, b"RR")
+                self.assertEqual(os.write(gate_write, b"GG"), 2)
+                completed = []
+                for process in processes:
+                    stdout, stderr = process.communicate(timeout=10)
+                    completed.append((process.returncode, stdout, stderr))
+                self.assertEqual(sorted(item[0] for item in completed), [0, 1])
+                self.assertTrue(destination.is_dir())
+                winner = (destination / "marker").read_text(encoding="ascii")
+                self.assertIn(winner, {"a", "b"})
+                self.assertEqual(
+                    sum(source.exists() for source in sources),
+                    1,
+                )
+            finally:
+                for descriptor in (ready_read, ready_write, gate_read, gate_write):
+                    if descriptor >= 0:
+                        try:
+                            os.close(descriptor)
+                        except OSError:
+                            pass
+                for process in processes:
+                    if process.poll() is None:
+                        process.kill()
+                        process.wait(timeout=10)
+                    if process.stdout is not None:
+                        process.stdout.close()
+                    if process.stderr is not None:
+                        process.stderr.close()
+
+    def test_verified_orphan_forward_recovery_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            target = root / "target"
+            stale_pointer_file = (
+                target
+                / "qperiapt-local-release"
+                / f".latest-diagnostic.json.private-{'a' * 32}"
+            )
+            stale_pointer_file.write_bytes(b"incomplete pointer")
+            stale_pointer_file.chmod(0o600)
+            recovered = release_index.recover_verified_release_pointer(
+                root=root,
+                target=target,
+                release_root=index_path.parent,
+                channel="diagnostic",
+                requested_proofs={},
+            )
+            self.assertTrue(recovered)
+            self.assertFalse(stale_pointer_file.exists())
+            pointer = target / "qperiapt-local-release/latest-diagnostic.json"
+            pointer_bytes = pointer.read_bytes()
+            pointer_inode = pointer.stat().st_ino
+            original_fsync = os.fsync
+            with (
+                mock.patch.object(release_index, "write_json") as write_json,
+                mock.patch.object(
+                    release_index.os,
+                    "fsync",
+                    wraps=original_fsync,
+                ) as fsync,
+            ):
+                recovered_again = release_index.recover_verified_release_pointer(
+                    root=root,
+                    target=target,
+                    release_root=index_path.parent,
+                    channel="diagnostic",
+                    requested_proofs={},
+                )
+            self.assertTrue(recovered_again)
+            write_json.assert_not_called()
+            self.assertEqual(fsync.call_count, 1)
+            self.assertEqual(pointer.read_bytes(), pointer_bytes)
+            self.assertEqual(pointer.stat().st_ino, pointer_inode)
+
+            trust = release_index.load_abi_trust_root(root)
+            arguments = argparse.Namespace(
+                channel="diagnostic",
+                apple_matrix_run=None,
+                android_runtime_run="",
+            )
+            with (
+                mock.patch.object(release_index, "REPOSITORY_ROOT", root),
+                mock.patch.object(
+                    release_index,
+                    "cargo_version",
+                    return_value=trust.version,
+                ),
+                mock.patch.object(
+                    release_index,
+                    "resolve_release_output",
+                    side_effect=AssertionError(
+                        "a selected verified identity must not be rebuilt"
+                    ),
+                ),
+            ):
+                selected = release_index._build_index_locked(arguments)
+            self.assertEqual(selected, index_path)
+
+    def test_invalid_pointer_remnant_is_preserved_without_partial_cleanup(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            target = root / "target"
+            release_base = target / "qperiapt-local-release"
+            valid_remnant = release_base / f".latest-diagnostic.json.private-{'a' * 32}"
+            invalid_remnant = (
+                release_base / f".latest-diagnostic.json.private-{'b' * 32}"
+            )
+            valid_remnant.write_bytes(b"incomplete pointer")
+            valid_remnant.chmod(0o600)
+            invalid_remnant.symlink_to(valid_remnant)
+            pointer = release_base / "latest-diagnostic.json"
+            pointer.write_bytes(b"old pointer\n")
+            pointer.chmod(0o600)
+            pointer_bytes = pointer.read_bytes()
+            pointer_inode = pointer.stat().st_ino
+
+            with self.assertRaisesRegex(SystemExit, "not one owned private file"):
+                release_index.recover_verified_release_pointer(
+                    root=root,
+                    target=target,
+                    release_root=index_path.parent,
+                    channel="diagnostic",
+                    requested_proofs={},
+                )
+
+            self.assertTrue(valid_remnant.is_file())
+            self.assertTrue(invalid_remnant.is_symlink())
+            self.assertEqual(pointer.read_bytes(), pointer_bytes)
+            self.assertEqual(pointer.stat().st_ino, pointer_inode)
+            self.assertTrue(index_path.parent.is_dir())
+
+    def test_post_pointer_verification_failure_is_idempotently_recoverable(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            target = root / "target"
+            original_verify = release_index.verify_release_index_snapshot
+            verification_calls = 0
+
+            def fail_post_pointer_verification(*args: object, **kwargs: object):
+                nonlocal verification_calls
+                verification_calls += 1
+                verified = original_verify(*args, **kwargs)
+                if verification_calls == 2:
+                    raise SystemExit("injected post-pointer verification failure")
+                return verified
+
+            with (
+                mock.patch.object(
+                    release_index,
+                    "verify_release_index_snapshot",
+                    side_effect=fail_post_pointer_verification,
+                ),
+                self.assertRaisesRegex(SystemExit, "post-pointer verification failure"),
+            ):
+                release_index.recover_verified_release_pointer(
+                    root=root,
+                    target=target,
+                    release_root=index_path.parent,
+                    channel="diagnostic",
+                    requested_proofs={},
+                )
+
+            pointer = target / "qperiapt-local-release/latest-diagnostic.json"
+            pointer_bytes = pointer.read_bytes()
+            pointer_inode = pointer.stat().st_ino
+            with mock.patch.object(release_index, "write_json") as write_json:
+                self.assertTrue(
+                    release_index.recover_verified_release_pointer(
+                        root=root,
+                        target=target,
+                        release_root=index_path.parent,
+                        channel="diagnostic",
+                        requested_proofs={},
+                    )
+                )
+            write_json.assert_not_called()
+            self.assertEqual(pointer.read_bytes(), pointer_bytes)
+            self.assertEqual(pointer.stat().st_ino, pointer_inode)
+
+    def test_post_replace_directory_fsync_failure_is_retried_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            target = root / "target"
+            pointer = target / "qperiapt-local-release/latest-diagnostic.json"
+            original_fsync = os.fsync
+            fsync_calls = 0
+
+            def fail_first_post_replace_sync(descriptor: int) -> None:
+                nonlocal fsync_calls
+                fsync_calls += 1
+                if fsync_calls == 3:
+                    raise OSError("injected post-replace directory fsync failure")
+                original_fsync(descriptor)
+
+            with (
+                mock.patch.object(
+                    release_index.os,
+                    "fsync",
+                    side_effect=fail_first_post_replace_sync,
+                ),
+                self.assertRaisesRegex(
+                    SystemExit, "post-replace directory fsync failure"
+                ),
+            ):
+                release_index.recover_verified_release_pointer(
+                    root=root,
+                    target=target,
+                    release_root=index_path.parent,
+                    channel="diagnostic",
+                    requested_proofs={},
+                )
+            self.assertEqual(fsync_calls, 3)
+            pointer_bytes = pointer.read_bytes()
+            pointer_inode = pointer.stat().st_ino
+
+            with (
+                mock.patch.object(
+                    release_index.os,
+                    "fsync",
+                    side_effect=OSError("persistent pointer parent fsync failure"),
+                ),
+                self.assertRaisesRegex(
+                    SystemExit, "synchronize release pointer parent"
+                ),
+            ):
+                release_index.recover_verified_release_pointer(
+                    root=root,
+                    target=target,
+                    release_root=index_path.parent,
+                    channel="diagnostic",
+                    requested_proofs={},
+                )
+            self.assertEqual(pointer.read_bytes(), pointer_bytes)
+            self.assertEqual(pointer.stat().st_ino, pointer_inode)
+
+            with mock.patch.object(release_index, "write_json") as write_json:
+                self.assertTrue(
+                    release_index.recover_verified_release_pointer(
+                        root=root,
+                        target=target,
+                        release_root=index_path.parent,
+                        channel="diagnostic",
+                        requested_proofs={},
+                    )
+                )
+            write_json.assert_not_called()
+
+    @unittest.skipUnless(os.name == "posix", "pointer SIGKILL recovery requires POSIX")
+    def test_sigkill_before_pointer_replace_cleans_exact_private_remnant(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            target = root / "target"
+            release_base = target / "qperiapt-local-release"
+            pointer = release_base / "latest-diagnostic.json"
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import os
+import pathlib
+import signal
+import sys
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+pointer = pathlib.Path(sys.argv[1])
+def pause_before_replace(*_args, **_kwargs):
+    print('REPLACE_READY', flush=True)
+    signal.pause()
+release_index.os.replace = pause_before_replace
+release_index.write_json(pointer, {{'fixture': True}})
+"""
+            environment = dict(os.environ)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            process = subprocess.Popen(
+                [sys.executable, "-B", "-c", child_source, str(pointer)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=environment,
+            )
+            try:
+                self.assertIsNotNone(process.stdout)
+                readable, _, _ = select.select([process.stdout], [], [], 10)
+                self.assertEqual(readable, [process.stdout])
+                self.assertEqual(process.stdout.readline().strip(), "REPLACE_READY")
+                remnants = list(release_base.glob(".latest-diagnostic.json.private-*"))
+                self.assertEqual(len(remnants), 1)
+                self.assertEqual(stat.S_IMODE(remnants[0].stat().st_mode), 0o600)
+                self.assertFalse(pointer.exists())
+                process.kill()
+                self.assertEqual(process.wait(timeout=10), -signal.SIGKILL)
+
+                self.assertTrue(
+                    release_index.recover_verified_release_pointer(
+                        root=root,
+                        target=target,
+                        release_root=index_path.parent,
+                        channel="diagnostic",
+                        requested_proofs={},
+                    )
+                )
+                self.assertTrue(pointer.is_file())
+                self.assertEqual(
+                    list(release_base.glob(".latest-diagnostic.json.private-*")),
+                    [],
+                )
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+                if process.stdout is not None:
+                    process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
+
+    def test_corrupt_or_selector_mismatched_orphan_is_preserved(self) -> None:
+        for case in ("extra-file", "selector-mismatch"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = self._root(temporary)
+                index_path, _ = self._fixture(root)
+                target = root / "target"
+                pointer = target / "qperiapt-local-release/latest-diagnostic.json"
+                pointer.write_bytes(b"old pointer\n")
+                pointer.chmod(0o600)
+                pointer_bytes = pointer.read_bytes()
+                pointer_inode = pointer.stat().st_ino
+                requested_proofs: dict[str, object] = {}
+                if case == "extra-file":
+                    (index_path.parent / "unexpected.bin").write_bytes(b"unexpected")
+                else:
+                    requested_proofs = {"android_runtime": {"different": True}}
+                with self.assertRaises(SystemExit):
+                    release_index.recover_verified_release_pointer(
+                        root=root,
+                        target=target,
+                        release_root=index_path.parent,
+                        channel="diagnostic",
+                        requested_proofs=requested_proofs,
+                    )
+                self.assertTrue(index_path.parent.is_dir())
+                self.assertEqual(pointer.read_bytes(), pointer_bytes)
+                self.assertEqual(pointer.stat().st_ino, pointer_inode)
+
+    @unittest.skipUnless(
+        os.name == "posix"
+        and (sys.platform == "darwin" or sys.platform.startswith("linux")),
+        "SIGKILL orphan recovery requires POSIX native publication",
+    )
+    def test_sigkill_after_tree_publish_is_forward_recovered(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary)
+            index_path, _ = self._fixture(root)
+            target = root / "target"
+            final_root = index_path.parent
+            staging_root = final_root.parent / f".{final_root.name}.staging-{'a' * 32}"
+            final_root.rename(staging_root)
+            module_root = pathlib.Path(release_index.__file__).resolve().parent
+            child_source = f"""
+import pathlib
+import signal
+import sys
+sys.path.insert(0, {str(module_root)!r})
+import release_index
+root = pathlib.Path(sys.argv[1]).resolve()
+target = root / 'target'
+staging_root = pathlib.Path(sys.argv[2])
+final_root = pathlib.Path(sys.argv[3])
+pointer_path = target / 'qperiapt-local-release/latest-diagnostic.json'
+identity = staging_root.stat().st_dev, staging_root.stat().st_ino
+def pause_before_pointer(*_args, **_kwargs):
+    print('POINTER_READY', flush=True)
+    signal.pause()
+release_index.write_json = pause_before_pointer
+release_index.publish_release_transaction(
+    staging_root=staging_root,
+    release_root=final_root,
+    staging_identity=identity,
+    target=target,
+    pointer_path=pointer_path,
+    pointer={{'fixture': True}},
+)
+"""
+            environment = dict(os.environ)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-B",
+                    "-c",
+                    child_source,
+                    str(root),
+                    str(staging_root),
+                    str(final_root),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=environment,
+            )
+            try:
+                self.assertIsNotNone(process.stdout)
+                readable, _, _ = select.select([process.stdout], [], [], 10)
+                self.assertEqual(readable, [process.stdout])
+                self.assertEqual(process.stdout.readline().strip(), "POINTER_READY")
+                self.assertTrue(final_root.is_dir())
+                pointer = target / "qperiapt-local-release/latest-diagnostic.json"
+                self.assertFalse(pointer.exists())
+                process.kill()
+                self.assertEqual(process.wait(timeout=10), -signal.SIGKILL)
+                with mock.patch.object(
+                    release_index,
+                    "build_release_tree",
+                    side_effect=AssertionError("orphan recovery must not rebuild"),
+                ):
+                    self.assertTrue(
+                        release_index.recover_verified_release_pointer(
+                            root=root,
+                            target=target,
+                            release_root=final_root,
+                            channel="diagnostic",
+                            requested_proofs={},
+                        )
+                    )
+                selection = release_index.release_pointer_selection(root, "diagnostic")
+                self.assertEqual(selection.path, final_root / "index.json")
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+                if process.stdout is not None:
+                    process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
+
     @unittest.skipUnless(os.name == "posix", "SIGTERM staging recovery is POSIX-only")
     def test_sigterm_during_staging_cannot_poison_the_final_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
-            version = "0.1.0-alpha.2"
+            version = "0.1.0"
             commit = "a" * 40
             final_root = (
-                root
-                / "target/qperiapt-local-release/diagnostic"
-                / version
-                / commit
+                root / "target/qperiapt-local-release/diagnostic" / version / commit
             )
             (root / "target").mkdir(mode=0o700)
             module_root = pathlib.Path(release_index.__file__).resolve().parent
@@ -1252,14 +2667,9 @@ time.sleep(60)
             root = pathlib.Path(temporary).resolve()
             target = root / "target"
             target.mkdir(mode=0o700)
-            version = "0.1.0-alpha.2"
+            version = "0.1.0"
             commit = "a" * 40
-            final_root = (
-                target
-                / "qperiapt-local-release/diagnostic"
-                / version
-                / commit
-            )
+            final_root = target / "qperiapt-local-release/diagnostic" / version / commit
             pointer_path = target / "qperiapt-local-release/latest-diagnostic.json"
             module_root = pathlib.Path(release_index.__file__).resolve().parent
             child_source = f"""
@@ -1321,9 +2731,7 @@ release_index.publish_release_transaction(
             target.mkdir(mode=0o700)
             commit = "a" * 40
             final_root = (
-                target
-                / "qperiapt-local-release/diagnostic/0.1.0-alpha.2"
-                / commit
+                target / "qperiapt-local-release/diagnostic/0.1.0" / commit
             )
             release_index.ensure_private_directory(final_root.parent, target)
             malformed = final_root.parent / f".{commit}.staging-not-a-token"
@@ -1398,9 +2806,7 @@ release_index.publish_release_transaction(
                 / f"q-periapt-swift-{trust.version}"
             )
             android_dir = (
-                target
-                / "qperiapt-android-aar"
-                / f"q-periapt-android-{trust.version}"
+                target / "qperiapt-android-aar" / f"q-periapt-android-{trust.version}"
             )
             source_files = (
                 c_dir / "MANIFEST.json",
@@ -1422,7 +2828,6 @@ release_index.publish_release_transaction(
             attempts = 0
 
             def build_tree(
-                _args: object,
                 **arguments: object,
             ) -> release_index.BuiltReleaseTree:
                 nonlocal attempts
@@ -1452,7 +2857,7 @@ release_index.publish_release_transaction(
             arguments = argparse.Namespace(
                 channel="diagnostic",
                 apple_matrix_run="",
-                include_android_runtime=False,
+                android_runtime_run="",
             )
             release_root = (
                 target
@@ -1505,7 +2910,9 @@ release_index.publish_release_transaction(
         ):
             self.assertNotIn(f'add_argument("{option}"', source)
 
-    def test_pointer_digest_is_checked_against_the_verified_index_snapshot(self) -> None:
+    def test_pointer_digest_is_checked_against_the_verified_index_snapshot(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._root(temporary)
             index_path, _ = self._fixture(root)
@@ -1765,9 +3172,7 @@ release_index.publish_release_transaction(
                 release_index.verify_release_index(
                     index_path, root, allow_diagnostic=False
                 )
-            release_index.verify_release_index(
-                index_path, root, allow_diagnostic=True
-            )
+            release_index.verify_release_index(index_path, root, allow_diagnostic=True)
             self.assertEqual(len(release_index.parse_sha256s(index_path.parent)), 10)
 
     def test_forged_manifest_fails_after_all_outer_hashes_are_recomputed(self) -> None:
@@ -1802,7 +3207,7 @@ release_index.publish_release_transaction(
     def test_cross_face_core_semantics_must_match(self) -> None:
         trust_semantics = {
             "name": "fixture",
-            "version": "0.1.0-alpha.2",
+            "version": "0.1.0",
             "abi": {
                 "major": 2,
                 "contract_sha256": "a" * 64,

@@ -35,22 +35,27 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 fn input<'a>(
+    profile: Profile,
     ss_pq: &'a [u8],
     pk_pq: &'a [u8],
     ct_pq: &'a [u8],
     common: (&'a [u8], &'a [u8], &'a [u8]),
 ) -> CombineInput<'a> {
     let (ss_trad, ct_trad, pk_trad) = common;
+    let (suite_id, policy_version, context): (&[u8], u32, &[u8]) = match profile {
+        Profile::CompatXWing => (b"", 0, b""),
+        Profile::ContextBound => (b"S", 1, b"ctx"),
+    };
     CombineInput {
-        suite_id: b"S",
-        policy_version: 1,
+        suite_id,
+        policy_version,
         ss_pq,
         ss_trad,
         ct_pq,
         pk_pq,
         ct_trad,
         pk_trad,
-        context: b"ctx",
+        context,
     }
 }
 
@@ -91,25 +96,30 @@ fn main() {
     MlKem768.decapsulate(&dk1, &ct_garbage, &mut e1).unwrap();
     MlKem768.decapsulate(&dk2, &ct_garbage, &mut e2).unwrap();
     println!("  ss1 = {}\n  ss2 = {}", hex(&e1), hex(&e2));
+    let expanded_shared_secret_equal = e1 == e2;
     println!(
         "  -> ss1 == ss2 : {}  (Schmieg precondition met under ek1 != ek2)",
-        e1 == e2
+        expanded_shared_secret_equal
     );
 
-    let lean1 =
-        combine::<Sha3_256Xof>(Profile::CompatXWing, &input(&e1, &ek1, &ct_garbage, common))
-            .unwrap();
-    let lean2 =
-        combine::<Sha3_256Xof>(Profile::CompatXWing, &input(&e1, &ek2, &ct_garbage, common))
-            .unwrap();
+    let lean1 = combine::<Sha3_256Xof>(
+        Profile::CompatXWing,
+        &input(Profile::CompatXWing, &e1, &ek1, &ct_garbage, common),
+    )
+    .unwrap();
+    let lean2 = combine::<Sha3_256Xof>(
+        Profile::CompatXWing,
+        &input(Profile::CompatXWing, &e1, &ek2, &ct_garbage, common),
+    )
+    .unwrap();
     let cb1 = combine::<Sha3_256Xof>(
         Profile::ContextBound,
-        &input(&e1, &ek1, &ct_garbage, common),
+        &input(Profile::ContextBound, &e1, &ek1, &ct_garbage, common),
     )
     .unwrap();
     let cb2 = combine::<Sha3_256Xof>(
         Profile::ContextBound,
-        &input(&e1, &ek2, &ct_garbage, common),
+        &input(Profile::ContextBound, &e1, &ek2, &ct_garbage, common),
     )
     .unwrap();
     println!(
@@ -142,19 +152,20 @@ fn main() {
     MlKem768.decapsulate(&sdk1, &ct_garbage, &mut s1).unwrap();
     MlKem768.decapsulate(&sdk2, &ct_garbage, &mut s2).unwrap();
     println!("  ss1 = {}\n  ss2 = {}", hex(&s1), hex(&s2));
+    let seed_shared_secret_equal = s1 == s2;
     println!(
         "  -> ss1 == ss2 : {}  (Schmieg precondition UNREACHABLE)",
-        s1 == s2
+        seed_shared_secret_equal
     );
 
     let sl1 = combine::<Sha3_256Xof>(
         Profile::CompatXWing,
-        &input(&s1, &sek1, &ct_garbage, common),
+        &input(Profile::CompatXWing, &s1, &sek1, &ct_garbage, common),
     )
     .unwrap();
     let sl2 = combine::<Sha3_256Xof>(
         Profile::CompatXWing,
-        &input(&s2, &sek2, &ct_garbage, common),
+        &input(Profile::CompatXWing, &s2, &sek2, &ct_garbage, common),
     )
     .unwrap();
     println!(

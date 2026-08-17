@@ -1952,7 +1952,7 @@ def create_manifest(
         "git_tree": git_tree,
         "git_dirty": False,
         "target": TARGET,
-        "release_class": "unsigned_experimental_prerelease",
+        "release_class": "unsigned_sdk_no_authenticode",
         "authenticode": {
             "signed": False,
             "certificate_directory_present": pe_evidence[
@@ -2085,7 +2085,7 @@ def verify_package(
             manifest["git_tree"] == expected_git_tree,
             "Windows manifest git tree differs from trusted source",
         )
-    _require(manifest.get("release_class") == "unsigned_experimental_prerelease", "Windows release class is not explicit")
+    _require(manifest.get("release_class") == "unsigned_sdk_no_authenticode", "Windows release class is not explicit")
     _require(manifest.get("authenticode") == {
         "signed": False,
         "certificate_directory_present": pe_evidence[

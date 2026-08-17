@@ -9,6 +9,13 @@
 # and attached devices.
 set -eu
 
+# Capture the one permitted caller compiler selector before any child process,
+# then remove caller and internal names from the exported environment. POSIX
+# shell assignments retain an existing export attribute unless first unset.
+unset wasm_compiler_input WASM_C_COMPILER compiler compiler_version compiler_targets java_version_output
+wasm_compiler_input=${CC_wasm32_unknown_unknown:-}
+unset CC_wasm32_unknown_unknown
+
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
@@ -22,7 +29,11 @@ need() {
 
 require_java_22() {
 	need java
-	java -version 2>&1 | python3 -c '
+	java_version_output=$(java -version 2>&1) || {
+		printf 'error: Java could not report its version\n' >&2
+		exit 2
+	}
+	if ! printf '%s\n' "$java_version_output" | python3 -c '
 import re
 import sys
 
@@ -34,11 +45,15 @@ if not match:
 major = int(match.group(1))
 if major < 22:
     raise SystemExit(f"error: Kotlin/Panama binding requires JDK >= 22, got Java {major}")
-'
+'; then
+		unset java_version_output
+		return 2
+	fi
+	unset java_version_output
 }
 
 require_wasm_clang() {
-	compiler=${CC_wasm32_unknown_unknown:-}
+	compiler=$1
 	if [ -z "$compiler" ]; then
 		printf 'error: CC_wasm32_unknown_unknown must name an absolute upstream LLVM clang path with the wasm32 backend\n' >&2
 		exit 2
@@ -63,7 +78,11 @@ require_wasm_clang() {
 		printf 'error: CC_wasm32_unknown_unknown must select upstream LLVM clang, not Apple clang\n' >&2
 		exit 2
 	fi
-	if ! "$compiler" --print-targets 2>/dev/null | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'; then
+	compiler_targets=$("$compiler" --print-targets 2>/dev/null) || {
+		printf 'error: CC_wasm32_unknown_unknown could not report supported targets\n' >&2
+		exit 2
+	}
+	if ! printf '%s\n' "$compiler_targets" | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'; then
 		printf 'error: CC_wasm32_unknown_unknown compiler has no wasm32 backend\n' >&2
 		exit 2
 	fi
@@ -76,6 +95,15 @@ step() {
 	printf '\n=== %s ===\n' "$name"
 	"$@"
 	printf 'PASS: %s\n' "$name"
+}
+
+wasm_binding_tests() {
+	# Revalidate immediately before use so a tool-path change during the long
+	# package gate fails closed instead of selecting unchecked compiler bytes.
+	require_wasm_clang "$wasm_compiler_input" >/dev/null
+	unset compiler compiler_version compiler_targets
+	env CC_wasm32_unknown_unknown="$wasm_compiler_input" \
+		wasm-pack test --node crates/q-periapt-wasm
 }
 
 swift_binding_tests() {
@@ -99,6 +127,7 @@ skip_kotlin=${QPERIAPT_EMBED_SKIP_KOTLIN:-0}
 skip_wasm=${QPERIAPT_EMBED_SKIP_WASM:-0}
 require_device_matrix=${QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX:-0}
 require_android_runtime=${QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME:-0}
+require_android_physical_runtime=${QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME:-0}
 require_local_release_consumer=${QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER:-0}
 
 if [ "$skip_swift" = "1" ] || [ "$skip_kotlin" = "1" ] || [ "$skip_wasm" = "1" ]; then
@@ -113,6 +142,55 @@ case "$require_local_release_consumer" in
 		exit 2
 		;;
 esac
+case "$require_android_runtime" in
+	0 | 1) ;;
+	*)
+		printf 'error: QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME must be 0 or 1\n' >&2
+		exit 2
+		;;
+esac
+case "$require_android_physical_runtime" in
+	0 | 1) ;;
+	*)
+		printf 'error: QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME must be 0 or 1\n' >&2
+		exit 2
+		;;
+esac
+if [ "$require_local_release_consumer" = "1" ] && [ "$require_android_runtime" != "1" ]; then
+	printf 'error: QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER requires QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1\n' >&2
+	exit 2
+fi
+if [ "$require_android_physical_runtime" = "1" ] && [ "$require_android_runtime" != "1" ]; then
+	printf 'error: QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME requires QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1\n' >&2
+	exit 2
+fi
+
+# Android transaction verification is deliberately a read-only mode. The
+# results-only successor selects immutable package/runtime/index bytes from the
+# preceding clean source commit. Running any producer first would overwrite the
+# fixed target AAR path with successor-commit bytes and invalidate that binding.
+if [ "$require_android_runtime" = "1" ]; then
+	if [ -z "${QPERIAPT_ANDROID_DEVICE_PROOF:-}" ]; then
+		printf 'error: QPERIAPT_ANDROID_DEVICE_PROOF is required when QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1\n' >&2
+		exit 2
+	fi
+	if [ "$require_android_physical_runtime" = "1" ] && [ -z "${QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF:-}" ]; then
+		printf 'error: QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF is required when QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1\n' >&2
+		exit 2
+	fi
+	printf 'Q-Periapt read-only Android transaction verification\n'
+	env QPERIAPT_SKIP_SMOKE=1 \
+		QPERIAPT_REQUIRE_ANDROID_AAR=1 \
+		QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
+		QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME="$require_android_physical_runtime" \
+		QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER="$require_local_release_consumer" \
+		QPERIAPT_ANDROID_DEVICE_PROOF="$QPERIAPT_ANDROID_DEVICE_PROOF" \
+		QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF="${QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF:-}" \
+		sh artifact/proof-to-byte.sh
+	printf '\nEMBEDDING_ANDROID_BOUND_VERIFY_PASS canonical=1 physical=%s local_release_consumer=%s\n' \
+		"$require_android_physical_runtime" "$require_local_release_consumer"
+	exit 0
+fi
 
 need cargo
 need cbindgen
@@ -130,7 +208,8 @@ need gradle
 require_java_22
 need wasm-pack
 need node
-require_wasm_clang
+require_wasm_clang "$wasm_compiler_input"
+unset compiler compiler_version compiler_targets
 
 printf 'Q-Periapt embedding readiness gate\n'
 printf 'repo   : %s\n' "$ROOT"
@@ -171,16 +250,9 @@ step "Swift binding tests" swift_binding_tests
 step "Swift XCFramework binary consumer" sh artifact/swift-xcframework.sh
 step "Android AAR/JNI packaging proof" sh artifact/android-aar.sh
 step "Kotlin/Panama binding tests" gradle test --project-dir bindings/kotlin
-step "WASM binding tests on Node" wasm-pack test --node crates/q-periapt-wasm
+step "WASM binding tests on Node" wasm_binding_tests
 
 step "proof-to-byte manifest" env QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh
-
-if [ "$require_local_release_consumer" = "1" ]; then
-	step "local release index C consumer smoke" sh artifact/local-release-consumer-smoke.sh
-else
-	printf '\nNOTE: local release-index C consumer smoke not required by this run.\n'
-	printf '      After sh artifact/local-release-index.sh, set QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER=1 to require it.\n'
-fi
 
 if [ "$require_device_matrix" = "1" ]; then
 	if [ -z "${QPERIAPT_DEVICE_RESULT_DIR:-}" ]; then
@@ -196,14 +268,14 @@ else
 	printf '      Set QPERIAPT_EMBED_REQUIRE_DEVICE_MATRIX=1 and QPERIAPT_DEVICE_RESULT_DIR=<matrix-run-dir> to require it.\n'
 fi
 
-if [ "$require_android_runtime" = "1" ]; then
-	step "Android emulator/physical runtime proof" \
-		env QPERIAPT_SKIP_SMOKE=1 QPERIAPT_REQUIRE_ANDROID_RUNTIME=1 \
-		QPERIAPT_ANDROID_DEVICE_PROOF="${QPERIAPT_ANDROID_DEVICE_PROOF:-$ROOT/target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json}" \
-		sh artifact/proof-to-byte.sh
-else
-	printf '\nNOTE: Android emulator/physical runtime proof not required by this run.\n'
-	printf '      Set QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 after running artifact/android-device-smoke.sh to require it.\n'
+
+printf '\nNOTE: Android release-transaction evidence is not verified by producer mode.\n'
+printf '      Re-run with QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 to enter the separate read-only final mode.\n'
+printf '      Select the canonical proof explicitly with QPERIAPT_ANDROID_DEVICE_PROOF=<reported immutable proof path>.\n'
+
+if [ "$require_local_release_consumer" = "0" ]; then
+	printf '\nNOTE: results-bound local release-index consumer receipt not required by this run.\n'
+	printf '      Produce the receipt before final verification, then set both Android runtime and local-consumer requirements to 1 to verify it without mutation.\n'
 fi
 
 printf '\nEMBEDDING_READINESS_PASS\n'

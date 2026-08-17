@@ -85,18 +85,17 @@ macro_rules! mldsa_backend {
         $rand_len:ident = $rand:literal,
         $eta:literal,
         $packed_small_len:literal,
-        $alg_str:literal,
         $struct_doc:literal
     ) => {
-        #[doc = concat!($alg_str, " expanded signing-key length, bytes (FIPS 204).")]
+        /// Expanded signing-key length in bytes (FIPS 204).
         pub const $sk_len: usize = $sk;
-        #[doc = concat!($alg_str, " verification-key length, bytes.")]
+        /// Verification-key length in bytes.
         pub const $vk_len: usize = $vk;
-        #[doc = concat!($alg_str, " signature length, bytes.")]
+        /// Signature length in bytes.
         pub const $sig_len: usize = $sig;
-        #[doc = concat!($alg_str, " key-generation seed length, bytes.")]
+        /// Key-generation seed length in bytes.
         pub const $seed_len: usize = $seed;
-        #[doc = concat!($alg_str, " signing-randomness length, bytes.")]
+        /// Signing-randomness length in bytes.
         pub const $rand_len: usize = $rand;
 
         #[doc = $struct_doc]
@@ -241,7 +240,6 @@ mldsa_backend!(
     ML_DSA_65_SIGN_RAND_LEN = 32,
     4,
     1408,
-    "ML-DSA-65",
     "ML-DSA-65 backend (FIPS 204) via fips204."
 );
 
@@ -256,7 +254,6 @@ mldsa_backend!(
     ML_DSA_87_SIGN_RAND_LEN = 32,
     2,
     1440,
-    "ML-DSA-87",
     "ML-DSA-87 backend (FIPS 204, NIST level 5) via fips204."
 );
 
@@ -271,6 +268,5 @@ mldsa_backend!(
     ML_DSA_44_SIGN_RAND_LEN = 32,
     2,
     768,
-    "ML-DSA-44",
     "ML-DSA-44 backend (FIPS 204, NIST level 2) via fips204."
 );

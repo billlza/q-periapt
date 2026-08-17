@@ -5,15 +5,24 @@
 # as a hermetic or bit-reproducible toolchain.
 #
 # Build:  docker build -f formal/Dockerfile -t q-periapt-ec .
-# Check:  docker run --rm -v "$PWD/formal/easycrypt:/work" q-periapt-ec \
-#             opam exec -- sh -c 'easycrypt compile -no-eco BindingViaCR.ec && sh negative-controls.sh'
+# Check:  docker run --rm -v "$PWD/artifact:/work/artifact:ro" \
+#             -v "$PWD/formal/easycrypt:/src:ro" q-periapt-ec opam exec -- sh -c \
+#             'sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed \
+#              --tool easycrypt && mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && \
+#              rm -f *.eco continuity/*.eco && MAKEFLAGS="" GNUMAKEFLAGS="" \
+#              MAKEFILES="" make EC=easycrypt check && \
+#              EASYCRYPT=easycrypt sh negative-controls.sh && \
+#              MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+#              make -C continuity EC=easycrypt check'
 FROM ocaml/opam:debian-12-ocaml-5.3@sha256:bbaac53e502f6602013d8967c3a54cfcb898b556f453ab72e8e23966c3c681df
 
 # Base tools + the Z3 solver. The apt lists are intentionally KEPT so opam can resolve and install
 # EasyCrypt's own system depexts (zlib, pcre2, gmp, ...) itself, rather than us guessing them.
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      z3 git make ca-certificates sudo
+      z3 git make ca-certificates sudo python3 && \
+    /usr/bin/python3 -I -S -c \
+      'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info >= (3, 11) else 1)'
 USER opam
 
 # The exact EasyCrypt the proofs check under (matches r2026.06-6-g50ae51d).

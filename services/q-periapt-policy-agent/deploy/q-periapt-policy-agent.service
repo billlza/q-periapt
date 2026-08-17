@@ -1,0 +1,76 @@
+# Hardened systemd unit for the Q-Periapt policy-agent reference daemon.
+#
+# This unit is the Linux OS-level isolation contract for `serve-agent`. The
+# daemon itself enforces only filesystem-capability and cryptographic
+# boundaries; every kernel-level restriction below is enforced by the service
+# manager, so a deployment that starts the binary any other way does not get
+# these guarantees. Install the binary at /opt/qperiapt/bin, provision the
+# 0700 service/configuration directories for the dedicated account first, and
+# adjust the socket, repository, witness, and authority endpoints per host.
+#
+# The unit assumes a locked, non-login `qperiapt-agent` system account whose
+# primary group is not shared with any other service:
+#   useradd --system --shell /usr/sbin/nologin --home /var/lib/qperiapt-agent \
+#     --user-group qperiapt-agent
+
+[Unit]
+Description=Q-Periapt policy agent (ABI 2 reference service)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=qperiapt-agent
+Group=qperiapt-agent
+ExecStart=/opt/qperiapt/bin/q-periapt-policy-agent serve-agent \
+    /var/lib/qperiapt-agent/service \
+    /var/lib/qperiapt-agent/state/agent.redb \
+    127.0.0.1:7841 \
+    127.0.0.1:7842 \
+    /var/lib/qperiapt-agent/config
+Restart=no
+
+# Secrets hygiene: no core dumps, no new privileges, owner-only umask.
+LimitCORE=0
+NoNewPrivileges=yes
+UMask=0077
+
+# Filesystem isolation: read-only OS, private /tmp and /dev, no home access;
+# only the service state tree is writable.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/qperiapt-agent
+
+# Kernel and process isolation.
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+ProcSubset=pid
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Network: the Unix IPC socket plus the TCP witness/authority clients only.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressAllow=localhost
+IPAddressDeny=any
+
+# Syscall filter: the service-manager-enforced seccomp boundary.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

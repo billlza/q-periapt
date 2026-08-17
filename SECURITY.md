@@ -2,19 +2,24 @@
 
 ## Supported releases
 
-Q-Periapt is currently an alpha prerelease. Security fixes are provided for the
-latest ABI 2 publication set while it remains current:
+Q-Periapt 0.1.0 is the stable SemVer source line. Security fixes are provided for
+the latest ABI 2 publication set only while its verified receipt selects it as
+current:
 
 | Publication | Scope | Supported |
 | --- | --- | --- |
-| `v0.1.0-alpha.2-r1` | Apple XCFramework | Yes |
-| `abi2-platforms-v0.1.0-alpha.2-r2` | Android, GNU/Linux, unsigned experimental Windows | Yes |
-| `v0.1.0-alpha.2` and older publications | Superseded artifacts | No |
+| `0.1.0` source line | Rust source/crates and ABI 2 contract | Yes |
+| `v0.1.0` | Apple XCFramework | When selected by a verified current receipt |
+| `abi2-platforms-v0.1.0` | Android and GNU/Linux | When selected by a verified current receipt |
+| Unsigned Windows x64 diagnostic | CI-only, unsupported, not a stable release asset | No |
+| `v0.1.0-alpha.2-r1`, `abi2-platforms-v0.1.0-alpha.2-r2` | Published predecessors | Until superseded by the corresponding verified stable receipts |
+| Older publications | Superseded historical artifacts | No |
 
-The Windows r2 archive is intentionally an unsigned experimental prerelease. A
-GitHub attestation and published SHA-256 digests establish provenance and byte
-integrity, but they do not provide Authenticode publisher identity or SmartScreen
-reputation.
+The Windows package remains useful for CI diagnostics, but it is unsigned and is
+excluded from the stable candidate, manifest, release assets, attestation, and
+receipt. Supporting it requires a real Authenticode producer/verifier plus
+certificate and timestamp-authority gates; SHA-256 or a GitHub build attestation
+alone does not establish Windows publisher identity or SmartScreen reputation.
 
 ## Reporting a vulnerability
 

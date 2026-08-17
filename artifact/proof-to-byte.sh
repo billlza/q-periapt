@@ -13,6 +13,11 @@ need() {
 	fi
 }
 
+formal_make() {
+	MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
+		command make "$@"
+}
+
 validate_path_text() {
 	python3 - "$1" "$2" <<'PY'
 import os
@@ -141,7 +146,11 @@ REQUIRE_FORMAL=$(bool_flag QPERIAPT_REQUIRE_FORMAL "${QPERIAPT_REQUIRE_FORMAL:-0
 RUN_CONTINUITY_DIAGNOSTIC=$(bool_flag QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC "${QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC:-0}")
 REQUIRE_APPLE_DEVICE=$(bool_flag QPERIAPT_REQUIRE_APPLE_DEVICE "${QPERIAPT_REQUIRE_APPLE_DEVICE:-0}")
 REQUIRE_APPLE_DEVICE_MATRIX=$(bool_flag QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX "${QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX:-0}")
+REQUIRE_ANDROID_AAR=$(bool_flag QPERIAPT_REQUIRE_ANDROID_AAR "${QPERIAPT_REQUIRE_ANDROID_AAR:-0}")
+REQUIRE_RUST_PACKAGE_CONTRACT=$(bool_flag QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT "${QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT:-0}")
 REQUIRE_ANDROID_RUNTIME=$(bool_flag QPERIAPT_REQUIRE_ANDROID_RUNTIME "${QPERIAPT_REQUIRE_ANDROID_RUNTIME:-0}")
+REQUIRE_ANDROID_PHYSICAL_RUNTIME=$(bool_flag QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME "${QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME:-0}")
+REQUIRE_LOCAL_RELEASE_CONSUMER=$(bool_flag QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER "${QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER:-0}")
 REQUIRE_PERFORMANCE=$(bool_flag QPERIAPT_REQUIRE_PERFORMANCE "${QPERIAPT_REQUIRE_PERFORMANCE:-0}")
 REQUIRE_CAMERA_READY=$(bool_flag QPERIAPT_REQUIRE_CAMERA_READY "${QPERIAPT_REQUIRE_CAMERA_READY:-0}")
 REQUIRE_DEPENDENCY_AUDIT=$(bool_flag QPERIAPT_REQUIRE_DEPENDENCY_AUDIT "${QPERIAPT_REQUIRE_DEPENDENCY_AUDIT:-0}")
@@ -165,6 +174,14 @@ fi
 
 if [ "$REQUIRE_APPLE_DEVICE" = "1" ] && [ "$REQUIRE_APPLE_DEVICE_MATRIX" = "1" ]; then
 	printf 'error: QPERIAPT_REQUIRE_APPLE_DEVICE and QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX are mutually exclusive\n' >&2
+	exit 2
+fi
+if [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then
+	printf 'error: manifest-bound Android release verification does not allow dirty proofs\n' >&2
+	exit 2
+fi
+if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ] && [ "$REQUIRE_ANDROID_RUNTIME" != "1" ]; then
+	printf 'error: QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER requires QPERIAPT_REQUIRE_ANDROID_RUNTIME=1\n' >&2
 	exit 2
 fi
 
@@ -266,13 +283,60 @@ fi
 
 ANDROID_PROOF=
 ANDROID_MAX_AGE_SECONDS=
+ANDROID_PHYSICAL_PROOF=
+ANDROID_PHYSICAL_MAX_AGE_SECONDS=
 EXPECTED_KIND=
 EXPECTED_ANDROID_DEVICE_ABI=
+ANDROID_NDK=
+VERIFY_ANDROID_AAR=$REQUIRE_ANDROID_AAR
+if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ] || \
+	[ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ] || \
+	[ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then
+	VERIFY_ANDROID_AAR=1
+fi
+if [ "$VERIFY_ANDROID_AAR" = "1" ]; then
+	if [ -n "${QPERIAPT_ANDROID_NDK_HOME:-}" ]; then
+		ANDROID_NDK=$QPERIAPT_ANDROID_NDK_HOME
+	elif [ -n "${ANDROID_NDK_HOME:-}" ]; then
+		ANDROID_NDK=$ANDROID_NDK_HOME
+	else
+		ANDROID_SDK_FOR_NDK=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-"$HOME/Library/Android/sdk"}}
+		ANDROID_NDK="$ANDROID_SDK_FOR_NDK/ndk/29.0.14206865"
+	fi
+	validate_path_text "$ANDROID_NDK" QPERIAPT_ANDROID_NDK_HOME
+	case "$ANDROID_NDK" in
+		/*) ;;
+		*)
+			printf 'error: Android NDK path must be absolute\n' >&2
+			exit 2
+			;;
+	esac
+fi
+if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then
+	if [ "${QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF+x}" = "x" ]; then
+		ANDROID_PHYSICAL_DEVICE_PROOF=$QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF
+	else
+		printf 'error: QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF is required for an explicitly selected physical Android run\n' >&2
+		exit 2
+	fi
+	ANDROID_PHYSICAL_PROOF=$(proof_path_under \
+		"$ANDROID_PHYSICAL_DEVICE_PROOF" \
+		"$ROOT/target" \
+		QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF)
+	ANDROID_PHYSICAL_MAX_AGE_SECONDS=$(proof_max_age_seconds \
+		QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS \
+		"${QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS:-86400}")
+	if [ "$ANDROID_PHYSICAL_MAX_AGE_SECONDS" != "86400" ]; then
+		printf 'error: physical Android release verification fixes proof freshness to 86400 seconds\n' >&2
+		exit 2
+	fi
+fi
 if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 	if [ "${QPERIAPT_ANDROID_DEVICE_PROOF+x}" = "x" ]; then
 		ANDROID_DEVICE_PROOF=$QPERIAPT_ANDROID_DEVICE_PROOF
 	else
-		ANDROID_DEVICE_PROOF=$ROOT/target/qperiapt-android-device-smoke/proof/qperiapt-android-device-proof.json
+		printf 'error: QPERIAPT_ANDROID_DEVICE_PROOF is required for an explicitly selected Android run\n' >&2
+		exit 2
 	fi
 	ANDROID_PROOF=$(proof_path_under \
 		"$ANDROID_DEVICE_PROOF" \
@@ -281,19 +345,31 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 	ANDROID_MAX_AGE_SECONDS=$(proof_max_age_seconds \
 		QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS \
 		"${QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS:-86400}")
-	EXPECTED_KIND=${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-}
+	if [ "$ANDROID_MAX_AGE_SECONDS" != "86400" ]; then
+		printf 'error: canonical Android release verification fixes proof freshness to 86400 seconds\n' >&2
+		exit 2
+	fi
+	if [ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND+x}" = "x" ]; then
+		EXPECTED_KIND=$QPERIAPT_ANDROID_EXPECT_DEVICE_KIND
+	else
+		EXPECTED_KIND=emulator
+	fi
 	case "$EXPECTED_KIND" in
-		"" | emulator | physical) ;;
+		emulator) ;;
 		*)
-			printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND\n' >&2
+			printf 'error: canonical Android release verification requires device kind emulator\n' >&2
 			exit 2
 			;;
 	esac
-	EXPECTED_ANDROID_DEVICE_ABI=${QPERIAPT_ANDROID_EXPECT_DEVICE_ABI:-arm64-v8a}
+	if [ "${QPERIAPT_ANDROID_EXPECT_DEVICE_ABI+x}" = "x" ]; then
+		EXPECTED_ANDROID_DEVICE_ABI=$QPERIAPT_ANDROID_EXPECT_DEVICE_ABI
+	else
+		EXPECTED_ANDROID_DEVICE_ABI=arm64-v8a
+	fi
 	case "$EXPECTED_ANDROID_DEVICE_ABI" in
-		arm64-v8a | armeabi-v7a | x86 | x86_64) ;;
+		arm64-v8a) ;;
 		*)
-			printf 'error: invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI\n' >&2
+			printf 'error: canonical Android release verification requires device ABI arm64-v8a\n' >&2
 			exit 2
 			;;
 	esac
@@ -320,10 +396,6 @@ if [ "$REQUIRE_PERFORMANCE" = "1" ]; then
 	fi
 fi
 
-if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then
-	need cargo
-	need cargo-audit
-fi
 if [ "$REQUIRE_FORMAL" = "1" ] || [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 	if [ -n "${HOME:-}" ] && [ -d "$HOME/.opam/default/bin" ]; then
 		PATH="$HOME/.opam/default/bin:$PATH"
@@ -334,10 +406,19 @@ if [ "$REQUIRE_FORMAL" = "1" ] || [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 fi
 if [ "$REQUIRE_FORMAL" = "1" ]; then
 	need tamarin-prover
+	need maude
 	need proverif
 fi
 if [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 	need cargo
+fi
+
+if [ "$REQUIRE_FORMAL" = "1" ]; then
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool all
+elif [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool easycrypt
 fi
 
 RESULTS_MANIFEST="$ROOT/artifact/results.json"
@@ -345,9 +426,15 @@ RESULTS_MANIFEST_SHA256=$(PYTHONPATH=artifact python3 - "$RESULTS_MANIFEST" <<'P
 import pathlib
 import sys
 
-from proof_manifest import load_results_manifest_snapshot
+from evidence_io import read_regular_snapshot
 
-print(load_results_manifest_snapshot(pathlib.Path(sys.argv[1])).file.sha256)
+print(
+    read_regular_snapshot(
+        pathlib.Path(sys.argv[1]),
+        maximum=4 * 1024 * 1024,
+        label="results manifest",
+    ).sha256
+)
 PY
 )
 
@@ -379,17 +466,24 @@ HOST_SMOKE_PASSED=0
 FORMAL_PASSED=0
 APPLE_DEVICE_PASSED=0
 APPLE_MATRIX_PASSED=0
+ANDROID_AAR_PASSED=0
 ANDROID_RUNTIME_PASSED=0
+ANDROID_PHYSICAL_RUNTIME_PASSED=0
+LOCAL_RELEASE_CONSUMER_PASSED=0
 PERFORMANCE_PASSED=0
 CAMERA_READY_BUNDLE_PASSED=0
 DEPENDENCY_AUDIT_PASSED=0
+RUST_PACKAGE_CONTRACT_PASSED=0
 
 PYTHONPATH=artifact python3 - "$RESULTS_MANIFEST" "$RESULTS_MANIFEST_SHA256" <<'PY'
-import hashlib
 import pathlib
 import sys
 
 from proof_manifest import load_results_manifest_snapshot
+from proof_to_byte_inputs import (
+    ProofToByteInputsError,
+    verify_proof_input_digests,
+)
 
 root = pathlib.Path.cwd().resolve()
 manifest = load_results_manifest_snapshot(
@@ -397,197 +491,54 @@ manifest = load_results_manifest_snapshot(
     expected_sha256=sys.argv[2],
 ).value
 expected = manifest.get("proof_to_byte_inputs")
-if not isinstance(expected, dict):
-    raise SystemExit("missing proof_to_byte_inputs in artifact/results.json")
-
-paths = {
-    "contextbound_vectors_sha256": "bindings/contextbound-vectors.txt",
-    "shared_vectors_sha256": "bindings/shared-test-vectors.json",
-    "signed_policy_vectors_sha256": "bindings/signed-policy-vectors.json",
-    "easycrypt_binding_sha256": "formal/easycrypt/BindingViaCR.ec",
-    "easycrypt_migration_v2_sha256": "formal/easycrypt/MigrationBindingV2.ec",
-    "easycrypt_makefile_sha256": "formal/easycrypt/Makefile",
-    "easycrypt_negative_controls_sha256": "formal/easycrypt/negative-controls.sh",
-    "tamarin_model_sha256": "formal/tamarin/handshake.spthy",
-    "tamarin_migration_state_v2_sha256": "formal/tamarin/migration_v2.spthy",
-    "tamarin_migration_agreement_v2_sha256": "formal/tamarin/migration_v2_agreement.spthy",
-    "tamarin_migration_liveness_v2_sha256": "formal/tamarin/migration_v2_liveness.spthy",
-    "tamarin_migration_rollback_v2_sha256": "formal/tamarin/migration_v2_rollback.spthy",
-    "tamarin_migration_no_witness_v2_sha256": "formal/tamarin/migration_v2_no_witness.spthy",
-    "tamarin_migration_negative_controls_v2_sha256": "formal/tamarin/migration_v2_negative_controls.spthy",
-    "tamarin_makefile_sha256": "formal/tamarin/Makefile",
-    "proverif_model_sha256": "formal/proverif/handshake.pv",
-    "proof_to_byte_script_sha256": "artifact/proof-to-byte.sh",
-    "proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py",
-    "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
-    "ci_workflow_sha256": ".github/workflows/ci.yml",
-    "codeql_workflow_sha256": ".github/workflows/codeql.yml",
-    "dependabot_config_sha256": ".github/dependabot.yml",
-    "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
-    "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
-    "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
-    "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
-    "evidence_io_sha256": "artifact/evidence_io.py",
-    "evidence_io_tests_sha256": "artifact/test_evidence_io.py",
-    "git_provenance_sha256": "artifact/git_provenance.py",
-    "git_provenance_tests_sha256": "artifact/test_git_provenance.py",
-    "python_bootstrap_sha256": "artifact/python_bootstrap.py",
-    "python_env_sha256": "artifact/python-env.sh",
-    "python_runner_sha256": "artifact/python-run.sh",
-    "proof_manifest_sha256": "artifact/proof_manifest.py",
-    "proof_manifest_tests_sha256": "artifact/test_proof_manifest.py",
-    "claim_ledger_sha256": "artifact/claim-ledger.json",
-    "claim_ledger_verifier_sha256": "artifact/claim_ledger.py",
-    "claim_ledger_tests_sha256": "artifact/test_claim_ledger.py",
-    "reference_baseline_sha256": "docs/continuity/reference-baseline.json",
-    "reference_baseline_verifier_sha256": "artifact/reference_baseline.py",
-    "reference_baseline_tests_sha256": "artifact/test_reference_baseline.py",
-    "continuity_context_spec_sha256": "docs/continuity/LIFECYCLE_CONTEXT_V1.md",
-    "continuity_context_model_sha256": "models/q-periapt-continuity-model/src/context.rs",
-    "continuity_context_tests_sha256": "models/q-periapt-continuity-model/tests/context.rs",
-    "continuity_context_vectors_sha256": "models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json",
-    "continuity_context_vector_emitter_sha256": "models/q-periapt-continuity-model/examples/continuity_context_vectors.rs",
-    "continuity_context_verifier_sha256": "artifact/continuity_context.py",
-    "continuity_context_verifier_tests_sha256": "artifact/test_continuity_context.py",
-    "continuity_prekey_spec_sha256": "docs/continuity/PREKEY_SELECTION_V1.md",
-    "continuity_prekey_codec_sha256": "models/q-periapt-continuity-model/src/codec.rs",
-    "continuity_prekey_commitments_sha256": "models/q-periapt-continuity-model/src/commitments.rs",
-    "continuity_prekey_model_sha256": "models/q-periapt-continuity-model/src/prekey.rs",
-    "continuity_prekey_tests_sha256": "models/q-periapt-continuity-model/tests/prekey_selection.rs",
-    "continuity_prekey_vectors_sha256": "models/q-periapt-continuity-model/vectors/prekey-selection-v1.json",
-    "continuity_prekey_vector_emitter_sha256": "models/q-periapt-continuity-model/examples/prekey_selection_vectors.rs",
-    "continuity_prekey_verifier_sha256": "artifact/prekey_selection.py",
-    "continuity_prekey_verifier_tests_sha256": "artifact/test_prekey_selection.py",
-    "continuity_model_manifest_sha256": "models/q-periapt-continuity-model/Cargo.toml",
-    "continuity_model_lib_sha256": "models/q-periapt-continuity-model/src/lib.rs",
-    "continuity_model_types_sha256": "models/q-periapt-continuity-model/src/types.rs",
-    "continuity_model_state_machine_sha256": "models/q-periapt-continuity-model/src/model.rs",
-    "continuity_model_lifecycle_tests_sha256": "models/q-periapt-continuity-model/tests/lifecycle.rs",
-    "continuity_model_isolation_tests_sha256": "artifact/test_continuity_model_isolation.py",
-    "continuity_effect_lifecycle_spec_sha256": "docs/continuity/G1_EFFECT_LIFECYCLE.md",
-    "continuity_easycrypt_model_sha256": "formal/easycrypt/continuity/LifecycleContextV1.ec",
-    "continuity_prekey_easycrypt_model_sha256": "formal/easycrypt/continuity/PrekeySelectionV1.ec",
-    "continuity_easycrypt_makefile_sha256": "formal/easycrypt/continuity/Makefile",
-    "migration_contract_v2_spec_sha256": "docs/migration/MIGRATION_CONTRACT_V2.md",
-    "migration_model_manifest_sha256": "models/q-periapt-migration/Cargo.toml",
-    "migration_model_readme_sha256": "models/q-periapt-migration/README.md",
-    "migration_model_lib_sha256": "models/q-periapt-migration/src/lib.rs",
-    "migration_model_codec_sha256": "models/q-periapt-migration/src/codec.rs",
-    "migration_context_v2_model_sha256": "models/q-periapt-migration/src/context_v2.rs",
-    "migration_state_model_sha256": "models/q-periapt-migration/src/state.rs",
-    "migration_capability_model_sha256": "models/q-periapt-migration/src/capability.rs",
-    "migration_transcript_model_sha256": "models/q-periapt-migration/src/transcript.rs",
-    "migration_confirmation_model_sha256": "models/q-periapt-migration/src/confirmation.rs",
-    "migration_contract_v2_tests_sha256": "models/q-periapt-migration/tests/contract_v2.rs",
-    "migration_contract_v2_vectors_sha256": "models/q-periapt-migration/vectors/migration-contract-v2.json",
-    "migration_contract_v2_verifier_sha256": "artifact/migration_contract_v2.py",
-    "migration_contract_v2_verifier_tests_sha256": "artifact/test_migration_contract_v2.py",
-    "migration_agent_manifest_sha256": "services/q-periapt-policy-agent/Cargo.toml",
-    "migration_agent_readme_sha256": "services/q-periapt-policy-agent/README.md",
-    "migration_agent_lib_sha256": "services/q-periapt-policy-agent/src/lib.rs",
-    "migration_agent_main_sha256": "services/q-periapt-policy-agent/src/main.rs",
-    "migration_agent_authentication_sha256": "services/q-periapt-policy-agent/src/authentication.rs",
-    "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
-    "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
-    "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
-    "migration_agent_macos_acl_sha256": "services/q-periapt-policy-agent/src/macos_acl.rs",
-    "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
-    "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
-    "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",
-    "migration_agent_ipc_sha256": "services/q-periapt-policy-agent/src/ipc.rs",
-    "migration_agent_tests_sha256": "services/q-periapt-policy-agent/src/tests.rs",
-    "migration_agent_types_sha256": "services/q-periapt-policy-agent/src/types.rs",
-    "hqc_candidate_readme_sha256": "research/hqc-fips207-candidate/README.md",
-    "hqc_candidate_manifest_sha256": "research/hqc-fips207-candidate/Cargo.toml",
-    "hqc_candidate_lock_sha256": "research/hqc-fips207-candidate/Cargo.lock",
-    "hqc_candidate_adapter_sha256": "research/hqc-fips207-candidate/src/lib.rs",
-    "hqc_candidate_tests_sha256": "research/hqc-fips207-candidate/tests/adapter.rs",
-    "hqc_candidate_verify_sha256": "research/hqc-fips207-candidate/scripts/verify.sh",
-    "rust_publish_dry_run_script_sha256": "artifact/rust-publish-dry-run.sh",
-    "rust_publish_contract_sha256": "artifact/rust_publish_contract.py",
-    "rust_publish_contract_tests_sha256": "artifact/test_rust_publish_contract.py",
-    "c_package_script_sha256": "artifact/c-package.sh",
-    "c_package_manifest_verifier_sha256": "artifact/c_package_manifest.py",
-    "c_package_manifest_tests_sha256": "artifact/test_c_package_manifest.py",
-    "deterministic_archive_sha256": "artifact/deterministic_archive.py",
-    "deterministic_archive_tests_sha256": "artifact/test_deterministic_archive.py",
-    "package_bom_sha256": "artifact/package_bom.py",
-    "release_binary_scan_sha256": "artifact/release_binary_scan.py",
-    "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
-    "security_policy_sha256": "SECURITY.md",
-    "third_party_licenses_sha256": "artifact/third_party_licenses.py",
-    "third_party_licenses_tests_sha256": "artifact/test_third_party_licenses.py",
-    "windows_msvc_version_probe_sha256": "artifact/msvc-version-probe.c",
-    "windows_package_script_sha256": "artifact/windows-package.ps1",
-    "windows_package_verifier_sha256": "artifact/windows_package.py",
-    "windows_package_tests_sha256": "artifact/test_windows_package.py",
-    "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
-    "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
-    "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
-    "platform_release_contract_sha256": "artifact/platform_release_contract.py",
-    "platform_release_contract_tests_sha256": "artifact/test_platform_release_contract.py",
-    "swift_xcframework_script_sha256": "artifact/swift-xcframework.sh",
-    "swift_xcframework_release_script_sha256": "artifact/swift-xcframework-release.sh",
-    "swift_xcframework_consumer_check_script_sha256": "artifact/swift-xcframework-consumer-check.sh",
-    "swift_xcframework_remote_consumer_script_sha256": "artifact/swift-xcframework-remote-consumer.sh",
-    "apple_distribution_verifier_sha256": "artifact/apple_distribution.py",
-    "apple_distribution_tests_sha256": "artifact/test_apple_distribution.py",
-    "swift_binary_consumer_link_probe_sha256": "bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift",
-    "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
-    "local_release_index_script_sha256": "artifact/local-release-index.sh",
-    "release_index_verifier_sha256": "artifact/release_index.py",
-    "release_index_tests_sha256": "artifact/test_release_index.py",
-    "local_release_consumer_smoke_script_sha256": "artifact/local-release-consumer-smoke.sh",
-    "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
-    "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
-    "bounded_process_sha256": "artifact/bounded_process.py",
-    "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
-    "android_bounded_command_sha256": "artifact/android_bounded_command.py",
-    "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
-    "apple_device_smoke_script_sha256": "artifact/apple-device-smoke.sh",
-    "apple_device_matrix_script_sha256": "artifact/apple-device-matrix.sh",
-    "apple_device_xcode27_gate_script_sha256": "artifact/apple-device-xcode27-gate.sh",
-    "apple_device_proof_verifier_sha256": "artifact/apple_device_proof.py",
-    "apple_device_proof_tests_sha256": "artifact/test_apple_device_proof.py",
-    "android_aar_script_sha256": "artifact/android-aar.sh",
-    "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
-    "android_device_proof_verifier_sha256": "artifact/android_device_proof.py",
-    "android_device_proof_tests_sha256": "artifact/test_android_device_proof.py",
-    "android_elf_verifier_sha256": "artifact/android_elf.py",
-    "android_elf_tests_sha256": "artifact/test_android_elf.py",
-    "performance_gate_sha256": "artifact/performance_gate.py",
-    "performance_gate_tests_sha256": "artifact/test_performance_gate.py",
-    "performance_budgets_sha256": "artifact/performance-budgets.json",
-    "paired_profile_perf_harness_sha256": "crates/q-periapt-backends/examples/paired_profile_perf.rs",
-    "camera_ready_bare_metal_script_sha256": "camera-ready-bare-metal.sh",
-    "camera_ready_sandbox_script_sha256": "artifact/camera-ready-sandbox.sh",
-    "camera_ready_bare_metal_transcript_sha256": "paper/camera-ready-results.txt",
-    "camera_ready_proof_verifier_sha256": "artifact/camera_ready_proof.py",
-    "camera_ready_proof_tests_sha256": "artifact/test_camera_ready_proof.py",
-    "android_facade_sha256": "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
-    "android_jni_adapter_sha256": "bindings/android/jni/qperiapt_jni.c",
-    "c_smoke_sha256": "bindings/c/smoke.c",
-    "license_sha256": "LICENSE",
-    "license_apache_sha256": "LICENSES/Apache-2.0.txt",
-    "license_mit_sha256": "LICENSES/MIT.txt",
-    "qperiapt_cli_cargo_sha256": "crates/q-periapt-cli/Cargo.toml",
-    "qperiapt_cli_lib_sha256": "crates/q-periapt-cli/src/lib.rs",
-    "qperiapt_cli_main_sha256": "crates/q-periapt-cli/src/main.rs",
-}
-missing = sorted(set(paths) - set(expected))
-extra = sorted(set(expected) - set(paths))
-if missing or extra:
-    raise SystemExit(
-        f"proof_to_byte_inputs key-set mismatch: missing={missing}, extra={extra}"
-    )
-for key, rel in paths.items():
-    data = (root / rel).read_bytes()
-    got = hashlib.sha256(data).hexdigest()
-    if got != expected[key]:
-        raise SystemExit(f"hash mismatch for {rel}: got {got}, expected {expected[key]}")
+try:
+    verify_proof_input_digests(root, expected)
+except ProofToByteInputsError as exc:
+    raise SystemExit(f"error: {exc}") from exc
 
 print("PROOF_TO_BYTE_MANIFEST_HASHES_PASS")
 PY
+
+if [ "$VERIFY_ANDROID_AAR" = "1" ]; then
+	python3 artifact/android_elf.py verify-results-bound-aar \
+		--root "$ROOT" \
+		--results-manifest "$RESULTS_MANIFEST" \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
+		--ndk "$ANDROID_NDK"
+	ANDROID_AAR_PASSED=1
+	printf 'PROOF_TO_BYTE_ANDROID_AAR_PASS\n'
+fi
+
+if [ "$REQUIRE_RUST_PACKAGE_CONTRACT" = "1" ]; then
+	python3 - "$ROOT" "$RESULTS_MANIFEST" "$RESULTS_MANIFEST_SHA256" \
+		"$FROZEN_GIT_COMMIT" "$FROZEN_SOURCE_TREE_SHA256" <<'PY'
+import pathlib
+import sys
+
+from proof_manifest import (
+    ProofManifestError,
+    load_current_rust_package_contract_receipt,
+    load_results_manifest_snapshot,
+)
+
+root = pathlib.Path(sys.argv[1])
+try:
+    manifest = load_results_manifest_snapshot(
+        pathlib.Path(sys.argv[2]),
+        expected_sha256=sys.argv[3],
+    )
+    load_current_rust_package_contract_receipt(
+        root,
+        manifest,
+        frozen_commit=sys.argv[4],
+        frozen_source_sha256=sys.argv[5],
+    )
+except ProofManifestError as exc:
+    raise SystemExit(f"error: {exc}") from exc
+print("PROOF_TO_BYTE_RUST_PACKAGE_CONTRACT_PASS upload=not-attempted")
+PY
+	RUST_PACKAGE_CONTRACT_PASSED=1
+fi
 
 sh artifact/python-run.sh artifact/migration_contract_v2.py verify \
 	--vectors models/q-periapt-migration/vectors/migration-contract-v2.json
@@ -612,7 +563,8 @@ if [ "$REQUIRE_CAMERA_READY" = "1" ]; then
 fi
 
 if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then
-	cargo audit --deny warnings
+	sh artifact/python-run.sh artifact/rust_publish_contract.py \
+		verify-workspace-dependency-audit
 	DEPENDENCY_AUDIT_PASSED=1
 	printf 'PROOF_TO_BYTE_DEPENDENCY_AUDIT_PASS\n'
 fi
@@ -626,10 +578,13 @@ else
 fi
 
 if [ "$REQUIRE_FORMAL" = "1" ]; then
-	make -C formal/easycrypt check
-	EASYCRYPT=$(command -v easycrypt) sh formal/easycrypt/negative-controls.sh
-	make -C formal/tamarin prove
-	make -C formal/proverif prove
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool all
+	formal_make -C formal/easycrypt EC=easycrypt check
+	EASYCRYPT=easycrypt sh formal/easycrypt/negative-controls.sh
+	formal_make -C formal/tamarin TAMARIN=tamarin-prover \
+		DERIVCHECK_TIMEOUT=60 prove
+	formal_make -C formal/proverif PROVERIF=proverif prove
 	FORMAL_PASSED=1
 	printf 'PROOF_TO_BYTE_FORMAL_MACHINECHECK_PASS\n'
 fi
@@ -644,7 +599,9 @@ if [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then
 		--vectors models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json
 	sh artifact/python-run.sh artifact/prekey_selection.py verify \
 		--vectors models/q-periapt-continuity-model/vectors/prekey-selection-v1.json
-	EC=$(command -v easycrypt) make -C formal/easycrypt/continuity check
+	sh artifact/python-run.sh artifact/formal_toolchain_contract.py \
+		verify-installed --tool easycrypt
+	formal_make -C formal/easycrypt/continuity EC=easycrypt check
 	printf 'PROOF_TO_BYTE_CONTINUITY_MODEL_DIAGNOSTIC_PASS boundary=non_normative_not_release\n'
 fi
 
@@ -727,61 +684,43 @@ if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then
 		printf 'error: required Android runtime proof JSON missing\n' >&2
 		exit 1
 	}
-	if [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then
-		if [ -n "$EXPECTED_KIND" ]; then
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-kind "$EXPECTED_KIND" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
-				--allow-dirty-proof
-		else
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256" \
-				--allow-dirty-proof
-		fi
-	else
-		if [ -n "$EXPECTED_KIND" ]; then
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-kind "$EXPECTED_KIND" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
-		else
-			python3 artifact/android_device_proof.py verify \
-				--root "$ROOT" \
-				--proof "$ANDROID_PROOF" \
-				--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
-				--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
-				--expected-page-size 16384 \
-				--expected-device-sdk 35 \
-				--require-release-mode \
-				--results-manifest "$RESULTS_MANIFEST" \
-				--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
-		fi
-	fi
+	python3 artifact/android_device_proof.py verify \
+		--root "$ROOT" \
+		--proof "$ANDROID_PROOF" \
+		--max-age-seconds "$ANDROID_MAX_AGE_SECONDS" \
+		--expected-device-kind "$EXPECTED_KIND" \
+		--expected-device-abi "$EXPECTED_ANDROID_DEVICE_ABI" \
+		--expected-page-size 16384 \
+		--expected-device-sdk 35 \
+		--require-release-mode \
+		--results-manifest "$RESULTS_MANIFEST" \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
 	ANDROID_RUNTIME_PASSED=1
 	printf 'PROOF_TO_BYTE_ANDROID_RUNTIME_PASS\n'
+fi
+
+if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then
+	test -f "$ANDROID_PHYSICAL_PROOF" || {
+		printf 'error: required physical Android runtime proof JSON missing\n' >&2
+		exit 1
+	}
+	python3 artifact/android_device_proof.py verify \
+		--root "$ROOT" \
+		--proof "$ANDROID_PHYSICAL_PROOF" \
+		--max-age-seconds "$ANDROID_PHYSICAL_MAX_AGE_SECONDS" \
+		--expected-device-kind physical \
+		--results-binding android_physical_runtime \
+		--results-manifest "$RESULTS_MANIFEST" \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
+	ANDROID_PHYSICAL_RUNTIME_PASSED=1
+	printf 'PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS\n'
+fi
+
+if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then
+	python3 artifact/release_consumer_smoke.py verify-bound \
+		--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"
+	LOCAL_RELEASE_CONSUMER_PASSED=1
+	printf 'PROOF_TO_BYTE_LOCAL_RELEASE_CONSUMER_PASS\n'
 fi
 
 if [ "$REQUIRE_PERFORMANCE" = "1" ]; then
@@ -818,7 +757,9 @@ python3 artifact/proof_to_byte_finalizer.py finalize \
 	--expected-source-sha256 "$FROZEN_SOURCE_TREE_SHA256" \
 	--expected-source-dirty "$FROZEN_SOURCE_TREE_DIRTY" \
 	"$HOST_SMOKE_PASSED" "$FORMAL_PASSED" "$APPLE_DEVICE_PASSED" \
-	"$APPLE_MATRIX_PASSED" "$ANDROID_RUNTIME_PASSED" "$PERFORMANCE_PASSED" \
+	"$APPLE_MATRIX_PASSED" "$ANDROID_AAR_PASSED" "$ANDROID_RUNTIME_PASSED" \
+	"$ANDROID_PHYSICAL_RUNTIME_PASSED" "$LOCAL_RELEASE_CONSUMER_PASSED" \
+	"$PERFORMANCE_PASSED" \
 	"$CAMERA_READY_BUNDLE_PASSED" "$REQUIRE_CAMERA_READY" \
 	"$DEPENDENCY_AUDIT_PASSED" "$ALLOW_DIRTY_APPLE_DEVICE_PROOF" \
-	"$ALLOW_DIRTY_PERFORMANCE_PROOF"
+	"$ALLOW_DIRTY_PERFORMANCE_PROOF" "$RUST_PACKAGE_CONTRACT_PASSED"

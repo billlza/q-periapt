@@ -243,8 +243,7 @@ fn exercise_candidate<K: Kem + Copy>(
         .expect("ContextBound hybrid decapsulation");
     assert_eq!(combined_enc.as_bytes(), combined_dec.as_bytes());
 
-    let compat =
-        HybridKem::<_, _, TestXof>::new(&kem, &traditional, Profile::CompatXWing, b"FORBIDDEN", 0);
+    let compat = HybridKem::<_, _, TestXof>::new(&kem, &traditional, Profile::CompatXWing, b"", 0);
     assert!(matches!(compat, Err(Error::PolicyDenied)));
 }
 

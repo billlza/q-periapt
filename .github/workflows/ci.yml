@@ -23,6 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -40,17 +44,32 @@ jobs:
           toolchain: 1.96.1
           components: rustfmt, clippy, llvm-tools
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       # Discover every artifact/test_*.py module so newly added fail-closed
       # verifiers cannot silently remain local-only because an explicit list drifted.
       - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
-      - name: Proof-to-byte manifest and canonical source binding
+      - name: Exact source-transition or installed proof-to-byte gate
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
-        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh
+        run: |
+          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)
+          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
+            ci-source-gate \
+            "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
+          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=237 declared_delta=47"
+          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=237"
+          if [ "$source_gate" = "$initial_gate" ]; then
+            printf '%s\n' "$source_gate"
+          elif [ "$source_gate" = "$installed_gate" ]; then
+            printf '%s\n' "$source_gate"
+            QPERIAPT_SKIP_SMOKE=1 /bin/sh artifact/proof-to-byte.sh
+          else
+            printf 'unexpected source CI gate result\n' >&2
+            exit 2
+          fi
       - name: Paired performance harness schema (shared-runner, no numeric claim)
         run: |
           cargo run --release --locked -p q-periapt-backends --example paired_profile_perf -- \
@@ -64,19 +83,24 @@ jobs:
 
   # Crates.io pre-publication contract. This is not an upload step: it checks the
   # explicit publish allow/deny list, package file lists, patched
-  # `cargo publish --dry-run` for every publishable crate, and an isolated scan
+  # registry-bound `cargo package` plus rebuilt-archive verification for every
+  # publishable crate, and an isolated scan
   # of Cargo's normalized backend package from a clean checkout.
   rust-publish-contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
-      - run: cargo install cargo-audit --version 0.22.2 --locked
-      - run: sh artifact/rust-publish-dry-run.sh
+      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
+      - run: sh artifact/rust-publish-contract.sh
 
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs,
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
@@ -85,6 +109,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # Windows release 1.97.0
@@ -114,8 +142,8 @@ jobs:
       - name: Reconsume only the Windows candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -161,7 +189,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-windows-x86_64-msvc
-          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip
+          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip
           if-no-files-found: error
 
   # Pre-tag package gate on the same Windows generation used by the immutable
@@ -171,6 +199,10 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -208,8 +240,8 @@ jobs:
       - name: Reconsume only the Windows 2022 candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-alpha.2-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -247,6 +279,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -277,7 +313,7 @@ jobs:
           test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
           test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Build, archive, extract, and consume the native Linux ABI2 SDK
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
@@ -287,7 +323,7 @@ jobs:
           EXPECTED_TARGET: ${{ matrix.target }}
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          package="q-periapt-c-abi2-0.1.0-alpha.2-$EXPECTED_TARGET"
+          package="q-periapt-c-abi2-0.1.0-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
           archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
@@ -307,20 +343,20 @@ jobs:
             QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$5" \
               sh artifact/c-package.sh
           }
-          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$wrong_target" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
+          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$wrong_target" "0.1.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
           rm -rf \
             target/release \
             "target/qperiapt-c-abi2/$package" \
             "target/qperiapt-c-abi2/verify-$package"
-          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"
+          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0" "$manifest_sha256" "$contract_sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-linux-${{ matrix.target }}
-          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.0-alpha.2-${{ matrix.target }}.tar.gz
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.0-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
   # no_std build of the auditable core for an embedded target (must not pull std).
@@ -328,6 +364,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -350,6 +390,10 @@ jobs:
           - wasm32-unknown-unknown         # WASM
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -381,6 +425,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -403,6 +451,10 @@ jobs:
         toolchain: [stable, beta, nightly]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
@@ -418,6 +470,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@b39830659426cc462634adb474604619960ae92d # 1.85
@@ -430,6 +486,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -442,6 +502,7 @@ jobs:
   # path makes Valgrind exit non-zero. Verifies the suite's own CT composition code and every
   # shipped ML-KEM-{512,768,1024} expanded-DK decapsulation wrapper.
   constant-time:
+    name: Binary CT [${{ matrix.gate_identity }}]
     # Dataflow CT gate on BOTH architectures: Memcheck/TIMECOP marks secrets undefined and
     # flags any secret-dependent branch/index in our composition code. x86_64 + aarch64 —
     # the emitted assembly differs per target, so each is an independent check. (Verified
@@ -450,15 +511,40 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - runner: ubuntu-latest
+            gate_identity: x86_64-portable
+            rust_host: x86_64-unknown-linux-gnu
+            uname_machine: x86_64
+          - runner: ubuntu-24.04-arm
+            gate_identity: aarch64-native
+            rust_host: aarch64-unknown-linux-gnu
+            uname_machine: aarch64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
+      - name: Verify the fixed CT architecture identity
+        env:
+          EXPECTED_GATE_IDENTITY: ${{ matrix.gate_identity }}
+          EXPECTED_RUST_HOST: ${{ matrix.rust_host }}
+          EXPECTED_UNAME_MACHINE: ${{ matrix.uname_machine }}
+        run: |
+          case "$EXPECTED_GATE_IDENTITY:$EXPECTED_RUST_HOST:$EXPECTED_UNAME_MACHINE" in
+            x86_64-portable:x86_64-unknown-linux-gnu:x86_64) ;;
+            aarch64-native:aarch64-unknown-linux-gnu:aarch64) ;;
+            *) echo "invalid binary-CT matrix identity" >&2; exit 2 ;;
+          esac
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_RUST_HOST"
+          test "$(uname -m)" = "$EXPECTED_UNAME_MACHINE"
       - name: Install Valgrind (provides valgrind/memcheck.h for the shim)
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - name: Build the ct_verify harness (real Memcheck client requests)
@@ -512,6 +598,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -519,6 +609,10 @@ jobs:
           toolchain: 1.96.1
       - name: Loopback handshake (both profiles)
         run: cargo test -p q-periapt-tls-demo --locked
+      - name: RFC 10024 standard baseline contract
+        run: |
+          cargo clippy -p q-periapt-rustls --all-targets --features bench-baseline --locked -- -D warnings
+          cargo test -p q-periapt-rustls --features bench-baseline --locked
       - name: P99 harness (informational)
         run: cargo run --locked --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000
 
@@ -530,6 +624,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -547,7 +645,7 @@ jobs:
           /usr/bin/clang-18 --version
           /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
           echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
-      - run: cargo install wasm-pack --version 0.15.0 --locked
+      - run: cargo +1.96.1 install wasm-pack --version 0.15.0 --locked
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
       - name: Test lean WebAssembly face on Node
         run: wasm-pack test --node crates/q-periapt-wasm
@@ -560,10 +658,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@efcb852328a9f50117170cc43094fb6f09eaf1ae # nightly
-      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
       - run: cargo +nightly fetch --manifest-path fuzz/Cargo.toml --locked
       - run: CARGO_NET_OFFLINE=true cargo +nightly fuzz build --fuzz-dir fuzz
 
@@ -571,8 +673,29 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
+      - name: Provision hardened proof Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Verify hardened proof Python
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+      - name: Test Darwin release transaction adapters
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest -v artifact/test_release_index.py artifact/test_android_bounded_command.py
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
@@ -581,7 +704,7 @@ jobs:
           components: llvm-tools
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - run: cargo build --locked -p q-periapt-ffi --release
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Generated C/Swift header freshness
         run: |
           mkdir -p target
@@ -600,6 +723,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -619,6 +746,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Provision hardened proof Python
@@ -652,10 +783,12 @@ jobs:
           for target in aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android; do
             printf '%s\n' "$installed_targets" | grep -Fx "$target" >/dev/null
           done
-      - run: cargo install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
       - name: Install pinned Android SDK/NDK inputs
         run: |
-          yes | sdkmanager --licenses >/dev/null
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
           sdkmanager "platforms;android-35" "build-tools;36.0.0" "ndk;29.0.14206865"
       - name: Android AAR/JNI packaging proof
         env:
@@ -669,9 +802,174 @@ jobs:
         with:
           name: abi2-android-aar
           path: |
-            target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/q-periapt-android-0.1.0-alpha.2.aar
-            target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/MANIFEST.json
-            target/qperiapt-android-aar/q-periapt-android-0.1.0-alpha.2/SHA256SUMS
+            target/qperiapt-android-aar/q-periapt-android-0.1.0/q-periapt-android-0.1.0.aar
+            target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json
+            target/qperiapt-android-aar/q-periapt-android-0.1.0/SHA256SUMS
+          if-no-files-found: error
+
+  # Execute the exact four-ABI AAR produced above on a real Android 15/API 35
+  # 16 KiB-page ART runtime. GitHub's Linux host is x86_64, so this is an
+  # independent x86_64 package-face gate; the release transaction separately
+  # requires the arm64-v8a canonical AVD proof selected by results.json.
+  bindings-android-runtime-16k:
+    needs: bindings-android-aar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify checkout provenance
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          actual_commit=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$actual_commit" = "$EXPECTED_COMMIT"
+      - name: Provision hardened proof Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Verify hardened proof Python
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          case "$QPERIAPT_PYTHON" in /*) ;; *) exit 2 ;; esac
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+        with:
+          toolchain: 1.96.1
+      - name: Verify exact canonical Rust toolchain
+        run: |
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "x86_64-unknown-linux-gnu"
+          test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
+          test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: "22"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: abi2-android-aar
+          path: target/workflow-artifact/raw
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Strictly extract the same-run Android AAR artifact
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh artifact/workflow_artifact.py android-aar
+      - name: Install the API 35 16 KiB emulator runtime
+        run: |
+          command -v setfacl
+          command -v lsof
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
+          sdkmanager \
+            "platform-tools" \
+            "emulator" \
+            "platforms;android-35" \
+            "build-tools;36.0.0" \
+            "ndk;29.0.14206865" \
+            "system-images;android-35;google_apis_ps16k;x86_64"
+          test -c /dev/kvm
+          sudo setfacl -m "u:$USER:rw" /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Create private Android identities and the cold 16 KiB AVD
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          chmod go-w "$HOME"
+          test ! -L "$HOME/.android"
+          mkdir -p "$HOME/.android"
+          chmod 700 "$HOME/.android"
+          test ! -e "$HOME/.android/adbkey"
+          test ! -L "$HOME/.android/adbkey"
+          test ! -e "$HOME/.android/adbkey.pub"
+          test ! -L "$HOME/.android/adbkey.pub"
+          "$ANDROID_HOME/platform-tools/adb" keygen "$HOME/.android/adbkey"
+          chmod 600 "$HOME/.android/adbkey"
+          chmod 644 "$HOME/.android/adbkey.pub"
+          test ! -e "$HOME/.emulator_console_auth_token"
+          test ! -L "$HOME/.emulator_console_auth_token"
+          umask 077
+          openssl rand -hex 32 > "$HOME/.emulator_console_auth_token"
+          chmod 600 "$HOME/.emulator_console_auth_token"
+          avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
+          test -n "$avd_home"
+          test ! -e "$avd_home"
+          test ! -L "$avd_home"
+          mkdir "$avd_home"
+          chmod 700 "$avd_home"
+          export ANDROID_AVD_HOME="$avd_home"
+          avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py \
+            runtime-avd-name --adb-profile linux-system --device-abi x86_64)
+          test "$avd_name" = QPeriapt_Release_16K_API_35_CI_V1
+          test ! -e "$ANDROID_AVD_HOME/$avd_name.avd"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
+          test ! -e "$ANDROID_AVD_HOME/$avd_name.ini"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
+          avdmanager create avd \
+            --name "$avd_name" \
+            --package "system-images;android-35;google_apis_ps16k;x86_64" \
+            --device pixel_6 <<< 'no'
+          test -d "$ANDROID_AVD_HOME/$avd_name.avd"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
+          test -f "$ANDROID_AVD_HOME/$avd_name.ini"
+          test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
+          sh artifact/python-run.sh artifact/android_device_proof.py \
+            verify-avd-home \
+            --avd-home "$ANDROID_AVD_HOME" \
+            --adb-profile linux-system \
+            --device-abi x86_64
+          unset ANDROID_AVD_HOME avd_home avd_name
+      - name: Execute the hash-bound AAR on API 35 16 KiB ART
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+          QPERIAPT_ANDROID_ADB_PROFILE: linux-system
+          QPERIAPT_ANDROID_RELEASE_MODE: "1"
+          QPERIAPT_ANDROID_BOOT_AVD: "1"
+          QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator
+          QPERIAPT_ANDROID_EXPECT_ABI: x86_64
+          QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"
+          QPERIAPT_ANDROID_EXPECT_SDK: "35"
+        run: |
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.0/q-periapt-android-0.1.0.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json"
+          test -f "$aar" && test -f "$manifest"
+          aar_sha256=$(sha256sum "$aar" | cut -d' ' -f1)
+          manifest_sha256=$(sha256sum "$manifest" | cut -d' ' -f1)
+          QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
+          QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest" \
+          QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256" \
+          QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256" \
+          QPERIAPT_ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" \
+          QPERIAPT_ANDROID_PLATFORM="$ANDROID_HOME/platforms/android-35" \
+          QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
+            sh artifact/android-device-smoke.sh
+      - name: Upload bounded Android package diagnostics after failure
+        if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics
+          path: |
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
+          if-no-files-found: error
+      - name: Upload Android runtime proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-android-runtime-api35-16k-x86_64
+          path: |
+            target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
+            target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-runtime-evidence-v2.zip
           if-no-files-found: error
 
   # Auditability artifacts: emit the CycloneDX CBOM + SBOM (and prove the CLI runs).
@@ -679,13 +977,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
-      - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
-      - run: cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
+      - name: Generate byte-identical CycloneDX BOM output modes
+        run: |
+          cbom_stdout=$(mktemp "$RUNNER_TEMP/qperiapt-cbom-stdout.XXXXXXXX")
+          sbom_stdout=$(mktemp "$RUNNER_TEMP/qperiapt-sbom-stdout.XXXXXXXX")
+          trap 'rm -f -- "$cbom_stdout" "$sbom_stdout"' EXIT
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom > "$cbom_stdout"
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- cbom --out cbom.cdx.json
+          cmp "$cbom_stdout" cbom.cdx.json
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock > "$sbom_stdout"
+          cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
+          cmp "$sbom_stdout" sbom.cdx.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cyclonedx-boms
@@ -693,17 +1004,29 @@ jobs:
             cbom.cdx.json
             sbom.cdx.json
           if-no-files-found: error
-      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Install fixed dependency-audit tool
+        run: |
+          export PATH="$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin:$PATH"
+          cargo +1.96.1 install cargo-audit --version 0.22.2 --locked \
+            --root target/qperiapt-audit-tool
       # Unconditional release gates over the shipping workspace and detached
-      # fuzz-harness lockfiles. No advisory is ignored.
-      - run: cargo audit --deny warnings
-      - run: cargo audit --deny warnings --file fuzz/Cargo.lock
+      # fuzz-harness lockfiles. The shared verifier isolates Cargo/RustSec state,
+      # checks exact sparse-index checksums and yanked status, and ignores no
+      # advisory.
+      - name: Verify workspace dependency audit
+        run: |
+          sh artifact/python-run.sh artifact/rust_publish_contract.py \
+            verify-workspace-dependency-audit
 
   # Optional SLH-DSA backend (FIPS 205 via fips205).
   pq-optional-backends:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -719,6 +1042,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -726,7 +1053,7 @@ jobs:
           toolchain: 1.96.1
           components: clippy
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf,aarch64-unknown-linux-gnu,x86_64-pc-windows-gnu
-      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
       - run: bash research/hqc-fips207-candidate/scripts/verify.sh
 
   # Cross-target feature fence for the shipping WASM face and dependency-free core.
@@ -734,6 +1061,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
@@ -759,6 +1090,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: No admits/sorry in the mechanized proofs (hard gate)
@@ -777,6 +1112,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -794,8 +1133,17 @@ jobs:
           # Mount the proofs read-only and copy into a container-owned dir: the checkout's committed
           # .eco is host-owned, so the container's opam user can't rm it in place. Copying makes the
           # files opam-owned, so `rm -f *.eco` forces a from-scratch re-check.
-          docker run --rm -v "${{ github.workspace }}/formal/easycrypt:/src:ro" q-periapt-ec:ci \
-            opam exec -- sh -c 'mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec && rm -f *.eco continuity/*.eco && EC=easycrypt make check && sh negative-controls.sh && EC=easycrypt make -C continuity check'
+          docker run --rm \
+            -v "${{ github.workspace }}/artifact:/work/artifact:ro" \
+            -v "${{ github.workspace }}/formal/easycrypt:/src:ro" \
+            q-periapt-ec:ci opam exec -- sh -c \
+            'sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool easycrypt &&
+             mkdir -p /tmp/ec && cp -r /src/. /tmp/ec && cd /tmp/ec &&
+             rm -f *.eco continuity/*.eco &&
+             MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" make EC=easycrypt check &&
+             EASYCRYPT=easycrypt sh negative-controls.sh &&
+             MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \
+               make -C continuity EC=easycrypt check'
 
   # Symbolic handshake proof. The lemma-presence check catches a lemma being
   # deleted/stubbed out; the full Tamarin machine-check is a HARD GATE too.
@@ -805,46 +1153,114 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Handshake and migration lemma names present (hard gate)
-        run: make -C formal/tamarin check-lemma-names
+        run: MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' make -C formal/tamarin check-lemma-names
       - name: Install Maude + Tamarin
         run: |
+          set -euo pipefail
+
+          cleanup_formal_tool_asset() {
+            asset_path=$1
+            expected_leaf=$2
+            test -n "$asset_path" || return 0
+            asset_parent=${asset_path%/*}
+            case "$asset_parent" in
+              /tmp/qperiapt-formal-tool-asset.?*) ;;
+              *)
+                printf 'error: refusing to clean unexpected formal-tool asset path: %s\n' \
+                  "$asset_path" >&2
+                return 1
+                ;;
+            esac
+            case "${asset_parent#/tmp/}" in
+              */*)
+                printf 'error: refusing nested formal-tool asset path: %s\n' \
+                  "$asset_path" >&2
+                return 1
+                ;;
+            esac
+            asset_suffix=${asset_parent#/tmp/qperiapt-formal-tool-asset.}
+            case "$asset_suffix" in
+              "" | *[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*)
+                printf 'error: refusing malformed formal-tool asset path: %s\n' \
+                  "$asset_path" >&2
+                return 1
+                ;;
+            esac
+            if [ "${#asset_suffix}" -gt 64 ]; then
+              printf 'error: refusing oversized formal-tool asset path: %s\n' \
+                "$asset_path" >&2
+              return 1
+            fi
+            if [ -L "$asset_parent" ] || [ ! -d "$asset_parent" ]; then
+              printf 'error: refusing invalid formal-tool asset directory: %s\n' \
+                "$asset_parent" >&2
+              return 1
+            fi
+            if [ "${asset_path##*/}" != "$expected_leaf" ] || \
+              [ -L "$asset_path" ] || [ ! -f "$asset_path" ]; then
+              printf 'error: refusing to clean invalid formal-tool asset: %s\n' \
+                "$asset_path" >&2
+              return 1
+            fi
+            rm -- "$asset_path"
+            rmdir -- "$asset_parent"
+          }
+          MAUDE_ARCHIVE=
+          TAMARIN_ARCHIVE=
+          cleanup_formal_tool_assets() {
+            cleanup_status=0
+            if [ -n "$TAMARIN_ARCHIVE" ]; then
+              cleanup_formal_tool_asset \
+                "$TAMARIN_ARCHIVE" \
+                tamarin-prover-1.12.0-linux64-ubuntu.tar.gz || cleanup_status=$?
+            fi
+            if [ -n "$MAUDE_ARCHIVE" ]; then
+              cleanup_formal_tool_asset \
+                "$MAUDE_ARCHIVE" \
+                Maude-3.5.1-linux-x86_64.zip || cleanup_status=$?
+            fi
+            return "$cleanup_status"
+          }
+          trap cleanup_formal_tool_assets EXIT
+
           sudo apt-get update
           sudo apt-get install -y graphviz unzip
 
-          MAUDE_ARCHIVE=$(mktemp)
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
-            --output "$MAUDE_ARCHIVE" \
-            https://github.com/maude-lang/Maude/releases/download/Maude3.5.1/Maude-3.5.1-linux-x86_64.zip
-          printf '%s  %s\n' \
-            72ed1ca87e3b3d0dfc6ee1436baf154bf04c45ff97d521bec040c5e8dfc8f92c \
-            "$MAUDE_ARCHIVE" | sha256sum --check --strict
+          MAUDE_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset maude-3.5.1)
           sudo mkdir -p /opt/maude-3.5.1
           sudo unzip -q "$MAUDE_ARCHIVE" -d /opt/maude-3.5.1
           sudo chmod 0755 /opt/maude-3.5.1/maude
           printf '%s\n' /opt/maude-3.5.1 >> "$GITHUB_PATH"
           export PATH="/opt/maude-3.5.1:$PATH"
-          rm -f "$MAUDE_ARCHIVE"
+          cleanup_formal_tool_asset "$MAUDE_ARCHIVE" Maude-3.5.1-linux-x86_64.zip
+          MAUDE_ARCHIVE=
 
-          TAMARIN_ARCHIVE=$(mktemp)
+          TAMARIN_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset tamarin-1.12.0)
           TAMARIN_DIR=$(mktemp -d)
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
-            --output "$TAMARIN_ARCHIVE" \
-            https://github.com/tamarin-prover/tamarin-prover/releases/download/1.12.0/tamarin-prover-1.12.0-linux64-ubuntu.tar.gz
-          printf '%s  %s\n' \
-            201be06f469e47cff554df6ca93db8366fc2c69d70c61fcbd1370a1074b469c6 \
-            "$TAMARIN_ARCHIVE" | sha256sum --check --strict
           tar -xzf "$TAMARIN_ARCHIVE" -C "$TAMARIN_DIR" tamarin-prover
           sudo install -m 0755 \
             "$TAMARIN_DIR/tamarin-prover" \
             /usr/local/bin/tamarin-prover
-          rm -rf "$TAMARIN_ARCHIVE" "$TAMARIN_DIR"
-          test "$(maude --version)" = "3.5.1"
-          tamarin-prover --version
+          cleanup_formal_tool_asset \
+            "$TAMARIN_ARCHIVE" \
+            tamarin-prover-1.12.0-linux64-ubuntu.tar.gz
+          TAMARIN_ARCHIVE=
+          rm -rf "$TAMARIN_DIR"
+          trap - EXIT
+      - name: Verify pinned Tamarin and Maude identities
+        run: sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool tamarin
       - name: Machine-check handshake, migration, and countermodels (make prove)
-        run: make -C formal/tamarin prove
+        run: |
+          MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
+            make -C formal/tamarin TAMARIN=tamarin-prover \
+              DERIVCHECK_TIMEOUT=60 prove
 
   # Second, independent symbolic prover (ProVerif) for the same handshake — assurance
   # diversity. The security events + queries are presence-gated, and the ProVerif
@@ -854,6 +1270,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
       - name: Handshake events + six queries present (hard gate)
@@ -865,22 +1285,72 @@ jobs:
           test "$n" -eq 6 || { echo "expected exactly 6 queries, found $n"; exit 1; }
       - name: Install ProVerif
         run: |
+          set -euo pipefail
+
+          OPAM_BIN=
+          cleanup_opam_asset() {
+            test -n "$OPAM_BIN" || return 0
+            opam_parent=${OPAM_BIN%/*}
+            case "$opam_parent" in
+              /tmp/qperiapt-formal-tool-asset.?*) ;;
+              *)
+                printf 'error: refusing to clean unexpected opam asset path: %s\n' \
+                  "$OPAM_BIN" >&2
+                return 1
+                ;;
+            esac
+            case "${opam_parent#/tmp/}" in
+              */*)
+                printf 'error: refusing nested opam asset path: %s\n' \
+                  "$OPAM_BIN" >&2
+                return 1
+                ;;
+            esac
+            opam_suffix=${opam_parent#/tmp/qperiapt-formal-tool-asset.}
+            case "$opam_suffix" in
+              "" | *[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*)
+                printf 'error: refusing malformed opam asset path: %s\n' \
+                  "$OPAM_BIN" >&2
+                return 1
+                ;;
+            esac
+            if [ "${#opam_suffix}" -gt 64 ]; then
+              printf 'error: refusing oversized opam asset path: %s\n' \
+                "$OPAM_BIN" >&2
+              return 1
+            fi
+            if [ -L "$opam_parent" ] || [ ! -d "$opam_parent" ]; then
+              printf 'error: refusing invalid opam asset directory: %s\n' \
+                "$opam_parent" >&2
+              return 1
+            fi
+            if [ "${OPAM_BIN##*/}" != opam-2.5.2-x86_64-linux ] || \
+              [ -L "$OPAM_BIN" ] || [ ! -f "$OPAM_BIN" ]; then
+              printf 'error: refusing to clean invalid opam asset: %s\n' \
+                "$OPAM_BIN" >&2
+              return 1
+            fi
+            rm -- "$OPAM_BIN"
+            rmdir -- "$opam_parent"
+          }
+          trap cleanup_opam_asset EXIT
+
           sudo apt-get update
           sudo apt-get install -y libgtk2.0-dev ocaml pkg-config
-          OPAM_BIN=$(mktemp)
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 5 \
-            --output "$OPAM_BIN" \
-            https://github.com/ocaml/opam/releases/download/2.5.2/opam-2.5.2-x86_64-linux
-          printf '%s  %s\n' \
-            edfca2630c373b44b7ee1c2f81cd8dcf67468d0db57d6c02158de553ac63dbd4 \
-            "$OPAM_BIN" | sha256sum --check --strict
+          OPAM_BIN=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset opam-2.5.2)
           sudo install -m 0755 "$OPAM_BIN" /usr/local/bin/opam
-          rm -f "$OPAM_BIN"
+          cleanup_opam_asset
+          OPAM_BIN=
           test "$(opam --version)" = "2.5.2"
           opam init -y --disable-sandboxing --no-setup
           opam install -y proverif.2.05
+          trap - EXIT
+      - name: Verify pinned ProVerif identity
+        run: opam exec -- sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool proverif
       - name: Machine-check the handshake model (queries must hold)
-        run: opam exec -- make -C formal/proverif prove
+        run: |
+          MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
+            opam exec -- make -C formal/proverif PROVERIF=proverif prove
 
   # Still TODO as harnesses land (see ctstats/README.md):
   #   - extend the `constant-time` Memcheck/TIMECOP gate to the remaining primitive/backend

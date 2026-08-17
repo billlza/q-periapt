@@ -43,22 +43,27 @@ use sha3::{
 const Z_OFFSET: usize = ML_KEM_768_SK_LEN - 32; // 2368: the implicit-rejection seed.
 
 fn input<'a>(
+    profile: Profile,
     ss_pq: &'a [u8],
     pk_pq: &'a [u8],
     ct_pq: &'a [u8],
     common: (&'a [u8], &'a [u8], &'a [u8]),
 ) -> CombineInput<'a> {
     let (ss_trad, ct_trad, pk_trad) = common;
+    let (suite_id, policy_version, context): (&[u8], u32, &[u8]) = match profile {
+        Profile::CompatXWing => (b"", 0, b""),
+        Profile::ContextBound => (b"S", 1, b"ctx"),
+    };
     CombineInput {
-        suite_id: b"S",
-        policy_version: 1,
+        suite_id,
+        policy_version,
         ss_pq,
         ss_trad,
         ct_pq,
         pk_pq,
         ct_trad,
         pk_trad,
-        context: b"ctx",
+        context,
     }
 }
 
@@ -113,12 +118,12 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
     //      over THIS dk format. (Seed-dk X-Wing is unaffected.)
     let lean1 = combine::<Sha3_256Xof>(
         Profile::CompatXWing,
-        &input(&ss1, &ek1, &ct_garbage, common),
+        &input(Profile::CompatXWing, &ss1, &ek1, &ct_garbage, common),
     )
     .unwrap();
     let lean2 = combine::<Sha3_256Xof>(
         Profile::CompatXWing,
-        &input(&ss1, &ek2, &ct_garbage, common),
+        &input(Profile::CompatXWing, &ss1, &ek2, &ct_garbage, common),
     )
     .unwrap();
     assert_eq!(
@@ -131,12 +136,12 @@ fn lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it() {
     //      hybrid keys ⇒ K-PK holds under CR(SHA3) alone, independent of the component dk format.
     let cb1 = combine::<Sha3_256Xof>(
         Profile::ContextBound,
-        &input(&ss1, &ek1, &ct_garbage, common),
+        &input(Profile::ContextBound, &ss1, &ek1, &ct_garbage, common),
     )
     .unwrap();
     let cb2 = combine::<Sha3_256Xof>(
         Profile::ContextBound,
-        &input(&ss1, &ek2, &ct_garbage, common),
+        &input(Profile::ContextBound, &ss1, &ek2, &ct_garbage, common),
     )
     .unwrap();
     assert_ne!(
@@ -214,12 +219,12 @@ fn seed_dk_control_z_bound_to_key_closes_schmieg_vector() {
     let common = (&ss_trad[..], &ct_trad[..], &pk_trad[..]);
     let lean1 = combine::<Sha3_256Xof>(
         Profile::CompatXWing,
-        &input(&ss1, &ek1, &ct_garbage, common),
+        &input(Profile::CompatXWing, &ss1, &ek1, &ct_garbage, common),
     )
     .unwrap();
     let lean2 = combine::<Sha3_256Xof>(
         Profile::CompatXWing,
-        &input(&ss2, &ek2, &ct_garbage, common),
+        &input(Profile::CompatXWing, &ss2, &ek2, &ct_garbage, common),
     )
     .unwrap();
     assert_ne!(

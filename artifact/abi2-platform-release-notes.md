@@ -72,9 +72,17 @@ gh release verify-asset abi2-platforms-v0.1.0-alpha.2-r2 ./PATH_TO_ASSET \
   --repo billlza/q-periapt
 ```
 
-### Release operator before assembly
+### Historical release-time operator transcript
 
-The release operator must verify all five CI-built packages plus the candidate
+The two-argument verifier below records the release-time transaction that ran from
+the clean r2 tag checkout while `origin/main` still named the same commit. It is not
+a current-HEAD command: the frozen verifier correctly rejects replay after main has
+advanced. Audit its historical bytes with
+`git show abi2-platforms-v0.1.0-alpha.2-r2:artifact/verify-platform-candidate.sh`.
+Current verification instead uses the r2-pinned per-asset attestation and immutable
+release commands below together with the frozen `platform_r2` receipt.
+
+At release time, the operator verified all five CI-built packages plus the candidate
 checksum manifest (six attested subjects total) before adding locally generated
 Android runtime evidence and assembling the final release:
 

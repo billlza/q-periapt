@@ -14,7 +14,7 @@ import sys
 import unicodedata
 from dataclasses import dataclass
 from collections.abc import Callable
-from typing import Any, NoReturn
+from typing import Any, Literal, NoReturn
 
 if os.name == "nt":
     import ctypes
@@ -27,6 +27,69 @@ DEFAULT_JSON_MAX_BYTES = 16 * 1024 * 1024
 
 class EvidenceIOError(ValueError):
     """An evidence file cannot be read as one stable, strict snapshot."""
+
+
+_OwnedDescriptorStatus = Literal["owned", "released", "unknown"]
+
+
+@dataclass(slots=True)
+class OwnedFileDescriptorLease:
+    """One held descriptor with conservative interrupted-close ownership.
+
+    The lease is a reliability primitive, not an authenticity boundary.  It
+    calls ``close`` at most once.  An interrupted close has inherently
+    ambiguous effect, so the descriptor is released from this lease as
+    ``unknown`` and is never probed or retried: a descriptor number can be
+    reused for another open description of the same inode, which no ``fstat``
+    comparison can distinguish safely.
+    """
+
+    descriptor: int
+    label: str
+    status: _OwnedDescriptorStatus = "owned"
+
+    @classmethod
+    def acquire(
+        cls,
+        descriptor: int,
+        *,
+        label: str,
+    ) -> "OwnedFileDescriptorLease":
+        """Take cleanup ownership of an already-open descriptor."""
+
+        return cls(
+            descriptor=descriptor,
+            label=label,
+        )
+
+    @property
+    def is_owned(self) -> bool:
+        return self.status == "owned"
+
+    def _release(self, status: Literal["released", "unknown"]) -> None:
+        self.status = status
+        self.descriptor = -1
+
+    def _close_once(self) -> None:
+        """Attempt exactly one close after irrevocably yielding lease ownership."""
+
+        descriptor = self.descriptor
+        self._release("unknown")
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            exc.add_note(
+                f"descriptor close effect is unknown for {self.label}"
+            )
+            raise
+        self.status = "released"
+
+    def close(self) -> None:
+        """Close at most once; interrupted effect remains explicitly unknown."""
+
+        if not self.is_owned:
+            return
+        self._close_once()
 
 
 @dataclass(frozen=True, slots=True)
@@ -765,19 +828,37 @@ def _open_regular_no_symlinks_posix(path: pathlib.Path) -> int:
     if ".." in lexical.parts:
         raise EvidenceIOError(f"evidence path must not contain '..': {path}")
     absolute = pathlib.Path(os.path.abspath(lexical))
+    if absolute.anchor != "/":
+        raise EvidenceIOError(f"evidence path has an ambiguous POSIX root: {path}")
     # macOS exposes three fixed root aliases.  Permit only these operating-system
     # aliases; every caller-controlled component is still walked with O_NOFOLLOW.
     if sys.platform == "darwin" and len(absolute.parts) >= 2:
         alias = absolute.parts[1]
-        expected = {"etc": "private/etc", "tmp": "private/tmp", "var": "private/var"}.get(alias)
-        if expected is not None:
-            alias_path = pathlib.Path(absolute.anchor) / alias
-            try:
-                target = os.readlink(alias_path)
-            except OSError:
-                target = ""
-            if target.lstrip("/") == expected:
-                absolute = pathlib.Path("/private") / alias / pathlib.Path(*absolute.parts[2:])
+        target: str | None = None
+        expected: str | None = None
+        destination: pathlib.Path | None = None
+        try:
+            if alias == "etc":
+                target = os.readlink("/etc")
+                expected = "private/etc"
+                destination = pathlib.Path("/private/etc")
+            elif alias == "tmp":
+                target = os.readlink("/tmp")
+                expected = "private/tmp"
+                destination = pathlib.Path("/private/tmp")
+            elif alias == "var":
+                target = os.readlink("/var")
+                expected = "private/var"
+                destination = pathlib.Path("/private/var")
+        except OSError:
+            target = None
+        if (
+            target is not None
+            and expected is not None
+            and destination is not None
+            and target in {expected, f"/{expected}"}
+        ):
+            absolute = destination / pathlib.Path(*absolute.parts[2:])
     parts = absolute.parts
     if not parts or parts[0] != absolute.anchor or len(parts) < 2:
         raise EvidenceIOError(f"evidence path must name a file: {path}")
@@ -789,17 +870,38 @@ def _open_regular_no_symlinks_posix(path: pathlib.Path) -> int:
         | getattr(os, "O_NONBLOCK", 0)
         | getattr(os, "O_CLOEXEC", 0)
     )
-    directory_fd = os.open(absolute.anchor, directory_flags)
+    try:
+        directory_fd = os.open("/", directory_flags)
+    except OSError as exc:
+        raise EvidenceIOError(
+            f"cannot safely open evidence file {path}: {exc}"
+        ) from exc
+    directory_lease = OwnedFileDescriptorLease.acquire(
+        directory_fd,
+        label="evidence path directory",
+    )
     try:
         for component in parts[1:-1]:
-            next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
-            os.close(directory_fd)
-            directory_fd = next_fd
-        return os.open(parts[-1], file_flags, dir_fd=directory_fd)
+            next_fd = os.open(
+                component,
+                directory_flags,
+                dir_fd=directory_lease.descriptor,
+            )
+            previous_lease = directory_lease
+            directory_lease = OwnedFileDescriptorLease.acquire(
+                next_fd,
+                label="evidence path directory",
+            )
+            previous_lease.close()
+        return os.open(
+            parts[-1],
+            file_flags,
+            dir_fd=directory_lease.descriptor,
+        )
     except OSError as exc:
         raise EvidenceIOError(f"cannot safely open evidence file {path}: {exc}") from exc
     finally:
-        os.close(directory_fd)
+        directory_lease.close()
 
 
 def _open_regular_no_symlinks(path: pathlib.Path) -> int:

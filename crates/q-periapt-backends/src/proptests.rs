@@ -79,6 +79,23 @@ proptest! {
         prop_assert_eq!(secret(Profile::CompatXWing, &inp), Err(Error::InvalidLength));
     }
 
+    /// CompatXWing has no suite/version/context inputs. Any supplied metadata must fail as a
+    /// policy error instead of being silently discarded or reaching the length/hash path.
+    #[test]
+    fn compat_xwing_rejects_noncanonical_metadata(
+        suite in prop::collection::vec(any::<u8>(), 0..32),
+        version in any::<u32>(),
+        context in prop::collection::vec(any::<u8>(), 0..64),
+        field in any::<[u8; 32]>(),
+    ) {
+        prop_assume!(!suite.is_empty() || version != 0 || !context.is_empty());
+        let inp = CombineInput {
+            suite_id: &suite, policy_version: version, ss_pq: &field, ss_trad: &field,
+            ct_pq: &[], pk_pq: &[], ct_trad: &field, pk_trad: &field, context: &context,
+        };
+        prop_assert_eq!(secret(Profile::CompatXWing, &inp), Err(Error::PolicyDenied));
+    }
+
     /// ContextBound requires a non-empty context as an explicit-label profile rule;
     /// fixed-width encoding injectivity itself does not require this guard.
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "q-periapt-rustls"
-description = "Production-stack integration demo for Q-Periapt's private-use rustls TLS 1.3 key-exchange group"
+description = "Research integration of Q-Periapt's private-use hybrid groups with rustls TLS 1.3"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,15 +15,15 @@ workspace = true
 
 [dependencies]
 # ring-only base provider: no aws-lc-sys C library in the production tree, TLS 1.3 only
-# (the IANA-standard X25519MLKEM768 baseline used by the netem bench is behind `bench-baseline`).
+# (the RFC 10024 X25519MLKEM768 baseline used by tests/netem is behind `bench-baseline`).
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging"] }
-q-periapt-core = { version = "=0.1.0-alpha.2", path = "../q-periapt-core" }
-q-periapt-kem = { version = "=0.1.0-alpha.2", path = "../q-periapt-kem" }
-q-periapt-backends = { version = "=0.1.0-alpha.2", path = "../q-periapt-backends" }
-q-periapt-policy = { version = "=0.1.0-alpha.2", path = "../q-periapt-policy" }
+q-periapt-core = { version = "=0.1.0", path = "../q-periapt-core" }
+q-periapt-kem = { version = "=0.1.0", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "=0.1.0", path = "../q-periapt-backends" }
+q-periapt-policy = { version = "=0.1.0", path = "../q-periapt-policy" }
 
 [features]
-# Only the netem benchmark's X25519MLKEM768 reference arm needs aws-lc-rs; opt-in so the
+# Only the RFC 10024 comparison tests/netem arm need aws-lc-rs; opt-in so the
 # production library never pulls the aws-lc-sys C backend.
 bench-baseline = ["rustls/aws_lc_rs"]
 

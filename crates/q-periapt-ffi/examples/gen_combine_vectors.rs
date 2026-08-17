@@ -97,7 +97,7 @@ fn main() {
     // The injectivity collision pair (identical naive concat, distinct keys).
     emit(cb, 2, b"S", 9, b"AB", b"X", b"C", b"D", b"E", b"F", b"ctx");
     emit(cb, 2, b"S", 9, b"A", b"BX", b"C", b"D", b"E", b"F", b"ctx");
-    // CompatXWing (its four absorbed fields are the 32-byte ss/ct/pk; others ignored).
+    // CompatXWing (its four absorbed fields are the 32-byte ss/ct/pk; metadata is absent).
     emit(
         Profile::CompatXWing,
         1,

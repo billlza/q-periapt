@@ -86,9 +86,9 @@ if [ "$#" -ne 0 ]; then
 	exit 2
 fi
 
-PRODUCT_VERSION="0.1.0-alpha.2"
+PRODUCT_VERSION="0.1.0"
 RELEASE_REVISION="r1"
-RELEASE_TAG="v$PRODUCT_VERSION-$RELEASE_REVISION"
+RELEASE_TAG="v$PRODUCT_VERSION"
 EXPECTED_TEAM_ID="YKUPL7Z869"
 EXPECTED_IDENTITY_SHA1="2DA7764ED42B213AE04925B6261238B24C758FE1"
 EXPECTED_CERTIFICATE_SHA256="806673908A3DDCD558DCC8D3EF055085F1FFF100BDA0ACFB2E1315AFD652AC8D"
@@ -250,8 +250,6 @@ trap cleanup_release_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-release_main_git worktree add --detach "$WORKTREE_ROOT" "$SOURCE_COMMIT"
-WORKTREE_CREATED=1
 python3 - "$RELEASE_ROOT" <<'PY'
 import os
 import pathlib
@@ -269,6 +267,9 @@ if (
         f"error: private Apple release root must be a current-user 0700 directory: {release_root}"
     )
 PY
+umask 022
+release_main_git worktree add --detach "$WORKTREE_ROOT" "$SOURCE_COMMIT"
+WORKTREE_CREATED=1
 if ! WORKTREE_COMMIT=$(release_worktree_git rev-parse HEAD) || \
 	! WORKTREE_TOPLEVEL=$(release_worktree_git rev-parse --show-toplevel) || \
 	! WORKTREE_COMMON_GIT_DIR=$(release_worktree_git rev-parse --path-format=absolute --git-common-dir) || \
@@ -430,23 +431,115 @@ finally:
 PY
 cleanup_owned_release_worktree
 python3 - "$COMPLETION_PENDING" "$COMPLETION_LEDGER" <<'PY'
+import ctypes
+import errno
 import os
 import pathlib
+import stat
 import sys
 
 pending = pathlib.Path(sys.argv[1])
 completed = pathlib.Path(sys.argv[2])
-if not pending.is_file() or pending.is_symlink() or os.path.lexists(completed):
+if (
+    pending.parent != completed.parent
+    or pending.name != "completed.json.pending"
+    or completed.name != "completed.json"
+):
     raise SystemExit("error: Apple release completion ledger state is invalid")
-os.rename(pending, completed)
 directory = os.open(
     completed.parent,
-    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+    os.O_RDONLY
+    | getattr(os, "O_DIRECTORY", 0)
+    | getattr(os, "O_NOFOLLOW", 0)
+    | getattr(os, "O_CLOEXEC", 0),
 )
+primary_error = None
 try:
+    directory_metadata = os.fstat(directory)
+    pending_metadata = os.stat(
+        pending.name,
+        dir_fd=directory,
+        follow_symlinks=False,
+    )
+    if (
+        not stat.S_ISDIR(directory_metadata.st_mode)
+        or directory_metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(directory_metadata.st_mode) != 0o700
+        or not stat.S_ISREG(pending_metadata.st_mode)
+        or pending_metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(pending_metadata.st_mode) != 0o600
+        or pending_metadata.st_nlink != 1
+    ):
+        raise SystemExit("error: Apple release completion ledger state is invalid")
+
+    library = ctypes.CDLL(None, use_errno=True)
+    if sys.platform == "darwin":
+        rename_noreplace = getattr(library, "renameatx_np", None)
+        rename_flag = 0x00000004  # RENAME_EXCL
+    elif sys.platform.startswith("linux"):
+        rename_noreplace = getattr(library, "renameat2", None)
+        rename_flag = 0x00000001  # RENAME_NOREPLACE
+    else:
+        rename_noreplace = None
+        rename_flag = 0
+    if rename_noreplace is None:
+        raise SystemExit(
+            "error: atomic no-replace completion publication is unsupported"
+        )
+    rename_noreplace.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    rename_noreplace.restype = ctypes.c_int
+    ctypes.set_errno(0)
+    result = rename_noreplace(
+        directory,
+        os.fsencode(pending.name),
+        directory,
+        os.fsencode(completed.name),
+        rename_flag,
+    )
+    if result != 0:
+        error_number = ctypes.get_errno()
+        if error_number == errno.EEXIST:
+            raise SystemExit(
+                "error: Apple release completion ledger already exists"
+            )
+        if error_number == 0:
+            raise SystemExit(
+                "error: atomic no-replace completion publication failed without errno"
+            )
+        raise OSError(error_number, os.strerror(error_number))
+
+    completed_metadata = os.stat(
+        completed.name,
+        dir_fd=directory,
+        follow_symlinks=False,
+    )
+    if (
+        completed_metadata.st_dev != pending_metadata.st_dev
+        or completed_metadata.st_ino != pending_metadata.st_ino
+        or completed_metadata.st_nlink != 1
+        or stat.S_IMODE(completed_metadata.st_mode) != 0o600
+    ):
+        raise SystemExit("error: Apple release completion ledger identity changed")
     os.fsync(directory)
+except BaseException as exc:
+    primary_error = exc
+    raise
 finally:
-    os.close(directory)
+    try:
+        os.close(directory)
+    except OSError as exc:
+        if primary_error is not None:
+            primary_error.add_note(
+                f"closing the completion directory also failed: {exc}"
+            )
+        else:
+            raise
 PY
 RELEASE_COMPLETED=1
 printf 'APPLE_RELEASE_PUBLIC_COPY_PASS source_commit=%s path=%s source_worktree_cleaned=true completion_ledger=true\n' \

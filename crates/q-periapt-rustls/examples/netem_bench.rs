@@ -58,10 +58,10 @@ fn provider_for(kind: &str) -> (CryptoProvider, &'static str) {
             (p, "X25519 (classical baseline)")
         }
         "standard" => {
-            // The IANA-standard PQ/T hybrid group (concatenation combiner), via aws-lc-rs.
+            // The RFC 10024 PQ/T group (RFC 9954 concatenation), via aws-lc-rs.
             let mut p = rustls::crypto::aws_lc_rs::default_provider();
             p.kx_groups = vec![rustls::crypto::aws_lc_rs::kx_group::X25519MLKEM768];
-            (p, "X25519MLKEM768 (IANA standard hybrid)")
+            (p, "X25519MLKEM768 (RFC 10024 standard hybrid)")
         }
         "compat" => (
             one_group(
