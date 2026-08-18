@@ -1,0 +1,59 @@
+name: apply and merge focused security closure
+
+on:
+  push:
+    branches:
+      - maintenance/security-closure-transfer
+    paths:
+      - security-closure.patch
+      - .github/workflows/apply-merge-security-closure.yml
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_COMMIT: 391d6ef3fc04f153eeca31b2560f1d8741570bf5
+      FEATURE_BRANCH: fix/authority-confirmation-closure
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Verify and apply reviewed patch
+        run: |
+          set -euo pipefail
+          test -s security-closure.patch
+          grep -q '^From ' security-closure.patch
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$BASE_COMMIT"
+          git checkout -B "$FEATURE_BRANCH" origin/main
+          git am --committer-date-is-author-date security-closure.patch
+          if git log "$BASE_COMMIT"..HEAD --format='%B' | grep -Eiq 'Claude|Anthropic|Generated with|Co-Authored-By:.*(AI|agent|model|tool)'; then
+            echo 'forbidden attribution in commit metadata' >&2
+            exit 2
+          fi
+          git push --force-with-lease origin "HEAD:refs/heads/$FEATURE_BRANCH"
+      - name: Open or reuse pull request
+        id: pr
+        run: |
+          set -euo pipefail
+          pr_url=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$FEATURE_BRANCH" --base main --state open --json url --jq '.[0].url // empty')
+          if [ -z "$pr_url" ]; then
+            cat > /tmp/body.md <<'EOF'
+Closes the remaining Authority acceptance-linearization, lease-expiry exposure, and Finished key-confirmation gaps. Existing Authority V2 mutations are wired into the product path; responder Finished and accepted-key handles are exposed only after authoritative registration; Finished uses role-separated HMAC-SHA3-256 with constant-time verification and zeroization. ABI 2 remains frozen, and formal claims remain limited to the supported PRF/EUF-CMA boundary.
+EOF
+            pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$FEATURE_BRANCH" --title 'Close authority and key-confirmation exposure gaps' --body-file /tmp/body.md)
+          fi
+          printf 'url=%s\n' "$pr_url" >> "$GITHUB_OUTPUT"
+      - name: Wait for protected checks
+        run: gh pr checks "${{ steps.pr.outputs.url }}" --repo "$GITHUB_REPOSITORY" --watch --interval 30 --fail-fast
+      - name: Merge without bypassing protection
+        run: gh pr merge "${{ steps.pr.outputs.url }}" --repo "$GITHUB_REPOSITORY" --merge --delete-branch
