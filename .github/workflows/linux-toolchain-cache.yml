@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - maintenance/linux-toolchain-cache
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   package:
+    if: github.head_ref == 'maintenance/linux-toolchain-cache' || github.ref == 'refs/heads/maintenance/linux-toolchain-cache'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
