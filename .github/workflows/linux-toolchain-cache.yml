@@ -1,0 +1,45 @@
+name: isolated Linux toolchain cache
+
+on:
+  push:
+    branches:
+      - maintenance/linux-toolchain-cache
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    if: github.head_ref == 'maintenance/linux-toolchain-cache' || github.ref == 'refs/heads/maintenance/linux-toolchain-cache'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: 391d6ef3fc04f153eeca31b2560f1d8741570bf5
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.96.1
+          components: rustfmt, clippy
+      - name: Vendor exact locked dependencies
+        run: cargo +1.96.1 vendor --locked /tmp/qperiapt-vendor > /tmp/vendor-config.toml
+      - name: Package relocatable toolchain and vendor tree
+        run: |
+          set -eu
+          sysroot=$(rustc +1.96.1 --print sysroot)
+          tar -C "$(dirname "$sysroot")" -cf /tmp/rust-toolchain.tar "$(basename "$sysroot")"
+          tar -C /tmp -cf /tmp/qperiapt-vendor.tar qperiapt-vendor vendor-config.toml
+          sha256sum /tmp/rust-toolchain.tar /tmp/qperiapt-vendor.tar > /tmp/SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qperiapt-linux-build-cache
+          path: |
+            /tmp/rust-toolchain.tar
+            /tmp/qperiapt-vendor.tar
+            /tmp/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 1
