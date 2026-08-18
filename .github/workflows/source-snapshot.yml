@@ -1,0 +1,38 @@
+name: isolated source snapshot
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    if: github.head_ref == 'maintenance/source-snapshot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: Verify and archive the exact base commit
+        env:
+          EXPECTED_COMMIT: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eu
+          actual_commit=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$actual_commit" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          git archive --format=tar.gz --output=q-periapt-main.tar.gz HEAD
+          /usr/bin/sha256sum q-periapt-main.tar.gz > q-periapt-main.tar.gz.sha256
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: q-periapt-main-source
+          path: |
+            q-periapt-main.tar.gz
+            q-periapt-main.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
