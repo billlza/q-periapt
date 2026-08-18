@@ -1,0 +1,73 @@
+name: Text integrity scan
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: 391d6ef3fc04f153eeca31b2560f1d8741570bf5
+      - name: Scan exact tracked bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 391d6ef3fc04f153eeca31b2560f1d8741570bf5
+          /usr/bin/python3 - <<'PY'
+          import json, os, pathlib, subprocess, unicodedata
+          root = pathlib.Path.cwd()
+          terms = [b"cl"+b"aude", b"anth"+b"ropic", b"noreply@"+b"anth"+b"ropic.com"]
+          fixed = set([0x00AD,0x034F,0x061C,0x180E,0x200B,0x200C,0x200D,0x200E,0x200F,
+                       0x202A,0x202B,0x202C,0x202D,0x202E,0x2060,0x2061,0x2062,0x2063,0x2064,
+                       0x2066,0x2067,0x2068,0x2069,0xFEFF,0xFFF9,0xFFFA,0xFFFB]) | set(range(0x206A,0x2070))
+          def suspicious(cp, i):
+              if cp == 0xFEFF and i == 0: return None
+              if cp in fixed: return "review" if cp in (0x200C,0x200D) else "high"
+              if 0xE0000 <= cp <= 0xE007F: return "high"
+              if 0xFE00 <= cp <= 0xFE0F or 0xE0100 <= cp <= 0xE01EF: return "review"
+              return "review" if unicodedata.category(chr(cp)) in ("Cf","Co") else None
+          def decode(data):
+              if data.startswith(b"\xef\xbb\xbf"): return data[3:].decode(), "utf-8", 3
+              if data.startswith(b"\xff\xfe"): return data[2:].decode("utf-16-le"), "utf-16-le", 2
+              if data.startswith(b"\xfe\xff"): return data[2:].decode("utf-16-be"), "utf-16-be", 2
+              try: return data.decode(), "utf-8", 0
+              except UnicodeDecodeError: return None
+          raw = subprocess.check_output(["git","ls-files","-s","-z"])
+          entries=[]
+          for rec in raw.split(b"\0"):
+              if rec:
+                  meta,p=rec.split(b"\t",1); entries.append((meta.split(b" ",1)[0].decode(),os.fsdecode(p)))
+          findings=[]; total=0
+          for mode,path in entries:
+              if mode=="160000": data=b""
+              elif mode=="120000": data=os.readlink(root/path).encode("utf-8","surrogateescape")
+              else: data=(root/path).read_bytes()
+              total+=len(data); low=data.lower()
+              for term in terms:
+                  start=0
+                  while True:
+                      pos=low.find(term,start)
+                      if pos<0: break
+                      findings.append({"path":path,"kind":"attribution_marker","severity":"high","byte_offset":pos,"term":term.decode()}); start=pos+1
+              d=decode(data)
+              if d:
+                  text,enc,offset=d; line=col=1
+                  for i,ch in enumerate(text):
+                      cp=ord(ch); sev=suspicious(cp,i)
+                      if sev:
+                          findings.append({"path":path,"kind":"unicode","severity":sev,"codepoint":f"U+{cp:04X}","name":unicodedata.name(ch,"UNNAMED"),"byte_offset":offset,"line":line,"column":col,"context":text[max(0,i-20):i+21].encode("unicode_escape").decode()})
+                      if cp<0x20 and ch not in "\t\n\r\f":
+                          findings.append({"path":path,"kind":"ascii_control","severity":"high","codepoint":f"U+{cp:04X}","byte_offset":offset,"line":line,"column":col})
+                      offset+=len(ch.encode(enc)); line,col=(line+1,1) if ch=="\n" else (line,col+1)
+          result={"source_commit":"391d6ef3fc04f153eeca31b2560f1d8741570bf5","tracked_entries":len(entries),"total_blob_bytes":total,"finding_count":len(findings),"high_count":sum(x["severity"]=="high" for x in findings),"review_count":sum(x["severity"]=="review" for x in findings),"findings":findings}
+          print("TEXT_INTEGRITY_RESULT "+json.dumps(result,sort_keys=True,ensure_ascii=True))
+          PY
