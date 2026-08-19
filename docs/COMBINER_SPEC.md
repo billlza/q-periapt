@@ -42,9 +42,10 @@ Do not deploy.
 ML-KEM backend selection is below this byte contract. Exactly the little-endian
 targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
 `aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
-`aarch64-linux-android` use upstream native arithmetic plus fixed Armv8-A scalar
-x1 and scalar/Neon x4 FIPS 202 assembly; every other target, including Wasm, uses
-portable C. There is no runtime dispatch or Armv8.4-A SHA3 path. The selection
+`aarch64-linux-android` use upstream native arithmetic plus a fixed per-target
+FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on `aarch64-apple-darwin` and
+`aarch64-apple-ios-sim`, Armv8-A scalar x1 and scalar/Neon x4 elsewhere); every
+other target, including Wasm, uses portable C. There is no runtime dispatch. The selection
 does not change ABI 2, ML-KEM key/ciphertext encodings, or any combiner input/output
 byte defined below. Upstream HOL-Light evidence is limited to selected upstream
 assembly source/object routines and is not a proof of downstream reassembly, the

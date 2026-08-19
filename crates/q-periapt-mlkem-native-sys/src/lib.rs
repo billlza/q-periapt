@@ -7,8 +7,10 @@
 
 //! Safe, allocation-free Rust boundary for the target-selected `mlkem-native`
 //! implementation. Five reviewed little-endian AArch64 targets use the pinned
-//! upstream native arithmetic and fixed Armv8-A FIPS 202 assembly profile;
-//! every other target uses portable C.
+//! upstream native arithmetic with a fixed per-target FIPS 202 assembly
+//! profile: the Apple Silicon slices (arm64 macOS, arm64 iOS simulator) pin
+//! the Armv8.4-A SHA3 backends and every other AArch64 target pins the
+//! Armv8-A baseline; every non-AArch64 target uses portable C.
 //!
 //! All public operations use exact-size arrays and caller-owned output
 //! buffers. Outputs are zero before entering C and are zeroed again whenever

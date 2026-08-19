@@ -7,11 +7,14 @@ use core::{fmt, str};
 pub(crate) const PORTABLE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/portable-c";
 pub(crate) const AARCH64_NATIVE_IMPLEMENTATION_ID: &str =
     "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar";
+pub(crate) const AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID: &str =
+    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum MlKemImplementation {
     Portable,
     Aarch64Native,
+    Aarch64NativeSha3,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,7 +34,7 @@ pub(crate) const fn compiler_family_is_supported(
             family,
             CCompilerFamily::Msvc | CCompilerFamily::Clang | CCompilerFamily::Gnu
         ),
-        MlKemImplementation::Aarch64Native => {
+        MlKemImplementation::Aarch64Native | MlKemImplementation::Aarch64NativeSha3 => {
             matches!(family, CCompilerFamily::Clang | CCompilerFamily::Gnu)
         }
     }
@@ -42,18 +45,27 @@ impl MlKemImplementation {
         match self {
             Self::Portable => PORTABLE_IMPLEMENTATION_ID,
             Self::Aarch64Native => AARCH64_NATIVE_IMPLEMENTATION_ID,
+            Self::Aarch64NativeSha3 => AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID,
         }
     }
 
     pub(crate) const fn uses_aarch64_native(self) -> bool {
-        matches!(self, Self::Aarch64Native)
+        matches!(self, Self::Aarch64Native | Self::Aarch64NativeSha3)
+    }
+
+    pub(crate) const fn aarch64_march_flag(self) -> Option<&'static str> {
+        match self {
+            Self::Portable => None,
+            Self::Aarch64Native => Some("-march=armv8-a+nosha3"),
+            Self::Aarch64NativeSha3 => Some("-march=armv8.4-a+sha3"),
+        }
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NativeCompilerArgumentsError<'argument> {
-    MissingArmv8Baseline,
-    DuplicateArmv8Baseline,
+    MissingArmv8Baseline(&'static str),
+    DuplicateArmv8Baseline(&'static str),
     MissingPlatformDefine(&'static str),
     DuplicatePlatformDefine(&'argument str),
     Forbidden(&'argument str),
@@ -62,11 +74,11 @@ pub(crate) enum NativeCompilerArgumentsError<'argument> {
 impl fmt::Display for NativeCompilerArgumentsError<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingArmv8Baseline => {
-                formatter.write_str("the owned -march=armv8-a+nosha3 flag is missing")
+            Self::MissingArmv8Baseline(flag) => {
+                write!(formatter, "the owned {flag} flag is missing")
             }
-            Self::DuplicateArmv8Baseline => {
-                formatter.write_str("the owned -march=armv8-a+nosha3 flag is not unique")
+            Self::DuplicateArmv8Baseline(flag) => {
+                write!(formatter, "the owned {flag} flag is not unique")
             }
             Self::MissingPlatformDefine(argument) => {
                 write!(
@@ -117,12 +129,13 @@ fn is_forbidden_native_compiler_argument(argument: &str) -> bool {
 
 pub(crate) fn validate_native_compiler_arguments<'argument>(
     arguments: impl IntoIterator<Item = &'argument str>,
+    expected_march: &'static str,
     required_platform_define: Option<&'static str>,
 ) -> Result<(), NativeCompilerArgumentsError<'argument>> {
     let mut baseline_count = 0_u8;
     let mut platform_define_count = 0_u8;
     for argument in arguments {
-        if argument == "-march=armv8-a+nosha3" {
+        if argument == expected_march {
             baseline_count = baseline_count.saturating_add(1);
             continue;
         }
@@ -135,10 +148,14 @@ pub(crate) fn validate_native_compiler_arguments<'argument>(
         }
     }
     if baseline_count == 0 {
-        return Err(NativeCompilerArgumentsError::MissingArmv8Baseline);
+        return Err(NativeCompilerArgumentsError::MissingArmv8Baseline(
+            expected_march,
+        ));
     }
     if baseline_count != 1 {
-        return Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline);
+        return Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline(
+            expected_march,
+        ));
     }
     if let Some(argument) = required_platform_define {
         return match platform_define_count {
@@ -224,34 +241,46 @@ impl fmt::Display for NativeTargetMetadataError {
 #[derive(Clone, Copy)]
 struct ExpectedNativeTarget {
     environment: &'static str,
+    implementation: MlKemImplementation,
     operating_system: &'static str,
     vendor: &'static str,
 }
 
 fn expected_native_target(target: &str) -> Option<ExpectedNativeTarget> {
+    // The SHA3 profile is limited to targets whose entire install base
+    // guarantees FEAT_SHA3: arm64 macOS (Apple M-series only) and the arm64
+    // iOS simulator (executes only on Apple Silicon hosts). The iOS device
+    // slice, Android, and generic Linux keep the fixed Armv8-A scalar
+    // profile because their supported hardware includes CPUs without the
+    // SHA3 extension.
     match target {
         "aarch64-apple-darwin" => Some(ExpectedNativeTarget {
             environment: "",
+            implementation: MlKemImplementation::Aarch64NativeSha3,
             operating_system: "macos",
             vendor: "apple",
         }),
         "aarch64-apple-ios" => Some(ExpectedNativeTarget {
             environment: "",
+            implementation: MlKemImplementation::Aarch64Native,
             operating_system: "ios",
             vendor: "apple",
         }),
         "aarch64-apple-ios-sim" => Some(ExpectedNativeTarget {
             environment: "sim",
+            implementation: MlKemImplementation::Aarch64NativeSha3,
             operating_system: "ios",
             vendor: "apple",
         }),
         "aarch64-unknown-linux-gnu" => Some(ExpectedNativeTarget {
             environment: "gnu",
+            implementation: MlKemImplementation::Aarch64Native,
             operating_system: "linux",
             vendor: "unknown",
         }),
         "aarch64-linux-android" => Some(ExpectedNativeTarget {
             environment: "",
+            implementation: MlKemImplementation::Aarch64Native,
             operating_system: "android",
             vendor: "unknown",
         }),
@@ -285,7 +314,7 @@ pub(crate) fn select_mlkem_implementation(
     if target_vendor != expected.vendor {
         return Err(NativeTargetMetadataError::Vendor);
     }
-    Ok(MlKemImplementation::Aarch64Native)
+    Ok(expected.implementation)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

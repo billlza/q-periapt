@@ -32,8 +32,29 @@
 #if !defined(__AARCH64EL__) || defined(__AARCH64EB__)
 #error The owned AArch64 backend requires little-endian AArch64 compiler metadata
 #endif
+/*
+ * Each owned AArch64 FIPS 202 profile is fixed per target: arm64 macOS and
+ * the arm64 iOS simulator execute only on Apple Silicon hosts (FEAT_SHA3
+ * guaranteed) and must compile the Armv8.4-A SHA3 profile, while the iOS
+ * device slice, Android, and generic Linux support CPUs without the SHA3
+ * extension and must compile the Armv8-A baseline profile. A mismatch here
+ * means the compiler driver drifted from the owned -march pin.
+ */
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_OSX || TARGET_OS_SIMULATOR
+#if !defined(__ARM_FEATURE_SHA3)
+#error The owned Apple Silicon slices require the fixed Armv8.4-A SHA3 FIPS 202 profile
+#endif
+#else
 #if defined(__ARM_FEATURE_SHA3)
-#error The owned AArch64 backend requires the fixed Armv8-A FIPS 202 profile
+#error The owned Apple device slice requires the fixed Armv8-A FIPS 202 profile
+#endif
+#endif
+#else
+#if defined(__ARM_FEATURE_SHA3)
+#error The owned Linux and Android targets require the fixed Armv8-A FIPS 202 profile
+#endif
 #endif
 #if !defined(__APPLE__) && !defined(__linux__)
 #error The owned AArch64 backend is restricted to Apple, Linux, and Android targets

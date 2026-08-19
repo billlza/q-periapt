@@ -176,11 +176,12 @@ KEM core and current paper must not absorb server/database/session responsibilit
 Q-Periapt configures ML-KEM-768 decapsulation binary-level constant-time gates on x86_64 and
 aarch64, and implicit-rejection behavior is tested. The earlier provider migration to
 portable `mlkem-native` invalidated former-provider captures. The current source then
-selected upstream native arithmetic plus fixed Armv8-A x1/x4 FIPS 202 assembly on
-exactly the little-endian targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
-`aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
-`aarch64-linux-android`, while retaining portable C everywhere else, including
-Wasm. It has no runtime dispatch or Armv8.4-A SHA3 path.
+selected upstream native arithmetic plus a fixed per-target FIPS 202 assembly
+profile (Armv8.4-A SHA3 x1/x2 on `aarch64-apple-darwin` and
+`aarch64-apple-ios-sim`; Armv8-A scalar x1/x4 on `aarch64-apple-ios`,
+`aarch64-unknown-linux-gnu`, and `aarch64-linux-android`), while retaining
+portable C everywhere else, including Wasm. It has no runtime dispatch; each
+target's profile is fixed at build time.
 That source change also makes the pre-selection portable captures historical; fresh
 x86_64-portable and aarch64-native passes are required, and no predecessor
 source-CT/hax claim transfers. In particular,

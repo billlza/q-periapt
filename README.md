@@ -108,12 +108,16 @@ same-address-space consumer.
 ML-KEM implementation selection is a fixed compile-time target contract. Exactly
 `aarch64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`,
 `aarch64-unknown-linux-gnu`, and `aarch64-linux-android`, all little-endian, use
-upstream AArch64 native arithmetic plus the fixed Armv8-A scalar x1 and
-Armv8-A scalar/Neon x4 FIPS 202 assembly paths. Every other target remains on
-portable C, including x86, Windows/MSVC, Wasm, and freestanding builds. The native
-cells force the Armv8-A baseline and deliberately have neither runtime dispatch nor
-an Armv8.4-A SHA3-extension path. This internal backend selection does not change
-ABI 2, ML-KEM key/ciphertext encodings, or the combiner wire bytes.
+upstream AArch64 native arithmetic plus a fixed per-target FIPS 202 assembly
+profile: `aarch64-apple-darwin` and `aarch64-apple-ios-sim`, whose entire
+install base is FEAT_SHA3-capable Apple Silicon, pin the upstream Armv8.4-A
+SHA3 x1/x2 Keccak assembly under `-march=armv8.4-a+sha3`, while the iOS device
+slice, Android, and generic Linux pin the Armv8-A scalar x1 and scalar/Neon x4
+paths under `-march=armv8-a+nosha3`. Every other target remains on portable C,
+including x86, Windows/MSVC, Wasm, and freestanding builds. Each native cell's
+profile is fixed at build time and deliberately has no runtime dispatch. This
+internal backend selection does not change ABI 2, ML-KEM key/ciphertext
+encodings, or the combiner wire bytes.
 
 The `CompatXWing` profile can omit the ML-KEM ciphertext **only** because
 ML-KEM-768 is C2PRI (ciphertext-second-preimage-resistant via the FO transform and
@@ -139,9 +143,10 @@ absence (`[]`, `0`, `[]`). `implementation_improvement` measures only the Contex
 inputs and an `expanded_fips203_2400` ML-KEM key, comparing the target-selected
 native implementation against a private symbol-renamed portable C reference in
 native/portable order. Both C implementations use the same
-O3/PIC/Armv8-A/macOS-11/function-and-data-section contract, and the Rust harness is
-likewise O3 with thin LTO and one codegen unit under the stable Rust/Cargo 1.96.1
-producer. Before timing, the harness generates one expanded keypair, feeds the same
+O3/PIC/macOS-11/function-and-data-section contract with per-implementation
+`-march` pins (native `armv8.4-a+sha3`, portable reference `armv8-a`), and the
+Rust harness is likewise O3 with thin LTO and one codegen unit under the stable
+Rust/Cargo 1.96.1 producer. Before timing, the harness generates one expanded keypair, feeds the same
 expanded key bytes, coins, and corpus to both implementations, and requires byte-identical
 encapsulation/decapsulation outputs for all 64 deterministic corpus cases. Portable
 key generation is neither invoked nor compared. It does not time the C ABI, policy
@@ -654,8 +659,9 @@ This is a **research artifact for a doctoral thesis**, not a product.
   The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
   `77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`.
   Exactly the five allowlisted little-endian AArch64 Apple/Linux/Android targets compile
-  upstream native arithmetic and the fixed Armv8-A FIPS 202 assembly profile; all other
-  targets compile portable C. Upstream HOL-Light results apply only to the selected
+  upstream native arithmetic and a fixed per-target FIPS 202 assembly profile
+  (Armv8.4-A SHA3 on `aarch64-apple-darwin` and `aarch64-apple-ios-sim`, Armv8-A
+  scalar elsewhere); all other targets compile portable C. Upstream HOL-Light results apply only to the selected
   upstream assembly source/object routines under their stated preconditions. They do not
   prove this integration's downstream reassembly, Rust/C wrapper, full ABI, or final
   package. RustSec scans Rust package metadata and does **not** inspect

@@ -238,9 +238,12 @@ The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 Exactly `aarch64-apple-darwin`, `aarch64-apple-ios`,
 `aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
 `aarch64-linux-android`, all little-endian, use upstream native arithmetic plus
-fixed Armv8-A scalar x1 and scalar/Neon x4 FIPS 202 assembly. Every other target,
-including Wasm, remains portable C; there is no runtime dispatch or Armv8.4-A SHA3
-path. This selection does not change ABI 2, key formats, or wire bytes. Upstream
+a fixed per-target FIPS 202 assembly profile: the two Apple Silicon slices
+(`aarch64-apple-darwin`, `aarch64-apple-ios-sim`) pin the Armv8.4-A SHA3 x1/x2
+Keccak assembly, and the iOS device slice, Android, and generic Linux pin the
+Armv8-A scalar x1 and scalar/Neon x4 paths. Every other target, including Wasm,
+remains portable C; each native profile is fixed at build time with no runtime
+dispatch. This selection does not change ABI 2, key formats, or wire bytes. Upstream
 HOL-Light evidence applies only to selected upstream assembly source/object routines,
 not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
 tag/commit is not a signed provenance statement, and neither upstream mlkem-native
@@ -1062,7 +1065,8 @@ These produce the paper's primary network table and the binary constant-time dis
   encapsulation/decapsulation output for byte equality before timing; portable key generation
   is neither invoked nor compared. It then uses ABBA/BAAB ordering for both estimands.
   Native and portable C compile under the same
-  O3/PIC/Armv8-A/macOS-11/function-and-data-section contract; the Rust harness is O3 with thin LTO
+  O3/PIC/macOS-11/function-and-data-section contract with per-implementation
+  `-march` pins (native `armv8.4-a+sha3`, portable reference `armv8-a`); the Rust harness is O3 with thin LTO
   and one codegen unit under the stable Rust/Cargo 1.96.1 producer. The 5 s warm-up and 20,480
   samples apply per variant/operation. Budget schema v10 records that exact collection size separately
   from its statistical minimum, and the collection CLI cannot override either samples

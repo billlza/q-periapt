@@ -170,12 +170,13 @@ fn configured_build(
     if freestanding {
         build.define("QPN_MLKEM_FREESTANDING", None);
     }
-    if implementation.uses_aarch64_native() {
-        // The explicit +nosha3 pin is load-bearing: newer Apple simulator
-        // drivers keep the default CPU's sha3 feature despite a bare
-        // -march=armv8-a, and the owned AArch64 FIPS 202 path must never
-        // see the Armv8.4-A SHA3 extension.
-        build.inherit_rustflags(false).flag("-march=armv8-a+nosha3");
+    if let Some(march) = implementation.aarch64_march_flag() {
+        // The explicit +sha3/+nosha3 suffix is load-bearing in both
+        // directions: newer Apple simulator drivers keep the default CPU's
+        // sha3 feature despite a bare -march=armv8-a, and each owned AArch64
+        // FIPS 202 profile must see exactly the extension state its target
+        // guarantees in hardware.
+        build.inherit_rustflags(false).flag(march);
     }
     build
 }
@@ -221,7 +222,7 @@ fn validate_compiler(
         )
         .into());
     }
-    if implementation.uses_aarch64_native() {
+    if let Some(expected_march) = implementation.aarch64_march_flag() {
         let command = compiler.to_command();
         let arguments = command
             .get_args()
@@ -237,6 +238,7 @@ fn validate_compiler(
         let required_platform_define = (target_os == "android").then_some("-DANDROID");
         build_support::validate_native_compiler_arguments(
             arguments.iter().copied(),
+            expected_march,
             required_platform_define,
         )
         .map_err(|source| {

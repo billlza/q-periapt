@@ -30,20 +30,23 @@ An error always leaves every output filled with zeroes.
 - Malformed ciphertext is handled by FIPS 203 implicit rejection and is not
   reported as an API failure.
 
-The build selects upstream AArch64 native arithmetic and a fixed Armv8-A FIPS
-202 assembly profile only for these five little-endian targets:
+The build selects upstream AArch64 native arithmetic and a fixed per-target
+FIPS 202 assembly profile only for these five little-endian targets:
 
-- `aarch64-apple-darwin`
-- `aarch64-apple-ios`
-- `aarch64-apple-ios-sim`
-- `aarch64-unknown-linux-gnu`
-- `aarch64-linux-android`
+- `aarch64-apple-darwin` (Armv8.4-A SHA3 profile)
+- `aarch64-apple-ios` (Armv8-A scalar profile)
+- `aarch64-apple-ios-sim` (Armv8.4-A SHA3 profile)
+- `aarch64-unknown-linux-gnu` (Armv8-A scalar profile)
+- `aarch64-linux-android` (Armv8-A scalar profile)
 
-Those builds require GCC or Clang, force `-march=armv8-a+nosha3`, compile the upstream
-assembly SCU exactly once, and use the upstream scalar x1 plus Armv8-A scalar/
-Neon x4 Keccak implementations. SHA3-extension selection is deliberately
-rejected, so the resulting artifacts have no compiler-dependent v8.4-A path or
-runtime CPU dispatch. Every other target remains portable C, including x86,
+Those builds require GCC or Clang and compile the upstream assembly SCU exactly
+once. The two Apple Silicon slices, whose entire install base guarantees
+FEAT_SHA3 in hardware, force `-march=armv8.4-a+sha3` and use the upstream
+Armv8.4-A SHA3 x1 plus two-way x2 Keccak implementations; the remaining three
+targets force `-march=armv8-a+nosha3` and use the upstream scalar x1 plus
+Armv8-A scalar/Neon x4 Keccak implementations. Each profile is fixed at build
+time, so the resulting artifacts have no compiler-dependent backend selection
+and no runtime CPU dispatch. Every other target remains portable C, including x86,
 Windows/MSVC, Wasm, and freestanding targets. There is no Cargo feature that can
 change this mapping. Freestanding targets select the integration's fixed-loop
 memory/zeroization helpers and upstream's C value barrier, so their C object does

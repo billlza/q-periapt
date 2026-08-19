@@ -20,6 +20,7 @@ fn implementation_identity_is_exact() {
         IMPLEMENTATION_ID,
         "mlkem-native-1.2.0/portable-c"
             | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+            | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
     ));
 }
 
