@@ -554,6 +554,7 @@ pub struct Sha3_256Xof {
     inline: [u8; SHA3_XOF_INLINE_CAP],
     inline_len: usize,
     spill: Vec<u8>,
+    spill_active: bool,
     secret_ranges: [(usize, usize); SHA3_XOF_SECRET_RANGE_CAP],
     secret_range_count: usize,
     wipe_all: bool,
@@ -561,10 +562,10 @@ pub struct Sha3_256Xof {
 
 impl Sha3_256Xof {
     fn staged_len(&self) -> usize {
-        if self.spill.is_empty() {
-            self.inline_len
-        } else {
+        if self.spill_active {
             self.spill.len()
+        } else {
+            self.inline_len
         }
     }
 
@@ -675,8 +676,9 @@ impl Sha3_256Xof {
     }
 
     fn append_bytes(&mut self, data: &[u8]) {
-        // Once the input has outgrown the inline buffer, everything goes to heap.
-        if !self.spill.is_empty() {
+        // Once the input has outgrown the inline buffer, or a caller has
+        // pre-reserved a known-large transcript, everything goes directly to heap.
+        if self.spill_active {
             let Some(required) = self.spill.len().checked_add(data.len()) else {
                 self.wipe_and_abort();
             };
@@ -702,6 +704,7 @@ impl Sha3_256Xof {
                     self.wipe_and_abort();
                 };
                 self.spill.extend_from_slice(staged);
+                self.spill_active = true;
                 self.spill.extend_from_slice(data);
             }
         }
@@ -759,6 +762,7 @@ impl Xof256 for Sha3_256Xof {
             inline: [0u8; SHA3_XOF_INLINE_CAP],
             inline_len: 0,
             spill: Vec::new(),
+            spill_active: false,
             secret_ranges: [(0, 0); SHA3_XOF_SECRET_RANGE_CAP],
             secret_range_count: 0,
             wipe_all: false,
@@ -775,6 +779,13 @@ impl Xof256 for Sha3_256Xof {
         };
         if required > SHA3_XOF_INLINE_CAP {
             self.ensure_spill_capacity(required);
+            if !self.spill_active {
+                let Some(staged) = self.inline.get(..self.inline_len) else {
+                    self.wipe_and_abort();
+                };
+                self.spill.extend_from_slice(staged);
+                self.spill_active = true;
+            }
         }
     }
 
@@ -795,7 +806,7 @@ impl Xof256 for Sha3_256Xof {
     }
 
     fn squeeze32(mut self) -> [u8; SHARED_SECRET_LEN] {
-        if self.spill.is_empty() {
+        if !self.spill_active {
             let Some(staged) = self.inline.get(..self.inline_len) else {
                 self.wipe_and_abort();
             };
@@ -821,6 +832,32 @@ mod tests {
         let expected = "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a";
         let got: String = d.iter().map(|b| format!("{b:02x}")).collect();
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn sha3_large_reserve_activates_spill_before_absorb() {
+        let mut x = Sha3_256Xof::new();
+        x.reserve(SHA3_XOF_INLINE_CAP + 1);
+
+        assert!(x.spill_active);
+        assert!(x.spill.is_empty());
+        assert!(x.spill.capacity() >= SHA3_XOF_INLINE_CAP + 1);
+
+        x.absorb_public(b"prefix");
+        assert_eq!(x.inline_len, 0);
+        assert_eq!(x.spill, b"prefix");
+    }
+
+    #[test]
+    fn sha3_reserve_after_inline_absorb_migrates_prefix_once() {
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(b"prefix");
+        x.reserve(SHA3_XOF_INLINE_CAP + 1);
+        x.reserve(SHA3_XOF_INLINE_CAP + 32);
+        x.absorb_public(b"suffix");
+
+        assert!(x.spill_active);
+        assert_eq!(x.spill, b"prefixsuffix");
     }
 
     #[test]
