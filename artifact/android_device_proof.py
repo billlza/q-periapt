@@ -3504,7 +3504,12 @@ def verify_bundle_manifest(
         },
         "Android bundle device metadata differs from proof",
     )
-    if manifest.get("release_candidate_mode") is True:
+    # The canonical release profile pins the emulator's exact device shape;
+    # a physical release bundle carries the hardware's own page size and SDK.
+    if (
+        manifest.get("release_candidate_mode") is True
+        and device.get("kind") == "emulator"
+    ):
         require(
             device.get("page_size") == 16384
             and device.get("sdk") == ANDROID_RELEASE_SDK,
