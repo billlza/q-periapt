@@ -4658,11 +4658,12 @@ with _temporary_release_test_directories(parents):
             migrated_manifest["release_publications"][
                 apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
             ] = alpha2_receipt()
-            migrated_manifest["swift_xcframework"] = (
-                release_publication_contract.neutral_swift_selector(
-                    migrated_manifest
+            if "active_publication_key" not in migrated_manifest["swift_xcframework"]:
+                migrated_manifest["swift_xcframework"] = (
+                    release_publication_contract.neutral_swift_selector(
+                        migrated_manifest
+                    )
                 )
-            )
             proof_to_byte_finalizer.validate_release_publication_history(
                 root, migrated_manifest
             )

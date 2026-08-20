@@ -32,7 +32,9 @@ from test_platform_stable_publication_contract import (
     verified_receipt as platform_verified_receipt,
 )
 from test_release_publication_contract import (
+    _rebind_crates,
     _rebind_platform,
+    neutral_selector_fixture,
     rebind_rust_publish_source,
     rebind_stable_current_source,
 )
@@ -72,7 +74,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             source_commit=self.source_commit,
             source_digest=self.source_digest,
         )
-        source["swift_xcframework"] = aggregate.neutral_swift_selector(source)
+        source["swift_xcframework"] = neutral_selector_fixture(source)
         self._write_results(source)
         self._git("add", "artifact/results.json")
         self._git("commit", "-qm", "install source results")
@@ -181,33 +183,12 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
         return _rebind_platform(receipt, source)
 
     def _crates(self) -> dict[str, object]:
-        receipt = crates_receipt(10)
-        source = self._source_identity()
-        receipt["observation"]["source"] = {
-            key: source[key]
-            for key in (
-                "canonical_source_tree_sha256",
-                "source_parent_commit",
-                "tag_commit",
-                "tag_tree",
-            )
-        }
-        receipt["observation"]["package_contract"]["source_commit"] = (
-            self.source_commit
-        )
         selected_rust = json.loads(self.results.read_text(encoding="utf-8"))[
             "rust_publish"
         ]
-        receipt["observation"]["package_contract"]["completed_at"] = (
-            selected_rust["completed_at"]
+        return _rebind_crates(
+            crates_receipt(10), self._source_identity(), selected_rust
         )
-        receipt["observation"]["package_contract"]["transcript_sha256"] = (
-            selected_rust["transcript_sha256"]
-        )
-        receipt["observation"]["package_contract"]["handoff_sha256"] = (
-            selected_rust["handoff_manifest_sha256"]
-        )
-        return receipt
 
     @staticmethod
     def _receipt_path(

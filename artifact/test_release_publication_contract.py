@@ -27,6 +27,17 @@ from test_platform_stable_publication_contract import (
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+def neutral_selector_fixture(
+    manifest: dict[str, object],
+) -> dict[str, object]:
+    """Return the neutral Apple selector for either live migration state."""
+
+    swift = manifest["swift_xcframework"]
+    if isinstance(swift, dict) and "active_publication_key" in swift:
+        return copy.deepcopy(swift)
+    return contract.neutral_swift_selector(manifest)
+
+
 def _rebind_platform(
     receipt: dict[str, object], source: dict[str, str]
 ) -> dict[str, object]:
@@ -75,13 +86,22 @@ def _rebind_crates(
     }
     package_contract = observation["package_contract"]
     package_contract["source_commit"] = source["source_parent_commit"]
-    package_contract["completed_at"] = rust_publish["completed_at"]
+    completed_at = rust_publish["completed_at"]
+    package_contract["completed_at"] = completed_at
     package_contract["transcript_sha256"] = rust_publish[
         "transcript_sha256"
     ]
     package_contract["handoff_sha256"] = rust_publish[
         "handoff_manifest_sha256"
     ]
+    # Keep the observation chain consistent with the selected Rust evidence:
+    # the contract requires completed_at <= verified_at <= observed_at.
+    if str(observation["observed_at"]) < str(completed_at):
+        observation["observed_at"] = completed_at
+    for crate in rebound["crates"]:
+        verified_at = crate.get("verified_at")
+        if verified_at is not None and str(verified_at) < str(completed_at):
+            crate["verified_at"] = completed_at
     return rebound
 
 
@@ -229,7 +249,7 @@ def source_manifest_fixture(
         source_commit=source["source_parent_commit"],
         source_digest=source["canonical_source_tree_sha256"],
     )
-    manifest["swift_xcframework"] = contract.neutral_swift_selector(manifest)
+    manifest["swift_xcframework"] = neutral_selector_fixture(manifest)
     return manifest
 
 
@@ -548,7 +568,17 @@ class ReleasePublicationContractTests(unittest.TestCase):
                     contract.validate_stable_source_currentness(invalid)
 
     def test_one_time_selector_migration_is_exact(self) -> None:
-        migrated = contract.neutral_swift_selector(self.legacy)
+        swift = self.legacy["swift_xcframework"]
+        if "active_publication_key" in swift:
+            # Installed state: the one-time migration has already produced
+            # the live selector and must not be repeatable.
+            with self.assertRaisesRegex(
+                contract.ReleasePublicationContractError, "exact legacy"
+            ):
+                contract.neutral_swift_selector(self.legacy)
+            migrated = copy.deepcopy(swift)
+        else:
+            migrated = contract.neutral_swift_selector(self.legacy)
         self.assertEqual(
             apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
             migrated["active_publication_key"],
