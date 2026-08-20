@@ -2659,7 +2659,11 @@ def verify_device_metadata(
     )
     release_mode = proof.get("release_candidate_mode")
     require(type(release_mode) is bool, "proof lacks release_candidate_mode")
-    if require_release_mode:
+    # The canonical release profile pins the emulator's exact device shape.
+    # A physical release capture keeps the same collection discipline but
+    # carries the hardware's own page size and SDK, so those pins apply only
+    # to the emulator kind.
+    if require_release_mode and kind == "emulator":
         require(
             expected_device_sdk == ANDROID_RELEASE_SDK,
             f"release verification requires expected Android device SDK {ANDROID_RELEASE_SDK}",
@@ -2679,18 +2683,19 @@ def verify_device_metadata(
             expected_device_abi != "",
             "release verification requires an explicit expected Android device ABI",
         )
-        require(
-            expected_page_size == 16384,
-            "release verification requires expected Android page size 16384",
-        )
-        require(
-            page_size == 16384,
-            "Android release proof did not run on a 16 KiB page-size device",
-        )
-        require(
-            device_sdk == ANDROID_RELEASE_SDK,
-            f"Android release proof did not run on device SDK {ANDROID_RELEASE_SDK}",
-        )
+        if kind == "emulator":
+            require(
+                expected_page_size == 16384,
+                "release verification requires expected Android page size 16384",
+            )
+            require(
+                page_size == 16384,
+                "Android release proof did not run on a 16 KiB page-size device",
+            )
+            require(
+                device_sdk == ANDROID_RELEASE_SDK,
+                f"Android release proof did not run on device SDK {ANDROID_RELEASE_SDK}",
+            )
 
     android = proof.get("android")
     require(isinstance(android, dict), "proof lacks Android toolchain metadata")

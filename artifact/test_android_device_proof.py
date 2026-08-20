@@ -3063,6 +3063,74 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
                 require_release_mode=True,
             )
 
+    @staticmethod
+    def physical_release_device_proof() -> dict:
+        return {
+            "release_candidate_mode": True,
+            "device": {
+                "kind": "physical",
+                "serial_sha256_prefix": "3" * 12,
+                "raw_serial_recorded": False,
+                "manufacturer": "samsung",
+                "model": "SM-S948U",
+                "abi": "arm64-v8a",
+                "page_size": 4096,
+                "sdk": 36,
+                "release": "16",
+                "fingerprint_sha256_prefix": "4" * 12,
+            },
+            "android": {
+                "platform": "android-35",
+                "min_sdk": 23,
+                "target_sdk": 35,
+                "ndk": "29.0.14206865",
+                "native_page_alignment": 16384,
+                "build_tools": "36.0.0",
+                "adb_version": "Android Debug Bridge version 1.0.41",
+                "apksigner_sha256": "0" * 64,
+                "zipalign_sha256": "1" * 64,
+            },
+        }
+
+    def test_release_physical_device_keeps_its_own_page_size_and_sdk(self) -> None:
+        proof = self.physical_release_device_proof()
+        android_device_proof.verify_device_metadata(
+            proof,
+            expected_device_kind="physical",
+            expected_device_abi="arm64-v8a",
+            expected_page_size=None,
+            expected_device_sdk=None,
+            require_release_mode=True,
+        )
+
+    def test_release_physical_device_still_requires_release_capture(self) -> None:
+        proof = self.physical_release_device_proof()
+        proof["release_candidate_mode"] = False
+        with self.assertRaisesRegex(
+            SystemExit, "not generated in Android release-candidate mode"
+        ):
+            android_device_proof.verify_device_metadata(
+                proof,
+                expected_device_kind="physical",
+                expected_device_abi="arm64-v8a",
+                expected_page_size=None,
+                expected_device_sdk=None,
+                require_release_mode=True,
+            )
+
+    def test_release_physical_device_still_requires_explicit_abi(self) -> None:
+        proof = self.physical_release_device_proof()
+        with self.assertRaisesRegex(
+            SystemExit, "explicit expected Android device ABI"
+        ):
+            android_device_proof.verify_device_metadata(
+                proof,
+                expected_device_kind="physical",
+                expected_page_size=None,
+                expected_device_sdk=None,
+                require_release_mode=True,
+            )
+
     def test_device_sdk_is_an_exact_integer_and_matches_expectation(self) -> None:
         proof = {
             "release_candidate_mode": False,

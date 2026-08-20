@@ -203,24 +203,27 @@ case "$EXPECTED_DEVICE_SDK" in
 		;;
 esac
 if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
-	if [ "$EXPECTED_PAGE_SIZE" != "16384" ]; then
-		printf 'error: Android release mode requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384\n' >&2
-		exit 2
-	fi
 	if [ -z "$EXPECTED_DEVICE_ABI" ]; then
 		printf 'error: Android release mode requires an explicit QPERIAPT_ANDROID_EXPECT_ABI\n' >&2
-		exit 2
-	fi
-	if [ "$EXPECTED_DEVICE_SDK" != "35" ]; then
-		printf 'error: Android release mode requires QPERIAPT_ANDROID_EXPECT_SDK=35\n' >&2
 		exit 2
 	fi
 	if [ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" = "1" ]; then
 		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
 		exit 2
 	fi
+	# The canonical release profile pins the emulator's exact device shape;
+	# a physical release capture keeps the collection discipline while the
+	# hardware supplies its own page size and SDK.
 	case "$EXPECTED_DEVICE_KIND" in
 		emulator)
+			if [ "$EXPECTED_PAGE_SIZE" != "16384" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384\n' >&2
+				exit 2
+			fi
+			if [ "$EXPECTED_DEVICE_SDK" != "35" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=35\n' >&2
+				exit 2
+			fi
 			if [ "$ANDROID_BOOT_AVD" != "1" ]; then
 				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_BOOT_AVD=1\n' >&2
 				exit 2
