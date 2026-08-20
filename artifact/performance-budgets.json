@@ -7,7 +7,7 @@
   "build_contract": {
     "c_implementations": {
       "product_native": {
-        "architecture": "armv8-a",
+        "architecture": "armv8.4-a+sha3",
         "data_sections": true,
         "function_sections": true,
         "language_standard": "c99",
@@ -82,7 +82,7 @@
     "target": "aarch64-apple-darwin"
   },
   "profile_non_regression": {
-    "backend": "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar+sha3+x25519-dalek",
+    "backend": "ML-KEM-768(seed-dk)+X25519/mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a+sha3+x25519-dalek",
     "direction": "ContextBound/CompatXWing",
     "operations": {
       "combine": {
@@ -108,7 +108,7 @@
     "includes_os_rng": false,
     "key_format": "expanded_fips203_2400",
     "keypair_generation_count": 1,
-    "native_implementation_id": "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+    "native_implementation_id": "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a",
     "portable_implementation_id": "mlkem-native-1.2.0/portable-c/evidence-only-reference",
     "product_profile": "ContextBound",
     "reference_scope": "evidence_only_non_product_reference",

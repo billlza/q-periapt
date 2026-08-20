@@ -386,11 +386,15 @@ generator (`examples/refvec.rs`), and the X-Wing KAT.
 The sys crate uses an exact compile-time allowlist. The little-endian targets
 `aarch64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`,
 `aarch64-unknown-linux-gnu`, and `aarch64-linux-android` compile upstream AArch64
-native arithmetic together with the fixed Armv8-A scalar x1 and Armv8-A
-scalar/Neon x4 FIPS 202 assembly paths. Every other target uses portable C,
-including x86, Windows/MSVC, Wasm, and freestanding builds. Native cells force
-`-march=armv8-a+nosha3`, reject contradictory target metadata and caller backend flags,
-and provide neither runtime CPU dispatch nor an Armv8.4-A SHA3-extension path.
+native arithmetic together with a fixed per-target FIPS 202 assembly profile:
+`aarch64-apple-darwin` and `aarch64-apple-ios-sim` (whose entire install base is
+FEAT_SHA3-capable Apple Silicon) force `-march=armv8.4-a+sha3` and pin the
+upstream Armv8.4-A SHA3 x1/x2 Keccak assembly, while the iOS device slice,
+Android, and generic Linux force `-march=armv8-a+nosha3` and pin the Armv8-A
+scalar x1 and scalar/Neon x4 paths. Every other target uses portable C,
+including x86, Windows/MSVC, Wasm, and freestanding builds. Native cells reject
+contradictory target metadata and caller backend flags, and provide no runtime
+CPU dispatch: each target's profile is fixed at build time.
 The selection lives below the primitive adapter: ABI 2 exports, key/ciphertext
 formats, suite/profile policy, and combiner wire bytes are unchanged.
 Its upstream trust anchors are v1.2.0 commit

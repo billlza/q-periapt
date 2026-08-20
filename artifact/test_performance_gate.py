@@ -1288,7 +1288,7 @@ class PerformanceGateTests(unittest.TestCase):
 
     def test_every_build_contract_parameter_is_bound_in_raw_and_budget(self) -> None:
         mutations = (
-            (("c_implementations", "product_native", "architecture"), "armv8.4-a"),
+            (("c_implementations", "product_native", "architecture"), "armv8-a"),
             (("c_implementations", "product_native", "data_sections"), False),
             (("c_implementations", "product_native", "function_sections"), False),
             (("c_implementations", "product_native", "language_standard"), "c11"),
@@ -1308,7 +1308,7 @@ class PerformanceGateTests(unittest.TestCase):
             (("c_implementations", "product_native", "visibility"), "default"),
             (
                 ("c_implementations", "portable_reference", "architecture"),
-                "armv8.4-a",
+                "armv8.4-a+sha3",
             ),
             (("c_implementations", "portable_reference", "data_sections"), False),
             (
@@ -2516,8 +2516,11 @@ class PerformanceGateTests(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "architecture": environment[
-                    "QPERIAPT_PERFORMANCE_C_ARCHITECTURE"
+                "native_architecture": environment[
+                    "QPERIAPT_PERFORMANCE_NATIVE_C_ARCHITECTURE"
+                ],
+                "portable_architecture": environment[
+                    "QPERIAPT_PERFORMANCE_PORTABLE_C_ARCHITECTURE"
                 ],
                 "language_standard": environment[
                     "QPERIAPT_PERFORMANCE_C_LANGUAGE_STANDARD"
@@ -2535,7 +2538,8 @@ class PerformanceGateTests(unittest.TestCase):
                 ],
             },
             {
-                "architecture": "armv8-a",
+                "native_architecture": "armv8.4-a+sha3",
+                "portable_architecture": "armv8-a",
                 "language_standard": "c99",
                 "optimization": "O3",
                 "visibility": "hidden",
@@ -2626,13 +2630,24 @@ class PerformanceGateTests(unittest.TestCase):
             "-march=armv8-a",
         ):
             self.assertEqual(compile_command.count(flag), 1, flag)
+        canonical = performance_gate.canonical_build_contract()["c_implementations"]
         self.assertEqual(
-            performance_gate.canonical_build_contract()["c_implementations"][
-                "product_native"
-            ],
-            performance_gate.canonical_build_contract()["c_implementations"][
-                "portable_reference"
-            ],
+            {
+                field: value
+                for field, value in canonical["product_native"].items()
+                if field != "architecture"
+            },
+            {
+                field: value
+                for field, value in canonical["portable_reference"].items()
+                if field != "architecture"
+            },
+        )
+        self.assertEqual(
+            canonical["product_native"]["architecture"], "armv8.4-a+sha3"
+        )
+        self.assertEqual(
+            canonical["portable_reference"]["architecture"], "armv8-a"
         )
 
     def test_hardened_cargo_environment_rejects_ancestor_configuration(self) -> None:

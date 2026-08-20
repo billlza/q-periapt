@@ -61,7 +61,7 @@ IMPLEMENTATIONS = ("native", "portable")
 RELEASE_EVIDENCE_MODE = "release_evidence"
 PROFILE_DIAGNOSTIC_MODE = "profile_diagnostic"
 NATIVE_IMPLEMENTATION_ID = (
-    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
+    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
 )
 PORTABLE_REFERENCE_IMPLEMENTATION_ID = (
     "mlkem-native-1.2.0/portable-c/evidence-only-reference"
@@ -120,7 +120,8 @@ MACOS_SDK_RELATIVE_TO_DEVELOPER = pathlib.PurePosixPath(
 )
 MACOS_SDK_SETTINGS_NAME = "SDKSettings.json"
 MACOS_DEPLOYMENT_TARGET = "11.0"
-C_ARCHITECTURE = "armv8-a"
+NATIVE_C_ARCHITECTURE = "armv8.4-a+sha3"
+PORTABLE_C_ARCHITECTURE = "armv8-a"
 C_OPTIMIZATION = "O3"
 C_LANGUAGE_STANDARD = "c99"
 C_VISIBILITY = "hidden"
@@ -365,20 +366,22 @@ def canonical_profile_inputs() -> dict[str, dict[str, Any]]:
 def canonical_build_contract() -> dict[str, Any]:
     """Return the exact matched code-generation contract for release evidence."""
 
-    c_build = {
-        "architecture": C_ARCHITECTURE,
-        "data_sections": True,
-        "function_sections": True,
-        "language_standard": C_LANGUAGE_STANDARD,
-        "macos_deployment_target": MACOS_DEPLOYMENT_TARGET,
-        "optimization": C_OPTIMIZATION,
-        "position_independent_code": True,
-        "visibility": C_VISIBILITY,
-    }
+    def c_build(architecture: str) -> dict[str, Any]:
+        return {
+            "architecture": architecture,
+            "data_sections": True,
+            "function_sections": True,
+            "language_standard": C_LANGUAGE_STANDARD,
+            "macos_deployment_target": MACOS_DEPLOYMENT_TARGET,
+            "optimization": C_OPTIMIZATION,
+            "position_independent_code": True,
+            "visibility": C_VISIBILITY,
+        }
+
     return {
         "c_implementations": {
-            "product_native": dict(c_build),
-            "portable_reference": dict(c_build),
+            "product_native": c_build(NATIVE_C_ARCHITECTURE),
+            "portable_reference": c_build(PORTABLE_C_ARCHITECTURE),
         },
         "rust_harness": {
             "codegen_units": RUST_CODEGEN_UNITS,
@@ -462,9 +465,18 @@ def validate_build_contract(value: Any, label: str) -> dict[str, Any]:
         )
     expected = canonical_build_contract()
     require(
-        c_implementations["product_native"]
-        == c_implementations["portable_reference"],
-        f"{label} does not compile native and portable C implementations equivalently",
+        {
+            field: value
+            for field, value in c_implementations["product_native"].items()
+            if field != "architecture"
+        }
+        == {
+            field: value
+            for field, value in c_implementations["portable_reference"].items()
+            if field != "architecture"
+        },
+        f"{label} does not compile native and portable C implementations under"
+        " the same matched non-architecture codegen contract",
     )
     require(value == expected, f"{label} does not match the canonical build contract")
     return value
@@ -2235,7 +2247,7 @@ def build_portable_reference_archive(
         "-Wstrict-prototypes",
         "-Wundef",
         f"-fvisibility={C_VISIBILITY}",
-        f"-march={C_ARCHITECTURE}",
+        f"-march={PORTABLE_C_ARCHITECTURE}",
     ]
     for symbol in PORTABLE_REFERENCE_SYMBOLS:
         evidence_symbol = symbol.replace(
@@ -2299,7 +2311,10 @@ def performance_harness_environment(
         )
     )
     configured["QPERIAPT_PERFORMANCE_TARGET"] = target
-    configured["QPERIAPT_PERFORMANCE_C_ARCHITECTURE"] = C_ARCHITECTURE
+    configured["QPERIAPT_PERFORMANCE_NATIVE_C_ARCHITECTURE"] = NATIVE_C_ARCHITECTURE
+    configured["QPERIAPT_PERFORMANCE_PORTABLE_C_ARCHITECTURE"] = (
+        PORTABLE_C_ARCHITECTURE
+    )
     configured["QPERIAPT_PERFORMANCE_C_LANGUAGE_STANDARD"] = C_LANGUAGE_STANDARD
     configured["QPERIAPT_PERFORMANCE_C_OPTIMIZATION"] = C_OPTIMIZATION
     configured["QPERIAPT_PERFORMANCE_C_VISIBILITY"] = C_VISIBILITY

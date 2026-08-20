@@ -24,10 +24,11 @@
 > **Backend-migration history and current boundary.** The 2026-07-13 migration moved
 > the artifact from its former provider to portable `mlkem-native` v1.2.0 through
 > `q-periapt-mlkem-native-sys`, `fips204` 0.4.6, and `sha3` 0.10.9. The current
-> source now selects upstream AArch64 native arithmetic plus fixed Armv8-A x1/x4
-> FIPS 202 assembly on exactly five little-endian Apple/Linux/Android targets and
-> retains portable C everywhere else, including Wasm. There is no runtime dispatch
-> or Armv8.4-A SHA3 path, and ABI 2/key/wire contracts are unchanged. Both migrations
+> source now selects upstream AArch64 native arithmetic plus a fixed per-target
+> FIPS 202 assembly profile (Armv8.4-A SHA3 on the two Apple Silicon slices,
+> Armv8-A scalar elsewhere) on exactly five little-endian Apple/Linux/Android
+> targets and retains portable C everywhere else, including Wasm. There is no
+> runtime dispatch, and ABI 2/key/wire contracts are unchanged. Both migrations
 > changed the canonical source digest. Every portable-derived package/device/
 > performance/binary-CT result below is historical evidence, not current ABI2
 > production-promotion evidence. Fresh per-target source-bound capture and independent
@@ -147,8 +148,9 @@ The vendored ML-KEM trust anchors are upstream commit
 `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
 Exactly the little-endian targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
 `aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
-`aarch64-linux-android` build upstream native arithmetic with fixed Armv8-A x1/x4
-FIPS 202 assembly, while every other target remains portable. Upstream HOL-Light
+`aarch64-linux-android` build upstream native arithmetic with a fixed per-target
+FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on the two Apple Silicon slices,
+Armv8-A scalar x1/x4 elsewhere), while every other target remains portable. Upstream HOL-Light
 evidence is limited to selected upstream assembly source/object routines, not
 downstream reassembly, this Rust/C wrapper, or the full ABI. RustSec covers the
 resolved Rust graph, not vendored C, and neither the upstream provider nor this

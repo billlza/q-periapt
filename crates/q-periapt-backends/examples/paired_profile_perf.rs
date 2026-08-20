@@ -39,7 +39,7 @@ const IMPLEMENTATION_IMPROVEMENT: &str = "implementation_improvement";
 const RELEASE_EVIDENCE_MODE: &str = "release_evidence";
 const PROFILE_DIAGNOSTIC_MODE: &str = "profile_diagnostic";
 #[cfg(qperiapt_performance_evidence)]
-const NATIVE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar";
+const NATIVE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a";
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_IMPLEMENTATION_ID: &str =
     "mlkem-native-1.2.0/portable-c/evidence-only-reference";
@@ -1200,8 +1200,8 @@ fn harness_target() -> String {
 fn build_contract() -> Option<BuildContract> {
     #[cfg(qperiapt_performance_evidence)]
     {
-        let c_build = CImplementationBuild {
-            architecture: env!("QPERIAPT_PERFORMANCE_C_ARCHITECTURE"),
+        let shared_c_build = |architecture: &'static str| CImplementationBuild {
+            architecture,
             data_sections: true,
             function_sections: true,
             language_standard: env!("QPERIAPT_PERFORMANCE_C_LANGUAGE_STANDARD"),
@@ -1212,8 +1212,10 @@ fn build_contract() -> Option<BuildContract> {
         };
         Some(BuildContract {
             c_implementations: CImplementationBuilds {
-                product_native: c_build,
-                portable_reference: c_build,
+                product_native: shared_c_build(env!("QPERIAPT_PERFORMANCE_NATIVE_C_ARCHITECTURE")),
+                portable_reference: shared_c_build(env!(
+                    "QPERIAPT_PERFORMANCE_PORTABLE_C_ARCHITECTURE"
+                )),
             },
             rust_harness: RustHarnessBuild {
                 codegen_units: 1,

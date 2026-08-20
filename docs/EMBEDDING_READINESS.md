@@ -360,9 +360,10 @@ The ML-KEM implementation below every native face is now target-selected at comp
 time. Exactly `aarch64-apple-darwin`, `aarch64-apple-ios`,
 `aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
 `aarch64-linux-android`, all little-endian, use upstream AArch64 native arithmetic
-plus fixed Armv8-A scalar x1 and scalar/Neon x4 FIPS 202 assembly. Every other
-target remains portable C, including x86, Windows/MSVC, Wasm, and freestanding
-builds. There is no runtime dispatch or Armv8.4-A SHA3-extension path. This is an
+plus a fixed per-target FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on the
+two Apple Silicon slices, Armv8-A scalar x1 and scalar/Neon x4 elsewhere). Every
+other target remains portable C, including x86, Windows/MSVC, Wasm, and
+freestanding builds. There is no runtime dispatch. This is an
 internal implementation selection: ABI 2 exports/layouts, ML-KEM key/ciphertext
 formats, and combiner wire bytes remain unchanged.
 

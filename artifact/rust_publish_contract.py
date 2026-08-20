@@ -1734,7 +1734,8 @@ _MLKEM_ARCHIVE_BINARY_MARKER = re.compile(
     r"target=([a-z0-9][a-z0-9_.-]*) "
     r"implementation=(portable|aarch64-native) "
     r"implementation_id=(mlkem-native-1\.2\.0/"
-    r"(?:portable-c|aarch64-native-arith\+fips202-v8a-scalar)) "
+    r"(?:portable-c|aarch64-native-arith\+fips202-v8a-scalar"
+    r"|aarch64-native-arith\+fips202-v84a)) "
     r"objects=([1-9][0-9]*) symbols=([1-9][0-9]*) "
     r"reserved_dynamic_abi=none"
 )
@@ -2153,7 +2154,7 @@ def validate_rust_package_contract_transcript(
     expected_binary_contract = (
         "aarch64-native" if expected_native else "portable",
         (
-            _AARCH64_NATIVE_IMPLEMENTATION_ID
+            _native_implementation_id_for_target(mlkem_host_target)
             if expected_native
             else _PORTABLE_IMPLEMENTATION_ID
         ),
@@ -2657,19 +2658,19 @@ def validate_cargo_package_completion(
 
 _ALLOWED_BUILD_MODULE = '#[path = "src/build_support.rs"]\nmod build_support;'
 _EXPECTED_LOCAL_SOURCE_SHA256 = {
-    "build.rs": "4508b5566073e685af03da81fdb1afc0ef0b7e58e9be44c9980ab39731e7cbfe",
-    "src/build_support.rs": "244b5d33e16a022e4bb472a19af5ae107e524bd82de8581f8a4248c26006e8dd",
-    "src/build_support_tests.rs": "e63547c116d11ca26d5c0378cbe6556944cb6ab556d8ee71910efa7493541014",
-    "src/lib.rs": "e0026393fd51570ff78d50446d462f583eec800bfd6a3f57c42a5e92f9326868",
+    "build.rs": "f63b712d01166e2fbb28c2a06911fd066467eb816c1a9d27f88a9dc55f8a58bb",
+    "src/build_support.rs": "38c419a0e91f36ae0ad1297701b79d5ee8c56e07ffab933bb2d0f610e64c543d",
+    "src/build_support_tests.rs": "69d9e0857ce5eaab46ba12b1f27803f1966be73b18b1839792f8a9d0c0631e14",
+    "src/lib.rs": "ba789ccae6ef1cafdf99de52f8a4d5bd4012feaf698f7de215ecb0207b3c0975",
     "src/mlkem_bridge.c": "c12dbf268527fff0241a79f84f8dbcade065b37f3c76060f4f95c03a83bf149d",
     "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
     "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
     "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
     "src/mlkem_bridge.h": "b8c286379f0f6444c91b3ae66b9aa3dcc412b62a727cd480c610b7e8d19722a2",
-    "src/mlkem_config.h": "e5788074d5e0f756e4133f0b16875e184916ddd09a9cef449482a7798a2a4194",
-    "src/mlkem_fips202_aarch64.h": "8263fd64394f4db1ed68167b414dec50662c32b22e31c01a6f78d5a35e642667",
+    "src/mlkem_config.h": "3f0c08923e0f3d127335b987c9d0f9b70a7bacf69d3601d2a51eeed3fbb8a5e0",
+    "src/mlkem_fips202_aarch64.h": "6057160bbae3ba7ce63794ac3708e6b6ce16cd018e9d3852f1e7b4f5f50dfad8",
     "src/raw.rs": "3da32c86e71ee0769c51ec6b0b925d6457259714f143c184a84001e958f3978b",
-    "src/tests.rs": "5d0c261be44f1cf96db520c8064ccfd3501f291801ca388302d38a71fa8c43df",
+    "src/tests.rs": "89b082a5b5dfb78b75c8f8854f8243b708106a2dc48b1f5ffab160ae6320af26",
 }
 _EXPECTED_BUILD_SURFACE_FILES = (
     "build.rs",
@@ -2712,6 +2713,7 @@ _EXPECTED_C_INCLUDES = {
     "src/mlkem_bridge_asm.S": ('"mlkem_native_asm.S"',),
     "src/mlkem_bridge.h": ("<stdint.h>", '"mlkem_native.h"'),
     "src/mlkem_config.h": (
+        "<TargetConditionals.h>",
         "<stddef.h>",
         "<stdint.h>",
         '"src/sys.h"',
@@ -2720,6 +2722,8 @@ _EXPECTED_C_INCLUDES = {
         '"src/sys.h"',
     ),
     "src/mlkem_fips202_aarch64.h": (
+        '"src/fips202/native/aarch64/x1_v84a.h"',
+        '"src/fips202/native/aarch64/x2_v84a.h"',
         '"src/fips202/native/aarch64/x1_scalar.h"',
         '"src/fips202/native/aarch64/x4_v8a_scalar.h"',
     ),
@@ -2777,21 +2781,39 @@ _PORTABLE_IMPLEMENTATION_ID = "mlkem-native-1.2.0/portable-c"
 _AARCH64_NATIVE_IMPLEMENTATION_ID = (
     "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
 )
-_EXPECTED_NATIVE_TARGETS = (
-    ("aarch64-apple-darwin", "", "macos", "apple"),
-    ("aarch64-apple-ios", "", "ios", "apple"),
-    ("aarch64-apple-ios-sim", "sim", "ios", "apple"),
-    ("aarch64-unknown-linux-gnu", "gnu", "linux", "unknown"),
-    ("aarch64-linux-android", "", "android", "unknown"),
+_AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID = (
+    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
 )
-_NATIVE_TARGETS = frozenset(target for target, _, _, _ in _EXPECTED_NATIVE_TARGETS)
+_EXPECTED_NATIVE_TARGETS = (
+    ("aarch64-apple-darwin", "", "Aarch64NativeSha3", "macos", "apple"),
+    ("aarch64-apple-ios", "", "Aarch64Native", "ios", "apple"),
+    ("aarch64-apple-ios-sim", "sim", "Aarch64NativeSha3", "ios", "apple"),
+    ("aarch64-unknown-linux-gnu", "gnu", "Aarch64Native", "linux", "unknown"),
+    ("aarch64-linux-android", "", "Aarch64Native", "android", "unknown"),
+)
+_NATIVE_TARGETS = frozenset(target for target, _, _, _, _ in _EXPECTED_NATIVE_TARGETS)
+_NATIVE_SHA3_TARGETS = frozenset(
+    target
+    for target, _, implementation, _, _ in _EXPECTED_NATIVE_TARGETS
+    if implementation == "Aarch64NativeSha3"
+)
 _NATIVE_TARGET_ROW = re.compile(
     r'"(?P<target>[a-z0-9_-]+)"\s*=>\s*Some\(ExpectedNativeTarget\s*\{\s*'
     r'environment:\s*"(?P<environment>[a-z]*)",\s*'
+    r"implementation:\s*MlKemImplementation::"
+    r"(?P<implementation>Aarch64Native|Aarch64NativeSha3),\s*"
     r'operating_system:\s*"(?P<operating_system>[a-z]+)",\s*'
     r'vendor:\s*"(?P<vendor>[a-z]+)",\s*\}\),',
     re.DOTALL,
 )
+
+
+def _native_implementation_id_for_target(target: str) -> str:
+    """Return the audited per-target AArch64 implementation identity."""
+
+    if target in _NATIVE_SHA3_TARGETS:
+        return _AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID
+    return _AARCH64_NATIVE_IMPLEMENTATION_ID
 _BRIDGE_SYMBOLS = frozenset(
     f"qpn_mlkem_bridge_v1_2_0_{parameter_set}_{operation}"
     for parameter_set in ("512", "768", "1024")
@@ -2825,12 +2847,10 @@ _SHARED_FIPS202_SYMBOLS = frozenset(
         "shake256x4",
     )
 )
-_AARCH64_ASSEMBLY_SYMBOLS = frozenset(
+_AARCH64_ARITH_ASSEMBLY_SYMBOLS = frozenset(
     f"qpn_mlkem_internal_v1_2_0__{suffix}"
     for suffix in (
         "intt_aarch64_asm",
-        "keccak_f1600_x1_scalar_aarch64_asm",
-        "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
         "ntt_aarch64_asm",
         "poly_mulcache_compute_aarch64_asm",
         "poly_reduce_aarch64_asm",
@@ -2840,6 +2860,20 @@ _AARCH64_ASSEMBLY_SYMBOLS = frozenset(
         "polyvec_basemul_acc_montgomery_cached_k3_aarch64_asm",
         "polyvec_basemul_acc_montgomery_cached_k4_aarch64_asm",
         "rej_uniform_aarch64_asm",
+    )
+)
+_AARCH64_ASSEMBLY_SYMBOLS = _AARCH64_ARITH_ASSEMBLY_SYMBOLS | frozenset(
+    f"qpn_mlkem_internal_v1_2_0__{suffix}"
+    for suffix in (
+        "keccak_f1600_x1_scalar_aarch64_asm",
+        "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
+    )
+)
+_AARCH64_SHA3_ASSEMBLY_SYMBOLS = _AARCH64_ARITH_ASSEMBLY_SYMBOLS | frozenset(
+    f"qpn_mlkem_internal_v1_2_0__{suffix}"
+    for suffix in (
+        "keccak_f1600_x1_v84a_aarch64_asm",
+        "keccak_f1600_x2_v84a_aarch64_asm",
     )
 )
 
@@ -2963,6 +2997,7 @@ def _validate_target_selection(build_support: str) -> None:
         (
             match.group("target"),
             match.group("environment"),
+            match.group("implementation"),
             match.group("operating_system"),
             match.group("vendor"),
         )
@@ -3004,7 +3039,7 @@ def _validate_target_selection(build_support: str) -> None:
         or selection_body.count("MlKemImplementation::Portable") != 1
         or selection_body.count("return Err(") != len(expected_mismatches)
         or missing_mismatches
-        or compact.count("Ok(MlKemImplementation::Aarch64Native)") != 1
+        or compact.count("Ok(expected.implementation)") != 1
     ):
         raise RustPublishContractError(
             "native target metadata mismatches must fail closed and only non-allowlisted "
@@ -3023,6 +3058,10 @@ def _validate_implementation_ids(build_rs: str, build_support: str) -> None:
             "AARCH64_NATIVE_IMPLEMENTATION_ID",
             _AARCH64_NATIVE_IMPLEMENTATION_ID,
         ),
+        (
+            "AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID",
+            _AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID,
+        ),
     )
     missing = [
         name
@@ -3039,6 +3078,7 @@ def _validate_implementation_ids(build_rs: str, build_support: str) -> None:
     expected_id_arms = (
         "Self::Portable => PORTABLE_IMPLEMENTATION_ID",
         "Self::Aarch64Native => AARCH64_NATIVE_IMPLEMENTATION_ID",
+        "Self::Aarch64NativeSha3 => AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID",
     )
     marker = "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID={}"
     if (
@@ -3142,12 +3182,23 @@ def _validate_build_topology(build_rs: str, build_support: str) -> None:
 
 
 def _validate_native_compiler_contract(build_rs: str, build_support: str) -> None:
-    march_values = re.findall(r'"(-march=[^"]*)"', build_rs)
+    build_march_values = re.findall(r'"(-march=[^"]*)"', build_rs)
+    support_march_values = re.findall(r'"(-march=[^"]*)"', build_support)
+    march_flag_body = re.sub(
+        r"\s+", " ", _extract_rust_function(build_support, "aarch64_march_flag")
+    ).strip()
+    expected_march_arms = (
+        "Self::Portable => None",
+        'Self::Aarch64Native => Some("-march=armv8-a+nosha3")',
+        'Self::Aarch64NativeSha3 => Some("-march=armv8.4-a+sha3")',
+    )
     required_build_shapes = (
-        'build.inherit_rustflags(false).flag("-march=armv8-a+nosha3");',
+        "if let Some(march) = implementation.aarch64_march_flag() {",
+        "build.inherit_rustflags(false).flag(march);",
+        "if let Some(expected_march) = implementation.aarch64_march_flag() {",
         "validate_native_build_environment()?;",
         'let required_platform_define = (target_os == "android").then_some("-DANDROID");',
-        "build_support::validate_native_compiler_arguments( arguments.iter().copied(), required_platform_define, )",
+        "build_support::validate_native_compiler_arguments( arguments.iter().copied(), expected_march, required_platform_define, )",
     )
     compact_build = re.sub(r"\s+", " ", build_rs)
     required_guard_shapes = (
@@ -3166,14 +3217,17 @@ def _validate_native_compiler_contract(build_rs: str, build_support: str) -> Non
         'argument.starts_with("-Xpreprocessor")',
         'argument.starts_with("-Xassembler")',
         'argument.starts_with("-mllvm")',
-        'if argument == "-march=armv8-a+nosha3"',
+        "if argument == expected_march",
         "required_platform_define == Some(argument)",
         "MissingPlatformDefine",
         "DuplicatePlatformDefine",
         '"branch-protection"',
     )
     if (
-        march_values != ["-march=armv8-a+nosha3"]
+        build_march_values != []
+        or support_march_values
+        != ["-march=armv8-a+nosha3", "-march=armv8.4-a+sha3"]
+        or any(arm not in march_flag_body for arm in expected_march_arms)
         or build_rs.count("inherit_rustflags(false)") != 1
         or any(shape not in compact_build for shape in required_build_shapes)
         or any(shape not in build_support for shape in required_guard_shapes)
@@ -3188,7 +3242,9 @@ def _validate_native_compiler_contract(build_rs: str, build_support: str) -> Non
     ):
         raise RustPublishContractError(
             "fixed AArch64 compiler flag/ambient override guard differs from the audited "
-            f"Armv8-A no-BTI contract: march_values={march_values}"
+            "per-target Armv8-A/Armv8.4-A+SHA3 no-BTI contract: "
+            f"build_march_values={build_march_values} "
+            f"support_march_values={support_march_values}"
         )
 
 
@@ -3275,31 +3331,39 @@ def validate_mlkem_native_build_surface(
     if (
         not local_config.startswith(_TARGET_SELECTED_CONFIG_PREFIX)
         or config_token_counts != _EXPECTED_CONFIG_TOKEN_COUNTS
-        or error_directive_count != 6
+        or error_directive_count != 8
         or '#define MLK_CONFIG_ARITH_BACKEND_FILE "native/meta.h"' not in local_config
         or (
             '#define MLK_CONFIG_FIPS202_BACKEND_FILE "mlkem_fips202_aarch64.h"'
             not in local_config
         )
-        or "#if defined(__ARM_FEATURE_SHA3)" not in local_config
-        or "fixed Armv8-A FIPS 202 profile" not in local_config
+        or local_config.count("#if !defined(__ARM_FEATURE_SHA3)") != 1
+        or local_config.count("#if defined(__ARM_FEATURE_SHA3)") != 2
+        or "fixed Armv8.4-A SHA3 FIPS 202 profile" not in local_config
+        or local_config.count("fixed Armv8-A FIPS 202 profile") != 2
+        or "#include <TargetConditionals.h>" not in local_config
+        or "#if TARGET_OS_OSX || TARGET_OS_SIMULATOR" not in local_config
     ):
         raise RustPublishContractError(
             "target-selected config lacks its active source-selector, ambient native-macro, "
-            "or SHA3/BTI baseline guard: "
+            "or per-target SHA3/BTI baseline guards: "
             f"token_counts={config_token_counts} "
             f"error_directives={error_directive_count}"
         )
 
     if (
         "auto.h" in aarch64_fips202
-        or "v84a" in aarch64_fips202.casefold()
+        or aarch64_fips202.count("#if defined(__ARM_FEATURE_SHA3)") != 1
+        or aarch64_fips202.count("x1_v84a.h") != 1
+        or aarch64_fips202.count("x2_v84a.h") != 1
         or aarch64_fips202.count("x1_scalar.h") != 1
         or aarch64_fips202.count("x4_v8a_scalar.h") != 1
+        or "x4_v8a_v84a" in aarch64_fips202
     ):
         raise RustPublishContractError(
-            "AArch64 FIPS 202 selector must use fixed x1_scalar+x4_v8a_scalar headers "
-            "and must not select auto or Armv8.4-A/SHA3 backends"
+            "AArch64 FIPS 202 selector must pin exactly the fixed per-target header "
+            "pairs (x1_v84a+x2_v84a under __ARM_FEATURE_SHA3, otherwise "
+            "x1_scalar+x4_v8a_scalar) and must not select auto or hybrid backends"
         )
 
     packaged_sources = {
@@ -3378,7 +3442,9 @@ def validate_mlkem_native_archive_contract(
     native = target in _NATIVE_TARGETS
     implementation = "aarch64-native" if native else "portable"
     implementation_id = (
-        _AARCH64_NATIVE_IMPLEMENTATION_ID if native else _PORTABLE_IMPLEMENTATION_ID
+        _native_implementation_id_for_target(target)
+        if native
+        else _PORTABLE_IMPLEMENTATION_ID
     )
     expected_marker = (
         "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID=" + implementation_id
@@ -3434,7 +3500,11 @@ def validate_mlkem_native_archive_contract(
         )
     expected_symbols = _BRIDGE_SYMBOLS | _SHARED_FIPS202_SYMBOLS
     if native:
-        expected_symbols |= _AARCH64_ASSEMBLY_SYMBOLS
+        expected_symbols |= (
+            _AARCH64_SHA3_ASSEMBLY_SYMBOLS
+            if target in _NATIVE_SHA3_TARGETS
+            else _AARCH64_ASSEMBLY_SYMBOLS
+        )
     actual_symbols = set(symbols)
     if actual_symbols != expected_symbols:
         raise RustPublishContractError(

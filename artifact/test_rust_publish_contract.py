@@ -184,7 +184,7 @@ def valid_rust_package_contract_transcript() -> list[str]:
             "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
             "target=aarch64-apple-darwin implementation=aarch64-native "
             "implementation_id=mlkem-native-1.2.0/"
-            "aarch64-native-arith+fips202-v8a-scalar "
+            "aarch64-native-arith+fips202-v84a "
             "objects=2 symbols=42 reserved_dynamic_abi=none",
             "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS vendor_files=118 "
             "upstream=v1.2.0 commit="
@@ -2246,7 +2246,7 @@ class RustPublishContractTests(unittest.TestCase):
         self.assertEqual(receipt.mlkem_implementation, "aarch64-native")
         self.assertEqual(
             receipt.mlkem_implementation_id,
-            "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+            "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a",
         )
         self.assertEqual(receipt.mlkem_archive_object_count, 2)
         self.assertEqual(receipt.mlkem_archive_symbol_count, 42)
@@ -2441,11 +2441,14 @@ class RustPublishContractTests(unittest.TestCase):
         self,
     ) -> None:
         native_targets = (
-            "aarch64-apple-darwin",
-            "aarch64-apple-ios",
-            "aarch64-apple-ios-sim",
-            "aarch64-unknown-linux-gnu",
-            "aarch64-linux-android",
+            ("aarch64-apple-darwin", "aarch64-native-arith+fips202-v84a"),
+            ("aarch64-apple-ios", "aarch64-native-arith+fips202-v8a-scalar"),
+            ("aarch64-apple-ios-sim", "aarch64-native-arith+fips202-v84a"),
+            (
+                "aarch64-unknown-linux-gnu",
+                "aarch64-native-arith+fips202-v8a-scalar",
+            ),
+            ("aarch64-linux-android", "aarch64-native-arith+fips202-v8a-scalar"),
         )
         portable_targets = (
             "x86_64-apple-darwin",
@@ -2459,12 +2462,15 @@ class RustPublishContractTests(unittest.TestCase):
             for index, line in enumerate(base)
             if line.startswith("RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS")
         )
-        for target in native_targets:
+        for target, implementation_suffix in native_targets:
             with self.subTest(target=target, implementation="native"):
                 lines = base.copy()
                 lines[binary_index] = lines[binary_index].replace(
                     "target=aarch64-apple-darwin",
                     f"target={target}",
+                ).replace(
+                    "aarch64-native-arith+fips202-v84a",
+                    implementation_suffix,
                 )
                 receipt = validate_rust_package_contract_transcript("\n".join(lines))
                 self.assertEqual(receipt.mlkem_host_target, target)
@@ -2495,7 +2501,7 @@ class RustPublishContractTests(unittest.TestCase):
                 "implementation=aarch64-native", "implementation=portable"
             ),
             "implementation ID": binary.replace(
-                "aarch64-native-arith+fips202-v8a-scalar", "portable-c"
+                "aarch64-native-arith+fips202-v84a", "portable-c"
             ),
             "object count": binary.replace("objects=2", "objects=1"),
             "symbol count": binary.replace("symbols=42", "symbols=30"),
@@ -3224,6 +3230,7 @@ class RustPublishContractTests(unittest.TestCase):
                     "        _ => None,",
                     "        \"aarch64-unknown-freebsd\" => Some(ExpectedNativeTarget {\n"
                     "            environment: \"\",\n"
+                    "            implementation: MlKemImplementation::Aarch64Native,\n"
                     "            operating_system: \"freebsd\",\n"
                     "            vendor: \"unknown\",\n"
                     "        }),\n"
@@ -3299,9 +3306,23 @@ class RustPublishContractTests(unittest.TestCase):
                 + '\nfn extra(build: &mut cc::Build) { let _ = build.try_compile("extra"); }\n',
                 "message": "compilation topology",
             },
-            "changed march": {
-                "build_rs": self.build_rs.replace(
-                    '"-march=armv8-a+nosha3"', '"-march=armv8.4-a+sha3"', 1
+            "changed scalar march": {
+                "build_support": self.build_support.replace(
+                    '"-march=armv8-a+nosha3"', '"-march=armv8-a"', 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "changed sha3 march": {
+                "build_support": self.build_support.replace(
+                    '"-march=armv8.4-a+sha3"', '"-march=armv8.4-a"', 1
+                ),
+                "message": "compiler flag/ambient override guard",
+            },
+            "swapped profile marches": {
+                "build_support": self.build_support.replace(
+                    'Self::Aarch64Native => Some("-march=armv8-a+nosha3")',
+                    'Self::Aarch64Native => Some("-march=armv8.4-a+sha3")',
+                    1,
                 ),
                 "message": "compiler flag/ambient override guard",
             },
@@ -3353,28 +3374,34 @@ class RustPublishContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(RustPublishContractError, message):
                     self.validate(**mutation)
 
-    def test_fixed_fips202_profile_rejects_auto_and_v84a(self) -> None:
+    def test_fixed_fips202_profile_rejects_auto_and_hybrid_selectors(self) -> None:
         cases = {
             "auto selector": self.aarch64_fips202.replace(
-                '#include "src/fips202/native/aarch64/x1_scalar.h"\n'
-                '#include "src/fips202/native/aarch64/x4_v8a_scalar.h"',
+                '#include "src/fips202/native/aarch64/x1_v84a.h"\n'
+                '#include "src/fips202/native/aarch64/x2_v84a.h"',
                 '#include "src/fips202/native/aarch64/auto.h"',
                 1,
             ),
-            "Armv8.4 SHA3 selector": self.aarch64_fips202.replace(
+            "duplicated SHA3 selector": self.aarch64_fips202.replace(
                 "x1_scalar.h", "x1_v84a.h", 1
             ),
+            "hybrid x4 selector": self.aarch64_fips202.replace(
+                "x2_v84a.h", "x4_v8a_v84a_scalar.h", 1
+            ),
+            "unconditional selection": self.aarch64_fips202.replace(
+                "#if defined(__ARM_FEATURE_SHA3)\n", "", 1
+            ).replace("#else\n", "", 1),
         }
         for label, aarch64_fips202 in cases.items():
             with self.subTest(label=label):
                 with self.assertRaisesRegex(
                     RustPublishContractError,
-                    "include graph differs|fixed x1_scalar",
+                    "include graph differs|fixed per-target header",
                 ):
                     self.validate(aarch64_fips202=aarch64_fips202)
 
     @staticmethod
-    def archive_symbols(*, native: bool) -> set[str]:
+    def archive_symbols(*, native: bool, sha3: bool = False) -> set[str]:
         symbols = {
             f"qpn_mlkem_bridge_v1_2_0_{parameter_set}_{operation}"
             for parameter_set in ("512", "768", "1024")
@@ -3413,8 +3440,6 @@ class RustPublishContractTests(unittest.TestCase):
                 f"qpn_mlkem_internal_v1_2_0__{suffix}"
                 for suffix in (
                     "intt_aarch64_asm",
-                    "keccak_f1600_x1_scalar_aarch64_asm",
-                    "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
                     "ntt_aarch64_asm",
                     "poly_mulcache_compute_aarch64_asm",
                     "poly_reduce_aarch64_asm",
@@ -3426,6 +3451,20 @@ class RustPublishContractTests(unittest.TestCase):
                     "rej_uniform_aarch64_asm",
                 )
             )
+            symbols.update(
+                f"qpn_mlkem_internal_v1_2_0__{suffix}"
+                for suffix in (
+                    (
+                        "keccak_f1600_x1_v84a_aarch64_asm",
+                        "keccak_f1600_x2_v84a_aarch64_asm",
+                    )
+                    if sha3
+                    else (
+                        "keccak_f1600_x1_scalar_aarch64_asm",
+                        "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
+                    )
+                )
+            )
         return symbols
 
     def test_actual_portable_and_native_archive_contracts_are_exact(self) -> None:
@@ -3435,6 +3474,7 @@ class RustPublishContractTests(unittest.TestCase):
                 ("ea708c7824d36062-mlkem_bridge_portable.o",),
                 "mlkem-native-1.2.0/portable-c",
                 False,
+                False,
             ),
             (
                 "aarch64-apple-darwin",
@@ -3443,16 +3483,30 @@ class RustPublishContractTests(unittest.TestCase):
                     "ea708c7824d36062-mlkem_bridge_native.o",
                     "81a71fbc30f7fcce-mlkem_bridge_asm.o",
                 ),
-                "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+                "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a",
+                True,
                 True,
             ),
+            (
+                "aarch64-apple-ios",
+                (
+                    "__.SYMDEF SORTED",
+                    "ea708c7824d36062-mlkem_bridge_native.o",
+                    "81a71fbc30f7fcce-mlkem_bridge_asm.o",
+                ),
+                "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar",
+                True,
+                False,
+            ),
         )
-        for target, members, implementation_id, native in cases:
+        for target, members, implementation_id, native, sha3 in cases:
             with self.subTest(target=target):
                 receipt = validate_mlkem_native_archive_contract(
                     target=target,
                     archive_members=members,
-                    defined_symbols=sorted(self.archive_symbols(native=native)),
+                    defined_symbols=sorted(
+                        self.archive_symbols(native=native, sha3=sha3)
+                    ),
                     build_output=(
                         "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID="
                         + implementation_id
@@ -3464,7 +3518,8 @@ class RustPublishContractTests(unittest.TestCase):
                 )
                 self.assertEqual(receipt.object_count, 2 if native else 1)
                 self.assertEqual(
-                    receipt.symbol_count, len(self.archive_symbols(native=native))
+                    receipt.symbol_count,
+                    len(self.archive_symbols(native=native, sha3=sha3)),
                 )
 
     def test_archive_object_symbol_id_and_dynamic_abi_mutations_fail_closed(self) -> None:

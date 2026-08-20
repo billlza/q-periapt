@@ -167,7 +167,7 @@ class ProofManifestTests(unittest.TestCase):
                 "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
                 "target=aarch64-apple-darwin implementation=aarch64-native "
                 "implementation_id=mlkem-native-1.2.0/"
-                "aarch64-native-arith+fips202-v8a-scalar "
+                "aarch64-native-arith+fips202-v84a "
                 "objects=2 symbols=42 reserved_dynamic_abi=none",
                 "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS vendor_files=118 "
                 "upstream=v1.2.0 commit="

@@ -108,9 +108,10 @@ the shipped path:
   **ML-DSA-44/65/87** via `fips204` 0.4.6. Exactly five little-endian targets
   (`aarch64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`,
   `aarch64-unknown-linux-gnu`, and `aarch64-linux-android`) select upstream
-  native arithmetic plus the fixed Armv8-A scalar x1 and scalar/Neon x4 FIPS 202
-  assembly paths. Every other target, including Wasm, uses portable C; there is no
-  runtime dispatch or Armv8.4-A SHA3-extension path. The implementation change is
+  native arithmetic plus a fixed per-target FIPS 202 assembly profile (Armv8.4-A
+  SHA3 x1/x2 on the two Apple Silicon slices, Armv8-A scalar x1 and scalar/Neon
+  x4 elsewhere). Every other target, including Wasm, uses portable C; there is no
+  runtime dispatch. The implementation change is
   below the frozen ABI 2/key/wire contracts. Explicit
   seed/randomness inputs preserve deterministic conformance testing. Expanded-DK import
   validates the embedded public key's canonical encoding and stored hash before
