@@ -5804,6 +5804,81 @@ os.execve(
                 archive_mtime=1_700_000_000,
             )
 
+    def _bundle_for_proof(
+        self, bundle_root: pathlib.Path, proof: dict
+    ) -> dict:
+        file_paths = android_device_proof.bundle_file_paths(proof)
+        payloads = {
+            key: (
+                android_device_proof.canonical_json(proof)
+                if key == "proof"
+                else f"evidence-{key}\n".encode("utf-8")
+            )
+            for key in file_paths
+        }
+        records = {}
+        for key, relative in file_paths.items():
+            path = bundle_root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(payloads[key])
+            records[key] = {
+                "bytes": len(payloads[key]),
+                "path": relative,
+                "sha256": android_device_proof.sha256_bytes(payloads[key]),
+            }
+        return {
+            "schema_version": android_device_proof.BUNDLE_SCHEMA_VERSION,
+            "kind": android_device_proof.BUNDLE_KIND,
+            "source_date_epoch": 1_700_000_000,
+            "git_commit": proof["git_commit"],
+            "run_id": proof["run_id"],
+            "release_candidate_mode": proof["release_candidate_mode"],
+            "device": {
+                key: proof["device"][key]
+                for key in ("kind", "abi", "page_size", "sdk")
+            },
+            "raw_serial_recorded": False,
+            "files": records,
+        }
+
+    def test_release_bundle_accepts_physical_device_shape(self) -> None:
+        proof = complete_proof_shape()
+        proof["release_candidate_mode"] = True
+        proof["device"]["kind"] = "physical"
+        proof["device"]["page_size"] = 4096
+        proof["device"]["sdk"] = 36
+        proof["emulator_control"] = None
+        proof["paths"] = {
+            key: value
+            for key, value in proof["paths"].items()
+            if key not in android_device_proof.EMULATOR_CONTROL_PATH_KEYS
+        }
+        bundle_root = self.root / "physical-release-bundle"
+        manifest = self._bundle_for_proof(bundle_root, proof)
+        selected, parsed_proof = android_device_proof.verify_bundle_manifest(
+            bundle_root,
+            manifest,
+            archive_mtime=1_700_000_000,
+        )
+        self.assertEqual(parsed_proof["device"]["page_size"], 4096)
+        self.assertEqual(parsed_proof["device"]["sdk"], 36)
+        self.assertIs(parsed_proof["release_candidate_mode"], True)
+
+    def test_release_bundle_still_pins_emulator_device_shape(self) -> None:
+        proof = complete_proof_shape()
+        proof["release_candidate_mode"] = True
+        proof["device"]["page_size"] = 4096
+        bundle_root = self.root / "emulator-release-bundle"
+        manifest = self._bundle_for_proof(bundle_root, proof)
+        with self.assertRaisesRegex(
+            SystemExit, "not API 35 / 16 KiB"
+        ):
+            android_device_proof.verify_bundle_manifest(
+                bundle_root,
+                manifest,
+                archive_mtime=1_700_000_000,
+            )
+
     @unittest.skipUnless(os.name == "posix", "descriptor-safe staging is POSIX-only")
     def test_private_bundle_staging_is_no_replace_and_archive_stays_public(
         self,
