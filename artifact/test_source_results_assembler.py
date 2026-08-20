@@ -19,6 +19,7 @@ from unittest import mock
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
+from test_release_publication_contract import LEGACY_ALPHA2_SWIFT_FIELDS
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -60,6 +61,11 @@ def _initial_baseline() -> dict[str, Any]:
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
     baseline["swift_xcframework"].pop("active_publication_key", None)
+    # Restore the exact frozen legacy field bytes so the one-time neutral
+    # selector migration keeps being exercised over its true input.
+    baseline["swift_xcframework"].update(
+        copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS)
+    )
     return baseline
 
 
