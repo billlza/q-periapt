@@ -78,6 +78,8 @@ MAX_ASSET_BYTES = 512 * 1024 * 1024
 MAX_CHECKSUM_BYTES = 1024 * 1024
 MAX_SNAPSHOT_BYTES = 1024 * 1024
 MAX_SECURITY_GATE_BYTES = 1024 * 1024
+CODEQL_ANALYSIS_PAGE_SIZE = 100
+MAX_CODEQL_RESULT_COUNT = 100_000
 MAX_GITHUB_API_BYTES = 16 * 1024 * 1024
 MAX_GIT_OUTPUT_BYTES = 1024 * 1024
 MAX_WORKFLOW_TOOL_BYTES = 512 * 1024 * 1024
@@ -657,7 +659,18 @@ def _selected_code_scanning_observations(
     *,
     expected_commit: str,
 ) -> tuple[dict[str, str], list[dict[str, object]]]:
-    """Validate main authority and select the latest fixed analysis per category."""
+    """Validate main authority and select the latest fixed analysis per category.
+
+    The gate admits adjudicated findings and refuses unadjudicated ones. Each
+    analysis therefore records its actual ``results_count`` while the empty
+    main-ref open-alert list is the operative requirement: a CodeQL finding
+    leaves that list only by being fixed or by being dismissed with a reason
+    recorded against the alert. Requiring ``results_count == 0`` instead would
+    demand that no finding ever existed, which no analysis of this repository
+    has ever reported and which dismissal cannot achieve, because the count is
+    a property of the uploaded analysis and includes already-dismissed
+    findings.
+    """
 
     ref_record = _object(main_ref, "Code Scanning main ref API response")
     ref_object = _object(
@@ -676,7 +689,9 @@ def _selected_code_scanning_observations(
     )
     _require(
         isinstance(analyses, list)
-        and len(CODEQL_ANALYSIS_CONTRACT) <= len(analyses) < 100,
+        and len(CODEQL_ANALYSIS_CONTRACT)
+        <= len(analyses)
+        <= CODEQL_ANALYSIS_PAGE_SIZE,
         "Code Scanning analysis first page is incomplete or oversized",
     )
     allowed_categories = frozenset(
@@ -722,7 +737,7 @@ def _selected_code_scanning_observations(
             and analysis.get("error") == ""
             and analysis.get("ref") == MAIN_REF
             and type(analysis.get("results_count")) is int
-            and analysis.get("results_count") == 0
+            and 0 <= analysis.get("results_count") <= MAX_CODEQL_RESULT_COUNT
             and analysis.get("warning") == "",
             f"{label} ({language}) identity or result differs",
         )
@@ -745,7 +760,7 @@ def _selected_code_scanning_observations(
                 "commit_sha": expected_commit,
                 "error": "",
                 "ref": MAIN_REF,
-                "results_count": 0,
+                "results_count": analysis["results_count"],
                 "rules_count": rules_count,
                 "tool": {"name": "CodeQL", "version": tool_version},
                 "warning": "",

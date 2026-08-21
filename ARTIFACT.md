@@ -804,7 +804,7 @@ These produce the paper's primary network table and the binary constant-time dis
   two fixed successful CI jobs, the selected run/attempt, and all six successful CodeQL
   language jobs in the attested `ABI2_SOURCE_SECURITY_GATE.json`. The same receipt binds
   `refs/heads/main` to R, the latest exact-R analysis for each fixed CodeQL category,
-  zero results, positive rule counts, empty analysis errors/warnings, and an empty
+  adjudicated results, positive rule counts, empty analysis errors/warnings, and an empty
   main-ref open-alert response. Candidate verification
   deeply checks that sanitized receipt and its workflow-source digests; the platform
   pending/verified receipts retain the same structure and subject-digest crosslink. The
