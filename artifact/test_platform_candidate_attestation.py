@@ -348,10 +348,11 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
             "later-ci-in-progress-run",
             "later-codeql-failed-run",
             "later-codeql-in-progress-run",
-            "analysis-nonzero",
+            "analysis-negative-results",
+            "analysis-oversized-results",
             "analysis-error",
             "analysis-warning",
-            "analysis-full-page",
+            "analysis-oversized-page",
             "missing-analysis",
             "duplicate-analysis-id",
             "wrong-analysis-sha",
@@ -414,14 +415,16 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
                         later["conclusion"] = None
                     codeql_runs["workflow_runs"].append(later)
                     codeql_runs["total_count"] += 1
-                elif mutation == "analysis-nonzero":
-                    analyses[0]["results_count"] = 1
+                elif mutation == "analysis-negative-results":
+                    analyses[0]["results_count"] = -1
+                elif mutation == "analysis-oversized-results":
+                    analyses[0]["results_count"] = 100_001
                 elif mutation == "analysis-error":
                     analyses[0]["error"] = "analysis failed"
                 elif mutation == "analysis-warning":
                     analyses[0]["warning"] = "partial extraction"
-                elif mutation == "analysis-full-page":
-                    while len(analyses) < 100:
+                elif mutation == "analysis-oversized-page":
+                    while len(analyses) <= 100:
                         analyses.append(
                             self._code_scanning_analysis(
                                 1_000 + len(analyses),

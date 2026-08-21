@@ -425,7 +425,7 @@ and a fresh aarch64-native cell, each source-bound to the current target mapping
 required before release. Promotion additionally requires the exact-R tag transaction
 to attest a sanitized receipt for those two fixed successful CI jobs and all six fixed
 successful CodeQL language jobs. It also binds `refs/heads/main` to R and requires the
-latest six fixed-category Code Scanning analyses at R to report zero results, positive
+latest six fixed-category Code Scanning analyses at R to report adjudicated results, positive
 rule counts, no error/warning, and no open main-ref alerts. The receipt binds R, S,
 selected run/job/analysis IDs and attempts,
 relative workflow paths, and workflow-source digests; the candidate verifier and both

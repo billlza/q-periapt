@@ -481,9 +481,15 @@ failed, cancelled, or in-progress run therefore blocks an earlier success. It th
 queries that exact attempt's complete job inventory. The receipt admits only the fixed
 x86_64-portable and aarch64-native binary-CT jobs plus all six fixed CodeQL language
 jobs. It separately binds `refs/heads/main` to R, selects the latest exact-R analysis
-for each fixed `/language:*` category, requires CodeQL 2.26.2, zero results, positive
-rule counts, and empty error/warning fields, and requires the main-ref open-alert
-response to be empty. It records bounded numeric run/job/analysis IDs and binds R, S,
+for each fixed `/language:*` category, requires CodeQL 2.26.2, positive
+rule counts, and empty error/warning fields, records each analysis's actual
+result count, and requires the main-ref open-alert response to be empty. A
+CodeQL finding leaves that open-alert list only by being fixed or by being
+dismissed with a reason recorded against the alert, so the empty list is the
+operative requirement: zero unadjudicated findings. Requiring a zero result
+count instead would demand that no finding ever existed, which dismissal cannot
+achieve because the count is a property of the uploaded analysis and includes
+already-dismissed findings. It records bounded numeric run/job/analysis IDs and binds R, S,
 the relative workflow paths, workflow source digests, and the hosted GitHub CLI's
 canonical path, version, and SHA-256. Each API call runs with an empty private CLI configuration,
 minimal credential-only environment, and pre/post executable identity sampling. The

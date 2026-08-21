@@ -68,6 +68,7 @@ CODEQL_ANALYSIS_CONTRACT = tuple(
     for language, _job_name in CODEQL_JOB_CONTRACT
 )
 MAX_CODEQL_RULE_COUNT = (1 << 31) - 1
+MAX_CODEQL_RESULT_COUNT = 100_000
 
 ANDROID_AAR = f"q-periapt-android-{PRODUCT_VERSION}.aar"
 ANDROID_MANIFEST = f"q-periapt-android-{PRODUCT_VERSION}-MANIFEST.json"
@@ -654,7 +655,7 @@ def _validate_code_scanning(value: object, *, expected_tag_commit: str) -> None:
             and analysis["error"] == ""
             and analysis["ref"] == MAIN_REF
             and type(analysis["results_count"]) is int
-            and analysis["results_count"] == 0
+            and 0 <= analysis["results_count"] <= MAX_CODEQL_RESULT_COUNT
             and analysis["warning"] == "",
             f"{label} ({language}) identity or result differs",
         )

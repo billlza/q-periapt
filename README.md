@@ -258,7 +258,7 @@ production-X-Wing parity. We never claim a combiner speed win.
   `main`/`push` CI run, together with all six successful CodeQL language jobs. It also
   requires `refs/heads/main` to remain exactly R, selects the latest exact-R Code
   Scanning analysis for each fixed language category, requires every analysis to have
-  zero results, a positive rule count, and no error/warning, and requires the main-ref
+  adjudicated results, a positive rule count, and no error/warning, and requires the main-ref
   open-alert response to be empty. Bounded run/job/analysis IDs, R/S identity, relative
   workflow paths, and workflow-source digests are stored in an attested private receipt
   that is structurally
