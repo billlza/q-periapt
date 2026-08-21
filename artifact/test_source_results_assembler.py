@@ -19,6 +19,7 @@ from unittest import mock
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
+from test_release_publication_contract import LEGACY_ALPHA2_SWIFT_FIELDS
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -59,6 +60,12 @@ def _initial_baseline() -> dict[str, Any]:
     baseline = _live_results()
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
+    baseline["swift_xcframework"].pop("active_publication_key", None)
+    # Restore the exact frozen legacy field bytes so the one-time neutral
+    # selector migration keeps being exercised over its true input.
+    baseline["swift_xcframework"].update(
+        copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS)
+    )
     return baseline
 
 
@@ -355,15 +362,36 @@ class SourceResultsAssemblerTests(unittest.TestCase):
     def test_live_results_is_the_exact_initial_migration_baseline(self) -> None:
         baseline = _live_results()
         inputs = baseline["proof_to_byte_inputs"]
+        current_keys = set(assembler.PROOF_TO_BYTE_INPUT_PATHS)
+        live_sha256 = hashlib.sha256(
+            (ROOT / "artifact/results.json").read_bytes()
+        ).hexdigest()
 
-        self.assertEqual(
-            assembler.INITIAL_RESULTS_SHA256,
-            hashlib.sha256((ROOT / "artifact/results.json").read_bytes()).hexdigest(),
-        )
+        if set(inputs) == current_keys:
+            # Installed successor state (source_ci_gate's installed dispatch).
+            self.assertEqual(237, len(inputs))
+            self.assertNotEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
+            assembler._validate_baseline_document_shape(
+                baseline,
+                require_initial=False,
+            )
+            assembler.validate_declared_currentness(baseline)
+            with self.assertRaisesRegex(
+                assembler.SourceResultsAssemblerError,
+                "one-time proof-input migration",
+            ):
+                assembler._validate_baseline_document_shape(
+                    baseline,
+                    require_initial=True,
+                )
+            return
+
+        # Frozen initial baseline state (source_ci_gate's initial dispatch).
+        self.assertEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
         self.assertEqual(190, len(inputs))
         self.assertEqual(
             set(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS),
-            set(assembler.PROOF_TO_BYTE_INPUT_PATHS) - set(inputs),
+            current_keys - set(inputs),
         )
         assembler._validate_baseline_document_shape(
             baseline,

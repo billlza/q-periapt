@@ -27,6 +27,78 @@ from test_platform_stable_publication_contract import (
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+"""Frozen alpha.2 legacy selector fields.
+
+These are the exact pre-migration values of the five fields the one-time
+neutral selector migration rewrites. They are pinned here so both live
+states can positively exercise the real migration: the initial state
+asserts the live selector still carries these exact bytes, and the
+installed state reconstructs the legacy selector from them.
+"""
+LEGACY_ALPHA2_SWIFT_FIELDS: dict[str, str] = {
+    "boundary": (
+        "This is the public immutable Developer ID-signed Apple-only static"
+        " XCFramework prerelease for SwiftPM binaryTarget consumption. GitHub"
+        " release attestation and the exact four public asset digests have"
+        " been verified, and a fresh remote URL consumer verification ran"
+        " against the committed publication state recorded below. The static"
+        " SDK payload has no standalone executable or notarizable bundle, so"
+        " SDK notarization and stapling are not applicable; the final"
+        " consuming macOS app still requires its own signing and"
+        " notarization, and the final iOS app requires signing and"
+        " provisioning."
+    ),
+    "command": (
+        "QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0-alpha.2-r1"
+        " QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="
+        "5664fd86a617f92b620ea37e7692d3417d0e307d"
+        " sh artifact/swift-xcframework-release.sh"
+    ),
+    "current_local_status": (
+        "The 2026-07-17 public immutable r1 prerelease was built from source"
+        " commit 5664fd86a617f92b620ea37e7692d3417d0e307d with Rust 1.96.1,"
+        " Cargo 1.96.1, Xcode 26.6, and Swift 6.3.3. All five Apple Rust"
+        " targets, exact nine-symbol ABI2 exports, schema-3 distribution"
+        " identity, schema-5 manifest toolchain identity, static-archive path"
+        " hygiene, strict Developer ID signature, deterministic ZIP, three"
+        " isolated SwiftPM product tests, macOS universal link/runtime, and"
+        " iOS device/simulator links passed. The exact four published assets"
+        " match the pinned hashes, GitHub reports the release immutable, and"
+        " its release attestation verifies. A fresh remote URL consumer at"
+        " verifier commit d93a7cab2e00ce1036f6b218eef01bb889cb60a9"
+        " redownloaded and reverified all four assets, executed exactly three"
+        " passing XCTest cases, and passed macOS universal plus iOS"
+        " device/simulator link checks."
+    ),
+    "current_source_status": "public_immutable_remote_consumer_verified",
+    "mode": "Developer ID-signed SwiftPM binaryTarget release candidate",
+}
+
+
+def legacy_swift_manifest_fixture(
+    manifest: dict[str, object],
+) -> dict[str, object]:
+    """Return a manifest carrying the exact frozen legacy alpha.2 selector."""
+
+    legacy = copy.deepcopy(manifest)
+    swift = legacy["swift_xcframework"]
+    assert isinstance(swift, dict)
+    swift.pop("active_publication_key", None)
+    swift.update(copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS))
+    return legacy
+
+
+def neutral_selector_fixture(
+    manifest: dict[str, object],
+) -> dict[str, object]:
+    """Return the neutral Apple selector for either live migration state."""
+
+    swift = manifest["swift_xcframework"]
+    if isinstance(swift, dict) and "active_publication_key" in swift:
+        return copy.deepcopy(swift)
+    return contract.neutral_swift_selector(manifest)
+
+
 def _rebind_platform(
     receipt: dict[str, object], source: dict[str, str]
 ) -> dict[str, object]:
@@ -75,13 +147,22 @@ def _rebind_crates(
     }
     package_contract = observation["package_contract"]
     package_contract["source_commit"] = source["source_parent_commit"]
-    package_contract["completed_at"] = rust_publish["completed_at"]
+    completed_at = rust_publish["completed_at"]
+    package_contract["completed_at"] = completed_at
     package_contract["transcript_sha256"] = rust_publish[
         "transcript_sha256"
     ]
     package_contract["handoff_sha256"] = rust_publish[
         "handoff_manifest_sha256"
     ]
+    # Keep the observation chain consistent with the selected Rust evidence:
+    # the contract requires completed_at <= verified_at <= observed_at.
+    if str(observation["observed_at"]) < str(completed_at):
+        observation["observed_at"] = completed_at
+    for crate in rebound["crates"]:
+        verified_at = crate.get("verified_at")
+        if verified_at is not None and str(verified_at) < str(completed_at):
+            crate["verified_at"] = completed_at
     return rebound
 
 
@@ -229,7 +310,7 @@ def source_manifest_fixture(
         source_commit=source["source_parent_commit"],
         source_digest=source["canonical_source_tree_sha256"],
     )
-    manifest["swift_xcframework"] = contract.neutral_swift_selector(manifest)
+    manifest["swift_xcframework"] = neutral_selector_fixture(manifest)
     return manifest
 
 
@@ -548,16 +629,49 @@ class ReleasePublicationContractTests(unittest.TestCase):
                     contract.validate_stable_source_currentness(invalid)
 
     def test_one_time_selector_migration_is_exact(self) -> None:
-        migrated = contract.neutral_swift_selector(self.legacy)
-        self.assertEqual(
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
-            migrated["active_publication_key"],
+        swift = self.legacy["swift_xcframework"]
+        installed = "active_publication_key" in swift
+        if installed:
+            # Installed state: the one-time migration has already produced
+            # the live selector and must not be repeatable.
+            with self.assertRaisesRegex(
+                contract.ReleasePublicationContractError, "exact legacy"
+            ):
+                contract.neutral_swift_selector(self.legacy)
+        else:
+            # Initial state: the live selector is byte-exactly the frozen
+            # legacy alpha.2 selector this module pins for reconstruction.
+            for field, expected in LEGACY_ALPHA2_SWIFT_FIELDS.items():
+                self.assertEqual(expected, swift[field], field)
+
+        # Both states positively exercise the real migration over the exact
+        # frozen legacy selector and assert its complete rewritten output.
+        legacy_manifest = legacy_swift_manifest_fixture(self.legacy)
+        migrated = contract.neutral_swift_selector(legacy_manifest)
+        expected_migrated = copy.deepcopy(
+            legacy_manifest["swift_xcframework"]
         )
-        self.assertEqual(contract.NEUTRAL_SWIFT_BOUNDARY, migrated["boundary"])
+        expected_migrated.update(
+            {
+                "active_publication_key": (
+                    apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+                ),
+                "boundary": contract.NEUTRAL_SWIFT_BOUNDARY,
+                "command": contract.NEUTRAL_SWIFT_COMMAND,
+                "current_local_status": contract.NEUTRAL_SWIFT_LOCAL_STATUS,
+                "current_source_status": contract.NEUTRAL_SWIFT_SOURCE_STATUS,
+                "mode": contract.NEUTRAL_SWIFT_MODE,
+            }
+        )
+        self.assertEqual(expected_migrated, migrated)
+        if installed:
+            # The reconstructed migration output is byte-identical to the
+            # live installed selector.
+            self.assertEqual(swift, migrated)
         source = self.source_manifest()
         contract.validate_release_publication_transition(self.legacy, source)
 
-        changed = copy.deepcopy(self.legacy)
+        changed = legacy_swift_manifest_fixture(self.legacy)
         changed["swift_xcframework"]["distribution"]["artifact_size"] += 1
         with self.assertRaisesRegex(
             contract.ReleasePublicationContractError, "exact legacy"
