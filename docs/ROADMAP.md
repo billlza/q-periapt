@@ -304,9 +304,9 @@ The implementation budget preregisters one-sided 95% upper native/portable limit
 0.95 for primary p50/p95 and 1.0 for p99; drift or failure blocks the proof. A performance proof counts as current only when its canonical source
 digest equals the live verifier digest and the host satisfies the controlled-power and
 thermal contract. The time-varying formal proof state is recorded in
-`artifact/results.json`. The gate is implemented, but no fresh clean-source,
-controlled-host, exact-sample proof is selected; exact results require raw schema v5,
-proof schema v8, and budget schema v10. The older Criterion combiner harness remains a
+`artifact/results.json`. The gate is implemented; exact results are published only
+while `artifact/results.json` selects a fresh clean-source, controlled-host,
+exact-sample proof (raw schema v5, proof schema v8, budget schema v10). The older Criterion combiner harness remains a
 reference/primitive-scale tool; neither host result closes device energy, rustls
 end-to-end, stable clean-baseline history, or optimized-production parity.
 Budget schema v10 preserves the profile thresholds, 20,480 samples per
@@ -613,7 +613,7 @@ are the gap between research-grade and audited/production.
 | Tamarin symbolic handshake model (auth, authenticated context agreement, hybrid robustness; 5 lemmas) | **Done** |
 | ProVerif handshake model — independent second symbolic prover (6 exact queries) | **Done** |
 | CI gate for the Tamarin proof (hard lemma-presence gate + hard `make prove`) | **Done** |
-| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; result pending.** Raw v5 preserves seed-dk profile non-regression with strict profile-specific canonical inputs. The separate implementation estimand feeds one generated `expanded_fips203_2400` keypair/coins/corpus to O3/codegen-matched native and portable ContextBound `hybrid_core` encap/decap paths and compares per-case outputs; it excludes FFI and OS RNG. Each estimand/operation is warmed immediately before its own collection. Exact results require a fresh clean proof-schema-v8 run under budget schema v10 selected by the results manifest. Verifier policy fixes the repository budget and stable Rust/Cargo 1.96.1 producer and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; hermetic provenance, fresh clean proof, device energy, and cross-host coverage remain pending. |
+| Profile and implementation paired performance budget | **Canonical-source, controlled-host gate implemented; the result is bound to the results-manifest selection.** Raw v5 preserves seed-dk profile non-regression with strict profile-specific canonical inputs. The separate implementation estimand feeds one generated `expanded_fips203_2400` keypair/coins/corpus to O3/codegen-matched native and portable ContextBound `hybrid_core` encap/decap paths and compares per-case outputs; it excludes FFI and OS RNG. Each estimand/operation is warmed immediately before its own collection. Exact results require a fresh clean proof-schema-v8 run under budget schema v10 selected by the results manifest. Verifier policy fixes the repository budget and stable Rust/Cargo 1.96.1 producer and checks actual proof freshness plus binary/raw/portable/toolchain artifacts; the exact result is published only while the manifest selects a fresh clean proof; hermetic provenance, device energy, and cross-host coverage remain pending. |
 | NIST ACVP conformance (ML-KEM-768 + ML-KEM-1024 + ML-DSA-65 + ML-DSA-87) | **Done** |
 | `ContextBound` reference vectors (in-repo KAT, independently cross-checked) | **Done** |
 | Deterministic `ContextBound`/`CompatXWing` conformance vectors | **Done in Rust/WASM; intentionally not exported by native ABI2** |

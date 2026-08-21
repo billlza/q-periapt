@@ -178,10 +178,11 @@ cannot turn a former-scale failure green. Separately parameterized 64/256/256-pa
 stability windows retain the same 5% CV limit.
 The proof binds the final dual-implementation binary, portable archive and source,
 raw records, fixed budget, source tree, and toolchain identity. The machine-verifiable
-gate is implemented, but no fresh clean-source, controlled-host exact-sample proof
-for this tree is selected; historical and dirty diagnostics remain non-claim evidence.
-Exact quantitative results require a fresh controlled proof-schema-v8 run under
-budget schema v10. Even a passing implementation estimand would establish only the
+gate is implemented; the claim is live exactly while `artifact/results.json` selects
+a fresh clean-source, controlled-host exact-sample proof for this tree, and
+historical and dirty diagnostics remain non-claim evidence. Exact quantitative
+results require a fresh controlled proof-schema-v8 run under budget schema v10
+selected by that manifest. Even a passing implementation estimand would establish only the
 registered expanded-key hybrid-core native/portable result, not complete ABI, rustls,
 device, or competitor performance.
 The target-selection/source migration changes the canonical source digest, so every
