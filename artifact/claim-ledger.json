@@ -330,7 +330,7 @@
     },
     {
       "id": "PERFORMANCE-IMPLEMENTATION-IMPROVEMENT",
-      "title": "Registered AArch64 native/portable expanded-key hybrid-core improvement remains pending",
+      "title": "Registered AArch64 native/portable expanded-key hybrid-core improvement is delegated to the results-manifest selection",
       "status": "pending",
       "evidence": {
         "harness": ["crates/q-periapt-backends/examples/paired_profile_perf.rs", "artifact/performance_gate.py"],
@@ -338,7 +338,7 @@
         "tests": ["artifact/test_performance_gate.py", "artifact/test_rust_publish_contract.py"],
         "data": ["artifact/results.json"]
       },
-      "boundary": "The raw-v5/proof-v8/budget-v10 machine-verifiable gate and immutable material thresholds are implemented for the O3/codegen-matched ContextBound hybrid_core encapsulation/decapsulation estimand over one generated expanded_fips203_2400 keypair supplied to both implementations. Per-case outputs must be byte-equivalent before native/portable ABBA/BAAB inference, and each operation is warmed independently immediately before collection. The estimand excludes FFI and OS RNG and is not a full ABI, rustls, device, or competitor result. This claim remains pending because no fresh clean-source, controlled-host, exact-sample proof for the current tree has been collected and selected. Historical or dirty diagnostics, profile_non_regression results, portable-only captures, thresholds, and tests cannot satisfy or self-prove this claim."
+      "boundary": "The raw-v5/proof-v8/budget-v10 machine-verifiable gate and immutable material thresholds are implemented for the O3/codegen-matched ContextBound hybrid_core encapsulation/decapsulation estimand over one generated expanded_fips203_2400 keypair supplied to both implementations. Per-case outputs must be byte-equivalent before native/portable ABBA/BAAB inference, and each operation is warmed independently immediately before collection. The estimand excludes FFI and OS RNG and is not a full ABI, rustls, device, or competitor result. This registry status is deliberately the state-independent conservative floor and never asserts the quantitative result itself: the live claim state is delegated to artifact/results.json, whose performance section publishes the claim exactly while it currently selects a fresh clean-source, controlled-host, exact-sample proof for the current tree (status current_controlled_pass), and any consumer of the improvement claim must consult that selection. Historical or dirty diagnostics, profile_non_regression results, portable-only captures, thresholds, and tests cannot satisfy or self-prove this claim."
     },
     {
       "id": "PERFORMANCE-NONREGRESSION",
