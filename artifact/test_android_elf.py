@@ -356,7 +356,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         return entries
 
     def write_aar(self) -> pathlib.Path:
-        path = self.root / "q-periapt-android-0.1.0.aar"
+        path = self.root / "q-periapt-android-0.1.1.aar"
         path.write_bytes(zip_bytes(self.aar_entries()))
         return path
 
@@ -404,7 +404,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         work.mkdir(parents=True)
         self.root = work
         entries = self.aar_entries()
-        aar = work / "q-periapt-android-0.1.0.aar"
+        aar = work / "q-periapt-android-0.1.1.aar"
         aar.write_bytes(zip_bytes(entries))
         manifest_path = work / "MANIFEST.json"
         llvm_nm, llvm_readelf = self.fake_tools()
@@ -434,7 +434,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
             "schema_version": android_elf.MANIFEST_SCHEMA_VERSION,
             "kind": "qperiapt.android_aar_manifest",
             "package": aar.name,
-            "version": "0.1.0",
+            "version": "0.1.1",
             "generated_at": dt.datetime.fromtimestamp(
                 epoch, tz=dt.timezone.utc
             ).isoformat().replace("+00:00", "Z"),

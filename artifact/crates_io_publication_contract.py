@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frozen ABI-2 crates.io publication receipt for Q-Periapt 0.1.0.
+"""Frozen ABI-2 crates.io publication receipt for Q-Periapt 0.1.1.
 
 The receipt is deliberately a remote-observation domain, not an upload log.
 Only exact observations from both the crates.io API and sparse index can turn
@@ -20,10 +20,10 @@ from rust_publish_contract import RUST_PUBLISHABLE_CRATES
 
 CRATES_IO_PUBLICATION_SCHEMA_VERSION = 1
 CRATES_IO_PUBLICATION_KIND = "qperiapt.abi2_crates_io_publication_receipt"
-CRATES_IO_PUBLICATION_KEY = "crates_io_v0_1_0"
+CRATES_IO_PUBLICATION_KEY = "crates_io_v0_1_1"
 CRATES_IO_REGISTRY = "https://crates.io"
 CRATES_IO_SPARSE_INDEX = "https://index.crates.io"
-PRODUCT_VERSION = "0.1.0"
+PRODUCT_VERSION = "0.1.1"
 ABI_VERSION = 2
 MAX_CRATE_SIZE_BYTES = 128 * 1024 * 1024
 MAX_TOTAL_CRATE_SIZE_BYTES = 512 * 1024 * 1024
@@ -88,10 +88,10 @@ if PUBLISHABLE_CRATES != RUST_PUBLISHABLE_CRATES:
     )
 
 CRATES_IO_PUBLICATION_BOUNDARY = (
-    "ABI 2 Q-Periapt 0.1.0 crates.io publication receipt. Local package "
+    "ABI 2 Q-Periapt 0.1.1 crates.io publication receipt. Local package "
     "digests provide Level-1 accidental-mismatch detection. A crate is "
     "published_verified only when the official crates.io API and sparse "
-    "index both report version 0.1.0, the exact local .crate SHA-256, and "
+    "index both report version 0.1.1, the exact local .crate SHA-256, and "
     "yanked=false. Published crates must form the fixed dependency-safe "
     "prefix; absent suffix entries are not a rollback claim. Upload outcome "
     "unknown is intentionally outside this public receipt and blocks an "
@@ -100,7 +100,7 @@ CRATES_IO_PUBLICATION_BOUNDARY = (
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_CRATE_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*-0\.1\.0\.crate$")
+_CRATE_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*-0\.1\.1\.crate$")
 
 _TOP_LEVEL_KEYS = frozenset(
     {
@@ -426,4 +426,4 @@ def validate_crates_io_publication_receipt(receipt_value: object) -> None:
 
 # Stable-specific name used by the release assembler; retain the domain name as
 # the primary public API for direct callers.
-validate_v0_1_0_publication_receipt = validate_crates_io_publication_receipt
+validate_v0_1_1_publication_receipt = validate_crates_io_publication_receipt

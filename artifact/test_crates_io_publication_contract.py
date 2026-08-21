@@ -132,7 +132,7 @@ class CratesIoPublicationContractTests(unittest.TestCase):
             ("crates_io_api", "checksum", "f" * 64, "checksum differs"),
             ("sparse_index", "checksum", "e" * 64, "checksum differs"),
             ("crates_io_api", "yanked", True, "yanked=false"),
-            ("sparse_index", "version", "0.1.1", "version differs"),
+            ("sparse_index", "version", "0.1.2", "version differs"),
         )
         for remote, field, value, expected in mutations:
             with self.subTest(remote=remote, field=field):
