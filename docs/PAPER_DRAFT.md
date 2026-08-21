@@ -537,8 +537,9 @@ producer/verifier and certificate/timestamp-authority gate exist.
   65f4328).
 - ~~Add local netem baselines~~ — **historical supporting data present** for classical X25519,
   IANA `X25519MLKEM768`, CompatXWing, and ContextBound.
-- ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE as a gate; fresh
-  release evidence remains pending.** Raw schema v5 carries two separately named
+- ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE as a gate; the
+  quantitative claim is published only while `artifact/results.json` selects a
+  fresh controlled proof.** Raw schema v5 carries two separately named
   estimands in one same-process ABBA/BAAB slot: profile non-regression and
   output-equivalent native/portable ContextBound implementation improvement.
   Its nested `profile_inputs` fixes the distinct canonical metadata inputs for both
