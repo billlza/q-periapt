@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Current ABI2 0.1.0 platform-distribution identity and asset contract.
+"""Current ABI2 0.1.1 platform-distribution identity and asset contract.
 
 This module contains only prepublication identity: product/revision names, the
 exact asset inventory and media types, the source-security gate schema, and the
@@ -26,7 +26,7 @@ PLATFORM_RELEASE_CANDIDATE_KIND = (
 ANDROID_DEVICE_PROOF_SCHEMA_VERSION = 6
 ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION = 2
 
-PRODUCT_VERSION = "0.1.0"
+PRODUCT_VERSION = "0.1.1"
 DISTRIBUTION_REVISION = "r1"
 RELEASE_TAG = f"abi2-platforms-v{PRODUCT_VERSION}"
 RELEASE_URL = f"https://github.com/billlza/q-periapt/releases/tag/{RELEASE_TAG}"

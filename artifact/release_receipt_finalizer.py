@@ -193,7 +193,7 @@ def _load_apple_receipt(path: pathlib.Path) -> dict[str, Any]:
         expected_leaf=(
             apple_stable_publication.APPLE_PUBLICATION_RECEIPT_NAME
         ),
-        label="Apple 0.1.0 stable publication receipt input",
+        label="Apple 0.1.1 stable publication receipt input",
         parent_depth=1,
         maximum=apple_stable_publication.MAX_REMOTE_RECEIPT_BYTES,
         file_mode=PRIVATE_FILE_MODE,
@@ -203,7 +203,7 @@ def _load_apple_receipt(path: pathlib.Path) -> dict[str, Any]:
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_1_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -217,15 +217,15 @@ def _load_platform_receipt(path: pathlib.Path) -> dict[str, Any]:
         path,
         safe_root=platform_stable_publication.PLATFORM_PUBLICATION_RECEIPT_ROOT,
         expected_leaf=platform_stable_publication.RECEIPT_NAME,
-        label="platform 0.1.0 stable publication receipt input",
+        label="platform 0.1.1 stable publication receipt input",
         parent_depth=1,
         maximum=platform_stable_publication.MAX_PRIVATE_JSON_BYTES,
         file_mode=PRIVATE_FILE_MODE,
     )
     receipt = snapshot.value
     try:
-        platform_contract.validate_v0_1_0_publication_receipt(receipt)
-    except platform_contract.PlatformV010PublicationContractError as exc:
+        platform_contract.validate_v0_1_1_publication_receipt(receipt)
+    except platform_contract.PlatformV011PublicationContractError as exc:
         raise ReleaseReceiptFinalizerError(str(exc)) from exc
     return receipt
 
@@ -235,7 +235,7 @@ def _load_crates_receipt(path: pathlib.Path) -> dict[str, Any]:
         path,
         safe_root=crates_io_publication.CRATES_IO_PUBLICATION_RECEIPT_ROOT,
         expected_leaf=crates_io_publication.CRATES_IO_PUBLICATION_RECEIPT_NAME,
-        label="crates.io 0.1.0 stable publication receipt input",
+        label="crates.io 0.1.1 stable publication receipt input",
         parent_depth=1,
         maximum=crates_io_publication.MAX_RECEIPT_BYTES,
         file_mode=PRIVATE_FILE_MODE,
@@ -316,8 +316,8 @@ def _assert_only_allowed_mutations(
         "current release_publications",
     )
     mutable_publication_keys = {
-        apple_contract.APPLE_V0_1_0_PUBLICATION_KEY,
-        platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY,
+        apple_contract.APPLE_V0_1_1_PUBLICATION_KEY,
+        platform_contract.PLATFORM_V0_1_1_PUBLICATION_KEY,
     }
     if current_state == PUBLICATION_STATE_VERIFIED:
         mutable_publication_keys.add(crates_contract.CRATES_IO_PUBLICATION_KEY)
@@ -412,10 +412,10 @@ def assemble_next_results(
         current.get("release_publications"),
         "release_publications",
     )
-    publications[apple_contract.APPLE_V0_1_0_PUBLICATION_KEY] = copy.deepcopy(
+    publications[apple_contract.APPLE_V0_1_1_PUBLICATION_KEY] = copy.deepcopy(
         apple_receipt
     )
-    publications[platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY] = copy.deepcopy(
+    publications[platform_contract.PLATFORM_V0_1_1_PUBLICATION_KEY] = copy.deepcopy(
         platform_receipt
     )
     if crates_receipt is not None:
@@ -425,7 +425,7 @@ def assemble_next_results(
     if previous_state == PUBLICATION_STATE_PENDING:
         swift = _object(current.get("swift_xcframework"), "swift_xcframework")
         swift["active_publication_key"] = (
-            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_1_PUBLICATION_KEY
         )
         swift["distribution"] = copy.deepcopy(apple_receipt["distribution"])
     try:
@@ -503,11 +503,11 @@ def verify_existing_receipts(
     publications = _object(current.get("release_publications"), "release_publications")
     _require(
         _json_equal(
-            publications.get(apple_contract.APPLE_V0_1_0_PUBLICATION_KEY),
+            publications.get(apple_contract.APPLE_V0_1_1_PUBLICATION_KEY),
             apple_receipt,
         )
         and _json_equal(
-            publications.get(platform_contract.PLATFORM_V0_1_0_PUBLICATION_KEY),
+            publications.get(platform_contract.PLATFORM_V0_1_1_PUBLICATION_KEY),
             platform_receipt,
         ),
         "provided domain receipts differ from current results",

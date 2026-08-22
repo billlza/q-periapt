@@ -42,7 +42,7 @@ final class QPeriaptHybridBinaryConsumerTests: XCTestCase {
 
     func testRuntimeMetadataMatchesCompiledHeader() throws {
         XCTAssertEqual(QPeriaptHybrid.runtimeAbiVersion, QPeriaptHybrid.abiVersion)
-        XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.1.0")
+        XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.1.1")
         XCTAssertEqual(QPeriaptHybrid.fixedSuiteId, Array("ML-KEM-768+X25519".utf8))
         XCTAssertEqual(QPeriaptHybrid.fixedSuiteIdLen, "ML-KEM-768+X25519".utf8.count)
         XCTAssertEqual(QPeriaptHybrid.statusName(QPeriaptError.policyCode), "ERR_POLICY")

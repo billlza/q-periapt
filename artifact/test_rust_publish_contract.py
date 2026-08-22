@@ -80,7 +80,7 @@ def normalized_cargo_lock(
             (
                 "[[package]]",
                 f'name = "{name}"',
-                'version = "0.1.0"',
+                'version = "0.1.1"',
                 "",
             )
         )
@@ -274,12 +274,12 @@ class RustPublishContractTests(unittest.TestCase):
 
     def test_stable_internal_dependencies_remain_exact(self) -> None:
         self.assertEqual(
-            exact_internal_dependency_requirement("0.1.0"),
-            "=0.1.0",
+            exact_internal_dependency_requirement("0.1.1"),
+            "=0.1.1",
         )
         self.assertNotEqual(
-            exact_internal_dependency_requirement("0.1.0"),
-            "^0.1.0",
+            exact_internal_dependency_requirement("0.1.1"),
+            "^0.1.1",
         )
         self.assertIn(
             "expected_req = exact_internal_dependency_requirement(version)",
@@ -347,9 +347,9 @@ class RustPublishContractTests(unittest.TestCase):
             "",
             "\n".join(
                 (
-                    "   Packaging q-periapt-core v0.1.0 (/source)",
+                    "   Packaging q-periapt-core v0.1.1 (/source)",
                     "    Packaged 6 files, 90.6KiB (31.5KiB compressed)",
-                    "   Verifying q-periapt-core v0.1.0 (/package)",
+                    "   Verifying q-periapt-core v0.1.1 (/package)",
                     "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.1s",
                 )
             ),
@@ -709,8 +709,8 @@ class RustPublishContractTests(unittest.TestCase):
             )
         )
         local_checksum = base.replace(
-            b'name = "q-periapt-backends"\nversion = "0.1.0"',
-            b'name = "q-periapt-backends"\nversion = "0.1.0"\n'
+            b'name = "q-periapt-backends"\nversion = "0.1.1"',
+            b'name = "q-periapt-backends"\nversion = "0.1.1"\n'
             + f'checksum = {json.dumps("c" * 64)}'.encode(),
             1,
         )
@@ -739,7 +739,7 @@ class RustPublishContractTests(unittest.TestCase):
             ),
             "local resolved from registry": normalized_cargo_lock(
                 registry_packages=(
-                    ("q-periapt-core", "0.1.0", "a" * 64),
+                    ("q-periapt-core", "0.1.1", "a" * 64),
                 )
             ),
             "duplicate registry": duplicate_registry,

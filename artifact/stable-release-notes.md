@@ -1,25 +1,49 @@
-# Q-Periapt 0.1.0 — ABI 2 stable release
+# Q-Periapt 0.1.1 — ABI 2 stable release
 
 Before this stable transaction, the published prerelease was `0.1.0-alpha.2`;
-`0.1.0-alpha.3` was the working source line, not a published release. This release
-promotes that working line to `0.1.0`, while keeping the public C ABI at major
-version 2 and the exact nine-symbol export surface. It is not an ABI 2.1 change
-and requires no ABI migration.
+`0.1.0-alpha.3` was the working source line, not a published release. That working
+line was first tagged as `0.1.0` but never published (see the 0.1.0 history below).
+This release carries the same source line, plus the candidate-verifier correction,
+forward as `0.1.1`, while keeping the public C ABI at major version 2 and the exact
+nine-symbol export surface. It is not an ABI 2.1 change and requires no ABI
+migration.
+
+0.1.0 history: on 2026-08-21 the Apple distribution tag `v0.1.0` and the platform tag
+`abi2-platforms-v0.1.0` were pushed, pointing at the results successor
+`c4907760cc8320642c19cf177770f02a93f49c93`, under the no-bypass tag ruleset; they
+are therefore permanent. The tag-triggered `ABI2 stable platform release` workflow
+run `32477530879` built a sound six-subject candidate with valid build-provenance
+attestations. The candidate verifier frozen in that source line
+(`artifact/platform_candidate_attestation.py`) pinned two fields of the Sigstore
+certificate summary to the wrong values: it expected
+`certificateIssuer = https://token.actions.githubusercontent.com` and
+`issuer = https://fulcio.sigstore.dev`, while the GitHub CLI reports
+`certificateIssuer` as the X.509 issuer DN `CN=sigstore-intermediate,O=sigstore.dev`
+and `issuer` as the OIDC issuer `https://token.actions.githubusercontent.com`. The
+0.1.0 platform, Apple, and source publications were therefore never finalized: no
+GitHub release, no crates.io publication, and no signed Apple distribution exist
+for 0.1.0. Because stable tags are immutable and publication commits may change
+only `artifact/results.json`, the correction ships as `0.1.1` (the same source line
+plus the verifier fix) and 0.1.0 remains tagged, unpublished history. The repository
+therefore carries four stable-named tags: `v0.1.0` and `abi2-platforms-v0.1.0`
+(historical, unpublished) and `v0.1.1` and `abi2-platforms-v0.1.1` (current); the
+tag ruleset must protect all four.
 
 Here “stable” means a non-prerelease distribution channel plus the frozen C ABI 2
-and exact dependency cohort. SemVer `0.1.0` remains a Rust `0.x` API line, not a
+and exact dependency cohort. SemVer `0.1.1` remains a Rust `0.x` API line, not a
 Rust API 1.0 compatibility promise; the ten internal crate edges remain pinned to
-exact `=0.1.0` versions.
+exact `=0.1.1` versions.
 
 The release plan uses two independently verifiable GitHub transactions for the
 same product SemVer. Each becomes public/current only after its verified receipt
 records the immutable release:
 
-- Apple: `v0.1.0`
-- Android and GNU/Linux: `abi2-platforms-v0.1.0`
+- Apple: `v0.1.1`
+- Android and GNU/Linux: `abi2-platforms-v0.1.1`
 
 The earlier alpha.2 tags and receipts remain immutable historical evidence. They
-are not rewritten or promoted as 0.1.0 evidence.
+are not rewritten or promoted as 0.1.1 evidence. The unpublished 0.1.0 tags
+likewise remain historical and are not promoted as 0.1.1 evidence.
 
 Before the final source PR can be merged as `S`, repository administration must
 replace the obsolete required contexts `constant-time (ubuntu-latest)` and
@@ -31,8 +55,9 @@ unprotected merge cannot substitute for a fresh read-only branch-protection
 observation and a mergeable final PR.
 
 Before either stable tag is created or pushed, an authorized operator must first
-create an active repository tag ruleset that explicitly includes both exact refs,
-restricts updates and deletions, and has no bypass actor. Creating or changing the
+ensure that an active repository tag ruleset explicitly includes both exact 0.1.1
+refs alongside the historical `v0.1.0` and `abi2-platforms-v0.1.0` refs, restricts
+updates and deletions, and has no bypass actor. Creating or changing the
 ruleset is an external administrative action and is not performed by this
 repository. Immediately before tag creation, run the read-only authority below
 with exactly one `GH_TOKEN` or `GITHUB_TOKEN` whose access is sufficient for the
@@ -47,11 +72,13 @@ Proceed only from a fresh `STABLE_TAG_PROTECTION_PASS`. The command samples the
 complete bounded tag-ruleset inventory twice through the source-pinned GitHub CLI,
 requires the current API version, rejects proxy/CA/Git/GitHub overrides and user
 CLI configuration, and accepts only explicit active `update` plus `deletion`
-coverage for `refs/tags/v0.1.0` and
-`refs/tags/abi2-platforms-v0.1.0` with an empty bypass list. A missing or hidden
+coverage for `refs/tags/v0.1.1` and
+`refs/tags/abi2-platforms-v0.1.1` with an empty bypass list. A missing or hidden
 bypass list, target/ref mismatch, disabled/evaluate ruleset, incomplete first
 page, tool drift, or changed second sample is a refusal. Tag-triggered CI is too
-late to replace this pre-tag check.
+late to replace this pre-tag check. The same ruleset must also keep covering the
+historical `refs/tags/v0.1.0` and `refs/tags/abi2-platforms-v0.1.0`; all four
+stable-named refs remain protected.
 
 Both stable tags point to the coordinated results-only commit `R`, whose sole
 parent is the source-changing commit `S`. Stable receipts record `S` as
@@ -69,7 +96,7 @@ cannot be selected into `R`.
 
 ## Reliability and security hardening
 
-The 0.1.0 source line makes a deliberate fail-closed Rust/WASM behavior change:
+The 0.1.1 source line makes a deliberate fail-closed Rust/WASM behavior change:
 `CompatXWing` calls must use canonical absent suite/version/context metadata
 (`[]`, `0`, `[]`). Calls that previously succeeded while those values were ignored
 now return the existing policy error before XOF construction, backend execution, or
@@ -180,7 +207,8 @@ again before any mutation.
 The fixed local Git wrapper below discards caller Git configuration/environment for
 all observations and tag construction. First prove that both *exact* stable refs
 are absent locally and through the neutral, double-sampled read-only GitHub API;
-similarly prefixed prerelease refs do not affect this exact-absence decision.
+similarly prefixed prerelease refs and the historical `v0.1.0` /
+`abi2-platforms-v0.1.0` refs do not affect this exact-absence decision.
 Execute the fenced command once as written. Do not source it or paste its body into
 the operator shell: the fixed non-shell launcher first removes all documented
 `xcrun` selectors, validates the credential and public tagger fields, and passes
@@ -257,8 +285,8 @@ release_tag() {
       -c tag.gpgSign=false tag "$@"
 }
 
-apple_tag=v0.1.0
-platform_tag=abi2-platforms-v0.1.0
+apple_tag=v0.1.1
+platform_tag=abi2-platforms-v0.1.1
 /bin/sh artifact/python-run.sh artifact/github_release_observation.py \
   verify-stable-tag-protection
 if release_git show-ref --verify --quiet "refs/tags/$apple_tag"; then exit 1; fi
@@ -335,9 +363,9 @@ test "${#github_cli_sha256}" -eq 64
 case "$github_cli_sha256" in ''|*[!0-9a-f]*) exit 1 ;; esac
 printf '%s\n' "$pretag_security"
 
-release_tag -a -m 'release: Q-Periapt 0.1.0 Apple distribution' \
+release_tag -a -m 'release: Q-Periapt 0.1.1 Apple distribution' \
   "$apple_tag" "$R"
-release_tag -a -m 'release: Q-Periapt 0.1.0 ABI2 platform distribution' \
+release_tag -a -m 'release: Q-Periapt 0.1.1 ABI2 platform distribution' \
   "$platform_tag" "$R"
 APPLE_TAG_OBJECT=$(release_git rev-parse --verify \
   "refs/tags/$apple_tag^{tag}")
@@ -453,7 +481,7 @@ candidate_projections=$PWD/target/abi2-platform-candidate-projections
 chmod 0700 "$candidate_inputs" "$candidate_projections"
 candidate_dir=$candidate_inputs/stable-platform-candidate
 tag_commit=$(git rev-parse --verify \
-  'refs/tags/abi2-platforms-v0.1.0^{commit}')
+  'refs/tags/abi2-platforms-v0.1.1^{commit}')
 projection_parent=$(umask 077 && \
   mktemp -d "$candidate_projections/transaction.XXXXXXXX")
 chmod 0700 "$projection_parent"
@@ -552,7 +580,7 @@ their private candidate/completion evidence. The platform verifier must be a cle
 standalone checkout named `M` with its own non-symlink `.git` directory:
 
 ```sh
-platform_tag=abi2-platforms-v0.1.0
+platform_tag=abi2-platforms-v0.1.1
 platform_worktree_root=$PWD/target/abi2-platform-publication-worktrees
 (umask 077 && mkdir -p "$platform_worktree_root")
 chmod 0700 "$platform_worktree_root"
@@ -566,7 +594,7 @@ sh artifact/python-run.sh artifact/platform_stable_publication.py pending \
   --assembly-receipt "$platform_assembly_receipt" \
   --verifier-checkout "$platform_worktree_root/M"
 
-apple_tag=v0.1.0
+apple_tag=v0.1.1
 results_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
 source_parent_commit=$(jq -r '.provenance.snapshot_commit' artifact/results.json)
 tag_commit=$(git rev-parse --verify "refs/tags/$apple_tag^{commit}")
@@ -774,7 +802,7 @@ verifier checkout with the seven existing `QPERIAPT_SWIFT_BINARY_*` pins. Map
 `swiftpm_checksum`, `artifact_sha256`, `apple_distribution_evidence_sha256`,
 `manifest_sha256`, `checksums_sha256`, and `source_commit` respectively.
 `QPERIAPT_SWIFT_BINARY_URL` is exactly
-`https://github.com/billlza/q-periapt/releases/download/v0.1.0/CQPeriapt.xcframework.zip`.
+`https://github.com/billlza/q-periapt/releases/download/v0.1.1/CQPeriapt.xcframework.zip`.
 These are cross-checked facts, not new caller claims:
 
 ```sh
@@ -856,7 +884,7 @@ sh artifact/python-run.sh artifact/platform_stable_publication.py collect \
 
 Set `apple_verified_receipt` and `platform_verified_receipt` to `$PWD/` plus their
 printed repo-relative paths. The coordinated stable cohort cannot activate until
-the crates.io coordinator has reconciled all ten exact `0.1.0` archives as
+the crates.io coordinator has reconciled all ten exact `0.1.1` archives as
 `published_verified`. Its `source_identity` must be the four-field S/R/tree/digest
 projection shared by the verified Apple and platform receipts. The registry lane
 accepts no arbitrary transcript or package directory. On a clean S checkout,
@@ -931,7 +959,7 @@ attempted. Real publication is irreversible and additionally requires both expli
 publish flags, the fixed external exact-byte uploader, `CARGO_REGISTRY_TOKEN`, and
 the one fixed same-host/same-effective-account state authority derived from the OS
 passwd record—not ambient `HOME`—at
-`~/.q-periapt/publication-state/crates.io-v0.1.0`. All worktrees and resumes for this
+`~/.q-periapt/publication-state/crates.io-v0.1.1`. All worktrees and resumes for this
 version must use that exact root; an alternate safe-looking root is rejected so its
 lock and unknown-outcome journal cannot fork. Pre-create each private directory with
 mode `0700`; the publish CLI independently checks canonical ownership, modes, ancestry,
@@ -941,7 +969,7 @@ and every registered worktree before reading a credential:
 publication_account_home=$(python3 -I -S -c \
   'import os,pwd; print(pwd.getpwuid(os.geteuid()).pw_dir)')
 publication_state_parent=$publication_account_home/.q-periapt/publication-state
-publication_state_root=$publication_state_parent/crates.io-v0.1.0
+publication_state_root=$publication_state_parent/crates.io-v0.1.1
 (umask 077 && mkdir -p "$publication_state_root")
 
 # Install the separately reviewed exact-byte uploader as this fixed 0700 child.
@@ -974,7 +1002,7 @@ status is `published_verified` for all ten crates, then require the receipt byte
 match:
 
 ```sh
-crates_verified_receipt=$PWD/target/qperiapt-crates-io-publication-receipts/transaction.EMITTED_ID/crates-io-v0.1.0-publication-receipt.json
+crates_verified_receipt=$PWD/target/qperiapt-crates-io-publication-receipts/transaction.EMITTED_ID/crates-io-v0.1.1-publication-receipt.json
 crates_verified_receipt_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
 test "$(shasum -a 256 "$crates_verified_receipt" | awk '{print $1}')" = \
   "$crates_verified_receipt_sha256"

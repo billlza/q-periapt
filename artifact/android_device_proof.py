@@ -142,8 +142,8 @@ EMULATOR_CONTROL_PATH_KEYS = (
 PROOF_PATH_KEYS = BASE_PROOF_PATH_KEYS + EMULATOR_CONTROL_PATH_KEYS
 BASE_BUNDLE_FILE_PATHS = {
     "proof": "qperiapt-android-device-proof.json",
-    "aar": "artifacts/q-periapt-android-0.1.0.aar",
-    "aar_manifest": "artifacts/q-periapt-android-0.1.0.MANIFEST.json",
+    "aar": "artifacts/q-periapt-android-0.1.1.aar",
+    "aar_manifest": "artifacts/q-periapt-android-0.1.1.MANIFEST.json",
     "smoke_apk": "artifacts/qperiapt-android-smoke.apk",
     "apksigner_verify": "evidence/apksigner-verify.txt",
     "zipalign_verify": "evidence/zipalign-verify.txt",

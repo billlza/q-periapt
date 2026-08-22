@@ -33,7 +33,7 @@ entire security-critical surface that Q-Periapt itself owns; it is deliberately
 tiny, `no_std`, `deny(unsafe_code)` (with the one documented `Secret::drop` wipe),
 and primitive-agnostic so it can be audited in isolation.
 
-This is part of the pre-publication package-ready `0.1.0` stable-version ABI 2
+This is part of the pre-publication package-ready `0.1.1` stable-version ABI 2
 source/crate contract, **not a production-readiness claim**:
 there is no third-party cryptographic
 or ABI audit, and the backend integrations are pre-1.0 / unaudited for this suite.

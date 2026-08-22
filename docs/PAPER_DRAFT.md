@@ -8,13 +8,14 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.0` is the stable-version Rust crate line and is pre-publication package-ready;
+> ABI 2 / `0.1.1` is the stable-version Rust crate line and is pre-publication package-ready;
 > registry publication remains separately receipt-gated. Its package contract alone does not prove
 > crates.io upload-API acceptance, crate-name ownership, publishing credentials or
 > authorization, server-side policy acceptance, or a registry receipt. Its two immutable
-> GitHub stable targets are the Apple XCFramework `v0.1.0` (Rust 1.96.1;
-> the earlier `v0.1.0-alpha.2` on 1.96.0 is superseded) and the
-> `abi2-platforms-v0.1.0` platform distribution (Android AAR + API 35 / 16 KiB-page
+> GitHub stable targets are the Apple XCFramework `v0.1.1` (Rust 1.96.1;
+> the earlier `v0.1.0-alpha.2` on 1.96.0 is superseded and the `v0.1.0` tag was
+> never published) and the
+> `abi2-platforms-v0.1.1` platform distribution (Android AAR + API 35 / 16 KiB-page
 > emulator runtime evidence and Linux x86_64+aarch64 SDKs). The unsigned Windows
 > package remains an unsupported CI diagnostic outside the formal stable asset set.
 > Tag-scoped receipts live in `artifact/results.json`; only a verified receipt may
@@ -158,8 +159,8 @@ integration has a completed independent audit.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
 ABI 2 is the stable-version source/Rust-crate line; package readiness is not registry
 publication. Its stable binary
-targets are the Apple `v0.1.0` XCFramework and the
-`abi2-platforms-v0.1.0` Android/Linux packages; publication/currentness is
+targets are the Apple `v0.1.1` XCFramework and the
+`abi2-platforms-v0.1.1` Android/Linux packages; publication/currentness is
 asserted only by their verified receipts. Fresh same-source
 device/performance evidence, independent cryptographic/C-FFI/ABI review,
 signed or transparency-backed source provenance and registry publication remain

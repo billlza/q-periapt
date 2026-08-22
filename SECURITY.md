@@ -2,15 +2,16 @@
 
 ## Supported releases
 
-Q-Periapt 0.1.0 is the stable SemVer source line. Security fixes are provided for
+Q-Periapt 0.1.1 is the stable SemVer source line. Security fixes are provided for
 the latest ABI 2 publication set only while its verified receipt selects it as
 current:
 
 | Publication | Scope | Supported |
 | --- | --- | --- |
-| `0.1.0` source line | Rust source/crates and ABI 2 contract | Yes |
-| `v0.1.0` | Apple XCFramework | When selected by a verified current receipt |
-| `abi2-platforms-v0.1.0` | Android and GNU/Linux | When selected by a verified current receipt |
+| `0.1.1` source line | Rust source/crates and ABI 2 contract | Yes |
+| `v0.1.1` | Apple XCFramework | When selected by a verified current receipt |
+| `abi2-platforms-v0.1.1` | Android and GNU/Linux | When selected by a verified current receipt |
+| `v0.1.0`, `abi2-platforms-v0.1.0` | Tagged on 2026-08-21 but never published: no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.0; superseded by the 0.1.1 tags | No |
 | Unsigned Windows x64 diagnostic | CI-only, unsupported, not a stable release asset | No |
 | `v0.1.0-alpha.2-r1`, `abi2-platforms-v0.1.0-alpha.2-r2` | Published predecessors | Until superseded by the corresponding verified stable receipts |
 | Older publications | Superseded historical artifacts | No |
