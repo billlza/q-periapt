@@ -60,7 +60,7 @@ serde_json = "1"
 # `CryptoRngCore` feeds skSeed‖skPrf‖pkSeed into `fips205::*::try_keygen_with_rng`,
 # reproducing NIST's keys byte-for-byte (same rand_core 0.6 the `fips205` dep uses).
 # Pulled in only with the `slh-dsa` feature's ACVP test.
-rand_core = "0.6"
+rand_core = "0.10"
 # Generative property-based testing of combiner/hybrid invariants.
 proptest = "1"
 
