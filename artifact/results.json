@@ -527,6 +527,54 @@
       "schema_version": 1,
       "status": "observed_public_immutable_remote_consumer_verified"
     },
+    "apple_v0_1_1": {
+      "boundary": "Frozen ABI 2 Apple 0.1.1 stable publication receipt. The pending state binds the exact signed static XCFramework candidate to source parent S, the results-only annotated-tag commit R and tree, the canonical source digest, Developer ID identity, and four candidate asset digests without claiming publication. The verified state additionally binds the exact five-subject GitHub release attestation, public immutable GitHub release, and fresh remote SwiftPM consumer verification. It is not notarization, App Store, physical-device, or hostile-host evidence.",
+      "distribution": {
+        "apple_distribution_evidence_sha256": "e7865c6d896d56abce446f07eeaa633ea631816154b7f5bf9a12a6bd928a040d",
+        "artifact_path": "CQPeriapt.xcframework.zip",
+        "artifact_sha256": "e33a9bb257696cd31c42fe740e7e377335020906ea7dfac7d6ba60ed42818dff",
+        "artifact_size": 33167692,
+        "checksums_sha256": "ca88f230ca5c20a8e77b01e0e833eb47aaf2057a7128bb98ba3c4a5f3ffe42a7",
+        "distribution_signed": true,
+        "immutable_release": false,
+        "manifest_sha256": "a9cdaad9cbea33085cdac890b633d49f5dfc45596718e34cde124e9c9c9e1da8",
+        "notarization_applicability": "not_applicable_static_sdk_payload",
+        "notarized": false,
+        "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
+        "origin_signature_identity_class": "Developer ID Application",
+        "origin_signature_team_id": "YKUPL7Z869",
+        "public_release": false,
+        "release_revision": "r1",
+        "release_tag": "v0.1.1",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.1",
+        "remote_consumer_verified": false,
+        "remote_verification": {
+          "log_sha256": null,
+          "verified_at": null,
+          "verifier_commit": null
+        },
+        "source_commit": "9314e09f7ccc5c37c7bd9a2ebdaa354ebd69a44e",
+        "stapled": false,
+        "swiftpm_checksum": "e33a9bb257696cd31c42fe740e7e377335020906ea7dfac7d6ba60ed42818dff",
+        "version": "0.1.1"
+      },
+      "identity": {
+        "distribution_revision": "r1",
+        "product_version": "0.1.1",
+        "release_tag": "v0.1.1",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.1"
+      },
+      "kind": "qperiapt.apple_xcframework_publication_receipt",
+      "schema_version": 1,
+      "source": {
+        "canonical_source_tree_sha256": "fcde40b5c54ba12f796dca667590a60df49be70679d7ef7834b296374b983c5d",
+        "source_parent_commit": "9314e09f7ccc5c37c7bd9a2ebdaa354ebd69a44e",
+        "tag_commit": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+        "tag_object": "e982014e8b402f415bb2fdb30db09d21e3b17bae",
+        "tag_tree": "fa9d9d1112c8f1f0644c2ae11c7058b54d579688"
+      },
+      "status": "signed_candidate_pending_release_verification"
+    },
     "platform_r2": {
       "boundary": "Historical repository-local receipt for the public immutable ABI 2 Android, GNU/Linux, and unsigned Windows r2 prerelease. It binds the annotated tag, exact assets, candidate build provenance, release attestation, fresh redownload, and deep verifier results. Android coverage is API 35 arm64-v8a 16 KiB emulator only; Windows has no Authenticode publisher identity; external registries are not published.",
       "identity": {
@@ -728,6 +776,346 @@
       },
       "schema_version": 1,
       "status": "observed_public_immutable_fresh_download_verified"
+    },
+    "platform_v0_1_1": {
+      "boundary": "Frozen ABI 2 0.1.1 stable platform publication receipt. The pending state binds the annotated tag, exact source identity, the final seven-asset local release candidate, and one verified four-product candidate attestation covering exact-R binary-CT, six-language CodeQL runs and zero-result analyses, plus an empty main-ref open-alert observation; absent remote fields are unrecorded, not evidence of non-publication. The verified state additionally binds the exact seven public immutable GitHub release assets, release attestation, fresh redownload and deep verification, API 35 arm64-v8a 16 KiB emulator runtime evidence and unpublished external registries. Windows is excluded from the formal stable asset set until a signed publication boundary exists. It does not claim registry or store publication, Windows support, physical-device coverage, or anonymous download availability; the GitHub CLI observation uses the source-pinned executable, exactly one bounded credential, a minimal environment, and empty private configuration. Dynamic digests provide Level-1 accidental-mismatch detection within repository-trusted evidence; they do not attest a hostile builder or host.",
+      "identity": {
+        "distribution_revision": "r1",
+        "product_version": "0.1.1",
+        "release_tag": "abi2-platforms-v0.1.1",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.1"
+      },
+      "kind": "qperiapt.abi2_platform_publication_receipt",
+      "observation": {
+        "assembly_receipt_sha256": "f25bafe01076688af49d936dd10f8e8a9bcdf385f1f667e0675f2682dd0ce3f6",
+        "candidate_attestation": {
+          "certificate_san": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.1",
+          "predicate_type": "https://slsa.dev/provenance/v1",
+          "security_gate": {
+            "code_scanning": {
+              "analyses": [
+                {
+                  "analysis_id": 1656970940,
+                  "analysis_key": ".github/workflows/codeql.yml:analyze",
+                  "category": "/language:actions",
+                  "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                  "error": "",
+                  "ref": "refs/heads/main",
+                  "results_count": 0,
+                  "rules_count": 23,
+                  "tool": {
+                    "name": "CodeQL",
+                    "version": "2.26.2"
+                  },
+                  "warning": ""
+                },
+                {
+                  "analysis_id": 1656971221,
+                  "analysis_key": ".github/workflows/codeql.yml:analyze",
+                  "category": "/language:c-cpp",
+                  "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                  "error": "",
+                  "ref": "refs/heads/main",
+                  "results_count": 0,
+                  "rules_count": 95,
+                  "tool": {
+                    "name": "CodeQL",
+                    "version": "2.26.2"
+                  },
+                  "warning": ""
+                },
+                {
+                  "analysis_id": 1656972089,
+                  "analysis_key": ".github/workflows/codeql.yml:analyze",
+                  "category": "/language:java-kotlin",
+                  "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                  "error": "",
+                  "ref": "refs/heads/main",
+                  "results_count": 0,
+                  "rules_count": 120,
+                  "tool": {
+                    "name": "CodeQL",
+                    "version": "2.26.2"
+                  },
+                  "warning": ""
+                },
+                {
+                  "analysis_id": 1656972247,
+                  "analysis_key": ".github/workflows/codeql.yml:analyze",
+                  "category": "/language:python",
+                  "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                  "error": "",
+                  "ref": "refs/heads/main",
+                  "results_count": 185,
+                  "rules_count": 50,
+                  "tool": {
+                    "name": "CodeQL",
+                    "version": "2.26.2"
+                  },
+                  "warning": ""
+                },
+                {
+                  "analysis_id": 1656982040,
+                  "analysis_key": ".github/workflows/codeql.yml:analyze",
+                  "category": "/language:rust",
+                  "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                  "error": "",
+                  "ref": "refs/heads/main",
+                  "results_count": 14,
+                  "rules_count": 27,
+                  "tool": {
+                    "name": "CodeQL",
+                    "version": "2.26.2"
+                  },
+                  "warning": ""
+                },
+                {
+                  "analysis_id": 1656990418,
+                  "analysis_key": ".github/workflows/codeql.yml:analyze",
+                  "category": "/language:swift",
+                  "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                  "error": "",
+                  "ref": "refs/heads/main",
+                  "results_count": 0,
+                  "rules_count": 28,
+                  "tool": {
+                    "name": "CodeQL",
+                    "version": "2.26.2"
+                  },
+                  "warning": ""
+                }
+              ],
+              "main_ref": {
+                "commit_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                "ref": "refs/heads/main"
+              },
+              "open_alerts": []
+            },
+            "kind": "qperiapt.abi2_source_security_gate",
+            "observation_tools": {
+              "github_cli": {
+                "name": "gh",
+                "path": "/usr/bin/gh",
+                "sha256": "141507c337e8b202ad398550c3b73d72f5af92e86f71665214538a81efd4c409",
+                "version": "gh version 2.97.0 (2026-07-31)"
+              }
+            },
+            "receipt_sha256": "cc7b41a2baebd6292eaae6ed32c248d1d8d71c8b56cf43ab2236b11e1092bf8c",
+            "repository": "billlza/q-periapt",
+            "schema_version": 2,
+            "source_parent_commit": "9314e09f7ccc5c37c7bd9a2ebdaa354ebd69a44e",
+            "tag_commit": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+            "workflows": {
+              "ci": {
+                "conclusion": "success",
+                "event": "push",
+                "head_branch": "main",
+                "head_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                "jobs": [
+                  {
+                    "architecture": "x86_64",
+                    "conclusion": "success",
+                    "implementation": "portable-c",
+                    "job_id": 97026806014,
+                    "name": "Binary CT [x86_64-portable]",
+                    "status": "completed"
+                  },
+                  {
+                    "architecture": "aarch64",
+                    "conclusion": "success",
+                    "implementation": "aarch64-native",
+                    "job_id": 97026806089,
+                    "name": "Binary CT [aarch64-native]",
+                    "status": "completed"
+                  }
+                ],
+                "run_attempt": 1,
+                "run_id": 32571207589,
+                "status": "completed",
+                "workflow_name": "ci",
+                "workflow_path": ".github/workflows/ci.yml",
+                "workflow_sha256": "d96f47c6c30e4dc22aeb74623289067246221747630e13b2a16bf8b0b10938d4"
+              },
+              "codeql": {
+                "conclusion": "success",
+                "event": "push",
+                "head_branch": "main",
+                "head_sha": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+                "jobs": [
+                  {
+                    "conclusion": "success",
+                    "job_id": 97026805992,
+                    "language": "actions",
+                    "name": "Analyze (actions)",
+                    "status": "completed"
+                  },
+                  {
+                    "conclusion": "success",
+                    "job_id": 97026805923,
+                    "language": "c-cpp",
+                    "name": "Analyze (c-cpp)",
+                    "status": "completed"
+                  },
+                  {
+                    "conclusion": "success",
+                    "job_id": 97026805961,
+                    "language": "java-kotlin",
+                    "name": "Analyze (java-kotlin)",
+                    "status": "completed"
+                  },
+                  {
+                    "conclusion": "success",
+                    "job_id": 97026806007,
+                    "language": "python",
+                    "name": "Analyze (python)",
+                    "status": "completed"
+                  },
+                  {
+                    "conclusion": "success",
+                    "job_id": 97026805967,
+                    "language": "rust",
+                    "name": "Analyze (rust)",
+                    "status": "completed"
+                  },
+                  {
+                    "conclusion": "success",
+                    "job_id": 97026805964,
+                    "language": "swift",
+                    "name": "Analyze (swift)",
+                    "status": "completed"
+                  }
+                ],
+                "run_attempt": 1,
+                "run_id": 32571207612,
+                "status": "completed",
+                "workflow_name": "CodeQL",
+                "workflow_path": ".github/workflows/codeql.yml",
+                "workflow_sha256": "3cf881d8731c50d9237eca41dd7d05d6d1af0188e958baa3109ab957802884c5"
+              }
+            }
+          },
+          "signer_workflow": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.1",
+          "source_digest": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+          "source_ref": "refs/tags/abi2-platforms-v0.1.1",
+          "subjects": [
+            {
+              "digest": {
+                "sha256": "481af8a9354497a10cd025713ad37a75ac04f0a4ceda16dcde23f4c59fa76253"
+              },
+              "name": "q-periapt-android-0.1.1.aar"
+            },
+            {
+              "digest": {
+                "sha256": "7a417996cb89eb723769b01dbcdc375ad0b56ae8e466ad69fea8d8be0e3110f4"
+              },
+              "name": "q-periapt-android-0.1.1-MANIFEST.json"
+            },
+            {
+              "digest": {
+                "sha256": "cd1c925db6a67194244e5bacb29de432122a003b5a087be5feb5c8d507986ae8"
+              },
+              "name": "q-periapt-c-abi2-0.1.1-x86_64-unknown-linux-gnu.tar.gz"
+            },
+            {
+              "digest": {
+                "sha256": "3573fe357c726fd42c7d8cbe6882051e2f73b7cfe1cb12597b0e1b104e65d898"
+              },
+              "name": "q-periapt-c-abi2-0.1.1-aarch64-unknown-linux-gnu.tar.gz"
+            },
+            {
+              "digest": {
+                "sha256": "12d8e3e6bbbc29a5bdb8d5ee607ab03fc7e2d101bd69e08fb4eb24a202fc9fae"
+              },
+              "name": "CANDIDATE_SHA256SUMS"
+            },
+            {
+              "digest": {
+                "sha256": "cc7b41a2baebd6292eaae6ed32c248d1d8d71c8b56cf43ab2236b11e1092bf8c"
+              },
+              "name": "ABI2_SOURCE_SECURITY_GATE.json"
+            }
+          ],
+          "verification_record_sha256": "0f5645e14c7e4a65dc5271301ab627bc748a6cfa3568a87c2660903a14b2e44c",
+          "verified": true,
+          "verified_at": "2026-08-22T12:27:40Z",
+          "workflow_run_attempt": 1,
+          "workflow_run_id": 32572800739
+        },
+        "observed_at": "2026-08-22T12:53:25Z",
+        "release_candidate": {
+          "android_runtime_evidence": {
+            "bundle_manifest_sha256": "bd1d0342714fb7f0977f48378c1d1a796a43e34f2ae1d477b5695f511881fa49",
+            "bundle_schema": 2,
+            "bundle_sha256": "078bf6a35139dfa928dad7f56fae20d2437b6746301f3e545eaaabf047399016",
+            "device_abi": "arm64-v8a",
+            "device_kind": "emulator",
+            "device_sdk": 35,
+            "page_size": 16384,
+            "proof_schema": 6,
+            "proof_sha256": "fcc86aaf238454b15b54bb5a8613d6b670c1cc56b5df3fc33657c4908bc50afb",
+            "release_mode": true,
+            "tested_aar_manifest_sha256": "7a417996cb89eb723769b01dbcdc375ad0b56ae8e466ad69fea8d8be0e3110f4",
+            "tested_aar_sha256": "481af8a9354497a10cd025713ad37a75ac04f0a4ceda16dcde23f4c59fa76253"
+          },
+          "assets": [
+            {
+              "bytes": 3929,
+              "content_type": "application/json",
+              "name": "PLATFORM_DISTRIBUTION.json",
+              "sha256": "e9b29df4d17f55cc1fbee51f7e5cffffeefa071544f8c6496a75dbad92a3dfb8"
+            },
+            {
+              "bytes": 649,
+              "content_type": "application/octet-stream",
+              "name": "SHA256SUMS",
+              "sha256": "823c824388aec7d058b6112fa5a94796c5ed0a347f6972df6c5d2c44be12606c"
+            },
+            {
+              "bytes": 3071598,
+              "content_type": "application/zip",
+              "name": "q-periapt-android-0.1.1-16k-runtime-evidence.zip",
+              "sha256": "078bf6a35139dfa928dad7f56fae20d2437b6746301f3e545eaaabf047399016"
+            },
+            {
+              "bytes": 3918,
+              "content_type": "application/json",
+              "name": "q-periapt-android-0.1.1-MANIFEST.json",
+              "sha256": "7a417996cb89eb723769b01dbcdc375ad0b56ae8e466ad69fea8d8be0e3110f4"
+            },
+            {
+              "bytes": 3523107,
+              "content_type": "application/octet-stream",
+              "name": "q-periapt-android-0.1.1.aar",
+              "sha256": "481af8a9354497a10cd025713ad37a75ac04f0a4ceda16dcde23f4c59fa76253"
+            },
+            {
+              "bytes": 1374792,
+              "content_type": "application/x-gtar",
+              "name": "q-periapt-c-abi2-0.1.1-aarch64-unknown-linux-gnu.tar.gz",
+              "sha256": "3573fe357c726fd42c7d8cbe6882051e2f73b7cfe1cb12597b0e1b104e65d898"
+            },
+            {
+              "bytes": 1413021,
+              "content_type": "application/x-gtar",
+              "name": "q-periapt-c-abi2-0.1.1-x86_64-unknown-linux-gnu.tar.gz",
+              "sha256": "cd1c925db6a67194244e5bacb29de432122a003b5a087be5feb5c8d507986ae8"
+            }
+          ],
+          "checksums_sha256": "823c824388aec7d058b6112fa5a94796c5ed0a347f6972df6c5d2c44be12606c",
+          "platform_distribution_sha256": "e9b29df4d17f55cc1fbee51f7e5cffffeefa071544f8c6496a75dbad92a3dfb8"
+        },
+        "source": {
+          "canonical_source_tree_sha256": "fcde40b5c54ba12f796dca667590a60df49be70679d7ef7834b296374b983c5d",
+          "source_date_epoch": 1787399214,
+          "source_parent_commit": "9314e09f7ccc5c37c7bd9a2ebdaa354ebd69a44e",
+          "tag_commit": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb",
+          "tag_object": "c8b10a52fd23eee6691c9b55e314ca320a223e84",
+          "tag_tree": "fa9d9d1112c8f1f0644c2ae11c7058b54d579688",
+          "verifier_commit": "dc3fa3037f620a987172eb798dcfaa814eb7e3bb"
+        }
+      },
+      "schema_version": 3,
+      "status": "candidate_verified_pending_release_verification"
     }
   },
   "rust_publish": {
