@@ -178,7 +178,7 @@ class GitHubReleaseObservationTests(unittest.TestCase):
             "bypass_actors": [],
             "conditions": {
                 "ref_name": {
-                    "include": list(observation.STABLE_TAG_REFS),
+                    "include": list(observation.PROTECTED_STABLE_TAG_REFS),
                     "exclude": [],
                 }
             },
@@ -1475,7 +1475,7 @@ class GitHubReleaseObservationTests(unittest.TestCase):
             ruleset_list,
             {42: _json(valid)},
         )
-        self.assertEqual(observation.STABLE_TAG_REFS, parsed.tag_refs)
+        self.assertEqual(observation.PROTECTED_STABLE_TAG_REFS, parsed.tag_refs)
         self.assertEqual((42,), parsed.ruleset_ids)
         self.assertRegex(parsed.observation_sha256, r"^[0-9a-f]{64}$")
 

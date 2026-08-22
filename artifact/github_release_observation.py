@@ -121,8 +121,21 @@ GITHUB_CLI_TEMP_ROOT = pathlib.Path("/tmp")
 GITHUB_CREDENTIAL_ENVIRONMENT = ("GH_TOKEN", "GITHUB_TOKEN")
 GITHUB_REPOSITORY = "billlza/q-periapt"
 STABLE_TAG_REFS = (
+    "refs/tags/v0.1.2",
+    "refs/tags/abi2-platforms-v0.1.2",
+)
+# Ruleset protection must keep every stable release tag immutable, not only the
+# current one: the earlier stable tags remain permanent, tagged-unpublished
+# history, so their update/deletion protection must never silently lapse. State
+# observation (absent/apple_only/exact transitions) uses only the current
+# STABLE_TAG_REFS above, but the protection observer checks this full set.
+PROTECTED_STABLE_TAG_REFS = (
+    "refs/tags/v0.1.0",
+    "refs/tags/abi2-platforms-v0.1.0",
     "refs/tags/v0.1.1",
     "refs/tags/abi2-platforms-v0.1.1",
+    "refs/tags/v0.1.2",
+    "refs/tags/abi2-platforms-v0.1.2",
 )
 MAX_TAG_RULESETS = 32
 MAX_STABLE_TAG_MATCHES = 64
@@ -1357,7 +1370,7 @@ def parse_stable_tag_rulesets(
     )
 
     required_rules = frozenset({"update", "deletion"})
-    coverage = {tag_ref: set() for tag_ref in STABLE_TAG_REFS}
+    coverage = {tag_ref: set() for tag_ref in PROTECTED_STABLE_TAG_REFS}
     authoritative_ids: set[int] = set()
     for ruleset_id in ordered_ids:
         try:
@@ -1407,7 +1420,7 @@ def parse_stable_tag_rulesets(
             and len(excludes) == len(set(excludes)),
             "GitHub tag ruleset ref conditions are malformed",
         )
-        explicit_stable_refs = set(includes) & set(STABLE_TAG_REFS)
+        explicit_stable_refs = set(includes) & set(PROTECTED_STABLE_TAG_REFS)
         if not explicit_stable_refs:
             continue
         _require(
@@ -1486,18 +1499,21 @@ def parse_stable_tag_rulesets(
                 coverage[tag_ref].update(protected_rules)
 
     _require(
-        all(coverage[tag_ref] == required_rules for tag_ref in STABLE_TAG_REFS),
+        all(
+            coverage[tag_ref] == required_rules
+            for tag_ref in PROTECTED_STABLE_TAG_REFS
+        ),
         "GitHub stable tags lack active no-bypass update and deletion protection",
     )
     projection = {
         "repository": GITHUB_REPOSITORY,
         "ruleset_ids": sorted(authoritative_ids),
-        "tag_refs": list(STABLE_TAG_REFS),
+        "tag_refs": list(PROTECTED_STABLE_TAG_REFS),
     }
     return StableTagProtectionObservation(
         repository=GITHUB_REPOSITORY,
         ruleset_ids=tuple(sorted(authoritative_ids)),
-        tag_refs=STABLE_TAG_REFS,
+        tag_refs=PROTECTED_STABLE_TAG_REFS,
         observation_sha256=hashlib.sha256(canonical_json(projection)).hexdigest(),
     )
 

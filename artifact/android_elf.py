@@ -1128,7 +1128,7 @@ def verify_manifest(
     )
     require(manifest.get("kind") == "qperiapt.android_aar_manifest", "unexpected Android AAR manifest kind")
     require(manifest.get("package") == aar_path.name, "Android AAR manifest package filename mismatch")
-    require(manifest.get("version") == "0.1.1", "Android AAR manifest version mismatch")
+    require(manifest.get("version") == "0.1.2", "Android AAR manifest version mismatch")
     require(manifest.get("package_only") is True, "Android AAR manifest must be package_only")
     require(manifest.get("device_runtime_proof") is False, "AAR package manifest must not claim device runtime proof")
     require(

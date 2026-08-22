@@ -16,12 +16,12 @@ workspace = true
 
 [dependencies]
 getrandom = "0.3"
-q-periapt-backends = { version = "=0.1.1", path = "../../crates/q-periapt-backends" }
-q-periapt-core = { version = "=0.1.1", path = "../../crates/q-periapt-core" }
-q-periapt-ffi = { version = "=0.1.1", path = "../../crates/q-periapt-ffi" }
-q-periapt-migration = { version = "=0.1.1", path = "../../models/q-periapt-migration" }
-q-periapt-policy = { version = "=0.1.1", path = "../../crates/q-periapt-policy" }
-q-periapt-sig = { version = "=0.1.1", path = "../../crates/q-periapt-sig" }
+q-periapt-backends = { version = "=0.1.2", path = "../../crates/q-periapt-backends" }
+q-periapt-core = { version = "=0.1.2", path = "../../crates/q-periapt-core" }
+q-periapt-ffi = { version = "=0.1.2", path = "../../crates/q-periapt-ffi" }
+q-periapt-migration = { version = "=0.1.2", path = "../../models/q-periapt-migration" }
+q-periapt-policy = { version = "=0.1.2", path = "../../crates/q-periapt-policy" }
+q-periapt-sig = { version = "=0.1.2", path = "../../crates/q-periapt-sig" }
 # redb 2.6.3 is a pure-Rust ACID release whose declared MSRV matches this
 # workspace's Rust 1.85 floor; the current 4.1 release requires Rust 1.89. The
 # exact pin also fixes the durable file-format implementation reviewed for this

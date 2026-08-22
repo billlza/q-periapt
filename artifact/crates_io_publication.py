@@ -122,9 +122,9 @@ CRATES_IO_PUBLICATION_JOURNAL_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-crates-io-publication-journal"
 )
 RUST_PACKAGE_HANDOFF_ROOT = rust_package_handoff.RUST_PACKAGE_HANDOFF_ROOT
-CRATES_IO_PUBLICATION_RECEIPT_NAME = "crates-io-v0.1.1-publication-receipt.json"
-CRATES_IO_PUBLICATION_JOURNAL_NAME = "crates-io-v0.1.1-upload-attempt.json"
-CRATES_IO_PUBLICATION_LOCK_NAME = "qperiapt-crates-io-v0.1.1.lock"
+CRATES_IO_PUBLICATION_RECEIPT_NAME = "crates-io-v0.1.2-publication-receipt.json"
+CRATES_IO_PUBLICATION_JOURNAL_NAME = "crates-io-v0.1.2-upload-attempt.json"
+CRATES_IO_PUBLICATION_LOCK_NAME = "qperiapt-crates-io-v0.1.2.lock"
 CRATES_IO_PUBLICATION_UPLOADER_NAME = "qperiapt-crates-io-uploader"
 RUST_PACKAGE_HANDOFF_MANIFEST_NAME = (
     rust_package_handoff.RUST_PACKAGE_HANDOFF_MANIFEST_NAME
@@ -154,7 +154,7 @@ MAX_UPLOADER_OUTPUT_BYTES = 64 * 1024
 MAX_UPLOADER_BYTES = 512 * 1024 * 1024
 
 REAL_UPLOAD_ACKNOWLEDGEMENT = (
-    "publish-q-periapt-abi2-v0.1.1-to-crates.io-is-irreversible"
+    "publish-q-periapt-abi2-v0.1.2-to-crates.io-is-irreversible"
 )
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -572,7 +572,7 @@ def _validated_publication_state_root(
         account_home
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.1"
+        / "crates.io-v0.1.2"
     )
     _require(
         state_root == expected_root
@@ -671,7 +671,7 @@ def _expected_publication_state_root() -> pathlib.Path:
         _publication_account_home_path()
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.1"
+        / "crates.io-v0.1.2"
     )
 
 
@@ -4250,7 +4250,7 @@ def _require_handoff_confirmation(
 def _main(arguments: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate, verify, or explicitly execute the ABI-2 0.1.1 "
+            "Validate, verify, or explicitly execute the ABI-2 0.1.2 "
             "crates.io publication domain"
         )
     )
@@ -4264,7 +4264,7 @@ def _main(arguments: Sequence[str]) -> int:
         type=pathlib.Path,
         help=(
             "explicit confirmation of the fixed passwd-home mode-0700 "
-            "~/.q-periapt/publication-state/crates.io-v0.1.1 authority; "
+            "~/.q-periapt/publication-state/crates.io-v0.1.2 authority; "
             "required for publish"
         ),
     )
