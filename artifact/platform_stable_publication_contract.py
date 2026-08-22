@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frozen 0.1.1 stable platform publication-receipt contract.
+"""Frozen 0.1.2 stable platform publication-receipt contract.
 
 The candidate state intentionally has no remote-publication fields.  Their
 absence means that remote verification has not been recorded, not that a
@@ -17,11 +17,11 @@ from types import MappingProxyType
 import platform_distribution_contract as candidate_contract
 
 
-PLATFORM_V0_1_1_PUBLICATION_SCHEMA_VERSION = 3
-PLATFORM_V0_1_1_PUBLICATION_KIND = (
+PLATFORM_V0_1_2_PUBLICATION_SCHEMA_VERSION = 3
+PLATFORM_V0_1_2_PUBLICATION_KIND = (
     "qperiapt.abi2_platform_publication_receipt"
 )
-PLATFORM_V0_1_1_PUBLICATION_KEY = "platform_v0_1_1"
+PLATFORM_V0_1_2_PUBLICATION_KEY = "platform_v0_1_2"
 
 PRODUCT_VERSION = candidate_contract.PRODUCT_VERSION
 DISTRIBUTION_REVISION = candidate_contract.DISTRIBUTION_REVISION
@@ -30,14 +30,14 @@ RELEASE_URL = candidate_contract.RELEASE_URL
 RELEASE_REF = f"refs/tags/{RELEASE_TAG}"
 TAG_SUBJECT_URI = f"pkg:github/billlza/q-periapt@{RELEASE_TAG}"
 
-PLATFORM_V0_1_1_STATUS_PENDING = (
+PLATFORM_V0_1_2_STATUS_PENDING = (
     "candidate_verified_pending_release_verification"
 )
-PLATFORM_V0_1_1_STATUS_VERIFIED = (
+PLATFORM_V0_1_2_STATUS_VERIFIED = (
     "observed_public_immutable_fresh_download_verified"
 )
-PLATFORM_V0_1_1_PUBLICATION_BOUNDARY = (
-    "Frozen ABI 2 0.1.1 stable platform publication receipt. The pending state "
+PLATFORM_V0_1_2_PUBLICATION_BOUNDARY = (
+    "Frozen ABI 2 0.1.2 stable platform publication receipt. The pending state "
     "binds the annotated tag, exact source identity, the final seven-asset local "
     "release candidate, and one verified four-product candidate attestation "
     "covering exact-R binary-CT, six-language CodeQL runs and zero-result "
@@ -132,12 +132,12 @@ _VERIFIED_OBSERVATION_KEYS = _PENDING_OBSERVATION_KEYS | frozenset(
 )
 
 
-class PlatformV011PublicationContractError(ValueError):
-    """An 0.1.1 stable platform publication receipt violates its contract."""
+class PlatformV012PublicationContractError(ValueError):
+    """An 0.1.2 stable platform publication receipt violates its contract."""
 
 
 def _fail(message: str) -> None:
-    raise PlatformV011PublicationContractError(message)
+    raise PlatformV012PublicationContractError(message)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -189,14 +189,14 @@ def parse_utc_timestamp(value: object, label: str) -> dt.datetime:
     try:
         parsed = dt.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError as exc:
-        raise PlatformV011PublicationContractError(
+        raise PlatformV012PublicationContractError(
             f"{label} must be an RFC3339 UTC timestamp"
         ) from exc
     return parsed.replace(tzinfo=dt.UTC)
 
 
 def _validate_source(source_value: object) -> dict[str, object]:
-    source = _object(source_value, "platform v0_1_1 source identity")
+    source = _object(source_value, "platform v0_1_2 source identity")
     _exact_keys(
         source,
         frozenset(
@@ -210,41 +210,41 @@ def _validate_source(source_value: object) -> dict[str, object]:
                 "verifier_commit",
             }
         ),
-        "platform v0_1_1 source identity",
+        "platform v0_1_2 source identity",
     )
     canonical_source_tree_sha256 = _sha256(
         source["canonical_source_tree_sha256"],
-        "platform v0_1_1 canonical source tree",
+        "platform v0_1_2 canonical source tree",
     )
     source_parent_commit = _sha1(
         source["source_parent_commit"],
-        "platform v0_1_1 source parent commit",
+        "platform v0_1_2 source parent commit",
     )
     source_date_epoch = _positive_integer(
         source["source_date_epoch"],
-        "platform v0_1_1 source epoch",
+        "platform v0_1_2 source epoch",
     )
     _require(
         315_532_800 <= source_date_epoch <= 0xFFFFFFFF,
-        "platform v0_1_1 source epoch is out of range",
+        "platform v0_1_2 source epoch is out of range",
     )
-    tag_commit = _sha1(source["tag_commit"], "platform v0_1_1 tag commit")
-    tag_object = _sha1(source["tag_object"], "platform v0_1_1 tag object")
-    tag_tree = _sha1(source["tag_tree"], "platform v0_1_1 tag tree")
+    tag_commit = _sha1(source["tag_commit"], "platform v0_1_2 tag commit")
+    tag_object = _sha1(source["tag_object"], "platform v0_1_2 tag object")
+    tag_tree = _sha1(source["tag_tree"], "platform v0_1_2 tag tree")
     verifier_commit = _sha1(
-        source["verifier_commit"], "platform v0_1_1 verifier commit"
+        source["verifier_commit"], "platform v0_1_2 verifier commit"
     )
     _require(
         source_parent_commit != tag_commit,
-        "platform v0_1_1 tag commit must differ from its source parent",
+        "platform v0_1_2 tag commit must differ from its source parent",
     )
     _require(
         verifier_commit == tag_commit,
-        "platform v0_1_1 verifier commit differs from the tag commit",
+        "platform v0_1_2 verifier commit differs from the tag commit",
     )
     _require(
         tag_object != tag_commit,
-        "platform v0_1_1 release tag must be an annotated tag object",
+        "platform v0_1_2 release tag must be an annotated tag object",
     )
     return {
         "canonical_source_tree_sha256": canonical_source_tree_sha256,
@@ -272,7 +272,7 @@ def _validate_candidate_attestation(
     candidate_value: object, *, tag_commit: str, source_parent_commit: str
 ) -> tuple[dict[str, str], dt.datetime]:
     candidate = _object(
-        candidate_value, "platform v0_1_1 candidate attestation"
+        candidate_value, "platform v0_1_2 candidate attestation"
     )
     _exact_keys(
         candidate,
@@ -292,73 +292,73 @@ def _validate_candidate_attestation(
                 "workflow_run_id",
             }
         ),
-        "platform v0_1_1 candidate attestation",
+        "platform v0_1_2 candidate attestation",
     )
     _require(
         candidate["certificate_san"] == CANDIDATE_SIGNER_WORKFLOW,
-        "platform v0_1_1 candidate certificate identity differs",
+        "platform v0_1_2 candidate certificate identity differs",
     )
     _require(
         candidate["predicate_type"] == CANDIDATE_PREDICATE_TYPE,
-        "platform v0_1_1 candidate predicate differs",
+        "platform v0_1_2 candidate predicate differs",
     )
     _require(
         candidate["signer_workflow"] == CANDIDATE_SIGNER_WORKFLOW,
-        "platform v0_1_1 candidate signer workflow differs",
+        "platform v0_1_2 candidate signer workflow differs",
     )
     _require(
         candidate["source_ref"] == RELEASE_REF,
-        "platform v0_1_1 candidate source ref differs",
+        "platform v0_1_2 candidate source ref differs",
     )
     _require(
         candidate["source_digest"] == tag_commit,
-        "platform v0_1_1 candidate source digest differs from the tag commit",
+        "platform v0_1_2 candidate source digest differs from the tag commit",
     )
     _require(
         candidate["verified"] is True,
-        "platform v0_1_1 candidate attestation must be verified",
+        "platform v0_1_2 candidate attestation must be verified",
     )
     workflow_run_attempt = _positive_integer(
         candidate["workflow_run_attempt"],
-        "platform v0_1_1 candidate workflow run attempt",
+        "platform v0_1_2 candidate workflow run attempt",
     )
     _require(
         workflow_run_attempt <= MAX_WORKFLOW_RUN_ATTEMPT,
-        "platform v0_1_1 candidate workflow run attempt is too large",
+        "platform v0_1_2 candidate workflow run attempt is too large",
     )
     workflow_run_id = _positive_integer(
         candidate["workflow_run_id"],
-        "platform v0_1_1 candidate workflow run id",
+        "platform v0_1_2 candidate workflow run id",
     )
     _require(
         workflow_run_id <= MAX_WORKFLOW_RUN_ID,
-        "platform v0_1_1 candidate workflow run id is too large",
+        "platform v0_1_2 candidate workflow run id is too large",
     )
     _sha256(
         candidate["verification_record_sha256"],
-        "platform v0_1_1 candidate verification record",
+        "platform v0_1_2 candidate verification record",
     )
     verified_at = parse_utc_timestamp(
-        candidate["verified_at"], "platform v0_1_1 candidate verified_at"
+        candidate["verified_at"], "platform v0_1_2 candidate verified_at"
     )
 
     subjects_value = candidate["subjects"]
     if not isinstance(subjects_value, list):
-        _fail("platform v0_1_1 candidate subjects must be a JSON array")
+        _fail("platform v0_1_2 candidate subjects must be a JSON array")
     _require(
         len(subjects_value) == len(CANDIDATE_SUBJECT_NAMES),
-        "platform v0_1_1 candidate subject count differs",
+        "platform v0_1_2 candidate subject count differs",
     )
     subjects: dict[str, str] = {}
     for index, expected_name in enumerate(CANDIDATE_SUBJECT_NAMES):
         subjects[expected_name] = _validate_sha256_subject(
             subjects_value[index],
             expected_name=expected_name,
-            label=f"platform v0_1_1 candidate subject {index}",
+            label=f"platform v0_1_2 candidate subject {index}",
         )
     security_projection = _object(
         candidate["security_gate"],
-        "platform v0_1_1 source security gate projection",
+        "platform v0_1_2 source security gate projection",
     )
     _exact_keys(
         security_projection,
@@ -375,15 +375,15 @@ def _validate_candidate_attestation(
                 "workflows",
             }
         ),
-        "platform v0_1_1 source security gate projection",
+        "platform v0_1_2 source security gate projection",
     )
     receipt_sha256 = _sha256(
         security_projection["receipt_sha256"],
-        "platform v0_1_1 source security gate receipt",
+        "platform v0_1_2 source security gate receipt",
     )
     _require(
         receipt_sha256 == subjects[candidate_contract.SOURCE_SECURITY_GATE],
-        "platform v0_1_1 source security gate digest differs from its subject",
+        "platform v0_1_2 source security gate digest differs from its subject",
     )
     gate_document = {
         key: value
@@ -397,20 +397,20 @@ def _validate_candidate_attestation(
             expected_source_parent_commit=source_parent_commit,
         )
     except candidate_contract.PlatformDistributionContractError as exc:
-        raise PlatformV011PublicationContractError(str(exc)) from exc
+        raise PlatformV012PublicationContractError(str(exc)) from exc
     return subjects, verified_at
 
 
 def _validate_assets(assets_value: object) -> dict[str, dict[str, object]]:
     if not isinstance(assets_value, list):
-        _fail("platform v0_1_1 public assets must be a JSON array")
+        _fail("platform v0_1_2 public assets must be a JSON array")
     _require(
         len(assets_value) == len(PUBLIC_ASSET_NAMES),
-        "platform v0_1_1 public asset count differs",
+        "platform v0_1_2 public asset count differs",
     )
     assets: dict[str, dict[str, object]] = {}
     for index, expected_name in enumerate(PUBLIC_ASSET_NAMES):
-        label = f"platform v0_1_1 public asset {index}"
+        label = f"platform v0_1_2 public asset {index}"
         asset = _object(assets_value[index], label)
         _exact_keys(asset, frozenset({"bytes", "name", "sha256"}), label)
         _require(asset["name"] == expected_name, f"{label} order/name differs")
@@ -431,7 +431,7 @@ def _validate_candidate_asset_crosslinks(
     for name in CANDIDATE_PUBLIC_ASSET_NAMES:
         _require(
             candidate_subjects[name] == assets[name]["sha256"],
-            f"platform v0_1_1 candidate/public asset digest differs: {name}",
+            f"platform v0_1_2 candidate/public asset digest differs: {name}",
         )
 
 
@@ -445,7 +445,7 @@ def _validate_release_candidate(
             candidate_value
         )
     except candidate_contract.PlatformDistributionContractError as exc:
-        raise PlatformV011PublicationContractError(str(exc)) from exc
+        raise PlatformV012PublicationContractError(str(exc)) from exc
     assets = {
         asset["name"]: asset for asset in candidate["assets"]
     }
@@ -460,7 +460,7 @@ def _validate_release_attestation(
     tag_object: str,
 ) -> None:
     attestation = _object(
-        attestation_value, "platform v0_1_1 release attestation"
+        attestation_value, "platform v0_1_2 release attestation"
     )
     _exact_keys(
         attestation,
@@ -473,68 +473,68 @@ def _validate_release_attestation(
                 "verified",
             }
         ),
-        "platform v0_1_1 release attestation",
+        "platform v0_1_2 release attestation",
     )
     _require(
         attestation["certificate_san"] == RELEASE_CERTIFICATE_SAN,
-        "platform v0_1_1 release attestation certificate identity differs",
+        "platform v0_1_2 release attestation certificate identity differs",
     )
     _require(
         attestation["predicate_type"] == RELEASE_PREDICATE_TYPE,
-        "platform v0_1_1 release attestation predicate differs",
+        "platform v0_1_2 release attestation predicate differs",
     )
     _require(
         attestation["verified"] is True,
-        "platform v0_1_1 release attestation must be verified",
+        "platform v0_1_2 release attestation must be verified",
     )
     _sha256(
         attestation["verification_record_sha256"],
-        "platform v0_1_1 release attestation verification record",
+        "platform v0_1_2 release attestation verification record",
     )
     subjects_value = attestation["subjects"]
     if not isinstance(subjects_value, list):
-        _fail("platform v0_1_1 release attestation subjects must be a JSON array")
+        _fail("platform v0_1_2 release attestation subjects must be a JSON array")
     _require(
         len(subjects_value) == len(PUBLIC_ASSET_NAMES) + 1,
-        "platform v0_1_1 release attestation subject count differs",
+        "platform v0_1_2 release attestation subject count differs",
     )
     tag_subject = _object(
-        subjects_value[0], "platform v0_1_1 release tag subject"
+        subjects_value[0], "platform v0_1_2 release tag subject"
     )
     _exact_keys(
         tag_subject,
         frozenset({"digest", "uri"}),
-        "platform v0_1_1 release tag subject",
+        "platform v0_1_2 release tag subject",
     )
     _require(
         tag_subject["uri"] == TAG_SUBJECT_URI,
-        "platform v0_1_1 release tag subject URI differs",
+        "platform v0_1_2 release tag subject URI differs",
     )
     tag_digest = _object(
-        tag_subject["digest"], "platform v0_1_1 release tag subject digest"
+        tag_subject["digest"], "platform v0_1_2 release tag subject digest"
     )
     _exact_keys(
         tag_digest,
         frozenset({"sha1"}),
-        "platform v0_1_1 release tag subject digest",
+        "platform v0_1_2 release tag subject digest",
     )
     _require(
         _sha1(
             tag_digest["sha1"],
-            "platform v0_1_1 release tag subject digest",
+            "platform v0_1_2 release tag subject digest",
         )
         == tag_object,
-        "platform v0_1_1 release tag subject differs from the tag object",
+        "platform v0_1_2 release tag subject differs from the tag object",
     )
     for index, expected_name in enumerate(PUBLIC_ASSET_NAMES, start=1):
         digest = _validate_sha256_subject(
             subjects_value[index],
             expected_name=expected_name,
-            label=f"platform v0_1_1 release asset subject {index}",
+            label=f"platform v0_1_2 release asset subject {index}",
         )
         _require(
             digest == assets[expected_name]["sha256"],
-            f"platform v0_1_1 release/public asset digest differs: {expected_name}",
+            f"platform v0_1_2 release/public asset digest differs: {expected_name}",
         )
 
 
@@ -542,7 +542,7 @@ def _validate_fresh_download(
     fresh_value: object, *, tag_commit: str
 ) -> dt.datetime:
     fresh = _object(
-        fresh_value, "platform v0_1_1 fresh download verification"
+        fresh_value, "platform v0_1_2 fresh download verification"
     )
     _exact_keys(
         fresh,
@@ -555,28 +555,28 @@ def _validate_fresh_download(
                 "verifier_commit",
             }
         ),
-        "platform v0_1_1 fresh download verification",
+        "platform v0_1_2 fresh download verification",
     )
     _require(
         type(fresh["asset_count"]) is int
         and fresh["asset_count"] == len(PUBLIC_ASSET_NAMES),
-        "platform v0_1_1 fresh download asset count differs",
+        "platform v0_1_2 fresh download asset count differs",
     )
     _require(
         fresh["deep_distribution_verified"] is True,
-        "platform v0_1_1 fresh download must pass deep distribution verification",
+        "platform v0_1_2 fresh download must pass deep distribution verification",
     )
     _sha256(
         fresh["record_sha256"],
-        "platform v0_1_1 fresh download verification record",
+        "platform v0_1_2 fresh download verification record",
     )
     _require(
         fresh["verifier_commit"] == tag_commit,
-        "platform v0_1_1 fresh verifier commit differs from the tag commit",
+        "platform v0_1_2 fresh verifier commit differs from the tag commit",
     )
     return parse_utc_timestamp(
         fresh["verified_at"],
-        "platform v0_1_1 fresh download verified_at",
+        "platform v0_1_2 fresh download verified_at",
     )
 
 
@@ -584,7 +584,7 @@ def _validate_android_runtime(
     runtime_value: object, *, assets: dict[str, dict[str, object]]
 ) -> None:
     runtime = _object(
-        runtime_value, "platform v0_1_1 Android runtime evidence"
+        runtime_value, "platform v0_1_2 Android runtime evidence"
     )
     _exact_keys(
         runtime,
@@ -604,18 +604,18 @@ def _validate_android_runtime(
                 "tested_aar_sha256",
             }
         ),
-        "platform v0_1_1 Android runtime evidence",
+        "platform v0_1_2 Android runtime evidence",
     )
     _require(
         type(runtime["bundle_schema"]) is int
         and runtime["bundle_schema"]
         == ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
-        "platform v0_1_1 Android runtime bundle schema differs",
+        "platform v0_1_2 Android runtime bundle schema differs",
     )
     _require(
         type(runtime["proof_schema"]) is int
         and runtime["proof_schema"] == ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
-        "platform v0_1_1 Android runtime proof schema differs",
+        "platform v0_1_2 Android runtime proof schema differs",
     )
     _require(
         runtime["device_kind"] == "emulator"
@@ -625,62 +625,62 @@ def _validate_android_runtime(
         and type(runtime["page_size"]) is int
         and runtime["page_size"] == 16_384
         and runtime["release_mode"] is True,
-        "platform v0_1_1 Android runtime device boundary differs",
+        "platform v0_1_2 Android runtime device boundary differs",
     )
     bundle_sha256 = _sha256(
         runtime["bundle_sha256"],
-        "platform v0_1_1 Android runtime bundle",
+        "platform v0_1_2 Android runtime bundle",
     )
     tested_aar_sha256 = _sha256(
         runtime["tested_aar_sha256"],
-        "platform v0_1_1 Android tested AAR",
+        "platform v0_1_2 Android tested AAR",
     )
     tested_aar_manifest_sha256 = _sha256(
         runtime["tested_aar_manifest_sha256"],
-        "platform v0_1_1 Android tested AAR manifest",
+        "platform v0_1_2 Android tested AAR manifest",
     )
     _sha256(
         runtime["bundle_manifest_sha256"],
-        "platform v0_1_1 Android runtime bundle manifest",
+        "platform v0_1_2 Android runtime bundle manifest",
     )
     _sha256(
         runtime["proof_sha256"],
-        "platform v0_1_1 Android runtime proof",
+        "platform v0_1_2 Android runtime proof",
     )
     _require(
         bundle_sha256 == assets[ANDROID_RUNTIME_BUNDLE]["sha256"],
-        "platform v0_1_1 Android bundle/public asset digest differs",
+        "platform v0_1_2 Android bundle/public asset digest differs",
     )
     _require(
         tested_aar_sha256 == assets[ANDROID_AAR]["sha256"],
-        "platform v0_1_1 Android tested/public AAR digest differs",
+        "platform v0_1_2 Android tested/public AAR digest differs",
     )
     _require(
         tested_aar_manifest_sha256 == assets[ANDROID_MANIFEST]["sha256"],
-        "platform v0_1_1 Android tested/public manifest digest differs",
+        "platform v0_1_2 Android tested/public manifest digest differs",
     )
 
 
 def _validate_registries(observation: dict[str, object]) -> None:
     registries = _object(
-        observation["registries"], "platform v0_1_1 registries"
+        observation["registries"], "platform v0_1_2 registries"
     )
     _exact_keys(
         registries,
         frozenset(REGISTRY_STATES),
-        "platform v0_1_1 registries",
+        "platform v0_1_2 registries",
     )
     _require(
         registries == REGISTRY_STATES,
-        "platform v0_1_1 registry publication state differs",
+        "platform v0_1_2 registry publication state differs",
     )
 
 
-def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
-    """Validate one frozen 0.1.1 stable publication receipt without network I/O."""
+def validate_v0_1_2_publication_receipt(receipt_value: object) -> None:
+    """Validate one frozen 0.1.2 stable publication receipt without network I/O."""
 
     receipt = _object(
-        receipt_value, "platform v0_1_1 publication receipt"
+        receipt_value, "platform v0_1_2 publication receipt"
     )
     _exact_keys(
         receipt,
@@ -694,24 +694,24 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
                 "status",
             }
         ),
-        "platform v0_1_1 publication receipt",
+        "platform v0_1_2 publication receipt",
     )
     _require(
         type(receipt["schema_version"]) is int
         and receipt["schema_version"]
-        == PLATFORM_V0_1_1_PUBLICATION_SCHEMA_VERSION,
-        "platform v0_1_1 publication receipt schema differs",
+        == PLATFORM_V0_1_2_PUBLICATION_SCHEMA_VERSION,
+        "platform v0_1_2 publication receipt schema differs",
     )
     _require(
-        receipt["kind"] == PLATFORM_V0_1_1_PUBLICATION_KIND,
-        "platform v0_1_1 publication receipt kind differs",
+        receipt["kind"] == PLATFORM_V0_1_2_PUBLICATION_KIND,
+        "platform v0_1_2 publication receipt kind differs",
     )
     _require(
-        receipt["boundary"] == PLATFORM_V0_1_1_PUBLICATION_BOUNDARY,
-        "platform v0_1_1 publication boundary differs",
+        receipt["boundary"] == PLATFORM_V0_1_2_PUBLICATION_BOUNDARY,
+        "platform v0_1_2 publication boundary differs",
     )
     identity = _object(
-        receipt["identity"], "platform v0_1_1 publication identity"
+        receipt["identity"], "platform v0_1_2 publication identity"
     )
     _exact_keys(
         identity,
@@ -723,7 +723,7 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
                 "release_url",
             }
         ),
-        "platform v0_1_1 publication identity",
+        "platform v0_1_2 publication identity",
     )
     _require(
         identity
@@ -733,37 +733,37 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
             "release_tag": RELEASE_TAG,
             "release_url": RELEASE_URL,
         },
-        "platform v0_1_1 publication identity differs",
+        "platform v0_1_2 publication identity differs",
     )
 
     status = receipt["status"]
     _require(
         isinstance(status, str),
-        "platform v0_1_1 publication status must be a string",
+        "platform v0_1_2 publication status must be a string",
     )
     _require(
         status
         in {
-            PLATFORM_V0_1_1_STATUS_PENDING,
-            PLATFORM_V0_1_1_STATUS_VERIFIED,
+            PLATFORM_V0_1_2_STATUS_PENDING,
+            PLATFORM_V0_1_2_STATUS_VERIFIED,
         },
-        f"platform v0_1_1 publication status is unknown: {status!r}",
+        f"platform v0_1_2 publication status is unknown: {status!r}",
     )
     observation = _object(
-        receipt["observation"], "platform v0_1_1 publication observation"
+        receipt["observation"], "platform v0_1_2 publication observation"
     )
     expected_observation_keys = (
         _VERIFIED_OBSERVATION_KEYS
-        if status == PLATFORM_V0_1_1_STATUS_VERIFIED
+        if status == PLATFORM_V0_1_2_STATUS_VERIFIED
         else _PENDING_OBSERVATION_KEYS
     )
     _exact_keys(
         observation,
         expected_observation_keys,
-        "platform v0_1_1 publication observation",
+        "platform v0_1_2 publication observation",
     )
     observed_at = parse_utc_timestamp(
-        observation["observed_at"], "platform v0_1_1 observed_at"
+        observation["observed_at"], "platform v0_1_2 observed_at"
     )
     source = _validate_source(observation["source"])
     candidate_subjects, candidate_verified_at = (
@@ -779,14 +779,14 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
     )
     _sha256(
         observation["assembly_receipt_sha256"],
-        "platform v0_1_1 assembly receipt",
+        "platform v0_1_2 assembly receipt",
     )
     _require(
         candidate_verified_at <= observed_at,
-        "platform v0_1_1 candidate verification postdates observation",
+        "platform v0_1_2 candidate verification postdates observation",
     )
 
-    if status == PLATFORM_V0_1_1_STATUS_PENDING:
+    if status == PLATFORM_V0_1_2_STATUS_PENDING:
         return
 
     _require(
@@ -794,19 +794,19 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
         and observation["prerelease"] is False
         and observation["public_release"] is True
         and observation["immutable_release"] is True,
-        "platform v0_1_1 verified release state differs",
+        "platform v0_1_2 verified release state differs",
     )
     _positive_integer(
-        observation["release_id"], "platform v0_1_1 GitHub release id"
+        observation["release_id"], "platform v0_1_2 GitHub release id"
     )
     _require(
         type(observation["release_asset_verification_count"]) is int
         and observation["release_asset_verification_count"]
         == len(PUBLIC_ASSET_NAMES),
-        "platform v0_1_1 release asset verification count differs",
+        "platform v0_1_2 release asset verification count differs",
     )
     published_at = parse_utc_timestamp(
-        observation["published_at"], "platform v0_1_1 published_at"
+        observation["published_at"], "platform v0_1_2 published_at"
     )
     assets = _validate_assets(observation["assets"])
     _validate_candidate_asset_crosslinks(candidate_subjects, assets)
@@ -819,31 +819,31 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
                 "name": name,
                 "sha256": expected["sha256"],
             },
-            f"platform v0_1_1 remote/release candidate asset differs: {name}",
+            f"platform v0_1_2 remote/release candidate asset differs: {name}",
         )
 
     platform_distribution_sha256 = _sha256(
         observation["platform_distribution_sha256"],
-        "platform v0_1_1 distribution manifest",
+        "platform v0_1_2 distribution manifest",
     )
     checksums_sha256 = _sha256(
         observation["checksums_sha256"],
-        "platform v0_1_1 release checksums",
+        "platform v0_1_2 release checksums",
     )
     _require(
         platform_distribution_sha256
         == assets[RELEASE_MANIFEST]["sha256"],
-        "platform v0_1_1 distribution manifest/public asset digest differs",
+        "platform v0_1_2 distribution manifest/public asset digest differs",
     )
     _require(
         checksums_sha256 == assets[RELEASE_SUMS]["sha256"],
-        "platform v0_1_1 checksum/public asset digest differs",
+        "platform v0_1_2 checksum/public asset digest differs",
     )
     _require(
         platform_distribution_sha256
         == release_candidate["platform_distribution_sha256"]
         and checksums_sha256 == release_candidate["checksums_sha256"],
-        "platform v0_1_1 verified release candidate digest projection differs",
+        "platform v0_1_2 verified release candidate digest projection differs",
     )
     _validate_release_attestation(
         observation["release_attestation"],
@@ -860,14 +860,14 @@ def validate_v0_1_1_publication_receipt(receipt_value: object) -> None:
     _require(
         observation["android_runtime_evidence"]
         == release_candidate["android_runtime_evidence"],
-        "platform v0_1_1 verified Android release candidate projection differs",
+        "platform v0_1_2 verified Android release candidate projection differs",
     )
     _validate_registries(observation)
     _require(
         candidate_verified_at <= published_at,
-        "platform v0_1_1 publication predates candidate verification",
+        "platform v0_1_2 publication predates candidate verification",
     )
     _require(
         published_at <= fresh_verified_at <= observed_at,
-        "platform v0_1_1 publication/fresh/observation timestamps are out of order",
+        "platform v0_1_2 publication/fresh/observation timestamps are out of order",
     )

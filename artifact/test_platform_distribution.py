@@ -343,7 +343,7 @@ class PlatformDistributionTests(unittest.TestCase):
         self.assertEqual(5, len(first["assets"]))
         self.assertEqual("r1", first["distribution_revision"])
         self.assertEqual(
-            "abi2-platforms-v0.1.1", first["release_tag"]
+            "abi2-platforms-v0.1.2", first["release_tag"]
         )
         self.assertEqual(first, self._verify(first_output))
         first_bytes = {
@@ -570,10 +570,10 @@ class PlatformDistributionTests(unittest.TestCase):
         )
 
     def test_current_contract_is_stable_identity_without_published_hashes(self) -> None:
-        self.assertEqual("0.1.1", platform_distribution_contract.PRODUCT_VERSION)
+        self.assertEqual("0.1.2", platform_distribution_contract.PRODUCT_VERSION)
         self.assertEqual("r1", platform_distribution_contract.DISTRIBUTION_REVISION)
         self.assertEqual(
-            "abi2-platforms-v0.1.1",
+            "abi2-platforms-v0.1.2",
             platform_distribution_contract.RELEASE_TAG,
         )
         self.assertEqual(

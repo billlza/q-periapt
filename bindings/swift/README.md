@@ -85,7 +85,7 @@ The gate requires a clean worktree for release proof; use
 Credentialed Apple distribution is intentionally separate from that CI path:
 
 ```sh
-QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.1 \
+QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.2 \
 QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')" \
 sh artifact/swift-xcframework-release.sh
 ```
@@ -95,7 +95,7 @@ static XCFramework, verifies that signing did not alter the three `.a` slices, e
 ZIP extraction through the isolated consumer, and requires a fixed 22-entry static-only archive:
 three static-library slices, their headers and metadata, plus the outer code-signature resources.
 Any extra executable, dynamic library, app, framework, bundle, script, symlink, special file, or
-unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.1` release
+unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.2` release
 identity, source commit, ZIP and SwiftPM hashes, certificate and signature resources, and all
 slice hashes; `MANIFEST.json` additionally binds the exact Rust/Cargo, Swift, Xcode, and host
 toolchain identities. Because this SDK payload
@@ -127,11 +127,11 @@ a post-publication URL-consumer failure
 invalidates that release and requires a new version; it must never be repaired by replacing the
 asset under the same tag.
 
-The stable Apple target is `v0.1.1` (Rust 1.96.1), requires
+The stable Apple target is `v0.1.2` (Rust 1.96.1), requires
 `prerelease=false`, and becomes
 public/current only through its verified receipt. The earlier `v0.1.0-alpha.2-r1`
 patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0 build remain immutable
-published evidence; the `v0.1.0` tag exists but was never published and carries no
-Apple asset. The non-Apple stable assets (Android AAR and Linux C SDKs)
-target the separate `abi2-platforms-v0.1.1` transaction; unsigned Windows output
+published evidence; the `v0.1.0` and `v0.1.1` tags exist but were never published
+and carry no Apple asset. The non-Apple stable assets (Android AAR and Linux C SDKs)
+target the separate `abi2-platforms-v0.1.2` transaction; unsigned Windows output
 remains an unsupported CI diagnostic outside that release.

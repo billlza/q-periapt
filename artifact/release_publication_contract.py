@@ -68,11 +68,11 @@ _STABLE_ANDROID_AAR_MANIFEST_SCHEMA = 4
 _STABLE_ANDROID_DEVICE_PROOF_SCHEMA = 6
 _STABLE_PERFORMANCE_PROOF_SCHEMA = 8
 _STABLE_ANDROID_AAR_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.1/"
-    "q-periapt-android-0.1.1.aar"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.2/"
+    "q-periapt-android-0.1.2.aar"
 )
 _STABLE_ANDROID_AAR_MANIFEST_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.1/MANIFEST.json"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.2/MANIFEST.json"
 )
 _STABLE_ANDROID_AAR_TARGETS = (
     "arm64-v8a",
@@ -196,7 +196,7 @@ def _is_legacy_alpha2_selector(
         swift is not None
         and frozenset(swift) == _LEGACY_SWIFT_KEYS
         and apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY in publications
-        and apple_contract.APPLE_V0_1_1_PUBLICATION_KEY not in publications
+        and apple_contract.APPLE_V0_1_2_PUBLICATION_KEY not in publications
         and apple_contract.publication_values_equal(
             swift.get("distribution"),
             apple_contract.frozen_alpha2_r1_distribution(),
@@ -276,9 +276,9 @@ def _validate_active_selector(
 
 
 def _stable_cohort_state(publications: dict[str, object]) -> str:
-    apple = publications.get(apple_contract.APPLE_V0_1_1_PUBLICATION_KEY)
+    apple = publications.get(apple_contract.APPLE_V0_1_2_PUBLICATION_KEY)
     platform = publications.get(
-        stable_platform_contract.PLATFORM_V0_1_1_PUBLICATION_KEY
+        stable_platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
     )
     crates = publications.get(crates_contract.CRATES_IO_PUBLICATION_KEY)
     if apple is None and platform is None and crates is None:
@@ -289,7 +289,7 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
         if (
             apple_receipt.get("status") == apple_contract.APPLE_STATUS_PENDING
             and platform_receipt.get("status")
-            == stable_platform_contract.PLATFORM_V0_1_1_STATUS_PENDING
+            == stable_platform_contract.PLATFORM_V0_1_2_STATUS_PENDING
         ):
             return PUBLICATION_STATE_PENDING
     if apple is not None and platform is not None and crates is not None:
@@ -299,7 +299,7 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
         if (
             apple_receipt.get("status") == apple_contract.APPLE_STATUS_VERIFIED
             and platform_receipt.get("status")
-            == stable_platform_contract.PLATFORM_V0_1_1_STATUS_VERIFIED
+            == stable_platform_contract.PLATFORM_V0_1_2_STATUS_VERIFIED
             and crates_receipt.get("status")
             == crates_contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED
         ):
@@ -357,7 +357,7 @@ def _validate_source_crosslinks(
     domain_sources = [
         _source_identity(
             _source_object(
-                publications[apple_contract.APPLE_V0_1_1_PUBLICATION_KEY],
+                publications[apple_contract.APPLE_V0_1_2_PUBLICATION_KEY],
                 domain="Apple",
             ),
             "Apple stable",
@@ -365,7 +365,7 @@ def _validate_source_crosslinks(
         _source_identity(
             _source_object(
                 publications[
-                    stable_platform_contract.PLATFORM_V0_1_1_PUBLICATION_KEY
+                    stable_platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
                 ],
                 domain="platform",
             ),
@@ -579,7 +579,7 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
         return
     active_key = swift.get("active_publication_key")
     expected_active = (
-        apple_contract.APPLE_V0_1_1_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
         if state == PUBLICATION_STATE_VERIFIED
         else apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
     )

@@ -219,7 +219,7 @@ Cargo's post-install path warning; the verifier itself still ignores ambient `PA
 The verifier accepts no source-root or executable-path argument: it derives the repository root
 from its own fixed module location and executes only
 `target/qperiapt-audit-tool/bin/cargo-audit`. Omitting the requirement flag leaves the run scoped
-and cannot emit the release marker. The `0.1.1` stable-version release graph now uses the
+and cannot emit the release marker. The `0.1.2` stable-version release graph now uses the
 target-selected `q-periapt-mlkem-native-sys` boundary over vendored
 `mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
 `sha3` 0.10.9. This removes both the `fips203` path that failed the project binary-CT
@@ -249,10 +249,10 @@ not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
 tag/commit is not a signed provenance statement, and neither upstream mlkem-native
 nor this integration has completed an independent audit.
 
-ABI 2 / `0.1.1` is the stable-version source line (registry publication remains
+ABI 2 / `0.1.2` is the stable-version source line (registry publication remains
 receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
-`v0.1.1` and the
-`abi2-platforms-v0.1.1` platform distribution (Android AAR plus API 35 /
+`v0.1.2` and the
+`abi2-platforms-v0.1.2` platform distribution (Android AAR plus API 35 /
 16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
 The unsigned Windows x64 MSVC package remains an unsupported CI diagnostic and is
 excluded from the formal candidate, manifest, attestation, receipt, and release assets.
@@ -261,9 +261,10 @@ publication receipts live under `release_publications` in `artifact/results.json
 `swift_xcframework.distribution` is only the active Apple projection and must match
 one of those receipts exactly. Scope, verification commands, and explicit
 non-goals are in `artifact/stable-release-notes.md`. The alpha.2 tags and frozen r2
-receipt remain immutable historical evidence, and the `v0.1.0` and
-`abi2-platforms-v0.1.0` tags remain tagged, unpublished history superseded by the
-0.1.1 tags (see the 0.1.0 history note in `artifact/stable-release-notes.md`). The `platform_v0_1_1` receipt has
+receipt remain immutable historical evidence, and the `v0.1.0`, `v0.1.1`,
+`abi2-platforms-v0.1.0`, and `abi2-platforms-v0.1.1` tags remain tagged,
+unpublished history superseded by the
+0.1.2 tags (see the 0.1.0 and 0.1.1 history notes in `artifact/stable-release-notes.md`). The `platform_v0_1_2` receipt has
 two exact states: candidate verification pending release verification binds the
 descriptor-snapshotted final seven-file local release candidate while omitting every
 remote-publication field (absence means unrecorded, not no release), while verified
@@ -696,7 +697,7 @@ ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slic
 notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
 product retains its own signing and notarization responsibility.
 The stable-version GitHub publications are not by themselves a production-readiness
-claim. The targets `v0.1.1` and `abi2-platforms-v0.1.1` become public,
+claim. The targets `v0.1.2` and `abi2-platforms-v0.1.2` become public,
 immutable, attested non-prerelease releases only when their current verified receipts say so;
 the published alpha.2 receipts remain immutable historical evidence. The platform packages carry exact-version
 pkg-config/CMake configs, ABI contracts, SBOM/CBOM, and license material. What still

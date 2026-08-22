@@ -1,5 +1,5 @@
 #!/bin/sh
-# Re-download and independently verify the immutable 0.1.1 Apple release set.
+# Re-download and independently verify the immutable 0.1.2 Apple release set.
 set -eu
 umask 077
 
@@ -60,7 +60,7 @@ for tool in /usr/bin/awk /usr/bin/codesign /usr/bin/cmp /usr/bin/curl \
 	fi
 done
 
-PRODUCT_VERSION="0.1.1"
+PRODUCT_VERSION="0.1.2"
 RELEASE_TAG="v$PRODUCT_VERSION"
 RELEASE_BASE="https://github.com/billlza/q-periapt/releases/download/$RELEASE_TAG"
 ZIP_URL="$RELEASE_BASE/CQPeriapt.xcframework.zip"
@@ -76,7 +76,7 @@ EXPECTED_SHA256SUMS_SHA256=${QPERIAPT_SWIFT_BINARY_SHA256SUMS_SHA256:-}
 ARTIFACT_SOURCE_COMMIT=${QPERIAPT_SWIFT_BINARY_SOURCE_COMMIT:-}
 
 if [ "$URL" != "$ZIP_URL" ]; then
-	printf 'error: remote consumer URL must equal the immutable 0.1.1 release asset URL\n' >&2
+	printf 'error: remote consumer URL must equal the immutable 0.1.2 release asset URL\n' >&2
 	exit 2
 fi
 require_lower_hex() {
