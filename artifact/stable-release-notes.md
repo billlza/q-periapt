@@ -89,14 +89,16 @@ Proceed only from a fresh `STABLE_TAG_PROTECTION_PASS`. The command samples the
 complete bounded tag-ruleset inventory twice through the source-pinned GitHub CLI,
 requires the current API version, rejects proxy/CA/Git/GitHub overrides and user
 CLI configuration, and accepts only explicit active `update` plus `deletion`
-coverage for `refs/tags/v0.1.2` and
-`refs/tags/abi2-platforms-v0.1.2` with an empty bypass list. A missing or hidden
-bypass list, target/ref mismatch, disabled/evaluate ruleset, incomplete first
-page, tool drift, or changed second sample is a refusal. Tag-triggered CI is too
-late to replace this pre-tag check. The same ruleset must also keep covering the
-historical `refs/tags/v0.1.0`, `refs/tags/abi2-platforms-v0.1.0`,
-`refs/tags/v0.1.1`, and `refs/tags/abi2-platforms-v0.1.1`; all six
-stable-named refs remain protected.
+coverage, with an empty bypass list, for every one of the six stable-named refs —
+the current `refs/tags/v0.1.2` and `refs/tags/abi2-platforms-v0.1.2` together with
+the historical `refs/tags/v0.1.0`, `refs/tags/abi2-platforms-v0.1.0`,
+`refs/tags/v0.1.1`, and `refs/tags/abi2-platforms-v0.1.1`. Protection is verified
+for the whole set, so a historical release tag can never silently lose its
+update/deletion rule. A missing or hidden bypass list, target/ref mismatch,
+disabled/evaluate ruleset, incomplete first page, tool drift, or changed second
+sample is a refusal. Tag-triggered CI is too late to replace this pre-tag check.
+State observation of the absent/apple-only/exact transition still concerns only
+the current `v0.1.2` refs.
 
 Both stable tags point to the coordinated results-only commit `R`, whose sole
 parent is the source-changing commit `S`. Stable receipts record `S` as
