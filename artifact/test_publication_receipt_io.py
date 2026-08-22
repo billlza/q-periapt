@@ -3332,6 +3332,65 @@ class PublicationReceiptIOTests(unittest.TestCase):
         finally:
             os.close(directory_fd)
 
+    def test_stage_private_file_from_fd_noreplace_at_stages_and_refuses_replace(
+        self,
+    ) -> None:
+        # Exercises the real same-directory no-replace rename path without
+        # mocking _rename_noreplace, which every other staging test patches.
+        # This is the regression guard for the signature-mismatch defect where
+        # the internal _rename_noreplace call passed source_directory_fd /
+        # destination_directory_fd keyword arguments that its 3-positional
+        # definition does not accept, raising TypeError only in a real run.
+        self.safe_root.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(self.safe_root, 0o700)
+        destination_directory = self.safe_root / "staging"
+        destination_directory.mkdir(mode=0o700)
+        os.chmod(destination_directory, 0o700)
+        payload = b"publication staging regression payload\n" * 8
+        source_path = self.safe_root / "source.bin"
+        source_path.write_bytes(payload)
+        os.chmod(source_path, 0o600)
+        digest = hashlib.sha256(payload).hexdigest()
+
+        source_fd = os.open(source_path, os.O_RDONLY)
+        directory_fd = os.open(destination_directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            receipt_io.stage_private_file_from_fd_noreplace_at(
+                source_fd,
+                directory_fd,
+                "asset.bin",
+                expected_size=len(payload),
+                expected_sha256=digest,
+                maximum=1 << 20,
+                label="regression stage",
+            )
+            staged = destination_directory / "asset.bin"
+            self.assertTrue(staged.exists())
+            self.assertEqual(staged.read_bytes(), payload)
+            self.assertEqual(stat.S_IMODE(staged.stat().st_mode), 0o600)
+            self.assertEqual(
+                sorted(entry.name for entry in destination_directory.iterdir()),
+                ["asset.bin"],
+            )
+            second_source_fd = os.open(source_path, os.O_RDONLY)
+            try:
+                with self.assertRaises(receipt_io.PublicationReceiptIOError):
+                    receipt_io.stage_private_file_from_fd_noreplace_at(
+                        second_source_fd,
+                        directory_fd,
+                        "asset.bin",
+                        expected_size=len(payload),
+                        expected_sha256=digest,
+                        maximum=1 << 20,
+                        label="regression stage replace",
+                    )
+            finally:
+                os.close(second_source_fd)
+            self.assertEqual(staged.read_bytes(), payload)
+        finally:
+            os.close(source_fd)
+            os.close(directory_fd)
+
 
 if __name__ == "__main__":
     unittest.main()
