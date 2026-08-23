@@ -980,7 +980,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-backends"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "criterion",
  "fips204",
@@ -1002,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "serde_json",
@@ -1010,15 +1010,15 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-continuity-model"
-version = "0.1.2"
+version = "0.1.3"
 
 [[package]]
 name = "q-periapt-core"
-version = "0.1.2"
+version = "0.1.3"
 
 [[package]]
 name = "q-periapt-ctstats"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cc",
  "q-periapt-backends",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-ffi"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "getrandom 0.3.4",
  "q-periapt-backends",
@@ -1040,14 +1040,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-kem"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-migration"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1060,7 +1060,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-mlkem-native-sys"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cc",
  "sha3",
@@ -1068,7 +1068,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-policy"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-policy-agent"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "getrandom 0.3.4",
  "q-periapt-backends",
@@ -1096,7 +1096,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-rustls"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1109,14 +1109,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-sig"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-tls-demo"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "getrandom 0.3.4",
  "q-periapt-backends",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-wasm"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "js-sys",
  "q-periapt-backends",

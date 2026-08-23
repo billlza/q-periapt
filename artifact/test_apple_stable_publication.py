@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct state, projection, and remote-receipt tests for Apple 0.1.2."""
+"""Direct state, projection, and remote-receipt tests for Apple 0.1.3."""
 
 from __future__ import annotations
 
@@ -134,9 +134,9 @@ class AppleStablePublicationTests(unittest.TestCase):
             "version": apple_distribution.PRODUCT_VERSION,
         }
         self.pending = {
-            "boundary": apple_contract.APPLE_V0_1_2_BOUNDARY,
+            "boundary": apple_contract.APPLE_V0_1_3_BOUNDARY,
             "distribution": copy.deepcopy(self.distribution),
-            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_2_IDENTITY),
+            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_3_IDENTITY),
             "kind": apple_contract.APPLE_PUBLICATION_KIND,
             "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
             "source": {
@@ -252,10 +252,10 @@ class AppleStablePublicationTests(unittest.TestCase):
             source_digest=SOURCE_DIGEST,
         )
         manifest["release_publications"][
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ] = copy.deepcopy(self.pending)
         platform = manifest["release_publications"][
-            platform_publication_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
         ]
         platform_source = platform["observation"]["source"]
         platform_source.update(
@@ -328,9 +328,17 @@ class AppleStablePublicationTests(unittest.TestCase):
             path.write_bytes(data)
             os.chmod(path, 0o600)
         log = run / publication.REMOTE_CONSUMER_LOG_NAME
+        # Realistic XCTest output: the passing grand-total line is printed once
+        # per suite level (test-class, bundle, and outer "All tests"), so it
+        # legitimately appears more than once for a clean three-test run.
         log.write_text(
             "/Users/private/RAW_PII_SENTINEL\n"
-            "Executed 3 tests, with 0 failures\n",
+            "Test Suite 'CQPeriaptTests' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n"
+            "Test Suite 'CQPeriaptPackageTests.xctest' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n"
+            "Test Suite 'All tests' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n",
             encoding="utf-8",
         )
         os.chmod(log, 0o600)
@@ -628,7 +636,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -1311,12 +1319,12 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: self.pending
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: self.pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: verified
                 }
             },
         )

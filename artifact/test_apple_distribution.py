@@ -1082,10 +1082,10 @@ class DistributionEvidenceTests(ZipFixture):
         self.assertEqual(
             evidence["release_identity"],
             {
-                "product_version": "0.1.2",
+                "product_version": "0.1.3",
                 "revision": "r1",
-                "tag": "v0.1.2",
-                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.2",
+                "tag": "v0.1.3",
+                "url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.3",
             },
         )
         self.assertEqual(
@@ -1380,13 +1380,13 @@ class ReleaseAssetVerificationTests(ZipFixture):
         }
         pending = pending_manifest_fixture()
         stable = pending["release_publications"][
-            apple_publication_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ]
         stable_source = stable["source"]
         stable_source["source_parent_commit"] = SOURCE_COMMIT
         stable["distribution"] = copy.deepcopy(trusted_distribution)
         platform_key = (
-            platform_publication_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
         )
         pending["release_publications"][platform_key] = _rebind_platform(
             pending["release_publications"][platform_key],
@@ -1411,7 +1411,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
         results: dict[str, object],
     ) -> dict[str, object]:
         return results["release_publications"][
-            apple_publication_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ]["distribution"]
 
     def verify(self, **overrides: object) -> dict[str, str]:
@@ -2076,14 +2076,14 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertIn('"schema_version": 5', self.builder)
 
     def test_release_revision_and_toolchain_are_exactly_bound(self) -> None:
-        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.2")
+        self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.3")
         self.assertEqual(apple_distribution.RELEASE_REVISION, "r1")
         self.assertEqual(
-            apple_distribution.RELEASE_TAG, "v0.1.2"
+            apple_distribution.RELEASE_TAG, "v0.1.3"
         )
         self.assertEqual(
             apple_distribution.RELEASE_URL,
-            "https://github.com/billlza/q-periapt/releases/tag/v0.1.2",
+            "https://github.com/billlza/q-periapt/releases/tag/v0.1.3",
         )
         self.assertEqual(
             apple_distribution.PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY,

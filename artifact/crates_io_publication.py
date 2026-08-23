@@ -122,9 +122,9 @@ CRATES_IO_PUBLICATION_JOURNAL_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-crates-io-publication-journal"
 )
 RUST_PACKAGE_HANDOFF_ROOT = rust_package_handoff.RUST_PACKAGE_HANDOFF_ROOT
-CRATES_IO_PUBLICATION_RECEIPT_NAME = "crates-io-v0.1.2-publication-receipt.json"
-CRATES_IO_PUBLICATION_JOURNAL_NAME = "crates-io-v0.1.2-upload-attempt.json"
-CRATES_IO_PUBLICATION_LOCK_NAME = "qperiapt-crates-io-v0.1.2.lock"
+CRATES_IO_PUBLICATION_RECEIPT_NAME = "crates-io-v0.1.3-publication-receipt.json"
+CRATES_IO_PUBLICATION_JOURNAL_NAME = "crates-io-v0.1.3-upload-attempt.json"
+CRATES_IO_PUBLICATION_LOCK_NAME = "qperiapt-crates-io-v0.1.3.lock"
 CRATES_IO_PUBLICATION_UPLOADER_NAME = "qperiapt-crates-io-uploader"
 RUST_PACKAGE_HANDOFF_MANIFEST_NAME = (
     rust_package_handoff.RUST_PACKAGE_HANDOFF_MANIFEST_NAME
@@ -146,7 +146,10 @@ MAX_SPARSE_BYTES = 8 * 1024 * 1024
 MAX_SPARSE_RECORDS = 16_384
 MAX_JOURNAL_RECORDS = 4096
 HTTP_TIMEOUT_SECONDS = 15
-REMOTE_POLL_ATTEMPTS = 12
+# A freshly published crate version can take more than a minute to appear in both
+# the API and the sparse index on a first publish, so poll long enough to tolerate
+# that propagation before declaring the version absent.
+REMOTE_POLL_ATTEMPTS = 24
 REMOTE_POLL_INTERVAL_SECONDS = 5.0
 HTTP_USER_AGENT = "q-periapt-crates-io-publication/1"
 UPLOAD_TIMEOUT_SECONDS = 300
@@ -154,7 +157,7 @@ MAX_UPLOADER_OUTPUT_BYTES = 64 * 1024
 MAX_UPLOADER_BYTES = 512 * 1024 * 1024
 
 REAL_UPLOAD_ACKNOWLEDGEMENT = (
-    "publish-q-periapt-abi2-v0.1.2-to-crates.io-is-irreversible"
+    "publish-q-periapt-abi2-v0.1.3-to-crates.io-is-irreversible"
 )
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -572,7 +575,7 @@ def _validated_publication_state_root(
         account_home
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.2"
+        / "crates.io-v0.1.3"
     )
     _require(
         state_root == expected_root
@@ -671,7 +674,7 @@ def _expected_publication_state_root() -> pathlib.Path:
         _publication_account_home_path()
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.2"
+        / "crates.io-v0.1.3"
     )
 
 
@@ -3649,12 +3652,25 @@ def run_publication_transaction(
         dict[str, object],
     ]:
         _resample_local_evidence(evidence)
-        remote = observe_remote_prefix(
-            evidence,
-            api_fetcher=api_fetcher,
-            sparse_fetcher=sparse_fetcher,
-            clock=clock,
-        )
+        # The sparse index and the API can transiently disagree on presence while
+        # crates.io propagates; retry the read-only composite observation with a
+        # bounded backoff rather than failing the whole transaction on a momentary
+        # skew. This never re-attempts an upload -- only the observation.
+        remote: tuple[RemotePublishedRecord | None, ...] | None = None
+        for attempt in range(poll_attempts):
+            try:
+                remote = observe_remote_prefix(
+                    evidence,
+                    api_fetcher=api_fetcher,
+                    sparse_fetcher=sparse_fetcher,
+                    clock=clock,
+                )
+                break
+            except CratesIoRemoteObservationUnknownError:
+                if attempt + 1 >= poll_attempts:
+                    raise
+                sleeper(float(poll_interval_seconds))
+        assert remote is not None
         _validate_remote_resume(
             remote,
             prior_published_count=prior_published_count,
@@ -4250,7 +4266,7 @@ def _require_handoff_confirmation(
 def _main(arguments: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate, verify, or explicitly execute the ABI-2 0.1.2 "
+            "Validate, verify, or explicitly execute the ABI-2 0.1.3 "
             "crates.io publication domain"
         )
     )
@@ -4264,7 +4280,7 @@ def _main(arguments: Sequence[str]) -> int:
         type=pathlib.Path,
         help=(
             "explicit confirmation of the fixed passwd-home mode-0700 "
-            "~/.q-periapt/publication-state/crates.io-v0.1.2 authority; "
+            "~/.q-periapt/publication-state/crates.io-v0.1.3 authority; "
             "required for publish"
         ),
     )

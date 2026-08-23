@@ -33,11 +33,11 @@ EXPECTED_ACTION_IDS = (
     "upload-apple-03-SHA256SUMS",
     "upload-platform-00-PLATFORM_DISTRIBUTION.json",
     "upload-platform-01-SHA256SUMS",
-    "upload-platform-02-q-periapt-android-0.1.2-16k-runtime-evidence.zip",
-    "upload-platform-03-q-periapt-android-0.1.2-MANIFEST.json",
-    "upload-platform-04-q-periapt-android-0.1.2.aar",
-    "upload-platform-05-q-periapt-c-abi2-0.1.2-aarch64-unknown-linux-gnu.tar.gz",
-    "upload-platform-06-q-periapt-c-abi2-0.1.2-x86_64-unknown-linux-gnu.tar.gz",
+    "upload-platform-02-q-periapt-android-0.1.3-16k-runtime-evidence.zip",
+    "upload-platform-03-q-periapt-android-0.1.3-MANIFEST.json",
+    "upload-platform-04-q-periapt-android-0.1.3.aar",
+    "upload-platform-05-q-periapt-c-abi2-0.1.3-aarch64-unknown-linux-gnu.tar.gz",
+    "upload-platform-06-q-periapt-c-abi2-0.1.3-x86_64-unknown-linux-gnu.tar.gz",
     "publish-apple",
     "publish-platform",
 )
@@ -117,7 +117,7 @@ def fixture_plan() -> publication.PublicationPlan:
         releases=(
             release(
                 "apple",
-                apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"],
+                apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"],
                 _hex40(5),
                 publication.APPLE_TITLE,
                 publication.APPLE_BODY,
@@ -326,7 +326,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
         base = pathlib.Path(self.temporary.name).resolve()
         authority = base / "authority"
         publication_state = authority / "publication-state"
-        self.root = publication_state / "github-stable-v0.1.2"
+        self.root = publication_state / "github-stable-v0.1.3"
         for directory in (authority, publication_state, self.root):
             directory.mkdir(mode=0o700)
             os.chmod(directory, 0o700)
@@ -556,7 +556,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 8,
                 (
-                    "upload-platform-02-q-periapt-android-0.1.2-"
+                    "upload-platform-02-q-periapt-android-0.1.3-"
                     "16k-runtime-evidence.zip"
                 ),
                 "upload",
@@ -565,14 +565,14 @@ class StableGitHubPublicationTests(unittest.TestCase):
             ),
             (
                 9,
-                "upload-platform-03-q-periapt-android-0.1.2-MANIFEST.json",
+                "upload-platform-03-q-periapt-android-0.1.3-MANIFEST.json",
                 "upload",
                 "platform",
                 3,
             ),
             (
                 10,
-                "upload-platform-04-q-periapt-android-0.1.2.aar",
+                "upload-platform-04-q-periapt-android-0.1.3.aar",
                 "upload",
                 "platform",
                 4,
@@ -580,7 +580,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 11,
                 (
-                    "upload-platform-05-q-periapt-c-abi2-0.1.2-"
+                    "upload-platform-05-q-periapt-c-abi2-0.1.3-"
                     "aarch64-unknown-linux-gnu.tar.gz"
                 ),
                 "upload",
@@ -590,7 +590,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 12,
                 (
-                    "upload-platform-06-q-periapt-c-abi2-0.1.2-"
+                    "upload-platform-06-q-periapt-c-abi2-0.1.3-"
                     "x86_64-unknown-linux-gnu.tar.gz"
                 ),
                 "upload",
@@ -613,12 +613,12 @@ class StableGitHubPublicationTests(unittest.TestCase):
         self.assertEqual(expected, actual)
 
     def test_request_bodies_match_an_independent_canonical_oracle(self) -> None:
-        apple_title = "Q-Periapt 0.1.2 Apple Distribution"
+        apple_title = "Q-Periapt 0.1.3 Apple Distribution"
         apple_body = (
             "Stable ABI 2 Apple XCFramework distribution. Verify all four "
             "assets and the immutable release attestation before use."
         )
-        platform_title = "Q-Periapt 0.1.2 ABI 2 Platform Distribution"
+        platform_title = "Q-Periapt 0.1.3 ABI 2 Platform Distribution"
         platform_body = (
             "Stable ABI 2 Android and Linux distribution. Verify all seven "
             "assets and the immutable release attestation before use."
@@ -630,14 +630,14 @@ class StableGitHubPublicationTests(unittest.TestCase):
         cases = (
             (
                 self.plan.apple,
-                "v0.1.2",
+                "v0.1.3",
                 apple_title,
                 apple_body,
                 "true",
             ),
             (
                 self.plan.platform,
-                "abi2-platforms-v0.1.2",
+                "abi2-platforms-v0.1.3",
                 platform_title,
                 platform_body,
                 "false",
@@ -1245,7 +1245,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
         self.assertTrue(status.complete)
         self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
 
-    def test_policy_invalid_successor_observation_is_permanently_manual(self) -> None:
+    def test_policy_invalid_successor_observation_recovers_when_settled(self) -> None:
         remote = FakeRemote(
             self.plan, self.root / publication.JOURNAL_DIRECTORY
         )
@@ -1269,6 +1269,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             remote.mutate(plan, action, before)
             policy_invalid = True
 
+        journal = self.root / publication.JOURNAL_DIRECTORY
         with self.publisher_patches():
             with self.assertRaisesRegex(
                 publication.StableGitHubPublicationOutcomeUnknown,
@@ -1284,19 +1285,21 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     observer=observe,
                     mutator=mutate_then_expose_starter,
                 )
+            # A policy-invalid observation of a mutation that may have taken
+            # effect records reconciliation authority (not a bare trailing
+            # intent), so a later settled observation recovers it instead of
+            # wedging the publication in permanent manual review.
+            self.assertTrue((journal / "000000-intent.json").exists())
+            self.assertTrue((journal / "000000-reconciliation.json").exists())
+            self.assertFalse((journal / "000000-outcome.json").exists())
             policy_invalid = False
-            with self.assertRaisesRegex(
-                publication.StableGitHubPublicationOutcomeUnknown,
-                "manual review",
-            ):
-                self.publish(remote)
-        journal = self.root / publication.JOURNAL_DIRECTORY
-        self.assertTrue((journal / "000000-intent.json").exists())
-        self.assertFalse((journal / "000000-reconciliation.json").exists())
-        self.assertFalse((journal / "000000-outcome.json").exists())
-        self.assertEqual(1, len(remote.mutations))
+            status = self.publish(remote)
+        self.assertTrue(status.complete)
+        self.assertEqual(publication.MAX_ACTIONS, status.applied_actions)
+        self.assertTrue((journal / "000000-outcome.json").exists())
+        self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
 
-    def test_invalid_successor_is_unknown_for_create_upload_and_publish(self) -> None:
+    def test_invalid_successor_recovers_across_create_upload_and_publish(self) -> None:
         for target_index in (0, 2, 13):
             with self.subTest(target_index=target_index):
                 for leaf in (self.root / publication.JOURNAL_DIRECTORY).iterdir():
@@ -1347,24 +1350,29 @@ class StableGitHubPublicationTests(unittest.TestCase):
                             observer=observe,
                             mutator=mutate_then_invalidate,
                         )
-                    with self.assertRaisesRegex(
-                        publication.StableGitHubPublicationOutcomeUnknown,
-                        "manual review",
-                    ):
-                        self.publish(remote)
-                self.assertEqual(target_index + 1, remote.index)
-                self.assertEqual(target_index + 1, len(remote.mutations))
-                journal = self.root / publication.JOURNAL_DIRECTORY
+                    journal = self.root / publication.JOURNAL_DIRECTORY
+                    # The mutation may have taken effect while its immediate
+                    # observation was invalid; reconciliation authority is
+                    # recorded so a later settled observation recovers it.
+                    self.assertTrue(
+                        (journal / f"{target_index:06d}-intent.json").exists()
+                    )
+                    self.assertTrue(
+                        (
+                            journal
+                            / f"{target_index:06d}-reconciliation.json"
+                        ).exists()
+                    )
+                    self.assertFalse(
+                        (journal / f"{target_index:06d}-outcome.json").exists()
+                    )
+                    # A subsequent settled observation reconciles the attempted
+                    # mutation and drives the publication to completion.
+                    status = self.publish(remote)
+                self.assertTrue(status.complete)
+                self.assertEqual(publication.MAX_ACTIONS, status.applied_actions)
+                self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
                 self.assertTrue(
-                    (journal / f"{target_index:06d}-intent.json").exists()
-                )
-                self.assertFalse(
-                    (
-                        journal
-                        / f"{target_index:06d}-reconciliation.json"
-                    ).exists()
-                )
-                self.assertFalse(
                     (journal / f"{target_index:06d}-outcome.json").exists()
                 )
 
@@ -1909,7 +1917,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
     def test_prepare_state_bootstrap_creates_only_fixed_private_chain(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             base = pathlib.Path(temporary).resolve()
-            expected = base / ".q-periapt" / "publication-state" / "github-stable-v0.1.2"
+            expected = base / ".q-periapt" / "publication-state" / "github-stable-v0.1.3"
             with (
                 mock.patch.object(
                     publication, "expected_state_root", return_value=expected
@@ -1937,7 +1945,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.2"
+                / "github-stable-v0.1.3"
             )
             with (
                 mock.patch.object(
@@ -1956,7 +1964,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 )
                 if identity is None:
                     self.fail("fresh state root lacked its created identity")
-                moved = expected.parent / "github-stable-v0.1.2.moved"
+                moved = expected.parent / "github-stable-v0.1.3.moved"
                 expected.rename(moved)
                 expected.mkdir(mode=0o700)
                 os.chmod(expected, 0o700)
@@ -1992,7 +2000,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.2"
+                / "github-stable-v0.1.3"
             )
             with (
                 mock.patch.object(
@@ -2039,7 +2047,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.2"
+                / "github-stable-v0.1.3"
             )
             with (
                 mock.patch.object(
@@ -2128,7 +2136,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.2"
+                / "github-stable-v0.1.3"
             )
             apple_snapshots = tuple(
                 publication.FileSnapshot(

@@ -144,7 +144,7 @@ class AssetSinkRunner:
         return BoundedResult(0)
 
 
-class PlatformV012PublicationTests(unittest.TestCase):
+class PlatformV013PublicationTests(unittest.TestCase):
     TAG_COMMIT = "1" * 40
     SOURCE_PARENT_COMMIT = "4" * 40
     TAG_OBJECT = "2" * 40
@@ -290,7 +290,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
         self.assertIsInstance(raised, ast.Raise)
         self.assertIsInstance(raised.exc, ast.Call)
         self.assertIsInstance(raised.exc.func, ast.Name)
-        self.assertEqual("PlatformV012PublicationError", raised.exc.func.id)
+        self.assertEqual("PlatformV013PublicationError", raised.exc.func.id)
 
     def _tool(self, name: str, data: bytes) -> pathlib.Path:
         directory = self.root / "tools"
@@ -830,8 +830,8 @@ class PlatformV012PublicationTests(unittest.TestCase):
         output = self._pending_receipt("pending-exact")
 
         receipt = json.loads(output.read_bytes())
-        contract.validate_v0_1_2_publication_receipt(receipt)
-        self.assertEqual(contract.PLATFORM_V0_1_2_STATUS_PENDING, receipt["status"])
+        contract.validate_v0_1_3_publication_receipt(receipt)
+        self.assertEqual(contract.PLATFORM_V0_1_3_STATUS_PENDING, receipt["status"])
         self.assertEqual(
             {
                 "assembly_receipt_sha256",
@@ -882,7 +882,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
                 "load_release_candidate_bundle",
                 side_effect=load_and_mutate,
             ),
-            self.assertRaises(publication.PlatformV012PublicationError),
+            self.assertRaises(publication.PlatformV013PublicationError),
         ):
             publication.assemble_pending_receipt(
                 candidate,
@@ -898,7 +898,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
         self.assertEqual(before, set(self.receipt_root.iterdir()))
 
     def test_cli_markers_identify_receipt_digest_for_both_states(self) -> None:
-        output = self.root / "platform-v0.1.2-publication-receipt.json"
+        output = self.root / "platform-v0.1.3-publication-receipt.json"
 
         pending_arguments = mock.Mock(
             command="pending",
@@ -1142,7 +1142,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             unsafe_parent / "receipts",
         ):
             with self.assertRaisesRegex(
-                publication.PlatformV012PublicationError,
+                publication.PlatformV013PublicationError,
                 "non-world-writable",
             ):
                 publication._ensure_platform_safe_roots()
@@ -1157,7 +1157,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             "PLATFORM_PUBLICATION_RECEIPT_ROOT",
             symlink_parent / "receipts",
         ):
-            with self.assertRaises(publication.PlatformV012PublicationError):
+            with self.assertRaises(publication.PlatformV013PublicationError):
                 publication._ensure_platform_safe_roots()
 
     def test_verified_transaction_uses_exact_bounded_commands_and_private_bytes(self) -> None:
@@ -1165,8 +1165,8 @@ class PlatformV012PublicationTests(unittest.TestCase):
 
         receipt_bytes = output.read_bytes()
         receipt = json.loads(receipt_bytes)
-        contract.validate_v0_1_2_publication_receipt(receipt)
-        self.assertEqual(contract.PLATFORM_V0_1_2_STATUS_VERIFIED, receipt["status"])
+        contract.validate_v0_1_3_publication_receipt(receipt)
+        self.assertEqual(contract.PLATFORM_V0_1_3_STATUS_VERIFIED, receipt["status"])
         self.assertEqual(self.RELEASE_ID, receipt["observation"]["release_id"])
         self.assertEqual(self.source.document(), receipt["observation"]["source"])
         self.assertEqual(
@@ -1285,7 +1285,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
                 verified_before = set(
                     self.receipt_root.glob("transaction.verified.*")
                 )
-                with self.assertRaises(publication.PlatformV012PublicationError):
+                with self.assertRaises(publication.PlatformV013PublicationError):
                     self._collect_fixture(name, **mutations)
                 self.assertEqual(
                     verified_before,
@@ -1299,7 +1299,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             return data
 
         verified_before = set(self.receipt_root.glob("transaction.verified.*"))
-        with self.assertRaises(publication.PlatformV012PublicationError):
+        with self.assertRaises(publication.PlatformV013PublicationError):
             self._collect_fixture("download-mismatch", sink_mutation=mutate)
         self.assertEqual(
             verified_before,
@@ -1319,7 +1319,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
         os.chmod(changed, 0o600)
 
         with self.assertRaisesRegex(
-            publication.PlatformV012PublicationError,
+            publication.PlatformV013PublicationError,
             "raw bytes changed",
         ):
             with publication.open_private_direct_child_handle(
@@ -1336,7 +1336,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             self.tools.llvm_nm.write_bytes(b"changed llvm-nm fixture\n")
 
         with self.assertRaisesRegex(
-            publication.PlatformV012PublicationError,
+            publication.PlatformV013PublicationError,
             "Android verification tools changed",
         ):
             self._collect_fixture(
@@ -1359,7 +1359,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             os.chmod(raw, 0o700)
 
         with self.assertRaisesRegex(
-            publication.PlatformV012PublicationError,
+            publication.PlatformV013PublicationError,
             "identity changed while pinned",
         ):
             self._collect_fixture(
@@ -1388,7 +1388,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
         def capture_before() -> None:
             nonlocal before
             before = receipt_snapshot()
-        real_validate = publication.validate_v0_1_2_publication_receipt
+        real_validate = publication.validate_v0_1_3_publication_receipt
         swapped = False
 
         def validate_and_swap(value: object) -> None:
@@ -1397,7 +1397,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             if (
                 not swapped
                 and isinstance(value, dict)
-                and value.get("status") == contract.PLATFORM_V0_1_2_STATUS_VERIFIED
+                and value.get("status") == contract.PLATFORM_V0_1_3_STATUS_VERIFIED
             ):
                 swapped = True
                 raw.rename(moved)
@@ -1407,11 +1407,11 @@ class PlatformV012PublicationTests(unittest.TestCase):
         with (
             mock.patch.object(
                 publication,
-                "validate_v0_1_2_publication_receipt",
+                "validate_v0_1_3_publication_receipt",
                 side_effect=validate_and_swap,
             ),
             self.assertRaisesRegex(
-                publication.PlatformV012PublicationError,
+                publication.PlatformV013PublicationError,
                 "identity changed while pinned",
             ),
         ):
@@ -1440,7 +1440,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
 
         verified_before = set(self.receipt_root.glob("transaction.verified.*"))
         with self.assertRaisesRegex(
-            publication.PlatformV012PublicationRetryableError,
+            publication.PlatformV013PublicationRetryableError,
             r"^retryable:github-command-nonzero$",
         ):
             publication.collect_verified_receipt(
@@ -1493,7 +1493,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             ),
         ):
             with self.assertRaisesRegex(
-                publication.PlatformV012PublicationError,
+                publication.PlatformV013PublicationError,
                 "injected atomic receipt failure",
             ):
                 publication.assemble_pending_receipt(
@@ -1616,7 +1616,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
                 ),
             ):
                 with self.assertRaisesRegex(
-                    publication.PlatformV012PublicationError,
+                    publication.PlatformV013PublicationError,
                     "injected atomic raw failure",
                 ):
                     publication._write_raw(
@@ -1674,7 +1674,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
                     os.mkfifo(selected, 0o600)
                 else:
                     os.link(selected, directory / "hardlink-copy")
-                with self.assertRaises(publication.PlatformV012PublicationError):
+                with self.assertRaises(publication.PlatformV013PublicationError):
                     with publication.open_private_direct_child_handle(
                         safe_root=self.download_root,
                         direct_child_name=directory.name,
@@ -1728,7 +1728,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
                     side_effect=consume_and_inject,
                 ),
                 self.assertRaisesRegex(
-                    publication.PlatformV012PublicationError,
+                    publication.PlatformV013PublicationError,
                     "safely inventory",
                 ),
             ):
@@ -1749,7 +1749,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             pathlib.Path("relative-child"),
         ):
             with self.subTest(path=unsafe):
-                with self.assertRaises(publication.PlatformV012PublicationError):
+                with self.assertRaises(publication.PlatformV013PublicationError):
                     publication._normalize_direct_child(
                         unsafe,
                         safe_root=self.raw_root,
@@ -1782,7 +1782,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
         )
         for unsafe in unsafe_paths:
             with self.subTest(path=unsafe):
-                with self.assertRaises(publication.PlatformV012PublicationError):
+                with self.assertRaises(publication.PlatformV013PublicationError):
                     publication.assemble_pending_receipt(
                         unsafe,
                         assembly,
@@ -1971,7 +1971,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
         self.assertRegex(observed.canonical_source_tree_sha256, r"^[0-9a-f]{64}$")
         source_file.write_text("dirty source\n", encoding="ascii")
         with self.assertRaisesRegex(
-            publication.PlatformV012PublicationError, "dirty"
+            publication.PlatformV013PublicationError, "dirty"
         ):
             publication.inspect_verifier_source(
                 self.verifier,
@@ -2060,7 +2060,7 @@ class PlatformV012PublicationTests(unittest.TestCase):
             check=True,
         )
         with self.assertRaisesRegex(
-            publication.PlatformV012PublicationError,
+            publication.PlatformV013PublicationError,
             "direct results-only child",
         ):
             publication.inspect_verifier_source(

@@ -324,10 +324,10 @@ def pending_manifest_fixture(
     source = apple["source"]
     platform = _rebind_platform(platform_pending_receipt(), source)
     manifest["release_publications"][
-        apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
     ] = apple
     manifest["release_publications"][
-        platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+        platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
     ] = platform
     return manifest
 
@@ -345,12 +345,12 @@ def verified_manifest_fixture(
         crates_receipt(10), source, manifest["rust_publish"]
     )
     publications = manifest["release_publications"]
-    publications[apple_contract.APPLE_V0_1_2_PUBLICATION_KEY] = apple
-    publications[platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY] = platform
+    publications[apple_contract.APPLE_V0_1_3_PUBLICATION_KEY] = apple
+    publications[platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY] = platform
     publications[crates_contract.CRATES_IO_PUBLICATION_KEY] = registry
     swift = manifest["swift_xcframework"]
     swift["active_publication_key"] = (
-        apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
     )
     swift["distribution"] = copy.deepcopy(apple["distribution"])
     return manifest
@@ -682,8 +682,8 @@ class ReleasePublicationContractTests(unittest.TestCase):
         source = self.source_manifest()
         pending = self.pending_manifest()
         for missing in (
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY,
-            platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+            platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
         ):
             with self.subTest(missing=missing):
                 invalid = copy.deepcopy(pending)
@@ -696,11 +696,11 @@ class ReleasePublicationContractTests(unittest.TestCase):
 
         activated = copy.deepcopy(pending)
         activated["swift_xcframework"]["active_publication_key"] = (
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         )
         activated["swift_xcframework"]["distribution"] = copy.deepcopy(
             activated["release_publications"][
-                apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
             ]["distribution"]
         )
         with self.assertRaisesRegex(
@@ -718,7 +718,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
         leaf = apple_producer._pending_leaf_from_results(pending)
         self.assertEqual(
             pending["release_publications"][
-                apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
             ],
             leaf,
         )
@@ -775,7 +775,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
 
         mixed = self.pending_manifest()
         mixed["release_publications"][
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ] = stable_verified_receipt()
         with self.assertRaisesRegex(
             contract.ReleasePublicationContractError, "coordinated cohort"
@@ -792,7 +792,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
             with self.subTest(field=field):
                 invalid = self.pending_manifest()
                 platform = invalid["release_publications"][
-                    platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+                    platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
                 ]
                 platform["observation"]["source"][field] = replacement
                 if field == "tag_commit":

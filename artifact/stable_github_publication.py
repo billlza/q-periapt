@@ -102,12 +102,12 @@ JOURNAL_LEAF = re.compile(
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 
-APPLE_TITLE = "Q-Periapt 0.1.2 Apple Distribution"
+APPLE_TITLE = "Q-Periapt 0.1.3 Apple Distribution"
 APPLE_BODY = (
     "Stable ABI 2 Apple XCFramework distribution. Verify all four assets and "
     "the immutable release attestation before use."
 )
-PLATFORM_TITLE = "Q-Periapt 0.1.2 ABI 2 Platform Distribution"
+PLATFORM_TITLE = "Q-Periapt 0.1.3 ABI 2 Platform Distribution"
 PLATFORM_BODY = (
     "Stable ABI 2 Android and Linux distribution. Verify all seven assets and "
     "the immutable release attestation before use."
@@ -478,7 +478,7 @@ def _parse_release_plan(value: object, *, domain: str) -> ReleasePlan:
     if domain == "apple":
         expected_names = apple_contract.APPLE_PUBLIC_ASSET_NAMES
         expected_types = apple_contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES
-        expected_tag = apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"]
+        expected_tag = apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
         expected_title = APPLE_TITLE
         expected_body = APPLE_BODY
         expected_latest = True
@@ -805,7 +805,7 @@ def expected_state_root() -> pathlib.Path:
         _account_home()
         / ".q-periapt"
         / "publication-state"
-        / "github-stable-v0.1.2"
+        / "github-stable-v0.1.3"
     )
 
 
@@ -1092,11 +1092,11 @@ def build_plan_from_pending_results(
         ) from exc
     publications = _object(manifest["release_publications"], "pending publications")
     apple_pending = _object(
-        publications[apple_contract.APPLE_V0_1_2_PUBLICATION_KEY],
+        publications[apple_contract.APPLE_V0_1_3_PUBLICATION_KEY],
         "pending Apple publication",
     )
     platform_pending = _object(
-        publications[platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY],
+        publications[platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY],
         "pending platform publication",
     )
     platform_observation = _object(
@@ -1122,7 +1122,7 @@ def build_plan_from_pending_results(
         expected_receipt_sha256=assembly_receipt_sha256,
     )
     apple_tag_object = _local_tag_object(
-        apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"],
+        apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"],
         identity.tag_commit,
         identity.tag_tree,
     )
@@ -1145,7 +1145,7 @@ def build_plan_from_pending_results(
     )
     platform_by_name = platform_bundle.asset_by_name()
     create_apple = _create_request_bytes(
-        tag=apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"],
+        tag=apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"],
         title=APPLE_TITLE,
         body=APPLE_BODY,
         make_latest=True,
@@ -1170,7 +1170,7 @@ def build_plan_from_pending_results(
         releases=(
             ReleasePlan(
                 domain="apple",
-                tag=apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"],
+                tag=apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"],
                 tag_object=apple_tag_object,
                 title=APPLE_TITLE,
                 body=APPLE_BODY,
@@ -1185,7 +1185,7 @@ def build_plan_from_pending_results(
                 publish_request=_request_plan(
                     "publish-apple.json",
                     _publish_request_bytes(
-                        tag=apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"],
+                        tag=apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"],
                         title=APPLE_TITLE,
                         body=APPLE_BODY,
                         make_latest=True,
@@ -1462,7 +1462,7 @@ def validate_plan_against_pending_manifest(
     )
     publications = _object(manifest["release_publications"], "pending publications")
     apple_pending = _object(
-        publications[apple_contract.APPLE_V0_1_2_PUBLICATION_KEY],
+        publications[apple_contract.APPLE_V0_1_3_PUBLICATION_KEY],
         "pending Apple publication",
     )
     apple_source = _object(apple_pending["source"], "pending Apple source")
@@ -1502,7 +1502,7 @@ def validate_plan_against_pending_manifest(
     )
 
     platform_pending = _object(
-        publications[platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY],
+        publications[platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY],
         "pending platform publication",
     )
     platform_observation = _object(
@@ -2363,10 +2363,17 @@ def validate_exact_remote_transition(
         )
         return
     _require(action.kind == "publish", "publication action kind is unknown")
+    # ``target_commitish`` legitimately normalizes on publish: GitHub echoes the
+    # created commitish (the tag commit SHA) while the release is a draft and
+    # rewrites it to the default branch name once the tag ref is materialized.
+    # parse_mutable_release_view independently bounds it to {"main", tag_commit},
+    # so excluding it from the byte-equality here does not weaken the proof.
     _transition_release_common(
         before_release,
         after_release,
-        excluded=frozenset({"draft", "immutable", "is_latest", "published_at"}),
+        excluded=frozenset(
+            {"draft", "immutable", "is_latest", "published_at", "target_commitish"}
+        ),
         label="release publication",
     )
     expected_latest = action.domain == "apple"
@@ -3458,8 +3465,22 @@ def publish_plan(
                     StableGitHubPublicationError,
                     github_release.GitHubReleaseObservationError,
                 ) as exc:
+                    # The mutation may have taken effect while its immediate
+                    # observation was rejected (e.g. a still-propagating remote,
+                    # or a draft-shaped field). Record reconciliation authority so
+                    # a later, settled observation can prove the exact successor
+                    # instead of wedging the transaction in permanent manual review.
+                    _authorize_later_reconciliation(
+                        root,
+                        lock,
+                        journal,
+                        plan,
+                        action,
+                        intent,
+                        cli_failure=cli_failure,
+                    )
                     raise StableGitHubPublicationOutcomeUnknown(
-                        "mutation observation is policy-invalid and requires manual review"
+                        "mutation observation is policy-invalid and remains unresolved"
                     ) from exc
                 _verify_mutation_local(
                     root,
@@ -3481,6 +3502,15 @@ def publish_plan(
                     successor_state = classify_remote_state(plan, successor)
                     successor_projection = _remote_projection(successor)
                 except StableGitHubPublicationError as exc:
+                    _authorize_later_reconciliation(
+                        root,
+                        lock,
+                        journal,
+                        plan,
+                        action,
+                        intent,
+                        cli_failure=cli_failure,
+                    )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation produced an invalid or unclassifiable remote state"
                     ) from exc
@@ -3509,6 +3539,15 @@ def publish_plan(
                         successor,
                     )
                 except StableGitHubPublicationError as exc:
+                    _authorize_later_reconciliation(
+                        root,
+                        lock,
+                        journal,
+                        plan,
+                        action,
+                        intent,
+                        cli_failure=cli_failure,
+                    )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation did not produce the exact intended transition"
                     ) from exc

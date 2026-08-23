@@ -5,10 +5,10 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /
 Swift / Kotlin / Android. Deterministic conformance cells are byte-identical;
 native ABI 2 product cells use OS randomness and are checked by semantic invariants.
-ABI 2 / `0.1.2` is the stable-version source line, with registry publication
+ABI 2 / `0.1.3` is the stable-version source line, with registry publication
 separately receipt-gated and two immutable GitHub stable transactions whose
 public/current state requires verified receipts and `prerelease=false`: the Apple XCFramework
-`v0.1.2` and the `abi2-platforms-v0.1.2` platform
+`v0.1.3` and the `abi2-platforms-v0.1.3` platform
 distribution (Android AAR and GNU/Linux x86_64+aarch64 SDKs). The unsigned Windows
 x64 MSVC package remains an unsupported CI diagnostic outside the formal stable assets.
 Verified stable publication is not a production-readiness claim; registry publication,
@@ -450,9 +450,9 @@ are the gap between research-grade and audited/production.
    domain verifier; a source document cannot promote an older device digest. A current clean,
    same-commit schema-5 matrix backed by schema-4 child proofs remains required for production
    promotion or a platform-binary claim. The stable target surface covers Apple (signed
-   XCFramework, `v0.1.2`), Android (four-ABI AAR + emulator runtime evidence),
+   XCFramework, `v0.1.3`), Android (four-ABI AAR + emulator runtime evidence),
    and GNU/Linux (x86_64+aarch64 SDK tars)
-   through the `abi2-platforms-v0.1.2` transaction once its immutable-public
+   through the `abi2-platforms-v0.1.3` transaction once its immutable-public
    receipt is verified, but it is still not a
    liboqs-style production distribution surface:
    Swift has both a credential-free XCFramework gate and a separately scoped detached-source
@@ -479,7 +479,7 @@ are the gap between research-grade and audited/production.
    authorization, server-side policy acceptance, or a registry receipt; independent signed
    or transparency-backed provenance remains required before production promotion.
    The stable platform target includes the Linux x86_64+aarch64 C SDK tars in
-   `abi2-platforms-v0.1.2` —
+   `abi2-platforms-v0.1.3` —
    each with ABI-major headers, exact-version pkg-config/CMake configs, the frozen ABI
    contract, SBOM/CBOM, and license material. The tag-bound candidate pipeline must
    validate them with native consumers and attested provenance; deb/rpm/MSIX registry
@@ -492,15 +492,15 @@ are the gap between research-grade and audited/production.
    KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves. The
    dependency-free CLI may upload independently but remains in the same ten-crate version set.
 
-   Package `0.1.2` is the stable-version source/crate line and has a
+   Package `0.1.3` is the stable-version source/crate line and has a
    frozen machine-readable C **ABI 2** contract: nine exact dynamic public exports
    (and the same exact reserved public namespace in static archives), OS-random key/encapsulation,
    ABI-major library/header/package identities, 40/36-byte layouts, and forbidden
    raw/deterministic symbols. ABI1 is an explicit hard cut—its version-only state is
    rejected and requires authorized re-enrollment/reset, not a synthetic migration.
    The source publication by itself implies no prebuilt binary; the prebuilt platform
-   stable binary targets are the independently evidence-selected Apple `v0.1.2`
-   XCFramework and `abi2-platforms-v0.1.2` Android/Linux packages,
+   stable binary targets are the independently evidence-selected Apple `v0.1.3`
+   XCFramework and `abi2-platforms-v0.1.3` Android/Linux packages,
    each bound to its own release receipt. Production promotion remains blocked on
    warning-clean dependency audit currency, clean signed or
    transparency-backed source provenance, independent cryptographic/C-FFI/ABI review,
@@ -634,8 +634,8 @@ are the gap between research-grade and audited/production.
 | Android AAR/JNI package proof | **Harness implemented:** the four-ABI package is audited for 16 KiB alignment, exact nine-symbol exports, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The recorded alpha.2 portable-derived package/receipt is immutable historical evidence and does not attest the target-selected rebuild; a fresh source-bound AAR and verified stable publication transaction are required. |
 | Android ART runtime smoke | **Harness implemented.** Historical release evidence binds an API 35 / 16 KiB-page emulator run to its exact public AAR, and CI is configured to execute the package job's AAR on x86_64 API-35/16-KiB ART. Neither replaces the results-selected clean arm64-v8a canonical AVD or physical proof. Target selection is a source change and makes earlier selections stale; production remains pending until fresh same-source, same-AAR canonical and physical runs are selected (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema 5 release-index validation and an append-only dynamic+static C consumer receipt are implemented. A current selection requires the exact AAR and canonical Android run in the first index, then the emitted receipt and one evidence-only `results.json` successor; the final bound gate verifies those bytes without generating a receipt. Recorded older artifacts remain historical and a fresh same-source transaction is required after source change.** |
-| C ABI 2 stable package readiness | **The 0.1.2 source/crate contract is stable-version and pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a verified registry receipt remain separate gates. The Apple `v0.1.2` XCFramework and stable Android/Linux packages are the coordinated GitHub targets; attested public status requires verified receipts and `prerelease=false`. Same-source device/performance evidence, signed or transparency-backed source provenance, and independent cryptographic/C-FFI/ABI audit remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
-| Stable immutable GitHub targets (`v0.1.2` Apple receipt + `abi2-platforms-v0.1.2` receipt) | **Stable targets remain governed by versioned receipts under `results.json.release_publications`; historical alpha.2 receipts remain immutable. A receipt does not promote unrelated device/performance evidence. The legacy `swift_xcframework.distribution` field is only an exact active projection. Stable publication is not a production, registry, or store-readiness claim.** |
+| C ABI 2 stable package readiness | **The 0.1.3 source/crate contract is stable-version and pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a verified registry receipt remain separate gates. The Apple `v0.1.3` XCFramework and stable Android/Linux packages are the coordinated GitHub targets; attested public status requires verified receipts and `prerelease=false`. Same-source device/performance evidence, signed or transparency-backed source provenance, and independent cryptographic/C-FFI/ABI audit remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
+| Stable immutable GitHub targets (`v0.1.3` Apple receipt + `abi2-platforms-v0.1.3` receipt) | **Stable targets remain governed by versioned receipts under `results.json.release_publications`; historical alpha.2 receipts remain immutable. A receipt does not promote unrelated device/performance evidence. The legacy `swift_xcframework.distribution` field is only an exact active projection. Stable publication is not a production, registry, or store-readiness claim.** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; historical Apple XCFramework + Android AAR + Linux/Windows C SDK GitHub prereleases are bound to their exact receipts, while current target-selected rebuilds, a complete remote Swift package, and crates.io/Maven/deb/rpm/MSIX registry publication remain pending |
 | Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |

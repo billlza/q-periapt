@@ -38,7 +38,7 @@ class ThirdPartyLicenseTests(unittest.TestCase):
                 {
                     "id": "ffi-id",
                     "name": "q-periapt-ffi",
-                    "version": "0.1.2",
+                    "version": "0.1.3",
                     "source": None,
                     "manifest_path": str(self.root / "crates/ffi/Cargo.toml"),
                 },

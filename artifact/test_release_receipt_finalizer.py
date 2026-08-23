@@ -287,12 +287,12 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             aggregate.publication_state(verified),
         )
         self.assertEqual(
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
             verified["swift_xcframework"]["active_publication_key"],
         )
         self.assertEqual(
             verified["release_publications"][
-                apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
             ]["distribution"],
             verified["swift_xcframework"]["distribution"],
         )

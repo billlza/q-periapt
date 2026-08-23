@@ -26,7 +26,7 @@ $PSNativeCommandUseErrorActionPreference = $false
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 Set-Location -LiteralPath $Root
 
-$Version = "0.1.2"
+$Version = "0.1.3"
 $Target = "x86_64-pc-windows-msvc"
 $PackageName = "q-periapt-c-abi2-$Version-$Target"
 $OutRoot = Join-Path $Root "target/qperiapt-windows-package"

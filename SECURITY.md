@@ -2,15 +2,16 @@
 
 ## Supported releases
 
-Q-Periapt 0.1.2 is the stable SemVer source line. Security fixes are provided for
+Q-Periapt 0.1.3 is the stable SemVer source line. Security fixes are provided for
 the latest ABI 2 publication set only while its verified receipt selects it as
 current:
 
 | Publication | Scope | Supported |
 | --- | --- | --- |
-| `0.1.2` source line | Rust source/crates and ABI 2 contract | Yes |
-| `v0.1.2` | Apple XCFramework | When selected by a verified current receipt |
-| `abi2-platforms-v0.1.2` | Android and GNU/Linux | When selected by a verified current receipt |
+| `0.1.3` source line | Rust source/crates and ABI 2 contract | Yes |
+| `v0.1.3` | Apple XCFramework | When selected by a verified current receipt |
+| `abi2-platforms-v0.1.3` | Android and GNU/Linux | When selected by a verified current receipt |
+| `v0.1.2`, `abi2-platforms-v0.1.2` | Tagged on 2026-08-23 but never published: the tag-triggered platform release run built a candidate that verified and produced the platform assembly plus both pending receipts, but the first end-to-end coordinated GitHub-release publication run against real GitHub could not finalize because of several first-real-publish defects in the stable release publication and observation paths (since fixed on this source line); no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.2; superseded by the 0.1.3 tags | No |
 | `v0.1.1`, `abi2-platforms-v0.1.1` | Tagged on 2026-08-22 but never published: the tag-triggered platform release run built a candidate that verified, but the coordinated GitHub-release publication could not finalize because of a publication receipt IO staging bug (since fixed on this source line); no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.1; superseded by the 0.1.2 tags | No |
 | `v0.1.0`, `abi2-platforms-v0.1.0` | Tagged on 2026-08-21 but never published: no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.0; superseded by the 0.1.1 tags | No |
 | Unsigned Windows x64 diagnostic | CI-only, unsupported, not a stable release asset | No |
