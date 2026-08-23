@@ -146,7 +146,10 @@ MAX_SPARSE_BYTES = 8 * 1024 * 1024
 MAX_SPARSE_RECORDS = 16_384
 MAX_JOURNAL_RECORDS = 4096
 HTTP_TIMEOUT_SECONDS = 15
-REMOTE_POLL_ATTEMPTS = 12
+# A freshly published crate version can take more than a minute to appear in both
+# the API and the sparse index on a first publish, so poll long enough to tolerate
+# that propagation before declaring the version absent.
+REMOTE_POLL_ATTEMPTS = 24
 REMOTE_POLL_INTERVAL_SECONDS = 5.0
 HTTP_USER_AGENT = "q-periapt-crates-io-publication/1"
 UPLOAD_TIMEOUT_SECONDS = 300
@@ -3649,12 +3652,25 @@ def run_publication_transaction(
         dict[str, object],
     ]:
         _resample_local_evidence(evidence)
-        remote = observe_remote_prefix(
-            evidence,
-            api_fetcher=api_fetcher,
-            sparse_fetcher=sparse_fetcher,
-            clock=clock,
-        )
+        # The sparse index and the API can transiently disagree on presence while
+        # crates.io propagates; retry the read-only composite observation with a
+        # bounded backoff rather than failing the whole transaction on a momentary
+        # skew. This never re-attempts an upload -- only the observation.
+        remote: tuple[RemotePublishedRecord | None, ...] | None = None
+        for attempt in range(poll_attempts):
+            try:
+                remote = observe_remote_prefix(
+                    evidence,
+                    api_fetcher=api_fetcher,
+                    sparse_fetcher=sparse_fetcher,
+                    clock=clock,
+                )
+                break
+            except CratesIoRemoteObservationUnknownError:
+                if attempt + 1 >= poll_attempts:
+                    raise
+                sleeper(float(poll_interval_seconds))
+        assert remote is not None
         _validate_remote_resume(
             remote,
             prior_published_count=prior_published_count,
