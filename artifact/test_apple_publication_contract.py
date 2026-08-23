@@ -49,10 +49,10 @@ def stable_pending_receipt() -> dict[str, object]:
         "origin_signature_team_id": "YKUPL7Z869",
         "public_release": False,
         "release_revision": "r1",
-        "release_tag": "v0.1.2",
+        "release_tag": "v0.1.3",
         "release_url": (
             "https://github.com/billlza/q-periapt/releases/tag/"
-            "v0.1.2"
+            "v0.1.3"
         ),
         "remote_consumer_verified": False,
         "remote_verification": {
@@ -63,12 +63,12 @@ def stable_pending_receipt() -> dict[str, object]:
         "source_commit": "1" * 40,
         "stapled": False,
         "swiftpm_checksum": _digest(2),
-        "version": "0.1.2",
+        "version": "0.1.3",
     }
     return {
-        "boundary": contract.APPLE_V0_1_2_BOUNDARY,
+        "boundary": contract.APPLE_V0_1_3_BOUNDARY,
         "distribution": distribution,
-        "identity": copy.deepcopy(contract.APPLE_V0_1_2_IDENTITY),
+        "identity": copy.deepcopy(contract.APPLE_V0_1_3_IDENTITY),
         "kind": contract.APPLE_PUBLICATION_KIND,
         "schema_version": contract.APPLE_PUBLICATION_SCHEMA_VERSION,
         "source": {
@@ -111,7 +111,7 @@ def stable_verified_receipt() -> dict[str, object]:
                     "digest": {"sha1": tag_object},
                     "uri": (
                         contract.APPLE_TAG_SUBJECT_PREFIX
-                        + "v0.1.2"
+                        + "v0.1.3"
                     ),
                 },
                 *[
@@ -148,7 +148,7 @@ class ApplePublicationContractTests(unittest.TestCase):
                 "release_tag": apple_distribution.RELEASE_TAG,
                 "release_url": apple_distribution.RELEASE_URL,
             },
-            contract.APPLE_V0_1_2_IDENTITY,
+            contract.APPLE_V0_1_3_IDENTITY,
         )
         self.assertEqual(
             apple_distribution.XCFRAMEWORK_ZIP_NAME,
@@ -238,7 +238,7 @@ class ApplePublicationContractTests(unittest.TestCase):
     def test_stable_states_are_exact_and_cross_link_identity(self) -> None:
         for receipt in (stable_pending_receipt(), stable_verified_receipt()):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, receipt))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, receipt))
             )
 
         invalid = stable_pending_receipt()
@@ -249,14 +249,14 @@ class ApplePublicationContractTests(unittest.TestCase):
             "state differs from its status",
         ):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, invalid))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, invalid))
             )
 
         invalid = stable_pending_receipt()
         invalid["distribution"]["release_tag"] = "v0.1.0-alpha.2-r1"
         with self.assertRaises(contract.ApplePublicationContractError):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, invalid))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, invalid))
             )
 
         for field, value, message in (
@@ -272,7 +272,7 @@ class ApplePublicationContractTests(unittest.TestCase):
                 ):
                     contract.validate_apple_publications(
                         manifest(
-                            (contract.APPLE_V0_1_2_PUBLICATION_KEY, invalid)
+                            (contract.APPLE_V0_1_3_PUBLICATION_KEY, invalid)
                         )
                     )
 
@@ -282,7 +282,7 @@ class ApplePublicationContractTests(unittest.TestCase):
             contract.ApplePublicationContractError, "schema differs"
         ):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, invalid))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, invalid))
             )
 
         for invalid_status in ([], {}):
@@ -296,7 +296,7 @@ class ApplePublicationContractTests(unittest.TestCase):
                     contract.validate_apple_publications(
                         manifest(
                             (
-                                contract.APPLE_V0_1_2_PUBLICATION_KEY,
+                                contract.APPLE_V0_1_3_PUBLICATION_KEY,
                                 invalid,
                             )
                         )
@@ -311,7 +311,7 @@ class ApplePublicationContractTests(unittest.TestCase):
             contract.ApplePublicationContractError, "keys differ"
         ):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, pending))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, pending))
             )
 
         missing = stable_verified_receipt()
@@ -320,7 +320,7 @@ class ApplePublicationContractTests(unittest.TestCase):
             contract.ApplePublicationContractError, "keys differ"
         ):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, missing))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, missing))
             )
 
         for label, mutate, message in (
@@ -362,7 +362,7 @@ class ApplePublicationContractTests(unittest.TestCase):
                     contract.validate_apple_publications(
                         manifest(
                             (
-                                contract.APPLE_V0_1_2_PUBLICATION_KEY,
+                                contract.APPLE_V0_1_3_PUBLICATION_KEY,
                                 changed,
                             )
                         )
@@ -401,7 +401,7 @@ class ApplePublicationContractTests(unittest.TestCase):
                     contract.validate_apple_publications(
                         manifest(
                             (
-                                contract.APPLE_V0_1_2_PUBLICATION_KEY,
+                                contract.APPLE_V0_1_3_PUBLICATION_KEY,
                                 receipt,
                             )
                         )
@@ -456,7 +456,7 @@ class ApplePublicationContractTests(unittest.TestCase):
                     contract.validate_apple_publications(
                         manifest(
                             (
-                                contract.APPLE_V0_1_2_PUBLICATION_KEY,
+                                contract.APPLE_V0_1_3_PUBLICATION_KEY,
                                 receipt,
                             )
                         )
@@ -468,15 +468,15 @@ class ApplePublicationContractTests(unittest.TestCase):
             (contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2_receipt())
         )
         pending = manifest(
-            (contract.APPLE_V0_1_2_PUBLICATION_KEY, stable_pending_receipt())
+            (contract.APPLE_V0_1_3_PUBLICATION_KEY, stable_pending_receipt())
         )
         verified = manifest(
-            (contract.APPLE_V0_1_2_PUBLICATION_KEY, stable_verified_receipt())
+            (contract.APPLE_V0_1_3_PUBLICATION_KEY, stable_verified_receipt())
         )
         both = manifest(
             (contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2_receipt()),
             (
-                contract.APPLE_V0_1_2_PUBLICATION_KEY,
+                contract.APPLE_V0_1_3_PUBLICATION_KEY,
                 stable_pending_receipt(),
             ),
         )
@@ -509,28 +509,28 @@ class ApplePublicationContractTests(unittest.TestCase):
             (contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2_receipt())
         )
         pending = manifest(
-            (contract.APPLE_V0_1_2_PUBLICATION_KEY, stable_pending_receipt())
+            (contract.APPLE_V0_1_3_PUBLICATION_KEY, stable_pending_receipt())
         )
         verified = manifest(
-            (contract.APPLE_V0_1_2_PUBLICATION_KEY, stable_verified_receipt())
+            (contract.APPLE_V0_1_3_PUBLICATION_KEY, stable_verified_receipt())
         )
         changed_pending = copy.deepcopy(pending)
         changed_pending["release_publications"][
-            contract.APPLE_V0_1_2_PUBLICATION_KEY
+            contract.APPLE_V0_1_3_PUBLICATION_KEY
         ]["distribution"]["artifact_size"] += 1
         drifted_promotion = copy.deepcopy(verified)
         drifted_promotion["release_publications"][
-            contract.APPLE_V0_1_2_PUBLICATION_KEY
+            contract.APPLE_V0_1_3_PUBLICATION_KEY
         ]["distribution"]["origin_signature_certificate_sha256"] = _digest(9)
         changed_verified = copy.deepcopy(verified)
         changed_verified["release_publications"][
-            contract.APPLE_V0_1_2_PUBLICATION_KEY
+            contract.APPLE_V0_1_3_PUBLICATION_KEY
         ]["distribution"]["remote_verification"]["verified_at"] = (
             "2026-08-14T13:00:00Z"
         )
         for label, previous, current, message in (
             ("remove-alpha2", alpha2, {}, "alpha.2.*cannot be removed"),
-            ("remove-stable", pending, {}, "0.1.2 stable.*cannot be removed"),
+            ("remove-stable", pending, {}, "0.1.3 stable.*cannot be removed"),
             (
                 "change-pending",
                 pending,
@@ -571,7 +571,7 @@ class ApplePublicationContractTests(unittest.TestCase):
             contract.ApplePublicationContractError, "keys differ"
         ):
             contract.validate_apple_publications(
-                manifest((contract.APPLE_V0_1_2_PUBLICATION_KEY, receipt))
+                manifest((contract.APPLE_V0_1_3_PUBLICATION_KEY, receipt))
             )
         with self.assertRaisesRegex(
             contract.ApplePublicationContractError, "unknown Apple entries"

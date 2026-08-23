@@ -142,8 +142,8 @@ jobs:
       - name: Reconsume only the Windows candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.2-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.2-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -189,7 +189,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-windows-x86_64-msvc
-          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.2-x86_64-pc-windows-msvc.zip
+          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc.zip
           if-no-files-found: error
 
   # Pre-tag package gate on the same Windows generation used by the immutable
@@ -240,8 +240,8 @@ jobs:
       - name: Reconsume only the Windows 2022 candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.2-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.2-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -323,7 +323,7 @@ jobs:
           EXPECTED_TARGET: ${{ matrix.target }}
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          package="q-periapt-c-abi2-0.1.2-$EXPECTED_TARGET"
+          package="q-periapt-c-abi2-0.1.3-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
           archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
@@ -343,20 +343,20 @@ jobs:
             QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$5" \
               sh artifact/c-package.sh
           }
-          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$wrong_target" "0.1.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$wrong_target" "0.1.3" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.2" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.2" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.3" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.3" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
           rm -rf \
             target/release \
             "target/qperiapt-c-abi2/$package" \
             "target/qperiapt-c-abi2/verify-$package"
-          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.2" "$manifest_sha256" "$contract_sha256"
+          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.3" "$manifest_sha256" "$contract_sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-linux-${{ matrix.target }}
-          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.2-${{ matrix.target }}.tar.gz
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.3-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
   # no_std build of the auditable core for an embedded target (must not pull std).
@@ -802,9 +802,9 @@ jobs:
         with:
           name: abi2-android-aar
           path: |
-            target/qperiapt-android-aar/q-periapt-android-0.1.2/q-periapt-android-0.1.2.aar
-            target/qperiapt-android-aar/q-periapt-android-0.1.2/MANIFEST.json
-            target/qperiapt-android-aar/q-periapt-android-0.1.2/SHA256SUMS
+            target/qperiapt-android-aar/q-periapt-android-0.1.3/q-periapt-android-0.1.3.aar
+            target/qperiapt-android-aar/q-periapt-android-0.1.3/MANIFEST.json
+            target/qperiapt-android-aar/q-periapt-android-0.1.3/SHA256SUMS
           if-no-files-found: error
 
   # Execute the exact four-ABI AAR produced above on a real Android 15/API 35
@@ -942,8 +942,8 @@ jobs:
           QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"
           QPERIAPT_ANDROID_EXPECT_SDK: "35"
         run: |
-          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.2/q-periapt-android-0.1.2.aar"
-          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.2/MANIFEST.json"
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.3/q-periapt-android-0.1.3.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.3/MANIFEST.json"
           test -f "$aar" && test -f "$manifest"
           aar_sha256=$(sha256sum "$aar" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "$manifest" | cut -d' ' -f1)

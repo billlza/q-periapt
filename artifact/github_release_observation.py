@@ -121,8 +121,8 @@ GITHUB_CLI_TEMP_ROOT = pathlib.Path("/tmp")
 GITHUB_CREDENTIAL_ENVIRONMENT = ("GH_TOKEN", "GITHUB_TOKEN")
 GITHUB_REPOSITORY = "billlza/q-periapt"
 STABLE_TAG_REFS = (
-    "refs/tags/v0.1.2",
-    "refs/tags/abi2-platforms-v0.1.2",
+    "refs/tags/v0.1.3",
+    "refs/tags/abi2-platforms-v0.1.3",
 )
 # Ruleset protection must keep every stable release tag immutable, not only the
 # current one: the earlier stable tags remain permanent, tagged-unpublished
@@ -136,6 +136,8 @@ PROTECTED_STABLE_TAG_REFS = (
     "refs/tags/abi2-platforms-v0.1.1",
     "refs/tags/v0.1.2",
     "refs/tags/abi2-platforms-v0.1.2",
+    "refs/tags/v0.1.3",
+    "refs/tags/abi2-platforms-v0.1.3",
 )
 MAX_TAG_RULESETS = 32
 MAX_STABLE_TAG_MATCHES = 64

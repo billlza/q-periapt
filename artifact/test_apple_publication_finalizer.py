@@ -143,7 +143,7 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
     def test_cross_domain_source_identity_cannot_drift(self) -> None:
         changed = copy.deepcopy(self.pending)
         changed["release_publications"][
-            platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+            platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
         ]["observation"]["source"]["tag_tree"] = "a" * 40
         self.assert_history_rejected(
             self.source,

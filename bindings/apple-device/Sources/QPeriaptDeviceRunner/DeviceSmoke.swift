@@ -27,7 +27,7 @@ enum DeviceSmoke {
 
     private static func assertSignedPolicyVector() throws {
         guard QPeriaptHybrid.runtimeAbiVersion == QPeriaptHybrid.abiVersion,
-              QPeriaptHybrid.runtimeVersion == "0.1.2"
+              QPeriaptHybrid.runtimeVersion == "0.1.3"
         else {
             throw DeviceSmokeError.mismatch("ABI2 runtime metadata")
         }

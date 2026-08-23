@@ -10,11 +10,11 @@ import platform_release_contract as historical_r2_contract
 PLATFORM_R2_PUBLICATION_KEY = (
     historical_r2_contract.PLATFORM_RELEASE_RECEIPT_KEY
 )
-PLATFORM_V0_1_2_PUBLICATION_KEY = (
-    stable_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+PLATFORM_V0_1_3_PUBLICATION_KEY = (
+    stable_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
 )
 PLATFORM_PUBLICATION_KEYS = frozenset(
-    {PLATFORM_R2_PUBLICATION_KEY, PLATFORM_V0_1_2_PUBLICATION_KEY}
+    {PLATFORM_R2_PUBLICATION_KEY, PLATFORM_V0_1_3_PUBLICATION_KEY}
 )
 
 
@@ -69,12 +69,12 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
         except historical_r2_contract.PlatformReleaseContractError as exc:
             raise PlatformPublicationContractError(str(exc)) from exc
 
-    if PLATFORM_V0_1_2_PUBLICATION_KEY in publications:
+    if PLATFORM_V0_1_3_PUBLICATION_KEY in publications:
         try:
-            stable_contract.validate_v0_1_2_publication_receipt(
-                publications[PLATFORM_V0_1_2_PUBLICATION_KEY]
+            stable_contract.validate_v0_1_3_publication_receipt(
+                publications[PLATFORM_V0_1_3_PUBLICATION_KEY]
             )
-        except stable_contract.PlatformV012PublicationContractError as exc:
+        except stable_contract.PlatformV013PublicationContractError as exc:
             raise PlatformPublicationContractError(str(exc)) from exc
 
 
@@ -149,47 +149,47 @@ def validate_release_publication_transition(
         PLATFORM_R2_PUBLICATION_KEY,
     )
 
-    if PLATFORM_V0_1_2_PUBLICATION_KEY not in previous_publications:
-        if PLATFORM_V0_1_2_PUBLICATION_KEY in current_publications:
+    if PLATFORM_V0_1_3_PUBLICATION_KEY not in previous_publications:
+        if PLATFORM_V0_1_3_PUBLICATION_KEY in current_publications:
             current_stable = _object(
-                current_publications[PLATFORM_V0_1_2_PUBLICATION_KEY],
-                "new platform 0.1.2 publication receipt",
+                current_publications[PLATFORM_V0_1_3_PUBLICATION_KEY],
+                "new platform 0.1.3 publication receipt",
             )
             if (
                 current_stable["status"]
-                != stable_contract.PLATFORM_V0_1_2_STATUS_PENDING
+                != stable_contract.PLATFORM_V0_1_3_STATUS_PENDING
             ):
                 raise PlatformPublicationContractError(
-                    "platform 0.1.2 publication must first be recorded as pending"
+                    "platform 0.1.3 publication must first be recorded as pending"
                 )
         return
-    if PLATFORM_V0_1_2_PUBLICATION_KEY not in current_publications:
+    if PLATFORM_V0_1_3_PUBLICATION_KEY not in current_publications:
         raise PlatformPublicationContractError(
-            "release publication 'platform_v0_1_2' cannot be removed"
+            "release publication 'platform_v0_1_3' cannot be removed"
         )
 
     previous_stable = _object(
-        previous_publications[PLATFORM_V0_1_2_PUBLICATION_KEY],
-        "previous platform 0.1.2 publication receipt",
+        previous_publications[PLATFORM_V0_1_3_PUBLICATION_KEY],
+        "previous platform 0.1.3 publication receipt",
     )
     current_stable = _object(
-        current_publications[PLATFORM_V0_1_2_PUBLICATION_KEY],
-        "current platform 0.1.2 publication receipt",
+        current_publications[PLATFORM_V0_1_3_PUBLICATION_KEY],
+        "current platform 0.1.3 publication receipt",
     )
     previous_status = previous_stable["status"]
     current_status = current_stable["status"]
 
-    if previous_status == stable_contract.PLATFORM_V0_1_2_STATUS_VERIFIED:
+    if previous_status == stable_contract.PLATFORM_V0_1_3_STATUS_VERIFIED:
         if not _json_deep_equal(previous_stable, current_stable):
             raise PlatformPublicationContractError(
-                "verified platform 0.1.2 publication receipt cannot change"
+                "verified platform 0.1.3 publication receipt cannot change"
             )
         return
 
-    if current_status == stable_contract.PLATFORM_V0_1_2_STATUS_PENDING:
+    if current_status == stable_contract.PLATFORM_V0_1_3_STATUS_PENDING:
         if not _json_deep_equal(previous_stable, current_stable):
             raise PlatformPublicationContractError(
-                "pending platform 0.1.2 publication receipt may only remain "
+                "pending platform 0.1.3 publication receipt may only remain "
                 "byte-semantically unchanged or advance to verified"
             )
         return
@@ -201,34 +201,34 @@ def validate_release_publication_transition(
     for field in ("boundary", "identity", "kind", "schema_version"):
         if not _json_deep_equal(previous_stable[field], current_stable[field]):
             raise PlatformPublicationContractError(
-                "platform 0.1.2 pending-to-verified transition changed "
+                "platform 0.1.3 pending-to-verified transition changed "
                 f"the recorded {field}"
             )
     previous_observation = _object(
         previous_stable["observation"],
-        "previous platform 0.1.2 observation",
+        "previous platform 0.1.3 observation",
     )
     current_observation = _object(
         current_stable["observation"],
-        "current platform 0.1.2 observation",
+        "current platform 0.1.3 observation",
     )
     for field in ("source", "candidate_attestation", "release_candidate"):
         if not _json_deep_equal(
             previous_observation[field], current_observation[field]
         ):
             raise PlatformPublicationContractError(
-                "platform 0.1.2 pending-to-verified transition changed "
+                "platform 0.1.3 pending-to-verified transition changed "
                 f"the recorded {field} facts"
             )
     previous_observed_at = stable_contract.parse_utc_timestamp(
         previous_observation["observed_at"],
-        "previous platform 0.1.2 observed_at",
+        "previous platform 0.1.3 observed_at",
     )
     current_observed_at = stable_contract.parse_utc_timestamp(
         current_observation["observed_at"],
-        "current platform 0.1.2 observed_at",
+        "current platform 0.1.3 observed_at",
     )
     if current_observed_at < previous_observed_at:
         raise PlatformPublicationContractError(
-            "platform 0.1.2 pending-to-verified observed_at moved backwards"
+            "platform 0.1.3 pending-to-verified observed_at moved backwards"
         )

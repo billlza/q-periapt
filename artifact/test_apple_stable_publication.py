@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct state, projection, and remote-receipt tests for Apple 0.1.2."""
+"""Direct state, projection, and remote-receipt tests for Apple 0.1.3."""
 
 from __future__ import annotations
 
@@ -134,9 +134,9 @@ class AppleStablePublicationTests(unittest.TestCase):
             "version": apple_distribution.PRODUCT_VERSION,
         }
         self.pending = {
-            "boundary": apple_contract.APPLE_V0_1_2_BOUNDARY,
+            "boundary": apple_contract.APPLE_V0_1_3_BOUNDARY,
             "distribution": copy.deepcopy(self.distribution),
-            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_2_IDENTITY),
+            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_3_IDENTITY),
             "kind": apple_contract.APPLE_PUBLICATION_KIND,
             "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
             "source": {
@@ -252,10 +252,10 @@ class AppleStablePublicationTests(unittest.TestCase):
             source_digest=SOURCE_DIGEST,
         )
         manifest["release_publications"][
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ] = copy.deepcopy(self.pending)
         platform = manifest["release_publications"][
-            platform_publication_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
         ]
         platform_source = platform["observation"]["source"]
         platform_source.update(
@@ -636,7 +636,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -1319,12 +1319,12 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: self.pending
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: self.pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: verified
                 }
             },
         )

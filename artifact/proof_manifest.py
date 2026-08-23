@@ -180,11 +180,11 @@ ANDROID_RELEASE_PAGE_SIZE = 16_384
 ANDROID_RELEASE_SDK = 35
 ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
 ANDROID_AAR_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.2/"
-    "q-periapt-android-0.1.2.aar"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.3/"
+    "q-periapt-android-0.1.3.aar"
 )
 ANDROID_AAR_MANIFEST_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.2/MANIFEST.json"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.3/MANIFEST.json"
 )
 LOCAL_RELEASE_INDEX_SCHEMA_VERSION = 5
 LOCAL_RELEASE_CONSUMER_RECEIPT_SCHEMA_VERSION = 1
@@ -739,7 +739,7 @@ def _validate_current_local_release_index(
             f"{LOCAL_RELEASE_INDEX_SCHEMA_VERSION}"
         )
     expected_index_path = (
-        "target/qperiapt-local-release/release/0.1.2/"
+        "target/qperiapt-local-release/release/0.1.3/"
         f"{source_commit}/index.json"
     )
     if section.get("index_path") != expected_index_path:

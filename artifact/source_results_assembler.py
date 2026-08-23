@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the initial source-bound 0.1.2 stable results-only successor.
+"""Assemble the initial source-bound 0.1.3 stable results-only successor.
 
 This module consumes fixed local producer outputs plus short run selectors.  It
 never edits ``artifact/results.json``.  A successful finalize operation emits a
@@ -1173,12 +1173,12 @@ def _aar_projection(
         aar = read_regular_snapshot(
             ANDROID_AAR_FILE,
             maximum=android_elf.MAX_ARCHIVE_BYTES,
-            label="Android 0.1.2 stable AAR",
+            label="Android 0.1.3 stable AAR",
         )
         manifest_snapshot = load_json_object_snapshot(
             ANDROID_AAR_MANIFEST_FILE,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.2 stable AAR manifest",
+            label="Android 0.1.3 stable AAR manifest",
         )
         ndk = _android_ndk()
         properties_path = ndk / "source.properties"
@@ -1324,12 +1324,12 @@ def _aar_projection(
         _pin(
             aar,
             maximum=android_elf.MAX_ARCHIVE_BYTES,
-            label="Android 0.1.2 stable AAR",
+            label="Android 0.1.3 stable AAR",
         ),
         _pin(
             manifest_snapshot.file,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.2 stable AAR manifest",
+            label="Android 0.1.3 stable AAR manifest",
         ),
         _pin(
             properties_file,
@@ -1554,7 +1554,7 @@ def _index_path(source: SourceIdentity) -> pathlib.Path:
         / "target"
         / "qperiapt-local-release"
         / "release"
-        / "0.1.2"
+        / "0.1.3"
         / source.commit
         / "index.json"
     )
@@ -1978,7 +1978,7 @@ def _validate_assembled_results(
         load_json_object_snapshot(
             ANDROID_AAR_MANIFEST_FILE,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.2 stable AAR manifest projection",
+            label="Android 0.1.3 stable AAR manifest projection",
         ).value,
     )
     _domain_call(

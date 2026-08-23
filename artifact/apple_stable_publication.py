@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble and promote the exact Apple 0.1.2 stable publication receipt.
+"""Assemble and promote the exact Apple 0.1.3 stable publication receipt.
 
 The pending producer consumes only the completed credentialed-build ledger and
 the fixed public distribution copy.  Promotion consumes the pending results
@@ -66,12 +66,12 @@ APPLE_COMPLETION_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-apple-release-worktrees"
 )
 APPLE_PUBLIC_ROOT = REPOSITORY_ROOT / "target" / "qperiapt-swift-xcframework"
-APPLE_PUBLIC_DISTRIBUTION_NAME = "q-periapt-swift-0.1.2"
+APPLE_PUBLIC_DISTRIBUTION_NAME = "q-periapt-swift-0.1.3"
 APPLE_PUBLIC_DISTRIBUTION = APPLE_PUBLIC_ROOT / APPLE_PUBLIC_DISTRIBUTION_NAME
 APPLE_PUBLICATION_RECEIPT_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-apple-publication-receipts"
 )
-APPLE_PUBLICATION_RECEIPT_NAME = "apple-v0.1.2-publication-receipt.json"
+APPLE_PUBLICATION_RECEIPT_NAME = "apple-v0.1.3-publication-receipt.json"
 APPLE_RELEASE_PROJECTION_ROOT = (
     REPOSITORY_ROOT
     / "target"
@@ -103,7 +103,7 @@ COMPLETION_LEDGER_SCHEMA_VERSION = 2
 REMOTE_CONSUMER_RECEIPT_KIND = "qperiapt.apple_remote_consumer_receipt"
 REMOTE_CONSUMER_RECEIPT_SCHEMA_VERSION = 1
 REMOTE_CONSUMER_BOUNDARY = (
-    "Atomic evidence commit for one fresh Apple 0.1.2 stable URL binary consumer "
+    "Atomic evidence commit for one fresh Apple 0.1.3 stable URL binary consumer "
     "run: four exact downloaded assets, deep distribution and code-signature "
     "verification, three passing Swift tests without warning/error diagnostics, "
     "the pinned pending results bytes, artifact source commit, and clean verifier "
@@ -137,7 +137,7 @@ Clock = Callable[[], dt.datetime]
 
 
 class AppleStablePublicationError(ValueError):
-    """Apple 0.1.2 stable receipt evidence or state transition is invalid."""
+    """Apple 0.1.3 stable receipt evidence or state transition is invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,7 +304,7 @@ def _validate_clean_annotated_tag(
 ) -> dict[str, str]:
     """Bind source parent S to clean results-only tagged commit R."""
 
-    tag = apple_contract.APPLE_V0_1_2_IDENTITY["release_tag"]
+    tag = apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
     try:
         inspection = inspect_worktree(REPOSITORY_ROOT)
         tag_type = run_git_text(
@@ -334,7 +334,7 @@ def _validate_clean_annotated_tag(
         )
     except (GitProvenanceError, LedgerError, ValueError) as exc:
         raise AppleStablePublicationError(
-            "cannot establish the Apple 0.1.2 stable source/tag boundary"
+            "cannot establish the Apple 0.1.3 stable source/tag boundary"
         ) from exc
     _require(not inspection.dirty, "Apple pending receipt requires a clean worktree")
     _require(
@@ -347,7 +347,7 @@ def _validate_clean_annotated_tag(
         and HEX_40.fullmatch(tag_object) is not None
         and HEX_40.fullmatch(tag_tree) is not None
         and tag_object != tag_commit,
-        "Apple 0.1.2 stable release tag must be one annotated tag object",
+        "Apple 0.1.3 stable release tag must be one annotated tag object",
     )
     _require(
         source_parent_commit != tag_commit,
@@ -584,7 +584,7 @@ def load_pending_publication_assets(
     try:
         manifest = {
             "release_publications": {
-                apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: pending_receipt
+                apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: pending_receipt
             }
         }
         apple_contract.validate_apple_publications(manifest)
@@ -638,9 +638,9 @@ def build_pending_receipt(
     )
     distribution = _load_public_distribution(hashes, source_parent_commit)
     receipt: dict[str, object] = {
-        "boundary": apple_contract.APPLE_V0_1_2_BOUNDARY,
+        "boundary": apple_contract.APPLE_V0_1_3_BOUNDARY,
         "distribution": distribution,
-        "identity": copy.deepcopy(apple_contract.APPLE_V0_1_2_IDENTITY),
+        "identity": copy.deepcopy(apple_contract.APPLE_V0_1_3_IDENTITY),
         "kind": apple_contract.APPLE_PUBLICATION_KIND,
         "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
         "source": source,
@@ -650,7 +650,7 @@ def build_pending_receipt(
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -758,7 +758,7 @@ def _validate_remote_receipt(value: object) -> dict[str, Any]:
     )
     _require(
         receipt["release_identity"]
-        == apple_contract.APPLE_V0_1_2_IDENTITY,
+        == apple_contract.APPLE_V0_1_3_IDENTITY,
         "Apple remote consumer release identity differs",
     )
     _sha1(receipt["source_commit"], "Apple remote artifact source commit")
@@ -835,12 +835,12 @@ def _pending_leaf_from_results(
         "current release_publications",
     )
     pending = _object(
-        publications.get(apple_contract.APPLE_V0_1_2_PUBLICATION_KEY),
-        "current Apple 0.1.2 stable publication receipt",
+        publications.get(apple_contract.APPLE_V0_1_3_PUBLICATION_KEY),
+        "current Apple 0.1.3 stable publication receipt",
     )
     _require(
         pending.get("status") == apple_contract.APPLE_STATUS_PENDING,
-        "Apple promotion requires a current pending 0.1.2 stable receipt",
+        "Apple promotion requires a current pending 0.1.3 stable receipt",
     )
     return pending
 
@@ -914,7 +914,7 @@ def promote_receipt(
     manifest, results_sha256 = _read_results_snapshot(expected_results_sha256)
     pending = _pending_leaf_from_results(manifest)
     distribution = _object(
-        pending["distribution"], "pending Apple 0.1.2 stable distribution"
+        pending["distribution"], "pending Apple 0.1.3 stable distribution"
     )
     projection = _load_release_projection(release_projection_path)
     remote = _load_remote_receipt(remote_receipt_path)
@@ -997,7 +997,7 @@ def promote_receipt(
     verified = copy.deepcopy(pending)
     verified["status"] = apple_contract.APPLE_STATUS_VERIFIED
     verified_distribution = _object(
-        verified["distribution"], "verified Apple 0.1.2 stable distribution"
+        verified["distribution"], "verified Apple 0.1.3 stable distribution"
     )
     verified_distribution["public_release"] = True
     verified_distribution["immutable_release"] = True
@@ -1012,19 +1012,19 @@ def promote_receipt(
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: verified
                 }
             }
         )
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: pending
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_2_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: verified
                 }
             },
         )
@@ -1571,7 +1571,7 @@ def _emit_remote_consumer_receipt_pinned(
         "kind": REMOTE_CONSUMER_RECEIPT_KIND,
         "log_sha256": log.sha256,
         "release_identity": copy.deepcopy(
-            apple_contract.APPLE_V0_1_2_IDENTITY
+            apple_contract.APPLE_V0_1_3_IDENTITY
         ),
         "results_sha256": startup_results_sha256,
         "schema_version": REMOTE_CONSUMER_RECEIPT_SCHEMA_VERSION,
@@ -1608,7 +1608,7 @@ def _publish_receipt(receipt: object) -> tuple[pathlib.Path, str]:
         transaction_prefix="transaction.",
         expected_leaf=APPLE_PUBLICATION_RECEIPT_NAME,
         value=receipt,
-        label="Apple 0.1.2 stable publication receipt",
+        label="Apple 0.1.3 stable publication receipt",
         maximum=MAX_REMOTE_RECEIPT_BYTES,
     )
 
@@ -1621,7 +1621,7 @@ def _success_marker(path: pathlib.Path, digest: str, status: str) -> str:
             "Apple receipt output escaped the repository"
         ) from exc
     return (
-        "APPLE_V0_1_2_PUBLICATION_RECEIPT_PASS "
+        "APPLE_V0_1_3_PUBLICATION_RECEIPT_PASS "
         f"status={status} path={relative} sha256={digest}"
     )
 
